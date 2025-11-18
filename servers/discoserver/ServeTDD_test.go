@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/hiveot/gocore/discovery"
+	"github.com/hiveot/gocore/clients/discovery"
 	"github.com/hiveot/gocore/servers/discoserver"
 	"github.com/hiveot/gocore/utils/net"
 

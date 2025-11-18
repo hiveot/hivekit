@@ -11,10 +11,10 @@ import (
 
 	"github.com/hiveot/gocore/certs"
 	"github.com/hiveot/gocore/clients/authclient"
+	"github.com/hiveot/gocore/clients/discovery"
 	"github.com/hiveot/gocore/clients/hiveotsseclient"
 	"github.com/hiveot/gocore/clients/httpclient"
 	"github.com/hiveot/gocore/clients/wssclient"
-	"github.com/hiveot/gocore/discovery"
 	"github.com/hiveot/gocore/messaging"
 	"github.com/hiveot/gocore/servers/discoserver"
 	"github.com/hiveot/gocore/servers/hiveotsseserver"

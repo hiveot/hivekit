@@ -81,6 +81,3 @@ const (
 	WoTTitles               = "titles"
 	WoTVersion              = "version"
 )
-
-// Hiveot vocabulary constants
-const ()
