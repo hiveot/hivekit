@@ -3,9 +3,9 @@ package certs_test
 import (
 	"testing"
 
-	"github.com/hiveot/gocore/keys"
+	"github.com/hiveot/hivekitgo/keys"
 
-	"github.com/hiveot/gocore/certs"
+	"github.com/hiveot/hivekitgo/certs"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

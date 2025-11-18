@@ -5,10 +5,11 @@ import (
 	"crypto/rand"
 	"crypto/x509"
 	"crypto/x509/pkix"
-	"github.com/hiveot/gocore/keys"
 	"log/slog"
 	"math/big"
 	"time"
+
+	"github.com/hiveot/hivekitgo/keys"
 )
 
 const CertOrgName = "HiveOT"

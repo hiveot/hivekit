@@ -9,9 +9,10 @@ import (
 	"crypto/x509"
 	"encoding/pem"
 	"errors"
-	"github.com/hiveot/gocore/keys"
 	"log/slog"
 	"os"
+
+	"github.com/hiveot/hivekitgo/keys"
 )
 
 const DefaultCaCertFile = "caCert.pem"

@@ -8,7 +8,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/hiveot/gocore/wot"
+	"github.com/hiveot/hivekitgo/wot"
 	"github.com/teris-io/shortid"
 )
 

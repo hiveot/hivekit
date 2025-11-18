@@ -17,8 +17,8 @@ import (
 
 	"github.com/eclipse/paho.golang/autopaho"
 	"github.com/eclipse/paho.golang/paho"
-	"github.com/hiveot/gocore/messaging"
-	"github.com/hiveot/gocore/wot/td"
+	"github.com/hiveot/hivekitgo/messaging"
+	"github.com/hiveot/hivekitgo/wot/td"
 	jsoniter "github.com/json-iterator/go"
 	"github.com/teris-io/shortid"
 )

@@ -6,10 +6,10 @@ import (
 	"fmt"
 	"log/slog"
 
-	"github.com/hiveot/gocore/messaging"
-	"github.com/hiveot/gocore/servers/connections"
-	"github.com/hiveot/gocore/wot"
-	"github.com/hiveot/gocore/wot/td"
+	"github.com/hiveot/hivekitgo/messaging"
+	"github.com/hiveot/hivekitgo/servers/connections"
+	"github.com/hiveot/hivekitgo/wot"
+	"github.com/hiveot/hivekitgo/wot/td"
 )
 
 type MqttTransportServer struct {

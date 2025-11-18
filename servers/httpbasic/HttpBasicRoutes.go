@@ -5,9 +5,9 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
-	"github.com/hiveot/gocore/messaging"
-	_ "github.com/hiveot/gocore/messaging"
-	"github.com/hiveot/gocore/utils/tlsserver"
+	"github.com/hiveot/hivekitgo/messaging"
+	_ "github.com/hiveot/hivekitgo/messaging"
+	"github.com/hiveot/hivekitgo/utils/tlsserver"
 	jsoniter "github.com/json-iterator/go"
 
 	"io"

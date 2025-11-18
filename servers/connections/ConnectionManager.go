@@ -6,7 +6,7 @@ import (
 	"slices"
 	"sync"
 
-	"github.com/hiveot/gocore/messaging"
+	"github.com/hiveot/hivekitgo/messaging"
 )
 
 // ConnectionManager tracks existing connections through their connection IDs.

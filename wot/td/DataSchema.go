@@ -3,7 +3,7 @@
 package td
 
 import (
-	"github.com/hiveot/gocore/wot"
+	"github.com/hiveot/hivekitgo/wot"
 )
 
 // NoSchema is a read-only schema to use when schema is unknown.

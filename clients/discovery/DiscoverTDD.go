@@ -2,10 +2,11 @@ package discovery
 
 import (
 	"fmt"
-	"github.com/hiveot/gocore/servers/discoserver"
 	"log/slog"
 	"strings"
 	"time"
+
+	"github.com/hiveot/hivekitgo/servers/discoserver"
 )
 
 const HIVEOT_TDD_DNSSD_TYPE = "_hiveot._wot._tcp"

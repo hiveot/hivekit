@@ -2,7 +2,7 @@
 package messaging
 
 import (
-	"github.com/hiveot/gocore/utils"
+	"github.com/hiveot/hivekitgo/utils"
 	"github.com/teris-io/shortid"
 )
 

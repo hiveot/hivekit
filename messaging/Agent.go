@@ -6,9 +6,9 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/hiveot/gocore/utils"
-	"github.com/hiveot/gocore/wot"
-	"github.com/hiveot/gocore/wot/td"
+	"github.com/hiveot/hivekitgo/utils"
+	"github.com/hiveot/hivekitgo/wot"
+	"github.com/hiveot/hivekitgo/wot/td"
 	jsoniter "github.com/json-iterator/go"
 )
 

@@ -1,4 +1,4 @@
-module github.com/hiveot/gocore
+module github.com/hiveot/hivekitgo
 
 go 1.24.0
 

@@ -3,10 +3,10 @@ package servers
 import (
 	"os"
 
-	"github.com/hiveot/gocore/servers/discoserver"
-	"github.com/hiveot/gocore/servers/hiveotsseserver"
-	"github.com/hiveot/gocore/servers/httpbasic"
-	"github.com/hiveot/gocore/servers/wssserver"
+	"github.com/hiveot/hivekitgo/servers/discoserver"
+	"github.com/hiveot/hivekitgo/servers/hiveotsseserver"
+	"github.com/hiveot/hivekitgo/servers/httpbasic"
+	"github.com/hiveot/hivekitgo/servers/wssserver"
 )
 
 const (

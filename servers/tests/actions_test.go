@@ -9,9 +9,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/hiveot/gocore/messaging"
-	"github.com/hiveot/gocore/utils"
-	"github.com/hiveot/gocore/wot"
+	"github.com/hiveot/hivekitgo/messaging"
+	"github.com/hiveot/hivekitgo/utils"
+	"github.com/hiveot/hivekitgo/wot"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/teris-io/shortid"

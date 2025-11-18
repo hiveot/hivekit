@@ -6,7 +6,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/hiveot/gocore/certs"
+	"github.com/hiveot/hivekitgo/certs"
 )
 
 // ! These tests use the TestMain of main_test.go !

@@ -5,8 +5,8 @@ import (
 	"log/slog"
 	"net/http"
 
-	"github.com/hiveot/gocore/messaging"
-	"github.com/hiveot/gocore/utils/tlsserver"
+	"github.com/hiveot/hivekitgo/messaging"
+	"github.com/hiveot/hivekitgo/utils/tlsserver"
 )
 
 // AddSessionFromToken middleware decodes the bearer session token in the authorization header.

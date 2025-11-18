@@ -5,8 +5,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/hiveot/gocore/wot"
-	"github.com/hiveot/gocore/wot/td"
+	"github.com/hiveot/hivekitgo/wot"
+	"github.com/hiveot/hivekitgo/wot/td"
 	"github.com/stretchr/testify/require"
 
 	"github.com/stretchr/testify/assert"

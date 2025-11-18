@@ -6,7 +6,7 @@ import (
 	"net/url"
 
 	"github.com/grandcat/zeroconf"
-	"github.com/hiveot/gocore/servers/httpbasic"
+	"github.com/hiveot/hivekitgo/servers/httpbasic"
 )
 
 // DiscoveryServer supports the WoT discovery introduction and exploration

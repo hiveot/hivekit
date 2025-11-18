@@ -10,7 +10,7 @@ import (
 	"strconv"
 	"strings"
 
-	net2 "github.com/hiveot/gocore/utils/net"
+	net2 "github.com/hiveot/hivekitgo/utils/net"
 
 	"github.com/grandcat/zeroconf"
 )

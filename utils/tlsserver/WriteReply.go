@@ -5,7 +5,7 @@ import (
 	"log/slog"
 	"net/http"
 
-	"github.com/hiveot/gocore/messaging"
+	"github.com/hiveot/hivekitgo/messaging"
 	jsoniter "github.com/json-iterator/go"
 )
 

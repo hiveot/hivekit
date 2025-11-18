@@ -7,8 +7,8 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/hiveot/gocore/utils"
-	"github.com/hiveot/gocore/wot"
+	"github.com/hiveot/hivekitgo/utils"
+	"github.com/hiveot/hivekitgo/wot"
 	jsoniter "github.com/json-iterator/go"
 )
 

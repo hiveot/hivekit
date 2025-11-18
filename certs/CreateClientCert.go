@@ -7,7 +7,7 @@ import (
 	"math/big"
 	"time"
 
-	"github.com/hiveot/gocore/keys"
+	"github.com/hiveot/hivekitgo/keys"
 )
 
 // DefaultClientCertValidityDays with validity of generated service certificates

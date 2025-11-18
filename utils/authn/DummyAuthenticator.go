@@ -6,7 +6,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/hiveot/gocore/wot/td"
+	"github.com/hiveot/hivekitgo/wot/td"
 	"github.com/teris-io/shortid"
 )
 

@@ -5,7 +5,7 @@ import (
 	"os"
 	"testing"
 
-	"github.com/hiveot/gocore/logging"
+	"github.com/hiveot/hivekitgo/logging"
 )
 
 func TestLogging(t *testing.T) {

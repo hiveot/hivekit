@@ -3,8 +3,8 @@ package td_test
 import (
 	"testing"
 
-	"github.com/hiveot/gocore/wot"
-	"github.com/hiveot/gocore/wot/td"
+	"github.com/hiveot/hivekitgo/wot"
+	"github.com/hiveot/hivekitgo/wot/td"
 	jsoniter "github.com/json-iterator/go"
 
 	"github.com/stretchr/testify/assert"

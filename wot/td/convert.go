@@ -7,7 +7,7 @@ import (
 	"strings"
 
 	"github.com/araddon/dateparse"
-	"github.com/hiveot/gocore/wot"
+	"github.com/hiveot/hivekitgo/wot"
 	jsoniter "github.com/json-iterator/go"
 )
 

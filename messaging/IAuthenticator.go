@@ -3,7 +3,7 @@ package messaging
 import (
 	"time"
 
-	"github.com/hiveot/gocore/wot/td"
+	"github.com/hiveot/hivekitgo/wot/td"
 )
 
 // IAuthenticator is the interface of the authentication capability to obtain and

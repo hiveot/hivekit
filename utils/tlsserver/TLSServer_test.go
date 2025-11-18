@@ -8,10 +8,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/hiveot/gocore/certs"
-	"github.com/hiveot/gocore/logging"
-	"github.com/hiveot/gocore/utils/tlsclient"
-	"github.com/hiveot/gocore/utils/tlsserver"
+	"github.com/hiveot/hivekitgo/certs"
+	"github.com/hiveot/hivekitgo/logging"
+	"github.com/hiveot/hivekitgo/utils/tlsclient"
+	"github.com/hiveot/hivekitgo/utils/tlsserver"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"

@@ -6,8 +6,8 @@ import (
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
-	"github.com/hiveot/gocore/messaging"
-	"github.com/hiveot/gocore/wot/td"
+	"github.com/hiveot/hivekitgo/messaging"
+	"github.com/hiveot/hivekitgo/wot/td"
 )
 
 // HTTP-basic profile constants

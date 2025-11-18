@@ -6,10 +6,10 @@ import (
 	"sync"
 
 	"github.com/go-chi/chi/v5"
-	"github.com/hiveot/gocore/messaging"
-	"github.com/hiveot/gocore/messaging/converters"
-	"github.com/hiveot/gocore/servers/connections"
-	"github.com/hiveot/gocore/wot/td"
+	"github.com/hiveot/hivekitgo/messaging"
+	"github.com/hiveot/hivekitgo/messaging/converters"
+	"github.com/hiveot/hivekitgo/servers/connections"
+	"github.com/hiveot/hivekitgo/wot/td"
 )
 
 const (

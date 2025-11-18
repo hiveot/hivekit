@@ -3,7 +3,7 @@ package tests
 import (
 	"testing"
 
-	"github.com/hiveot/gocore/wot/td"
+	"github.com/hiveot/hivekitgo/wot/td"
 )
 
 // test TD messages and forms

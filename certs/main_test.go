@@ -5,7 +5,7 @@ import (
 	"path"
 	"testing"
 
-	"github.com/hiveot/gocore/logging"
+	"github.com/hiveot/hivekitgo/logging"
 )
 
 var TestCertFolder string

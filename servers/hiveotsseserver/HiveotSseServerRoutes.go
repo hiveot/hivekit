@@ -6,10 +6,10 @@ import (
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
-	"github.com/hiveot/gocore/messaging"
-	"github.com/hiveot/gocore/servers/httpbasic"
-	"github.com/hiveot/gocore/utils/tlsserver"
-	"github.com/hiveot/gocore/wot"
+	"github.com/hiveot/hivekitgo/messaging"
+	"github.com/hiveot/hivekitgo/servers/httpbasic"
+	"github.com/hiveot/hivekitgo/utils/tlsserver"
+	"github.com/hiveot/hivekitgo/wot"
 )
 
 // routes for handling http server requests

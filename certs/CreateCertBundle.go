@@ -5,7 +5,7 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 
-	"github.com/hiveot/gocore/keys"
+	"github.com/hiveot/hivekitgo/keys"
 )
 
 const ServerAddress = "127.0.0.1"

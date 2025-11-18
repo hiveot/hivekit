@@ -11,10 +11,10 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/hiveot/gocore/clients/httpclient"
-	"github.com/hiveot/gocore/messaging"
-	"github.com/hiveot/gocore/messaging/converters"
-	"github.com/hiveot/gocore/servers/hiveotsseserver"
+	"github.com/hiveot/hivekitgo/clients/httpclient"
+	"github.com/hiveot/hivekitgo/messaging"
+	"github.com/hiveot/hivekitgo/messaging/converters"
+	"github.com/hiveot/hivekitgo/servers/hiveotsseserver"
 	jsoniter "github.com/json-iterator/go"
 )
 

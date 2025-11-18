@@ -13,11 +13,11 @@ import (
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
-	"github.com/hiveot/gocore/certs"
-	"github.com/hiveot/gocore/logging"
-	"github.com/hiveot/gocore/servers/httpbasic"
-	"github.com/hiveot/gocore/utils/authn"
-	"github.com/hiveot/gocore/utils/tlsclient"
+	"github.com/hiveot/hivekitgo/certs"
+	"github.com/hiveot/hivekitgo/logging"
+	"github.com/hiveot/hivekitgo/servers/httpbasic"
+	"github.com/hiveot/hivekitgo/utils/authn"
+	"github.com/hiveot/hivekitgo/utils/tlsclient"
 	"github.com/stretchr/testify/require"
 
 	"github.com/stretchr/testify/assert"

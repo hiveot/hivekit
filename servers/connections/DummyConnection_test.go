@@ -3,8 +3,8 @@ package connections_test
 import (
 	"fmt"
 
-	"github.com/hiveot/gocore/messaging"
-	"github.com/hiveot/gocore/servers/connections"
+	"github.com/hiveot/hivekitgo/messaging"
+	"github.com/hiveot/hivekitgo/servers/connections"
 )
 
 // Dummy connection for testing connection manager

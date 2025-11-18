@@ -4,8 +4,8 @@ package messaging
 import (
 	"time"
 
-	"github.com/hiveot/gocore/utils"
-	"github.com/hiveot/gocore/wot"
+	"github.com/hiveot/hivekitgo/utils"
+	"github.com/hiveot/hivekitgo/wot"
 	"github.com/teris-io/shortid"
 )
 

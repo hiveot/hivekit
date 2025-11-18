@@ -3,12 +3,13 @@ package discovery
 import (
 	"crypto/x509"
 	"fmt"
-	"github.com/hiveot/gocore/utils/tlsclient"
-	"github.com/hiveot/gocore/wot/td"
-	jsoniter "github.com/json-iterator/go"
 	"net/url"
 	"sync"
 	"time"
+
+	"github.com/hiveot/hivekitgo/utils/tlsclient"
+	"github.com/hiveot/hivekitgo/wot/td"
+	jsoniter "github.com/json-iterator/go"
 )
 
 // The DirectoryClient holds discovered TDs from a directory service.

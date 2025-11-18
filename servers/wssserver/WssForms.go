@@ -1,8 +1,8 @@
 package wssserver
 
 import (
-	"github.com/hiveot/gocore/wot"
-	"github.com/hiveot/gocore/wot/td"
+	"github.com/hiveot/hivekitgo/wot"
+	"github.com/hiveot/hivekitgo/wot/td"
 )
 
 // AddTDForms adds forms for use of this protocol to the given TD.

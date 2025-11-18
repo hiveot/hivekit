@@ -3,7 +3,7 @@ package mqttclient
 import (
 	"fmt"
 	"github.com/eclipse/paho.golang/paho"
-	"github.com/hiveot/gocore/messaging"
+	"github.com/hiveot/hivekitgo/messaging"
 	jsoniter "github.com/json-iterator/go"
 	"log/slog"
 	"strings"

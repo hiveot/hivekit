@@ -9,16 +9,16 @@ import (
 	"strings"
 	"time"
 
-	"github.com/hiveot/gocore/certs"
-	"github.com/hiveot/gocore/clients/authclient"
-	"github.com/hiveot/gocore/clients/discovery"
-	"github.com/hiveot/gocore/clients/hiveotsseclient"
-	"github.com/hiveot/gocore/clients/httpclient"
-	"github.com/hiveot/gocore/clients/wssclient"
-	"github.com/hiveot/gocore/messaging"
-	"github.com/hiveot/gocore/servers/discoserver"
-	"github.com/hiveot/gocore/servers/hiveotsseserver"
-	"github.com/hiveot/gocore/servers/wssserver"
+	"github.com/hiveot/hivekitgo/certs"
+	"github.com/hiveot/hivekitgo/clients/authclient"
+	"github.com/hiveot/hivekitgo/clients/discovery"
+	"github.com/hiveot/hivekitgo/clients/hiveotsseclient"
+	"github.com/hiveot/hivekitgo/clients/httpclient"
+	"github.com/hiveot/hivekitgo/clients/wssclient"
+	"github.com/hiveot/hivekitgo/messaging"
+	"github.com/hiveot/hivekitgo/servers/discoserver"
+	"github.com/hiveot/hivekitgo/servers/hiveotsseserver"
+	"github.com/hiveot/hivekitgo/servers/wssserver"
 )
 
 // TokenFileExt defines the filename extension under which client tokens are stored

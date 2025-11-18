@@ -5,9 +5,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/hiveot/gocore/clients/discovery"
-	"github.com/hiveot/gocore/servers/discoserver"
-	"github.com/hiveot/gocore/utils/net"
+	"github.com/hiveot/hivekitgo/clients/discovery"
+	"github.com/hiveot/hivekitgo/servers/discoserver"
+	"github.com/hiveot/hivekitgo/utils/net"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"

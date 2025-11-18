@@ -13,9 +13,9 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
-	"github.com/hiveot/gocore/messaging"
-	"github.com/hiveot/gocore/messaging/converters"
-	"github.com/hiveot/gocore/servers"
+	"github.com/hiveot/hivekitgo/messaging"
+	"github.com/hiveot/hivekitgo/messaging/converters"
+	"github.com/hiveot/hivekitgo/servers"
 	"github.com/teris-io/shortid"
 )
 

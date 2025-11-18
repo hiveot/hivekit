@@ -12,8 +12,8 @@ import (
 	"sync/atomic"
 
 	"github.com/gorilla/websocket"
-	"github.com/hiveot/gocore/messaging"
-	"github.com/hiveot/gocore/servers/httpbasic"
+	"github.com/hiveot/hivekitgo/messaging"
+	"github.com/hiveot/hivekitgo/servers/httpbasic"
 )
 
 // ConnectWSS establishes a websocket session with the server

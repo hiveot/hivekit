@@ -9,14 +9,14 @@ import (
 	"net/url"
 
 	"github.com/go-chi/chi/v5"
-	"github.com/hiveot/gocore/messaging"
-	"github.com/hiveot/gocore/servers/discoserver"
-	"github.com/hiveot/gocore/servers/hiveotsseserver"
-	"github.com/hiveot/gocore/servers/httpbasic"
-	"github.com/hiveot/gocore/servers/wssserver"
-	"github.com/hiveot/gocore/utils/net"
-	"github.com/hiveot/gocore/utils/tlsserver"
-	"github.com/hiveot/gocore/wot/td"
+	"github.com/hiveot/hivekitgo/messaging"
+	"github.com/hiveot/hivekitgo/servers/discoserver"
+	"github.com/hiveot/hivekitgo/servers/hiveotsseserver"
+	"github.com/hiveot/hivekitgo/servers/httpbasic"
+	"github.com/hiveot/hivekitgo/servers/wssserver"
+	"github.com/hiveot/hivekitgo/utils/net"
+	"github.com/hiveot/hivekitgo/utils/tlsserver"
+	"github.com/hiveot/hivekitgo/wot/td"
 )
 
 // TransportManager aggregates multiple transport protocol servers and manages

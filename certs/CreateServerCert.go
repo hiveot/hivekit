@@ -10,7 +10,7 @@ import (
 	"net"
 	"time"
 
-	"github.com/hiveot/gocore/keys"
+	"github.com/hiveot/hivekitgo/keys"
 )
 
 // DefaultServerCertValidityDays with validity of generated service certificates

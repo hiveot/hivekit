@@ -5,8 +5,8 @@ import (
 	"path"
 	"testing"
 
-	"github.com/hiveot/gocore/keys"
-	"github.com/hiveot/gocore/logging"
+	"github.com/hiveot/hivekitgo/keys"
+	"github.com/hiveot/hivekitgo/logging"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"

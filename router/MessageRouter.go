@@ -3,7 +3,7 @@ package router
 import (
 	"errors"
 
-	"github.com/hiveot/gocore/messaging"
+	"github.com/hiveot/hivekitgo/messaging"
 )
 
 // MessageRouter diverts requests to the appropriate agent and returns responses to the sender.

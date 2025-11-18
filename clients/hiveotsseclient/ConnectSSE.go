@@ -11,9 +11,9 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/hiveot/gocore/messaging"
-	"github.com/hiveot/gocore/servers/hiveotsseserver"
-	"github.com/hiveot/gocore/servers/httpbasic"
+	"github.com/hiveot/hivekitgo/messaging"
+	"github.com/hiveot/hivekitgo/servers/hiveotsseserver"
+	"github.com/hiveot/hivekitgo/servers/httpbasic"
 	sse "github.com/tmaxmax/go-sse"
 )
 

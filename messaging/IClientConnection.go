@@ -2,7 +2,7 @@
 package messaging
 
 import (
-	"github.com/hiveot/gocore/wot/td"
+	"github.com/hiveot/hivekitgo/wot/td"
 )
 
 // GetFormHandler is the handler that provides the client with the form needed to invoke an operation
