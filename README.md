@@ -1,12 +1,14 @@
-# HiveKitGo - HiveOT Kit In Go
+# HiveKit - HiveOT Development Kit
 
-HiveKitGo provides building blocks for building W3C Web of Thing compatible applications using the golang language.
+HiveKit provides building blocks for building W3C Web of Thing compatible applications using the golang language.
 
-HiveKitGo provides components for serving device WoT interfaces, routing of action, event and property messages, logging of messages, a factory for constructing and reading TDs and certificate and authentication key creation and validation.
+HiveKit provides components for serving device WoT interfaces, routing of action, event and property messages, logging of messages, a factory for constructing and reading TDs and certificate and authentication key creation and validation.
 
-HiveKitGo is used in HiveFlow, the IoT Concentrator; for building agents that provide a WoT interface to 3rd party IoT protocols; and in the HiveHub to provide a digital of IoT devices and WoT enabled services.
+HiveKit is used in HiveFlow, the IoT Concentrator; for building agents that provide a WoT interface to 3rd party IoT protocols; and in the hub to provide a digital of IoT devices and WoT enabled services.
 
-HiveKitGo components were originally part of the HiveOT Hub and have been extracted to encourage use in different applications.
+HiveKit components were originally part of the HiveOT Hub and have been extracted to encourage use in different applications.
+
+[Overview](docs/hivekit.png)
 
 ## Project Status
 
@@ -30,4 +32,4 @@ HiveOT is based on the [W3C WoT TD 1.1 specification](https://www.w3.org/TR/wot-
 
 Integration with 3rd party IoT protocols is supported through the use of IoT plugins. These plugins translate between the WoT protocol and 3rd party IoT protocols, interacting using properties, events and actions.
 
-HiveHub uses HiveFlow as its runtime and adds a digital twin model, service launcher, history, dashboard, and other features such as bridging in a single package.
+hub uses HiveFlow as its runtime and adds a digital twin model, service launcher, history, dashboard, and other features such as bridging in a single package.
