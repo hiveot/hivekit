@@ -1,4 +1,4 @@
-// Package testenv with managing certificates for testing
+// Package certs with managing certificates for testing
 package certs
 
 import (

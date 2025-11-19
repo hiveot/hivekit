@@ -5,7 +5,7 @@ import (
 	"os"
 
 	"github.com/hiveot/hivekit/go/agent"
-	"github.com/hiveot/hivekit/go/client"
+	"github.com/hiveot/hivekit/go/clients"
 )
 
 type PluginConfig struct {
@@ -41,7 +41,7 @@ type IPlugin interface {
 //	serverURL is the URL of the hub server to connect to, if provided
 func StartPlugin(plugin IPlugin, clientID string, certsDir string, serverURL string) {
 
-	cc, token, _, err := client.ConnectWithTokenFile(clientID, certsDir, serverURL, 0)
+	cc, token, _, err := clients.ConnectWithTokenFile(clientID, certsDir, serverURL, 0)
 	_ = token
 
 	if err != nil {
