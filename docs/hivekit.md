@@ -14,29 +14,24 @@ It is reworked into reusable modules for easy construction of IoT applications b
 
 A pipeline consists of a chain of modules, called a recipe, that each operate on a message. It is intended to simplify building WoT compatible IoT devices and to provide capabilities for processsing IoT device information.
 
-While HiveKit provides a set of modules, 3rd party modules can easily be incorporated as part of a solution.
+While HiveKit comes with a set of modules, 3rd party modules can be incorporated as part of a recipe.
 
 A pipeline module receives messages, processes them and passes them on to the next module in the pipeline. Modules have a single responsibility. More complex modules can be created linking them into a pipeline. Pipeline modules are capable of sending and receiving both data and control message streams between pipeline modules.
 
-Modules have one or more message inputs and one or more message outputs. A module that generates messages is called a source. A module that consumes messages is a sink. Modules often provide both source and sink capabilities.
+Modules have one or more message inputs and one or more message outputs. A module that generates messages is called a source. A module that consumes messages is a sink. Service modules often provide both source and sink capabilities.
 
 Types of streams in the pipeline:
 
-- A unidirectional data stream from source to sink, passing:
+- A unidirectional data stream from source to sink, passing events and property updates.
 
-  - events
-  - property updates
-
-- A bidirectional control stream for:
-  - actions
-  - property configuration
+- A bidirectional control stream for actions and property configuration.
 
 Pipelines are created by linking one or more modules. Modules can run in-process, or by using messaging modules, a pipeline can be extended to out-of-process modules and other pipelines, including those running on other hosts.
 
 Modules can be linked in several ways:
 
 1. At compile time by adding a sink onto a source. Chain multiple modules to create a pipeline. In golang this creates a single binary that runs stand-alone.
-2. Using the pipeline runtime module to link modules based on the provided yaml configuration. This is limited to registered modules available in the pipeline runtime. The runtime is a bit larger as all possible modules are embedded. The pipeline configuration can be changed without recompiling.
+2. Using the pipeline runtime module to link modules based on the provided yaml configuration.The pipeline configuration can be changed without the need to recompile it. This is limited to registered modules available in the pipeline runtime.
 3. By compiling a pipeline using the provided yaml configuration using the hiveflow CLI. In golang this creates a single binary that has its configuration embedded.
 4. Using messaging modules the pipeline can be linked to other pipelines running elsewhere.
 
@@ -48,9 +43,11 @@ All modules support the pipeline module API defined as IHiveModule. This API sup
 
 ```go
 // The golang pipeline module interface  (proposed)
-interface IHiveModule {
+type IHiveModule interface {
    // GetTM returns the module's TM describing its properties, actions and events.
    // If supported, the TM can be obtained after a successful start. If no TM is supported then this returns nil.
+   // The runtime converts the TM into a TD by adding the forms needed to interface with the module, as determined by the available protocols.
+   // For example, the Directory module provides the directory TM for use in discovery.
    GetTM() *TD
 
    // HandleRequest processes or forwards a request message. This returns a response
@@ -77,15 +74,15 @@ interface IHiveModule {
 
 ### Constructing a basic IoT Sensor or Actuator
 
-Most WoT sensors have in common that they contain logic to read their state from the hardware or write a new state when an actuator. Often there is the ability to update a configuration.
+Most IoT devices have in common that they contain logic to read their current state and update writable state such as configuration or actuator value.
 
-Connected devices also have the ability to export their data or import new state through a web interface or some kind of messaging protocol.
+Connected devices also have the ability to export their state or import new state,through a web interface or some kind of messaging protocol.
 
-Actuators will likely have authentication built-in to ensure only people with the sufficient permissions can initiate the actuator and modify the configuration.
+Most devices will have some form of authentication built-in to ensure only people with the sufficient permissions can read and modify the device.
 
 Sometimes there is a logging capability to assist users in troubleshooting.
 
-These steps are common across devices and except for the first step, the rest can be standardized as reusable modules:
+These steps are common across devices and, except for the first step, can be standardized as reusable modules:
 
 1. read/write hardware - this is device specific
 2. run a server to receive connections and messages
@@ -97,11 +94,11 @@ These steps are common across devices and except for the first step, the rest ca
 8. notify of changes (consumer subscription of events and properties)
 9. log requests to a configured destination
 
-WoT sensors can construct a TD describing its capabilities, although this can also be defined out of band.
+WoT capable modules can export a TD describing its capabilities, although this can also be defined out of band.
 
-Other capabilities for consideration are authorization, rate control, connection reversal, publishing a TD in a discovered directory, and more.
+Other potential capabilities of IoT devices are authorization, rate control, connection reversal, publishing a TD in a discovered directory, and more.
 
-A more simplified device can be made using connection reversal. The device connects to a gateway or hub which subscribes to updates and passes requests to the device. There is no need to run a server on the device, nor to manage clients, which greatly improves security and reduces required resources at the same time. The device management shifts to the hub which provides a consistent interface for all the devices it manages.
+IoT devices can be simplified by using connection reversal. The device connects to a gateway or hub instead of the other way around. Once connected the gateway subscribes to updates and passes requests from consumers to the device. There is no need to run a server on the device, nor to manage clients, which greatly improves security and reduces required resources at the same time. The device management shifts to the hub which provides a consistent interface for all the devices it manages.
 
 ### Constructing a Consumer
 
@@ -116,22 +113,22 @@ Common steps simple consumers take:
 5. Receive updates.
 6. Process update or present it to the user.
 
-Having multiple devices each running their own server has several drawbacks for consumers. Each new device opens the attack surface of your network. The weakest link can compromise it. This is aggravated when allowing a connection over the internet. Other drawbacks are the need to manage the login accounts for each device and deal with the differences between manufacturers. To make things worse, there is a multitude of incompatible IoT protocols each with different controllers and capabilities.
+Having multiple devices each running their own server has several drawbacks for consumers. Each new device opens the attack surface of the network. The weakest link can compromise it. This is aggravated when allowing connections over the internet. Other drawbacks are the need to manage the login accounts for each device and deal with the differences between manufacturers. To make things worse, there is a multitude of incompatible IoT protocols each with different controllers and capabilities.
 
-While the WoT (Web of Thing) is working on providing a common standard for interacting with devices, it is not widely supported. Use of a gateway that translates between native protocols and the WoT standard simplifies the use of multiple devices significantly. HiveKit can be used to construct such a gateway.
-
-Although not yet standardized by the WoT, the use of reverse connections by supporting devices closes a big attack vectors as devices can no longer be access directly. This is an approach favored by HiveOT and supported through HiveKit modules.
+While the W3C WoT (Web of Things) is working on providing a common standard for interacting with devices, it is not widely supported. Use of a gateway that translates between native protocols and the WoT standard simplifies the use of multiple devices significantly. HiveKit can be used to construct such a gateway.
 
 To construct a simple consumer of WoT devices the following recipe can be used.
 
 [presentation] -> [directory client]
-[presentation] -> [gateway client] => [device client]
+[presentation] -> [multi-client] => [device client]
+
+(\*the concept and notation of recipies to construct pipelines is still in development)
 
 The modules used here are:
 
 - [presentation]: There are various presentation modules, ranging from a simple commandline interface to web components to full blown web or desktop applications. This is an entire topic on its own. HiveKit supports several basic presentation modules that can be used separately or concurrently. Presentation modules can retrieve device TD's (Thing Description document) from a directory and connect to selected devices using their TD to present and control devices.
 - [directory client]: Consumers can select from a list of available devices provided by a directory client. The directory client module obtains these from a discovered directory service.
-- [gateway client]: The gateway client module provides the capability to establish multiple connections to one or more devices. It can also include the capability to re-use an existing connection if multiple devices can be reached through that one connection. This module is useful when presentation connects to more than one device.
+- [multi-client]: The multi-client module provides the capability to establish multiple connections to one or more devices. It can also include the capability to re-use an existing connection if multiple devices can be reached through that one connection. This module is useful when presentation connects to more than one device.
 - [device client]: The client module connects to a device to read status and to subscribe to updates. The HiveKit WoT client module supports multiple protocols to connect with.
 
 ### Constructing a Gateway
@@ -155,7 +152,7 @@ A typical gateway implements the following steps:
 13. Log requests to a configured logger.
 14. Drop device connections that are no longer needed.
 
-For gateways that support reverse connections:
+Although not part of the WoT standard, the use of reverse connections by supporting devices closes a big attack vectors as devices can no longer be access directly. This is an approach favored by HiveOT and supported through HiveKit modules. For gateways that support reverse connections:
 
 1. Serve incoming connections from devices.
 2. Track connected devices in order to forward consumer requests.
@@ -167,19 +164,30 @@ Optionally, to enhance the functionality:
 
 Modules are available for storing most of these steps.
 
-The module recipe for this setup could look like:
+The recipe for this setup could look like:
+
+```
 [gateway]
-. | [discovery client] -> [directory store] -> [directory server]
-. |- gw TD -> [discovery server]
-. | [server] -> [authenticator] -> [server connections] -> [logger] -> [authorizer] -> [router]
--> [directory]
--> [gateway client] -> [client] -> devices
+  |- [directory store]
+  |      |- [directory server] -> [directory TD]
+  |      |- discovery server
+  |
+  |- [WoT websocket server] -> [server connections]
+  |                                 |- [authenticator]
+  |                                 |- [logger]
+  |
+  |- [server connection] -> messages
+  |    |- [authorizer]
+  |    |- [router]
+  |          |- [multiclient] - [device client]
+  |          |- directory server
+```
 
 Where,
 
-- the router uses the directory store to determine request destinations
-- requests to read the directory are routed to the directory
-- requests for clients are passed to the gateway client which establishes client connections to connect to devices
+- the message router uses the directory store to determine request destinations and create client connections to the devices using a device client.
+- requests to read the directory are routed to the directory server
+- requests for clients are passed to the multi-client which establishes client connections to connect to devices
 
 ### Constructing a Digital Twin Hub
 
@@ -193,10 +201,10 @@ A digital twin hub takes the gateway to the next level. Instead of consumers int
 
 The extra modules for the digital twin include:
 
-- an internal directory module that contains the digital twins TDs. Device TD's are converted to the digital twin equivalent.
+- an internal directory storage module that contains the digital twins TDs. Device TD's are converted to the digital twin equivalent.
 - a value store containing the last known property, event and action values as reported by devices.
 - an updated router that forwards read/query request to the value store for digital twin devices
-- an action proxy that tracks action progress.
+- an action store that tracks action progress.
 - optionally a simulator module that intercepts messages for specific devices.
 
 ## Adding Modules
