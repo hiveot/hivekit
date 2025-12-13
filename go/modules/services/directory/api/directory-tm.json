@@ -11,7 +11,7 @@
   "title": "DigiTwin Directory Service",
   "description": "HiveOT directory service",
   "version": {
-    "instance": "0.1.0"
+    "instance": "1.0.0"
   },
   "created": "2026-01-00T00:00:00.000Z",
   "modified": "2026-01-00T00:00:00.000Z",
@@ -92,7 +92,6 @@
       "description": "Update the Thing TD in the directory. For use by Thing agents only.",
       "comment": "only admin can create TDs",
       "idempotent": true,
-      "allow": ["agent", "admin"],
       "input": {
         "title": "TD JSON",
         "description": "Device TD document in JSON format",
@@ -107,7 +106,7 @@
       },
       "forms": [
         {
-          "href": "/things/{thingID}",
+          "href": "/things/{id}",
           "htv:methodName": "PUT",
           "response": {
             "description": "Success response",
@@ -138,13 +137,12 @@
       "uriVariables": {
         "id": {
           "type": "string",
-          "comment": "uri 'id' maps to input.",
-          "hiveot:input": ""
+          "comment": "uri 'id' maps to input."
         }
       },
       "forms": [
         {
-          "href": "/things/{thingID}",
+          "href": "/things/{id}",
           "htv:methodName": "DELETE",
           "response": {
             "description": "Success response",
@@ -156,43 +154,6 @@
               "contentType": "application/problem+json",
               "htv:statusCodeValue": 404
             }
-          ]
-        }
-      ]
-    },
-
-    "retrieveThing": {
-      "title": "Retrieve a TD",
-      "description": "Return a JSON encoded TD document",
-      "safe": true,
-      "idempotent": true,
-      "uriVariables": {
-        "id": {
-          "title": "Thing Description ID",
-          "type": "string",
-          "comment": "uri 'id' maps to input.",
-          "hiveot:input": ""
-        }
-      },
-      "input": {
-        "title": "Thing ID",
-        "type": "string",
-        "description": "Digital-Twin Thing ID of the Thing to read",
-        "comment": "URI variables can be used as input where supported"
-      },
-      "output": {
-        "title": "TD",
-        "description": "A JSON encoded Thing Description Document",
-        "type": "string"
-      },
-      "forms": [
-        {
-          "href": "/things/{thingID}",
-          "htv:methodName": "GET",
-          "comments": [
-            "Additional http endpoint as per spec to read a TD.",
-            "Use URI variable as second method of input",
-            "The alternative endpoint is /things/invokeaction/retrieveThing with payload the thingID"
           ]
         }
       ]
@@ -220,18 +181,6 @@
             "minimum": 1,
             "default": 100
           }
-        },
-        "uriVariables": {
-          "offset": {
-            "title": "Offset",
-            "type": "number",
-            "hiveot:input": "offset"
-          },
-          "limit": {
-            "title": "Max nr of responses",
-            "type": "number",
-            "hiveot:input": "limit"
-          }
         }
       },
       "output": {
@@ -244,7 +193,7 @@
       },
       "forms": [
         {
-          "href": "/things",
+          "href": "/things?offset={offset}&limit={limit}",
           "htv:methodName": "GET",
           "contentType": "application/td+json",
           "response": {
@@ -262,6 +211,35 @@
       ]
     },
 
+    "retrieveThing": {
+      "title": "Retrieve a TD",
+      "description": "Return a JSON encoded TD document",
+      "safe": true,
+      "idempotent": true,
+      "input": {
+        "title": "Thing ID",
+        "type": "string",
+        "description": "Digital-Twin Thing ID of the Thing to read",
+        "comment": "URI variables can be used as input where supported"
+      },
+      "output": {
+        "title": "TD",
+        "description": "A JSON encoded Thing Description Document",
+        "type": "string"
+      },
+      "forms": [
+        {
+          "href": "/things/{id}",
+          "htv:methodName": "GET",
+          "comments": [
+            "Additional http endpoint as per spec to read a TD.",
+            "Use URI variable as second method of input",
+            "The alternative endpoint is /things/invokeaction/retrieveThing with payload the thingID"
+          ]
+        }
+      ]
+    },
+
     "updateThing": {
       "title": "Update Thing TD",
       "description": "Update the Thing TD in the directory. For use by agents only.",
@@ -274,9 +252,15 @@
         "comment": "The spec defines type object but there is no scheme associated with it.",
         "type": "string"
       },
+      "uriVariables": {
+        "id": {
+          "type": "string",
+          "comment": "Thing ID to update. This is ignored as the TD contains the ID."
+        }
+      },
       "forms": [
         {
-          "href": "/things/{thingID}",
+          "href": "/things/{id}",
           "htv:methodName": "PUT",
           "contentType": "application/td+json",
           "response": {

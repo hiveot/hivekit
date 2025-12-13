@@ -1,0 +1,136 @@
+{
+  "@context": [
+    "https://www.w3.org/2022/wot/td/v1.1",
+    {
+      "hiveot": "https://www.hiveot.net/vocab/v0.1"
+    }
+  ],
+  "@type": ["tm:ThingModel", "BucketStore"],
+  "id": "BucketStore",
+  "title": "Bucket Store",
+  "description": "HiveOT bucket key-value store",
+  "version": {
+    "instance": "1.0.0"
+  },
+  "created": "2026-01-00T00:00:00.000Z",
+  "modified": "2026-01-00T00:00:00.000Z",
+  "support": "https://www.github.com/hiveot/hivekit",
+  "base": "{{DIRECTORY_BASE_URL}}",
+  "deny": ["none"],
+  "schemaDefinitions": {
+    "CursorResponse": {
+      "key": {
+        "title": "Key",
+        "type": "string"
+      },
+      "value": {
+        "title": "Value",
+        "description": "Serialized document",
+        "type": "string"
+      },
+      "valid": {
+        "title": "Valid",
+        "type": "boolean"
+      }
+    }
+  },
+  "properties": {},
+  "events": {},
+  "actions": {
+    "cursor": {
+      "title": "Cursor",
+      "description": "Create a new cursor to iterate the client's bucket. This has a limited time span.",
+      "idempotent": true,
+      "output": {
+        "title": "Cursor Key",
+        "description": "Temporary key of the cursor for iteration",
+        "type": "string"
+      }
+    },
+    "delete": {
+      "title": "Delete",
+      "description": "Delete the object in the store",
+      "idempotent": true,
+      "input": {
+        "title": "Key",
+        "description": "Key of object to delete",
+        "type": "string"
+      }
+    },
+    "get": {
+      "title": "Get",
+      "description": "Get an object from the client's bucket store",
+      "idempotent": true,
+      "input": {
+        "title": "Key",
+        "description": "Key of object to get",
+        "type": "string"
+      },
+      "output": {
+        "title": "Value",
+        "description": "Serialized document",
+        "type": "string"
+      }
+    },
+    "getMultiple": {
+      "title": "Get Multiple",
+      "description": "Read multiple key-value pairs from the client's bucket store",
+      "idempotent": false,
+      "input": {
+        "title": "Cursor Keys",
+        "description": "List of keys whose objects to get",
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      },
+      "output": {
+        "title": "Map of key-value pairs",
+        "type": "object",
+        "properties": {
+          "": {
+            "title": "Serialized document",
+            "type": "string"
+          }
+        }
+      }
+    },
+    "set": {
+      "title": "Set value",
+      "description": "Write a key-value pair",
+      "idempotent": true,
+      "input": {
+        "title": "Key-Value",
+        "description": "Key-value pair to set",
+        "type": "object",
+        "properties": {
+          "key": {
+            "title": "Key",
+            "type": "string"
+          },
+          "value": {
+            "title": "Value",
+            "description": "serialized document",
+            "type": "string"
+          }
+        }
+      }
+    },
+    "setMultiple": {
+      "title": "Get",
+      "description": "Write multiple documents to the bucket store",
+      "idempotent": true,
+      "input": {
+        "title": "Map of Key-Value",
+        "description": "Key-Value pairs to set in the client bucket",
+        "type": "object",
+        "properties": {
+          "": {
+            "title": "serialized document",
+            "type": "string"
+          }
+        }
+      }
+    }
+  }
+}

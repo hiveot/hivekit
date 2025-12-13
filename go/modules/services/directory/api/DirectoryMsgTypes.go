@@ -1,17 +1,6 @@
-package directory
+package api
 
-import _ "embed"
-
-// --- Constants ---
-
-// DirectoryThingID is the default thingID of the directory module.
-// Agents use this to publish events and subscribe to actions.
-const DirectoryThingID = "directory"
-
-// Default limit in retrieving things
-const DefaultLimit = 300
-
-// Property, Event and Action affordance names as used in the TM
+// Property, Event and Action affordance names as used in the interface
 const (
 	PropThings              = "things"
 	EventThingUpdated       = "thingUpdated"
@@ -38,5 +27,5 @@ type RetrieveAllThingsArgs struct {
 	Offset int `json:"offset,omitempty"`
 }
 
-// RetrieveAllThingsResp response of the retrieveAllThings action
+// RetrieveAllThingsOutput output of the retrieveAllThings action
 type RetrieveAllThingsOutput []string

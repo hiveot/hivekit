@@ -1,11 +1,18 @@
 package modules
 
 import (
-	"github.com/hiveot/hivekit/go/lib/messaging"
+	"github.com/hiveot/hivekit/go/modules/messaging"
 	"github.com/hiveot/hivekit/go/utils"
 	"github.com/hiveot/hivekit/go/wot"
-	"github.com/hiveot/hivekit/go/wot/td"
 )
+
+// Module application environment
+type ModuleEnv struct {
+	// Application home directory
+	HomeDirectory string
+	// Application storage directory
+	StorageDirectory string
+}
 
 // HiveModuleBase implements the boilerplate of running a module.
 // - define and store properties
@@ -13,8 +20,8 @@ import (
 // - generate TD
 // - send notifications for property changes and events
 type HiveModuleBase struct {
-	// ThingID of this module instance
-	ThingID string
+	// ModuleID and thingID of this module instance
+	ModuleID string
 
 	// properties and their value
 	Properties map[string]any
@@ -36,17 +43,14 @@ func (m *HiveModuleBase) AddSink(sink IHiveModule) error {
 
 // GetTD returns the module's TD describing its properties, actions and events.
 // If supported, the TD can be obtained after a successful start.
-// If no TD is supported then this returns nil.
+// If no TM is available then this returns "".
 // Forms in the TD are typically added by the pipeline messaging server.
-func (m *HiveModuleBase) GetTD() *td.TD {
-	// construct a default TD using ID and properties
-	td := td.NewTD(m.ThingID, "HiveKit Module "+m.ThingID, "module")
-
-	return td
+func (m *HiveModuleBase) GetTM() string {
+	return ""
 }
 
 // HandleRequest handles the boilerplate request messages.
-// If the request is not boilerplate then forward it to the sinks.
+// If the request is not handled here then forward it to the sinks.
 // Intended to be called by modules if the request is not for their implementation.
 func (m *HiveModuleBase) HandleRequest(request *messaging.RequestMessage) (resp *messaging.ResponseMessage) {
 	switch request.Operation {
@@ -129,7 +133,7 @@ func (m *HiveModuleBase) UpdateProperty(name string, val any) {
 		m.Properties = make(map[string]any)
 	}
 	m.Properties[name] = val
-	notif := messaging.NewNotificationMessage(wot.OpObserveProperty, m.ThingID, name, val)
+	notif := messaging.NewNotificationMessage(wot.OpObserveProperty, m.ModuleID, name, val)
 	m.SendNotification(notif)
 }
 
@@ -147,3 +151,8 @@ func (m *HiveModuleBase) SendRequest(req *messaging.RequestMessage) (resp *messa
 	}
 	return nil
 }
+
+func (m *HiveModuleBase) Start() error {
+	return nil
+}
+func (m *HiveModuleBase) Stop() {}
