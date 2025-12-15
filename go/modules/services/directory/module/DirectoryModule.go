@@ -15,8 +15,6 @@ import (
 	"github.com/hiveot/hivekit/go/modules/services/directory/service"
 )
 
-// const bucketName = "directory"
-
 // DirectoryModule is a module for accessing a WoT Thing directory.
 //
 // The module is configured using yaml.
@@ -28,7 +26,7 @@ type DirectoryModule struct {
 
 	// bucket store for use with this module
 	bucketStore bucketstore.IBucketStore
-	// the WoT messaging API
+	// the SME messaging API
 	msgAPI *api.DirectoryMsgHandler
 	// the API servers if enabled
 	restAPI *api.DirectoryRestHandler
@@ -55,15 +53,13 @@ func (m *DirectoryModule) HandleRequest(req *messaging.RequestMessage) (resp *me
 	return resp
 }
 
-// Start readies the module for use using the given yaml configuration.
+// Start readies the module for use.
 //
 // This:
 // - opens the bucket store using the configured name.
 // - enable the messaging request handler
 // - enable the http request handler using the given router
 // - updates this service TD in the store
-//
-// yamlConfig contains the settings to use.
 func (m *DirectoryModule) Start() (err error) {
 	storageDir := ""
 	if m.storageRoot != "" {

@@ -3,11 +3,11 @@
     <mxGraphModel dx="1425" dy="810" grid="1" gridSize="5" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1169" pageHeight="827" background="#E6E6E6" math="0" shadow="0">
       <root>
         <mxCell id="KO3M6Ry25NPkNfdGnxjr-0" />
-        <mxCell id="KO3M6Ry25NPkNfdGnxjr-1" style="" parent="KO3M6Ry25NPkNfdGnxjr-0" />
-        <mxCell id="KO3M6Ry25NPkNfdGnxjr-2" value="&lt;h3 style=&quot;font-size: 14px;&quot;&gt;HiveKit Modules&lt;/h3&gt;" style="rounded=1;whiteSpace=wrap;html=1;fontSize=14;verticalAlign=top;strokeColor=#A3A3A3;fillColor=#F7F7F7;gradientColor=#ffffff;fontColor=#003366;arcSize=2;movable=1;resizable=1;rotatable=1;noLabel=0;align=left;spacingLeft=20;deletable=1;editable=1;connectable=1;locked=0;" parent="KO3M6Ry25NPkNfdGnxjr-1" vertex="1">
+        <mxCell id="KO3M6Ry25NPkNfdGnxjr-1" style="locked=1;" parent="KO3M6Ry25NPkNfdGnxjr-0" />
+        <mxCell id="KO3M6Ry25NPkNfdGnxjr-2" value="&lt;h3 style=&quot;font-size: 14px;&quot;&gt;HiveKit Modules&lt;/h3&gt;" style="rounded=1;whiteSpace=wrap;html=1;fontSize=14;verticalAlign=top;strokeColor=#A3A3A3;fillColor=#F7F7F7;gradientColor=#ffffff;fontColor=#003366;arcSize=1;movable=1;resizable=1;rotatable=1;noLabel=0;align=left;spacingLeft=20;deletable=1;editable=1;connectable=1;locked=0;" parent="KO3M6Ry25NPkNfdGnxjr-1" vertex="1">
           <mxGeometry x="140" y="125" width="960" height="570" as="geometry" />
         </mxCell>
-        <mxCell id="XAmNHP0GruOVhAdf0Pj4-83" value="Module Recipe 1: WoT IoT Device&lt;br&gt;(websocket server)" style="rounded=1;whiteSpace=wrap;html=1;verticalAlign=top;arcSize=2;strokeColor=#B0B0B0;" vertex="1" parent="KO3M6Ry25NPkNfdGnxjr-1">
+        <mxCell id="XAmNHP0GruOVhAdf0Pj4-83" value="Module Recipe 1: WoT IoT Device&lt;br&gt;(websocket server)" style="rounded=1;whiteSpace=wrap;html=1;verticalAlign=top;arcSize=3;strokeColor=#B0B0B0;" vertex="1" parent="KO3M6Ry25NPkNfdGnxjr-1">
           <mxGeometry x="165" y="775" width="915" height="395" as="geometry" />
         </mxCell>
         <mxCell id="XAmNHP0GruOVhAdf0Pj4-103" value="Module Recipe 2: HiveOT IoT Device&lt;br&gt;(reverse connection)" style="rounded=1;whiteSpace=wrap;html=1;verticalAlign=top;arcSize=3;strokeColor=#B0B0B0;" vertex="1" parent="KO3M6Ry25NPkNfdGnxjr-1">
@@ -19,7 +19,7 @@
         <mxCell id="XAmNHP0GruOVhAdf0Pj4-130" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=0.25;exitY=1;exitDx=0;exitDy=0;" edge="1" parent="KO3M6Ry25NPkNfdGnxjr-1" source="XAmNHP0GruOVhAdf0Pj4-64" target="XAmNHP0GruOVhAdf0Pj4-129">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="XAmNHP0GruOVhAdf0Pj4-133" value="Module Recipe 3: HiveOT Gateway&lt;br&gt;(multi-protocols)" style="rounded=1;whiteSpace=wrap;html=1;verticalAlign=top;arcSize=1;strokeColor=#B0B0B0;" vertex="1" parent="KO3M6Ry25NPkNfdGnxjr-1">
+        <mxCell id="XAmNHP0GruOVhAdf0Pj4-133" value="Module Recipe 3: HiveOT Gateway&lt;br&gt;(multi-protocols)" style="rounded=1;whiteSpace=wrap;html=1;verticalAlign=top;arcSize=3;strokeColor=#B0B0B0;" vertex="1" parent="KO3M6Ry25NPkNfdGnxjr-1">
           <mxGeometry x="165" y="1485" width="1105.5" height="630" as="geometry" />
         </mxCell>
         <mxCell id="KO3M6Ry25NPkNfdGnxjr-4" value="Modules" style="" parent="KO3M6Ry25NPkNfdGnxjr-0" />

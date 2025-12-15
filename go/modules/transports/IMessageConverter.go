@@ -2,13 +2,12 @@ package transports
 
 import "github.com/hiveot/hivekit/go/modules/messaging"
 
-// IMessageConverter converts between the standardized request, response
-// and notification message envelopes, and the underlying protocol specific message format.
+// IMessageConverter converts between the standardized message envelope (SME)
+// and the underlying protocol specific message format.
 //
-// Its purpose is to assist in decoupling the consumer from the messaging protocol used.
-//
-// This is used for the WoT websocket protocol, HttpBasic/SSE-SC protocol, MQTT
-// protocol, the native Hiveot transfer and others.
+// This is used to convert between te SME and transport protocols,
+// including the WoT websocket protocol, HttpBasic/SSE-SC protocol,
+// MQTT protocol.
 //
 // Intended for use by consumers and agents on the client and server side.
 type IMessageConverter interface {

@@ -7,6 +7,7 @@ const DefaultDirectoryThingID = "directory"
 const DefaultLimit = 300
 
 // IDirectory defines the interface to the directory service
+// This is implemented in the service and the client api
 type IDirectory interface {
 
 	// CreateThing creates or updates the TD in the directory.

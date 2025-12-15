@@ -1,4 +1,4 @@
-package converters
+package direct
 
 import (
 	"github.com/hiveot/hivekit/go/modules/messaging"

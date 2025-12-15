@@ -13,7 +13,6 @@ import (
 // testing of marshalling and unmarshalling schemas
 
 func TestStringSchema(t *testing.T) {
-	const rawText = "some text"
 	ss := td.DataSchema{
 		Type:            wot.DataTypeString,
 		StringMinLength: 10,

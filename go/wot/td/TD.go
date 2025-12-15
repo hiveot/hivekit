@@ -15,6 +15,8 @@ import (
 const WoTTDContext = "https://www.w3.org/2022/wot/td/v1.1"
 const HiveOTContext = "https://www.hiveot.net/vocab/v0.1"
 
+type ErrInvalidTD struct{ error }
+
 // TD contains the Thing Description document
 // Its structure is:
 //
@@ -488,6 +490,12 @@ func (tdoc *TD) Substitute(s string, vars map[string]string) string {
 		s = strings.Replace(s, stringVar, v, -1)
 	}
 	return s
+}
+
+// ToString returns the JSON representation of the TD
+func (tdoc *TD) ToString() string {
+	tdJson, _ := jsoniter.Marshal(tdoc)
+	return string(tdJson)
 }
 
 // UpdateAction adds a new or replaces an existing action affordance of actionID. Intended for creating TDs.

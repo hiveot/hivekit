@@ -58,6 +58,7 @@ type WssResponseMessage struct {
 // Websocket message converter converts requests, responses and notifications
 // between hiveot standardiz envelope and the WoT websocket protocol (draft) messages.
 // Websocket messages vary based on the operation.
+// This implements the IMessageConverter interface
 type WssMessageConverter struct {
 }
 

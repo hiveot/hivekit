@@ -2,6 +2,7 @@ package td
 
 import (
 	"errors"
+	"io"
 	"log/slog"
 	"strconv"
 	"strings"
@@ -15,19 +16,38 @@ import (
 // Intended for assisting conversion between text and native formats.
 
 // UnmarshalTD unmarshals a JSON encoded TD
-func UnmarshalTD(tdJSON string) (td *TD, err error) {
-	td = &TD{}
-	err = jsoniter.UnmarshalFromString(tdJSON, td)
-	return td, err
+func MarshalTD(tdi *TD) (tdJson string, err error) {
+	tdJsonRaw, err := jsoniter.Marshal(tdi)
+	return string(tdJsonRaw), err
 }
+
+// UnmarshalTD unmarshals a JSON encoded TD
+func UnmarshalTD(tdJSON string) (tdi *TD, err error) {
+	tdi = &TD{}
+	err = jsoniter.UnmarshalFromString(tdJSON, tdi)
+	return tdi, err
+}
+
+// ReadTD reads and unmarshals a JSON encoded TD from the given reader
+func ReadTD(r io.Reader) (tdi *TD, err error) {
+	tdJsonRaw, err := io.ReadAll(r)
+	if err != nil {
+		return nil, err
+	}
+	tdi = &TD{}
+	err = jsoniter.Unmarshal(tdJsonRaw, tdi)
+	return tdi, err
+}
+
+// UnmarshalTDList unmarshals a list of JSON encoded TDs
 
 func UnmarshalTDList(tdListJSON []string) (tdList []*TD, err error) {
 	tdList = make([]*TD, 0, len(tdListJSON))
 	for _, tdJson := range tdListJSON {
-		td := TD{}
-		err = jsoniter.UnmarshalFromString(tdJson, &td)
+		tdi := TD{}
+		err = jsoniter.UnmarshalFromString(tdJson, &tdi)
 		if err == nil {
-			tdList = append(tdList, &td)
+			tdList = append(tdList, &tdi)
 		}
 	}
 	return tdList, err

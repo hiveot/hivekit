@@ -5,7 +5,6 @@ import (
 	"log/slog"
 	"net/http"
 
-	"github.com/hiveot/hivekit/go/lib/messaging"
 	jsoniter "github.com/json-iterator/go"
 )
 
@@ -41,7 +40,7 @@ func WriteReply(
 		payloadJSON, _ = jsoniter.MarshalToString(data)
 	}
 	if err != nil {
-		if errors.Is(err, messaging.UnauthorizedError) {
+		if errors.Is(err, UnauthorizedError) {
 			http.Error(w, err.Error(), http.StatusUnauthorized)
 		} else {
 			http.Error(w, err.Error(), http.StatusBadRequest)

@@ -5,6 +5,8 @@ import (
 	"github.com/hiveot/hivekit/go/modules/messaging"
 )
 
+// This simple module is a simple SME passthrough that injects a clientID as a sender.
+// Used for testing messaging between modules when no transport is used.
 // This implements the IHiveModule interface
 type DirectClientTransport struct {
 	modules.HiveModuleBase
@@ -23,7 +25,7 @@ func (m *DirectClientTransport) HandleNotification(notif *messaging.Notification
 	m.sink.HandleNotification(notif)
 }
 
-// Return a transport module that passes messages directly to a sink as the given client.
+// Return a transport module that passes messages directly to a sink, using the given client as sender.
 // Mainly intended for testing to inject the clientID.
 func NewDirectTransport(clientID string, sink modules.IHiveModule) modules.IHiveModule {
 	t := &DirectClientTransport{

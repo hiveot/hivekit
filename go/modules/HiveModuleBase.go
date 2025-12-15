@@ -20,13 +20,13 @@ type ModuleEnv struct {
 // - generate TD
 // - send notifications for property changes and events
 type HiveModuleBase struct {
-	// ModuleID and thingID of this module instance
+	// ModuleID/ThingID is the unique instance ID of this module.
 	ModuleID string
 
-	// properties and their value
+	// module properties and their value
 	Properties map[string]any
 
-	// registers sinks for receiving update messages
+	// registers sinks for passing SME messages to
 	sinks []IHiveModule
 }
 
@@ -50,8 +50,12 @@ func (m *HiveModuleBase) GetTM() string {
 }
 
 // HandleRequest handles the boilerplate request messages.
+// This is the module input.
+// Intended to be used as a sink for another module.
 // If the request is not handled here then forward it to the sinks.
-// Intended to be called by modules if the request is not for their implementation.
+//
+// Transport modules that receive requests from its clients should pass these to the
+// sinks and NOT pass them to HandleRequests.
 func (m *HiveModuleBase) HandleRequest(request *messaging.RequestMessage) (resp *messaging.ResponseMessage) {
 	switch request.Operation {
 	// TODO: can this boilerplate be handled by a ModuleBase
@@ -68,7 +72,17 @@ func (m *HiveModuleBase) HandleRequest(request *messaging.RequestMessage) (resp 
 	return resp
 }
 
-// HandleNotification forwards a notification message to the sinks.
+// HandleNotification process an incoming notification.
+// This is the module input.
+//
+// The default behavior is to forward notifications to the sinks, so it is part
+// of the pipeline chain.
+//
+// In transport modules, notifications should be passed to connected clients that have
+// subscribed to the notification.
+//
+// Transport modules that receive notifications from its clients should pass these to the
+// sinks and NOT pass them to HandleNotification.
 func (m *HiveModuleBase) HandleNotification(notif *messaging.NotificationMessage) {
 	m.SendNotification(notif)
 }
@@ -117,7 +131,8 @@ func (m *HiveModuleBase) ReadMultipleProperties(req *messaging.RequestMessage) (
 	return resp
 }
 
-// SendNotification passes a notification to all sinks
+// SendNotification is a helper function to pass notifications to all sinks
+// This is the module output.
 func (m *HiveModuleBase) SendNotification(notif *messaging.NotificationMessage) {
 	if m.sinks == nil {
 		return
@@ -127,18 +142,9 @@ func (m *HiveModuleBase) SendNotification(notif *messaging.NotificationMessage) 
 	}
 }
 
-// UpdateProperty updates the given property value and sends a notification to the sinks.
-func (m *HiveModuleBase) UpdateProperty(name string, val any) {
-	if m.Properties == nil {
-		m.Properties = make(map[string]any)
-	}
-	m.Properties[name] = val
-	notif := messaging.NewNotificationMessage(wot.OpObserveProperty, m.ModuleID, name, val)
-	m.SendNotification(notif)
-}
-
-// SendRequest passes a request message to the sinks.
+// SendRequest is a helper function to pass requests to the sinks.
 // If multiple sinks are registered then the first response is returned.
+// This is the module output.
 func (m *HiveModuleBase) SendRequest(req *messaging.RequestMessage) (resp *messaging.ResponseMessage) {
 	if m.sinks == nil {
 		return nil
@@ -156,3 +162,13 @@ func (m *HiveModuleBase) Start() error {
 	return nil
 }
 func (m *HiveModuleBase) Stop() {}
+
+// UpdateProperty updates the given property value and sends a notification to the sinks.
+func (m *HiveModuleBase) UpdateProperty(name string, val any) {
+	if m.Properties == nil {
+		m.Properties = make(map[string]any)
+	}
+	m.Properties[name] = val
+	notif := messaging.NewNotificationMessage(wot.OpObserveProperty, m.ModuleID, name, val)
+	m.SendNotification(notif)
+}
