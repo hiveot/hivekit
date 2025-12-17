@@ -69,7 +69,7 @@ func (cl *DirectoryMsgClient) UpdateThing(tdJson string) error {
 }
 
 // NewDirectoryMsgClient creates a new DirectoryMsgClient instance.
-// Use AddSink to attach a transport module
+// Use the sink to attach a transport module
 //
 //	thingID is the unique ID of the directory service instance. This defaults to the directory module's thingID.
 //	sink is the handler of request messages

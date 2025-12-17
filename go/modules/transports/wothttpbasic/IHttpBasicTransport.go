@@ -4,7 +4,7 @@ package wothttpbasic
 const DefaultHttpBasicThingID = "http-basic"
 
 // Interface of the HttpBasic service
-type IHttpBasic interface {
+type IHttpBasicTransport interface {
 	// Provide the URL to connect to the server
 	GetConnectURL() string
 }

@@ -128,5 +128,7 @@ func NewHttpBasicModule(router *chi.Mux, authenticator transports.IAuthenticator
 		authenticator: authenticator,
 		router:        router,
 	}
+	var _ modules.IHiveModule = m // interface check
+
 	return m
 }

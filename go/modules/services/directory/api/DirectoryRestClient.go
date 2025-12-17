@@ -171,7 +171,7 @@ func NewDirectoryRestClient(timeout time.Duration) *DirectoryRestClient {
 		timeout: timeout,
 	}
 
-	var _ directory.IDirectory = cl // API check
+	var _ directory.IDirectoryService = cl // API check
 
 	return cl
 }

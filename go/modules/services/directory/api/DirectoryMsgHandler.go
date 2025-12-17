@@ -21,7 +21,7 @@ var DirectoryTMJson []byte
 type DirectoryMsgHandler struct {
 	// the directory instance ThingID that must match the requests
 	thingID string
-	service directory.IDirectory
+	service directory.IDirectoryService
 }
 
 // HandleRequest for properties or actions
@@ -115,7 +115,7 @@ func (handler *DirectoryMsgHandler) UpdateThing(req *messaging.RequestMessage) (
 
 // Create a new directory message handler. On start this creates the server and store.
 // bucketStore is the store to use for this module chain.
-func NewDirectoryMsgHandler(thingID string, store directory.IDirectory) *DirectoryMsgHandler {
+func NewDirectoryMsgHandler(thingID string, store directory.IDirectoryService) *DirectoryMsgHandler {
 
 	handler := &DirectoryMsgHandler{
 		thingID: thingID,

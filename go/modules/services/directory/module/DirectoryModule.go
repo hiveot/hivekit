@@ -38,7 +38,7 @@ type DirectoryModule struct {
 	storageRoot string
 }
 
-func (m *DirectoryModule) GetService() directory.IDirectory {
+func (m *DirectoryModule) GetService() directory.IDirectoryService {
 	return m.service
 }
 
@@ -105,5 +105,7 @@ func NewDirectoryModule(storageRoot string, router *chi.Mux) *DirectoryModule {
 		storageRoot: storageRoot,
 		router:      router,
 	}
+	var _ modules.IHiveModule = m // interface check
+
 	return m
 }

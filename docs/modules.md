@@ -15,11 +15,11 @@ The priority listed here:
 - low, features that are not requested
 - not planned, features that are rely on unavailable hardware or software
 
-## Messaging Transport Modules
+## Transport Modules
 
-The role of a message transport module is to convert a message between two formats. For example, a WoT WSS module can receive WoT compatible websocket messages over TLS and converts them to SME messages, and returns a response in the WoT WSS format. Most of these modules are available as a client and server.
+The role of a transport module is to convert transport protocol messages into SME messages and vice versa. For example, a WoT WSS (websocket) module can receive WoT compatible websocket messages over TLS and converts them to SME messages, and returns a response in the WoT WSS format. Most modules contain a server along with a client API.
 
-### HiveOT UDS IPC Messaging Client and Server Modules
+### HiveOT UDS IPC Transport Module
 
 Status: planned, priority medium
 
@@ -27,42 +27,42 @@ This messaging system uses an UDS (Unix Domain Sockets) based IPC (inter-process
 
 IPC protocols can be based on shared memory, named pipes, or unix sockets. The initial version will use named pipes.
 
-### HiveOT SSE Messaging Client and Server Modules
+### HiveOT HTTP/SSE Transport Module
 
 Status: planned, priority low
 
 The HiveOT SSE sub-protocol uses the SME (Standard Message Envelope) to pass messages through the SSE connection. This supports subscription to multiple devices, events and properties over a single connection.
 This offers more capabilities for web browser client applications than the WoT SSE protocol.
 
-### LoRaWan Messaging Client and Server Modules
+### LoRaWan Transport Module
 
 Status: planned, priority low
 
 The LoRaWan module supports bi-directional messages using the LoRa network.
 
-### WoT CoAP Messaging Client and Server Modules
+### WoT CoAP Transport Module
 
 Status: planned, priority low
 
-### WoT HTTP Messaging Client and Server Modules
+### WoT HTTP Transport Module
 
-Status: planned, priority high
+Status: in progress, priority high
 
 The WoT HTTP specification is a limited WoT communication protocol that does not support subscription to properties and events. Client and server modules are provided. The main reason to include this is to allow simple http clients to obtain IoT data.
 
-### WoT MQTT Messaging Client and Server Modules
+### WoT MQTT Transport Module
 
 Status: planned, priority medium
 
 The WoT MQTT client and server modules accept bi-directional messages send using the MQTT messaging protocol. Multiple variations exist that can be supported.
 
-### WoT SSE Messaging Client and Server Modules
+### WoT SSE Transport Module
 
 Status: not planned
 
 The HTTP/SSE client and server modules send messages using HTTP and return messages using SSE for the return channel. A SSE connection is required for each subscription. Since better alternatives are available, such as websocket or mqtt, this SSE return channel is not supported.
 
-### WoT Websocket Messaging Client and Server Modules
+### WoT Websocket Transport Module
 
 Status: planned, priority high
 
