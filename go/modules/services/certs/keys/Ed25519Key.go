@@ -1,6 +1,7 @@
 package keys
 
 import (
+	"crypto"
 	"crypto/ed25519"
 	"crypto/rand"
 	"crypto/sha256"
@@ -104,15 +105,17 @@ func (k *Ed25519Key) KeyType() KeyType {
 	return KeyTypeEd25519
 }
 
-// // PrivateKey returns the native private key pointer
-// func (k *Ed25519Key) PrivateKey() crypto.PrivateKey {
-// 	return k.privKey
-// }
+// PrivateKey returns the native private key pointer
+func (k *Ed25519Key) PrivateKey() crypto.PrivateKey {
+	// NOTE: type casting is needed to work with x509 methods
+	return k.privKey.(ed25519.PrivateKey)
+}
 
-// // PublicKey returns the native public key pointer
-// func (k *Ed25519Key) PublicKey() crypto.PublicKey {
-// 	return k.pubKey
-// }
+// PublicKey returns the native public key pointer
+func (k *Ed25519Key) PublicKey() crypto.PublicKey {
+	// NOTE: type casting is needed to work with x509 methods
+	return k.pubKey.(ed25519.PublicKey)
+}
 
 // Sign returns the signature of a message signed using this key
 // This signs the SHA256 hash of the message

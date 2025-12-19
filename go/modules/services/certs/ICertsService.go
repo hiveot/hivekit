@@ -1,6 +1,7 @@
 package certs
 
 import (
+	"crypto/tls"
 	"crypto/x509"
 
 	"github.com/hiveot/hivekit/go/modules/services/certs/keys"
@@ -12,23 +13,44 @@ const DefaultCertsThingID = "certs"
 const DefaultCaCertName = "caCert.pem"
 const DefaultCaKeyName = "caKey.pem"
 
-// Certificate service interface
+// DefaultServerName is the name of the shared default server cert
+const DefaultServerName = "server"
+
+// ICertsService interface of the certificate service
 type ICertsService interface {
 
-	// Create a server x509 certificate for a server module.
-	// Local use only. nil when queried remotely.
-	// TBD is there a use-case for remote services?
-	CreateServerCert(moduleName string, hostname string, serverKey keys.IHiveKey) (*x509.Certificate, error)
-
-	// Return string with the CA certificate in PEM format
-	// GetCAPem() string
-
-	// Return the server public certificate in PEM format.
-	// Returns an error if no server certificate is available for the given moduleID
+	// Create and store the server TLS certificate for a server module.
 	//
-	// moduleID is the instance ID of the server module.
-	// GetServerCertPem(moduleID string) (string, error)
+	// This includes localhost and 127.0.0.1 in the certificate SAN names.
+	// A server private key can be provided or will be created when omitted.
+	// This returns a TLS certificate, signed by the service CA.
+	// If the service is configured to use LetsEncrypt, then a working internet is
+	// required to have LetsEncrypt create the certificate.
+	//
+	// While the default serverKey is ecdsa it is also possible to use RSA or ed25519.
+	//
+	// moduleName is the name under which to store the key and certificate.
+	// hostname is the name or IP to include in the certificate SAN. "" to ignore.
+	// serverKey is the server key used to create the certificate. nil to generate.
+	CreateServerCert(moduleID string, hostname string, serverKey keys.IHiveKey) (*tls.Certificate, error)
 
-	// Return the x509 certificate of the current CA
-	GetCACert() *x509.Certificate
+	// GetCACert returns the x509 CA certificate.
+	// Returns and error if a CA is not initialized or can not be returned.
+	GetCACert() (*x509.Certificate, error)
+
+	// Return the default shared (between modules) server certificate.
+	//
+	GetDefaultServerCert() (*tls.Certificate, error)
+
+	// LoadServerCert loads a previously save server certificate from the
+	// certificate directory.
+	// This returns an error if certificate/key files are not found.
+	//
+	// moduleID whose certificate to retrieve
+	LoadServerCert(moduleID string) (*tls.Certificate, error)
+
+	// Verify if the given certificate belongs to the module and is signed by the CA
+	// This returns an error if the certificate cannot be verified or doesn't
+	// have the moduleID as cn.
+	VerifyCert(moduleID string, cert *x509.Certificate) error
 }

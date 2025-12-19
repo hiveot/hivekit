@@ -6,6 +6,10 @@ import "github.com/hiveot/hivekit/go/modules/messaging"
 //
 // The module is responsesible for creating the optional TM, receive requests and
 // sending notifications.
+//
+// The use of module capabilities is constrained to clients with the right authorization
+// credentials. This is managed by the module factory when following a recipe and
+// out of scope of the module itself. (tbd: or authz in the pipeline)
 type IHiveModule interface {
 
 	// AddSink sets the destination sink to forward messages to, to send the processing result to, or both.

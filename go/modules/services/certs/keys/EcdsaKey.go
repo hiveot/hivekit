@@ -1,6 +1,7 @@
 package keys
 
 import (
+	"crypto"
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"crypto/rand"
@@ -90,6 +91,20 @@ func (k *EcdsaKey) Initialize() {
 // KeyType returns this key's type, eg ecdsa
 func (k *EcdsaKey) KeyType() KeyType {
 	return KeyTypeECDSA
+}
+
+// PrivateKey returns the native private key
+// rsa, ecdsa, ecdha exports a ptr, ed25519 exports non-pointer key
+func (k *EcdsaKey) PrivateKey() crypto.PrivateKey {
+	// forcing type casting is neccesary when using this with x509 functions
+	return k.privKey.(*ecdsa.PrivateKey)
+}
+
+// PublicKey returns the native private key
+// rsa, ecdsa, ecdha exports a ptr, ed25519 exports non-pointer key
+func (k *EcdsaKey) PublicKey() crypto.PublicKey {
+	// forcing type casting is neccesary when using this with x509 functions
+	return k.pubKey.(*ecdsa.PublicKey)
 }
 
 // Sign returns the signature of a message signed using this key

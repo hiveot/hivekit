@@ -9,7 +9,6 @@ const (
 	KeyTypeECDSA   KeyType = "ecdsa"
 	KeyTypeEd25519 KeyType = "ed25519"
 	KeyTypeRSA     KeyType = "rsa"
-	KeyTypeNKey    KeyType = "nkey"
 	KeyTypeUnknown         = ""
 )
 
@@ -21,16 +20,17 @@ const KPFileExt = ".key"
 // in the keys directory.
 const PubKeyFileExt = ".pub"
 
-// IHiveKey defines the standard interface for various key types used for signing and authentication
+// IHiveKey defines the standard interface for various key types used for signing
+// and authentication.
 //
-// ... because we don't care about all these keys, just that it works and is secure...
+// The underlying engine supports ecdsa, rsa and ed25519 keys.
+// Use NewKey(KeyTypeECDSA|...) to create a new instance.
 type IHiveKey interface {
 
 	// ExportPrivate returns the serialized private key if available
 	// This defaults to PEM encoding unless the key type doesn't support it.
 	//  key type ecdsa, rsa use PEM encoding
 	//  key type ed25519 encodes it to base64
-	//  key type nkeys encodes when generating its seed
 	ExportPrivate() string
 
 	// ExportPrivateToFile saves the private/public key to a key file

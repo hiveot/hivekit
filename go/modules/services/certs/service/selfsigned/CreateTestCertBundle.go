@@ -1,5 +1,5 @@
 // Package certs with managing certificates for testing
-package service
+package selfsigned
 
 import (
 	"crypto/tls"
@@ -40,8 +40,8 @@ func CreateTestCertBundle() TestCertBundle {
 		panic("CreateCertBundler failed: " + err.Error())
 	}
 	// browsers don't support certifate with ed25519 keys so use ecdsa
-	certBundle.ServerKey = keys.NewKey(keys.KeyTypeECDSA)
-	certBundle.ClientKey = keys.NewKey(keys.KeyTypeECDSA)
+	certBundle.ServerKey = keys.NewEcdsaKey()
+	certBundle.ClientKey = keys.NewEcdsaKey()
 
 	names := []string{ServerAddress, "localhost"}
 	serverCert, err := CreateServerCert(
@@ -52,7 +52,11 @@ func CreateTestCertBundle() TestCertBundle {
 	if err != nil {
 		panic("unable to create server cert: " + err.Error())
 	}
-	certBundle.ServerCert = X509CertToTLS(serverCert, certBundle.ServerKey)
+	// certBundle.ServerCert = X509CertToTLS(serverCert, certBundle.ServerKey)
+	certBundle.ServerCert = &tls.Certificate{
+		Certificate: [][]byte{serverCert.Raw},
+		PrivateKey:  certBundle.ServerKey.PrivateKey(),
+	}
 
 	clientCert, err := CreateClientCert(TestClientID, "service", 1,
 		certBundle.ClientKey,
@@ -61,7 +65,11 @@ func CreateTestCertBundle() TestCertBundle {
 	if err != nil {
 		panic("unable to create client cert: " + err.Error())
 	}
-	certBundle.ClientCert = X509CertToTLS(clientCert, certBundle.ClientKey)
+	// certBundle.ClientCert = X509CertToTLS(clientCert, certBundle.ClientKey)
+	certBundle.ClientCert = &tls.Certificate{
+		Certificate: [][]byte{clientCert.Raw},
+		PrivateKey:  certBundle.ClientKey.PrivateKey(),
+	}
 
 	return certBundle
 }

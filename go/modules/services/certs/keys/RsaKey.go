@@ -91,6 +91,20 @@ func (k *RsaKey) KeyType() KeyType {
 	return KeyTypeRSA
 }
 
+// PrivateKey returns the native private key
+// rsa, ecdsa, ecdha exports a ptr, ed25519 exports non-pointer key
+func (k *RsaKey) PrivateKey() crypto.PrivateKey {
+	// forcing type casting is neccesary when using this with x509 functions
+	return k.privKey.(*rsa.PrivateKey)
+}
+
+// PublicKey returns the native private key
+// rsa, ecdsa, ecdha exports a ptr, ed25519 exports non-pointer key
+func (k *RsaKey) PublicKey() crypto.PublicKey {
+	// forcing type casting is neccesary when using this with x509 functions
+	return k.pubKey.(*rsa.PublicKey)
+}
+
 // Sign returns the signature of a message signed using this key
 // this requires a private key to be created or imported
 func (k *RsaKey) Sign(msg []byte) (signature []byte, err error) {

@@ -20,7 +20,7 @@ type TLSModule struct {
 	// The listening address or "" for all available addresses
 	addr string
 	// The listening port or 444 when not set
-	port string
+	port int
 
 	// The router available for this TLS server
 	// Intended for Http modules to add their routes
@@ -77,13 +77,13 @@ func (m *TLSModule) HandleRequest(req *messaging.RequestMessage) (resp *messagin
 // Starts a HTTPS TLS service
 func (m *TLSModule) Start() (err error) {
 
-	addr := "" // ?
 	m.router = chi.NewRouter()
 	caCert := m.certs.GetCACert()
+	serverTlsCert := m.certs.GetServerCert(m.ModuleID)
 
 	m.service, m.router = service.NewTLSServer(
-		addr, m.port,
-		tlsCert,
+		m.addr, m.port,
+		serverTlsCert,
 		caCert,
 		m.router)
 
@@ -100,13 +100,15 @@ func (m *TLSModule) Stop() {
 // Start a new TLS server
 //
 // This can work with any HTTPS server that supports the chi router.
-func NewTLSModule(certs *certs.ICertsService) *TLSModule {
+func NewTLSModule(addr string, port int, certs certs.ICertsService) *TLSModule {
 
 	m := &TLSModule{
 		HiveModuleBase: modules.HiveModuleBase{
-			ModuleID:   certs.DefaultTlsThingID,
+			ModuleID:   tls.DefaultTlsThingID,
 			Properties: make(map[string]any),
 		},
+		addr:  addr,
+		port:  port,
 		certs: certs,
 	}
 	var _ modules.IHiveModule = m // interface check

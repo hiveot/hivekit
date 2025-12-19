@@ -19,14 +19,9 @@ func DetermineKeyType(encKey string) KeyType {
 	var err error
 	blockPub, _ := pem.Decode([]byte(encKey))
 	if blockPub == nil {
-		//// is this an nkey seed?
-		//_, err = nkeys.FromSeed([]byte(encKey))
-		//if err == nil {
-		//	return KeyTypeNKey
-		//}
-		// no nkey, try base64 decoding. Eg PEM content
+		// Try base64 decoding. Eg PEM content
 		derBytes, err = base64.StdEncoding.DecodeString(encKey)
-
+		_ = err
 		// todo: support for hex format?
 	} else {
 		derBytes = blockPub.Bytes
@@ -128,8 +123,6 @@ func NewKey(keyType KeyType) IHiveKey {
 		return NewEcdsaKey()
 	case KeyTypeEd25519:
 		return NewEd25519Key()
-	//case KeyTypeNKey:
-	//	return NewNkeysKey()
 	case KeyTypeRSA:
 		return NewRsaKey()
 	default:

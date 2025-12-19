@@ -1,4 +1,4 @@
-package service
+package selfsigned
 
 import (
 	"crypto/rand"
@@ -18,6 +18,9 @@ const DefaultServerCertValidityDays = 100
 
 // CreateServerCert create a server certificate, signed by the given CA, for use in hiveot services.
 //
+// Note: While technically only the server's public key is needed, this requires a IHiveKey
+// key-pair to force type checking and avoid unexpected errors.
+//
 // The provided x509 certificate can be converted to a PEM text with:
 //
 //	  certPEM = certs.X509CertToPEM(cert)
@@ -25,22 +28,26 @@ const DefaultServerCertValidityDays = 100
 //	* serviceID is the unique service ID used as the CN. for example hostname-serviceName
 //	* ou is the organizational unit of the certificate
 //	* validityDays is the duration the cert is valid for. Use 0 for default.
-//	* serverKey contains the server's public key (use ecdsa keys for browser certificates)
+//	* serverKeyPair contains the server's key-pair (use ecdsa keys for browser certificates)
 //	* names are the SAN names to include with the certificate, localhost and 127.0.0.1 are always added
 //	* caCert is the CA certificate used to sign the certificate
 //	* caKey is the CA private key used to sign certificate
 func CreateServerCert(
 	serverID string, ou string, validityDays int,
-	serverKey keys.IHiveKey, names []string,
-	caCert *x509.Certificate, caKey keys.IHiveKey) (
+	serverKeyPair keys.IHiveKey, names []string,
+	caCert *x509.Certificate, caKeyPair keys.IHiveKey) (
 	x509Cert *x509.Certificate, err error) {
 
-	if serverID == "" || serverKey == nil {
+	if serverID == "" || serverKeyPair == nil {
 		err := fmt.Errorf("missing argument serviceID, servicePubKey")
 		slog.Error(err.Error())
 		return nil, err
+	} else if caCert == nil || caKeyPair == nil {
+		err := fmt.Errorf("missing CA certificate or key")
+		slog.Error(err.Error())
+		return nil, err
 	}
-	if validityDays == 0 {
+	if validityDays <= 0 {
 		validityDays = DefaultServerCertValidityDays
 	}
 	if names == nil {
@@ -70,14 +77,6 @@ func CreateServerCert(
 		// allow use as both server and client cert
 		ExtKeyUsage: []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth, x509.ExtKeyUsageClientAuth},
 
-		// TBD: for NATS client cert the clientID should be added to the DNS name or Email address
-		// TODO test this: Add the clientID to the SAN for mapping to a user in NATS
-		// source: https://stackoverflow.com/questions/26441547/go-how-do-i-add-an-extension-subjectaltname-to-a-x509-certificate
-		// and: https://docs.nats.io/running-a-nats-service/configuration/securing_nats/auth_intro/tls_mutual_auth
-		// one of these solutions:
-		//DNSNames: []string{clientID},
-		//EmailAddresses: []string{serverID},
-
 		IsCA:           false,
 		MaxPathLenZero: true,
 		// BasicConstraintsValid: true,
@@ -95,9 +94,12 @@ func CreateServerCert(
 	// Create the service private key
 
 	// and the certificate itself
-	pubKey := serverKey.PublicKey()
+	pubKey := serverKeyPair.PublicKey()
+	// FIXME!! cast should not be neccesary!!!
+	// privKey := caKeyPair.PrivateKey().(*ecdsa.PrivateKey)
+	privKey := caKeyPair.PrivateKey()
 	certDerBytes, err := x509.CreateCertificate(
-		rand.Reader, template, caCert, pubKey, caKey.PrivateKey())
+		rand.Reader, template, caCert, pubKey, privKey)
 	if err == nil {
 		x509Cert, err = x509.ParseCertificate(certDerBytes)
 	}

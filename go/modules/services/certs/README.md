@@ -1,6 +1,6 @@
 # Certificate Management Service Module
 
-This module offers services for creating keys and certificates for use by clients and servers.
+This module offers services for creating keys and certificates for use by modules.
 
 ## Configuration
 
