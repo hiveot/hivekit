@@ -1,26 +1,26 @@
 package module
 
 import (
+	"crypto/tls"
+	"crypto/x509"
+
 	"github.com/go-chi/chi/v5"
 	"github.com/hiveot/hivekit/go/modules"
 	"github.com/hiveot/hivekit/go/modules/messaging"
-	"github.com/hiveot/hivekit/go/modules/services/certs"
-	"github.com/hiveot/hivekit/go/modules/transports/tls"
-	"github.com/hiveot/hivekit/go/modules/transports/tls/service"
+	"github.com/hiveot/hivekit/go/modules/transports/httpserver"
+	"github.com/hiveot/hivekit/go/modules/transports/httpserver/service"
 )
 
 // TlsModule is a module for serving the TLS HTTPS server.
 // This implements IHiveModule interface.
-type TLSModule struct {
+type HttpServerModule struct {
 	modules.HiveModuleBase
 
 	// certificate handler for running the server
-	certs certs.ICertsService
+	caCert     *x509.Certificate
+	serverCert *tls.Certificate
 
-	// The listening address or "" for all available addresses
-	addr string
-	// The listening port or 444 when not set
-	port int
+	config *httpserver.HttpServerConfig
 
 	// The router available for this TLS server
 	// Intended for Http modules to add their routes
@@ -30,15 +30,16 @@ type TLSModule struct {
 	// msgAPI *api.TLSMsgHandler
 
 	// TLS protocol server
-	service *service.TLSServer
+	service *service.HttpsServer
 }
 
-func (m *TLSModule) GetService() tls.ITLSTransport {
+func (m *HttpServerModule) GetService() *service.HttpsServer {
 	return m.service
 }
 
 // HandleRequest passes the module SME request messages to the message handler.
-func (m *TLSModule) HandleRequest(req *messaging.RequestMessage) (resp *messaging.ResponseMessage) {
+// currently this module does not expose properties or actions to request.
+func (m *HttpServerModule) HandleRequest(req *messaging.RequestMessage) (resp *messaging.ResponseMessage) {
 	// if m.msgAPI != nil {
 	// 	resp = m.msgAPI.HandleRequest(req)
 	// }
@@ -75,41 +76,34 @@ func (m *TLSModule) HandleRequest(req *messaging.RequestMessage) (resp *messagin
 // Start readies the module for use.
 //
 // Starts a HTTPS TLS service
-func (m *TLSModule) Start() (err error) {
-
-	m.router = chi.NewRouter()
-	caCert := m.certs.GetCACert()
-	serverTlsCert := m.certs.GetServerCert(m.ModuleID)
-
-	m.service, m.router = service.NewTLSServer(
-		m.addr, m.port,
-		serverTlsCert,
-		caCert,
-		m.router)
-
+func (m *HttpServerModule) Start() (err error) {
+	m.service = service.NewHttpsServer(m.config)
 	err = m.service.Start()
-
 	return err
 }
 
 // Stop any running actions
-func (m *TLSModule) Stop() {
+func (m *HttpServerModule) Stop() {
 	m.service.Stop()
 }
 
-// Start a new TLS server
+// Create a new Https server module instance.
 //
-// This can work with any HTTPS server that supports the chi router.
-func NewTLSModule(addr string, port int, certs certs.ICertsService) *TLSModule {
+// moduleID is the module's instance identification.
+// config MUST have been configured with a CA and server certificate unless
+// NoTLS is set.
+func NewHttpServerModule(moduleID string, config *httpserver.HttpServerConfig) *HttpServerModule {
 
-	m := &TLSModule{
+	if moduleID == "" {
+		moduleID = httpserver.DefaultHttpServerModuleID
+	}
+
+	m := &HttpServerModule{
 		HiveModuleBase: modules.HiveModuleBase{
-			ModuleID:   tls.DefaultTlsThingID,
+			ModuleID:   moduleID,
 			Properties: make(map[string]any),
 		},
-		addr:  addr,
-		port:  port,
-		certs: certs,
+		config: config,
 	}
 	var _ modules.IHiveModule = m // interface check
 	return m
