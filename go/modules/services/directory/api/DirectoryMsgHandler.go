@@ -4,8 +4,8 @@ import (
 	_ "embed"
 	"fmt"
 
-	"github.com/hiveot/hivekit/go/modules/messaging"
 	"github.com/hiveot/hivekit/go/modules/services/directory"
+	"github.com/hiveot/hivekit/go/msg"
 	"github.com/hiveot/hivekit/go/utils"
 	"github.com/hiveot/hivekit/go/wot"
 	"github.com/hiveot/hivekit/go/wot/td"
@@ -17,7 +17,7 @@ import (
 //go:embed directory-tm.json
 var DirectoryTMJson []byte
 
-// DirectoryMsgHandler maps SME messages to the native directory interface
+// DirectoryMsgHandler maps RRN messages to the native directory interface
 type DirectoryMsgHandler struct {
 	// the directory instance ThingID that must match the requests
 	thingID string
@@ -27,7 +27,7 @@ type DirectoryMsgHandler struct {
 // HandleRequest for properties or actions
 // If the request is not recognized nil is returned.
 // If the request is missing the sender, an error is returned
-func (handler *DirectoryMsgHandler) HandleRequest(req *messaging.RequestMessage) (resp *messaging.ResponseMessage) {
+func (handler *DirectoryMsgHandler) HandleRequest(req *msg.RequestMessage) (resp *msg.ResponseMessage) {
 	if req.ThingID != handler.thingID {
 		return nil
 	} else if req.SenderID == "" {
@@ -54,7 +54,7 @@ func (handler *DirectoryMsgHandler) HandleRequest(req *messaging.RequestMessage)
 
 // DeleteThing removes a thing in the directory
 // req.Input is a string containing the Thing ID
-func (handler *DirectoryMsgHandler) DeleteThing(req *messaging.RequestMessage) (resp *messaging.ResponseMessage) {
+func (handler *DirectoryMsgHandler) DeleteThing(req *msg.RequestMessage) (resp *msg.ResponseMessage) {
 	var thingID string
 	err := utils.Decode(req.Input, &thingID)
 	if err == nil {
@@ -75,7 +75,7 @@ func (handler *DirectoryMsgHandler) GetTD() (tdDoc *td.TD) {
 
 // RetrieveAllThings returns a list of things
 // Input: {offset, limit}
-func (handler *DirectoryMsgHandler) RetrieveAllThings(req *messaging.RequestMessage) (resp *messaging.ResponseMessage) {
+func (handler *DirectoryMsgHandler) RetrieveAllThings(req *msg.RequestMessage) (resp *msg.ResponseMessage) {
 	var tdList []string
 	var err error
 	var args RetrieveAllThingsArgs
@@ -89,7 +89,7 @@ func (handler *DirectoryMsgHandler) RetrieveAllThings(req *messaging.RequestMess
 }
 
 // RetrieveThing gets the TD JSON for the given thingID from the directory store.
-func (handler *DirectoryMsgHandler) RetrieveThing(req *messaging.RequestMessage) (resp *messaging.ResponseMessage) {
+func (handler *DirectoryMsgHandler) RetrieveThing(req *msg.RequestMessage) (resp *msg.ResponseMessage) {
 	var thingID string
 	var tdJSON string
 	err := utils.Decode(req.Input, &thingID)
@@ -102,7 +102,7 @@ func (handler *DirectoryMsgHandler) RetrieveThing(req *messaging.RequestMessage)
 
 // UpdateThing updates a new thing in the store
 // req.Input is a string containing the TD JSON
-func (handler *DirectoryMsgHandler) UpdateThing(req *messaging.RequestMessage) (resp *messaging.ResponseMessage) {
+func (handler *DirectoryMsgHandler) UpdateThing(req *msg.RequestMessage) (resp *msg.ResponseMessage) {
 	var tdJSON string
 
 	err := utils.Decode(req.Input, &tdJSON)

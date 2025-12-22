@@ -1,7 +1,7 @@
 package modules
 
 import (
-	"github.com/hiveot/hivekit/go/modules/messaging"
+	"github.com/hiveot/hivekit/go/msg"
 	"github.com/hiveot/hivekit/go/utils"
 	"github.com/hiveot/hivekit/go/wot"
 )
@@ -26,7 +26,7 @@ type HiveModuleBase struct {
 	// module properties and their value
 	Properties map[string]any
 
-	// registers sinks for passing SME messages to
+	// registers sinks for passing RRN messages
 	sinks []IHiveModule
 }
 
@@ -56,7 +56,7 @@ func (m *HiveModuleBase) GetTM() string {
 //
 // Transport modules that receive requests from its clients should pass these to the
 // sinks and NOT pass them to HandleRequests.
-func (m *HiveModuleBase) HandleRequest(request *messaging.RequestMessage) (resp *messaging.ResponseMessage) {
+func (m *HiveModuleBase) HandleRequest(request *msg.RequestMessage) (resp *msg.ResponseMessage) {
 	switch request.Operation {
 	// TODO: can this boilerplate be handled by a ModuleBase
 	case wot.OpReadProperty:
@@ -83,12 +83,12 @@ func (m *HiveModuleBase) HandleRequest(request *messaging.RequestMessage) (resp 
 //
 // Transport modules that receive notifications from its clients should pass these to the
 // sinks and NOT pass them to HandleNotification.
-func (m *HiveModuleBase) HandleNotification(notif *messaging.NotificationMessage) {
+func (m *HiveModuleBase) HandleNotification(notif *msg.NotificationMessage) {
 	m.SendNotification(notif)
 }
 
 // ReadProperty returns a response containing the requested property value
-func (m *HiveModuleBase) ReadProperty(req *messaging.RequestMessage) (resp *messaging.ResponseMessage) {
+func (m *HiveModuleBase) ReadProperty(req *msg.RequestMessage) (resp *msg.ResponseMessage) {
 	if m.Properties == nil {
 		return nil
 	}
@@ -101,7 +101,7 @@ func (m *HiveModuleBase) ReadProperty(req *messaging.RequestMessage) (resp *mess
 }
 
 // ReadAllProperties returns a response containing the map of all known property values
-func (m *HiveModuleBase) ReadAllProperties(req *messaging.RequestMessage) (resp *messaging.ResponseMessage) {
+func (m *HiveModuleBase) ReadAllProperties(req *msg.RequestMessage) (resp *msg.ResponseMessage) {
 	var propValueMap = make(map[string]any, 0)
 	for k, v := range m.Properties {
 		propValueMap[k] = v
@@ -111,7 +111,7 @@ func (m *HiveModuleBase) ReadAllProperties(req *messaging.RequestMessage) (resp 
 }
 
 // ReadMultipleProperties returns a response containing the map of requested property values
-func (m *HiveModuleBase) ReadMultipleProperties(req *messaging.RequestMessage) (resp *messaging.ResponseMessage) {
+func (m *HiveModuleBase) ReadMultipleProperties(req *msg.RequestMessage) (resp *msg.ResponseMessage) {
 	if m.Properties == nil || req.Input == nil {
 		return nil
 	}
@@ -133,7 +133,7 @@ func (m *HiveModuleBase) ReadMultipleProperties(req *messaging.RequestMessage) (
 
 // SendNotification is a helper function to pass notifications to all sinks
 // This is the module output.
-func (m *HiveModuleBase) SendNotification(notif *messaging.NotificationMessage) {
+func (m *HiveModuleBase) SendNotification(notif *msg.NotificationMessage) {
 	if m.sinks == nil {
 		return
 	}
@@ -145,7 +145,7 @@ func (m *HiveModuleBase) SendNotification(notif *messaging.NotificationMessage) 
 // SendRequest is a helper function to pass requests to the sinks.
 // If multiple sinks are registered then the first response is returned.
 // This is the module output.
-func (m *HiveModuleBase) SendRequest(req *messaging.RequestMessage) (resp *messaging.ResponseMessage) {
+func (m *HiveModuleBase) SendRequest(req *msg.RequestMessage) (resp *msg.ResponseMessage) {
 	if m.sinks == nil {
 		return nil
 	}
@@ -169,6 +169,6 @@ func (m *HiveModuleBase) UpdateProperty(name string, val any) {
 		m.Properties = make(map[string]any)
 	}
 	m.Properties[name] = val
-	notif := messaging.NewNotificationMessage(wot.OpObserveProperty, m.ModuleID, name, val)
+	notif := msg.NewNotificationMessage(wot.OpObserveProperty, m.ModuleID, name, val)
 	m.SendNotification(notif)
 }

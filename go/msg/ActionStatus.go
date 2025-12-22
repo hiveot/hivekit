@@ -1,5 +1,5 @@
-// Package messaging with the 3 flow messages: requests, response and  notifications
-package messaging
+// Package msg with the requests, response, notification messages
+package msg
 
 import (
 	"errors"

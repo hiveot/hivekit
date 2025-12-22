@@ -17,13 +17,13 @@ The priority listed here:
 
 ## Transport Modules
 
-The role of a transport module is to convert transport protocol messages into SME messages and vice versa. For example, a WoT WSS (websocket) module can receive WoT compatible websocket messages over TLS and converts them to SME messages, and returns a response in the WoT WSS format. Most modules contain a server along with a client API.
+The role of a transport module is to convert transport protocol messages into RRN messages and vice versa. For example, a WoT WSS (websocket) module can receive WoT compatible websocket messages over TLS and converts them to RRN messages, and returns a response in the WoT WSS format. Most modules contain a server along with a client API.
 
 ### HiveOT UDS IPC Transport Module
 
 Status: planned, priority medium
 
-This messaging system uses an UDS (Unix Domain Sockets) based IPC (inter-process communication) protocol to pass messages between client and server running on the same host. This transports messages using SME (Standard Message Envelopes) messaging.
+This messaging system uses an UDS (Unix Domain Sockets) based IPC (inter-process communication) protocol to pass messages between client and server running on the same host. This transports messages using RRN messaging.
 
 IPC protocols can be based on shared memory, named pipes, or unix sockets. The initial version will use named pipes.
 
@@ -31,7 +31,7 @@ IPC protocols can be based on shared memory, named pipes, or unix sockets. The i
 
 Status: planned, priority low
 
-The HiveOT SSE sub-protocol uses the SME (Standard Message Envelope) to pass messages through the SSE connection. This supports subscription to multiple devices, events and properties over a single connection.
+The HiveOT SSE sub-protocol uses RRN format to pass messages through the SSE connection. This supports subscription to multiple devices, events and properties over a single connection.
 This offers more capabilities for web browser client applications than the WoT SSE protocol.
 
 ### LoRaWan Transport Module

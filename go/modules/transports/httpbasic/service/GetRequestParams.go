@@ -7,6 +7,7 @@ import (
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/hiveot/hivekit/go/modules/transports/httpbasic"
 	jsoniter "github.com/json-iterator/go"
 )
 
@@ -47,14 +48,14 @@ func GetRequestParams(r *http.Request) (reqParam RequestParams, err error) {
 		slog.Error(err.Error())
 		return reqParam, err
 	}
-	correlationID := r.Header.Get(CorrelationIDHeader)
+	correlationID := r.Header.Get(httpbasic.CorrelationIDHeader)
 	reqParam.CorrelationID = correlationID
 
 	// A connection ID distinguishes between different connections from the same client.
 	// This is used to correlate http requests with out-of-band responses like a SSE
 	// return channel.
 	// If a 'cid' header exists, use it as the connection ID.
-	headerCID := r.Header.Get(ConnectionIDHeader)
+	headerCID := r.Header.Get(httpbasic.ConnectionIDHeader)
 	if headerCID == "" {
 		// FIXME: this is only an issue with hiveot-sse. Maybe time to retire it?
 		// alt: use a session-id from the auth token - two browser connections would
@@ -69,9 +70,9 @@ func GetRequestParams(r *http.Request) (reqParam RequestParams, err error) {
 	reqParam.ConnectionID = headerCID
 
 	// URLParam names must match the  path variables set in the router.
-	reqParam.ThingID = chi.URLParam(r, HttpBasicThingIDURIVar)
-	reqParam.Name = chi.URLParam(r, HttpBasicNameURIVar)
-	reqParam.Op = chi.URLParam(r, HttpBasicOperationURIVar)
+	reqParam.ThingID = chi.URLParam(r, httpbasic.HttpBasicThingIDURIVar)
+	reqParam.Name = chi.URLParam(r, httpbasic.HttpBasicNameURIVar)
+	reqParam.Op = chi.URLParam(r, httpbasic.HttpBasicOperationURIVar)
 	if r.Body != nil {
 		reqParam.Payload, _ = io.ReadAll(r.Body)
 	}

@@ -6,8 +6,8 @@ import (
 	"log/slog"
 	"time"
 
-	"github.com/hiveot/hivekit/go/modules/messaging"
 	"github.com/hiveot/hivekit/go/modules/services/bucketstore"
+	"github.com/hiveot/hivekit/go/msg"
 	"github.com/hiveot/hivekit/go/utils"
 	"github.com/hiveot/hivekit/go/wot"
 )
@@ -17,7 +17,7 @@ import (
 //go:embed bucketstore-tm.json
 var BucketStoreTMJson []byte
 
-// DirectoryMsgHandler maps SME messages to the native directory interface
+// DirectoryMsgHandler maps RRN messages to the native directory interface
 type BucketMsgHandler struct {
 	// thingID of this instance
 	thingID string
@@ -30,7 +30,7 @@ type BucketMsgHandler struct {
 // HandleRequest handles action requests for the service
 // This returns nil if thingID, operation or request name is not recognized.
 // If the request is missing a senderID then an error is returned.
-func (handler *BucketMsgHandler) HandleRequest(req *messaging.RequestMessage) *messaging.ResponseMessage {
+func (handler *BucketMsgHandler) HandleRequest(req *msg.RequestMessage) *msg.ResponseMessage {
 	// TODO: should this verify the destination this instance with an instance thingID?
 	if req.ThingID != handler.thingID {
 		return nil
@@ -60,7 +60,7 @@ func (handler *BucketMsgHandler) HandleRequest(req *messaging.RequestMessage) *m
 // Cursor returns an iterator for objects.
 // The cursor expires one minute after it is last used.
 // This returns a cursor ID that can be used in the first,last,next,prev methods
-func (handler *BucketMsgHandler) Cursor(req *messaging.RequestMessage) *messaging.ResponseMessage {
+func (handler *BucketMsgHandler) Cursor(req *msg.RequestMessage) *msg.ResponseMessage {
 	var err error
 	lifespan := time.Minute
 	if req.ThingID == "" {
@@ -79,7 +79,7 @@ func (handler *BucketMsgHandler) Cursor(req *messaging.RequestMessage) *messagin
 	return resp
 }
 
-func (handler *BucketMsgHandler) Delete(req *messaging.RequestMessage) *messaging.ResponseMessage {
+func (handler *BucketMsgHandler) Delete(req *msg.RequestMessage) *msg.ResponseMessage {
 	var objectKey string
 	// use the bucket of the authenticated sender
 	bucket := handler.service.GetBucket(req.SenderID)
@@ -90,7 +90,7 @@ func (handler *BucketMsgHandler) Delete(req *messaging.RequestMessage) *messagin
 	return req.CreateResponse(nil, err)
 }
 
-func (handler *BucketMsgHandler) Get(req *messaging.RequestMessage) *messaging.ResponseMessage {
+func (handler *BucketMsgHandler) Get(req *msg.RequestMessage) *msg.ResponseMessage {
 	var objectKey string
 	var raw []byte
 	bucket := handler.service.GetBucket(req.SenderID)
@@ -104,7 +104,7 @@ func (handler *BucketMsgHandler) Get(req *messaging.RequestMessage) *messaging.R
 	return req.CreateResponse(string(raw), nil)
 }
 
-func (handler *BucketMsgHandler) GetMultiple(req *messaging.RequestMessage) *messaging.ResponseMessage {
+func (handler *BucketMsgHandler) GetMultiple(req *msg.RequestMessage) *msg.ResponseMessage {
 	var docKeys []string
 	var raw map[string][]byte = nil
 	result := make(map[string]string)
@@ -122,7 +122,7 @@ func (handler *BucketMsgHandler) GetMultiple(req *messaging.RequestMessage) *mes
 	return req.CreateResponse(result, err)
 }
 
-func (handler *BucketMsgHandler) Set(req *messaging.RequestMessage) *messaging.ResponseMessage {
+func (handler *BucketMsgHandler) Set(req *msg.RequestMessage) *msg.ResponseMessage {
 	bucket := handler.service.GetBucket(req.SenderID)
 	input := SetArgs{}
 	err := utils.Decode(req.Input, &input)
@@ -132,7 +132,7 @@ func (handler *BucketMsgHandler) Set(req *messaging.RequestMessage) *messaging.R
 	return req.CreateResponse(nil, err)
 }
 
-func (handler *BucketMsgHandler) SetMultiple(req *messaging.RequestMessage) *messaging.ResponseMessage {
+func (handler *BucketMsgHandler) SetMultiple(req *msg.RequestMessage) *msg.ResponseMessage {
 	bucket := handler.service.GetBucket(req.SenderID)
 	var input map[string]string
 	raw := make(map[string][]byte)

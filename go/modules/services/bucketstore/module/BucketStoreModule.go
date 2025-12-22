@@ -7,11 +7,11 @@ import (
 	"path/filepath"
 
 	"github.com/hiveot/hivekit/go/modules"
-	"github.com/hiveot/hivekit/go/modules/messaging"
 	"github.com/hiveot/hivekit/go/modules/services/bucketstore"
 	"github.com/hiveot/hivekit/go/modules/services/bucketstore/api"
 	"github.com/hiveot/hivekit/go/modules/services/bucketstore/kvbtree"
 	"github.com/hiveot/hivekit/go/modules/services/bucketstore/pebble"
+	"github.com/hiveot/hivekit/go/msg"
 )
 
 // storage name and thingID
@@ -50,7 +50,7 @@ func (m *BucketStoreModule) GetService() bucketstore.IBucketStore {
 }
 
 // HandleRequest passes the module request messages to the API handler.
-func (m *BucketStoreModule) HandleRequest(req *messaging.RequestMessage) (resp *messaging.ResponseMessage) {
+func (m *BucketStoreModule) HandleRequest(req *msg.RequestMessage) (resp *msg.ResponseMessage) {
 	if m.msgAPI != nil {
 		resp = m.msgAPI.HandleRequest(req)
 	}

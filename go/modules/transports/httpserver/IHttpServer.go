@@ -18,15 +18,17 @@ const DefaultPort = 8444
 const ClientContextID = "clientID"
 const SessionContextID = "sessionID"
 
-// HTTP TLS server transport interface
-type IHttpsServer interface {
-	// Return the router used by the TLS server.
-	// Intended to let services add their endpoints.
-	//
-	// Local use only. nil when queried remotely.
-	GetProtectedRouter() *chi.Mux
-	// Return the protected
-	GetPublicRouter() *chi.Mux
+// IHttpServer is the HTTP TLS server transport interface
+type IHttpServer interface {
+	// Returns the connection URL of the http server
+	GetConnectURL() string
+
+	// Return the protected router for adding endpoints.
+	// This requires that config.Authenticate method is set, otherwise this path is not protected.
+	GetProtectedRoutes() chi.Router
+
+	// Return the public router for adding endpoints.
+	GetPublicRoutes() chi.Router
 }
 
 // Configuration options for the https server

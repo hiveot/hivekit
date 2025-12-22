@@ -6,8 +6,10 @@ import (
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
-	"github.com/hiveot/hivekit/go/modules/messaging"
 	"github.com/hiveot/hivekit/go/modules/transports"
+	"github.com/hiveot/hivekit/go/modules/transports/httpbasic"
+	"github.com/hiveot/hivekit/go/modules/transports/httpserver"
+	"github.com/hiveot/hivekit/go/msg"
 	"github.com/hiveot/hivekit/go/wot/td"
 )
 
@@ -15,24 +17,24 @@ import (
 const (
 	// ConnectionIDHeader is intended for linking return channels to requests.
 	// intended for separated return channel like sse.
-	ConnectionIDHeader = "cid"
+	// ConnectionIDHeader = "cid"
 	// CorrelationIDHeader is the header to be able to link requests to out of band responses
 	// tentative as it isn't part of the wot spec
-	CorrelationIDHeader = "correlationID"
+	// CorrelationIDHeader = "correlationID"
 
 	// HttpPostLoginPath is the fixed authentication endpoint of the hub
-	HttpPostLoginPath   = "/authn/login"
-	HttpPostLogoutPath  = "/authn/logout"
-	HttpPostRefreshPath = "/authn/refresh"
-	HttpGetPingPath     = "/ping"
+	// HttpPostLoginPath   = "/authn/login"
+	// HttpPostLogoutPath  = "/authn/logout"
+	// HttpPostRefreshPath = "/authn/refresh"
+	// HttpGetPingPath     = "/ping"
 
 	// The generic path for thing operations over http using URI variables
-	HttpBaseFormOp                   = "/things"
-	HttpBasicAffordanceOperationPath = "/things/{operation}/{thingID}/{name}"
-	HttpBasicThingOperationPath      = "/things/{operation}/{thingID}"
-	HttpBasicOperationURIVar         = "operation"
-	HttpBasicThingIDURIVar           = "thingID"
-	HttpBasicNameURIVar              = "name"
+	// HttpBaseFormOp                   = "/things"
+	// HttpBasicAffordanceOperationPath = "/things/{operation}/{thingID}/{name}"
+	// HttpBasicThingOperationPath      = "/things/{operation}/{thingID}"
+	// HttpBasicOperationURIVar         = "operation"
+	// HttpBasicThingIDURIVar           = "thingID"
+	// HttpBasicNameURIVar              = "name"
 
 	// static file server routes
 	DefaultHttpStaticBase      = "/static"
@@ -52,22 +54,24 @@ const (
 // This uses the provided httpserver instance.
 // This implements the IWotHttpBasic interface.
 type HttBasicServer struct {
+	server httpserver.IHttpServer
+
 	// authenticator for logging in and validating session tokens
 	authenticator transports.IAuthenticator
 
 	// connection host and port the server can be reached at
-	connectAddr string
+	// connectAddr string
 
 	// Thing level operations added by the http router
 	//operations []HttpOperation
 
 	// the root http router
-	router *chi.Mux
+	// router *chi.Mux
 
 	// The routes that require authentication. These can be used by sub-protocol bindings.
-	protectedRoutes chi.Router
+	// protectedRoutes chi.Router
 	// The routes that do not require authentication. These can be used by sub-protocol bindings.
-	publicRoutes chi.Router
+	// publicRoutes chi.Router
 
 	// notification handler to allow devices to send notifications over http
 	// intended for use by integration with 3rd party libraries
@@ -96,7 +100,8 @@ func (srv *HttBasicServer) CloseAllClientConnections(clientID string) {
 //	base is the base path on which to serve the static files, eg: "/static"
 //	staticRoot is the root directory where static files are kept. This must be a full path.
 func (srv *HttBasicServer) EnableStatic(base string, staticRoot string) error {
-	if srv.protectedRoutes == nil || base == "" {
+	protRoutes := srv.server.GetProtectedRoutes()
+	if protRoutes == nil || base == "" {
 		return fmt.Errorf("no protected route or invalid parameters")
 	}
 	var staticFileServer http.Handler
@@ -111,7 +116,7 @@ func (srv *HttBasicServer) EnableStatic(base string, staticRoot string) error {
 	staticFileServer = http.FileServer(http.Dir(staticRoot))
 	// }
 	staticPath := base + "/*"
-	srv.protectedRoutes.Get(staticPath, staticFileServer.ServeHTTP)
+	protRoutes.Get(staticPath, staticFileServer.ServeHTTP)
 	return nil
 }
 
@@ -125,7 +130,7 @@ func (srv *HttBasicServer) EnableStatic(base string, staticRoot string) error {
 // Instead a web server (hiveoview or other) provides the user interface.
 // Including the auth endpoint here is currently just a hint. How to integrate this?
 func (srv *HttBasicServer) GetAuthServerURI() string {
-	return HttpPostLoginPath
+	return httpbasic.HttpPostLoginPath
 }
 
 // GetConnectionByConnectionID returns nil as http-basic is connectionless
@@ -144,7 +149,8 @@ func (srv *HttBasicServer) GetConnectionByClientID(agentID string) transports.IC
 // GetConnectURL returns connection url of the http server
 func (srv *HttBasicServer) GetConnectURL() string {
 
-	baseURL := fmt.Sprintf("https://%s", srv.connectAddr)
+	// baseURL := fmt.Sprintf("https://%s", srv.connectAddr)
+	baseURL := srv.server.GetConnectURL()
 	return baseURL
 }
 
@@ -156,21 +162,21 @@ func (srv *HttBasicServer) GetForm(operation string, thingID string, name string
 
 // GetProtectedRouter return the router for adding protected paths.
 // Protected means the client is authenticated.
-func (srv *HttBasicServer) GetProtectedRouter() chi.Router {
-	return srv.protectedRoutes
+func (srv *HttBasicServer) GetProtectedRoutes() chi.Router {
+	return srv.server.GetProtectedRoutes()
 }
 
-func (srv *HttBasicServer) GetProtocolType() string {
-	return transports.ProtocolTypeHTTPBasic
-}
+// func (srv *HttBasicServer) GetProtocolType() string {
+// return transports.ProtocolTypeHTTPBasic
+// }
 
 // GetPublicRouter return the router for adding public paths.
 func (srv *HttBasicServer) GetPublicRouter() chi.Router {
-	return srv.publicRoutes
+	return srv.server.GetPublicRoutes()
 }
 
 // SendNotification does nothing as http-basic is connectionless
-func (srv *HttBasicServer) SendNotification(msg *messaging.NotificationMessage) {
+func (srv *HttBasicServer) SendNotification(msg *msg.NotificationMessage) {
 }
 
 // Start listening on the routes
@@ -192,9 +198,10 @@ func (srv *HttBasicServer) Stop() {
 // On startup this creates a public and protected route. Protected routes can be
 // registered by sub-protocols. This http-basic handles the connection authentication.
 func NewHttpBasicServer(
-	connectAddr string,
-	router *chi.Mux,
-	authenticator transports.IAuthenticator,
+	// connectAddr string,
+	// router *chi.Mux,
+	// authenticator transports.IAuthenticator,
+	server httpserver.IHttpServer,
 
 	handleNotification transports.NotificationHandler,
 	handleRequest transports.RequestHandler,
@@ -202,15 +209,15 @@ func NewHttpBasicServer(
 ) *HttBasicServer {
 
 	srv := &HttBasicServer{
-		authenticator:             authenticator,
-		connectAddr:               connectAddr,
+		server: server,
+		// authenticator:             authenticator,
+		// connectAddr:               connectAddr,
 		serverNotificationHandler: handleNotification,
 		serverRequestHandler:      handleRequest,
 		serverResponseHandler:     handleResponse,
-		router:                    router,
 	}
 	// TODO: I'd rather not setup routes until start
-	srv.setupRouting(srv.router)
+	srv.setupRouting()
 
 	return srv
 }

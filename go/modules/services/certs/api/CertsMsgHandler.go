@@ -3,8 +3,8 @@ package api
 import (
 	"fmt"
 
-	"github.com/hiveot/hivekit/go/modules/messaging"
 	"github.com/hiveot/hivekit/go/modules/services/certs"
+	"github.com/hiveot/hivekit/go/msg"
 	"github.com/hiveot/hivekit/go/wot"
 )
 
@@ -13,7 +13,7 @@ import (
 // //go:embed certs-tm.json
 //var CertsTMJson []byte
 
-// CertsMsgHandler maps SME messages to the native directory interface
+// CertsMsgHandler maps RRN messages to the native directory interface
 type CertsMsgHandler struct {
 	// the certificate manager instance ThingID that must match the requests
 	thingID string
@@ -23,7 +23,7 @@ type CertsMsgHandler struct {
 // HandleRequest for properties or actions
 // If the request is not recognized nil is returned.
 // If the request is missing the sender, an error is returned
-func (handler *CertsMsgHandler) HandleRequest(req *messaging.RequestMessage) (resp *messaging.ResponseMessage) {
+func (handler *CertsMsgHandler) HandleRequest(req *msg.RequestMessage) (resp *msg.ResponseMessage) {
 	if req.ThingID != handler.thingID {
 		return nil
 	} else if req.SenderID == "" {

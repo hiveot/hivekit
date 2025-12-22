@@ -21,7 +21,7 @@ CORS configuration is only needed when serving web browsers. If enabled:
 
 Callback hooks:
 
-- config.Authenticate is a function to authenticate incoming requests for the protected routes.
+- config.Authenticate is a function to authenticate incoming requests for the protected routes. This is disabled by default so it must be set by the application in order to protect this route.
 - config.Logger is the handler for logging http requests. Default is the chi middleware.Logger.
 
 Other configuration:

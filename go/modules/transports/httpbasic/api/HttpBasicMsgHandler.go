@@ -3,8 +3,8 @@ package api
 import (
 	"fmt"
 
-	"github.com/hiveot/hivekit/go/modules/messaging"
 	"github.com/hiveot/hivekit/go/modules/transports"
+	"github.com/hiveot/hivekit/go/msg"
 )
 
 // Embed the module TM - TODO: currently this module does not have a TM
@@ -12,15 +12,15 @@ import (
 // //go:embed httpbasic-tm.json
 // var HttpBasicTMJson []byte
 
-// HttpBasicMsgHandler maps SME messages to the native service interface.
-type HttpBasicMsgHandler struct {
+// HttpBasicRRNHandler maps between RRN messages and the native service interface.
+type HttpBasicRRNHandler struct {
 	// the module instance ThingID that must match the requests
 	thingID string
 	service transports.ITransportModule
 }
 
 // HandleRequest for writing configuration and invoking module actions
-func (handler *HttpBasicMsgHandler) HandleRequest(req *messaging.RequestMessage) (resp *messaging.ResponseMessage) {
+func (handler *HttpBasicRRNHandler) HandleRequest(req *msg.RequestMessage) (resp *msg.ResponseMessage) {
 	if req.ThingID != handler.thingID {
 		return nil
 	} else if req.SenderID == "" {
@@ -33,8 +33,8 @@ func (handler *HttpBasicMsgHandler) HandleRequest(req *messaging.RequestMessage)
 }
 
 // Create a new instance of the HTTP-Basic transport
-func NewHttpBasicMsgHandler(thingID string, service transports.ITransportModule) *HttpBasicMsgHandler {
-	handler := &HttpBasicMsgHandler{
+func NewHttpBasicMsgHandler(thingID string, service transports.ITransportModule) *HttpBasicRRNHandler {
+	handler := &HttpBasicRRNHandler{
 		thingID: thingID,
 		service: service,
 	}

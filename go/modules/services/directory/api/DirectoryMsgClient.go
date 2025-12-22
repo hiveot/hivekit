@@ -4,15 +4,15 @@ import (
 	"errors"
 
 	"github.com/hiveot/hivekit/go/modules"
-	"github.com/hiveot/hivekit/go/modules/messaging"
 	"github.com/hiveot/hivekit/go/modules/services/directory"
+	"github.com/hiveot/hivekit/go/msg"
 	"github.com/hiveot/hivekit/go/wot"
 )
 
-// DirectoryMsgClient is a client for the Directory service using SME messages.
+// DirectoryMsgClient is a client for the Directory service using RRN messages.
 // This implements the IDirectory interface.
 type DirectoryMsgClient struct {
-	// DirectoryMsgClient is the SME client for the directory service.
+	// DirectoryMsgClient is the RRN client for the directory service.
 
 	// directoryID ThingID of the directory service. This defaults to the directory ThingID
 	directoryID string
@@ -21,21 +21,21 @@ type DirectoryMsgClient struct {
 }
 
 func (cl *DirectoryMsgClient) CreateThing(tdJson string) error {
-	req := messaging.NewRequestMessage(
+	req := msg.NewRequestMessage(
 		wot.OpInvokeAction, cl.directoryID, ActionCreateThing, tdJson, "")
 	resp := cl.sink.HandleRequest(req)
 	return resp.AsError()
 }
 
 func (cl *DirectoryMsgClient) DeleteThing(thingID string) error {
-	req := messaging.NewRequestMessage(
+	req := msg.NewRequestMessage(
 		wot.OpInvokeAction, cl.directoryID, ActionDeleteThing, thingID, "")
 	resp := cl.sink.HandleRequest(req)
 	return resp.AsError()
 }
 
 func (cl *DirectoryMsgClient) RetrieveThing(thingID string) (tdJSON string, err error) {
-	req := messaging.NewRequestMessage(
+	req := msg.NewRequestMessage(
 		wot.OpInvokeAction, cl.directoryID, ActionRetrieveThing, thingID, "")
 	resp := cl.sink.HandleRequest(req)
 	if resp == nil {
@@ -52,7 +52,7 @@ func (cl *DirectoryMsgClient) RetrieveAllThings(offset int, limit int) (tdList [
 		Offset: offset,
 		Limit:  limit,
 	}
-	req := messaging.NewRequestMessage(
+	req := msg.NewRequestMessage(
 		wot.OpInvokeAction, cl.directoryID, ActionRetrieveAllThings, args, "")
 	resp := cl.sink.HandleRequest(req)
 	if err = resp.AsError(); err == nil {
@@ -62,7 +62,7 @@ func (cl *DirectoryMsgClient) RetrieveAllThings(offset int, limit int) (tdList [
 }
 
 func (cl *DirectoryMsgClient) UpdateThing(tdJson string) error {
-	req := messaging.NewRequestMessage(
+	req := msg.NewRequestMessage(
 		wot.OpInvokeAction, cl.directoryID, ActionUpdateThing, tdJson, "")
 	resp := cl.sink.HandleRequest(req)
 	return resp.AsError()

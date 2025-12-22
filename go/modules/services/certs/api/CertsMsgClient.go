@@ -5,10 +5,10 @@ import (
 	"github.com/hiveot/hivekit/go/modules/services/certs"
 )
 
-// CertsMsgClient is a client for the Certificate service using SME messages.
+// CertsMsgClient is a client for the Certificate service using RRN messages.
 // This implements the ICerts interface.
 type CertsMsgClient struct {
-	// CertsMsgClient is the SME client for the directory service.
+	// CertsMsgClient is the RRN client for the directory service.
 
 	// Certificate service ThingID to connect to.
 	directoryID string

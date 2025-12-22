@@ -7,12 +7,12 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/hiveot/hivekit/go/modules"
-	"github.com/hiveot/hivekit/go/modules/messaging"
 	"github.com/hiveot/hivekit/go/modules/services/bucketstore"
 	"github.com/hiveot/hivekit/go/modules/services/bucketstore/kvbtree"
 	"github.com/hiveot/hivekit/go/modules/services/directory"
 	"github.com/hiveot/hivekit/go/modules/services/directory/api"
 	"github.com/hiveot/hivekit/go/modules/services/directory/service"
+	"github.com/hiveot/hivekit/go/msg"
 )
 
 // DirectoryModule is a module for accessing a WoT Thing directory.
@@ -26,7 +26,7 @@ type DirectoryModule struct {
 
 	// bucket store for use with this module
 	bucketStore bucketstore.IBucketStore
-	// the SME messaging API
+	// the RRN messaging API
 	msgAPI *api.DirectoryMsgHandler
 	// the API servers if enabled
 	restAPI *api.DirectoryRestHandler
@@ -43,7 +43,7 @@ func (m *DirectoryModule) GetService() directory.IDirectoryService {
 }
 
 // HandleRequest passes the module request messages to the API handler.
-func (m *DirectoryModule) HandleRequest(req *messaging.RequestMessage) (resp *messaging.ResponseMessage) {
+func (m *DirectoryModule) HandleRequest(req *msg.RequestMessage) (resp *msg.ResponseMessage) {
 	if m.msgAPI != nil {
 		resp = m.msgAPI.HandleRequest(req)
 	}

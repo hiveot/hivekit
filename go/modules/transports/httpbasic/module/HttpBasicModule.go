@@ -4,13 +4,13 @@ import (
 	"fmt"
 	"log/slog"
 
-	"github.com/go-chi/chi/v5"
 	"github.com/hiveot/hivekit/go/modules"
-	"github.com/hiveot/hivekit/go/modules/messaging"
 	"github.com/hiveot/hivekit/go/modules/transports"
-	"github.com/hiveot/hivekit/go/modules/transports/wothttpbasic"
-	"github.com/hiveot/hivekit/go/modules/transports/wothttpbasic/api"
-	"github.com/hiveot/hivekit/go/modules/transports/wothttpbasic/service"
+	"github.com/hiveot/hivekit/go/modules/transports/httpbasic"
+	"github.com/hiveot/hivekit/go/modules/transports/httpbasic/api"
+	"github.com/hiveot/hivekit/go/modules/transports/httpbasic/service"
+	"github.com/hiveot/hivekit/go/modules/transports/httpserver"
+	"github.com/hiveot/hivekit/go/msg"
 )
 
 // NewHttpBasicModule is a module for serving the wot http-basic protocol.
@@ -24,11 +24,11 @@ import (
 type HttpBasicModule struct {
 	modules.HiveModuleBase
 
-	// the SME messaging API
-	msgAPI *api.HttpBasicMsgHandler
+	// the RRN messaging receiver
+	rrnAPI *api.HttpBasicRRNHandler
 
-	// router for rest api
-	router *chi.Mux
+	// actual server exposing routes
+	server httpserver.IHttpServer
 
 	// the linked authenticator
 	authenticator transports.IAuthenticator
@@ -38,9 +38,9 @@ type HttpBasicModule struct {
 }
 
 // HandleRequest passes the module request messages to the API handler.
-func (m *HttpBasicModule) HandleRequest(req *messaging.RequestMessage) (resp *messaging.ResponseMessage) {
-	if m.msgAPI != nil {
-		resp = m.msgAPI.HandleRequest(req)
+func (m *HttpBasicModule) HandleRequest(req *msg.RequestMessage) (resp *msg.ResponseMessage) {
+	if m.rrnAPI != nil {
+		resp = m.rrnAPI.HandleRequest(req)
 	}
 	// the module base handles operations for reading properties
 	if resp == nil {
@@ -49,18 +49,18 @@ func (m *HttpBasicModule) HandleRequest(req *messaging.RequestMessage) (resp *me
 	return resp
 }
 
-func (m *HttpBasicModule) onNotificationMessage(notif *messaging.NotificationMessage) {
+func (m *HttpBasicModule) onNotificationMessage(notif *msg.NotificationMessage) {
 	// Agent client has sent a notification. Forward to the sinks.
 	m.SendNotification(notif)
 }
-func (m *HttpBasicModule) onRequestMessage(req *messaging.RequestMessage, sender transports.IConnection) (resp *messaging.ResponseMessage) {
+func (m *HttpBasicModule) onRequestMessage(req *msg.RequestMessage, sender transports.IConnection) (resp *msg.ResponseMessage) {
 	// FIXME: the pipeline doesn't support async response messages
 	// option 1: add it
 	// option 2: remove support for async responses. Instead wait for a response during send.
 	return m.SendRequest(req)
 }
 
-func (m *HttpBasicModule) onResponseMessage(resp *messaging.ResponseMessage) (err error) {
+func (m *HttpBasicModule) onResponseMessage(resp *msg.ResponseMessage) (err error) {
 	// Two issues here to be fixed
 	// 1. support async response messages, send by agents
 	// 2. oops, forgot
@@ -82,17 +82,15 @@ func (m *HttpBasicModule) onResponseMessage(resp *messaging.ResponseMessage) (er
 // Incoming requests are converted to the standard message format and passed to
 // the registered sinks.
 //
-// This supports the HandleRequest - read(all)properties SME to retrieve statistics
+// This supports the HandleRequest - read(all)properties RRN to retrieve statistics
 // of the http transport.
 //
 // Since http is a unidirectional protocol, HandleNotification and HandleRequest messages
 // will not be passed to connected clients.
 func (m *HttpBasicModule) Start() (err error) {
 
-	addr := "" // ?
-	m.service = service.NewHttpBasicServer(
-		addr,
-		m.router, m.authenticator,
+	m.service = service.NewHttpBasicServer(m.server,
+		// m.router, m.authenticator,
 		// received messages are passed to the sinks
 		m.onNotificationMessage, m.onRequestMessage, m.onResponseMessage)
 
@@ -103,7 +101,7 @@ func (m *HttpBasicModule) Start() (err error) {
 	// to this module are processed directly.
 	// all remaining messages are passed to the sinks.
 	if err == nil {
-		m.msgAPI = api.NewHttpBasicMsgHandler(m.ModuleID, m.service)
+		m.rrnAPI = api.NewHttpBasicMsgHandler(m.ModuleID, m.service)
 	}
 	return err
 }
@@ -113,20 +111,16 @@ func (m *HttpBasicModule) Stop() {
 	m.service.Stop()
 }
 
-// Start a new WoT HTTP-Basic server using the given router and authenticator.
-//
-// This can work with any HTTPS server that supports the chi router.
-//
-// router is the html server router to register the html API handlers with.
-func NewHttpBasicModule(router *chi.Mux, authenticator transports.IAuthenticator) *HttpBasicModule {
+// Start a new WoT HTTP-Basic server using the given public/protected router.
+func NewHttpBasicModule(server httpserver.IHttpServer, authenticator transports.IAuthenticator) *HttpBasicModule {
 
 	m := &HttpBasicModule{
 		HiveModuleBase: modules.HiveModuleBase{
-			ModuleID:   wothttpbasic.DefaultHttpBasicThingID,
+			ModuleID:   httpbasic.DefaultHttpBasicThingID,
 			Properties: make(map[string]any),
 		},
+		server:        server,
 		authenticator: authenticator,
-		router:        router,
 	}
 	var _ modules.IHiveModule = m // interface check
 

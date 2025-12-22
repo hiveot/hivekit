@@ -6,12 +6,13 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/hiveot/hivekit/go/modules"
-	"github.com/hiveot/hivekit/go/modules/messaging"
 	"github.com/hiveot/hivekit/go/modules/transports/httpserver"
 	"github.com/hiveot/hivekit/go/modules/transports/httpserver/service"
+	"github.com/hiveot/hivekit/go/msg"
 )
 
-// TlsModule is a module for serving the TLS HTTPS server.
+// HttpServerModule is a module providing a TLS HTTPS server.
+// Intended for use by HTTP based application protocols.
 // This implements IHiveModule interface.
 type HttpServerModule struct {
 	modules.HiveModuleBase
@@ -26,8 +27,8 @@ type HttpServerModule struct {
 	// Intended for Http modules to add their routes
 	router *chi.Mux
 
-	// the SME messaging API
-	// msgAPI *api.TLSMsgHandler
+	// the RRN messaging API
+	// msgAPI *api.HttpMsgHandler
 
 	// TLS protocol server
 	service *service.HttpsServer
@@ -37,9 +38,9 @@ func (m *HttpServerModule) GetService() *service.HttpsServer {
 	return m.service
 }
 
-// HandleRequest passes the module SME request messages to the message handler.
+// HandleRequest passes the module RRN request messages to the message handler.
 // currently this module does not expose properties or actions to request.
-func (m *HttpServerModule) HandleRequest(req *messaging.RequestMessage) (resp *messaging.ResponseMessage) {
+func (m *HttpServerModule) HandleRequest(req *msg.RequestMessage) (resp *msg.ResponseMessage) {
 	// if m.msgAPI != nil {
 	// 	resp = m.msgAPI.HandleRequest(req)
 	// }
@@ -51,12 +52,12 @@ func (m *HttpServerModule) HandleRequest(req *messaging.RequestMessage) (resp *m
 }
 
 // // onNotificationMessage service generated a notification
-// func (m *TlsModule) onNotificationMessage(notif *messaging.NotificationMessage) {
+// func (m *TlsModule) onNotificationMessage(notif *msg.NotificationMessage) {
 // 	m.SendNotification(notif)
 // }
 
 // // onRequestMessage service generated a request message
-// func (m *TlsModule) onRequestMessage(req *messaging.RequestMessage, sender transports.IConnection) (resp *messaging.ResponseMessage) {
+// func (m *TlsModule) onRequestMessage(req *msg.RequestMessage, sender transports.IConnection) (resp *msg.ResponseMessage) {
 // 	// FIXME: the pipeline doesn't support async response messages
 // 	// option 1: add it
 // 	// option 2: remove support for async responses. Instead wait for a response during send.
@@ -64,7 +65,7 @@ func (m *HttpServerModule) HandleRequest(req *messaging.RequestMessage) (resp *m
 // }
 
 // // onResponseMessage service generated a response message
-// func (m *TlsModule) onResponseMessage(resp *messaging.ResponseMessage) (err error) {
+// func (m *TlsModule) onResponseMessage(resp *msg.ResponseMessage) (err error) {
 // 	// Two issues here to be fixed
 // 	// 1. support async response messages, send by agents
 // 	// 2. oops, forgot

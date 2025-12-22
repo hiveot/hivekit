@@ -4,7 +4,7 @@ import (
 	"crypto/x509"
 	"time"
 
-	"github.com/hiveot/hivekit/go/modules/messaging"
+	"github.com/hiveot/hivekit/go/msg"
 )
 
 // Supported transport protocol bindings types
@@ -69,21 +69,21 @@ type ConnectionHandler func(connected bool, err error, c IConnection)
 // NotificationHandler handles a subscruption notification, send by an agent.
 //
 // retry sending the response at a later time.
-type NotificationHandler func(msg *messaging.NotificationMessage)
+type NotificationHandler func(msg *msg.NotificationMessage)
 
 // RequestHandler agent processes a request and returns a response.
 //
 //	req is the envelope that contains the request to process
 //	c is the connection on which the request arrived and on which to send
 //	asynchronous response(s).
-type RequestHandler func(req *messaging.RequestMessage, c IConnection) (response *messaging.ResponseMessage)
+type RequestHandler func(req *msg.RequestMessage, c IConnection) (response *msg.ResponseMessage)
 
 // ResponseHandler handles a response to a request, send by an agent.
 // The handler delivers the response to the client that sent the original request.
 //
 // This returns an error if the response cannot be delivered. This can be used to
 // retry sending the response at a later time.
-type ResponseHandler func(msg *messaging.ResponseMessage) error
+type ResponseHandler func(msg *msg.ResponseMessage) error
 
 // IConnection defines the interface of a server or client connection.
 // Intended for exchanging messages between servients.
@@ -100,15 +100,15 @@ type IConnection interface {
 
 	// SendNotification [agent] sends a notification to subscribers.
 	// This returns an error if the notification could not be delivered
-	SendNotification(notif *messaging.NotificationMessage) error
+	SendNotification(notif *msg.NotificationMessage) error
 
 	// SendRequest client sends a request to an agent.
 	// This returns an error if the request could not be delivered
-	SendRequest(req *messaging.RequestMessage) error
+	SendRequest(req *msg.RequestMessage) error
 
 	// SendResponse [agent] sends a response to a request.
 	// This returns an error if the response could not be delivered
-	SendResponse(response *messaging.ResponseMessage) error
+	SendResponse(response *msg.ResponseMessage) error
 
 	// SetConnectHandler sets the callback for connection status changes
 	// This replaces any previously set handler.

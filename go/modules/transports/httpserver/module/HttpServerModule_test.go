@@ -3,8 +3,8 @@ package module_test
 import (
 	"testing"
 
-	"github.com/go-chi/chi/v5"
-	"github.com/hiveot/hivekit/go/modules/transports/wothttpbasic/module"
+	"github.com/hiveot/hivekit/go/modules/transports/httpbasic/module"
+	"github.com/hiveot/hivekit/go/modules/transports/httpserver"
 	"github.com/hiveot/hivekit/go/utils/authn"
 	"github.com/stretchr/testify/require"
 )
@@ -13,9 +13,9 @@ import (
 func TestStartStop(t *testing.T) {
 	t.Logf("---%s---\n", t.Name())
 
-	router := chi.NewRouter()
+	server := httpserver.NewDummyServer("https://127.0.0.1/")
 	dummyAuthenticator := authn.NewDummyAuthenticator()
-	m := module.NewHttpBasicModule(router, dummyAuthenticator)
+	m := module.NewHttpBasicModule(server, dummyAuthenticator)
 	err := m.Start()
 	require.NoError(t, err)
 	defer m.Stop()

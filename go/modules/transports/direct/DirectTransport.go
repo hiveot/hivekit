@@ -2,10 +2,10 @@ package direct
 
 import (
 	"github.com/hiveot/hivekit/go/modules"
-	"github.com/hiveot/hivekit/go/modules/messaging"
+	"github.com/hiveot/hivekit/go/msg"
 )
 
-// This simple module is a simple SME passthrough that injects a clientID as a sender.
+// This simple module is a simple RRN passthrough that injects a clientID as a sender.
 // Used for testing messaging between modules when no transport is used.
 // This implements the IHiveModule interface
 type DirectClientTransport struct {
@@ -14,13 +14,13 @@ type DirectClientTransport struct {
 	sink     modules.IHiveModule
 }
 
-func (m *DirectClientTransport) HandleRequest(req *messaging.RequestMessage) (resp *messaging.ResponseMessage) {
+func (m *DirectClientTransport) HandleRequest(req *msg.RequestMessage) (resp *msg.ResponseMessage) {
 	req.SenderID = m.clientID
 	return m.sink.HandleRequest(req)
 }
 
 // assign the clientID as the sender. This modifies the notification
-func (m *DirectClientTransport) HandleNotification(notif *messaging.NotificationMessage) {
+func (m *DirectClientTransport) HandleNotification(notif *msg.NotificationMessage) {
 	notif.SenderID = m.clientID
 	m.sink.HandleNotification(notif)
 }

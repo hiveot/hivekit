@@ -14,6 +14,23 @@ HiveKit components were originally part of the HiveOT Hub and have been extracte
 
 Nov 2025: Kickoff, extraction from HiveOT Hub is complete.
 Nov 2025: Add documentation of building blocks and howto use.
+Dec 2025: Converting to modules.
+
+- presentation/cli [ ]
+- transport/direct [ ]
+- transport/discover [ ]
+- transport/hiveotsse [ ]
+- transport/httpserver [ok]
+- transport/wothttpbasic [ ]
+- transport/wotwss [ ]
+- services/authn [ ]
+- services/authz [ ]
+- services/bucketstore [ok]
+- services/certs [ok]
+- services/directory [ok]
+- services/logging [ ]
+- services/router [ ]
+- pipeline [ ]
 
 ## Audience
 

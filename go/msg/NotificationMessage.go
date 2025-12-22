@@ -1,4 +1,4 @@
-package messaging
+package msg
 
 import (
 	"github.com/hiveot/hivekit/go/utils"

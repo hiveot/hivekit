@@ -3,10 +3,9 @@ package service
 import (
 	"slices"
 
-	"github.com/go-chi/chi/v5"
-	"github.com/go-chi/chi/v5/middleware"
 	"github.com/hiveot/hivekit/go/lib/servers/tlsserver"
-	"github.com/hiveot/hivekit/go/modules/messaging"
+	"github.com/hiveot/hivekit/go/modules/transports/httpbasic"
+	"github.com/hiveot/hivekit/go/msg"
 	jsoniter "github.com/json-iterator/go"
 
 	"io"
@@ -30,7 +29,7 @@ func (srv *HttBasicServer) handleAffordanceOperation(w http.ResponseWriter, r *h
 	// Use the authenticated clientID as the sender
 	var input any
 	err = rp.Unmarshal(&input)
-	req := messaging.NewRequestMessage(rp.Op, rp.ThingID, rp.Name, input, "")
+	req := msg.NewRequestMessage(rp.Op, rp.ThingID, rp.Name, input, "")
 	req.SenderID = rp.ClientID
 	req.CorrelationID = rp.CorrelationID
 
@@ -145,7 +144,7 @@ func (srv *HttBasicServer) HandlePing(w http.ResponseWriter, r *http.Request) {
 // Everything else should be added by the sub-protocols.
 //
 // Routes are added by (sub)protocols such as http-basic, sse and wss.
-func (srv *HttBasicServer) setupRouting(router chi.Router) http.Handler {
+func (srv *HttBasicServer) setupRouting() {
 
 	// TODO: add csrf support in posts
 	//csrfMiddleware := csrf.Protect(
@@ -153,43 +152,38 @@ func (srv *HttBasicServer) setupRouting(router chi.Router) http.Handler {
 	//	csrf.SameSite(csrf.SameSiteStrictMode))
 
 	//-- add the middleware before routes
-	router.Use(middleware.Recoverer)
+	// router.Use(middleware.Recoverer)
 	//router.Use(middleware.Logger) // todo: proper logging strategy
 	//router.Use(csrfMiddleware)
-	router.Use(middleware.Compress(5,
-		"text/html", "text/css", "text/javascript", "image/svg+xml"))
+	// router.Use(middleware.Compress(5,
+	// "text/html", "text/css", "text/javascript", "image/svg+xml"))
 
 	//--- public routes do not require an authenticated session
-	router.Group(func(r chi.Router) {
-		// sub-protocols can add public routes
-		srv.publicRoutes = r
+	pubRoutes := srv.GetPublicRouter()
 
-		//r.Get("/static/*", staticFileServer.ServeHTTP)
-		// build-in REST API for easy login to obtain a token
+	//r.Get("/static/*", staticFileServer.ServeHTTP)
+	// build-in REST API for easy login to obtain a token
 
-		// register authentication endpoints
-		// FIXME: determine how WoT wants auth endpoints to be published
-		r.Post(HttpPostLoginPath, srv.HandleLogin)
-		r.Get(HttpGetPingPath, srv.HandlePing)
-	})
+	// register authentication endpoints
+	// FIXME: determine how WoT wants auth endpoints to be published
+	pubRoutes.Post(httpbasic.HttpPostLoginPath, srv.HandleLogin)
+	pubRoutes.Get(httpbasic.HttpGetPingPath, srv.HandlePing)
 
 	//--- private routes that requires authentication (as published in the TD)
-	router.Group(func(r chi.Router) {
+	protRoutes := srv.GetProtectedRoutes()
+	// client sessions authenticate the sender
+	// protRoutes.Use(AddSessionFromToken(srv.authenticator))
 
-		// client sessions authenticate the sender
-		r.Use(AddSessionFromToken(srv.authenticator))
+	// sub-protocols can add protected routes
+	// srv.protectedRoutes = r
 
-		// sub-protocols can add protected routes
-		srv.protectedRoutes = r
+	// register generic handlers for operations on Thing and affordance level
+	// these endpoints are published in the forms of each TD. See also AddTDForms.
+	protRoutes.HandleFunc(httpbasic.HttpBasicAffordanceOperationPath, srv.handleAffordanceOperation)
+	protRoutes.HandleFunc(httpbasic.HttpBasicThingOperationPath, srv.handleThingOperation)
 
-		// register generic handlers for operations on Thing and affordance level
-		// these endpoints are published in the forms of each TD. See also AddTDForms.
-		r.HandleFunc(HttpBasicAffordanceOperationPath, srv.handleAffordanceOperation)
-		r.HandleFunc(HttpBasicThingOperationPath, srv.handleThingOperation)
+	// http supported authentication endpoints
+	protRoutes.Post(httpbasic.HttpPostRefreshPath, srv.HandleAuthRefresh)
+	protRoutes.Post(httpbasic.HttpPostLogoutPath, srv.HandleLogout)
 
-		// http supported authentication endpoints
-		r.Post(HttpPostRefreshPath, srv.HandleAuthRefresh)
-		r.Post(HttpPostLogoutPath, srv.HandleLogout)
-	})
-	return router
 }

@@ -4,8 +4,9 @@ import (
 	"fmt"
 	"log/slog"
 
-	"github.com/hiveot/hivekit/go/modules/messaging"
+	"github.com/hiveot/hivekit/go/lib/messaging"
 	"github.com/hiveot/hivekit/go/modules/transports"
+	"github.com/hiveot/hivekit/go/msg"
 	"github.com/hiveot/hivekit/go/utils"
 	"github.com/hiveot/hivekit/go/wot"
 	jsoniter "github.com/json-iterator/go"
@@ -13,12 +14,12 @@ import (
 
 // Websocket notification message with all possible fields for all operations
 type WssNotificationMessage struct {
-	messaging.NotificationMessage
+	msg.NotificationMessage
 }
 
 // Websocket requests message with all possible fields for all operations
 type WssRequestMessage struct {
-	messaging.RequestMessage
+	msg.RequestMessage
 	// queryaction
 	ActionID string `json:"actionID,omitempty"` // input for operation
 	// readmultipleproperties: array of property names
@@ -27,17 +28,17 @@ type WssRequestMessage struct {
 	Values any `json:"values,omitempty"`
 }
 type WssActionStatus struct {
-	ActionID      string                `json:"actionID"`
-	Error         *messaging.ErrorValue `json:"error,omitempty"`
-	Output        any                   `json:"output,omitempty"` // when completed
-	State         string                `json:"state"`
-	TimeRequested string                `json:"timeRequested"`
-	TimeEnded     string                `json:"timeEnded,omitempty"` // when completed
+	ActionID      string          `json:"actionID"`
+	Error         *msg.ErrorValue `json:"error,omitempty"`
+	Output        any             `json:"output,omitempty"` // when completed
+	State         string          `json:"state"`
+	TimeRequested string          `json:"timeRequested"`
+	TimeEnded     string          `json:"timeEnded,omitempty"` // when completed
 }
 
 // Websocket response message with all possible fields for all operations
 type WssResponseMessage struct {
-	messaging.ResponseMessage
+	msg.ResponseMessage
 
 	// invokeaction (async), queryaction response contains status
 	Status *WssActionStatus `json:"status,omitempty"`
@@ -64,7 +65,7 @@ type WssMessageConverter struct {
 
 // DecodeNotification converts a websocket notification to a hiveot notification message.
 // Raw is the json serialized encoded message
-func (svc *WssMessageConverter) DecodeNotification(raw []byte) *messaging.NotificationMessage {
+func (svc *WssMessageConverter) DecodeNotification(raw []byte) *msg.NotificationMessage {
 
 	var wssnotif WssNotificationMessage
 	err := jsoniter.Unmarshal(raw, &wssnotif)
@@ -87,7 +88,7 @@ func (svc *WssMessageConverter) DecodeNotification(raw []byte) *messaging.Notifi
 // - queryaction: copy wss actionID field to input
 // - queryallactions: none
 // - writeproperty:
-func (svc *WssMessageConverter) DecodeRequest(raw []byte) *messaging.RequestMessage {
+func (svc *WssMessageConverter) DecodeRequest(raw []byte) *msg.RequestMessage {
 
 	var wssreq WssRequestMessage
 	err := jsoniter.Unmarshal(raw, &wssreq)
@@ -111,7 +112,7 @@ func (svc *WssMessageConverter) DecodeRequest(raw []byte) *messaging.RequestMess
 // DecodeResponse converts a websocket response message to a hiveot response message.
 // Raw is the json serialized encoded message
 func (svc *WssMessageConverter) DecodeResponse(
-	raw []byte) *messaging.ResponseMessage {
+	raw []byte) *msg.ResponseMessage {
 
 	var wssResp WssResponseMessage
 	err := jsoniter.Unmarshal(raw, &wssResp)
@@ -139,7 +140,7 @@ func (svc *WssMessageConverter) DecodeResponse(
 		//
 		// in websocket profile synchronous actions respond with output,
 		// while async actions respond with actionID
-		as := messaging.ActionStatus{
+		as := msg.ActionStatus{
 			Name:    wssResp.Name,
 			Output:  wssResp.Output,
 			State:   messaging.StatusCompleted,
@@ -162,7 +163,7 @@ func (svc *WssMessageConverter) DecodeResponse(
 		}
 		if respMsg.Value == nil {
 			// non hiveot server
-			as := messaging.ActionStatus{
+			as := msg.ActionStatus{
 				ActionID:      wssStatus.ActionID,
 				Name:          wssResp.Name,
 				Output:        wssStatus.Output,
@@ -177,13 +178,13 @@ func (svc *WssMessageConverter) DecodeResponse(
 	case wot.OpQueryAllActions:
 		// ResponseMessage should contain ActionStatus list
 		var wssStatusMap map[string]WssActionStatus
-		actionStatusMap := make(map[string]messaging.ActionStatus)
+		actionStatusMap := make(map[string]msg.ActionStatus)
 		err = utils.Decode(wssResp.Statuses, &wssStatusMap)
 		if err != nil {
 			return nil
 		}
 		for _, wssStatus := range wssStatusMap {
-			actionStatusMap[wssResp.Name] = messaging.ActionStatus{
+			actionStatusMap[wssResp.Name] = msg.ActionStatus{
 				ThingID:       wssResp.ThingID,
 				Name:          wssResp.Name,
 				ActionID:      wssStatus.ActionID,
@@ -198,7 +199,7 @@ func (svc *WssMessageConverter) DecodeResponse(
 	case wot.OpReadAllProperties, wot.OpReadMultipleProperties,
 		wot.OpWriteMultipleProperties:
 
-		// the 'Value' property from the messaging.ResponseMessage embedded struct
+		// the 'Value' property from the msg.ResponseMessage embedded struct
 		// already contains the messaging.ThingValue map.
 		// But, if the websocket response is from a non-hiveot device then convert
 		// the websocket 'Values' field k-v map to ThingValue map
@@ -223,7 +224,7 @@ func (svc *WssMessageConverter) DecodeResponse(
 }
 
 // EncodeNotification converts a hiveot RequestMessage to a websocket equivalent message
-func (svc *WssMessageConverter) EncodeNotification(notif *messaging.NotificationMessage) (any, error) {
+func (svc *WssMessageConverter) EncodeNotification(notif *msg.NotificationMessage) (any, error) {
 	wssNotif := WssNotificationMessage{
 		NotificationMessage: *notif,
 	}
@@ -233,7 +234,7 @@ func (svc *WssMessageConverter) EncodeNotification(notif *messaging.Notification
 }
 
 // EncodeRequest converts a hiveot RequestMessage to websocket equivalent message
-func (svc *WssMessageConverter) EncodeRequest(req *messaging.RequestMessage) (any, error) {
+func (svc *WssMessageConverter) EncodeRequest(req *msg.RequestMessage) (any, error) {
 	wssReq := WssRequestMessage{
 		RequestMessage: *req,
 		ActionID:       req.CorrelationID,
@@ -252,7 +253,7 @@ func (svc *WssMessageConverter) EncodeRequest(req *messaging.RequestMessage) (an
 
 // EncodeResponse converts a hiveot ResponseMessage to websocket equivalent message
 // This always returns a response
-func (svc *WssMessageConverter) EncodeResponse(resp *messaging.ResponseMessage) any {
+func (svc *WssMessageConverter) EncodeResponse(resp *msg.ResponseMessage) any {
 	wssResp := WssResponseMessage{
 		ResponseMessage: *resp,
 	}
@@ -271,10 +272,10 @@ func (svc *WssMessageConverter) EncodeResponse(resp *messaging.ResponseMessage) 
 		// wssResp.ActionID = resp.CorrelationID
 	case wot.OpInvokeAction:
 		// hiveot invokeaction always contains an ActionStatus object in the response
-		var as messaging.ActionStatus
+		var as msg.ActionStatus
 		err := utils.Decode(resp.Value, &as)
 		if err != nil {
-			wssResp.Error = messaging.ErrorValueFromError(err)
+			wssResp.Error = msg.ErrorValueFromError(err)
 		}
 		if as.State == messaging.StatusCompleted {
 			// websocket synchronous response
@@ -289,11 +290,11 @@ func (svc *WssMessageConverter) EncodeResponse(resp *messaging.ResponseMessage) 
 			}
 		}
 	case wot.OpQueryAction:
-		// convert from messaging.ActionStatus to WssActionStatus
-		var actionStatus messaging.ActionStatus
+		// convert from msg.ActionStatus to WssActionStatus
+		var actionStatus msg.ActionStatus
 		err := utils.Decode(resp.Value, &actionStatus)
 		if err != nil {
-			wssResp.Error = messaging.ErrorValueFromError(fmt.Errorf("Response does not contain ActionStatus object: %w", err))
+			wssResp.Error = msg.ErrorValueFromError(fmt.Errorf("Response does not contain ActionStatus object: %w", err))
 		}
 		wssResp.Status = &WssActionStatus{
 			ActionID:      actionStatus.ActionID,
@@ -304,9 +305,9 @@ func (svc *WssMessageConverter) EncodeResponse(resp *messaging.ResponseMessage) 
 			TimeEnded:     actionStatus.TimeUpdated,
 		}
 	case wot.OpQueryAllActions:
-		// convert from messaging.ActionStatus map to WssActionStatuses map
-		// FIXME: response is api.ActionStatus which differs from messaging.ActionStatus
-		var actionStatusMap map[string]messaging.ActionStatus
+		// convert from msg.ActionStatus map to WssActionStatuses map
+		// FIXME: response is api.ActionStatus which differs from msg.ActionStatus
+		var actionStatusMap map[string]msg.ActionStatus
 		err := utils.Decode(resp.Value, &actionStatusMap)
 		if err != nil {
 			err = fmt.Errorf("Can't convert ActionStatus map response to websocket type. "+
@@ -314,7 +315,7 @@ func (svc *WssMessageConverter) EncodeResponse(resp *messaging.ResponseMessage) 
 				"thingID='%s'; name='%s'; operation='%s'; Received '%s'; Error='%s'",
 				resp.ThingID, resp.Name, resp.Operation,
 				utils.DecodeAsString(resp.Value, 200), err.Error())
-			wssResp.Error = messaging.ErrorValueFromError(err)
+			wssResp.Error = msg.ErrorValueFromError(err)
 		}
 		wssStatusMap := make(map[string]WssActionStatus)
 		for _, actionStatus := range actionStatusMap {
@@ -335,7 +336,7 @@ func (svc *WssMessageConverter) EncodeResponse(resp *messaging.ResponseMessage) 
 		err := utils.DecodeAsObject(resp.Value, &thingValueList)
 		if err != nil {
 			err = fmt.Errorf("encodeResponse (%s). Not a ThingValue map; err: %w", resp.Operation, err)
-			wssResp.Error = messaging.ErrorValueFromError(err)
+			wssResp.Error = msg.ErrorValueFromError(err)
 		}
 		wssPropValues := make(map[string]any)
 		for _, thingValue := range thingValueList {

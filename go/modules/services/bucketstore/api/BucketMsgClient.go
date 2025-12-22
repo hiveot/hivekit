@@ -2,17 +2,17 @@ package api
 
 import (
 	"github.com/hiveot/hivekit/go/modules"
-	"github.com/hiveot/hivekit/go/modules/messaging"
+	"github.com/hiveot/hivekit/go/msg"
 	"github.com/hiveot/hivekit/go/wot"
 )
 
-// BucketMsgClient is the SME client for service messages using a provided hub connection.
+// BucketMsgClient is the RRN client for service messages using a provided hub connection.
 //
-// The BucketMsgClient converts the bucketstore API to SME messages and passes them
+// The BucketMsgClient converts the bucketstore API to RRN messages and passes them
 // to the provided sink, typically a messaging protocol client.
 //
 // It can be used to call a bucket store instance remotely using any of the protocols
-// supporting SME.
+// supporting RRN messaging.
 //
 // This requires that the client is authenticated and uses the client ID as the
 // bucket name.
@@ -26,7 +26,7 @@ type BucketMsgClient struct {
 
 // Delete removes the record with the given key.
 func (cl *BucketMsgClient) Delete(key string) error {
-	req := messaging.NewRequestMessage(
+	req := msg.NewRequestMessage(
 		wot.OpInvokeAction, cl.thingID, ActionDelete, key, "")
 	resp := cl.sink.HandleRequest(req)
 	return resp.AsError()
@@ -36,7 +36,7 @@ func (cl *BucketMsgClient) Delete(key string) error {
 // If the key doesn't exist this returns an error.
 func (cl *BucketMsgClient) Get(key string) (doc string, err error) {
 
-	req := messaging.NewRequestMessage(wot.OpInvokeAction, cl.thingID, ActionGet, key, "")
+	req := msg.NewRequestMessage(wot.OpInvokeAction, cl.thingID, ActionGet, key, "")
 	resp := cl.sink.HandleRequest(req)
 
 	err = resp.Decode(&doc)
@@ -49,7 +49,7 @@ func (cl *BucketMsgClient) Get(key string) (doc string, err error) {
 // GetMultiple reads multiple serialized records with the given keys.
 func (cl *BucketMsgClient) GetMultiple(keys []string) (values map[string]string, err error) {
 
-	req := messaging.NewRequestMessage(
+	req := msg.NewRequestMessage(
 		wot.OpInvokeAction, cl.thingID, ActionGetMultiple, keys, "")
 	resp := cl.sink.HandleRequest(req)
 	err = resp.Decode(&values)
@@ -62,7 +62,7 @@ func (cl *BucketMsgClient) Set(key string, doc string) error {
 		Key: key,
 		Doc: doc,
 	}
-	req := messaging.NewRequestMessage(
+	req := msg.NewRequestMessage(
 		wot.OpInvokeAction, cl.thingID, ActionSet, args, "")
 	resp := cl.sink.HandleRequest(req)
 	err := resp.AsError()
@@ -75,7 +75,7 @@ func (cl *BucketMsgClient) SetMultiple(kv map[string]string) error {
 	for k, v := range kv {
 		args[k] = v
 	}
-	req := messaging.NewRequestMessage(
+	req := msg.NewRequestMessage(
 		wot.OpInvokeAction, cl.thingID, ActionSetMultiple, args, "")
 	resp := cl.sink.HandleRequest(req)
 	err := resp.AsError()

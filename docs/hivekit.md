@@ -14,34 +14,30 @@ HiveKit is not an application but intended to offer the building blocks to easil
 
 ## HiveKit Modules
 
-A HiveKit module can be anything that implements the IHiveKit module interface. Most modules support communication using the HiveOT standard messaging envelope (SME). Each module is optionally also a WoT Thing that can be configured and controlled using messages.
+A HiveKit module can be anything that implements the IHiveKit module interface. Most modules support communication using the HiveOT standard RRN (request-response-notification) envelope. Each module is optionally also a WoT Thing that can be configured and controlled using messages.
 
 Examples of modules:
 
 - directory, history, authentication services.
-- client side of a service
 - a message processor such as a router, filter, logger, etc
-- protocol server such as WoT HTTP, WSS, CoAP, MQTT
-- protocol client adapter for a server - adapts to standard messaging envelope
+- transport protocol bindings such as WoT HTTP, WSS, CoAP, MQTT
 - an IoT adapter such as ZWave, Insteon, CoAP, Zigbee, Shelley and so on.
 
 Modules consists of an api, core, factory and tests.
 
-The module api defines the native API of the module along with optional protocol specific API definitions. For example a WoT TM (Thing Model), OpenAPI definition, and protobuf definitions.
+The module API defines the native API of the module along with optional protocol specific API definitions. For example a WoT TM (Thing Model), OpenAPI definition, and protobuf definitions.
 
-The module api includes an adapter that translates between the standardized messaging format (SME - Standard Messaging Envelope) and native API. The standardized messaging envelope is used to communicate between modules regardless where they are located.
-
-Where required, the module's api includes adapters for other protocols such as openapi, or protobuf, supporting direct interfacing using these protocols without translation to SME messages.
+The module API includes an adapter that converts between the native API and the standardized RRN (Request-Response-Notification) messaging. The RRN messaging envelope is used to communicate between modules regardless where they are located.
 
 The module core implements the module's logic and can be used as-is without HiveOT specific dependencies. The core must implement the native api as defined in the module api section.
 
-The module factory provides a standard way to create and use modules through provided configuration. It provides a factory function to create module instances from configuration. These instances support SME messages for communication between modules to help construct module pipelines.
+The module factory provides a standard way to create and use modules through provided configuration. It provides a factory function to create module instances from configuration. These instances support RRN messages for communication between modules to help construct module pipelines.
 
 The module tests contains test methods to verify the correct behavior of the module.
 
 ## The IoT pipeline
 
-A pipeline consists of chains of modules, called a recipe, that are linked using their SME message interface. It is intended to simplify building and testing WoT compatible IoT devices and to provide reusable capabilities for processsing IoT device information.
+A pipeline consists of chains of modules, called a recipe, that are linked using their RRN message interface. It is intended to simplify building and testing WoT compatible IoT devices and to provide reusable capabilities for processsing IoT device information.
 
 While HiveKit comes with a set of modules, 3rd party modules can be incorporated easily as part of a recipe.
 
@@ -55,7 +51,7 @@ Types of streams in the pipeline:
 
 - A bidirectional control stream for actions and property configuration. Control streams are point-to-point between source and sink but can be relayed and processed by other modules.
 
-Module linking can connect in-process or out-of-process modules. In-process modules communicate using the efficient SME messages. Modules running on different processes or devices use messaging modules that translate the SME (internal) message format to a specific protocol such as WoT Websocket, MQTT, CoAP or other supported messaging protocol.
+Module linking can connect in-process or out-of-process modules. In-process modules communicate using the efficient RRN messages. Modules running on different processes or devices use messaging modules that translate the RRN message format to a specific protocol such as WoT Websocket, MQTT, CoAP or other supported messaging protocol.
 
 Modules can be linked in several ways:
 
