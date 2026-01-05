@@ -28,7 +28,7 @@ type BucketMsgClient struct {
 func (cl *BucketMsgClient) Delete(key string) error {
 	req := msg.NewRequestMessage(
 		wot.OpInvokeAction, cl.thingID, ActionDelete, key, "")
-	resp := cl.sink.HandleRequest(req)
+	resp := cl.GetSink().HandleRequest(req)
 	return resp.AsError()
 }
 

@@ -21,6 +21,13 @@ const AffordanceTypeAction AffordanceType = "action"
 // MessageTypeResponse identify the message as a response.
 const MessageTypeResponse = "response"
 
+// ResponseHandler handles an asynchronous response to a request, send by an agent.
+// The handler delivers the response to the client that sent the original request.
+//
+// This returns an error if the response cannot be delivered. This can be used to
+// retry sending the response at a later time.
+type ResponseHandler func(msg *ResponseMessage) error
+
 // ThingValue is the internal API response payload to subscribeevent, observeproperty,
 // readevent and readproperty operations. The protocol binding maps between this
 // and the protocol way of encoding values.

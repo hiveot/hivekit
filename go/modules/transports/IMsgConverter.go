@@ -2,15 +2,12 @@ package transports
 
 import "github.com/hiveot/hivekit/go/msg"
 
-// IMsgConverter converts between the RRN request-response-notification envelope
-// and the underlying protocol specific message format.
+// IMessageConverter converts between the RRN request-response-notification message
+// envelopes and the underlying protocol specific message format.
 //
-// This is used to convert between te RRN and transport protocols,
-// including the WoT websocket protocol, HttpBasic/SSE-SC protocol,
-// MQTT protocol.
-//
-// Intended for use by consumers and agents on the client and server side.
-type IMsgConverter interface {
+// This is used by both server and client side to translate protocol messages
+// to 'standard RRN'.
+type IMessageConverter interface {
 	// DecodeNotification converts a protocol message to a hiveot notification message
 	// provide the serialized data to avoid multiple unmarshalls
 	// This returns nil if this isn't a notification.

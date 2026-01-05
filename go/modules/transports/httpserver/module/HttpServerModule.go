@@ -1,14 +1,22 @@
 package module
 
 import (
+	"context"
 	"crypto/tls"
 	"crypto/x509"
+	"errors"
+	"fmt"
+	"log"
+	"log/slog"
+	"net"
+	"net/http"
+	"os"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/hiveot/hivekit/go/modules"
 	"github.com/hiveot/hivekit/go/modules/transports/httpserver"
-	"github.com/hiveot/hivekit/go/modules/transports/httpserver/service"
-	"github.com/hiveot/hivekit/go/msg"
+	"github.com/lmittmann/tint"
 )
 
 // HttpServerModule is a module providing a TLS HTTPS server.
@@ -17,11 +25,21 @@ import (
 type HttpServerModule struct {
 	modules.HiveModuleBase
 
+	config     *httpserver.HttpServerConfig
+	connectURL string
+
+	// the actual golang HTTP/TLS server
+	httpServer *http.Server
+
+	rootRouter *chi.Mux
+	pubRoute   chi.Router
+	protRoute  chi.Router
+
+	logger *log.Logger
+
 	// certificate handler for running the server
 	caCert     *x509.Certificate
 	serverCert *tls.Certificate
-
-	config *httpserver.HttpServerConfig
 
 	// The router available for this TLS server
 	// Intended for Http modules to add their routes
@@ -29,63 +47,96 @@ type HttpServerModule struct {
 
 	// the RRN messaging API
 	// msgAPI *api.HttpMsgHandler
-
-	// TLS protocol server
-	service *service.HttpsServer
 }
 
-func (m *HttpServerModule) GetService() *service.HttpsServer {
-	return m.service
+func (m *HttpServerModule) GetConnectURL() string {
+	return m.connectURL
 }
-
-// HandleRequest passes the module RRN request messages to the message handler.
-// currently this module does not expose properties or actions to request.
-func (m *HttpServerModule) HandleRequest(req *msg.RequestMessage) (resp *msg.ResponseMessage) {
-	// if m.msgAPI != nil {
-	// 	resp = m.msgAPI.HandleRequest(req)
-	// }
-	// the module base handles operations for reading properties
-	if resp == nil {
-		resp = m.HiveModuleBase.HandleRequest(req)
-	}
-	return resp
-}
-
-// // onNotificationMessage service generated a notification
-// func (m *TlsModule) onNotificationMessage(notif *msg.NotificationMessage) {
-// 	m.SendNotification(notif)
-// }
-
-// // onRequestMessage service generated a request message
-// func (m *TlsModule) onRequestMessage(req *msg.RequestMessage, sender transports.IConnection) (resp *msg.ResponseMessage) {
-// 	// FIXME: the pipeline doesn't support async response messages
-// 	// option 1: add it
-// 	// option 2: remove support for async responses. Instead wait for a response during send.
-// 	return m.SendRequest(req)
-// }
-
-// // onResponseMessage service generated a response message
-// func (m *TlsModule) onResponseMessage(resp *msg.ResponseMessage) (err error) {
-// 	// Two issues here to be fixed
-// 	// 1. support async response messages, send by agents
-// 	// 2. oops, forgot
-// 	err = fmt.Errorf("onResponseMessage: FIXME: receiving response message not supported")
-// 	slog.Error(err.Error())
-// 	return err
-// }
 
 // Start readies the module for use.
+// This starts a http server instance and sets-up a public and protected route.
 //
 // Starts a HTTPS TLS service
 func (m *HttpServerModule) Start() (err error) {
-	m.service = service.NewHttpsServer(m.config)
-	err = m.service.Start()
+	var tlsConf *tls.Config
+	cfg := m.config
+	m.connectURL = fmt.Sprintf("https://%s:%d", cfg.Address, cfg.Port)
+
+	slog.Info("Starting HTTP server module", "address", cfg.Address, "port", cfg.Port)
+	if cfg.CaCert == nil || cfg.ServerCert == nil {
+		//no TLS possible
+		if cfg.NoTLS == false {
+			err := fmt.Errorf("missing CA or server certificate")
+			slog.Error(err.Error())
+
+			return err
+		}
+	} else {
+		// setup TLS
+		caCertPool := x509.NewCertPool()
+		caCertPool.AddCert(cfg.CaCert)
+		tlsConf = &tls.Config{
+			Certificates:       []tls.Certificate{*cfg.ServerCert},
+			ClientAuth:         tls.VerifyClientCertIfGiven,
+			ClientCAs:          caCertPool,
+			MinVersion:         tls.VersionTLS12,
+			InsecureSkipVerify: false,
+		}
+	}
+
+	logHandler := tint.NewHandler(os.Stdout, &tint.Options{
+		AddSource: true, Level: slog.LevelInfo, TimeFormat: "Jan _2 15:04:05.0000"})
+	m.logger = slog.NewLogLogger(logHandler, slog.LevelDebug)
+
+	m.rootRouter = chi.NewRouter()
+	m.addMiddleware(cfg)
+
+	// setup listener
+	m.httpServer = &http.Server{
+		Addr: fmt.Sprintf("%s:%d", cfg.Address, cfg.Port),
+		// ReadTimeout:  5 * time.Minute, // 5 min to allow for delays when 'curl' on OSx prompts for username/password
+		// WriteTimeout: 10 * time.Second,
+		Handler:   m.rootRouter,
+		TLSConfig: tlsConf,
+		//ErrorLog:  log.Default(),
+	}
+	lisn, err := net.Listen("tcp", m.httpServer.Addr)
+	if err != nil {
+		return err
+	}
+
+	// finally run the server in the background
+	go func() {
+		// serverTLSConf contains certificate and key
+		err2 := m.httpServer.ServeTLS(lisn, "", "")
+		//err2 := srv.httpServer.ListenAndServeTLS("", "")
+		if err2 != nil && !errors.Is(err2, http.ErrServerClosed) {
+			err = fmt.Errorf("TLS Server start error: %s", err2.Error())
+			slog.Error(err.Error())
+		} else {
+			slog.Info("TLSServer stopped")
+		}
+	}()
+
 	return err
 }
 
-// Stop any running actions
+// Stop the TLS server and close all connections.
+// this waits until for up to 3 seconds for connections are closed. After that
+// continue.
 func (m *HttpServerModule) Stop() {
-	m.service.Stop()
+	slog.Info("Stopping THTTP/TLS server")
+
+	if m.httpServer != nil {
+		// note that this does not (cannot?) close existing client connections
+		ctx, cancelFn := context.WithTimeout(context.Background(), time.Second*3)
+		err := m.httpServer.Shutdown(ctx)
+		if err != nil {
+			slog.Error("Stop: TLS server graceful shutdown failed. Forcing Remove", "err", err.Error())
+			_ = m.httpServer.Close()
+		}
+		cancelFn()
+	}
 }
 
 // Create a new Https server module instance.
@@ -100,12 +151,9 @@ func NewHttpServerModule(moduleID string, config *httpserver.HttpServerConfig) *
 	}
 
 	m := &HttpServerModule{
-		HiveModuleBase: modules.HiveModuleBase{
-			ModuleID:   moduleID,
-			Properties: make(map[string]any),
-		},
 		config: config,
 	}
-	var _ modules.IHiveModule = m // interface check
+	m.Init(moduleID, nil)
+	var _ httpserver.IHttpServer = m // interface check
 	return m
 }

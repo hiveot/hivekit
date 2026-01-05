@@ -4,37 +4,10 @@ import (
 	"crypto/x509"
 	"time"
 
+	"github.com/hiveot/hivekit/go/modules"
 	"github.com/hiveot/hivekit/go/msg"
+	"github.com/hiveot/hivekit/go/wot/td"
 )
-
-// Supported transport protocol bindings types
-const (
-	// WoT http basic protocol without return channel
-	ProtocolTypeHTTPBasic = "http-basic"
-
-	// websocket sub-protocol
-	ProtocolTypeWSS = "wss"
-
-	// WoT MQTT protocol over WSS
-	ProtocolTypeWotMQTTWSS = "mqtt-wss"
-
-	// HiveOT http SSE subprotocol return channel with direct messaging
-	ProtocolTypeHiveotSSE = "hiveot-sse"
-
-	// HiveOT message envelope passthrough
-	ProtocolTypePassthrough = "passthrough"
-)
-
-var UnauthorizedError error = unauthorizedError{}
-
-// UnauthorizedError for dealing with authorization problems
-type unauthorizedError struct {
-	Message string
-}
-
-func (e unauthorizedError) Error() string {
-	return "Unauthorized: " + e.Message
-}
 
 // ConnectionInfo provides details of a connection
 type ConnectionInfo struct {
@@ -66,27 +39,17 @@ type ConnectionInfo struct {
 //	c is the connection instance being established or disconnected
 type ConnectionHandler func(connected bool, err error, c IConnection)
 
-// NotificationHandler handles a subscruption notification, send by an agent.
+// IConnection defines the interfaces of a server and client connection.
+// Intended for exchanging messages between client and server.
 //
-// retry sending the response at a later time.
-type NotificationHandler func(msg *msg.NotificationMessage)
-
-// RequestHandler agent processes a request and returns a response.
+// Connections do not differentiate between consumers and devices or services.
+// Both clients and servers can provide a connection for use by consumers or agents.
+// In case of connection reversal the server can act as the consumer.
 //
-//	req is the envelope that contains the request to process
-//	c is the connection on which the request arrived and on which to send
-//	asynchronous response(s).
-type RequestHandler func(req *msg.RequestMessage, c IConnection) (response *msg.ResponseMessage)
-
-// ResponseHandler handles a response to a request, send by an agent.
-// The handler delivers the response to the client that sent the original request.
-//
-// This returns an error if the response cannot be delivered. This can be used to
-// retry sending the response at a later time.
-type ResponseHandler func(msg *msg.ResponseMessage) error
-
-// IConnection defines the interface of a server or client connection.
-// Intended for exchanging messages between servients.
+// All transport servers provide a callback handler that notifies when a new connection
+// is received. It is up to the application to handle the connection.
+// The connections manager module can be used to manage active connections, aggregate
+// incoming messages from multiple connections and send messages to connections.
 type IConnection interface {
 
 	// Disconnect the client.
@@ -98,35 +61,93 @@ type IConnection interface {
 	// IsConnected returns the current connection status
 	IsConnected() bool
 
-	// SendNotification [agent] sends a notification to subscribers.
-	// This returns an error if the notification could not be delivered
+	// SendNotification [agent] sends a notification over the connection to a consumer.
+	// The connection can decide not to deliver the notification depending on subscriptions or
+	// other criteria.
+	// This returns an error if sending the notification was attempted but failed.
+	// This returns nil if the notification was delivered or ignored.
 	SendNotification(notif *msg.NotificationMessage) error
 
-	// SendRequest client sends a request to an agent.
-	// This returns an error if the request could not be delivered
-	SendRequest(req *msg.RequestMessage) error
+	// SendRequest [consumer] sends a request over the connection to an agent.
+	//
+	// Since not all connections are bidirectional this interface is unidirectional
+	// The system MUST always send an asynchronous response carrying the same correlationID
+	// as the request.
+	// This returns an error if the request cannot be delivered to the remote side. Once delivered
+	// it is the responsibility of the other end to properly forward the request and send a response.
+	//
+	// Use of IConnection directly by consumers is uncommon. The 'Consumer' helper class provides
+	// a SendRequest method that can wait until a response is received. It uses the RnR helper
+	// to wait for a response with a matching correlationID.
+	SendRequest(req *msg.RequestMessage, replyTo msg.ResponseHandler) error
 
-	// SendResponse [agent] sends a response to a request.
-	// This returns an error if the response could not be delivered
+	// SendResponse [agent] sends an asynchronous response over the connection to a consumer.
+	// This returns an error if the response could not be delivered.
 	SendResponse(response *msg.ResponseMessage) error
 
 	// SetConnectHandler sets the callback for connection status changes
 	// This replaces any previously set handler.
 	SetConnectHandler(handler ConnectionHandler)
 
-	// SetNotificationHandler [client] sets the callback for receiving notifications.
+	// SetNotificationHandler sets the callback for handling received notifications.
 	// This replaces any previously set handler.
-	SetNotificationHandler(handler NotificationHandler)
+	//
+	// Intended for consumers to receive subscribed notifications.
+	// SetNotificationHandler(handler msg.NotificationHandler)
 
-	// SetRequestHandler set the handler for receiving requests that return a response.
+	// SetRequestHandler sets the callback for handling received requests.
 	// This replaces any previously set handler.
-	SetRequestHandler(handler RequestHandler)
+	//
+	// Intended for (device or service) agents to handle requests.
+	// SetRequestHandler(handler msg.RequestHandler)
 
-	// SetResponseHandler [consumer] sets the callback for receiving unhandled
-	// asynchronous responses to requests.
-	// If a request is sent with 'sync' set to true then SendRequest will handle
-	// the response instead.
+	// SetResponseHandler sets the callback for handling received responses to
+	// to asynchronous requests.
+	// Intended for consumers to handle responses asynchronously.
 	//
 	// This replaces any previously set handler.
-	SetResponseHandler(handler ResponseHandler)
+	// SetResponseHandler(handler msg.ResponseHandler)
+}
+
+// GetFormHandler is the handler that provides the client with the form needed to invoke an operation
+// This returns nil if no form is found for the operation.
+type GetFormHandler func(op string, thingID string, name string) *td.Form
+
+// IClientConnection defines the client interface for establishing connections with a server
+// Intended for consumers to connect to a Thing Agent/Hub and for Service agents that connect
+// to the Hub.
+type IClientConnection interface {
+	IConnection
+
+	// ConnectWithClientCert connects to the server using a client certificate.
+	// This authentication method is optional
+	//ConnectWithClientCert(kp keys.IHiveKey, cert *tls.Certificate) (err error)
+
+	// ConnectWithToken connects to the messaging server using an authentication token.
+	//
+	// If a connection is already established on this client then it will be closed first.
+	//
+	// This connection method must be supported by all transport implementations.
+	ConnectWithToken(token string) (err error)
+
+	// Set the sink for receiving async notifications, requests, and unhandled responses.
+	// Intended to be used if the sink is created after the client connection.
+	//
+	// Async notifications are received when clients subscribe to notifications.
+	// Unhandled responses are received when clients do not provide a replyTo to SendRequest.
+	// Async requests are received by agents that use reverse connection
+	SetSink(sink modules.IHiveModule)
+}
+
+// IServerConnection is the interface of an incoming client connection on the server.
+// Protocol servers must implement this interface to return information to the consumer.
+//
+// This provides a return channel for sending messages from the digital twin to
+// agents or consumers.
+//
+// Subscription to events or properties can be made externally via this API,
+// or handled internally by the protocol handler if the protocol defines the
+// messages for subscription.
+type IServerConnection interface {
+	IConnection
 }

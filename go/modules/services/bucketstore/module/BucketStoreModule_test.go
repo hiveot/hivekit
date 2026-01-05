@@ -45,8 +45,8 @@ func TestGetSetMsgAPI(t *testing.T) {
 	m, stopFn, err := startModule(t)
 	require.NoError(t, err)
 	defer stopFn()
-	tp := direct.NewDirectTransport(clientID, m)
-	cl := api.NewBucketStoreMsgClient(m.ModuleID, tp)
+	tp := direct.NewDirectTransport(clientID, nil, m)
+	cl := api.NewBucketStoreMsgClient(m.GetModuleID(), tp)
 	err = cl.Set(key1, val1)
 	require.NoError(t, err)
 

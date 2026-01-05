@@ -3,8 +3,11 @@ package wot
 // HiveOT operations that are missing in WoT and those needed by hub connected agents
 // Keep in sync with vocab.yaml
 const (
-	HTOpPing  = "ping"
-	HTOpError = "error"
+	HTOpPing    = "ping"
+	HTOpError   = "error"
+	HTOpLogin   = "login"
+	HTOpLogout  = "logout"
+	HTOpRefresh = "refresh"
 )
 
 // WoT operations

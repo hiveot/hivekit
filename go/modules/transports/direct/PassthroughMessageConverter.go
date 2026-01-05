@@ -74,7 +74,7 @@ func (svc *PassthroughMessageConverter) EncodeResponse(resp *msg.ResponseMessage
 
 // GetProtocolType returns the hiveot WSS protocol type identifier
 func (svc *PassthroughMessageConverter) GetProtocolType() string {
-	return transports.ProtocolTypeWSS
+	return transports.ProtocolTypeWotWSS
 }
 
 // Create a new instance of the hiveot passthrough message converter

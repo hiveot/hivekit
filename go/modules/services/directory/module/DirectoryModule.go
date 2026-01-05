@@ -43,14 +43,13 @@ func (m *DirectoryModule) GetService() directory.IDirectoryService {
 }
 
 // HandleRequest passes the module request messages to the API handler.
-func (m *DirectoryModule) HandleRequest(req *msg.RequestMessage) (resp *msg.ResponseMessage) {
-	if m.msgAPI != nil {
-		resp = m.msgAPI.HandleRequest(req)
+func (m *DirectoryModule) HandleRequest(req *msg.RequestMessage, replyTo msg.ResponseHandler) (err error) {
+	if req.ThingID == m.GetModuleID() {
+		err = m.msgAPI.HandleRequest(req, replyTo)
+	} else {
+		err = m.HiveModuleBase.HandleRequest(req, replyTo)
 	}
-	if resp == nil {
-		resp = m.HiveModuleBase.HandleRequest(req)
-	}
-	return resp
+	return err
 }
 
 // Start readies the module for use.
@@ -61,20 +60,22 @@ func (m *DirectoryModule) HandleRequest(req *msg.RequestMessage) (resp *msg.Resp
 // - enable the http request handler using the given router
 // - updates this service TD in the store
 func (m *DirectoryModule) Start() (err error) {
+	moduleID := m.GetModuleID()
+
 	storageDir := ""
 	if m.storageRoot != "" {
-		storageDir = filepath.Join(m.storageRoot, m.ModuleID)
+		storageDir = filepath.Join(m.storageRoot, moduleID)
 		m.bucketStore = kvbtree.NewKVStore(storageDir)
 	} else {
 		m.bucketStore = kvbtree.NewKVStore("")
 	}
 	err = m.bucketStore.Open()
 	if err == nil {
-		bucketName := m.ModuleID
+		bucketName := moduleID
 		m.service, err = service.StartDirectoryService(m.bucketStore, bucketName)
 	}
 	if err == nil {
-		m.msgAPI = api.NewDirectoryMsgHandler(m.ModuleID, m.service)
+		m.msgAPI = api.NewDirectoryMsgHandler(moduleID, m.service)
 	}
 	if err == nil {
 		m.restAPI = api.StartDirectoryRestHandler(m.service, m.router)
@@ -98,13 +99,11 @@ func (m *DirectoryModule) Stop() {
 func NewDirectoryModule(storageRoot string, router *chi.Mux) *DirectoryModule {
 
 	m := &DirectoryModule{
-		HiveModuleBase: modules.HiveModuleBase{
-			ModuleID:   directory.DefaultDirectoryThingID,
-			Properties: make(map[string]any),
-		},
-		storageRoot: storageRoot,
-		router:      router,
+		HiveModuleBase: modules.HiveModuleBase{},
+		storageRoot:    storageRoot,
+		router:         router,
 	}
+	m.Init(directory.DefaultDirectoryThingID, nil)
 	var _ modules.IHiveModule = m // interface check
 
 	return m

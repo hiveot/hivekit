@@ -14,6 +14,15 @@ import (
 // MessageTypeRequest constant that identify a payload as a request
 const MessageTypeRequest = "request"
 
+// RequestHandler handles a request from a consumer and returns a response.
+// This is typically an invoke action or property write request.
+//
+//	req is the envelope that contains the request
+//	replyTo is the handler to pass the response to.
+//
+// This returns an error if the request cannot be handled or forwarded.
+type RequestHandler func(req *RequestMessage, replyTo ResponseHandler) (err error)
+
 // RequestMessage for sending a request for an operation on a Thing or service.
 // Agents/Things  MUST send a response when a request is received and a correlationID
 // is included.

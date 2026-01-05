@@ -43,7 +43,7 @@ func TestInvokeActionFromConsumerToServer(t *testing.T) {
 		return req.CreateResponse(nil, errors.New("unexpected request"))
 	}
 	// 1. start the servers
-	srv, cancelFn := StartTransportServer(nil, requestHandler, nil)
+	srv, cancelFn := StartTransportModule(nil, requestHandler, nil)
 	_ = srv
 	defer cancelFn()
 
@@ -131,7 +131,7 @@ func TestInvokeActionFromServerToAgent(t *testing.T) {
 		cancelFn1()
 		return nil
 	}
-	srv, cancelFn2 := StartTransportServer(nil, nil, responseHandler)
+	srv, cancelFn2 := StartTransportModule(nil, nil, responseHandler)
 	_ = srv
 	defer cancelFn2()
 
@@ -250,7 +250,7 @@ func TestQueryActions(t *testing.T) {
 	}
 
 	// 1. start the servers
-	srv, cancelFn := StartTransportServer(nil, requestHandler, nil)
+	srv, cancelFn := StartTransportModule(nil, requestHandler, nil)
 	_ = srv
 	defer cancelFn()
 

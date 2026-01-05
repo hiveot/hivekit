@@ -6,6 +6,17 @@ import (
 	"github.com/hiveot/hivekit/go/wot/td"
 )
 
+var UnauthorizedError error = unauthorizedError{}
+
+// UnauthorizedError for dealing with authorization problems
+type unauthorizedError struct {
+	Message string
+}
+
+func (e unauthorizedError) Error() string {
+	return "Unauthorized: " + e.Message
+}
+
 // IAuthenticator is the interface of the authentication capability to obtain and
 // validate session tokens.
 type IAuthenticator interface {

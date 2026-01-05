@@ -7,29 +7,57 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
+	"github.com/hiveot/hivekit/go/modules"
 )
 
-const DefaultHttpServerModuleID = "httpserver"
+// Standardized http server constants for use with HiveOT
+// These are used by GetRequestParams but usage is optional.
+const (
+	DefaultHttpServerModuleID = "httpserver"
 
-// The default listening port if none is set
-const DefaultPort = 8444
+	// The default listening port if none is set
+	DefaultPort = 8444
 
-// The context ID's for authenticated clientID and sessionID
-const ClientContextID = "clientID"
-const SessionContextID = "sessionID"
+	// The context ID's for authenticated clientID and sessionID
+	ClientContextID  = "clientID"
+	SessionContextID = "sessionID"
 
-// IHttpServer is the HTTP TLS server transport interface
-type IHttpServer interface {
-	// Returns the connection URL of the http server
-	GetConnectURL() string
+	// ConnectionIDHeader is intended for linking return channels to requests.
+	// intended for separated return channel like sse.
+	ConnectionIDHeader = "cid"
+	// CorrelationIDHeader is the header to be able to link requests to out of band responses
+	// tentative as it isn't part of the wot spec
+	CorrelationIDHeader = "correlationID"
 
-	// Return the protected router for adding endpoints.
-	// This requires that config.Authenticate method is set, otherwise this path is not protected.
-	GetProtectedRoutes() chi.Router
+	// URI variables for use in paths. These are read in GetRequestParameters
+	// usage is for convenience.
+	OperationURIVar = "operation"
+	ThingIDURIVar   = "thingID"
+	NameURIVar      = "name"
+)
 
-	// Return the public router for adding endpoints.
-	GetPublicRoutes() chi.Router
+// RequestParams contains the parameters read from the HTTP request
+type RequestParams struct {
+	ClientID      string // authenticated client ID
+	CorrelationID string // tentative as it isn't in the spec
+	ConnectionID  string // connectionID as provided by the client
+	Payload       []byte // the raw request payload (body)
+
+	// optional URI parameters
+	ThingID string // the thing ID if defined in the URL as {thingID}
+	Name    string // the affordance name if defined in the URL as {name}
+	Op      string // the operation if defined in the URL as {op}
 }
+
+// Convenience function to unmarshal the payload into the given data struct
+// If no payload is available this does nothing and data remains unchanged
+// func (rp *RequestParams) Unmarshal(data any) error {
+// 	if len(rp.Payload) == 0 {
+// 		return nil
+// 	}
+// 	err := jsoniter.Unmarshal(rp.Payload, data)
+// 	return err
+// }
 
 // Configuration options for the https server
 type HttpServerConfig struct {
@@ -133,4 +161,31 @@ func NewHttpServerConfig() *HttpServerConfig {
 		StripSlashesEnabled: true,
 	}
 	return o
+}
+
+// IHttpServer is the HTTP TLS server transport interface
+type IHttpServer interface {
+	modules.IHiveModule
+
+	// Returns the connection URL of the http server
+	GetConnectURL() string
+
+	// Return the authenticated client from the http request context
+	// The clientID is set in the middleware chain which includes auth check
+	GetClientIdFromContext(r *http.Request) (string, error)
+
+	// GetRequestParams decode the HiveOT standardized request parameters:
+	// - clientID from context, provided by ?
+	// - connectionID from the 'cid' header
+	// - correlationID from the 'correlationID' header
+	// - payload from the message body
+	// - thingID, operation, name from URI variables
+	GetRequestParams(r *http.Request) (RequestParams, error)
+
+	// Return the protected route for adding endpoints.
+	// This requires that config.Authenticate method is set, otherwise this path is not protected.
+	GetProtectedRoute() chi.Router
+
+	// Return the public route for adding endpoints.
+	GetPublicRoute() chi.Router
 }

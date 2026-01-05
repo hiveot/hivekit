@@ -50,14 +50,14 @@ func (m *BucketStoreModule) GetService() bucketstore.IBucketStore {
 }
 
 // HandleRequest passes the module request messages to the API handler.
-func (m *BucketStoreModule) HandleRequest(req *msg.RequestMessage) (resp *msg.ResponseMessage) {
+func (m *BucketStoreModule) HandleRequest(req *msg.RequestMessage, replyTo msg.ResponseHandler) (resp *msg.ResponseMessage, err error) {
 	if m.msgAPI != nil {
 		resp = m.msgAPI.HandleRequest(req)
 	}
 	if resp == nil {
-		resp = m.HiveModuleBase.HandleRequest(req)
+		resp, err = m.HiveModuleBase.HandleRequest(req, replyTo)
 	}
-	return resp
+	return resp, err
 }
 
 // Start readies the module for use using the given yaml configuration.
@@ -69,7 +69,7 @@ func (m *BucketStoreModule) Start() (err error) {
 	// if a storage directory is provided then open a store under the given name.
 	// otherwise create an in-memory store.
 	if m.storageRoot != "" {
-		storeDirectory := filepath.Join(m.storageRoot, m.ModuleID)
+		storeDirectory := filepath.Join(m.storageRoot, m.GetModuleID())
 		switch m.StoreType {
 		case bucketstore.BackendKVBTree:
 			m.store = kvbtree.NewKVStore(storeDirectory)
@@ -86,7 +86,7 @@ func (m *BucketStoreModule) Start() (err error) {
 	}
 	err = m.store.Open()
 	if err == nil {
-		m.msgAPI = api.NewBucketMsgHandler(m.ModuleID, m.store)
+		m.msgAPI = api.NewBucketMsgHandler(m.GetModuleID(), m.store)
 	}
 	// for remote iterators
 	m.cursorCache = bucketstore.NewCursorCache()
@@ -113,15 +113,13 @@ func (m *BucketStoreModule) Stop() {
 func NewBucketStoreModule(storageRoot string) *BucketStoreModule {
 
 	m := &BucketStoreModule{
-		HiveModuleBase: modules.HiveModuleBase{
-			ModuleID:   DefaultBucketStoreThingID,
-			Properties: make(map[string]any),
-		},
-		storageRoot: storageRoot,
+		HiveModuleBase: modules.HiveModuleBase{},
+		storageRoot:    storageRoot,
 		// StoreType:   defaultStoreType,
 		// StoreName:   defaultStoreName,
 		// bucketStore: bucketStore,
 	}
+	m.Init(DefaultBucketStoreThingID, nil)
 	var _ modules.IHiveModule = m // interface check
 
 	return m

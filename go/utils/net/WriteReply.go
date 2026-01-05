@@ -10,7 +10,7 @@ import (
 
 // WriteError is a convenience function that logs and writes an error
 // If the reply has an error then write a bad request with the error as payload
-// This also writes the StatusHeader containing StatusFailed.
+// If code is 0 then http.StatusBadRequest will be returned
 func WriteError(w http.ResponseWriter, err error, code int) {
 	if code == 0 {
 		code = http.StatusBadRequest

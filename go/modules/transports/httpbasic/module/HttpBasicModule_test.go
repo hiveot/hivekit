@@ -15,9 +15,8 @@ func TestStartStop(t *testing.T) {
 
 	dummyServer := httpserver.NewDummyServer("")
 	dummyAuthenticator := authn.NewDummyAuthenticator()
-	m := module.NewHttpBasicModule(dummyServer, dummyAuthenticator)
+	m := module.NewHttpBasicModule(dummyServer, nil, dummyAuthenticator)
 	err := m.Start()
 	require.NoError(t, err)
 	defer m.Stop()
-
 }

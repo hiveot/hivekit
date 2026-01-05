@@ -29,7 +29,7 @@ func TestObservePropertyByConsumer(t *testing.T) {
 	var propValue2 = "value2"
 
 	// 1. start the server
-	srv, cancelFn := StartTransportServer(nil, nil, nil)
+	srv, cancelFn := StartTransportModule(nil, nil, nil)
 	defer cancelFn()
 
 	// 2. connect with two consumers
@@ -106,7 +106,7 @@ func TestPublishPropertyByAgent(t *testing.T) {
 	}
 
 	// 1. start the transport
-	srv, cancelFn := StartTransportServer(notificationHandler, nil, nil)
+	srv, cancelFn := StartTransportModule(notificationHandler, nil, nil)
 	_ = srv
 	defer cancelFn()
 
@@ -145,7 +145,7 @@ func TestReadProperty(t *testing.T) {
 		}
 		return req.CreateResponse(nil, errors.New("unexpected request"))
 	}
-	srv, cancelFn := StartTransportServer(nil, agentReqHandler, nil)
+	srv, cancelFn := StartTransportModule(nil, agentReqHandler, nil)
 	_ = srv
 	defer cancelFn()
 
@@ -182,7 +182,7 @@ func TestReadAllProperties(t *testing.T) {
 		}
 		return req.CreateResponse(nil, errors.New("unexpected request"))
 	}
-	srv, cancelFn := StartTransportServer(nil, agentReqHandler, nil)
+	srv, cancelFn := StartTransportModule(nil, agentReqHandler, nil)
 	_ = srv
 	defer cancelFn()
 

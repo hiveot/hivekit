@@ -13,19 +13,22 @@ import (
 	"testing"
 	"time"
 
-	"github.com/hiveot/hivekit/go/lib/agent"
-	"github.com/hiveot/hivekit/go/lib/clients"
+	"github.com/hiveot/gocore/servers/httpbasic"
 	"github.com/hiveot/hivekit/go/lib/clients/authclient"
-	"github.com/hiveot/hivekit/go/lib/clients/httpclient"
-	"github.com/hiveot/hivekit/go/lib/consumer"
 	"github.com/hiveot/hivekit/go/lib/logging"
-	"github.com/hiveot/hivekit/go/lib/servers"
+	"github.com/hiveot/hivekit/go/modules"
 	"github.com/hiveot/hivekit/go/modules/services/certs/service/selfsigned"
 	"github.com/hiveot/hivekit/go/modules/transports"
-	hiveotsse "github.com/hiveot/hivekit/go/modules/transports/hiveotsse/service"
-	"github.com/hiveot/hivekit/go/modules/transports/httpbasic"
-	tlsserver "github.com/hiveot/hivekit/go/modules/transports/httpserver"
-	wssserver "github.com/hiveot/hivekit/go/modules/transports/wotwss"
+	hiveotsse "github.com/hiveot/hivekit/go/modules/transports/hiveotsse"
+	sseapi "github.com/hiveot/hivekit/go/modules/transports/hiveotsse/api"
+	hiveotssemodule "github.com/hiveot/hivekit/go/modules/transports/hiveotsse/module"
+	"github.com/hiveot/hivekit/go/modules/transports/httpbasic/httpbasicapi"
+	httpbasicmodule "github.com/hiveot/hivekit/go/modules/transports/httpbasic/module"
+	"github.com/hiveot/hivekit/go/modules/transports/httpserver"
+	"github.com/hiveot/hivekit/go/modules/transports/httpserver/module"
+	wssserver "github.com/hiveot/hivekit/go/modules/transports/wss"
+	wssapi "github.com/hiveot/hivekit/go/modules/transports/wss/api"
+	wssmodule "github.com/hiveot/hivekit/go/modules/transports/wss/module"
 	"github.com/hiveot/hivekit/go/msg"
 	"github.com/hiveot/hivekit/go/utils/authn"
 	"github.com/hiveot/hivekit/go/wot"
@@ -42,15 +45,15 @@ const testServerHttpURL = "https://localhost:9445"
 
 // const testServerHiveotHttpBasicURL = "wss://localhost:9445" + server.DefaultHiveotHttpBasicPath
 const testServerHiveotSseURL = "sse://localhost:9445" + hiveotsse.DefaultHiveotSsePath
-const testServerHiveotWssURL = "wss://localhost:9445" + wssserver.DefaultWssPath
+const testServerHiveotWssURL = "wss://localhost:9445" + wssserver.DefaultHiveotWssPath
 
 //const testServerMqttWssURL = "mqtts://localhost:9447"
 
 var defaultProtocol = transports.ProtocolTypeHiveotSSE
 
-// var defaultProtocol = messaging.ProtocolTypeWSS
+// var defaultProtocol = transports.ProtocolTypeWSS
 
-var transportServer servers.IMessageServer
+var transportServer transports.ITransportModule
 var dummyAuthenticator *authn.DummyAuthenticator
 var certBundle = selfsigned.CreateTestCertBundle()
 
@@ -61,28 +64,35 @@ var certBundle = selfsigned.CreateTestCertBundle()
 // This panics if a client cannot be created.
 // ClientID is only used for logging
 func NewTestClient(clientID string) (transports.IClientConnection, string) {
+	caCert := certBundle.CaCert
 	fullURL := testServerHttpURL
 	token := dummyAuthenticator.AddClient(clientID, clientID)
+	var cl transports.IClientConnection
+	var sink modules.IHiveModule
 
 	switch defaultProtocol {
 	case transports.ProtocolTypeHiveotSSE:
 		fullURL = testServerHiveotSseURL
+		cl = sseapi.NewHiveotSseClient(fullURL, clientID, caCert, sink, testTimeout)
 
-	case transports.ProtocolTypeWSS:
+	case transports.ProtocolTypeWotWSS:
 		fullURL = testServerHiveotWssURL
+		cl = wssapi.NewWotWssClient(fullURL, clientID, caCert, sink, testTimeout)
 
 	case transports.ProtocolTypeHTTPBasic:
+		caCert := certBundle.CaCert
 		fullURL = testServerHttpURL
+		cl = httpbasicapi.NewHttpBasicClient(
+			fullURL, clientID, caCert, sink, nil, testTimeout)
 
-		//case messaging.ProtocolTypeWotMQTTWSS:
+		//case transports.ProtocolTypeWotMQTTWSS:
 		//	fullURL = testServerMqttWssURL
 	}
-	caCert := certBundle.CaCert
-	cc, err := clients.ConnectWithToken(clientID, token, caCert, fullURL, testTimeout)
+	err := cl.ConnectWithToken(token)
 	if err != nil {
 		panic("NewClient failed:" + err.Error())
 	}
-	return cc, token
+	return cl, token
 }
 
 // NewAgent creates a new connected agent client with the given ID. The
@@ -90,10 +100,10 @@ func NewTestClient(clientID string) (transports.IClientConnection, string) {
 //
 // This uses the clientID as password
 // This panics if a client cannot be created
-func NewAgent(clientID string) (transports.IClientConnection, *agent.Agent, string) {
+func NewAgent(clientID string) (transports.IClientConnection, *transports.Agent, string) {
 	cc, token := NewTestClient(clientID)
 
-	agent := agent.NewAgent(cc, nil, nil, nil, nil, testTimeout)
+	agent := transports.NewAgent(cc, nil, nil, nil, nil, testTimeout)
 	return cc, agent, token
 }
 
@@ -103,10 +113,10 @@ func NewAgent(clientID string) (transports.IClientConnection, *agent.Agent, stri
 // This uses the clientID as password
 // This panics if a client cannot be created
 func NewConsumer(clientID string) (
-	transports.IClientConnection, *consumer.Consumer, string) {
+	transports.IClientConnection, *transports.Consumer, string) {
 
 	cc, token := NewTestClient(clientID)
-	co := consumer.NewConsumer(cc, testTimeout)
+	co := transports.NewConsumer(cc, testTimeout)
 	return cc, co, token
 }
 
@@ -121,13 +131,13 @@ func NewConsumer(clientID string) (
 //}
 
 // start the 'defaultProtocol' transport server. This is one of http-basic,
-// http-sse or websocket.
+// http-sse, wot or hiveot websocket.
 // This panics if the server cannot be created
-func StartTransportServer(
-	notifHandler transports.NotificationHandler,
-	reqHandler transports.RequestHandler,
-	respHandler transports.ResponseHandler,
-) (srv servers.IMessageServer, cancelFunc func()) {
+func StartTransportModule(
+	notifHandler msg.NotificationHandler,
+	reqHandler msg.RequestHandler,
+	respHandler msg.ResponseHandler,
+) (srv transports.ITransportModule, cancelFunc func()) {
 
 	caCert := certBundle.CaCert
 	serverCert := certBundle.ServerCert
@@ -139,36 +149,39 @@ func StartTransportServer(
 		respHandler = DummyResponseHandler
 	}
 	// cert uses localhost
-	tlsServer, httpRouter := tlsserver.NewTLSServer(
-		certBundle.ServerAddr, testServerHttpPort, serverCert, caCert)
-	err := tlsServer.Start()
+	cfg := httpserver.NewHttpServerConfig()
+	// cfg.Address = fmt.Sprintf("%s:%d", certBundle.ServerAddr, testServerHttpPort)
+	cfg.Address = certBundle.ServerAddr
+	cfg.Port = testServerHttpPort
+	cfg.CaCert = caCert
+	cfg.ServerCert = serverCert
+
+	httpServer := module.NewHttpServerModule("", cfg)
+	err := httpServer.Start()
+
+	// tlsServer, httpRouter := tlsserver.NewTLSServer(
+	// 	certBundle.ServerAddr, testServerHttpPort, serverCert, caCert)
+	// err := tlsServer.Start()
 	if err != nil {
 		panic("unable to start TLS server: " + err.Error())
 	}
 
-	// http wotbasic is required for http sub-protocols and authentication
-	connectAddr := fmt.Sprintf("%s:%d", certBundle.ServerAddr, testServerHttpPort)
-	httpBasicServer := httpbasic.NewWoTHttpBasicServer(
-		connectAddr, httpRouter, dummyAuthenticator, notifHandler, reqHandler, respHandler)
-	err = httpBasicServer.Start()
-
 	switch defaultProtocol {
 	case transports.ProtocolTypeHTTPBasic:
+
+		// httpbasic is required for login
+		transportServer = httpbasicmodule.NewHttpBasicModule(
+			httpServer, nil, dummyAuthenticator)
+		err = transportServer.Start()
 		// http only, no subprotocol bindings
-		transportServer = httpBasicServer
 
 	case transports.ProtocolTypeHiveotSSE:
-		transportServer = hiveotsse.NewHiveotSseServer(
-			connectAddr, hiveotsse.DefaultHiveotSsePath,
-			httpBasicServer.GetProtectedRouter(),
-			nil, notifHandler, reqHandler, respHandler)
+		transportServer := hiveotssemodule.NewHiveotSseModule(
+			httpServer, nil, nil)
 		err = transportServer.Start()
 
-	case transports.ProtocolTypeWSS:
-		transportServer = wssserver.NewWssServer(
-			connectAddr, wssserver.DefaultWssPath,
-			httpBasicServer.GetProtectedRouter(),
-			nil, notifHandler, reqHandler, respHandler)
+	case transports.ProtocolTypeWotWSS:
+		transportServer := wssmodule.NewWotWssModule(httpServer, nil)
 		err = transportServer.Start()
 
 	default:
@@ -185,8 +198,8 @@ func StartTransportServer(
 		if transportServer != nil {
 			transportServer.Stop()
 		}
-		if tlsServer != nil {
-			tlsServer.Stop()
+		if httpServer != nil {
+			httpServer.Stop()
 		}
 	}
 }
@@ -196,11 +209,9 @@ func StartTransportServer(
 //		slog.Info("DummyNotificationHandler: Received notification", "op", notification.Operation)
 //		//replyTo.SendResponse(msg.ThingID, msg.Name, "result", msg.CorrelationID)
 //	}
-func DummyRequestHandler(req *msg.RequestMessage,
-	c transports.IConnection) (resp *msg.ResponseMessage) {
+func DummyRequestHandler(req *msg.RequestMessage, replyTo msg.ResponseHandler) error {
 	var output any
 	var err error
-	_ = c
 	slog.Info("DummyRequestHandler: Received request", "op", req.Operation)
 	//if req.Operation == wot.HTOpRefresh {
 	//	oldToken := req.ToString(0)
@@ -210,8 +221,11 @@ func DummyRequestHandler(req *msg.RequestMessage,
 	//} else {
 	output = req.Input // echo
 	//}
-	return req.CreateResponse(output, err)
+	resp := req.CreateResponse(output, err)
+	err = replyTo(resp)
+	return err
 }
+
 func DummyResponseHandler(response *msg.ResponseMessage) error {
 
 	slog.Info("DummyResponse: Received response", "op", response.Operation)
@@ -229,7 +243,7 @@ func TestMain(m *testing.M) {
 func TestStartStop(t *testing.T) {
 	t.Logf("---%s---\n", t.Name())
 
-	srv, cancelFn := StartTransportServer(nil, nil, nil)
+	srv, cancelFn := StartTransportModule(nil, nil, nil)
 	_ = srv
 	defer cancelFn()
 	cc1, co1, _ := NewConsumer(testClientID1)
@@ -244,7 +258,7 @@ func TestStartStop(t *testing.T) {
 func TestLoginRefresh(t *testing.T) {
 	t.Logf("---%s---\n", t.Name())
 
-	srv, cancelFn := StartTransportServer(nil, nil, nil)
+	srv, cancelFn := StartTransportModule(nil, nil, nil)
 	defer cancelFn()
 	// ensure the client exists
 	cc1, co1, token1 := NewConsumer(testClientID1)
@@ -304,7 +318,7 @@ func TestLoginRefresh(t *testing.T) {
 func TestLogout(t *testing.T) {
 	t.Logf("---%s---\n", t.Name())
 
-	srv, cancelFn := StartTransportServer(nil, nil, nil)
+	srv, cancelFn := StartTransportModule(nil, nil, nil)
 	_ = srv
 	defer cancelFn()
 
@@ -368,7 +382,7 @@ func TestLogout(t *testing.T) {
 
 func TestBadRefresh(t *testing.T) {
 	t.Logf("---%s---\n", t.Name())
-	srv, cancelFn := StartTransportServer(nil, nil, nil)
+	srv, cancelFn := StartTransportModule(nil, nil, nil)
 	defer cancelFn()
 	cc1, co1, token1 := NewConsumer(testClientID1)
 	_ = co1
@@ -402,12 +416,12 @@ func TestReconnect(t *testing.T) {
 	const agentID = "agent1"
 	var reconnectedCallback atomic.Bool
 	var dThingID = td.MakeDigiTwinThingID(agentID, thingID)
-	var srv servers.IMessageServer
+	var srv transports.ITransportModule
 	var cancelFn func()
 
 	// this test handler receives an action and returns a 'pending status',
 	// it is intended to prove reconnect works.
-	handleRequest := func(req *msg.RequestMessage, c transports.IConnection) *msg.ResponseMessage {
+	handleRequest := func(req *msg.RequestMessage, replyTo msg.ResponseHandler) error {
 		slog.Info("Received request", "op", req.Operation)
 		var err error
 		// prove that the return channel is connected
@@ -415,23 +429,27 @@ func TestReconnect(t *testing.T) {
 			go func() {
 				// send an asynchronous result after a short time
 				time.Sleep(time.Millisecond * 10)
-				require.NotNil(t, c, "client doesnt have a connection")
+				// require.NotNil(t, c, "client doesnt have a connection")
 				output := req.Input
-				cinfo := c.GetConnectionInfo()
-				c2 := srv.GetConnectionByConnectionID(cinfo.ClientID, cinfo.ConnectionID)
-				assert.NotEmpty(t, c2)
+				// cinfo := c.GetConnectionInfo()
+				// c2 := srv.GetConnectionByConnectionID(cinfo.ClientID, cinfo.ConnectionID)
+				// assert.NotEmpty(t, c2)
 				resp := req.CreateResponse(output, nil)
-				err = c.SendResponse(resp)
+				// err = c.SendResponse(resp)
+				err = replyTo(resp)
 				assert.NoError(t, err)
 			}()
 			// nothing to return yet
 			return nil
 		}
 		err = errors.New("unexpected request")
-		return req.CreateResponse("", err)
+		resp := req.CreateResponse("", err)
+		// err = c.SendResponse(resp)
+		err = replyTo(resp)
+		return err
 	}
 	// start the servers and connect as a client
-	srv, cancelFn = StartTransportServer(nil, handleRequest, nil)
+	srv, cancelFn = StartTransportModule(nil, handleRequest, nil)
 	defer cancelFn()
 
 	// connect as client
@@ -475,7 +493,7 @@ func TestReconnect(t *testing.T) {
 func TestPing(t *testing.T) {
 	t.Logf("---%s---\n", t.Name())
 
-	srv, cancelFn := StartTransportServer(nil, nil, nil)
+	srv, cancelFn := StartTransportModule(nil, nil, nil)
 	_ = srv
 	defer cancelFn()
 	cc1, co1, _ := NewConsumer(testClientID1)
@@ -510,7 +528,7 @@ func TestPing(t *testing.T) {
 func TestServerURL(t *testing.T) {
 	t.Logf("---%s---\n", t.Name())
 
-	srv, cancelFn := StartTransportServer(nil, nil, nil)
+	srv, cancelFn := StartTransportModule(nil, nil, nil)
 	defer cancelFn()
 	serverURL := srv.GetConnectURL()
 	_, err := url.Parse(serverURL)
@@ -521,10 +539,11 @@ func TestServerURL(t *testing.T) {
 func TestHttpBasic(t *testing.T) {
 	t.Logf("---%s---\n", t.Name())
 	const testPass = "password-test"
+	var clientSink modules.IHiveModule
 
 	// all transport servers use http-basic
 	// this also creates a dummy authenticator
-	srv, cancelFn := StartTransportServer(nil, nil, nil)
+	srv, cancelFn := StartTransportModule(nil, nil, nil)
 	_ = srv
 	defer cancelFn()
 	token1 := dummyAuthenticator.AddClient(testClientID1, testPass)
@@ -533,19 +552,19 @@ func TestHttpBasic(t *testing.T) {
 	// connect using http-basic
 	serverURL := srv.GetConnectURL()
 
-	htb := httpclient.NewHttpBasicClient(serverURL, testClientID1,
-		nil, certBundle.CaCert, nil, time.Second)
+	cl := httpbasicapi.NewHttpBasicClient(serverURL, testClientID1,
+		certBundle.CaCert, clientSink, nil, time.Second)
 	//err := htb.ConnectWithToken(token)
 	//require.NoError(t, err)
 
 	// 1: Ping
-	_, _, code, err := htb.Send(http.MethodGet, httpbasic.HttpGetPingPath, nil)
+	_, _, code, err := cl.Send(http.MethodGet, httpbasic.HttpGetPingPath, nil)
 	require.NoError(t, err)
 	require.Equal(t, 200, code)
 
 	// 2: Login
 	loginBody := fmt.Sprintf(`{"login":"%s", "password":"%s"}`, testClientID1, testPass)
-	body, headers, code, err := htb.Send(http.MethodPost, httpbasic.HttpPostLoginPath, []byte(loginBody))
+	body, headers, code, err := cl.Send(http.MethodPost, httpbasic.HttpPostLoginPath, []byte(loginBody))
 	require.NoError(t, err)
 	require.Equal(t, 200, code)
 	require.NotEmpty(t, body)
@@ -555,10 +574,10 @@ func TestHttpBasic(t *testing.T) {
 	require.NoError(t, err)
 
 	// 3: Refresh using auth token
-	err = htb.SetBearerToken(token2)
+	err = cl.SetBearerToken(token2)
 	assert.NoError(t, err)
 	refreshBody, _ := json.Marshal(token2)
-	body, headers, code, err = htb.Send(http.MethodPost, httpbasic.HttpPostRefreshPath, refreshBody)
+	body, headers, code, err = cl.Send(http.MethodPost, httpbasic.HttpPostRefreshPath, refreshBody)
 	require.NoError(t, err)
 	require.Equal(t, 200, code)
 	require.NotEmpty(t, body)

@@ -28,7 +28,7 @@ func TestSubscribeAll(t *testing.T) {
 	var agentRxEvent atomic.Bool
 
 	// 1. start the servers
-	srv, cancelFn := StartTransportServer(nil, nil, nil)
+	srv, cancelFn := StartTransportModule(nil, nil, nil)
 	defer cancelFn()
 
 	// 2. connect as consumers
@@ -122,7 +122,7 @@ func TestPublishEventsByAgent(t *testing.T) {
 	notificationHandler := func(msg *msg.NotificationMessage) {
 		evVal.Store(msg.Value)
 	}
-	srv, cancelFn := StartTransportServer(notificationHandler, nil, nil)
+	srv, cancelFn := StartTransportModule(notificationHandler, nil, nil)
 	_ = srv
 	defer cancelFn()
 

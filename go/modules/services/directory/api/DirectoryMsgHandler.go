@@ -25,14 +25,17 @@ type DirectoryMsgHandler struct {
 }
 
 // HandleRequest for properties or actions
-// If the request is not recognized nil is returned.
-// If the request is missing the sender, an error is returned
-func (handler *DirectoryMsgHandler) HandleRequest(req *msg.RequestMessage) (resp *msg.ResponseMessage) {
+// This invokes the replyTo response handler with a response.
+//
+// If the request is not for this module nil is returned and replyTo is ignored.
+// If the request is for this module but invalid, an error is returned
+func (handler *DirectoryMsgHandler) HandleRequest(req *msg.RequestMessage, replyTo msg.ResponseHandler) (err error) {
+	var resp *msg.ResponseMessage
 	if req.ThingID != handler.thingID {
 		return nil
 	} else if req.SenderID == "" {
 		err := fmt.Errorf("missing senderID in request")
-		return req.CreateErrorResponse(err)
+		return err
 	}
 	if req.Operation == wot.OpInvokeAction {
 		// directory specific operations
@@ -48,8 +51,14 @@ func (handler *DirectoryMsgHandler) HandleRequest(req *msg.RequestMessage) (resp
 		case ActionUpdateThing:
 			resp = handler.UpdateThing(req)
 		}
+	} else if req.Operation == wot.OpWriteProperty {
+		// nothing to do here at the moment
+		resp = req.CreateErrorResponse(fmt.Errorf("Property '%s' of Thing '%s' is invalid or not writable", req.Name, req.ThingID))
 	}
-	return resp
+	if resp != nil {
+		err = replyTo(resp)
+	}
+	return err
 }
 
 // DeleteThing removes a thing in the directory

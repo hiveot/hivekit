@@ -5,6 +5,11 @@ import (
 	"github.com/teris-io/shortid"
 )
 
+// NotificationHandler handles a notification, send by an agent.
+//
+// msg is the notification
+type NotificationHandler func(msg *NotificationMessage)
+
 // ResponseMessage, ActionStatus and ThingValue define the standardized messaging
 // envelopes for handling responses.
 // Each transport protocol bindings map this format to this specific format.

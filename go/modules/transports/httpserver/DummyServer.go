@@ -1,10 +1,19 @@
 package httpserver
 
-import "github.com/go-chi/chi/v5"
+import (
+	"errors"
+	"fmt"
+	"net/http"
 
-// A dummy http server for testing
+	"github.com/go-chi/chi/v5"
+	"github.com/hiveot/hivekit/go/modules"
+)
+
+// A dummy http server module for testing
 // This implements IHttpServer
 type DummyServer struct {
+	modules.HiveModuleBase
+
 	url       string
 	protRoute chi.Router
 	pubRoute  chi.Router
@@ -13,10 +22,19 @@ type DummyServer struct {
 func (d *DummyServer) GetConnectURL() string {
 	return d.url
 }
-func (d *DummyServer) GetProtectedRoutes() chi.Router {
+
+func (d *DummyServer) GetClientIdFromContext(r *http.Request) (string, error) {
+	return "", errors.New("not implemented")
+}
+
+func (d *DummyServer) GetRequestParams(r *http.Request) (RequestParams, error) {
+	rp := RequestParams{}
+	return rp, fmt.Errorf("not supported in dummy server")
+}
+func (d *DummyServer) GetProtectedRoute() chi.Router {
 	return d.protRoute
 }
-func (d *DummyServer) GetPublicRoutes() chi.Router {
+func (d *DummyServer) GetPublicRoute() chi.Router {
 	return d.pubRoute
 }
 
