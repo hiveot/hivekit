@@ -6,6 +6,17 @@ import (
 	"github.com/hiveot/hivekit/go/wot/td"
 )
 
+// UserLoginArgs defines the arguments of the login function
+// Login - Login with password
+type UserLoginArgs struct {
+
+	// ClientID with Login ID
+	ClientID string `json:"clientID,omitempty"`
+
+	// Password with Password
+	Password string `json:"password,omitempty"`
+}
+
 // IAuthenticator is the interface of the authentication capability to obtain and
 // validate session tokens.
 type IAuthenticator interface {

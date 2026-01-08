@@ -16,8 +16,8 @@ import (
 	"github.com/hiveot/hivekit/go/lib/certs"
 	"github.com/hiveot/hivekit/go/lib/clients/tlsclient"
 	"github.com/hiveot/hivekit/go/lib/logging"
+	"github.com/hiveot/hivekit/go/lib/messaging"
 	"github.com/hiveot/hivekit/go/lib/servers/httpbasic"
-	"github.com/hiveot/hivekit/go/utils/authn"
 	"github.com/stretchr/testify/require"
 
 	"github.com/stretchr/testify/assert"
@@ -224,7 +224,7 @@ func TestAuthJWT(t *testing.T) {
 	mux.HandleFunc(pathLogin1, func(resp http.ResponseWriter, req *http.Request) {
 		// FIXME: remove dependency on authn
 		// Is the login API a transport feature? Look into the WoT specification.
-		authMsg := authn.UserLoginArgs{}
+		authMsg := messaging.UserLoginArgs{}
 		slog.Info("TestAuthJWT: login")
 		body, err := io.ReadAll(req.Body)
 		require.NoError(t, err)
@@ -233,10 +233,10 @@ func TestAuthJWT(t *testing.T) {
 		// expect a correlationID
 		//msgID := req.Header.Get(tlsclient.HTTPCorrelationIDHeader)
 		assert.NoError(t, err)
-		assert.Equal(t, user1, authMsg.Login)
+		assert.Equal(t, user1, authMsg.ClientID)
 		assert.Equal(t, password1, authMsg.Password)
 
-		if authMsg.Login == user1 {
+		if authMsg.ClientID == user1 {
 			claims := jwt.RegisteredClaims{
 				ID:      user1,
 				Issuer:  "me",
@@ -268,8 +268,8 @@ func TestAuthJWT(t *testing.T) {
 	srv, err := startTestServer(mux)
 	assert.NoError(t, err)
 	//
-	loginMessage := authn.UserLoginArgs{
-		Login:    user1,
+	loginMessage := messaging.UserLoginArgs{
+		ClientID: user1,
 		Password: password1,
 	}
 	cl := tlsclient.NewTLSClient(testAddress, nil, authBundle.CaCert, 0)
