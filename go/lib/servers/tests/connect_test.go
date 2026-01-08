@@ -26,7 +26,6 @@ import (
 	"github.com/hiveot/hivekit/go/lib/servers/httpbasic"
 	"github.com/hiveot/hivekit/go/lib/servers/tlsserver"
 	"github.com/hiveot/hivekit/go/lib/servers/wssserver"
-	"github.com/hiveot/hivekit/go/utils/authn"
 	"github.com/hiveot/hivekit/go/wot"
 	"github.com/hiveot/hivekit/go/wot/td"
 	"github.com/stretchr/testify/assert"
@@ -50,7 +49,7 @@ var defaultProtocol = messaging.ProtocolTypeHiveotSSE
 // var defaultProtocol = messaging.ProtocolTypeWSS
 
 var transportServer servers.IMessageServer
-var dummyAuthenticator *authn.DummyAuthenticator
+var dummyAuthenticator *messaging.DummyAuthenticator
 var certBundle = certs.CreateTestCertBundle()
 
 // NewClient creates a new connected client with the given client ID. The
@@ -130,7 +129,7 @@ func StartTransportServer(
 
 	caCert := certBundle.CaCert
 	serverCert := certBundle.ServerCert
-	dummyAuthenticator = authn.NewDummyAuthenticator()
+	dummyAuthenticator = messaging.NewDummyAuthenticator()
 	if reqHandler == nil {
 		reqHandler = DummyRequestHandler
 	}
