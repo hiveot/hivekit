@@ -3,6 +3,7 @@ package transports
 import (
 	"github.com/hiveot/hivekit/go/modules"
 	"github.com/hiveot/hivekit/go/msg"
+	"github.com/hiveot/hivekit/go/wot/td"
 )
 
 // Supported transport protocol bindings types
@@ -39,6 +40,12 @@ type UserLoginArgs struct {
 type ITransportModule interface {
 	modules.IHiveModule
 
+	// AddTDForms updates the given Thing Description with forms for this transport module.
+	AddTDForms(tdoc *td.TD, includeAffordances bool)
+
+	// CloseAll closes all client connections. Mainly intended for testing.
+	CloseAll()
+
 	// GetConnectURL returns connection URL of the server
 	GetConnectURL() string
 
@@ -66,4 +73,5 @@ type ITransportModule interface {
 
 	// Set the handler for incoming connections
 	// SetConnectionHandler(h ConnectionHandler)
+
 }

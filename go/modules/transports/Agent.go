@@ -1,7 +1,6 @@
 package transports
 
 import (
-	"fmt"
 	"log/slog"
 	"sync/atomic"
 	"time"
@@ -15,16 +14,15 @@ import (
 // standard RRN (request-response-notification) messages. The RRN interface is compatible
 // with all HiveKit transport and other modules.
 //
-// This Agent features receiving and responding to requests, publishing events and publishgin
+// This Agent is intended to link to a transport connection and supports features for
+// receiving and responding to requests, publishing events and publishing
 // property updates.
-//
-// Consumer subscriptions are handled by the transport server and no concern of the Agent.
 //
 // IoT devices using Agent are connection agnostics. They can be used in a server configuration
 // or as a client to a supporting gateway using connection reversal. See the documentation on agent
 // configurations.
 //
-// A Agent is also a consumer as they are able to invoke services.
+// An Agent is also a consumer as they are able to invoke services.
 type Agent struct {
 	*Consumer
 
@@ -33,20 +31,20 @@ type Agent struct {
 	appRequestHandlerPtr atomic.Pointer[msg.RequestHandler]
 }
 
-// OnRequest passes a request to the application request handler and returns the response.
+// HandleRequest passes a request to the application request handler and returns the response.
 // Handler must be set during init.
-// This logs an error if no agent handler is set.
-func (ag *Agent) onRequest(
+// If no handler is set then this fails.
+func (ag *Agent) HandleRequest(
 	req *msg.RequestMessage, replyTo msg.ResponseHandler) (err error) {
 
 	// handle requests if any
 	hPtr := ag.appRequestHandlerPtr.Load()
-	if hPtr == nil {
-		err := fmt.Errorf("Received request but no handler is set")
-		resp := req.CreateResponse(nil, err)
-		err = replyTo(resp)
+	if hPtr != nil {
+		err = (*hPtr)(req, replyTo)
+	} else {
+		// tbd: pass to sink
+		// ag.forwardRequestToSink(req, replyTo)
 	}
-	err = (*hPtr)(req, replyTo)
 	return
 }
 
@@ -158,7 +156,8 @@ func (ag *Agent) SetRequestHandler(cb msg.RequestHandler) {
 //
 // This is a wrapper around the ClientConnection that provides WoT response messages
 // publishing properties and events to subscribers and publishing a TD.
-func NewAgent(cc IConnection,
+func NewAgent(moduleID string,
+	cc IClientConnection,
 	connHandler ConnectionHandler,
 	notifHandler msg.NotificationHandler,
 	reqHandler msg.RequestHandler,
@@ -168,16 +167,13 @@ func NewAgent(cc IConnection,
 	if timeout == 0 {
 		timeout = DefaultRpcTimeout
 	}
-
 	agent := Agent{}
-	agent.Consumer = NewConsumer(cc, timeout)
+	agent.Consumer = NewConsumer(moduleID, cc, timeout)
+
 	agent.SetConnectHandler(connHandler)
 	agent.SetNotificationHandler(notifHandler)
 	agent.SetRequestHandler(reqHandler)
 	agent.SetResponseHandler(respHandler)
-	//cc.SetNotificationHandler(agent.onNotification)
-	//cc.SetResponseHandler(agent.onResponse)
-	//cc.SetConnectHandler(agent.onConnect)
-	cc.SetRequestHandler(agent.onRequest)
+	cc.SetConnectHandler(agent.onConnect)
 	return &agent
 }

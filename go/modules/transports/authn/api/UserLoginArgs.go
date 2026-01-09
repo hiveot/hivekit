@@ -1,4 +1,4 @@
-package authn
+package authnapi
 
 // helper for building a login request message
 // tbd this should probably go elsewhere.

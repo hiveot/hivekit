@@ -9,6 +9,8 @@ import (
 
 // ConnectTLS creates a TLS connection to a server, optionally using a client certificate.
 //
+// Intended for use when TLSClient is overkill. This returns the native TLS connection.
+//
 //	serverURL full URL:  tls/tcp/tcps://host:8883,  wss://host:9001
 //	clientCert to login with. Nil to not use client certs
 //	caCert of the server to setup to (recommended). Nil to not verify the server connection.

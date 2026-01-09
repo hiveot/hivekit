@@ -42,13 +42,16 @@ type HiveModuleBase struct {
 
 	// Output/sink for forwarding RRN messages to
 	sink IHiveModule
+
+	customNotificationHandler msg.NotificationHandler
+	customRequestHandler      msg.RequestHandler
 }
 
 // SetSink sets the destination sink to forward messages to.
 // This overwrites an existing sink if already set
-// func (m *HiveModuleBase) SetSink(sink IHiveModule) {
-// 	m.sink = sink
-// }
+func (m *HiveModuleBase) SetSink(sink IHiveModule) {
+	m.sink = sink
+}
 
 // ForwardNotification (output) is a helper function to pass notifications to all sinks
 func (m *HiveModuleBase) ForwardNotification(notif *msg.NotificationMessage) {
@@ -68,6 +71,26 @@ func (m *HiveModuleBase) ForwardRequest(req *msg.RequestMessage, replyTo msg.Res
 	}
 	err = m.sink.HandleRequest(req, replyTo)
 	return err
+}
+
+// ForwardRequestWait is a helper function to pass a request to the sink and wait for a response.
+// If no sink os configured this returns an error.
+// If the response contains an error, that error is also returned.
+func (m *HiveModuleBase) ForwardRequestWait(req *msg.RequestMessage) (resp *msg.ResponseMessage, err error) {
+	ar := utils.NewAsyncReceiver[*msg.ResponseMessage]()
+
+	err = m.ForwardRequest(req, func(r *msg.ResponseMessage) error {
+		ar.SetResponse(r, nil)
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	resp, err = ar.WaitForResponse(0)
+	if err == nil {
+		err = resp.AsError()
+	}
+	return resp, err
 }
 
 // ForwardResponse (output) is a helper function to pass a response to the sink
@@ -110,29 +133,40 @@ func (m *HiveModuleBase) GetTM() string {
 // HandleNotification process an incoming notification.
 // This is the module input.
 //
-// The default behavior is to forward notifications to the sinks, so it is part
-// of the pipeline chain.
-//
-// In transport modules, notifications should be passed to connected clients that have
-// subscribed to the notification.
+// If a custom notification handler is set, this invokes that handler.
+// Otherwise, it forwards the notification to the sinks using ForwardNotification.
 //
 // Transport modules that receive notifications from its clients should pass these to the
 // sinks and NOT pass them to HandleNotification.
 func (m *HiveModuleBase) HandleNotification(notif *msg.NotificationMessage) {
-	m.ForwardNotification(notif)
+	if m.customNotificationHandler != nil {
+		m.customNotificationHandler(notif)
+	} else {
+		m.ForwardNotification(notif)
+	}
 }
 
 // HandleRequest handles the read property request for this module.
 //
-// Intended for use by the module's HandleRequest itself. This handles the reading properties boilerplate.
-// Modules should first handle the request itself and only hand it over to this base method when
-// there is nothing for them to do.
+// Modules that implement HandleRequest should first handle the request itself and
+// only hand it over to this base method when there is nothing for them to do.
 //
-// If the request is for another module, the request is forwarded to the sink, if defined.
+// If a custom request handler is set, then this invokes that handler.
+//
+// ReadProperties is handled here as a convenience.
+//
+// If the request is not for this module, it is forwarded to the sink. if defined.
+// If the request is for this module and read property(ies), it is handled here.
 //
 // If the request is unhandled it returns an error.
 func (m *HiveModuleBase) HandleRequest(req *msg.RequestMessage, replyTo msg.ResponseHandler) (err error) {
 	var resp *msg.ResponseMessage
+
+	if m.customRequestHandler != nil {
+		err = m.customRequestHandler(req, replyTo)
+		return err
+	}
+
 	if req.ThingID != m.moduleID {
 		return m.ForwardRequest(req, replyTo)
 	}
@@ -144,7 +178,7 @@ func (m *HiveModuleBase) HandleRequest(req *msg.RequestMessage, replyTo msg.Resp
 	case wot.OpReadMultipleProperties:
 		resp, err = m.ReadMultipleProperties(req)
 	case wot.OpReadAllProperties:
-		resp, err = m.ReadMultipleProperties(req)
+		resp, err = m.ReadAllProperties(req)
 		// directory specific operations could be handled here
 	default:
 		err := fmt.Errorf("Unhandled request: thingID='%s', op='%s', name='%s", req.ThingID, req.Operation, req.Name)
@@ -248,6 +282,13 @@ func (m *HiveModuleBase) ReadMultipleProperties(req *msg.RequestMessage) (resp *
 		}
 	}
 	return resp, err
+}
+
+func (m *HiveModuleBase) SetNotificationHandler(h msg.NotificationHandler) {
+	m.customNotificationHandler = h
+}
+func (m *HiveModuleBase) SetRequestHandler(h msg.RequestHandler) {
+	m.customRequestHandler = h
 }
 
 func (m *HiveModuleBase) Start() error {

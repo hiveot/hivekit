@@ -8,7 +8,7 @@ import (
 	"github.com/hiveot/hivekit/go/modules"
 	"github.com/hiveot/hivekit/go/modules/transports"
 	"github.com/hiveot/hivekit/go/modules/transports/direct"
-	"github.com/hiveot/hivekit/go/modules/transports/httpserver"
+	"github.com/hiveot/hivekit/go/modules/transports/httptransport"
 	"github.com/hiveot/hivekit/go/modules/transports/wss"
 	wssapi "github.com/hiveot/hivekit/go/modules/transports/wss/api"
 	"github.com/hiveot/hivekit/go/msg"
@@ -21,7 +21,7 @@ type WssModule struct {
 	msgAPI *wssapi.WssMsgAPI
 
 	// actual server exposing routes including websocket endpoint
-	httpServer httpserver.IHttpServer
+	httpServer httptransport.IHttpServer
 
 	// Websocket protocol message converter
 	msgConverter transports.IMessageConverter // WoT or Hiveot message format
@@ -83,7 +83,7 @@ func (m *WssModule) Stop() {
 //
 // httpServer is the http server the websocket is using
 // sink is the optional receiver of request, response and notification messages, nil to set later
-func NewHiveotWssModule(httpServer httpserver.IHttpServer, sink modules.IHiveModule) *WssModule {
+func NewHiveotWssModule(httpServer httptransport.IHttpServer, sink modules.IHiveModule) *WssModule {
 
 	httpURL := httpServer.GetConnectURL()
 	urlParts, err := url.Parse(httpURL)
@@ -111,7 +111,7 @@ func NewHiveotWssModule(httpServer httpserver.IHttpServer, sink modules.IHiveMod
 //
 // httpServer is the http server the websocket is using
 // sink is the optional receiver of request, response and notification messages, nil to set later
-func NewWotWssModule(httpServer httpserver.IHttpServer, sink modules.IHiveModule) *WssModule {
+func NewWotWssModule(httpServer httptransport.IHttpServer, sink modules.IHiveModule) *WssModule {
 	httpURL := httpServer.GetConnectURL()
 	urlParts, err := url.Parse(httpURL)
 	if err != nil {

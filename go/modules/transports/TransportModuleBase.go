@@ -58,30 +58,32 @@ func (m *TransportModuleBase) AddConnection(c IServerConnection) error {
 		m.connectionsByClientID = make(map[string][]string)
 	}
 
-	cinfo := c.GetConnectionInfo()
+	// cinfo := c.GetConnectionInfo()
+	clientID := c.GetClientID()
+	cid := c.GetConnectionID()
 	// the client's connectionID for lookup
-	clcid := cinfo.ClientID + ":" + cinfo.ConnectionID
+	clcid := clientID + ":" + cid
 
 	// Refuse this if an existing connection with this ID exist
 	existingConn := m.connectionsByClcid[clcid]
 	if existingConn != nil {
 		err := fmt.Errorf("AddConnection. The connection ID '%s' of client '%s' already exists",
-			cinfo.ConnectionID, cinfo.ClientID)
+			cid, clientID)
 		slog.Error("AddConnection: duplicate ConnectionID", "connectionID",
-			cinfo.ConnectionID, "err", err.Error())
+			cid, "err", err.Error())
 		// close the existing connection
 		m.removeConnection(existingConn)
 		existingConn = nil
 	}
 	m.connectionsByClcid[clcid] = c
 	// update the client index
-	clientList := m.connectionsByClientID[cinfo.ClientID]
+	clientList := m.connectionsByClientID[clientID]
 	if clientList == nil {
-		clientList = []string{cinfo.ConnectionID}
+		clientList = []string{cid}
 	} else {
-		clientList = append(clientList, cinfo.ConnectionID)
+		clientList = append(clientList, cid)
 	}
-	m.connectionsByClientID[cinfo.ClientID] = clientList
+	m.connectionsByClientID[clientID] = clientList
 	// nr of connections is a property of the module
 	m.UpdateProperty(PropName_NrConnections, len(m.connectionsByClcid))
 	return nil
@@ -103,7 +105,7 @@ func (m *TransportModuleBase) CloseAllClientConnections(clientID string) {
 		c := m.connectionsByClcid[clcid]
 		if c != nil {
 			delete(m.connectionsByClcid, clcid)
-			c.Disconnect()
+			c.Close()
 		}
 	}
 	delete(m.connectionsByClientID, clientID)
@@ -118,7 +120,7 @@ func (m *TransportModuleBase) CloseAll() {
 	slog.Info("CloseAll. Closing remaining connections", "count", len(m.connectionsByClcid))
 	for clcid, c := range m.connectionsByClcid {
 		_ = clcid
-		c.Disconnect()
+		c.Close()
 	}
 	m.connectionsByClcid = nil
 	m.connectionsByClientID = nil
@@ -201,9 +203,9 @@ func (m *TransportModuleBase) Init(moduleID string, sink modules.IHiveModule, co
 // This will close the connnection if it isn't closed already.
 // Call this after the connection is closed or before closing.
 func (m *TransportModuleBase) removeConnection(c IServerConnection) {
-	cinfo := c.GetConnectionInfo()
-	clientID := cinfo.ClientID
-	connectionID := cinfo.ConnectionID
+	// cinfo := c.GetConnectionInfo()
+	clientID := c.GetClientID()
+	connectionID := c.GetConnectionID()
 	clcid := clientID + ":" + connectionID
 
 	m.cmux.Lock()
@@ -220,7 +222,7 @@ func (m *TransportModuleBase) removeConnection(c IServerConnection) {
 	// force close the existing connection just in case
 	if existingConn != nil {
 		//clientID = existingConn.GetClientID()
-		existingConn.Disconnect()
+		existingConn.Close()
 		delete(m.connectionsByClcid, clcid)
 	} else if len(m.connectionsByClcid) > 0 {
 		// this is unexpected. Not all connections were closed but this one is gone.

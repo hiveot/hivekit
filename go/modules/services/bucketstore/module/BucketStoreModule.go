@@ -50,14 +50,17 @@ func (m *BucketStoreModule) GetService() bucketstore.IBucketStore {
 }
 
 // HandleRequest passes the module request messages to the API handler.
-func (m *BucketStoreModule) HandleRequest(req *msg.RequestMessage, replyTo msg.ResponseHandler) (resp *msg.ResponseMessage, err error) {
+func (m *BucketStoreModule) HandleRequest(req *msg.RequestMessage, replyTo msg.ResponseHandler) (err error) {
+	var resp *msg.ResponseMessage
 	if m.msgAPI != nil {
 		resp = m.msgAPI.HandleRequest(req)
 	}
 	if resp == nil {
-		resp, err = m.HiveModuleBase.HandleRequest(req, replyTo)
+		err = m.HiveModuleBase.HandleRequest(req, replyTo)
+	} else {
+		err = replyTo(resp)
 	}
-	return resp, err
+	return err
 }
 
 // Start readies the module for use using the given yaml configuration.

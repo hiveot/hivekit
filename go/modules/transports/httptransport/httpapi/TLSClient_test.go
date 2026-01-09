@@ -16,7 +16,7 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/hiveot/hivekit/go/lib/logging"
 	"github.com/hiveot/hivekit/go/modules/services/certs/service/selfsigned"
-	"github.com/hiveot/hivekit/go/modules/transports/httpserver/httpapi"
+	"github.com/hiveot/hivekit/go/modules/transports/httptransport/httpapi"
 	"github.com/stretchr/testify/require"
 
 	"github.com/stretchr/testify/assert"
@@ -143,7 +143,7 @@ func TestAuthClientCert(t *testing.T) {
 	cl := httpapi.NewTLSClient(testAddress, authBundle.ClientCert, authBundle.CaCert, 0)
 	assert.NoError(t, err)
 
-	clientCert := cl.Certificate()
+	clientCert := cl.GetClientCertificate()
 	assert.NotNil(t, clientCert)
 
 	// verify service certificate against CA
@@ -291,11 +291,12 @@ func TestAuthJWT(t *testing.T) {
 	jsonArgs, _ := json.Marshal(loginMessage)
 	resp, _, err := cl.Post(pathLogin1, jsonArgs)
 	require.NoError(t, err)
-	reply := ""
-	err = json.Unmarshal(resp, &reply)
+	newToken := ""
+	err = json.Unmarshal(resp, &newToken)
 
 	// reconnect using the given token
-	cl.SetAuthToken(reply)
+
+	cl.ConnectWithToken(user1, newToken)
 	_, _, err = cl.Get(path3)
 	assert.NoError(t, err)
 	assert.Equal(t, 2, path3Hit)
@@ -306,6 +307,7 @@ func TestAuthJWT(t *testing.T) {
 
 func TestAuthJWTFail(t *testing.T) {
 	pathHello1 := "/hello"
+	clientID := "user1"
 
 	// setup server and client environment
 	mux := http.NewServeMux()
@@ -319,7 +321,7 @@ func TestAuthJWTFail(t *testing.T) {
 	})
 	//
 	cl := httpapi.NewTLSClient(testAddress, nil, authBundle.CaCert, 0)
-	cl.SetAuthToken("badtoken")
+	cl.ConnectWithToken(clientID, "badtoken")
 	resp, _, err := cl.Post(pathHello1, []byte("test"))
 	assert.Empty(t, resp)
 	// unauthorized

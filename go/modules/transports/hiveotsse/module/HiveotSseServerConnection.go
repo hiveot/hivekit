@@ -109,8 +109,8 @@ func (sc *HiveotSseServerConnection) _send(msgType string, msg any) (err error) 
 	return nil
 }
 
-// Disconnect closes the connection and ends the read loop
-func (sc *HiveotSseServerConnection) Disconnect() {
+// Close closes the connection and ends the read loop
+func (sc *HiveotSseServerConnection) Close() {
 	sc.mux.Lock()
 	defer sc.mux.Unlock()
 	if sc.IsConnected() {
@@ -120,16 +120,6 @@ func (sc *HiveotSseServerConnection) Disconnect() {
 		sc.ConnectionBase.Disconnect()
 	}
 }
-
-// GetConnectionInfo returns the client's connection details
-// func (sc *HiveotSseServerConnection) GetConnectionInfo() transports.ConnectionInfo {
-// 	return sc.cinfo
-// }
-
-// // IsConnected returns the connection status
-// func (sc *HiveotSseServerConnection) IsConnected() bool {
-// 	return sc.isConnected.Load()
-// }
 
 // Handle received notification message.
 func (sc *HiveotSseServerConnection) onNotificationMessage(notif msg.NotificationMessage) {
@@ -289,7 +279,7 @@ func (sc *HiveotSseServerConnection) Serve(w http.ResponseWriter, r *http.Reques
 
 	slog.Debug("SseConnection.Serve new SSE connection",
 		slog.String("clientID", sc.GetClientID()),
-		slog.String("connectionID", sc.GetConnectionInfo().ConnectionID),
+		slog.String("connectionID", sc.ConnectionID),
 		slog.String("protocol", r.Proto),
 		slog.String("remoteAddr", sc.remoteAddr),
 	)
@@ -323,7 +313,7 @@ func (sc *HiveotSseServerConnection) Serve(w http.ResponseWriter, r *http.Reques
 			slog.Debug("SseConnection: sending sse event to client",
 				//slog.String("sessionID", c.sessionID),
 				slog.String("clientID", sc.GetClientID()),
-				slog.String("connectionID", sc.GetConnectionInfo().ConnectionID),
+				slog.String("connectionID", sc.ConnectionID),
 				slog.String("sse eventType", sseMsg.EventType),
 			)
 			var n int
@@ -354,7 +344,7 @@ func (sc *HiveotSseServerConnection) Serve(w http.ResponseWriter, r *http.Reques
 	slog.Debug("SseConnection.Serve: sse connection closed",
 		slog.String("remote", r.RemoteAddr),
 		slog.String("clientID", sc.GetClientID()),
-		slog.String("connectionID", sc.GetConnectionInfo().ConnectionID),
+		slog.String("connectionID", sc.ConnectionID),
 	)
 }
 

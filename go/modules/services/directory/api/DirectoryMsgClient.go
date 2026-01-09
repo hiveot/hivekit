@@ -11,33 +11,35 @@ import (
 
 // DirectoryMsgClient is a client for the Directory service using RRN messages.
 // This implements the IDirectory interface.
+// Intended to use a client transport module as sink, that forwards the messages.
 type DirectoryMsgClient struct {
+	modules.HiveModuleBase
+
 	// DirectoryMsgClient is the RRN client for the directory service.
 
 	// directoryID ThingID of the directory service. This defaults to the directory ThingID
 	directoryID string
 	// sink that forwards the messages
-	sink modules.IHiveModule
+	// sink modules.IHiveModule
+
+	// consumer *transports.Consumer
 }
 
 func (cl *DirectoryMsgClient) CreateThing(tdJson string) error {
-	req := msg.NewRequestMessage(
-		wot.OpInvokeAction, cl.directoryID, ActionCreateThing, tdJson, "")
-	resp := cl.sink.HandleRequest(req)
-	return resp.AsError()
+	req := msg.NewRequestMessage(wot.OpInvokeAction, cl.directoryID, ActionCreateThing, tdJson, "")
+	_, err := cl.ForwardRequestWait(req)
+	return err
 }
 
 func (cl *DirectoryMsgClient) DeleteThing(thingID string) error {
-	req := msg.NewRequestMessage(
-		wot.OpInvokeAction, cl.directoryID, ActionDeleteThing, thingID, "")
-	resp := cl.sink.HandleRequest(req)
-	return resp.AsError()
+	req := msg.NewRequestMessage(wot.OpInvokeAction, cl.directoryID, ActionDeleteThing, thingID, "")
+	_, err := cl.ForwardRequestWait(req)
+	return err
 }
 
 func (cl *DirectoryMsgClient) RetrieveThing(thingID string) (tdJSON string, err error) {
-	req := msg.NewRequestMessage(
-		wot.OpInvokeAction, cl.directoryID, ActionRetrieveThing, thingID, "")
-	resp := cl.sink.HandleRequest(req)
+	req := msg.NewRequestMessage(wot.OpInvokeAction, cl.directoryID, ActionRetrieveThing, thingID, "")
+	resp, err := cl.ForwardRequestWait(req)
 	if resp == nil {
 		return "", errors.New("nil response")
 	}
@@ -52,10 +54,9 @@ func (cl *DirectoryMsgClient) RetrieveAllThings(offset int, limit int) (tdList [
 		Offset: offset,
 		Limit:  limit,
 	}
-	req := msg.NewRequestMessage(
-		wot.OpInvokeAction, cl.directoryID, ActionRetrieveAllThings, args, "")
-	resp := cl.sink.HandleRequest(req)
-	if err = resp.AsError(); err == nil {
+	req := msg.NewRequestMessage(wot.OpInvokeAction, cl.directoryID, ActionRetrieveAllThings, args, "")
+	resp, err := cl.ForwardRequestWait(req)
+	if err == nil {
 		err = resp.Decode(&tdList)
 	}
 	return tdList, err
@@ -64,8 +65,8 @@ func (cl *DirectoryMsgClient) RetrieveAllThings(offset int, limit int) (tdList [
 func (cl *DirectoryMsgClient) UpdateThing(tdJson string) error {
 	req := msg.NewRequestMessage(
 		wot.OpInvokeAction, cl.directoryID, ActionUpdateThing, tdJson, "")
-	resp := cl.sink.HandleRequest(req)
-	return resp.AsError()
+	_, err := cl.ForwardRequestWait(req)
+	return err
 }
 
 // NewDirectoryMsgClient creates a new DirectoryMsgClient instance.
@@ -79,7 +80,7 @@ func NewDirectoryMsgClient(thingID string, sink modules.IHiveModule) *DirectoryM
 	}
 	client := &DirectoryMsgClient{
 		directoryID: thingID,
-		sink:        sink,
 	}
+	client.Init(thingID+"-client", sink)
 	return client
 }

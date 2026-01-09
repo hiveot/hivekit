@@ -4,6 +4,7 @@ import (
 	"github.com/hiveot/hivekit/go/modules"
 	"github.com/hiveot/hivekit/go/modules/transports"
 	"github.com/hiveot/hivekit/go/msg"
+	"github.com/hiveot/hivekit/go/wot/td"
 )
 
 // DirectClientTransport is a simple RRN passthrough that injects a clientID
@@ -15,6 +16,10 @@ import (
 type DirectClientTransport struct {
 	transports.TransportModuleBase
 	source modules.IHiveModule
+}
+
+// AddTDForms does nothing for a direct connection
+func (srv *DirectClientTransport) AddTDForms(tdi *td.TD, includeAffordances bool) {
 }
 
 // Receive a notification and pass it on to the sinks.

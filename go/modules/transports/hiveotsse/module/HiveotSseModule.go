@@ -9,8 +9,9 @@ import (
 	"github.com/hiveot/hivekit/go/modules/transports/direct"
 	"github.com/hiveot/hivekit/go/modules/transports/hiveotsse"
 	sseapi "github.com/hiveot/hivekit/go/modules/transports/hiveotsse/api"
-	"github.com/hiveot/hivekit/go/modules/transports/httpserver"
+	"github.com/hiveot/hivekit/go/modules/transports/httptransport"
 	"github.com/hiveot/hivekit/go/msg"
+	"github.com/hiveot/hivekit/go/wot/td"
 )
 
 // NewHiveotSseModule is a transport module for serving the wot http-basic protocol.
@@ -32,7 +33,7 @@ type HiveotSseModule struct {
 	msgAPI *sseapi.HiveotSseMsgAPI
 
 	// actual server exposing routes
-	httpServer httpserver.IHttpServer
+	httpServer httptransport.IHttpServer
 
 	// the linked authenticator
 	// authenticator transports.IAuthenticator
@@ -45,6 +46,16 @@ type HiveotSseModule struct {
 
 	// The SSE connection path
 	ssePath string
+}
+
+// AddTDForms for connecting to SSE, Subscribe, Observe, Send Requests, read and query
+// using hiveot RequestMessage and ResponseMessage envelopes.
+func (srv *HiveotSseModule) AddTDForms(tdi *td.TD, includeAffordances bool) {
+
+	// TODO: add the hiveot http endpoints
+	//srv.httpBasicServer.AddOps()
+	// forms are handled through the http binding
+	//return srv.httpBasicServer.AddTDForms(tdi, includeAffordances)
 }
 
 // HandleRequest passes the module request messages to the API handler.
@@ -101,7 +112,7 @@ func (m *HiveotSseModule) Stop() {
 // sink is the optional receiver of request, response and notification messages, nil to set later
 // The optional connect handler is invoked when connections appear and disappear
 func NewHiveotSseModule(
-	server httpserver.IHttpServer,
+	server httptransport.IHttpServer,
 	sink modules.IHiveModule,
 	connectHandler transports.ConnectionHandler) *HiveotSseModule {
 

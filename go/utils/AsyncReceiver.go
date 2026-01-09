@@ -20,7 +20,16 @@ type AsyncReceiver[T comparable] struct {
 	rChan chan T
 }
 
+// WaitForResponse waits for the response to be set or times out.
+//
+// If timeout is 0 or negative, a default of 60 seconds is used.
+//
+// Returns the data and error set by SetResponse, or a timeout error.
 func (rnr *AsyncReceiver[T]) WaitForResponse(timeout time.Duration) (T, error) {
+	if timeout <= 0 {
+		timeout = time.Second * 60
+	}
+	// create a context with timeout
 	ctx, cancelFunc := context.WithTimeout(context.Background(), timeout)
 	defer cancelFunc()
 

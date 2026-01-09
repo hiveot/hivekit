@@ -1,36 +1,33 @@
 package transports
 
 import (
-	"crypto/x509"
-	"time"
-
 	"github.com/hiveot/hivekit/go/modules"
 	"github.com/hiveot/hivekit/go/msg"
 	"github.com/hiveot/hivekit/go/wot/td"
 )
 
 // ConnectionInfo provides details of a connection
-type ConnectionInfo struct {
+// type ConnectionInfo struct {
 
-	// Connection CA
-	CaCert *x509.Certificate
+// 	// Connection CA
+// 	CaCert *x509.Certificate
 
-	// GetClientID returns the authenticated clientID of this connection
-	ClientID string
+// 	// GetClientID returns the authenticated clientID of this connection
+// 	ClientID string
 
-	// GetConnectionID returns the client's connection ID belonging to this endpoint
-	ConnectionID string
+// 	// GetConnectionID returns the client's connection ID belonging to this endpoint
+// 	ConnectionID string
 
-	// GetConnectURL returns the full server URL used to establish this connection
-	ConnectURL string
+// 	// GetConnectURL returns the full server URL used to establish this connection
+// 	ConnectURL string
 
-	// GetProtocolType returns the name of the protocol of this connection
-	// See ProtocolType... constants above for valid values.
-	//ProtocolType string
+// 	// GetProtocolType returns the name of the protocol of this connection
+// 	// See ProtocolType... constants above for valid values.
+// 	//ProtocolType string
 
-	// Connection timeout settings (clients only)
-	Timeout time.Duration
-}
+// 	// Connection timeout settings (clients only)
+// 	Timeout time.Duration
+// }
 
 // ConnectionHandler handles a change in connection status
 //
@@ -52,11 +49,15 @@ type ConnectionHandler func(connected bool, err error, c IConnection)
 // incoming messages from multiple connections and send messages to connections.
 type IConnection interface {
 
-	// Disconnect the client.
-	Disconnect()
+	// Close disconnects the client.
+	Close()
 
-	// GetConnectionInfo return details of the connection
-	GetConnectionInfo() ConnectionInfo
+	// GetClientID returns the clientID used with authentication
+	GetClientID() string
+
+	// GetConnectionID returns the unique connection ID for this client
+	// ConnectionIDs on the server use the clientID to differentiate. Eg clclid.
+	GetConnectionID() string
 
 	// IsConnected returns the current connection status
 	IsConnected() bool
@@ -123,12 +124,24 @@ type IClientConnection interface {
 	// This authentication method is optional
 	//ConnectWithClientCert(kp keys.IHiveKey, cert *tls.Certificate) (err error)
 
-	// ConnectWithToken connects to the messaging server using an authentication token.
+	// ConnectWithToken connects to the transport server using a clientID and
+	// corresponding authentication token.
+	//
+	// While most hiveot transport servers support token authentication, the method
+	// of obtaining a token depends on the environment.
 	//
 	// If a connection is already established on this client then it will be closed first.
 	//
 	// This connection method must be supported by all transport implementations.
-	ConnectWithToken(token string) (err error)
+	ConnectWithToken(clientID, token string) (err error)
+
+	// Logout from the server
+	// This invalidates the authentication token used at login
+	// Logout() error
+
+	// Refresh the authentication token and return a new token.
+	// This invalidates the authentication token used at login.
+	// Refresh() (newToken string, err error)
 
 	// Set the sink for receiving async notifications, requests, and unhandled responses.
 	// Intended to be used if the sink is created after the client connection.

@@ -10,11 +10,11 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/hiveot/hivekit/go/lib/servers/httpbasic"
 	"github.com/hiveot/hivekit/go/modules"
 	"github.com/hiveot/hivekit/go/modules/transports"
 	"github.com/hiveot/hivekit/go/modules/transports/hiveotsse"
-	"github.com/hiveot/hivekit/go/modules/transports/httpserver/httpapi"
+	"github.com/hiveot/hivekit/go/modules/transports/httptransport"
+	"github.com/hiveot/hivekit/go/modules/transports/httptransport/httpapi"
 	"github.com/hiveot/hivekit/go/msg"
 	jsoniter "github.com/json-iterator/go"
 	"github.com/teris-io/shortid"
@@ -22,8 +22,6 @@ import (
 
 // HiveotSseClient is the http client for connecting a WoT client to a http
 // server using the HiveOT http and sse sub-protocol.
-//
-// This based on the HttpBasic client and implements the IClientConnection interface.
 //
 // This can be used by both consumers and agents.
 // This is intended to be used together with an SSE return channel.
@@ -36,10 +34,7 @@ type HiveotSseClient struct {
 	appConnectHandlerPtr atomic.Pointer[transports.ConnectionHandler]
 
 	// authentication bearer token if authenticated
-	bearerToken string
-
-	// Connection information such as clientID, cid, address, protocol etc
-	cinfo transports.ConnectionInfo
+	// bearerToken string
 
 	// convert the request/response to the wss messaging protocol used
 	msgConverter transports.IMessageConverter
@@ -49,9 +44,11 @@ type HiveotSseClient struct {
 	// replyTo callbacks.
 	rnrChan *transports.RnRChan
 
-	// the sse connection path
-	ssePath              string
+	// the sse path for the connection
+	ssePath string
+
 	sseRetryOnDisconnect atomic.Bool
+
 	// handler for closing the sse connection
 	sseCancelFn context.CancelFunc
 
@@ -65,20 +62,22 @@ type HiveotSseClient struct {
 	sink modules.IHiveModule
 
 	// http2 client for posting messages
-	tlsClient *httpapi.TLSClient
+	tlsClient httptransport.ITlsClient
 
 	lastError atomic.Pointer[error]
 }
 
-// ConnectWithToken sets the bearer token to use with requests and establishes
-// an SSE connection.
+// ConnectWithToken sets the clientID and bearer token to use with requests and
+//
+//	establishes an SSE connection.
+//
 // If a connection exists it is closed first.
-func (cl *HiveotSseClient) ConnectWithToken(token string) error {
+func (cl *HiveotSseClient) ConnectWithToken(clientID, token string) error {
 
 	// ensure disconnected (note that this resets retryOnDisconnect)
-	cl.Disconnect()
+	cl.Close()
 
-	err := cl.SetBearerToken(token)
+	err := cl.ConnectWithToken(clientID, token)
 	if err != nil {
 		return err
 	}
@@ -91,10 +90,10 @@ func (cl *HiveotSseClient) ConnectWithToken(token string) error {
 	return err
 }
 
-// Disconnect from the server
-func (cl *HiveotSseClient) Disconnect() {
+// Close the connection with the server
+func (cl *HiveotSseClient) Close() {
 	slog.Debug("HiveotSseClient.Disconnect",
-		slog.String("clientID", cl.cinfo.ClientID),
+		slog.String("clientID", cl.tlsClient.GetClientID()),
 	)
 	cl.mux.Lock()
 	cb := cl.sseCancelFn
@@ -120,14 +119,16 @@ func (cl *HiveotSseClient) GetAppConnectHandler() transports.ConnectionHandler {
 }
 
 func (cl *HiveotSseClient) GetClientID() string {
-	return cl.cinfo.ClientID
+	return cl.tlsClient.GetClientID()
 }
 
 // GetConnectionInfo returns the client's connection details
-func (cl *HiveotSseClient) GetConnectionInfo() transports.ConnectionInfo {
-	return cl.cinfo
+func (cl *HiveotSseClient) GetConnectionID() string {
+	return cl.tlsClient.GetConnectionID()
 }
-func (cl *HiveotSseClient) GetTlsClient() *http.Client {
+
+// Provide the native http client used by this client
+func (cl *HiveotSseClient) GetHttpClient() *http.Client {
 	cl.mux.RLock()
 	defer cl.mux.RUnlock()
 	return cl.tlsClient.GetHttpClient()
@@ -136,45 +137,6 @@ func (cl *HiveotSseClient) GetTlsClient() *http.Client {
 // IsConnected return whether the return channel is connection, eg can receive data
 func (cl *HiveotSseClient) IsConnected() bool {
 	return cl.isConnected.Load()
-}
-
-// LoginWithPassword posts a login request to the TLS server using a login ID and
-// password and obtain an auth token for use with SetBearerToken.
-// This uses the http-basic login endpoint.
-//
-// FIXME: use a WoT standardized auth method
-//
-// If the connection fails then any existing connection is cancelled.
-func (cl *HiveotSseClient) LoginWithPassword(password string) (newToken string, err error) {
-
-	slog.Info("ConnectWithPassword",
-		"clientID", cl.GetClientID(), "connectionID", cl.GetConnectionInfo().ConnectionID)
-
-	// FIXME: figure out how a standard login method is used to obtain an auth token
-	args := transports.UserLoginArgs{
-		Login:    cl.GetClientID(),
-		Password: password,
-	}
-
-	argsJSON, _ := jsoniter.Marshal(args)
-	outputRaw, _, err := cl.tlsClient.Post(
-		httpbasic.HttpPostLoginPath, []byte(argsJSON))
-
-	if err == nil {
-		err = jsoniter.Unmarshal(outputRaw, &newToken)
-	}
-	// store the bearer token further requests
-	// when login fails this clears the existing token. Someone else
-	// logging in cannot continue on a previously valid token.
-	cl.mux.Lock()
-	cl.bearerToken = newToken
-	cl.mux.Unlock()
-	//cl.BaseIsConnected.Store(true)
-	if err != nil {
-		slog.Warn("connectWithPassword failed: " + err.Error())
-	}
-
-	return newToken, err
 }
 
 // SendNotification Agent posts a notification using the hiveot http/sse protocol.
@@ -193,7 +155,7 @@ func (cl *HiveotSseClient) SendNotification(msg *msg.NotificationMessage) error 
 
 	if err != nil {
 		slog.Warn("SendNotification failed",
-			"clientID", cl.cinfo.ClientID,
+			"clientID", cl.tlsClient.GetClientID(),
 			"err", err.Error())
 	}
 	return err
@@ -288,12 +250,12 @@ func (cl *HiveotSseClient) SendResponse(resp *msg.ResponseMessage) error {
 }
 
 // SetBearerToken sets the authentication bearer token to authenticate http requests.
-func (cl *HiveotSseClient) SetBearerToken(token string) error {
-	cl.mux.Lock()
-	cl.bearerToken = token
-	cl.mux.Unlock()
-	return nil
-}
+// func (cl *HiveotSseClient) SetBearerToken(token string) error {
+// 	cl.mux.Lock()
+// 	cl.bearerToken = token
+// 	cl.mux.Unlock()
+// 	return nil
+// }
 
 // SetConnected sets the sub-protocol connection status
 func (cl *HiveotSseClient) SetConnected(isConnected bool) {
@@ -319,13 +281,14 @@ func (cl *HiveotSseClient) SetSink(sink modules.IHiveModule) {
 // NewHiveotSseClient creates a new instance of the http-basic protocol binding client.
 // This uses TD forms to perform an operation.
 //
-//	sseURL of the http and sse server to connect to, including the schema
-//	clientID to identify as. Must match the auth token
-//	caCert of the server to validate the server or nil to not check the server cert
+// Users must use ConnectWithToken to authenticate and connect.
+//
+//	sseURL full connection URL of SSE server and path
+//	caCert is the CA certificate to validate the server certificate
 //	sink is the application module receiving notifications or in case of agents, requests.
 //	timeout for waiting for response. 0 to use the default.
 func NewHiveotSseClient(
-	sseURL string, clientID string, caCert *x509.Certificate,
+	sseURL string, caCert *x509.Certificate,
 	sink modules.IHiveModule, timeout time.Duration) *HiveotSseClient {
 
 	urlParts, err := url.Parse(sseURL)
@@ -335,19 +298,15 @@ func NewHiveotSseClient(
 	}
 	hostPort := urlParts.Host
 	ssePath := urlParts.Path
+
+	if timeout == 0 {
+		timeout = transports.DefaultRpcTimeout
+	}
+
 	tlsClient := httpapi.NewTLSClient(hostPort, nil, caCert, timeout)
 
 	cl := HiveotSseClient{
-		cinfo: transports.ConnectionInfo{
-			CaCert:       caCert,
-			ClientID:     clientID,
-			ConnectionID: "sse-" + shortid.MustGenerate(),
-			ConnectURL:   sseURL,
-			// ProtocolType: msg.ProtocolTypeHiveotSSE,
-			Timeout: timeout,
-		},
-		ssePath: ssePath,
-		// hostPort:  hostPort,
+		ssePath:   ssePath,
 		sink:      sink,
 		tlsClient: tlsClient,
 	}

@@ -15,17 +15,17 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/hiveot/hivekit/go/modules"
-	"github.com/hiveot/hivekit/go/modules/transports/httpserver"
+	"github.com/hiveot/hivekit/go/modules/transports/httptransport"
 	"github.com/lmittmann/tint"
 )
 
-// HttpServerModule is a module providing a TLS HTTPS server.
+// HttpTransportModule is a module providing a TLS HTTPS server.
 // Intended for use by HTTP based application protocols.
 // This implements IHiveModule interface.
-type HttpServerModule struct {
+type HttpTransportModule struct {
 	modules.HiveModuleBase
 
-	config     *httpserver.HttpServerConfig
+	config     *httptransport.HttpServerConfig
 	connectURL string
 
 	// the actual golang HTTP/TLS server
@@ -49,7 +49,7 @@ type HttpServerModule struct {
 	// msgAPI *api.HttpMsgHandler
 }
 
-func (m *HttpServerModule) GetConnectURL() string {
+func (m *HttpTransportModule) GetConnectURL() string {
 	return m.connectURL
 }
 
@@ -57,7 +57,7 @@ func (m *HttpServerModule) GetConnectURL() string {
 // This starts a http server instance and sets-up a public and protected route.
 //
 // Starts a HTTPS TLS service
-func (m *HttpServerModule) Start() (err error) {
+func (m *HttpTransportModule) Start() (err error) {
 	var tlsConf *tls.Config
 	cfg := m.config
 	m.connectURL = fmt.Sprintf("https://%s:%d", cfg.Address, cfg.Port)
@@ -124,7 +124,7 @@ func (m *HttpServerModule) Start() (err error) {
 // Stop the TLS server and close all connections.
 // this waits until for up to 3 seconds for connections are closed. After that
 // continue.
-func (m *HttpServerModule) Stop() {
+func (m *HttpTransportModule) Stop() {
 	slog.Info("Stopping THTTP/TLS server")
 
 	if m.httpServer != nil {
@@ -144,16 +144,16 @@ func (m *HttpServerModule) Stop() {
 // moduleID is the module's instance identification.
 // config MUST have been configured with a CA and server certificate unless
 // NoTLS is set.
-func NewHttpServerModule(moduleID string, config *httpserver.HttpServerConfig) *HttpServerModule {
+func NewHttpServerModule(moduleID string, config *httptransport.HttpServerConfig) *HttpTransportModule {
 
 	if moduleID == "" {
-		moduleID = httpserver.DefaultHttpServerModuleID
+		moduleID = httptransport.DefaultHttpServerModuleID
 	}
 
-	m := &HttpServerModule{
+	m := &HttpTransportModule{
 		config: config,
 	}
 	m.Init(moduleID, nil)
-	var _ httpserver.IHttpServer = m // interface check
+	var _ httptransport.IHttpServer = m // interface check
 	return m
 }

@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/hiveot/hivekit/go/lib/messaging"
+	"github.com/hiveot/hivekit/go/modules"
 	"github.com/hiveot/hivekit/go/msg"
 	"github.com/hiveot/hivekit/go/utils"
 	"github.com/hiveot/hivekit/go/wot"
@@ -33,23 +33,28 @@ func TestInvokeActionFromConsumerToServer(t *testing.T) {
 	var actionName = "action1"
 
 	// the server will receive the action request and return an immediate result
-	requestHandler := func(req *msg.RequestMessage, replyTo messaging.IConnection) *msg.ResponseMessage {
+	handleRequest := func(req *msg.RequestMessage, replyTo msg.ResponseHandler) error {
+		var resp *msg.ResponseMessage
 		if req.Operation == wot.OpInvokeAction {
 			inputVal.Store(req.Input)
 			// CreateResponse returns ActionStatus
-			return req.CreateResponse(req.Input, nil)
+			resp = req.CreateResponse(req.Input, nil)
+		} else {
+			assert.Fail(t, "Not expecting this")
+			resp = req.CreateResponse(nil, errors.New("unexpected request"))
 		}
-		assert.Fail(t, "Not expecting this")
-		return req.CreateResponse(nil, errors.New("unexpected request"))
+		return replyTo(resp)
 	}
 	// 1. start the servers
-	srv, cancelFn := StartTransportModule(nil, requestHandler, nil)
+	tmpSink := &modules.HiveModuleBase{}
+	tmpSink.SetRequestHandler(handleRequest)
+	srv, cancelFn := StartTransportModule(tmpSink)
 	_ = srv
 	defer cancelFn()
 
 	// 2. connect a client
 	cc1, cl1, token := NewConsumer(testClientID1)
-	defer cc1.Disconnect()
+	defer cc1.Close()
 	require.NotEmpty(t, token)
 	ctx1, release1 := context.WithTimeout(context.Background(), time.Minute)
 	defer release1()
@@ -72,10 +77,8 @@ func TestInvokeActionFromConsumerToServer(t *testing.T) {
 	// the response handler above will receive the result
 	// testOutput can be updated as an immediate result or via the callback message handler
 	req := msg.NewRequestMessage(wot.OpInvokeAction, thingID, actionName, testMsg1, shortid.MustGenerate())
-	resp, err := cl1.SendRequest(req, false)
-	// waitForCompletion is false so no response yet
+	err := cl1.SendRequest(req, nil)
 	require.NoError(t, err)
-	assert.Nil(t, resp)
 	<-ctx1.Done()
 
 	// whether receiving completed or delivered depends on the binding
@@ -131,17 +134,19 @@ func TestInvokeActionFromServerToAgent(t *testing.T) {
 		cancelFn1()
 		return nil
 	}
-	srv, cancelFn2 := StartTransportModule(nil, nil, responseHandler)
+	// tmpSink := &modules.HiveModuleBase{}
+	// tmpSink.SetResponseHandler(responseHandler)
+	srv, cancelFn2 := StartTransportModule(nil)
 	_ = srv
 	defer cancelFn2()
 
 	// 2a. connect as an agent
 	cc1, ag1client, token := NewAgent(testAgentID1)
 	require.NotEmpty(t, token)
-	defer cc1.Disconnect()
+	defer cc1.Close()
 
 	// an agent receives requests from the server
-	ag1client.SetRequestHandler(func(req *msg.RequestMessage, replyTo messaging.IConnection) *msg.ResponseMessage {
+	ag1client.SetRequestHandler(func(req *msg.RequestMessage, replyTo msg.ResponseHandler) error {
 		// agent receives action request and returns a result
 		slog.Info("Agent receives request", "op", req.Operation)
 		assert.Equal(t, testClientID1, req.SenderID)
@@ -150,7 +155,7 @@ func TestInvokeActionFromServerToAgent(t *testing.T) {
 			time.Sleep(time.Millisecond)
 			// separately send a completed response
 			resp := req.CreateResponse(testMsg2, nil)
-			_ = replyTo.SendResponse(resp)
+			_ = replyTo(resp)
 		}()
 		// the response is sent asynchronously
 		return nil
@@ -159,12 +164,14 @@ func TestInvokeActionFromServerToAgent(t *testing.T) {
 	// Send the action request from the server to the agent (the agent is connected as a client)
 	// and expect result using the request status message sent by the agent.
 	time.Sleep(time.Millisecond)
-	ag1Server := srv.GetConnectionByClientID(testAgentID1)
-	require.NotNil(t, ag1Server)
+	// ag1Server := srv.GetConnectionByClientID(testAgentID1)
+	// require.NotNil(t, ag1Server)
+
 	req := msg.NewRequestMessage(wot.OpInvokeAction, thingID, actionKey, testMsg1, corrID)
 	req.SenderID = testClientID1
 	req.CorrelationID = "rpc-TestInvokeActionFromServerToAgent"
-	err := ag1Server.SendRequest(req)
+	// err := ag1Server.SendRequest(req)
+	err := srv.SendRequest(testAgentID1, req, responseHandler)
 	require.NoError(t, err)
 
 	// wait until the agent has sent a reply
@@ -188,8 +195,8 @@ func TestQueryActions(t *testing.T) {
 	// 1. start the server. register a request handler for receiving a request
 	// from the agent after the server sends an invoke action.
 	// Note that WoT doesn't cover this use-case so this uses hiveot vocabulary operation.
-	requestHandler := func(req *msg.RequestMessage, replyTo messaging.IConnection) *msg.ResponseMessage {
-
+	requestHandler := func(req *msg.RequestMessage, replyTo msg.ResponseHandler) error {
+		var resp *msg.ResponseMessage
 		assert.NotNil(t, replyTo)
 		assert.NotNil(t, req.CorrelationID)
 		switch req.Operation {
@@ -200,12 +207,12 @@ func TestQueryActions(t *testing.T) {
 				Name:          req.Name,
 				ActionID:      actionID,
 				Output:        testMsg1,
-				State:         messaging.StatusCompleted,
+				State:         msg.StatusCompleted,
 				TimeRequested: req.Created,
 				TimeUpdated:   utils.FormatNowUTCMilli(),
 			}
 
-			return req.CreateResponse(actStat, nil)
+			resp = req.CreateResponse(actStat, nil)
 
 			//replyTo.SendResponse(msg.ThingID, msg.Name, output, msg.CorrelationID)
 		case wot.OpQueryAllActions:
@@ -216,7 +223,7 @@ func TestQueryActions(t *testing.T) {
 					Name:          actionKey,
 					ActionID:      actionID,
 					Output:        testMsg1,
-					State:         messaging.StatusCompleted,
+					State:         msg.StatusCompleted,
 					TimeRequested: req.Created,
 					TimeUpdated:   utils.FormatNowUTCMilli(),
 				},
@@ -224,13 +231,13 @@ func TestQueryActions(t *testing.T) {
 					ThingID:  req.ThingID,
 					Name:     "action-2",
 					ActionID: actionID,
-					Error: &messaging.ErrorValue{
+					Error: &msg.ErrorValue{
 						Status: http.StatusBadRequest,
 						Type:   "http://testerror/",
 						Title:  "Testing error",
 						Detail: "test error detail",
 					},
-					State:         messaging.StatusFailed,
+					State:         msg.StatusFailed,
 					TimeRequested: utils.FormatNowUTCMilli(),
 					TimeUpdated:   utils.FormatNowUTCMilli(),
 				},
@@ -239,24 +246,27 @@ func TestQueryActions(t *testing.T) {
 					Name:          "action-3",
 					ActionID:      actionID,
 					Output:        "other output",
-					State:         messaging.StatusCompleted,
+					State:         msg.StatusCompleted,
 					TimeRequested: utils.FormatNowUTCMilli(),
 					TimeUpdated:   utils.FormatNowUTCMilli(),
 				}}
-			resp := req.CreateResponse(actStat, nil)
-			return resp
+			resp = req.CreateResponse(actStat, nil)
+		default:
+			resp = req.CreateResponse(nil, errors.New("unexpected response "+req.Operation))
 		}
-		return req.CreateResponse(nil, errors.New("unexpected response "+req.Operation))
+		return replyTo(resp)
 	}
 
 	// 1. start the servers
-	srv, cancelFn := StartTransportModule(nil, requestHandler, nil)
+	tmpSink := &modules.HiveModuleBase{}
+	tmpSink.SetRequestHandler(requestHandler)
+	srv, cancelFn := StartTransportModule(tmpSink)
 	_ = srv
 	defer cancelFn()
 
 	// 2. connect as a consumer
 	cc1, cl1, _ := NewConsumer(testClientID1)
-	defer cc1.Disconnect()
+	defer cc1.Close()
 
 	// 3. Query action status
 	var status msg.ActionStatus

@@ -5,9 +5,9 @@ import (
 	"log/slog"
 	"net/http"
 
-	"github.com/hiveot/hivekit/go/lib/servers/tlsserver"
 	"github.com/hiveot/hivekit/go/modules/transports"
-	"github.com/hiveot/hivekit/go/modules/transports/httpserver"
+	"github.com/hiveot/hivekit/go/modules/transports/httptransport"
+	"github.com/hiveot/hivekit/go/utils/net"
 )
 
 // AddSessionFromToken middleware decodes the bearer session token in the authorization header.
@@ -34,7 +34,7 @@ func AddSessionFromToken(userAuthn transports.IAuthenticator) func(next http.Han
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
-			bearerToken, err := tlsserver.GetBearerToken(r)
+			bearerToken, err := net.GetBearerToken(r)
 			if err != nil {
 				// see https://w3c.github.io/wot-discovery/#exploration-secboot
 				// response with unauthorized and point to using the bearer token method
@@ -61,8 +61,8 @@ func AddSessionFromToken(userAuthn transports.IAuthenticator) func(next http.Han
 
 			// make session available in context
 			//ctx := context.WithValue(r.Context(), subprotocols.SessionContextID, cs)
-			ctx := context.WithValue(r.Context(), httpserver.SessionContextID, sid)
-			ctx = context.WithValue(ctx, httpserver.ClientContextID, clientID)
+			ctx := context.WithValue(r.Context(), httptransport.SessionContextID, sid)
+			ctx = context.WithValue(ctx, httptransport.ClientContextID, clientID)
 			next.ServeHTTP(w, r.WithContext(ctx))
 		})
 	}

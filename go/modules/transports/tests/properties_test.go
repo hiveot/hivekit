@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/hiveot/hivekit/go/lib/messaging"
+	"github.com/hiveot/hivekit/go/modules"
 	"github.com/hiveot/hivekit/go/msg"
 	"github.com/hiveot/hivekit/go/wot"
 	"github.com/stretchr/testify/assert"
@@ -29,14 +29,14 @@ func TestObservePropertyByConsumer(t *testing.T) {
 	var propValue2 = "value2"
 
 	// 1. start the server
-	srv, cancelFn := StartTransportModule(nil, nil, nil)
+	srv, cancelFn := StartTransportModule(nil)
 	defer cancelFn()
 
 	// 2. connect with two consumers
 	cc1, cl1, _ := NewConsumer(testClientID1)
-	defer cc1.Disconnect()
+	defer cc1.Close()
 	cc2, cl2, _ := NewConsumer(testClientID1)
-	defer cc2.Disconnect()
+	defer cc2.Close()
 
 	// set the handler for property updates and subscribe
 	cl1.SetNotificationHandler(func(ev *msg.NotificationMessage) {
@@ -106,13 +106,15 @@ func TestPublishPropertyByAgent(t *testing.T) {
 	}
 
 	// 1. start the transport
-	srv, cancelFn := StartTransportModule(notificationHandler, nil, nil)
+	tmpSink := &modules.HiveModuleBase{}
+	tmpSink.SetNotificationHandler(notificationHandler)
+	srv, cancelFn := StartTransportModule(tmpSink)
 	_ = srv
 	defer cancelFn()
 
 	// 2. connect as an agent
 	agConn1, ag1, _ := NewAgent(testAgentID1)
-	defer agConn1.Disconnect()
+	defer agConn1.Close()
 
 	// 3. agent publishes a property update to subscribers
 	err := ag1.PubProperty(thingID, propKey1, propValue1)
@@ -135,23 +137,27 @@ func TestReadProperty(t *testing.T) {
 
 	// 1. start the agent transport with the request handler
 	// in this case the consumer connects to the agent (unlike when using a hub)
-	agentReqHandler := func(req *msg.RequestMessage, c messaging.IConnection) *msg.ResponseMessage {
+	agentReqHandler := func(req *msg.RequestMessage, replyTo msg.ResponseHandler) error {
+		var resp *msg.ResponseMessage
 		if req.Operation == wot.OpReadProperty && req.ThingID == thingID && req.Name == propKey {
-			tv := msg.NewThingValue(messaging.AffordanceTypeProperty,
+			tv := msg.NewThingValue(msg.AffordanceTypeProperty,
 				"thingID", req.Name, propValue, timestamp)
-			resp := req.CreateResponse(tv, nil)
+			resp = req.CreateResponse(tv, nil)
 			resp.Timestamp = timestamp
-			return resp
+		} else {
+			resp = req.CreateResponse(nil, errors.New("unexpected request"))
 		}
-		return req.CreateResponse(nil, errors.New("unexpected request"))
+		return replyTo(resp)
 	}
-	srv, cancelFn := StartTransportModule(nil, agentReqHandler, nil)
+	tmpSink := &modules.HiveModuleBase{}
+	tmpSink.SetRequestHandler(agentReqHandler)
+	srv, cancelFn := StartTransportModule(tmpSink)
 	_ = srv
 	defer cancelFn()
 
 	// 2. connect as a consumer
 	cc1, consumer1, _ := NewConsumer(testClientID1)
-	defer cc1.Disconnect()
+	defer cc1.Close()
 
 	rxVal, err := consumer1.ReadProperty(thingID, propKey)
 	require.NoError(t, err)
@@ -170,25 +176,29 @@ func TestReadAllProperties(t *testing.T) {
 
 	// 1. start the agent transport with the request handler
 	// in this case the consumer connects to the agent (unlike when using a hub)
-	agentReqHandler := func(req *msg.RequestMessage, c messaging.IConnection) *msg.ResponseMessage {
+	agentReqHandler := func(req *msg.RequestMessage, replyTo msg.ResponseHandler) error {
+		var resp *msg.ResponseMessage
 		if req.Operation == wot.OpReadAllProperties {
-			output := make(map[string]*messaging.ThingValue)
+			output := make(map[string]*msg.ThingValue)
 			output[name1] = msg.NewThingValue(
-				messaging.AffordanceTypeProperty, thingID, name1, value1, "")
+				msg.AffordanceTypeProperty, thingID, name1, value1, "")
 			output[name2] = msg.NewThingValue(
-				messaging.AffordanceTypeProperty, thingID, name2, value2, "")
-			resp := req.CreateResponse(output, nil)
-			return resp
+				msg.AffordanceTypeProperty, thingID, name2, value2, "")
+			resp = req.CreateResponse(output, nil)
+		} else {
+			resp = req.CreateResponse(nil, errors.New("unexpected request"))
 		}
-		return req.CreateResponse(nil, errors.New("unexpected request"))
+		return replyTo(resp)
 	}
-	srv, cancelFn := StartTransportModule(nil, agentReqHandler, nil)
+	tmpSink := &modules.HiveModuleBase{}
+	tmpSink.SetRequestHandler(agentReqHandler)
+	srv, cancelFn := StartTransportModule(tmpSink)
 	_ = srv
 	defer cancelFn()
 
 	// 2. connect as a consumer
 	cc1, consumer1, _ := NewConsumer(testClientID1)
-	defer cc1.Disconnect()
+	defer cc1.Close()
 
 	propMap, err := consumer1.ReadAllProperties(thingID)
 	require.NoError(t, err)

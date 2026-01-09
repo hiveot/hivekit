@@ -90,8 +90,8 @@ func (sc *WssServerConnection) _send(msg any) (err error) {
 	return err
 }
 
-// Disconnect closes the connection and ends the read loop
-func (sc *WssServerConnection) Disconnect() {
+// Close closes the connection and ends the read loop
+func (sc *WssServerConnection) Close() {
 	sc.mux.Lock()
 	defer sc.mux.Unlock()
 	if sc.IsConnected() {
@@ -99,11 +99,6 @@ func (sc *WssServerConnection) Disconnect() {
 		_ = sc.wssConn.Close()
 	}
 }
-
-// // GetConnectionInfo returns the client's connection details
-// func (sc *WssServerConnection) GetConnectionInfo() transports.ConnectionInfo {
-// 	return sc.cinfo
-// }
 
 // // HasSubscription returns true if this connection has subscribed to the given notification
 // func (sc *WssServerConnection) HasSubscription(notif *msg.NotificationMessage) bool {

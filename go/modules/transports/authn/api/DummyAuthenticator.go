@@ -1,4 +1,4 @@
-package authn
+package authnapi
 
 import (
 	"errors"
@@ -11,6 +11,7 @@ import (
 )
 
 // DummyAuthenticator for testing the transport protocol bindings
+// This implements the IAuthenticator interface.
 type DummyAuthenticator struct {
 	passwords     map[string]string
 	tokens        map[string]string
@@ -21,7 +22,8 @@ type DummyAuthenticator struct {
 func (d *DummyAuthenticator) AddClient(clientID string, password string) string {
 	d.passwords[clientID] = password
 	sessionID := clientID + shortid.MustGenerate()
-	token := d.CreateSessionToken(clientID, sessionID, 0)
+	token, validity := d.CreateSessionToken(clientID, sessionID, 0)
+	_ = validity
 	d.tokens[clientID] = token
 	return token
 }
@@ -51,15 +53,16 @@ func (srv *DummyAuthenticator) AddSecurityScheme(tdoc *td.TD) {
 //}
 
 func (d *DummyAuthenticator) CreateSessionToken(
-	clientID, sessionID string, validity time.Duration) (token string) {
+	clientID, sessionID string, validity time.Duration) (token string, actualValidity time.Duration) {
 
 	if sessionID == "" {
 		sessionID = shortid.MustGenerate()
 	}
+	actualValidity = validity
 	token = fmt.Sprintf("%s/%s", clientID, sessionID)
 	// simulate a session with the tokens map
 	d.tokens[clientID] = token
-	return token
+	return token, actualValidity
 }
 
 func (d *DummyAuthenticator) DecodeSessionToken(token string, signedNonce string, nonce string) (clientID string, sessionID string, err error) {
@@ -72,16 +75,16 @@ func (d *DummyAuthenticator) GetAlg() (string, string) {
 }
 
 func (d *DummyAuthenticator) Login(
-	clientID string, password string) (token string, err error) {
+	clientID string, password string) (token string, validity time.Duration, err error) {
 
 	currPass, isClient := d.passwords[clientID]
 	if isClient && currPass == password {
 		sessionID := clientID + shortid.MustGenerate()
-		token = d.CreateSessionToken(clientID, sessionID, 0)
+		token, validity = d.CreateSessionToken(clientID, sessionID, 0)
 		d.tokens[clientID] = token
-		return token, nil
+		return token, validity, nil
 	}
-	return "", fmt.Errorf("invalid login")
+	return "", 0, fmt.Errorf("invalid login")
 }
 
 func (d *DummyAuthenticator) Logout(clientID string) {
@@ -98,15 +101,15 @@ func (d *DummyAuthenticator) ValidatePassword(clientID string, password string) 
 }
 
 func (d *DummyAuthenticator) RefreshToken(
-	senderID string, oldToken string) (newToken string, err error) {
+	senderID string, oldToken string) (newToken string, validity time.Duration, err error) {
 
 	tokenClientID, sessionID, err := d.ValidateToken(oldToken)
 	if err != nil || senderID != tokenClientID {
 		err = fmt.Errorf("invalid token, client or sender")
 	} else {
-		newToken = d.CreateSessionToken(senderID, sessionID, 0)
+		newToken, validity = d.CreateSessionToken(senderID, sessionID, 0)
 	}
-	return newToken, err
+	return newToken, validity, err
 }
 func (d *DummyAuthenticator) SetAuthServerURI(authServerURI string) {
 	d.authServerURI = authServerURI

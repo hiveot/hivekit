@@ -22,7 +22,8 @@ import (
 // which forwards messages to the module running on it. The device protocol server
 // is a module itself.
 type IHiveModule interface {
-	// GetModuleID returns module's instance thingID
+	// GetModuleID returns module's ID.
+	// For agents/devices this is the ThingID, for consumers this is the clientID.
 	GetModuleID() string
 
 	// GetTM returns the module's Thing Model describing its properties, actions and events.
@@ -71,6 +72,7 @@ type IHiveModule interface {
 
 	// SetSink sets the destination sink to forward messages to, to send the processing result to, or both.
 	// If a sink is already set it is overwritten.
+	// This is optional, if not sink is set then the module is the end of the line.
 	// SetSink can be invoked before or after start is called.
 	// SetSink(sink IHiveModule)
 
@@ -82,3 +84,20 @@ type IHiveModule interface {
 	// Intended for modulues to free resources
 	Stop()
 }
+
+// A module sink is the destination for messages from a module.
+// This allows to create a sink as needed.
+// This implements the IHiveModule interface with empty methods.
+// type ModuleSink struct {
+// 	Sink               IHiveModule
+// 	ModuleID           string
+// 	HandleResponse     msg.ResponseHandler
+// 	HandleRequest      msg.RequestHandler
+// 	HandleNotification msg.NotificationHandler
+// }
+
+// func (m *ModuleSink) GetModuleID() string      { return m.ModuleID }
+// func (m *ModuleSink) SetSink(sink IHiveModule) { m.Sink = sink }
+// func (m *ModuleSink) Start() error             { return nil }
+// func (m *ModuleSink) Stop()
+// func (m *ModuleSink) GetTM() string { return "" }

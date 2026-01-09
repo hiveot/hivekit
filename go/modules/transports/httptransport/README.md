@@ -1,8 +1,10 @@
-# Transports HTTPS Server Module
+# HTTP Transport Module
 
-The HTTP TLS Server Module is intended for use by http based transport protocols. This server includes support for common middleware such as cors, logging, recovery, compression. authentication and file server and provides callback hooks for logging and authentication interaction.
+The HTTP TLS Module is intended for use by http based transport protocols. The module server includes support for common middleware such as cors, logging, recovery, compression. authentication and file server and provides callback hooks for logging and authentication interaction.
 
 The server provides two convenient routers for adding endpoints, a secured router which requires authentication and an unsecured router.
+
+The client contains the boilerplate for establishing TLS connections including CA certificate, authorization bearer token, cid, other headers, URI parameters and request timeout.
 
 ## Configuration
 
@@ -39,8 +41,9 @@ There are two ways to create a HttpsBase module instance: using the pipeline fac
 
 ### Pipeline Factory
 
+This module is intended for use with http based transport protocols such as WoT HTTP-Basic, Websocket, the HiveOT SSE subprotocols and the authentication service for handling login and token refresh.
+
 When using the pipeline factory, the server is automatically instantiated when a http based message transport is needed.
-This uses the default configuration, listening on port 8444 using pipeline keys and certificate. The pipeline obtains its keys from the Certs module. This module can be configured to read certs and keys from file, generate self-signed certs, obtain it from Lets-Encrypt or other provider.
 
 ### Manual Setup
 

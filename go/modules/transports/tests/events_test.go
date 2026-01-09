@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/hiveot/hivekit/go/modules"
 	"github.com/hiveot/hivekit/go/msg"
 	"github.com/hiveot/hivekit/go/wot"
 	"github.com/stretchr/testify/assert"
@@ -28,19 +29,19 @@ func TestSubscribeAll(t *testing.T) {
 	var agentRxEvent atomic.Bool
 
 	// 1. start the servers
-	srv, cancelFn := StartTransportModule(nil, nil, nil)
+	srv, cancelFn := StartTransportModule(nil)
 	defer cancelFn()
 
 	// 2. connect as consumers
 	cconn1, cons1, _ := NewConsumer(testClientID1)
-	defer cconn1.Disconnect()
+	defer cconn1.Close()
 
 	cconn2, cons2, _ := NewConsumer(testClientID1)
-	defer cconn2.Disconnect()
+	defer cconn2.Close()
 
 	// ensure that agents can also subscribe (they cant use forms)
 	agConn1, agent1, _ := NewAgent(agentID)
-	defer agConn1.Disconnect()
+	defer agConn1.Close()
 
 	// FIXME: test subscription by agent
 
@@ -122,13 +123,15 @@ func TestPublishEventsByAgent(t *testing.T) {
 	notificationHandler := func(msg *msg.NotificationMessage) {
 		evVal.Store(msg.Value)
 	}
-	srv, cancelFn := StartTransportModule(notificationHandler, nil, nil)
+	tmpSink := &modules.HiveModuleBase{}
+	tmpSink.SetNotificationHandler(notificationHandler)
+	srv, cancelFn := StartTransportModule(tmpSink)
 	_ = srv
 	defer cancelFn()
 
 	// 2. connect as an agent
 	agConn1, agent1, _ := NewAgent(testAgentID1)
-	defer agConn1.Disconnect()
+	defer agConn1.Close()
 
 	// 3. agent publishes an event
 	err := agent1.PubEvent(thingID, eventKey, testMsg)

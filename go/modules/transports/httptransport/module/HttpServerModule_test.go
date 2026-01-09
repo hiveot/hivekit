@@ -10,9 +10,9 @@ import (
 
 	"github.com/hiveot/hivekit/go/lib/logging"
 	"github.com/hiveot/hivekit/go/modules/services/certs/service/selfsigned"
-	"github.com/hiveot/hivekit/go/modules/transports/httpserver"
-	"github.com/hiveot/hivekit/go/modules/transports/httpserver/httpapi"
-	"github.com/hiveot/hivekit/go/modules/transports/httpserver/module"
+	"github.com/hiveot/hivekit/go/modules/transports/httptransport"
+	"github.com/hiveot/hivekit/go/modules/transports/httptransport/httpapi"
+	"github.com/hiveot/hivekit/go/modules/transports/httptransport/module"
 	"github.com/hiveot/hivekit/go/utils/net"
 
 	"github.com/stretchr/testify/assert"
@@ -45,7 +45,7 @@ func TestMain(m *testing.M) {
 
 func TestStartStop(t *testing.T) {
 	t.Logf("---%s---\n", t.Name())
-	cfg := httpserver.NewHttpServerConfig()
+	cfg := httptransport.NewHttpServerConfig()
 	cfg.Address = serverAddress
 	cfg.Port = serverPort
 	cfg.CaCert = testCerts.CaCert
@@ -58,7 +58,7 @@ func TestStartStop(t *testing.T) {
 
 func TestNoServerCert(t *testing.T) {
 	t.Logf("---%s---\n", t.Name())
-	cfg := httpserver.NewHttpServerConfig()
+	cfg := httptransport.NewHttpServerConfig()
 	cfg.Address = serverAddress
 	cfg.Port = serverPort
 	cfg.CaCert = testCerts.CaCert
@@ -75,7 +75,7 @@ func TestNoAuth(t *testing.T) {
 	path1 := "/hello"
 	path1Hit := 0
 
-	cfg := httpserver.NewHttpServerConfig()
+	cfg := httptransport.NewHttpServerConfig()
 	cfg.Address = serverAddress
 	cfg.Port = serverPort
 	cfg.CaCert = testCerts.CaCert
@@ -108,13 +108,13 @@ func TestTokenAuth(t *testing.T) {
 	t.Logf("---%s---\n", t.Name())
 	path1 := "/test1"
 	path1Hit := 0
-	//loginID1 := "user1"
+	loginID1 := "user1"
 	token1 := "abcd"
 	badToken := "badtoken"
 
 	// setup server and client environment
 
-	cfg := httpserver.NewHttpServerConfig()
+	cfg := httptransport.NewHttpServerConfig()
 	cfg.Address = serverAddress
 	cfg.Port = serverPort
 	cfg.CaCert = testCerts.CaCert
@@ -155,7 +155,7 @@ func TestTokenAuth(t *testing.T) {
 	cl := httpapi.NewTLSClient(clientHostPort, nil, testCerts.CaCert, time.Second*120)
 	require.NoError(t, err)
 	defer cl.Close()
-	cl.SetAuthToken(token1)
+	cl.ConnectWithToken(loginID1, token1)
 
 	// test the auth with a GET request
 	_, _, err = cl.Get(path1)
@@ -164,7 +164,7 @@ func TestTokenAuth(t *testing.T) {
 
 	// test a failed login
 	cl.Close()
-	cl.SetAuthToken(badToken)
+	cl.ConnectWithToken(loginID1, badToken)
 	_, _, err = cl.Get(path1)
 	assert.Error(t, err)
 	assert.Equal(t, 2, path1Hit) // should not increase
@@ -242,7 +242,7 @@ func TestWriteResponse(t *testing.T) {
 	message := "hello world"
 	path2Hit := 0
 
-	cfg := httpserver.NewHttpServerConfig()
+	cfg := httptransport.NewHttpServerConfig()
 	cfg.Address = serverAddress
 	cfg.Port = serverPort
 	cfg.CaCert = testCerts.CaCert
@@ -277,7 +277,7 @@ func TestWriteResponse(t *testing.T) {
 func TestBadPort(t *testing.T) {
 	t.Logf("---%s---\n", t.Name())
 
-	cfg := httpserver.NewHttpServerConfig()
+	cfg := httptransport.NewHttpServerConfig()
 	cfg.Address = serverAddress
 	cfg.Port = 1 // bad port
 	cfg.CaCert = testCerts.CaCert

@@ -6,12 +6,7 @@ import "github.com/hiveot/hivekit/go/modules/transports"
 const DefaultHttpBasicThingID = "http-basic"
 
 const (
-
-	// HttpPostLoginPath is the fixed authentication endpoint of the hub
-	HttpPostLoginPath   = "/authn/login"
-	HttpPostLogoutPath  = "/authn/logout"
-	HttpPostRefreshPath = "/authn/refresh"
-	HttpGetPingPath     = "/ping"
+	HttpGetPingPath = "/ping"
 
 	// The generic path for thing operations over http
 	// See http server for definition of the URI variables

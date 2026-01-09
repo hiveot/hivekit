@@ -5,14 +5,12 @@ import (
 	"slices"
 	"time"
 
-	"github.com/hiveot/hivekit/go/lib/servers/tlsserver"
-	"github.com/hiveot/hivekit/go/modules/transports"
 	"github.com/hiveot/hivekit/go/modules/transports/httpbasic"
 	"github.com/hiveot/hivekit/go/msg"
 	"github.com/hiveot/hivekit/go/utils"
+	"github.com/hiveot/hivekit/go/utils/net"
 	jsoniter "github.com/json-iterator/go"
 
-	"io"
 	"log/slog"
 	"net/http"
 )
@@ -47,7 +45,7 @@ func (m *HttpBasicModule) createRoutes() {
 
 	// register authentication endpoints
 	// FIXME: determine how WoT wants auth endpoints to be published
-	pubRoutes.Post(httpbasic.HttpPostLoginPath, m.onHttpLogin)
+	// pubRoutes.Post(httpbasic.HttpPostLoginPath, m.onHttpLogin)
 	pubRoutes.Get(httpbasic.HttpGetPingPath, m.onHttpPing)
 
 	//--- private routes that requires authentication (as published in the TD)
@@ -64,8 +62,8 @@ func (m *HttpBasicModule) createRoutes() {
 	protRoutes.HandleFunc(httpbasic.HttpBasicThingOperationPath, m.onHttpThingOperation)
 
 	// http supported authentication endpoints
-	protRoutes.Post(httpbasic.HttpPostRefreshPath, m.onHttpAuthRefresh)
-	protRoutes.Post(httpbasic.HttpPostLogoutPath, m.onHttpLogout)
+	// protRoutes.Post(httpbasic.HttpPostRefreshPath, m.onHttpAuthRefresh)
+	// protRoutes.Post(httpbasic.HttpPostLogoutPath, m.onHttpLogout)
 }
 
 // EnableStatic adds a path to read files from the static directory. Auth required.
@@ -127,12 +125,13 @@ func (m *HttpBasicModule) onHttpAffordanceOperation(w http.ResponseWriter, r *ht
 	// expected to be called before the timeout, otherwise this returns an error.
 	rx := utils.NewAsyncReceiver[*msg.ResponseMessage]()
 	err = m.serverRequestHandler(req, func(resp *msg.ResponseMessage) error {
+		var err2 error
 		if resp != nil {
 			if resp.Error != nil {
-				err = resp.Error.AsError()
+				err2 = resp.Error.AsError()
 			}
 		}
-		rx.SetResponse(resp, err)
+		rx.SetResponse(resp, err2)
 		return nil
 	})
 	resp, err := rx.WaitForResponse(time.Second * 1)
@@ -143,7 +142,7 @@ func (m *HttpBasicModule) onHttpAffordanceOperation(w http.ResponseWriter, r *ht
 	}
 
 	// 4. Return the response
-	tlsserver.WriteReply(w, handled, output, err)
+	net.WriteReply(w, handled, output, err)
 }
 
 // onHttpThingOperation converts the http request to a request message and pass it to the registered request handler
@@ -152,70 +151,8 @@ func (m *HttpBasicModule) onHttpThingOperation(w http.ResponseWriter, r *http.Re
 	m.onHttpAffordanceOperation(w, r)
 }
 
-// onHttpLogin handles a login request and returns an auth token.
-//
-// Body contains {"login":name, "password":pass} format
-// This is the only unprotected route supported.
-// This uses the configured session authenticator.
-func (m *HttpBasicModule) onHttpLogin(w http.ResponseWriter, r *http.Request) {
-	var reply any
-	var args transports.UserLoginArgs
-
-	payload, err := io.ReadAll(r.Body)
-	if err == nil {
-		err = jsoniter.Unmarshal(payload, &args)
-	}
-	if err == nil {
-		// the login is handled in-house and has an immediate return
-		// TODO: use-case for 3rd party login? oauth2 process support? tbd
-		// FIXME: hard-coded keys!? ugh
-		reply, err = m.authenticator.Login(args.Login, args.Password)
-		slog.Info("HandleLogin", "clientID", args.Login)
-	}
-	if err != nil {
-		slog.Warn("HandleLogin failed:", "err", err.Error())
-		tlsserver.WriteError(w, err, http.StatusUnauthorized)
-		return
-	}
-	// TODO: set client session cookie for browser clients
-	//srv.sessionManager.SetSessionCookie(cs.sessionID,token)
-	tlsserver.WriteReply(w, true, reply, nil)
-}
-
-// onHttpAuthRefresh refreshes the auth token using the session authenticator.
-// The session authenticator is that of the authn service. This allows testing with a dummy
-// authenticator without having to run the authn service.
-func (m *HttpBasicModule) onHttpAuthRefresh(w http.ResponseWriter, r *http.Request) {
-	var newToken string
-	var oldToken string
-	rp, err := m.httpServer.GetRequestParams(r)
-
-	if err == nil {
-		jsoniter.Unmarshal(rp.Payload, &oldToken)
-		slog.Info("HandleAuthRefresh", "clientID", rp.ClientID)
-		newToken, err = m.authenticator.RefreshToken(rp.ClientID, oldToken)
-	}
-	if err != nil {
-		slog.Warn("HandleAuthRefresh failed:", "err", err.Error())
-		tlsserver.WriteError(w, err, 0)
-		return
-	}
-	tlsserver.WriteReply(w, true, newToken, nil)
-}
-
-// onHttpLogout ends the session and closes all client connections
-func (m *HttpBasicModule) onHttpLogout(w http.ResponseWriter, r *http.Request) {
-	// use the authenticator
-	rp, err := m.httpServer.GetRequestParams(r)
-	if err == nil {
-		slog.Info("HandleLogout", "clientID", rp.ClientID)
-		m.authenticator.Logout(rp.ClientID)
-	}
-	tlsserver.WriteReply(w, true, nil, err)
-}
-
 // onHttpPing with http handler returns a pong response
 func (m *HttpBasicModule) onHttpPing(w http.ResponseWriter, r *http.Request) {
 	// simply return a pong message
-	tlsserver.WriteReply(w, true, "pong", nil)
+	net.WriteReply(w, true, "pong", nil)
 }

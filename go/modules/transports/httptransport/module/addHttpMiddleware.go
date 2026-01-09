@@ -5,7 +5,7 @@ import (
 	"log/slog"
 	"net/http"
 
-	"github.com/hiveot/hivekit/go/modules/transports/httpserver"
+	"github.com/hiveot/hivekit/go/modules/transports/httptransport"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
@@ -15,7 +15,7 @@ import (
 // Create the middleware from the configuration.
 // This follows the sequence(whereenabled): CORS-Logging-Recovery-StripSlashes-Compression
 // The public and protected routes are added after this chain.
-func (m *HttpServerModule) addMiddleware(cfg *httpserver.HttpServerConfig) {
+func (m *HttpTransportModule) addMiddleware(cfg *httptransport.HttpServerConfig) {
 	rootRouter := m.rootRouter
 
 	// handle CORS using the cors plugin
@@ -99,8 +99,8 @@ func (m *HttpServerModule) addMiddleware(cfg *httpserver.HttpServerConfig) {
 							"path", r.RequestURI)
 						return
 					}
-					ctx := context.WithValue(r.Context(), httpserver.SessionContextID, sid)
-					ctx = context.WithValue(ctx, httpserver.ClientContextID, clientID)
+					ctx := context.WithValue(r.Context(), httptransport.SessionContextID, sid)
+					ctx = context.WithValue(ctx, httptransport.ClientContextID, clientID)
 					next.ServeHTTP(w, r.WithContext(ctx))
 				})
 
@@ -114,22 +114,22 @@ func (m *HttpServerModule) addMiddleware(cfg *httpserver.HttpServerConfig) {
 
 // GetProtectedRouter returns the router with protected accessible routes for this server.
 // This router has cors protection enabled.
-func (m *HttpServerModule) GetProtectedRoute() chi.Router {
+func (m *HttpTransportModule) GetProtectedRoute() chi.Router {
 	return m.protRoute
 }
 
 // GetPublicRouter returns the router with public accessible routes for this server.
 // This router has cors protection enabled.
-func (m *HttpServerModule) GetPublicRoute() chi.Router {
+func (m *HttpTransportModule) GetPublicRoute() chi.Router {
 	return m.pubRoute
 }
 
 // GetRequestParams
-func (m *HttpServerModule) GetRequestParams(r *http.Request) (httpserver.RequestParams, error) {
+func (m *HttpTransportModule) GetRequestParams(r *http.Request) (httptransport.RequestParams, error) {
 	return GetRequestParams(r)
 }
 
 // GetClientIdFromContext
-func (m *HttpServerModule) GetClientIdFromContext(r *http.Request) (string, error) {
+func (m *HttpTransportModule) GetClientIdFromContext(r *http.Request) (string, error) {
 	return GetClientIdFromContext(r)
 }

@@ -13,11 +13,14 @@ import (
 // Use of this is totally optional.
 // This implements the IServerConnection interface.
 type ConnectionBase struct {
+	// Authenticated ID of the client
+	ClientID string
+
 	// The connection identification
 	ConnectionID string
 
-	// Connection information such as clientID, cid, address, protocol etc
-	cinfo ConnectionInfo
+	// // Connection information such as clientID, cid, address, protocol etc
+	// cinfo ConnectionInfo
 
 	remoteAddr    string
 	observations  Subscriptions
@@ -38,11 +41,11 @@ func (c *ConnectionBase) Disconnect() {
 }
 
 func (c *ConnectionBase) GetClientID() string {
-	return c.cinfo.ClientID
+	return c.ClientID
 }
 
-func (c *ConnectionBase) GetConnectionInfo() ConnectionInfo {
-	return c.cinfo
+func (c *ConnectionBase) GetConnectionID() string {
+	return c.ConnectionID
 }
 func (c *ConnectionBase) IsConnected() bool {
 	return c.isConnected.Load()
@@ -108,7 +111,7 @@ func (sc *ConnectionBase) HasSubscription(notif *msg.NotificationMessage) bool {
 		correlationID := sc.subscriptions.GetSubscription(notif.ThingID, notif.Name)
 		if correlationID != "" {
 			slog.Info("HasSubscription (event subscription)",
-				slog.String("clientID", sc.cinfo.ClientID),
+				slog.String("clientID", sc.ClientID),
 				slog.String("thingID", notif.ThingID),
 				slog.String("event name", notif.Name),
 			)
@@ -118,7 +121,7 @@ func (sc *ConnectionBase) HasSubscription(notif *msg.NotificationMessage) bool {
 		correlationID := sc.observations.GetSubscription(notif.ThingID, notif.Name)
 		if correlationID != "" {
 			slog.Info("HasSubscription (observed property(ies))",
-				slog.String("clientID", sc.cinfo.ClientID),
+				slog.String("clientID", sc.ClientID),
 				slog.String("thingID", notif.ThingID),
 				slog.String("name", notif.Name),
 			)
@@ -127,7 +130,7 @@ func (sc *ConnectionBase) HasSubscription(notif *msg.NotificationMessage) bool {
 	case wot.OpInvokeAction:
 		// action progress update, for original sender only
 		slog.Info("HasSubscription (action status)",
-			slog.String("clientID", sc.cinfo.ClientID),
+			slog.String("clientID", sc.ClientID),
 			slog.String("thingID", notif.ThingID),
 			slog.String("name", notif.Name),
 		)
@@ -140,10 +143,8 @@ func (sc *ConnectionBase) HasSubscription(notif *msg.NotificationMessage) bool {
 
 // Initialize the connection base. Call this before use.
 func (c *ConnectionBase) Init(clientID, remoteAddr, cid string) {
-	c.cinfo = ConnectionInfo{
-		ConnectionID: cid,
-		ClientID:     clientID,
-	}
+	c.ClientID = clientID
+	c.ConnectionID = cid
 	c.remoteAddr = remoteAddr
 	c.isConnected.Store(true)
 }

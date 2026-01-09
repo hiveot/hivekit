@@ -4,39 +4,38 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"log/slog"
-	"net/http"
 	"net/url"
 	"os"
 	"sync/atomic"
 	"testing"
 	"time"
 
-	"github.com/hiveot/gocore/servers/httpbasic"
 	"github.com/hiveot/hivekit/go/lib/clients/authclient"
 	"github.com/hiveot/hivekit/go/lib/logging"
+	"github.com/hiveot/hivekit/go/lib/servers/httpbasic"
 	"github.com/hiveot/hivekit/go/modules"
 	"github.com/hiveot/hivekit/go/modules/services/certs/service/selfsigned"
 	"github.com/hiveot/hivekit/go/modules/transports"
+	authnapi "github.com/hiveot/hivekit/go/modules/transports/authn/api"
 	hiveotsse "github.com/hiveot/hivekit/go/modules/transports/hiveotsse"
 	sseapi "github.com/hiveot/hivekit/go/modules/transports/hiveotsse/api"
 	hiveotssemodule "github.com/hiveot/hivekit/go/modules/transports/hiveotsse/module"
 	"github.com/hiveot/hivekit/go/modules/transports/httpbasic/httpbasicapi"
 	httpbasicmodule "github.com/hiveot/hivekit/go/modules/transports/httpbasic/module"
-	"github.com/hiveot/hivekit/go/modules/transports/httpserver"
-	"github.com/hiveot/hivekit/go/modules/transports/httpserver/module"
+	"github.com/hiveot/hivekit/go/modules/transports/httptransport"
+	"github.com/hiveot/hivekit/go/modules/transports/httptransport/module"
 	wssserver "github.com/hiveot/hivekit/go/modules/transports/wss"
 	wssapi "github.com/hiveot/hivekit/go/modules/transports/wss/api"
 	wssmodule "github.com/hiveot/hivekit/go/modules/transports/wss/module"
 	"github.com/hiveot/hivekit/go/msg"
-	"github.com/hiveot/hivekit/go/utils/authn"
 	"github.com/hiveot/hivekit/go/wot"
 	"github.com/hiveot/hivekit/go/wot/td"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
+const appID = "connect-test"
 const testTimeout = time.Second * 300
 const testAgentID1 = "agent1"
 const testClientID1 = "client1"
@@ -54,7 +53,7 @@ var defaultProtocol = transports.ProtocolTypeHiveotSSE
 // var defaultProtocol = transports.ProtocolTypeWSS
 
 var transportServer transports.ITransportModule
-var dummyAuthenticator *authn.DummyAuthenticator
+var dummyAuthenticator *authnapi.DummyAuthenticator
 var certBundle = selfsigned.CreateTestCertBundle()
 
 // NewClient creates a new connected client with the given client ID. The
@@ -73,22 +72,22 @@ func NewTestClient(clientID string) (transports.IClientConnection, string) {
 	switch defaultProtocol {
 	case transports.ProtocolTypeHiveotSSE:
 		fullURL = testServerHiveotSseURL
-		cl = sseapi.NewHiveotSseClient(fullURL, clientID, caCert, sink, testTimeout)
+		cl = sseapi.NewHiveotSseClient(fullURL, caCert, sink, testTimeout)
 
 	case transports.ProtocolTypeWotWSS:
 		fullURL = testServerHiveotWssURL
-		cl = wssapi.NewWotWssClient(fullURL, clientID, caCert, sink, testTimeout)
+		cl = wssapi.NewWotWssClient(fullURL, caCert, sink, testTimeout)
 
 	case transports.ProtocolTypeHTTPBasic:
 		caCert := certBundle.CaCert
 		fullURL = testServerHttpURL
 		cl = httpbasicapi.NewHttpBasicClient(
-			fullURL, clientID, caCert, sink, nil, testTimeout)
+			fullURL, caCert, sink, nil, testTimeout)
 
 		//case transports.ProtocolTypeWotMQTTWSS:
 		//	fullURL = testServerMqttWssURL
 	}
-	err := cl.ConnectWithToken(token)
+	err := cl.ConnectWithToken(clientID, token)
 	if err != nil {
 		panic("NewClient failed:" + err.Error())
 	}
@@ -103,7 +102,7 @@ func NewTestClient(clientID string) (transports.IClientConnection, string) {
 func NewAgent(clientID string) (transports.IClientConnection, *transports.Agent, string) {
 	cc, token := NewTestClient(clientID)
 
-	agent := transports.NewAgent(cc, nil, nil, nil, nil, testTimeout)
+	agent := transports.NewAgent(clientID, cc, nil, nil, nil, nil, testTimeout)
 	return cc, agent, token
 }
 
@@ -116,7 +115,7 @@ func NewConsumer(clientID string) (
 	transports.IClientConnection, *transports.Consumer, string) {
 
 	cc, token := NewTestClient(clientID)
-	co := transports.NewConsumer(cc, testTimeout)
+	co := transports.NewConsumer(appID, cc, testTimeout)
 	return cc, co, token
 }
 
@@ -133,23 +132,14 @@ func NewConsumer(clientID string) (
 // start the 'defaultProtocol' transport server. This is one of http-basic,
 // http-sse, wot or hiveot websocket.
 // This panics if the server cannot be created
-func StartTransportModule(
-	notifHandler msg.NotificationHandler,
-	reqHandler msg.RequestHandler,
-	respHandler msg.ResponseHandler,
-) (srv transports.ITransportModule, cancelFunc func()) {
+func StartTransportModule(sink modules.IHiveModule) (srv transports.ITransportModule, cancelFunc func()) {
 
 	caCert := certBundle.CaCert
 	serverCert := certBundle.ServerCert
-	dummyAuthenticator = authn.NewDummyAuthenticator()
-	if reqHandler == nil {
-		reqHandler = DummyRequestHandler
-	}
-	if respHandler == nil {
-		respHandler = DummyResponseHandler
-	}
+	dummyAuthenticator = authnapi.NewDummyAuthenticator()
+
 	// cert uses localhost
-	cfg := httpserver.NewHttpServerConfig()
+	cfg := httptransport.NewHttpServerConfig()
 	// cfg.Address = fmt.Sprintf("%s:%d", certBundle.ServerAddr, testServerHttpPort)
 	cfg.Address = certBundle.ServerAddr
 	cfg.Port = testServerHttpPort
@@ -243,11 +233,11 @@ func TestMain(m *testing.M) {
 func TestStartStop(t *testing.T) {
 	t.Logf("---%s---\n", t.Name())
 
-	srv, cancelFn := StartTransportModule(nil, nil, nil)
+	srv, cancelFn := StartTransportModule(nil)
 	_ = srv
 	defer cancelFn()
 	cc1, co1, _ := NewConsumer(testClientID1)
-	defer cc1.Disconnect()
+	defer cc1.Close()
 	assert.NotNil(t, co1)
 
 	isConnected := cc1.IsConnected()
@@ -258,7 +248,7 @@ func TestStartStop(t *testing.T) {
 func TestLoginRefresh(t *testing.T) {
 	t.Logf("---%s---\n", t.Name())
 
-	srv, cancelFn := StartTransportModule(nil, nil, nil)
+	srv, cancelFn := StartTransportModule(nil)
 	defer cancelFn()
 	// ensure the client exists
 	cc1, co1, token1 := NewConsumer(testClientID1)
@@ -286,10 +276,12 @@ func TestLoginRefresh(t *testing.T) {
 	isConnected = cc1.IsConnected()
 	assert.True(t, isConnected)
 
-	parts, err := url.Parse(srv.GetConnectURL())
-	require.NoError(t, err)
-	authCl := authclient.NewAuthClient(parts.Host, certBundle.CaCert, testTimeout)
-	token2, err := authCl.RefreshToken(token1)
+	// parts, err := url.Parse(srv.GetConnectURL())
+	// require.NoError(t, err)
+	// authCl := authclient.NewAuthClient(parts.Host, certBundle.CaCert, testTimeout)
+	serverURL := srv.GetConnectURL()
+	authnClient := authnapi.NewAuthnClient(testClientID1, serverURL, certBundle.CaCert)
+	token2, err := authnClient.RefreshToken(token1)
 
 	// refresh should succeed
 	//token2, err := co1.RefreshToken(token1)
@@ -297,28 +289,28 @@ func TestLoginRefresh(t *testing.T) {
 	require.NotEmpty(t, token2)
 
 	// end the connection
-	cc1.Disconnect()
+	cc1.Close()
 	time.Sleep(time.Millisecond * 1)
 
 	// should be able to reconnect with the new token
 	// NOTE: the runtime session manager doesn't allow this as
 	// the session no longer exists, but the dummyAuthenticator doesn't care.
-	err = cc1.ConnectWithToken(token2)
+	err = cc1.ConnectWithToken(testClientID1, token2)
 	require.NoError(t, err)
 
 	//token3, err := co1.RefreshToken(token2)
-	token3, err := authCl.RefreshToken(token2)
+	token3, err := authnClient.RefreshToken(token2)
 	assert.NoError(t, err)
 	assert.NotEmpty(t, token3)
 
 	// end the session
-	cc1.Disconnect()
+	cc1.Close()
 }
 
 func TestLogout(t *testing.T) {
 	t.Logf("---%s---\n", t.Name())
 
-	srv, cancelFn := StartTransportModule(nil, nil, nil)
+	srv, cancelFn := StartTransportModule(nil)
 	_ = srv
 	defer cancelFn()
 
@@ -326,12 +318,13 @@ func TestLogout(t *testing.T) {
 	cc1, co1, token1 := NewConsumer(testClientID1)
 	_ = cc1
 	_ = co1
-	defer co1.Disconnect()
+	defer co1.Stop()
 	assert.NotEmpty(t, token1)
 
 	// logout
-	authCl := authclient.NewAuthClientFromConnection(cc1, token1)
-	err := authCl.Logout()
+	serverURL := srv.GetConnectURL()
+	authnClient := authnapi.NewAuthnClient(testClientID1, serverURL, certBundle.CaCert)
+	err := authnClient.Logout(token1)
 
 	//authenticator.Logout(cc1, "")
 	//err := co1.Logout()
@@ -339,7 +332,7 @@ func TestLogout(t *testing.T) {
 	assert.NoError(t, err)
 
 	// This causes Refresh to fail
-	token2, err := authCl.RefreshToken(token1)
+	token2, err := authnClient.RefreshToken(token1)
 	//token2, err := co1.RefreshToken(token1)
 	assert.Error(t, err)
 	assert.Empty(t, token2)
@@ -382,20 +375,20 @@ func TestLogout(t *testing.T) {
 
 func TestBadRefresh(t *testing.T) {
 	t.Logf("---%s---\n", t.Name())
-	srv, cancelFn := StartTransportModule(nil, nil, nil)
+	srv, cancelFn := StartTransportModule(nil)
 	defer cancelFn()
 	cc1, co1, token1 := NewConsumer(testClientID1)
 	_ = co1
 	_ = token1
-	defer cc1.Disconnect()
+	defer cc1.Close()
 
 	// set the token
 	t.Log("Expecting SetBearerToken('bad-token') to fail")
-	err := cc1.ConnectWithToken("bad-token")
+	err := cc1.ConnectWithToken(testClientID1, "bad-token")
 	require.Error(t, err)
 
 	// reconnect with a valid token and connect with a bad client-id
-	err = cc1.ConnectWithToken(token1)
+	err = cc1.ConnectWithToken(testClientID1, token1)
 	assert.NoError(t, err)
 	parts, _ := url.Parse(srv.GetConnectURL())
 	authCl := authclient.NewAuthClient(
@@ -404,7 +397,7 @@ func TestBadRefresh(t *testing.T) {
 	//validToken, err := co1.RefreshToken(token1)
 	assert.NoError(t, err)
 	assert.NotEmpty(t, validToken)
-	cc1.Disconnect()
+	cc1.Close()
 }
 
 // Auto-reconnect using hub client and server
@@ -416,7 +409,7 @@ func TestReconnect(t *testing.T) {
 	const agentID = "agent1"
 	var reconnectedCallback atomic.Bool
 	var dThingID = td.MakeDigiTwinThingID(agentID, thingID)
-	var srv transports.ITransportModule
+	var tpm transports.ITransportModule
 	var cancelFn func()
 
 	// this test handler receives an action and returns a 'pending status',
@@ -448,8 +441,10 @@ func TestReconnect(t *testing.T) {
 		err = replyTo(resp)
 		return err
 	}
-	// start the servers and connect as a client
-	srv, cancelFn = StartTransportModule(nil, handleRequest, nil)
+	// start the servers and handle a request
+	tmpSink := &modules.HiveModuleBase{}
+	tmpSink.SetRequestHandler(handleRequest)
+	tpm, cancelFn = StartTransportModule(tmpSink)
 	defer cancelFn()
 
 	// connect as client
@@ -457,14 +452,14 @@ func TestReconnect(t *testing.T) {
 	//token := dummyAuthenticator.CreateSessionToken(testClientID1, "", 0)
 	//err := cc1.ConnectWithToken(token)
 	//require.NoError(t, err)
-	defer cc1.Disconnect()
+	defer cc1.Close()
 
 	//  wait until the connection is established
 
 	// 3. close connection server side but keep the session.
 	// This should trigger auto-reconnect on the client.
 	t.Log("--- force disconnecting all clients ---")
-	srv.CloseAll()
+	tpm.CloseAll()
 
 	// give client time to reconnect
 	ctx1, cancelFn1 := context.WithTimeout(context.Background(), time.Second)
@@ -493,11 +488,11 @@ func TestReconnect(t *testing.T) {
 func TestPing(t *testing.T) {
 	t.Logf("---%s---\n", t.Name())
 
-	srv, cancelFn := StartTransportModule(nil, nil, nil)
+	srv, cancelFn := StartTransportModule(nil)
 	_ = srv
 	defer cancelFn()
 	cc1, co1, _ := NewConsumer(testClientID1)
-	defer cc1.Disconnect()
+	defer cc1.Close()
 
 	//_, err := cc1.ConnectWithPassword(testClientID1)
 	//require.NoError(t, err)
@@ -528,7 +523,7 @@ func TestPing(t *testing.T) {
 func TestServerURL(t *testing.T) {
 	t.Logf("---%s---\n", t.Name())
 
-	srv, cancelFn := StartTransportModule(nil, nil, nil)
+	srv, cancelFn := StartTransportModule(nil)
 	defer cancelFn()
 	serverURL := srv.GetConnectURL()
 	_, err := url.Parse(serverURL)
@@ -543,44 +538,42 @@ func TestHttpBasic(t *testing.T) {
 
 	// all transport servers use http-basic
 	// this also creates a dummy authenticator
-	srv, cancelFn := StartTransportModule(nil, nil, nil)
+	srv, cancelFn := StartTransportModule(nil)
 	_ = srv
 	defer cancelFn()
 	token1 := dummyAuthenticator.AddClient(testClientID1, testPass)
 	_ = token1
+	// authCl := authnapi.NewAuthClient(srv.GetConnectURL(), certBundle.CaCert, 0)
 
 	// connect using http-basic
 	serverURL := srv.GetConnectURL()
 
-	cl := httpbasicapi.NewHttpBasicClient(serverURL, testClientID1,
-		certBundle.CaCert, clientSink, nil, time.Second)
+	cl := httpbasicapi.NewHttpBasicClient(
+		serverURL, certBundle.CaCert, clientSink, nil, time.Second*1)
+	tlscl := cl.GetTlsClient()
+
 	//err := htb.ConnectWithToken(token)
 	//require.NoError(t, err)
 
 	// 1: Ping
-	_, _, code, err := cl.Send(http.MethodGet, httpbasic.HttpGetPingPath, nil)
+	code, _, err := tlscl.Get(httpbasic.HttpGetPingPath)
 	require.NoError(t, err)
 	require.Equal(t, 200, code)
 
 	// 2: Login
-	loginBody := fmt.Sprintf(`{"login":"%s", "password":"%s"}`, testClientID1, testPass)
-	body, headers, code, err := cl.Send(http.MethodPost, httpbasic.HttpPostLoginPath, []byte(loginBody))
+	// loginBody := fmt.Sprintf(`{"login":"%s", "password":"%s"}`, testClientID1, testPass)
+	token, err := authnapi.LoginWithPassword(tlscl, testClientID1, testPass)
 	require.NoError(t, err)
-	require.Equal(t, 200, code)
-	require.NotEmpty(t, body)
-	require.NotEmpty(t, headers)
-	var token2 string
-	err = json.Unmarshal(body, &token2)
-	require.NoError(t, err)
+	require.NotEmpty(t, token)
 
 	// 3: Refresh using auth token
-	err = cl.SetBearerToken(token2)
+	err = cl.ConnectWithToken(testClientID1, token)
 	assert.NoError(t, err)
-	refreshBody, _ := json.Marshal(token2)
-	body, headers, code, err = cl.Send(http.MethodPost, httpbasic.HttpPostRefreshPath, refreshBody)
+	refreshBody, _ := json.Marshal(token)
+
+	body, statusCode, err := tlscl.Post(httpbasic.HttpPostRefreshPath, refreshBody)
 	require.NoError(t, err)
-	require.Equal(t, 200, code)
+	require.Equal(t, 200, statusCode)
 	require.NotEmpty(t, body)
-	require.NotEmpty(t, headers)
 
 }

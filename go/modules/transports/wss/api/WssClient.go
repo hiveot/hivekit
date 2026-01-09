@@ -19,7 +19,8 @@ import (
 	"github.com/hiveot/hivekit/go/modules"
 	"github.com/hiveot/hivekit/go/modules/transports"
 	"github.com/hiveot/hivekit/go/modules/transports/direct"
-	"github.com/hiveot/hivekit/go/modules/transports/httpserver/httpapi"
+	"github.com/hiveot/hivekit/go/modules/transports/httptransport"
+	"github.com/hiveot/hivekit/go/modules/transports/httptransport/httpapi"
 	"github.com/hiveot/hivekit/go/msg"
 
 	"github.com/teris-io/shortid"
@@ -39,8 +40,7 @@ type WssClient struct {
 	// authentication token
 	bearerToken string
 
-	// Connection information such as clientID, cid, address, protocol etc
-	cinfo transports.ConnectionInfo
+	caCert *x509.Certificate
 
 	isConnected atomic.Bool
 	// lastError   atomic.Pointer[error]
@@ -64,11 +64,14 @@ type WssClient struct {
 	sink modules.IHiveModule
 
 	// http2 client for posting messages
-	tlsClient *httpapi.TLSClient
+	tlsClient httptransport.ITlsClient
 
 	// underlying websocket connection
 	wssConn     *websocket.Conn
 	wssCancelFn context.CancelFunc
+
+	wssURL  string
+	wssPath string
 }
 
 // websocket connection status handler
@@ -100,15 +103,34 @@ func (cl *WssClient) _send(wssMsg any) (err error) {
 	return err
 }
 
+// Disconnect from the server
+func (cl *WssClient) Close() {
+	slog.Info("Close",
+		slog.String("clientID", cl.tlsClient.GetClientID()),
+	)
+	// dont try to reconnect
+	cl.retryOnDisconnect.Store(false)
+
+	cl.mux.Lock()
+	defer cl.mux.Unlock()
+	if cl.wssCancelFn != nil {
+		cl.wssCancelFn()
+		cl.wssCancelFn = nil
+	}
+}
+
 // ConnectWithToken attempts to establish a websocket connection using a valid auth token
 // If a connection exists it is closed first.
-func (cl *WssClient) ConnectWithToken(token string) error {
+func (cl *WssClient) ConnectWithToken(clientID string, token string) error {
 
 	// ensure disconnected (note that this resets retryOnDisconnect)
-	cl.Disconnect()
+	cl.Close()
 
 	cl.bearerToken = token
-	wssCancelFn, wssConn, err := ConnectWSS(cl.cinfo, token,
+	cl.tlsClient.ConnectWithToken(clientID, token)
+	hostPort := cl.tlsClient.GetHostPort()
+	wssCancelFn, wssConn, err := ConnectWSS(
+		cl.tlsClient, hostPort, cl.wssPath, cl.bearerToken, cl.caCert,
 		cl._onConnectionChanged, cl.HandleWssMessage)
 
 	cl.mux.Lock()
@@ -122,25 +144,14 @@ func (cl *WssClient) ConnectWithToken(token string) error {
 	return err
 }
 
-// Disconnect from the server
-func (cl *WssClient) Disconnect() {
-	slog.Debug("Disconnect",
-		slog.String("clientID", cl.cinfo.ClientID),
-	)
-	// dont try to reconnect
-	cl.retryOnDisconnect.Store(false)
-
-	cl.mux.Lock()
-	defer cl.mux.Unlock()
-	if cl.wssCancelFn != nil {
-		cl.wssCancelFn()
-		cl.wssCancelFn = nil
-	}
+// // GetClientID returns the client's connection details
+func (cl *WssClient) GetClientID() string {
+	return cl.tlsClient.GetClientID()
 }
 
-// GetConnectionInfo returns the client's connection details
-func (cl *WssClient) GetConnectionInfo() transports.ConnectionInfo {
-	return cl.cinfo
+// // GetConnectionID returns the client's connection details
+func (cl *WssClient) GetConnectionID() string {
+	return cl.tlsClient.GetConnectionID()
 }
 
 func (cl *WssClient) GetTlsClient() *http.Client {
@@ -156,6 +167,7 @@ func (cl *WssClient) HandleWssMessage(raw []byte) {
 	var notif *msg.NotificationMessage
 	var req *msg.RequestMessage
 	var resp *msg.ResponseMessage
+	clientID := cl.tlsClient.GetClientID()
 
 	// // for testing:
 	// var jsonObj any
@@ -182,7 +194,7 @@ func (cl *WssClient) HandleWssMessage(raw []byte) {
 		// consumer receives a notification (when subscribe to properties or events)
 		if cl.sink == nil {
 			slog.Error("HandleWssMessage: no sink set. Notification is dropped.",
-				"clientID", cl.cinfo.ClientID,
+				"clientID", clientID,
 				"operation", notif.Operation,
 				"name", notif.Name,
 			)
@@ -196,7 +208,7 @@ func (cl *WssClient) HandleWssMessage(raw []byte) {
 		if cl.sink == nil {
 			err = fmt.Errorf("HandleWssMessage: no sink set. Request is dropped.")
 			slog.Error("HandleWssMessage: no sink set. Request is dropped.",
-				"clientID", cl.cinfo.ClientID,
+				"clientID", clientID,
 				"operation", req.Operation,
 				"name", req.Name,
 				"senderID", req.SenderID,
@@ -221,7 +233,7 @@ func (cl *WssClient) HandleWssMessage(raw []byte) {
 		if !handled {
 			if cl.sink == nil {
 				slog.Error("HandleWssMessage: no sink set. Async Response is ignored",
-					"clientID", cl.cinfo.ClientID,
+					"clientID", clientID,
 					"operation", resp.Operation,
 					"name", resp.Name,
 				)
@@ -248,11 +260,12 @@ func (cl *WssClient) Reconnect() {
 	var err error
 	var backoffDuration time.Duration = time.Duration(rand.Uint64N(uint64(time.Second * 2)))
 
+	clientID := cl.tlsClient.GetClientID()
 	for i := 0; cl.maxReconnectAttempts == 0 || i < cl.maxReconnectAttempts; i++ {
 		slog.Warn("Reconnecting attempt",
-			slog.String("clientID", cl.cinfo.ClientID),
+			slog.String("clientID", clientID),
 			slog.Int("i", i))
-		err = cl.ConnectWithToken(cl.bearerToken)
+		err = cl.ConnectWithToken(clientID, cl.bearerToken)
 		if err == nil {
 			break
 		}
@@ -283,9 +296,9 @@ func (cl *WssClient) Reconnect() {
 // In WoT Agents are typically a server, not a client, so this is intended for
 // agents that use connection-reversal.
 func (cl *WssClient) SendNotification(notif *msg.NotificationMessage) error {
-
+	clientID := cl.tlsClient.GetClientID()
 	slog.Debug("SendNotification",
-		slog.String("clientID", cl.cinfo.ClientID),
+		slog.String("clientID", clientID),
 		slog.String("correlationID", notif.CorrelationID),
 		slog.String("operation", notif.Operation),
 		slog.String("thingID", notif.ThingID),
@@ -300,7 +313,7 @@ func (cl *WssClient) SendNotification(notif *msg.NotificationMessage) error {
 	err = cl._send(wssMsg)
 	if err != nil {
 		slog.Warn("SendNotification failed",
-			"clientID", cl.cinfo.ClientID,
+			"clientID", clientID,
 			"err", err.Error())
 	}
 	return err
@@ -310,9 +323,9 @@ func (cl *WssClient) SendNotification(notif *msg.NotificationMessage) error {
 // This transforms the request to the protocol message and sends it to the server.
 func (cl *WssClient) SendRequest(
 	req *msg.RequestMessage, replyTo msg.ResponseHandler) error {
-
+	clientID := cl.tlsClient.GetClientID()
 	slog.Debug("SendRequest",
-		slog.String("clientID", cl.cinfo.ClientID),
+		slog.String("clientID", clientID),
 		slog.String("correlationID", req.CorrelationID),
 		slog.String("operation", req.Operation),
 		slog.String("thingID", req.ThingID),
@@ -357,13 +370,14 @@ func (cl *WssClient) SendRequest(
 // This transforms the response to the protocol message and sends it to the server.
 // Responses without correlationID are subscription notifications.
 func (cl *WssClient) SendResponse(resp *msg.ResponseMessage) error {
+	clientID := cl.tlsClient.GetClientID()
 	errMsg := ""
 	if resp.Error != nil {
 		errMsg = resp.Error.String()
 	}
 	slog.Debug("SendResponse",
 		slog.String("operation", resp.Operation),
-		slog.String("clientID", cl.cinfo.ClientID),
+		slog.String("clientID", clientID),
 		slog.String("thingID", resp.ThingID),
 		slog.String("name", resp.Name),
 		slog.String("error", errMsg),
@@ -396,7 +410,7 @@ func (cc *WssClient) SetSink(sink modules.IHiveModule) {
 //
 // This uses the Hiveot passthrough message converter.
 //
-//	wssURL is the full websocket connection URL
+//	wssURL is the full websocket connection URL including path
 //	clientID is the authentication ID of the consumer or agent
 //	caCert is the server CA for TLS connection validation
 //	timeout is the maximum connection wait time
@@ -405,25 +419,27 @@ func NewHiveotWssClient(
 	timeout time.Duration) *WssClient {
 
 	// ensure the URL has port as 443 is not valid for this
-	parts, _ := url.Parse(wssURL)
-	if parts.Port() == "" {
-		parts.Host = fmt.Sprintf("%s:%d", parts.Hostname(), servers.DefaultHttpsPort)
-		wssURL = parts.String()
+	urlParts, err := url.Parse(wssURL)
+	if err != nil {
+		slog.Error("Invalid URL")
+		return nil
+	}
+	hostPort := urlParts.Host
+	wssPath := urlParts.Path
+
+	if timeout == 0 {
+		timeout = transports.DefaultRpcTimeout
 	}
 
-	cinfo := transports.ConnectionInfo{
-		CaCert:       caCert,
-		ClientID:     clientID,
-		ConnectionID: "wss-" + shortid.MustGenerate(),
-		ConnectURL:   wssURL,
-		//ProtocolType: converter.GetProtocolType(),
-		Timeout: timeout,
-	}
+	tlsClient := httpapi.NewTLSClient(hostPort, nil, caCert, timeout)
+
 	cl := WssClient{
-		cinfo:                cinfo,
 		maxReconnectAttempts: 0,
 		msgConverter:         direct.NewPassthroughMessageConverter(),
-		rnrChan:              transports.NewRnRChan(),
+		// rnrChan:              transports.NewRnRChan(),
+		tlsClient: tlsClient,
+		wssPath:   wssPath,
+		wssURL:    wssURL,
 	}
 	//cl.Init(fullURL, clientID, clientCert, caCert, getForm, timeout)
 	return &cl
@@ -435,13 +451,15 @@ func NewHiveotWssClient(
 // can be mapped to a RequestMessage and ResponseMessage. It is used to support
 // both hiveot and WoT websocket message formats.
 //
+// Users must use ConnectWithToken to authenticate and connect.
+//
 //	wssURL is the full websocket connection URL
 //	clientID is the authentication ID of the consumer or agent
 //	caCert is the server CA for TLS connection validation
 //	sink is the application module receiving notifications or in case of agents, requests.
 //	timeout is the maximum connection wait time
 func NewWotWssClient(
-	wssURL string, clientID string, caCert *x509.Certificate,
+	wssURL string, caCert *x509.Certificate,
 	sink modules.IHiveModule, timeout time.Duration) *WssClient {
 
 	// ensure the URL has port as 443 is not valid for this
@@ -453,16 +471,8 @@ func NewWotWssClient(
 	hostPort := urlParts.Host
 	tlsClient := httpapi.NewTLSClient(hostPort, nil, caCert, timeout)
 
-	cinfo := transports.ConnectionInfo{
-		CaCert:       caCert,
-		ClientID:     clientID,
-		ConnectionID: "wss-" + shortid.MustGenerate(),
-		ConnectURL:   wssURL,
-		//ProtocolType: converter.GetProtocolType(),
-		Timeout: timeout,
-	}
 	cl := WssClient{
-		cinfo:                cinfo,
+		caCert:               caCert,
 		maxReconnectAttempts: 0,
 		msgConverter:         NewWotWssMsgConverter(),
 		rnrChan:              transports.NewRnRChan(),

@@ -100,16 +100,3 @@ func (srv *HttpBasicModule) createThingLevelForm(op string, httpMethod string, t
 	//form["contentType"] = "application/json"
 	return form
 }
-
-// GetAuthServerURI returns the URI of the authentication server to include in the TD security scheme
-// FIXME: Should this be some kind of authorization flow with a web page?
-// This is currently just the login endpoint (post /authn/login).
-// The http server might need to include a web page where users can enter their login
-// name and password, although that won't work for machines... tbd
-//
-// Note that web browsers do not directly access the runtime endpoints.
-// Instead a web server (hiveoview or other) provides the user interface.
-// Including the auth endpoint here is currently just a hint. How to integrate this?
-func (m *HttpBasicModule) GetAuthServerURI() string {
-	return httpbasic.HttpPostLoginPath
-}

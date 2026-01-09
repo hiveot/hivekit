@@ -19,6 +19,7 @@ import (
 //
 // This implements the IBucket interface.
 type BucketMsgClient struct {
+	modules.HiveModuleBase
 	// thingID ID of the storage service instance
 	thingID string // bucket store service instance ID
 	sink    modules.IHiveModule
@@ -28,8 +29,8 @@ type BucketMsgClient struct {
 func (cl *BucketMsgClient) Delete(key string) error {
 	req := msg.NewRequestMessage(
 		wot.OpInvokeAction, cl.thingID, ActionDelete, key, "")
-	resp := cl.GetSink().HandleRequest(req)
-	return resp.AsError()
+	_, err := cl.ForwardRequestWait(req)
+	return err
 }
 
 // Get reads the record with the given key.
@@ -37,7 +38,7 @@ func (cl *BucketMsgClient) Delete(key string) error {
 func (cl *BucketMsgClient) Get(key string) (doc string, err error) {
 
 	req := msg.NewRequestMessage(wot.OpInvokeAction, cl.thingID, ActionGet, key, "")
-	resp := cl.sink.HandleRequest(req)
+	resp, err := cl.ForwardRequestWait(req)
 
 	err = resp.Decode(&doc)
 	if err != nil {
@@ -51,7 +52,7 @@ func (cl *BucketMsgClient) GetMultiple(keys []string) (values map[string]string,
 
 	req := msg.NewRequestMessage(
 		wot.OpInvokeAction, cl.thingID, ActionGetMultiple, keys, "")
-	resp := cl.sink.HandleRequest(req)
+	resp, err := cl.ForwardRequestWait(req)
 	err = resp.Decode(&values)
 	return values, err
 }
@@ -64,8 +65,7 @@ func (cl *BucketMsgClient) Set(key string, doc string) error {
 	}
 	req := msg.NewRequestMessage(
 		wot.OpInvokeAction, cl.thingID, ActionSet, args, "")
-	resp := cl.sink.HandleRequest(req)
-	err := resp.AsError()
+	_, err := cl.ForwardRequestWait(req)
 	return err
 }
 
@@ -77,8 +77,7 @@ func (cl *BucketMsgClient) SetMultiple(kv map[string]string) error {
 	}
 	req := msg.NewRequestMessage(
 		wot.OpInvokeAction, cl.thingID, ActionSetMultiple, args, "")
-	resp := cl.sink.HandleRequest(req)
-	err := resp.AsError()
+	_, err := cl.ForwardRequestWait(req)
 	return err
 }
 
@@ -92,5 +91,6 @@ func NewBucketStoreMsgClient(thingID string, sink modules.IHiveModule) *BucketMs
 		thingID: thingID,
 		sink:    sink,
 	}
+	cl.Init(thingID+"-client", sink)
 	return &cl
 }

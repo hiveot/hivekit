@@ -16,12 +16,32 @@ import (
 
 const DefaultRpcTimeout = time.Second * 60 // 60 for testing; 3 seconds
 
-// Consumer is a helper providing a Golang API for consumer side WoT operations using the
-// standard RRN (request-response-notification) messaging.
+// Consumer is a module representing a WoT consumer.
+// This implements the IHiveModule interface.
 //
-// This supports standard operations such as invoke action, observe properties. Consumers
-// can register callbacks for receiving events, updates of properties and changes in the connection.
+// The consumer is linked to a transport client from which it receives notification
+// and through which it sends requests.
+//
+// There are 2 ways an application can receive incoming messages:
+// 1. register handlers using SetAppNotificationHandler, SetAppRequestHandler, SetAppResponseHandler
+// 2. override the HandleNotification, HandleRequest, HandleResponse methods
+//
+// TBD: consider registering a sink instead of the handlers, so it can attach to a module.
+//
+// This is best used by embedding in the application and providing the application
+// as the sink to a client or server connection.
+// Alternatively, the application can override the HandleNotification|Request|Response methods
+//
+// Consumers can register callbacks for receiving events, updates of properties and changes in
+// the connection.
+//
+// This implements the IHiveModule interface so it can be used as a sink for transports
+// or other modules.
 type Consumer struct {
+	// This consumer is a sink for the connection
+	// modules.HiveModuleBase
+	moduleID string
+
 	// application callback for reporting connection status change
 	appConnectHandlerPtr atomic.Pointer[func(connected bool, err error, c IConnection)]
 
@@ -32,55 +52,124 @@ type Consumer struct {
 	appNotificationHandlerPtr atomic.Pointer[func(msg *msg.NotificationMessage)]
 
 	// The authenticated transport connection for delivering and receiving requests and responses
-	tp IConnection
+	cc IClientConnection
 
 	mux sync.RWMutex
 
 	// The timeout to use when waiting for a response
 	rpcTimeout time.Duration
-
-	// rnrChan is the channel for receiving async responses
-	rnrChan *RnRChan
-}
-
-// Disconnect the client connection.
-// Do not use this client after disconnect.
-func (cl *Consumer) Disconnect() {
-	cl.tp.Disconnect()
-	// the connect callback is still needed to notify the client of a disconnect
 }
 
 // GetClientID returns the client's account ID
-func (cl *Consumer) GetClientID() string {
-	cinfo := cl.tp.GetConnectionInfo()
-	return cinfo.ClientID
+func (co *Consumer) GetClientID() string {
+	return co.cc.GetClientID()
+}
+
+// GetModuleID returns the application
+func (co *Consumer) GetModuleID() string {
+	return co.moduleID
 }
 
 // GetConnection returns the underlying connection of this consumer
-func (cl *Consumer) GetConnection() IConnection {
-	return cl.tp
+func (co *Consumer) GetConnection() IConnection {
+	return co.cc
+}
+
+// GetTM returns empty
+func (co *Consumer) GetTM() string {
+	return ""
+}
+
+// HandleNotification passes notifications to the registered application handler.
+func (co *Consumer) HandleNotification(notif *msg.NotificationMessage) {
+
+	hPtr := co.appNotificationHandlerPtr.Load()
+	if hPtr == nil {
+		if notif.Operation == wot.OpInvokeAction {
+			// not everyone is interested in action progress updates
+			slog.Info("HandleNotification: Action progress received. No handler registered",
+				"operation", notif.Operation,
+				"clientID", co.GetClientID(),
+				"thingID", notif.ThingID,
+				"name", notif.Name,
+			)
+		} else {
+			// When subscribing then a handler is expected
+			slog.Error("HandleNotification: Notification received but no handler registered",
+				"correlationID", notif.CorrelationID,
+				"operation", notif.Operation,
+				"clientID", co.GetClientID(),
+				"thingID", notif.ThingID,
+				"name", notif.Name,
+			)
+		}
+		return
+	}
+	// pass the response to the registered handler
+	slog.Info("HandleNotification",
+		"operation", notif.Operation,
+		"clientID", co.GetClientID(),
+		"thingID", notif.ThingID,
+		"name", notif.Name,
+		"value", notif.ToString(50),
+	)
+	(*hPtr)(notif)
+}
+
+func (co *Consumer) HandleRequest(req *msg.RequestMessage, replyTo msg.ResponseHandler) error {
+	return fmt.Errorf("Unexpected request op='%s', thingID='%s', name='%s', from '%s'",
+		req.Operation, req.ThingID, req.Name, req.SenderID)
+}
+
+// HandleResponse passes a response to the registered app response handler.
+func (co *Consumer) HandleResponse(resp *msg.ResponseMessage) error {
+
+	// handle the response as an async response with no wait handler registered
+	hPtr := co.appResponseHandlerPtr.Load()
+	if hPtr == nil {
+		// at least one of the handlers should be registered
+		slog.Error("Response received but no handler registered",
+			"correlationID", resp.CorrelationID,
+			"operation", resp.Operation,
+			"clientID", co.GetClientID(),
+			"thingID", resp.ThingID,
+			"name", resp.Name,
+		)
+		err := fmt.Errorf("response received but no handler registered")
+		return err
+	}
+	// pass the response to the registered handler
+	slog.Info("onResponse (async)",
+		"operation", resp.Operation,
+		"clientID", co.GetClientID(),
+		"thingID", resp.ThingID,
+		"name", resp.Name,
+		"value", resp.ToString(50),
+	)
+	return (*hPtr)(resp)
 }
 
 // InvokeAction invokes an action on a thing and wait for the response
 // If the response type is known then provide it with output, otherwise use interface{}
-func (cl *Consumer) InvokeAction(
-	dThingID, name string, input any, output any) error {
+func (co *Consumer) InvokeAction(
+	thingID, name string, input any, output any) error {
 
-	req := msg.NewRequestMessage(wot.OpInvokeAction, dThingID, name, input, "")
-	resp, err := cl.SendRequest(req, true)
+	err := co.Rpc(wot.OpInvokeAction, thingID, name, input, output)
+	// req := msg.NewRequestMessage(wot.OpInvokeAction, dThingID, name, input, "")
+	// resp, err := co.SendRequest(req, true)
 
-	if err != nil {
-		return err
-	} else if resp.Error != nil {
-		return resp.Error.AsError()
-	}
-	err = resp.Decode(output)
+	// if err != nil {
+	// 	return err
+	// } else if resp.Error != nil {
+	// 	return resp.Error.AsError()
+	// }
+	// err = resp.Decode(output)
 	return err
 }
 
 // IsConnected returns true if the consumer has a connection
-func (cl *Consumer) IsConnected() bool {
-	return cl.tp.IsConnected()
+func (co *Consumer) IsConnected() bool {
+	return co.cc.IsConnected()
 }
 
 // Logout requests invalidating all client sessions.
@@ -98,108 +187,40 @@ func (cl *Consumer) IsConnected() bool {
 //
 //	thingID is empty for all things
 //	name is empty for all properties of the selected things
-func (cl *Consumer) ObserveProperty(thingID string, name string) error {
+func (co *Consumer) ObserveProperty(thingID string, name string) error {
 	op := wot.OpObserveProperty
 	if name == "" {
 		op = wot.OpObserveAllProperties
 	}
+
 	req := msg.NewRequestMessage(op, thingID, name, nil, "")
-	resp, err := cl.SendRequest(req, true)
-	_ = resp
+	err := co.SendRequest(req, nil)
 	return err
 }
 
 // connection status handler
-func (cl *Consumer) onConnect(connected bool, err error, c IConnection) {
-	hPtr := cl.appConnectHandlerPtr.Load()
+func (co *Consumer) onConnect(connected bool, err error, c IConnection) {
+	hPtr := co.appConnectHandlerPtr.Load()
 	if hPtr != nil {
 		(*hPtr)(connected, err, c)
 	}
 }
 
-// onNotification passes a response to the RnR response channel and falls back to pass
-// it to the registered application response handler. If neither is available
-// then turn the response in a notification and pass it to the notification handler.
-func (cl *Consumer) onNotification(notif *msg.NotificationMessage) {
+// Ping the server and wait for a response.
+// Intended to ensure the server is reachable.
+func (co *Consumer) Ping() (err error) {
+	// correlationID := shortid.MustGenerate()
+	// req := msg.NewRequestMessage(wot.HTOpPing, "", "", nil, correlationID)
+	var value any
 
-	hPtr := cl.appNotificationHandlerPtr.Load()
-	if hPtr == nil {
-		if notif.Operation == wot.OpInvokeAction {
-			// not everyone is interested in action progress updates
-			slog.Info("onNotification: Action progress received. No handler registered",
-				"operation", notif.Operation,
-				"clientID", cl.GetClientID(),
-				"thingID", notif.ThingID,
-				"name", notif.Name,
-			)
-		} else {
-			// When subscribing then a handler is expected
-			slog.Error("onNotification: Notification received but no handler registered",
-				"correlationID", notif.CorrelationID,
-				"operation", notif.Operation,
-				"clientID", cl.GetClientID(),
-				"thingID", notif.ThingID,
-				"name", notif.Name,
-			)
-		}
-		return
-	}
-	// pass the response to the registered handler
-	slog.Info("onNotification",
-		"operation", notif.Operation,
-		"clientID", cl.GetClientID(),
-		"thingID", notif.ThingID,
-		"name", notif.Name,
-		"value", notif.ToString(50),
-	)
-	(*hPtr)(notif)
-}
+	// TBD: should this be transport specific?
 
-// onResponse passes a response to the RnR response channel and falls back to pass
-// it to the registered application response handler. If neither is available
-// then turn the response in a notification and pass it to the notification handler.
-func (cl *Consumer) onResponse(resp *msg.ResponseMessage) error {
-
-	handled := cl.rnrChan.HandleResponse(resp)
-	if handled {
-		return nil
-	}
-
-	// handle the response as an async response with no wait handler registered
-	hPtr := cl.appResponseHandlerPtr.Load()
-	if hPtr == nil {
-		// at least one of the handlers should be registered
-		slog.Error("Response received but no handler registered",
-			"correlationID", resp.CorrelationID,
-			"operation", resp.Operation,
-			"clientID", cl.GetClientID(),
-			"thingID", resp.ThingID,
-			"name", resp.Name,
-		)
-		err := fmt.Errorf("response received but no handler registered")
-		return err
-	}
-	// pass the response to the registered handler
-	slog.Info("onResponse (async)",
-		"operation", resp.Operation,
-		"clientID", cl.GetClientID(),
-		"thingID", resp.ThingID,
-		"name", resp.Name,
-		"value", resp.ToString(50),
-	)
-	return (*hPtr)(resp)
-}
-
-// Ping the server and wait for a pong response
-// This uses the underlying transport native method of ping-pong.
-func (cl *Consumer) Ping() error {
-	correlationID := shortid.MustGenerate()
-	req := msg.NewRequestMessage(wot.HTOpPing, "", "", nil, correlationID)
-	resp, err := cl.SendRequest(req, true)
+	err = co.Rpc(wot.HTOpPing, "", "", nil, &value)
+	// resp, err := co.SendRequest(req, true)
 	if err != nil {
 		return err
 	}
-	if resp.Value == nil {
+	if value == nil {
 		return errors.New("ping returned successfully but received no data")
 	}
 	return nil
@@ -214,10 +235,10 @@ func (cl *Consumer) Ping() error {
 // The underlying protocol binding constructs the ActionStatus from the
 // protocol specific messages.
 // The hiveot protocol passes this as-is as the output.
-func (cl *Consumer) QueryAction(thingID, name string) (
+func (co *Consumer) QueryAction(thingID, name string) (
 	value msg.ActionStatus, err error) {
 
-	err = cl.Rpc(wot.OpQueryAction, thingID, name, nil, &value)
+	err = co.Rpc(wot.OpQueryAction, thingID, name, nil, &value)
 	// if state is empty then this action has not run before
 	if err == nil && value.State == "" {
 		value.ThingID = thingID
@@ -239,10 +260,10 @@ func (cl *Consumer) QueryAction(thingID, name string) (
 // This depends on the underlying protocol binding to construct appropriate
 // ActionStatus message. All hiveot protocols include full information.
 // WoT bindings might not include update timestamp and such.
-func (cl *Consumer) QueryAllActions(thingID string) (
+func (co *Consumer) QueryAllActions(thingID string) (
 	values map[string]msg.ActionStatus, err error) {
 
-	err = cl.Rpc(wot.OpQueryAllActions, thingID, "", nil, &values)
+	err = co.Rpc(wot.OpQueryAllActions, thingID, "", nil, &values)
 	return values, err
 }
 
@@ -263,10 +284,10 @@ func (cl *Consumer) QueryAllActions(thingID string) (
 // This depends on the underlying protocol binding to construct appropriate
 // ResponseMessages and include information such as Timestamp. All hiveot protocols
 // include full information. WoT bindings might be more limited.
-func (cl *Consumer) ReadAllProperties(thingID string) (
+func (co *Consumer) ReadAllProperties(thingID string) (
 	values map[string]msg.ThingValue, err error) {
 
-	err = cl.Rpc(wot.OpReadAllProperties, thingID, "", nil, &values)
+	err = co.Rpc(wot.OpReadAllProperties, thingID, "", nil, &values)
 	return values, err
 }
 
@@ -296,10 +317,10 @@ func (cl *Consumer) ReadAllProperties(thingID string) (
 // This depends on the underlying protocol binding to construct appropriate
 // ResponseMessages and include information such as Timestamp. All hiveot protocols
 // include full information. WoT bindings might be too limited.
-func (cl *Consumer) ReadProperty(thingID, name string) (
+func (co *Consumer) ReadProperty(thingID, name string) (
 	value msg.ThingValue, err error) {
 
-	err = cl.Rpc(wot.OpReadProperty, thingID, name, nil, &value)
+	err = co.Rpc(wot.OpReadProperty, thingID, name, nil, &value)
 	return value, err
 }
 
@@ -332,32 +353,34 @@ func (cl *Consumer) ReadProperty(thingID, name string) (
 
 // Rpc sends a request message and waits for a response.
 // This returns an error if the request fails or if the response contains an error
-func (cl *Consumer) Rpc(operation, thingID, name string, input any, output any) error {
+func (co *Consumer) Rpc(operation, thingID, name string, input any, output any) error {
 	correlationID := shortid.MustGenerate()
 	req := msg.NewRequestMessage(operation, thingID, name, input, correlationID)
-	resp, err := cl.SendRequest(req, true)
-	if err == nil {
-		if resp.Error != nil {
-			err = resp.Error.AsError()
-		} else {
-			err = resp.Decode(output)
+
+	ar := utils.NewAsyncReceiver[*msg.ResponseMessage]()
+	err := co.SendRequest(req, func(resp *msg.ResponseMessage) error {
+		var err2 error
+		if resp != nil {
+			if resp.Error != nil {
+				err2 = resp.Error.AsError()
+			}
 		}
+		ar.SetResponse(resp, err2)
+		return nil
+	})
+	resp, err := ar.WaitForResponse(co.rpcTimeout)
+	if err == nil && resp != nil {
+		err = resp.Decode(output)
 	}
 	return err
 }
 
-// SendRequest sends an operation request and optionally waits for completion or timeout.
-// If waitForCompletion is true and no correlationID is provided then a correlationID will
-// be generated to wait for completion.
+// SendRequest sends an operation request and passes the response to the replyTo handler.
 //
-// If waitForCompletion is false then any response will go to the async response
-// handler and this returns nil response.
-// If waitForCompletion is true this will wait until a response is received with
-// a matching correlationID, or until a timeout occurs.
+// If replyTo is nil then responses will go to the async response handler 'HandleResponse'.
 //
 // If the request has no correlation ID, one will be generated.
-func (cl *Consumer) SendRequest(req *msg.RequestMessage, waitForCompletion bool) (
-	resp *msg.ResponseMessage, err error) {
+func (co *Consumer) SendRequest(req *msg.RequestMessage, replyTo msg.ResponseHandler) (err error) {
 
 	t0 := time.Now()
 	slog.Info("SendRequest: ->",
@@ -367,48 +390,15 @@ func (cl *Consumer) SendRequest(req *msg.RequestMessage, waitForCompletion bool)
 		slog.String("correlationID", req.CorrelationID),
 		slog.String("input", req.ToString(30)),
 	)
-	// if not waiting then return asap and pass the response to the async handler
-	if !waitForCompletion {
-		err = cl.tp.SendRequest(req, cl.onResponse)
-		return nil, err
-	}
-
 	if req.CorrelationID == "" {
 		req.CorrelationID = shortid.MustGenerate()
 	}
-	// open a return channel for the response
-	rx := utils.NewAsyncReceiver[*msg.ResponseMessage]()
+	// if not waiting then return asap and pass the response to the async handler
+	err = co.cc.SendRequest(req, func(resp *msg.ResponseMessage) error {
+		// intercept the response for logging and timing.
+		t1 := time.Now()
+		duration := t1.Sub(t0)
 
-	err = cl.tp.SendRequest(req, func(resp *msg.ResponseMessage) error {
-		rx.SetResponse(resp, nil)
-		return err
-	})
-
-	if err != nil {
-		slog.Warn("SendRequest ->: error in sending request",
-			"dThingID", req.ThingID,
-			"name", req.Name,
-			"correlationID", req.CorrelationID,
-			"err", err.Error())
-		rx.SetResponse(nil, err)
-	}
-	resp, err = rx.WaitForResponse(cl.rpcTimeout)
-
-	// hmm, not pretty but during login the connection status can be ignored
-	// the alternative is not to use SendRequest but plain TLS post
-	//ignoreDisconnect := req.Operation == wot.HTOpLogin || req.Operation == wot.HTOpRefresh
-	// ignoreDisconnect := false
-	// resp, err = cl.WaitForCompletion(rChan, req.Operation, req.CorrelationID, ignoreDisconnect)
-
-	t1 := time.Now()
-	duration := t1.Sub(t0)
-	if err != nil {
-		slog.Info("SendRequest: <- failed",
-			slog.String("op", req.Operation),
-			slog.Int64("duration msec", duration.Milliseconds()),
-			slog.String("correlationID", req.CorrelationID),
-			slog.String("error", err.Error()))
-	} else {
 		errMsg := ""
 		if resp.Error != nil {
 			errMsg = resp.Error.String()
@@ -420,146 +410,99 @@ func (cl *Consumer) SendRequest(req *msg.RequestMessage, waitForCompletion bool)
 			slog.String("err", errMsg),
 			slog.String("output", resp.ToString(30)),
 		)
-	}
-	return resp, err
+		err2 := replyTo(resp)
+		return err2
+	})
+	return err
 }
 
 // SetConnectHandler sets the connection callback for changes to this consumer connection
 // Intended to notify the client that a reconnect or relogin is needed.
 // Only a single handler is supported. This replaces the previously set callback.
-func (cl *Consumer) SetConnectHandler(cb func(connected bool, err error, c IConnection)) {
+func (co *Consumer) SetConnectHandler(cb func(connected bool, err error, c IConnection)) {
 	if cb == nil {
-		cl.appConnectHandlerPtr.Store(nil)
+		co.appConnectHandlerPtr.Store(nil)
 	} else {
-		cl.appConnectHandlerPtr.Store(&cb)
+		co.appConnectHandlerPtr.Store(&cb)
 	}
 }
 
 // SetNotificationHandler sets the notification message callback for this consumer
 // Only a single handler is supported. This replaces the previously set callback.
-func (cl *Consumer) SetNotificationHandler(cb func(msg *msg.NotificationMessage)) {
+func (co *Consumer) SetNotificationHandler(cb func(msg *msg.NotificationMessage)) {
 	if cb == nil {
-		cl.appNotificationHandlerPtr.Store(nil)
+		co.appNotificationHandlerPtr.Store(nil)
 	} else {
-		cl.appNotificationHandlerPtr.Store(&cb)
+		co.appNotificationHandlerPtr.Store(&cb)
 	}
 }
 
 // SetResponseHandler set the handler that receives asynchronous responses
 // Those are responses to requests that are not waited for using the baseRnR handler.
-func (cl *Consumer) SetResponseHandler(cb func(msg *msg.ResponseMessage) error) {
+func (co *Consumer) SetResponseHandler(cb func(msg *msg.ResponseMessage) error) {
 	if cb == nil {
-		cl.appResponseHandlerPtr.Store(nil)
+		co.appResponseHandlerPtr.Store(nil)
 	} else {
-		cl.appResponseHandlerPtr.Store(&cb)
+		co.appResponseHandlerPtr.Store(&cb)
+	}
+}
+
+// Start using the consumer
+func (co *Consumer) Start() error {
+	return nil
+}
+
+// Stop the consumer module and closes the client connection.
+func (co *Consumer) Stop() {
+	if co.cc.IsConnected() {
+		co.cc.Close()
+		// the connect callback is still needed to notify the client of a disconnect
 	}
 }
 
 // Subscribe to one or all events of a thing
 // name is the event to subscribe to or "" for all events
-func (cl *Consumer) Subscribe(thingID string, name string) error {
+func (co *Consumer) Subscribe(thingID string, name string) error {
 	op := wot.OpSubscribeEvent
 	if name == "" {
 		op = wot.OpSubscribeAllEvents
 	}
 	req := msg.NewRequestMessage(op, thingID, name, nil, "")
-	resp, err := cl.SendRequest(req, true)
-	_ = resp
+	err := co.SendRequest(req, nil)
 	return err
 }
 
 // UnobserveProperty a previous observed property or all properties
-func (cl *Consumer) UnobserveProperty(thingID string, name string) error {
+func (co *Consumer) UnobserveProperty(thingID string, name string) error {
 	op := wot.OpUnobserveProperty
 	if name == "" {
 		op = wot.OpUnobserveAllProperties
 	}
 	req := msg.NewRequestMessage(op, thingID, name, nil, "")
-	resp, err := cl.SendRequest(req, true)
-	_ = resp
+	err := co.SendRequest(req, nil)
 	return err
 }
 
 // Unsubscribe is a helper for sending an unsubscribe request
-func (cl *Consumer) Unsubscribe(thingID string, name string) error {
+func (co *Consumer) Unsubscribe(thingID string, name string) error {
 	op := wot.OpUnsubscribeEvent
 	if name == "" {
 		op = wot.OpUnsubscribeAllEvents
 	}
 	req := msg.NewRequestMessage(op, thingID, name, nil, "")
-	resp, err := cl.SendRequest(req, true)
-	_ = resp
+	err := co.SendRequest(req, nil)
 	return err
 }
 
-// WaitForCompletion waits for a completed or failed response message on the
-// given correlationID channel, or until N seconds passed, or the connection drops.
-//
-// If a proper response is received it is written to the given output and nil
-// (no error) is returned.
-// If anything goes wrong, an error is returned
-func (cl *Consumer) WaitForCompletion(
-	rChan chan *msg.ResponseMessage, operation, correlationID string, ignoreDisconnect bool) (
-	resp *msg.ResponseMessage, err error) {
-
-	waitCount := 0
-	var completed bool
-
-	for !completed {
-		// If the server connection no longer exists then don't wait any longer.
-		// The problem with this is that a response can already be available before
-		// a disconnect occurred, which we'll miss here.
-		// Especially in case of login or token refresh isconnected check should
-		// not be used.
-		if !cl.tp.IsConnected() && !ignoreDisconnect {
-			err = errors.New("connection lost")
-			break
-		}
-
-		// wait at most co.timeout or until delivery completes or fails
-		// if the connection breaks while waiting then tlsClient will be nil.
-		if time.Duration(waitCount)*time.Second > cl.rpcTimeout {
-			err = errors.New("timeout. No response")
-			break
-		}
-		if waitCount > 0 {
-			slog.Info("WaitForCompletion (wait)",
-				slog.Int("count", waitCount),
-				slog.String("clientID", cl.GetClientID()),
-				slog.String("operation", operation),
-				slog.String("correlationID", correlationID),
-			)
-		}
-		completed, resp = cl.rnrChan.WaitForResponse(rChan, time.Second)
-		waitCount++
-	}
-
-	// ending the wait
-	cl.rnrChan.Close(correlationID)
-	slog.Debug("WaitForCompletion (result)",
-		slog.String("clientID", cl.GetClientID()),
-		slog.String("operation", operation),
-		slog.String("correlationID", correlationID),
-	)
-
-	// check for errors
-	if err != nil {
-		slog.Warn("WaitForCompletion failed", "err", err.Error())
-	} else if resp == nil {
-		err = fmt.Errorf("no response received on request '%s'", operation)
-	} else if resp.Error != nil {
-		// if response data holds an error type then return that as the error
-		err = resp.Error.AsError()
-	}
-	return resp, err
-}
-
 // WriteProperty is a helper to send a write property request
-func (cl *Consumer) WriteProperty(thingID string, name string, input any, wait bool) error {
+func (co *Consumer) WriteProperty(thingID string, name string, input any, wait bool) (err error) {
 	correlationID := shortid.MustGenerate()
-	req := msg.NewRequestMessage(wot.OpWriteProperty, thingID, name, input, correlationID)
-	resp, err := cl.SendRequest(req, wait)
-	_ = resp
+	if wait {
+		err = co.Rpc(wot.OpWriteProperty, thingID, name, input, correlationID)
+	} else {
+		req := msg.NewRequestMessage(wot.OpWriteProperty, thingID, name, input, correlationID)
+		err = co.SendRequest(req, nil)
+	}
 	return err
 }
 
@@ -574,23 +517,28 @@ func (cl *Consumer) WriteProperty(thingID string, name string, input any, wait b
 // Use SetResponseHandler to set the callback to receive async responses.
 // Use SetConnectHandler to set the callback to be notified of connection changes.
 //
+//	moduleID the moduleID of this application
 //	cc the client connection to use for sending requests and receiving responses.
 //	timeout of the rpc connections or 0 for default (3 sec)
-func NewConsumer(tp IConnection, rpcTimeout time.Duration) *Consumer {
+func NewConsumer(moduleID string, cc IClientConnection, rpcTimeout time.Duration) *Consumer {
 	if rpcTimeout == 0 {
 		rpcTimeout = DefaultRpcTimeout
 	}
-	consumer := Consumer{
-		tp:         tp,
-		rnrChan:    NewRnRChan(),
+	consumer := &Consumer{
+		cc:       cc,
+		moduleID: moduleID,
+		// rnrChan:    NewRnRChan(),
 		rpcTimeout: rpcTimeout,
 	}
+	// consumer.Init(moduleID, nil)
 	consumer.SetNotificationHandler(nil)
 	consumer.SetConnectHandler(nil)
 	consumer.SetResponseHandler(nil)
 	// set the connection callbacks to this consumer
-	tp.SetNotificationHandler(consumer.onNotification)
-	tp.SetResponseHandler(consumer.onResponse)
-	tp.SetConnectHandler(consumer.onConnect)
-	return &consumer
+
+	// This consumer is the sink for the transport client, all messages are forwarded here.
+	// Consumers also use it to send messages.
+	cc.SetSink(consumer)
+	cc.SetConnectHandler(consumer.onConnect)
+	return consumer
 }

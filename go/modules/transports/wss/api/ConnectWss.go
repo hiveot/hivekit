@@ -8,58 +8,62 @@ import (
 	"log/slog"
 	"net"
 	"net/http"
-	"net/url"
 	"sync/atomic"
 
 	"github.com/gorilla/websocket"
 	"github.com/hiveot/hivekit/go/modules/transports"
-	"github.com/hiveot/hivekit/go/modules/transports/httpserver"
+	"github.com/hiveot/hivekit/go/modules/transports/httptransport"
 )
 
 // ConnectWSS establishes a websocket session with the server
 func ConnectWSS(
-	cinfo transports.ConnectionInfo,
+	tlsClient httptransport.ITlsClient,
+	hostPort string,
+	wssPath string,
 	bearerToken string,
+	caCert *x509.Certificate,
 	onConnect func(bool, error),
 	onMessage func(raw []byte),
 ) (cancelFn func(), conn *websocket.Conn, err error) {
 	var clientCertList []tls.Certificate
 
 	slog.Info("ConnectWSS (to hub) - establishing Websocket connection to server",
-		slog.String("URL", cinfo.ConnectURL),
-		slog.String("clientID", cinfo.ClientID),
+		slog.String("path", wssPath),
+		slog.String("clientID", tlsClient.GetClientID()),
 	)
+
+	connectionID := tlsClient.GetConnectionID()
+	connectURL := "wss://" + hostPort + wssPath
 
 	// use context to disconnect the client
 	wssCtx, wssCancelFn := context.WithCancel(context.Background())
 
 	// the CA certificate is set in NewTLSClient
 	caCertPool := x509.NewCertPool()
-	if cinfo.CaCert != nil {
-		caCertPool.AddCert(cinfo.CaCert)
+	if caCert != nil {
+		caCertPool.AddCert(caCert)
 	}
-	//if clientCert != nil {
-	//	clientCertList = []tls.Certificate{*clientCert}
-	//}
-	wssURLParsed, _ := url.Parse(cinfo.ConnectURL)
+	// if clientCert != nil {
+	// 	clientCertList = []tls.Certificate{*clientCert}
+	// }
+	// wssURLParsed, _ := url.Parse(cinfo.ConnectURL)
 	tlsConfig := &tls.Config{
 		RootCAs: caCertPool,
 		// ServerName is required with InsecureSkipVerify disabled
-		ServerName:         wssURLParsed.Hostname(), // how to know?
-		InsecureSkipVerify: cinfo.CaCert == nil,
+		ServerName:         hostPort, // how to know?
+		InsecureSkipVerify: caCert == nil,
 		//InsecureSkipVerify: true,
 		Certificates: clientCertList,
 	}
 
 	wssHeader := http.Header{}
 	wssHeader.Add("Authorization", "bearer "+bearerToken)
-	wssHeader.Add(httpserver.ConnectionIDHeader, cinfo.ConnectionID)
+	wssHeader.Add(httptransport.ConnectionIDHeader, connectionID)
 	//parts, _ := url.Parse(hostPort)
 	//origin := fmt.Sprintf("%s://%s", parts.Scheme, parts.Host)
 	//opts.HTTPHeader.Add("Origin", origin)
 
 	dialer := *websocket.DefaultDialer // run a copy
-	//dialer := websocket.DefaultDialer
 	dialer.TLSClientConfig = tlsConfig
 	dialer.NetDialTLSContext = func(ctx context.Context, network, addr string) (net.Conn, error) {
 		netConn, err := net.Dial(network, addr)
@@ -88,12 +92,12 @@ func ConnectWSS(
 	//httpParts.Scheme = "https"
 	//httpsURL := httpParts.String()
 
-	wssConn, r, err := dialer.Dial(cinfo.ConnectURL, wssHeader)
+	wssConn, r, err := dialer.Dial(connectURL, wssHeader)
 	if err != nil {
 		// FIXME: when unauthorized, don't retry. A new token is needed. (session ended).
 		if r != nil && r.StatusCode == http.StatusUnauthorized {
 			msg := fmt.Sprintf("Unauthorized: Connection as '%s' to '%s' failed: %s",
-				cinfo.ClientID, cinfo.ConnectURL, err.Error())
+				tlsClient.GetClientID(), connectURL, err.Error())
 			slog.Warn(msg)
 			err = transports.UnauthorizedError
 		}

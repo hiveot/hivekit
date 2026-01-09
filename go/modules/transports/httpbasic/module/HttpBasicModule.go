@@ -7,7 +7,7 @@ import (
 	"github.com/hiveot/hivekit/go/modules/transports"
 	"github.com/hiveot/hivekit/go/modules/transports/httpbasic"
 	"github.com/hiveot/hivekit/go/modules/transports/httpbasic/httpbasicapi"
-	"github.com/hiveot/hivekit/go/modules/transports/httpserver"
+	"github.com/hiveot/hivekit/go/modules/transports/httptransport"
 	"github.com/hiveot/hivekit/go/msg"
 	"github.com/hiveot/hivekit/go/wot/td"
 )
@@ -33,7 +33,7 @@ type HttpBasicModule struct {
 	msgAPI *httpbasicapi.HttpBasicMsgAPI
 
 	// actual httpServer exposing routes
-	httpServer httpserver.IHttpServer
+	httpServer httptransport.IHttpServer
 
 	// the linked authenticator
 	authenticator transports.IAuthenticator
@@ -113,7 +113,7 @@ func (m *HttpBasicModule) Stop() {
 //	httpServer is the http server that listens for messages
 //	sink is the optional receiver of request, response and notification messages, nil to set later
 //	authenticator handles authentication for login, and token refresh
-func NewHttpBasicModule(httpServer httpserver.IHttpServer,
+func NewHttpBasicModule(httpServer httptransport.IHttpServer,
 	sink modules.IHiveModule, authenticator transports.IAuthenticator) *HttpBasicModule {
 
 	m := &HttpBasicModule{

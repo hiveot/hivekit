@@ -25,7 +25,7 @@ type IAuthenticator interface {
 
 	// CreateSessionToken creates a signed session token for a client and adds the session
 	// sessionID is required. For persistent sessions use the clientID.
-	CreateSessionToken(clientID, sessionID string, validity time.Duration) (token string)
+	CreateSessionToken(clientID, sessionID string, validity time.Duration) (token string, actualValidity time.Duration)
 
 	// DecodeSessionToken and return its claims
 	DecodeSessionToken(sessionToken string, signedNonce string, nonce string) (
@@ -38,10 +38,14 @@ type IAuthenticator interface {
 	GetAlg() (string, string)
 
 	// Login with a password and obtain a new session token with limited duration
-	// This creates a new session. The token must be refreshed to keep the session alive.
-	Login(login string, password string) (token string, err error)
+	// This creates a new session that remains valid until logout or expiry.
+	// The token must be refreshed to keep the session alive.
+	//
+	// This returns the token and the validity period in seconds before it must be refreshed.
+	// If the login fails this returns an error
+	Login(login string, password string) (token string, validity time.Duration, err error)
 
-	// Logout removes the session
+	// Logout removes the session and invalidates the all tokens of this client
 	Logout(clientID string)
 
 	// RefreshToken issues a new session token with an updated expiry time.
@@ -49,12 +53,12 @@ type IAuthenticator interface {
 	//
 	//	clientID Client whose token to refresh
 	//	oldToken must be valid
-	//	validitySec validity in seconds of the new token
 	//
-	// This returns a new token or an error if the old token isn't valid or doesn't match clientID
-	RefreshToken(senderID string, oldToken string) (newToken string, err error)
+	// This returns the token and the validity period before it must be refreshed,
+	// If the clientID is unknown or oldToken is no longer valid this returns an error
+	RefreshToken(clientID string, oldToken string) (newToken string, validity time.Duration, err error)
 
-	// Set the method to
+	// Set the URI where to login
 	SetAuthServerURI(authServiceURI string)
 
 	// ValidatePassword checks if the given password is valid for the client
