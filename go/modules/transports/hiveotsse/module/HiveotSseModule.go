@@ -21,6 +21,7 @@ import (
 // It is only intended for consumers and not for agents using connection reversal.
 // It does not support subscribing to events or observing properties.
 type HiveotSseModule struct {
+	// Transport base includes the RnR channel for matching request-response messages.
 	transports.TransportModuleBase
 
 	// handler to invoke when a connection is established or disappears
@@ -98,9 +99,7 @@ func (m *HiveotSseModule) Start() (err error) {
 	m.CreateRoutes(m.ssePath, m.httpServer.GetProtectedRoute())
 
 	// The msg handler invokes the module API.
-	if err == nil {
-		m.msgAPI = sseapi.NewHiveotSseMsgHandler(m)
-	}
+	m.msgAPI = sseapi.NewHiveotSseMsgHandler(m)
 	return err
 }
 
@@ -109,6 +108,8 @@ func (m *HiveotSseModule) Stop() {
 }
 
 // Start a new HiveOT Http/SSE server using the given http server.
+// The http server must have authentication setup
+//
 // sink is the optional receiver of request, response and notification messages, nil to set later
 // The optional connect handler is invoked when connections appear and disappear
 func NewHiveotSseModule(
@@ -133,7 +134,7 @@ func NewHiveotSseModule(
 		converter:      converter,
 	}
 	moduleID := hiveotsse.DefaultHiveotSseThingID
-	m.Init(moduleID, sink, connectURL)
+	m.Init(moduleID, sink, connectURL, transports.DefaultRpcTimeout)
 
 	// properties must match the module TM
 	m.UpdateProperty(transports.PropName_NrConnections, 0)

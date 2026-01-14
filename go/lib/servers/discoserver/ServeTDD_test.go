@@ -7,7 +7,7 @@ import (
 
 	"github.com/hiveot/hivekit/go/lib/clients/discoclient"
 	"github.com/hiveot/hivekit/go/lib/servers/discoserver"
-	"github.com/hiveot/hivekit/go/utils/net"
+	"github.com/hiveot/hivekit/go/utils"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -32,7 +32,7 @@ func TestDNSSDScan(t *testing.T) {
 
 // Test the discovery client and server
 func TestDiscover(t *testing.T) {
-	testServiceAddress := net.GetOutboundIP("").String()
+	testServiceAddress := utils.GetOutboundIP("").String()
 	endpoints := map[string]string{"wss": "wss://localhost/wssendpoint"}
 
 	tddURL := fmt.Sprintf("https://%s:%d%s", testServiceAddress, testServicePort, testServicePath)
@@ -81,7 +81,7 @@ func TestDiscoViaDomainName(t *testing.T) {
 func TestDiscoverBadPort(t *testing.T) {
 	serviceID := "idprov-test"
 	badPort := 0
-	address := net.GetOutboundIP("").String()
+	address := utils.GetOutboundIP("").String()
 	_, err := discoserver.ServeDnsSD(
 		serviceID, testServiceName, "", address, badPort, nil)
 
@@ -90,7 +90,7 @@ func TestDiscoverBadPort(t *testing.T) {
 
 func TestNoInstanceID(t *testing.T) {
 	serviceID := "serviceID"
-	address := net.GetOutboundIP("").String()
+	address := utils.GetOutboundIP("").String()
 
 	_, err := discoserver.ServeDnsSD(
 		"", testServiceName, "",
@@ -105,7 +105,7 @@ func TestNoInstanceID(t *testing.T) {
 func TestDiscoverNotFound(t *testing.T) {
 	instanceID := "idprov-test-id"
 	serviceName := "idprov-test"
-	address := net.GetOutboundIP("").String()
+	address := utils.GetOutboundIP("").String()
 
 	discoServer, err := discoserver.ServeDnsSD(
 		instanceID, serviceName, "",

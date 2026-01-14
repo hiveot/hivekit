@@ -167,7 +167,7 @@ func NewAgent(moduleID string,
 	if timeout == 0 {
 		timeout = DefaultRpcTimeout
 	}
-	agent := Agent{}
+	agent := &Agent{}
 	agent.Consumer = NewConsumer(moduleID, cc, timeout)
 
 	agent.SetConnectHandler(connHandler)
@@ -175,5 +175,7 @@ func NewAgent(moduleID string,
 	agent.SetRequestHandler(reqHandler)
 	agent.SetResponseHandler(respHandler)
 	cc.SetConnectHandler(agent.onConnect)
-	return &agent
+	cc.SetSink(agent)
+
+	return agent
 }

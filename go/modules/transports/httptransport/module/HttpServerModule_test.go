@@ -13,7 +13,7 @@ import (
 	"github.com/hiveot/hivekit/go/modules/transports/httptransport"
 	"github.com/hiveot/hivekit/go/modules/transports/httptransport/httpapi"
 	"github.com/hiveot/hivekit/go/modules/transports/httptransport/module"
-	"github.com/hiveot/hivekit/go/utils/net"
+	"github.com/hiveot/hivekit/go/utils"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -29,7 +29,7 @@ var testCerts selfsigned.TestCertBundle
 func TestMain(m *testing.M) {
 	logging.SetLogging("info", "")
 	// slog.Info("------ TestMain of TLSServer_test.go ------")
-	// serverAddress = hubnet.GetOutboundIP("").String()
+	// serverAddress = utils.GetOutboundIP("").String()
 	// use the localhost interface for testing
 	serverAddress = "127.0.0.1"
 
@@ -45,11 +45,8 @@ func TestMain(m *testing.M) {
 
 func TestStartStop(t *testing.T) {
 	t.Logf("---%s---\n", t.Name())
-	cfg := httptransport.NewHttpServerConfig()
-	cfg.Address = serverAddress
-	cfg.Port = serverPort
-	cfg.CaCert = testCerts.CaCert
-	cfg.ServerCert = testCerts.ServerCert
+	cfg := httptransport.NewHttpServerConfig(
+		serverAddress, serverPort, testCerts.ServerCert, testCerts.CaCert, nil)
 	srv := module.NewHttpServerModule("", cfg)
 	err := srv.Start()
 	assert.NoError(t, err)
@@ -58,11 +55,9 @@ func TestStartStop(t *testing.T) {
 
 func TestNoServerCert(t *testing.T) {
 	t.Logf("---%s---\n", t.Name())
-	cfg := httptransport.NewHttpServerConfig()
-	cfg.Address = serverAddress
-	cfg.Port = serverPort
-	cfg.CaCert = testCerts.CaCert
-	cfg.ServerCert = nil
+	cfg := httptransport.NewHttpServerConfig(
+		serverAddress, serverPort, nil, testCerts.CaCert, nil)
+
 	srv := module.NewHttpServerModule("", cfg)
 	err := srv.Start()
 	require.Error(t, err)
@@ -75,11 +70,9 @@ func TestNoAuth(t *testing.T) {
 	path1 := "/hello"
 	path1Hit := 0
 
-	cfg := httptransport.NewHttpServerConfig()
-	cfg.Address = serverAddress
-	cfg.Port = serverPort
-	cfg.CaCert = testCerts.CaCert
-	cfg.ServerCert = testCerts.ServerCert
+	cfg := httptransport.NewHttpServerConfig(
+		serverAddress, serverPort, testCerts.ServerCert, testCerts.CaCert, nil)
+
 	srv := module.NewHttpServerModule("", cfg)
 
 	err := srv.Start()
@@ -89,7 +82,7 @@ func TestNoAuth(t *testing.T) {
 	router := srv.GetPublicRoute()
 	router.Get(path1, func(w http.ResponseWriter, req *http.Request) {
 		// expect no bearer token
-		bearerToken, err := net.GetBearerToken(req)
+		bearerToken, err := utils.GetBearerToken(req)
 		assert.Error(t, err)
 		assert.Empty(t, bearerToken)
 		slog.Info("TestNoAuth: path1 hit")
@@ -113,15 +106,10 @@ func TestTokenAuth(t *testing.T) {
 	badToken := "badtoken"
 
 	// setup server and client environment
+	cfg := httptransport.NewHttpServerConfig(
+		serverAddress, serverPort, testCerts.ServerCert, testCerts.CaCert, nil)
 
-	cfg := httptransport.NewHttpServerConfig()
-	cfg.Address = serverAddress
-	cfg.Port = serverPort
-	cfg.CaCert = testCerts.CaCert
-	cfg.ServerCert = testCerts.ServerCert
-	cfg.Authenticate = func(req *http.Request) (string, string, error) {
-		bearerToken, err := net.GetBearerToken(req)
-		assert.NoError(t, err)
+	cfg.ValidateToken = func(bearerToken string) (string, string, error) {
 		assert.NotEmpty(t, bearerToken)
 		clientID := "bob"
 		sessionID := "s1"
@@ -140,7 +128,7 @@ func TestTokenAuth(t *testing.T) {
 	router := srv.GetProtectedRoute()
 	router.Get(path1, func(w http.ResponseWriter, req *http.Request) {
 		// expect a bearer token
-		bearerToken, err := net.GetBearerToken(req)
+		bearerToken, err := utils.GetBearerToken(req)
 		assert.NoError(t, err)
 		if bearerToken == token1 {
 			w.WriteHeader(http.StatusOK)
@@ -242,11 +230,8 @@ func TestWriteResponse(t *testing.T) {
 	message := "hello world"
 	path2Hit := 0
 
-	cfg := httptransport.NewHttpServerConfig()
-	cfg.Address = serverAddress
-	cfg.Port = serverPort
-	cfg.CaCert = testCerts.CaCert
-	cfg.ServerCert = testCerts.ServerCert
+	cfg := httptransport.NewHttpServerConfig(
+		serverAddress, serverPort, testCerts.ServerCert, testCerts.CaCert, nil)
 	srv := module.NewHttpServerModule("", cfg)
 
 	err := srv.Start()
@@ -277,7 +262,9 @@ func TestWriteResponse(t *testing.T) {
 func TestBadPort(t *testing.T) {
 	t.Logf("---%s---\n", t.Name())
 
-	cfg := httptransport.NewHttpServerConfig()
+	cfg := httptransport.NewHttpServerConfig(
+		serverAddress, serverPort, testCerts.ServerCert, testCerts.CaCert, nil)
+
 	cfg.Address = serverAddress
 	cfg.Port = 1 // bad port
 	cfg.CaCert = testCerts.CaCert

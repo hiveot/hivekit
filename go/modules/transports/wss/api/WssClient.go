@@ -15,7 +15,6 @@ import (
 
 	"github.com/gorilla/websocket"
 	"github.com/hiveot/hivekit/go/lib/messaging"
-	"github.com/hiveot/hivekit/go/lib/servers"
 	"github.com/hiveot/hivekit/go/modules"
 	"github.com/hiveot/hivekit/go/modules/transports"
 	"github.com/hiveot/hivekit/go/modules/transports/direct"
@@ -57,7 +56,7 @@ type WssClient struct {
 
 	// the request & response channel handler
 	// all responses are passed here to support response callbacks
-	rnrChan *transports.RnRChan
+	rnrChan *msg.RnRChan
 
 	// destination for unhandled notifications, requests and responses
 	// This is intended to be the application module the client connects to.
@@ -90,7 +89,7 @@ func (cl *WssClient) _onConnectionChanged(connected bool, err error) {
 }
 
 // _send publishes a message over websockets
-func (cl *WssClient) _send(wssMsg any) (err error) {
+func (cl *WssClient) _send(wssMsg []byte) (err error) {
 	if !cl.isConnected.Load() {
 		// note, it might be trying to reconnect in the background
 		err := fmt.Errorf("_send: Not connected to the hub")
@@ -98,8 +97,12 @@ func (cl *WssClient) _send(wssMsg any) (err error) {
 	}
 	// websockets do not allow concurrent writes
 	cl.mux.Lock()
-	err = cl.wssConn.WriteJSON(wssMsg)
-	cl.mux.Unlock()
+	defer cl.mux.Unlock()
+	// Use WriteMessage because the message is already JSON serialized
+	err = cl.wssConn.WriteMessage(websocket.TextMessage, wssMsg)
+	if err != nil {
+		err = fmt.Errorf("WssClient._send write error: %s", err)
+	}
 	return err
 }
 
@@ -348,10 +351,11 @@ func (cl *WssClient) SendRequest(
 	}
 
 	// a response handler is provided, callback when the response is received
-	rChan := cl.rnrChan.Open(req.CorrelationID)
+	cl.rnrChan.Open(req.CorrelationID)
 	err = cl._send(wssMsg)
 
 	if err != nil {
+		cl.rnrChan.Close(req.CorrelationID)
 		slog.Warn("SendRequest ->: error in sending request",
 			"dThingID", req.ThingID,
 			"name", req.Name,
@@ -359,7 +363,7 @@ func (cl *WssClient) SendRequest(
 			"err", err.Error())
 		return err
 	}
-	hasResponse, resp := cl.rnrChan.WaitForResponse(rChan, 0)
+	hasResponse, resp := cl.rnrChan.WaitForResponse(req.CorrelationID)
 	if hasResponse {
 		err = replyTo(resp)
 	}
@@ -385,8 +389,8 @@ func (cl *WssClient) SendResponse(resp *msg.ResponseMessage) error {
 	)
 
 	// convert the operation into a protocol message
-	wssMsg := cl.msgConverter.EncodeResponse(resp)
-	err := cl._send(wssMsg)
+	wssMsg, err := cl.msgConverter.EncodeResponse(resp)
+	err = cl._send(wssMsg)
 	return err
 }
 
@@ -435,7 +439,8 @@ func NewHiveotWssClient(
 
 	cl := WssClient{
 		maxReconnectAttempts: 0,
-		msgConverter:         direct.NewPassthroughMessageConverter(),
+		// hiveot uses its own standardized RRN messages
+		msgConverter: direct.NewPassthroughMessageConverter(),
 		// rnrChan:              transports.NewRnRChan(),
 		tlsClient: tlsClient,
 		wssPath:   wssPath,
@@ -462,22 +467,24 @@ func NewWotWssClient(
 	wssURL string, caCert *x509.Certificate,
 	sink modules.IHiveModule, timeout time.Duration) *WssClient {
 
-	// ensure the URL has port as 443 is not valid for this
 	urlParts, _ := url.Parse(wssURL)
-	if urlParts.Port() == "" {
-		urlParts.Host = fmt.Sprintf("%s:%d", urlParts.Hostname(), servers.DefaultHttpsPort)
-		wssURL = urlParts.String()
-	}
 	hostPort := urlParts.Host
+	wssPath := urlParts.Path
+	// if urlParts.Port() == "" {
+	// 	urlParts.Host = fmt.Sprintf("%s:%d", urlParts.Hostname(), servers.DefaultHttpsPort)
+	// 	wssURL = urlParts.String()
+	// }
+	// hostPort := urlParts.Host
 	tlsClient := httpapi.NewTLSClient(hostPort, nil, caCert, timeout)
 
 	cl := WssClient{
 		caCert:               caCert,
 		maxReconnectAttempts: 0,
 		msgConverter:         NewWotWssMsgConverter(),
-		rnrChan:              transports.NewRnRChan(),
+		rnrChan:              msg.NewRnRChan(timeout),
 		sink:                 sink,
 		tlsClient:            tlsClient,
+		wssPath:              wssPath,
 	}
 	//cl.Init(fullURL, clientID, clientCert, caCert, getForm, timeout)
 

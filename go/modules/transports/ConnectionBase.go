@@ -103,7 +103,8 @@ func (c *ConnectionBase) SetConnectHandler(h ConnectionHandler) {
 // func (c *ConnectionBase) SetResponseHandler(h msg.ResponseHandler) {
 // }
 
-// HasSubscription returns true if this connection has subscribed to the given notification
+// HasSubscription returns true if this connection has subscribed to the given
+// event notification or observing property changes.
 func (sc *ConnectionBase) HasSubscription(notif *msg.NotificationMessage) bool {
 	switch notif.Operation {
 

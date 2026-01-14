@@ -16,6 +16,7 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/hiveot/hivekit/go/modules"
 	"github.com/hiveot/hivekit/go/modules/transports/httptransport"
+	"github.com/hiveot/hivekit/go/utils"
 	"github.com/lmittmann/tint"
 )
 
@@ -24,6 +25,9 @@ import (
 // This implements IHiveModule interface.
 type HttpTransportModule struct {
 	modules.HiveModuleBase
+
+	// HTTP authentication handler.
+	authenticateHandler func(req *http.Request) (clientID string, sessionID string, err error)
 
 	config     *httptransport.HttpServerConfig
 	connectURL string
@@ -49,6 +53,24 @@ type HttpTransportModule struct {
 	// msgAPI *api.HttpMsgHandler
 }
 
+// The default token authentication handler extracts the bearer token from the authorization header
+// and passes it to the configured token validator.
+func (m *HttpTransportModule) DefaultAuthenticate(req *http.Request) (
+	clientID string, sessionID string, err error) {
+
+	if m.config.ValidateToken == nil {
+		err := fmt.Errorf("Missing ValidateToken handler in configuration")
+		return "", "", err
+	}
+	bearerToken, err := utils.GetBearerToken(req)
+	if err != nil {
+		return "", "", err
+	}
+	clientID, sessionID, err = m.config.ValidateToken(bearerToken)
+	return clientID, sessionID, nil
+}
+
+// Provide the HTTP base URL to connect to the server. Eg "https://addr:port/""
 func (m *HttpTransportModule) GetConnectURL() string {
 	return m.connectURL
 }
@@ -66,7 +88,7 @@ func (m *HttpTransportModule) Start() (err error) {
 	if cfg.CaCert == nil || cfg.ServerCert == nil {
 		//no TLS possible
 		if cfg.NoTLS == false {
-			err := fmt.Errorf("missing CA or server certificate")
+			err := fmt.Errorf("Start aborted. Missing CA or server certificate.")
 			slog.Error(err.Error())
 
 			return err
@@ -102,12 +124,14 @@ func (m *HttpTransportModule) Start() (err error) {
 	}
 	lisn, err := net.Listen("tcp", m.httpServer.Addr)
 	if err != nil {
+		slog.Info("Start - Listen return an error", "err", err.Error())
 		return err
 	}
 
 	// finally run the server in the background
 	go func() {
 		// serverTLSConf contains certificate and key
+		slog.Info("TLSServer - Listening")
 		err2 := m.httpServer.ServeTLS(lisn, "", "")
 		//err2 := srv.httpServer.ListenAndServeTLS("", "")
 		if err2 != nil && !errors.Is(err2, http.ErrServerClosed) {
@@ -125,18 +149,22 @@ func (m *HttpTransportModule) Start() (err error) {
 // this waits until for up to 3 seconds for connections are closed. After that
 // continue.
 func (m *HttpTransportModule) Stop() {
-	slog.Info("Stopping THTTP/TLS server")
 
 	if m.httpServer != nil {
 		// note that this does not (cannot?) close existing client connections
-		ctx, cancelFn := context.WithTimeout(context.Background(), time.Second*3)
+		ctx, cancelFn := context.WithTimeout(context.Background(), time.Second*30)
 		err := m.httpServer.Shutdown(ctx)
 		if err != nil {
 			slog.Error("Stop: TLS server graceful shutdown failed. Forcing Remove", "err", err.Error())
 			_ = m.httpServer.Close()
 		}
 		cancelFn()
+		slog.Info("Stopped HttpTransportModule")
+	} else {
+		slog.Info("Stop HttpTransportModule - not running")
 	}
+	// give some time to complete the shutdown
+	time.Sleep(time.Millisecond)
 }
 
 // Create a new Https server module instance.
@@ -152,6 +180,10 @@ func NewHttpServerModule(moduleID string, config *httptransport.HttpServerConfig
 
 	m := &HttpTransportModule{
 		config: config,
+	}
+	m.authenticateHandler = config.AuthenticateHandler
+	if m.authenticateHandler == nil {
+		m.authenticateHandler = m.DefaultAuthenticate
 	}
 	m.Init(moduleID, nil)
 	var _ httptransport.IHttpServer = m // interface check

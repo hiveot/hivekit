@@ -26,7 +26,9 @@ const DefaultRpcTimeout = time.Second * 60 // 60 for testing; 3 seconds
 // 1. register handlers using SetAppNotificationHandler, SetAppRequestHandler, SetAppResponseHandler
 // 2. override the HandleNotification, HandleRequest, HandleResponse methods
 //
-// TBD: consider registering a sink instead of the handlers, so it can attach to a module.
+// TODO: To Sink or not to Sink?
+// Should applications that use consumer provide a sink, or register handlers to receive messages?
+// Does the use of a consumer imply this is the end of a the line for chaining messages?
 //
 // This is best used by embedding in the application and providing the application
 // as the sink to a client or server connection.
@@ -94,7 +96,7 @@ func (co *Consumer) HandleNotification(notif *msg.NotificationMessage) {
 				"name", notif.Name,
 			)
 		} else {
-			// When subscribing then a handler is expected
+			// When subscribing to notifications, then a handler is expected
 			slog.Error("HandleNotification: Notification received but no handler registered",
 				"correlationID", notif.CorrelationID,
 				"operation", notif.Operation,
@@ -116,12 +118,16 @@ func (co *Consumer) HandleNotification(notif *msg.NotificationMessage) {
 	(*hPtr)(notif)
 }
 
-func (co *Consumer) HandleRequest(req *msg.RequestMessage, replyTo msg.ResponseHandler) error {
+func (co *Consumer) HandleRequest(
+	req *msg.RequestMessage, replyTo msg.ResponseHandler) error {
+
 	return fmt.Errorf("Unexpected request op='%s', thingID='%s', name='%s', from '%s'",
 		req.Operation, req.ThingID, req.Name, req.SenderID)
 }
 
-// HandleResponse passes a response to the registered app response handler.
+// HandleResponse passes a async responses to the registered app response handler.
+// Used to pass a response from SendRequest when no replyTo is provided.
+// This logs an error if no handler is set.
 func (co *Consumer) HandleResponse(resp *msg.ResponseMessage) error {
 
 	// handle the response as an async response with no wait handler registered
@@ -193,8 +199,7 @@ func (co *Consumer) ObserveProperty(thingID string, name string) error {
 		op = wot.OpObserveAllProperties
 	}
 
-	req := msg.NewRequestMessage(op, thingID, name, nil, "")
-	err := co.SendRequest(req, nil)
+	err := co.Rpc(op, thingID, name, nil, "")
 	return err
 }
 
@@ -209,14 +214,9 @@ func (co *Consumer) onConnect(connected bool, err error, c IConnection) {
 // Ping the server and wait for a response.
 // Intended to ensure the server is reachable.
 func (co *Consumer) Ping() (err error) {
-	// correlationID := shortid.MustGenerate()
-	// req := msg.NewRequestMessage(wot.HTOpPing, "", "", nil, correlationID)
 	var value any
 
-	// TBD: should this be transport specific?
-
 	err = co.Rpc(wot.HTOpPing, "", "", nil, &value)
-	// resp, err := co.SendRequest(req, true)
 	if err != nil {
 		return err
 	}
@@ -355,11 +355,14 @@ func (co *Consumer) ReadProperty(thingID, name string) (
 // This returns an error if the request fails or if the response contains an error
 func (co *Consumer) Rpc(operation, thingID, name string, input any, output any) error {
 	correlationID := shortid.MustGenerate()
+
+	var resp *msg.ResponseMessage
 	req := msg.NewRequestMessage(operation, thingID, name, input, correlationID)
 
 	ar := utils.NewAsyncReceiver[*msg.ResponseMessage]()
 	err := co.SendRequest(req, func(resp *msg.ResponseMessage) error {
 		var err2 error
+		slog.Info("Consumer RPC. Received response", "op", operation)
 		if resp != nil {
 			if resp.Error != nil {
 				err2 = resp.Error.AsError()
@@ -368,7 +371,9 @@ func (co *Consumer) Rpc(operation, thingID, name string, input any, output any) 
 		ar.SetResponse(resp, err2)
 		return nil
 	})
-	resp, err := ar.WaitForResponse(co.rpcTimeout)
+	if err == nil {
+		resp, err = ar.WaitForResponse(co.rpcTimeout)
+	}
 	if err == nil && resp != nil {
 		err = resp.Decode(output)
 	}
@@ -395,6 +400,7 @@ func (co *Consumer) SendRequest(req *msg.RequestMessage, replyTo msg.ResponseHan
 	}
 	// if not waiting then return asap and pass the response to the async handler
 	err = co.cc.SendRequest(req, func(resp *msg.ResponseMessage) error {
+		var err2 error
 		// intercept the response for logging and timing.
 		t1 := time.Now()
 		duration := t1.Sub(t0)
@@ -410,7 +416,11 @@ func (co *Consumer) SendRequest(req *msg.RequestMessage, replyTo msg.ResponseHan
 			slog.String("err", errMsg),
 			slog.String("output", resp.ToString(30)),
 		)
-		err2 := replyTo(resp)
+		if replyTo != nil {
+			err2 = replyTo(resp)
+		} else {
+			err2 = co.HandleResponse(resp)
+		}
 		return err2
 	})
 	return err
@@ -460,15 +470,14 @@ func (co *Consumer) Stop() {
 	}
 }
 
-// Subscribe to one or all events of a thing
+// Subscribe to one or all events of a thing.
 // name is the event to subscribe to or "" for all events
 func (co *Consumer) Subscribe(thingID string, name string) error {
 	op := wot.OpSubscribeEvent
 	if name == "" {
 		op = wot.OpSubscribeAllEvents
 	}
-	req := msg.NewRequestMessage(op, thingID, name, nil, "")
-	err := co.SendRequest(req, nil)
+	err := co.Rpc(op, thingID, name, nil, "")
 	return err
 }
 
@@ -478,8 +487,7 @@ func (co *Consumer) UnobserveProperty(thingID string, name string) error {
 	if name == "" {
 		op = wot.OpUnobserveAllProperties
 	}
-	req := msg.NewRequestMessage(op, thingID, name, nil, "")
-	err := co.SendRequest(req, nil)
+	err := co.Rpc(op, thingID, name, nil, "")
 	return err
 }
 
@@ -489,26 +497,29 @@ func (co *Consumer) Unsubscribe(thingID string, name string) error {
 	if name == "" {
 		op = wot.OpUnsubscribeAllEvents
 	}
-	req := msg.NewRequestMessage(op, thingID, name, nil, "")
-	err := co.SendRequest(req, nil)
+	err := co.Rpc(op, thingID, name, nil, "")
 	return err
 }
 
 // WriteProperty is a helper to send a write property request
+// Since writing properties can take some time on slow devices, the wait is optional.
 func (co *Consumer) WriteProperty(thingID string, name string, input any, wait bool) (err error) {
 	correlationID := shortid.MustGenerate()
 	if wait {
 		err = co.Rpc(wot.OpWriteProperty, thingID, name, input, correlationID)
 	} else {
 		req := msg.NewRequestMessage(wot.OpWriteProperty, thingID, name, input, correlationID)
-		err = co.SendRequest(req, nil)
+		err = co.SendRequest(req, func(resp *msg.ResponseMessage) error {
+			// just ignore the result
+			return nil
+		})
 	}
 	return err
 }
 
 // NewConsumer returns a new instance of the WoT consumer for use with the given
-// connection. The connection should not be used by others as this consumer takes
-// possession by registering connection callbacks.
+// connection. This consumer takes possession of the provided client connection
+// by registering connection callbacks.
 //
 // This provides the API for common WoT operations such as invoking actions and
 // supports RPC calls by waiting for a response.

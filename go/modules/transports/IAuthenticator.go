@@ -8,6 +8,10 @@ import (
 
 var UnauthorizedError error = unauthorizedError{}
 
+// Auth service handler for validating authentication tokens.
+// In http this is the bearer token in the authorization header.
+type ValidateTokenHandler func(token string) (clientID string, sessionID string, err error)
+
 // UnauthorizedError for dealing with authorization problems
 type unauthorizedError struct {
 	Message string

@@ -2,10 +2,12 @@ package module
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 	"net/http"
 
 	"github.com/hiveot/hivekit/go/modules/transports/httptransport"
+	"github.com/hiveot/hivekit/go/utils"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
@@ -14,7 +16,10 @@ import (
 
 // Create the middleware from the configuration.
 // This follows the sequence(whereenabled): CORS-Logging-Recovery-StripSlashes-Compression
-// The public and protected routes are added after this chain.
+// A public route is always created
+// A protected route is created when an authentication is enabled in config
+//
+// Note that without authentication, the context will not have clientID or sessionID set.
 func (m *HttpTransportModule) addMiddleware(cfg *httptransport.HttpServerConfig) {
 	rootRouter := m.rootRouter
 
@@ -63,6 +68,13 @@ func (m *HttpTransportModule) addMiddleware(cfg *httptransport.HttpServerConfig)
 	if cfg.Recoverer != nil {
 		rootRouter.Use(cfg.Recoverer)
 	}
+
+	// TODO: add csrf support in posts
+	//csrfMiddleware := csrf.Protect(
+	//	[]byte("32-byte-long-auth-key"),
+	//	csrf.SameSite(csrf.SameSiteStrictMode))
+	//router.Use(csrfMiddleware)
+
 	if !cfg.StripSlashesEnabled {
 		rootRouter.Use(middleware.StripSlashes) // /dashboard/(missing id) -> /dashboard
 	}
@@ -84,18 +96,28 @@ func (m *HttpTransportModule) addMiddleware(cfg *httptransport.HttpServerConfig)
 
 	//--- private routes that requires an authenticated client
 	rootRouter.Group(func(r chi.Router) {
-		m.protRoute = r
-		if cfg.Authenticate != nil {
+		if cfg.ValidateToken != nil {
+			m.protRoute = r
 			// authenticate requests in the protected routes
+			//
 			authWrap := func(next http.Handler) http.Handler {
 				return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-					clientID, sid, err := cfg.Authenticate(r)
+					var clientID string
+					var sid string
+					var err error
+
+					if cfg.AuthenticateHandler != nil {
+						clientID, sid, err = cfg.AuthenticateHandler(r)
+					} else {
+						clientID, sid, err = m.Authenticate(r)
+					}
 					if err != nil {
 						// see https://w3c.github.io/wot-discovery/#exploration-secboot
 						// response with unauthorized and point to using the bearer token method
 						w.Header().Add("WWW-Authenticate", "Bearer")
-						http.Error(w, "missing clientID", http.StatusUnauthorized)
-						slog.Warn("HttpsServer Authenticate; Missing clientID;",
+						http.Error(w, "Invalid bearer token", http.StatusUnauthorized)
+						slog.Warn("HttpsServer Authenticate; ",
+							"error", err.Error(),
 							"path", r.RequestURI)
 						return
 					}
@@ -107,13 +129,96 @@ func (m *HttpTransportModule) addMiddleware(cfg *httptransport.HttpServerConfig)
 			}
 
 			r.Use(authWrap)
+		} else {
+			slog.Warn("HTTP server does not have authentication configured. The protected route is not available.")
 		}
-		// add the authenticator
 	})
+}
+
+// The default Authentication handler that reads the bearer token from the request
+// and uses the ValidateToken function to validate it.
+func (m *HttpTransportModule) Authenticate(r *http.Request) (clientID string, sid string, err error) {
+
+	bearerToken, err := utils.GetBearerToken(r)
+	if err != nil {
+		return "", "", err
+	}
+	if m.config.ValidateToken == nil {
+		return "", "", fmt.Errorf("Authenticate: missing cfg.ValidateToken handler")
+	}
+	//check if the token is properly signed
+	clientID, sid, err = m.config.ValidateToken(bearerToken)
+	if err != nil {
+		return "", "", err
+	} else if clientID == "" {
+		return "", "", fmt.Errorf("Missing ClientID")
+	}
+
+	return clientID, sid, nil
+}
+
+// AddSessionFromToken middleware decodes the bearer session token in the authorization header.
+//
+// Session tokens can be provided through a bearer token or a client cookie. The token
+// must match with an existing session ID.
+//
+// This distinguishes two types of tokens. Those with and those without a session ID.
+// If the token contains a session ID then that session must exist or the token is invalid.
+// User tokens are typically session tokens. Closing the session (logout) invalidates the token,
+// even if it hasn't yet expired. Sessions are currently only stored in memory so a service
+// restart also invalidates all session tokens.
+//
+// Non-session tokens, are used by services and device agents. These tokens are generated
+// on provisioning or token renewal and last until their expiry.
+//
+// The session can be retrieved from the request context using GetSessionFromContext()
+//
+// The client session contains the client ID, and stats for the current session.
+// If no valid session is found this will reply with an unauthorized status code.
+//
+// pubKey is the public key from the keypair used in creating the session token.
+func (m *HttpTransportModule) AddSessionFromToken() func(next http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+
+			bearerToken, err := utils.GetBearerToken(r)
+			if err != nil {
+				// see https://w3c.github.io/wot-discovery/#exploration-secboot
+				// response with unauthorized and point to using the bearer token method
+				errMsg := "AddSessionFromToken: " + err.Error()
+				w.Header().Add("WWW-Authenticate", "Bearer")
+				http.Error(w, errMsg, http.StatusUnauthorized)
+				slog.Warn(errMsg)
+				return
+			}
+			//check if the token is properly signed
+			clientID, sid, err := m.config.ValidateToken(bearerToken)
+			if err != nil || clientID == "" {
+				w.Header().Add("WWW-Authenticate", "Bearer")
+				http.Error(w, err.Error(), http.StatusUnauthorized)
+				slog.Warn("AddSessionFromToken: Invalid session token:",
+					"err", err, "clientID", clientID)
+				return
+			} else if clientID == "" {
+				w.Header().Add("WWW-Authenticate", "Bearer")
+				http.Error(w, "missing clientID", http.StatusUnauthorized)
+				slog.Warn("AddSessionFromToken: Missing clientID")
+				return
+			}
+
+			// make session available in context
+			//ctx := context.WithValue(r.Context(), subprotocols.SessionContextID, cs)
+			ctx := context.WithValue(r.Context(), httptransport.SessionContextID, sid)
+			ctx = context.WithValue(ctx, httptransport.ClientContextID, clientID)
+			next.ServeHTTP(w, r.WithContext(ctx))
+		})
+	}
 }
 
 // GetProtectedRouter returns the router with protected accessible routes for this server.
 // This router has cors protection enabled.
+// This returns nil if authentication is not configured and will probably
+// cause a panic when used.
 func (m *HttpTransportModule) GetProtectedRoute() chi.Router {
 	return m.protRoute
 }

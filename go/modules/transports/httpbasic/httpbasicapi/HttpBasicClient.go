@@ -80,10 +80,10 @@ func (cl *HttpBasicClient) Close() {
 }
 
 // GetAppConnectHandler returns the application handler for connection status updates
-func (cl *HttpBasicClient) GetAppConnectHandler() transports.ConnectionHandler {
-	hPtr := cl.appConnectHandlerPtr.Load()
-	return *hPtr
-}
+// func (cl *HttpBasicClient) GetAppConnectHandler() transports.ConnectionHandler {
+// 	hPtr := cl.appConnectHandlerPtr.Load()
+// 	return *hPtr
+// }
 
 func (cl *HttpBasicClient) GetClientID() string {
 	return cl.tlsClient.GetClientID()

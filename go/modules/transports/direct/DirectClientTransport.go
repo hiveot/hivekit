@@ -99,7 +99,7 @@ func NewDirectTransport(
 	t := &DirectClientTransport{
 		source: source,
 	}
-	t.Init(moduleID, sink, "")
+	t.Init(moduleID, sink, "", transports.DefaultRpcTimeout)
 	var _ transports.ITransportModule = t // interface check
 	return t
 }

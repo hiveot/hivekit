@@ -8,7 +8,7 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/hiveot/hivekit/go/modules/transports/hiveotsse"
 	"github.com/hiveot/hivekit/go/msg"
-	"github.com/hiveot/hivekit/go/utils/net"
+	"github.com/hiveot/hivekit/go/utils"
 	"github.com/hiveot/hivekit/go/wot"
 )
 
@@ -22,6 +22,11 @@ import (
 // CreateRoutes add the routes used in SSE-SC sub-protocol
 // This is simple, one endpoint to connect, and one to pass requests, using URI variables
 func (m *HiveotSseModule) CreateRoutes(ssePath string, r chi.Router) {
+	if r == nil {
+		slog.Error("HiveotSseModule CreateRoutes: missing router")
+		return
+	}
+	// SSE connection endpoint
 	r.Get(ssePath, m.onHttpSseConnection)
 	r.Post(hiveotsse.PostHiveotSseNotificationPath, m.onHttpNotificationMessage)
 	r.Post(hiveotsse.PostHiveotSseRequestPath, m.onHttpRequestMessage)
@@ -64,14 +69,14 @@ func (m *HiveotSseModule) onHttpNotificationMessage(w http.ResponseWriter, r *ht
 	// 1. Decode the message
 	rp, err := m.httpServer.GetRequestParams(r)
 	if err != nil {
-		net.WriteError(w, err, 0)
+		utils.WriteError(w, err, 0)
 		return
 	}
 	// the converter translates the payload to a NotificationMessage
 	notif := m.converter.DecodeNotification(rp.Payload)
 	if notif == nil || notif.Operation == "" {
 		err = fmt.Errorf("onHttpNotificationMessage: missing notification in payload")
-		net.WriteError(w, err, 0)
+		utils.WriteError(w, err, 0)
 		return
 	}
 	notif.SenderID = rp.ClientID
@@ -79,10 +84,10 @@ func (m *HiveotSseModule) onHttpNotificationMessage(w http.ResponseWriter, r *ht
 	// pass the notification to the sinks
 	m.ForwardNotification(notif)
 
-	net.WriteReply(w, true, nil, nil)
+	utils.WriteReply(w, true, nil, nil)
 }
 
-// onRequestMessage handles request messages received over http.
+// onHttpRequestMessage handles request messages received over http.
 //
 // The request is forwarded to the registered sink.
 // If the message is processed immediately, a response is returned with the http request.
@@ -112,11 +117,13 @@ func (m *HiveotSseModule) onHttpRequestMessage(w http.ResponseWriter, r *http.Re
 		return
 	}
 
+	slog.Info("onHttpRequestMessage", "sender", rp.ClientID, "op", req.Operation)
+
 	// The authenticated clientID and the cid header are required.
 	req.SenderID = rp.ClientID
 	if rp.ClientID == "" || rp.ConnectionID == "" {
 		err = fmt.Errorf("onHttpRequestMessage: missing clientID or connectionID (cid)")
-		net.WriteError(w, err, http.StatusBadRequest)
+		utils.WriteError(w, err, http.StatusBadRequest)
 		return
 	}
 	// 2. locate the SSE connection that handles the response.
@@ -126,28 +133,38 @@ func (m *HiveotSseModule) onHttpRequestMessage(w http.ResponseWriter, r *http.Re
 			"clientID", rp.ClientID, "connectionID", rp.ConnectionID,
 			"correlationID", req.CorrelationID)
 		err = fmt.Errorf("onHttpRequestMessage: no SSE connection")
-		net.WriteError(w, err, http.StatusBadRequest)
+		utils.WriteError(w, err, http.StatusBadRequest)
 		return
 	}
 
 	// 3. handle ping operation internally
 	if req.Operation == wot.HTOpPing {
-		// ping responds immediately
+		// ping responds immediately via SSE
 		resp = req.CreateResponse("pong", nil)
+		//
 		err = c.SendResponse(resp)
 		// debugger bug not stopping on WriteReply when at the bottom?
 	} else {
-		err = m.ForwardRequest(req,
-			func(resp *msg.ResponseMessage) error {
-				err = c.SendResponse(resp)
-				return err
-			})
+		// server connection handles subscriptions so forward it
+		sc, _ := c.(*HiveotSseServerConnection)
+		handled, err := sc.onRequestMessage(req)
+
+		// if the connection doesnt handle the request then forward it to the sink
+		if !handled {
+			err = m.ForwardRequest(req,
+				func(resp *msg.ResponseMessage) error {
+					err = c.SendResponse(resp)
+					return err
+				})
+		} else {
+
+		}
 	}
-	// 4. The response is sent via SSE
-	net.WriteReply(w, false, nil, err)
+	// 4. The response is sent via SSE, just confirm the request is processed
+	utils.WriteReply(w, false, nil, err)
 }
 
-// onResponseMessage handles responses sent by agents.
+// onHttpResponseMessage handles responses sent by agents.
 //
 // As WoT doesn't support reverse connections this is only used by hiveot agents
 // that connect as clients. In that case the server is the consumer.
@@ -177,14 +194,21 @@ func (m *HiveotSseModule) onHttpResponseMessage(w http.ResponseWriter, r *http.R
 	}
 	// pass the response to the sinks
 	resp.SenderID = rp.ClientID
-	// If the request was sent (via SSE) with a callback then an RNR channel was
+
+	// If a request was sent to the client (via SSE) with a callback then an RNR channel was
 	// opened waiting for the response.
 	handled := m.RnrChan.HandleResponse(resp)
 	if !handled {
 		// no callback waiting for the response so forward it to the sink
 		err = m.ForwardResponse(resp)
 	}
-	net.WriteReply(w, true, nil, err)
+	if err != nil {
+		// response not handled?
+		slog.Error("onHttpResponseMessage: response not handled or failed in handling", "err", err.Error())
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	} else {
+		utils.WriteReply(w, true, nil, err)
+	}
 }
 
 // Serve a new incoming hiveot sse connection.
@@ -221,7 +245,9 @@ func (m *HiveotSseModule) onHttpSseConnection(w http.ResponseWriter, r *http.Req
 	// c.SetRequestHandler(srv.serverRequestHandler)
 	// c.SetResponseHandler(srv.serverResponseHandler)
 	err = m.AddConnection(c)
-	m.connectHandler(true, nil, c)
+	if m.connectHandler != nil {
+		m.connectHandler(true, nil, c)
+	}
 
 	// if err != nil {
 	// http.Error(w, err.Error(), http.StatusUnauthorized)
@@ -232,5 +258,7 @@ func (m *HiveotSseModule) onHttpSseConnection(w http.ResponseWriter, r *http.Req
 
 	// finally cleanup the connection
 	m.RemoveConnection(c)
-	m.connectHandler(false, nil, c)
+	if m.connectHandler != nil {
+		m.connectHandler(false, nil, c)
+	}
 }

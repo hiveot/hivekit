@@ -5,7 +5,6 @@ import (
 	"log/slog"
 	"net/http"
 	"sync"
-	"sync/atomic"
 	"time"
 
 	"github.com/hiveot/hivekit/go/modules/transports"
@@ -25,8 +24,12 @@ const SSEPingEvent = "sse-ping"
 
 // HiveotSseServerConnection handles the SSE connection by remote client
 //
-// The Sse-sc protocol binding uses a 'hiveot' message envelope for sending messages
-// between server and consumer.
+// The Sse-sc (sse single connection) protocol binding uses a 'hiveot' message
+// envelope for sending messages between server and consumer.
+//
+// The sse server connection is a 1-way connection intended for sending messages
+// to a client that connects over SSE. The client will use http to send messages
+// to the server.
 //
 // This implements the IServerConnection interface for sending messages to
 // the client over SSE.
@@ -54,37 +57,15 @@ type HiveotSseServerConnection struct {
 	// mutex for controlling writing and closing
 	mux sync.RWMutex
 
-	// notify client of a connect or disconnect
-	connectionHandler transports.ConnectionHandler
-	// handler for requests send by clients
-	appRequestHandlerPtr atomic.Pointer[msg.RequestHandler]
-	// handler for responses sent by agents
-	responseHandlerPtr atomic.Pointer[msg.ResponseHandler]
-	// handler for notifications sent by agents
-	notificationHandlerPtr atomic.Pointer[msg.NotificationHandler]
-
 	sseChan chan SSEEvent
-
-	// subscriptions transports.Subscriptions
-	// observations  transports.Subscriptions
-	//
-	correlData map[string]chan any
 
 	// the Request-and-Response helper that links responses from http
 	// with requests send over sse.
 	// This instance is owned by the http server which passes responses to it.
-	rnrChan *transports.RnRChan
+	rnrChan *msg.RnRChan
 	// timeout to observe when waiting for responses
 	respTimeout time.Duration
 }
-
-//type HttpActionStatus struct {
-//	CorrelationID string `json:"request_id"`
-//	ThingID   string `json:"thingID"`
-//	Name      string `json:"name"`
-//	Data      any    `json:"data"`
-//	Error     string `json:"error"`
-//}
 
 // _send sends a request, response or notification message to the client over SSE.
 // This is different from the WoT SSE subprotocol in that the payload is the
@@ -104,6 +85,9 @@ func (sc *HiveotSseServerConnection) _send(msgType string, msg any) (err error) 
 			slog.String("MessageType", msgType),
 		)
 		sc.sseChan <- sseMsg
+	} else {
+		slog.Error("HiveotSseServerConnection unable to send message. Connection lost.",
+			"msgType", msgType, "clientID", sc.ClientID)
 	}
 	// as long as the channel exists, delivery will take place
 	return nil
@@ -122,30 +106,23 @@ func (sc *HiveotSseServerConnection) Close() {
 }
 
 // Handle received notification message.
-func (sc *HiveotSseServerConnection) onNotificationMessage(notif msg.NotificationMessage) {
-	// TODO: is this handled here or does this use http-basic
-}
+// func (sc *HiveotSseServerConnection) onNotificationMessage(notif msg.NotificationMessage) {
+// 	// TODO: is this handled here or does this use http-basic
+// }
 
-func (sc *HiveotSseServerConnection) onResponseMessage(notif msg.ResponseMessage) {
-	// TODO: is this handled here or does this use http-basic
+// func (sc *HiveotSseServerConnection) onResponseMessage(notif msg.ResponseMessage) {
+// 	// TODO: is this handled here or does this use http-basic
 
-}
+// }
 
-// Handle received request messages.
+// onRequestMessage handles (un)subscribe and (un)observe requests.
+// This sends a response to the client, confirming the subscription.
 //
-// A response is only expected if the request is handled, otherwise nil is returned
-// and a response is received asynchronously.
-// In case of subscriptions, these are handled using the ConnectionBase.
-// In case of invoke-action, the response is always an ActionStatus object.
-//
-// This returns one of 3 options:
-// 1. on completion, return handled=true, an optional output
-// 2. on error, return handled=true, output optional error details and error the error message
-// 3. on async status, return handled=false, output optional, error nil
+// Everything else returns with handled false.
 func (sc *HiveotSseServerConnection) onRequestMessage(
-	req *msg.RequestMessage) (handled bool, output *msg.ResponseMessage, err error) {
+	req *msg.RequestMessage) (handled bool, err error) {
 
-	// handle subscriptions
+	// handle subscriptions using connection base
 	handled = true
 	switch req.Operation {
 	case wot.OpSubscribeEvent, wot.OpSubscribeAllEvents:
@@ -160,38 +137,11 @@ func (sc *HiveotSseServerConnection) onRequestMessage(
 		handled = false
 	}
 	if handled {
-		// subscription requests dont have output
-		err = nil
-		return handled, nil, nil
+		// confirm
+		resp := req.CreateResponse(nil, nil)
+		err = sc.SendResponse(resp)
 	}
-	// note handled, pass it to the application
-	hPtr := sc.appRequestHandlerPtr.Load()
-	if hPtr == nil {
-		// internal error
-		err = fmt.Errorf("HiveotSseServerConnection:onRequestMessage: no request handler registered")
-		return true, nil, err
-	}
-
-	// send the request and receive a response via the lambda
-	err = (*hPtr)(req, func(resp *msg.ResponseMessage) error {
-		// this only obtains a result for synchronous requests
-		output = resp
-		handled = true
-		err = nil
-		if resp.Error != nil {
-			err = resp.Error.AsError()
-			handled = true
-		}
-		return err
-	})
-
-	// responses are optional
-	if !handled {
-		// no response yet, return a 201
-		err = nil
-		output = nil
-	}
-	return handled, output, err
+	return handled, err
 }
 
 // SendNotification sends a notification to the client if subscribed.
@@ -211,8 +161,7 @@ func (sc *HiveotSseServerConnection) SendNotification(
 		)
 		err = sc._send(msg.MessageTypeNotification, notif)
 	} else {
-		slog.Warn("Unknown notification: " + notif.Operation)
-		//err = c._send(msg)
+		// ignore the notification
 	}
 	return err
 }
@@ -232,10 +181,15 @@ func (sc *HiveotSseServerConnection) SendRequest(
 	if req.CorrelationID == "" {
 		req.CorrelationID = shortid.MustGenerate()
 	}
-	// the channel that will receives the result over http
-	sc.rnrChan.WaitWithCallback(req.CorrelationID, responseHandler, sc.respTimeout)
+
+	// The module provided the RnR channel handling.
+	// The response to this request will be received over HTTP via the module routes.
+	// Once received, the response handler  it will pass it to the RnR channel which
+	// in turn invokes this responseHandler callback.
+	sc.rnrChan.WaitWithCallback(req.CorrelationID, responseHandler)
 
 	err = sc._send(msg.MessageTypeRequest, req)
+
 	if err != nil {
 		slog.Warn("SendRequest ->: error in sending request",
 			"dThingID", req.ThingID,
@@ -310,7 +264,7 @@ func (sc *HiveotSseServerConnection) Serve(w http.ResponseWriter, r *http.Reques
 				// ending the read loop and returning will close the connection
 				break
 			}
-			slog.Debug("SseConnection: sending sse event to client",
+			slog.Info("SseConnection: sending sse event to client",
 				//slog.String("sessionID", c.sessionID),
 				slog.String("clientID", sc.GetClientID()),
 				slog.String("connectionID", sc.ConnectionID),
@@ -348,77 +302,12 @@ func (sc *HiveotSseServerConnection) Serve(w http.ResponseWriter, r *http.Reques
 	)
 }
 
-// SetConnectHandler set the connection changed callback. Used by the connection manager.
-func (sc *HiveotSseServerConnection) SetConnectHandler(cb transports.ConnectionHandler) {
-	sc.mux.Lock()
-	sc.connectionHandler = cb
-	sc.mux.Unlock()
-}
-
-// SetNotificationHandler sets the handler for incoming notification messages from the
-// http connection.
-//
-// Handlers of notifications must register a callback using SetNotificationHandler on the connection.
-//
-// Note on how this works: The global http server receives notifications as http requests.
-// To make it look like the notification came from this connection it looks up the
-// connection using the clientID and connectionID and passes the message to the
-// registered notification handler on this connection.
-//
-// By default, the server registers itself as the notification handler when the connection
-// is created. It is safe to set a different handler for applications that
-// handle each connection separately, for example a server side consumer instance.
-func (sc *HiveotSseServerConnection) SetNotificationHandler(cb msg.NotificationHandler) {
-	if cb == nil {
-		sc.notificationHandlerPtr.Store(nil)
-	} else {
-		sc.notificationHandlerPtr.Store(&cb)
-	}
-}
-
-// SetRequestHandler sets the handler for incoming request messages from the
-// http connection.
-//
-// The hiveot server design requires that the messages are coming from the connections.
-// Handlers of requests must register a callback using SetRequestHandler on the connection.
-//
-// Note on how this works: The global http server receives http requests. To make
-// it look like the request came from this connection it looks up the connection
-// using the clientID and connectionID and passes the message to the registered
-// request handler on this connection.
-//
-// By default, the server registers itself as the request handler when the connection
-// is created. It is safe to set a different request handler for applications that
-// handle each connection separately, for example an 'Agent' instance.
-func (sc *HiveotSseServerConnection) SetRequestHandler(cb msg.RequestHandler) {
-	if cb == nil {
-		sc.appRequestHandlerPtr.Store(nil)
-	} else {
-		sc.appRequestHandlerPtr.Store(&cb)
-	}
-}
-
-// SetResponseHandler sets the handler for incoming response messages from the
-// http connection.
-//
-// The hiveot server design requires that the messages are coming from the connections.
-// Handlers of responses must register a callback using SetResponseHandler on the connection.
-//
-// Note on how this works: The global http server receives responses as http requests.
-// To make it look like the response came from this connection it looks up the
-// connection using the clientID and connectionID and passes the message to the
-// registered response handler on this connection.
-//
-// By default, the server registers itself as the response handler when the connection
-// is created. It is safe to set a different response handler for applications that
-// handle each connection separately, for example a server side consumer instance.
-func (sc *HiveotSseServerConnection) SetResponseHandler(cb msg.ResponseHandler) {
-	if cb == nil {
-		sc.responseHandlerPtr.Store(nil)
-	} else {
-		sc.responseHandlerPtr.Store(&cb)
-	}
-}
+// // SetConnectHandler set the connection changed callback. Used by the connection manager.
+// func (sc *HiveotSseServerConnection) SetConnectHandler(cb transports.ConnectionHandler) {
+// 	sc.mux.Lock()
+// 	sc.connectionHandler = cb
+// 	sc.mux.Unlock()
+// }
 
 // NewHiveotSseConnection creates a new SSE connection instance.
 // This implements the IServerTransport interface.
@@ -430,19 +319,17 @@ func (sc *HiveotSseServerConnection) SetResponseHandler(cb msg.ResponseHandler) 
 // rnrChan is the http server request&response channel where responses are passed.
 func NewHiveotSseConnection(
 	clientID string, cid string, remoteAddr string, httpReq *http.Request,
-	rnrChan *transports.RnRChan) *HiveotSseServerConnection {
+	rnrChan *msg.RnRChan) *HiveotSseServerConnection {
 
 	c := &HiveotSseServerConnection{
 		remoteAddr:   remoteAddr,
 		httpReq:      httpReq,
 		lastActivity: time.Now(),
 		mux:          sync.RWMutex{},
-		// observations:  connections.Subscriptions{},
-		// subscriptions: connections.Subscriptions{},
-		correlData: make(map[string]chan any),
-		rnrChan:    rnrChan,
+
+		rnrChan:     rnrChan,
+		respTimeout: transports.DefaultRpcTimeout,
 	}
-	// c.isConnected.Store(true)
 	c.Init(clientID, httpReq.URL.String(), cid)
 
 	// interface check

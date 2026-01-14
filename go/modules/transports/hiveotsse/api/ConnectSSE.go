@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"strings"
 	"sync/atomic"
 	"time"
 
@@ -33,6 +34,7 @@ func ConnectSSE(
 	ssePath string,
 	onConnect func(bool, error),
 	onMessage func(event sse.Event),
+	timeout time.Duration,
 ) (cancelFn func(), err error) {
 
 	method := http.MethodGet
@@ -68,7 +70,7 @@ func ConnectSSE(
 	remover := conn.SubscribeToAll(onMessage)
 
 	// Wait for max 3 seconds to detect a connection
-	waitConnectCtx, waitConnectCancelFn := context.WithTimeout(context.Background(), time.Second*3)
+	waitConnectCtx, waitConnectCancelFn := context.WithTimeout(context.Background(), timeout)
 	conn.SubscribeEvent(hiveotsseserver.SSEPingEvent, func(event sse.Event) {
 		// WORKAROUND since go-sse has no callback for a successful (re)connect, simulate one here.
 		// As soon as a connection is established the server could send a 'ping' event.
@@ -84,12 +86,19 @@ func ConnectSSE(
 		// onConnect will be called on receiving the first (ping) message
 		//onConnect(true, nil)
 		err := conn.Connect()
-		// FIXME: pass 401 unauthorized to caller
+
 		if connError, ok := err.(*sse.ConnectionError); ok {
-			// since sse retries, this is likely an authentication error
-			slog.Error("SSE connection failed (server shutdown or connection interrupted)",
-				"clientID", clientID,
-				"err", err.Error())
+			if strings.Index(connError.Error(), "401") >= 0 {
+				// this is an authentication error
+				slog.Error("SSE authentication failed",
+					"clientID", clientID,
+					"err", err.Error())
+			} else {
+				// since sse retries, this is likely an authentication error
+				slog.Error("SSE connection failed (server shutdown or connection interrupted)",
+					"clientID", clientID,
+					"err", err.Error())
+			}
 			sseConnErr.Store(connError)
 			//err = fmt.Errorf("connect Failed: %w", connError.Err) //connError.Err
 			waitConnectCancelFn()
@@ -135,7 +144,8 @@ func (cl *HiveotSseClient) ConnectSSE(token string) (err error) {
 		cl.tlsClient,
 		cl.ssePath,
 		cl.handleSSEConnect,
-		cl.handleSseEvent)
+		cl.handleSseEvent,
+		cl.timeout)
 
 	return err
 }
@@ -167,14 +177,17 @@ func (cl *HiveotSseClient) handleSSEConnect(connected bool, err error) {
 		cl.lastError.Store(&err)
 		cl.mux.Unlock()
 	}
-	handler := cl.GetAppConnectHandler()
+
+	// FIXME: should the connect callback be invoked from the connection or the module?
+	// currently both?
+	hPtr := cl.appConnectHandlerPtr.Load()
 
 	// Note: this callback can send notifications to the client,
 	// so prevent deadlock by running in the background.
 	// (caught by readhistory failing for unknown reason)
-	if connectionChanged && handler != nil {
+	if connectionChanged && hPtr != nil {
 		go func() {
-			handler(connected, err, cl)
+			(*hPtr)(connected, err, cl)
 		}()
 	}
 }
@@ -240,6 +253,7 @@ func (cl *HiveotSseClient) handleSseEvent(event sse.Event) {
 	case msg.MessageTypeResponse:
 		resp := cl.msgConverter.DecodeResponse([]byte(event.Data))
 		if resp == nil {
+			slog.Info("Received SSE Event but decoder returns nil", "data", string(event.Data))
 			return
 		}
 
@@ -248,6 +262,7 @@ func (cl *HiveotSseClient) handleSseEvent(event sse.Event) {
 		handled := cl.rnrChan.HandleResponse(resp)
 
 		if !handled {
+			slog.Info("Received SSE Response. Not Handled", "op", resp.Operation, "name", resp.Name)
 			// no-one waiting, pass it to the consumer module sink.
 			if cl.sink == nil {
 				slog.Error("HandleWssMessage: no sink set. Async Response is ignored",
@@ -259,6 +274,9 @@ func (cl *HiveotSseClient) handleSseEvent(event sse.Event) {
 				// pass the response to the consumer sink
 				_ = cl.sink.HandleResponse(resp)
 			}
+		} else {
+			// slog.Info("SSE Response was handled in RnR",
+			// "op", resp.Operation, "correlationID", resp.CorrelationID)
 		}
 	default:
 		// all other events are intended for other use-cases such as the UI,

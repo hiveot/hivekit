@@ -6,29 +6,6 @@ import (
 	"github.com/hiveot/hivekit/go/wot/td"
 )
 
-// ConnectionInfo provides details of a connection
-// type ConnectionInfo struct {
-
-// 	// Connection CA
-// 	CaCert *x509.Certificate
-
-// 	// GetClientID returns the authenticated clientID of this connection
-// 	ClientID string
-
-// 	// GetConnectionID returns the client's connection ID belonging to this endpoint
-// 	ConnectionID string
-
-// 	// GetConnectURL returns the full server URL used to establish this connection
-// 	ConnectURL string
-
-// 	// GetProtocolType returns the name of the protocol of this connection
-// 	// See ProtocolType... constants above for valid values.
-// 	//ProtocolType string
-
-// 	// Connection timeout settings (clients only)
-// 	Timeout time.Duration
-// }
-
 // ConnectionHandler handles a change in connection status
 //
 //	connected is true when connected without errors
@@ -36,7 +13,7 @@ import (
 //	c is the connection instance being established or disconnected
 type ConnectionHandler func(connected bool, err error, c IConnection)
 
-// IConnection defines the interfaces of a server and client connection.
+// IConnection defines the interfaces of a HiveOT server and client connection.
 // Intended for exchanging messages between client and server.
 //
 // Connections do not differentiate between consumers and devices or services.
@@ -89,25 +66,6 @@ type IConnection interface {
 	// SetConnectHandler sets the callback for connection status changes
 	// This replaces any previously set handler.
 	SetConnectHandler(handler ConnectionHandler)
-
-	// SetNotificationHandler sets the callback for handling received notifications.
-	// This replaces any previously set handler.
-	//
-	// Intended for consumers to receive subscribed notifications.
-	// SetNotificationHandler(handler msg.NotificationHandler)
-
-	// SetRequestHandler sets the callback for handling received requests.
-	// This replaces any previously set handler.
-	//
-	// Intended for (device or service) agents to handle requests.
-	// SetRequestHandler(handler msg.RequestHandler)
-
-	// SetResponseHandler sets the callback for handling received responses to
-	// to asynchronous requests.
-	// Intended for consumers to handle responses asynchronously.
-	//
-	// This replaces any previously set handler.
-	// SetResponseHandler(handler msg.ResponseHandler)
 }
 
 // GetFormHandler is the handler that provides the client with the form needed to invoke an operation
@@ -120,10 +78,6 @@ type GetFormHandler func(op string, thingID string, name string) *td.Form
 type IClientConnection interface {
 	IConnection
 
-	// ConnectWithClientCert connects to the server using a client certificate.
-	// This authentication method is optional
-	//ConnectWithClientCert(kp keys.IHiveKey, cert *tls.Certificate) (err error)
-
 	// ConnectWithToken connects to the transport server using a clientID and
 	// corresponding authentication token.
 	//
@@ -134,14 +88,6 @@ type IClientConnection interface {
 	//
 	// This connection method must be supported by all transport implementations.
 	ConnectWithToken(clientID, token string) (err error)
-
-	// Logout from the server
-	// This invalidates the authentication token used at login
-	// Logout() error
-
-	// Refresh the authentication token and return a new token.
-	// This invalidates the authentication token used at login.
-	// Refresh() (newToken string, err error)
 
 	// Set the sink for receiving async notifications, requests, and unhandled responses.
 	// Intended to be used if the sink is created after the client connection.

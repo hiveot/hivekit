@@ -16,7 +16,7 @@ import (
 	"github.com/hiveot/hivekit/go/lib/servers/httpbasic"
 	"github.com/hiveot/hivekit/go/lib/servers/tlsserver"
 	"github.com/hiveot/hivekit/go/lib/servers/wssserver"
-	"github.com/hiveot/hivekit/go/utils/net"
+	"github.com/hiveot/hivekit/go/utils"
 	"github.com/hiveot/hivekit/go/wot/td"
 )
 
@@ -315,7 +315,7 @@ func NewTransportManager(cfg *servers.ProtocolsConfig,
 
 		httpAddr := fmt.Sprintf("%s:%d", cfg.HttpHost, cfg.HttpsPort)
 		if cfg.HttpHost == "" {
-			connectIP := net.GetOutboundIP("")
+			connectIP := utils.GetOutboundIP("")
 			httpAddr = fmt.Sprintf("%s:%d", connectIP.String(), cfg.HttpsPort)
 		}
 

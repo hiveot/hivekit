@@ -12,6 +12,7 @@ import (
 
 	"github.com/hiveot/hivekit/go/modules"
 	"github.com/hiveot/hivekit/go/modules/transports"
+	"github.com/hiveot/hivekit/go/modules/transports/direct"
 	"github.com/hiveot/hivekit/go/modules/transports/hiveotsse"
 	"github.com/hiveot/hivekit/go/modules/transports/httptransport"
 	"github.com/hiveot/hivekit/go/modules/transports/httptransport/httpapi"
@@ -36,13 +37,20 @@ type HiveotSseClient struct {
 	// authentication bearer token if authenticated
 	// bearerToken string
 
-	// convert the request/response to the wss messaging protocol used
+	isConnected atomic.Bool
+
+	lastError atomic.Pointer[error]
+
+	// convert the request/response to the SSE messaging protocol used
 	msgConverter transports.IMessageConverter
 
-	// the request & response channel handler
-	// See also ConnectSSE where all responses are passed to this to support
-	// replyTo callbacks.
-	rnrChan *transports.RnRChan
+	// sse variables access
+	mux sync.RWMutex
+
+	// the request & response channel handler to match requests and responses.
+	// This is used in SendRequest to wait for the response received via SSE and pass it
+	// to the replyTo callbacks.
+	rnrChan *msg.RnRChan
 
 	// the sse path for the connection
 	ssePath string
@@ -52,19 +60,15 @@ type HiveotSseClient struct {
 	// handler for closing the sse connection
 	sseCancelFn context.CancelFunc
 
-	isConnected atomic.Bool
-
-	// sse variables access
-	mux sync.RWMutex
-
 	// destination for notifications, requests and responses.
 	// This is intended to be the application module the client connects to.
 	sink modules.IHiveModule
 
+	// Timeout for http requests and SSE connect
+	timeout time.Duration
+
 	// http2 client for posting messages
 	tlsClient httptransport.ITlsClient
-
-	lastError atomic.Pointer[error]
 }
 
 // ConnectWithToken sets the clientID and bearer token to use with requests and
@@ -77,7 +81,7 @@ func (cl *HiveotSseClient) ConnectWithToken(clientID, token string) error {
 	// ensure disconnected (note that this resets retryOnDisconnect)
 	cl.Close()
 
-	err := cl.ConnectWithToken(clientID, token)
+	err := cl.tlsClient.ConnectWithToken(clientID, token)
 	if err != nil {
 		return err
 	}
@@ -110,12 +114,6 @@ func (cl *HiveotSseClient) Close() {
 	if cl.IsConnected() {
 		cl.tlsClient.Close()
 	}
-}
-
-// GetAppConnectHandler returns the application handler for connection status updates
-func (cl *HiveotSseClient) GetAppConnectHandler() transports.ConnectionHandler {
-	hPtr := cl.appConnectHandlerPtr.Load()
-	return *hPtr
 }
 
 func (cl *HiveotSseClient) GetClientID() string {
@@ -191,13 +189,14 @@ func (cl *HiveotSseClient) SendRequest(
 
 	// A response handler is provided. Invoke replyTo when the response is received
 	// via sse.
-	rChan := cl.rnrChan.Open(req.CorrelationID)
-	_ = rChan
+	slog.Debug("HiveotSseClient.Sendrequest. Adding to RNR", "correlationID", req.CorrelationID)
+	cl.rnrChan.Open(req.CorrelationID)
 
 	outputRaw, code, err := cl.tlsClient.Post(
 		hiveotsse.PostHiveotSseRequestPath, []byte(outputJSON))
 
 	if err != nil {
+		cl.rnrChan.Close(req.CorrelationID)
 		slog.Warn("SendRequest ->: error in sending request",
 			"dThingID", req.ThingID,
 			"name", req.Name,
@@ -207,9 +206,17 @@ func (cl *HiveotSseClient) SendRequest(
 	}
 
 	if code == http.StatusOK || (code > 200 && code < 300) {
-		// successful call
-		cl.rnrChan.WaitWithCallback(req.CorrelationID, replyTo, 0)
+		// hiveot sse always uses the SSE return channel for the response message.
+		// While code 200 could in theory include the response message in the http
+		// response, hiveot chooses to always pass the response via SSE.
+		// the reply from the RNR channel is sent directly to the given replyTo handler.
+		cl.rnrChan.WaitWithCallback(req.CorrelationID, replyTo)
 	} else {
+		// something went wrong and no response is expected, close the channel
+		cl.rnrChan.Close(req.CorrelationID)
+		// is this really unexpected?
+		slog.Warn("SendRequest: unexpected result code", "code", code)
+
 		// error result, no response is expected so create one
 		// use error details in the output data if provided
 		resp := req.CreateResponse(nil, nil)
@@ -289,7 +296,8 @@ func (cl *HiveotSseClient) SetSink(sink modules.IHiveModule) {
 //	timeout for waiting for response. 0 to use the default.
 func NewHiveotSseClient(
 	sseURL string, caCert *x509.Certificate,
-	sink modules.IHiveModule, timeout time.Duration) *HiveotSseClient {
+	sink modules.IHiveModule,
+	timeout time.Duration) *HiveotSseClient {
 
 	urlParts, err := url.Parse(sseURL)
 	if err != nil {
@@ -306,9 +314,12 @@ func NewHiveotSseClient(
 	tlsClient := httpapi.NewTLSClient(hostPort, nil, caCert, timeout)
 
 	cl := HiveotSseClient{
-		ssePath:   ssePath,
-		sink:      sink,
-		tlsClient: tlsClient,
+		msgConverter: direct.NewPassthroughMessageConverter(),
+		rnrChan:      msg.NewRnRChan(timeout),
+		ssePath:      ssePath,
+		sink:         sink,
+		tlsClient:    tlsClient,
+		timeout:      timeout,
 	}
 	return &cl
 }

@@ -8,7 +8,6 @@ import (
 	"github.com/hiveot/hivekit/go/modules/transports/httpbasic"
 	"github.com/hiveot/hivekit/go/msg"
 	"github.com/hiveot/hivekit/go/utils"
-	"github.com/hiveot/hivekit/go/utils/net"
 	jsoniter "github.com/json-iterator/go"
 
 	"log/slog"
@@ -18,24 +17,11 @@ import (
 // createRoutes creates the middleware chain for handling requests, including
 // recoverer, compression and token verification for protected routes.
 //
-// This includes the unprotected routes for login and ping (for now)
-// This includes the protected routes for refresh and logout. (for now)
+// This includes the unprotected routes for ping (for now)
 // Everything else should be added by the sub-protocols.
 //
 // Routes are added by (sub)protocols such as http-basic, sse and wss.
 func (m *HttpBasicModule) createRoutes() {
-
-	// TODO: add csrf support in posts
-	//csrfMiddleware := csrf.Protect(
-	//	[]byte("32-byte-long-auth-key"),
-	//	csrf.SameSite(csrf.SameSiteStrictMode))
-
-	//-- add the middleware before routes
-	// router.Use(middleware.Recoverer)
-	//router.Use(middleware.Logger) // todo: proper logging strategy
-	//router.Use(csrfMiddleware)
-	// router.Use(middleware.Compress(5,
-	// "text/html", "text/css", "text/javascript", "image/svg+xml"))
 
 	//--- public routes do not require an authenticated session
 	pubRoutes := m.httpServer.GetPublicRoute()
@@ -50,6 +36,9 @@ func (m *HttpBasicModule) createRoutes() {
 
 	//--- private routes that requires authentication (as published in the TD)
 	protRoutes := m.httpServer.GetProtectedRoute()
+	if protRoutes == nil {
+		panic("no protected route available")
+	}
 	// client sessions authenticate the sender
 	// protRoutes.Use(AddSessionFromToken(srv.authenticator))
 
@@ -142,7 +131,7 @@ func (m *HttpBasicModule) onHttpAffordanceOperation(w http.ResponseWriter, r *ht
 	}
 
 	// 4. Return the response
-	net.WriteReply(w, handled, output, err)
+	utils.WriteReply(w, handled, output, err)
 }
 
 // onHttpThingOperation converts the http request to a request message and pass it to the registered request handler
@@ -154,5 +143,5 @@ func (m *HttpBasicModule) onHttpThingOperation(w http.ResponseWriter, r *http.Re
 // onHttpPing with http handler returns a pong response
 func (m *HttpBasicModule) onHttpPing(w http.ResponseWriter, r *http.Request) {
 	// simply return a pong message
-	net.WriteReply(w, true, "pong", nil)
+	utils.WriteReply(w, true, "pong", nil)
 }

@@ -1,6 +1,8 @@
 package authn
 
 import (
+	"time"
+
 	"github.com/hiveot/hivekit/go/modules"
 	"github.com/hiveot/hivekit/go/modules/transports"
 )
@@ -23,4 +25,16 @@ type IAuthnModule interface {
 
 	// Return the authenticator for use by other modules
 	GetAuthenticator() transports.IAuthenticator
+
+	// Login verifies the password and generates a new limited authentication token
+	Login(clientID string, password string) (
+		newToken string, validity time.Duration, err error)
+
+	// Logout disables the client's sessions
+	Logout(clientID string)
+
+	// RefreshToken refreshes the auth token using the session authenticator.
+	// This uses the configured session authenticator.
+	RefreshToken(clientID, oldToken string) (
+		newToken string, validity time.Duration, err error)
 }

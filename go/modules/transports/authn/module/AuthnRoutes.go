@@ -15,13 +15,14 @@ import (
 // createRoutes adds handlers for authentication methods:
 // - login is added to unprotected route
 // - refresh, logout is added to the protected route
-func (m *AuthnModule) createRoutes() {
+func (m *AuthnModule) createRoutes() error {
 	pubRoutes := m.httpServer.GetPublicRoute()
 	pubRoutes.Post(httpbasic.HttpPostLoginPath, m.onHttpLogin)
 
 	protRoutes := m.httpServer.GetProtectedRoute()
 	protRoutes.Post(httpbasic.HttpPostRefreshPath, m.onHttpTokenRefresh)
 	protRoutes.Post(httpbasic.HttpPostLogoutPath, m.onHttpLogout)
+	return nil
 }
 
 // onHttpLogin handles a login request and returns an auth token.
@@ -30,7 +31,7 @@ func (m *AuthnModule) createRoutes() {
 // This is the only unprotected route supported.
 // This uses the configured session authenticator.
 func (m *AuthnModule) onHttpLogin(w http.ResponseWriter, r *http.Request) {
-	var reply any
+	var newToken string
 	var args transports.UserLoginArgs
 	var validity time.Duration
 
@@ -42,7 +43,8 @@ func (m *AuthnModule) onHttpLogin(w http.ResponseWriter, r *http.Request) {
 		// the login is handled in-house and has an immediate return
 		// TODO: use-case for 3rd party login? oauth2 process support? tbd
 		// FIXME: hard-coded keys!? ugh
-		reply, validity, err = m.authenticator.Login(args.Login, args.Password)
+		newToken, validity, err = m.Login(args.Login, args.Password)
+
 		_ = validity
 		slog.Info("HandleLogin", "clientID", args.Login)
 	}
@@ -53,7 +55,7 @@ func (m *AuthnModule) onHttpLogin(w http.ResponseWriter, r *http.Request) {
 	}
 	// TODO: set client session cookie for browser clients
 	//srv.sessionManager.SetSessionCookie(cs.sessionID,token)
-	tlsserver.WriteReply(w, true, reply, nil)
+	tlsserver.WriteReply(w, true, newToken, nil)
 }
 
 // onHttpLogout ends the session and closes all client connections
@@ -62,7 +64,7 @@ func (m *AuthnModule) onHttpLogout(w http.ResponseWriter, r *http.Request) {
 	rp, err := m.httpServer.GetRequestParams(r)
 	if err == nil {
 		slog.Info("HandleLogout", "clientID", rp.ClientID)
-		m.authenticator.Logout(rp.ClientID)
+		m.Logout(rp.ClientID)
 	}
 	tlsserver.WriteReply(w, true, nil, err)
 }

@@ -5,6 +5,7 @@ import (
 	"log/slog"
 	"slices"
 	"sync"
+	"time"
 
 	"github.com/hiveot/hivekit/go/modules"
 	"github.com/hiveot/hivekit/go/msg"
@@ -40,7 +41,7 @@ type TransportModuleBase struct {
 	// Since some transports use unidirectional channels, a request to one channel
 	// will result in a response over the other. RnRChan will pass the response from
 	// one channel to the requester.
-	RnrChan *RnRChan
+	RnrChan *msg.RnRChan
 }
 
 // AddConnection adds a new connection and notifies subscribers.
@@ -193,9 +194,16 @@ func (m *TransportModuleBase) GetConnectionByClientID(clientID string) (c IServe
 }
 
 // Initialize the module base with a moduleID and a messaging sink
-func (m *TransportModuleBase) Init(moduleID string, sink modules.IHiveModule, connectURL string) {
+//
+//	moduleID is the transport instance ID to identify as.
+//	sink is the module that handles the messages.
+//	connectURL is the URL this module can be reached at.
+//	timeout is the RnR timeout. (when sending requests to clients and waiting for response)
+func (m *TransportModuleBase) Init(
+	moduleID string, sink modules.IHiveModule, connectURL string, timeout time.Duration) {
 	m.connectURL = connectURL
 	m.HiveModuleBase.Init(moduleID, sink)
+	m.RnrChan = msg.NewRnRChan(timeout)
 }
 
 // removeConnection removes the connection.
@@ -203,13 +211,10 @@ func (m *TransportModuleBase) Init(moduleID string, sink modules.IHiveModule, co
 // This will close the connnection if it isn't closed already.
 // Call this after the connection is closed or before closing.
 func (m *TransportModuleBase) removeConnection(c IServerConnection) {
-	// cinfo := c.GetConnectionInfo()
+
 	clientID := c.GetClientID()
 	connectionID := c.GetConnectionID()
 	clcid := clientID + ":" + connectionID
-
-	m.cmux.Lock()
-	defer m.cmux.Unlock()
 
 	// if nothing to do
 	if m.connectionsByClcid == nil {

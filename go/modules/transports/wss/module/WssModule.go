@@ -101,7 +101,7 @@ func NewHiveotWssModule(httpServer httptransport.IHttpServer, sink modules.IHive
 	moduleID := wss.DefaultHiveotWssModuleID
 	connectURL := fmt.Sprintf("%s://%s%s", wss.HiveotWssSchema, urlParts.Host, m.wssPath)
 	// set the base parameters
-	m.Init(moduleID, sink, connectURL)
+	m.Init(moduleID, sink, connectURL, transports.DefaultRpcTimeout)
 	return m
 }
 
@@ -126,6 +126,6 @@ func NewWotWssModule(httpServer httptransport.IHttpServer, sink modules.IHiveMod
 	moduleID := wss.DefaultWotWssModuleID
 	connectURL := fmt.Sprintf("%s://%s%s", wss.WotWssSchema, urlParts.Host, m.wssPath)
 
-	m.Init(moduleID, sink, connectURL)
+	m.Init(moduleID, sink, connectURL, transports.DefaultRpcTimeout)
 	return m
 }

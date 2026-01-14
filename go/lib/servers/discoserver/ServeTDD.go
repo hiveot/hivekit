@@ -10,9 +10,8 @@ import (
 	"strconv"
 	"strings"
 
-	net2 "github.com/hiveot/hivekit/go/utils/net"
-
 	"github.com/grandcat/zeroconf"
+	"github.com/hiveot/hivekit/go/utils"
 )
 
 // Parameter names in the discovery record
@@ -78,7 +77,7 @@ func ServeTDDiscovery(
 	scheme := parts.Scheme
 	// FIXME: DNS might not work for the local network. Use an IP instead.
 	// Does this support IPv6?
-	outIP := net2.GetOutboundIP("")
+	outIP := utils.GetOutboundIP("")
 	address := outIP.String()
 	//address := parts.Hostname()
 
@@ -150,7 +149,7 @@ func ServeDnsSD(instanceID string, serviceName string, subType string,
 		ips = []string{actualIP[0].String()}
 	}
 
-	ifaces, err := net2.GetInterfaces(ips[0])
+	ifaces, err := utils.GetInterfaces(ips[0])
 	if err != nil || len(ifaces) == 0 {
 		slog.Warn("Address does not appear on any interface. Continuing anyways", "address", ips[0])
 	}

@@ -13,7 +13,6 @@ import (
 	"github.com/hiveot/hivekit/go/modules/transports"
 	"github.com/hiveot/hivekit/go/msg"
 	"github.com/hiveot/hivekit/go/wot"
-	jsoniter "github.com/json-iterator/go"
 	"github.com/teris-io/shortid"
 )
 
@@ -64,27 +63,26 @@ type WssServerConnection struct {
 	wssConn *websocket.Conn
 
 	// request-response channel
-	rnrChan *transports.RnRChan
+	rnrChan *msg.RnRChan
 
 	// how long to wait for a response after sending a request
 	respTimeout time.Duration
 }
 
-// _send encodes and sends the websocket message to the connected client
-func (sc *WssServerConnection) _send(msg any) (err error) {
+// _send sends the seriaziled websocket message to the connected client
+func (sc *WssServerConnection) _send(msg []byte) (err error) {
 
 	if !sc.IsConnected() {
 		err = fmt.Errorf(
 			"_send: connection with client '%s' is now closed", sc.GetClientID())
 		slog.Warn(err.Error())
 	} else {
-		raw, _ := jsoniter.MarshalToString(msg)
 		// websockets do not allow concurrent write
 		sc.mux.Lock()
 		defer sc.mux.Unlock()
-		err = sc.wssConn.WriteMessage(websocket.TextMessage, []byte(raw))
+		err = sc.wssConn.WriteMessage(websocket.TextMessage, msg)
 		if err != nil {
-			err = fmt.Errorf("_send write error: %s", err)
+			err = fmt.Errorf("WssServerConnection._send write error: %s", err)
 		}
 	}
 	return err
@@ -246,7 +244,13 @@ func (sc *WssServerConnection) onRequest(req *msg.RequestMessage) {
 	}
 }
 
-// onResponse is passed the received response message
+// onResponse is passed the received response message after decoding to the standard response message format.
+//
+// This passes the response to the RNR response handler to serve any request handlers that are waiting
+// for a response. All this takes place asynchronously without blocking the connection.
+//
+// If the RNR handler doesn't have a matching correlationID listed then the response is passed to the
+// connection response handler.
 func (sc *WssServerConnection) onResponse(resp *msg.ResponseMessage) {
 	var err error
 	// this responsehandler points to the rnrChannel that matches the correlationID to the replyTo handler
@@ -316,9 +320,8 @@ func (sc *WssServerConnection) SendNotification(notif *msg.NotificationMessage) 
 // This accepts a response handler through which the response is received. If not
 // provided then the response will be forwarded to the module sink.
 //
-// Intended to be used on client that are agents for Things and connect to the hub
-// as a client (connection reversal).
-// If this server is the Thing agent then there is no need for this method.
+// Intended to be used by gateways that forward requests from consumers to agents, where the agent
+// has connected to the gateway using (connection reversal) and the gateway proxies on behalf of the consumer.
 //
 // When a response is received it is passed to the replyTo handler.
 //
@@ -326,22 +329,26 @@ func (sc *WssServerConnection) SendNotification(notif *msg.NotificationMessage) 
 func (sc *WssServerConnection) SendRequest(
 	req *msg.RequestMessage, responseHandler msg.ResponseHandler) error {
 
-	msg, err := sc.messageConverter.EncodeRequest(req)
+	wssMsg, err := sc.messageConverter.EncodeRequest(req)
 	if err != nil {
 		return err
 	}
+	// without a replyTo simply send the request
 	if responseHandler == nil {
-		err = sc._send(msg)
+		err = sc._send(wssMsg)
 		return err
 	}
 
+	// with a replyTo, send the response async to the replyTo handler
 	// catch the response in a channel linked by correlation-id
 	if req.CorrelationID == "" {
 		req.CorrelationID = shortid.MustGenerate()
 	}
-	sc.rnrChan.WaitWithCallback(req.CorrelationID, responseHandler, sc.respTimeout)
+	// the websocket connection response handlers will convert the message and pass it to the RNR channels
+	sc.rnrChan.WaitWithCallback(req.CorrelationID, responseHandler)
 
-	err = sc._send(req)
+	// now the RNR channel is ready, send the request message
+	err = sc._send(wssMsg)
 	return err
 }
 
@@ -359,7 +366,7 @@ func (sc *WssServerConnection) SendResponse(resp *msg.ResponseMessage) (err erro
 	//	slog.String("senderID", resp.SenderID),
 	//)
 
-	msg := sc.messageConverter.EncodeResponse(resp)
+	msg, _ := sc.messageConverter.EncodeResponse(resp)
 	err = sc._send(msg)
 	return err
 }
@@ -413,7 +420,7 @@ func NewWSSServerConnection(
 		httpReq:          r,
 		lastActivity:     time.Time{},
 		mux:              sync.RWMutex{},
-		rnrChan:          transports.NewRnRChan(),
+		rnrChan:          msg.NewRnRChan(transports.DefaultRpcTimeout),
 		respTimeout:      transports.DefaultRpcTimeout,
 		// observations:     connections.Subscriptions{},
 		// subscriptions:    connections.Subscriptions{},

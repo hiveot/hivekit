@@ -48,12 +48,12 @@ func TestInvokeActionFromConsumerToServer(t *testing.T) {
 	// 1. start the servers
 	tmpSink := &modules.HiveModuleBase{}
 	tmpSink.SetRequestHandler(handleRequest)
-	srv, cancelFn := StartTransportModule(tmpSink)
+	srv, tpauthn, cancelFn := StartTransportModule(tmpSink)
 	_ = srv
 	defer cancelFn()
 
 	// 2. connect a client
-	cc1, cl1, token := NewConsumer(testClientID1)
+	cc1, cl1, token := NewConsumer(tpauthn, testClientID1)
 	defer cc1.Close()
 	require.NotEmpty(t, token)
 	ctx1, release1 := context.WithTimeout(context.Background(), time.Minute)
@@ -99,6 +99,7 @@ func TestInvokeActionFromConsumerToServer(t *testing.T) {
 // Warning: this is a bit of a mind bender if you're used to classic consumer->thing interaction.
 // This test uses a Thing agent as a client and have it reply to a request from the server.
 // The server in this case passes on a message received from a consumer, which is also a client.
+// This reflects the use-case of agents using connection reversal to gateways.
 func TestInvokeActionFromServerToAgent(t *testing.T) {
 	t.Logf("---%s---\n", t.Name())
 	var reqVal atomic.Value
@@ -123,7 +124,7 @@ func TestInvokeActionFromServerToAgent(t *testing.T) {
 		assert.NotEmpty(t, resp.CorrelationID)
 		assert.Equal(t, wot.OpInvokeAction, resp.Operation)
 
-		slog.Info("serverHandler: Received action response from agent",
+		slog.Info("Server: received response from agent",
 			"op", resp.Operation,
 			"output", resp.Value,
 		)
@@ -136,12 +137,12 @@ func TestInvokeActionFromServerToAgent(t *testing.T) {
 	}
 	// tmpSink := &modules.HiveModuleBase{}
 	// tmpSink.SetResponseHandler(responseHandler)
-	srv, cancelFn2 := StartTransportModule(nil)
+	srv, tpauthn, cancelFn2 := StartTransportModule(nil)
 	_ = srv
 	defer cancelFn2()
 
 	// 2a. connect as an agent
-	cc1, ag1client, token := NewAgent(testAgentID1)
+	cc1, ag1client, token := NewAgent(tpauthn, testAgentID1)
 	require.NotEmpty(t, token)
 	defer cc1.Close()
 
@@ -155,7 +156,9 @@ func TestInvokeActionFromServerToAgent(t *testing.T) {
 			time.Sleep(time.Millisecond)
 			// separately send a completed response
 			resp := req.CreateResponse(testMsg2, nil)
-			_ = replyTo(resp)
+			slog.Info("Agent sends response", "op", req.Operation)
+			err2 := replyTo(resp)
+			assert.NoError(t, err2)
 		}()
 		// the response is sent asynchronously
 		return nil
@@ -260,12 +263,12 @@ func TestQueryActions(t *testing.T) {
 	// 1. start the servers
 	tmpSink := &modules.HiveModuleBase{}
 	tmpSink.SetRequestHandler(requestHandler)
-	srv, cancelFn := StartTransportModule(tmpSink)
+	srv, tpauthn, cancelFn := StartTransportModule(tmpSink)
 	_ = srv
 	defer cancelFn()
 
 	// 2. connect as a consumer
-	cc1, cl1, _ := NewConsumer(testClientID1)
+	cc1, cl1, _ := NewConsumer(tpauthn, testClientID1)
 	defer cc1.Close()
 
 	// 3. Query action status

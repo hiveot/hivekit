@@ -9,7 +9,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/hiveot/hivekit/go/modules/services/directory"
-	"github.com/hiveot/hivekit/go/utils/net"
+	"github.com/hiveot/hivekit/go/utils"
 )
 
 const ThingIDURIVar = "thingID"
@@ -27,7 +27,7 @@ func (srv *DirectoryRestHandler) handleRetrieveThing(w http.ResponseWriter, r *h
 	// A thingID is provided otherwise this handler would not have been called
 	thingID := chi.URLParam(r, ThingIDURIVar)
 	tdJSON, err := srv.service.RetrieveThing(thingID)
-	net.WriteReply(w, true, tdJSON, err)
+	utils.WriteReply(w, true, tdJSON, err)
 }
 
 func (srv *DirectoryRestHandler) handleRetrieveAllThings(w http.ResponseWriter, r *http.Request) {
@@ -38,7 +38,7 @@ func (srv *DirectoryRestHandler) handleRetrieveAllThings(w http.ResponseWriter, 
 	limit, _ := strconv.ParseInt(limitStr, 10, 32)
 
 	tdJSON, err := srv.service.RetrieveAllThings(int(offset), int(limit))
-	net.WriteReply(w, true, tdJSON, err)
+	utils.WriteReply(w, true, tdJSON, err)
 }
 
 // Input: TD document in JSON
@@ -55,9 +55,9 @@ func (srv *DirectoryRestHandler) handleUpdateThing(w http.ResponseWriter, r *htt
 		if err == nil {
 			err = srv.service.UpdateThing(string(tdJson))
 		}
-		net.WriteReply(w, true, nil, err)
+		utils.WriteReply(w, true, nil, err)
 	} else {
-		net.WriteError(w, fmt.Errorf("not authorized to update the directory. Authorization not implemented"),
+		utils.WriteError(w, fmt.Errorf("not authorized to update the directory. Authorization not implemented"),
 			http.StatusUnauthorized)
 	}
 }

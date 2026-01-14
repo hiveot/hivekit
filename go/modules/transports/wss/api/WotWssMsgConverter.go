@@ -224,17 +224,17 @@ func (svc *WotWssMsgConverter) DecodeResponse(
 }
 
 // EncodeNotification converts a hiveot RequestMessage to a websocket equivalent message
-func (svc *WotWssMsgConverter) EncodeNotification(notif *msg.NotificationMessage) (any, error) {
+func (svc *WotWssMsgConverter) EncodeNotification(notif *msg.NotificationMessage) ([]byte, error) {
 	wssNotif := WotWssNotificationMessage{
 		NotificationMessage: *notif,
 	}
 	// ensure this field is present as it is needed for decoding
 	wssNotif.MessageType = messaging.MessageTypeNotification
-	return wssNotif, nil
+	return jsoniter.Marshal(wssNotif)
 }
 
 // EncodeRequest converts a hiveot RequestMessage to websocket equivalent message
-func (svc *WotWssMsgConverter) EncodeRequest(req *msg.RequestMessage) (any, error) {
+func (svc *WotWssMsgConverter) EncodeRequest(req *msg.RequestMessage) ([]byte, error) {
 	wssReq := WotWssRequestMessage{
 		RequestMessage: *req,
 		ActionID:       req.CorrelationID,
@@ -248,20 +248,24 @@ func (svc *WotWssMsgConverter) EncodeRequest(req *msg.RequestMessage) (any, erro
 		// correlationID is used as actionID
 		wssReq.ActionID = req.CorrelationID
 	}
-	return wssReq, nil
+	return jsoniter.Marshal(wssReq)
 }
 
 // EncodeResponse converts a hiveot ResponseMessage to websocket equivalent message
 // This always returns a response
-func (svc *WotWssMsgConverter) EncodeResponse(resp *msg.ResponseMessage) any {
+func (svc *WotWssMsgConverter) EncodeResponse(resp *msg.ResponseMessage) ([]byte, error) {
+	var err error
+
+	// the hiveot response message partially identical to the websocket message
+	// only convert where they differ
 	wssResp := WotWssResponseMessage{
-		ResponseMessage: *resp,
+		ResponseMessage: *resp, // correlationID, actionName etc
 	}
 
-	// when the response contains an error instead of a reply
-	// then there is no data to encode
+	// convert the error response
 	if resp.Error != nil {
-		return wssResp
+		// the hiveot error response is identical to the websocket error response
+		return jsoniter.Marshal(wssResp)
 	}
 
 	// ensure this field is present as it is needed for decoding
@@ -273,7 +277,7 @@ func (svc *WotWssMsgConverter) EncodeResponse(resp *msg.ResponseMessage) any {
 	case wot.OpInvokeAction:
 		// hiveot invokeaction always contains an ActionStatus object in the response
 		var as msg.ActionStatus
-		err := utils.Decode(resp.Value, &as)
+		err = utils.Decode(resp.Value, &as)
 		if err != nil {
 			wssResp.Error = msg.ErrorValueFromError(err)
 		}
@@ -292,7 +296,7 @@ func (svc *WotWssMsgConverter) EncodeResponse(resp *msg.ResponseMessage) any {
 	case wot.OpQueryAction:
 		// convert from msg.ActionStatus to WotWssActionStatus
 		var actionStatus msg.ActionStatus
-		err := utils.Decode(resp.Value, &actionStatus)
+		err = utils.Decode(resp.Value, &actionStatus)
 		if err != nil {
 			wssResp.Error = msg.ErrorValueFromError(fmt.Errorf("Response does not contain ActionStatus object: %w", err))
 		}
@@ -308,7 +312,7 @@ func (svc *WotWssMsgConverter) EncodeResponse(resp *msg.ResponseMessage) any {
 		// convert from msg.ActionStatus map to WotWssActionStatuses map
 		// FIXME: response is api.ActionStatus which differs from msg.ActionStatus
 		var actionStatusMap map[string]msg.ActionStatus
-		err := utils.Decode(resp.Value, &actionStatusMap)
+		err = utils.Decode(resp.Value, &actionStatusMap)
 		if err != nil {
 			err = fmt.Errorf("Can't convert ActionStatus map response to websocket type. "+
 				"Response does not contain ActionStatus map. "+
@@ -333,7 +337,7 @@ func (svc *WotWssMsgConverter) EncodeResponse(resp *msg.ResponseMessage) any {
 		// convert ThingValue map to map of name-value pairs
 		// the last updated timestamp is lost.
 		var thingValueList map[string]messaging.ThingValue
-		err := utils.DecodeAsObject(resp.Value, &thingValueList)
+		err = utils.DecodeAsObject(resp.Value, &thingValueList)
 		if err != nil {
 			err = fmt.Errorf("encodeResponse (%s). Not a ThingValue map; err: %w", resp.Operation, err)
 			wssResp.Error = msg.ErrorValueFromError(err)
@@ -349,7 +353,7 @@ func (svc *WotWssMsgConverter) EncodeResponse(resp *msg.ResponseMessage) any {
 	case wot.OpReadProperty:
 	}
 
-	return wssResp
+	return jsoniter.Marshal(wssResp)
 }
 
 // GetProtocolType returns the hiveot WSS protocol type identifier

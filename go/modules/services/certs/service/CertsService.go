@@ -10,7 +10,7 @@ import (
 	"github.com/hiveot/hivekit/go/modules/services/certs"
 	"github.com/hiveot/hivekit/go/modules/services/certs/keys"
 	"github.com/hiveot/hivekit/go/modules/services/certs/service/selfsigned"
-	"github.com/hiveot/hivekit/go/utils/net"
+	"github.com/hiveot/hivekit/go/utils"
 )
 
 // Defaults for a self-signed CA
@@ -97,7 +97,7 @@ func (svc *CertsService) CreateServerCert(
 	if hostname != "" {
 		names = append(names, hostname)
 	} else {
-		ip := net.GetOutboundIP("")
+		ip := utils.GetOutboundIP("")
 		names = append(names, ip.String())
 	}
 	if serverKeyPair == nil {

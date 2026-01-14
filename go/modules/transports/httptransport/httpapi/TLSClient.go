@@ -133,11 +133,16 @@ func (cl *TLSClient) CreateRequest(
 	// Step 2: add headers for origin, authorization, content-Type
 	origin := "https://" + cl.hostPort
 	r.Header.Set("Origin", origin)
+
 	r.Header.Set("Content-Type", contentType)
 
 	if cl.bearerToken != "" {
 		r.Header.Add("Authorization", "bearer "+cl.bearerToken)
 	}
+	if cl.cid != "" {
+		r.Header.Add(httptransport.ConnectionIDHeader, cl.cid)
+	}
+
 	//  any custom headers
 	for k, v := range cl.customHeaders {
 		r.Header.Set(k, v)
@@ -345,23 +350,17 @@ func (cl *TLSClient) SetHeader(name string, val string) {
 // NewTLSClient creates a new TLS Client instance.
 // Use setup/Remove to open and close connections
 //
-//	url is the server URL, or just hostname, IP address and port to use
-//	clientCert is an option client certificate used to connect
+//	hostPort is the server address in host:port format
+//	clientCert is an optional client certificate used to authenticate
 //	caCert with the x509 CA certificate, nil if not available
 //	timeout duration for use with Delete,Get,Patch,Post,Put
 //
 // returns TLS client for submitting requests
-func NewTLSClient(httpURL string, clientCert *tls.Certificate, caCert *x509.Certificate,
+func NewTLSClient(hostPort string, clientCert *tls.Certificate, caCert *x509.Certificate,
 	timeout time.Duration) *TLSClient {
 
-	hostPort := httpURL
 	if timeout == 0 {
 		timeout = DefaultClientTimeout
-	}
-	// sanitize the URL. If this fails assume it is just host:port
-	parts, err := url.Parse(httpURL)
-	if err == nil {
-		hostPort = parts.Host
 	}
 
 	// Use CA certificate for server authentication if it exists

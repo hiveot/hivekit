@@ -4,6 +4,7 @@ import (
 	"crypto/x509"
 	"log/slog"
 	"net/http"
+	"net/url"
 
 	"github.com/hiveot/hivekit/go/lib/servers/httpbasic"
 	"github.com/hiveot/hivekit/go/modules/transports"
@@ -17,19 +18,43 @@ import (
 // Use of the AuthnClient object is optional - the functions can be used directly.
 type AuthnClient struct {
 	tlsClient httptransport.ITlsClient
-	clientID  string
 }
 
-func NewAuthnClient(clientID string, serverURL string, caCert *x509.Certificate) *AuthnClient {
-	tlsClient := httpapi.NewTLSClient(serverURL, nil, caCert, 0)
+func NewAuthnClient(serverURL string, caCert *x509.Certificate) *AuthnClient {
+	parts, err := url.Parse(serverURL)
+	if err != nil {
+		slog.Error("NewAuthnClient: invalid server URL", "err", err.Error())
+		return nil
+	}
+
+	tlsClient := httpapi.NewTLSClient(parts.Host, nil, caCert, 0)
 	return &AuthnClient{
 		tlsClient: tlsClient,
-		clientID:  clientID,
 	}
 }
 
-func (cl *AuthnClient) LoginWithPassword(password string) (newToken string, err error) {
-	newToken, err = LoginWithPassword(cl.tlsClient, cl.clientID, password)
+// Close the underlying TLS client used by the authentication client
+func (cl *AuthnClient) Close() {
+	cl.tlsClient.Close()
+}
+
+// set the clientID and authn token this client uses
+func (cl *AuthnClient) ConnectWithToken(clientID string, token string) (err error) {
+
+	cl.tlsClient.ConnectWithToken(clientID, token)
+	return nil
+}
+
+// Return the TLS client used to connect to the authn server.
+// This can be used anywhere an http client is needed for the same server.
+func (cl *AuthnClient) GetTlsClient() httptransport.ITlsClient {
+	return cl.tlsClient
+}
+
+func (cl *AuthnClient) LoginWithPassword(clientID string, password string) (newToken string, err error) {
+
+	newToken, err = LoginWithPassword(
+		cl.tlsClient, clientID, password)
 	return newToken, err
 }
 
@@ -39,7 +64,8 @@ func (cl *AuthnClient) Logout(token string) (err error) {
 }
 
 func (cl *AuthnClient) RefreshToken(oldToken string) (newToken string, err error) {
-	newToken, err = RefreshToken(cl.tlsClient, cl.clientID, oldToken)
+	newToken, err = RefreshToken(
+		cl.tlsClient, cl.tlsClient.GetClientID(), oldToken)
 	return newToken, err
 }
 
@@ -65,9 +91,11 @@ func LoginWithPassword(tlsClient httptransport.ITlsClient, clientID, password st
 
 	if err == nil && status == http.StatusOK {
 		err = jsoniter.Unmarshal(outputRaw, &newToken)
+		// apply the new token in this client
+		tlsClient.ConnectWithToken(clientID, newToken)
 	}
 	if err != nil {
-		slog.Warn("AuthenticateWithPassword failed: " + err.Error())
+		slog.Warn("LoginWithPassword failed: " + err.Error())
 	}
 	return newToken, err
 }
@@ -143,7 +171,9 @@ func Logout(tlsClient httptransport.ITlsClient, token string) (err error) {
 func RefreshToken(tlsClient httptransport.ITlsClient, clientID string, oldToken string) (newToken string, err error) {
 	refreshPath := httpbasic.HttpPostRefreshPath
 	dataJSON, _ := jsoniter.Marshal(oldToken)
+	// first initialize the client with the old token
 	tlsClient.ConnectWithToken(clientID, oldToken)
+	// post a request and expect an instance response
 	outputRaw, status, err := tlsClient.Post(refreshPath, dataJSON)
 
 	if err == nil && status == http.StatusOK {

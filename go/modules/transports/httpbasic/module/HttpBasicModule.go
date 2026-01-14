@@ -35,9 +35,6 @@ type HttpBasicModule struct {
 	// actual httpServer exposing routes
 	httpServer httptransport.IHttpServer
 
-	// the linked authenticator
-	authenticator transports.IAuthenticator
-
 	// handler for received request messages
 	serverRequestHandler msg.RequestHandler
 }
@@ -67,14 +64,10 @@ func (m *HttpBasicModule) HandleRequest(
 
 // Start readies the module for use.
 //
-// This:
-// - sets-up a middleware chain with recovery, compression, authentication
-// - create a protected and public route that can be used to others
 // Configurable:
-// - add public routes for login and ping
+// - add public routes for ping
 // - add protected route for thing requests {operation}/{thing}/{name}
 // - add protected route for affordance requests {operation}/{thing}/{affordance}/{name}
-// - add protected routes for token refresh and logout
 //
 // Incoming requests are converted to the standard message format and passed to
 // the registered sinks.
@@ -112,18 +105,16 @@ func (m *HttpBasicModule) Stop() {
 //
 //	httpServer is the http server that listens for messages
 //	sink is the optional receiver of request, response and notification messages, nil to set later
-//	authenticator handles authentication for login, and token refresh
 func NewHttpBasicModule(httpServer httptransport.IHttpServer,
-	sink modules.IHiveModule, authenticator transports.IAuthenticator) *HttpBasicModule {
+	sink modules.IHiveModule) *HttpBasicModule {
 
 	m := &HttpBasicModule{
-		httpServer:    httpServer,
-		authenticator: authenticator,
+		httpServer: httpServer,
 	}
 	moduleID := httpbasic.DefaultHttpBasicThingID
 	connectURL := httpServer.GetConnectURL()
 
-	m.Init(moduleID, sink, connectURL)
+	m.Init(moduleID, sink, connectURL, transports.DefaultRpcTimeout)
 
 	// properties must match the module TM
 	m.UpdateProperty(transports.PropName_NrConnections, 0)

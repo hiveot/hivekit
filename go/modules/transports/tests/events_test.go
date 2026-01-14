@@ -29,18 +29,18 @@ func TestSubscribeAll(t *testing.T) {
 	var agentRxEvent atomic.Bool
 
 	// 1. start the servers
-	srv, cancelFn := StartTransportModule(nil)
+	srv, tpauthn, cancelFn := StartTransportModule(nil)
 	defer cancelFn()
 
 	// 2. connect as consumers
-	cconn1, cons1, _ := NewConsumer(testClientID1)
+	cconn1, cons1, _ := NewConsumer(tpauthn, testClientID1)
 	defer cconn1.Close()
 
-	cconn2, cons2, _ := NewConsumer(testClientID1)
+	cconn2, cons2, _ := NewConsumer(tpauthn, testClientID1)
 	defer cconn2.Close()
 
 	// ensure that agents can also subscribe (they cant use forms)
-	agConn1, agent1, _ := NewAgent(agentID)
+	agConn1, agent1, _ := NewAgent(tpauthn, agentID)
 	defer agConn1.Close()
 
 	// FIXME: test subscription by agent
@@ -121,16 +121,19 @@ func TestPublishEventsByAgent(t *testing.T) {
 	// 1. start the transport
 	// handler of event notification on the server
 	notificationHandler := func(msg *msg.NotificationMessage) {
-		evVal.Store(msg.Value)
+		// the server handler receives all notifications
+		if msg.ThingID == thingID {
+			evVal.Store(msg.Value)
+		}
 	}
 	tmpSink := &modules.HiveModuleBase{}
 	tmpSink.SetNotificationHandler(notificationHandler)
-	srv, cancelFn := StartTransportModule(tmpSink)
+	srv, tpauthn, cancelFn := StartTransportModule(tmpSink)
 	_ = srv
 	defer cancelFn()
 
 	// 2. connect as an agent
-	agConn1, agent1, _ := NewAgent(testAgentID1)
+	agConn1, agent1, _ := NewAgent(tpauthn, testAgentID1)
 	defer agConn1.Close()
 
 	// 3. agent publishes an event

@@ -7,7 +7,7 @@ import (
 	jsoniter "github.com/json-iterator/go"
 )
 
-// Passthrough message converter simply passes RRN messages as-is.
+// Passthrough message converter simply passes serialized RRN messages.
 // This implements the IMessageConverter interface.
 type PassthroughMessageConverter struct {
 }
@@ -51,25 +51,27 @@ func (svc *PassthroughMessageConverter) DecodeResponse(
 	return &resp
 }
 
-// EncodeNotification passes the notification message as-is
-func (svc *PassthroughMessageConverter) EncodeNotification(req *msg.NotificationMessage) (any, error) {
+// EncodeNotification serializes the notification message as-is
+func (svc *PassthroughMessageConverter) EncodeNotification(
+	notif *msg.NotificationMessage) ([]byte, error) {
+
 	// ensure this field is present as it is needed for decoding
-	req.MessageType = messaging.MessageTypeNotification
-	return req, nil
+	notif.MessageType = messaging.MessageTypeNotification
+	return jsoniter.Marshal(notif)
 }
 
-// EncodeRequest passes the request message as-is
-func (svc *PassthroughMessageConverter) EncodeRequest(req *msg.RequestMessage) (any, error) {
+// EncodeRequest serializes the request message as-is
+func (svc *PassthroughMessageConverter) EncodeRequest(req *msg.RequestMessage) ([]byte, error) {
 	// ensure this field is present as it is needed for decoding
 	req.MessageType = messaging.MessageTypeRequest
-	return req, nil
+	return jsoniter.Marshal(req)
 }
 
-// EncodeResponse passes the response message as-is
-func (svc *PassthroughMessageConverter) EncodeResponse(resp *msg.ResponseMessage) any {
+// EncodeResponse serializes the response message as-is
+func (svc *PassthroughMessageConverter) EncodeResponse(resp *msg.ResponseMessage) ([]byte, error) {
 	// ensure this field is present as it is needed for decoding
 	resp.MessageType = messaging.MessageTypeResponse
-	return resp
+	return jsoniter.Marshal(resp)
 }
 
 // GetProtocolType returns the hiveot WSS protocol type identifier

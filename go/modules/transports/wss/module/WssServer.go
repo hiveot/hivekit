@@ -6,7 +6,7 @@ import (
 
 	"github.com/gorilla/websocket"
 	"github.com/hiveot/hivekit/go/modules/transports"
-	"github.com/hiveot/hivekit/go/utils/net"
+	"github.com/hiveot/hivekit/go/utils"
 )
 
 // WssServer is a websocket transport protocol server for use with HiveOT and WoT
@@ -110,7 +110,7 @@ func (m *WssModule) Serve(w http.ResponseWriter, r *http.Request) {
 	// }
 	clientID, err := m.httpServer.GetClientIdFromContext(r)
 	if err != nil {
-		net.WriteError(w, err, 0)
+		utils.WriteError(w, err, 0)
 	}
 	slog.Info("Receiving Websocket connection", slog.String("clientID", clientID))
 

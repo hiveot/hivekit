@@ -22,17 +22,17 @@ type IMessageConverter interface {
 	// This returns nil if this isn't a response
 	DecodeResponse(raw []byte) *msg.ResponseMessage
 
-	// EncodeNotification converts a hiveot NotificationMessage to a native protocol message
+	// EncodeNotification converts a hiveot NotificationMessage to a native serialized protocol message
 	// return an error if the message cannot be converted.
-	EncodeNotification(notif *msg.NotificationMessage) (any, error)
+	EncodeNotification(notif *msg.NotificationMessage) ([]byte, error)
 
-	// EncodeRequest converts a hiveot RequestMessage to a native protocol message
+	// EncodeRequest converts a hiveot RequestMessage to a native serialized protocol message
 	// return an error if the message cannot be converted.
-	EncodeRequest(req *msg.RequestMessage) (any, error)
+	EncodeRequest(req *msg.RequestMessage) ([]byte, error)
 
-	// EncodeResponse converts a hiveot ResponseMessage to a native protocol message
+	// EncodeResponse converts a hiveot ResponseMessage to a native serialized protocol message
 	// This returns an error response if the message cannot be converted
-	EncodeResponse(resp *msg.ResponseMessage) any
+	EncodeResponse(resp *msg.ResponseMessage) ([]byte, error)
 
 	// GetProtocolType provides the protocol type for these messages,
 	// eg ProtocolTypeWSS
