@@ -131,12 +131,11 @@ func (m *WssModule) Serve(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	c := NewWSSServerConnection(clientID, r, wssConn, m.msgConverter)
-	// c.SetNotificationHandler(srv.serverNotificationHandler)
-	// c.SetRequestHandler(srv.serverRequestHandler)
-	// c.SetResponseHandler(srv.serverResponseHandler)
+	// the new server connection sends messages to the module sink
+	c := NewWSSServerConnection(clientID, r, wssConn, m.msgConverter, m.GetSink())
 
-	// err = srv.cm.AddConnection(c)
+	err = m.AddConnection(c)
+
 	if m.serverConnectHandler != nil {
 		m.serverConnectHandler(true, nil, c)
 	}
@@ -149,9 +148,10 @@ func (m *WssModule) Serve(w http.ResponseWriter, r *http.Request) {
 
 	// if this fails then the connection is already closed (CloseAll)
 	err = wssConn.Close()
+
 	_ = err
 	// finally cleanup the connection
-	// srv.cm.RemoveConnection(c)
+	m.RemoveConnection(c)
 	if m.serverConnectHandler != nil {
 		m.serverConnectHandler(false, nil, c)
 	}

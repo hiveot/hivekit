@@ -133,7 +133,7 @@ func (cl *WssClient) ConnectWithToken(clientID string, token string) error {
 	cl.tlsClient.ConnectWithToken(clientID, token)
 	hostPort := cl.tlsClient.GetHostPort()
 	wssCancelFn, wssConn, err := ConnectWSS(
-		cl.tlsClient, hostPort, cl.wssPath, cl.bearerToken, cl.caCert,
+		clientID, hostPort, cl.wssPath, cl.bearerToken, nil, cl.caCert,
 		cl._onConnectionChanged, cl.HandleWssMessage)
 
 	cl.mux.Lock()
@@ -470,11 +470,6 @@ func NewWotWssClient(
 	urlParts, _ := url.Parse(wssURL)
 	hostPort := urlParts.Host
 	wssPath := urlParts.Path
-	// if urlParts.Port() == "" {
-	// 	urlParts.Host = fmt.Sprintf("%s:%d", urlParts.Hostname(), servers.DefaultHttpsPort)
-	// 	wssURL = urlParts.String()
-	// }
-	// hostPort := urlParts.Host
 	tlsClient := httpapi.NewTLSClient(hostPort, nil, caCert, timeout)
 
 	cl := WssClient{
@@ -486,7 +481,6 @@ func NewWotWssClient(
 		tlsClient:            tlsClient,
 		wssPath:              wssPath,
 	}
-	//cl.Init(fullURL, clientID, clientCert, caCert, getForm, timeout)
 
 	return &cl
 }

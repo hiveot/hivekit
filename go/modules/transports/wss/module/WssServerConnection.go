@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
+	"github.com/hiveot/hivekit/go/modules"
 	"github.com/hiveot/hivekit/go/modules/transports"
 	"github.com/hiveot/hivekit/go/msg"
 	"github.com/hiveot/hivekit/go/wot"
@@ -23,14 +24,12 @@ type WSSMessage map[string]any
 // agent or consumers.
 type WssServerConnection struct {
 	transports.ConnectionBase
-	// Connection information such as clientID, cid, address, protocol etc
-	// cinfo transports.ConnectionInfo
 
 	// connection ID
 	//connectionID string
 
-	// clientID is the account ID of the agent or consumer
-	//clientID string
+	// clientID is the account ID of the connected client
+	clientID string
 
 	// connection request remote address
 	httpReq *http.Request
@@ -45,16 +44,6 @@ type WssServerConnection struct {
 
 	// notify client of a connect or disconnect
 	connectionHandlerPtr atomic.Pointer[transports.ConnectionHandler]
-	// handler for notifications sent by agents
-	notificationHandlerPtr atomic.Pointer[msg.NotificationHandler]
-	// handler for requests send by clients
-	requestHandlerPtr atomic.Pointer[msg.RequestHandler]
-	// handler for responses sent by agents
-	responseHandlerPtr atomic.Pointer[msg.ResponseHandler]
-
-	// event subscriptions and property observations by consumers
-	// observations  transports.Subscriptions
-	// subscriptions transports.Subscriptions
 
 	// converter for request/response messages
 	messageConverter transports.IMessageConverter
@@ -67,6 +56,9 @@ type WssServerConnection struct {
 
 	// how long to wait for a response after sending a request
 	respTimeout time.Duration
+
+	// module sink that handles the incoming messages
+	sink modules.IHiveModule
 }
 
 // _send sends the seriaziled websocket message to the connected client
@@ -173,32 +165,23 @@ func (sc *WssServerConnection) onMessage(raw []byte) {
 	resp = sc.messageConverter.DecodeResponse(raw)
 	if resp != nil {
 		// sender is identified by the server, not the client
-		notif.SenderID = sc.GetClientID()
+		resp.SenderID = sc.GetClientID()
 		sc.onResponse(resp)
 		return
 	}
 	req = sc.messageConverter.DecodeRequest(raw)
 	if req != nil {
 		// sender is identified by the server, not the client
-		notif.SenderID = sc.GetClientID()
+		req.SenderID = sc.GetClientID()
 		sc.onRequest(req)
 		return
 	}
 	slog.Warn("onMessage: Message is not a notification, request or response")
 }
 
-// onNotification is passed the received notification message
+// onNotification is passed the received notification message to the module sink
 func (sc *WssServerConnection) onNotification(notif *msg.NotificationMessage) {
-	hPtr := sc.notificationHandlerPtr.Load()
-	if hPtr == nil {
-		slog.Error("HandleWssMessage: no notification handler set",
-			"clientID", sc.GetClientID(),
-			"operation", notif.Operation,
-		)
-		return
-	}
-	// pass the response to the registered handler
-	(*hPtr)(notif)
+	sc.sink.HandleNotification(notif)
 }
 
 // onRequest is passed the received request message
@@ -227,13 +210,20 @@ func (sc *WssServerConnection) onRequest(req *msg.RequestMessage) {
 		sc.UnobserveProperty(req.ThingID, req.Name)
 		resp = req.CreateResponse(nil, nil)
 	default:
-		rhPtr := sc.requestHandlerPtr.Load()
-		if rhPtr != nil {
-			err = (*rhPtr)(req, sc.SendResponse)
-			if err != nil {
-				resp = req.CreateErrorResponse(err)
-				err = sc.SendResponse(resp)
+		// this is not a subscription to notifications so forward it to the module sink
+		// response will be handled asynchronously
+		err = sc.sink.HandleRequest(req, func(reply *msg.ResponseMessage) error {
+			// the callback is async so handle it separately
+			if reply != nil {
+				err = sc.SendResponse(reply)
+			} else {
+				slog.Error("onRequest: Sink response callback without response")
 			}
+			return err
+		})
+		// if handling the request failed, return an error response
+		if err != nil {
+			resp = req.CreateErrorResponse(err)
 		}
 	}
 	if resp != nil {
@@ -256,10 +246,7 @@ func (sc *WssServerConnection) onResponse(resp *msg.ResponseMessage) {
 	// this responsehandler points to the rnrChannel that matches the correlationID to the replyTo handler
 	handled := sc.rnrChan.HandleResponse(resp)
 	if !handled {
-		rhPtr := sc.responseHandlerPtr.Load()
-		if rhPtr != nil {
-			err = (*rhPtr)(resp)
-		}
+		err = sc.sink.HandleResponse(resp)
 	}
 	if err != nil {
 		slog.Warn("Error handling response message", "err", err.Error())
@@ -379,51 +366,32 @@ func (sc *WssServerConnection) SetConnectHandler(cb transports.ConnectionHandler
 	}
 }
 
-// SetNotificationHandler set the application handler for received notifications
-func (sc *WssServerConnection) SetNotificationHandler(cb msg.NotificationHandler) {
-	if cb == nil {
-		sc.notificationHandlerPtr.Store(nil)
-	} else {
-		sc.notificationHandlerPtr.Store(&cb)
-	}
-}
-func (sc *WssServerConnection) SetRequestHandler(cb msg.RequestHandler) {
-	if cb == nil {
-		sc.requestHandlerPtr.Store(nil)
-	} else {
-		sc.requestHandlerPtr.Store(&cb)
-	}
-}
-func (sc *WssServerConnection) SetResponseHandler(cb msg.ResponseHandler) {
-	if cb == nil {
-		sc.responseHandlerPtr.Store(nil)
-	} else {
-		sc.responseHandlerPtr.Store(&cb)
-	}
-}
-
 // NewWSSServerConnection creates a new Websocket connection instance for use by
 // agents and consumers.
 // This implements the IServerConnection interface.
+// The sink (required) will received incoming messages.
 func NewWSSServerConnection(
 	clientID string, r *http.Request,
 	wssConn *websocket.Conn,
 	messageConverter transports.IMessageConverter,
+	sink modules.IHiveModule,
 ) *WssServerConnection {
 
 	cid := "WSS" + shortid.MustGenerate()
+	if sink == nil {
+		slog.Error("WSS incoming connection but no sink is provided. Messages will NOT be handled.")
+	}
 
 	c := &WssServerConnection{
-		wssConn: wssConn,
-		//clientID:         clientID,
+		wssConn:          wssConn,
+		clientID:         clientID,
 		messageConverter: messageConverter,
 		httpReq:          r,
 		lastActivity:     time.Time{},
 		mux:              sync.RWMutex{},
 		rnrChan:          msg.NewRnRChan(transports.DefaultRpcTimeout),
 		respTimeout:      transports.DefaultRpcTimeout,
-		// observations:     connections.Subscriptions{},
-		// subscriptions:    connections.Subscriptions{},
+		sink:             sink,
 	}
 	c.Init(clientID, r.URL.String(), cid)
 	return c

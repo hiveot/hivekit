@@ -3,6 +3,7 @@ package tests
 import (
 	"context"
 	"errors"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"sync/atomic"
@@ -37,11 +38,12 @@ func TestInvokeActionFromConsumerToServer(t *testing.T) {
 		var resp *msg.ResponseMessage
 		if req.Operation == wot.OpInvokeAction {
 			inputVal.Store(req.Input)
-			// CreateResponse returns ActionStatus
-			resp = req.CreateResponse(req.Input, nil)
+			// CreateActionResponse returns ActionStatus
+			resp, _ = req.CreateActionResponse(
+				req.CorrelationID, msg.StatusCompleted, req.Input, nil)
 		} else {
-			assert.Fail(t, "Not expecting this")
-			resp = req.CreateResponse(nil, errors.New("unexpected request"))
+			assert.Fail(t, "Not expecting operation: "+req.Operation)
+			resp = req.CreateResponse(nil, fmt.Errorf("Unexpected request operation '%s'", req.Operation))
 		}
 		return replyTo(resp)
 	}
@@ -53,7 +55,7 @@ func TestInvokeActionFromConsumerToServer(t *testing.T) {
 	defer cancelFn()
 
 	// 2. connect a client
-	cc1, cl1, token := NewConsumer(tpauthn, testClientID1)
+	cc1, cl1, token := NewTestConsumer(tpauthn, testClientID1)
 	defer cc1.Close()
 	require.NotEmpty(t, token)
 	ctx1, release1 := context.WithTimeout(context.Background(), time.Minute)
@@ -114,7 +116,7 @@ func TestInvokeActionFromServerToAgent(t *testing.T) {
 	// async reply from the agent after the server sends an invoke action.
 	// Note that WoT doesn't cover this use-case so this uses hiveot vocabulary operation.
 
-	ctx1, cancelFn1 := context.WithTimeout(context.Background(), time.Minute)
+	ctx1, cancelFn1 := context.WithTimeout(context.Background(), time.Minute*2)
 	defer cancelFn1()
 	// server receives agent response
 	responseHandler := func(resp *msg.ResponseMessage) error {
@@ -142,7 +144,7 @@ func TestInvokeActionFromServerToAgent(t *testing.T) {
 	defer cancelFn2()
 
 	// 2a. connect as an agent
-	cc1, ag1client, token := NewAgent(tpauthn, testAgentID1)
+	cc1, ag1client, token := NewTestAgent(tpauthn, testAgentID1)
 	require.NotEmpty(t, token)
 	defer cc1.Close()
 
@@ -155,7 +157,9 @@ func TestInvokeActionFromServerToAgent(t *testing.T) {
 		go func() {
 			time.Sleep(time.Millisecond)
 			// separately send a completed response
-			resp := req.CreateResponse(testMsg2, nil)
+			resp, as := req.CreateActionResponse(
+				req.CorrelationID, msg.StatusCompleted, testMsg2, nil)
+			_ = as
 			slog.Info("Agent sends response", "op", req.Operation)
 			err2 := replyTo(resp)
 			assert.NoError(t, err2)
@@ -193,7 +197,7 @@ func TestQueryActions(t *testing.T) {
 	var testMsg1 = "hello world 1"
 	var thingID = "dtw:thing1"
 	var actionKey = "action1"
-	var actionID = "correlationID-123"
+	var actionID = "action-id-123"
 
 	// 1. start the server. register a request handler for receiving a request
 	// from the agent after the server sends an invoke action.
@@ -253,6 +257,8 @@ func TestQueryActions(t *testing.T) {
 					TimeRequested: utils.FormatNowUTCMilli(),
 					TimeUpdated:   utils.FormatNowUTCMilli(),
 				}}
+			// the action status map is the payload for the action response.
+			// the action response itself is also an action status object.
 			resp = req.CreateResponse(actStat, nil)
 		default:
 			resp = req.CreateResponse(nil, errors.New("unexpected response "+req.Operation))
@@ -268,7 +274,7 @@ func TestQueryActions(t *testing.T) {
 	defer cancelFn()
 
 	// 2. connect as a consumer
-	cc1, cl1, _ := NewConsumer(tpauthn, testClientID1)
+	cc1, cl1, _ := NewTestConsumer(tpauthn, testClientID1)
 	defer cc1.Close()
 
 	// 3. Query action status

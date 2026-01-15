@@ -176,6 +176,8 @@ func (m *TransportModuleBase) GetConnectionByClientID(clientID string) (c IServe
 	m.cmux.Lock()
 	defer m.cmux.Unlock()
 	if m.connectionsByClientID == nil {
+		// no incoming connections yet
+		slog.Warn("Requesting connection for client but none have been received", "clientID", clientID)
 		return nil
 	}
 	cList := m.connectionsByClientID[clientID]

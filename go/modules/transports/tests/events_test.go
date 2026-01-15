@@ -33,14 +33,14 @@ func TestSubscribeAll(t *testing.T) {
 	defer cancelFn()
 
 	// 2. connect as consumers
-	cconn1, cons1, _ := NewConsumer(tpauthn, testClientID1)
+	cconn1, cons1, _ := NewTestConsumer(tpauthn, testClientID1)
 	defer cconn1.Close()
 
-	cconn2, cons2, _ := NewConsumer(tpauthn, testClientID1)
+	cconn2, cons2, _ := NewTestConsumer(tpauthn, testClientID1)
 	defer cconn2.Close()
 
 	// ensure that agents can also subscribe (they cant use forms)
-	agConn1, agent1, _ := NewAgent(tpauthn, agentID)
+	agConn1, agent1, _ := NewTestAgent(tpauthn, agentID)
 	defer agConn1.Close()
 
 	// FIXME: test subscription by agent
@@ -133,7 +133,7 @@ func TestPublishEventsByAgent(t *testing.T) {
 	defer cancelFn()
 
 	// 2. connect as an agent
-	agConn1, agent1, _ := NewAgent(tpauthn, testAgentID1)
+	agConn1, agent1, _ := NewTestAgent(tpauthn, testAgentID1)
 	defer agConn1.Close()
 
 	// 3. agent publishes an event

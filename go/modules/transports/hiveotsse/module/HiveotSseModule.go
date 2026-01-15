@@ -76,13 +76,6 @@ func (m *HiveotSseModule) HandleRequest(
 	return err
 }
 
-// onRequestMessage receives http request messages via http
-// // This forwards it to the sink to be processed.
-// func (m *HiveotSseModule) onRequestMessage(req *msg.RequestMessage, replyTo msg.ResponseHandler) error {
-// 	err := m.ForwardRequest(req, replyTo)
-// 	return err
-// }
-
 // Set the handler for authentication connections to this transport module.
 // func (srv *HiveotSseModule) SetAuthenticationHandler(h AuthenticationHandler) {}
 

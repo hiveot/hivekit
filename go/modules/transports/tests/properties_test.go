@@ -33,9 +33,9 @@ func TestObservePropertyByConsumer(t *testing.T) {
 	defer cancelFn()
 
 	// 2. connect with two consumers
-	cc1, cl1, _ := NewConsumer(tpauthn, testClientID1)
+	cc1, cl1, _ := NewTestConsumer(tpauthn, testClientID1)
 	defer cc1.Close()
-	cc2, cl2, _ := NewConsumer(tpauthn, testClientID1)
+	cc2, cl2, _ := NewTestConsumer(tpauthn, testClientID1)
 	defer cc2.Close()
 
 	// set the handler for property updates and subscribe
@@ -116,7 +116,7 @@ func TestPublishPropertyByAgent(t *testing.T) {
 	defer cancelFn()
 
 	// 2. connect as an agent
-	agConn1, ag1, _ := NewAgent(tpauthn, testAgentID1)
+	agConn1, ag1, _ := NewTestAgent(tpauthn, testAgentID1)
 	defer agConn1.Close()
 
 	// 3. agent publishes a property update to subscribers
@@ -159,7 +159,7 @@ func TestReadProperty(t *testing.T) {
 	defer cancelFn()
 
 	// 2. connect as a consumer
-	cc1, consumer1, _ := NewConsumer(tpauthn, testClientID1)
+	cc1, consumer1, _ := NewTestConsumer(tpauthn, testClientID1)
 	defer cc1.Close()
 
 	rxVal, err := consumer1.ReadProperty(thingID, propKey)
@@ -200,7 +200,7 @@ func TestReadAllProperties(t *testing.T) {
 	defer cancelFn()
 
 	// 2. connect as a consumer
-	cc1, consumer1, _ := NewConsumer(tpauthn, testClientID1)
+	cc1, consumer1, _ := NewTestConsumer(tpauthn, testClientID1)
 	defer cc1.Close()
 
 	propMap, err := consumer1.ReadAllProperties(thingID)

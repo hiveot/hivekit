@@ -397,7 +397,8 @@ func NewTLSClient(hostPort string, clientCert *tls.Certificate, caCert *x509.Cer
 		//--- end verify
 	}
 	tlsConfig := &tls.Config{
-		RootCAs:            caCertPool,
+		RootCAs: caCertPool,
+		// why is ServerName not required?
 		InsecureSkipVerify: caCert == nil,
 		Certificates:       clientCertList,
 	}

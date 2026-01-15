@@ -55,6 +55,12 @@ func (m *WssModule) HandleRequest(
 // Start listening for incoming websocket connections
 func (m *WssModule) Start() (err error) {
 	slog.Info("Starting websocket module, Listening on: " + m.GetConnectURL())
+
+	if m.GetSink() == nil {
+		err = fmt.Errorf("This Wss server module has no sink and will not work. Bye bye")
+		return err
+	}
+
 	// TODO: detect if already listening
 	err = m.TransportModuleBase.Start()
 	// create routes
@@ -109,8 +115,11 @@ func NewHiveotWssModule(httpServer httptransport.IHttpServer, sink modules.IHive
 // This uses the WoT websocket protocol message converter to convert between
 // the standard RRN messages and the WoT websocket message format.
 //
+// Incoming messages are passed to the provided sink. The sink can be nil as long as it is
+// set with SetSink() before calling start.
+//
 // httpServer is the http server the websocket is using
-// sink is the optional receiver of request, response and notification messages, nil to set later
+// sink is the required receiver of request, response and notification messages, nil to set later but before start.
 func NewWotWssModule(httpServer httptransport.IHttpServer, sink modules.IHiveModule) *WssModule {
 	httpURL := httpServer.GetConnectURL()
 	urlParts, err := url.Parse(httpURL)

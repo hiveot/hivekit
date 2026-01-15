@@ -111,8 +111,7 @@ func (svc *WotWssMsgConverter) DecodeRequest(raw []byte) *msg.RequestMessage {
 
 // DecodeResponse converts a websocket response message to a hiveot response message.
 // Raw is the json serialized encoded message
-func (svc *WotWssMsgConverter) DecodeResponse(
-	raw []byte) *msg.ResponseMessage {
+func (svc *WotWssMsgConverter) DecodeResponse(raw []byte) *msg.ResponseMessage {
 
 	var wssResp WotWssResponseMessage
 	err := jsoniter.Unmarshal(raw, &wssResp)
@@ -183,8 +182,8 @@ func (svc *WotWssMsgConverter) DecodeResponse(
 		if err != nil {
 			return nil
 		}
-		for _, wssStatus := range wssStatusMap {
-			actionStatusMap[wssResp.Name] = msg.ActionStatus{
+		for k, wssStatus := range wssStatusMap {
+			actionStatusMap[k] = msg.ActionStatus{
 				ThingID:       wssResp.ThingID,
 				Name:          wssResp.Name,
 				ActionID:      wssStatus.ActionID,
@@ -279,6 +278,10 @@ func (svc *WotWssMsgConverter) EncodeResponse(resp *msg.ResponseMessage) ([]byte
 		var as msg.ActionStatus
 		err = utils.Decode(resp.Value, &as)
 		if err != nil {
+			slog.Error("EncodeResponse: Action response value is not an ActionStatus object",
+				"senderID", resp.SenderID, "thingID", resp.ThingID, "name", resp.Name,
+				"correlationID", resp.CorrelationID)
+			err = fmt.Errorf("Response value is not an ActionStatus object")
 			wssResp.Error = msg.ErrorValueFromError(err)
 		}
 		if as.State == messaging.StatusCompleted {

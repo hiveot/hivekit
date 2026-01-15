@@ -23,7 +23,7 @@ const (
 type ActionStatus struct {
 
 	// ActionID that uniquely identifies the action instance.
-	// This can be an identifier or a URL.
+	// This can be an identifier or a URL. Defaults to correlationID.
 	ActionID string `json:"actionID,omitempty"`
 
 	// Error with info when action failed

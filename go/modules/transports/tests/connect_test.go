@@ -35,7 +35,7 @@ import (
 )
 
 const appID = "connect-test"
-const testTimeout = time.Second * 300
+const testTimeout = time.Second * 119
 const testAgentID1 = "agent1"
 const testClientID1 = "client1"
 const testServerHttpPort = 9445
@@ -43,11 +43,14 @@ const testServerHttpURL = "https://localhost:9445"
 
 // const testServerHiveotHttpBasicURL = "wss://localhost:9445" + server.DefaultHiveotHttpBasicPath
 const testServerHiveotSseURL = "sse://localhost:9445" + hiveotsse.DefaultHiveotSsePath
-const testServerHiveotWssURL = "wss://localhost:9445" + wssserver.DefaultHiveotWssPath
+
+// const testServerHiveotWssURL = "wss://localhost:9445" + wssserver.DefaultHiveotWssPath
+const testServerWotWssURL = "wss://localhost:9445" + wssserver.DefaultWotWssPath
 
 //const testServerMqttWssURL = "mqtts://localhost:9447"
 
 // var defaultProtocol = transports.ProtocolTypeHiveotSSE
+
 var defaultProtocol = transports.ProtocolTypeWotWSS
 
 // var dummyAuthenticator *authnapi.DummyAuthenticator
@@ -72,7 +75,7 @@ func NewTestClient(tpauthn *authnapi.DummyAuthenticator, clientID string) (trans
 		cl = sseapi.NewHiveotSseClient(fullURL, caCert, sink, testTimeout)
 
 	case transports.ProtocolTypeWotWSS:
-		fullURL = testServerHiveotWssURL
+		fullURL = testServerWotWssURL
 		cl = wssapi.NewWotWssClient(fullURL, caCert, sink, testTimeout)
 
 	case transports.ProtocolTypeHTTPBasic:
@@ -91,24 +94,24 @@ func NewTestClient(tpauthn *authnapi.DummyAuthenticator, clientID string) (trans
 	return cl, token
 }
 
-// NewAgent creates a new connected agent client with the given ID. The
+// NewTestAgent creates a new connected agent client with the given ID. The
 // transport server must be started first.
 //
 // This uses the clientID as password
 // This panics if a client cannot be created
-func NewAgent(tpauthn *authnapi.DummyAuthenticator, clientID string) (transports.IClientConnection, *transports.Agent, string) {
+func NewTestAgent(tpauthn *authnapi.DummyAuthenticator, clientID string) (transports.IClientConnection, *transports.Agent, string) {
 	cc, token := NewTestClient(tpauthn, clientID)
 
 	agent := transports.NewAgent(clientID, cc, nil, nil, nil, nil, testTimeout)
 	return cc, agent, token
 }
 
-// NewConsumer creates a new connected consumer client with the given ID.
+// NewTestConsumer creates a new connected consumer client with the given ID.
 // The transport server must be started first.
 //
 // This uses the clientID as password
 // This panics if a client cannot be created
-func NewConsumer(tpauthn *authnapi.DummyAuthenticator, clientID string) (
+func NewTestConsumer(tpauthn *authnapi.DummyAuthenticator, clientID string) (
 	transports.IClientConnection, *transports.Consumer, string) {
 
 	cc, token := NewTestClient(tpauthn, clientID)
@@ -131,11 +134,17 @@ func NewConsumer(tpauthn *authnapi.DummyAuthenticator, clientID string) (
 // http-sse, wot or hiveot websocket.
 // This panics if the server cannot be created
 func StartTransportModule(sink modules.IHiveModule) (
-	srv transports.ITransportModule, authenticator *authnapi.DummyAuthenticator, cancelFunc func()) {
+	srv transports.ITransportModule,
+	authenticator *authnapi.DummyAuthenticator,
+	cancelFunc func()) {
 
 	caCert := certBundle.CaCert
 	serverCert := certBundle.ServerCert
 	dummyAuthenticator := authnapi.NewDummyAuthenticator()
+
+	if sink == nil {
+		sink = &modules.HiveModuleBase{}
+	}
 
 	// cert uses localhost
 	cfg := httptransport.NewHttpServerConfig(
@@ -240,7 +249,7 @@ func TestStartStop(t *testing.T) {
 	srv, tpauthn, cancelFn := StartTransportModule(nil)
 	_ = srv
 	defer cancelFn()
-	cc1, co1, _ := NewConsumer(tpauthn, testClientID1)
+	cc1, co1, _ := NewTestConsumer(tpauthn, testClientID1)
 	defer cc1.Close()
 	assert.NotNil(t, co1)
 
@@ -254,7 +263,7 @@ func TestPing(t *testing.T) {
 	srv, tpauthn, cancelFn := StartTransportModule(nil)
 	_ = srv
 	defer cancelFn()
-	cc1, co1, _ := NewConsumer(tpauthn, testClientID1)
+	cc1, co1, _ := NewTestConsumer(tpauthn, testClientID1)
 	defer cc1.Close()
 
 	for i := 0; i < 1; i++ {
@@ -319,7 +328,7 @@ func TestLogout(t *testing.T) {
 	defer cancelFn()
 
 	// check if this test still works with a valid login
-	cc1, co1, token1 := NewConsumer(tpauthn, testClientID1)
+	cc1, co1, token1 := NewTestConsumer(tpauthn, testClientID1)
 	_ = cc1
 	_ = co1
 	defer co1.Stop()
@@ -382,7 +391,7 @@ func TestBadRefresh(t *testing.T) {
 	t.Logf("---%s---\n", t.Name())
 	srv, tpauthn, cancelFn := StartTransportModule(nil)
 	defer cancelFn()
-	cc1, co1, token1 := NewConsumer(tpauthn, testClientID1)
+	cc1, co1, token1 := NewTestConsumer(tpauthn, testClientID1)
 	_ = co1
 	_ = token1
 	defer cc1.Close()
@@ -431,7 +440,9 @@ func TestReconnect(t *testing.T) {
 				// cinfo := c.GetConnectionInfo()
 				// c2 := srv.GetConnectionByConnectionID(cinfo.ClientID, cinfo.ConnectionID)
 				// assert.NotEmpty(t, c2)
-				resp := req.CreateResponse(output, nil)
+				resp, as := req.CreateActionResponse(
+					req.CorrelationID, msg.StatusCompleted, output, nil)
+				_ = as
 				// err = c.SendResponse(resp)
 				err = replyTo(resp)
 				assert.NoError(t, err)
@@ -452,7 +463,7 @@ func TestReconnect(t *testing.T) {
 	defer cancelFn()
 
 	// connect as consumer
-	cc1, co1, _ := NewConsumer(tpauthn, testClientID1)
+	cc1, co1, _ := NewTestConsumer(tpauthn, testClientID1)
 	defer cc1.Close()
 
 	//  wait until the connection is established
