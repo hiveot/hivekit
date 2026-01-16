@@ -12,10 +12,10 @@ import (
 
 	"github.com/hiveot/hivekit/go/lib/logging"
 	"github.com/hiveot/hivekit/go/modules"
-	"github.com/hiveot/hivekit/go/modules/services/certs/service/selfsigned"
+	authnclient "github.com/hiveot/hivekit/go/modules/authn/client"
+	authnmodule "github.com/hiveot/hivekit/go/modules/authn/module"
+	"github.com/hiveot/hivekit/go/modules/certs/module/selfsigned"
 	"github.com/hiveot/hivekit/go/modules/transports"
-	authnapi "github.com/hiveot/hivekit/go/modules/transports/authn/api"
-	authnmodule "github.com/hiveot/hivekit/go/modules/transports/authn/module"
 	hiveotsse "github.com/hiveot/hivekit/go/modules/transports/hiveotsse"
 	sseapi "github.com/hiveot/hivekit/go/modules/transports/hiveotsse/api"
 	hiveotssemodule "github.com/hiveot/hivekit/go/modules/transports/hiveotsse/module"
@@ -62,7 +62,7 @@ var certBundle = selfsigned.CreateTestCertBundle()
 // This uses the server to generate an auth token.
 // This panics if a client cannot be created.
 // ClientID is only used for logging
-func NewTestClient(tpauthn *authnapi.DummyAuthenticator, clientID string) (transports.IClientConnection, string) {
+func NewTestClient(tpauthn *authnmodule.DummyAuthenticator, clientID string) (transports.IClientConnection, string) {
 	caCert := certBundle.CaCert
 	fullURL := testServerHttpURL
 	token := tpauthn.AddClient(clientID, clientID)
@@ -99,7 +99,7 @@ func NewTestClient(tpauthn *authnapi.DummyAuthenticator, clientID string) (trans
 //
 // This uses the clientID as password
 // This panics if a client cannot be created
-func NewTestAgent(tpauthn *authnapi.DummyAuthenticator, clientID string) (transports.IClientConnection, *transports.Agent, string) {
+func NewTestAgent(tpauthn *authnmodule.DummyAuthenticator, clientID string) (transports.IClientConnection, *transports.Agent, string) {
 	cc, token := NewTestClient(tpauthn, clientID)
 
 	agent := transports.NewAgent(clientID, cc, nil, nil, nil, nil, testTimeout)
@@ -111,7 +111,7 @@ func NewTestAgent(tpauthn *authnapi.DummyAuthenticator, clientID string) (transp
 //
 // This uses the clientID as password
 // This panics if a client cannot be created
-func NewTestConsumer(tpauthn *authnapi.DummyAuthenticator, clientID string) (
+func NewTestConsumer(tpauthn *authnmodule.DummyAuthenticator, clientID string) (
 	transports.IClientConnection, *transports.Consumer, string) {
 
 	cc, token := NewTestClient(tpauthn, clientID)
@@ -135,12 +135,12 @@ func NewTestConsumer(tpauthn *authnapi.DummyAuthenticator, clientID string) (
 // This panics if the server cannot be created
 func StartTransportModule(sink modules.IHiveModule) (
 	srv transports.ITransportModule,
-	authenticator *authnapi.DummyAuthenticator,
+	authenticator *authnmodule.DummyAuthenticator,
 	cancelFunc func()) {
 
 	caCert := certBundle.CaCert
 	serverCert := certBundle.ServerCert
-	dummyAuthenticator := authnapi.NewDummyAuthenticator()
+	dummyAuthenticator := authnmodule.NewDummyAuthenticator()
 
 	if sink == nil {
 		sink = &modules.HiveModuleBase{}
@@ -288,7 +288,7 @@ func TestLoginRefresh(t *testing.T) {
 	defer cancelFn()
 
 	serverURL := srv.GetConnectURL()
-	authnClient := authnapi.NewAuthnClient(serverURL, certBundle.CaCert)
+	authnClient := authnclient.NewAuthnHttpClient(serverURL, certBundle.CaCert)
 
 	// 1: Login
 	tpauthn.AddClient(testClientID1, testPass)
@@ -312,7 +312,7 @@ func TestLoginRefresh(t *testing.T) {
 	require.NoError(t, err)
 
 	//token3, err := co1.RefreshToken(token2)
-	token3, err := authnapi.RefreshToken(cl2, testClientID1, token2)
+	token3, err := authnclient.RefreshToken(cl2, testClientID1, token2)
 	assert.NoError(t, err)
 	assert.NotEmpty(t, token3)
 
@@ -336,7 +336,7 @@ func TestLogout(t *testing.T) {
 
 	// logout
 	serverURL := srv.GetConnectURL()
-	authnClient := authnapi.NewAuthnClient(serverURL, certBundle.CaCert)
+	authnClient := authnclient.NewAuthnHttpClient(serverURL, certBundle.CaCert)
 	authnClient.ConnectWithToken(testClientID1, token1)
 	err := authnClient.Logout(token1)
 	assert.NoError(t, err)
@@ -406,7 +406,7 @@ func TestBadRefresh(t *testing.T) {
 	assert.NoError(t, err)
 
 	serverURL := srv.GetConnectURL()
-	authCl := authnapi.NewAuthnClient(serverURL, certBundle.CaCert)
+	authCl := authnclient.NewAuthnHttpClient(serverURL, certBundle.CaCert)
 	authCl.ConnectWithToken(testClientID1, token1)
 	validToken, err := authCl.RefreshToken(token1)
 	//validToken, err := co1.RefreshToken(token1)
@@ -491,7 +491,7 @@ func TestReconnect(t *testing.T) {
 	// An RPC call is the ultimate test
 	var rpcArgs = "rpc test"
 	var rpcResp string
-	time.Sleep(time.Millisecond * 1000)
+	time.Sleep(time.Millisecond * 3000)
 	err := co1.Rpc(wot.OpInvokeAction, dThingID, actionKey, &rpcArgs, &rpcResp)
 	require.NoError(t, err)
 	assert.Equal(t, rpcArgs, rpcResp)

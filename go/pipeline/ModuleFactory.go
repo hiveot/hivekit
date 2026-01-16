@@ -6,7 +6,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/hiveot/hivekit/go/modules"
-	directory_module "github.com/hiveot/hivekit/go/modules/services/directory/module"
+	directory_module "github.com/hiveot/hivekit/go/modules/directory/module"
 )
 
 const DirectoryClient = "directoryClient"

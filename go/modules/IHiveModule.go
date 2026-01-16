@@ -26,7 +26,7 @@ type IHiveModule interface {
 	// For agents/devices this is the ThingID, for consumers this is the clientID.
 	GetModuleID() string
 
-	// GetTM returns the module's Thing Model describing its properties, actions and events.
+	// GetTM returns the module's Thing Model JSON document, describing its properties, actions and events.
 	// If no TM is supported then this returns nil.
 	// Forms in the TD are typically added by the protocol server.
 	GetTM() string

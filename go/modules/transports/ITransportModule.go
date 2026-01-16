@@ -30,12 +30,6 @@ const (
 // If the token is invalid an error is returned
 type AuthenticationHandler func(token string) (clientID string, sessionID string, err error)
 
-// Default format for login request message
-type UserLoginArgs struct {
-	Login    string `json:"login"`
-	Password string `json:"password"`
-}
-
 // A transport module is a server module with hooks for sending messages to remote clients.
 type ITransportModule interface {
 	modules.IHiveModule

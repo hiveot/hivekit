@@ -209,7 +209,7 @@ func TestQueryActions(t *testing.T) {
 		switch req.Operation {
 		case wot.OpQueryAction:
 			// reply a response carrying the queried action status
-			actStat := msg.ActionStatus{
+			actStat := &msg.ActionStatus{
 				ThingID:       req.ThingID,
 				Name:          req.Name,
 				ActionID:      actionID,

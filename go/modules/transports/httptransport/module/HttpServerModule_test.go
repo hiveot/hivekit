@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/hiveot/hivekit/go/lib/logging"
-	"github.com/hiveot/hivekit/go/modules/services/certs/service/selfsigned"
+	"github.com/hiveot/hivekit/go/modules/certs/module/selfsigned"
 	"github.com/hiveot/hivekit/go/modules/transports/httptransport"
 	"github.com/hiveot/hivekit/go/modules/transports/httptransport/httpapi"
 	"github.com/hiveot/hivekit/go/modules/transports/httptransport/module"
