@@ -10,9 +10,8 @@ import (
 	"github.com/hiveot/hivekit/go/modules"
 	"github.com/hiveot/hivekit/go/modules/transports"
 	"github.com/hiveot/hivekit/go/modules/transports/direct"
-	"github.com/hiveot/hivekit/go/modules/transports/httptransport"
 	"github.com/hiveot/hivekit/go/modules/transports/wss"
-	wssapi "github.com/hiveot/hivekit/go/modules/transports/wss/api"
+	"github.com/hiveot/hivekit/go/modules/transports/wss/converter"
 	"github.com/hiveot/hivekit/go/msg"
 	"github.com/hiveot/hivekit/go/utils"
 )
@@ -24,7 +23,7 @@ type WssModule struct {
 	msgAPI *WssRrnHandler
 
 	// actual server exposing routes including websocket endpoint
-	httpServer httptransport.IHttpServer
+	httpServer transports.IHttpServer
 
 	// Websocket protocol message converter
 	msgConverter transports.IMessageConverter // WoT or Hiveot message format
@@ -161,7 +160,7 @@ func (m *WssModule) Stop() {
 //
 // httpServer is the http server the websocket is using
 // sink is the optional receiver of request, response and notification messages, nil to set later
-func NewHiveotWssModule(httpServer httptransport.IHttpServer, sink modules.IHiveModule) *WssModule {
+func NewHiveotWssModule(httpServer transports.IHttpServer, sink modules.IHiveModule) *WssModule {
 
 	httpURL := httpServer.GetConnectURL()
 	urlParts, err := url.Parse(httpURL)
@@ -192,7 +191,7 @@ func NewHiveotWssModule(httpServer httptransport.IHttpServer, sink modules.IHive
 //
 // httpServer is the http server the websocket is using
 // sink is the required receiver of request, response and notification messages, nil to set later but before start.
-func NewWotWssModule(httpServer httptransport.IHttpServer, sink modules.IHiveModule) *WssModule {
+func NewWotWssModule(httpServer transports.IHttpServer, sink modules.IHiveModule) *WssModule {
 	httpURL := httpServer.GetConnectURL()
 	urlParts, err := url.Parse(httpURL)
 	if err != nil {
@@ -200,7 +199,7 @@ func NewWotWssModule(httpServer httptransport.IHttpServer, sink modules.IHiveMod
 	}
 	m := &WssModule{
 		httpServer:   httpServer,
-		msgConverter: wssapi.NewWotWssMsgConverter(),
+		msgConverter: converter.NewWotWssMsgConverter(),
 		subprotocol:  wss.SubprotocolWotWSS,
 		wssPath:      wss.DefaultWotWssPath,
 	}

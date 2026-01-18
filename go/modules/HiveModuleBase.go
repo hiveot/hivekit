@@ -122,10 +122,12 @@ func (m *HiveModuleBase) GetSink() IHiveModule {
 	return m.sink
 }
 
-// GetTD returns the module's TD describing its properties, actions and events.
-// If supported, the TD can be obtained after a successful start.
+// GetTM returns the module's TM describing its properties, actions and events.
+// If supported, the TM can be obtained after a successful start.
 // If no TM is available then this returns "".
-// Forms in the TD are typically added by the pipeline messaging server.
+// To convert the TM to a TD, use AddForms on the transport modules to include
+// forms that describe interactions. This can be handled by the pipeline server
+// or by the application itself.
 func (m *HiveModuleBase) GetTM() string {
 	return ""
 }

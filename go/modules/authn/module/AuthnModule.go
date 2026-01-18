@@ -4,19 +4,19 @@ import (
 	"path"
 	"time"
 
+	"github.com/hiveot/hivekit/go/modules"
 	"github.com/hiveot/hivekit/go/modules/authn"
 	"github.com/hiveot/hivekit/go/modules/transports"
-	"github.com/hiveot/hivekit/go/modules/transports/httptransport"
 )
 
 // AuthnModule is a module that issues authentication tokens.
 // This registers authn endpoints on the given http server
 // This implements IHiveModule and IAuthnModule interfaces.
 type AuthnModule struct {
-	transports.TransportModuleBase
+	modules.HiveModuleBase
 
 	// The http/tls server to register endpoints
-	httpServer httptransport.IHttpServer
+	httpServer transports.IHttpServer
 
 	// The primary authenticator
 	authenticator transports.IAuthenticator
@@ -46,12 +46,11 @@ func (m *AuthnModule) GetAuthServerURI() string {
 //
 // This uses the configured session authenticator.
 func (m *AuthnModule) Login(clientID string, password string) (
-	newToken string, validity time.Duration, err error) {
+	newToken string, validUntil time.Time, err error) {
 
 	// the module uses the configured authenticator
-	newToken, validity, err = m.authenticator.Login(clientID, password)
-	_ = validity
-	return newToken, validity, err
+	newToken, validUntil, err = m.authenticator.Login(clientID, password)
+	return newToken, validUntil, err
 }
 
 // Logout disables the client's sessions
@@ -67,10 +66,10 @@ func (m *AuthnModule) Logout(clientID string) {
 //
 // This uses the configured session authenticator.
 func (m *AuthnModule) RefreshToken(clientID, oldToken string) (
-	newToken string, validity time.Duration, err error) {
+	newToken string, validUntil time.Time, err error) {
 
-	newToken, validity, err = m.authenticator.RefreshToken(clientID, oldToken)
-	return newToken, validity, err
+	newToken, validUntil, err = m.authenticator.RefreshToken(clientID, oldToken)
+	return newToken, validUntil, err
 }
 
 // Start the authentication module and listen for login and token refresh requests
@@ -82,7 +81,7 @@ func (m *AuthnModule) Start() error {
 func (m *AuthnModule) Stop() {
 }
 
-func NewAuthnModule(httpServer httptransport.IHttpServer, authenticator transports.IAuthenticator) *AuthnModule {
+func NewAuthnModule(httpServer transports.IHttpServer, authenticator transports.IAuthenticator) *AuthnModule {
 	m := AuthnModule{
 		httpServer:    httpServer,
 		authenticator: authenticator,

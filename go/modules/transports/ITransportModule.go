@@ -6,7 +6,10 @@ import (
 	"github.com/hiveot/hivekit/go/wot/td"
 )
 
-// Supported transport protocol bindings types
+// Shared transport module definitions for use by transport protocols
+// This contains the protocol types, authentication handler, and interfaces for the shared http server and tls client.
+
+// Supported transport protocol types
 const (
 	// WoT http basic protocol without return channel
 	ProtocolTypeHTTPBasic = "http-basic"
@@ -67,5 +70,4 @@ type ITransportModule interface {
 
 	// Set the handler for incoming connections
 	// SetConnectionHandler(h ConnectionHandler)
-
 }

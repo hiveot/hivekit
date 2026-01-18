@@ -6,17 +6,16 @@ import (
 	"net/http"
 	"net/url"
 
-	"github.com/hiveot/hivekit/go/lib/servers/httpbasic"
 	"github.com/hiveot/hivekit/go/modules/authn"
-	"github.com/hiveot/hivekit/go/modules/transports/httptransport"
-	"github.com/hiveot/hivekit/go/modules/transports/httptransport/httpapi"
+	"github.com/hiveot/hivekit/go/modules/transports"
+	tlsclient "github.com/hiveot/hivekit/go/modules/transports/httpserver/client"
 	jsoniter "github.com/json-iterator/go"
 )
 
 // AuthnHttpClient is a client for authentication operations such as login using http requests.
 // Use of the AuthnHttpClient object is optional - the functions can be used directly.
 type AuthnHttpClient struct {
-	tlsClient httptransport.ITlsClient
+	tlsClient transports.ITlsClient
 }
 
 // Close the underlying TLS client used by the authentication client
@@ -33,7 +32,7 @@ func (cl *AuthnHttpClient) ConnectWithToken(clientID string, token string) (err 
 
 // Return the TLS client used to connect to the authn server.
 // This can be used anywhere an http client is needed for the same server.
-func (cl *AuthnHttpClient) GetTlsClient() httptransport.ITlsClient {
+func (cl *AuthnHttpClient) GetTlsClient() transports.ITlsClient {
 	return cl.tlsClient
 }
 
@@ -62,13 +61,13 @@ func NewAuthnHttpClient(serverURL string, caCert *x509.Certificate) *AuthnHttpCl
 		return nil
 	}
 
-	tlsClient := httpapi.NewTLSClient(parts.Host, nil, caCert, 0)
+	tlsClient := tlsclient.NewTLSClient(parts.Host, nil, caCert, 0)
 	return &AuthnHttpClient{
 		tlsClient: tlsClient,
 	}
 }
 
-func LoginWithPassword(tlsClient httptransport.ITlsClient, clientID, password string) (newToken string, err error) {
+func LoginWithPassword(tlsClient transports.ITlsClient, clientID, password string) (newToken string, err error) {
 
 	// LoginWithPassword posts a login request to the TLS server using a login ID and
 	// password and obtain an auth token for use with ConnectWithToken.
@@ -154,7 +153,7 @@ func LoginWithPassword(tlsClient httptransport.ITlsClient, clientID, password st
 
 // Logout requests invalidates the token and closes the connection
 // tlsClient is a client with an existing authenticated connection
-func Logout(tlsClient httptransport.ITlsClient, token string) (err error) {
+func Logout(tlsClient transports.ITlsClient, token string) (err error) {
 
 	logoutPath := authn.HttpPostLogoutPath
 	_, _, err = tlsClient.Post(logoutPath, nil)
@@ -167,8 +166,8 @@ func Logout(tlsClient httptransport.ITlsClient, token string) (err error) {
 // tlsClient is a client with an existing authenticated connection
 //
 // This returns a new authentication token, or an error
-func RefreshToken(tlsClient httptransport.ITlsClient, clientID string, oldToken string) (newToken string, err error) {
-	refreshPath := httpbasic.HttpPostRefreshPath
+func RefreshToken(tlsClient transports.ITlsClient, clientID string, oldToken string) (newToken string, err error) {
+	refreshPath := authn.HttpPostRefreshPath
 	dataJSON, _ := jsoniter.Marshal(oldToken)
 	// first initialize the client with the old token
 	tlsClient.ConnectWithToken(clientID, oldToken)

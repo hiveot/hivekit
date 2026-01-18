@@ -1,8 +1,10 @@
 # HiveKit - HiveOT Development Kit
 
-HiveKit provides building blocks for building W3C Web of Thing compatible applications using the golang language.
+HiveKit provides building blocks for building W3C Web of Thing compatible applications using the golang language. (javascript and python modules are planned)
 
 HiveKit provides components for serving device WoT interfaces, routing of action, event and property messages, logging of messages, a factory for constructing and reading TDs and certificate and authentication key creation and validation.
+
+The modules in HiveKit are intended to be used to construct an application. They are not applications themselves.
 
 HiveKit is used in HiveFlow, the IoT Concentrator; for building agents that provide a WoT interface to 3rd party IoT protocols; and in the hub to provide a digital of IoT devices and WoT enabled services.
 
@@ -15,22 +17,47 @@ HiveKit components were originally part of the HiveOT Hub and have been extracte
 Nov 2025: Kickoff, extraction from HiveOT Hub is complete.
 Nov 2025: Add documentation of building blocks and howto use.
 Dec 2025: Converting to modules.
+Jan 2026: Completed SSE-SC and Websocket transport modules
 
-- presentation/cli [ ]
-- transport/direct [ ]
-- transport/discover [ ]
-- transport/hiveotsse [ ]
-- transport/httpserver [ok]
-- transport/wothttpbasic [ ]
-- transport/wotwss [ ]
-- services/authn [ ]
-- services/authz [ ]
-- services/bucketstore [ok]
-- services/certs [ok]
-- services/directory [ok]
-- services/logging [ ]
-- services/router [ ]
-- pipeline [ ]
+Transport modules:
+
+| status | module                 | description                 |
+| :----: | ---------------------- | --------------------------- |
+|   ✔️   | transport/direct       | simulation of transport     |
+|   ⬛   | transport/discovery    | WoT device discovery        |
+|   ✔️   | transport/ssesc        | HiveOT HTTP/SSE-SC protocol |
+|   ✔️   | transport/hiveotwss    | HiveOT Websocket messaging  |
+|   ⬛   | transport/discovery    | WoT device discovery        |
+|   ✔️   | transport/wothttpbasic | WoT HTTP basic protocol     |
+|   ✔️   | transport/wotwss       | WoT Websocket protocol      |
+
+Service modules:
+
+| status | module      | description                 |
+| :----: | ----------- | --------------------------- |
+|   ✔️   | authn       | authentication              |
+|   ⬛   | authz       | role based authorization    |
+|   ✔️   | bucketstore | key-value data storage      |
+|   ✔️   | certs       | certificate management      |
+|   ✔️   | directory   | Thing Directory             |
+|   ⬛   | logging     | message logging             |
+|   ⬛   | history     | message history recorder    |
+|   ⬛   | router      | message routing             |
+|   ⬛   | pipeline    | application pipeline        |
+|   ⬛   | twin        | digital twin                |
+|   ⬛   | rules       | rule based automation       |
+|   ⬛   | jsscript    | javascript based automation |
+
+Protocol Binding Modules:
+
+| status | module   | description                  |
+| :----: | -------- | ---------------------------- |
+|   ⬛   | isy99x   | ISY 99 protocol binding      |
+|   ⬛   | owserver | 1-wire owsererver binding    |
+|   ⬛   | zwavejs  | ZWave binding using zwave-js |
+|   ⬛   | weather  | Weather service bindings     |
+|   ⬛   | ipnet    | IP Network monitor           |
+|   ⬛   | ...      | and many more...             |
 
 ## Audience
 

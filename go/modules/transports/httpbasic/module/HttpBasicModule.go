@@ -6,8 +6,6 @@ import (
 	"github.com/hiveot/hivekit/go/modules"
 	"github.com/hiveot/hivekit/go/modules/transports"
 	"github.com/hiveot/hivekit/go/modules/transports/httpbasic"
-	"github.com/hiveot/hivekit/go/modules/transports/httpbasic/httpbasicapi"
-	"github.com/hiveot/hivekit/go/modules/transports/httptransport"
 	"github.com/hiveot/hivekit/go/msg"
 	"github.com/hiveot/hivekit/go/wot/td"
 )
@@ -20,7 +18,7 @@ const (
 )
 
 // NewHttpBasicModule is a transport module for serving the wot http-basic protocol.
-// This implements the ITransportModule (and IHiveModule) interface.
+// This implements the ITransportModule and IHiveModule interfaces.
 //
 // This WoT defined protocol is build on top of HTTP and is uni-directional.
 // It is only intended for consumers and not for agents using connection reversal.
@@ -30,10 +28,10 @@ type HttpBasicModule struct {
 
 	// the RRN messaging receiver
 	// this handles request for this module
-	msgAPI *httpbasicapi.HttpBasicMsgAPI
+	msgHandler *HttpBasicMsgHandler
 
 	// actual httpServer exposing routes
-	httpServer httptransport.IHttpServer
+	httpServer transports.IHttpServer
 
 	// handler for received request messages
 	serverRequestHandler msg.RequestHandler
@@ -52,7 +50,7 @@ func (m *HttpBasicModule) HandleRequest(
 	req *msg.RequestMessage, replyTo msg.ResponseHandler) (err error) {
 
 	if req.ThingID == m.GetModuleID() {
-		err = m.msgAPI.HandleRequest(req, replyTo)
+		err = m.msgHandler.HandleRequest(req, replyTo)
 	}
 	// if the request failed, then forward the request through the chain
 	// the module base handles operations for reading properties
@@ -86,7 +84,7 @@ func (m *HttpBasicModule) Start() (err error) {
 	// The basic msg handler converts incoming module requests messages to the module API.
 	// This has nothing to do with the http server.
 	if err == nil {
-		m.msgAPI = httpbasicapi.NewHttpBasicMsgAPI(m)
+		m.msgHandler = NewHttpBasicMsgHandler(m)
 	}
 	return err
 }
@@ -105,7 +103,7 @@ func (m *HttpBasicModule) Stop() {
 //
 //	httpServer is the http server that listens for messages
 //	sink is the optional receiver of request, response and notification messages, nil to set later
-func NewHttpBasicModule(httpServer httptransport.IHttpServer,
+func NewHttpBasicModule(httpServer transports.IHttpServer,
 	sink modules.IHiveModule) *HttpBasicModule {
 
 	m := &HttpBasicModule{

@@ -1,8 +1,6 @@
 package authn
 
 import (
-	"time"
-
 	"github.com/hiveot/hivekit/go/modules"
 	"github.com/hiveot/hivekit/go/modules/transports"
 )
@@ -10,7 +8,7 @@ import (
 const DefaultAuthnThingID = "authn"
 
 const (
-	// HttpPostLoginPath is the fixed authentication endpoint of the hub
+	// HttpPostLoginPath is the http authentication endpoint of the module
 	HttpPostLoginPath   = "/authn/login"
 	HttpPostLogoutPath  = "/authn/logout"
 	HttpPostRefreshPath = "/authn/refresh"
@@ -23,6 +21,55 @@ type UserLoginArgs struct {
 	Password string `json:"password"`
 }
 
+// ClientType enumerator
+//
+// identifies the client's category
+type ClientType string
+
+const (
+
+	// ClientTypeAgent for Agent
+	//
+	// Agents represent one or more devices
+	ClientTypeAgent ClientType = "agent"
+
+	// ClientTypeService for Service
+	//
+	// Service enrich information
+	ClientTypeService ClientType = "service"
+
+	// ClientTypeConsumer for Consumer
+	//
+	// Consumers are end-users of information
+	ClientTypeConsumer ClientType = "consumer"
+)
+
+// ClientProfile defines a Client Profile data schema.
+//
+// This contains client information of device agents, services and consumers
+type ClientProfile struct {
+
+	// ClientID with Client ID
+	ClientID string `json:"clientID,omitempty"`
+
+	// ClientType with Client Type
+	ClientType ClientType `json:"clientType,omitempty"`
+
+	// Disabled
+	//
+	// This client account has been disabled
+	Disabled bool `json:"disabled,omitempty"`
+
+	// DisplayName with
+	DisplayName string `json:"displayName,omitempty"`
+
+	// PubKey with Public Key
+	PubKey string `json:"pubKey,omitempty"`
+
+	// Updated with Client name or auth updated timestamp
+	Updated string `json:"updated,omitempty"`
+}
+
 // Authenticate server for login and refresh tokens
 // This implements the IAuthenticator API for use by other services
 // Use authapi.AuthClient to create a client for logging in.
@@ -33,15 +80,17 @@ type IAuthnModule interface {
 	// Return the authenticator for use by other modules
 	GetAuthenticator() transports.IAuthenticator
 
-	// Login verifies the password and generates a new limited authentication token
-	Login(clientID string, password string) (
-		newToken string, validity time.Duration, err error)
+	// GetProfile Get Client Profile
+	GetProfile(senderID string) (resp ClientProfile, err error)
 
-	// Logout disables the client's sessions
-	Logout(clientID string)
+	// UpdateName Request changing the display name of the current client
+	UpdateName(senderID string, newName string) error
 
-	// RefreshToken refreshes the auth token using the session authenticator.
-	// This uses the configured session authenticator.
-	RefreshToken(clientID, oldToken string) (
-		newToken string, validity time.Duration, err error)
+	// UpdatePassword Update Password
+	// Request changing the password of the current client
+	UpdatePassword(senderID string, password string) error
+
+	// UpdatePubKey Update Public Key
+	// Request changing the public key on file of the current client.
+	UpdatePubKey(senderID string, publicKeyPEM string) error
 }

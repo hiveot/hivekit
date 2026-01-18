@@ -1,16 +1,20 @@
-# HiveKit Transport Modules Considerations
+# HiveKit Transport Modules
+
+## Summary
 
 HiveKit transport modules are intended for connecting IoT consumers with IoT agents (sources) such as devices and services. The transport module converts between the protocol message format and the HiveKit's standard RRN message envelope.
 
-All modules implement the IHiveModule interface to support interaction between modules. Sinks can be added to use the module as a source. HandleRequest/Response/Notification methods allow the module to be used as a sink.
+All modules implement the IHiveModule interface to support chaining modules in a pipeline. HandleRequest/Response/Notification methods allow each module to be used as a sink (destination) while forwarding messages that with a different destination.
 
-A transport module contains a service which implements the protocol server, an API that converts protocol messages to RRN envelopes and vice versa, and a module that implements the IHiveModule interface.
+A transport module contains a service which implements a messaging protocol server and a messaging converter that converts protocol messages to RRN envelopes and vice versa.
+
+Messages received and converted by a transport module are forwarded to the sink registered with that module. Transport modules also define an API for sending requests and responses to a specific client and notification to subscribers.
 
 Commonly used protocols with WoT compatibility specifications are HTTP-Basic, Websocket, MQTT, CoAP. Support for non-wot communication protocols such as UDS (sockets), gRPC, and such can easily be added.
 
 ## Uni-Directional vs Bi-Directional Transports
 
-The HTTP-Basic protocol is connectionless and uni-directional. In this context it means that messages can be received from remote clients but not pushed to remote clients. With HTTP, a response can be returned to the remote client.
+The HTTP-Basic protocol is connectionless and uni-directional. In this context it means that messages can be received from remote clients but not pushed to remote clients. With HTTP, a response can only be returned to the remote client if it is received before the request returns.
 
 Subscription to events and property updates are therefore not supported by uni-direction protocols. Remote clients will have to 'poll' for information to receive updates.
 
@@ -22,7 +26,7 @@ Note the difference between client-server and consumer-agent.
 
 Synchronous messaging is easier to use than asynchronous because the result of a request can simply be returned to the caller. Asynchronous request/response messaging lets responses be sent separate from the request. The request immediately returns once it is delivered at the first destination.
 
-The benefit of synchronous messaging is simplicity in use. One downside is that it can block the resources involved in the request until it completes. This increases resource use and reduces performance. This is aggravated when using a gateway where the request travels from consumer to gateway and on to device.
+The benefit of synchronous messaging is simplicity in use. One downside is that it blocks the resources involved in the request until it completes. This increases resource use and reduces performance. This is aggravated when using a gateway where the request travels from consumer to gateway and on to device.
 
 Asynchronous messaging has the potential for greater throughput. The downside of using asynchronous messages is that the return path must be determined in order to deliver the response. This is further complicated when using an intermediate gateway. When a transformation takes place in the request, the response might also need to be converted appropriately putting restraints on the return path. Furthermore debugging is more difficult when corrupted or missing responses are not easily correlated to requests.
 
@@ -69,7 +73,7 @@ consumer -> [client] -> [server] -> [...] -> [history_store] <-> agent
 
 One of the objectives of Transport modules is to support connection reversal. During connection reversal an IoT agent (device, service) connects as a client to a protocol server. Once connected it accepts requests and sends responses and notifications.
 
-### Why Connectionn Reversal
+### Why Connection Reversal
 
 The primarily benefit of using connection reversal is that it is much more resistent against hacking as devices cannot be directly accessed.
 

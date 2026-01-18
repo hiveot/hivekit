@@ -6,6 +6,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/hiveot/hivekit/go/modules/transports"
 	"github.com/hiveot/hivekit/go/wot/td"
 	"github.com/teris-io/shortid"
 )
@@ -13,18 +14,20 @@ import (
 // DummyAuthenticator for testing the transport protocol bindings
 // This implements the IAuthenticator interface.
 type DummyAuthenticator struct {
-	passwords     map[string]string
-	tokens        map[string]string
+	passwords map[string]string
+	// flag whether sessions are valid for this client
+	inSession     map[string]string
 	authServerURI string
 }
 
 // AddClient adds a test client and return an auth token
 func (d *DummyAuthenticator) AddClient(clientID string, password string) string {
 	d.passwords[clientID] = password
-	sessionID := clientID + shortid.MustGenerate()
-	token, validity := d.CreateSessionToken(clientID, sessionID, 0)
-	_ = validity
-	d.tokens[clientID] = token
+	role := "testclient"
+
+	token, validUntil := d.CreateToken(clientID, role, 0)
+	_ = validUntil
+	d.inSession[clientID] = token
 	return token
 }
 
@@ -52,21 +55,29 @@ func (srv *DummyAuthenticator) AddSecurityScheme(tdoc *td.TD) {
 //	d.tokens[clientID] = token
 //}
 
-func (d *DummyAuthenticator) CreateSessionToken(
-	clientID, sessionID string, validity time.Duration) (token string, actualValidity time.Duration) {
-
-	if sessionID == "" {
-		sessionID = shortid.MustGenerate()
+// if validity is 0 it defaults to 1 minute
+func (d *DummyAuthenticator) CreateToken(
+	clientID string, role string, validity time.Duration) (token string, validUntil time.Time) {
+	if validity == 0 {
+		validity = time.Minute
 	}
-	actualValidity = validity
-	token = fmt.Sprintf("%s/%s", clientID, sessionID)
+	authkeytoken := shortid.MustGenerate()
+	validUntil = time.Now().Add(validity)
+	token = fmt.Sprintf("%s/%s/%s", clientID, role, authkeytoken)
 	// simulate a session with the tokens map
-	d.tokens[clientID] = token
-	return token, actualValidity
+	d.inSession[clientID] = token
+	return token, validUntil
 }
 
-func (d *DummyAuthenticator) DecodeSessionToken(token string, signedNonce string, nonce string) (clientID string, sessionID string, err error) {
-	return d.ValidateToken(token)
+func (d *DummyAuthenticator) DecodeToken(token string, signedNonce string, nonce string) (
+	clientID string, role string, issuedAt, validUntil time.Time, err error) {
+
+	// fake it
+	issuedAt = time.Now().Add(-time.Minute)
+	// validUntil = time.Now().Add(time.Minute)
+	clientID, role, validUntil, err = d.ValidateToken(token)
+
+	return clientID, role, issuedAt, validUntil, err
 }
 
 // GetAlg pretend to use jwt
@@ -75,21 +86,19 @@ func (d *DummyAuthenticator) GetAlg() (string, string) {
 }
 
 func (d *DummyAuthenticator) Login(
-	clientID string, password string) (token string, validity time.Duration, err error) {
-
+	clientID string, password string) (token string, validUntil time.Time, err error) {
+	role := "role1"
 	currPass, isClient := d.passwords[clientID]
 	if isClient && currPass == password {
-		sessionID := clientID + shortid.MustGenerate()
-		token, validity = d.CreateSessionToken(clientID, sessionID, 0)
-		d.tokens[clientID] = token
-		return token, validity, nil
+		token, validUntil = d.CreateToken(clientID, role, 0)
+		d.inSession[clientID] = token
+		return token, validUntil, nil
 	}
-	return "", 0, fmt.Errorf("invalid login")
+	return "", validUntil, fmt.Errorf("invalid login")
 }
 
 func (d *DummyAuthenticator) Logout(clientID string) {
-	delete(d.passwords, clientID)
-	delete(d.tokens, clientID)
+	delete(d.inSession, clientID)
 }
 
 func (d *DummyAuthenticator) ValidatePassword(clientID string, password string) (err error) {
@@ -101,41 +110,44 @@ func (d *DummyAuthenticator) ValidatePassword(clientID string, password string) 
 }
 
 func (d *DummyAuthenticator) RefreshToken(
-	senderID string, oldToken string) (newToken string, validity time.Duration, err error) {
+	senderID string, oldToken string) (newToken string, validUntil time.Time, err error) {
 
-	tokenClientID, sessionID, err := d.ValidateToken(oldToken)
+	tokenClientID, role, validUntil, err := d.ValidateToken(oldToken)
 	if err != nil || senderID != tokenClientID {
 		err = fmt.Errorf("invalid token, client or sender")
 	} else {
-		newToken, validity = d.CreateSessionToken(senderID, sessionID, 0)
+		newToken, validUntil = d.CreateToken(senderID, role, 0)
 	}
-	return newToken, validity, err
+	return newToken, validUntil, err
 }
 func (d *DummyAuthenticator) SetAuthServerURI(authServerURI string) {
 	d.authServerURI = authServerURI
 }
 
-func (d *DummyAuthenticator) ValidateToken(token string) (clientID string, sessionID string, err error) {
+// Validate the token
+func (d *DummyAuthenticator) ValidateToken(token string) (
+	clientID string, role string, validUntil time.Time, err error) {
 
 	parts := strings.Split(token, "/")
-	if len(parts) != 2 {
-		return "", "", fmt.Errorf("badToken")
+	if len(parts) != 3 {
+		return "", "", validUntil, fmt.Errorf("badToken")
 	}
 	clientID = parts[0]
-	sessionID = parts[1]
+	role = parts[1]
 	// simulate a session by checking if a recent token was issued
-	_, found := d.tokens[clientID]
+	_, found := d.inSession[clientID]
 	if !found {
 		err = errors.New("no active session")
 	}
 
-	return clientID, sessionID, err
+	return clientID, role, validUntil, err
 }
 
 func NewDummyAuthenticator() *DummyAuthenticator {
 	d := &DummyAuthenticator{
 		passwords: make(map[string]string),
-		tokens:    make(map[string]string),
+		inSession: make(map[string]string),
 	}
+	var _ transports.IAuthenticator = d // interface check
 	return d
 }

@@ -5,6 +5,8 @@ go 1.24.0
 toolchain go1.24.7
 
 require (
+	aidanwoods.dev/go-paseto v1.6.0
+	github.com/alexedwards/argon2id v1.0.0
 	github.com/araddon/dateparse v0.0.0-20210429162001-6b43995a97de
 	github.com/cockroachdb/pebble v1.1.5
 	github.com/eclipse/paho.golang v0.23.0
@@ -21,6 +23,7 @@ require (
 	github.com/thanhpk/randstr v1.0.6
 	github.com/tidwall/btree v1.8.1
 	github.com/tmaxmax/go-sse v0.11.0
+	golang.org/x/crypto v0.46.0
 	golang.org/x/exp v0.0.0-20251219203646-944ab1f22d93
 	golang.org/x/net v0.48.0
 	golang.org/x/sys v0.39.0
@@ -28,6 +31,7 @@ require (
 )
 
 require (
+	aidanwoods.dev/go-result v0.3.1 // indirect
 	github.com/DataDog/zstd v1.5.7 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/cenkalti/backoff v2.2.1+incompatible // indirect

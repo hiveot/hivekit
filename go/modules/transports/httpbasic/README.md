@@ -1,6 +1,12 @@
 # WoT HTTP-Basic Transport Module
 
-The HTTP-Basic Transport Module implements the WoT HTTP-Basic protocol. It allows access to WoT IoT devices using http requests and emits these requests using RRN (Request-Response-Notification) messages for further processing.
+The HTTP-Basic Transport Module implements the [W3C WoT HTTP-Basic Profile](https://www.w3.org/TR/wot-profile/#http-basic-profile). It is intended to support access to WoT IoT devices using http requests.
+
+Http-basic can be used to publish notifications from systems that support web-hooks.
+
+## Status
+
+This module is in alpha. It is functional but breaking changes can be expected.
 
 ## Public and Protected Routes
 
@@ -14,44 +20,23 @@ This module depends on IHttpServer interface, which can be provided by any compa
 
 ## Configuration
 
-The module does not currently use any configurations. The provided server must be configured with the desired port and certificate configuration.
+The module does not currently use any configurations. The provided server must be configured with the desired port and server certificate.
 
 ## Usage
 
-This module adds endpoints for passing RRN type messages. It has an API to add forms to a TD to access devices via this protocols.
+This module adds endpoints for posting [WoT operations](https://www.w3.org/TR/wot-thing-description11/#form) using a standard URL to describe operation, thingID, and affordance name.
 
-For the TM, see (tentative): https://github.com/hiveot/hivekit/go/modules/transports/httpbasic/tm/httpbasic.json
+This module includes an API to add forms to a TD to access devices via this transport protocol.
 
-All routes are protected except for the login and ping routes.
-Specific operations:
+All routes are protected. Sending requests over http-basic requires a valid bearer token in the authorization header. Without a valid token an 'unauthorized' response is returned. This is handled by the middleware of the provided http server and not part of this transport module.
 
-### Login (public route)
-
-Path: /authn/login
-Input: JSON object
-
-```json
-{
-    "username": name,
-    "password": pass
-}
-```
-
-This returns a bearer token that must be used in the http authorization header when accessing protected routes.
-
-### Logout
-
-> POST /authn/logout
+See the test cases for example on how to use this module in the code.
 
 ### Ping (public route)
 
 > GET /ping
 
-### Refresh Token
-
-> POST /authn/refresh
-
-### Send Request
+### Sending A Request
 
 > POST /things/{operation}/{thingID}/{name}
 > Where: {operation} is one of:
@@ -60,9 +45,9 @@ This returns a bearer token that must be used in the http authorization header w
     "readproperty" | "readmultipleproperties" | "readallproperties" |
     "writeproperty"| "writemultipleproperties" |
 
-Invoke Action: POST /things/invokeaction/{thingID}/{name}
+For example, to invoke an action: POST /things/invokeaction/{thingID}/{name}
+For example, to read a property value: GET /things/readproperty/{thingID}/{name}
 
-This mapping enables all regular Thing interaction. Devices that have their own paths.
-Devices can add paths to the module routes for serving special purposes.
+This mapping enables all regular Thing interaction.
 
-etc.
+Devices that use this module can also add their own paths for custom usage.

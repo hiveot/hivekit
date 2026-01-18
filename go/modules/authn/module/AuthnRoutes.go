@@ -33,7 +33,7 @@ func (m *AuthnModule) createRoutes() error {
 func (m *AuthnModule) onHttpLogin(w http.ResponseWriter, r *http.Request) {
 	var newToken string
 	var args authn.UserLoginArgs
-	var validity time.Duration
+	var validUntil time.Time
 
 	payload, err := io.ReadAll(r.Body)
 	if err == nil {
@@ -43,9 +43,9 @@ func (m *AuthnModule) onHttpLogin(w http.ResponseWriter, r *http.Request) {
 		// the login is handled in-house and has an immediate return
 		// TODO: use-case for 3rd party login? oauth2 process support? tbd
 		// FIXME: hard-coded keys!? ugh
-		newToken, validity, err = m.Login(args.Login, args.Password)
+		newToken, validUntil, err = m.Login(args.Login, args.Password)
 
-		_ = validity
+		_ = validUntil
 		slog.Info("HandleLogin", "clientID", args.Login)
 	}
 	if err != nil {
@@ -75,14 +75,14 @@ func (m *AuthnModule) onHttpLogout(w http.ResponseWriter, r *http.Request) {
 func (m *AuthnModule) onHttpTokenRefresh(w http.ResponseWriter, r *http.Request) {
 	var newToken string
 	var oldToken string
-	var validity time.Duration
+	var validUntil time.Time
 	rp, err := m.httpServer.GetRequestParams(r)
 
 	if err == nil {
 		jsoniter.Unmarshal(rp.Payload, &oldToken)
 		slog.Info("HandleAuthRefresh", "clientID", rp.ClientID)
-		newToken, validity, err = m.authenticator.RefreshToken(rp.ClientID, oldToken)
-		_ = validity
+		newToken, validUntil, err = m.authenticator.RefreshToken(rp.ClientID, oldToken)
+		_ = validUntil
 	}
 	if err != nil {
 		slog.Warn("HandleAuthRefresh failed:", "err", err.Error())

@@ -1,10 +1,22 @@
-# WoT Websock Transport Module
+# WoT Websocket Transport Module
 
-The Wot Websocket Transport Module implements the WoT Websocket protocol. It allows access to WoT IoT devices using websocket messages and emits these messages using RRN (Request-Response-Notification) messages.
+The WoT websocket transport module provides a full bi-directional asynchronous messaging between client and server using websockets.
+
+This module supports two protocols:
+
+1. [WoT Websocket protocol](https://w3c.github.io/web-thing-protocol/). This is an offical WoT http subprotocol following the WoT websocket specification.
+
+2. The HiveOT websocket protocol which works akin to the WoT websocket protocol but passes the RRN message envelopes directly, instead of converting them to a more complicated message format.
+
+Connecting over websockets requires a valid bearer token in the http authorization header.
+
+## Status
+
+The Websocket transport module is in alpha. It is functional but breaking changes can be expected.
 
 ## Dependencies
 
-This module depends on IHttpServer interface, which can be provided by any compatible http server implementation such as the 'httpserver' module. This interface only has 3 methods of which two are routers, so it is easy to whip up an alternative module for this if needed.
+This module depends on IHttpServer interface, which can be provided by any compatible http server implementation such as the 'httpserver' module. This interface only has a few methods including two for getting public and protected (chi) routes, so it is easy to whip up an alternative module for this if needed.
 
 ## Summary
 

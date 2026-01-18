@@ -16,16 +16,16 @@ import (
 	authnmodule "github.com/hiveot/hivekit/go/modules/authn/module"
 	"github.com/hiveot/hivekit/go/modules/certs/module/selfsigned"
 	"github.com/hiveot/hivekit/go/modules/transports"
-	hiveotsse "github.com/hiveot/hivekit/go/modules/transports/hiveotsse"
-	sseapi "github.com/hiveot/hivekit/go/modules/transports/hiveotsse/api"
-	hiveotssemodule "github.com/hiveot/hivekit/go/modules/transports/hiveotsse/module"
-	"github.com/hiveot/hivekit/go/modules/transports/httpbasic/httpbasicapi"
+	httpbasicclient "github.com/hiveot/hivekit/go/modules/transports/httpbasic/client"
 	httpbasicmodule "github.com/hiveot/hivekit/go/modules/transports/httpbasic/module"
-	"github.com/hiveot/hivekit/go/modules/transports/httptransport"
-	"github.com/hiveot/hivekit/go/modules/transports/httptransport/httpapi"
-	"github.com/hiveot/hivekit/go/modules/transports/httptransport/module"
+	"github.com/hiveot/hivekit/go/modules/transports/httpserver"
+	tlsclient "github.com/hiveot/hivekit/go/modules/transports/httpserver/client"
+	"github.com/hiveot/hivekit/go/modules/transports/httpserver/module"
+	ssesc "github.com/hiveot/hivekit/go/modules/transports/ssesc"
+	ssescclient "github.com/hiveot/hivekit/go/modules/transports/ssesc/client"
+	ssescmodule "github.com/hiveot/hivekit/go/modules/transports/ssesc/module"
 	wssserver "github.com/hiveot/hivekit/go/modules/transports/wss"
-	wssapi "github.com/hiveot/hivekit/go/modules/transports/wss/api"
+	wssclient "github.com/hiveot/hivekit/go/modules/transports/wss/client"
 	wssmodule "github.com/hiveot/hivekit/go/modules/transports/wss/module"
 	"github.com/hiveot/hivekit/go/msg"
 	"github.com/hiveot/hivekit/go/wot"
@@ -42,7 +42,7 @@ const testServerHttpPort = 9445
 const testServerHttpURL = "https://localhost:9445"
 
 // const testServerHiveotHttpBasicURL = "wss://localhost:9445" + server.DefaultHiveotHttpBasicPath
-const testServerHiveotSseURL = "sse://localhost:9445" + hiveotsse.DefaultHiveotSsePath
+const testServerHiveotSseScURL = "sse://localhost:9445" + ssesc.DefaultSseScPath
 
 // const testServerHiveotWssURL = "wss://localhost:9445" + wssserver.DefaultHiveotWssPath
 const testServerWotWssURL = "wss://localhost:9445" + wssserver.DefaultWotWssPath
@@ -71,17 +71,17 @@ func NewTestClient(tpauthn *authnmodule.DummyAuthenticator, clientID string) (tr
 
 	switch defaultProtocol {
 	case transports.ProtocolTypeHiveotSSE:
-		fullURL = testServerHiveotSseURL
-		cl = sseapi.NewHiveotSseClient(fullURL, caCert, sink, testTimeout)
+		fullURL = testServerHiveotSseScURL
+		cl = ssescclient.NewSseScClient(fullURL, caCert, sink, testTimeout)
 
 	case transports.ProtocolTypeWotWSS:
 		fullURL = testServerWotWssURL
-		cl = wssapi.NewWotWssClient(fullURL, caCert, sink, testTimeout)
+		cl = wssclient.NewWotWssClient(fullURL, caCert, sink, testTimeout)
 
 	case transports.ProtocolTypeHTTPBasic:
 		caCert := certBundle.CaCert
 		fullURL = testServerHttpURL
-		cl = httpbasicapi.NewHttpBasicClient(
+		cl = httpbasicclient.NewHttpBasicClient(
 			fullURL, caCert, sink, nil, testTimeout)
 
 		//case transports.ProtocolTypeWotMQTTWSS:
@@ -147,7 +147,7 @@ func StartTransportModule(sink modules.IHiveModule) (
 	}
 
 	// cert uses localhost
-	cfg := httptransport.NewHttpServerConfig(
+	cfg := httpserver.NewHttpServerConfig(
 		certBundle.ServerAddr, testServerHttpPort, serverCert, caCert,
 		dummyAuthenticator.ValidateToken)
 	// cfg.Address = fmt.Sprintf("%s:%d", certBundle.ServerAddr, testServerHttpPort)
@@ -177,7 +177,7 @@ func StartTransportModule(sink modules.IHiveModule) (
 		// http only, no subprotocol bindings
 
 	case transports.ProtocolTypeHiveotSSE:
-		srv = hiveotssemodule.NewHiveotSseModule(httpServer, sink, nil)
+		srv = ssescmodule.NewHiveotSseModule(httpServer, sink, nil)
 		err = srv.Start()
 
 	case transports.ProtocolTypeWotWSS:
@@ -307,7 +307,7 @@ func TestLoginRefresh(t *testing.T) {
 
 	// should be able to reconnect with the new token and refresh.
 	parts, _ := url.Parse(serverURL)
-	cl2 := httpapi.NewTLSClient(parts.Host, nil, certBundle.CaCert, 0)
+	cl2 := tlsclient.NewTLSClient(parts.Host, nil, certBundle.CaCert, 0)
 	err = cl2.ConnectWithToken(testClientID1, token2)
 	require.NoError(t, err)
 

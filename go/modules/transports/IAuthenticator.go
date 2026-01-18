@@ -8,9 +8,12 @@ import (
 
 var UnauthorizedError error = unauthorizedError{}
 
-// Auth service handler for validating authentication tokens.
+// ValidateTokenHandler is the handler definition for validating authentication tokens.
 // In http this is the bearer token in the authorization header.
-type ValidateTokenHandler func(token string) (clientID string, sessionID string, err error)
+// This handler is provided by the authn module, but can also be used by other authentication methods.
+//
+// This returns an error if the token is invalid, the clientID is unknown or the token has expired.
+type ValidateTokenHandler func(token string) (clientID string, role string, validUntil time.Time, err error)
 
 // UnauthorizedError for dealing with authorization problems
 type unauthorizedError struct {
@@ -22,18 +25,29 @@ func (e unauthorizedError) Error() string {
 }
 
 // IAuthenticator is the interface of the authentication capability to obtain and
-// validate session tokens.
+// validate authentication tokens.
 type IAuthenticator interface {
 	// AddSecurityScheme adds the wot securityscheme to the given TD
 	AddSecurityScheme(tdoc *td.TD)
 
-	// CreateSessionToken creates a signed session token for a client and adds the session
-	// sessionID is required. For persistent sessions use the clientID.
-	CreateSessionToken(clientID, sessionID string, validity time.Duration) (token string, actualValidity time.Duration)
+	// CreateToken creates a signed authentication token for a client.
+	//
+	// If no session has started, a new one will be created. This is intended for
+	// issuing agent tokens (devices, services) where login is not applicable.
+	//
+	// The use of role is a convenience for authorization usage. Note that accidentally
+	// created admin role tokens can be invalidated by invoking Logout.
+	// The authenticator tracks a sessionStart time and only tokens created
+	// after the sessionStart times are valid.
+	//
+	//	clientID identifies the client
+	//	role includes the role this client can fulfil with this token
+	//	validity is the duration of the token starting
+	CreateToken(clientID string, role string, validity time.Duration) (token string, validUntil time.Time)
 
-	// DecodeSessionToken and return its claims
-	DecodeSessionToken(sessionToken string, signedNonce string, nonce string) (
-		clientID string, sessionID string, err error)
+	// DecodeToken and return its claims
+	DecodeToken(token string, signedNonce string, nonce string) (
+		clientID string, role string, issuedAt time.Time, validUntil time.Time, err error)
 
 	// GetAlg returns the supported security format and authentication algorithm.
 	// This uses the vocabulary as defined in the TD.
@@ -41,26 +55,27 @@ type IAuthenticator interface {
 	// paseto: "local" (symmetric), "public" (asymmetric)
 	GetAlg() (string, string)
 
-	// Login with a password and obtain a new session token with limited duration
-	// This creates a new session that remains valid until logout or expiry.
-	// The token must be refreshed to keep the session alive.
+	// Login with a password and obtain a new authentication token with limited duration.
+	// The token must be refreshed before it expires.
 	//
-	// This returns the token and the validity period in seconds before it must be refreshed.
+	// Token validation is determined through configuration.
+	//
+	// This returns the authentication token and the expiration time before it must be refreshed.
 	// If the login fails this returns an error
-	Login(login string, password string) (token string, validity time.Duration, err error)
+	Login(login string, password string) (token string, validUntil time.Time, err error)
 
-	// Logout removes the session and invalidates the all tokens of this client
+	// Logout invalidates all tokens of this client issued before now.
 	Logout(clientID string)
 
-	// RefreshToken issues a new session token with an updated expiry time.
+	// RefreshToken issues a new authentication token with an updated expiry time.
 	// This extends the life of the session.
 	//
 	//	clientID Client whose token to refresh
 	//	oldToken must be valid
 	//
-	// This returns the token and the validity period before it must be refreshed,
+	// This returns the token and the validity time before it must be refreshed,
 	// If the clientID is unknown or oldToken is no longer valid this returns an error
-	RefreshToken(clientID string, oldToken string) (newToken string, validity time.Duration, err error)
+	RefreshToken(clientID string, oldToken string) (newToken string, validUntil time.Time, err error)
 
 	// Set the URI where to login
 	SetAuthServerURI(authServiceURI string)
@@ -68,7 +83,8 @@ type IAuthenticator interface {
 	// ValidatePassword checks if the given password is valid for the client
 	ValidatePassword(clientID string, password string) (err error)
 
-	// ValidateToken validates the auth token and returns the token clientID.
-	// If the token is invalid an error is returned
-	ValidateToken(token string) (clientID string, sessionID string, err error)
+	// ValidateToken verifies the token and client are valid.
+	// This returns an error if the token is invalid, the token has expired,
+	// or the client is not a valid and enabled client.
+	ValidateToken(token string) (clientID string, role string, validUntil time.Time, err error)
 }
