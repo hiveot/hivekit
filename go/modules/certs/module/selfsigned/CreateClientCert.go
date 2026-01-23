@@ -1,13 +1,12 @@
 package selfsigned
 
 import (
+	"crypto"
 	"crypto/rand"
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"math/big"
 	"time"
-
-	"github.com/hiveot/hivekit/go/modules/certs/keys"
 )
 
 // DefaultClientCertValidityDays with validity of generated service certificates
@@ -16,13 +15,16 @@ const DefaultClientCertValidityDays = 366
 // CreateClientCert generates a x509 client certificate with keys, signed by the CA
 // intended for testing, not for production
 //
-//	cn is the certificate common name, usually the client ID
+//	cn is the certificate common name, usually the clientID
 //	ou the organization.
 //	pubKey is the owner public key for this certificate
 //	caKeys is the signing CA's key pair
 //	validityDays
-func CreateClientCert(cn string, ou string, validityDays int, pubKey keys.IHiveKey,
-	caCert *x509.Certificate, caKeys keys.IHiveKey) (cert *x509.Certificate, err error) {
+func CreateClientCert(cn string, ou string, validityDays int,
+	pubKey crypto.PublicKey,
+	caCert *x509.Certificate, caPrivKey crypto.PrivateKey) (
+	cert *x509.Certificate, err error) {
+
 	validity := time.Hour * time.Duration(24*validityDays)
 
 	if validityDays == 0 {
@@ -53,7 +55,8 @@ func CreateClientCert(cn string, ou string, validityDays int, pubKey keys.IHiveK
 		IsCA:                  false,
 	}
 
-	certDerBytes, err := x509.CreateCertificate(rand.Reader, template, caCert, pubKey.PublicKey(), caKeys.PrivateKey())
+	certDerBytes, err := x509.CreateCertificate(
+		rand.Reader, template, caCert, pubKey, caPrivKey)
 	if err == nil {
 		//certPEMBuffer := new(bytes.Buffer)
 		//_ = pem.Encode(certPEMBuffer, &pem.Block{Type: "CERTIFICATE", Bytes: certDerBytes})

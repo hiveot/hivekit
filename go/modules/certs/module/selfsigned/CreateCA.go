@@ -1,6 +1,7 @@
 package selfsigned
 
 import (
+	"crypto"
 	"crypto/rand"
 	"crypto/x509"
 	"crypto/x509/pkix"
@@ -8,14 +9,13 @@ import (
 	"math/big"
 	"time"
 
-	"github.com/hiveot/hivekit/go/modules/certs/keys"
+	"github.com/hiveot/hivekit/go/utils"
 )
 
-// CreateCA creates a CA certificate with a private key for self-signed server certificates.
-// Browsers don't support ed25519 keys so use ecdsa for the certificate.
+// CreateSelfSignedCA creates a CA certificate with a private key for self-signed server certificates.
 // Source: https://shaneutt.com/blog/golang-ca-and-signed-cert-go/
-func CreateCA(country, province, locality, orgName, cn string, validityDays int) (
-	cert *x509.Certificate, keyPair keys.IHiveKey, err error) {
+func CreateSelfSignedCA(country, province, locality, orgName, cn string, validityDays int, keyType utils.KeyType) (
+	cert *x509.Certificate, caPrivKey crypto.PrivateKey, caPubKey crypto.PublicKey, err error) {
 
 	// set up our CA certificate
 	// see also: https://superuser.com/questions/738612/openssl-ca-keyusage-extension
@@ -50,18 +50,16 @@ func CreateCA(country, province, locality, orgName, cn string, validityDays int)
 		MaxPathLenZero:        true,
 	}
 
-	// Create the CA private key. Browsers don't support ed25519 (2024) so use ecdsa
-	keyPair = keys.NewEcdsaKey()
-	privKey := keyPair.PrivateKey()
-	pubKey := keyPair.PublicKey()
+	// Create the CA private key.
+	caPrivKey, caPubKey = utils.NewKey(keyType)
 
-	// create the CA
+	// create the self-signed CA certificate
 	caCertDer, err := x509.CreateCertificate(
-		rand.Reader, rootTemplate, rootTemplate, pubKey, privKey)
+		rand.Reader, rootTemplate, rootTemplate, caPubKey, caPrivKey)
 	if err != nil {
 		// normally this never happens
 		slog.Error("unable to create CA cert", "err", err)
 	}
 	caCert, err := x509.ParseCertificate(caCertDer)
-	return caCert, keyPair, err
+	return caCert, caPrivKey, caPubKey, err
 }

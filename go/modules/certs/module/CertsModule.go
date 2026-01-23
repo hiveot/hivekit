@@ -1,6 +1,7 @@
 package module
 
 import (
+	"crypto"
 	"crypto/tls"
 	"crypto/x509"
 	_ "embed"
@@ -9,13 +10,9 @@ import (
 
 	"github.com/hiveot/hivekit/go/modules"
 	"github.com/hiveot/hivekit/go/modules/certs"
-	"github.com/hiveot/hivekit/go/modules/certs/keys"
+	"github.com/hiveot/hivekit/go/modules/certs/certutils"
+	"github.com/hiveot/hivekit/go/modules/certs/server"
 )
-
-// Embed the certs TM
-//
-//go:embed certs-tm.json
-var CertsTMJson []byte
 
 // CertsModule is a module for managing certificates.
 // This implements IHiveModule and ICertsService interfaces.
@@ -32,12 +29,13 @@ type CertsModule struct {
 	// ca certificate or nil if none found
 	caCert *x509.Certificate
 	// ca key-pair
-	caKeyPair keys.IHiveKey
+	caPrivKey crypto.PrivateKey
+
 	// the default server certificate as shared between modules
 	defaultServerCert *tls.Certificate
 
 	// the RRN messaging API
-	msgHandler *CertsMsgHandler
+	msgHandler *server.CertsMsgHandler
 
 	// directory where certificates are stored
 	certsDir string
@@ -45,8 +43,8 @@ type CertsModule struct {
 
 // GetTM returns the module TM document
 // It includes forms for messaging access through the WoT.
-func (handler *CertsModule) GetTM() string {
-	tmJson := CertsTMJson
+func (m *CertsModule) GetTM() string {
+	tmJson := server.CertsTMJson
 	return string(tmJson)
 }
 
@@ -56,7 +54,7 @@ func (m *CertsModule) Start() (err error) {
 	caCertPath := path.Join(m.certsDir, certs.DefaultCaCertName)
 	caKeyPath := path.Join(m.certsDir, certs.DefaultCaKeyName)
 	if m.certsDir != "" {
-		m.caCert, m.caKeyPair, err = LoadCA(caCertPath, caKeyPath)
+		m.caCert, m.caPrivKey, err = certutils.LoadCA(caCertPath, caKeyPath)
 
 		// Load a saved default certificate
 		if m.defaultServerCert == nil {
@@ -64,18 +62,19 @@ func (m *CertsModule) Start() (err error) {
 		}
 	}
 	// create missing CA key and cert
-	if m.caCert == nil || m.caKeyPair == nil {
+	if m.caCert == nil || m.caPrivKey == nil {
 		// Make a clean start with cert and key.
 		_ = os.Remove(caCertPath)
 		_ = os.Remove(caKeyPath)
-		m.caCert, m.caKeyPair, err = m.CreateCACert()
+		m.caCert, m.caPrivKey, err = m.CreateCACert()
 	}
 	// create missing default server certificate
 	if m.defaultServerCert == nil {
-		m.defaultServerCert, err = m.CreateServerCert(certs.DefaultServerName, "", nil)
+		m.defaultServerCert, err = m.CreateServerCert(
+			certs.DefaultServerName, "", nil, nil)
 	}
 
-	m.msgHandler = NewCertsMsgHandler(m.GetModuleID(), m)
+	m.msgHandler = server.NewCertsMsgHandler(m.GetModuleID(), m)
 	return err
 }
 

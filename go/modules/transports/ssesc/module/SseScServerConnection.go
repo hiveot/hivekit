@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
-	"sync"
 	"time"
 
 	"github.com/hiveot/hivekit/go/modules/transports"
@@ -33,13 +32,8 @@ type SSEEvent struct {
 // the client over SSE.
 type HiveotSseServerConnection struct {
 	// Connection information such as clientID, cid, address, protocol etc
-	transports.ConnectionBase
-
-	//// connection ID (from header, without clientID prefix)
-	//connectionID string
-	//
-	//// clientID is the account ID of the agent or consumer
-	//clientID string
+	// subscriptions made through the http side.
+	transports.ServerConnectionBase
 
 	// connection remote address
 	remoteAddr string
@@ -51,9 +45,6 @@ type HiveotSseServerConnection struct {
 
 	// track last used time to auto-close inactive cm
 	lastActivity time.Time
-
-	// mutex for controlling writing and closing
-	mux sync.RWMutex
 
 	sseChan chan SSEEvent
 
@@ -75,8 +66,8 @@ func (sc *HiveotSseServerConnection) _send(msgType string, msg any) (err error) 
 		EventType: msgType,
 		Payload:   payloadJSON,
 	}
-	sc.mux.Lock()
-	defer sc.mux.Unlock()
+	sc.Mux.Lock()
+	defer sc.Mux.Unlock()
 	if sc.IsConnected() {
 		slog.Debug("_send",
 			slog.String("to", sc.GetClientID()),
@@ -93,13 +84,13 @@ func (sc *HiveotSseServerConnection) _send(msgType string, msg any) (err error) 
 
 // Close closes the connection and ends the read loop
 func (sc *HiveotSseServerConnection) Close() {
-	sc.mux.Lock()
-	defer sc.mux.Unlock()
+	sc.Mux.Lock()
+	defer sc.Mux.Unlock()
 	if sc.IsConnected() {
 		if sc.sseChan != nil {
 			close(sc.sseChan)
 		}
-		sc.ConnectionBase.Disconnect()
+		sc.ServerConnectionBase.Disconnect()
 	}
 }
 
@@ -219,15 +210,15 @@ func (sc *HiveotSseServerConnection) Serve(w http.ResponseWriter, r *http.Reques
 	w.Header().Set("Content-Encoding", "none") //https://stackoverflow.com/questions/76375157/client-not-receiving-server-sent-events-from-express-js-server
 
 	// establish a client event channel for sending messages back to the client
-	sc.mux.Lock()
+	sc.Mux.Lock()
 	sc.sseChan = make(chan SSEEvent, 1)
-	sc.mux.Unlock()
+	sc.Mux.Unlock()
 
 	// _send a ping event as the go-sse client doesn't have a 'connected callback'
 	pingEvent := SSEEvent{EventType: ssesc.SSEPingEvent}
-	sc.mux.Lock()
+	sc.Mux.Lock()
 	sc.sseChan <- pingEvent
-	sc.mux.Unlock()
+	sc.Mux.Unlock()
 
 	slog.Debug("SseConnection.Serve new SSE connection",
 		slog.String("clientID", sc.GetClientID()),
@@ -307,8 +298,8 @@ func (sc *HiveotSseServerConnection) Serve(w http.ResponseWriter, r *http.Reques
 // 	sc.mux.Unlock()
 // }
 
-// NewHiveotSseConnection creates a new SSE connection instance.
-// This implements the IServerTransport interface.
+// NewHiveotSseConnection creates a new SSE 1-way connection instance.
+// This implements the IConnection interface.
 //
 // clientID is the authenticated ID of the client that just connected
 // cid is the client's instance connectionID
@@ -316,21 +307,19 @@ func (sc *HiveotSseServerConnection) Serve(w http.ResponseWriter, r *http.Reques
 // httpReq is the request that started the websocket connection
 // rnrChan is the http server request&response channel where responses are passed.
 func NewHiveotSseConnection(
-	clientID string, cid string, remoteAddr string, httpReq *http.Request,
-	rnrChan *msg.RnRChan) *HiveotSseServerConnection {
+	clientID string, cid string, remoteAddr string, httpReq *http.Request, rnrChan *msg.RnRChan) *HiveotSseServerConnection {
 
 	c := &HiveotSseServerConnection{
 		remoteAddr:   remoteAddr,
 		httpReq:      httpReq,
 		lastActivity: time.Now(),
-		mux:          sync.RWMutex{},
 
 		rnrChan:     rnrChan,
 		respTimeout: transports.DefaultRpcTimeout,
 	}
-	c.Init(clientID, httpReq.URL.String(), cid)
+	c.Init(clientID, httpReq.URL.String(), cid, nil)
 
 	// interface check
-	var _ transports.IServerConnection = c
+	var _ transports.IConnection = c
 	return c
 }

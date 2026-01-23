@@ -64,8 +64,14 @@ type HttpBasicClient struct {
 }
 
 // set the clientID and authentication bearer token and connect to the server
+// Assume this client is now connected.
+// TODO: should it ping to confirm?
 func (cl *HttpBasicClient) ConnectWithToken(clientID string, token string) error {
-	return cl.tlsClient.ConnectWithToken(clientID, token)
+	err := cl.tlsClient.ConnectWithToken(clientID, token)
+	if err == nil {
+		cl.SetConnected(true)
+	}
+	return err
 }
 
 // Close disconnects from the server

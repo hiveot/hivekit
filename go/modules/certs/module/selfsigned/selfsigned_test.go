@@ -4,11 +4,13 @@ import (
 	"encoding/pem"
 	"testing"
 
-	"github.com/hiveot/hivekit/go/modules/certs/keys"
 	"github.com/hiveot/hivekit/go/modules/certs/module/selfsigned"
+	"github.com/hiveot/hivekit/go/utils"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+const TestKeyType = utils.KeyTypeED25519
 
 func TestCreateCerts(t *testing.T) {
 	// test creating hub certificate
@@ -16,12 +18,15 @@ func TestCreateCerts(t *testing.T) {
 	const clientID = "testClient"
 	names := []string{"127.0.0.1", "localhost"}
 
-	caCert, caKeyPair, err := selfsigned.CreateCA("", "", "", "", "testca", 1)
+	caCert, caPrivKey, caPubKey, err := selfsigned.CreateSelfSignedCA(
+		"", "", "", "", "testca", 1, TestKeyType)
 	require.NoError(t, err)
+	require.NotEmpty(t, caPubKey)
 
-	serverKey := keys.NewEcdsaKey()
-	serverCert, err := selfsigned.CreateServerCert(
-		serverID, "myou", 0, serverKey, names, caCert, caKeyPair)
+	serverPrivateKey, serverPublicKey := utils.NewKey(TestKeyType)
+	_ = serverPrivateKey
+	serverCert, err := selfsigned.CreateSelfSignedServerCert(
+		serverID, "myou", 0, serverPublicKey, names, caCert, caPrivKey)
 	assert.NoError(t, err)
 	assert.NotEmpty(t, serverCert)
 	// cert to pem
@@ -33,19 +38,10 @@ func TestCreateCerts(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, serverID, cn)
 
-	// serverCertPEM := service.X509CertToPEM(serverCert)
-	// // verify service certificate against CA
-	// _, err = selfsigned.VerifyCert(serverCertPEM, caCert)
-	// assert.NoError(t, err)
-
-	// create a server TLS cert
-	// tlsCert := selfsigned.X509CertToTLS(serverCert, serverKey)
-	// assert.NotEmpty(t, tlsCert)
-
-	// create a client cert
-	clientKey := keys.NewKey(keys.KeyTypeEd25519)
+	clientPrivateKey, clientPublicKey := utils.NewKey(TestKeyType)
+	_ = clientPrivateKey
 	clientCert, err := selfsigned.CreateClientCert(
-		clientID, "", 0, clientKey, caCert, caKeyPair)
+		clientID, "", 0, clientPublicKey, caCert, caPrivKey)
 	assert.NoError(t, err)
 	assert.NotEmpty(t, clientCert)
 }
@@ -55,29 +51,30 @@ func TestServerCertBadParms(t *testing.T) {
 	const serverID = "testService"
 	names := []string{"127.0.0.1", "localhost"}
 
-	caCert, caKey, _ := selfsigned.CreateCA("", "", "", "", "testca", 1)
-	serverKey := keys.NewKey(keys.KeyTypeECDSA)
+	caCert, caPrivKey, _, _ := selfsigned.CreateSelfSignedCA(
+		"", "", "", "", "testca", 1, TestKeyType)
+	serverKey, _ := utils.NewEcdsaKey()
 
 	// Missing CA certificate
-	_, err := selfsigned.CreateServerCert(
-		serverID, "myou", 0, serverKey, names, nil, caKey)
+	_, err := selfsigned.CreateSelfSignedServerCert(
+		serverID, "myou", 0, &serverKey.PublicKey, names, nil, caPrivKey)
 	assert.Error(t, err)
 
 	// missing CA private key
-	_, err = selfsigned.CreateServerCert(
-		serverID, "myou", 0, serverKey, names, caCert, nil)
+	_, err = selfsigned.CreateSelfSignedServerCert(
+		serverID, "myou", 0, &serverKey.PublicKey, names, caCert, nil)
 	assert.Error(t, err)
 
 	// missing service ID
-	serverCert, err := selfsigned.CreateServerCert(
-		"", "myou", 0, serverKey, names, caCert, caKey)
+	serverCert, err := selfsigned.CreateSelfSignedServerCert(
+		"", "myou", 0, &serverKey.PublicKey, names, caCert, caPrivKey)
 	_ = serverCert
 	require.Error(t, err)
 	require.Empty(t, serverCert)
 
 	// missing public key
-	serverCert, err = selfsigned.CreateServerCert(
-		serverID, "myou", 0, nil, names, caCert, caKey)
+	serverCert, err = selfsigned.CreateSelfSignedServerCert(
+		serverID, "myou", 0, nil, names, caCert, caPrivKey)
 	require.Error(t, err)
 	require.Empty(t, serverCert)
 

@@ -1,6 +1,7 @@
 package selfsigned
 
 import (
+	"crypto"
 	"crypto/rand"
 	"crypto/x509"
 	"crypto/x509/pkix"
@@ -9,14 +10,12 @@ import (
 	"math/big"
 	"net"
 	"time"
-
-	"github.com/hiveot/hivekit/go/modules/certs/keys"
 )
 
 // DefaultServerCertValidityDays with validity of generated service certificates
 const DefaultServerCertValidityDays = 100
 
-// CreateServerCert create a server certificate, signed by the given CA, for use in hiveot services.
+// CreateSelfSignedServerCert create a server certificate, signed by the given CA, for use in hiveot services.
 //
 // Note: While technically only the server's public key is needed, this requires a IHiveKey
 // key-pair to force type checking and avoid unexpected errors.
@@ -32,17 +31,17 @@ const DefaultServerCertValidityDays = 100
 //	* names are the SAN names to include with the certificate, localhost and 127.0.0.1 are always added
 //	* caCert is the CA certificate used to sign the certificate
 //	* caKey is the CA private key used to sign certificate
-func CreateServerCert(
+func CreateSelfSignedServerCert(
 	serverID string, ou string, validityDays int,
-	serverKeyPair keys.IHiveKey, names []string,
-	caCert *x509.Certificate, caKeyPair keys.IHiveKey) (
+	serverPubKey crypto.PublicKey, names []string,
+	caCert *x509.Certificate, caPrivKey crypto.PrivateKey) (
 	x509Cert *x509.Certificate, err error) {
 
-	if serverID == "" || serverKeyPair == nil {
+	if serverID == "" || serverPubKey == nil {
 		err := fmt.Errorf("missing argument serviceID, servicePubKey")
 		slog.Error(err.Error())
 		return nil, err
-	} else if caCert == nil || caKeyPair == nil {
+	} else if caCert == nil || caPrivKey == nil {
 		err := fmt.Errorf("missing CA certificate or key")
 		slog.Error(err.Error())
 		return nil, err
@@ -91,15 +90,9 @@ func CreateServerCert(
 			template.DNSNames = append(template.DNSNames, h)
 		}
 	}
-	// Create the service private key
 
-	// and the certificate itself
-	pubKey := serverKeyPair.PublicKey()
-	// FIXME!! cast should not be neccesary!!!
-	// privKey := caKeyPair.PrivateKey().(*ecdsa.PrivateKey)
-	privKey := caKeyPair.PrivateKey()
 	certDerBytes, err := x509.CreateCertificate(
-		rand.Reader, template, caCert, pubKey, privKey)
+		rand.Reader, template, caCert, serverPubKey, caPrivKey)
 	if err == nil {
 		x509Cert, err = x509.ParseCertificate(certDerBytes)
 	}

@@ -30,33 +30,29 @@ type AuthnFileStore struct {
 }
 
 // Add a new client.
-// clientID, clientType are required, the rest is optional
-func (store *AuthnFileStore) Add(clientID string, profile authn.ClientProfile) error {
+// clientID is required, the rest is optional.
+// This fails if the client already exists.
+func (store *AuthnFileStore) Add(profile authn.ClientProfile) error {
 
 	store.mutex.Lock()
 	defer store.mutex.Unlock()
 
-	entry, found := store.entries[clientID]
-	if clientID == "" || clientID != profile.ClientID {
+	if profile.ClientID == "" {
 		return fmt.Errorf("Add: missing clientID")
 	}
-	if profile.ClientType != authn.ClientTypeAgent &&
-		profile.ClientType != authn.ClientTypeConsumer &&
-		profile.ClientType != authn.ClientTypeService {
-		return fmt.Errorf("Add: invalid clientType '%s' for client '%s'",
-			profile.ClientType, clientID)
-	}
 
-	if !found {
-		slog.Info("Add: New client " + clientID)
-		entry = AuthnEntry{ClientProfile: profile}
-	} else {
-		slog.Info("Add: Updating existing client", slog.String("clientID", clientID))
-		entry.ClientProfile = profile
+	entry, found := store.entries[profile.ClientID]
+	if found {
+		err := fmt.Errorf("Add: Client with ID '%s' already exists", profile.ClientID)
+		slog.Warn(err.Error())
+		return err
 	}
-	entry.Updated = utils.FormatNowUTCMilli()
+	slog.Info("Add: New client " + profile.ClientID)
+	entry = AuthnEntry{ClientProfile: profile}
 
-	store.entries[clientID] = entry
+	entry.TimeUpdated = utils.FormatNowUTCMilli()
+
+	store.entries[profile.ClientID] = entry
 
 	err := store.save()
 	return err
@@ -219,6 +215,39 @@ func (store *AuthnFileStore) save() error {
 	return err
 }
 
+// SetPasswordHash adds/updates the password hash for the given login ID
+// Intended for clients to update their own password
+func (store *AuthnFileStore) SetPasswordHash(loginID string, hash string) (err error) {
+	store.mutex.Lock()
+	defer store.mutex.Unlock()
+
+	entry, found := store.entries[loginID]
+	if !found {
+		return fmt.Errorf("client '%s' not found", loginID)
+	}
+	entry.PasswordHash = hash
+	entry.TimeUpdated = utils.FormatNowUTCMilli()
+	store.entries[loginID] = entry
+
+	err = store.save()
+	return err
+}
+
+// SetRole changes the client's default role
+func (store *AuthnFileStore) SetRole(clientID string, role string) error {
+	store.mutex.Lock()
+	defer store.mutex.Unlock()
+	entry, found := store.entries[clientID]
+	if !found {
+		return fmt.Errorf("SetRole: Client '%s' not found", clientID)
+	}
+
+	entry.Role = role
+	store.entries[clientID] = entry
+	err := store.save()
+	return err
+}
+
 // SetPassword generates and stores the user's password hash.
 //
 // The hash used is argon2id or bcrypt based on the 'hashAlgo' setting.
@@ -247,67 +276,28 @@ func (store *AuthnFileStore) SetPassword(loginID string, password string) (err e
 	return store.SetPasswordHash(loginID, hash)
 }
 
-// SetPasswordHash adds/updates the password hash for the given login ID
-// Intended for clients to update their own password
-func (store *AuthnFileStore) SetPasswordHash(loginID string, hash string) (err error) {
-	store.mutex.Lock()
-	defer store.mutex.Unlock()
-
-	entry, found := store.entries[loginID]
-	if !found {
-		return fmt.Errorf("client '%s' not found", loginID)
-	}
-	entry.PasswordHash = hash
-	entry.Updated = utils.FormatNowUTCMilli()
-	store.entries[loginID] = entry
-
-	err = store.save()
-	return err
-}
-
-// SetRole changes the client's default role
-// This returns an error if role is not a known role
-func (store *AuthnFileStore) SetRole(clientID string, role string) error {
-	store.mutex.Lock()
-	defer store.mutex.Unlock()
-	entry, found := store.entries[clientID]
-	if !found {
-		return fmt.Errorf("SetRole: Client '%s' not found", clientID)
-	}
-
-	entry.Role = role
-	store.entries[clientID] = entry
-	err := store.save()
-	return err
-}
-
 // UpdateProfile updates the client profile
-// The senderID is the connection ID of the sender.
-// Authorization should only allow admin level
-func (store *AuthnFileStore) UpdateProfile(senderID string, profile authn.ClientProfile) error {
+//
+// This does not update the role. Use SetRole for updating the role instead.
+// SetRole is an admin function while clients can update their own profile.
+func (store *AuthnFileStore) UpdateProfile(profile authn.ClientProfile) error {
 	store.mutex.Lock()
 	defer store.mutex.Unlock()
 
-	entry, found := store.entries[senderID]
+	entry, found := store.entries[profile.ClientID]
 	if !found {
-		return fmt.Errorf("UpdateProfile: SenderID='%s' not found", senderID)
+		return fmt.Errorf("UpdateProfile: clientID='%s' not found", profile.ClientID)
 	}
 
-	entry, found = store.entries[profile.ClientID]
-	if !found {
-		return fmt.Errorf("UpdateProfile: SenderID='%s'; Client '%s' not found",
-			senderID, profile.ClientID)
-	}
-	if profile.ClientType != "" {
-		entry.ClientType = profile.ClientType
-	}
+	// do not allow update to role by users. Use SetRole instead
+
 	if profile.DisplayName != "" {
 		entry.DisplayName = profile.DisplayName
 	}
 	if profile.PubKey != "" {
 		entry.PubKey = profile.PubKey
 	}
-	entry.Updated = utils.FormatNowUTCMilli()
+	entry.TimeUpdated = utils.FormatNowUTCMilli()
 	store.entries[profile.ClientID] = entry
 
 	err := store.save()
@@ -367,7 +357,7 @@ func WritePasswordsToTempFile(
 // Note: this store is intended for one writer and many readers.
 // Multiple concurrent writes are not supported and might lead to one write being ignored.
 //
-//	filepath location of the file store. See also DefaultPasswordFile for the recommended name
+//	filepath location of the file store. See also DefaultPasswordFile for the recommended name.
 //	hashAlgo PWHASH_ARGON2id (default) or PWHASH_BCRYPT
 func NewAuthnFileStore(filepath string, hashAlgo string) *AuthnFileStore {
 	if hashAlgo == "" {
@@ -382,5 +372,6 @@ func NewAuthnFileStore(filepath string, hashAlgo string) *AuthnFileStore {
 		minPasswordLength: 5,
 		entries:           make(map[string]AuthnEntry),
 	}
+	var _ IAuthnStore = store // interface check
 	return store
 }

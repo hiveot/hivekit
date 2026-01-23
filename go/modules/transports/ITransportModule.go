@@ -12,19 +12,24 @@ import (
 // Supported transport protocol types
 const (
 	// WoT http basic protocol without return channel
-	ProtocolTypeHTTPBasic = "http-basic"
+	ProtocolSchemeHTTPBasic = "https"
+	ProtocolTypeHTTPBasic   = "https"
 
 	// WoT websocket sub-protocol
-	ProtocolTypeWotWSS = "wss"
+	ProtocolSchemeWotWSS = "wss"
+	ProtocolTypeWotWSS   = "wss"
 
 	// WoT MQTT protocol over WSS
-	ProtocolTypeWotMQTTWSS = "mqtt-wss"
+	ProtocolSchemeWotMQTTWSS = "mqtts"
+	ProtocolTypeWotMQTTWSS   = "mqtts"
 
 	// HiveOT http SSE subprotocol return channel with direct messaging
-	ProtocolTypeHiveotSSE = "hiveot-sse"
+	ProtocolSchemeHiveotSSE = "sse"
+	ProtocolTypeHiveotSSE   = "sse-sc"
 
 	// HiveOT message envelope passthrough
-	ProtocolTypePassthrough = "passthrough"
+	ProtocolSchemePassthrough = ""
+	ProtocolTypePassthrough   = "passthrough"
 )
 
 // AuthenticationHandler is the handler for use by transports to authenticate an incoming connection

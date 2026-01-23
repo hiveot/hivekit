@@ -26,7 +26,7 @@ type TransportModuleBase struct {
 	modules.HiveModuleBase
 
 	// connections by clcid = {clientID}:{connectionID}
-	connectionsByClcid map[string]IServerConnection
+	connectionsByClcid map[string]IConnection
 
 	// connectionIDs by clientID
 	connectionsByClientID map[string][]string
@@ -48,12 +48,12 @@ type TransportModuleBase struct {
 // This requires the connection to have a unique client connection ID (connectionID).
 //
 // If an endpoint with this connectionID exists the existing connection is forcibly closed.
-func (m *TransportModuleBase) AddConnection(c IServerConnection) error {
+func (m *TransportModuleBase) AddConnection(c IConnection) error {
 	m.cmux.Lock()
 	defer m.cmux.Unlock()
 
 	if m.connectionsByClcid == nil {
-		m.connectionsByClcid = make(map[string]IServerConnection)
+		m.connectionsByClcid = make(map[string]IConnection)
 	}
 	if m.connectionsByClientID == nil {
 		m.connectionsByClientID = make(map[string][]string)
@@ -133,10 +133,10 @@ func (m *TransportModuleBase) CloseAll() {
 //
 // This is concurrent safe as the iteration takes place on a copy.
 // The handler can be blocking on non-blocking (goroutine)
-func (m *TransportModuleBase) ForEachConnection(handler func(c IServerConnection)) {
+func (m *TransportModuleBase) ForEachConnection(handler func(c IConnection)) {
 	// collect a list of connections
 	m.cmux.Lock()
-	connList := make([]IServerConnection, 0, len(m.connectionsByClcid))
+	connList := make([]IConnection, 0, len(m.connectionsByClcid))
 	for _, c := range m.connectionsByClcid {
 		connList = append(connList, c)
 	}
@@ -156,7 +156,7 @@ func (m *TransportModuleBase) GetConnectURL() string {
 
 // GetConnectionByConnectionID locates the connection of the client using the client's connectionID
 // This returns nil if no connection was found with the given connectionID
-func (m *TransportModuleBase) GetConnectionByConnectionID(clientID, connectionID string) (c IServerConnection) {
+func (m *TransportModuleBase) GetConnectionByConnectionID(clientID, connectionID string) (c IConnection) {
 	clcid := clientID + ":" + connectionID
 	m.cmux.Lock()
 	defer m.cmux.Unlock()
@@ -171,7 +171,7 @@ func (m *TransportModuleBase) GetConnectionByConnectionID(clientID, connectionID
 // GetConnectionByClientID locates the first connection of the client using its account ID.
 // Intended to find agents which only have a single connection.
 // This returns nil if no connection was found with the given login
-func (m *TransportModuleBase) GetConnectionByClientID(clientID string) (c IServerConnection) {
+func (m *TransportModuleBase) GetConnectionByClientID(clientID string) (c IConnection) {
 
 	m.cmux.Lock()
 	defer m.cmux.Unlock()
@@ -212,7 +212,7 @@ func (m *TransportModuleBase) Init(
 // non-concurrent safe internal function that can be used from a locked section.
 // This will close the connnection if it isn't closed already.
 // Call this after the connection is closed or before closing.
-func (m *TransportModuleBase) removeConnection(c IServerConnection) {
+func (m *TransportModuleBase) removeConnection(c IConnection) {
 
 	clientID := c.GetClientID()
 	connectionID := c.GetConnectionID()
@@ -259,7 +259,7 @@ func (m *TransportModuleBase) removeConnection(c IServerConnection) {
 // RemoveConnection removes the connection by its connectionID
 // This will close the connnection if it isn't closed already.
 // Call this after the connection is closed or before closing.
-func (m *TransportModuleBase) RemoveConnection(c IServerConnection) {
+func (m *TransportModuleBase) RemoveConnection(c IConnection) {
 	m.cmux.Lock()
 	defer m.cmux.Unlock()
 	m.removeConnection(c)
@@ -268,7 +268,7 @@ func (m *TransportModuleBase) RemoveConnection(c IServerConnection) {
 // SendNotification [agent] sends a notification to all connections.
 // The connection handles subscriptions.
 func (m *TransportModuleBase) SendNotification(notif *msg.NotificationMessage) {
-	m.ForEachConnection(func(c IServerConnection) {
+	m.ForEachConnection(func(c IConnection) {
 		c.SendNotification(notif)
 	})
 }
@@ -300,7 +300,7 @@ func (m *TransportModuleBase) SendRequest(
 //	clientID identifies the consumer to send the response to
 func (m *TransportModuleBase) SendResponse(
 	clientID, cid string, resp *msg.ResponseMessage) (err error) {
-	// var c IServerConnection
+	// var c IConnection
 
 	c := m.GetConnectionByConnectionID(clientID, cid)
 

@@ -19,11 +19,10 @@ type AuthnEntry struct {
 // IAuthnStore defined the interface for storing authentication data
 type IAuthnStore interface {
 	// Add adds a device, service or user to the store with authn settings
-	// If the client already exists, it is updated with the profile.
+	// If the client already exists this fails.
 	//
-	//  clientID is the client's identity
 	//  profile to add. Empty fields can receive valid defaults.
-	Add(clientID string, profile authn.ClientProfile) error
+	Add(profile authn.ClientProfile) error
 
 	// Close the store
 	Close()
@@ -54,6 +53,10 @@ type IAuthnStore interface {
 	// If the client doesn't exist, no error is returned
 	Remove(clientID string) (err error)
 
+	// SetRole sets the default role of a client
+	// This returns an error if newRole isn't a known role
+	SetRole(clientID string, newRole string) error
+
 	// SetPassword stores the hash of the password for the given user.
 	// If the clientID doesn't exist, this returns an error.
 	//
@@ -63,13 +66,9 @@ type IAuthnStore interface {
 	// Returns error if the store isn't writable
 	SetPassword(clientID string, password string) error
 
-	// SetRole sets the default role of a client
-	// This returns an error if newRole isn't a known role
-	SetRole(clientID string, newRole string) error
-
-	// UpdateProfile updates client profile
+	// UpdateProfile updates client profile.
 	// This fails if the client doesn't exist.
-	UpdateProfile(clientID string, profile authn.ClientProfile) error
+	UpdateProfile(profile authn.ClientProfile) error
 
 	// VerifyPassword verifies the given password against the stored hash
 	// Returns the client profile and an error if the verification fails.

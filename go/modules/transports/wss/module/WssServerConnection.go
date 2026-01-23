@@ -23,7 +23,7 @@ type WSSMessage map[string]any
 // This implements the IServerConnection interface for sending messages to
 // agent or consumers.
 type WssServerConnection struct {
-	transports.ConnectionBase
+	transports.ServerConnectionBase
 
 	// connection ID
 	//connectionID string
@@ -56,9 +56,6 @@ type WssServerConnection struct {
 
 	// how long to wait for a response after sending a request
 	respTimeout time.Duration
-
-	// module sink that handles the incoming messages
-	sink modules.IHiveModule
 }
 
 // _send sends the seriaziled websocket message to the connected client
@@ -135,7 +132,7 @@ func (sc *WssServerConnection) Close() {
 //	}
 func (sc *WssServerConnection) onConnection(connected bool, err error) {
 	if !connected {
-		sc.ConnectionBase.Disconnect()
+		sc.ServerConnectionBase.Disconnect()
 	}
 	chPtr := sc.connectionHandlerPtr.Load()
 	if chPtr != nil {
@@ -181,7 +178,7 @@ func (sc *WssServerConnection) onMessage(raw []byte) {
 
 // onNotification is passed the received notification message to the module sink
 func (sc *WssServerConnection) onNotification(notif *msg.NotificationMessage) {
-	sc.sink.HandleNotification(notif)
+	sc.Sink.HandleNotification(notif)
 }
 
 // onRequest is passed the received request message
@@ -212,7 +209,7 @@ func (sc *WssServerConnection) onRequest(req *msg.RequestMessage) {
 	default:
 		// this is not a subscription to notifications so forward it to the module sink
 		// response will be handled asynchronously
-		err = sc.sink.HandleRequest(req, func(reply *msg.ResponseMessage) error {
+		err = sc.Sink.HandleRequest(req, func(reply *msg.ResponseMessage) error {
 			// the callback is async so handle it separately
 			if reply != nil {
 				err = sc.SendResponse(reply)
@@ -246,7 +243,7 @@ func (sc *WssServerConnection) onResponse(resp *msg.ResponseMessage) {
 	// this responsehandler points to the rnrChannel that matches the correlationID to the replyTo handler
 	handled := sc.rnrChan.HandleResponse(resp)
 	if !handled {
-		err = sc.sink.HandleResponse(resp)
+		err = sc.Sink.HandleResponse(resp)
 	}
 	if err != nil {
 		slog.Warn("Error handling response message", "err", err.Error())
@@ -391,8 +388,7 @@ func NewWSSServerConnection(
 		mux:              sync.RWMutex{},
 		rnrChan:          msg.NewRnRChan(transports.DefaultRpcTimeout),
 		respTimeout:      transports.DefaultRpcTimeout,
-		sink:             sink,
 	}
-	c.Init(clientID, r.URL.String(), cid)
+	c.Init(clientID, r.URL.String(), cid, sink)
 	return c
 }

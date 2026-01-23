@@ -89,9 +89,9 @@ func (m *DirectClientTransport) SetAuthenticationHandler(h transports.Authentica
 }
 
 // assign the handler of new incoming connections
-func (m *DirectClientTransport) SetConnectionHandler(h transports.ConnectionHandler) {
-	_ = h
-}
+// func (m *DirectClientTransport) SetConnectionHandler(h transports.ConnectionHandler) {
+// 	_ = h
+// }
 
 // Return a transport module that passes messages from a source to a sink
 func NewDirectTransport(

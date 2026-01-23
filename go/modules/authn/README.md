@@ -1,6 +1,6 @@
 # Authn - Authentication Module
 
-The authentication module provides a method to obtain authentication tokens using password based login.
+The authentication module provides a method to obtain authentication tokens using password based login and to manage clients.
 
 Existing tokens can be refreshed and tokens can be cancelled.
 
@@ -8,35 +8,43 @@ Existing tokens can be refreshed and tokens can be cancelled.
 
 This module is in alpha. It is functional but breaking changes can be expected.
 
-## todo
+## Usage
 
-Specific operations:
+To create an instance of the module an authenticator is needed and an optional http server.
 
-### Login (public route)
+The authenticators directory contains serveral authenticators. Create a new one and pass it to the authn module. PasetoAuthenticator is preferred.
+
+The http server is optional and used to make http endpoints available for logging in, logging out and token refresh. The AuthnHttpClient is a simple wrapper to simplify its usage.
+
+In order to login and create auth tokens, an account must be created first. The module api can be used to manage clients. The module TM also describes which actions are available for user management through RRN messages.
+
+### HTTP API
+
+The TD published by this module provides the actual endpoints for the various operations. The endpoints described below are examples that are based on the defaults.
+
+#### Login (public route)
 
 Path: /authn/login
 Input: JSON object
 
 ```json
 {
-    "username": name,
-    "password": pass
+  "username": "name",
+  "password": "pass"
 }
 ```
 
-This returns a bearer token that must be used in the http authorization header when accessing protected routes.
+This returns a bearer token that must be placed in the http authorization header:
 
-### Logout
+> "authorization": "bearer {token}"
+
+#### Logout
 
 Logout requires a valid authentication token.
 
 > POST /authn/logout
 
-### Ping (public route)
-
-> GET /ping
-
-### Refresh Token
+#### Refresh Token
 
 Token refresh requires an authenticated connection.
 

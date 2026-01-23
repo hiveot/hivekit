@@ -2,21 +2,19 @@ package tlsclient_test
 
 import (
 	"crypto"
-	"crypto/rand"
 	"crypto/tls"
 	"crypto/x509"
-	"encoding/json"
-	"io"
 	"log/slog"
 	"net/http"
 	"os"
 	"testing"
 	"time"
 
-	"github.com/golang-jwt/jwt/v5"
 	"github.com/hiveot/hivekit/go/lib/logging"
 	"github.com/hiveot/hivekit/go/modules/certs/module/selfsigned"
 	tlsclient "github.com/hiveot/hivekit/go/modules/transports/httpserver/client"
+	"github.com/hiveot/hivekit/go/utils"
+	jsoniter "github.com/json-iterator/go"
 	"github.com/stretchr/testify/require"
 
 	"github.com/stretchr/testify/assert"
@@ -24,16 +22,11 @@ import (
 
 // test hostname and port
 var testAddress string
+var TestKeyType = utils.KeyTypeED25519
 
 // CA, server and plugin test certificate
 var authBundle selfsigned.TestCertBundle
 var serverTLSConf *tls.Config
-
-// helper for building a login request message
-type UserLoginArgs struct {
-	Login    string `json:"login"`
-	Password string `json:"password"`
-}
 
 // x509CertToTLS combines a x509 certificate and private key into a TLS certificate
 func x509CertToTLS(cert *x509.Certificate, privKey crypto.PrivateKey) *tls.Certificate {
@@ -72,7 +65,7 @@ func TestMain(m *testing.M) {
 	testAddress = "127.0.0.1:9888"
 	// hostnames := []string{testAddress}
 
-	authBundle = selfsigned.CreateTestCertBundle()
+	authBundle = selfsigned.CreateTestCertBundle(TestKeyType)
 
 	caCertPool := x509.NewCertPool()
 	caCertPool.AddCert(authBundle.CaCert)
@@ -189,11 +182,12 @@ func TestNoClientCert(t *testing.T) {
 
 func TestBadClientCert(t *testing.T) {
 	// use cert not signed by the CA
-	otherCA, otherKey, err := selfsigned.CreateCA("", "", "", "", "", 1)
+	otherCA, otherPrivKey, _, err := selfsigned.CreateSelfSignedCA(
+		"", "", "", "", "", 1, TestKeyType)
 	otherCert, err := selfsigned.CreateClientCert("name", "ou", 1,
-		authBundle.ClientKey, otherCA, otherKey)
-	otherTLS := x509CertToTLS(otherCert, authBundle.ClientKey)
-	assert.NoError(t, err)
+		authBundle.ClientPubKey, otherCA, otherPrivKey)
+	require.NoError(t, err)
+	otherTLS := x509CertToTLS(otherCert, authBundle.ClientPrivKey)
 
 	cl := tlsclient.NewTLSClient(testAddress, otherTLS, authBundle.CaCert, 0)
 	// this should produce an error in the log
@@ -223,89 +217,46 @@ func TestCert404(t *testing.T) {
 	_ = srv.Close()
 }
 
-func TestAuthJWT(t *testing.T) {
+func TestTokenAuth(t *testing.T) {
 	pathLogin1 := "/login"
-	pathLogin2 := "/login2"
-	path3 := "/test3"
-	path3Hit := 0
 	user1 := "user1"
-	password1 := "password1"
-	secret := make([]byte, 64)
-	_, _ = rand.Read(secret)
+	authToken := "some-auth-token"
+	testResponse := "some-response"
+	var testResult string
 
 	// setup server and client environment
 	mux := http.NewServeMux()
+
 	// Handle a jwt login
-	mux.HandleFunc(pathLogin1, func(resp http.ResponseWriter, req *http.Request) {
-		// FIXME: remove dependency on authn
-		// Is the login API a transport feature? Look into the WoT specification.
-		authMsg := UserLoginArgs{}
-		slog.Info("TestAuthJWT: login")
-		body, err := io.ReadAll(req.Body)
+	mux.HandleFunc(pathLogin1, func(w http.ResponseWriter, req *http.Request) {
+
+		// expect a valid bearer token
+		rxToken, err := utils.GetBearerToken(req)
 		require.NoError(t, err)
-		err = json.Unmarshal(body, &authMsg)
-
-		// expect a correlationID
-		//msgID := req.Header.Get(tlsclient.HTTPCorrelationIDHeader)
-		assert.NoError(t, err)
-		assert.Equal(t, user1, authMsg.Login)
-		assert.Equal(t, password1, authMsg.Password)
-
-		if authMsg.Login == user1 {
-			claims := jwt.RegisteredClaims{
-				ID:      user1,
-				Issuer:  "me",
-				Subject: "accessToken",
-				// In JWT, the expiry time is expressed as unix milliseconds
-				IssuedAt:  jwt.NewNumericDate(time.Now()),
-				ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Second)),
-			}
-			token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-			newToken, err := token.SignedString(secret)
-			assert.NoError(t, err)
-			//resp.Header().Set(tlsclient.HTTPCorrelationIDHeader, msgID)
-			data, _ := json.Marshal(newToken)
-			_, _ = resp.Write(data)
-		} else {
-			// write nothing
-			_ = err
-		}
-		path3Hit++
-	})
-	// a second login function that returns nothing
-	mux.HandleFunc(pathLogin2, func(resp http.ResponseWriter, req *http.Request) {
+		assert.Equal(t, authToken, rxToken)
+		utils.WriteReply(w, true, testResponse, err)
 	})
 
-	mux.HandleFunc(path3, func(http.ResponseWriter, *http.Request) {
-		slog.Info("TestAuthJWT: path3 hit")
-		path3Hit++
-	})
 	srv, err := startTestServer(mux)
 	assert.NoError(t, err)
-	//
-	loginMessage := UserLoginArgs{
-		Login:    user1,
-		Password: password1,
-	}
-	cl := tlsclient.NewTLSClient(testAddress, nil, authBundle.CaCert, 0)
-	jsonArgs, _ := json.Marshal(loginMessage)
-	resp, _, err := cl.Post(pathLogin1, jsonArgs)
+
+	// connect using the given token
+	cl := tlsclient.NewTLSClient(testAddress, authBundle.ClientCert, authBundle.CaCert, time.Minute)
+	err = cl.ConnectWithToken(user1, authToken)
 	require.NoError(t, err)
-	newToken := ""
-	err = json.Unmarshal(resp, &newToken)
 
-	// reconnect using the given token
-
-	cl.ConnectWithToken(user1, newToken)
-	_, _, err = cl.Get(path3)
-	assert.NoError(t, err)
-	assert.Equal(t, 2, path3Hit)
+	resp, status, err := cl.Post(pathLogin1, nil)
+	require.NoError(t, err)
+	assert.Equal(t, status, http.StatusOK)
+	err = jsoniter.Unmarshal(resp, &testResult)
+	require.NoError(t, err)
+	assert.Equal(t, testResponse, testResult)
 
 	cl.Close()
 	_ = srv.Close()
 }
 
-func TestAuthJWTFail(t *testing.T) {
+func TestTokenFail(t *testing.T) {
 	pathHello1 := "/hello"
 	clientID := "user1"
 
@@ -315,7 +266,7 @@ func TestAuthJWTFail(t *testing.T) {
 	assert.NoError(t, err)
 	//
 	mux.HandleFunc(pathHello1, func(resp http.ResponseWriter, req *http.Request) {
-		slog.Info("TestAuthJWTFail: login")
+		slog.Info("TestTokenFail: login")
 		//_, _ = resp.Write([]byte("invalid token"))
 		resp.WriteHeader(http.StatusUnauthorized)
 	})

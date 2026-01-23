@@ -1,10 +1,14 @@
 package transports
 
 import (
+	"time"
+
 	"github.com/hiveot/hivekit/go/modules"
 	"github.com/hiveot/hivekit/go/msg"
 	"github.com/hiveot/hivekit/go/wot/td"
 )
+
+const DefaultRpcTimeout = time.Second * 60 // 60 for testing; 3 seconds
 
 // ConnectionHandler handles a change in connection status
 //
@@ -28,6 +32,18 @@ type IConnection interface {
 
 	// Close disconnects the client.
 	Close()
+
+	// ConnectWithToken connects to the transport server using a clientID and
+	// corresponding authentication token.
+	// This method only applies to client connections. Server side connections will return an error.
+	//
+	// While most hiveot transport servers support token authentication, the method
+	// of obtaining a token depends on the environment. The authn module is intended for this.
+	//
+	// If a connection is already established on this client then it will be closed first.
+	//
+	// This connection method must be supported by all client implementations.
+	ConnectWithToken(clientID, token string) (err error)
 
 	// GetClientID returns the clientID used with authentication
 	GetClientID() string
@@ -66,28 +82,6 @@ type IConnection interface {
 	// SetConnectHandler sets the callback for connection status changes
 	// This replaces any previously set handler.
 	SetConnectHandler(handler ConnectionHandler)
-}
-
-// GetFormHandler is the handler that provides the client with the form needed to invoke an operation
-// This returns nil if no form is found for the operation.
-type GetFormHandler func(op string, thingID string, name string) *td.Form
-
-// IClientConnection defines the client interface for establishing connections with a server
-// Intended for consumers to connect to a Thing Agent/Hub and for Service agents that connect
-// to the Hub.
-type IClientConnection interface {
-	IConnection
-
-	// ConnectWithToken connects to the transport server using a clientID and
-	// corresponding authentication token.
-	//
-	// While most hiveot transport servers support token authentication, the method
-	// of obtaining a token depends on the environment.
-	//
-	// If a connection is already established on this client then it will be closed first.
-	//
-	// This connection method must be supported by all transport implementations.
-	ConnectWithToken(clientID, token string) (err error)
 
 	// Set the sink for receiving async notifications, requests, and unhandled responses.
 	// Intended to be used if the sink is created after the client connection.
@@ -98,15 +92,6 @@ type IClientConnection interface {
 	SetSink(sink modules.IHiveModule)
 }
 
-// IServerConnection is the interface of an incoming client connection on the server.
-// Protocol servers must implement this interface to return information to the consumer.
-//
-// This provides a return channel for sending messages from the digital twin to
-// agents or consumers.
-//
-// Subscription to events or properties can be made externally via this API,
-// or handled internally by the protocol handler if the protocol defines the
-// messages for subscription.
-type IServerConnection interface {
-	IConnection
-}
+// GetFormHandler is the handler that provides the client with the form needed to invoke an operation
+// This returns nil if no form is found for the operation.
+type GetFormHandler func(op string, thingID string, name string) *td.Form

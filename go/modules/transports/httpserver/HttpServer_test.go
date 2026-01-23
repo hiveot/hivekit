@@ -23,6 +23,7 @@ var serverAddress string
 var serverPort int = 9445
 var clientHostPort string
 var testCerts selfsigned.TestCertBundle
+var TestKeyType = utils.KeyTypeED25519
 
 // TestMain runs a http server
 // Used for all test cases in this package
@@ -36,7 +37,7 @@ func TestMain(m *testing.M) {
 	// hostnames := []string{serverAddress}
 	clientHostPort = fmt.Sprintf("%s:%d", serverAddress, serverPort)
 
-	testCerts = selfsigned.CreateTestCertBundle()
+	testCerts = selfsigned.CreateTestCertBundle(TestKeyType)
 	res := m.Run()
 
 	time.Sleep(time.Second)
@@ -159,30 +160,49 @@ func TestTokenAuth(t *testing.T) {
 
 }
 
-//func TestCertAuth(t *testing.T) {
-//	path1 := "/hello"
-//	path1Hit := 0
-//	srv, router := service.NewTLSServer(serverAddress, serverPort,
-//		testCerts.ServerCert, testCerts.CaCert)
-//	err := srv.Start()
-//	assert.NoError(t, err)
-//	// handler can be added any time
-//	srv.AddHandler(path1, func(string, http.ResponseWriter, *http.Request) {
-//		slog.Info("TestAuthCert: path1 hit")
-//		path1Hit++
-//	})
-//
-//	cl := httpapi.NewTLSClient(clientHostPort, testCerts.CaCert)
-//	require.NoError(t, err)
-//	err = cl.ConnectWithClientCert(testCerts.ClientCert)
-//	assert.NoError(t, err)
-//	_, err = cl.Get(path1)
-//	assert.NoError(t, err)
-//	assert.Equal(t, 1, path1Hit)
-//
-//	cl.Remove()
-//	srv.Stop()
-//}
+func TestClientCert(t *testing.T) {
+	path1 := "/hello"
+	path1Hit := 0
+	// srv, router := service.NewTLSServer(serverAddress, serverPort,
+	// 	testCerts.ServerCert, testCerts.CaCert)
+
+	cfg := httpserver.NewHttpServerConfig(
+		serverAddress, serverPort, testCerts.ServerCert, testCerts.CaCert, nil)
+	srv := module.NewHttpServerModule("", cfg)
+
+	err := srv.Start()
+	assert.NoError(t, err)
+	// handler can be added any time
+	routes := srv.GetPublicRoute()
+	routes.Get(path1, func(w http.ResponseWriter, r *http.Request) {
+		slog.Info("TestAuthCert: path1 hit")
+
+		// test getting client cert
+		clcerts := r.TLS.PeerCertificates
+		if len(clcerts) == 0 {
+			assert.Fail(t, "missing client cert")
+		}
+		clientCert := clcerts[0]
+		clientID := clientCert.Subject.CommonName
+		assert.Equal(t, testCerts.ClientID, clientID)
+
+		params, err := module.GetRequestParams(r)
+		assert.Equal(t, testCerts.ClientID, params.ClientID)
+		require.NoError(t, err)
+		require.NotNil(t, params)
+
+		path1Hit++
+	})
+
+	cl := tlsclient.NewTLSClient(clientHostPort, testCerts.ClientCert, testCerts.CaCert, time.Minute)
+	_, status, err := cl.Get(path1)
+	assert.NoError(t, err)
+	assert.Equal(t, http.StatusOK, status)
+	assert.Equal(t, 1, path1Hit)
+
+	cl.Close()
+	srv.Stop()
+}
 
 // Test valid authentication using JWT
 //func TestQueryParams(t *testing.T) {

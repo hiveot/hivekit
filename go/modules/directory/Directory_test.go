@@ -6,6 +6,7 @@ import (
 	"github.com/hiveot/hivekit/go/modules/directory"
 	directoryclient "github.com/hiveot/hivekit/go/modules/directory/client"
 	"github.com/hiveot/hivekit/go/modules/directory/module"
+	"github.com/hiveot/hivekit/go/modules/directory/server"
 	"github.com/hiveot/hivekit/go/modules/transports/direct"
 	"github.com/hiveot/hivekit/go/wot/td"
 	"github.com/stretchr/testify/assert"
@@ -24,7 +25,7 @@ func TestStartStop(t *testing.T) {
 	defer m.Stop()
 
 	// add a thing
-	tdJson := module.DirectoryTMJson
+	tdJson := server.DirectoryTMJson
 	m.UpdateThing(string(tdJson))
 
 	// read all things
@@ -42,7 +43,7 @@ func TestCreateTD(t *testing.T) {
 	defer m.Stop()
 
 	// add the directory itself
-	tdJson := module.DirectoryTMJson
+	tdJson := server.DirectoryTMJson
 	m.UpdateThing(string(tdJson))
 
 	// read all things, expect 1

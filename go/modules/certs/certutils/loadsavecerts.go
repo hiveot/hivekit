@@ -1,0 +1,201 @@
+package certutils
+
+import (
+	"crypto"
+	"crypto/ecdsa"
+	"crypto/ed25519"
+	"crypto/rsa"
+	"crypto/tls"
+	"crypto/x509"
+	"encoding/pem"
+	"errors"
+	"fmt"
+	"log/slog"
+	"os"
+	"path/filepath"
+
+	"github.com/hiveot/hivekit/go/utils"
+)
+
+// Certificate Organization Unit for client certificate based authorization
+const (
+	//OUAdmin lets a client approve things provisioning (postOOB), add and remove users
+	// Provision API permissions: GetDirectory, ProvisionRequest, GetStatus, PostOOB
+	OUAdmin = "admin"
+
+	// OUNone is the default OU with no API access permissions
+	OUNone = "unauth"
+
+	// OUUser for consumers with mutual authentication
+	OUUser = "user"
+
+	// OUIoTDevice for IoT devices with mutual authentication
+	OUIoTDevice = "device"
+
+	// OUService for Hub services with mutual authentication
+	// By default, services have access to other services
+	// Provision API permissions: Any
+	OUService = "service"
+)
+
+// Load a saved CA certificate and private key from file
+// This returns an error if no valid certificate is found.
+func LoadCA(caCertPath, caKeyPath string) (*x509.Certificate, crypto.PrivateKey, error) {
+
+	caCert, err := LoadX509CertFromPEM(caCertPath)
+	if err != nil {
+		// On first start there might not be a CA. Not a fatal error.
+		slog.Warn("no valid CA certificate found", "path", caCertPath, "err", err.Error())
+	} else {
+		_, caPrivateKey, _, err := utils.LoadPrivateKey(caKeyPath)
+		if err != nil {
+			slog.Warn("No valid CA key-pair found", "path", caCertPath, "err", err.Error())
+		} else {
+			// verify CA cert and key
+
+		}
+		return caCert, caPrivateKey, err
+	}
+	return nil, nil, err
+}
+
+// LoadX509CertFromPEM loads the x509 certificate from a PEM file format.
+//
+// Intended to load the CA certificate to validate server and broker.
+//
+//	pemPath is the full path to the X509 PEM file.
+func LoadX509CertFromPEM(pemPath string) (cert *x509.Certificate, err error) {
+	pemEncoded, err := os.ReadFile(pemPath)
+	if err != nil {
+		return nil, err
+	}
+	return X509CertFromPEM(string(pemEncoded))
+}
+
+// LoadTLSCertFromPEM loads the TLS certificate from PEM formatted file.
+// TLS certificates are a container for both X509 certificate and private key.
+//
+// Intended to load the certificate and key for servers, or for clients such as IoT devices
+// that use client certificate authentication. The idprov service issues this type of
+// certificate during IoT device provisioning.
+//
+// This is simply a wrapper around tls.LoadX509KeyPair. See also SaveTLSCertToPEM.
+//
+// If loading fails, this returns nil as certificate pointer
+func LoadTLSCertFromPEM(certPEMPath, keyPEMPath string) (tlsCert *tls.Certificate, err error) {
+	// golang tls module does it for us
+	cert, err := tls.LoadX509KeyPair(certPEMPath, keyPEMPath)
+	if err != nil {
+		return nil, err
+	}
+	return &cert, err
+}
+
+// PublicKeyFromCert extracts the public key from x509 certificate.
+// Returns nil if certificate doesn't hold a public key.
+// The key can be an ecdsa or ed25519 public key.
+func PublicKeyFromCert(cert *x509.Certificate) (keyType utils.KeyType, pubKey crypto.PublicKey) {
+
+	switch pub := cert.PublicKey.(type) {
+	case *ecdsa.PublicKey:
+		keyType = utils.KeyTypeECDSA
+		pubKey = pub
+	case ed25519.PublicKey: // yes, not a pointer
+		keyType = utils.KeyTypeED25519
+		pubKey = pub
+	case *rsa.PublicKey:
+		keyType = utils.KeyTypeRSA
+		pubKey = pub
+	}
+	return keyType, pubKey
+}
+
+// SaveTLSCertToPEM saves the x509 certificate and private key to separate files in PEM format
+//
+// Intended for saving a certificate received from provisioning or created for testing.
+//
+//	cert is the obtained TLS certificate whose parts to save
+//	certPEMPath the file to save the X509 certificate to in PEM format
+//	keyPEMPath the file to save the private key to in PEM format
+func SaveTLSCertToPEM(cert *tls.Certificate, certPEMPath, keyPEMPath string) error {
+	//slog.Info("Saving TLS cert to " + certPEMPath)
+	b := pem.Block{Type: "CERTIFICATE", Bytes: cert.Certificate[0]}
+	certPEM := pem.EncodeToMemory(&b)
+	// remove existing cert since perm 0444 doesn't allow overwriting it
+	_ = os.Remove(certPEMPath)
+	_ = os.Remove(keyPEMPath)
+	_ = os.MkdirAll(filepath.Dir(certPEMPath), 0750)
+	_ = os.MkdirAll(filepath.Dir(keyPEMPath), 0750)
+
+	err := os.WriteFile(certPEMPath, certPEM, 0444)
+	if err != nil {
+		slog.Error("Failed writing server cert to file", "err", err)
+		return err
+	}
+	ecdsaPK, found := cert.PrivateKey.(*ecdsa.PrivateKey)
+	if found {
+		err = utils.SavePrivateKey(ecdsaPK, keyPEMPath)
+		return err
+	}
+	ed25519PK, found := cert.PrivateKey.(ed25519.PrivateKey)
+	if found {
+		err = utils.SavePrivateKey(ed25519PK, keyPEMPath)
+		return err
+	}
+	return err
+}
+
+// SaveX509CertToPEM saves the x509 certificate to file in PEM format.
+// Clients that receive a client certificate from provisioning can use this
+// to save the provided certificate to file.
+// If the file exists it is removed first.
+func SaveX509CertToPEM(cert *x509.Certificate, pemPath string) error {
+	b := pem.Block{Type: "CERTIFICATE", Bytes: cert.Raw}
+	certPEM := pem.EncodeToMemory(&b)
+	// remove existing cert since perm 0444 doesn't allow overwriting it
+	_ = os.Remove(pemPath)
+	_ = os.MkdirAll(filepath.Dir(pemPath), 0750)
+	err := os.WriteFile(pemPath, certPEM, 0444)
+	return err
+}
+
+// X509CertFromPEM converts a X509 certificate in PEM format to an X509 instance
+func X509CertFromPEM(certPEM string) (*x509.Certificate, error) {
+	certBlock, _ := pem.Decode([]byte(certPEM))
+	if certBlock == nil {
+		return nil, errors.New("pem.Decode failed")
+	}
+	caCert, err := x509.ParseCertificate(certBlock.Bytes)
+	return caCert, err
+}
+
+// X509CertToPEM converts the x509 certificate to PEM format
+func X509CertToPEM(cert *x509.Certificate) string {
+	b := pem.Block{Type: "CERTIFICATE", Bytes: cert.Raw}
+	certPEM := pem.EncodeToMemory(&b)
+	return string(certPEM)
+}
+
+// X509CertToTLS combines a x509 certificate and private key into a TLS certificate
+func X509CertToTLS(cert *x509.Certificate, privKey crypto.PrivateKey) *tls.Certificate {
+	// A TLS certificate is a wrapper around x509 with private key
+	tlsCert := tls.Certificate{}
+	tlsCert.Certificate = append(tlsCert.Certificate, cert.Raw)
+	tlsCert.PrivateKey = privKey
+
+	return &tlsCert
+}
+
+// TLSCertToX509 splits a TLS certificate into an x509 certificate and private key
+func TLSCertToX509(tlsCert *tls.Certificate) (*x509.Certificate, crypto.PrivateKey, error) {
+	// A TLS certificate is a wrapper around x509 with private key
+	rawCert := tlsCert.Certificate[0]
+	cert, err := x509.ParseCertificate(rawCert)
+
+	privKey, found := tlsCert.PrivateKey.(crypto.PrivateKey)
+	if !found {
+		err = fmt.Errorf("missing private key")
+	}
+
+	return cert, privKey, err
+}

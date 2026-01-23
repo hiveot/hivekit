@@ -90,28 +90,33 @@ func TestAdd(t *testing.T) {
 	defer pwStore1.Close()
 
 	// add should succeed
-	err = pwStore1.Add(user1, authn.ClientProfile{
-		ClientID:   user1,
-		ClientType: authn.ClientTypeConsumer,
-	})
+	profile := authn.ClientProfile{
+		ClientID: user1,
+		Role:     authn.ClientRoleViewer,
+	}
+	err = pwStore1.Add(profile)
 	require.NoError(t, err)
 
-	// adding existing user should update it
-	err = pwStore1.Add(user1, authn.ClientProfile{
+	// adding existing user should fail it
+	err = pwStore1.Add(authn.ClientProfile{
 		ClientID:    user1,
-		ClientType:  authn.ClientTypeConsumer,
+		Role:        authn.ClientRoleViewer,
 		DisplayName: "updated user 1",
 	})
-	assert.NoError(t, err)
-	prof1, _ := pwStore1.GetProfile(user1)
-	assert.Equal(t, "updated user 1", prof1.DisplayName)
+	assert.Error(t, err)
 
-	// adding missing client should fail
-	err = pwStore1.Add(user2, authn.ClientProfile{ClientID: "", ClientType: authn.ClientTypeConsumer})
+	// adding missing clientID should fail
+	err = pwStore1.Add(authn.ClientProfile{
+		ClientID: "",
+		Role:     authn.ClientRoleViewer,
+	})
 	assert.Error(t, err)
-	// adding missing type should fail
-	err = pwStore1.Add(user2, authn.ClientProfile{ClientID: user2, ClientType: ""})
-	assert.Error(t, err)
+	// adding missing role should succeed
+	err = pwStore1.Add(authn.ClientProfile{
+		ClientID: user2,
+		Role:     "",
+	})
+	assert.NoError(t, err)
 
 }
 
@@ -128,10 +133,10 @@ func TestVerifyHashAlgo(t *testing.T) {
 	require.NoError(t, err)
 	defer pwStore1.Close()
 
-	err = pwStore1.Add(user1, authn.ClientProfile{
-		ClientID: user1, ClientType: authn.ClientTypeConsumer})
-	err = pwStore1.Add(user2, authn.ClientProfile{
-		ClientID: user2, ClientType: authn.ClientTypeConsumer})
+	err = pwStore1.Add(authn.ClientProfile{
+		ClientID: user1, Role: authn.ClientRoleViewer})
+	err = pwStore1.Add(authn.ClientProfile{
+		ClientID: user2, Role: authn.ClientRoleViewer})
 	err = pwStore1.SetPassword(user1, pass1)
 	require.NoError(t, err)
 	profile1, err := pwStore1.GetProfile(user1)
@@ -140,7 +145,7 @@ func TestVerifyHashAlgo(t *testing.T) {
 	require.NoError(t, err2, "password verification failed")
 	assert.Equal(t, user1, profile1.ClientID)
 	assert.Equal(t, profile1, profile2)
-	assert.NotEmpty(t, profile1.Updated)
+	assert.NotEmpty(t, profile1.TimeUpdated)
 
 	// verify incorrect password
 	_, err = pwStore1.VerifyPassword(user1, pass2)
@@ -185,14 +190,14 @@ func TestName(t *testing.T) {
 	err := pwStore1.Open()
 	require.NoError(t, err)
 	defer pwStore1.Close()
-	err = pwStore1.Add(user1, authn.ClientProfile{
-		ClientID: user1, ClientType: authn.ClientTypeConsumer, DisplayName: name1})
+	err = pwStore1.Add(authn.ClientProfile{
+		ClientID: user1, Role: authn.ClientRoleViewer, DisplayName: name1})
 
 	entry, err := pwStore1.GetProfile(user1)
 	assert.NoError(t, err)
 	assert.Equal(t, user1, entry.ClientID)
 	assert.Equal(t, name1, entry.DisplayName)
-	assert.NotEmpty(t, entry.Updated)
+	assert.NotEmpty(t, entry.TimeUpdated)
 }
 
 func TestSetPasswordTwoStores(t *testing.T) {
@@ -206,15 +211,19 @@ func TestSetPasswordTwoStores(t *testing.T) {
 	pwStore1 := authnstore.NewAuthnFileStore(unpwFilePath, "")
 	err := pwStore1.Open()
 	require.NoError(t, err)
-	err = pwStore1.Add(user1,
-		authn.ClientProfile{ClientID: user1, ClientType: authn.ClientTypeConsumer})
+	err = pwStore1.Add(authn.ClientProfile{
+		ClientID: user1,
+		Role:     authn.ClientRoleViewer,
+	})
 	require.NoError(t, err)
 	//
 	pwStore2 := authnstore.NewAuthnFileStore(unpwFilePath, "")
 	err = pwStore2.Open()
 	require.NoError(t, err)
-	err = pwStore2.Add(user2,
-		authn.ClientProfile{ClientID: user2, ClientType: authn.ClientTypeConsumer})
+	err = pwStore2.Add(authn.ClientProfile{
+		ClientID: user2,
+		Role:     authn.ClientRoleViewer,
+	})
 	require.NoError(t, err)
 	err = pwStore1.Reload()
 	require.NoError(t, err)
@@ -286,8 +295,10 @@ func TestConcurrentReadWrite(t *testing.T) {
 	go func() {
 		for i = 0; i < 30; i++ {
 			thingID := fmt.Sprintf("things-%d", i)
-			err = pwStore1.Add(thingID,
-				authn.ClientProfile{ClientID: thingID, ClientType: authn.ClientTypeConsumer})
+			err = pwStore1.Add(authn.ClientProfile{
+				ClientID: thingID,
+				Role:     authn.ClientRoleViewer,
+			})
 			time.Sleep(time.Millisecond * 1)
 			if err != nil {
 				assert.NoError(t, err)
@@ -345,18 +356,26 @@ func TestUpdate(t *testing.T) {
 	pwStore1 := authnstore.NewAuthnFileStore(unpwFilePath, "")
 	err := pwStore1.Open()
 	require.NoError(t, err)
-	err = pwStore1.Add(user1, authn.ClientProfile{ClientID: user1,
-		ClientType: authn.ClientTypeConsumer, DisplayName: name1})
+	err = pwStore1.Add(authn.ClientProfile{
+		ClientID:    user1,
+		Role:        authn.ClientRoleViewer,
+		DisplayName: name1,
+	})
 	require.NoError(t, err)
 
 	// update must be of the same user
-	err = pwStore1.UpdateProfile(user1, authn.ClientProfile{ClientID: user2, ClientType: authn.ClientTypeConsumer})
+	err = pwStore1.UpdateProfile(authn.ClientProfile{
+		ClientID: user2,
+		Role:     authn.ClientRoleViewer,
+	})
 	assert.Error(t, err)
 
 	// update must succeed
-	err = pwStore1.UpdateProfile(user1, authn.ClientProfile{
-		ClientID: user1, ClientType: authn.ClientTypeConsumer,
-		DisplayName: name2, PubKey: key1,
+	err = pwStore1.UpdateProfile(authn.ClientProfile{
+		ClientID:    user1,
+		Role:        authn.ClientRoleViewer,
+		DisplayName: name2,
+		PubKey:      key1,
 	})
 	assert.NoError(t, err)
 	prof, err := pwStore1.GetProfile(user1)
@@ -365,12 +384,12 @@ func TestUpdate(t *testing.T) {
 	assert.Equal(t, key1, prof.PubKey)
 
 	// update of non-existing user should fail
-	err = pwStore1.UpdateProfile(
-		user1, authn.ClientProfile{ClientID: "notauser", ClientType: authn.ClientTypeConsumer})
+	err = pwStore1.UpdateProfile(authn.ClientProfile{
+		ClientID: "notauser",
+		Role:     authn.ClientRoleViewer,
+	})
 	assert.Error(t, err)
-	err = pwStore1.UpdateProfile(
-		"notauser", authn.ClientProfile{ClientID: user1, ClientType: authn.ClientTypeConsumer})
-	assert.Error(t, err)
+
 }
 
 func TestSetRole(t *testing.T) {
@@ -381,8 +400,11 @@ func TestSetRole(t *testing.T) {
 	pwStore1 := authnstore.NewAuthnFileStore(unpwFilePath, "")
 	err := pwStore1.Open()
 	require.NoError(t, err)
-	err = pwStore1.Add(user1, authn.ClientProfile{ClientID: user1,
-		ClientType: authn.ClientTypeConsumer, DisplayName: "test user"})
+	err = pwStore1.Add(authn.ClientProfile{
+		ClientID:    user1,
+		Role:        authn.ClientRoleViewer,
+		DisplayName: "test user",
+	})
 	require.NoError(t, err)
 
 	err = pwStore1.SetRole(user1, role1)

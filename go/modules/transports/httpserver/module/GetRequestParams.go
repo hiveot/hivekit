@@ -2,6 +2,7 @@ package module
 
 import (
 	"errors"
+	"fmt"
 	"io"
 	"log/slog"
 	"net/http"
@@ -23,26 +24,35 @@ func GetClientIdFromContext(r *http.Request) (clientID string, err error) {
 // GetRequestParams reads the client session, URL parameters and body payload from the
 // http request context.
 //
-// The session context is set by the http middleware. If the session is not available then
-// this returns an error. Note that the session middleware handler will block any request
-// that requires a session.
+// The session context is set by the http middleware.
+// This first checks for a clientID from the session context, which gets it from
+// the bearer token auth.
+// If no clientID is available but a client certificate is available then use its
+// common name (cn) the clientID.
+// If the clientID is not available then this returns an error.
 //
-// This protocol binding determines three variables, {thingID}, {name} and {op} from the path.
-// It unmarshal's the request body into 'data', if given.
+// This determines {thingID}, {name} and {op} from the path.
+// It unmarshals the request body into 'data', if given.
 //
 //	{operation} is the operation
 //	{thingID} is the agent or digital twin thing ID
 //	{name} is the property, event or action name. '+' means 'all'
 func GetRequestParams(r *http.Request) (reqParam transports.RequestParams, err error) {
-
-	// get the required client session of this agent
+	// determine the clientID, either from context or client cert
 	reqParam.ClientID, err = GetClientIdFromContext(r)
 	if err != nil {
-		// This is an internal error. The middleware session handler would have blocked
-		// a request that required a session before getting here.
+		clcerts := r.TLS.PeerCertificates
+		if len(clcerts) > 0 {
+			clientCert := clcerts[0]
+			reqParam.ClientID = clientCert.Subject.CommonName
+		}
+	}
+	if reqParam.ClientID == "" {
+		err := fmt.Errorf("Missing clientID")
 		slog.Error(err.Error())
 		return reqParam, err
 	}
+	err = nil
 	correlationID := r.Header.Get(transports.CorrelationIDHeader)
 	reqParam.CorrelationID = correlationID
 

@@ -85,6 +85,12 @@ func (m *HttpTransportModule) GetConnectURL() string {
 	return m.connectURL
 }
 
+// Set the handler that validates tokens
+// This must be set before starting the module otherwise start will fail.
+func (m *HttpTransportModule) SetAuthValidator(validator transports.ValidateTokenHandler) {
+	m.config.ValidateToken = validator
+}
+
 // Start readies the module for use.
 // This starts a http server instance and sets-up a public and protected route.
 //

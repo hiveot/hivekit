@@ -236,6 +236,8 @@ func (cl *TLSClient) Patch(
 //
 //	path to invoke
 //	body contains the serialized request body
+//
+// This returns the serialized response data
 func (cl *TLSClient) Post(path string, body []byte) (
 	resp []byte, statusCode int, err error) {
 
@@ -278,7 +280,7 @@ func (cl *TLSClient) Put(path string, body []byte) (
 	return resp, statusCode, err
 }
 
-// Send a HTTPS method and read response.
+// Send a HTTPS request and read response.
 //
 // If a JWT authentication is enabled then add the bearer token to the header
 // If msg is a string then it is considered to be already serialized.
@@ -301,10 +303,10 @@ func (cl *TLSClient) Send(
 		return nil, http.StatusInternalServerError, nil, err
 	}
 	// ctx, cancelFn := context.WithTimeout(context.Background(), cl.timeout)
-	r := cl.CreateRequest(ctx, method, path, qParams, body, contentType)
+	httpRequest := cl.CreateRequest(ctx, method, path, qParams, body, contentType)
 	// _ = cancelFn
 
-	httpResp, err := cl.httpClient.Do(r)
+	httpResp, err := cl.httpClient.Do(httpRequest)
 	if err != nil {
 		err = fmt.Errorf("Send: %s %s: %w", method, path, err)
 		slog.Error(err.Error())
@@ -330,9 +332,9 @@ func (cl *TLSClient) Send(
 	} else if httpStatus >= 500 {
 		err = fmt.Errorf("Error %d (%s): %s", httpStatus, httpResp.Status, respBody)
 		slog.Error("Send returned internal server error",
-			"url", r.RemoteAddr, "err", err.Error())
+			"url", httpRequest.RemoteAddr, "err", err.Error())
 	} else if err != nil {
-		err = fmt.Errorf("Send: Error %s %s: %w", method, r.URL.String(), err)
+		err = fmt.Errorf("Send: Error %s %s: %w", method, httpRequest.URL.String(), err)
 	}
 	return respBody, httpStatus, httpResp.Header, err
 }

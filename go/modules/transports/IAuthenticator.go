@@ -77,11 +77,14 @@ type IAuthenticator interface {
 	// If the clientID is unknown or oldToken is no longer valid this returns an error
 	RefreshToken(clientID string, oldToken string) (newToken string, validUntil time.Time, err error)
 
+	// SetPassword changes a client's password.
+	SetPassword(clientID string, password string) error
+
 	// Set the URI where to login
-	SetAuthServerURI(authServiceURI string)
+	// SetAuthServerURI(authServiceURI string)
 
 	// ValidatePassword checks if the given password is valid for the client
-	ValidatePassword(clientID string, password string) (err error)
+	// ValidatePassword(clientID string, password string) (err error)
 
 	// ValidateToken verifies the token and client are valid.
 	// This returns an error if the token is invalid, the token has expired,

@@ -1,7 +1,6 @@
 package direct
 
 import (
-	"github.com/hiveot/hivekit/go/lib/messaging"
 	"github.com/hiveot/hivekit/go/modules/transports"
 	"github.com/hiveot/hivekit/go/msg"
 	jsoniter "github.com/json-iterator/go"
@@ -19,7 +18,7 @@ func (svc *PassthroughMessageConverter) DecodeNotification(raw []byte) *msg.Noti
 	var notif msg.NotificationMessage
 	err := jsoniter.Unmarshal(raw, &notif)
 	//err := tputils.DecodeAsObject(msg, &notif)
-	if err != nil || notif.MessageType != messaging.MessageTypeNotification {
+	if err != nil || notif.MessageType != msg.MessageTypeNotification {
 		return nil
 	}
 	return &notif
@@ -32,7 +31,7 @@ func (svc *PassthroughMessageConverter) DecodeRequest(raw []byte) *msg.RequestMe
 	var req msg.RequestMessage
 	err := jsoniter.Unmarshal(raw, &req)
 	//err := tputils.DecodeAsObject(msg, &req)
-	if err != nil || req.MessageType != messaging.MessageTypeRequest {
+	if err != nil || req.MessageType != msg.MessageTypeRequest {
 		return nil
 	}
 	return &req
@@ -45,7 +44,7 @@ func (svc *PassthroughMessageConverter) DecodeResponse(
 
 	var resp msg.ResponseMessage
 	err := jsoniter.Unmarshal(raw, &resp)
-	if err != nil || resp.MessageType != messaging.MessageTypeResponse {
+	if err != nil || resp.MessageType != msg.MessageTypeResponse {
 		return nil
 	}
 	return &resp
@@ -56,21 +55,21 @@ func (svc *PassthroughMessageConverter) EncodeNotification(
 	notif *msg.NotificationMessage) ([]byte, error) {
 
 	// ensure this field is present as it is needed for decoding
-	notif.MessageType = messaging.MessageTypeNotification
+	notif.MessageType = msg.MessageTypeNotification
 	return jsoniter.Marshal(notif)
 }
 
 // EncodeRequest serializes the request message as-is
 func (svc *PassthroughMessageConverter) EncodeRequest(req *msg.RequestMessage) ([]byte, error) {
 	// ensure this field is present as it is needed for decoding
-	req.MessageType = messaging.MessageTypeRequest
+	req.MessageType = msg.MessageTypeRequest
 	return jsoniter.Marshal(req)
 }
 
 // EncodeResponse serializes the response message as-is
 func (svc *PassthroughMessageConverter) EncodeResponse(resp *msg.ResponseMessage) ([]byte, error) {
 	// ensure this field is present as it is needed for decoding
-	resp.MessageType = messaging.MessageTypeResponse
+	resp.MessageType = msg.MessageTypeResponse
 	return jsoniter.Marshal(resp)
 }
 

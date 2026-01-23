@@ -5,6 +5,7 @@ import (
 
 	"github.com/hiveot/hivekit/go/modules"
 	"github.com/hiveot/hivekit/go/modules/directory"
+	"github.com/hiveot/hivekit/go/modules/directory/server"
 	"github.com/hiveot/hivekit/go/msg"
 	"github.com/hiveot/hivekit/go/wot"
 )
@@ -23,21 +24,21 @@ type DirectoryMsgClient struct {
 
 func (cl *DirectoryMsgClient) CreateThing(tdJson string) error {
 	req := msg.NewRequestMessage(
-		wot.OpInvokeAction, cl.directoryID, directory.ActionCreateThing, tdJson, "")
+		wot.OpInvokeAction, cl.directoryID, server.ActionCreateThing, tdJson, "")
 	_, err := cl.ForwardRequestWait(req)
 	return err
 }
 
 func (cl *DirectoryMsgClient) DeleteThing(thingID string) error {
 	req := msg.NewRequestMessage(
-		wot.OpInvokeAction, cl.directoryID, directory.ActionDeleteThing, thingID, "")
+		wot.OpInvokeAction, cl.directoryID, server.ActionDeleteThing, thingID, "")
 	_, err := cl.ForwardRequestWait(req)
 	return err
 }
 
 func (cl *DirectoryMsgClient) RetrieveThing(thingID string) (tdJSON string, err error) {
 	req := msg.NewRequestMessage(
-		wot.OpInvokeAction, cl.directoryID, directory.ActionRetrieveThing, thingID, "")
+		wot.OpInvokeAction, cl.directoryID, server.ActionRetrieveThing, thingID, "")
 	resp, err := cl.ForwardRequestWait(req)
 	if resp == nil {
 		return "", errors.New("nil response")
@@ -54,7 +55,7 @@ func (cl *DirectoryMsgClient) RetrieveAllThings(offset int, limit int) (tdList [
 		Limit:  limit,
 	}
 	req := msg.NewRequestMessage(
-		wot.OpInvokeAction, cl.directoryID, directory.ActionRetrieveAllThings, args, "")
+		wot.OpInvokeAction, cl.directoryID, server.ActionRetrieveAllThings, args, "")
 	resp, err := cl.ForwardRequestWait(req)
 	if err == nil {
 		err = resp.Decode(&tdList)
@@ -64,7 +65,7 @@ func (cl *DirectoryMsgClient) RetrieveAllThings(offset int, limit int) (tdList [
 
 func (cl *DirectoryMsgClient) UpdateThing(tdJson string) error {
 	req := msg.NewRequestMessage(
-		wot.OpInvokeAction, cl.directoryID, directory.ActionUpdateThing, tdJson, "")
+		wot.OpInvokeAction, cl.directoryID, server.ActionUpdateThing, tdJson, "")
 	_, err := cl.ForwardRequestWait(req)
 	return err
 }

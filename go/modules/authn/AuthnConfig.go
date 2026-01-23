@@ -23,9 +23,9 @@ const DefaultAdminUserID = "admin"
 
 // DefaultLauncherServiceID is the client ID of the launcher service
 // auth creates a key and auth token for the launcher on startup
-const DefaultLauncherServiceID = "launcher"
+// const DefaultLauncherServiceID = "launcher"
 
-// DefaultPasswordFile is the recommended password filename for Hub authentication
+// DefaultPasswordFile is the recommended password filename for user storage
 const DefaultPasswordFile = "hub.passwd"
 
 // AuthnConfig contains the auth service configuration
@@ -45,13 +45,16 @@ type AuthnConfig struct {
 	ServiceTokenValidityDays int `yaml:"serviceTokenValidityDays,omitempty"`
 
 	// NoAutoStart prevents the auth service for auto starting. Intended for testing or custom implementation.
-	NoAutoStart bool `yaml:"noAutoStart,omitempty"`
+	// NoAutoStart bool `yaml:"noAutoStart,omitempty"`
 
 	// predefined accounts
 	// Location of client keys and tokens
-	KeysDir           string `yaml:"certsDir,omitempty"`
-	AdminAccountID    string `yaml:"adminAccountID,omitempty"`
-	LauncherAccountID string `yaml:"launcherAccountID,omitempty"`
+	KeysDir string `yaml:"certsDir,omitempty"`
+
+	// The default admin account ID to create
+	AdminAccountID string `yaml:"adminAccountID,omitempty"`
+
+	// LauncherAccountID string `yaml:"launcherAccountID,omitempty"`
 	//AdminUserKeyFile   string `yaml:"adminUserKeyFile,omitempty"`   // default: admin.key
 	//AdminUserTokenFile string `yaml:"adminUserTokenFile,omitempty"` // default: admin.token
 	//
@@ -91,7 +94,7 @@ func (cfg *AuthnConfig) Setup(keysDir, storesDir string) {
 	}
 	cfg.KeysDir = keysDir
 	cfg.AdminAccountID = DefaultAdminUserID
-	cfg.LauncherAccountID = DefaultLauncherServiceID
+	// cfg.LauncherAccountID = DefaultLauncherServiceID
 
 	//if cfg.AdminUserKeyFile == "" {
 	//	cfg.AdminUserKeyFile = .DefaultAdminUserID + ".key"

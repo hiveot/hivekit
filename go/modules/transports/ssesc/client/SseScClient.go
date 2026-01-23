@@ -312,7 +312,7 @@ func NewSseScClient(
 
 	tlsClient := tlsclient.NewTLSClient(hostPort, nil, caCert, timeout)
 
-	cl := SseScClient{
+	cl := &SseScClient{
 		msgConverter: direct.NewPassthroughMessageConverter(),
 		rnrChan:      msg.NewRnRChan(timeout),
 		ssePath:      ssePath,
@@ -320,5 +320,6 @@ func NewSseScClient(
 		tlsClient:    tlsClient,
 		timeout:      timeout,
 	}
-	return &cl
+	var _ transports.IConnection = cl // interface check
+	return cl
 }

@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"log/slog"
 
-	"github.com/hiveot/hivekit/go/lib/messaging"
 	"github.com/hiveot/hivekit/go/modules/transports"
 	"github.com/hiveot/hivekit/go/msg"
 	"github.com/hiveot/hivekit/go/utils"
@@ -72,7 +71,7 @@ func (svc *WotWssMsgConverter) DecodeNotification(raw []byte) *msg.NotificationM
 	var wssnotif WotWssNotificationMessage
 	err := jsoniter.Unmarshal(raw, &wssnotif)
 	//err := tputils.DecodeAsObject(msg, &notif)
-	if err != nil || wssnotif.MessageType != messaging.MessageTypeNotification {
+	if err != nil || wssnotif.MessageType != msg.MessageTypeNotification {
 		return nil
 	}
 	notifmsg := &wssnotif.NotificationMessage
@@ -96,7 +95,7 @@ func (svc *WotWssMsgConverter) DecodeRequest(raw []byte) *msg.RequestMessage {
 	err := jsoniter.Unmarshal(raw, &wssreq)
 
 	//err := tputils.DecodeAsObject(msg, &req)
-	if err != nil || wssreq.MessageType != messaging.MessageTypeRequest {
+	if err != nil || wssreq.MessageType != msg.MessageTypeRequest {
 		return nil
 	}
 	// query/cancel action messages carry an actionID in the request
@@ -121,7 +120,7 @@ func (svc *WotWssMsgConverter) DecodeResponse(raw []byte) *msg.ResponseMessage {
 		slog.Warn("DecodeResponse: Can't unmarshal websocket response", "error", err, "raw", string(raw))
 		return nil
 	}
-	if wssResp.MessageType != messaging.MessageTypeResponse {
+	if wssResp.MessageType != msg.MessageTypeResponse {
 		return nil
 	}
 
@@ -144,7 +143,7 @@ func (svc *WotWssMsgConverter) DecodeResponse(raw []byte) *msg.ResponseMessage {
 		as := msg.ActionStatus{
 			Name:    wssResp.Name,
 			Output:  wssResp.Output,
-			State:   messaging.StatusCompleted,
+			State:   msg.StatusCompleted,
 			ThingID: wssResp.ThingID,
 		}
 		// if wss contains an actionID the request is pending
@@ -201,16 +200,16 @@ func (svc *WotWssMsgConverter) DecodeResponse(raw []byte) *msg.ResponseMessage {
 		wot.OpWriteMultipleProperties:
 
 		// the 'Value' property from the msg.ResponseMessage embedded struct
-		// already contains the messaging.ThingValue map.
+		// already contains the msg.ThingValue map.
 		// But, if the websocket response is from a non-hiveot device then convert
 		// the websocket 'Values' field k-v map to ThingValue map
-		tvMap := make(map[string]messaging.ThingValue)
+		tvMap := make(map[string]msg.ThingValue)
 		if respMsg.Value == nil {
 			wssPropValues := make(map[string]any)
 			utils.DecodeAsObject(wssResp.Values, wssPropValues)
 			for k, v := range wssPropValues {
-				tv := messaging.ThingValue{
-					AffordanceType: messaging.AffordanceTypeProperty,
+				tv := msg.ThingValue{
+					AffordanceType: msg.AffordanceTypeProperty,
 					Name:           k,
 					Data:           v,
 					ThingID:        wssResp.ThingID,
@@ -230,7 +229,7 @@ func (svc *WotWssMsgConverter) EncodeNotification(notif *msg.NotificationMessage
 		NotificationMessage: *notif,
 	}
 	// ensure this field is present as it is needed for decoding
-	wssNotif.MessageType = messaging.MessageTypeNotification
+	wssNotif.MessageType = msg.MessageTypeNotification
 	return jsoniter.Marshal(wssNotif)
 }
 
@@ -241,7 +240,7 @@ func (svc *WotWssMsgConverter) EncodeRequest(req *msg.RequestMessage) ([]byte, e
 		ActionID:       req.CorrelationID,
 	}
 	// ensure this field is present as it is needed for decoding
-	wssReq.MessageType = messaging.MessageTypeRequest
+	wssReq.MessageType = msg.MessageTypeRequest
 	switch req.Operation {
 	case wot.OpWriteMultipleProperties:
 		wssReq.Values = req.Input
@@ -270,7 +269,7 @@ func (svc *WotWssMsgConverter) EncodeResponse(resp *msg.ResponseMessage) ([]byte
 	}
 
 	// ensure this field is present as it is needed for decoding
-	wssResp.MessageType = messaging.MessageTypeResponse
+	wssResp.MessageType = msg.MessageTypeResponse
 	switch resp.Operation {
 	case wot.OpCancelAction:
 		// actionID of cancelled action ?
@@ -286,7 +285,7 @@ func (svc *WotWssMsgConverter) EncodeResponse(resp *msg.ResponseMessage) ([]byte
 			err = fmt.Errorf("Response value is not an ActionStatus object")
 			wssResp.Error = msg.ErrorValueFromError(err)
 		}
-		if as.State == messaging.StatusCompleted {
+		if as.State == msg.StatusCompleted {
 			// websocket synchronous response
 			wssResp.Output = as.Output
 		} else {
@@ -341,7 +340,7 @@ func (svc *WotWssMsgConverter) EncodeResponse(resp *msg.ResponseMessage) ([]byte
 	case wot.OpReadAllProperties, wot.OpReadMultipleProperties:
 		// convert ThingValue map to map of name-value pairs
 		// the last updated timestamp is lost.
-		var thingValueList map[string]messaging.ThingValue
+		var thingValueList map[string]msg.ThingValue
 		err = utils.DecodeAsObject(resp.Value, &thingValueList)
 		if err != nil {
 			err = fmt.Errorf("encodeResponse (%s). Not a ThingValue map; err: %w", resp.Operation, err)

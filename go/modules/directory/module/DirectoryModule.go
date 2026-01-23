@@ -2,7 +2,6 @@
 package module
 
 import (
-	_ "embed"
 	"log/slog"
 	"path/filepath"
 
@@ -11,13 +10,9 @@ import (
 	"github.com/hiveot/hivekit/go/modules/bucketstore"
 	"github.com/hiveot/hivekit/go/modules/bucketstore/module/kvbtree"
 	"github.com/hiveot/hivekit/go/modules/directory"
+	"github.com/hiveot/hivekit/go/modules/directory/server"
 	"github.com/hiveot/hivekit/go/msg"
 )
-
-// Embed the directory TM
-//
-//go:embed directory-tm.json
-var DirectoryTMJson []byte
 
 // DirectoryModule is a module for serving a WoT Thing directory.
 // This implements the IHiveModule and IDirectoryService interfaces.
@@ -41,9 +36,9 @@ type DirectoryModule struct {
 	bucketStore bucketstore.IBucketStore
 
 	// the RRN messaging API
-	msgAPI *DirectoryMsgHandler
+	msgAPI *server.DirectoryMsgHandler
 	// the API servers if enabled
-	restAPI *DirectoryRestHandler
+	restAPI *server.DirectoryRestHandler
 	// router for rest api
 	router *chi.Mux
 	// the directory service itself
@@ -58,8 +53,8 @@ type DirectoryModule struct {
 
 // GetTM returns the module TM document
 // It includes forms for messaging access through the WoT.
-func (handler *DirectoryModule) GetTM() string {
-	tmJson := DirectoryTMJson
+func (m *DirectoryModule) GetTM() string {
+	tmJson := m.msgAPI.GetTM()
 	return string(tmJson)
 }
 
@@ -98,10 +93,10 @@ func (m *DirectoryModule) Start() (err error) {
 		// m.service, err = service.StartDirectoryService(m.bucketStore, bucketName)
 	}
 	if err == nil {
-		m.msgAPI = NewDirectoryMsgHandler(moduleID, m)
+		m.msgAPI = server.NewDirectoryMsgHandler(moduleID, m)
 	}
 	if err == nil && m.router != nil {
-		m.restAPI = StartDirectoryRestHandler(m, m.router)
+		m.restAPI = server.StartDirectoryRestHandler(m, m.router)
 	}
 	return err
 }

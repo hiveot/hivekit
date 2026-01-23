@@ -5,43 +5,58 @@ import (
 	"github.com/hiveot/hivekit/go/modules/transports"
 )
 
-const DefaultAuthnThingID = "authn"
+// This module exposes two services, one admin service and one user oriented service
+const AdminServiceID = "authnAdmin"
+const UserServiceID = "authnUser"
 
-const (
-	// HttpPostLoginPath is the http authentication endpoint of the module
-	HttpPostLoginPath   = "/authn/login"
-	HttpPostLogoutPath  = "/authn/logout"
-	HttpPostRefreshPath = "/authn/refresh"
-)
-
-// helper for building a login request message
-// tbd this should probably go elsewhere.
-type UserLoginArgs struct {
-	Login    string `json:"login"`
-	Password string `json:"password"`
-}
-
-// ClientType enumerator
+// ClientRole enumerator
 //
-// identifies the client's category
-type ClientType string
+// Identifies the client's role
+type ClientRole string
 
+// Predefined roles of a client
+// The roles are hierarchical in permissions:
+// Authorization using these roles is applied through an authz service.
+// Custom roles can be added if needed but their persmissions need to be
+// managed in the authz service.
 const (
 
-	// ClientTypeAgent for Agent
-	//
-	// Agents represent one or more devices
-	ClientTypeAgent ClientType = "agent"
+	// ClientRoleNone means that the client has no permissions.
+	// It can not do anything until the role is upgraded to viewer or better
+	ClientRoleNone ClientRole = "none"
 
-	// ClientTypeService for Service
-	//
-	// Service enrich information
-	ClientTypeService ClientType = "service"
+	// ClientRoleViewer for users that can view information for devices/services
+	// they have access to.
+	// Viewers cannot invoke actions or change configuration.
+	ClientRoleViewer ClientRole = "viewer"
 
-	// ClientTypeConsumer for Consumer
+	// ClientRoleAgent for devices and services.
 	//
-	// Consumers are end-users of information
-	ClientTypeConsumer ClientType = "consumer"
+	// Agents publish device information for the devices/services it manages and
+	// receive request for those devices/services.
+	ClientRoleAgent ClientRole = "agent"
+
+	// ClientRoleOperator for users that operate devices and services.
+	//
+	// Operators can view and control devices/services they have access to but
+	// not configure them.
+	ClientRoleOperator ClientRole = "operator"
+
+	// ClientRoleManager for users that manage devices.
+	//
+	// Managers can view, control and configure devices/services they have access to.
+	ClientRoleManager ClientRole = "manager"
+
+	// ClientRoleAdmin for users that administer the system.
+	//
+	// Administrators can view, control and configure all devices and services.
+	ClientRoleAdmin ClientRole = "admin"
+
+	// ClientRoleService for Service role
+	//
+	// Services are equivalent to an admin user and agent for devices/services they
+	// have access to.
+	ClientRoleService ClientRole = "service"
 )
 
 // ClientProfile defines a Client Profile data schema.
@@ -49,48 +64,54 @@ const (
 // This contains client information of device agents, services and consumers
 type ClientProfile struct {
 
-	// ClientID with Client ID
+	// ClientID with the unique client ID
 	ClientID string `json:"clientID,omitempty"`
 
-	// ClientType with Client Type
-	ClientType ClientType `json:"clientType,omitempty"`
-
-	// Disabled
-	//
-	// This client account has been disabled
+	// Disabled flag to enable/disable the client account
 	Disabled bool `json:"disabled,omitempty"`
 
-	// DisplayName with
+	// DisplayName of the client
 	DisplayName string `json:"displayName,omitempty"`
 
-	// PubKey with Public Key
+	// PubKey with public key intended for encryption
 	PubKey string `json:"pubKey,omitempty"`
 
-	// Updated with Client name or auth updated timestamp
-	Updated string `json:"updated,omitempty"`
+	// Role of the client when the account is enabled
+	Role ClientRole `json:"role,omitempty"`
+
+	// TimeCreated time the client account was created
+	TimeCreated string `json:"created,omitempty"`
+
+	// TimeUpdated time the client was last updated
+	TimeUpdated string `json:"updated,omitempty"`
 }
 
-// Authenticate server for login and refresh tokens
-// This implements the IAuthenticator API for use by other services
-// Use authapi.AuthClient to create a client for logging in.
+// Authenticate server for login and refresh tokens.
+// This implements the IAuthenticator API for use by other services.
 type IAuthnModule interface {
 	modules.IHiveModule
-	transports.IAuthenticator
 
-	// Return the authenticator for use by other modules
+	// AddClient add a new client account. This fails if the client already exists.
+	// Use authenticator's SetPassword or CreateToken to obtain a token to connect.
+	AddClient(clientID string, displayName string, role ClientRole, pubKey string) error
+
+	// Return the client authenticator for use by transport modules
 	GetAuthenticator() transports.IAuthenticator
 
-	// GetProfile Get Client Profile
-	GetProfile(senderID string) (resp ClientProfile, err error)
+	// GetProfile Get the client profile
+	GetProfile(clientID string) (profile ClientProfile, err error)
 
-	// UpdateName Request changing the display name of the current client
-	UpdateName(senderID string, newName string) error
+	// GetProfiles Get Profiles
+	// Get a list of all client profiles
+	GetProfiles() (profiles []ClientProfile, err error)
 
-	// UpdatePassword Update Password
-	// Request changing the password of the current client
-	UpdatePassword(senderID string, password string) error
+	// RemoveClient removes client account
+	RemoveClient(clientID string) error
 
-	// UpdatePubKey Update Public Key
-	// Request changing the public key on file of the current client.
-	UpdatePubKey(senderID string, publicKeyPEM string) error
+	// SetPassword sets a client's password for use with Login()
+	SetPassword(clientID string, password string) error
+
+	// UpdateProfile changes a client's profile.
+	// Only administrators can update the role. (senderID has role admin or service)
+	UpdateProfile(senderID string, profile ClientProfile) error
 }

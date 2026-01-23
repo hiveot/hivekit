@@ -14,7 +14,6 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
-	"github.com/hiveot/hivekit/go/lib/messaging"
 	"github.com/hiveot/hivekit/go/modules"
 	"github.com/hiveot/hivekit/go/modules/transports"
 	"github.com/hiveot/hivekit/go/modules/transports/direct"
@@ -276,7 +275,7 @@ func (cl *WssClient) Reconnect() {
 		if !cl.retryOnDisconnect.Load() {
 			break
 		}
-		if errors.Is(err, messaging.UnauthorizedError) {
+		if errors.Is(err, transports.UnauthorizedError) {
 			break
 		}
 		// the connection timeout doesn't seem to work for some reason
@@ -472,7 +471,7 @@ func NewWotWssClient(
 	wssPath := urlParts.Path
 	tlsClient := tlsclient.NewTLSClient(hostPort, nil, caCert, timeout)
 
-	cl := WssClient{
+	cl := &WssClient{
 		caCert:               caCert,
 		maxReconnectAttempts: 0,
 		msgConverter:         converter.NewWotWssMsgConverter(),
@@ -481,6 +480,6 @@ func NewWotWssClient(
 		tlsClient:            tlsClient,
 		wssPath:              wssPath,
 	}
-
-	return &cl
+	var _ transports.IConnection = cl // interface check
+	return cl
 }
