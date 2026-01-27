@@ -37,37 +37,22 @@ func (m *DirectClientTransport) HandleRequest(
 	return m.ForwardRequest(req, replyTo)
 }
 
-// HandleResponse.
-// client sends a response to the server as would happen in connection reversal.
-func (m *DirectClientTransport) HandleResponse(resp *msg.ResponseMessage) error {
-	moduleID := m.GetModuleID()
-	sink := m.GetSink()
-	if resp.ThingID == moduleID {
-		// response is for this module. A subclass should implement this instead.
-		// nothing to do here, please move along.
-	}
-	resp.SenderID = moduleID
-	return sink.HandleResponse(resp)
-}
-
-// Sendrequest sends a request message to the source, eg client end
+// SendNotification sends a notification message to the consumer.
 // This would mean that the client's remote side receives a notification.
 // Since this doesn't do subscriptions, all notifications are received.
 func (m *DirectClientTransport) SendNotification(notif *msg.NotificationMessage) {
 	if m.source != nil {
-		//m.source.onNotification(notif)
+		m.ForwardNotification(notif)
 	}
 }
 
-// SendRequest sends a request message via the transport to the agent.
-// This doesn't apply in a direct transport
+// SendRequest sends a request message via the transport to the producer.
+// In a direct transport this is the registered sink, pretending to be the remote server.
 // Note this only has a single connection.
 func (m *DirectClientTransport) SendRequest(
 	clientID string, req *msg.RequestMessage, replyTo msg.ResponseHandler) (err error) {
 
-	if m.source != nil {
-		// err = m.source.onRequest(req, nil)
-	}
+	err = m.ForwardRequest(req, replyTo)
 	return err
 }
 

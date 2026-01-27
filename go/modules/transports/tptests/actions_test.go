@@ -26,7 +26,7 @@ func TestInvokeActionFromConsumerToServer(t *testing.T) {
 	t.Logf("---%s---\n", t.Name())
 	//var outputVal atomic.Value
 	var testOutput string
-	var testActionStatus msg.ActionStatus
+	// var testActionStatus msg.ActionStatus
 
 	var inputVal atomic.Value
 	var testMsg1 = "hello world 1"
@@ -63,17 +63,17 @@ func TestInvokeActionFromConsumerToServer(t *testing.T) {
 
 	// since there is no waiting for a response when sending the request, the
 	// client should receive an action/request response via the response callback
-	co1.SetResponseHandler(func(resp *msg.ResponseMessage) error {
-		slog.Info("testOutput was updated asynchronously via the message handler")
-		// response should be an ActionStatus object
-		err2 := utils.Decode(resp.Value, &testActionStatus)
-		if assert.NoError(t, err2) {
-			err2 = utils.DecodeAsObject(testActionStatus.Output, &testOutput)
-			assert.NoError(t, err2)
-		}
-		release1()
-		return err2
-	})
+	// co1.SetResponseHandler(func(resp *msg.ResponseMessage) error {
+	// 	slog.Info("testOutput was updated asynchronously via the message handler")
+	// 	// response should be an ActionStatus object
+	// 	err2 := utils.Decode(resp.Value, &testActionStatus)
+	// 	if assert.NoError(t, err2) {
+	// 		err2 = utils.DecodeAsObject(testActionStatus.Output, &testOutput)
+	// 		assert.NoError(t, err2)
+	// 	}
+	// 	release1()
+	// 	return err2
+	// })
 
 	// 3. invoke the action without waiting for a result
 	// the response handler above will receive the result

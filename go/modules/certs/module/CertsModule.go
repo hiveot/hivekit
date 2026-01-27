@@ -49,7 +49,9 @@ func (m *CertsModule) GetTM() string {
 }
 
 // Start readies the certificate management module for use.
-func (m *CertsModule) Start() (err error) {
+//
+// yamlConfig : todo
+func (m *CertsModule) Start(yamlConfig string) (err error) {
 
 	caCertPath := path.Join(m.certsDir, certs.DefaultCaCertName)
 	caKeyPath := path.Join(m.certsDir, certs.DefaultCaKeyName)

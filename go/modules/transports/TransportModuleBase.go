@@ -265,7 +265,7 @@ func (m *TransportModuleBase) RemoveConnection(c IConnection) {
 	m.removeConnection(c)
 }
 
-// SendNotification [agent] sends a notification to all connections.
+// SendNotification [agent] server sends a notification to its connections
 // The connection handles subscriptions.
 func (m *TransportModuleBase) SendNotification(notif *msg.NotificationMessage) {
 	m.ForEachConnection(func(c IConnection) {

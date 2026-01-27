@@ -1,4 +1,4 @@
-package authnserver
+package authnservice
 
 import (
 	_ "embed"

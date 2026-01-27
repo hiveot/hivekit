@@ -192,7 +192,7 @@ func (cl *SseScClient) handleSSEConnect(connected bool, err error) {
 	}
 }
 
-// handleSSEEvent processes the push-event received from the hub.
+// handleSSEEvent processes the push-event received from the server.
 // This splits the message into notification, response and request
 // requests have an operation and correlationID
 // responses have no operations and a correlationID
@@ -218,9 +218,15 @@ func (cl *SseScClient) handleSseEvent(event sse.Event) {
 				"operation", notif.Operation,
 				"name", notif.Name,
 			)
+		} else if cl.notificationHandler != nil {
+			// notifications received from the server are passed to the registered handler
+			go func() {
+				cl.notificationHandler(notif)
+			}()
 		} else {
-			// don't block the receiver flow
-			go cl.sink.HandleNotification(notif)
+			// notifications are only received when subscribed so someone forgot to
+			// set a handler.
+			slog.Error("handleSseEvent: Received notification but no handler is set")
 		}
 	case msg.MessageTypeRequest:
 		var err error
@@ -253,7 +259,7 @@ func (cl *SseScClient) handleSseEvent(event sse.Event) {
 	case msg.MessageTypeResponse:
 		resp := cl.msgConverter.DecodeResponse([]byte(event.Data))
 		if resp == nil {
-			slog.Info("Received SSE Event but decoder returns nil", "data", string(event.Data))
+			slog.Info("handleSseEvent: Received SSE Event but decoder returns nil", "data", string(event.Data))
 			return
 		}
 
@@ -262,23 +268,23 @@ func (cl *SseScClient) handleSseEvent(event sse.Event) {
 		handled := cl.rnrChan.HandleResponse(resp)
 
 		if !handled {
-			slog.Info("Received SSE Response. Not Handled", "op", resp.Operation, "name", resp.Name)
-			// no-one waiting, pass it to the consumer module sink.
-			if cl.sink == nil {
-				slog.Error("HandleWssMessage: no sink set. Async Response is ignored",
-					"clientID", clientID,
-					"operation", resp.Operation,
-					"name", resp.Name,
-				)
-			} else {
-				// pass the response to the consumer sink
-				_ = cl.sink.HandleResponse(resp)
-			}
+			slog.Warn("handleSseEvent: No response handler for request, response is lost",
+				"correlationID", resp.CorrelationID,
+				"op", resp.Operation,
+				"thingID", resp.ThingID,
+				"name", resp.Name,
+				"clientID", clientID,
+			)
 		} else {
 			// slog.Info("SSE Response was handled in RnR",
 			// "op", resp.Operation, "correlationID", resp.CorrelationID)
 		}
 	default:
+		if cl.notificationHandler == nil {
+			//nothing to do
+			return
+		}
+
 		// all other events are intended for other use-cases such as the UI,
 		// and can have a formats of event/{dThingID}/{name}
 		// Attempt to deliver this for compatibility with other protocols (such has hiveoview test client)
@@ -288,7 +294,7 @@ func (cl *SseScClient) handleSseEvent(event sse.Event) {
 		notif.Operation = event.Type
 		// don't block the receiver flow
 		go func() {
-			cl.sink.HandleNotification(&notif)
+			cl.notificationHandler(&notif)
 		}()
 	}
 }

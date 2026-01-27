@@ -1,12 +1,10 @@
-package module
+package wssserver
 
 import (
 	"context"
 	"fmt"
 	"log/slog"
 	"net/http"
-	"sync"
-	"sync/atomic"
 	"time"
 
 	"github.com/gorilla/websocket"
@@ -29,21 +27,21 @@ type WssServerConnection struct {
 	//connectionID string
 
 	// clientID is the account ID of the connected client
-	clientID string
+	// clientID string
 
 	// connection request remote address
 	httpReq *http.Request
 
 	// isConnected atomic.Bool
 
-	// track last used time to auto-close inactive cm
+	// track last used time to auto-close stale connections
 	lastActivity time.Time
 
 	// mutex for controlling writing and closing
-	mux sync.RWMutex
+	// mux sync.RWMutex
 
 	// notify client of a connect or disconnect
-	connectionHandlerPtr atomic.Pointer[transports.ConnectionHandler]
+	// connectionHandlerPtr atomic.Pointer[transports.ConnectionHandler]
 
 	// converter for request/response messages
 	messageConverter transports.IMessageConverter
@@ -67,8 +65,8 @@ func (sc *WssServerConnection) _send(msg []byte) (err error) {
 		slog.Warn(err.Error())
 	} else {
 		// websockets do not allow concurrent write
-		sc.mux.Lock()
-		defer sc.mux.Unlock()
+		sc.Mux.Lock()
+		defer sc.Mux.Unlock()
 		err = sc.wssConn.WriteMessage(websocket.TextMessage, msg)
 		if err != nil {
 			err = fmt.Errorf("WssServerConnection._send write error: %s", err)
@@ -79,8 +77,8 @@ func (sc *WssServerConnection) _send(msg []byte) (err error) {
 
 // Close closes the connection and ends the read loop
 func (sc *WssServerConnection) Close() {
-	sc.mux.Lock()
-	defer sc.mux.Unlock()
+	sc.Mux.Lock()
+	defer sc.Mux.Unlock()
 	if sc.IsConnected() {
 		sc.onConnection(false, nil)
 		_ = sc.wssConn.Close()
@@ -130,13 +128,15 @@ func (sc *WssServerConnection) Close() {
 //	func (sc *WssServerConnection) IsConnected() bool {
 //		return sc.isConnected.Load()
 //	}
+
+// notify handler of connection status change
 func (sc *WssServerConnection) onConnection(connected bool, err error) {
 	if !connected {
 		sc.ServerConnectionBase.Disconnect()
 	}
-	chPtr := sc.connectionHandlerPtr.Load()
-	if chPtr != nil {
-		(*chPtr)(connected, err, sc)
+	h := sc.ServerConnectionBase.GetConnectHandler()
+	if h != nil {
+		(h)(connected, err, sc)
 	}
 }
 
@@ -144,9 +144,9 @@ func (sc *WssServerConnection) onConnection(connected bool, err error) {
 // The message is converted into a request, response or notification and passed
 // on to the registered handler.
 func (sc *WssServerConnection) onMessage(raw []byte) {
-	sc.mux.Lock()
+	sc.Mux.Lock()
 	sc.lastActivity = time.Now()
-	sc.mux.Unlock()
+	sc.Mux.Unlock()
 	var notif *msg.NotificationMessage
 	var req *msg.RequestMessage
 	var resp *msg.ResponseMessage
@@ -176,9 +176,12 @@ func (sc *WssServerConnection) onMessage(raw []byte) {
 	slog.Warn("onMessage: Message is not a notification, request or response")
 }
 
-// onNotification is passed the received notification message to the module sink
+// server connection receives a notification for server side consumer.
+// pass it on to the registered (upstream) notification handler.
+//
+// consumer <-[notification] server<=>client <- [notification] producer
 func (sc *WssServerConnection) onNotification(notif *msg.NotificationMessage) {
-	sc.Sink.HandleNotification(notif)
+	sc.ServerConnectionBase.ForwardNotification(notif)
 }
 
 // onRequest is passed the received request message
@@ -239,14 +242,15 @@ func (sc *WssServerConnection) onRequest(req *msg.RequestMessage) {
 // If the RNR handler doesn't have a matching correlationID listed then the response is passed to the
 // connection response handler.
 func (sc *WssServerConnection) onResponse(resp *msg.ResponseMessage) {
-	var err error
+
 	// this responsehandler points to the rnrChannel that matches the correlationID to the replyTo handler
 	handled := sc.rnrChan.HandleResponse(resp)
 	if !handled {
-		err = sc.Sink.HandleResponse(resp)
-	}
-	if err != nil {
-		slog.Warn("Error handling response message", "err", err.Error())
+		slog.Warn("onResponse: No response handler for request, response is lost",
+			"correlationID", resp.CorrelationID,
+			"op", resp.Operation,
+			"thingID", resp.ThingID,
+			"name", resp.Name)
 	}
 }
 
@@ -282,7 +286,7 @@ func (sc *WssServerConnection) ReadLoop(ctx context.Context, wssConn *websocket.
 }
 
 // SendNotification sends a notification to the client if subscribed.
-func (sc *WssServerConnection) SendNotification(notif *msg.NotificationMessage) (err error) {
+func (sc *WssServerConnection) SendNotification(notif *msg.NotificationMessage) {
 
 	slog.Info("SendNotification",
 		slog.String("clientID", sc.GetClientID()),
@@ -295,8 +299,13 @@ func (sc *WssServerConnection) SendNotification(notif *msg.NotificationMessage) 
 		if err == nil {
 			err = sc._send(msg)
 		}
+		if err != nil {
+			// maybe the connection dropped. It should have been removed though so something went wrong.
+			slog.Warn("SendNotification: Unable to send the notification to the client",
+				"clientID", sc.ClientID,
+				"err", err.Error())
+		}
 	}
-	return err
 }
 
 // SendRequest sends the request to the client (agent).
@@ -355,14 +364,6 @@ func (sc *WssServerConnection) SendResponse(resp *msg.ResponseMessage) (err erro
 	return err
 }
 
-func (sc *WssServerConnection) SetConnectHandler(cb transports.ConnectionHandler) {
-	if cb == nil {
-		sc.connectionHandlerPtr.Store(nil)
-	} else {
-		sc.connectionHandlerPtr.Store(&cb)
-	}
-}
-
 // NewWSSServerConnection creates a new Websocket connection instance for use by
 // agents and consumers.
 // This implements the IServerConnection interface.
@@ -381,11 +382,9 @@ func NewWSSServerConnection(
 
 	c := &WssServerConnection{
 		wssConn:          wssConn,
-		clientID:         clientID,
 		messageConverter: messageConverter,
 		httpReq:          r,
 		lastActivity:     time.Time{},
-		mux:              sync.RWMutex{},
 		rnrChan:          msg.NewRnRChan(transports.DefaultRpcTimeout),
 		respTimeout:      transports.DefaultRpcTimeout,
 	}

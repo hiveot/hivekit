@@ -137,9 +137,8 @@ func TestPublishEventsByAgent(t *testing.T) {
 	defer agConn1.Close()
 
 	// 3. agent publishes an event
-	err := agent1.PubEvent(thingID, eventKey, testMsg)
+	agent1.PubEvent(thingID, eventKey, testMsg)
 	time.Sleep(time.Millisecond) // time to take effect
-	require.NoError(t, err)
 
 	// event received by server
 	rxMsg2 := evVal.Load()

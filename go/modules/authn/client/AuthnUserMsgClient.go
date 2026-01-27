@@ -8,7 +8,7 @@ import (
 	"github.com/hiveot/hivekit/go/lib/consumer"
 	"github.com/hiveot/hivekit/go/modules"
 	"github.com/hiveot/hivekit/go/modules/authn"
-	authnserver "github.com/hiveot/hivekit/go/modules/authn/server"
+	authnservice "github.com/hiveot/hivekit/go/modules/authn/service"
 	"github.com/hiveot/hivekit/go/modules/transports/clients"
 	"github.com/hiveot/hivekit/go/wot"
 )
@@ -26,8 +26,8 @@ type AuthnUserMsgClient struct {
 // UserGetProfile client method - Get Client Profile.
 func (cl *AuthnUserMsgClient) GetProfile() (resp authn.ClientProfile, err error) {
 	err = cl.co.Rpc(wot.OpInvokeAction,
-		authnserver.AuthnUserServiceID,
-		authnserver.UserActionGetProfile, nil, &resp)
+		authnservice.AuthnUserServiceID,
+		authnservice.UserActionGetProfile, nil, &resp)
 	return
 }
 
@@ -43,8 +43,8 @@ func (cl *AuthnUserMsgClient) GetProfile() (resp authn.ClientProfile, err error)
 func (cl *AuthnUserMsgClient) Logout() (err error) {
 
 	err = cl.co.Rpc(wot.OpInvokeAction,
-		authnserver.AuthnUserServiceID,
-		authnserver.UserActionLogout, nil, nil)
+		authnservice.AuthnUserServiceID,
+		authnservice.UserActionLogout, nil, nil)
 	return
 }
 
@@ -52,8 +52,8 @@ func (cl *AuthnUserMsgClient) Logout() (err error) {
 func (cl *AuthnUserMsgClient) RefreshToken(hc *consumer.Consumer, oldToken string) (newToken string, err error) {
 
 	err = cl.co.Rpc(wot.OpInvokeAction,
-		authnserver.AuthnUserServiceID,
-		authnserver.UserActionRefreshToken, &oldToken, &newToken)
+		authnservice.AuthnUserServiceID,
+		authnservice.UserActionRefreshToken, &oldToken, &newToken)
 	return
 }
 
@@ -61,8 +61,8 @@ func (cl *AuthnUserMsgClient) RefreshToken(hc *consumer.Consumer, oldToken strin
 // Request changing the password of the current client
 func (cl *AuthnUserMsgClient) UpdateProfile(hc *consumer.Consumer, password string) (err error) {
 	err = cl.co.Rpc(wot.OpInvokeAction,
-		authnserver.AuthnUserServiceID,
-		authnserver.UserActionSetPassword, &password, nil)
+		authnservice.AuthnUserServiceID,
+		authnservice.UserActionSetPassword, &password, nil)
 	return
 }
 

@@ -5,17 +5,11 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
-	"net/url"
-	"strings"
 	"sync"
-	"sync/atomic"
 	"time"
 
 	"github.com/hiveot/hivekit/go/modules"
 	"github.com/hiveot/hivekit/go/modules/transports"
-	httpbasicclient "github.com/hiveot/hivekit/go/modules/transports/httpbasic/client"
-	ssescclient "github.com/hiveot/hivekit/go/modules/transports/ssesc/client"
-	wssclient "github.com/hiveot/hivekit/go/modules/transports/wss/client"
 	"github.com/hiveot/hivekit/go/msg"
 	"github.com/hiveot/hivekit/go/utils"
 	"github.com/hiveot/hivekit/go/wot"
@@ -47,20 +41,22 @@ import (
 // or other modules.
 type Consumer struct {
 	// This consumer is a sink for the connection
-	// modules.HiveModuleBase
+	modules.HiveModuleBase
+
 	appID string
 
 	// application callback for reporting connection status change
-	appConnectHandlerPtr atomic.Pointer[func(connected bool, err error, c transports.IConnection)]
+	connectHandler func(connected bool, err error, c transports.IConnection)
 
 	// application callback that handles asynchronous responses
-	appResponseHandlerPtr atomic.Pointer[func(msg *msg.ResponseMessage) error]
+	// appResponseHandlerPtr atomic.Pointer[func(msg *msg.ResponseMessage) error]
 
 	// application callback that handles notifications
-	appNotificationHandlerPtr atomic.Pointer[func(msg *msg.NotificationMessage)]
+	// set by SetNotificationHandler or with SetSink
+	notificationHandler msg.NotificationHandler
 
-	// The authenticated transport connection for delivering and receiving requests and responses
-	cc transports.IConnection
+	// The sink that will forward the requests and respond with notifications.
+	// sink modules.IHiveModule
 
 	mux sync.RWMutex
 
@@ -70,7 +66,7 @@ type Consumer struct {
 
 // GetClientID returns the client's account ID
 func (co *Consumer) GetClientID() string {
-	return co.cc.GetClientID()
+	return co.GetModuleID()
 }
 
 // GetModuleID returns the application
@@ -79,20 +75,22 @@ func (co *Consumer) GetModuleID() string {
 }
 
 // GetConnection returns the underlying connection of this consumer
-func (co *Consumer) GetConnection() transports.IConnection {
-	return co.cc
-}
+// func (co *Consumer) GetConnection() transports.IConnection {
+// return co.cc
+// }
 
 // GetTM returns empty
 func (co *Consumer) GetTM() string {
 	return ""
 }
 
-// HandleNotification passes notifications to the registered application handler.
+// HandleNotification passes notifications to the consumer provided notificationHandler.
 func (co *Consumer) HandleNotification(notif *msg.NotificationMessage) {
+	co.mux.RLock()
+	h := co.notificationHandler
+	co.mux.RUnlock()
 
-	hPtr := co.appNotificationHandlerPtr.Load()
-	if hPtr == nil {
+	if h == nil {
 		if notif.Operation == wot.OpInvokeAction {
 			// not everyone is interested in action progress updates
 			slog.Info("HandleNotification: Action progress received. No handler registered",
@@ -121,7 +119,7 @@ func (co *Consumer) HandleNotification(notif *msg.NotificationMessage) {
 		"name", notif.Name,
 		"value", notif.ToString(50),
 	)
-	(*hPtr)(notif)
+	h(notif)
 }
 
 func (co *Consumer) HandleRequest(
@@ -134,32 +132,32 @@ func (co *Consumer) HandleRequest(
 // HandleResponse passes a async responses to the registered app response handler.
 // Used to pass a response from SendRequest when no replyTo is provided.
 // This logs an error if no handler is set.
-func (co *Consumer) HandleResponse(resp *msg.ResponseMessage) error {
+// func (co *Consumer) HandleResponse(resp *msg.ResponseMessage) error {
 
-	// handle the response as an async response with no wait handler registered
-	hPtr := co.appResponseHandlerPtr.Load()
-	if hPtr == nil {
-		// at least one of the handlers should be registered
-		slog.Error("Response received but no handler registered",
-			"correlationID", resp.CorrelationID,
-			"operation", resp.Operation,
-			"clientID", co.GetClientID(),
-			"thingID", resp.ThingID,
-			"name", resp.Name,
-		)
-		err := fmt.Errorf("response received but no handler registered")
-		return err
-	}
-	// pass the response to the registered handler
-	slog.Info("onResponse (async)",
-		"operation", resp.Operation,
-		"clientID", co.GetClientID(),
-		"thingID", resp.ThingID,
-		"name", resp.Name,
-		"value", resp.ToString(50),
-	)
-	return (*hPtr)(resp)
-}
+// 	// handle the response as an async response with no wait handler registered
+// 	hPtr := co.appResponseHandlerPtr.Load()
+// 	if hPtr == nil {
+// 		// at least one of the handlers should be registered
+// 		slog.Error("Response received but no handler registered",
+// 			"correlationID", resp.CorrelationID,
+// 			"operation", resp.Operation,
+// 			"clientID", co.GetClientID(),
+// 			"thingID", resp.ThingID,
+// 			"name", resp.Name,
+// 		)
+// 		err := fmt.Errorf("response received but no handler registered")
+// 		return err
+// 	}
+// 	// pass the response to the registered handler
+// 	slog.Info("onResponse (async)",
+// 		"operation", resp.Operation,
+// 		"clientID", co.GetClientID(),
+// 		"thingID", resp.ThingID,
+// 		"name", resp.Name,
+// 		"value", resp.ToString(50),
+// 	)
+// 	return (*hPtr)(resp)
+// }
 
 // InvokeAction invokes an action on a thing and wait for the response
 // If the response type is known then provide it with output, otherwise use interface{}
@@ -180,9 +178,9 @@ func (co *Consumer) InvokeAction(
 }
 
 // IsConnected returns true if the consumer has a connection
-func (co *Consumer) IsConnected() bool {
-	return co.cc.IsConnected()
-}
+// func (co *Consumer) IsConnected() bool {
+// 	return co.cc.IsConnected()
+// }
 
 // Logout requests invalidating all client sessions.
 //func (co *WotClient) Logout() (err error) {
@@ -211,9 +209,11 @@ func (co *Consumer) ObserveProperty(thingID string, name string) error {
 
 // connection status handler
 func (co *Consumer) onConnect(connected bool, err error, c transports.IConnection) {
-	hPtr := co.appConnectHandlerPtr.Load()
-	if hPtr != nil {
-		(*hPtr)(connected, err, c)
+	co.mux.RLock()
+	h := co.connectHandler
+	co.mux.RUnlock()
+	if h != nil {
+		h(connected, err, c)
 	}
 }
 
@@ -405,7 +405,7 @@ func (co *Consumer) SendRequest(req *msg.RequestMessage, replyTo msg.ResponseHan
 		req.CorrelationID = shortid.MustGenerate()
 	}
 	// if not waiting then return asap and pass the response to the async handler
-	err = co.cc.SendRequest(req, func(resp *msg.ResponseMessage) error {
+	err = co.ForwardRequest(req, func(resp *msg.ResponseMessage) error {
 		var err2 error
 		// intercept the response for logging and timing.
 		t1 := time.Now()
@@ -425,7 +425,7 @@ func (co *Consumer) SendRequest(req *msg.RequestMessage, replyTo msg.ResponseHan
 		if replyTo != nil {
 			err2 = replyTo(resp)
 		} else {
-			err2 = co.HandleResponse(resp)
+			slog.Error("SendRequest: no response handler provided")
 		}
 		return err2
 	})
@@ -436,45 +436,43 @@ func (co *Consumer) SendRequest(req *msg.RequestMessage, replyTo msg.ResponseHan
 // Intended to notify the client that a reconnect or relogin is needed.
 // Only a single handler is supported. This replaces the previously set callback.
 func (co *Consumer) SetConnectHandler(
-	cb func(connected bool, err error, c transports.IConnection)) {
-	if cb == nil {
-		co.appConnectHandlerPtr.Store(nil)
-	} else {
-		co.appConnectHandlerPtr.Store(&cb)
-	}
+	h func(connected bool, err error, c transports.IConnection)) {
+
+	co.mux.Lock()
+	defer co.mux.Unlock()
+	co.connectHandler = h
 }
 
 // SetNotificationHandler sets the notification message callback for this consumer
 // Only a single handler is supported. This replaces the previously set callback.
-func (co *Consumer) SetNotificationHandler(cb func(msg *msg.NotificationMessage)) {
-	if cb == nil {
-		co.appNotificationHandlerPtr.Store(nil)
-	} else {
-		co.appNotificationHandlerPtr.Store(&cb)
-	}
+func (co *Consumer) SetNotificationHandler(h msg.NotificationHandler) {
+	co.mux.Lock()
+	defer co.mux.Unlock()
+	co.notificationHandler = h
 }
 
 // SetResponseHandler set the handler that receives asynchronous responses
 // Those are responses to requests that are not waited for using the baseRnR handler.
-func (co *Consumer) SetResponseHandler(cb func(msg *msg.ResponseMessage) error) {
-	if cb == nil {
-		co.appResponseHandlerPtr.Store(nil)
-	} else {
-		co.appResponseHandlerPtr.Store(&cb)
-	}
-}
+// func (co *Consumer) SetResponseHandler(cb func(msg *msg.ResponseMessage) error) {
+// 	if cb == nil {
+// 		co.appResponseHandlerPtr.Store(nil)
+// 	} else {
+// 		co.appResponseHandlerPtr.Store(&cb)
+// 	}
+// }
 
 // Start using the consumer
-func (co *Consumer) Start() error {
+// this module does not have a configuration
+func (co *Consumer) Start(yamlConfig string) error {
 	return nil
 }
 
 // Stop the consumer module and closes the client connection.
 func (co *Consumer) Stop() {
-	if co.cc.IsConnected() {
-		co.cc.Close()
-		// the connect callback is still needed to notify the client of a disconnect
-	}
+	// if co.cc.IsConnected() {
+	// co.cc.Close()
+	// the connect callback is still needed to notify the client of a disconnect
+	// }
 }
 
 // Subscribe to one or all events of a thing.
@@ -524,33 +522,6 @@ func (co *Consumer) WriteProperty(thingID string, name string, input any, wait b
 	return err
 }
 
-// NewClient returns a new client instance ready to connect
-func NewClient(serverURL string, caCert *x509.Certificate, timeout time.Duration) (cl transports.IConnection, err error) {
-	parts, err := url.Parse(serverURL)
-	scheme := strings.ToLower(parts.Scheme)
-	var sink modules.IHiveModule
-
-	switch scheme {
-	case transports.ProtocolTypeHiveotSSE: // "sse"
-		cl = ssescclient.NewSseScClient(serverURL, caCert, sink, timeout)
-
-	case transports.ProtocolTypeWotWSS: // "wss"
-		cl = wssclient.NewWotWssClient(serverURL, caCert, sink, timeout)
-
-	case transports.ProtocolTypeHTTPBasic: // "https"
-		caCert := caCert
-		cl = httpbasicclient.NewHttpBasicClient(
-			serverURL, caCert, sink, nil, timeout)
-
-	//case transports.ProtocolTypeWotMQTTWSS:
-	//	fullURL = testServerMqttWssURL
-
-	default:
-		err = fmt.Errorf("NewClient. Unknown protocol '%s'", scheme)
-	}
-	return cl, err
-}
-
 // NewConsumer returns a new instance of the WoT consumer for use with the given
 // connection. This consumer takes possession of the provided client connection
 // by registering connection callbacks.
@@ -559,32 +530,25 @@ func NewClient(serverURL string, caCert *x509.Certificate, timeout time.Duration
 // supports RPC calls by waiting for a response.
 //
 // Use SetNotificationHandler to set the callback to receive async notifications.
-// Use SetResponseHandler to set the callback to receive async responses.
 // Use SetConnectHandler to set the callback to be notified of connection changes.
 //
 //	appID the ID of this application
-//	cc the client connection to use for sending requests and receiving responses.
+//	sink for sending requests and subscribing to notifications
 //	timeout of the rpc connections or 0 for default (3 sec)
-func NewConsumer(appID string, cc transports.IConnection, rpcTimeout time.Duration) *Consumer {
+func NewConsumer(appID string, sink modules.IHiveModule, rpcTimeout time.Duration) *Consumer {
 	if rpcTimeout == 0 {
 		rpcTimeout = transports.DefaultRpcTimeout
 	}
 	consumer := &Consumer{
-		cc:    cc,
+		// sink:  sink,
 		appID: appID,
 		// rnrChan:    NewRnRChan(),
 		rpcTimeout: rpcTimeout,
 	}
+	consumer.SetSink(sink, nil)
 	// consumer.Init(moduleID, nil)
 	consumer.SetNotificationHandler(nil)
 	consumer.SetConnectHandler(nil)
-	consumer.SetResponseHandler(nil)
-	// set the connection callbacks to this consumer
-
-	// This consumer is the sink for the transport client, all messages are forwarded here.
-	// Consumers also use it to send messages.
-	cc.SetSink(consumer)
-	cc.SetConnectHandler(consumer.onConnect)
 	return consumer
 }
 
@@ -609,7 +573,7 @@ func NewConsumerConnection(
 	appID string, serverURL string, caCert *x509.Certificate, rpcTimeout time.Duration) (
 	*Consumer, transports.IConnection, error) {
 
-	cc, err := NewClient(serverURL, caCert, rpcTimeout)
+	cc, err := NewClientSink(serverURL, caCert, rpcTimeout)
 	if err != nil {
 		return nil, nil, err
 	}

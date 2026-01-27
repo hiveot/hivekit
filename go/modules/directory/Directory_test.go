@@ -20,7 +20,7 @@ func TestStartStop(t *testing.T) {
 	t.Logf("---%s---\n", t.Name())
 
 	m := module.NewDirectoryModule(storageRoot, nil)
-	err := m.Start()
+	err := m.Start("")
 	require.NoError(t, err)
 	defer m.Stop()
 
@@ -38,7 +38,7 @@ func TestCreateTD(t *testing.T) {
 	thingID := "thing1"
 
 	m := module.NewDirectoryModule(storageRoot, nil)
-	err := m.Start()
+	err := m.Start("")
 	require.NoError(t, err)
 	defer m.Stop()
 
@@ -79,7 +79,7 @@ func TestCRUDUsingMsgAPI(t *testing.T) {
 	thing1ID := "thing1"
 
 	m := module.NewDirectoryModule(storageRoot, nil)
-	err := m.Start()
+	err := m.Start("")
 	require.NoError(t, err)
 	defer m.Stop()
 

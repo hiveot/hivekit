@@ -3,7 +3,7 @@ package authnclient
 import (
 	"github.com/hiveot/hivekit/go/lib/consumer"
 	"github.com/hiveot/hivekit/go/modules/authn"
-	authnserver "github.com/hiveot/hivekit/go/modules/authn/server"
+	authnservice "github.com/hiveot/hivekit/go/modules/authn/service"
 	"github.com/hiveot/hivekit/go/wot"
 )
 
@@ -12,13 +12,13 @@ import (
 func AdminAddClient(hc *consumer.Consumer, clientID string, displayName string, pubKey string, role authn.ClientRole) (
 	token string, err error) {
 
-	var args = authnserver.AdminAddClientArgs{
+	var args = authnservice.AdminAddClientArgs{
 		ClientID:    clientID,
 		DisplayName: displayName,
 		PubKey:      pubKey,
 		Role:        role}
 	err = hc.Rpc(wot.OpInvokeAction,
-		authn.AdminServiceID, authnserver.AdminActionAddClient, &args, &token)
+		authn.AdminServiceID, authnservice.AdminActionAddClient, &args, &token)
 	return
 }
 
@@ -29,7 +29,7 @@ func AdminGetClientProfile(hc *consumer.Consumer, clientID string) (
 
 	err = hc.Rpc(wot.OpInvokeAction,
 		authn.AdminServiceID,
-		authnserver.AdminActionGetProfile, &clientID, &profile)
+		authnservice.AdminActionGetProfile, &clientID, &profile)
 	return
 }
 
@@ -38,8 +38,8 @@ func AdminGetClientProfile(hc *consumer.Consumer, clientID string) (
 func AdminGetProfiles(hc *consumer.Consumer) (clientProfiles []authn.ClientProfile, err error) {
 
 	err = hc.Rpc(wot.OpInvokeAction,
-		authnserver.AuthnAdminServiceID,
-		authnserver.AdminActionGetProfiles, nil, &clientProfiles)
+		authnservice.AuthnAdminServiceID,
+		authnservice.AdminActionGetProfiles, nil, &clientProfiles)
 	return
 }
 
@@ -48,19 +48,19 @@ func AdminGetProfiles(hc *consumer.Consumer) (clientProfiles []authn.ClientProfi
 func AdminRemoveClient(hc *consumer.Consumer, clientID string) (err error) {
 
 	err = hc.Rpc(wot.OpInvokeAction,
-		authnserver.AuthnAdminServiceID,
-		authnserver.AdminActionRemoveClient, &clientID, nil)
+		authnservice.AuthnAdminServiceID,
+		authnservice.AdminActionRemoveClient, &clientID, nil)
 	return
 }
 
 // AdminSetClientPassword client method - Set Client Password.
 // Update the password of a consumer
 func AdminSetClientPassword(hc *consumer.Consumer, userName string, password string) (err error) {
-	var args = authnserver.AdminSetPasswordArgs{
+	var args = authnservice.AdminSetPasswordArgs{
 		UserName: userName, Password: password}
 	err = hc.Rpc(wot.OpInvokeAction,
-		authnserver.AuthnAdminServiceID,
-		authnserver.AdminActionSetPassword, &args, nil)
+		authnservice.AuthnAdminServiceID,
+		authnservice.AdminActionSetPassword, &args, nil)
 	return
 }
 
@@ -69,7 +69,7 @@ func AdminSetClientPassword(hc *consumer.Consumer, userName string, password str
 func AdminUpdateClientProfile(hc *consumer.Consumer, clientProfile authn.ClientProfile) (err error) {
 
 	err = hc.Rpc(wot.OpInvokeAction,
-		authnserver.AuthnAdminServiceID,
-		authnserver.AdminActionUpdateProfile, &clientProfile, nil)
+		authnservice.AuthnAdminServiceID,
+		authnservice.AdminActionUpdateProfile, &clientProfile, nil)
 	return
 }

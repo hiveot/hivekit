@@ -1,4 +1,4 @@
-package module
+package ssescserver
 
 import (
 	"fmt"
@@ -21,7 +21,7 @@ import (
 
 // CreateRoutes add the routes used in SSE-SC sub-protocol
 // This is simple, one endpoint to connect, and one to pass requests, using URI variables
-func (m *SseScModule) CreateRoutes(ssePath string, r chi.Router) {
+func (m *SsescServer) CreateRoutes(ssePath string, r chi.Router) {
 	if r == nil {
 		slog.Error("HiveotSseModule CreateRoutes: missing router")
 		return
@@ -53,7 +53,7 @@ func (m *SseScModule) CreateRoutes(ssePath string, r chi.Router) {
 }
 
 // DeleteRoutes removes the routes used in SSE-SC sub-protocol
-func (m *SseScModule) DeleteRoutes(ssePath string, r chi.Router) {
+func (m *SsescServer) DeleteRoutes(ssePath string, r chi.Router) {
 	r.Delete(ssePath, m.onHttpSseConnection)
 	r.Delete(ssesc.PostSseScNotificationPath, m.onHttpNotificationMessage)
 	r.Delete(ssesc.PostSseScRequestPath, m.onHttpRequestMessage)
@@ -64,7 +64,7 @@ func (m *SseScModule) DeleteRoutes(ssePath string, r chi.Router) {
 //
 // The notification is decoded into a standard notification message and passed on
 // to the registered sink.
-func (m *SseScModule) onHttpNotificationMessage(w http.ResponseWriter, r *http.Request) {
+func (m *SsescServer) onHttpNotificationMessage(w http.ResponseWriter, r *http.Request) {
 
 	// 1. Decode the message
 	rp, err := m.httpServer.GetRequestParams(r)
@@ -99,7 +99,7 @@ func (m *SseScModule) onHttpNotificationMessage(w http.ResponseWriter, r *http.R
 //
 // Note that in case of invokeaction, the response should be an ActionStatus object.
 // The handler can easily create this using req.CreateActionResponse().
-func (m *SseScModule) onHttpRequestMessage(w http.ResponseWriter, r *http.Request) {
+func (m *SsescServer) onHttpRequestMessage(w http.ResponseWriter, r *http.Request) {
 	var resp *msg.ResponseMessage
 
 	// 1. Decode the request message
@@ -176,7 +176,7 @@ func (m *SseScModule) onHttpRequestMessage(w http.ResponseWriter, r *http.Reques
 // forwards to subscriber (which is the server again, or a consumer)
 //
 // The message body is unmarshalled and included as the response.
-func (m *SseScModule) onHttpResponseMessage(w http.ResponseWriter, r *http.Request) {
+func (m *SsescServer) onHttpResponseMessage(w http.ResponseWriter, r *http.Request) {
 
 	// 1. Decode the request message
 	rp, err := m.httpServer.GetRequestParams(r)
@@ -199,12 +199,13 @@ func (m *SseScModule) onHttpResponseMessage(w http.ResponseWriter, r *http.Reque
 	// opened waiting for the response.
 	handled := m.RnrChan.HandleResponse(resp)
 	if !handled {
-		// no callback waiting for the response so forward it to the sink
-		err = m.ForwardResponse(resp)
-	}
-	if err != nil {
-		// response not handled?
-		slog.Error("onHttpResponseMessage: response not handled or failed in handling", "err", err.Error())
+		err := fmt.Errorf("onResponse: No response handler for request, response is lost")
+		slog.Warn("onResponse: No response handler for request, response is lost",
+			"correlationID", resp.CorrelationID,
+			"op", resp.Operation,
+			"thingID", resp.ThingID,
+			"name", resp.Name)
+
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	} else {
 		utils.WriteReply(w, true, nil, err)
@@ -213,7 +214,7 @@ func (m *SseScModule) onHttpResponseMessage(w http.ResponseWriter, r *http.Reque
 
 // Serve a new incoming hiveot sse connection.
 // This doesn't return until the connection is closed by either client or server.
-func (m *SseScModule) onHttpSseConnection(w http.ResponseWriter, r *http.Request) {
+func (m *SsescServer) onHttpSseConnection(w http.ResponseWriter, r *http.Request) {
 
 	//An active session is required before accepting the request. This is created on
 	//authentication/login. Until then SSE cm are blocked.

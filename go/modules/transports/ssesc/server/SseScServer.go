@@ -1,4 +1,4 @@
-package module
+package ssescserver
 
 import (
 	"fmt"
@@ -12,12 +12,12 @@ import (
 	"github.com/hiveot/hivekit/go/wot/td"
 )
 
-// SseScModule is a transport module for serving the HiveOT SSE-SC transport protocol.
+// SsescServer is a transport module for serving the HiveOT SSE-SC transport protocol.
 // This implements the ITransportModule (and IHiveModule) interface.
 //
 // This transport protocol is build on top of HTTP and is bi-directional.
 // It supports subscribing to events or observing properties.
-type SseScModule struct {
+type SsescServer struct {
 	// Transport base includes the RnR channel for matching request-response messages.
 	transports.TransportModuleBase
 
@@ -48,7 +48,7 @@ type SseScModule struct {
 
 // AddTDForms for connecting to SSE, Subscribe, Observe, Send Requests, read and query
 // using hiveot RequestMessage and ResponseMessage envelopes.
-func (srv *SseScModule) AddTDForms(tdi *td.TD, includeAffordances bool) {
+func (srv *SsescServer) AddTDForms(tdi *td.TD, includeAffordances bool) {
 
 	// TODO: add the hiveot http endpoints
 	//srv.httpBasicServer.AddOps()
@@ -58,7 +58,7 @@ func (srv *SseScModule) AddTDForms(tdi *td.TD, includeAffordances bool) {
 
 // HandleRequest passes the module request messages to the API handler.
 // This has nothing to do with receiving requests over HTTP.
-func (m *SseScModule) HandleRequest(
+func (m *SsescServer) HandleRequest(
 	req *msg.RequestMessage, replyTo msg.ResponseHandler) (err error) {
 
 	// first attempt to procss the when targeted at this module
@@ -81,8 +81,10 @@ func (m *SseScModule) HandleRequest(
 // }
 
 // Start readies the module for use.
-func (m *SseScModule) Start() (err error) {
-	m.TransportModuleBase.Start()
+//
+// yamlConfig todo configure ssepath
+func (m *SsescServer) Start(yamlConfig string) (err error) {
+	m.TransportModuleBase.Start("")
 
 	// TODO: detect if already listening
 	// Add the routes used in SSE connection and subscription requests
@@ -94,7 +96,7 @@ func (m *SseScModule) Start() (err error) {
 }
 
 // Stop any running actions
-func (m *SseScModule) Stop() {
+func (m *SsescServer) Stop() {
 }
 
 // Start a new HiveOT Http/SSE server using the given http server.
@@ -102,22 +104,22 @@ func (m *SseScModule) Stop() {
 //
 // sink is the optional receiver of request, response and notification messages, nil to set later
 // The optional connect handler is invoked when connections appear and disappear
-func NewHiveotSseModule(
+func NewHiveotSsescServer(
 	server transports.IHttpServer,
 	sink modules.IHiveModule,
-	connectHandler transports.ConnectionHandler) *SseScModule {
+	connectHandler transports.ConnectionHandler) *SsescServer {
 
 	ssePath := ssesc.DefaultSseScPath
 
 	httpAddr := server.GetConnectURL()
 	urlParts, _ := url.Parse(httpAddr)
 
-	connectURL := fmt.Sprintf("%s://%s%s", ssesc.HiveotSseScSchema, urlParts.Host, ssePath)
+	connectURL := fmt.Sprintf("%s://%s%s", ssesc.HiveotSsescSchema, urlParts.Host, ssePath)
 
 	// use the RRN message format. Simple passthrough.
 	converter := direct.NewPassthroughMessageConverter()
 
-	m := &SseScModule{
+	m := &SsescServer{
 		httpServer:     server,
 		connectHandler: connectHandler,
 		ssePath:        ssePath,

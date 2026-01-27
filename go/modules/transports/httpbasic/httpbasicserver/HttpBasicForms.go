@@ -1,4 +1,4 @@
-package module
+package httpbasicserver
 
 import (
 	"fmt"
@@ -24,7 +24,7 @@ var HttpKnownOperations = []string{
 // If the method names for get operations is default GET then it is omitted from the form.
 //
 // includeAffordances adds forms for all affordances to be compliant with the specifications.
-func (srv *HttpBasicModule) AddTDForms(tdoc *td.TD, includeAffordances bool) {
+func (srv *HttpBasicServer) AddTDForms(tdoc *td.TD, includeAffordances bool) {
 	// defaults to https://host:port/
 	tdoc.Base = fmt.Sprintf("%s", srv.GetConnectURL())
 
@@ -42,7 +42,7 @@ func (srv *HttpBasicModule) AddTDForms(tdoc *td.TD, includeAffordances bool) {
 
 // AddAffordanceForms adds forms to affordances for interacting using the websocket protocol binding
 // http-basic only supports read-write
-func (srv *HttpBasicModule) AddAffordanceForms(tdoc *td.TD) {
+func (srv *HttpBasicServer) AddAffordanceForms(tdoc *td.TD) {
 	for name, aff := range tdoc.Actions {
 		f := srv.createAffordanceForm(wot.OpInvokeAction, http.MethodPost, tdoc.ID, name)
 		aff.AddForm(f)
@@ -77,7 +77,7 @@ func (srv *HttpBasicModule) AddAffordanceForms(tdoc *td.TD) {
 // for the issue that WoT doesn't support this.
 //
 // The baseURL is the URL
-func (srv *HttpBasicModule) createAffordanceForm(op string, httpMethod string,
+func (srv *HttpBasicServer) createAffordanceForm(op string, httpMethod string,
 	thingID string, name string) td.Form {
 
 	href := fmt.Sprintf("%s/%s/%s/%s", httpbasic.HttpBaseFormOp, op, thingID, name)
@@ -92,7 +92,7 @@ func (srv *HttpBasicModule) createAffordanceForm(op string, httpMethod string,
 
 // createThingLevelForm returns a form for a thing level http operation
 // the href in the form has the format "https://host:port/things/{op}/{thingID}
-func (srv *HttpBasicModule) createThingLevelForm(op string, httpMethod string, thingID string) td.Form {
+func (srv *HttpBasicServer) createThingLevelForm(op string, httpMethod string, thingID string) td.Form {
 	// href is relative to base
 	href := fmt.Sprintf("%s/%s/%s", httpbasic.HttpBaseFormOp, op, thingID)
 	form := td.NewForm(op, href)

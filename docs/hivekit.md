@@ -6,7 +6,7 @@ HiveKit provide building blocks for constructing IoT applications.
 
 ## Status
 
-HiveKit is in early development (Dec 2025).
+HiveKit is in early development (Jan 2026).
 
 It is reworked from a library into a collection of reusable modules for easy construction of IoT applications using module pipelines. An outline of this concept is described below.
 
@@ -14,7 +14,13 @@ HiveKit is not an application but intended to offer the building blocks to easil
 
 ## HiveKit Modules
 
-A HiveKit module can be anything that implements the IHiveKit module interface. Most modules support communication using the HiveOT standard RRN (request-response-notification) envelope. Each module is optionally also a WoT Thing that can be configured and controlled using messages.
+HiveKit building blocks are called 'modules'.
+
+Anything that implements the IHiveModule interface is usable as a HiveKit module. The purpose of the module interface is to standardize the interaction with the module through Request-Response and publish-subscribe Notification messages (RRN). HiveKit combines the strengths of these two messaging patterns into a simple and easy to use messaging framework for module interaction.
+
+RRN messages define an envelope that describes an operation, Thing, and name of the message along with its payload, following the WoT standard.
+
+All modules are identified by their unique module instance ID. Messages can be targeted to a specific module by using the module ID as the thingID. A module can be published as a WoT Thing that can be configured and controlled using messages. To this end it the module API contains a method to export its Thing TM that describes the module properties, events and actions.
 
 Examples of modules:
 
@@ -22,74 +28,131 @@ Examples of modules:
 - a message processor such as a router, filter, logger, etc
 - transport protocol bindings such as WoT HTTP, WSS, CoAP, MQTT
 - an IoT adapter such as ZWave, Insteon, CoAP, Zigbee, Shelley and so on.
+- a consumer
 
-Modules consists of an api, core, factory and tests.
+While HiveKit comes with a set of ready to use modules, 3rd party modules can be incorporated easily as part of a recipe.
 
-The module API defines the native API of the module along with optional protocol specific API definitions. For example a WoT TM (Thing Model), OpenAPI definition, and protobuf definitions.
+Last but not least, modules can be distributes across multiple systems to act as parts of a whole solution.
 
-The module API includes an adapter that converts between the native API and the standardized RRN (Request-Response-Notification) messaging. The RRN messaging envelope is used to communicate between modules regardless where they are located.
+## Types of Modules
 
-The module core implements the module's logic and can be used as-is without HiveOT specific dependencies. The core must implement the native api as defined in the module api section.
+There are two fundamental types of modules, producers and consumers of information. Modules can act as both types. An IoT device is typically a producer while an end-user interacts using a consumer module. In between a producer and consumer there can be many other modules at work that act as a producer, consumer or both.
 
-The module factory provides a standard way to create and use modules through provided configuration. It provides a factory function to create module instances from configuration. These instances support RRN messages for communication between modules to help construct module pipelines.
+Producer modules generate IoT information, typically obtained from sensors, actuators or other means. Producers handle requests for information and requests for actions, respond with the results, and publish notifications of events and updates. Services that publish aggregated, transformed, or enriched information are also producers.
 
-The module tests contains test methods to verify the correct behavior of the module.
+Consumer modules collect information from producers. Consumers publish requests for information and receive responses and notifications. Services that aggregate, transform or enrich information are consumers of that information. A user interface for example is a consumer that presents information.
 
-## The IoT pipeline
+Services are often both a consumer and producer of information. A history service consumes information to store it. It is also a producer to allow retrieval of the stored information. A rules based automation service is a consumer of information that is used in the rules, and a producer of information when rules are triggered. Internally, services should be split into consumer and producer parts, maintaining a separation of concerns.
 
-A pipeline consists of chains of modules, called a recipe, that are linked using their RRN message interface. It is intended to simplify building and testing WoT compatible IoT devices and to provide reusable capabilities for processsing IoT device information.
+Transport modules are a class of modules whose purpose is to transport a request from consumer to producer, return the response, and transport notifications from producers to subscribed consumers without modifying the information. Most transport module offer two submodules, a client and a server. The distinction between a client and server module is purely in who initiates a connection and who serves the connection. Producers and consumers can exist on either side of a connection. This implies that a both sides of transport connection can send and receive requests, responses and notifications. Transport modules therefore act as producers for consumers, and consumers for producers.
 
-While HiveKit comes with a set of modules, 3rd party modules can be incorporated easily as part of a recipe.
+Middleware modules are a class of modules whose purpose is to analyze, filter and route messages. For example, logging, authorizing, routing are middleware tasks. These modules act as producers for consumers and consumers for producers.
 
-A HiveOT module receives messages, processes them and passes them on to the next module in the pipeline. Modules are supposed to have a single responsibility, keeping them lightweight and simple. More complex modules can be created linking them into pipelines. HiveOT modules are capable of sending and receiving both data and control message streams between pipeline modules.
+## Information flows
 
-Modules have one or more message inputs and one or more message outputs. A module that generates messages is called a source. A module that consumes messages is a sink. Service modules often provide both source and sink capabilities.
+The information flows between producers and consumers are the request flow, response flow and notification flow:
 
-Types of streams in the pipeline:
+- The request flow consists of request messages flowing from consumers to producers.
+- The response flow consists of response messages flowing from producers to consumers.
+- The notification flow consists of notification messages flowing from producers to consumers.
 
-- A unidirectional data stream from source to sink, passing events and property updates. This supports fan-out with multiple receivers for data.
+This is represented in the module API that must accomodate these flows between modules.
 
-- A bidirectional control stream for actions and property configuration. Control streams are point-to-point between source and sink but can be relayed and processed by other modules.
+When a consumer publishes a request, the request has to be accepted by a module acting as a producer. Thus a consumer always links to a producer and vice-versa.
 
-Module linking can connect in-process or out-of-process modules. In-process modules communicate using the efficient RRN messages. Modules running on different processes or devices use messaging modules that translate the RRN message format to a specific protocol such as WoT Websocket, MQTT, CoAP or other supported messaging protocol.
+Transport and middleware modules thus link with consumers acting as a producer and link with producers acting as a consumer.
+
+### Producer
+
+To act as a producer, the module must implement a HandleRequest call. When receiving a request it must process it and send a response to the provided callback. The response can be send asynchronously at any time, even before HandleRequest returns. If the request cannot be processed it must be forwarded to the registered sink. If it cannot be forwarded an error must be returned indicating that the request cannot be fulfilled.
+
+Producers publish notifications. There are two criteria for receiving these notifications, a subscription and a callback handler. HiveOT puts the subscription handling at the inter-process transport boundary (eg, protocol binding), therefore transport modules handle subscription request messages. This aligns with WoT that defines subscription requests as part of the protocol binding, and with pub/sub protocols such as MQTT where subscription is handled by the protocol server. Producers themselves therefore do not need to implement subscription handling.
+
+Middleware modules act as a producer that simply forward requests until a producer is received that can process the request.
+
+### Consumer
+
+When acting as a consumer, a module publishes a request to a producer. It therefore must link to a producer so it can invoke its HandleRequest. The API for this is: SetSink(producer).
+
+Consumers subscribe to notifications by publishing a Subscribe request message. This is passed down the module chain until a transport module is received that registers the subscription. If no module in the chain handles subscriptions then this fails with an error.
+
+Consumers can receiving notifications from producers that reside in-process by registering a notification callback handler with the producer using its SetNotificationHandler. Note that a module API only accepts a single notification callback handler. This callback receives all notifications. It is up to the consumer to filter the desired notification.
+
+Since consumers can act as a producer as part of a chain (most do) a received notification can be passed up the pipeline by using the callback registered by the previous consumer in the chain. Unless the chain is long this should be fairly efficient. If the chain is long with many in-process modules then a helper module can be used that acts as a router for notifications. This notification router is a potential future module that will be added when the need arises.
+
+As consumers can must also receive asynchronous notifications. This is accomplished by invoking a Subscribe request on the sink, providing a callback with the notification messages.
+
+## Anatomy Of A Module
+
+A module can be broken down into separate responsibilities, each can be implemented with little code and effort. A simple base class implements the boilerplate for the bulk of this. The core business logic and conversion between native API and RRN messages must be coded however.
+
+1. The module factory provides a standard way to create and use modules through provided configuration. It provides a factory function to create module instances from configuration and optionally serves the TM and possibly other formats such as REST and protobuf definitions.
+
+2. The module core implements the module's business logic and can be used as-is without HiveOT specific dependencies. The core must implement the native api as defined in the module api section.
+
+3a. The messaging request server receives requests and converts them to a native API call for the core. Responses are encoded into a standard RRN response message envelope and passed to the provided callback.
+
+When requests messages are addressed to a Thing not managed by the module then the request is simply forwarded to next producer in the chain, set with 'SetSink'.
+
+3b. Optionally additional messaging handlers, such as http server handlers, can are included if the module supports other protocols such as HTTP/REST.
+
+4. The subscription server tracks subscription requests and invokes the callback when a matching notification is received from the core.
+
+Similar to the request handler, when a subscription request is addressed to a Thing not managed by the module, the request is simply forwarded to the next producer in the chain.
+
+5. A messaging client translate from a native API to RRN messages. The client is typically paired with a transport client as its sink for delivery of request to the remote module.
+
+5b. Optionally additional messaging clients can exists to facilitate interaction using other protocols such has REST based requests.
+
+6. Last but not least the module tests contains test methods to verify the correct behavior of the module including its handlers and clients.
+
+## Linking Modules Into A Pipeline
+
+A core capability of modules is the ability to chain them together to form a pipeline. Pipelines offer application level functionality. A pipeline can operate on a single computer system or include modules across multiple computer systems. This allows for creating a powerful distribute IoT solution with small lightweight modules that require few resources and are simple to maintain.
+
+A pipeline is described by a recipe. The recipe defines which modules are used and how they are linked using their RRN message interface. It is intended to simplify building and testing WoT compatible IoT devices and to provide reusable capabilities for processsing IoT device information.
+
+Creating pipelines can be done manually by programatically linking modules, or dynamically by providing a recipe to the pipeline service. A dynamic pipeline can be reconfigured in a live system to adapt to changing needs of the environment based on the circomstances.
+
+When two modules are linked, the first module is called the consuming module and the module it attaches to is called the producer module. The consuming module sends requests, receives responses and subscribes to notifications. The producer module figures out how to resolve the request it received and returns the response and notifications.
+
+In the linking process, the consuming module simply registers the producer module it is linked to as its sink.
 
 Modules can be linked in several ways:
 
-1. At compile time by adding a sink onto a source. Chain multiple modules to create a pipeline. In golang this creates a single binary that runs stand-alone.
-2. Using the pipeline runtime module to link modules based on the provided yaml recipe. The pipeline recipe can be changed without the need to recompile. This is limited to the use of registered modules available in the pipeline runtime.
-3. By compiling a pipeline using the provided yaml recipe using the hiveflow CLI. In golang this creates a single binary that has its recipe and required modules embedded.
-4. Using messaging modules the pipeline can be linked to other pipelines running elsewhere.
+1. At application compile time the application creates the module instances and sets the producers as sinks to the consumers in the desired order, creating a pipeline. In golang this creates a single binary that can run as a stand-alone application. This is made available in phase 1.
+2. Using the pipeline service runtime to link modules based on the provided yaml recipe. The pipeline recipe can be changed without the need to recompile. This is limited to the use of modules available in the pipeline runtime. This is phase 2.
+3. By compiling a pipeline using the provided yaml recipe using the hiveflow CLI. In golang this creates a single binary that has its recipe and required modules embedded. This effectively generates an application at runtime using the given recipe. This is made available in phase 3.
+
+Using messaging modules the pipeline can be linked to other modules running elsewhere making a distributed application.
 
 Testing is facilitated by providing a testing runtime with tools to generate devices, consumers and messages. Modules can be tested in isolation or as part of a pipeline.
 
 ### HiveOT Module API
 
-All modules support the HiveOT module API defined as IHiveModule. This API supports both the data stream and the control stream. Depending on the programming language static or dynamic linking can be used to implement the callback hooks.
+All (sub)modules support the HiveOT module API defined as IHiveModule. This API defines how to handle requests, responses and subscribe to notifications. Depending on the programming language static or dynamic linking can be used to implement the callback hooks.
 
 ```go
-// The golang HiveOT module interface  (proposed)
+// The golang HiveOT module interface. The JS and Python implementation will offer something similar.
 type IHiveModule interface {
-   // GetTM returns the module's [W3C WoT Thing Model](https://www.w3.org/TR/wot-thing-description11/#thing-model) in JSON describing its properties, actions and events. This is primarily intended for use by the pipeline runtime that converts it to a [TD](https://www.w3.org/TR/wot-thing-description11/).
-   // The TM can be obtained after a successful start. If the module does not support a TM then this returns an empty string.
-   GetTM() string
+  	// GetModuleID returns module's ID.
+	GetModuleID() string
 
-   // HandleRequest processes or forwards a request message. This returns a response
-   // containing the delivery status and optionally a result.
-   HandleRequest(request *RequestMessage) *ResponseMessage
+	// GetTM returns the module's [W3C WoT Thing Model](https://www.w3.org/TR/wot-thing-description11/#thing-model)
+	GetTM() string
 
-   // HandleNotification processes or forwards a notification message.
-   // Notification messages consists of subscribed events and observed properties.
-   HandleNotification(*NotificationMessage)
+	// HandleRequest [producer] processes or forwards a request downstream.
+	HandleRequest(request *RequestMessage, replyTo(resp *ResponseMessage) error
 
-   // AddSink sets the destination sink to forward messages to, to send the processing result to, or both.
-   // Modules can support a single or multiple sinks. If no more sinks can be added an error is returned.
-   // AddSink can be invoked before or after start is called.
-   AddSink(sink IHiveModule) error
+	// Set the handler of notifications produced (or forwarded) by this module
+	SetNotificationHandler(consumer msg.NotificationHandler)
 
-   // Start readies the module for use using the given yaml configuration.
-   // Start must be invoked before passing messages.
-   Start(yamlConfig string) error
-   Stop()
+	// SetSink set the given module as the producer for requests and notifications.
+	SetSink(producer IHiveModule)
+
+	// Start readies the module for use using the given yaml configuration.
+	Start(yamlConfig string) error
+	Stop()
 }
 ```
 
@@ -97,14 +160,6 @@ type IHiveModule interface {
 
 One of the goals of HiveKit is to make it easy to add compatible modules.
 
-This is accomplished by:
+To develop a module implement its IHiveModule interface. The provided ModuleBase implements the little boilerplate that is needed. The HandleRequest method is the most important method to implement. Exposing a TM is recommended for IoT devices.
 
-1. Support embedded modules through a simple module API for supported languages. Golang modules are embedded at build time, javascript and python modules can be embedded at build or runtime.
-2. Support stand-alone modules through a messaging interface. The messaging interface can be a WoT compliant messaging interface or use a high-efficiency IPC transport such as gRPC, unix pipes or others. The messages it carries are the HiveOT standardized request, response and notification message envelopes or one of the WoT message formats such as the websocket messages.
-3. Modules are described using WoT TMs (Thing Models). Each module is also a WoT Thing and can process messages forwarded to it as part of the pipeline.
-4. Complex modules can be configured through WoT properties as described in its TM.
-
-To develop a module, implement its IHiveModule interface and hook it up as the sink of the previous module, or the messaging server module in case of standalone operation. Received messages are passed to the HandleRequest/HandleNotification methods and responses are returned to the sender, which passes it further down the pipeline.
-
-To pass output of the module to the next in the pipeline use its AddSink method.
-The pipeline runtime module can do this automatically from a provided configuration.
+To use a module connect it as the sink of the previous module in the chain. In case of an IoT device the previous module can be one of the messaging server modules. The server passes requests to the HandleRequest method which the module must implement, and responses are returned to the sender. Notifications emitted by the module are passed to the registered notification handler which is the server module.

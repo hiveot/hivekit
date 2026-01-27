@@ -21,17 +21,8 @@ type ServerConnectionBase struct {
 	// The connection identification
 	ConnectionID string
 
-	// ConnectHandler is the handler to invoke when a connection status changes
-	ConnectHandler ConnectionHandler
-
-	// Remote address of the connection
-	remoteAddr string
-
-	// property observations made by the client
-	observations Subscriptions
-
-	// event subscription made by the client
-	subscriptions Subscriptions
+	// connectHandler is the handler to invoke when a connection status changes
+	connectHandler ConnectionHandler
 
 	// SendNotificationHandler msg.NotificationHandler
 	// connections clients are asynchronous
@@ -40,11 +31,24 @@ type ServerConnectionBase struct {
 	// SendResponseHandler msg.ResponseHandler
 	isConnected atomic.Bool
 
+	// notificationHandler registered by the consumer of this module
+	// (producers produce, not receive notifications)
+	notificationHandler msg.NotificationHandler
+
+	// property observations made by the client
+	observations Subscriptions
+
+	// Remote address of the connection
+	remoteAddr string
+
+	// Connection sink that handles the incoming requests
+	Sink modules.IHiveModule
+
+	// event subscription made by the client
+	subscriptions Subscriptions
+
 	// Mux to update subscriptions, connection status
 	Mux sync.RWMutex
-
-	// Connection sink that handles the incoming messages
-	Sink modules.IHiveModule
 }
 
 // ConnectWithToken is defined in IConnection and does not apply to server side connections.
@@ -57,12 +61,31 @@ func (c *ServerConnectionBase) Disconnect() {
 	c.isConnected.Store(false)
 }
 
+// ForwardNotification (output) is a helper function to pass notifications to the
+// registered callback, if one is available. If none is registered this does nothing
+// Note that the handler is the upstream consumer that runs on the server, likely a gateway.
+func (m *ServerConnectionBase) ForwardNotification(notif *msg.NotificationMessage) {
+	if m.notificationHandler == nil {
+		slog.Warn("ForwardNotification (server): no handler set. Notification is dropped.",
+			"module", m.ClientID,
+			"operation", notif.Operation,
+			"name", notif.Name,
+		)
+		return
+	}
+	m.notificationHandler(notif)
+}
 func (c *ServerConnectionBase) GetClientID() string {
 	return c.ClientID
 }
 
 func (c *ServerConnectionBase) GetConnectionID() string {
 	return c.ConnectionID
+}
+func (c *ServerConnectionBase) GetConnectHandler() ConnectionHandler {
+	c.Mux.RLock()
+	defer c.Mux.RUnlock()
+	return c.connectHandler
 }
 
 // HasSubscription returns true if this connection has subscribed to the given
@@ -117,6 +140,10 @@ func (c *ServerConnectionBase) IsConnected() bool {
 	return c.isConnected.Load()
 }
 
+func (c *ServerConnectionBase) ObserveProperty(dThingID, name string, corrID string) {
+	c.observations.Subscribe(dThingID, name, corrID)
+}
+
 // func (c *ConnectionBase) SendNotification(msg *msg.NotificationMessage) error {
 // 	c.Mux.Lock()
 // 	h := c.SendNotificationHandler
@@ -152,7 +179,14 @@ func (c *ServerConnectionBase) IsConnected() bool {
 func (c *ServerConnectionBase) SetConnectHandler(h ConnectionHandler) {
 	c.Mux.Lock()
 	defer c.Mux.Unlock()
-	c.ConnectHandler = h
+	c.connectHandler = h
+}
+
+// Set the handler of notifications produced (or forwarded) by this module
+func (c *ServerConnectionBase) SetNotificationHandler(consumer msg.NotificationHandler) {
+	c.Mux.Lock()
+	defer c.Mux.Unlock()
+	c.notificationHandler = consumer
 }
 
 // Set the destination sink for received messages
@@ -165,9 +199,6 @@ func (c *ServerConnectionBase) SetSink(sink modules.IHiveModule) {
 // Subscribe to an event.
 func (c *ServerConnectionBase) SubscribeEvent(dThingID, name string, corrID string) {
 	c.subscriptions.Subscribe(dThingID, name, corrID)
-}
-func (c *ServerConnectionBase) ObserveProperty(dThingID, name string, corrID string) {
-	c.observations.Subscribe(dThingID, name, corrID)
 }
 func (c *ServerConnectionBase) UnsubscribeEvent(dThingID, name string) {
 	c.subscriptions.Unsubscribe(dThingID, name)

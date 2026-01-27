@@ -1,4 +1,4 @@
-package module
+package wssserver
 
 import (
 	"fmt"
@@ -16,8 +16,8 @@ import (
 	"github.com/hiveot/hivekit/go/utils"
 )
 
-// WssModule is a transport module that serves Websocket connections over http.
-type WssModule struct {
+// WssServer is a transport module that serves Websocket connections over http.
+type WssServer struct {
 	transports.TransportModuleBase
 	// this handles request for this module
 	msgAPI *WssRrnHandler
@@ -44,7 +44,7 @@ type WssModule struct {
 
 // HandleRequest passes the module request messages to the API handler.
 // This has nothing to do with receiving requests over websockets.
-func (m *WssModule) HandleRequest(
+func (m *WssServer) HandleRequest(
 	req *msg.RequestMessage, replyTo msg.ResponseHandler) (err error) {
 
 	// first attempt to procss the when targeted at this module
@@ -67,7 +67,7 @@ func (m *WssModule) HandleRequest(
 //
 // serverRequestHandler and serverResponseHandler are used as handlers for incoming
 // messages.
-func (m *WssModule) Serve(w http.ResponseWriter, r *http.Request) {
+func (m *WssServer) Serve(w http.ResponseWriter, r *http.Request) {
 	//An active session is required before accepting the request. This is created on
 	//authentication/login. Until then connections are blocked.
 	// rp, err := m.httpServer.GetRequestParams(r)
@@ -124,7 +124,10 @@ func (m *WssModule) Serve(w http.ResponseWriter, r *http.Request) {
 }
 
 // Start listening for incoming websocket connections
-func (m *WssModule) Start() (err error) {
+//
+//	yamlConfig: todo, wssPath
+func (m *WssServer) Start(yamlConfig string) (err error) {
+
 	slog.Info("Starting websocket module, Listening on: " + m.GetConnectURL())
 
 	if m.GetSink() == nil {
@@ -133,7 +136,7 @@ func (m *WssModule) Start() (err error) {
 	}
 
 	// TODO: detect if already listening
-	err = m.TransportModuleBase.Start()
+	err = m.TransportModuleBase.Start("")
 	// create routes
 	router := m.httpServer.GetProtectedRoute()
 	router.Get(m.wssPath, m.Serve)
@@ -147,7 +150,7 @@ func (m *WssModule) Start() (err error) {
 }
 
 // Stop disconnects clients and remove connection listening
-func (m *WssModule) Stop() {
+func (m *WssServer) Stop() {
 	slog.Info("Stopping websocket module")
 	m.CloseAll()
 	router := m.httpServer.GetProtectedRoute()
@@ -160,7 +163,7 @@ func (m *WssModule) Stop() {
 //
 // httpServer is the http server the websocket is using
 // sink is the optional receiver of request, response and notification messages, nil to set later
-func NewHiveotWssModule(httpServer transports.IHttpServer, sink modules.IHiveModule) *WssModule {
+func NewHiveotWssServer(httpServer transports.IHttpServer, sink modules.IHiveModule) *WssServer {
 
 	httpURL := httpServer.GetConnectURL()
 	urlParts, err := url.Parse(httpURL)
@@ -168,7 +171,7 @@ func NewHiveotWssModule(httpServer transports.IHttpServer, sink modules.IHiveMod
 		panic("NewHiveotWssModule: Http server has invalid URL")
 	}
 
-	m := &WssModule{
+	m := &WssServer{
 		httpServer:           httpServer,
 		msgConverter:         direct.NewPassthroughMessageConverter(),
 		subprotocol:          wss.SubprotocolHiveotWSS,
@@ -191,13 +194,13 @@ func NewHiveotWssModule(httpServer transports.IHttpServer, sink modules.IHiveMod
 //
 // httpServer is the http server the websocket is using
 // sink is the required receiver of request, response and notification messages, nil to set later but before start.
-func NewWotWssModule(httpServer transports.IHttpServer, sink modules.IHiveModule) *WssModule {
+func NewWotWssServer(httpServer transports.IHttpServer, sink modules.IHiveModule) *WssServer {
 	httpURL := httpServer.GetConnectURL()
 	urlParts, err := url.Parse(httpURL)
 	if err != nil {
 		panic("NewWotWssModule: Http server has invalid URL")
 	}
-	m := &WssModule{
+	m := &WssServer{
 		httpServer:   httpServer,
 		msgConverter: converter.NewWotWssMsgConverter(),
 		subprotocol:  wss.SubprotocolWotWSS,

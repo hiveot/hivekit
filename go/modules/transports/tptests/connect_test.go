@@ -15,13 +15,13 @@ import (
 	"github.com/hiveot/hivekit/go/modules/certs/module/selfsigned"
 	"github.com/hiveot/hivekit/go/modules/transports"
 	"github.com/hiveot/hivekit/go/modules/transports/clients"
-	httpbasicmodule "github.com/hiveot/hivekit/go/modules/transports/httpbasic/module"
+	"github.com/hiveot/hivekit/go/modules/transports/httpbasic/httpbasicserver"
 	"github.com/hiveot/hivekit/go/modules/transports/httpserver"
 	"github.com/hiveot/hivekit/go/modules/transports/httpserver/module"
 	ssesc "github.com/hiveot/hivekit/go/modules/transports/ssesc"
-	ssescmodule "github.com/hiveot/hivekit/go/modules/transports/ssesc/module"
-	wssserver "github.com/hiveot/hivekit/go/modules/transports/wss"
-	wssmodule "github.com/hiveot/hivekit/go/modules/transports/wss/module"
+	ssescserver "github.com/hiveot/hivekit/go/modules/transports/ssesc/server"
+	"github.com/hiveot/hivekit/go/modules/transports/wss"
+	"github.com/hiveot/hivekit/go/modules/transports/wss/wssserver"
 	"github.com/hiveot/hivekit/go/msg"
 	"github.com/hiveot/hivekit/go/utils"
 	"github.com/hiveot/hivekit/go/wot"
@@ -44,7 +44,7 @@ const (
 	testServerHiveotSseScURL = "sse://localhost:9445" + ssesc.DefaultSseScPath
 
 	//  testServerHiveotWssURL = "wss://localhost:9445" + wssserver.DefaultHiveotWssPath
-	testServerWotWssURL = "wss://localhost:9445" + wssserver.DefaultWotWssPath
+	testServerWotWssURL = "wss://localhost:9445" + wss.DefaultWotWssPath
 
 	// testServerMqttWssURL = "mqtts://localhost:9447"
 )
@@ -62,11 +62,12 @@ var certBundle = selfsigned.CreateTestCertBundle(utils.KeyTypeED25519)
 //
 // This uses the server to generate an auth token.
 // This panics if a client cannot be created.
-func NewTestClient(clientID string, serverURL string, dummyauthn *DummyAuthenticator) (transports.IConnection, string) {
+func NewTestClient(clientID string, serverURL string, dummyauthn *DummyAuthenticator) (clients.IClientSink, string) {
 	caCert := certBundle.CaCert
+
 	token := dummyauthn.AddClient(clientID, clientID)
 
-	cl, err := clients.NewClient(serverURL, caCert, testTimeout)
+	cl, err := clients.NewClientSink(serverURL, caCert, testTimeout)
 	if err == nil {
 		err = cl.ConnectWithToken(clientID, token)
 	}
@@ -81,8 +82,8 @@ func NewTestClient(clientID string, serverURL string, dummyauthn *DummyAuthentic
 //
 // This panics if a client cannot be created
 func NewTestAgent(clientID string, serverURL string, dummyauthn *DummyAuthenticator) (transports.IConnection, *clients.Agent, string) {
-	cc, token := NewTestClient(clientID, serverURL, dummyauthn)
 
+	cc, token := NewTestClient(clientID, serverURL, dummyauthn)
 	agent := clients.NewAgent(clientID, cc, nil, nil, nil, nil, testTimeout)
 	return cc, agent, token
 }
@@ -146,17 +147,17 @@ func StartTransportModule(sink modules.IHiveModule) (
 	switch defaultProtocol {
 	case transports.ProtocolTypeHTTPBasic:
 
-		srv = httpbasicmodule.NewHttpBasicModule(httpServer, sink)
-		err = srv.Start()
+		srv = httpbasicserver.NewHttpBasicServer(httpServer, sink)
+		err = srv.Start("")
 		// http only, no subprotocol bindings
 
 	case transports.ProtocolTypeHiveotSSE:
-		srv = ssescmodule.NewHiveotSseModule(httpServer, sink, nil)
-		err = srv.Start()
+		srv = ssescserver.NewHiveotSsescServer(httpServer, sink, nil)
+		err = srv.Start("")
 
 	case transports.ProtocolTypeWotWSS:
-		srv = wssmodule.NewWotWssModule(httpServer, sink)
-		err = srv.Start()
+		srv = wssserver.NewWotWssServer(httpServer, sink)
+		err = srv.Start("")
 
 	default:
 		err = errors.New("unknown protocol name: " + defaultProtocol)

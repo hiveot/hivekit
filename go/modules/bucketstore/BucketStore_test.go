@@ -177,7 +177,7 @@ func addDocs(store bucketstore.IBucketStore, bucketID string, count int) error {
 
 func startModule(t *testing.T) (*module.BucketStoreModule, func(), error) {
 	m := module.NewBucketStoreModule(storageRoot)
-	err := m.Start()
+	err := m.Start("")
 	require.NoError(t, err)
 	return m, func() {
 		m.Stop()

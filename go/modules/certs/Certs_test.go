@@ -29,7 +29,7 @@ func startModule(t *testing.T) (*module.CertsModule, func(), error) {
 	_ = os.RemoveAll(TestCertDir)
 
 	m := module.NewCertsModule(testCertDir)
-	err := m.Start()
+	err := m.Start("")
 	require.NoError(t, err)
 	return m, func() {
 		m.Stop()

@@ -110,6 +110,9 @@ func (cl *HttpBasicClient) GetDefaultForm(op, thingID, name string) (f *td.Form)
 	// everything else has no default form, so falls back to hiveot protocol endpoints
 	return f
 }
+func (cl *HttpBasicClient) GetModuleID() string {
+	return cl.GetClientID()
+}
 
 // Return the TLS client used by this connection
 func (cl *HttpBasicClient) GetTlsClient() transports.ITlsClient {
@@ -117,10 +120,24 @@ func (cl *HttpBasicClient) GetTlsClient() transports.ITlsClient {
 	defer cl.mux.RUnlock()
 	return cl.tlsClient
 }
+func (cl *HttpBasicClient) GetTM() string {
+	return ""
+}
+
+// clients send requests to the server
+func (cl *HttpBasicClient) HandleRequest(request *msg.RequestMessage, replyTo msg.ResponseHandler) error {
+	err := cl.SendRequest(request, replyTo)
+	return err
+}
 
 // IsConnected return whether the return channel is connection, eg can receive data
 func (cl *HttpBasicClient) IsConnected() bool {
 	return cl.isConnected.Load()
+}
+
+// SendNotification is not supported in http-basic
+func (cl *HttpBasicClient) SendNotification(msg *msg.NotificationMessage) {
+	slog.Error("HttpBasic doesn't support sending notifications")
 }
 
 // SendRequest sends a request over http message using the form based path and passes
@@ -289,11 +306,6 @@ func (cl *HttpBasicClient) SendResponse(resp *msg.ResponseMessage) error {
 	return errors.New("HttpBasic doesn't support sending async responses")
 }
 
-// SendNotification is not supported in http-basic
-func (cl *HttpBasicClient) SendNotification(msg *msg.NotificationMessage) error {
-	return errors.New("HttpBasic doesn't support sending notifications")
-}
-
 // SetConnected sets the sub-protocol connection status
 func (cl *HttpBasicClient) SetConnected(isConnected bool) {
 	cl.isConnected.Store(isConnected)
@@ -304,11 +316,28 @@ func (cl *HttpBasicClient) SetConnectHandler(cb transports.ConnectionHandler) {
 	cl.appConnectHandlerPtr.Store(&cb)
 }
 
+// Does reports an error as http clients dont receive notifications
+func (cl *HttpBasicClient) SetNotificationHandler(cb msg.NotificationHandler) {
+	slog.Warn("SetNotificationHandler: HttpBasicClients dont handle notifications",
+		"clientID", cl.GetClientID())
+}
+
 // SetSink set the application module that handles async notifications, requests and responses
-func (cl *HttpBasicClient) SetSink(sink modules.IHiveModule) {
+func (cl *HttpBasicClient) SetSink(sink modules.IHiveModule, _ msg.NotificationHandler) {
 	cl.mux.Lock()
 	cl.sink = sink
 	cl.mux.Unlock()
+}
+
+// start doesn't do anything. Use ConnectWith... to connect.
+// TBD: maybe this should connect using config?
+func (cl *HttpBasicClient) Start(yamlConfig string) error {
+	return nil
+}
+
+// stop closes the connection
+func (cl *HttpBasicClient) Stop() {
+	cl.Close()
 }
 
 // NewHttpBasicClient creates a new instance of the WoT compatible http-basic
@@ -326,7 +355,7 @@ func (cl *HttpBasicClient) SetSink(sink modules.IHiveModule) {
 //	timeout for waiting for response. 0 to use the default.
 func NewHttpBasicClient(
 	baseURL string, caCert *x509.Certificate,
-	sink modules.IHiveModule, getForm transports.GetFormHandler,
+	getForm transports.GetFormHandler,
 	timeout time.Duration) *HttpBasicClient {
 
 	urlParts, err := url.Parse(baseURL)
@@ -344,7 +373,6 @@ func NewHttpBasicClient(
 
 	cl := HttpBasicClient{
 		getForm:   getForm,
-		sink:      sink,
 		timeout:   timeout,
 		tlsClient: tlsClient,
 	}

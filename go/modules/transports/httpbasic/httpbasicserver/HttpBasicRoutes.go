@@ -1,4 +1,4 @@
-package module
+package httpbasicserver
 
 import (
 	"fmt"
@@ -21,7 +21,7 @@ import (
 // Everything else should be added by the sub-protocols.
 //
 // Routes are added by (sub)protocols such as http-basic, sse and wss.
-func (m *HttpBasicModule) createRoutes() {
+func (m *HttpBasicServer) createRoutes() {
 
 	//--- public routes do not require an authenticated session
 	pubRoutes := m.httpServer.GetPublicRoute()
@@ -59,7 +59,7 @@ func (m *HttpBasicModule) createRoutes() {
 //
 //	base is the base path on which to serve the static files, eg: "/static"
 //	staticRoot is the root directory where static files are kept. This must be a full path.
-func (m *HttpBasicModule) EnableStatic(base string, staticRoot string) error {
+func (m *HttpBasicServer) EnableStatic(base string, staticRoot string) error {
 	protRoutes := m.httpServer.GetProtectedRoute()
 	if protRoutes == nil || base == "" {
 		return fmt.Errorf("no protected route or invalid parameters")
@@ -83,7 +83,7 @@ func (m *HttpBasicModule) EnableStatic(base string, staticRoot string) error {
 // onHttpAffordanceOperation converts the http request to a request message and pass it to the
 // registered request handler.
 // This read request params for {operation}, {thingID} and {name}
-func (m *HttpBasicModule) onHttpAffordanceOperation(w http.ResponseWriter, r *http.Request) {
+func (m *HttpBasicServer) onHttpAffordanceOperation(w http.ResponseWriter, r *http.Request) {
 	var output any
 	var handled bool
 
@@ -135,13 +135,13 @@ func (m *HttpBasicModule) onHttpAffordanceOperation(w http.ResponseWriter, r *ht
 }
 
 // onHttpThingOperation converts the http request to a request message and pass it to the registered request handler
-func (m *HttpBasicModule) onHttpThingOperation(w http.ResponseWriter, r *http.Request) {
+func (m *HttpBasicServer) onHttpThingOperation(w http.ResponseWriter, r *http.Request) {
 	// same same
 	m.onHttpAffordanceOperation(w, r)
 }
 
 // onHttpPing with http handler returns a pong response
-func (m *HttpBasicModule) onHttpPing(w http.ResponseWriter, r *http.Request) {
+func (m *HttpBasicServer) onHttpPing(w http.ResponseWriter, r *http.Request) {
 	// simply return a pong message
 	utils.WriteReply(w, true, "pong", nil)
 }

@@ -1,4 +1,4 @@
-package module
+package wssserver
 
 import (
 	"github.com/hiveot/hivekit/go/modules/transports/wss"
@@ -12,7 +12,7 @@ import (
 //
 // 'includeAffordances' adds forms to all affordances to be compliant with the specifications.
 // This is a massive waste of space in the TD.
-func (srv *WssModule) AddTDForms(tdoc *td.TD, includeAffordances bool) {
+func (srv *WssServer) AddTDForms(tdoc *td.TD, includeAffordances bool) {
 
 	// 1 form for all operations
 	form := td.NewForm("", srv.GetConnectURL(), wss.SubprotocolWotWSS)
@@ -34,7 +34,7 @@ func (srv *WssModule) AddTDForms(tdoc *td.TD, includeAffordances bool) {
 }
 
 // AddAffordanceForms adds forms to affordances for interacting using the websocket protocol binding
-func (srv *WssModule) AddAffordanceForms(tdoc *td.TD) {
+func (srv *WssServer) AddAffordanceForms(tdoc *td.TD) {
 	href := srv.GetConnectURL()
 	for name, aff := range tdoc.Actions {
 		_ = name

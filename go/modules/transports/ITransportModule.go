@@ -51,7 +51,8 @@ type ITransportModule interface {
 	// GetConnectURL returns connection URL of the server
 	GetConnectURL() string
 
-	// SendNotification [agent] sends a notification over the connection to a consumer.
+	// SendNotification [agent] sends a notification over the connection to
+	// subscribed consumers.
 	SendNotification(notif *msg.NotificationMessage)
 
 	// SendRequest [consumer] sends a request to a connected agent.

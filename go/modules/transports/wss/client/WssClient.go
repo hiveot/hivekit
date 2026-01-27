@@ -25,12 +25,23 @@ import (
 )
 
 // WssClient manages the connection to a websocket server.
-// This implements the IConnection interface.
+// This implements the IConnection and IHiveModule interfaces.
+//
+// Usage 1 - wssclient is the sink for consumer and producer
+//
+//	requests:      consumer -> wssclient = wssserver -> producer
+//	notifications: consumer <- wssclient = wssserver <- producer
+//
+// Usage 2 - wssserver is the sink for a server side consumer (gateway -> thing)
+//
+//	requests:      consumer -> wssserver = wssclient -> producer
+//	notifications: consumer <- wssserver = wssclient <- producer
 //
 // This supports multiple message formats using a 'messageConverter'. The hiveot
 // converts is a straight passthrough of RequestMessage and ResponseMessage, while
 // the wotwssConverter maps the messages to the WoT websocket specification.
 type WssClient struct {
+	modules.HiveModuleBase
 
 	// handler for requests send by clients
 	appConnectHandlerPtr atomic.Pointer[transports.ConnectionHandler]
@@ -57,9 +68,11 @@ type WssClient struct {
 	// all responses are passed here to support response callbacks
 	rnrChan *msg.RnRChan
 
-	// destination for unhandled notifications, requests and responses
-	// This is intended to be the application module the client connects to.
-	sink modules.IHiveModule
+	// Destination for incoming requests?
+	// FIXME: do clients have sinks?
+	// server -> client -> ?
+	// app module [request] -> client -> server -> [request] -> module
+	//              [notif] <- client <- server <- [notif] <- module
 
 	// http2 client for posting messages
 	tlsClient transports.ITlsClient
@@ -162,6 +175,12 @@ func (cl *WssClient) GetTlsClient() *http.Client {
 	return cl.tlsClient.GetHttpClient()
 }
 
+// clients send requests to the server
+func (cl *WssClient) HandleRequest(request *msg.RequestMessage, replyTo msg.ResponseHandler) error {
+	err := cl.SendRequest(request, replyTo)
+	return err
+}
+
 // HandleWssMessage processes the websocket message received from the server.
 // This decodes the message into a request or response message and passes
 // it to the application handler.
@@ -193,56 +212,34 @@ func (cl *WssClient) HandleWssMessage(raw []byte) {
 		}
 	}
 	if notif != nil {
-		// consumer receives a notification (when subscribe to properties or events)
-		if cl.sink == nil {
-			slog.Error("HandleWssMessage: no sink set. Notification is dropped.",
-				"clientID", clientID,
-				"operation", notif.Operation,
-				"name", notif.Name,
-			)
-		} else {
-			// don't block the receiver flow
-			go cl.sink.HandleNotification(notif)
-		}
+		// client receives a notification message
+		// pass it on to the registered handler (not the sink) of the subscriber
+		go cl.ForwardNotification(notif)
 	} else if req != nil {
 		var err error
-		// agent receives a request (using reverse connection)
-		if cl.sink == nil {
-			err = fmt.Errorf("HandleWssMessage: no sink set. Request is dropped.")
-			slog.Error("HandleWssMessage: no sink set. Request is dropped.",
-				"clientID", clientID,
-				"operation", req.Operation,
-				"name", req.Name,
-				"senderID", req.SenderID,
-			)
-		} else {
-			err = cl.sink.HandleRequest(req, func(resp *msg.ResponseMessage) error {
-				// return the response to the caller
-				err2 := cl.SendResponse(resp)
-				return err2
-			})
-			// an error means the request could not be handled
-		}
-
-		// responses are optional
+		// client receives a request (using reverse connection)
+		// pass it on to the linked producer.
+		err = cl.ForwardRequest(req, func(resp *msg.ResponseMessage) error {
+			// return the response to the caller
+			err2 := cl.SendResponse(resp)
+			return err2
+		})
+		// an error means the request could not be delivered
 		if err != nil {
 			resp := req.CreateErrorResponse(err)
 			_ = cl.SendResponse(resp)
 		}
 	} else if resp != nil {
-		// consumer receives a response
+		// client receives a response message
+		// pass it on to the waiting consumer
 		handled := cl.rnrChan.HandleResponse(resp)
 		if !handled {
-			if cl.sink == nil {
-				slog.Error("HandleWssMessage: no sink set. Async Response is ignored",
-					"clientID", clientID,
-					"operation", resp.Operation,
-					"name", resp.Name,
-				)
-			} else {
-				// pass the response to the default handler
-				cl.sink.HandleResponse(resp)
-			}
+			slog.Error("HandleWssMessage: received response but no matching request",
+				"correlationID", resp.CorrelationID,
+				"op", resp.Operation,
+				"name", resp.Name,
+				"clientID", clientID,
+			)
 		}
 	} else {
 		slog.Warn("HandleWssMessage: Message is not a valid notification, request or response",
@@ -297,7 +294,7 @@ func (cl *WssClient) Reconnect() {
 // This posts the JSON-encoded NotificationMessage on the well-known hiveot notification href.
 // In WoT Agents are typically a server, not a client, so this is intended for
 // agents that use connection-reversal.
-func (cl *WssClient) SendNotification(notif *msg.NotificationMessage) error {
+func (cl *WssClient) SendNotification(notif *msg.NotificationMessage) {
 	clientID := cl.tlsClient.GetClientID()
 	slog.Debug("SendNotification",
 		slog.String("clientID", clientID),
@@ -309,8 +306,7 @@ func (cl *WssClient) SendNotification(notif *msg.NotificationMessage) error {
 	// convert the operation into a protocol message
 	wssMsg, err := cl.msgConverter.EncodeNotification(notif)
 	if err != nil {
-		slog.Error("SendNotification: unknown request", "op", notif.Operation)
-		return err
+		slog.Error("SendNotification: unknown operation", "op", notif.Operation)
 	}
 	err = cl._send(wssMsg)
 	if err != nil {
@@ -318,7 +314,6 @@ func (cl *WssClient) SendNotification(notif *msg.NotificationMessage) error {
 			"clientID", clientID,
 			"err", err.Error())
 	}
-	return err
 }
 
 // SendRequest send a request message over websockets
@@ -403,11 +398,11 @@ func (cl *WssClient) SetConnectHandler(cb transports.ConnectionHandler) {
 }
 
 // SetSink set the application module that handles async notifications, requests and responses
-func (cc *WssClient) SetSink(sink modules.IHiveModule) {
-	cc.mux.Lock()
-	cc.sink = sink
-	cc.mux.Unlock()
-}
+// func (cc *WssClient) SetSink(sink modules.IHiveModule) {
+// 	cc.mux.Lock()
+// 	cc.sink = sink
+// 	cc.mux.Unlock()
+// }
 
 // NewHiveotWssClient creates a new instance of the hiveot websocket client.
 //
@@ -464,7 +459,7 @@ func NewHiveotWssClient(
 //	timeout is the maximum connection wait time
 func NewWotWssClient(
 	wssURL string, caCert *x509.Certificate,
-	sink modules.IHiveModule, timeout time.Duration) *WssClient {
+	timeout time.Duration) *WssClient {
 
 	urlParts, _ := url.Parse(wssURL)
 	hostPort := urlParts.Host
@@ -476,10 +471,11 @@ func NewWotWssClient(
 		maxReconnectAttempts: 0,
 		msgConverter:         converter.NewWotWssMsgConverter(),
 		rnrChan:              msg.NewRnRChan(timeout),
-		sink:                 sink,
-		tlsClient:            tlsClient,
-		wssPath:              wssPath,
+		// sink:                 sink,
+		tlsClient: tlsClient,
+		wssPath:   wssPath,
 	}
 	var _ transports.IConnection = cl // interface check
+	var _ modules.IHiveModule = cl    // interface check
 	return cl
 }

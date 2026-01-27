@@ -1,4 +1,4 @@
-package module
+package ssescserver
 
 import (
 	"fmt"
@@ -135,7 +135,7 @@ func (sc *HiveotSseServerConnection) onRequestMessage(
 
 // SendNotification sends a notification to the client if subscribed.
 func (sc *HiveotSseServerConnection) SendNotification(
-	notif *msg.NotificationMessage) (err error) {
+	notif *msg.NotificationMessage) {
 
 	clientID := sc.GetClientID()
 
@@ -148,11 +148,17 @@ func (sc *HiveotSseServerConnection) SendNotification(
 			slog.String("op", notif.Operation),
 			slog.String("name", notif.Name),
 		)
-		err = sc._send(msg.MessageTypeNotification, notif)
+		err := sc._send(msg.MessageTypeNotification, notif)
+		if err != nil {
+			// maybe the connection dropped. It should have been removed though so something went wrong.
+			slog.Warn("SendNotification: Unable to send the notification to the client",
+				"clientID", clientID,
+				"err", err.Error())
+		}
 	} else {
 		// ignore the notification
 	}
-	return err
+
 }
 
 // SendRequest sends a request message to an agent over SSE.

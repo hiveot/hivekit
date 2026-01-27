@@ -1,4 +1,4 @@
-package module
+package httpbasicserver
 
 import (
 	"log/slog"
@@ -23,7 +23,7 @@ const (
 // This WoT defined protocol is build on top of HTTP and is uni-directional.
 // It is only intended for consumers and not for agents using connection reversal.
 // It does not support subscribing to events or observing properties.
-type HttpBasicModule struct {
+type HttpBasicServer struct {
 	transports.TransportModuleBase
 
 	// the RRN messaging receiver
@@ -39,14 +39,16 @@ type HttpBasicModule struct {
 
 // GetForm returns a form for the given operation
 // Intended for updating TD's with forms to invoke a request
-func (m *HttpBasicModule) GetForm(operation string, thingID string, name string) *td.Form {
+func (m *HttpBasicServer) GetForm(operation string, thingID string, name string) *td.Form {
 	// TODO: use the standard path /operation/thingID/name
 	return nil
 }
 
 // HandleRequest passes the module request messages to the API handler.
-// This has nothing to do with receiving requests over HTTP.
-func (m *HttpBasicModule) HandleRequest(
+// If the request isn't for this module then it is forwarded to its sink as
+// there is nothing else that can be done.
+// Note that bi-directional protocols would send the request to the client.
+func (m *HttpBasicServer) HandleRequest(
 	req *msg.RequestMessage, replyTo msg.ResponseHandler) (err error) {
 
 	if req.ThingID == m.GetModuleID() {
@@ -75,8 +77,10 @@ func (m *HttpBasicModule) HandleRequest(
 //
 // Since http is a unidirectional protocol, HandleNotification and HandleRequest messages
 // will not be passed to connected clients.
-func (m *HttpBasicModule) Start() (err error) {
-	err = m.TransportModuleBase.Start()
+//
+// yamlConfig tbd: use base path?
+func (m *HttpBasicServer) Start(yamlConfig string) (err error) {
+	err = m.TransportModuleBase.Start("")
 
 	slog.Info("Starting http-basic server module")
 	m.createRoutes()
@@ -90,11 +94,11 @@ func (m *HttpBasicModule) Start() (err error) {
 }
 
 // Stop any running actions
-func (m *HttpBasicModule) Stop() {
+func (m *HttpBasicServer) Stop() {
 
 }
 
-// NewHttpBasicModule creates a new WoT http-basic protocol binding.
+// NewHttpBasicServer creates a new WoT http-basic protocol binding.
 //
 // Intended as a last-resort server as this only handles consumer connections and
 // does not support subscription.
@@ -103,10 +107,10 @@ func (m *HttpBasicModule) Stop() {
 //
 //	httpServer is the http server that listens for messages
 //	sink is the optional receiver of request, response and notification messages, nil to set later
-func NewHttpBasicModule(httpServer transports.IHttpServer,
-	sink modules.IHiveModule) *HttpBasicModule {
+func NewHttpBasicServer(httpServer transports.IHttpServer,
+	sink modules.IHiveModule) *HttpBasicServer {
 
-	m := &HttpBasicModule{
+	m := &HttpBasicServer{
 		httpServer: httpServer,
 	}
 	moduleID := httpbasic.DefaultHttpBasicThingID

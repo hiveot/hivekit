@@ -1,4 +1,4 @@
-package module
+package httpbasicserver
 
 import (
 	"net/http"

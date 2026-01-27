@@ -66,7 +66,9 @@ func (m *BucketStoreModule) HandleRequest(req *msg.RequestMessage, replyTo msg.R
 //
 // This creates a bucket store in {storeRoot}/{moduleID} and enables the
 // messaging request handler.
-func (m *BucketStoreModule) Start() (err error) {
+//
+// yamlConfig with optional configuration (todo)
+func (m *BucketStoreModule) Start(yamlConfig string) (err error) {
 
 	// if a storage directory is provided then open a store under the given name.
 	// otherwise create an in-memory store.

@@ -23,6 +23,9 @@ import (
 // SseScClient is the http client for connecting a WoT client to a http
 // server using the HiveOT http and sse sub-protocol.
 //
+// This implements the IConnection and IHiveModule interfaces so it can be used as
+// a regular client and as a sink for other modules.
+//
 // This can be used by both consumers and agents.
 // This is intended to be used together with an SSE return channel.
 //
@@ -46,6 +49,9 @@ type SseScClient struct {
 	// sse variables access
 	mux sync.RWMutex
 
+	// received notifications are passed to this handler
+	notificationHandler msg.NotificationHandler
+
 	// the request & response channel handler to match requests and responses.
 	// This is used in SendRequest to wait for the response received via SSE and pass it
 	// to the replyTo callbacks.
@@ -59,8 +65,8 @@ type SseScClient struct {
 	// handler for closing the sse connection
 	sseCancelFn context.CancelFunc
 
-	// destination for notifications, requests and responses.
-	// This is intended to be the application module the client connects to.
+	// Destination for request/responses received from the server.
+	// notifications received from the sink are sent to the server.
 	sink modules.IHiveModule
 
 	// Timeout for http requests and SSE connect
@@ -130,6 +136,18 @@ func (cl *SseScClient) GetHttpClient() *http.Client {
 	defer cl.mux.RUnlock()
 	return cl.tlsClient.GetHttpClient()
 }
+func (cl *SseScClient) GetModuleID() string {
+	return cl.GetClientID()
+}
+func (cl *SseScClient) GetTM() string {
+	return ""
+}
+
+// clients send requests to the server
+func (cl *SseScClient) HandleRequest(request *msg.RequestMessage, replyTo msg.ResponseHandler) error {
+	err := cl.SendRequest(request, replyTo)
+	return err
+}
 
 // IsConnected return whether the return channel is connection, eg can receive data
 func (cl *SseScClient) IsConnected() bool {
@@ -142,9 +160,7 @@ func (cl *SseScClient) IsConnected() bool {
 // In WoT Agents are typically a server, not a client, so this is intended for
 // agents that use connection-reversal.
 // Forms are not needed.
-//
-// This returns an error if the notification could not be delivered to the server
-func (cl *SseScClient) SendNotification(msg *msg.NotificationMessage) error {
+func (cl *SseScClient) SendNotification(msg *msg.NotificationMessage) {
 	// Send as text, not binary, to avoid unmarshalling problems
 	outputJSON, _ := jsoniter.MarshalToString(msg)
 	_, _, err := cl.tlsClient.Post(
@@ -155,7 +171,6 @@ func (cl *SseScClient) SendNotification(msg *msg.NotificationMessage) error {
 			"clientID", cl.tlsClient.GetClientID(),
 			"err", err.Error())
 	}
-	return err
 }
 
 // SendRequest [Consumer] sends the RequestMessage envelope to the server
@@ -277,11 +292,32 @@ func (cl *SseScClient) SetConnectHandler(cb transports.ConnectionHandler) {
 	}
 }
 
-// SetSink set the application module that handles async notifications, requests and responses
-func (cl *SseScClient) SetSink(sink modules.IHiveModule) {
+// Set the handler for the notifications received from the server
+func (cl *SseScClient) SetNotificationHandler(cb msg.NotificationHandler) {
+	cl.notificationHandler = cb
+}
+
+// SetSink set the application module that handles requests and receives responses
+// Notifications received from this sink are sent to the server.
+func (cl *SseScClient) SetSink(sink modules.IHiveModule, notifHandler msg.NotificationHandler) {
 	cl.mux.Lock()
 	cl.sink = sink
+	// notifications received from the server are sent to this handler.
+	cl.notificationHandler = cl.notificationHandler
+	// notifications received from this sink are sent to the server
+	sink.SetNotificationHandler(cl.SendNotification)
 	cl.mux.Unlock()
+}
+
+// start doesn't do anything. Use ConnectWith... to connect.
+// TBD: maybe this should connect using config?
+func (cl *SseScClient) Start(yamlConfig string) error {
+	return nil
+}
+
+// stop closes the connection
+func (cl *SseScClient) Stop() {
+	cl.Close()
 }
 
 // NewSseScClient creates a new instance of the http-basic protocol binding client.
@@ -295,7 +331,6 @@ func (cl *SseScClient) SetSink(sink modules.IHiveModule) {
 //	timeout for waiting for response. 0 to use the default.
 func NewSseScClient(
 	sseURL string, caCert *x509.Certificate,
-	sink modules.IHiveModule,
 	timeout time.Duration) *SseScClient {
 
 	urlParts, err := url.Parse(sseURL)
@@ -316,10 +351,10 @@ func NewSseScClient(
 		msgConverter: direct.NewPassthroughMessageConverter(),
 		rnrChan:      msg.NewRnRChan(timeout),
 		ssePath:      ssePath,
-		sink:         sink,
 		tlsClient:    tlsClient,
 		timeout:      timeout,
 	}
 	var _ transports.IConnection = cl // interface check
+	var _ modules.IHiveModule = cl    // interface check
 	return cl
 }

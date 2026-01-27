@@ -8,7 +8,7 @@ import (
 
 	"aidanwoods.dev/go-paseto"
 	"github.com/hiveot/hivekit/go/modules/authn"
-	"github.com/hiveot/hivekit/go/modules/authn/module/authnstore"
+	"github.com/hiveot/hivekit/go/modules/authn/service/authnstore"
 	"github.com/hiveot/hivekit/go/wot/td"
 )
 

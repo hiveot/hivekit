@@ -21,7 +21,7 @@ const (
 	PostSseScNotificationPath = "/hiveot/notification"
 
 	SseScOpConnect    = "ssesc-connect"
-	HiveotSseScSchema = "sse-sc"
+	HiveotSsescSchema = "sse-sc"
 )
 
 // Interface of the HiveotSse module services

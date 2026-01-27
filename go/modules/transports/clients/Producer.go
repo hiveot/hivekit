@@ -52,7 +52,7 @@ func (ag *Agent) HandleRequest(
 // PubActionProgress helper for agents to send a 'running' ActionStatus notification
 //
 // This sends an ActionStatus message with status of running.
-func (ag *Agent) PubActionProgress(req msg.RequestMessage, value any) error {
+func (ag *Agent) PubActionProgress(req msg.RequestMessage, value any) {
 	status := msg.ActionStatus{
 		//AgentID:   ag.GetClientID(),
 		ActionID:      req.CorrelationID,
@@ -67,14 +67,14 @@ func (ag *Agent) PubActionProgress(req msg.RequestMessage, value any) error {
 	}
 
 	resp := msg.NewNotificationMessage(wot.OpInvokeAction, req.ThingID, req.Name, status)
-	return ag.GetConnection().SendNotification(resp)
+	ag.ForwardNotification(resp)
 }
 
 // PubEvent helper for agents to send an event to subscribers.
 //
 // The underlying transport protocol handles the subscription mechanism.
 // The agent itself doesn't track subscriptions.
-func (ag *Agent) PubEvent(thingID string, name string, value any) error {
+func (ag *Agent) PubEvent(thingID string, name string, value any) {
 
 	// This is a response to subscription request.
 	// for now assume this is a hub connection and the hub wants all events
@@ -85,13 +85,13 @@ func (ag *Agent) PubEvent(thingID string, name string, value any) error {
 		"value", notif.ToString(50),
 	)
 
-	return ag.GetConnection().SendNotification(notif)
+	ag.ForwardNotification(notif)
 }
 
 // PubProperty publishes a property change notification to observers.
 //
 // The underlying transport protocol binding handles the subscription mechanism.
-func (ag *Agent) PubProperty(thingID string, name string, value any) error {
+func (ag *Agent) PubProperty(thingID string, name string, value any) {
 	// This is a response to an observation request.
 	// send the property update as a response to the observe request
 	notif := msg.NewNotificationMessage(wot.OpObserveProperty, thingID, name, value)
@@ -100,13 +100,13 @@ func (ag *Agent) PubProperty(thingID string, name string, value any) error {
 		"name", notif.Name,
 		"value", notif.ToString(50),
 	)
-	return ag.GetConnection().SendNotification(notif)
+	ag.ForwardNotification(notif)
 }
 
 // PubProperties publishes a map of property changes to observers
 //
 // The underlying transport protocol binding handles the subscription mechanism.
-func (ag *Agent) PubProperties(thingID string, propMap map[string]any) error {
+func (ag *Agent) PubProperties(thingID string, propMap map[string]any) {
 	notif := msg.NewNotificationMessage(wot.OpObserveMultipleProperties, thingID, "", propMap)
 
 	slog.Info("PubProperties",
@@ -114,18 +114,21 @@ func (ag *Agent) PubProperties(thingID string, propMap map[string]any) error {
 		"nrProps", len(propMap),
 		"value", notif.ToString(50),
 	)
-	return ag.GetConnection().SendNotification(notif)
+	ag.ForwardNotification(notif)
 }
 
-// SendNotification sends a property or event notification message
-func (ag *Agent) SendNotification(notif *msg.NotificationMessage) error {
-	return ag.GetConnection().SendNotification(notif)
-}
+// // SendNotification sends a property or event notification message to the registered
+// // notification handler. (set by SetSink or SetNotificationHandler)
+// func (ag *Agent) SendNotification(notif *msg.NotificationMessage) {
+// 	if ag.notificationHandler != nil {
+// 		ag.notificationHandler(notif)
+// 	}
+// }
 
 // SendResponse sends a response for a previous request
-func (ag *Agent) SendResponse(resp *msg.ResponseMessage) error {
-	return ag.GetConnection().SendResponse(resp)
-}
+// func (ag *Agent) SendResponse(resp *msg.ResponseMessage) error {
+// 	return ag.GetConnection().SendResponse(resp)
+// }
 
 // SetRequestHandler set the application handler for incoming requests
 func (ag *Agent) SetRequestHandler(cb msg.RequestHandler) {
@@ -155,10 +158,9 @@ func (ag *Agent) SetRequestHandler(cb msg.RequestHandler) {
 //
 // Agents can be connected to when running a server or connect to a hub or gateway as client.
 //
-// This is a wrapper around the ClientConnection that provides WoT response messages
-// publishing properties and events to subscribers and publishing a TD.
+// This is a wrapper around the client connection that can be used as a sink.
 func NewAgent(moduleID string,
-	cc transports.IConnection,
+	cc IClientSink,
 	connHandler transports.ConnectionHandler,
 	notifHandler msg.NotificationHandler,
 	reqHandler msg.RequestHandler,
@@ -174,9 +176,9 @@ func NewAgent(moduleID string,
 	agent.SetConnectHandler(connHandler)
 	agent.SetNotificationHandler(notifHandler)
 	agent.SetRequestHandler(reqHandler)
-	agent.SetResponseHandler(respHandler)
+	// agent.SetResponseHandler(respHandler)
 	cc.SetConnectHandler(agent.onConnect)
-	cc.SetSink(agent)
+	cc.SetSink(agent, nil)
 
 	return agent
 }

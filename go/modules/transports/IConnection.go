@@ -3,7 +3,6 @@ package transports
 import (
 	"time"
 
-	"github.com/hiveot/hivekit/go/modules"
 	"github.com/hiveot/hivekit/go/msg"
 	"github.com/hiveot/hivekit/go/wot/td"
 )
@@ -26,8 +25,6 @@ type ConnectionHandler func(connected bool, err error, c IConnection)
 //
 // All transport servers provide a callback handler that notifies when a new connection
 // is received. It is up to the application to handle the connection.
-// The connections manager module can be used to manage active connections, aggregate
-// incoming messages from multiple connections and send messages to connections.
 type IConnection interface {
 
 	// Close disconnects the client.
@@ -58,9 +55,7 @@ type IConnection interface {
 	// SendNotification [agent] sends a notification over the connection to a consumer.
 	// The connection can decide not to deliver the notification depending on subscriptions or
 	// other criteria.
-	// This returns an error if sending the notification was attempted but failed.
-	// This returns nil if the notification was delivered or ignored.
-	SendNotification(notif *msg.NotificationMessage) error
+	SendNotification(notif *msg.NotificationMessage)
 
 	// SendRequest [consumer] sends a request over the connection to an agent.
 	//
@@ -82,14 +77,6 @@ type IConnection interface {
 	// SetConnectHandler sets the callback for connection status changes
 	// This replaces any previously set handler.
 	SetConnectHandler(handler ConnectionHandler)
-
-	// Set the sink for receiving async notifications, requests, and unhandled responses.
-	// Intended to be used if the sink is created after the client connection.
-	//
-	// Async notifications are received when clients subscribe to notifications.
-	// Unhandled responses are received when clients do not provide a replyTo to SendRequest.
-	// Async requests are received by agents that use reverse connection
-	SetSink(sink modules.IHiveModule)
 }
 
 // GetFormHandler is the handler that provides the client with the form needed to invoke an operation

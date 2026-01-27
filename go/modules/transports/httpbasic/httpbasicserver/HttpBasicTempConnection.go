@@ -1,4 +1,4 @@
-package module
+package httpbasicserver
 
 // This is a temporary http connection, valid for the duration of the request
 // Used to gather a response asynchronously before returning.

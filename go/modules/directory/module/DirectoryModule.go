@@ -75,7 +75,7 @@ func (m *DirectoryModule) HandleRequest(req *msg.RequestMessage, replyTo msg.Res
 // - enable the messaging request handler
 // - enable the http request handler using the given router
 // - updates this service TD in the store
-func (m *DirectoryModule) Start() (err error) {
+func (m *DirectoryModule) Start(_ string) (err error) {
 	moduleID := m.GetModuleID()
 
 	storageDir := ""
