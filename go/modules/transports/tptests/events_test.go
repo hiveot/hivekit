@@ -7,7 +7,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/hiveot/hivekit/go/modules"
 	"github.com/hiveot/hivekit/go/msg"
 	"github.com/hiveot/hivekit/go/wot"
 	"github.com/stretchr/testify/assert"
@@ -29,18 +28,18 @@ func TestSubscribeAll(t *testing.T) {
 	var agentRxEvent atomic.Bool
 
 	// 1. start the servers
-	srv, tpauthn, cancelFn := StartTransportModule(nil)
+	srv, tpauthn, cancelFn := StartTransportModule()
 	defer cancelFn()
 
 	// 2. connect as consumers
-	co1, cc1, _ := NewTestConsumer(testClientID1, srv.GetConnectURL(), tpauthn)
+	co1, cc1, _ := NewTestConsumer(testClientID1, srv.GetConnectURL(), tpauthn, nil)
 	defer cc1.Close()
 
-	co2, cc2, _ := NewTestConsumer(testClientID1, srv.GetConnectURL(), tpauthn)
+	co2, cc2, _ := NewTestConsumer(testClientID1, srv.GetConnectURL(), tpauthn, nil)
 	defer cc2.Close()
 
 	// ensure that agents can also subscribe (they cant use forms)
-	agConn1, agent1, _ := NewTestAgent(agentID, srv.GetConnectURL(), tpauthn)
+	agent1, agConn1, _ := NewTestAgent(agentID, srv.GetConnectURL(), tpauthn)
 	defer agConn1.Close()
 
 	// FIXME: test subscription by agent
@@ -49,27 +48,29 @@ func TestSubscribeAll(t *testing.T) {
 	ctx, cancelFn := context.WithTimeout(context.Background(), time.Minute)
 	defer cancelFn()
 
-	co1.SetNotificationHandler(func(ev *msg.NotificationMessage) {
+	co1.SetNotificationSink(func(ev *msg.NotificationMessage) {
 		slog.Info("client 1 receives event")
 		// receive event
 		rxVal.Store(ev.Value)
 		//cancelFn()
 	})
-	co2.SetNotificationHandler(func(ev *msg.NotificationMessage) {
+	co2.SetNotificationSink(func(ev *msg.NotificationMessage) {
 		slog.Info("client 2 receives event")
 	})
-	agent1.SetNotificationHandler(func(ev *msg.NotificationMessage) {
-		// receive event
+	agent1.SetNotificationSink(func(ev *msg.NotificationMessage) {
+		// receive event, tests whether agents work as a consumer
 		slog.Info("Agent receives event")
 		agentRxEvent.Store(true)
 		cancelFn()
 	})
 
-	// Subscribe to events. Each binding implements this as per its spec
+	// Subscribe to events. Each transport binding implements this as per its spec
 	err := co1.Subscribe("", "")
 	assert.NoError(t, err)
 	err = co2.Subscribe(thingID, eventKey)
 	assert.NoError(t, err)
+	// agent1 acts as a consumer here, its must have its sink set to a client
+	// so its requests can be forwarded.
 	err = agent1.Subscribe("", "")
 	assert.NoError(t, err)
 
@@ -126,17 +127,17 @@ func TestPublishEventsByAgent(t *testing.T) {
 			evVal.Store(msg.Value)
 		}
 	}
-	tmpSink := &modules.HiveModuleBase{}
-	tmpSink.SetNotificationHandler(notificationHandler)
-	srv, tpauthn, cancelFn := StartTransportModule(tmpSink)
-	_ = srv
+	srv, tpauthn, cancelFn := StartTransportModule()
+	srv.SetNotificationSink(notificationHandler)
 	defer cancelFn()
 
-	// 2. connect as an agent
-	agConn1, agent1, _ := NewTestAgent(testAgentID1, srv.GetConnectURL(), tpauthn)
+	// 2. connect an agent to the server - eg connection reversal
+	// FIXME: the client isn't sending notifications to the server in ForwardNotification
+	agent1, agConn1, _ := NewTestAgent(testAgentID1, srv.GetConnectURL(), tpauthn)
 	defer agConn1.Close()
 
 	// 3. agent publishes an event
+	//  the agent is the sink of the client. Client connection will send notifications to server.
 	agent1.PubEvent(thingID, eventKey, testMsg)
 	time.Sleep(time.Millisecond) // time to take effect
 

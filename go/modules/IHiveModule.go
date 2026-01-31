@@ -43,20 +43,11 @@ type IHiveModule interface {
 	//    and the server passes it to the producer that is registered as its sink.
 	//    Flow: consumer -[sink]-> client -> server -[sink]-> producer
 	//
-	// 2b. If a producer running on the server makes a request to another producer then
-	//     it acts as a consumer.
-	//     The producer has to have the server set as its sink so it can pass requests
-	//     to the client serving the producer.
-	//
-	// 3. The module is a transport server connection: the request is transported to the
-	//    connected client, and the client passes it to the producer that is its registered sink.
+	// 3. If the module is a transport server or server connection then the request is
+	//    transported to the remote client. The client passes it to its registered sink.
+	//    This sink should be a producer that can handle the request.
+	//    (In this case the consumer is a process running on the server)
 	//    Flow: consumer -[sink]-> server -> client -[sink]-> producer
-	//
-	// 3b. If a producer that is connected through a client makes a request to another
-	//     producer then it acts as a consumer.
-	//     The producer has to have the client set as its sink so it can pass requests
-	//     to the server.
-	//
 	//
 	//    Note this is the use-case where a device uses connection reversal to connect
 	//         to a server, like a hub or gateway, to serve IoT data. The gateway acts
@@ -70,26 +61,21 @@ type IHiveModule interface {
 	// This returns an error if the provided replyTo will not be able to receive a response.
 	HandleRequest(request *msg.RequestMessage, replyTo msg.ResponseHandler) error
 
-	// Set the handler of notifications produced (or forwarded) by this module
-	// When used in a chain this is the consumer for which this module is the producer.
-	//
-	// This is typically not set directly by the consumer. Instead a module's SetSink
-	// handler calls SetNotification on the sink so that notifications can be received
-	// by the consumer calling SetSink.
-	SetNotificationHandler(consumer msg.NotificationHandler)
+	// Handle the notification received from the producer.
+	// The default behavior is to forward it upstream to the handler set with SetNotificationSink.
+	HandleNotification(notif *msg.NotificationMessage)
 
-	// SetSink [consumer] sets the given module as the producer for requests and notifications.
-	// and assign a handler that receives the notifications from this module.
+	// Set the handler of notifications emitted by this module (acting as a producer)
+	// Intended to create a chain of notifications from producer to consumer.
 	//
-	// If this module is a transport client then requests received from the remote server
-	// are passed to this sink. Notifications received from this producer are passed to the
-	// remote server.
+	// This can be invoked before or after Start()
+	SetNotificationSink(sink msg.NotificationHandler)
+
+	// SetRequestSink sets the producer that will handle the requests emitted by this module.
 	//
-	// The notification handler should handle notifications this module is interested in.
-	//
-	// If no notification handler is provided then the registered notification handler
-	// of this module is used, so that notifications are passed up the chain.
-	SetSink(producer IHiveModule, notifHandler msg.NotificationHandler)
+	// This can be invoked before or after Start() to allow for live rewiring of the
+	// module chain.
+	SetRequestSink(sink msg.RequestHandler)
 
 	// Start readies the module for use.
 	// Intended for modulues to initialize resources

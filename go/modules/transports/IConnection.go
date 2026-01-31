@@ -12,9 +12,9 @@ const DefaultRpcTimeout = time.Second * 60 // 60 for testing; 3 seconds
 // ConnectionHandler handles a change in connection status
 //
 //	connected is true when connected without errors
-//	err details why connection failed
 //	c is the connection instance being established or disconnected
-type ConnectionHandler func(connected bool, err error, c IConnection)
+//	err details why connection failed
+type ConnectionHandler func(connected bool, c IConnection, err error)
 
 // IConnection defines the interfaces of a HiveOT server and client connection.
 // Intended for exchanging messages between client and server.
@@ -40,7 +40,11 @@ type IConnection interface {
 	// If a connection is already established on this client then it will be closed first.
 	//
 	// This connection method must be supported by all client implementations.
-	ConnectWithToken(clientID, token string) (err error)
+	//
+	//	clientID is the ID to authenticate as, it must match the token
+	//	token is the authentication token obtained on login
+	//	ch is the connection handler that is notified when connection is established and disconnects. nil to ignore
+	ConnectWithToken(clientID, token string, ch ConnectionHandler) (err error)
 
 	// GetClientID returns the clientID used with authentication
 	GetClientID() string
@@ -52,7 +56,7 @@ type IConnection interface {
 	// IsConnected returns the current connection status
 	IsConnected() bool
 
-	// SendNotification [agent] sends a notification over the connection to a consumer.
+	// SendNotification [agent] sends a notification over the connection to a remote consumer.
 	// The connection can decide not to deliver the notification depending on subscriptions or
 	// other criteria.
 	SendNotification(notif *msg.NotificationMessage)
@@ -76,7 +80,7 @@ type IConnection interface {
 
 	// SetConnectHandler sets the callback for connection status changes
 	// This replaces any previously set handler.
-	SetConnectHandler(handler ConnectionHandler)
+	// SetConnectHandler(handler ConnectionHandler)
 }
 
 // GetFormHandler is the handler that provides the client with the form needed to invoke an operation

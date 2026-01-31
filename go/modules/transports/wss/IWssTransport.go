@@ -16,5 +16,5 @@ const (
 // IWssTransport defines the interface of the Websocket service server
 // Used for both WoT and Hiveot websocket message format.
 type IWssTransport interface {
-	transports.ITransportModule
+	transports.ITransportServer
 }

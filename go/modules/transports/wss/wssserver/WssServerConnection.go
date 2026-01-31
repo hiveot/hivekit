@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
-	"github.com/hiveot/hivekit/go/modules"
 	"github.com/hiveot/hivekit/go/modules/transports"
 	"github.com/hiveot/hivekit/go/msg"
 	"github.com/hiveot/hivekit/go/wot"
@@ -40,20 +39,23 @@ type WssServerConnection struct {
 	// mutex for controlling writing and closing
 	// mux sync.RWMutex
 
-	// notify client of a connect or disconnect
-	// connectionHandlerPtr atomic.Pointer[transports.ConnectionHandler]
-
 	// converter for request/response messages
 	messageConverter transports.IMessageConverter
 
-	// underlying websocket connection
-	wssConn *websocket.Conn
+	// notifHandler handles the requests received from the remote producer
+	notifHandler msg.NotificationHandler
+
+	// reqHandler handles the requests received from the remote consumer
+	reqHandler msg.RequestHandler
 
 	// request-response channel
 	rnrChan *msg.RnRChan
 
 	// how long to wait for a response after sending a request
 	respTimeout time.Duration
+
+	// underlying websocket connection
+	wssConn *websocket.Conn
 }
 
 // _send sends the seriaziled websocket message to the connected client
@@ -80,7 +82,6 @@ func (sc *WssServerConnection) Close() {
 	sc.Mux.Lock()
 	defer sc.Mux.Unlock()
 	if sc.IsConnected() {
-		sc.onConnection(false, nil)
 		_ = sc.wssConn.Close()
 	}
 }
@@ -129,17 +130,6 @@ func (sc *WssServerConnection) Close() {
 //		return sc.isConnected.Load()
 //	}
 
-// notify handler of connection status change
-func (sc *WssServerConnection) onConnection(connected bool, err error) {
-	if !connected {
-		sc.ServerConnectionBase.Disconnect()
-	}
-	h := sc.ServerConnectionBase.GetConnectHandler()
-	if h != nil {
-		(h)(connected, err, sc)
-	}
-}
-
 // onMessage handles an incoming websocket message
 // The message is converted into a request, response or notification and passed
 // on to the registered handler.
@@ -176,12 +166,12 @@ func (sc *WssServerConnection) onMessage(raw []byte) {
 	slog.Warn("onMessage: Message is not a notification, request or response")
 }
 
-// server connection receives a notification for server side consumer.
+// server connection receives a notification from remote client (producer).
 // pass it on to the registered (upstream) notification handler.
 //
-// consumer <-[notification] server<=>client <- [notification] producer
+// remote producer [notification] -> client<=>server -> onNotification
 func (sc *WssServerConnection) onNotification(notif *msg.NotificationMessage) {
-	sc.ServerConnectionBase.ForwardNotification(notif)
+	sc.notifHandler(notif)
 }
 
 // onRequest is passed the received request message
@@ -212,7 +202,7 @@ func (sc *WssServerConnection) onRequest(req *msg.RequestMessage) {
 	default:
 		// this is not a subscription to notifications so forward it to the module sink
 		// response will be handled asynchronously
-		err = sc.Sink.HandleRequest(req, func(reply *msg.ResponseMessage) error {
+		err = sc.reqHandler(req, func(reply *msg.ResponseMessage) error {
 			// the callback is async so handle it separately
 			if reply != nil {
 				err = sc.SendResponse(reply)
@@ -257,9 +247,6 @@ func (sc *WssServerConnection) onResponse(resp *msg.ResponseMessage) {
 // ReadLoop reads incoming websocket messages in a loop, until connection closes or context is cancelled
 func (sc *WssServerConnection) ReadLoop(ctx context.Context, wssConn *websocket.Conn) {
 
-	//var readLoop atomic.Bool
-	sc.onConnection(true, nil)
-
 	// close the client when the context ends drops
 	go func() {
 		select {
@@ -268,15 +255,12 @@ func (sc *WssServerConnection) ReadLoop(ctx context.Context, wssConn *websocket.
 			// close channel when no-one is writing
 			// in the meantime keep reading to prevent deadlock
 			_ = wssConn.Close()
-			sc.onConnection(false, nil)
 		}
 	}()
 	// read messages from the client until the connection closes
 	for sc.IsConnected() { // sseMsg := range sseChan {
 		_, raw, err := wssConn.ReadMessage()
 		if err != nil {
-			// avoid further writes
-			sc.onConnection(false, err)
 			// ending the read loop and returning will close the connection
 			break
 		}
@@ -366,18 +350,25 @@ func (sc *WssServerConnection) SendResponse(resp *msg.ResponseMessage) (err erro
 
 // NewWSSServerConnection creates a new Websocket connection instance for use by
 // agents and consumers.
-// This implements the IServerConnection interface.
-// The sink (required) will received incoming messages.
+// This implements the IConnection interface.
+//
+// clientID is the consumer or agent authenticated ID
+// r is the request used to establish this connection
+// wssConn is the connection on which to send/receive messages to the client
+// messageConverter maps protocol messages to standard RRN
+// reqHandler will handle incoming request messages (required)
+// notifHandler will handling incoming notification messages (required)
 func NewWSSServerConnection(
 	clientID string, r *http.Request,
 	wssConn *websocket.Conn,
 	messageConverter transports.IMessageConverter,
-	sink modules.IHiveModule,
+	reqHandler msg.RequestHandler,
+	notifHandler msg.NotificationHandler,
 ) *WssServerConnection {
 
 	cid := "WSS" + shortid.MustGenerate()
-	if sink == nil {
-		slog.Error("WSS incoming connection but no sink is provided. Messages will NOT be handled.")
+	if reqHandler == nil || notifHandler == nil {
+		panic("WSS incoming connection needs request and notification handlers.")
 	}
 
 	c := &WssServerConnection{
@@ -387,7 +378,9 @@ func NewWSSServerConnection(
 		lastActivity:     time.Time{},
 		rnrChan:          msg.NewRnRChan(transports.DefaultRpcTimeout),
 		respTimeout:      transports.DefaultRpcTimeout,
+		reqHandler:       reqHandler,
+		notifHandler:     notifHandler,
 	}
-	c.Init(clientID, r.URL.String(), cid, sink)
+	c.Init(clientID, r.URL.String(), cid)
 	return c
 }

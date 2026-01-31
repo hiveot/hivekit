@@ -1,6 +1,7 @@
 package httpbasicserver
 
 import (
+	"fmt"
 	"log/slog"
 
 	"github.com/hiveot/hivekit/go/modules"
@@ -24,7 +25,7 @@ const (
 // It is only intended for consumers and not for agents using connection reversal.
 // It does not support subscribing to events or observing properties.
 type HttpBasicServer struct {
-	transports.TransportModuleBase
+	transports.TransportServerBase
 
 	// the RRN messaging receiver
 	// this handles request for this module
@@ -44,20 +45,30 @@ func (m *HttpBasicServer) GetForm(operation string, thingID string, name string)
 	return nil
 }
 
+// GetTM returns the module's TM describing its properties, actions and events.
+// This server does not expose a TM.
+func (m *HttpBasicServer) GetTM() string {
+	return ""
+}
+
+// Handle a notification this module (or downstream in the chain) subscribed to.
+// Notifications are forwarded to their upstream sink, which for a server is the
+// client.
+func (m *HttpBasicServer) HandleNotification(notif *msg.NotificationMessage) {
+	m.SendNotification(notif)
+}
+
 // HandleRequest passes the module request messages to the API handler.
-// If the request isn't for this module then it is forwarded to its sink as
-// there is nothing else that can be done.
-// Note that bi-directional protocols would send the request to the client.
+// If the request isn't for this module then this returns an error as the server
+// cannot deliver messages to the client.
 func (m *HttpBasicServer) HandleRequest(
 	req *msg.RequestMessage, replyTo msg.ResponseHandler) (err error) {
 
 	if req.ThingID == m.GetModuleID() {
 		err = m.msgHandler.HandleRequest(req, replyTo)
-	}
-	// if the request failed, then forward the request through the chain
-	// the module base handles operations for reading properties
-	if err != nil {
-		err = m.HiveModuleBase.HandleRequest(req, replyTo)
+	} else {
+		err = fmt.Errorf("SendRequest. HTTP can't send requests to remote clients.")
+		slog.Error(err.Error())
 	}
 	return err
 }
@@ -80,7 +91,6 @@ func (m *HttpBasicServer) HandleRequest(
 //
 // yamlConfig tbd: use base path?
 func (m *HttpBasicServer) Start(yamlConfig string) (err error) {
-	err = m.TransportModuleBase.Start("")
 
 	slog.Info("Starting http-basic server module")
 	m.createRoutes()
@@ -107,8 +117,7 @@ func (m *HttpBasicServer) Stop() {
 //
 //	httpServer is the http server that listens for messages
 //	sink is the optional receiver of request, response and notification messages, nil to set later
-func NewHttpBasicServer(httpServer transports.IHttpServer,
-	sink modules.IHiveModule) *HttpBasicServer {
+func NewHttpBasicServer(httpServer transports.IHttpServer) *HttpBasicServer {
 
 	m := &HttpBasicServer{
 		httpServer: httpServer,
@@ -116,12 +125,13 @@ func NewHttpBasicServer(httpServer transports.IHttpServer,
 	moduleID := httpbasic.DefaultHttpBasicThingID
 	connectURL := httpServer.GetConnectURL()
 
-	m.Init(moduleID, sink, connectURL, transports.DefaultRpcTimeout)
+	m.Init(moduleID, connectURL, transports.DefaultRpcTimeout)
 
-	// properties must match the module TM
-	m.UpdateProperty(transports.PropName_NrConnections, 0)
+	// TODO: properties must match the module TM
+	// m.UpdateProperty(transports.PropName_NrConnections, 0)
 
-	var _ transports.ITransportModule = m // interface check
+	var _ transports.ITransportServer = m // interface check
+	var _ modules.IHiveModule = m         // interface check
 
 	return m
 }

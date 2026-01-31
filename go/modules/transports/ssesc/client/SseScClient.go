@@ -34,10 +34,7 @@ import (
 // hiveot RequestMessage and ResponseMessage endpoints. If no form is available
 // then use the default hiveot endpoints that are defined with this protocol binding.
 type SseScClient struct {
-	appConnectHandlerPtr atomic.Pointer[transports.ConnectionHandler]
-
-	// authentication bearer token if authenticated
-	// bearerToken string
+	connectHandler transports.ConnectionHandler
 
 	isConnected atomic.Bool
 
@@ -49,8 +46,12 @@ type SseScClient struct {
 	// sse variables access
 	mux sync.RWMutex
 
-	// received notifications are passed to this handler
-	notificationHandler msg.NotificationHandler
+	// notificationSink is the sink for forwarding notification messages to
+	// this is the upstream consumer.
+	notificationSink msg.NotificationHandler
+
+	// requestSink is the sink for forwarding requests messages to
+	requestSink msg.RequestHandler
 
 	// the request & response channel handler to match requests and responses.
 	// This is used in SendRequest to wait for the response received via SSE and pass it
@@ -67,7 +68,7 @@ type SseScClient struct {
 
 	// Destination for request/responses received from the server.
 	// notifications received from the sink are sent to the server.
-	sink modules.IHiveModule
+	// sink modules.IHiveModule
 
 	// Timeout for http requests and SSE connect
 	timeout time.Duration
@@ -81,10 +82,11 @@ type SseScClient struct {
 //	establishes an SSE connection.
 //
 // If a connection exists it is closed first.
-func (cl *SseScClient) ConnectWithToken(clientID, token string) error {
+func (cl *SseScClient) ConnectWithToken(clientID, token string, ch transports.ConnectionHandler) error {
 
 	// ensure disconnected (note that this resets retryOnDisconnect)
 	cl.Close()
+	cl.connectHandler = ch
 
 	err := cl.tlsClient.ConnectWithToken(clientID, token)
 	if err != nil {
@@ -141,6 +143,13 @@ func (cl *SseScClient) GetModuleID() string {
 }
 func (cl *SseScClient) GetTM() string {
 	return ""
+}
+
+// HandleNotification receives an incoming notification from a producer
+// and sends it to the server.
+func (m *SseScClient) HandleNotification(notif *msg.NotificationMessage) {
+
+	m.SendNotification(notif)
 }
 
 // clients send requests to the server
@@ -283,29 +292,18 @@ func (cl *SseScClient) SetConnected(isConnected bool) {
 	cl.isConnected.Store(isConnected)
 }
 
-// SetConnectHandler set the application handler for connection status updates
-func (cl *SseScClient) SetConnectHandler(cb transports.ConnectionHandler) {
-	if cb == nil {
-		cl.appConnectHandlerPtr.Store(nil)
-	} else {
-		cl.appConnectHandlerPtr.Store(&cb)
-	}
-}
-
-// Set the handler for the notifications received from the server
-func (cl *SseScClient) SetNotificationHandler(cb msg.NotificationHandler) {
-	cl.notificationHandler = cb
-}
-
-// SetSink set the application module that handles requests and receives responses
-// Notifications received from this sink are sent to the server.
-func (cl *SseScClient) SetSink(sink modules.IHiveModule, notifHandler msg.NotificationHandler) {
+// SetNotificationSink sets the consumer handler for the notifications received
+// from the server.
+func (cl *SseScClient) SetNotificationSink(sink msg.NotificationHandler) {
 	cl.mux.Lock()
-	cl.sink = sink
-	// notifications received from the server are sent to this handler.
-	cl.notificationHandler = cl.notificationHandler
-	// notifications received from this sink are sent to the server
-	sink.SetNotificationHandler(cl.SendNotification)
+	cl.notificationSink = sink
+	cl.mux.Unlock()
+}
+
+// SetRequestSink sets the agent module that handles requests received from the server.
+func (cl *SseScClient) SetRequestSink(sink msg.RequestHandler) {
+	cl.mux.Lock()
+	cl.requestSink = sink
 	cl.mux.Unlock()
 }
 
@@ -330,8 +328,7 @@ func (cl *SseScClient) Stop() {
 //	sink is the application module receiving notifications or in case of agents, requests.
 //	timeout for waiting for response. 0 to use the default.
 func NewSseScClient(
-	sseURL string, caCert *x509.Certificate,
-	timeout time.Duration) *SseScClient {
+	sseURL string, caCert *x509.Certificate, timeout time.Duration) *SseScClient {
 
 	urlParts, err := url.Parse(sseURL)
 	if err != nil {

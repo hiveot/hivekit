@@ -26,6 +26,6 @@ const (
 
 // Interface of the HiveotSse module services
 type ISseScTransport interface {
-	transports.ITransportModule
+	transports.ITransportServer
 	// todo: future API  for servicing the module
 }

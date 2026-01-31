@@ -14,7 +14,7 @@ import (
 // Used for testing messaging between modules when no transport is used.
 // This implements the IHiveModule interface
 type DirectClientTransport struct {
-	transports.TransportModuleBase
+	transports.TransportServerBase
 	source modules.IHiveModule
 }
 
@@ -30,6 +30,7 @@ func (m *DirectClientTransport) HandleNotification(notif *msg.NotificationMessag
 }
 
 // Receive a request and forward it on to the sinks.
+// unlike regular servers the sink is considered to be the remote side.
 // This is a module input.
 func (m *DirectClientTransport) HandleRequest(
 	req *msg.RequestMessage, replyTo msg.ResponseHandler) (err error) {
@@ -78,13 +79,22 @@ func (m *DirectClientTransport) SetAuthenticationHandler(h transports.Authentica
 // 	_ = h
 // }
 
+func (m *DirectClientTransport) Start(yamlConfig string) (err error) {
+	return nil
+}
+
+// Stop disconnects clients and remove connection listening
+func (m *DirectClientTransport) Stop() {
+}
+
 // Return a transport module that passes messages from a source to a sink
 func NewDirectTransport(
-	moduleID string, source modules.IHiveModule, sink modules.IHiveModule) modules.IHiveModule {
+	moduleID string, source modules.IHiveModule) modules.IHiveModule {
 	t := &DirectClientTransport{
 		source: source,
 	}
-	t.Init(moduleID, sink, "", transports.DefaultRpcTimeout)
-	var _ transports.ITransportModule = t // interface check
+	t.Init(moduleID, "", transports.DefaultRpcTimeout)
+	var _ transports.ITransportServer = t // interface check
+	var _ modules.IHiveModule = t         // interface check
 	return t
 }

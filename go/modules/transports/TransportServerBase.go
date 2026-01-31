@@ -7,23 +7,23 @@ import (
 	"sync"
 	"time"
 
-	"github.com/hiveot/hivekit/go/modules"
 	"github.com/hiveot/hivekit/go/msg"
 )
 
 // Module properties that can be exposed in a TM
 const PropName_NrConnections = "nrConnections"
 
-// TransportModuleBase implements the boilerplate of running a transport module
-// as defined in ITransportModule
-// - HiveModuleBase
+// TransportServerBase implements the boilerplate of running a transport server module
+// as defined in ITransportServer
+// - Implemenets IHiveModule so it can act as a sink itself.
 // - Manage incoming connections - see also ConnectionBase
 // - Send requests, responses and notifications to connected clients
 // - Aggregate messages from connections and send to Sink
 //
 // To initialize: call Init(moduleID, sink, connectURL)
-type TransportModuleBase struct {
-	modules.HiveModuleBase
+type TransportServerBase struct {
+	// moduleID/thingID is the unique instance ID of this server module.
+	moduleID string
 
 	// connections by clcid = {clientID}:{connectionID}
 	connectionsByClcid map[string]IConnection
@@ -42,13 +42,19 @@ type TransportModuleBase struct {
 	// will result in a response over the other. RnRChan will pass the response from
 	// one channel to the requester.
 	RnrChan *msg.RnRChan
+
+	// Sink for forwarding notifications
+	notificationSink msg.NotificationHandler
+
+	// Sink for forwarding requests
+	requestSink msg.RequestHandler
 }
 
 // AddConnection adds a new connection and notifies subscribers.
 // This requires the connection to have a unique client connection ID (connectionID).
 //
 // If an endpoint with this connectionID exists the existing connection is forcibly closed.
-func (m *TransportModuleBase) AddConnection(c IConnection) error {
+func (m *TransportServerBase) AddConnection(c IConnection) error {
 	m.cmux.Lock()
 	defer m.cmux.Unlock()
 
@@ -85,13 +91,13 @@ func (m *TransportModuleBase) AddConnection(c IConnection) error {
 		clientList = append(clientList, cid)
 	}
 	m.connectionsByClientID[clientID] = clientList
-	// nr of connections is a property of the module
-	m.UpdateProperty(PropName_NrConnections, len(m.connectionsByClcid))
+	// todo: nr of connections is a property of the module
+	// m.UpdateProperty(PropName_NrConnections, len(m.connectionsByClcid))
 	return nil
 }
 
 // CloseAllClientConnections closes all connections of the given client.
-func (m *TransportModuleBase) CloseAllClientConnections(clientID string) {
+func (m *TransportServerBase) CloseAllClientConnections(clientID string) {
 	m.cmux.Lock()
 	defer m.cmux.Unlock()
 
@@ -110,11 +116,12 @@ func (m *TransportModuleBase) CloseAllClientConnections(clientID string) {
 		}
 	}
 	delete(m.connectionsByClientID, clientID)
-	m.UpdateProperty(PropName_NrConnections, len(m.connectionsByClcid))
+	// todo: property for nr of connection
+	//m.UpdateProperty(PropName_NrConnections, len(m.connectionsByClcid))
 }
 
 // CloseAll force-closes all connections
-func (m *TransportModuleBase) CloseAll() {
+func (m *TransportServerBase) CloseAll() {
 	m.cmux.Lock()
 	defer m.cmux.Unlock()
 
@@ -125,7 +132,8 @@ func (m *TransportModuleBase) CloseAll() {
 	}
 	m.connectionsByClcid = nil
 	m.connectionsByClientID = nil
-	m.UpdateProperty(PropName_NrConnections, 0)
+	// todo: nr of connections
+	//m.UpdateProperty(PropName_NrConnections, 0)
 }
 
 // ForEachConnection invoke handler for each client connection
@@ -133,7 +141,7 @@ func (m *TransportModuleBase) CloseAll() {
 //
 // This is concurrent safe as the iteration takes place on a copy.
 // The handler can be blocking on non-blocking (goroutine)
-func (m *TransportModuleBase) ForEachConnection(handler func(c IConnection)) {
+func (m *TransportServerBase) ForEachConnection(handler func(c IConnection)) {
 	// collect a list of connections
 	m.cmux.Lock()
 	connList := make([]IConnection, 0, len(m.connectionsByClcid))
@@ -148,15 +156,45 @@ func (m *TransportModuleBase) ForEachConnection(handler func(c IConnection)) {
 	}
 }
 
+// ForwardNotification passes notifications received by a server to the notification sink.
+// This can be a service running on the server that has subscribed to a remote producer.
+func (m *TransportServerBase) ForwardNotification(notif *msg.NotificationMessage) {
+	if m.notificationSink == nil {
+		// Receiving notifications but with no sink set so likely a wiring issue.
+		slog.Error("ForwardNotification: no notification sink set. Server is not properly set up.",
+			"module", m.moduleID,
+			"operation", notif.Operation,
+			"name", notif.Name,
+		)
+		return
+	}
+	m.notificationSink(notif)
+}
+
+// ForwardRequest passes a request from a client (agent) to the server request sink.
+// HandleRequest method.
+//
+// This is used as the request handler of requests from incoming connections.
+// If no sink os configured this returns an error
+func (m *TransportServerBase) ForwardRequest(req *msg.RequestMessage, replyTo msg.ResponseHandler) (err error) {
+	if m.requestSink == nil {
+		slog.Error("ForwardRequest. Server has no request sink. Server is not properly set up.")
+		return fmt.Errorf("no sink for request '%s/%s' to thingID '%s'",
+			req.Operation, req.Name, req.ThingID)
+	}
+	err = m.requestSink(req, replyTo)
+	return err
+}
+
 // GetConnectURL returns SSE connection URL of the server
 // This uses the custom 'ssesc' schema which is non-wot compatible.
-func (m *TransportModuleBase) GetConnectURL() string {
+func (m *TransportServerBase) GetConnectURL() string {
 	return m.connectURL
 }
 
 // GetConnectionByConnectionID locates the connection of the client using the client's connectionID
 // This returns nil if no connection was found with the given connectionID
-func (m *TransportModuleBase) GetConnectionByConnectionID(clientID, connectionID string) (c IConnection) {
+func (m *TransportServerBase) GetConnectionByConnectionID(clientID, connectionID string) (c IConnection) {
 	clcid := clientID + ":" + connectionID
 	m.cmux.Lock()
 	defer m.cmux.Unlock()
@@ -171,7 +209,7 @@ func (m *TransportModuleBase) GetConnectionByConnectionID(clientID, connectionID
 // GetConnectionByClientID locates the first connection of the client using its account ID.
 // Intended to find agents which only have a single connection.
 // This returns nil if no connection was found with the given login
-func (m *TransportModuleBase) GetConnectionByClientID(clientID string) (c IConnection) {
+func (m *TransportServerBase) GetConnectionByClientID(clientID string) (c IConnection) {
 
 	m.cmux.Lock()
 	defer m.cmux.Unlock()
@@ -195,24 +233,53 @@ func (m *TransportModuleBase) GetConnectionByClientID(clientID string) (c IConne
 	return c
 }
 
+// GetModuleID returns the module's Thing ID
+func (m *TransportServerBase) GetModuleID() string {
+	return m.moduleID
+}
+
+// GetTM returns the module's TM describing its properties, actions and events.
+// This server does not expose a TM.
+func (m *TransportServerBase) GetTM() string {
+	return ""
+}
+
 // Initialize the module base with a moduleID and a messaging sink
 //
 //	moduleID is the transport instance ID to identify as.
-//	sink is the module that handles the messages.
 //	connectURL is the URL this module can be reached at.
 //	timeout is the RnR timeout. (when sending requests to clients and waiting for response)
-func (m *TransportModuleBase) Init(
-	moduleID string, sink modules.IHiveModule, connectURL string, timeout time.Duration) {
+func (m *TransportServerBase) Init(
+	moduleID string, connectURL string, timeout time.Duration) {
+	m.moduleID = moduleID
 	m.connectURL = connectURL
-	m.HiveModuleBase.Init(moduleID, sink)
+	// m.HiveModuleBase.Init(moduleID, sink)
 	m.RnrChan = msg.NewRnRChan(timeout)
+}
+
+// onNotificationFromSink receives an incoming notification from the registered sink.
+//
+// This sends the notifications to subscribed connections
+func (m *TransportServerBase) onNotificationFromSink(notif *msg.NotificationMessage) {
+	// the reason for the extra indirection is to ensure we're receiving the notification
+	// independently from how it is processed. Primarily useful in debugging.
+	m.SendNotification(notif)
+}
+
+// onNotificationFromConnection receives an incoming notification from the remote connection
+//
+// This sends the notifications to the consumer notification handler, if any.
+func (m *TransportServerBase) onNotificationFromConnection(notif *msg.NotificationMessage) {
+	// the reason for the extra indirection is to ensure we're receiving the notification
+	// independently from whether a consumer has set one.
+	m.ForwardNotification(notif)
 }
 
 // removeConnection removes the connection.
 // non-concurrent safe internal function that can be used from a locked section.
 // This will close the connnection if it isn't closed already.
 // Call this after the connection is closed or before closing.
-func (m *TransportModuleBase) removeConnection(c IConnection) {
+func (m *TransportServerBase) removeConnection(c IConnection) {
 
 	clientID := c.GetClientID()
 	connectionID := c.GetConnectionID()
@@ -253,13 +320,14 @@ func (m *TransportModuleBase) removeConnection(c IConnection) {
 		//clientCids = utils.Remove(clientCids, i)
 		m.connectionsByClientID[clientID] = clientCids
 	}
-	m.UpdateProperty(PropName_NrConnections, len(m.connectionsByClcid))
+	// todo: module properties
+	// m.UpdateProperty(PropName_NrConnections, len(m.connectionsByClcid))
 }
 
 // RemoveConnection removes the connection by its connectionID
 // This will close the connnection if it isn't closed already.
 // Call this after the connection is closed or before closing.
-func (m *TransportModuleBase) RemoveConnection(c IConnection) {
+func (m *TransportServerBase) RemoveConnection(c IConnection) {
 	m.cmux.Lock()
 	defer m.cmux.Unlock()
 	m.removeConnection(c)
@@ -267,7 +335,7 @@ func (m *TransportModuleBase) RemoveConnection(c IConnection) {
 
 // SendNotification [agent] server sends a notification to its connections
 // The connection handles subscriptions.
-func (m *TransportModuleBase) SendNotification(notif *msg.NotificationMessage) {
+func (m *TransportServerBase) SendNotification(notif *msg.NotificationMessage) {
 	m.ForEachConnection(func(c IConnection) {
 		c.SendNotification(notif)
 	})
@@ -282,7 +350,7 @@ func (m *TransportModuleBase) SendNotification(notif *msg.NotificationMessage) {
 //
 // Note that the request message contains the ThingID of the thing for which the request
 // is intended. The agent must know how to forward the request to the Thing.
-func (m *TransportModuleBase) SendRequest(
+func (m *TransportServerBase) SendRequest(
 	agentID string, req *msg.RequestMessage, replyTo msg.ResponseHandler) (err error) {
 
 	c := m.GetConnectionByClientID(agentID)
@@ -298,7 +366,7 @@ func (m *TransportModuleBase) SendRequest(
 // This is equivalent to calling SendResponse on the connection itself.
 //
 //	clientID identifies the consumer to send the response to
-func (m *TransportModuleBase) SendResponse(
+func (m *TransportServerBase) SendResponse(
 	clientID, cid string, resp *msg.ResponseMessage) (err error) {
 	// var c IConnection
 
@@ -311,4 +379,14 @@ func (m *TransportModuleBase) SendResponse(
 	}
 	err = c.SendResponse(resp)
 	return err
+}
+
+// Set the handler that will receive notifications emitted by this module
+func (m *TransportServerBase) SetNotificationSink(consumer msg.NotificationHandler) {
+	m.notificationSink = consumer
+}
+
+// Set the handler that will receive notifications emitted by this module
+func (m *TransportServerBase) SetRequestSink(sink msg.RequestHandler) {
+	m.requestSink = sink
 }

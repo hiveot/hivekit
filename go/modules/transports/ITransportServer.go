@@ -6,7 +6,7 @@ import (
 	"github.com/hiveot/hivekit/go/wot/td"
 )
 
-// Shared transport module definitions for use by transport protocols
+// Transport server module definitions for use by transport protocols.
 // This contains the protocol types, authentication handler, and interfaces for the shared http server and tls client.
 
 // Supported transport protocol types
@@ -38,8 +38,8 @@ const (
 // If the token is invalid an error is returned
 type AuthenticationHandler func(token string) (clientID string, sessionID string, err error)
 
-// A transport module is a server module with hooks for sending messages to remote clients.
-type ITransportModule interface {
+// A transport server module is a server module with hooks for sending messages to remote clients.
+type ITransportServer interface {
 	modules.IHiveModule
 
 	// AddTDForms updates the given Thing Description with forms for this transport module.

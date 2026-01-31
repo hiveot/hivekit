@@ -117,21 +117,14 @@ func (ag *Agent) PubProperties(thingID string, propMap map[string]any) {
 	ag.ForwardNotification(notif)
 }
 
-// // SendNotification sends a property or event notification message to the registered
-// // notification handler. (set by SetSink or SetNotificationHandler)
-// func (ag *Agent) SendNotification(notif *msg.NotificationMessage) {
-// 	if ag.notificationHandler != nil {
-// 		ag.notificationHandler(notif)
-// 	}
-// }
-
 // SendResponse sends a response for a previous request
 // func (ag *Agent) SendResponse(resp *msg.ResponseMessage) error {
 // 	return ag.GetConnection().SendResponse(resp)
 // }
 
-// SetRequestHandler set the application handler for incoming requests
-func (ag *Agent) SetRequestHandler(cb msg.RequestHandler) {
+// SetAppRequestHandler set the application handler for incoming requests
+// requests that are not handled are forwarded to the sink.
+func (ag *Agent) SetAppRequestHandler(cb msg.RequestHandler) {
 	if cb == nil {
 		ag.appRequestHandlerPtr.Store(nil)
 	} else {
@@ -139,46 +132,28 @@ func (ag *Agent) SetRequestHandler(cb msg.RequestHandler) {
 	}
 }
 
-// UpdateThing helper for agents to publish an update of a TD in the directory
-// Note that this depends on the runtime directory service.
+// NewAgent creates a new agent instance for serving requests and sending notifications.
+// Agents are sinks for consumers.
 //
-// FIXME: change to use directory forms
-// func (ag *WotAgent) UpdateThing(tdoc *td.TD) error {
-// 	slog.Info("UpdateThing", slog.String("id", tdoc.ID))
-
-// 	// TD is sent as JSON
-// 	tdJson, _ := jsoniter.MarshalToString(tdoc)
-// 	err := ag.Rpc(wot.OpInvokeAction, ThingDirectoryDThingID, ThingDirectoryUpdateThingMethod,
-// 		tdJson, nil)
-// 	return err
-// }
-
-// NewAgent creates a new agent instance for serving requests and sending responses.
 // Since agents are also consumers, they can also send requests and receive responses.
 //
-// Agents can be connected to when running a server or connect to a hub or gateway as client.
+// appReqHandler is the application handler of requests sent to this producer.
+// consumers should set this as the sink that handles requests and return notifications
 //
 // This is a wrapper around the client connection that can be used as a sink.
 func NewAgent(moduleID string,
-	cc IClientSink,
+	// cc IClientSink,
 	connHandler transports.ConnectionHandler,
-	notifHandler msg.NotificationHandler,
-	reqHandler msg.RequestHandler,
-	respHandler msg.ResponseHandler,
+	appReqHandler msg.RequestHandler,
 	timeout time.Duration) *Agent {
 
 	if timeout == 0 {
 		timeout = transports.DefaultRpcTimeout
 	}
 	agent := &Agent{}
-	agent.Consumer = NewConsumer(moduleID, cc, timeout)
+	agent.Consumer = NewConsumer(moduleID, timeout)
 
-	agent.SetConnectHandler(connHandler)
-	agent.SetNotificationHandler(notifHandler)
-	agent.SetRequestHandler(reqHandler)
-	// agent.SetResponseHandler(respHandler)
-	cc.SetConnectHandler(agent.onConnect)
-	cc.SetSink(agent, nil)
+	agent.SetAppRequestHandler(appReqHandler)
 
 	return agent
 }

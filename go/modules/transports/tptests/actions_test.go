@@ -10,7 +10,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/hiveot/hivekit/go/modules"
 	"github.com/hiveot/hivekit/go/msg"
 	"github.com/hiveot/hivekit/go/utils"
 	"github.com/hiveot/hivekit/go/wot"
@@ -48,38 +47,38 @@ func TestInvokeActionFromConsumerToServer(t *testing.T) {
 		return replyTo(resp)
 	}
 	// 1. start the servers
-	tmpSink := &modules.HiveModuleBase{}
-	tmpSink.SetRequestHandler(handleRequest)
-	srv, tpauthn, cancelFn := StartTransportModule(tmpSink)
+	srv, tpauthn, cancelFn := StartTransportModule()
+	srv.SetRequestSink(handleRequest)
 	_ = srv
 	defer cancelFn()
 
 	// 2. connect a client
-	co1, cc1, token := NewTestConsumer(testClientID1, srv.GetConnectURL(), tpauthn)
+	co1, cc1, token := NewTestConsumer(testClientID1, srv.GetConnectURL(), tpauthn, nil)
 	defer cc1.Close()
 	require.NotEmpty(t, token)
 	ctx1, release1 := context.WithTimeout(context.Background(), time.Minute)
 	defer release1()
 
-	// since there is no waiting for a response when sending the request, the
-	// client should receive an action/request response via the response callback
-	// co1.SetResponseHandler(func(resp *msg.ResponseMessage) error {
-	// 	slog.Info("testOutput was updated asynchronously via the message handler")
-	// 	// response should be an ActionStatus object
-	// 	err2 := utils.Decode(resp.Value, &testActionStatus)
-	// 	if assert.NoError(t, err2) {
-	// 		err2 = utils.DecodeAsObject(testActionStatus.Output, &testOutput)
-	// 		assert.NoError(t, err2)
-	// 	}
-	// 	release1()
-	// 	return err2
-	// })
+	// the response handler
+	responseHandler := func(resp *msg.ResponseMessage) error {
+		slog.Info("testOutput was updated asynchronously via the message handler")
+		var testActionStatus msg.ActionStatus
+		// response should be an ActionStatus object
+		err2 := utils.Decode(resp.Value, &testActionStatus)
+		if assert.NoError(t, err2) {
+			err2 = utils.DecodeAsObject(testActionStatus.Output, &testOutput)
+			assert.NoError(t, err2)
+		}
+		release1()
+		return err2
+	}
 
 	// 3. invoke the action without waiting for a result
 	// the response handler above will receive the result
 	// testOutput can be updated as an immediate result or via the callback message handler
 	req := msg.NewRequestMessage(wot.OpInvokeAction, thingID, actionName, testMsg1, shortid.MustGenerate())
-	err := co1.SendRequest(req, nil)
+	err := co1.SendRequest(req, responseHandler)
+
 	require.NoError(t, err)
 	<-ctx1.Done()
 
@@ -139,17 +138,17 @@ func TestInvokeActionFromServerToAgent(t *testing.T) {
 	}
 	// tmpSink := &modules.HiveModuleBase{}
 	// tmpSink.SetResponseHandler(responseHandler)
-	srv, tpauthn, cancelFn2 := StartTransportModule(nil)
+	srv, tpauthn, cancelFn2 := StartTransportModule()
 	_ = srv
 	defer cancelFn2()
 
 	// 2a. connect as an agent
-	cc1, ag1client, token := NewTestAgent(testAgentID1, srv.GetConnectURL(), tpauthn)
+	ag1client, cc1, token := NewTestAgent(testAgentID1, srv.GetConnectURL(), tpauthn)
 	require.NotEmpty(t, token)
 	defer cc1.Close()
 
 	// an agent receives requests from the server
-	ag1client.SetRequestHandler(func(req *msg.RequestMessage, replyTo msg.ResponseHandler) error {
+	ag1client.SetAppRequestHandler(func(req *msg.RequestMessage, replyTo msg.ResponseHandler) error {
 		// agent receives action request and returns a result
 		slog.Info("Agent receives request", "op", req.Operation)
 		assert.Equal(t, testClientID1, req.SenderID)
@@ -267,14 +266,13 @@ func TestQueryActions(t *testing.T) {
 	}
 
 	// 1. start the servers
-	tmpSink := &modules.HiveModuleBase{}
-	tmpSink.SetRequestHandler(requestHandler)
-	srv, tpauthn, cancelFn := StartTransportModule(tmpSink)
+	srv, tpauthn, cancelFn := StartTransportModule()
+	srv.SetRequestSink(requestHandler)
 	_ = srv
 	defer cancelFn()
 
 	// 2. connect as a consumer
-	co1, cc1, _ := NewTestConsumer(testClientID1, srv.GetConnectURL(), tpauthn)
+	co1, cc1, _ := NewTestConsumer(testClientID1, srv.GetConnectURL(), tpauthn, nil)
 	defer cc1.Close()
 
 	// 3. Query action status

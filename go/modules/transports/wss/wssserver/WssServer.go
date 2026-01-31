@@ -5,6 +5,7 @@ import (
 	"log/slog"
 	"net/http"
 	"net/url"
+	"strings"
 
 	"github.com/gorilla/websocket"
 	"github.com/hiveot/hivekit/go/modules"
@@ -17,8 +18,10 @@ import (
 )
 
 // WssServer is a transport module that serves Websocket connections over http.
+// This implements both ITransportServer and IHiveModule interfaces.
 type WssServer struct {
-	transports.TransportModuleBase
+	transports.TransportServerBase
+
 	// this handles request for this module
 	msgAPI *WssRrnHandler
 
@@ -42,19 +45,48 @@ type WssServer struct {
 // 	return transports.ProtocolTypeWotWSS
 // }
 
-// HandleRequest passes the module request messages to the API handler.
-// This has nothing to do with receiving requests over websockets.
+// Get the agent/producer connection that serves the given ThingID
+// This supports using an agent prefix separated by ':' for the thingID
+func (m *WssServer) DetermineAgentConnection(thingID string) (transports.IConnection, error) {
+	parts := strings.Split(thingID, ":")
+	agentID := parts[0]
+
+	c := m.GetConnectionByClientID(agentID)
+	if c == nil {
+		return nil, fmt.Errorf("No connection found for ThingID '%s'", thingID)
+	}
+	return c, nil
+}
+
+// Handle a notification this module (or downstream in the chain) subscribed to.
+// Notifications are forwarded to their upstream sink, which for a server is the
+// client.
+func (m *WssServer) HandleNotification(notif *msg.NotificationMessage) {
+	m.SendNotification(notif)
+}
+
+// HandleRequest handles requests directed at this module or a connected agent.
+//
+// If not directed to this module then forward the request to the remote client.
+// This means that a consumer running on the server sends a request to a producer
+// connected as a client using connection reversal.
+// The ThingID in the request must match the clientID of a connected client.
+//
+// This returns an error when the destination for the request cannot be found.
+// If multiple server protocols are used it is okay to try them one by one.
 func (m *WssServer) HandleRequest(
 	req *msg.RequestMessage, replyTo msg.ResponseHandler) (err error) {
 
 	// first attempt to procss the when targeted at this module
 	if req.ThingID == m.GetModuleID() {
 		err = m.msgAPI.HandleRequest(req, replyTo)
-	}
-	// if the request failed, then forward the request through the chain
-	// the module base handles operations for reading properties
-	if err != nil {
-		err = m.HiveModuleBase.HandleRequest(req, replyTo)
+	} else {
+		var c transports.IConnection
+		// if the request is not for this module then pass it to the remote connection
+		c, err := m.DetermineAgentConnection(req.ThingID)
+		if err == nil {
+			err = c.SendRequest(req, replyTo)
+		}
 	}
 	return err
 }
@@ -98,12 +130,14 @@ func (m *WssServer) Serve(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// the new server connection sends messages to the module sink
-	c := NewWSSServerConnection(clientID, r, wssConn, m.msgConverter, m.GetSink())
+	// no connection handler is needed as the serve detects and notifies of changes
+	c := NewWSSServerConnection(clientID, r, wssConn, m.msgConverter,
+		m.ForwardRequest, m.ForwardNotification)
 
 	err = m.AddConnection(c)
 
 	if m.serverConnectHandler != nil {
-		m.serverConnectHandler(true, nil, c)
+		m.serverConnectHandler(true, c, nil)
 	}
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusUnauthorized)
@@ -119,7 +153,7 @@ func (m *WssServer) Serve(w http.ResponseWriter, r *http.Request) {
 	// finally cleanup the connection
 	m.RemoveConnection(c)
 	if m.serverConnectHandler != nil {
-		m.serverConnectHandler(false, nil, c)
+		m.serverConnectHandler(false, c, nil)
 	}
 }
 
@@ -130,13 +164,8 @@ func (m *WssServer) Start(yamlConfig string) (err error) {
 
 	slog.Info("Starting websocket module, Listening on: " + m.GetConnectURL())
 
-	if m.GetSink() == nil {
-		err = fmt.Errorf("This Wss server module has no sink and will not work. Bye bye")
-		return err
-	}
+	// TODO: detect if already running
 
-	// TODO: detect if already listening
-	err = m.TransportModuleBase.Start("")
 	// create routes
 	router := m.httpServer.GetProtectedRoute()
 	router.Get(m.wssPath, m.Serve)
@@ -157,13 +186,13 @@ func (m *WssServer) Stop() {
 	router.Delete(m.wssPath, m.Serve)
 }
 
-// Create a websocket module using hiveot RRN direct messaging
-// This is used for agents that use reverse connections.
-// This uses a passthrough message converter for requests, response and notifications
+// Create a websocket server module using serving connections from consumers and agents.
 //
 // httpServer is the http server the websocket is using
-// sink is the optional receiver of request, response and notification messages, nil to set later
-func NewHiveotWssServer(httpServer transports.IHttpServer, sink modules.IHiveModule) *WssServer {
+//
+// Use SetRequestSink to set the handler for requests send by consumers
+// Use SetNotificationSink to set the handler for notifications send by agents.
+func NewHiveotWssServer(httpServer transports.IHttpServer) *WssServer {
 
 	httpURL := httpServer.GetConnectURL()
 	urlParts, err := url.Parse(httpURL)
@@ -181,7 +210,7 @@ func NewHiveotWssServer(httpServer transports.IHttpServer, sink modules.IHiveMod
 	moduleID := wss.DefaultHiveotWssModuleID
 	connectURL := fmt.Sprintf("%s://%s%s", wss.HiveotWssSchema, urlParts.Host, m.wssPath)
 	// set the base parameters
-	m.Init(moduleID, sink, connectURL, transports.DefaultRpcTimeout)
+	m.Init(moduleID, connectURL, transports.DefaultRpcTimeout)
 	return m
 }
 
@@ -189,12 +218,11 @@ func NewHiveotWssServer(httpServer transports.IHttpServer, sink modules.IHiveMod
 // This uses the WoT websocket protocol message converter to convert between
 // the standard RRN messages and the WoT websocket message format.
 //
-// Incoming messages are passed to the provided sink. The sink can be nil as long as it is
-// set with SetSink() before calling start.
-//
 // httpServer is the http server the websocket is using
-// sink is the required receiver of request, response and notification messages, nil to set later but before start.
-func NewWotWssServer(httpServer transports.IHttpServer, sink modules.IHiveModule) *WssServer {
+//
+// Use SetRequestSink to set the handler for requests send by consumers
+// Use SetNotificationSink to set the handler for notifications send by agents.
+func NewWotWssServer(httpServer transports.IHttpServer) *WssServer {
 	httpURL := httpServer.GetConnectURL()
 	urlParts, err := url.Parse(httpURL)
 	if err != nil {
@@ -209,6 +237,11 @@ func NewWotWssServer(httpServer transports.IHttpServer, sink modules.IHiveModule
 	moduleID := wss.DefaultWotWssModuleID
 	connectURL := fmt.Sprintf("%s://%s%s", wss.WotWssSchema, urlParts.Host, m.wssPath)
 
-	m.Init(moduleID, sink, connectURL, transports.DefaultRpcTimeout)
+	m.Init(moduleID, connectURL, transports.DefaultRpcTimeout)
+	// m.UpdateProperty(transports.PropName_NrConnections, 0)
+
+	var _ modules.IHiveModule = m         // interface check
+	var _ transports.ITransportServer = m // interface check
+
 	return m
 }

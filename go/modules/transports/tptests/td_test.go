@@ -69,7 +69,7 @@ func TestAddForms(t *testing.T) {
 
 	// handler of TDs on the server
 	// 1. start the transport
-	srv, tpauthn, cancelFn := StartTransportModule(nil)
+	srv, tpauthn, cancelFn := StartTransportModule()
 	_ = tpauthn
 	defer cancelFn()
 

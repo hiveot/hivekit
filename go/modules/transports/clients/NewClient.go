@@ -14,13 +14,15 @@ import (
 	wssclient "github.com/hiveot/hivekit/go/modules/transports/wss/client"
 )
 
-type IClientSink interface {
+// IClientModule is the combined interface of a client connection and HiveKit Module
+// This is intended to be used as a sink for publishing requests to a remote server.
+type IClientModule interface {
 	transports.IConnection
 	modules.IHiveModule
 }
 
-// NewClientSink returns a new client instance ready to connect and be used as a sink
-func NewClientSink(serverURL string, caCert *x509.Certificate, timeout time.Duration) (cl IClientSink, err error) {
+// NewClientModule returns a new client instance ready to connect and be used as a sink
+func NewClientModule(serverURL string, caCert *x509.Certificate, timeout time.Duration) (cl IClientModule, err error) {
 	parts, err := url.Parse(serverURL)
 	scheme := strings.ToLower(parts.Scheme)
 

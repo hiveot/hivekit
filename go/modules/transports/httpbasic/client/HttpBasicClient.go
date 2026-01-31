@@ -37,7 +37,7 @@ import (
 type HttpBasicClient struct {
 
 	// handler for requests send by clients
-	appConnectHandlerPtr atomic.Pointer[transports.ConnectionHandler]
+	connectHandler transports.ConnectionHandler
 
 	//clientID string
 	// Connection information such as clientID, cid, address, protocol etc
@@ -66,10 +66,16 @@ type HttpBasicClient struct {
 // set the clientID and authentication bearer token and connect to the server
 // Assume this client is now connected.
 // TODO: should it ping to confirm?
-func (cl *HttpBasicClient) ConnectWithToken(clientID string, token string) error {
+func (cl *HttpBasicClient) ConnectWithToken(
+	clientID string, token string, ch transports.ConnectionHandler) error {
+
+	cl.connectHandler = ch
 	err := cl.tlsClient.ConnectWithToken(clientID, token)
 	if err == nil {
-		cl.SetConnected(true)
+		cl.isConnected.Store(true)
+		if ch != nil {
+			ch(true, cl, nil)
+		}
 	}
 	return err
 }
@@ -81,6 +87,10 @@ func (cl *HttpBasicClient) Close() {
 	defer cl.mux.Unlock()
 	if cl.isConnected.Load() {
 		cl.tlsClient.Close()
+		cl.isConnected.Store(false)
+		if cl.connectHandler != nil {
+			cl.connectHandler(false, cl, nil)
+		}
 	}
 }
 
@@ -122,6 +132,14 @@ func (cl *HttpBasicClient) GetTlsClient() transports.ITlsClient {
 }
 func (cl *HttpBasicClient) GetTM() string {
 	return ""
+}
+
+// HandleNotification receives an incoming notification from a producer
+// and sends it to the server.
+func (m *HttpBasicClient) HandleNotification(notif *msg.NotificationMessage) {
+	// Can't use HiveModuleBase.HandleNotification as it forwards the notification
+	// to the registered notification sink.
+	m.SendNotification(notif)
 }
 
 // clients send requests to the server
@@ -306,27 +324,17 @@ func (cl *HttpBasicClient) SendResponse(resp *msg.ResponseMessage) error {
 	return errors.New("HttpBasic doesn't support sending async responses")
 }
 
-// SetConnected sets the sub-protocol connection status
-func (cl *HttpBasicClient) SetConnected(isConnected bool) {
-	cl.isConnected.Store(isConnected)
-}
-
-// SetConnectHandler set the application handler for connection status updates
-func (cl *HttpBasicClient) SetConnectHandler(cb transports.ConnectionHandler) {
-	cl.appConnectHandlerPtr.Store(&cb)
-}
-
 // Does reports an error as http clients dont receive notifications
-func (cl *HttpBasicClient) SetNotificationHandler(cb msg.NotificationHandler) {
-	slog.Warn("SetNotificationHandler: HttpBasicClients dont handle notifications",
+func (cl *HttpBasicClient) SetNotificationSink(cb msg.NotificationHandler) {
+	slog.Warn("SetNotificationSink: HttpBasicClients dont handle notifications",
 		"clientID", cl.GetClientID())
 }
 
-// SetSink set the application module that handles async notifications, requests and responses
-func (cl *HttpBasicClient) SetSink(sink modules.IHiveModule, _ msg.NotificationHandler) {
-	cl.mux.Lock()
-	cl.sink = sink
-	cl.mux.Unlock()
+// SetRequestSink set sink that handles requests
+// Since http-basic is a uni-directional transport client, requests are send to the server
+// instead of passing it to this sink. Therefore this logs an error.
+func (cl *HttpBasicClient) SetRequestSink(sink msg.RequestHandler) {
+	slog.Warn("SetRequestSink. HttpBasicClient cannot be a request sink.")
 }
 
 // start doesn't do anything. Use ConnectWith... to connect.
@@ -371,7 +379,7 @@ func NewHttpBasicClient(
 
 	tlsClient := tlsclient.NewTLSClient(hostPort, nil, caCert, timeout)
 
-	cl := HttpBasicClient{
+	cl := &HttpBasicClient{
 		getForm:   getForm,
 		timeout:   timeout,
 		tlsClient: tlsClient,
@@ -379,5 +387,7 @@ func NewHttpBasicClient(
 	if cl.getForm == nil {
 		cl.getForm = cl.GetDefaultForm
 	}
-	return &cl
+	var _ transports.IConnection = cl // interface check
+	var _ modules.IHiveModule = cl    // interface check
+	return cl
 }

@@ -89,7 +89,7 @@ func (m *SsescServer) onHttpNotificationMessage(w http.ResponseWriter, r *http.R
 
 // onHttpRequestMessage handles request messages received over http.
 //
-// The request is forwarded to the registered sink.
+// The request is forwarded to the registered request sink.
 // If the message is processed immediately, a response is returned with the http request.
 // If the message is processed asynchronously, a response is returned via the replyTo
 // handler and returned via SSE.
@@ -149,7 +149,8 @@ func (m *SsescServer) onHttpRequestMessage(w http.ResponseWriter, r *http.Reques
 		sc, _ := c.(*HiveotSseServerConnection)
 		handled, err := sc.onRequestMessage(req)
 
-		// if the connection doesnt handle the request then forward it to the sink
+		// if the connection doesnt handle the request then forward it to the
+		// registered request sink, a producer running on the server.
 		if !handled {
 			err = m.ForwardRequest(req,
 				func(resp *msg.ResponseMessage) error {
@@ -247,7 +248,7 @@ func (m *SsescServer) onHttpSseConnection(w http.ResponseWriter, r *http.Request
 	// c.SetResponseHandler(srv.serverResponseHandler)
 	err = m.AddConnection(c)
 	if m.connectHandler != nil {
-		m.connectHandler(true, nil, c)
+		m.connectHandler(true, c, nil)
 	}
 
 	// if err != nil {
@@ -260,6 +261,6 @@ func (m *SsescServer) onHttpSseConnection(w http.ResponseWriter, r *http.Request
 	// finally cleanup the connection
 	m.RemoveConnection(c)
 	if m.connectHandler != nil {
-		m.connectHandler(false, nil, c)
+		m.connectHandler(false, c, nil)
 	}
 }

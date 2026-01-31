@@ -7,7 +7,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/hiveot/hivekit/go/modules"
 	"github.com/hiveot/hivekit/go/msg"
 	"github.com/hiveot/hivekit/go/wot"
 	"github.com/stretchr/testify/assert"
@@ -29,20 +28,20 @@ func TestObservePropertyByConsumer(t *testing.T) {
 	var propValue2 = "value2"
 
 	// 1. start the server
-	srv, tpauthn, cancelFn := StartTransportModule(nil)
+	srv, tpauthn, cancelFn := StartTransportModule()
 	defer cancelFn()
 
 	// 2. connect with two consumers
-	co1, cc1, _ := NewTestConsumer(testClientID1, srv.GetConnectURL(), tpauthn)
+	co1, cc1, _ := NewTestConsumer(testClientID1, srv.GetConnectURL(), tpauthn, nil)
 	defer cc1.Close()
-	co2, cc2, _ := NewTestConsumer(testClientID1, srv.GetConnectURL(), tpauthn)
+	co2, cc2, _ := NewTestConsumer(testClientID1, srv.GetConnectURL(), tpauthn, nil)
 	defer cc2.Close()
 
 	// set the handler for property updates and subscribe
-	co1.SetNotificationHandler(func(ev *msg.NotificationMessage) {
+	co1.SetNotificationHook(func(ev *msg.NotificationMessage) {
 		rxVal1.Store(ev.Value)
 	})
-	co2.SetNotificationHandler(func(ev *msg.NotificationMessage) {
+	co2.SetNotificationHook(func(ev *msg.NotificationMessage) {
 		rxVal2.Store(ev.Value)
 	})
 
@@ -109,14 +108,13 @@ func TestPublishPropertyByAgent(t *testing.T) {
 	}
 
 	// 1. start the transport
-	serverSink := &modules.HiveModuleBase{}
-	serverSink.SetNotificationHandler(notificationHandler)
-	srv, tpauthn, cancelFn := StartTransportModule(serverSink)
+	srv, tpauthn, cancelFn := StartTransportModule()
+	srv.SetNotificationSink(notificationHandler)
 	_ = srv
 	defer cancelFn()
 
 	// 2. connect as an agent
-	agConn1, ag1, _ := NewTestAgent(testAgentID1, srv.GetConnectURL(), tpauthn)
+	ag1, agConn1, _ := NewTestAgent(testAgentID1, srv.GetConnectURL(), tpauthn)
 	defer agConn1.Close()
 
 	// 3. agent publishes a property update to subscribers
@@ -139,7 +137,7 @@ func TestReadProperty(t *testing.T) {
 
 	// 1. start the agent transport with the request handler
 	// in this case the consumer connects to the agent (unlike when using a hub)
-	agentReqHandler := func(req *msg.RequestMessage, replyTo msg.ResponseHandler) error {
+	appReqHandler := func(req *msg.RequestMessage, replyTo msg.ResponseHandler) error {
 		var resp *msg.ResponseMessage
 		if req.Operation == wot.OpReadProperty && req.ThingID == thingID && req.Name == propKey {
 			tv := msg.NewThingValue(msg.AffordanceTypeProperty,
@@ -151,14 +149,13 @@ func TestReadProperty(t *testing.T) {
 		}
 		return replyTo(resp)
 	}
-	tmpSink := &modules.HiveModuleBase{}
-	tmpSink.SetRequestHandler(agentReqHandler)
-	srv, tpauthn, cancelFn := StartTransportModule(tmpSink)
+	srv, tpauthn, cancelFn := StartTransportModule()
+	srv.SetRequestSink(appReqHandler)
 	_ = srv
 	defer cancelFn()
 
 	// 2. connect as a consumer
-	co1, cc1, _ := NewTestConsumer(testClientID1, srv.GetConnectURL(), tpauthn)
+	co1, cc1, _ := NewTestConsumer(testClientID1, srv.GetConnectURL(), tpauthn, nil)
 	defer cc1.Close()
 
 	rxVal, err := co1.ReadProperty(thingID, propKey)
@@ -178,7 +175,7 @@ func TestReadAllProperties(t *testing.T) {
 
 	// 1. start the agent transport with the request handler
 	// in this case the consumer connects to the agent (unlike when using a hub)
-	agentReqHandler := func(req *msg.RequestMessage, replyTo msg.ResponseHandler) error {
+	appReqHandler := func(req *msg.RequestMessage, replyTo msg.ResponseHandler) error {
 		var resp *msg.ResponseMessage
 		if req.Operation == wot.OpReadAllProperties {
 			output := make(map[string]*msg.ThingValue)
@@ -192,14 +189,13 @@ func TestReadAllProperties(t *testing.T) {
 		}
 		return replyTo(resp)
 	}
-	tmpSink := &modules.HiveModuleBase{}
-	tmpSink.SetRequestHandler(agentReqHandler)
-	srv, tpauthn, cancelFn := StartTransportModule(tmpSink)
+	srv, tpauthn, cancelFn := StartTransportModule()
+	srv.SetRequestSink(appReqHandler)
 	_ = srv
 	defer cancelFn()
 
 	// 2. connect as a consumer
-	co1, cc1, _ := NewTestConsumer(testClientID1, srv.GetConnectURL(), tpauthn)
+	co1, cc1, _ := NewTestConsumer(testClientID1, srv.GetConnectURL(), tpauthn, nil)
 	defer cc1.Close()
 
 	propMap, err := co1.ReadAllProperties(thingID)

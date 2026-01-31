@@ -201,7 +201,7 @@ func NewHttpServerModule(moduleID string, config *httpserver.HttpServerConfig) *
 	if m.authenticateHandler == nil {
 		m.authenticateHandler = m.DefaultAuthenticate
 	}
-	m.Init(moduleID, nil)
+	m.SetModuleID(moduleID)
 	var _ transports.IHttpServer = m // interface check
 	return m
 }

@@ -6,7 +6,6 @@ import (
 	"sync"
 	"sync/atomic"
 
-	"github.com/hiveot/hivekit/go/modules"
 	"github.com/hiveot/hivekit/go/msg"
 	"github.com/hiveot/hivekit/go/wot"
 )
@@ -21,9 +20,6 @@ type ServerConnectionBase struct {
 	// The connection identification
 	ConnectionID string
 
-	// connectHandler is the handler to invoke when a connection status changes
-	connectHandler ConnectionHandler
-
 	// SendNotificationHandler msg.NotificationHandler
 	// connections clients are asynchronous
 	// SendRequestHandler func(req *msg.RequestMessage) (err error)
@@ -31,18 +27,11 @@ type ServerConnectionBase struct {
 	// SendResponseHandler msg.ResponseHandler
 	isConnected atomic.Bool
 
-	// notificationHandler registered by the consumer of this module
-	// (producers produce, not receive notifications)
-	notificationHandler msg.NotificationHandler
-
 	// property observations made by the client
 	observations Subscriptions
 
 	// Remote address of the connection
 	remoteAddr string
-
-	// Connection sink that handles the incoming requests
-	Sink modules.IHiveModule
 
 	// event subscription made by the client
 	subscriptions Subscriptions
@@ -52,8 +41,7 @@ type ServerConnectionBase struct {
 }
 
 // ConnectWithToken is defined in IConnection and does not apply to server side connections.
-// (not yet anyways)
-func (c *ServerConnectionBase) ConnectWithToken(clientID, token string) error {
+func (c *ServerConnectionBase) ConnectWithToken(_, _ string, _ ConnectionHandler) error {
 	return errors.New("Not for server connections")
 }
 
@@ -61,31 +49,12 @@ func (c *ServerConnectionBase) Disconnect() {
 	c.isConnected.Store(false)
 }
 
-// ForwardNotification (output) is a helper function to pass notifications to the
-// registered callback, if one is available. If none is registered this does nothing
-// Note that the handler is the upstream consumer that runs on the server, likely a gateway.
-func (m *ServerConnectionBase) ForwardNotification(notif *msg.NotificationMessage) {
-	if m.notificationHandler == nil {
-		slog.Warn("ForwardNotification (server): no handler set. Notification is dropped.",
-			"module", m.ClientID,
-			"operation", notif.Operation,
-			"name", notif.Name,
-		)
-		return
-	}
-	m.notificationHandler(notif)
-}
 func (c *ServerConnectionBase) GetClientID() string {
 	return c.ClientID
 }
 
 func (c *ServerConnectionBase) GetConnectionID() string {
 	return c.ConnectionID
-}
-func (c *ServerConnectionBase) GetConnectHandler() ConnectionHandler {
-	c.Mux.RLock()
-	defer c.Mux.RUnlock()
-	return c.connectHandler
 }
 
 // HasSubscription returns true if this connection has subscribed to the given
@@ -128,12 +97,16 @@ func (sc *ServerConnectionBase) HasSubscription(notif *msg.NotificationMessage) 
 }
 
 // Initialize the connection base. Call this before use.
-func (c *ServerConnectionBase) Init(clientID, remoteAddr, cid string, sink modules.IHiveModule) {
+//
+//	 clientID of the client at the remote end
+//		remoteAddr is the remote client's endpoint address
+//		cid is the connection ID to differentiate multiple connections from this client
+func (c *ServerConnectionBase) Init(clientID, remoteAddr, cid string) {
+
 	c.ClientID = clientID
 	c.ConnectionID = cid
 	c.remoteAddr = remoteAddr
 	c.isConnected.Store(true)
-	c.Sink = sink
 }
 
 func (c *ServerConnectionBase) IsConnected() bool {
@@ -175,26 +148,6 @@ func (c *ServerConnectionBase) ObserveProperty(dThingID, name string, corrID str
 // 	}
 // 	return nil
 // }
-
-func (c *ServerConnectionBase) SetConnectHandler(h ConnectionHandler) {
-	c.Mux.Lock()
-	defer c.Mux.Unlock()
-	c.connectHandler = h
-}
-
-// Set the handler of notifications produced (or forwarded) by this module
-func (c *ServerConnectionBase) SetNotificationHandler(consumer msg.NotificationHandler) {
-	c.Mux.Lock()
-	defer c.Mux.Unlock()
-	c.notificationHandler = consumer
-}
-
-// Set the destination sink for received messages
-func (c *ServerConnectionBase) SetSink(sink modules.IHiveModule) {
-	c.Mux.Lock()
-	defer c.Mux.Unlock()
-	c.Sink = sink
-}
 
 // Subscribe to an event.
 func (c *ServerConnectionBase) SubscribeEvent(dThingID, name string, corrID string) {

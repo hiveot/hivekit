@@ -61,7 +61,7 @@ type HttpErrorResponse struct {
 
 // Interface of the HttpBasic transport module
 type IHttpBasicTransport interface {
-	transports.ITransportModule
+	transports.ITransportServer
 
 	// todo: future API  for managing the module
 }

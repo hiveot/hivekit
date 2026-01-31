@@ -26,56 +26,68 @@ type ModuleEnv struct {
 //
 // Call Init(moduleID,sink) after construction
 type HiveModuleBase struct {
-	// moduleID/thingID is the unique instance ID of this module.
-	moduleID string
 
-	// module properties and their value, nil if not used
-	// use UpdateProperty to modify a value and flag it for change
-	properties map[string]any
+	// notificationHandler is the application handler of notifications
+	// notifications will also be forwarded upstream to the upstream handler.
+	appNotificationHook msg.NotificationHandler
+
+	// requestHandler is the application handler of requests addressed to this module.
+	//
+	// HandleRequest will invoke this callback or forward requests not destined for
+	// this module (moduleID != request.ThingID) to requestSink.
+	appRequestHandler msg.RequestHandler
 
 	// Map of changed properties intended for sending property change notifications
 	// This map is empty until changes are made using UpdateProperty
 	changedProperties map[string]any
 
+	// moduleID/thingID is the unique instance ID of this module.
+	moduleID string
+
+	// notificationSink is the sink for forwarding notification messages
+	// This is the upstream consumer.
+	notificationSink msg.NotificationHandler
+
+	// module properties and their value, nil if not used
+	// use UpdateProperty to modify a value and flag it for change
+	properties map[string]any
+
 	// RW mutex to access properties
 	propMux sync.RWMutex
 
-	// Output/sink for forwarding RRN messages to
-	sink IHiveModule
-
-	// notificationHandler registered by the consumer of this module
-	notificationHandler msg.NotificationHandler
-
-	// optional request handler to allow injecting methods instead of creating a new struct with HandleRequest
-	// The default HandleRequest method will invoke this custom handler if set, instead of
-	// forwarding the request to the sink (if set).
-	customRequestHandler msg.RequestHandler
+	// requestSink is the sink for forwarding requests messages to
+	requestSink msg.RequestHandler
 }
 
-// ForwardNotification (output) is a helper function to pass notifications to the
-// registered callback, if one is available. If none is registered this does nothing
+// ForwardNotification (output) passes notifications to the registered callback.
+// If none is registered this does nothing.
 // note that the handler is not the downstream sink but the upstream consumer.
 func (m *HiveModuleBase) ForwardNotification(notif *msg.NotificationMessage) {
-	if m.notificationHandler == nil {
+	if m.notificationSink == nil {
+		// End of the line. A downstream module could have subscribed.
+		// Should subscribers not have a direct callback? probably... tbd
+
+		// keep this warning for now.
 		slog.Warn("ForwardNotification: no handler set. Notification is dropped.",
 			"module", m.moduleID,
 			"operation", notif.Operation,
+			"thingID", notif.ThingID,
 			"name", notif.Name,
 		)
 		return
 	}
-	m.notificationHandler(notif)
+	m.notificationSink(notif)
 }
 
 // ForwardRequest (output) is a helper function to pass a request to the sink's
 // HandleRequest method.
 // If no sink os configured this returns an error
 func (m *HiveModuleBase) ForwardRequest(req *msg.RequestMessage, replyTo msg.ResponseHandler) (err error) {
-	if m.sink == nil {
+	if m.requestSink == nil {
 		return fmt.Errorf("no sink for request '%s/%s' to thingID '%s'",
 			req.Operation, req.Name, req.ThingID)
 	}
-	err = m.sink.HandleRequest(req, replyTo)
+	err = m.requestSink(req, replyTo)
 	return err
 }
 
@@ -104,9 +116,9 @@ func (m *HiveModuleBase) GetModuleID() string {
 	return m.moduleID
 }
 
-// GetSink returns the module's output handler
-func (m *HiveModuleBase) GetSink() IHiveModule {
-	return m.sink
+// GetSink returns the module's request sink
+func (m *HiveModuleBase) GetSink() msg.RequestHandler {
+	return m.requestSink
 }
 
 // GetTM returns the module's TM describing its properties, actions and events.
@@ -119,27 +131,27 @@ func (m *HiveModuleBase) GetTM() string {
 	return ""
 }
 
-// HandleNotification process an incoming notification.
-// This is the module input.
+// HandleNotification receives an incoming notification from a producer.
 //
-// If a custom notification handler is set, this invokes that handler.
-// Otherwise, it forwards the notification to the sinks using ForwardNotification.
+// The default behavior passes the notification to the registered hook an
+// forwards it upstream to a register notification handler, if set.
 //
-// Transport modules that receive notifications from its clients should pass these to the
-// sinks and NOT pass them to HandleNotification.
-// func (m *HiveModuleBase) HandleNotification(notif *msg.NotificationMessage) {
-// 	if m.customNotificationHandler != nil {
-// 		m.customNotificationHandler(notif)
-// 	} else {
-// 		m.ForwardNotification(notif)
-// 	}
-// }
+// Applications that use notifications should use SetNotificationHook to register
+// its handler as it leaves the chain intact..
+func (m *HiveModuleBase) HandleNotification(notif *msg.NotificationMessage) {
+	if m.appNotificationHook != nil {
+		go m.appNotificationHook(notif)
+	}
+	// the reason for the extra indirection is to ensure we're receiving the notification
+	// independently from when someone sets a custome notification handler.
+	m.ForwardNotification(notif)
+}
 
-// HandleRequest handles the read property request for this module.
+// HandleRequest handles request for this module.
 //
-// If a custom request handler is set it is used instead.
+// If an app request handler is set, the request is passed to the application.
 //
-// Modules that implement HandleRequest should first handle the request itself and
+// Modules that override HandleRequest should first handle the request itself and
 // only hand it over to this base method when there is nothing for them to do.
 //
 // If a custom request handler is set then this invokes that handler. Intended for
@@ -154,8 +166,8 @@ func (m *HiveModuleBase) GetTM() string {
 func (m *HiveModuleBase) HandleRequest(req *msg.RequestMessage, replyTo msg.ResponseHandler) (err error) {
 	var resp *msg.ResponseMessage
 
-	if m.customRequestHandler != nil {
-		err = m.customRequestHandler(req, replyTo)
+	if m.appRequestHandler != nil {
+		err = m.appRequestHandler(req, replyTo)
 		return err
 	}
 
@@ -180,52 +192,6 @@ func (m *HiveModuleBase) HandleRequest(req *msg.RequestMessage, replyTo msg.Resp
 		err = replyTo(resp)
 	}
 	return err
-}
-
-// HandleResponse receives a response for processing or forwarding.
-// Handling responses are consumer activities.
-//
-// When addressed to this module, it is ignored as there is nothing to do.
-// Subclasses should handle the response if an output is expected.
-//
-// When not addressed to this module, the response might be intended for a module
-// down the chain, so forward it.
-// func (m *HiveModuleBase) HandleResponse(resp *msg.ResponseMessage) error {
-// 	if resp.ThingID == m.moduleID {
-// 		return nil
-// 	}
-// 	return m.ForwardResponse(resp)
-// }
-
-// Initialize the module base with a moduleID and a messaging sink
-// The messaging sink is optional.
-func (m *HiveModuleBase) Init(moduleID string, sink IHiveModule) {
-	m.moduleID = moduleID
-	m.sink = sink
-	if sink != nil {
-		sink.SetNotificationHandler(m.notificationHandler)
-	}
-}
-
-// ReadProperty returns a response containing the requested property value
-// This returns an error if the property doesn't exist.
-func (m *HiveModuleBase) ReadProperty(req *msg.RequestMessage) (resp *msg.ResponseMessage, err error) {
-	var found bool
-	var propValue any
-
-	m.propMux.RLock()
-	if m.properties == nil {
-		found = false
-	} else {
-		propValue, found = m.properties[req.Name]
-	}
-	m.propMux.RUnlock()
-	if !found {
-		err = fmt.Errorf("Property '%s' doesn't exist on Thing '%s'", req.Name, req.ThingID)
-		return nil, err
-	}
-	resp = req.CreateResponse(propValue, nil)
-	return resp, err
 }
 
 // ReadAllProperties returns a response containing the map of all known property values
@@ -280,36 +246,56 @@ func (m *HiveModuleBase) ReadMultipleProperties(req *msg.RequestMessage) (resp *
 	return resp, err
 }
 
-// Set the handler of notifications produced (or forwarded) by this module
-func (m *HiveModuleBase) SetNotificationHandler(consumer msg.NotificationHandler) {
-	m.notificationHandler = consumer
-}
+// ReadProperty returns a response containing the requested property value
+// This returns an error if the property doesn't exist.
+func (m *HiveModuleBase) ReadProperty(req *msg.RequestMessage) (resp *msg.ResponseMessage, err error) {
+	var found bool
+	var propValue any
 
-// SetRequestHandler set the given handler to process requests. This allows an application
-// to use this base as a module and plug in the handler for processing requests.
-func (m *HiveModuleBase) SetRequestHandler(h msg.RequestHandler) {
-	m.customRequestHandler = h
-}
-
-// Set the producer that will handle requests for this consumer and register the
-// handler of notifications from this producer.
-//
-// The notification handler provided handles notifications this module is interested in.
-// for transport clients this is the producer for requests received from the server.
-// for transport server this is the producer that handles requests received from the client.
-func (m *HiveModuleBase) SetSink(producer IHiveModule, notifHandler msg.NotificationHandler) {
-	m.sink = producer
-	if notifHandler != nil {
-		producer.SetNotificationHandler(notifHandler)
-	} else if m.notificationHandler != nil {
-		// use the notification handler set for this module instead
-		// this allows notifications to be passed up the chain
-		producer.SetNotificationHandler(m.notificationHandler)
+	m.propMux.RLock()
+	if m.properties == nil {
+		found = false
 	} else {
-		slog.Info("SetSink: use producer without notification handler",
-			"moduleID", m.moduleID,
-			"producer", producer.GetModuleID())
+		propValue, found = m.properties[req.Name]
 	}
+	m.propMux.RUnlock()
+	if !found {
+		err = fmt.Errorf("Property '%s' doesn't exist on Thing '%s'", req.Name, req.ThingID)
+		return nil, err
+	}
+	resp = req.CreateResponse(propValue, nil)
+	return resp, err
+}
+
+// Initialize the module base with a moduleID
+//
+// This sets this module notification handler with the sink.
+func (m *HiveModuleBase) SetModuleID(moduleID string) {
+	m.moduleID = moduleID
+}
+
+// Set the hook to invoke with received notifications
+func (m *HiveModuleBase) SetNotificationHook(hook msg.NotificationHandler) {
+	m.appNotificationHook = hook
+}
+
+// Set the handler that will receive notifications emitted by this module
+func (m *HiveModuleBase) SetNotificationSink(consumer msg.NotificationHandler) {
+	m.notificationSink = consumer
+}
+
+// Set the hook to invoke with received requests directed at this module
+// Any other requests received by HandleRequest will be forwarded to the sink.
+func (m *HiveModuleBase) SetRequestHook(hook msg.RequestHandler) {
+	m.appRequestHandler = hook
+}
+
+// SetRequestSink sets the producer that will handle requests for this consumer and register this
+// module as the receive of notifications from the module.
+//
+//	producer is the sink that will handle requests and send notifications
+func (m *HiveModuleBase) SetRequestSink(sink msg.RequestHandler) {
+	m.requestSink = sink
 }
 
 func (m *HiveModuleBase) Start(yamlConfig string) error {

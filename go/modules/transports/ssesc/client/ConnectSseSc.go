@@ -178,16 +178,12 @@ func (cl *SseScClient) handleSSEConnect(connected bool, err error) {
 		cl.mux.Unlock()
 	}
 
-	// FIXME: should the connect callback be invoked from the connection or the module?
-	// currently both?
-	hPtr := cl.appConnectHandlerPtr.Load()
-
 	// Note: this callback can send notifications to the client,
 	// so prevent deadlock by running in the background.
 	// (caught by readhistory failing for unknown reason)
-	if connectionChanged && hPtr != nil {
+	if connectionChanged && cl.connectHandler != nil {
 		go func() {
-			(*hPtr)(connected, err, cl)
+			cl.connectHandler(connected, cl, err)
 		}()
 	}
 }
@@ -212,16 +208,16 @@ func (cl *SseScClient) handleSseEvent(event sse.Event) {
 		if notif == nil {
 			return
 		}
-		if cl.sink == nil {
+		if cl.requestSink == nil {
 			slog.Error("HandleSseEvent: no sink set. Notification is dropped.",
 				"clientID", clientID,
 				"operation", notif.Operation,
 				"name", notif.Name,
 			)
-		} else if cl.notificationHandler != nil {
+		} else if cl.notificationSink != nil {
 			// notifications received from the server are passed to the registered handler
 			go func() {
-				cl.notificationHandler(notif)
+				cl.notificationSink(notif)
 			}()
 		} else {
 			// notifications are only received when subscribed so someone forgot to
@@ -234,8 +230,8 @@ func (cl *SseScClient) handleSseEvent(event sse.Event) {
 		if req == nil {
 			return
 		}
-		if cl.sink == nil {
-			err = fmt.Errorf("handleSseEvent: no sink set. Request is dropped.")
+		if cl.requestSink == nil {
+			err = fmt.Errorf("handleSseEvent: no requestSink set. Request is dropped.")
 			slog.Error("handleSseEvent: no sink set. Request is dropped.",
 				"clientID", clientID,
 				"operation", req.Operation,
@@ -243,7 +239,7 @@ func (cl *SseScClient) handleSseEvent(event sse.Event) {
 				"senderID", req.SenderID,
 			)
 		} else {
-			err = cl.sink.HandleRequest(req, func(resp *msg.ResponseMessage) error {
+			err = cl.requestSink(req, func(resp *msg.ResponseMessage) error {
 				// return the response to the caller
 				err2 := cl.SendResponse(resp)
 				return err2
@@ -280,8 +276,9 @@ func (cl *SseScClient) handleSseEvent(event sse.Event) {
 			// "op", resp.Operation, "correlationID", resp.CorrelationID)
 		}
 	default:
-		if cl.notificationHandler == nil {
-			//nothing to do
+		if cl.notificationSink == nil {
+			slog.Error("handleSseEvent, received unexpected message",
+				"messageType", event.Type)
 			return
 		}
 
@@ -294,7 +291,7 @@ func (cl *SseScClient) handleSseEvent(event sse.Event) {
 		notif.Operation = event.Type
 		// don't block the receiver flow
 		go func() {
-			cl.notificationHandler(&notif)
+			cl.notificationSink(&notif)
 		}()
 	}
 }

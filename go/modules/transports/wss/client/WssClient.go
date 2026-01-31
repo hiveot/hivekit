@@ -43,13 +43,13 @@ import (
 type WssClient struct {
 	modules.HiveModuleBase
 
-	// handler for requests send by clients
-	appConnectHandlerPtr atomic.Pointer[transports.ConnectionHandler]
-
 	// authentication token
 	bearerToken string
 
 	caCert *x509.Certificate
+
+	// handler for requests send by clients
+	connectHandler transports.ConnectionHandler
 
 	isConnected atomic.Bool
 	// lastError   atomic.Pointer[error]
@@ -88,11 +88,9 @@ type WssClient struct {
 // websocket connection status handler
 func (cl *WssClient) _onConnectionChanged(connected bool, err error) {
 
-	hPtr := cl.appConnectHandlerPtr.Load()
-
 	cl.isConnected.Store(connected)
-	if hPtr != nil {
-		(*hPtr)(connected, err, cl)
+	if cl.connectHandler != nil {
+		cl.connectHandler(connected, cl, err)
 	}
 	// if retrying is enabled then try on disconnect
 	if !connected && cl.retryOnDisconnect.Load() {
@@ -136,12 +134,14 @@ func (cl *WssClient) Close() {
 
 // ConnectWithToken attempts to establish a websocket connection using a valid auth token
 // If a connection exists it is closed first.
-func (cl *WssClient) ConnectWithToken(clientID string, token string) error {
+func (cl *WssClient) ConnectWithToken(clientID string, token string, ch transports.ConnectionHandler) error {
 
 	// ensure disconnected (note that this resets retryOnDisconnect)
 	cl.Close()
-
+	cl.connectHandler = ch
 	cl.bearerToken = token
+	// the clientID is the moduleID so set it now
+	cl.SetModuleID(clientID)
 	cl.tlsClient.ConnectWithToken(clientID, token)
 	hostPort := cl.tlsClient.GetHostPort()
 	wssCancelFn, wssConn, err := ConnectWSS(
@@ -173,6 +173,14 @@ func (cl *WssClient) GetTlsClient() *http.Client {
 	cl.mux.RLock()
 	defer cl.mux.RUnlock()
 	return cl.tlsClient.GetHttpClient()
+}
+
+// HandleNotification receives an incoming notification from a producer
+// and sends it to the server.
+func (m *WssClient) HandleNotification(notif *msg.NotificationMessage) {
+	// Can't use HiveModuleBase.HandleNotification as it forwards the notification
+	// to the registered notification sink.
+	m.SendNotification(notif)
 }
 
 // clients send requests to the server
@@ -212,9 +220,9 @@ func (cl *WssClient) HandleWssMessage(raw []byte) {
 		}
 	}
 	if notif != nil {
-		// client receives a notification message
-		// pass it on to the registered handler (not the sink) of the subscriber
-		go cl.ForwardNotification(notif)
+		// client receives a notification message from the server
+		// pass it on to the registered hook and sink
+		go cl.HiveModuleBase.HandleNotification(notif)
 	} else if req != nil {
 		var err error
 		// client receives a request (using reverse connection)
@@ -264,7 +272,7 @@ func (cl *WssClient) Reconnect() {
 		slog.Warn("Reconnecting attempt",
 			slog.String("clientID", clientID),
 			slog.Int("i", i))
-		err = cl.ConnectWithToken(clientID, cl.bearerToken)
+		err = cl.ConnectWithToken(clientID, cl.bearerToken, cl.connectHandler)
 		if err == nil {
 			break
 		}
@@ -296,7 +304,7 @@ func (cl *WssClient) Reconnect() {
 // agents that use connection-reversal.
 func (cl *WssClient) SendNotification(notif *msg.NotificationMessage) {
 	clientID := cl.tlsClient.GetClientID()
-	slog.Debug("SendNotification",
+	slog.Info("SendNotification",
 		slog.String("clientID", clientID),
 		slog.String("correlationID", notif.CorrelationID),
 		slog.String("operation", notif.Operation),
@@ -388,22 +396,6 @@ func (cl *WssClient) SendResponse(resp *msg.ResponseMessage) error {
 	return err
 }
 
-// SetConnectHandler set the application handler for connection status updates
-func (cl *WssClient) SetConnectHandler(cb transports.ConnectionHandler) {
-	if cb == nil {
-		cl.appConnectHandlerPtr.Store(nil)
-	} else {
-		cl.appConnectHandlerPtr.Store(&cb)
-	}
-}
-
-// SetSink set the application module that handles async notifications, requests and responses
-// func (cc *WssClient) SetSink(sink modules.IHiveModule) {
-// 	cc.mux.Lock()
-// 	cc.sink = sink
-// 	cc.mux.Unlock()
-// }
-
 // NewHiveotWssClient creates a new instance of the hiveot websocket client.
 //
 // This uses the Hiveot passthrough message converter.
@@ -413,7 +405,7 @@ func (cl *WssClient) SetConnectHandler(cb transports.ConnectionHandler) {
 //	caCert is the server CA for TLS connection validation
 //	timeout is the maximum connection wait time
 func NewHiveotWssClient(
-	wssURL string, clientID string, caCert *x509.Certificate,
+	wssURL string, caCert *x509.Certificate,
 	timeout time.Duration) *WssClient {
 
 	// ensure the URL has port as 443 is not valid for this
@@ -458,8 +450,7 @@ func NewHiveotWssClient(
 //	sink is the application module receiving notifications or in case of agents, requests.
 //	timeout is the maximum connection wait time
 func NewWotWssClient(
-	wssURL string, caCert *x509.Certificate,
-	timeout time.Duration) *WssClient {
+	wssURL string, caCert *x509.Certificate, timeout time.Duration) *WssClient {
 
 	urlParts, _ := url.Parse(wssURL)
 	hostPort := urlParts.Host
