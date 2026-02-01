@@ -6,6 +6,18 @@ const DefaultDirectoryThingID = "directory"
 // Default limit in retrieving things
 const DefaultLimit = 300
 
+// Property, Event and Action affordance names as used in the TM and messaging API
+const (
+	PropThings              = "things"
+	EventThingUpdated       = "thingUpdated"
+	EventThingDeleted       = "thingDeleted"
+	ActionCreateThing       = "createThing"
+	ActionDeleteThing       = "deleteThing"
+	ActionRetrieveThing     = "retrieveThing"
+	ActionRetrieveAllThings = "retrieveAllThings"
+	ActionUpdateThing       = "updateThing"
+)
+
 // RetrieveAllThingsArgs defines the arguments of the retrieveAllThings action
 // Read all TDs - Read a batch of TD documents
 type RetrieveAllThingsArgs struct {

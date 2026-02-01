@@ -25,31 +25,58 @@ type CertsMsgHandler struct {
 // HandleRequest for properties or actions
 // If the request is not recognized nil is returned.
 // If the request is missing the sender, an error is returned
-func (handler *CertsMsgHandler) HandleRequest(req *msg.RequestMessage) (resp *msg.ResponseMessage) {
+func (handler *CertsMsgHandler) HandleRequest(
+	req *msg.RequestMessage, replyTo msg.ResponseHandler) (err error) {
+
+	var resp *msg.ResponseMessage
 	if req.ThingID != handler.thingID {
 		return nil
 	} else if req.SenderID == "" {
-		err := fmt.Errorf("missing senderID in request")
-		return req.CreateErrorResponse(err)
-	}
-	if req.Operation == wot.OpInvokeAction {
+		// todo: is this really needed?
+		err = fmt.Errorf("missing senderID in request")
+	} else if req.Operation == wot.OpInvokeAction {
 		// certificate specific operations
 		switch req.Name {
 		case certs.ActionGetCACert:
-			resp = handler.GetCaCert(req)
+			resp, err = handler.GetCaCert(req)
+		case certs.ActionGetServerCert:
+			resp, err = handler.GetDefaultServerCert(req)
+		default:
+			err = fmt.Errorf("Unknown request name '%s' for thingID '%s'", req.Name, req.ThingID)
 		}
+	} else {
+		err = fmt.Errorf("Unsupported operation '%s' for thingID '%s'", req.Operation, req.ThingID)
 	}
-	return resp
+	if resp != nil {
+		err = replyTo(resp)
+	}
+	return err
 }
 
 // Invoke the GetCACert method
-func (handler *CertsMsgHandler) GetCaCert(req *msg.RequestMessage) (resp *msg.ResponseMessage) {
+func (handler *CertsMsgHandler) GetCaCert(req *msg.RequestMessage) (resp *msg.ResponseMessage, err error) {
 	// no args
 	cert, err := handler.service.GetCACert()
+	if err != nil {
+		return nil, err
+	}
 	// convert cert to PEM
 	caPEM := certutils.X509CertToPEM(cert)
-	req.CreateActionResponse("", msg.StatusCompleted, caPEM, err)
-	return resp
+	resp, _ = req.CreateActionResponse("", msg.StatusCompleted, caPEM, err)
+	return resp, nil
+}
+
+// Decode the Get Server cert method
+func (handler *CertsMsgHandler) GetDefaultServerCert(req *msg.RequestMessage) (resp *msg.ResponseMessage, err error) {
+	// no args
+	cert, err := handler.service.GetDefaultServerCert()
+	if err != nil {
+		return nil, err
+	}
+	// convert cert to PEM
+	certPEM := certutils.X509CertToPEM(cert)
+	resp, _ = req.CreateActionResponse("", msg.StatusCompleted, certPEM, err)
+	return resp, nil
 }
 
 // Create a new directory message handler. On start this creates the server and store.

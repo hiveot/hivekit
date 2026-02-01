@@ -123,7 +123,7 @@ func NewBucketStoreModule(storageRoot string) *BucketStoreModule {
 		// StoreName:   defaultStoreName,
 		// bucketStore: bucketStore,
 	}
-	m.Init(DefaultBucketStoreThingID, nil)
+	m.SetModuleID(DefaultBucketStoreThingID)
 	var _ modules.IHiveModule = m // interface check
 
 	return m

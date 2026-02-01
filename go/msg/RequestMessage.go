@@ -173,7 +173,7 @@ func (req *RequestMessage) ToObject(input any) error {
 
 // NewRequestMessage creates a new RequestMessage instance.
 //
-//	operation is the request operation WoTOp... or HTOp...
+//	operation is the request operation wot.OpInvokeAction, wot.OpReadProperty,...
 //	thingID is the thing the value applies to (destination of action or source of event)
 //	name is the name of the property, event or action affordance as described in the thing TD
 //	input is the request input as defined in the corresponding affordance dataschema.

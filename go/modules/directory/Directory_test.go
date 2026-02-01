@@ -88,7 +88,7 @@ func TestCRUDUsingMsgAPI(t *testing.T) {
 	tdi1Json := tdi1.ToString()
 
 	// use a direct transport to the directory as the sink for the client
-	tp := direct.NewDirectTransport(clientID, nil, m)
+	tp := direct.NewDirectTransport(clientID, m)
 	dirClient := directoryclient.NewDirectoryMsgClient(directoryID, tp)
 	err = dirClient.CreateThing(tdi1Json)
 	require.NoError(t, err)

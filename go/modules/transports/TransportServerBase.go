@@ -179,7 +179,7 @@ func (m *TransportServerBase) ForwardNotification(notif *msg.NotificationMessage
 func (m *TransportServerBase) ForwardRequest(req *msg.RequestMessage, replyTo msg.ResponseHandler) (err error) {
 	if m.requestSink == nil {
 		slog.Error("ForwardRequest. Server has no request sink. Server is not properly set up.")
-		return fmt.Errorf("no sink for request '%s/%s' to thingID '%s'",
+		return fmt.Errorf("ForwardRequest: no sink for request '%s/%s' to thingID '%s'",
 			req.Operation, req.Name, req.ThingID)
 	}
 	err = m.requestSink(req, replyTo)

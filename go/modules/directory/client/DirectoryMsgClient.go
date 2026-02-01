@@ -5,7 +5,6 @@ import (
 
 	"github.com/hiveot/hivekit/go/modules"
 	"github.com/hiveot/hivekit/go/modules/directory"
-	"github.com/hiveot/hivekit/go/modules/directory/server"
 	"github.com/hiveot/hivekit/go/msg"
 	"github.com/hiveot/hivekit/go/wot"
 )
@@ -24,21 +23,21 @@ type DirectoryMsgClient struct {
 
 func (cl *DirectoryMsgClient) CreateThing(tdJson string) error {
 	req := msg.NewRequestMessage(
-		wot.OpInvokeAction, cl.directoryID, server.ActionCreateThing, tdJson, "")
+		wot.OpInvokeAction, cl.directoryID, directory.ActionCreateThing, tdJson, "")
 	_, err := cl.ForwardRequestWait(req)
 	return err
 }
 
 func (cl *DirectoryMsgClient) DeleteThing(thingID string) error {
 	req := msg.NewRequestMessage(
-		wot.OpInvokeAction, cl.directoryID, server.ActionDeleteThing, thingID, "")
+		wot.OpInvokeAction, cl.directoryID, directory.ActionDeleteThing, thingID, "")
 	_, err := cl.ForwardRequestWait(req)
 	return err
 }
 
 func (cl *DirectoryMsgClient) RetrieveThing(thingID string) (tdJSON string, err error) {
 	req := msg.NewRequestMessage(
-		wot.OpInvokeAction, cl.directoryID, server.ActionRetrieveThing, thingID, "")
+		wot.OpInvokeAction, cl.directoryID, directory.ActionRetrieveThing, thingID, "")
 	resp, err := cl.ForwardRequestWait(req)
 	if resp == nil {
 		return "", errors.New("nil response")
@@ -55,7 +54,7 @@ func (cl *DirectoryMsgClient) RetrieveAllThings(offset int, limit int) (tdList [
 		Limit:  limit,
 	}
 	req := msg.NewRequestMessage(
-		wot.OpInvokeAction, cl.directoryID, server.ActionRetrieveAllThings, args, "")
+		wot.OpInvokeAction, cl.directoryID, directory.ActionRetrieveAllThings, args, "")
 	resp, err := cl.ForwardRequestWait(req)
 	if err == nil {
 		err = resp.Decode(&tdList)
@@ -65,7 +64,7 @@ func (cl *DirectoryMsgClient) RetrieveAllThings(offset int, limit int) (tdList [
 
 func (cl *DirectoryMsgClient) UpdateThing(tdJson string) error {
 	req := msg.NewRequestMessage(
-		wot.OpInvokeAction, cl.directoryID, server.ActionUpdateThing, tdJson, "")
+		wot.OpInvokeAction, cl.directoryID, directory.ActionUpdateThing, tdJson, "")
 	_, err := cl.ForwardRequestWait(req)
 	return err
 }
@@ -74,14 +73,17 @@ func (cl *DirectoryMsgClient) UpdateThing(tdJson string) error {
 // Use the sink to attach a transport module.
 //
 //	thingID is the unique ID of the directory service instance. This defaults to the directory module's thingID.
-//	sink is the handler that forwards messages to the module. Typically a messaging client.
+//	sink is the handler for requests send by the directory client and emitter of notifications
 func NewDirectoryMsgClient(thingID string, sink modules.IHiveModule) *DirectoryMsgClient {
 	if thingID == "" {
 		thingID = directory.DefaultDirectoryThingID
 	}
-	client := &DirectoryMsgClient{
+	cl := &DirectoryMsgClient{
 		directoryID: thingID,
 	}
-	client.Init(thingID+"-client", sink)
-	return client
+	cl.SetModuleID(thingID + "-client")
+	cl.SetRequestSink(sink.HandleRequest)
+	// notifications returned are passed to this client (if any subscriptions are made)
+	sink.SetNotificationSink(cl.HandleNotification)
+	return cl
 }

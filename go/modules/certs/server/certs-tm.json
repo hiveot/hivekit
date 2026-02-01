@@ -34,6 +34,16 @@
         "description": "CA certificate in PEM format",
         "type": "string"
       }
+    },
+    "getServerCert": {
+      "title": "Get Server Cert",
+      "description": "Return the default server certificate.",
+      "idempotent": true,
+      "output": {
+        "title": "Server Cert PEM",
+        "description": "Server certificate in PEM format",
+        "type": "string"
+      }
     }
   }
 }

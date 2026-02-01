@@ -119,13 +119,22 @@ func (m *CertsModule) GetCACert() (*x509.Certificate, error) {
 	return m.caCert, nil
 }
 
+// Return the default server certificate
+func (m *CertsModule) GetDefaultServerCert() (*x509.Certificate, error) {
+	if m.defaultServerTlsCert == nil {
+		return nil, fmt.Errorf("server cert not initialized")
+	}
+	x509cert, _, err := certutils.TLSCertToX509(m.defaultServerTlsCert)
+	return x509cert, err
+}
+
 // GetServerCert resturn the default shared server certificate.
 func (m *CertsModule) GetDefaultServerTlsCert() (cert *tls.Certificate, err error) {
 
-	if m.defaultServerCert == nil {
+	if m.defaultServerTlsCert == nil {
 		return cert, fmt.Errorf("the default server certificate is not loaded")
 	}
-	return m.defaultServerCert, nil
+	return m.defaultServerTlsCert, nil
 }
 
 // GetServerCert loads a previously save module server certificate from the

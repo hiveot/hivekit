@@ -15,23 +15,18 @@ import (
 // This implements the IHiveModule interface
 type DirectClientTransport struct {
 	transports.TransportServerBase
-	source modules.IHiveModule
 }
 
 // AddTDForms does nothing for a direct connection
 func (srv *DirectClientTransport) AddTDForms(tdi *td.TD, includeAffordances bool) {
 }
 
-// Receive a notification and pass it on to the sinks.
-// This sets the notification SenderID to the module ID.
+// Receive a notification from the sink and pass it on to the notification sink (the consumer)
 func (m *DirectClientTransport) HandleNotification(notif *msg.NotificationMessage) {
-	notif.SenderID = m.GetModuleID()
 	m.ForwardNotification(notif)
 }
 
 // Receive a request and forward it on to the sinks.
-// unlike regular servers the sink is considered to be the remote side.
-// This is a module input.
 func (m *DirectClientTransport) HandleRequest(
 	req *msg.RequestMessage, replyTo msg.ResponseHandler) (err error) {
 	req.SenderID = m.GetModuleID()
@@ -42,9 +37,7 @@ func (m *DirectClientTransport) HandleRequest(
 // This would mean that the client's remote side receives a notification.
 // Since this doesn't do subscriptions, all notifications are received.
 func (m *DirectClientTransport) SendNotification(notif *msg.NotificationMessage) {
-	if m.source != nil {
-		m.ForwardNotification(notif)
-	}
+	m.ForwardNotification(notif)
 }
 
 // SendRequest sends a request message via the transport to the producer.
@@ -57,17 +50,16 @@ func (m *DirectClientTransport) SendRequest(
 	return err
 }
 
-// SendResponse sends a response message via the connection made by a consumer,
-// identified by the connectionID (cid).
-// If the consumer is not connected this returns an error, otherwise nil.
-func (m *DirectClientTransport) SendResponse(
-	clientID, cid string, resp *msg.ResponseMessage) (err error) {
+// SendResponse sends a response message to the consumer,
+// // If the consumer is not connected this returns an error, otherwise nil.
+// func (m *DirectClientTransport) SendResponse(
+// 	clientID, cid string, resp *msg.ResponseMessage) (err error) {
 
-	if m.source != nil {
-		// err = m.source.onResponse(resp)
-	}
-	return err
-}
+// 	if m.producer != nil {
+// 		// err = m.source.onResponse(resp)
+// 	}
+// 	return err
+// }
 
 // assign the authenticator of incoming connections
 func (m *DirectClientTransport) SetAuthenticationHandler(h transports.AuthenticationHandler) {
@@ -87,13 +79,15 @@ func (m *DirectClientTransport) Start(yamlConfig string) (err error) {
 func (m *DirectClientTransport) Stop() {
 }
 
-// Return a transport module that passes messages from a source to a sink
+// Return a transport module that passes messages from a consumer to a producer
+// This sets the producer as the destination for requests and this module as
+// the destination for producer notifications.
 func NewDirectTransport(
-	moduleID string, source modules.IHiveModule) modules.IHiveModule {
-	t := &DirectClientTransport{
-		source: source,
-	}
+	moduleID string, producer modules.IHiveModule) modules.IHiveModule {
+	t := &DirectClientTransport{}
 	t.Init(moduleID, "", transports.DefaultRpcTimeout)
+	producer.SetNotificationSink(t.HandleNotification)
+	t.SetRequestSink(producer.HandleRequest)
 	var _ transports.ITransportServer = t // interface check
 	var _ modules.IHiveModule = t         // interface check
 	return t

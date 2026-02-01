@@ -12,6 +12,7 @@ import (
 	certsclient "github.com/hiveot/hivekit/go/modules/certs/client"
 	"github.com/hiveot/hivekit/go/modules/certs/module"
 	"github.com/hiveot/hivekit/go/modules/certs/module/selfsigned"
+	"github.com/hiveot/hivekit/go/modules/transports/direct"
 	"github.com/hiveot/hivekit/go/utils"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -146,8 +147,19 @@ func TestMsgClient(t *testing.T) {
 	require.NoError(t, err)
 	defer cancelFn()
 
-	// this needs completion
-	cl := certsclient.NewCertsMsgClient(certs.DefaultCertsThingID, nil)
+	// use a direct transport instead of running a client-server
+	tp := direct.NewDirectTransport("testclient", m)
+	cl := certsclient.NewCertsMsgClient(certs.DefaultCertsThingID, tp)
+	caCert, err := cl.GetCACert()
+	require.NoError(t, err)
+	require.NotEmpty(t, caCert)
+
+	modCA, _ := m.GetCACert()
+	cn, err := selfsigned.VerifyCert(modCA, caCert)
+	assert.NoError(t, err)
+	assert.NotEmpty(t, cn)
+
+	// assert.Equal(t, testCerts.CaCert.Issuer, caCert.Issuer.CommonName)
 	// var _ certs.ICertsService = cl // interface check
 	_ = cl
 }

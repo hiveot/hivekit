@@ -15,18 +15,6 @@ import (
 //go:embed "directory-tm.json"
 var DirectoryTMJson []byte
 
-// Property, Event and Action affordance names as used in the interface
-const (
-	PropThings              = "things"
-	EventThingUpdated       = "thingUpdated"
-	EventThingDeleted       = "thingDeleted"
-	ActionCreateThing       = "createThing"
-	ActionDeleteThing       = "deleteThing"
-	ActionRetrieveThing     = "retrieveThing"
-	ActionRetrieveAllThings = "retrieveAllThings"
-	ActionUpdateThing       = "updateThing"
-)
-
 // DirectoryMsgHandler maps RRN messages to the native directory interface
 type DirectoryMsgHandler struct {
 	// the directory instance ThingID that must match the requests
@@ -39,10 +27,11 @@ func (handler *DirectoryMsgHandler) GetTM() string {
 	return string(DirectoryTMJson)
 }
 
-// HandleRequest for properties or actions
+// HandleRequest for module.
+//
 // This invokes the replyTo response handler with a response.
 //
-// If the request is not for this module nil is returned and replyTo is ignored.
+// If the request is not for this module then it is forwarded to the next sink.
 // If the request is for this module but invalid, an error is returned
 func (handler *DirectoryMsgHandler) HandleRequest(req *msg.RequestMessage, replyTo msg.ResponseHandler) (err error) {
 	var resp *msg.ResponseMessage
@@ -55,20 +44,24 @@ func (handler *DirectoryMsgHandler) HandleRequest(req *msg.RequestMessage, reply
 	if req.Operation == wot.OpInvokeAction {
 		// directory specific operations
 		switch req.Name {
-		case ActionCreateThing:
+		case directory.ActionCreateThing:
 			resp = handler.UpdateThing(req)
-		case ActionDeleteThing:
+		case directory.ActionDeleteThing:
 			resp = handler.DeleteThing(req)
-		case ActionRetrieveThing:
+		case directory.ActionRetrieveThing:
 			resp = handler.RetrieveThing(req)
-		case ActionRetrieveAllThings:
+		case directory.ActionRetrieveAllThings:
 			resp = handler.RetrieveAllThings(req)
-		case ActionUpdateThing:
+		case directory.ActionUpdateThing:
 			resp = handler.UpdateThing(req)
+		default:
+			err = fmt.Errorf("Unknown request name '%s' for thingID '%s'", req.Name, req.ThingID)
 		}
 	} else if req.Operation == wot.OpWriteProperty {
 		// nothing to do here at the moment
-		resp = req.CreateErrorResponse(fmt.Errorf("Property '%s' of Thing '%s' is invalid or not writable", req.Name, req.ThingID))
+		err = fmt.Errorf("Property '%s' of Thing '%s' is invalid or not writable", req.Name, req.ThingID)
+	} else {
+		err = fmt.Errorf("Unsupported operation '%s' for thingID '%s'", req.Operation, req.ThingID)
 	}
 	if resp != nil {
 		err = replyTo(resp)

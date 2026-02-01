@@ -124,7 +124,7 @@ func NewDirectoryModule(storageRoot string, router *chi.Mux) *DirectoryModule {
 		storageRoot:    storageRoot,
 		router:         router,
 	}
-	m.Init(directory.DefaultDirectoryThingID, nil)
+	m.SetModuleID(directory.DefaultDirectoryThingID)
 	var _ modules.IHiveModule = m // interface check
 
 	return m

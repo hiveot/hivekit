@@ -683,7 +683,7 @@ func TestGetSetMsgAPI(t *testing.T) {
 	m, stopFn, err := startModule(t)
 	require.NoError(t, err)
 	defer stopFn()
-	tp := direct.NewDirectTransport(clientID, nil, m)
+	tp := direct.NewDirectTransport(clientID, m)
 	cl := bucketstoreclient.NewBucketStoreMsgClient(m.GetModuleID(), tp)
 	err = cl.Set(key1, val1)
 	require.NoError(t, err)

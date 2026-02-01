@@ -14,11 +14,13 @@ const DefaultCaKeyName = "caKey.pem"
 
 // DefaultServerName is the name of the shared default server cert
 const DefaultServerName = "server"
+const DefaultServerCertName = DefaultServerName + "Cert.pem"
+const DefaultServerKeyName = DefaultServerName + "Key.pem"
 
 // RRN Actions
 const (
-	ActionGetCACert            = "getCACert"
-	ActionGetDefaultServerCert = "getDefaultServerCert"
+	ActionGetCACert     = "getCACert"
+	ActionGetServerCert = "getServerCert"
 )
 
 // ICertsService interface of the certificate service
@@ -46,6 +48,9 @@ type ICertsService interface {
 	// GetCACert returns the x509 CA certificate.
 	// Returns and error if a CA is not initialized or can not be returned.
 	GetCACert() (*x509.Certificate, error)
+
+	// Return the default public server certificate.
+	GetDefaultServerCert() (*x509.Certificate, error)
 
 	// Return the default shared (between modules) server certificate.
 	//

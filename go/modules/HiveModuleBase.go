@@ -84,7 +84,7 @@ func (m *HiveModuleBase) ForwardNotification(notif *msg.NotificationMessage) {
 // If no sink os configured this returns an error
 func (m *HiveModuleBase) ForwardRequest(req *msg.RequestMessage, replyTo msg.ResponseHandler) (err error) {
 	if m.requestSink == nil {
-		return fmt.Errorf("no sink for request '%s/%s' to thingID '%s'",
+		return fmt.Errorf("ForwardRequest: no sink for request '%s/%s' to thingID '%s'",
 			req.Operation, req.Name, req.ThingID)
 	}
 	err = m.requestSink(req, replyTo)
@@ -149,7 +149,10 @@ func (m *HiveModuleBase) HandleNotification(notif *msg.NotificationMessage) {
 
 // HandleRequest handles request for this module.
 //
-// If an app request handler is set, the request is passed to the application.
+// This is just the default implementation. Applications can either set an appRequestHandler
+// or a module can override HandleRequest to do its own thing.
+//
+// If appRequestHandler is set, the request is passed to the application.
 //
 // Modules that override HandleRequest should first handle the request itself and
 // only hand it over to this base method when there is nothing for them to do.

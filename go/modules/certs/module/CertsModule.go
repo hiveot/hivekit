@@ -32,7 +32,7 @@ type CertsModule struct {
 	caPrivKey crypto.PrivateKey
 
 	// the default server certificate as shared between modules
-	defaultServerCert *tls.Certificate
+	defaultServerTlsCert *tls.Certificate
 
 	// the RRN messaging API
 	msgHandler *server.CertsMsgHandler
@@ -59,8 +59,8 @@ func (m *CertsModule) Start(yamlConfig string) (err error) {
 		m.caCert, m.caPrivKey, err = certutils.LoadCA(caCertPath, caKeyPath)
 
 		// Load a saved default certificate
-		if m.defaultServerCert == nil {
-			m.defaultServerCert, err = m.LoadServerCert(certs.DefaultServerName)
+		if m.defaultServerTlsCert == nil {
+			m.defaultServerTlsCert, err = m.LoadServerCert(certs.DefaultServerName)
 		}
 	}
 	// create missing CA key and cert
@@ -71,12 +71,13 @@ func (m *CertsModule) Start(yamlConfig string) (err error) {
 		m.caCert, m.caPrivKey, err = m.CreateCACert()
 	}
 	// create missing default server certificate
-	if m.defaultServerCert == nil {
-		m.defaultServerCert, err = m.CreateServerCert(
+	if m.defaultServerTlsCert == nil {
+		m.defaultServerTlsCert, err = m.CreateServerCert(
 			certs.DefaultServerName, "", nil, nil)
 	}
 
 	m.msgHandler = server.NewCertsMsgHandler(m.GetModuleID(), m)
+	m.SetRequestHook(m.msgHandler.HandleRequest)
 	return err
 }
 
@@ -91,7 +92,8 @@ func NewCertsModule(certsDir string) *CertsModule {
 	m := &CertsModule{
 		certsDir: certsDir,
 	}
-	m.Init(certs.DefaultCertsThingID, nil)
+	m.SetModuleID(certs.DefaultCertsThingID)
 	var _ modules.IHiveModule = m // interface check
+	var _ certs.ICertsService = m // interface check
 	return m
 }
