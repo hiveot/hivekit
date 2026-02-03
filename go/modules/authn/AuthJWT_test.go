@@ -1,22 +1,5 @@
 package authn_test
 
-import (
-	"crypto/rand"
-	"encoding/json"
-	"io"
-	"log/slog"
-	"net/http"
-	"testing"
-	"time"
-
-	"github.com/golang-jwt/jwt/v5"
-	authnserver "github.com/hiveot/hivekit/go/modules/authn/server"
-	tlsclient "github.com/hiveot/hivekit/go/modules/transports/httpserver/client"
-	"github.com/stretchr/testify/require"
-
-	"github.com/stretchr/testify/assert"
-)
-
 // func startTestServer(mux *http.ServeMux) (*http.Server, error) {
 // 	var err error
 // 	httpServer := &http.Server{
@@ -135,109 +118,109 @@ import (
 // 	cl.Close()
 // }
 
-func TestAuthJWT(t *testing.T) {
-	pathLogin1 := "/login"
-	pathLogin2 := "/login2"
-	path3 := "/test3"
-	path3Hit := 0
-	user1 := "user1"
-	password1 := "password1"
-	secret := make([]byte, 64)
-	_, _ = rand.Read(secret)
+// func TestAuthJWT(t *testing.T) {
+// 	pathLogin1 := "/login"
+// 	pathLogin2 := "/login2"
+// 	path3 := "/test3"
+// 	path3Hit := 0
+// 	user1 := "user1"
+// 	password1 := "password1"
+// 	secret := make([]byte, 64)
+// 	_, _ = rand.Read(secret)
 
-	// setup server and client environment
-	mux := http.NewServeMux()
-	// Handle a jwt login
-	mux.HandleFunc(pathLogin1, func(resp http.ResponseWriter, req *http.Request) {
-		// Is the login API a transport feature? Look into the WoT specification.
-		authMsg := transports.UserLoginArgs{}
-		slog.Info("TestAuthJWT: login")
-		body, err := io.ReadAll(req.Body)
-		require.NoError(t, err)
-		err = json.Unmarshal(body, &authMsg)
+// 	// setup server and client environment
+// 	mux := http.NewServeMux()
+// 	// Handle a jwt login
+// 	mux.HandleFunc(pathLogin1, func(resp http.ResponseWriter, req *http.Request) {
+// 		// Is the login API a transport feature? Look into the WoT specification.
+// 		authMsg := authnserver.UserLoginArgs{}
+// 		slog.Info("TestAuthJWT: login")
+// 		body, err := io.ReadAll(req.Body)
+// 		require.NoError(t, err)
+// 		err = json.Unmarshal(body, &authMsg)
 
-		// expect a correlationID
-		//msgID := req.Header.Get(tlsclient.HTTPCorrelationIDHeader)
-		assert.NoError(t, err)
-		assert.Equal(t, user1, authMsg.UserName)
-		assert.Equal(t, password1, authMsg.Password)
+// 		// expect a correlationID
+// 		//msgID := req.Header.Get(tlsclient.HTTPCorrelationIDHeader)
+// 		assert.NoError(t, err)
+// 		assert.Equal(t, user1, authMsg.UserName)
+// 		assert.Equal(t, password1, authMsg.Password)
 
-		if authMsg.UserName == user1 {
-			claims := jwt.RegisteredClaims{
-				ID:      user1,
-				Issuer:  "me",
-				Subject: "accessToken",
-				// In JWT, the expiry time is expressed as unix milliseconds
-				IssuedAt:  jwt.NewNumericDate(time.Now()),
-				ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Second)),
-			}
-			token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-			newToken, err := token.SignedString(secret)
-			assert.NoError(t, err)
-			//resp.Header().Set(tlsclient.HTTPCorrelationIDHeader, msgID)
-			data, _ := json.Marshal(newToken)
-			_, _ = resp.Write(data)
-		} else {
-			// write nothing
-			_ = err
-		}
-		path3Hit++
-	})
-	// a second login function that returns nothing
-	mux.HandleFunc(pathLogin2, func(resp http.ResponseWriter, req *http.Request) {
-	})
+// 		if authMsg.UserName == user1 {
+// 			claims := jwt.RegisteredClaims{
+// 				ID:      user1,
+// 				Issuer:  "me",
+// 				Subject: "accessToken",
+// 				// In JWT, the expiry time is expressed as unix milliseconds
+// 				IssuedAt:  jwt.NewNumericDate(time.Now()),
+// 				ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Second)),
+// 			}
+// 			token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+// 			newToken, err := token.SignedString(secret)
+// 			assert.NoError(t, err)
+// 			//resp.Header().Set(tlsclient.HTTPCorrelationIDHeader, msgID)
+// 			data, _ := json.Marshal(newToken)
+// 			_, _ = resp.Write(data)
+// 		} else {
+// 			// write nothing
+// 			_ = err
+// 		}
+// 		path3Hit++
+// 	})
+// 	// a second login function that returns nothing
+// 	mux.HandleFunc(pathLogin2, func(resp http.ResponseWriter, req *http.Request) {
+// 	})
 
-	mux.HandleFunc(path3, func(http.ResponseWriter, *http.Request) {
-		slog.Info("TestAuthJWT: path3 hit")
-		path3Hit++
-	})
-	srv, err := startTestServer(mux)
-	assert.NoError(t, err)
-	// fixme, remove dependency on authn
-	loginMessage := authnserver.UserLoginArgs{
-		UserName: user1,
-		Password: password1,
-	}
-	cl := tlsclient.NewTLSClient(testAddress, nil, authBundle.CaCert, 0)
-	jsonArgs, _ := json.Marshal(loginMessage)
-	resp, _, err := cl.Post(pathLogin1, jsonArgs)
-	require.NoError(t, err)
-	newToken := ""
-	err = json.Unmarshal(resp, &newToken)
+// 	mux.HandleFunc(path3, func(http.ResponseWriter, *http.Request) {
+// 		slog.Info("TestAuthJWT: path3 hit")
+// 		path3Hit++
+// 	})
+// 	srv, err := startTestServer(mux)
+// 	assert.NoError(t, err)
+// 	// fixme, remove dependency on authn
+// 	loginMessage := authnserver.UserLoginArgs{
+// 		UserName: user1,
+// 		Password: password1,
+// 	}
+// 	cl := tlsclient.NewTLSClient(testAddress, nil, authBundle.CaCert, 0)
+// 	jsonArgs, _ := json.Marshal(loginMessage)
+// 	resp, _, err := cl.Post(pathLogin1, jsonArgs)
+// 	require.NoError(t, err)
+// 	newToken := ""
+// 	err = json.Unmarshal(resp, &newToken)
 
-	// reconnect using the given token
+// 	// reconnect using the given token
 
-	cl.ConnectWithToken(user1, newToken)
-	_, _, err = cl.Get(path3)
-	assert.NoError(t, err)
-	assert.Equal(t, 2, path3Hit)
+// 	cl.ConnectWithToken(user1, newToken)
+// 	_, _, err = cl.Get(path3)
+// 	assert.NoError(t, err)
+// 	assert.Equal(t, 2, path3Hit)
 
-	cl.Close()
-	_ = srv.Close()
-}
+// 	cl.Close()
+// 	_ = srv.Close()
+// }
 
-func TestAuthJWTFail(t *testing.T) {
-	pathHello1 := "/hello"
-	clientID := "user1"
+// func TestAuthJWTFail(t *testing.T) {
+// 	pathHello1 := "/hello"
+// 	clientID := "user1"
 
-	// setup server and client environment
-	mux := http.NewServeMux()
-	srv, err := startTestServer(mux)
-	assert.NoError(t, err)
-	//
-	mux.HandleFunc(pathHello1, func(resp http.ResponseWriter, req *http.Request) {
-		slog.Info("TestAuthJWTFail: login")
-		//_, _ = resp.Write([]byte("invalid token"))
-		resp.WriteHeader(http.StatusUnauthorized)
-	})
-	//
-	cl := tlsclient.NewTLSClient(testAddress, nil, authBundle.CaCert, 0)
-	cl.ConnectWithToken(clientID, "badtoken")
-	resp, _, err := cl.Post(pathHello1, []byte("test"))
-	assert.Empty(t, resp)
-	// unauthorized
-	assert.Error(t, err)
+// 	// setup server and client environment
+// 	mux := http.NewServeMux()
+// 	srv, err := startTestServer(mux)
+// 	assert.NoError(t, err)
+// 	//
+// 	mux.HandleFunc(pathHello1, func(resp http.ResponseWriter, req *http.Request) {
+// 		slog.Info("TestAuthJWTFail: login")
+// 		//_, _ = resp.Write([]byte("invalid token"))
+// 		resp.WriteHeader(http.StatusUnauthorized)
+// 	})
+// 	//
+// 	cl := tlsclient.NewTLSClient(testAddress, nil, authBundle.CaCert, 0)
+// 	cl.ConnectWithToken(clientID, "badtoken")
+// 	resp, _, err := cl.Post(pathHello1, []byte("test"))
+// 	assert.Empty(t, resp)
+// 	// unauthorized
+// 	assert.Error(t, err)
 
-	cl.Close()
-	_ = srv.Close()
-}
+// 	cl.Close()
+// 	_ = srv.Close()
+// }

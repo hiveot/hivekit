@@ -103,7 +103,7 @@ func (store *AuthnFileStore) GetProfiles() (profiles []authn.ClientProfile, err 
 
 // GetRole returns the client's stored role.
 // This returns an error if the client is disabled.
-func (store *AuthnFileStore) GetRole(clientID string) (role string, err error) {
+func (store *AuthnFileStore) GetRole(clientID string) (role authn.ClientRole, err error) {
 	store.mutex.RLock()
 	defer store.mutex.RUnlock()
 	// user must exist
@@ -234,7 +234,7 @@ func (store *AuthnFileStore) SetPasswordHash(loginID string, hash string) (err e
 }
 
 // SetRole changes the client's default role
-func (store *AuthnFileStore) SetRole(clientID string, role string) error {
+func (store *AuthnFileStore) SetRole(clientID string, role authn.ClientRole) error {
 	store.mutex.Lock()
 	defer store.mutex.Unlock()
 	entry, found := store.entries[clientID]
@@ -289,13 +289,13 @@ func (store *AuthnFileStore) UpdateProfile(profile authn.ClientProfile) error {
 		return fmt.Errorf("UpdateProfile: clientID='%s' not found", profile.ClientID)
 	}
 
-	// do not allow update to role by users. Use SetRole instead
-
+	// Only allow the following fields to update.
+	// Roles are not updated by users. Use SetRole instead.
 	if profile.DisplayName != "" {
 		entry.DisplayName = profile.DisplayName
 	}
-	if profile.PubKey != "" {
-		entry.PubKey = profile.PubKey
+	if profile.PubKeyPem != "" {
+		entry.PubKeyPem = profile.PubKeyPem
 	}
 	entry.TimeUpdated = utils.FormatNowUTCMilli()
 	store.entries[profile.ClientID] = entry

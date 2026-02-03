@@ -63,7 +63,7 @@ func (m *HttpTransportModule) DefaultAuthenticate(req *http.Request) (
 	clientID string, err error) {
 
 	if m.config.ValidateToken == nil {
-		err := fmt.Errorf("Missing ValidateToken handler in configuration")
+		err := fmt.Errorf("DefaultAuthenticate: Missing ValidateToken handler in configuration")
 		return "", err
 	}
 	bearerToken, err := utils.GetBearerToken(req)
@@ -85,10 +85,10 @@ func (m *HttpTransportModule) GetConnectURL() string {
 	return m.connectURL
 }
 
-// Set the handler that validates tokens
-// This must be set before starting the module otherwise start will fail.
-func (m *HttpTransportModule) SetAuthValidator(validator transports.ValidateTokenHandler) {
-	m.config.ValidateToken = validator
+// Set the handler that validates tokens.
+// This will enable the protected routes.
+func (m *HttpTransportModule) SetAuthValidator(validator transports.IAuthValidator) {
+	m.config.ValidateToken = validator.ValidateToken
 }
 
 // Start readies the module for use.

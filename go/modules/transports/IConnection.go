@@ -43,7 +43,9 @@ type IConnection interface {
 	//
 	//	clientID is the ID to authenticate as, it must match the token
 	//	token is the authentication token obtained on login
-	//	ch is the connection handler that is notified when connection is established and disconnects. nil to ignore
+	//	ch is the optional callback that is notified when connection is established and disconnects.
+	//
+	// This returns an error if the token is not valid
 	ConnectWithToken(clientID, token string, ch ConnectionHandler) (err error)
 
 	// GetClientID returns the clientID used with authentication

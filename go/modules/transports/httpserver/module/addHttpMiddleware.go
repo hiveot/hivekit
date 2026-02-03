@@ -96,42 +96,36 @@ func (m *HttpTransportModule) addMiddleware(cfg *httpserver.HttpServerConfig) {
 
 	//--- protected routes that requires an authenticated client
 	rootRouter.Group(func(r chi.Router) {
-		// this needs the configured token validator
-		if cfg.ValidateToken != nil {
-			m.protRoute = r
-			// authenticate requests in the protected routes
-			//
-			authWrap := func(next http.Handler) http.Handler {
-				return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-					var clientID string
-					var err error
+		m.protRoute = r
+		// authenticate requests in the protected routes
+		authWrap := func(next http.Handler) http.Handler {
+			return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				var clientID string
+				var err error
 
-					if cfg.AuthenticateHandler != nil {
-						clientID, err = cfg.AuthenticateHandler(r)
-					} else {
-						clientID, err = m.DefaultAuthenticate(r)
-					}
-					if err != nil {
-						// see https://w3c.github.io/wot-discovery/#exploration-secboot
-						// response with unauthorized and point to using the bearer token method
-						w.Header().Add("WWW-Authenticate", "Bearer")
-						http.Error(w, "Invalid bearer token", http.StatusUnauthorized)
-						slog.Warn("HttpsServer Authenticate; ",
-							"error", err.Error(),
-							"path", r.RequestURI)
-						return
-					}
-					ctx := r.Context()
-					ctx = context.WithValue(ctx, transports.ClientContextID, clientID)
-					next.ServeHTTP(w, r.WithContext(ctx))
-				})
+				if cfg.AuthenticateHandler != nil {
+					clientID, err = cfg.AuthenticateHandler(r)
+				} else {
+					clientID, err = m.DefaultAuthenticate(r)
+				}
+				if err != nil {
+					// see https://w3c.github.io/wot-discovery/#exploration-secboot
+					// response with unauthorized and point to using the bearer token method
+					w.Header().Add("WWW-Authenticate", "Bearer")
+					http.Error(w, "Invalid bearer token", http.StatusUnauthorized)
+					slog.Warn("HttpsServer Authenticate; ",
+						"error", err.Error(),
+						"path", r.RequestURI)
+					return
+				}
+				ctx := r.Context()
+				ctx = context.WithValue(ctx, transports.ClientContextID, clientID)
+				next.ServeHTTP(w, r.WithContext(ctx))
+			})
 
-			}
-
-			r.Use(authWrap)
-		} else {
-			slog.Warn("HTTP server does not have authentication configured. The protected route is not available.")
 		}
+
+		r.Use(authWrap)
 	})
 }
 

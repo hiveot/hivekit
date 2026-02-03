@@ -6,7 +6,7 @@ import (
 	"net/http"
 	"net/url"
 
-	authnservice "github.com/hiveot/hivekit/go/modules/authn/service"
+	"github.com/hiveot/hivekit/go/modules/authn/server"
 	"github.com/hiveot/hivekit/go/modules/transports"
 	tlsclient "github.com/hiveot/hivekit/go/modules/transports/httpserver/client"
 	jsoniter "github.com/json-iterator/go"
@@ -47,6 +47,7 @@ func (cl *AuthnUserHttpClient) Logout(token string) (err error) {
 	return err
 }
 
+// Use the http address to request a token refresh
 func (cl *AuthnUserHttpClient) RefreshToken(oldToken string) (newToken string, err error) {
 	newToken, err = RefreshToken(
 		cl.tlsClient, cl.tlsClient.GetClientID(), oldToken)
@@ -77,13 +78,13 @@ func LoginWithPassword(tlsClient transports.ITlsClient, clientID, password strin
 	slog.Info("LoginWithPassword", "clientID", clientID)
 
 	// FIXME: figure out how a standard login method is used to obtain an auth token
-	args := authnservice.UserLoginArgs{
+	args := server.UserLoginArgs{
 		UserName: clientID,
 		Password: password,
 	}
 
 	argsJSON, _ := jsoniter.Marshal(args)
-	loginPath := authnservice.HttpPostLoginPath
+	loginPath := server.HttpPostLoginPath
 	outputRaw, status, err := tlsClient.Post(loginPath, []byte(argsJSON))
 
 	if err == nil && status == http.StatusOK {
@@ -154,7 +155,7 @@ func LoginWithPassword(tlsClient transports.ITlsClient, clientID, password strin
 // tlsClient is a client with an existing authenticated connection
 func Logout(tlsClient transports.ITlsClient, token string) (err error) {
 
-	logoutPath := authnservice.HttpPostLogoutPath
+	logoutPath := server.HttpPostLogoutPath
 	_, _, err = tlsClient.Post(logoutPath, nil)
 	tlsClient.Close()
 	return err
@@ -166,7 +167,7 @@ func Logout(tlsClient transports.ITlsClient, token string) (err error) {
 //
 // This returns a new authentication token, or an error
 func RefreshToken(tlsClient transports.ITlsClient, clientID string, oldToken string) (newToken string, err error) {
-	refreshPath := authnservice.HttpPostRefreshPath
+	refreshPath := server.HttpPostRefreshPath
 	dataJSON, _ := jsoniter.Marshal(oldToken)
 	// first initialize the client with the old token
 	tlsClient.ConnectWithToken(clientID, oldToken)

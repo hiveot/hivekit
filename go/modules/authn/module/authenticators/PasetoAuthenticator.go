@@ -8,7 +8,7 @@ import (
 
 	"aidanwoods.dev/go-paseto"
 	"github.com/hiveot/hivekit/go/modules/authn"
-	"github.com/hiveot/hivekit/go/modules/authn/service/authnstore"
+	"github.com/hiveot/hivekit/go/modules/authn/module/authnstore"
 	"github.com/hiveot/hivekit/go/wot/td"
 )
 
@@ -19,8 +19,10 @@ import (
 type PasetoAuthenticator struct {
 	// key used to create and verify session tokens
 	signingKey ed25519.PrivateKey
+
 	// authentication store for login verification
-	authnStore authnstore.IAuthnStore
+	clientStore authnstore.IAuthnStore
+
 	// The URI of the authentication service that provides paseto tokens
 	authServerURI             string
 	AgentTokenValidityDays    int
@@ -29,9 +31,6 @@ type PasetoAuthenticator struct {
 
 	// track session start, used in validation
 	sessionStart map[string]time.Time
-
-	// clients with their role, used in login
-	clientStore authnstore.IAuthnStore
 }
 
 // AddSecurityScheme adds this authenticator's security scheme to the given TD.
@@ -60,11 +59,18 @@ func (srv *PasetoAuthenticator) AddSecurityScheme(tdoc *td.TD) {
 //
 //	clientID is the account ID of a known client
 //	sessionID for which this token is valid. Use clientID to allow no session (agents)
-//	validityS is the token validity period
+//	validity is the token validity period.
 //
 // This returns the token
-func (svc *PasetoAuthenticator) CreateToken(
-	clientID string, role string, validity time.Duration) (token string, validUntil time.Time) {
+func (svc *PasetoAuthenticator) CreateToken(clientID string, validity time.Duration) (
+	token string, validUntil time.Time, err error) {
+
+	profile, err := svc.clientStore.GetProfile(clientID)
+	if err != nil {
+		return "", validUntil, err
+	} else if validity == 0 {
+		return "", validUntil, fmt.Errorf("CreateToken: validity cannot be 0")
+	}
 
 	// TODO: add support for nonce challenge with client pubkey
 
@@ -81,7 +87,7 @@ func (svc *PasetoAuthenticator) CreateToken(
 	pToken.SetNotBefore(createdTime)
 	// custom claims
 	pToken.SetString("clientID", clientID)
-	pToken.SetString("role", role)
+	pToken.SetString("role", string(profile.Role))
 
 	secretKey, err := paseto.NewV4AsymmetricSecretKeyFromEd25519(svc.signingKey)
 	if err != nil {
@@ -93,7 +99,7 @@ func (svc *PasetoAuthenticator) CreateToken(
 	expiration, _ := pToken.GetExpiration()
 	validUntil = expiration.Local()
 	svc.sessionStart[clientID] = createdTime.Add(-time.Second)
-	return signedToken, validUntil
+	return signedToken, validUntil, err
 
 }
 
@@ -149,12 +155,8 @@ func (svc *PasetoAuthenticator) Login(
 	clientID string, password string) (token string, validUntil time.Time, err error) {
 
 	// a user login always creates a session token
-	err = svc.ValidatePassword(clientID, password)
-	if err != nil {
-		return "", validUntil, err
-	}
-
-	role, err := svc.authnStore.GetRole(clientID)
+	profile, err := svc.clientStore.VerifyPassword(clientID, password)
+	_ = profile
 	if err != nil {
 		return "", validUntil, err
 	}
@@ -168,7 +170,7 @@ func (svc *PasetoAuthenticator) Login(
 
 	// create the session to allow token refresh
 	validity := time.Hour * time.Duration(24*svc.ConsumerTokenValidityDays)
-	token, validUntil = svc.CreateToken(clientID, role, validity)
+	token, validUntil, err = svc.CreateToken(clientID, validity)
 
 	return token, validUntil, err
 }
@@ -183,16 +185,16 @@ func (svc *PasetoAuthenticator) Logout(clientID string) {
 
 // RefreshToken requests a new token based on the old token
 // This requires that the existing session is still valid
-func (svc *PasetoAuthenticator) RefreshToken(
-	senderID string, oldToken string) (newToken string, validUntil time.Time, err error) {
+func (svc *PasetoAuthenticator) RefreshToken(senderID string, oldToken string) (
+	newToken string, validUntil time.Time, err error) {
 
 	// validation only succeeds if there is an active session
-	tokenClientID, role, _, err := svc.ValidateToken(oldToken)
+	tokenClientID, _, _, err := svc.ValidateToken(oldToken)
 	if err != nil || senderID != tokenClientID {
 		return newToken, validUntil, fmt.Errorf("Invalid token or senderID mismatch")
 	}
 	// must still be a valid client
-	prof, err := svc.authnStore.GetProfile(senderID)
+	prof, err := svc.clientStore.GetProfile(senderID)
 	_ = prof
 	if err != nil || prof.Disabled {
 		return newToken, validUntil, fmt.Errorf("Profile for '%s' is disabled", senderID)
@@ -204,8 +206,8 @@ func (svc *PasetoAuthenticator) RefreshToken(
 		validityDays = svc.ServiceTokenValidityDays
 	}
 	validity := time.Duration(validityDays) * 24 * time.Hour
-	newToken, validUntil = svc.CreateToken(senderID, role, validity)
-	return newToken, validUntil, nil
+	newToken, validUntil, err = svc.CreateToken(senderID, validity)
+	return newToken, validUntil, err
 }
 
 // SetAuthServerURI this sets the server endpoint starting the authorization flow.
@@ -216,11 +218,11 @@ func (svc *PasetoAuthenticator) SetAuthServerURI(serverURI string) {
 
 // update the client's password
 func (svc *PasetoAuthenticator) SetPassword(clientID, password string) error {
-	return svc.authnStore.SetPassword(clientID, password)
+	return svc.clientStore.SetPassword(clientID, password)
 }
 
 func (svc *PasetoAuthenticator) ValidatePassword(clientID, password string) (err error) {
-	clientProfile, err := svc.authnStore.VerifyPassword(clientID, password)
+	clientProfile, err := svc.clientStore.VerifyPassword(clientID, password)
 	_ = clientProfile
 	return err
 }
@@ -235,7 +237,7 @@ func (svc *PasetoAuthenticator) ValidateToken(token string) (
 		return clientID, role, validUntil, err
 	}
 	// must still be a valid client
-	prof, err := svc.authnStore.GetProfile(clientID)
+	prof, err := svc.clientStore.GetProfile(clientID)
 	if err != nil || prof.Disabled {
 		return clientID, role, validUntil, fmt.Errorf("Profile for '%s' is disabled", clientID)
 	}
@@ -263,9 +265,9 @@ func NewPasetoAuthenticator(
 
 	paseto.NewV4AsymmetricSecretKey()
 
-	svc := PasetoAuthenticator{
-		signingKey: signingKey,
-		authnStore: authnStore,
+	svc := &PasetoAuthenticator{
+		signingKey:  signingKey,
+		clientStore: authnStore,
 		//authServerURI: authServerURI, use SetAuthServerURI
 		// validity can be changed by user of this service
 		AgentTokenValidityDays:    authn.DefaultAgentTokenValidityDays,
@@ -273,7 +275,8 @@ func NewPasetoAuthenticator(
 		ServiceTokenValidityDays:  authn.DefaultServiceTokenValidityDays,
 		sessionStart:              make(map[string]time.Time),
 	}
-	return &svc
+	var _ authn.IAuthenticator = svc // interface check
+	return svc
 }
 
 // NewPasetoAuthenticatorFromFile returns a new instance of a Paseto token authenticator

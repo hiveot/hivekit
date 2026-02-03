@@ -10,8 +10,7 @@ import (
 
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/hiveot/hivekit/go/modules/authn"
-	"github.com/hiveot/hivekit/go/modules/authn/service/authnstore"
-	"github.com/hiveot/hivekit/go/modules/transports"
+	"github.com/hiveot/hivekit/go/modules/authn/module/authnstore"
 	"github.com/hiveot/hivekit/go/wot/td"
 )
 
@@ -22,8 +21,8 @@ import (
 type JWTAuthenticator struct {
 	// key used to create and verify session tokens
 	signingKey *ecdsa.PrivateKey
-	// authentication store for account verification
-	authnStore authnstore.IAuthnStore
+	// client store for account verification
+	clientStore authnstore.IAuthnStore
 	//
 	authServerURI string
 	//
@@ -71,11 +70,18 @@ func (srv *JWTAuthenticator) AddSecurityScheme(tdoc *td.TD) {
 //
 //	clientID is the account ID of a known client
 //	sessionID for which this token is valid. Use clientID to allow no session (agents)
-//	validity is the token validity period
+//	validity is the token validity period.
 //
-// This returns the token
+// This returns the token.
 func (svc *JWTAuthenticator) CreateToken(
-	clientID string, role string, validity time.Duration) (token string, validUntil time.Time) {
+	clientID string, validity time.Duration) (token string, validUntil time.Time, err error) {
+
+	profile, err := svc.clientStore.GetProfile(clientID)
+	if err != nil {
+		return "", validUntil, err
+	} else if validity == 0 {
+		return "", validUntil, fmt.Errorf("CreateToken: validity cannot be 0")
+	}
 
 	// TODO: add support for nonce challenge with client pubkey
 
@@ -98,14 +104,14 @@ func (svc *JWTAuthenticator) CreateToken(
 		"exp": expiryTime.Unix(), // expiry time. Seconds since epoch
 		"iat": time.Now().Unix(), // issued at. Seconds since epoch
 		// custom claims
-		"role": role,
+		"role": profile.Role,
 	}
 
 	// Declare the token with the algorithm used for signing, and the claims
 	claimsToken := jwt.NewWithClaims(svc.signingMethod, claims)
 	sessionToken, _ := claimsToken.SignedString(svc.signingKey)
 	svc.sessionStart[clientID] = createdTime.Add(-time.Second)
-	return sessionToken, expiryTime
+	return sessionToken, expiryTime, err
 }
 
 // DecodeSessionToken verifies the given JWT token and returns its claims.
@@ -186,11 +192,6 @@ func (svc *JWTAuthenticator) Login(
 		return "", validUntil, err
 	}
 
-	role, err := svc.authnStore.GetRole(clientID)
-	if err != nil {
-		return "", validUntil, err
-	}
-
 	// If a session start time does not exist yet, then record this as the session start.
 	sessionStart, found := svc.sessionStart[clientID]
 	if !found {
@@ -200,7 +201,7 @@ func (svc *JWTAuthenticator) Login(
 
 	// create the session to allow token refresh
 	validity := time.Hour * time.Duration(24*svc.ConsumerTokenValidityDays)
-	token, validUntil = svc.CreateToken(clientID, role, validity)
+	token, validUntil, _ = svc.CreateToken(clientID, validity)
 
 	return token, validUntil, err
 }
@@ -219,12 +220,12 @@ func (svc *JWTAuthenticator) RefreshToken(
 	senderID string, oldToken string) (newToken string, validUntil time.Time, err error) {
 
 	// validation only succeeds if there is an active session
-	tokenClientID, role, _, err := svc.ValidateToken(oldToken)
+	tokenClientID, _, _, err := svc.ValidateToken(oldToken)
 	if err != nil || senderID != tokenClientID {
 		return newToken, validUntil, fmt.Errorf("Invalid token or senderID mismatch")
 	}
 	// must still be a valid client
-	prof, err := svc.authnStore.GetProfile(senderID)
+	prof, err := svc.clientStore.GetProfile(senderID)
 	validityDays := svc.ConsumerTokenValidityDays
 	if prof.Role == authn.ClientRoleAgent {
 		validityDays = svc.AgentTokenValidityDays
@@ -232,8 +233,8 @@ func (svc *JWTAuthenticator) RefreshToken(
 		validityDays = svc.ServiceTokenValidityDays
 	}
 	validity := time.Duration(validityDays) * 24 * time.Hour
-	newToken, validUntil = svc.CreateToken(senderID, role, validity)
-	return newToken, validUntil, nil
+	newToken, validUntil, err = svc.CreateToken(senderID, validity)
+	return newToken, validUntil, err
 }
 
 // SetAuthServerURI this sets the server endpoint needed to login.
@@ -241,15 +242,16 @@ func (svc *JWTAuthenticator) RefreshToken(
 func (svc *JWTAuthenticator) SetAuthServerURI(serverURI string) {
 	svc.authServerURI = serverURI
 }
+
 func (svc *JWTAuthenticator) ValidatePassword(clientID, password string) (err error) {
-	clientProfile, err := svc.authnStore.VerifyPassword(clientID, password)
+	clientProfile, err := svc.clientStore.VerifyPassword(clientID, password)
 	_ = clientProfile
 	return err
 }
 
 // update the client's password
 func (svc *JWTAuthenticator) SetPassword(clientID, password string) error {
-	return svc.authnStore.SetPassword(clientID, password)
+	return svc.clientStore.SetPassword(clientID, password)
 }
 
 // ValidateToken verifies the token and client are valid.
@@ -263,7 +265,7 @@ func (svc *JWTAuthenticator) ValidateToken(token string) (
 	}
 
 	// must still be a valid client
-	prof, err := svc.authnStore.GetProfile(clientID)
+	prof, err := svc.clientStore.GetProfile(clientID)
 	if err != nil || prof.Disabled {
 		return clientID, role, validUntil, fmt.Errorf("Profile for '%s' is disabled", clientID)
 	}
@@ -287,7 +289,7 @@ func NewJWTAuthenticator(
 	authnStore authnstore.IAuthnStore, signingKey *ecdsa.PrivateKey, authServerURI string) *JWTAuthenticator {
 	svc := &JWTAuthenticator{
 		signingKey:    signingKey,
-		authnStore:    authnStore,
+		clientStore:   authnStore,
 		authServerURI: authServerURI,
 		// validity can be changed by user of this service
 		AgentTokenValidityDays:    authn.DefaultAgentTokenValidityDays,
@@ -296,7 +298,7 @@ func NewJWTAuthenticator(
 		signingMethod:             jwt.SigningMethodES256,
 		sessionStart:              make(map[string]time.Time),
 	}
-	var _ transports.IAuthenticator = svc // interface check
+	var _ authn.IAuthenticator = svc // interface check
 	return svc
 }
 

@@ -355,7 +355,7 @@ func (cl *TLSClient) SetHeader(name string, val string) {
 //	hostPort is the server address in host:port format
 //	clientCert is an optional client certificate used to authenticate
 //	caCert with the x509 CA certificate, nil if not available
-//	timeout duration for use with Delete,Get,Patch,Post,Put
+//	timeout duration for use with Delete,Get,Patch,Post,Put, 0 for DefaultClientTimeout
 //
 // returns TLS client for submitting requests
 func NewTLSClient(hostPort string, clientCert *tls.Certificate, caCert *x509.Certificate,

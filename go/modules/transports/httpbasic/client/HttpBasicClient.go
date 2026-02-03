@@ -63,18 +63,20 @@ type HttpBasicClient struct {
 	tlsClient transports.ITlsClient
 }
 
-// set the clientID and authentication bearer token and connect to the server
-// Assume this client is now connected.
-// TODO: should it ping to confirm?
+// Set the clientID and authentication bearer token.
 func (cl *HttpBasicClient) ConnectWithToken(
 	clientID string, token string, ch transports.ConnectionHandler) error {
 
 	cl.connectHandler = ch
 	err := cl.tlsClient.ConnectWithToken(clientID, token)
 	if err == nil {
-		cl.isConnected.Store(true)
-		if ch != nil {
-			ch(true, cl, nil)
+		// TBD: should ping always work?
+		// _, _, err = cl.tlsClient.Get(httpbasic.HttpGetPingPath)
+		if err == nil {
+			cl.isConnected.Store(true)
+			if ch != nil {
+				ch(true, cl, nil)
+			}
 		}
 	}
 	return err

@@ -10,6 +10,7 @@ import (
 	"github.com/hiveot/hivekit/go/modules/bucketstore"
 	"github.com/hiveot/hivekit/go/modules/bucketstore/module/kvbtree"
 	"github.com/hiveot/hivekit/go/modules/bucketstore/module/pebble"
+	"github.com/hiveot/hivekit/go/modules/bucketstore/server"
 	"github.com/hiveot/hivekit/go/msg"
 )
 
@@ -38,10 +39,10 @@ type BucketStoreModule struct {
 	bucket bucketstore.IBucket
 
 	// temporary cursors for remote iterators
-	cursorCache *CursorCache
+	// cursorCache *CursorCache
 
 	// the WoT messaging API
-	msgAPI *BucketMsgHandler
+	msgAPI *server.BucketMsgHandler
 }
 
 func (m *BucketStoreModule) GetService() bucketstore.IBucketStore {
@@ -90,10 +91,10 @@ func (m *BucketStoreModule) Start(yamlConfig string) (err error) {
 	}
 	err = m.store.Open()
 	if err == nil {
-		m.msgAPI = NewBucketMsgHandler(m.GetModuleID(), m.store)
+		m.msgAPI = server.NewBucketMsgHandler(m.GetModuleID(), m.store)
 	}
 	// for remote iterators
-	m.cursorCache = NewCursorCache()
+	// m.cursorCache = NewCursorCache()
 
 	return err
 }

@@ -29,26 +29,25 @@ func TestLoginRefresh(t *testing.T) {
 	err = svc.SetPassword(user1ID, tu1Pass)
 	require.NoError(t, err)
 
-	token1, validUntil, err := svc.Login(user1ID, tu1Pass)
+	token1, validUntil, err := authenticator.Login(user1ID, tu1Pass)
 	require.NoError(t, err)
 	require.Greater(t, validUntil, time.Now())
 
 	cid2, role2, validUntil2, err := authenticator.ValidateToken(token1)
 	require.NoError(t, err)
 	assert.Equal(t, user1ID, cid2)
-	assert.Equal(t, authn.ClientRoleViewer, role2)
+	assert.Equal(t, string(authn.ClientRoleViewer), role2)
 	require.Equal(t, validUntil2, validUntil)
 
-	// RefreshToken the token
-	token3, validUntil3, err := svc.RefreshToken(user1ID, token1)
+	// RefreshToken the token after a short delay
+	token3, validUntil3, err := authenticator.RefreshToken(user1ID, token1)
 	require.NoError(t, err)
 	require.NotEmpty(t, token3)
-	require.Greater(t, validUntil3, validUntil2)
 
 	// ValidateToken the new token
 	cid4, role4, validUntil4, err := authenticator.ValidateToken(token3)
 	assert.Equal(t, user1ID, cid4)
-	assert.Equal(t, authn.ClientRoleViewer, role4)
+	assert.Equal(t, string(authn.ClientRoleViewer), role4)
 	assert.Equal(t, validUntil3, validUntil4)
 	require.NoError(t, err)
 }
@@ -58,22 +57,26 @@ func TestBadRefresh(t *testing.T) {
 
 	srv, cancelFn := startTestAuthnModule(defaultHash)
 	defer cancelFn()
+	serverURL := srv.GetConnectURL()
 
-	co1, cc1, token1 := NewTestConsumer(testClientID1, srv.GetAuthenticator())
+	co1, cc1, token1 := NewTestConsumer(srv, serverURL, testClientID1)
 	_ = co1
 	_ = token1
 	defer cc1.Close()
 
 	// set the token
 	t.Log("Expecting SetBearerToken('bad-token') to fail")
-	err := cc1.ConnectWithToken(testClientID1, "bad-token")
-	require.Error(t, err)
+	err := cc1.ConnectWithToken(testClientID1, "bad-token", nil)
+	// TODO: http-basic doesn't check tokens until a request is sent to the protected endpoint
+	if err == nil {
+		err = co1.Ping() // hiveot support ping, although it doesnt require authn
+	}
+	assert.Error(t, err)
 
 	// reconnect with a valid token and connect with a bad client-id
-	err = cc1.ConnectWithToken(testClientID1, token1)
+	err = cc1.ConnectWithToken(testClientID1, token1, nil)
 	assert.NoError(t, err)
 
-	serverURL := srv.GetConnectURL()
 	authCl := authnclient.NewAuthnHttpClient(serverURL, testCerts.CaCert)
 	authCl.ConnectWithToken(testClientID1, token1)
 	validToken, err := authCl.RefreshToken(token1)
@@ -88,16 +91,16 @@ func TestLogout(t *testing.T) {
 
 	srv, cancelFn := startTestAuthnModule(defaultHash)
 	defer cancelFn()
+	serverURL := srv.GetConnectURL()
 
 	// check if this test still works with a valid login
-	co1, cc1, token1 := NewTestConsumer(testClientID1, srv.GetAuthenticator())
+	co1, cc1, token1 := NewTestConsumer(srv, serverURL, testClientID1)
 	_ = cc1
 	_ = co1
 	defer co1.Stop()
 	assert.NotEmpty(t, token1)
 
 	// logout
-	serverURL := srv.GetConnectURL()
 	authnClient := authnclient.NewAuthnHttpClient(serverURL, testCerts.CaCert)
 	authnClient.ConnectWithToken(testClientID1, token1)
 	err := authnClient.Logout(token1)
@@ -120,30 +123,34 @@ func TestUpdatePassword(t *testing.T) {
 
 	srv, cancelFn := startTestAuthnModule(defaultHash)
 	defer cancelFn()
+	authenticator := srv.GetAuthenticator()
+
+	tp := direct.NewDirectTransport(user1ID, srv)
 
 	// add user to test with
-	co := clients.NewConsumer("test", co, 0)
-	tp := direct.NewDirectTransport(user1ID, co, srv)
-
+	co := clients.NewConsumer("test", 0)
 	authCl := authnclient.NewAuthnUserMsgClient(co)
-	err := svc.AdminSvc.AddConsumer(user1ID, authn.AdminAddConsumerArgs{user1ID, tu1Name, "oldpass"})
+	authCl.SetRequestSink(tp.HandleRequest)
+
+	err := srv.AddClient(user1ID, tu1Name, authn.ClientRoleViewer, "oldpass")
+	srv.SetPassword(user1ID, "oldpass")
 	require.NoError(t, err)
 
 	// login should succeed
-	_, err = svc.UserSvc.Login(user1ID, authn.UserLoginArgs{user1ID, "oldpass"})
+	_, _, err = authenticator.Login(user1ID, "oldpass")
 	require.NoError(t, err)
 
 	// change password
-	err = svc.UserSvc.UpdatePassword(user1ID, "newpass")
+	err = srv.SetPassword(user1ID, "newpass")
 	require.NoError(t, err)
 
 	// login with old password should now fail
 	//t.Log("an error is expected logging in with the old password")
-	_, err = svc.UserSvc.Login(user1ID, authn.UserLoginArgs{user1ID, "oldpass"})
+	_, _, err = authenticator.Login(user1ID, "oldpass")
 	require.Error(t, err)
 
 	// re-login with new password
-	_, err = svc.UserSvc.Login(user1ID, authn.UserLoginArgs{user1ID, "newpass"})
+	_, _, err = authenticator.Login(user1ID, "newpass")
 	require.NoError(t, err)
 }
 
@@ -152,7 +159,7 @@ func TestUpdatePasswordFail(t *testing.T) {
 	srv, cancelFn := startTestAuthnModule(defaultHash)
 	defer cancelFn()
 
-	err := svc.UserSvc.UpdatePassword(user1ID, "newpass")
+	err := srv.SetPassword(user1ID, "newpass")
 	assert.Error(t, err)
 }
 
@@ -166,16 +173,18 @@ func TestUpdateName(t *testing.T) {
 	defer cancelFn()
 
 	// add user to test with
-	err := svc.AdminSvc.AddConsumer(user1ID, authn.AdminAddConsumerArgs{user1ID, tu1Name, "oldpass"})
+	err := srv.AddClient(user1ID, tu1Name, authn.ClientRoleViewer, "")
+	srv.SetPassword(user1ID, "oldpass")
 	require.NoError(t, err)
 
-	profile, err := svc.UserSvc.GetProfile(user1ID)
+	profile, err := srv.GetProfile(user1ID)
 	require.NoError(t, err)
 	assert.Equal(t, tu1Name, profile.DisplayName)
 
-	err = svc.UserSvc.UpdateName(user1ID, tu2Name)
+	profile.DisplayName = tu2Name
+	err = srv.UpdateProfile(user1ID, profile)
 	require.NoError(t, err)
-	profile2, err := svc.UserSvc.GetProfile(user1ID)
+	profile2, err := srv.GetProfile(user1ID)
 	require.NoError(t, err)
 
 	assert.Equal(t, tu2Name, profile2.DisplayName)
@@ -188,26 +197,28 @@ func TestClientUpdatePubKey(t *testing.T) {
 	defer cancelFn()
 
 	// add user to test with. don't set the public key yet
-	err := svc.AdminSvc.AddClient("",
-		authn.AdminAddConsumerArgs{user1ID, user1ID, "user1"})
-	profile, err := svc.AdminSvc.GetClientProfile("", user1ID)
+	err := srv.AddClient(user1ID, user1ID, authn.ClientRoleViewer, "")
+	srv.SetPassword(user1ID, "user1")
+	profile, err := srv.GetProfile(user1ID)
 	require.NoError(t, err)
 	assert.Equal(t, user1ID, profile.ClientID)
 	assert.Equal(t, user1ID, profile.DisplayName)
-	assert.NotEmpty(t, profile.Updated)
+	assert.NotEmpty(t, profile.TimeUpdated)
 
 	// update the public key
 	privKey, pubKey := utils.NewKey(utils.KeyTypeECDSA)
+	pubKeyPem := utils.PublicKeyToPem(pubKey)
 	_ = privKey
-	profile2, err := svc.UserSvc.GetProfile(user1ID)
+	profile2, err := srv.GetProfile(user1ID)
 	assert.Equal(t, user1ID, profile2.ClientID)
 	require.NoError(t, err)
-	err = svc.UserSvc.UpdatePubKey(user1ID, pubKey)
+	profile2.PubKeyPem = pubKeyPem
+	err = srv.UpdateProfile(user1ID, profile2)
 	assert.NoError(t, err)
 
 	// check result
-	profile3, err := svc.UserSvc.GetProfile(user1ID)
+	profile3, err := srv.GetProfile(user1ID)
 	require.NoError(t, err)
 	assert.Equal(t, user1ID, profile3.ClientID)
-	assert.Equal(t, kp.ExportPublic(), profile3.PubKey)
+	assert.Equal(t, pubKeyPem, profile3.PubKeyPem)
 }

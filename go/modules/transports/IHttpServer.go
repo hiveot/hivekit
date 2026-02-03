@@ -1,3 +1,4 @@
+// Package transports with http server and TLSClient apis
 package transports
 
 import (
@@ -69,12 +70,15 @@ type IHttpServer interface {
 	GetRequestParams(r *http.Request) (RequestParams, error)
 
 	// Return the protected route for adding endpoints.
-	// This requires that config.ValidateToken method is set, otherwise
-	// this returns nil.
+	// Note that these routes will refuse all requests until a validator is configured.
 	GetProtectedRoute() chi.Router
 
 	// Return the public route for adding endpoints.
 	GetPublicRoute() chi.Router
+
+	// Set the validator for http requests
+	// This enables the protected routes
+	SetAuthValidator(v IAuthValidator)
 }
 
 // ITlsClient interface for generic http/tls client.

@@ -1,25 +1,25 @@
-package authnservice
+package module
 
 import (
 	"crypto/ed25519"
 	"fmt"
-	"path"
-	"time"
+	"net/url"
 
 	"github.com/hiveot/hivekit/go/modules"
 	"github.com/hiveot/hivekit/go/modules/authn"
-	"github.com/hiveot/hivekit/go/modules/authn/authenticators"
-	"github.com/hiveot/hivekit/go/modules/authn/service/authnstore"
+	"github.com/hiveot/hivekit/go/modules/authn/module/authenticators"
+	"github.com/hiveot/hivekit/go/modules/authn/module/authnstore"
+	"github.com/hiveot/hivekit/go/modules/authn/server"
 	"github.com/hiveot/hivekit/go/modules/transports"
 	"github.com/hiveot/hivekit/go/msg"
 	"github.com/hiveot/hivekit/go/utils"
 )
 
-// AuthnService is a module that manages clients and issues authentication tokens.
+// AuthnModule is a module that manages clients and issues authentication tokens.
 //
 // This implements IHiveModule and IAuthnModule interfaces and is facade for the
 // account store and authenticator.
-type AuthnService struct {
+type AuthnModule struct {
 	modules.HiveModuleBase
 
 	config authn.AuthnConfig
@@ -28,33 +28,16 @@ type AuthnService struct {
 	httpServer transports.IHttpServer
 
 	// The primary authenticator
-	authenticator transports.IAuthenticator
+	authenticator authn.IAuthenticator
 	//
 	authnStore authnstore.IAuthnStore
 
 	// Messaging API handlers
-	userHttpHandler *UserHttpHandler
-}
-
-func (m *AuthnService) AddClient(
-	clientID string, displayName string, role authn.ClientRole, pubKey string) error {
-
-	_, err := m.authnStore.GetProfile(clientID)
-	if err == nil {
-		return fmt.Errorf("Account for client '%s' already exists", clientID)
-	}
-
-	newProfile := authn.ClientProfile{
-		ClientID:    clientID,
-		DisplayName: displayName,
-		Role:        role,
-		PubKey:      pubKey,
-	}
-	return m.authnStore.Add(newProfile)
+	userHttpHandler *server.UserHttpHandler
 }
 
 // Return the authenticator for use by other modules
-func (m *AuthnService) GetAuthenticator() transports.IAuthenticator {
+func (m *AuthnModule) GetAuthenticator() authn.IAuthenticator {
 	return m.authenticator
 }
 
@@ -68,80 +51,58 @@ func (m *AuthnService) GetAuthenticator() transports.IAuthenticator {
 // Note that web browsers do not directly access the runtime endpoints.
 // Instead a web server (hiveoview or other) provides the user interface.
 // Including the auth endpoint here is currently just a hint. How to integrate this?
-func (m *AuthnService) GetConnectURL() string {
+func (m *AuthnModule) GetConnectURL() string {
 	baseURL := m.httpServer.GetConnectURL()
-	loginURL := path.Join(baseURL, HttpPostLoginPath)
+	loginURL, _ := url.JoinPath(baseURL, server.HttpPostLoginPath)
 	return loginURL
 }
 
 // GetProfile return the client's profile
-func (m *AuthnService) GetProfile(clientID string) (profile authn.ClientProfile, err error) {
+func (m *AuthnModule) GetProfile(clientID string) (profile authn.ClientProfile, err error) {
 	return m.authnStore.GetProfile(clientID)
 }
 
 // GetProfile return a list of client profiles
-func (m *AuthnService) GetProfiles() (profiles []authn.ClientProfile, err error) {
+func (m *AuthnModule) GetProfiles() (profiles []authn.ClientProfile, err error) {
 	return m.authnStore.GetProfiles()
 }
 
 // Handle requests to be served by this module
-func (m *AuthnService) HandleRequest(req *msg.RequestMessage, replyTo msg.ResponseHandler) error {
+func (m *AuthnModule) HandleRequest(req *msg.RequestMessage, replyTo msg.ResponseHandler) error {
 
 	//TODO: how to handle read property requests? admin or user?
-	if req.ThingID == AuthnAdminServiceID {
-		return HandleAuthnAdminRequest(m, req, replyTo)
-	} else if req.ThingID == AuthnUserServiceID {
-		return HandleAuthnUserRequest(m, req, replyTo)
+	if req.ThingID == server.AuthnAdminServiceID {
+		return server.HandleAuthnAdminRequest(m, req, replyTo)
+	} else if req.ThingID == server.AuthnUserServiceID {
+		return server.HandleAuthnUserRequest(m, req, replyTo)
 	} else {
 		// forward
 		return m.HiveModuleBase.HandleRequest(req, replyTo)
 	}
-
-}
-
-// Login verifies the password and generates a new limited authentication token
-//
-// This uses the configured session authenticator.
-func (m *AuthnService) Login(clientID string, password string) (
-	newToken string, validUntil time.Time, err error) {
-
-	// the module uses the configured authenticator
-	newToken, validUntil, err = m.authenticator.Login(clientID, password)
-	return newToken, validUntil, err
-}
-
-// Logout disables the client's sessions
-//
-// This uses the configured session authenticator.
-func (m *AuthnService) Logout(clientID string) {
-
-	// the module uses the configured authenticator
-	m.authenticator.Logout(clientID)
-}
-
-// RefreshToken refreshes the auth token using the session authenticator.
-//
-// This uses the configured session authenticator.
-func (m *AuthnService) RefreshToken(clientID, oldToken string) (
-	newToken string, validUntil time.Time, err error) {
-
-	newToken, validUntil, err = m.authenticator.RefreshToken(clientID, oldToken)
-	return newToken, validUntil, err
 }
 
 // Remove a client
-func (m *AuthnService) RemoveClient(clientID string) error {
+func (m *AuthnModule) RemoveClient(clientID string) error {
 	return m.authnStore.Remove(clientID)
 }
 
-// Change the role of a client
-func (m *AuthnService) SetRole(clientID string, role string) error {
-	return m.authnStore.SetRole(clientID, role)
+// Set the http server to open up the http endpoints
+// If an http server is already set then this panics.
+func (m *AuthnModule) SetHttpServer(httpServer transports.IHttpServer) {
+	if m.httpServer != nil {
+		panic("An HTTP server is already set")
+	}
+	m.userHttpHandler = server.NewUserHttpHandler(m.authenticator, m.httpServer)
 }
 
 // Change the password of a client
-func (m *AuthnService) SetPassword(clientID string, password string) error {
+func (m *AuthnModule) SetPassword(clientID string, password string) error {
 	return m.authenticator.SetPassword(clientID, password)
+}
+
+// Change the role of a client
+func (m *AuthnModule) SetRole(clientID string, role authn.ClientRole) error {
+	return m.authnStore.SetRole(clientID, role)
 }
 
 // Start the authentication module and listen for login and token refresh requests
@@ -149,15 +110,12 @@ func (m *AuthnService) SetPassword(clientID string, password string) error {
 // authenticator instance.
 //
 // yamlConfig with module startup configuration (todo)
-func (m *AuthnService) Start(yamlConfig string) (err error) {
+func (m *AuthnModule) Start(yamlConfig string) (err error) {
 
-	if m.httpServer != nil {
-		m.userHttpHandler = NewUserHttpHandler(m.authenticator, m.httpServer)
-	}
 	passwordFile := m.config.PasswordFile
 	encryption := m.config.Encryption
 
-	authnStore := authnstore.NewAuthnFileStore(passwordFile, encryption)
+	m.authnStore = authnstore.NewAuthnFileStore(passwordFile, encryption)
 
 	clientID := "authn"
 	signingPrivKey, _, err := utils.LoadCreateKeyPair(
@@ -167,17 +125,20 @@ func (m *AuthnService) Start(yamlConfig string) (err error) {
 	}
 
 	m.authenticator = authenticators.NewPasetoAuthenticator(
-		authnStore, signingPrivKey.(ed25519.PrivateKey))
+		m.authnStore, signingPrivKey.(ed25519.PrivateKey))
 
+	if m.httpServer != nil {
+		m.userHttpHandler = server.NewUserHttpHandler(m.authenticator, m.httpServer)
+	}
 	return err
 }
 
-func (m *AuthnService) Stop() {
+func (m *AuthnModule) Stop() {
 }
 
 // UpdateProfile update the client profile
 // only administrators are allowed to update the role
-func (m *AuthnService) UpdateProfile(senderID string, newProfile authn.ClientProfile) error {
+func (m *AuthnModule) UpdateProfile(senderID string, newProfile authn.ClientProfile) error {
 	senderProf, err := m.authnStore.GetProfile(senderID)
 	if err != nil {
 		return fmt.Errorf("Unknown sender '%s'", senderID)
@@ -200,13 +161,26 @@ func (m *AuthnService) UpdateProfile(senderID string, newProfile authn.ClientPro
 	return m.authnStore.UpdateProfile(newProfile)
 }
 
+func (svc *AuthnModule) ValidatePassword(clientID, password string) (err error) {
+	clientProfile, err := svc.authnStore.VerifyPassword(clientID, password)
+	_ = clientProfile
+	return err
+}
+
 // Create a new authentication module.
 //
+// Note: to avoid a chicken-and-egg problem between authentication and http server,
+// the authentication module can be started without http server. Use SetHttpServer
+// to open the http routes.
+// The reverse is also supported when using SetAuthValidator on the http server if
+// the auth module starts after the http server. In this case protected routes will
+// fail until an auth validator is set.
+//
 // authnConfig contains the password storage and token management configuration
-// httpServer is optional and used to make http endpoints available for login, logout and token refresh.
-func NewAuthnService(authnConfig authn.AuthnConfig, httpServer transports.IHttpServer) *AuthnService {
+// httpServer to server the http endpoint or nil to not use http.
+func NewAuthnModule(authnConfig authn.AuthnConfig, httpServer transports.IHttpServer) *AuthnModule {
 
-	m := &AuthnService{
+	m := &AuthnModule{
 		config:     authnConfig,
 		httpServer: httpServer,
 	}

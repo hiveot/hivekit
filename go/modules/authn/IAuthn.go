@@ -2,7 +2,6 @@ package authn
 
 import (
 	"github.com/hiveot/hivekit/go/modules"
-	"github.com/hiveot/hivekit/go/modules/transports"
 )
 
 // This module exposes two services, one admin service and one user oriented service
@@ -73,10 +72,11 @@ type ClientProfile struct {
 	// DisplayName of the client
 	DisplayName string `json:"displayName,omitempty"`
 
-	// PubKey with public key intended for encryption
-	PubKey string `json:"pubKey,omitempty"`
+	// PubKey with public key in PEM format intended for encryption
+	PubKeyPem string `json:"pubKey,omitempty"`
 
 	// Role of the client when the account is enabled
+	// note that roles are not updated in UpdateProfile.
 	Role ClientRole `json:"role,omitempty"`
 
 	// TimeCreated time the client account was created
@@ -87,7 +87,7 @@ type ClientProfile struct {
 }
 
 // Authenticate server for login and refresh tokens.
-// This implements the IAuthenticator API for use by other services.
+// This implements the facilities for managing clients.
 type IAuthnModule interface {
 	modules.IHiveModule
 
@@ -96,7 +96,7 @@ type IAuthnModule interface {
 	AddClient(clientID string, displayName string, role ClientRole, pubKey string) error
 
 	// Return the client authenticator for use by transport modules
-	GetAuthenticator() transports.IAuthenticator
+	GetAuthenticator() IAuthenticator
 
 	// GetProfile Get the client profile
 	GetProfile(clientID string) (profile ClientProfile, err error)
@@ -110,6 +110,10 @@ type IAuthnModule interface {
 
 	// SetPassword sets a client's password for use with Login()
 	SetPassword(clientID string, password string) error
+
+	// SetRole sets a client's role.
+	// Like passwords only an admin or service can update roles.
+	SetRole(clientID string, role ClientRole) error
 
 	// UpdateProfile changes a client's profile.
 	// Only administrators can update the role. (senderID has role admin or service)

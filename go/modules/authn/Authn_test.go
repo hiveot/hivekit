@@ -12,13 +12,12 @@ import (
 
 	"github.com/hiveot/hivekit/go/lib/logging"
 	"github.com/hiveot/hivekit/go/modules/authn"
-	authnservice "github.com/hiveot/hivekit/go/modules/authn/service"
+	"github.com/hiveot/hivekit/go/modules/authn/module"
 	"github.com/hiveot/hivekit/go/modules/certs/module/selfsigned"
 	"github.com/hiveot/hivekit/go/modules/transports"
 	"github.com/hiveot/hivekit/go/modules/transports/clients"
 	"github.com/hiveot/hivekit/go/modules/transports/httpserver"
 	httpmodule "github.com/hiveot/hivekit/go/modules/transports/httpserver/module"
-	"github.com/hiveot/hivekit/go/modules/transports/tptests"
 	"github.com/hiveot/hivekit/go/utils"
 	"github.com/stretchr/testify/assert"
 )
@@ -52,27 +51,31 @@ const appID = "authn-test"
 //
 // This uses the clientID as password
 // This panics if a client cannot be created
-func NewTestConsumer(clientID string, authenticator transports.IAuthenticator) (
+func NewTestConsumer(m *module.AuthnModule, serverURL, clientID string) (
 	*clients.Consumer, transports.IConnection, string) {
 
-	token := authenticator.AddClient(clientID, clientID)
+	// ensure the client exists
+	_ = m.AddClient(clientID, clientID, authn.ClientRoleViewer, "")
+	token, validUntil, _ := m.GetAuthenticator().CreateToken(clientID, time.Minute)
+	_ = validUntil
+	co, cc, err := clients.NewConsumerConnection(appID, serverURL, testCerts.CaCert, 0)
+	if err != nil {
+		panic("Failed creating consumer connection: " + err.Error())
+	}
+	cc.ConnectWithToken(clientID, token, nil)
 
-	tptests.NewTestClient()
-	// NewClient
-	cc, token := NewTestClient(clientID, serverURL, dummyauthn)
-	co := clients.NewConsumer(appID, cc, 0)
-
-	co, cc, token := tptests.NewTestConsumer(authenticator, clientID)
 	return co, cc, token
 }
 
 // This test file sets up the environment for testing authn admin and client services.
 
 // launch the authn module and return the server side message handlers for using and managing it.
-func startTestAuthnModule(encryption string) (m *authnservice.AuthnService, stopFn func()) {
+func startTestAuthnModule(encryption string) (m *module.AuthnModule, stopFn func()) {
 
 	_ = os.RemoveAll(testDir)
 	_ = os.MkdirAll(testDir, 0700)
+
+	//--- start the http server
 
 	// the http server is used for login over http
 	serverAddress = "127.0.0.1"
@@ -80,18 +83,20 @@ func startTestAuthnModule(encryption string) (m *authnservice.AuthnService, stop
 	// hostnames := []string{serverAddress}
 	clientHostPort = fmt.Sprintf("%s:%d", serverAddress, serverPort)
 	testCerts = selfsigned.CreateTestCertBundle(TestKeyType)
-	// http is needed for login
-	// httpServer := httpserver.NewHttpServer()
+	// http is needed for testing the authn http api
 	cfg := httpserver.NewHttpServerConfig(
 		serverAddress,
 		serverPort,
 		testCerts.ServerCert,
 		testCerts.CaCert, nil)
 	httpServer := httpmodule.NewHttpServerModule("", cfg)
+
 	err := httpServer.Start()
 	if err != nil {
 		panic("Unable to start http server: " + err.Error())
 	}
+
+	//--- create the authentication service ---
 
 	// the password file to use
 	passwordFile := path.Join(testDir, "test.passwd")
@@ -102,16 +107,16 @@ func startTestAuthnModule(encryption string) (m *authnservice.AuthnService, stop
 	authnConfig.AgentTokenValidityDays = 1
 	authnConfig.Encryption = encryption
 
-	m = authnservice.NewAuthnService(authnConfig, httpServer)
+	m = module.NewAuthnModule(authnConfig, httpServer)
 	err = m.Start("")
 	if err != nil {
 		panic("Error starting authn admin service:" + err.Error())
 	}
 
-	httpServer.SetAuthValidator(m.GetAuthenticator().ValidateToken)
-	//ag, err := service.StartAuthnAgent(svc, nil)
+	// last, link the http server and validator to enable the protected routes and enable the
+	// authn http endpoint.
+	httpServer.SetAuthValidator(m.GetAuthenticator())
 
-	//return svc, ag.HandleMessage, func() {
 	return m, func() {
 		m.Stop()
 		httpServer.Stop()
@@ -134,6 +139,7 @@ func TestMain(m *testing.M) {
 
 // Start the authn service and list clients
 func TestStartStop(t *testing.T) {
+	t.Logf("---%s---\n", t.Name())
 	// this creates the admin user key
 	m, stopFn := startTestAuthnModule(defaultHash)
 	authenticator := m.GetAuthenticator()

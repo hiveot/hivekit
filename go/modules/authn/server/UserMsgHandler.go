@@ -1,4 +1,4 @@
-package authnservice
+package server
 
 import (
 	_ "embed"
@@ -11,7 +11,7 @@ import (
 
 // Embed the user service TM
 //
-//go:embed "authn-user-tm.json
+//go:embed "authn-user-tm.json"
 var AuthnUserTMJson []byte
 
 // AuthnUserThingID is the Thing instance ID of the user facing auth service.

@@ -13,7 +13,7 @@ type AuthnEntry struct {
 
 	// Client 'base role'. Authz can add agent/thing specific roles in the future.
 	// This is set when creating a user and updated with SetRole. Authz reads it.
-	Role string `yaml:"role" json:"role"`
+	// Role string `yaml:"role" json:"role"`
 }
 
 // IAuthnStore defined the interface for storing authentication data
@@ -32,7 +32,7 @@ type IAuthnStore interface {
 
 	// GetEntries returns a list of client profiles including the password hash
 	// Intended to obtain auth info to apply to the messaging server
-	// For internal auth usage only.
+	// For internal auth usage only. Do not expose this.
 	GetEntries() (entries []AuthnEntry)
 
 	// GetProfile returns the client's profile
@@ -42,9 +42,9 @@ type IAuthnStore interface {
 	// GetProfiles returns all client profiles in the store
 	GetProfiles() (entries []authn.ClientProfile, err error)
 
-	// GetRole returns the client's default role
+	// GetRole returns the client's role
 	// This returns an error if the client is disabled
-	GetRole(clientID string) (role string, err error)
+	GetRole(clientID string) (role authn.ClientRole, err error)
 
 	// Open the store
 	Open() error
@@ -55,7 +55,7 @@ type IAuthnStore interface {
 
 	// SetRole sets the default role of a client
 	// This returns an error if newRole isn't a known role
-	SetRole(clientID string, newRole string) error
+	SetRole(clientID string, newRole authn.ClientRole) error
 
 	// SetPassword stores the hash of the password for the given user.
 	// If the clientID doesn't exist, this returns an error.

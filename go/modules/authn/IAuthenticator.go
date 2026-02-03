@@ -1,4 +1,4 @@
-package transports
+package authn
 
 import (
 	"time"
@@ -32,18 +32,20 @@ type IAuthenticator interface {
 
 	// CreateToken creates a signed authentication token for a client.
 	//
+	// The client must be a known client with an assigned role.
+	//
 	// If no session has started, a new one will be created. This is intended for
 	// issuing agent tokens (devices, services) where login is not applicable.
 	//
-	// The use of role is a convenience for authorization usage. Note that accidentally
-	// created admin role tokens can be invalidated by invoking Logout.
+	// Note that accidentally created tokens can be invalidated by invoking Logout.
 	// The authenticator tracks a sessionStart time and only tokens created
 	// after the sessionStart times are valid.
 	//
 	//	clientID identifies the client
-	//	role includes the role this client can fulfil with this token
 	//	validity is the duration of the token starting
-	CreateToken(clientID string, role string, validity time.Duration) (token string, validUntil time.Time)
+	//
+	// This returns an error if clientID is missing or validity is 0
+	CreateToken(clientID string, validity time.Duration) (token string, validUntil time.Time, err error)
 
 	// DecodeToken and return its claims
 	DecodeToken(token string, signedNonce string, nonce string) (
@@ -84,7 +86,7 @@ type IAuthenticator interface {
 	// SetAuthServerURI(authServiceURI string)
 
 	// ValidatePassword checks if the given password is valid for the client
-	// ValidatePassword(clientID string, password string) (err error)
+	ValidatePassword(clientID string, password string) (err error)
 
 	// ValidateToken verifies the token and client are valid.
 	// This returns an error if the token is invalid, the token has expired,

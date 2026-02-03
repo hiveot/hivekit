@@ -154,6 +154,6 @@ func NewDummyAuthenticator() *DummyAuthenticator {
 		passwords: make(map[string]string),
 		inSession: make(map[string]string),
 	}
-	var _ transports.IAuthenticator = d // interface check
+	var _ transports.IAuthValidator = d // interface check
 	return d
 }

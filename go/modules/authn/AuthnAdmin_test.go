@@ -2,9 +2,9 @@ package authn_test
 
 import (
 	"testing"
+	"time"
 
 	"github.com/hiveot/hivekit/go/modules/authn"
-	authnserver "github.com/hiveot/hivekit/go/modules/authn/server"
 	"github.com/hiveot/hivekit/go/utils"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -12,12 +12,16 @@ import (
 
 // NOTE: this uses default settings from Authn_test.go
 
-// Create manage users
+// Test the admin messaging interface
+// Manage users
 func TestAddRemoveClientsSuccess(t *testing.T) {
+	t.Logf("---%s---\n", t.Name())
 	deviceID := "device1"
 	devicePrivKey, devicePubKey := utils.NewKey(utils.KeyTypeECDSA)
+	_ = devicePrivKey
 	serviceID := "service1"
 	servicePrivKey, servicePubKey := utils.NewKey(utils.KeyTypeECDSA)
+	_ = servicePrivKey
 
 	m, stopFn := startTestAuthnModule(defaultHash)
 	defer stopFn()
@@ -25,82 +29,75 @@ func TestAddRemoveClientsSuccess(t *testing.T) {
 
 	//err := svc.AdminSvc.AddConsumer(serviceID,
 	//         authn.AdminAddConsumerArgs{ "user1", "user 1", "pass1")
-	err := m.AddClient(serviceID,
-		authnserver.AdminAddClientArgs{
-			ClientID:    "user1",
-			DisplayName: "user 1",
-			Role:        authn.ClientRoleViewer,
-			Password:    "pass1",
-		})
-	assert.NoError(t, err)
-	// duplicate should update
-	err = m.AdminSvc.AddConsumer(serviceID,
-		authn.AdminAddConsumerArgs{ClientID: "user1", DisplayName: "user 1 updated", Password: "pass1"})
-	assert.NoError(t, err)
-
-	err = m.AdminSvc.AddConsumer(serviceID,
-		authn.AdminAddConsumerArgs{ClientID: "user2", DisplayName: "user 2", Password: "pass2"})
-	assert.NoError(t, err)
-	err = m.AdminSvc.AddConsumer(serviceID,
-		authn.AdminAddConsumerArgs{ClientID: "user3", DisplayName: "user 3", Password: "pass2"})
-	assert.NoError(t, err)
-	err = m.AdminSvc.AddConsumer(serviceID,
-		authn.AdminAddConsumerArgs{ClientID: "user4", DisplayName: "user 4", Password: "pass2"})
-	assert.NoError(t, err)
-
-	_, err = m.AdminSvc.AddAgent(serviceID,
-		authn.AdminAddAgentArgs{ClientID: deviceID, DisplayName: "agent 1", PubKey: deviceKeyPub})
-	assert.NoError(t, err)
-
-	_, err = m.AdminSvc.AddService(serviceID,
-		authn.AdminAddServiceArgs{ClientID: serviceID, DisplayName: "service 1", PubKey: serviceKeyPub})
-	assert.NoError(t, err)
-
-	// update the server. users can connect and have unlimited access
-	profiles, err := m.AdminSvc.GetProfiles(serviceID)
+	servicePubKeyPem := utils.PublicKeyToPem(servicePubKey)
+	err := m.AddClient("user1", "User 1", authn.ClientRoleViewer, servicePubKeyPem)
 	require.NoError(t, err)
-	assert.Equal(t, 6+3, len(profiles))
+	err2 := m.SetPassword("user1", "pass1")
+	require.NoError(t, err2)
 
-	err = m.AdminSvc.RemoveClient(serviceID, "user1")
+	// duplicate should fail
+	err = m.AddClient("user1", "user 1 updated", authn.ClientRoleViewer, "")
+	require.Error(t, err)
+
+	err = m.AddClient("user2", "user 2", authn.ClientRoleViewer, "")
 	assert.NoError(t, err)
-	err = m.AdminSvc.RemoveClient(serviceID, "user1") // remove is idempotent
+	err = m.AddClient("user3", "user 3", authn.ClientRoleViewer, "")
 	assert.NoError(t, err)
-	err = m.AdminSvc.RemoveClient(serviceID, "user2")
-	assert.NoError(t, err)
-	err = m.AdminSvc.RemoveClient(serviceID, deviceID)
-	assert.NoError(t, err)
-	err = m.AdminSvc.RemoveClient(serviceID, serviceID)
+	err = m.AddClient("user4", "user 4", authn.ClientRoleViewer, "")
 	assert.NoError(t, err)
 
-	profiles, err = m.AdminSvc.GetProfiles(serviceID)
+	deviceKeyPubPem := utils.PublicKeyToPem(devicePubKey)
+	err = m.AddClient(deviceID, "agent 1", authn.ClientRoleAgent, deviceKeyPubPem)
+	assert.NoError(t, err)
 
+	serviceKeyPubPem := utils.PublicKeyToPem(servicePubKey)
+	err = m.AddClient(serviceID, "service 1", authn.ClientRoleService, serviceKeyPubPem)
+	assert.NoError(t, err)
+
+	// there should be 6 clients
+	profiles, err := m.GetProfiles()
 	require.NoError(t, err)
-	assert.Equal(t, 2+3, len(profiles))
+	assert.Equal(t, 6, len(profiles))
 
-	clEntries := m.AdminSvc.GetEntries()
-	assert.Equal(t, 2+3, len(clEntries))
+	err = m.RemoveClient("user1")
+	assert.NoError(t, err)
+	err = m.RemoveClient("user1") // remove is idempotent
+	assert.NoError(t, err)
+	err = m.RemoveClient("user2")
+	assert.NoError(t, err)
+	err = m.RemoveClient(deviceID)
+	assert.NoError(t, err)
+	err = m.RemoveClient(serviceID)
+	assert.NoError(t, err)
 
-	err = m.AdminSvc.AddConsumer(serviceID,
-		authn.AdminAddConsumerArgs{"user1", "user 1", "pass1"})
+	profiles, err = m.GetProfiles()
+	// two accounts remaining (user 3 and 4)
+	require.NoError(t, err)
+	assert.Equal(t, 2, len(profiles))
+
+	err = m.AddClient("user1", "user 1", authn.ClientRoleViewer, "")
+	m.SetPassword("user1", "pass1")
 	assert.NoError(t, err)
 }
 
 // Create manage users
 func TestAddRemoveClientsFail(t *testing.T) {
+	t.Logf("---%s---\n", t.Name())
 	const adminID = "administrator-1"
 	m, stopFn := startTestAuthnModule(defaultHash)
 	defer stopFn()
 
 	// missing clientID should fail
-	_, err := m.AdminSvc.AddService(adminID, authn.AdminAddServiceArgs{"", "user 1", ""})
+	err := m.AddClient("", "user 1", authn.ClientRoleService, "")
 	assert.Error(t, err)
 
 	// a bad key is not an error
-	err = m.AdminSvc.AddConsumer(adminID, authn.AdminAddConsumerArgs{"user2", "user 2", "badkey"})
+	err = m.AddClient("user2", "user 2", authn.ClientRoleViewer, "")
 	assert.NoError(t, err)
 }
 
 func TestUpdateClientPassword(t *testing.T) {
+	t.Logf("---%s---\n", t.Name())
 	var tu1ID = "tu1ID"
 	var tuPass1 = "tuPass1"
 	var tuPass2 = "tuPass2"
@@ -108,111 +105,127 @@ func TestUpdateClientPassword(t *testing.T) {
 
 	m, stopFn := startTestAuthnModule(defaultHash)
 	defer stopFn()
-	err := m.AdminSvc.AddConsumer(
-		adminID, authn.AdminAddConsumerArgs{tu1ID, "user 1", tuPass1})
+	err := m.AddClient(tu1ID, "user tu1", authn.ClientRoleViewer, "")
+	require.NoError(t, err)
+	err = m.SetPassword(tu1ID, tuPass1)
 	require.NoError(t, err)
 
-	err = m.SessionAuth.ValidatePassword(tu1ID, tuPass1)
+	err = m.ValidatePassword(tu1ID, tuPass1)
 	require.NoError(t, err)
 
-	err = m.AdminSvc.SetClientPassword(
-		adminID, authn.AdminSetClientPasswordArgs{tu1ID, tuPass2})
+	err = m.SetPassword(tu1ID, tuPass2)
 	require.NoError(t, err)
 
-	err = m.SessionAuth.ValidatePassword(tu1ID, tuPass1)
+	err = m.ValidatePassword(tu1ID, tuPass1)
 	require.Error(t, err)
 
-	err = m.SessionAuth.ValidatePassword(tu1ID, tuPass2)
+	err = m.ValidatePassword(tu1ID, tuPass2)
 	require.NoError(t, err)
 }
 
 func TestUpdatePubKey(t *testing.T) {
+	t.Logf("---%s---\n", t.Name())
 	var tu1ID = "tu1ID"
 	var tu1Pass = "tu1Pass"
-	const adminID = "administrator-1"
 
 	m, stopFn := startTestAuthnModule(defaultHash)
 	defer stopFn()
+	authenticator := m.GetAuthenticator()
 
 	// add user to test with. don't set the public key yet
-	err := m.AdminSvc.AddConsumer(adminID, authn.AdminAddConsumerArgs{tu1ID, "user 2", tu1Pass})
+	err := m.AddClient(tu1ID, "user tu1", authn.ClientRoleViewer, "")
+	m.SetPassword(tu1ID, tu1Pass)
 	require.NoError(t, err)
 	//
-	token := m.SessionAuth.CreateSessionToken(tu1ID, "", 0)
+	token, validUntil, err := authenticator.CreateToken(tu1ID, time.Minute)
+	require.NoError(t, err)
 	require.NotEmpty(t, token)
+	require.NotEmpty(t, validUntil)
 
 	// update the public key
-	kp := utils.NewKey(utils.KeyTypeECDSA)
-	profile, err := m.AdminSvc.GetClientProfile(adminID, tu1ID)
+	privKey, pubKey := utils.NewKey(utils.KeyTypeECDSA)
+	require.NotEmpty(t, privKey)
+	profile, err := m.GetProfile(tu1ID)
 	require.NoError(t, err)
-	profile.PubKey = kp.ExportPublic()
-	err = m.AdminSvc.UpdateClientProfile(adminID, profile)
+	profile.PubKeyPem = utils.PublicKeyToPem(pubKey)
+	err = m.UpdateProfile(tu1ID, profile)
 	assert.NoError(t, err)
 
 	// check result
-	profile2, err := m.AdminSvc.GetClientProfile(adminID, tu1ID)
+	profile2, err := m.GetProfile(tu1ID)
 	require.NoError(t, err)
-	assert.Equal(t, kp.ExportPublic(), profile2.PubKey)
+	assert.Equal(t, profile.PubKeyPem, profile2.PubKeyPem)
 }
 
 func TestNewAgentToken(t *testing.T) {
+	t.Logf("---%s---\n", t.Name())
 	var tu1ID = "ag1ID"
 	var tu1Name = "agent 1"
 
 	const adminID = "administrator-1"
 	m, stopFn := startTestAuthnModule(defaultHash)
 	defer stopFn()
+	authenticator := m.GetAuthenticator()
 
 	// add agent to test with and connect
-	_, err := m.AdminSvc.AddAgent(adminID, authn.AdminAddAgentArgs{tu1ID, tu1Name, ""})
+	err := m.AddClient(tu1ID, tu1Name, authn.ClientRoleAgent, "")
 	require.NoError(t, err)
 
 	// get a new token
-	token, err := m.AdminSvc.NewAgentToken(adminID, tu1ID)
+	token, _, err := authenticator.CreateToken(tu1ID, time.Minute)
 	require.NoError(t, err)
 	require.NotEmpty(t, token)
 
 	// login with new token
-	clientID, _, err := m.SessionAuth.ValidateToken(token)
+	clientID, role, _, err := authenticator.ValidateToken(token)
 	require.NoError(t, err)
 	require.Equal(t, tu1ID, clientID)
+	require.Equal(t, string(authn.ClientRoleAgent), role)
 
 }
 
 func TestUpdateProfile(t *testing.T) {
+	t.Logf("---%s---\n", t.Name())
 	var tu1ID = "tu1ID"
 	var tu1Name = "test user 1"
 
-	const adminID = "administrator-1"
+	// const adminID = "administrator-1"
 	m, stopFn := startTestAuthnModule(defaultHash)
 	defer stopFn()
 
 	// add user to test with and connect
-	err := m.AdminSvc.AddConsumer(adminID, authn.AdminAddConsumerArgs{tu1ID, tu1Name, "pass0"})
+	err := m.AddClient(tu1ID, tu1Name, authn.ClientRoleViewer, "")
 	require.NoError(t, err)
 	//tu1Key, _ := testServer.MsgServer.CreateKP()
 
-	// update display name
+	// client can update display name
 	const newDisplayName = "new display name"
-	profile, err := m.AdminSvc.GetClientProfile(adminID, tu1ID)
+	profile, err := m.GetProfile(tu1ID)
 	require.NoError(t, err)
 	profile.DisplayName = newDisplayName
-	err = m.AdminSvc.UpdateClientProfile(adminID, profile)
+	err = m.UpdateProfile(tu1ID, profile)
 	assert.NoError(t, err)
 
 	// verify
-	profile2, err := m.AdminSvc.GetClientProfile(adminID, tu1ID)
+	profile2, err := m.GetProfile(tu1ID)
 
 	require.NoError(t, err)
 	assert.Equal(t, newDisplayName, profile2.DisplayName)
 }
 
 func TestUpdateProfileFail(t *testing.T) {
+	t.Logf("---%s---\n", t.Name())
 	const adminID = "administrator-1"
+	var tu1ID = "tu1ID"
+	var tu1Name = "test user 1"
 
 	m, stopFn := startTestAuthnModule(defaultHash)
 	defer stopFn()
+	// add user to test with and connect
+	err := m.AddClient(tu1ID, tu1Name, authn.ClientRoleViewer, "")
+	require.NoError(t, err)
 
-	err := m.AdminSvc.UpdateClientProfile(adminID, authn.ClientProfile{ClientID: "badclient"})
+	// this fails as badclient doesn't exist
+	err = m.UpdateProfile(adminID, authn.ClientProfile{ClientID: "badclient"})
 	assert.Error(t, err)
 }

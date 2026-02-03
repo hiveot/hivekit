@@ -375,13 +375,13 @@ func TestUpdate(t *testing.T) {
 		ClientID:    user1,
 		Role:        authn.ClientRoleViewer,
 		DisplayName: name2,
-		PubKey:      key1,
+		PubKeyPem:   key1,
 	})
 	assert.NoError(t, err)
 	prof, err := pwStore1.GetProfile(user1)
 	assert.NoError(t, err)
 	assert.Equal(t, name2, prof.DisplayName)
-	assert.Equal(t, key1, prof.PubKey)
+	assert.Equal(t, key1, prof.PubKeyPem)
 
 	// update of non-existing user should fail
 	err = pwStore1.UpdateProfile(authn.ClientProfile{
@@ -394,7 +394,7 @@ func TestUpdate(t *testing.T) {
 
 func TestSetRole(t *testing.T) {
 	const user1 = "user1"
-	const role1 string = "agent"
+	const role1 = authn.ClientRoleAgent
 
 	_ = os.Remove(unpwFilePath)
 	pwStore1 := authnstore.NewAuthnFileStore(unpwFilePath, "")

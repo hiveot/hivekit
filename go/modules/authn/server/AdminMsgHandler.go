@@ -1,4 +1,4 @@
-package authnservice
+package server
 
 import (
 	"errors"
