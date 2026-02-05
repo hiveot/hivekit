@@ -5,7 +5,6 @@ import (
 	"log/slog"
 	"slices"
 	"sync"
-	"time"
 
 	"github.com/hiveot/hivekit/go/msg"
 )
@@ -248,32 +247,30 @@ func (m *TransportServerBase) GetTM() string {
 //
 //	moduleID is the transport instance ID to identify as.
 //	connectURL is the URL this module can be reached at.
-//	timeout is the RnR timeout. (when sending requests to clients and waiting for response)
-func (m *TransportServerBase) Init(
-	moduleID string, connectURL string, timeout time.Duration) {
+func (m *TransportServerBase) Init(moduleID string, connectURL string) {
 	m.moduleID = moduleID
 	m.connectURL = connectURL
 	// m.HiveModuleBase.Init(moduleID, sink)
-	m.RnrChan = msg.NewRnRChan(timeout)
+	m.RnrChan = msg.NewRnRChan()
 }
 
-// onNotificationFromSink receives an incoming notification from the registered sink.
-//
-// This sends the notifications to subscribed connections
-func (m *TransportServerBase) onNotificationFromSink(notif *msg.NotificationMessage) {
-	// the reason for the extra indirection is to ensure we're receiving the notification
-	// independently from how it is processed. Primarily useful in debugging.
-	m.SendNotification(notif)
-}
+// // onNotificationFromSink receives an incoming notification from the registered sink.
+// //
+// // This sends the notifications to subscribed connections
+// func (m *TransportServerBase) onNotificationFromSink(notif *msg.NotificationMessage) {
+// 	// the reason for the extra indirection is to ensure we're receiving the notification
+// 	// independently from how it is processed. Primarily useful in debugging.
+// 	m.SendNotification(notif)
+// }
 
-// onNotificationFromConnection receives an incoming notification from the remote connection
-//
-// This sends the notifications to the consumer notification handler, if any.
-func (m *TransportServerBase) onNotificationFromConnection(notif *msg.NotificationMessage) {
-	// the reason for the extra indirection is to ensure we're receiving the notification
-	// independently from whether a consumer has set one.
-	m.ForwardNotification(notif)
-}
+// // onNotificationFromConnection receives an incoming notification from the remote connection
+// //
+// // This sends the notifications to the consumer notification handler, if any.
+// func (m *TransportServerBase) onNotificationFromConnection(notif *msg.NotificationMessage) {
+// 	// the reason for the extra indirection is to ensure we're receiving the notification
+// 	// independently from whether a consumer has set one.
+// 	m.ForwardNotification(notif)
+// }
 
 // removeConnection removes the connection.
 // non-concurrent safe internal function that can be used from a locked section.

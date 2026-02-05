@@ -4,24 +4,6 @@ import (
 	"time"
 )
 
-var UnauthorizedError error = unauthorizedError{}
-
-// ValidateTokenHandler is the handler definition for validating authentication tokens.
-// In http this is the bearer token in the authorization header.
-// This handler is provided by the authn module, but can also be used by other authentication methods.
-//
-// This returns an error if the token is invalid, the clientID is unknown or the token has expired.
-type ValidateTokenHandler func(token string) (clientID string, role string, validUntil time.Time, err error)
-
-// UnauthorizedError for dealing with authorization problems
-type unauthorizedError struct {
-	Message string
-}
-
-func (e unauthorizedError) Error() string {
-	return "Unauthorized: " + e.Message
-}
-
 // IAuthValidator is the interface of the client authentication validator.
 // This provides the methods for verifying a clients authenticity, login and renew tokens.
 //

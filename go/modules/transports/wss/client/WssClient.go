@@ -68,6 +68,9 @@ type WssClient struct {
 	// all responses are passed here to support response callbacks
 	rnrChan *msg.RnRChan
 
+	// send/receive timeout to use
+	timeout time.Duration
+
 	// Destination for incoming requests?
 	// FIXME: do clients have sinks?
 	// server -> client -> ?
@@ -240,7 +243,7 @@ func (cl *WssClient) HandleWssMessage(raw []byte) {
 	} else if resp != nil {
 		// client receives a response message
 		// pass it on to the waiting consumer
-		handled := cl.rnrChan.HandleResponse(resp)
+		handled := cl.rnrChan.HandleResponse(resp, cl.timeout)
 		if !handled {
 			slog.Error("HandleWssMessage: received response but no matching request",
 				"correlationID", resp.CorrelationID,
@@ -365,7 +368,7 @@ func (cl *WssClient) SendRequest(
 			"err", err.Error())
 		return err
 	}
-	hasResponse, resp := cl.rnrChan.WaitForResponse(req.CorrelationID)
+	hasResponse, resp := cl.rnrChan.WaitForResponse(req.CorrelationID, cl.timeout)
 	if hasResponse {
 		err = replyTo(resp)
 	}
@@ -394,6 +397,12 @@ func (cl *WssClient) SendResponse(resp *msg.ResponseMessage) error {
 	wssMsg, err := cl.msgConverter.EncodeResponse(resp)
 	err = cl._send(wssMsg)
 	return err
+}
+
+// Change the default timeout for sending and waiting for messages
+func (cl *WssClient) SetTimeout(timeout time.Duration) {
+	cl.tlsClient.SetTimeout(timeout)
+	cl.timeout = timeout
 }
 
 // NewHiveotWssClient creates a new instance of the hiveot websocket client.
@@ -427,10 +436,11 @@ func NewHiveotWssClient(
 		maxReconnectAttempts: 0,
 		// hiveot uses its own standardized RRN messages
 		msgConverter: direct.NewPassthroughMessageConverter(),
-		// rnrChan:              transports.NewRnRChan(),
-		tlsClient: tlsClient,
-		wssPath:   wssPath,
-		wssURL:    wssURL,
+		rnrChan:      msg.NewRnRChan(),
+		timeout:      timeout,
+		tlsClient:    tlsClient,
+		wssPath:      wssPath,
+		wssURL:       wssURL,
 	}
 	//cl.Init(fullURL, clientID, clientCert, caCert, getForm, timeout)
 	return &cl
@@ -450,7 +460,9 @@ func NewHiveotWssClient(
 //	sink is the application module receiving notifications or in case of agents, requests.
 //	timeout is the maximum connection wait time
 func NewWotWssClient(
-	wssURL string, caCert *x509.Certificate, timeout time.Duration) *WssClient {
+	wssURL string, caCert *x509.Certificate) *WssClient {
+
+	timeout := transports.DefaultRpcTimeout
 
 	urlParts, _ := url.Parse(wssURL)
 	hostPort := urlParts.Host
@@ -461,10 +473,10 @@ func NewWotWssClient(
 		caCert:               caCert,
 		maxReconnectAttempts: 0,
 		msgConverter:         converter.NewWotWssMsgConverter(),
-		rnrChan:              msg.NewRnRChan(timeout),
-		// sink:                 sink,
-		tlsClient: tlsClient,
-		wssPath:   wssPath,
+		rnrChan:              msg.NewRnRChan(),
+		tlsClient:            tlsClient,
+		timeout:              timeout,
+		wssPath:              wssPath,
 	}
 	var _ transports.IConnection = cl // interface check
 	var _ modules.IHiveModule = cl    // interface check

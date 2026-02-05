@@ -21,7 +21,8 @@ import (
 	"golang.org/x/net/publicsuffix"
 )
 
-const DefaultClientTimeout = time.Second * 30
+// The default wait timeout for connecting. Use SetTimeout() to override.
+const DefaultClientTimeout = time.Second * 60
 
 // TLSClient is a simple TLS Client with authentication using certificates or JWT authentication with login/pw
 type TLSClient struct {
@@ -163,16 +164,16 @@ func (cl *TLSClient) CreateRequest(
 // Note that delete methods do not allow a body, or a 405 is returned.
 //
 //	path to invoke
-func (cl *TLSClient) Delete(path string) (resp []byte, httpStatus int, err error) {
+func (cl *TLSClient) Delete(path string) (httpStatus int, err error) {
 	// careful, a double // in the path causes a 301 and changes POST to GET
 	ctx, cancelFn := context.WithTimeout(context.Background(), cl.timeout)
-	resp, httpStatus, _, err = cl.Send(ctx, "DELETE", path, nil, nil, "")
+	_, httpStatus, _, err = cl.Send(ctx, "DELETE", path, nil, nil, "")
 	cancelFn()
-	return resp, httpStatus, err
+	return httpStatus, err
 
 }
 
-// Get is a convenience function to send a request
+// Get is a convenience function to read a resource.
 // This returns the response data, the http status code and an error of delivery failed
 //
 //	path to invoke
@@ -207,12 +208,39 @@ func (cl *TLSClient) GetTlsTransport() *http2.Transport {
 	return cl.tlsTransport
 }
 
+// HttpConnect - send a http connect request (for proxies)
+func (cl *TLSClient) HttpConnect() (statusCode int, err error) {
+
+	ctx, cancelFn := context.WithTimeout(context.Background(), cl.timeout)
+	_, statusCode, _, err = cl.Send(ctx, http.MethodConnect, "", nil, nil, "")
+	cancelFn()
+	return statusCode, err
+}
+
+// HttpConnect
+func (cl *TLSClient) Head(path string) (statusCode int, err error) {
+
+	ctx, cancelFn := context.WithTimeout(context.Background(), cl.timeout)
+	_, statusCode, _, err = cl.Send(ctx, http.MethodHead, path, nil, nil, "")
+	cancelFn()
+	return statusCode, err
+}
+
 //// Logout from the server and end the session
 //func (cl *TLSClient) Logout() error {
 //	serverURL := fmt.Sprintf("https://%s%s", cl.hostPort, vocab.PostLogoutPath)
 //	_, err := cl._send("POST", serverURL, http.NoBody, nil)
 //	return err
 //}
+
+// Ping sends a ping request to the server on the well-known /ping endpoint
+func (cl *TLSClient) Ping() (statusCode int, err error) {
+
+	ctx, cancelFn := context.WithTimeout(context.Background(), cl.timeout)
+	_, statusCode, _, err = cl.Send(ctx, http.MethodGet, transports.DefaultPingPath, nil, nil, "")
+	cancelFn()
+	return statusCode, err
+}
 
 // Patch sends a patch message with json payload
 // If msg is a string then it is considered to be already serialized.
@@ -349,6 +377,20 @@ func (cl *TLSClient) SetHeader(name string, val string) {
 	}
 }
 
+// SetTimeout overrides the default timeout for connecting and sending messages
+func (cl *TLSClient) SetTimeout(timeout time.Duration) {
+	cl.timeout = timeout
+}
+
+// Trace performs a message loopback of the target resource
+func (cl *TLSClient) Trace(path string) (statusCode int, err error) {
+
+	ctx, cancelFn := context.WithTimeout(context.Background(), cl.timeout)
+	_, statusCode, _, err = cl.Send(ctx, http.MethodTrace, path, nil, nil, "")
+	cancelFn()
+	return statusCode, err
+}
+
 // NewTLSClient creates a new TLS Client instance.
 // Use setup/Remove to open and close connections
 //
@@ -358,13 +400,12 @@ func (cl *TLSClient) SetHeader(name string, val string) {
 //	timeout duration for use with Delete,Get,Patch,Post,Put, 0 for DefaultClientTimeout
 //
 // returns TLS client for submitting requests
-func NewTLSClient(hostPort string, clientCert *tls.Certificate, caCert *x509.Certificate,
-	timeout time.Duration) *TLSClient {
+func NewTLSClient(hostPort string,
+	clientCert *tls.Certificate, caCert *x509.Certificate, timeout time.Duration) *TLSClient {
 
 	if timeout == 0 {
 		timeout = DefaultClientTimeout
 	}
-
 	// Use CA certificate for server authentication if it exists
 	if caCert == nil {
 		slog.Info("NewTLSClient: No CA certificate. InsecureSkipVerify used",

@@ -4,6 +4,7 @@ package transports
 import (
 	"context"
 	"net/http"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 	"golang.org/x/net/http2"
@@ -13,6 +14,9 @@ import (
 // These are used by GetRequestParams but usage is optional.
 const (
 	DefaultHttpServerModuleID = "httpserver"
+
+	// The default health check ping path to register
+	DefaultPingPath = "/ping"
 
 	// The default listening port if none is set
 	DefaultPort = 8444
@@ -111,6 +115,9 @@ type ITlsClient interface {
 		body []byte, contentType string,
 	) *http.Request
 
+	// Delete is the http convenience function to delete a resource
+	Delete(path string) (statusCode int, err error)
+
 	// GetTlsTransport returns the network connection used by this client
 	// Intended for use with websocket dialers.
 	GetTlsTransport() *http2.Transport
@@ -131,8 +138,17 @@ type ITlsClient interface {
 	// Get is the http convenience function to retrieve a resource
 	Get(path string) (resp []byte, httpStatus int, err error)
 
+	// Connect performs a http connect request (for proxies)
+	HttpConnect() (status int, err error)
+
+	// Connect performs a http head request
+	Head(path string) (status int, err error)
+
 	// Patch is the http convenience function to partially update a resource
 	Patch(path string, body []byte) (output []byte, statusCode int, err error)
+
+	// Ping the well-known "/ping" endpoint on the server for a health check
+	Ping() (statusCode int, err error)
 
 	// Post is the http convenience function to create a resource
 	Post(path string, body []byte) (output []byte, statusCode int, err error)
@@ -157,4 +173,10 @@ type ITlsClient interface {
 	Send(ctx context.Context, method string, path string, qParams map[string]string,
 		body []byte, contentType string) (
 		resp []byte, httpStatus int, headers http.Header, err error)
+
+	// Change the default timeout for http request to the given timeout
+	SetTimeout(timeout time.Duration)
+
+	// Trace performs a message loopback testPost is the http convenience function to create or update a resource
+	Trace(path string) (status int, err error)
 }

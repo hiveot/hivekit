@@ -233,7 +233,7 @@ func (cl *SseScClient) SendRequest(
 		// While code 200 could in theory include the response message in the http
 		// response, hiveot chooses to always pass the response via SSE.
 		// the reply from the RNR channel is sent directly to the given replyTo handler.
-		cl.rnrChan.WaitWithCallback(req.CorrelationID, replyTo)
+		cl.rnrChan.WaitWithCallback(req.CorrelationID, cl.timeout, replyTo)
 	} else {
 		// something went wrong and no response is expected, close the channel
 		cl.rnrChan.Close(req.CorrelationID)
@@ -307,6 +307,12 @@ func (cl *SseScClient) SetRequestSink(sink msg.RequestHandler) {
 	cl.mux.Unlock()
 }
 
+// SetTimeout sets the messaging timeout
+func (cl *SseScClient) SetTimeout(timeout time.Duration) {
+	cl.timeout = timeout
+	cl.tlsClient.SetTimeout(timeout)
+}
+
 // start doesn't do anything. Use ConnectWith... to connect.
 // TBD: maybe this should connect using config?
 func (cl *SseScClient) Start(yamlConfig string) error {
@@ -322,13 +328,13 @@ func (cl *SseScClient) Stop() {
 // This uses TD forms to perform an operation.
 //
 // Users must use ConnectWithToken to authenticate and connect.
+// For testing, or very slow networks, use SetTimeout to increase the wait time.
 //
 //	sseURL full connection URL of SSE server and path
 //	caCert is the CA certificate to validate the server certificate
 //	sink is the application module receiving notifications or in case of agents, requests.
-//	timeout for waiting for response. 0 to use the default.
 func NewSseScClient(
-	sseURL string, caCert *x509.Certificate, timeout time.Duration) *SseScClient {
+	sseURL string, caCert *x509.Certificate) *SseScClient {
 
 	urlParts, err := url.Parse(sseURL)
 	if err != nil {
@@ -338,15 +344,12 @@ func NewSseScClient(
 	hostPort := urlParts.Host
 	ssePath := urlParts.Path
 
-	if timeout == 0 {
-		timeout = transports.DefaultRpcTimeout
-	}
-
+	timeout := transports.DefaultRpcTimeout
 	tlsClient := tlsclient.NewTLSClient(hostPort, nil, caCert, timeout)
 
 	cl := &SseScClient{
 		msgConverter: direct.NewPassthroughMessageConverter(),
-		rnrChan:      msg.NewRnRChan(timeout),
+		rnrChan:      msg.NewRnRChan(),
 		ssePath:      ssePath,
 		tlsClient:    tlsClient,
 		timeout:      timeout,

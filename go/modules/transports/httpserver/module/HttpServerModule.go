@@ -21,13 +21,13 @@ import (
 	"github.com/lmittmann/tint"
 )
 
-// HttpTransportModule is a module providing a TLS HTTPS server.
+// HttpServerModule is a module providing a TLS HTTPS server.
 // Intended for use by HTTP based application protocols.
 // This implements IHttpServer and IHiveModule interfaces.
 //
 // Note that this does not implement the ITransportModule interface as this module provides the
 // http server for use by transport modules.
-type HttpTransportModule struct {
+type HttpServerModule struct {
 	modules.HiveModuleBase
 
 	// HTTP authentication handler.
@@ -59,7 +59,7 @@ type HttpTransportModule struct {
 
 // The default token authentication handler extracts the bearer token from the authorization header
 // and passes it to the configured token validator.
-func (m *HttpTransportModule) DefaultAuthenticate(req *http.Request) (
+func (m *HttpServerModule) DefaultAuthenticate(req *http.Request) (
 	clientID string, err error) {
 
 	if m.config.ValidateToken == nil {
@@ -81,13 +81,13 @@ func (m *HttpTransportModule) DefaultAuthenticate(req *http.Request) (
 }
 
 // Provide the HTTP base URL to connect to the server. Eg "https://addr:port/""
-func (m *HttpTransportModule) GetConnectURL() string {
+func (m *HttpServerModule) GetConnectURL() string {
 	return m.connectURL
 }
 
 // Set the handler that validates tokens.
 // This will enable the protected routes.
-func (m *HttpTransportModule) SetAuthValidator(validator transports.IAuthValidator) {
+func (m *HttpServerModule) SetAuthValidator(validator transports.IAuthValidator) {
 	m.config.ValidateToken = validator.ValidateToken
 }
 
@@ -95,7 +95,7 @@ func (m *HttpTransportModule) SetAuthValidator(validator transports.IAuthValidat
 // This starts a http server instance and sets-up a public and protected route.
 //
 // Starts a HTTPS TLS service
-func (m *HttpTransportModule) Start() (err error) {
+func (m *HttpServerModule) Start() (err error) {
 	var tlsConf *tls.Config
 	cfg := m.config
 	m.connectURL = fmt.Sprintf("https://%s:%d", cfg.Address, cfg.Port)
@@ -164,7 +164,7 @@ func (m *HttpTransportModule) Start() (err error) {
 // Stop the TLS server and close all connections.
 // this waits until for up to 3 seconds for connections are closed. After that
 // continue.
-func (m *HttpTransportModule) Stop() {
+func (m *HttpServerModule) Stop() {
 
 	if m.httpServer != nil {
 		// note that this does not (cannot?) close existing client connections
@@ -188,13 +188,13 @@ func (m *HttpTransportModule) Stop() {
 // moduleID is the module's instance identification.
 // config MUST have been configured with a CA and server certificate unless
 // NoTLS is set.
-func NewHttpServerModule(moduleID string, config *httpserver.HttpServerConfig) *HttpTransportModule {
+func NewHttpServerModule(moduleID string, config *httpserver.HttpServerConfig) *HttpServerModule {
 
 	if moduleID == "" {
 		moduleID = transports.DefaultHttpServerModuleID
 	}
 
-	m := &HttpTransportModule{
+	m := &HttpServerModule{
 		config: config,
 	}
 	m.authenticateHandler = config.AuthenticateHandler

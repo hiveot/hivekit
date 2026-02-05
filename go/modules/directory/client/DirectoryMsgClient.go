@@ -82,8 +82,10 @@ func NewDirectoryMsgClient(thingID string, sink modules.IHiveModule) *DirectoryM
 		directoryID: thingID,
 	}
 	cl.SetModuleID(thingID + "-client")
-	cl.SetRequestSink(sink.HandleRequest)
-	// notifications returned are passed to this client (if any subscriptions are made)
-	sink.SetNotificationSink(cl.HandleNotification)
+	if sink != nil {
+		cl.SetRequestSink(sink.HandleRequest)
+		// notifications returned are passed to this client (if any subscriptions are made)
+		sink.SetNotificationSink(cl.HandleNotification)
+	}
 	return cl
 }

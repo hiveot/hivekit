@@ -70,7 +70,7 @@ type AdminAddClientArgs struct {
 	PubKey string `json:"pubKey,omitempty"`
 
 	// Role of the client
-	Role authn.ClientRole `json:"role,omitempty"`
+	Role string `json:"role,omitempty"`
 }
 
 // AdminGetProfilesResp defines the response of the getProfiles function

@@ -85,7 +85,7 @@ func (m *DirectClientTransport) Stop() {
 func NewDirectTransport(
 	moduleID string, producer modules.IHiveModule) modules.IHiveModule {
 	t := &DirectClientTransport{}
-	t.Init(moduleID, "", transports.DefaultRpcTimeout)
+	t.Init(moduleID, "")
 	producer.SetNotificationSink(t.HandleNotification)
 	t.SetRequestSink(producer.HandleRequest)
 	var _ transports.ITransportServer = t // interface check

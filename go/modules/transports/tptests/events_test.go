@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/hiveot/hivekit/go/modules/transports"
 	"github.com/hiveot/hivekit/go/msg"
 	"github.com/hiveot/hivekit/go/wot"
 	"github.com/stretchr/testify/assert"
@@ -28,18 +29,18 @@ func TestSubscribeAll(t *testing.T) {
 	var agentRxEvent atomic.Bool
 
 	// 1. start the servers
-	srv, tpauthn, cancelFn := StartTransportModule()
+	testEnv, cancelFn := StartTestEnv(defaultProtocol)
 	defer cancelFn()
 
 	// 2. connect as consumers
-	co1, cc1, _ := NewTestConsumer(testClientID1, srv.GetConnectURL(), tpauthn, nil)
+	co1, cc1, _ := testEnv.NewConsumerClient(testClientID1, transports.ClientRoleViewer, nil)
 	defer cc1.Close()
 
-	co2, cc2, _ := NewTestConsumer(testClientID1, srv.GetConnectURL(), tpauthn, nil)
+	co2, cc2, _ := testEnv.NewConsumerClient(testClientID1, transports.ClientRoleViewer, nil)
 	defer cc2.Close()
 
 	// ensure that agents can also subscribe (they cant use forms)
-	agent1, agConn1, _ := NewTestAgent(agentID, srv.GetConnectURL(), tpauthn)
+	agent1, agConn1, _ := testEnv.NewRCAgent(agentID)
 	defer agConn1.Close()
 
 	// FIXME: test subscription by agent
@@ -78,7 +79,7 @@ func TestSubscribeAll(t *testing.T) {
 	time.Sleep(time.Millisecond * 10)
 	notif1 := msg.NewNotificationMessage(
 		wot.OpSubscribeEvent, thingID, eventKey, testMsg1)
-	srv.SendNotification(notif1)
+	testEnv.Server.SendNotification(notif1)
 
 	// 4. subscriber should have received them
 	<-ctx.Done()
@@ -99,7 +100,7 @@ func TestSubscribeAll(t *testing.T) {
 	// 5. Server sends another event to consumers
 	notif2 := msg.NewNotificationMessage(
 		wot.OpSubscribeEvent, thingID, eventKey, testMsg2)
-	srv.SendNotification(notif2)
+	testEnv.Server.SendNotification(notif2)
 	time.Sleep(time.Millisecond)
 	// update not received
 	assert.Equal(t, testMsg1, rxVal.Load(), "Unsubscribe didnt work")
@@ -127,13 +128,13 @@ func TestPublishEventsByAgent(t *testing.T) {
 			evVal.Store(msg.Value)
 		}
 	}
-	srv, tpauthn, cancelFn := StartTransportModule()
-	srv.SetNotificationSink(notificationHandler)
+	testEnv, cancelFn := StartTestEnv(defaultProtocol)
+	testEnv.Server.SetNotificationSink(notificationHandler)
 	defer cancelFn()
 
 	// 2. connect an agent to the server - eg connection reversal
 	// FIXME: the client isn't sending notifications to the server in ForwardNotification
-	agent1, agConn1, _ := NewTestAgent(testAgentID1, srv.GetConnectURL(), tpauthn)
+	agent1, agConn1, _ := testEnv.NewRCAgent(testAgentID1)
 	defer agConn1.Close()
 
 	// 3. agent publishes an event

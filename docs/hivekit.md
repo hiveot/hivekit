@@ -25,10 +25,10 @@ All modules are identified by their unique module instance ID. Messages can be t
 Examples of modules:
 
 - directory, history, authentication services.
-- a message processor such as a router, filter, logger, etc
+- a WoT message processor such as a router, filter, logger, etc
 - transport protocol bindings such as WoT HTTP, WSS, CoAP, MQTT
 - an IoT adapter such as ZWave, Insteon, CoAP, Zigbee, Shelley and so on.
-- a consumer
+- a consumer and producer
 
 While HiveKit comes with a set of ready to use modules, 3rd party modules can be incorporated easily as part of a recipe.
 

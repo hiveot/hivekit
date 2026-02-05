@@ -64,19 +64,24 @@ type HttpBasicClient struct {
 }
 
 // Set the clientID and authentication bearer token.
+// This performs a standard /ping health check that the hiveot http server supports.
 func (cl *HttpBasicClient) ConnectWithToken(
 	clientID string, token string, ch transports.ConnectionHandler) error {
 
 	cl.connectHandler = ch
 	err := cl.tlsClient.ConnectWithToken(clientID, token)
 	if err == nil {
+		var status int
 		// TBD: should ping always work?
-		// _, _, err = cl.tlsClient.Get(httpbasic.HttpGetPingPath)
-		if err == nil {
+		status, err = cl.tlsClient.Ping()
+		if status == http.StatusOK {
 			cl.isConnected.Store(true)
-			if ch != nil {
-				ch(true, cl, nil)
-			}
+		} else {
+			cl.isConnected.Store(false)
+		}
+		// notify if interested
+		if ch != nil {
+			ch(cl.isConnected.Load(), cl, nil)
 		}
 	}
 	return err
@@ -114,7 +119,7 @@ func (cl *HttpBasicClient) GetConnectionID() string {
 func (cl *HttpBasicClient) GetDefaultForm(op, thingID, name string) (f *td.Form) {
 	// login has its own URL as it is unauthenticated
 	if op == wot.HTOpPing {
-		href := httpbasic.HttpGetPingPath
+		href := transports.DefaultPingPath
 		nf := td.NewForm(op, href)
 		nf.SetMethodName(http.MethodGet)
 		f = &nf
@@ -339,6 +344,11 @@ func (cl *HttpBasicClient) SetRequestSink(sink msg.RequestHandler) {
 	slog.Warn("SetRequestSink. HttpBasicClient cannot be a request sink.")
 }
 
+func (cl *HttpBasicClient) SetTimeout(timeout time.Duration) {
+	cl.timeout = timeout
+	cl.tlsClient.SetTimeout(timeout)
+}
+
 // start doesn't do anything. Use ConnectWith... to connect.
 // TBD: maybe this should connect using config?
 func (cl *HttpBasicClient) Start(yamlConfig string) error {
@@ -364,20 +374,15 @@ func (cl *HttpBasicClient) Stop() {
 //	sink is the application module receiving notifications or in case of agents, requests.
 //	timeout for waiting for response. 0 to use the default.
 func NewHttpBasicClient(
-	baseURL string, caCert *x509.Certificate,
-	getForm transports.GetFormHandler,
-	timeout time.Duration) *HttpBasicClient {
+	baseURL string, caCert *x509.Certificate, getForm transports.GetFormHandler) *HttpBasicClient {
 
+	timeout := tlsclient.DefaultClientTimeout
 	urlParts, err := url.Parse(baseURL)
 	if err != nil {
 		slog.Error("Invalid URL")
 		return nil
 	}
 	hostPort := urlParts.Host
-
-	if timeout == 0 {
-		timeout = transports.DefaultRpcTimeout
-	}
 
 	tlsClient := tlsclient.NewTLSClient(hostPort, nil, caCert, timeout)
 

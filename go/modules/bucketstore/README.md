@@ -1,8 +1,12 @@
 # Key-Value Storage Module
 
-Storage modules provides concurrent safe, key-value, iterative storage for HiveOT applications with the focus on simplicity. It defines a simple to use standardized key-value API with multiple backend implementations. It supports ordered-key seek and iteration.
+Storage modules provides concurrent safe, key-value, iterative storage for IoT applications with the focus on simplicity. It defines a simple to use standardized key-value API with multiple backend implementations. It supports ordered-key seek and iteration.
 
-What the bucketstore is not, is a general purpose database. It is intended to be simple to use meet basic storage needs. If you need multiple indexes then this store is not the right choice.
+What the bucketstore is not, is a general purpose database. It is intended to be simple to use meet basic storage needs. If you need multiple indexes then this store is not the right fit.
+
+## Status
+
+This module is in alpha. It is functional but breaking changes, although unlikely, might stil happen.
 
 ## Concept
 

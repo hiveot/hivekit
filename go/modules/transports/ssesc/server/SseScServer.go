@@ -149,7 +149,7 @@ func NewHiveotSsescServer(
 		converter:      converter,
 	}
 	moduleID := ssesc.DefaultSseScThingID
-	m.Init(moduleID, connectURL, transports.DefaultRpcTimeout)
+	m.Init(moduleID, connectURL)
 
 	// TODO: properties must match the module TM
 	// m.UpdateProperty(transports.PropName_NrConnections, 0)

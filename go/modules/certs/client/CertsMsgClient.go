@@ -38,10 +38,10 @@ func (cl *CertsMsgClient) GetCACert() (cert *x509.Certificate, err error) {
 }
 
 // NewCertsMsgClient creates a new CertsMsgClient instance.
-// Use the sink to attach a transport module
+// Use the sink to attach a transport client
 //
 //	thingID is the unique ID of the certificate service instance
-//	sink is the handler that forwards requests to the module. Typically a messaging client.
+//	sink is the handler that passes requests to the service and receives notifications.
 func NewCertsMsgClient(thingID string, sink modules.IHiveModule) *CertsMsgClient {
 	if thingID == "" {
 		thingID = certs.DefaultCertsThingID
@@ -54,5 +54,8 @@ func NewCertsMsgClient(thingID string, sink modules.IHiveModule) *CertsMsgClient
 		cl.SetRequestSink(sink.HandleRequest)
 		sink.SetNotificationSink(cl.HandleNotification)
 	}
+	// not all service methods are available through this client
+	// var _ certs.ICertsService = cl // API check
+
 	return cl
 }

@@ -181,7 +181,7 @@ func (sc *HiveotSseServerConnection) SendRequest(
 	// The response to this request will be received over HTTP via the module routes.
 	// Once received, the response handler  it will pass it to the RnR channel which
 	// in turn invokes this responseHandler callback.
-	sc.rnrChan.WaitWithCallback(req.CorrelationID, responseHandler)
+	sc.rnrChan.WaitWithCallback(req.CorrelationID, sc.respTimeout, responseHandler)
 
 	err = sc._send(msg.MessageTypeRequest, req)
 
@@ -295,6 +295,11 @@ func (sc *HiveotSseServerConnection) Serve(w http.ResponseWriter, r *http.Reques
 		slog.String("clientID", sc.GetClientID()),
 		slog.String("connectionID", sc.ConnectionID),
 	)
+}
+
+// SetTimeout set the timeout sending requests
+func (sc *HiveotSseServerConnection) SetTimeout(timeout time.Duration) {
+	sc.respTimeout = timeout
 }
 
 // // SetConnectHandler set the connection changed callback. Used by the connection manager.

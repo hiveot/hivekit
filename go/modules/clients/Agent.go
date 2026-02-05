@@ -3,15 +3,13 @@ package clients
 import (
 	"log/slog"
 	"sync/atomic"
-	"time"
 
-	"github.com/hiveot/hivekit/go/modules/transports"
 	"github.com/hiveot/hivekit/go/msg"
 	"github.com/hiveot/hivekit/go/utils"
 	"github.com/hiveot/hivekit/go/wot"
 )
 
-// Agent is a helper providing a Golang API for IoT device side WoT operations using the
+// Agent is a helper module providing a Golang API for IoT device side WoT operations using the
 // standard RRN (request-response-notification) messages. The RRN interface is compatible
 // with all HiveKit transport and other modules.
 //
@@ -132,26 +130,18 @@ func (ag *Agent) SetAppRequestHandler(cb msg.RequestHandler) {
 	}
 }
 
-// NewAgent creates a new agent instance for serving requests and sending notifications.
-// Agents are sinks for consumers.
+// NewAgent creates a new agent (producer) instance for serving requests and sending notifications.
+//
+//	agentID is the moduleID of this agent
+//	appReqHandler is the application handler invoked when receiving requests for this agent.
 //
 // Since agents are also consumers, they can also send requests and receive responses.
 //
-// appReqHandler is the application handler of requests sent to this producer.
 // consumers should set this as the sink that handles requests and return notifications
-//
-// This is a wrapper around the client connection that can be used as a sink.
-func NewAgent(moduleID string,
-	// cc IClientSink,
-	connHandler transports.ConnectionHandler,
-	appReqHandler msg.RequestHandler,
-	timeout time.Duration) *Agent {
+func NewAgent(agentID string, appReqHandler msg.RequestHandler) *Agent {
 
-	if timeout == 0 {
-		timeout = transports.DefaultRpcTimeout
-	}
 	agent := &Agent{}
-	agent.Consumer = NewConsumer(moduleID, timeout)
+	agent.Consumer = NewConsumer(agentID)
 
 	agent.SetAppRequestHandler(appReqHandler)
 

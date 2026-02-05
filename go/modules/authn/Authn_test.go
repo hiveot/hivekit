@@ -1,10 +1,6 @@
 package authn_test
 
 import (
-	"crypto"
-	"crypto/tls"
-	"crypto/x509"
-	"fmt"
 	"os"
 	"path"
 	"testing"
@@ -14,8 +10,8 @@ import (
 	"github.com/hiveot/hivekit/go/modules/authn"
 	"github.com/hiveot/hivekit/go/modules/authn/module"
 	"github.com/hiveot/hivekit/go/modules/certs/module/selfsigned"
+	"github.com/hiveot/hivekit/go/modules/clients"
 	"github.com/hiveot/hivekit/go/modules/transports"
-	"github.com/hiveot/hivekit/go/modules/transports/clients"
 	"github.com/hiveot/hivekit/go/modules/transports/httpserver"
 	httpmodule "github.com/hiveot/hivekit/go/modules/transports/httpserver/module"
 	"github.com/hiveot/hivekit/go/utils"
@@ -26,23 +22,11 @@ var testDir = path.Join(os.TempDir(), "test-authn")
 var authnConfig authn.AuthnConfig
 var defaultHash = authn.PWHASH_ARGON2id
 
-var serverAddress string
 var serverPort int = 9445
-var clientHostPort string
 var testCerts selfsigned.TestCertBundle
 var testClientID1 = "client1"
 
 const TestKeyType = utils.KeyTypeED25519
-
-// x509CertToTLS combines a x509 certificate and private key into a TLS certificate
-func x509CertToTLS(cert *x509.Certificate, privKey crypto.PrivateKey) *tls.Certificate {
-	// A TLS certificate is a wrapper around x509 with private key
-	tlsCert := tls.Certificate{}
-	tlsCert.Certificate = append(tlsCert.Certificate, cert.Raw)
-	tlsCert.PrivateKey = privKey
-
-	return &tlsCert
-}
 
 const appID = "authn-test"
 
@@ -55,10 +39,10 @@ func NewTestConsumer(m *module.AuthnModule, serverURL, clientID string) (
 	*clients.Consumer, transports.IConnection, string) {
 
 	// ensure the client exists
-	_ = m.AddClient(clientID, clientID, authn.ClientRoleViewer, "")
+	_ = m.AddClient(clientID, clientID, transports.ClientRoleViewer, "")
 	token, validUntil, _ := m.GetAuthenticator().CreateToken(clientID, time.Minute)
 	_ = validUntil
-	co, cc, err := clients.NewConsumerConnection(appID, serverURL, testCerts.CaCert, 0)
+	co, cc, err := clients.NewConsumerConnection(appID, serverURL, testCerts.CaCert)
 	if err != nil {
 		panic("Failed creating consumer connection: " + err.Error())
 	}
@@ -77,18 +61,13 @@ func startTestAuthnModule(encryption string) (m *module.AuthnModule, stopFn func
 
 	//--- start the http server
 
-	// the http server is used for login over http
-	serverAddress = "127.0.0.1"
+	// the http server is used for serving the http endpoints
 
-	// hostnames := []string{serverAddress}
-	clientHostPort = fmt.Sprintf("%s:%d", serverAddress, serverPort)
 	testCerts = selfsigned.CreateTestCertBundle(TestKeyType)
 	// http is needed for testing the authn http api
 	cfg := httpserver.NewHttpServerConfig(
-		serverAddress,
-		serverPort,
-		testCerts.ServerCert,
-		testCerts.CaCert, nil)
+		"localhost", serverPort,
+		testCerts.ServerCert, testCerts.CaCert, nil)
 	httpServer := httpmodule.NewHttpServerModule("", cfg)
 
 	err := httpServer.Start()

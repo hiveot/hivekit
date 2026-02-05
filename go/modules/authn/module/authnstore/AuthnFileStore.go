@@ -103,7 +103,7 @@ func (store *AuthnFileStore) GetProfiles() (profiles []authn.ClientProfile, err 
 
 // GetRole returns the client's stored role.
 // This returns an error if the client is disabled.
-func (store *AuthnFileStore) GetRole(clientID string) (role authn.ClientRole, err error) {
+func (store *AuthnFileStore) GetRole(clientID string) (role string, err error) {
 	store.mutex.RLock()
 	defer store.mutex.RUnlock()
 	// user must exist
@@ -234,7 +234,7 @@ func (store *AuthnFileStore) SetPasswordHash(loginID string, hash string) (err e
 }
 
 // SetRole changes the client's default role
-func (store *AuthnFileStore) SetRole(clientID string, role authn.ClientRole) error {
+func (store *AuthnFileStore) SetRole(clientID string, role string) error {
 	store.mutex.Lock()
 	defer store.mutex.Unlock()
 	entry, found := store.entries[clientID]

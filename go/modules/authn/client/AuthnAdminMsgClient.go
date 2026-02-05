@@ -9,7 +9,7 @@ import (
 
 // AdminAddAgent client method - Add Agent.
 // Create an account for IoT device agents
-func AdminAddClient(hc *consumer.Consumer, clientID string, displayName string, pubKey string, role authn.ClientRole) (
+func AdminAddClient(hc *consumer.Consumer, clientID string, displayName string, role string, pubKey string) (
 	token string, err error) {
 
 	var args = server.AdminAddClientArgs{

@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/hiveot/hivekit/go/modules/authn"
+	"github.com/hiveot/hivekit/go/modules/transports"
 	"github.com/hiveot/hivekit/go/utils"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -30,28 +31,28 @@ func TestAddRemoveClientsSuccess(t *testing.T) {
 	//err := svc.AdminSvc.AddConsumer(serviceID,
 	//         authn.AdminAddConsumerArgs{ "user1", "user 1", "pass1")
 	servicePubKeyPem := utils.PublicKeyToPem(servicePubKey)
-	err := m.AddClient("user1", "User 1", authn.ClientRoleViewer, servicePubKeyPem)
+	err := m.AddClient("user1", "User 1", transports.ClientRoleViewer, servicePubKeyPem)
 	require.NoError(t, err)
 	err2 := m.SetPassword("user1", "pass1")
 	require.NoError(t, err2)
 
 	// duplicate should fail
-	err = m.AddClient("user1", "user 1 updated", authn.ClientRoleViewer, "")
+	err = m.AddClient("user1", "user 1 updated", transports.ClientRoleViewer, "")
 	require.Error(t, err)
 
-	err = m.AddClient("user2", "user 2", authn.ClientRoleViewer, "")
+	err = m.AddClient("user2", "user 2", transports.ClientRoleViewer, "")
 	assert.NoError(t, err)
-	err = m.AddClient("user3", "user 3", authn.ClientRoleViewer, "")
+	err = m.AddClient("user3", "user 3", transports.ClientRoleViewer, "")
 	assert.NoError(t, err)
-	err = m.AddClient("user4", "user 4", authn.ClientRoleViewer, "")
+	err = m.AddClient("user4", "user 4", transports.ClientRoleViewer, "")
 	assert.NoError(t, err)
 
 	deviceKeyPubPem := utils.PublicKeyToPem(devicePubKey)
-	err = m.AddClient(deviceID, "agent 1", authn.ClientRoleAgent, deviceKeyPubPem)
+	err = m.AddClient(deviceID, "agent 1", transports.ClientRoleAgent, deviceKeyPubPem)
 	assert.NoError(t, err)
 
 	serviceKeyPubPem := utils.PublicKeyToPem(servicePubKey)
-	err = m.AddClient(serviceID, "service 1", authn.ClientRoleService, serviceKeyPubPem)
+	err = m.AddClient(serviceID, "service 1", transports.ClientRoleService, serviceKeyPubPem)
 	assert.NoError(t, err)
 
 	// there should be 6 clients
@@ -75,7 +76,7 @@ func TestAddRemoveClientsSuccess(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, 2, len(profiles))
 
-	err = m.AddClient("user1", "user 1", authn.ClientRoleViewer, "")
+	err = m.AddClient("user1", "user 1", transports.ClientRoleViewer, "")
 	m.SetPassword("user1", "pass1")
 	assert.NoError(t, err)
 }
@@ -88,11 +89,11 @@ func TestAddRemoveClientsFail(t *testing.T) {
 	defer stopFn()
 
 	// missing clientID should fail
-	err := m.AddClient("", "user 1", authn.ClientRoleService, "")
+	err := m.AddClient("", "user 1", transports.ClientRoleService, "")
 	assert.Error(t, err)
 
 	// a bad key is not an error
-	err = m.AddClient("user2", "user 2", authn.ClientRoleViewer, "")
+	err = m.AddClient("user2", "user 2", transports.ClientRoleViewer, "")
 	assert.NoError(t, err)
 }
 
@@ -105,7 +106,7 @@ func TestUpdateClientPassword(t *testing.T) {
 
 	m, stopFn := startTestAuthnModule(defaultHash)
 	defer stopFn()
-	err := m.AddClient(tu1ID, "user tu1", authn.ClientRoleViewer, "")
+	err := m.AddClient(tu1ID, "user tu1", transports.ClientRoleViewer, "")
 	require.NoError(t, err)
 	err = m.SetPassword(tu1ID, tuPass1)
 	require.NoError(t, err)
@@ -133,7 +134,7 @@ func TestUpdatePubKey(t *testing.T) {
 	authenticator := m.GetAuthenticator()
 
 	// add user to test with. don't set the public key yet
-	err := m.AddClient(tu1ID, "user tu1", authn.ClientRoleViewer, "")
+	err := m.AddClient(tu1ID, "user tu1", transports.ClientRoleViewer, "")
 	m.SetPassword(tu1ID, tu1Pass)
 	require.NoError(t, err)
 	//
@@ -168,7 +169,7 @@ func TestNewAgentToken(t *testing.T) {
 	authenticator := m.GetAuthenticator()
 
 	// add agent to test with and connect
-	err := m.AddClient(tu1ID, tu1Name, authn.ClientRoleAgent, "")
+	err := m.AddClient(tu1ID, tu1Name, transports.ClientRoleAgent, "")
 	require.NoError(t, err)
 
 	// get a new token
@@ -180,7 +181,7 @@ func TestNewAgentToken(t *testing.T) {
 	clientID, role, _, err := authenticator.ValidateToken(token)
 	require.NoError(t, err)
 	require.Equal(t, tu1ID, clientID)
-	require.Equal(t, string(authn.ClientRoleAgent), role)
+	require.Equal(t, string(transports.ClientRoleAgent), role)
 
 }
 
@@ -194,7 +195,7 @@ func TestUpdateProfile(t *testing.T) {
 	defer stopFn()
 
 	// add user to test with and connect
-	err := m.AddClient(tu1ID, tu1Name, authn.ClientRoleViewer, "")
+	err := m.AddClient(tu1ID, tu1Name, transports.ClientRoleViewer, "")
 	require.NoError(t, err)
 	//tu1Key, _ := testServer.MsgServer.CreateKP()
 
@@ -222,7 +223,7 @@ func TestUpdateProfileFail(t *testing.T) {
 	m, stopFn := startTestAuthnModule(defaultHash)
 	defer stopFn()
 	// add user to test with and connect
-	err := m.AddClient(tu1ID, tu1Name, authn.ClientRoleViewer, "")
+	err := m.AddClient(tu1ID, tu1Name, transports.ClientRoleViewer, "")
 	require.NoError(t, err)
 
 	// this fails as badclient doesn't exist

@@ -10,6 +10,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/hiveot/hivekit/go/modules/transports"
 	"github.com/hiveot/hivekit/go/msg"
 	"github.com/hiveot/hivekit/go/utils"
 	"github.com/hiveot/hivekit/go/wot"
@@ -47,13 +48,12 @@ func TestInvokeActionFromConsumerToServer(t *testing.T) {
 		return replyTo(resp)
 	}
 	// 1. start the servers
-	srv, tpauthn, cancelFn := StartTransportModule()
-	srv.SetRequestSink(handleRequest)
-	_ = srv
+	testEnv, cancelFn := StartTestEnv(defaultProtocol)
 	defer cancelFn()
+	testEnv.Server.SetRequestSink(handleRequest)
 
 	// 2. connect a client
-	co1, cc1, token := NewTestConsumer(testClientID1, srv.GetConnectURL(), tpauthn, nil)
+	co1, cc1, token := testEnv.NewConsumerClient(testClientID1, transports.ClientRoleViewer, nil)
 	defer cc1.Close()
 	require.NotEmpty(t, token)
 	ctx1, release1 := context.WithTimeout(context.Background(), time.Minute)
@@ -138,12 +138,11 @@ func TestInvokeActionFromServerToAgent(t *testing.T) {
 	}
 	// tmpSink := &modules.HiveModuleBase{}
 	// tmpSink.SetResponseHandler(responseHandler)
-	srv, tpauthn, cancelFn2 := StartTransportModule()
-	_ = srv
+	testEnv, cancelFn2 := StartTestEnv(defaultProtocol)
 	defer cancelFn2()
 
 	// 2a. connect as an agent
-	ag1client, cc1, token := NewTestAgent(testAgentID1, srv.GetConnectURL(), tpauthn)
+	ag1client, cc1, token := testEnv.NewRCAgent(testAgentID1)
 	require.NotEmpty(t, token)
 	defer cc1.Close()
 
@@ -177,7 +176,7 @@ func TestInvokeActionFromServerToAgent(t *testing.T) {
 	req.SenderID = testClientID1
 	req.CorrelationID = "rpc-TestInvokeActionFromServerToAgent"
 	// err := ag1Server.SendRequest(req)
-	err := srv.SendRequest(testAgentID1, req, responseHandler)
+	err := testEnv.Server.SendRequest(testAgentID1, req, responseHandler)
 	require.NoError(t, err)
 
 	// wait until the agent has sent a reply
@@ -266,13 +265,12 @@ func TestQueryActions(t *testing.T) {
 	}
 
 	// 1. start the servers
-	srv, tpauthn, cancelFn := StartTransportModule()
-	srv.SetRequestSink(requestHandler)
-	_ = srv
+	testEnv, cancelFn := StartTestEnv(defaultProtocol)
 	defer cancelFn()
+	testEnv.Server.SetRequestSink(requestHandler)
 
 	// 2. connect as a consumer
-	co1, cc1, _ := NewTestConsumer(testClientID1, srv.GetConnectURL(), tpauthn, nil)
+	co1, cc1, _ := testEnv.NewConsumerClient(testClientID1, transports.ClientRoleViewer, nil)
 	defer cc1.Close()
 
 	// 3. Query action status

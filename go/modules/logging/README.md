@@ -6,6 +6,8 @@ The purpose is to track specific messages for review later.
 
 ## Status
 
+This module is in development.
+
 ## Summary
 
 This module should be a installed in between a source and a sink of another module. All messages received by the module will be forwarded to the sink unchanged.

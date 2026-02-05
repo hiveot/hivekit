@@ -198,7 +198,7 @@ func (m *SsescServer) onHttpResponseMessage(w http.ResponseWriter, r *http.Reque
 
 	// If a request was sent to the client (via SSE) with a callback then an RNR channel was
 	// opened waiting for the response.
-	handled := m.RnrChan.HandleResponse(resp)
+	handled := m.RnrChan.HandleResponse(resp, 0)
 	if !handled {
 		err := fmt.Errorf("onResponse: No response handler for request, response is lost")
 		slog.Warn("onResponse: No response handler for request, response is lost",

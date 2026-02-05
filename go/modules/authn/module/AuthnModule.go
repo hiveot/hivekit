@@ -28,7 +28,7 @@ type AuthnModule struct {
 	httpServer transports.IHttpServer
 
 	// The primary authenticator
-	authenticator authn.IAuthenticator
+	authenticator transports.IAuthenticator
 	//
 	authnStore authnstore.IAuthnStore
 
@@ -36,8 +36,14 @@ type AuthnModule struct {
 	userHttpHandler *server.UserHttpHandler
 }
 
+// Add a new client to the store using the authenticator
+func (m *AuthnModule) AddClient(
+	clientID string, role string, password string, pubKeyPem string) error {
+	return m.authenticator.AddClient(clientID, role, password, pubKeyPem)
+}
+
 // Return the authenticator for use by other modules
-func (m *AuthnModule) GetAuthenticator() authn.IAuthenticator {
+func (m *AuthnModule) GetAuthenticator() transports.IAuthenticator {
 	return m.authenticator
 }
 
@@ -101,7 +107,7 @@ func (m *AuthnModule) SetPassword(clientID string, password string) error {
 }
 
 // Change the role of a client
-func (m *AuthnModule) SetRole(clientID string, role authn.ClientRole) error {
+func (m *AuthnModule) SetRole(clientID string, role string) error {
 	return m.authnStore.SetRole(clientID, role)
 }
 
@@ -149,7 +155,7 @@ func (m *AuthnModule) UpdateProfile(senderID string, newProfile authn.ClientProf
 	}
 	if senderID != newProfile.ClientID {
 		// only admin roles can update client profiles
-		if senderProf.Role != authn.ClientRoleAdmin && senderProf.Role != authn.ClientRoleService {
+		if senderProf.Role != transports.ClientRoleAdmin && senderProf.Role != transports.ClientRoleService {
 			return fmt.Errorf("Sender '%s' is not admin, not allowed to update profile", senderID)
 		}
 	} else {

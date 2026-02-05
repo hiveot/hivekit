@@ -69,15 +69,14 @@ func TestAddForms(t *testing.T) {
 
 	// handler of TDs on the server
 	// 1. start the transport
-	srv, tpauthn, cancelFn := StartTransportModule()
-	_ = tpauthn
+	testEnv, cancelFn := StartTestEnv(defaultProtocol)
 	defer cancelFn()
 
 	// 2. Create a TD
 	tdi := td.NewTD(thingID, "My gadget", DeviceTypeSensor)
 
 	// 3. add forms
-	srv.AddTDForms(tdi, true)
+	testEnv.Server.AddTDForms(tdi, true)
 
 	// 4. Check that at least 1 form are present
 	// TODO: add the hiveot endpoints

@@ -9,6 +9,7 @@ import (
 	"github.com/hiveot/hivekit/go/modules/authn"
 	"github.com/hiveot/hivekit/go/modules/authn/module/authenticators"
 	"github.com/hiveot/hivekit/go/modules/authn/module/authnstore"
+	"github.com/hiveot/hivekit/go/modules/transports"
 	"github.com/hiveot/hivekit/go/utils"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -18,7 +19,7 @@ var authnStore authnstore.IAuthnStore
 var testDir = path.Join(os.TempDir(), "test-authn")
 var defaultHash = authn.PWHASH_ARGON2id
 
-func NewAuthenticator() (authn.IAuthenticator, authnstore.IAuthnStore) {
+func NewAuthenticator() (transports.IAuthenticator, authnstore.IAuthnStore) {
 	passwordFile := path.Join(testDir, "test.passwd")
 	authnStore = authnstore.NewAuthnFileStore(passwordFile, defaultHash)
 
@@ -91,7 +92,7 @@ func TestBadTokens(t *testing.T) {
 	svc, clientStore := NewAuthenticator()
 	_ = clientStore.Add(authn.ClientProfile{
 		ClientID:    clientID,
-		Role:        authn.ClientRoleViewer,
+		Role:        transports.ClientRoleViewer,
 		Disabled:    false,
 		DisplayName: "test",
 	})

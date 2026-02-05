@@ -90,7 +90,7 @@ func TestNoAuth(t *testing.T) {
 		path1Hit++
 	})
 
-	cl := tlsclient.NewTLSClient(clientHostPort, nil, testCerts.CaCert, time.Second*120)
+	cl := tlsclient.NewTLSClient(clientHostPort, nil, testCerts.CaCert, 0)
 	_, _, err = cl.Get(path1)
 	assert.NoError(t, err)
 	assert.Equal(t, 1, path1Hit)
@@ -141,7 +141,7 @@ func TestTokenAuth(t *testing.T) {
 	})
 
 	// create a client and login
-	cl := tlsclient.NewTLSClient(clientHostPort, nil, testCerts.CaCert, time.Second*120)
+	cl := tlsclient.NewTLSClient(clientHostPort, nil, testCerts.CaCert, 0)
 	require.NoError(t, err)
 	defer cl.Close()
 	cl.ConnectWithToken(loginID1, token1)
@@ -194,7 +194,7 @@ func TestClientCert(t *testing.T) {
 		path1Hit++
 	})
 
-	cl := tlsclient.NewTLSClient(clientHostPort, testCerts.ClientCert, testCerts.CaCert, time.Minute)
+	cl := tlsclient.NewTLSClient(clientHostPort, testCerts.ClientCert, testCerts.CaCert, 0)
 	_, status, err := cl.Get(path1)
 	assert.NoError(t, err)
 	assert.Equal(t, http.StatusOK, status)
@@ -270,7 +270,7 @@ func TestWriteResponse(t *testing.T) {
 		path2Hit++
 	})
 
-	cl := tlsclient.NewTLSClient(clientHostPort, nil, testCerts.CaCert, time.Second*120)
+	cl := tlsclient.NewTLSClient(clientHostPort, nil, testCerts.CaCert, 0)
 	require.NoError(t, err)
 	defer cl.Close()
 	reply, _, err := cl.Get(path2)

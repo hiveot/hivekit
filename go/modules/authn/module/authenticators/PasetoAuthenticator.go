@@ -9,6 +9,7 @@ import (
 	"aidanwoods.dev/go-paseto"
 	"github.com/hiveot/hivekit/go/modules/authn"
 	"github.com/hiveot/hivekit/go/modules/authn/module/authnstore"
+	"github.com/hiveot/hivekit/go/modules/transports"
 	"github.com/hiveot/hivekit/go/wot/td"
 )
 
@@ -31,6 +32,23 @@ type PasetoAuthenticator struct {
 
 	// track session start, used in validation
 	sessionStart map[string]time.Time
+}
+
+// AddClient adds a client. This fails if the client already exists
+func (m *PasetoAuthenticator) AddClient(
+	clientID string, displayName string, role string, pubKeyPem string) error {
+	_, err := m.clientStore.GetProfile(clientID)
+	if err == nil {
+		return fmt.Errorf("Account for client '%s' already exists", clientID)
+	}
+
+	newProfile := authn.ClientProfile{
+		ClientID:    clientID,
+		DisplayName: displayName,
+		Role:        role,
+		PubKeyPem:   pubKeyPem,
+	}
+	return m.clientStore.Add(newProfile)
 }
 
 // AddSecurityScheme adds this authenticator's security scheme to the given TD.
@@ -200,9 +218,9 @@ func (svc *PasetoAuthenticator) RefreshToken(senderID string, oldToken string) (
 		return newToken, validUntil, fmt.Errorf("Profile for '%s' is disabled", senderID)
 	}
 	validityDays := svc.ConsumerTokenValidityDays
-	if prof.Role == authn.ClientRoleAgent {
+	if prof.Role == transports.ClientRoleAgent {
 		validityDays = svc.AgentTokenValidityDays
-	} else if prof.Role == authn.ClientRoleService {
+	} else if prof.Role == transports.ClientRoleService {
 		validityDays = svc.ServiceTokenValidityDays
 	}
 	validity := time.Duration(validityDays) * 24 * time.Hour
@@ -275,7 +293,7 @@ func NewPasetoAuthenticator(
 		ServiceTokenValidityDays:  authn.DefaultServiceTokenValidityDays,
 		sessionStart:              make(map[string]time.Time),
 	}
-	var _ authn.IAuthenticator = svc // interface check
+	var _ transports.IAuthenticator = svc // interface check
 	return svc
 }
 

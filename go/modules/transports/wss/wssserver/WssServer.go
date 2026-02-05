@@ -210,7 +210,7 @@ func NewHiveotWssServer(httpServer transports.IHttpServer) *WssServer {
 	moduleID := wss.DefaultHiveotWssModuleID
 	connectURL := fmt.Sprintf("%s://%s%s", wss.HiveotWssSchema, urlParts.Host, m.wssPath)
 	// set the base parameters
-	m.Init(moduleID, connectURL, transports.DefaultRpcTimeout)
+	m.Init(moduleID, connectURL)
 	return m
 }
 
@@ -237,7 +237,7 @@ func NewWotWssServer(httpServer transports.IHttpServer) *WssServer {
 	moduleID := wss.DefaultWotWssModuleID
 	connectURL := fmt.Sprintf("%s://%s%s", wss.WotWssSchema, urlParts.Host, m.wssPath)
 
-	m.Init(moduleID, connectURL, transports.DefaultRpcTimeout)
+	m.Init(moduleID, connectURL)
 	// m.UpdateProperty(transports.PropName_NrConnections, 0)
 
 	var _ modules.IHiveModule = m         // interface check

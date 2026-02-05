@@ -15,12 +15,21 @@ import (
 )
 
 // Create the middleware from the configuration.
-// This follows the sequence(whereenabled): CORS-Logging-Recovery-StripSlashes-Compression
+// This follows the sequence(whereenabled):
+//  1. CORS
+//  2. Logging
+//  3. Recovery
+//  4. StripSlashes
+//  5. Compression
+//  6. Ping
+//
 // A public route is always created
 // A protected route is created when an authentication is enabled in config
 //
+// # This includes middleware for ping health check
+//
 // Note that without authentication, the context will not have clientID or sessionID set.
-func (m *HttpTransportModule) addMiddleware(cfg *httpserver.HttpServerConfig) {
+func (m *HttpServerModule) addMiddleware(cfg *httpserver.HttpServerConfig) {
 	rootRouter := m.rootRouter
 
 	// handle CORS using the cors plugin
@@ -84,9 +93,13 @@ func (m *HttpTransportModule) addMiddleware(cfg *httpserver.HttpServerConfig) {
 			cfg.GZipLevel, cfg.GZipContentTypes...))
 	}
 
+	// support health monitor
+	rootRouter.Use(middleware.Heartbeat(transports.DefaultPingPath))
+
 	//--- public routes do not require a Hub connection
 	rootRouter.Group(func(r chi.Router) {
 		m.pubRoute = r
+
 		// run a file server if ServeFilesDir is set
 		// if filepath.IsAbs(cfg.ServeFilesDir) {
 		// 	staticFileServer := http.FileServer(http.Dir(cfg.ServeFilesDir))
@@ -149,7 +162,7 @@ func (m *HttpTransportModule) addMiddleware(cfg *httpserver.HttpServerConfig) {
 // If no valid session is found this will reply with an unauthorized status code.
 //
 // pubKey is the public key from the keypair used in creating the session token.
-func (m *HttpTransportModule) AddSessionFromToken() func(next http.Handler) http.Handler {
+func (m *HttpServerModule) AddSessionFromToken() func(next http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
@@ -187,22 +200,22 @@ func (m *HttpTransportModule) AddSessionFromToken() func(next http.Handler) http
 // This router has cors protection enabled.
 // This returns nil if authentication is not configured and will probably
 // cause a panic when used.
-func (m *HttpTransportModule) GetProtectedRoute() chi.Router {
+func (m *HttpServerModule) GetProtectedRoute() chi.Router {
 	return m.protRoute
 }
 
 // GetPublicRouter returns the router with public accessible routes for this server.
 // This router has cors protection enabled.
-func (m *HttpTransportModule) GetPublicRoute() chi.Router {
+func (m *HttpServerModule) GetPublicRoute() chi.Router {
 	return m.pubRoute
 }
 
 // GetRequestParams
-func (m *HttpTransportModule) GetRequestParams(r *http.Request) (transports.RequestParams, error) {
+func (m *HttpServerModule) GetRequestParams(r *http.Request) (transports.RequestParams, error) {
 	return GetRequestParams(r)
 }
 
 // GetClientIdFromContext
-func (m *HttpTransportModule) GetClientIdFromContext(r *http.Request) (string, error) {
+func (m *HttpServerModule) GetClientIdFromContext(r *http.Request) (string, error) {
 	return GetClientIdFromContext(r)
 }

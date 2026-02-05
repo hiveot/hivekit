@@ -88,7 +88,7 @@ type HttpServerConfig struct {
 	ValidateToken transports.ValidateTokenHandler
 }
 
-// create options with defaults
+// NewHttpServerConfig creates options with defaults
 //
 //	addr is optional address, default is outbound address
 //	port is optional listening port, 0 for default 8444

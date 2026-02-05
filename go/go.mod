@@ -11,7 +11,7 @@ require (
 	github.com/cockroachdb/pebble v1.1.5
 	github.com/eclipse/paho.golang v0.23.0
 	github.com/fsnotify/fsnotify v1.9.0
-	github.com/go-chi/chi/v5 v5.2.3
+	github.com/go-chi/chi/v5 v5.2.4
 	github.com/golang-jwt/jwt/v5 v5.3.0
 	github.com/gorilla/websocket v1.5.3
 	github.com/grandcat/zeroconf v1.0.1-0.20230119201135-e4f60f8407b1

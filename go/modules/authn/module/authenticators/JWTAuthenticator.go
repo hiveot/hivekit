@@ -11,6 +11,7 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/hiveot/hivekit/go/modules/authn"
 	"github.com/hiveot/hivekit/go/modules/authn/module/authnstore"
+	"github.com/hiveot/hivekit/go/modules/transports"
 	"github.com/hiveot/hivekit/go/wot/td"
 )
 
@@ -35,6 +36,23 @@ type JWTAuthenticator struct {
 
 	// signing method used
 	signingMethod jwt.SigningMethod // default SigningMethodES256
+}
+
+// AddClient adds a client. This fails if the client already exists
+func (m *JWTAuthenticator) AddClient(
+	clientID string, displayName string, role string, pubKeyPem string) error {
+	_, err := m.clientStore.GetProfile(clientID)
+	if err == nil {
+		return fmt.Errorf("Account for client '%s' already exists", clientID)
+	}
+
+	newProfile := authn.ClientProfile{
+		ClientID:    clientID,
+		DisplayName: displayName,
+		Role:        role,
+		PubKeyPem:   pubKeyPem,
+	}
+	return m.clientStore.Add(newProfile)
 }
 
 // AddSecurityScheme adds the security scheme that this authenticator supports.
@@ -227,9 +245,9 @@ func (svc *JWTAuthenticator) RefreshToken(
 	// must still be a valid client
 	prof, err := svc.clientStore.GetProfile(senderID)
 	validityDays := svc.ConsumerTokenValidityDays
-	if prof.Role == authn.ClientRoleAgent {
+	if prof.Role == transports.ClientRoleAgent {
 		validityDays = svc.AgentTokenValidityDays
-	} else if prof.Role == authn.ClientRoleService {
+	} else if prof.Role == transports.ClientRoleService {
 		validityDays = svc.ServiceTokenValidityDays
 	}
 	validity := time.Duration(validityDays) * 24 * time.Hour
@@ -298,7 +316,7 @@ func NewJWTAuthenticator(
 		signingMethod:             jwt.SigningMethodES256,
 		sessionStart:              make(map[string]time.Time),
 	}
-	var _ authn.IAuthenticator = svc // interface check
+	var _ transports.IAuthenticator = svc // interface check
 	return svc
 }
 

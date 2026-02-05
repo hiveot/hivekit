@@ -159,7 +159,7 @@ func TestAuthClientCert(t *testing.T) {
 	assert.NoError(t, err)
 	_, _, err = cl.Put(path1, nil)
 	assert.NoError(t, err)
-	_, _, err = cl.Delete(path1)
+	_, err = cl.Delete(path1)
 	assert.NoError(t, err)
 	_, _, err = cl.Patch(path1, nil)
 	assert.NoError(t, err)
@@ -176,7 +176,7 @@ func TestNotStarted(t *testing.T) {
 	cl.Close()
 }
 func TestNoClientCert(t *testing.T) {
-	cl := tlsclient.NewTLSClient(testAddress, nil, authBundle.CaCert, 3)
+	cl := tlsclient.NewTLSClient(testAddress, nil, authBundle.CaCert, 0)
 	cl.Close()
 }
 
@@ -241,7 +241,7 @@ func TestTokenAuth(t *testing.T) {
 	assert.NoError(t, err)
 
 	// connect using the given token
-	cl := tlsclient.NewTLSClient(testAddress, authBundle.ClientCert, authBundle.CaCert, time.Minute)
+	cl := tlsclient.NewTLSClient(testAddress, authBundle.ClientCert, authBundle.CaCert, 0)
 	err = cl.ConnectWithToken(user1, authToken)
 	require.NoError(t, err)
 

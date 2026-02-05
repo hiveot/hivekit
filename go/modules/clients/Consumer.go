@@ -19,10 +19,13 @@ import (
 // Consumer is a module representing a WoT consumer.
 // This implements the IHiveModule interface.
 //
-// The consumer is linked to a transport client from which it receives notification
-// and through which it sends requests.
+// Usage:
 //
-// Consumers can register callbacks for receiving notifications and changes in the connection.
+//	To use this consumer it needs to be linked to a transport client module in order to deliver requests
+//	and receive notifications using one of the available WoT compatible protocols.
+//
+//	SetRequestSink(transportclient.Handlerequest) to set the transport for delivering requests.
+//	SetNotificationSink(consumer.HandleNotification) to receive notifications from the client
 //
 // This implements the IHiveModule interface so it can be used as a sink for transports
 // or other modules.
@@ -292,6 +295,11 @@ func (co *Consumer) SendRequest(req *msg.RequestMessage, replyTo msg.ResponseHan
 	return err
 }
 
+// SetTimeout sets the RPC request handling timeout
+func (co *Consumer) SetTimeout(timeout time.Duration) {
+	co.rpcTimeout = timeout
+}
+
 // Start using the consumer
 // this module does not have a configuration
 func (co *Consumer) Start(yamlConfig string) error {
@@ -356,18 +364,15 @@ func (co *Consumer) WriteProperty(thingID string, name string, input any, wait b
 // supports RPC calls by waiting for a response.
 //
 // Use SetSink to set the module that will handle requests and return notifications.
+// Use SetTimeout to change the default timeout of RPC requests. (default: 3 sec)
 //
 //	appID the ID of this application
-//	timeout of the rpc connections or 0 for default (3 sec)
-func NewConsumer(appID string, rpcTimeout time.Duration) *Consumer {
-	if rpcTimeout == 0 {
-		rpcTimeout = transports.DefaultRpcTimeout
-	}
+func NewConsumer(appID string) *Consumer {
 	consumer := &Consumer{
 		// sink:  sink,
 		appID: appID,
 		// rnrChan:    NewRnRChan(),
-		rpcTimeout: rpcTimeout,
+		rpcTimeout: transports.DefaultRpcTimeout,
 	}
 
 	consumer.SetModuleID(appID)
@@ -392,15 +397,15 @@ func NewConsumer(appID string, rpcTimeout time.Duration) *Consumer {
 // This returns the consumer and the client connection. The caller still needs to call
 // one of the ConnectWith... methods to provide the credentials.
 func NewConsumerConnection(
-	appID string, serverURL string, caCert *x509.Certificate, rpcTimeout time.Duration) (
+	appID string, serverURL string, caCert *x509.Certificate) (
 	*Consumer, transports.IConnection, error) {
 
-	cc, err := NewClientModule(serverURL, caCert, rpcTimeout)
+	cc, err := NewTransportClient(serverURL, caCert)
 	if err != nil {
 		return nil, nil, err
 	}
 	// set the connection as the sink that handles requests and publishes notifications
-	consumer := NewConsumer(appID, rpcTimeout)
+	consumer := NewConsumer(appID)
 	consumer.SetRequestSink(cc.HandleRequest)
 	cc.SetNotificationSink(consumer.HandleNotification)
 	return consumer, cc, nil

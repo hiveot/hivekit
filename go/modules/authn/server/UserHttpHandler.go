@@ -8,7 +8,6 @@ import (
 
 	"github.com/hiveot/hivekit/go/lib/servers/httpbasic"
 	"github.com/hiveot/hivekit/go/lib/servers/tlsserver"
-	"github.com/hiveot/hivekit/go/modules/authn"
 	"github.com/hiveot/hivekit/go/modules/transports"
 	jsoniter "github.com/json-iterator/go"
 )
@@ -30,7 +29,7 @@ type UserLoginArgs struct {
 // UserHttpHandler for handling user requests such as login, logout, refresh over http
 type UserHttpHandler struct {
 	// module authn.IAuthn
-	authenticator authn.IAuthenticator
+	authenticator transports.IAuthenticator
 	httpServer    transports.IHttpServer
 }
 
@@ -102,7 +101,7 @@ func (handler *UserHttpHandler) onHttpTokenRefresh(w http.ResponseWriter, r *htt
 }
 
 // Create a http server handler for user facing requests and register endpoints
-func NewUserHttpHandler(authenticator authn.IAuthenticator, httpServer transports.IHttpServer) *UserHttpHandler {
+func NewUserHttpHandler(authenticator transports.IAuthenticator, httpServer transports.IHttpServer) *UserHttpHandler {
 	if authenticator == nil || httpServer == nil {
 		panic("NewUserHttpHandler: nil parameter")
 	}

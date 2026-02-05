@@ -6,7 +6,6 @@ import "github.com/hiveot/hivekit/go/modules/transports"
 const DefaultHttpBasicThingID = "http-basic"
 
 const (
-	HttpGetPingPath = "/ping"
 
 	// The generic path for thing operations over http
 	// See http server for definition of the URI variables

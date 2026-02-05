@@ -1,7 +1,13 @@
 package directory
 
+import "github.com/hiveot/hivekit/go/modules"
+
 // DefaultDirectoryThingID is the default thingID of the directory module.
 const DefaultDirectoryThingID = "directory"
+
+// The http path that provides the TD of the service
+// in case of the directory this provide the directory TD path
+const WellKnownWoTPath = "/.well-known/wot"
 
 // Default limit in retrieving things
 const DefaultLimit = 300
@@ -39,6 +45,7 @@ type RetrieveAllThingsOutput []string
 // IDirectoryModule defines the interface to the directory service module
 // This is implemented in the service and the client api
 type IDirectoryModule interface {
+	modules.IHiveModule
 
 	// CreateThing creates or updates the TD in the directory.
 	// If the thing doesn't exist in the directory it is added.

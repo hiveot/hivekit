@@ -21,14 +21,13 @@ type DummyAuthenticator struct {
 }
 
 // AddClient adds a test client and return an auth token
-func (d *DummyAuthenticator) AddClient(clientID string, password string) string {
+func (d *DummyAuthenticator) AddClient(clientID string, role string, password string, pubKey string) error {
 	d.passwords[clientID] = password
-	role := "testclient"
 
-	token, validUntil := d.CreateToken(clientID, role, 0)
+	token, validUntil, err := d.CreateToken(clientID, 0)
 	_ = validUntil
 	d.inSession[clientID] = token
-	return token
+	return err
 }
 
 // AddSecurityScheme adds the security scheme that this authenticator supports.
@@ -57,16 +56,23 @@ func (srv *DummyAuthenticator) AddSecurityScheme(tdoc *td.TD) {
 
 // if validity is 0 it defaults to 1 minute
 func (d *DummyAuthenticator) CreateToken(
-	clientID string, role string, validity time.Duration) (token string, validUntil time.Time) {
+	clientID string, validity time.Duration) (token string, validUntil time.Time, err error) {
 	if validity == 0 {
 		validity = time.Minute
 	}
+
+	_, isClient := d.inSession[clientID]
+	if !isClient {
+		return "", validUntil, fmt.Errorf("Unknown client %s", clientID)
+	}
+
 	authkeytoken := shortid.MustGenerate()
 	validUntil = time.Now().Add(validity)
-	token = fmt.Sprintf("%s/%s/%s", clientID, role, authkeytoken)
+	// the real auth knows the role from adding clients
+	token = fmt.Sprintf("%s/%s/%s", clientID, "role", authkeytoken)
 	// simulate a session with the tokens map
 	d.inSession[clientID] = token
-	return token, validUntil
+	return token, validUntil, nil
 }
 
 func (d *DummyAuthenticator) DecodeToken(token string, signedNonce string, nonce string) (
@@ -87,10 +93,9 @@ func (d *DummyAuthenticator) GetAlg() (string, string) {
 
 func (d *DummyAuthenticator) Login(
 	clientID string, password string) (token string, validUntil time.Time, err error) {
-	role := "role1"
 	currPass, isClient := d.passwords[clientID]
 	if isClient && currPass == password {
-		token, validUntil = d.CreateToken(clientID, role, 0)
+		token, validUntil, _ = d.CreateToken(clientID, 0)
 		d.inSession[clientID] = token
 		return token, validUntil, nil
 	}
@@ -113,10 +118,11 @@ func (d *DummyAuthenticator) RefreshToken(
 	senderID string, oldToken string) (newToken string, validUntil time.Time, err error) {
 
 	tokenClientID, role, validUntil, err := d.ValidateToken(oldToken)
+	_ = role
 	if err != nil || senderID != tokenClientID {
 		err = fmt.Errorf("invalid token, client or sender")
 	} else {
-		newToken, validUntil = d.CreateToken(senderID, role, 0)
+		newToken, validUntil, _ = d.CreateToken(senderID, 0)
 	}
 	return newToken, validUntil, err
 }

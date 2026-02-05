@@ -208,13 +208,14 @@ func (cl *SseScClient) handleSseEvent(event sse.Event) {
 		if notif == nil {
 			return
 		}
-		if cl.requestSink == nil {
-			slog.Error("HandleSseEvent: no sink set. Notification is dropped.",
-				"clientID", clientID,
-				"operation", notif.Operation,
-				"name", notif.Name,
-			)
-		} else if cl.notificationSink != nil {
+		// if cl.requestSink == nil {
+		// 	slog.Error("HandleSseEvent: no sink set. Notification is dropped.",
+		// 		"clientID", clientID,
+		// 		"operation", notif.Operation,
+		// 		"name", notif.Name,
+		// 	)
+		// } else
+		if cl.notificationSink != nil {
 			// notifications received from the server are passed to the registered handler
 			go func() {
 				cl.notificationSink(notif)
@@ -261,7 +262,7 @@ func (cl *SseScClient) handleSseEvent(event sse.Event) {
 
 		// consumer receives a response
 		// this will be 'handled' if it was waiting on its rnr channel
-		handled := cl.rnrChan.HandleResponse(resp)
+		handled := cl.rnrChan.HandleResponse(resp, cl.timeout)
 
 		if !handled {
 			slog.Warn("handleSseEvent: No response handler for request, response is lost",

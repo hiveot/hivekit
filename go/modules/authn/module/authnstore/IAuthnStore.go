@@ -44,7 +44,7 @@ type IAuthnStore interface {
 
 	// GetRole returns the client's role
 	// This returns an error if the client is disabled
-	GetRole(clientID string) (role authn.ClientRole, err error)
+	GetRole(clientID string) (role string, err error)
 
 	// Open the store
 	Open() error
@@ -55,7 +55,7 @@ type IAuthnStore interface {
 
 	// SetRole sets the default role of a client
 	// This returns an error if newRole isn't a known role
-	SetRole(clientID string, newRole authn.ClientRole) error
+	SetRole(clientID string, newRole string) error
 
 	// SetPassword stores the hash of the password for the given user.
 	// If the clientID doesn't exist, this returns an error.

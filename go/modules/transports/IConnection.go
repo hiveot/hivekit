@@ -7,7 +7,7 @@ import (
 	"github.com/hiveot/hivekit/go/wot/td"
 )
 
-const DefaultRpcTimeout = time.Second * 60 // 60 for testing; 3 seconds
+const DefaultRpcTimeout = time.Second * 3
 
 // ConnectionHandler handles a change in connection status
 //
@@ -83,6 +83,9 @@ type IConnection interface {
 	// SetConnectHandler sets the callback for connection status changes
 	// This replaces any previously set handler.
 	// SetConnectHandler(handler ConnectionHandler)
+
+	// Change the default timeout for sending messages
+	SetTimeout(timeout time.Duration)
 }
 
 // GetFormHandler is the handler that provides the client with the form needed to invoke an operation

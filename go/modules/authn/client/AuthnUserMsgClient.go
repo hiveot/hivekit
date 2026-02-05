@@ -9,7 +9,7 @@ import (
 	"github.com/hiveot/hivekit/go/modules"
 	"github.com/hiveot/hivekit/go/modules/authn"
 	"github.com/hiveot/hivekit/go/modules/authn/server"
-	"github.com/hiveot/hivekit/go/modules/transports/clients"
+	"github.com/hiveot/hivekit/go/modules/clients"
 	"github.com/hiveot/hivekit/go/wot"
 )
 

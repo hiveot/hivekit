@@ -3,11 +3,14 @@ package directoryclient
 import (
 	"crypto/x509"
 	"fmt"
+	"log/slog"
 	"net/url"
 	"time"
 
-	"github.com/hiveot/hivekit/go/lib/clients/tlsclient"
+	"github.com/hiveot/hivekit/go/modules"
 	"github.com/hiveot/hivekit/go/modules/directory"
+	"github.com/hiveot/hivekit/go/modules/transports"
+	tlsclient "github.com/hiveot/hivekit/go/modules/transports/httpserver/client"
 	"github.com/hiveot/hivekit/go/utils"
 	"github.com/hiveot/hivekit/go/wot/td"
 )
@@ -29,6 +32,7 @@ const defaultTimeout = 3 * time.Second
 //
 // Intended for use by consumers of the directory to read TDs they have access to.
 type DirectoryHttpClient struct {
+	modules.HiveModuleBase // clients can be used as modules
 
 	// The TD of the directory itself containing the base URL
 	// directoryTD *td.TD
@@ -37,7 +41,7 @@ type DirectoryHttpClient struct {
 	directoryBasePath string
 
 	// Connection to the directory for reading or update
-	tlsClient *tlsclient.TLSClient
+	tlsClient transports.ITlsClient
 
 	timeout time.Duration
 }
@@ -50,29 +54,24 @@ func (cl *DirectoryHttpClient) Close() error {
 	return nil
 }
 
-// Connect to the directory, reads the directory's TD.
-// If successful, call RetrieveAllThings to read the content.
-//
-// tdURL is the URL of the directory service TD.
-func (cl *DirectoryHttpClient) Connect(
-	tdURL string, clientID string, authToken string, caCert *x509.Certificate) error {
+// ConnectWithToken creates a TLS client, connects to the directory, reads the directory's TD.
+func (cl *DirectoryHttpClient) ConnectWithToken(clientID string, token string) error {
+
 	// 1: connect to the directory and read its TD
-	parts, _ := url.Parse(tdURL)
-	tlsClient := tlsclient.NewTLSClient(parts.Host, nil, caCert, cl.timeout)
-	tlsClient.SetAuthToken(authToken)
+	cl.tlsClient.ConnectWithToken(clientID, token)
 
 	// 2: read its TD
-	resp, status, err := tlsClient.Get(parts.Path)
+	GetTDPath := directory.WellKnownWoTPath
+	resp, status, err := cl.tlsClient.Get(GetTDPath)
 	_ = status
 	if err != nil {
 		return err
 	}
 	tdi, err := td.UnmarshalTD(string(resp))
 	if err != nil {
-		tlsClient.Close()
+		cl.tlsClient.Close()
 		return err
 	}
-	cl.tlsClient = tlsClient
 	cl.directoryBasePath = tdi.Base
 	return nil
 }
@@ -99,7 +98,7 @@ func (cl *DirectoryHttpClient) CreateThing(tdJson string) error {
 func (cl *DirectoryHttpClient) DeleteThing(thingID string) error {
 	basePath := cl.directoryBasePath
 	deletePath := fmt.Sprintf("%s/things/%s", basePath, thingID)
-	_, _, err := cl.tlsClient.Delete(deletePath)
+	_, err := cl.tlsClient.Delete(deletePath)
 	return err
 }
 
@@ -158,17 +157,25 @@ func (cl *DirectoryHttpClient) UpdateThing(tdJson string) error {
 	return err
 }
 
-// NewDirectoryRestClient creates a new client for accessing a Thing Directory.
+// NewDirectoryHttpClient creates a new client for accessing a Thing Directory.
 //
 // Call Connect() to connect to the directory service and Close() to release resources.
-// timeout is the timeout used or 0 for default
-func NewDirectoryRestClient(timeout time.Duration) *DirectoryHttpClient {
-	if timeout <= 0 {
-		timeout = defaultTimeout
+//
+//	thingID is the unique ID of the certificate service instance
+//	sink is the handler that passes requests to the service and receives notifications.
+func NewDirectoryHttpClient(serverURL string, caCert *x509.Certificate) *DirectoryHttpClient {
+
+	parts, err := url.Parse(serverURL)
+	if err != nil {
+		slog.Error("NewAuthnClient: invalid server URL", "err", err.Error())
+		return nil
 	}
 
+	tlsClient := tlsclient.NewTLSClient(parts.Host, nil, caCert, 0)
+
 	cl := &DirectoryHttpClient{
-		timeout: timeout,
+		timeout:   transports.DefaultRpcTimeout,
+		tlsClient: tlsClient,
 	}
 
 	var _ directory.IDirectoryModule = cl // API check

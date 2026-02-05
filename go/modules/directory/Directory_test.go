@@ -1,19 +1,49 @@
 package directory_test
 
 import (
+	"encoding/json"
+	"fmt"
+	"io"
 	"testing"
+	"time"
 
+	"github.com/hiveot/hivekit/go/lib/clients/tlsclient"
 	"github.com/hiveot/hivekit/go/modules/directory"
 	directoryclient "github.com/hiveot/hivekit/go/modules/directory/client"
 	"github.com/hiveot/hivekit/go/modules/directory/module"
 	"github.com/hiveot/hivekit/go/modules/directory/server"
+	"github.com/hiveot/hivekit/go/modules/transports"
 	"github.com/hiveot/hivekit/go/modules/transports/direct"
+	"github.com/hiveot/hivekit/go/modules/transports/tptests"
+	"github.com/hiveot/hivekit/go/utils"
 	"github.com/hiveot/hivekit/go/wot/td"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
 var storageRoot = ""
+
+const defaultProtocol = transports.ProtocolTypeWotWSS
+const TestKeyType = utils.KeyTypeED25519
+
+// Start a test environment with a directory module connected to the server
+func StartDirectoryServer() (testEnv *tptests.TestEnv, m directory.IDirectoryModule, cancelFn func()) {
+
+	testEnv, cancelFn = tptests.StartTestEnv(defaultProtocol)
+	// use in-memory storage
+	m = module.NewDirectoryModule(storageRoot, nil)
+	err := m.Start("")
+	if err != nil {
+		panic("StartDirectoryServer: failed to start the directory " + err.Error())
+	}
+	// link the directory module to the server
+	testEnv.Server.SetRequestSink(m.HandleRequest)
+	m.SetNotificationSink(testEnv.Server.HandleNotification)
+	return testEnv, m, func() {
+		m.Stop()
+		cancelFn()
+	}
+}
 
 // Generic directory store testcases
 func TestStartStop(t *testing.T) {
@@ -71,17 +101,17 @@ func TestCreateTD(t *testing.T) {
 	m.Stop()
 }
 
+// Test using the messaging API to create and read things
 func TestCRUDUsingMsgAPI(t *testing.T) {
 	t.Logf("---%s---\n", t.Name())
 	const clientID = "user1"
 
+	testEnv, m, cancelFn := StartDirectoryServer()
+	_ = testEnv
+	defer cancelFn()
+
 	directoryID := directory.DefaultDirectoryThingID
 	thing1ID := "thing1"
-
-	m := module.NewDirectoryModule(storageRoot, nil)
-	err := m.Start("")
-	require.NoError(t, err)
-	defer m.Stop()
 
 	// test create a TD
 	tdi1 := td.NewTD(thing1ID, "thing 1", "device")
@@ -90,7 +120,7 @@ func TestCRUDUsingMsgAPI(t *testing.T) {
 	// use a direct transport to the directory as the sink for the client
 	tp := direct.NewDirectTransport(clientID, m)
 	dirClient := directoryclient.NewDirectoryMsgClient(directoryID, tp)
-	err = dirClient.CreateThing(tdi1Json)
+	err := dirClient.CreateThing(tdi1Json)
 	require.NoError(t, err)
 
 	// read the new TD
@@ -109,54 +139,77 @@ func TestCRUDUsingMsgAPI(t *testing.T) {
 	require.Error(t, err)
 }
 
-// the rest api needs a http server module
-// func TestCRUDUsingRestAPI(t *testing.T) {
-// 	t.Logf("---%s---\n", t.Name())
+// Get the directory TD on the http server well-known endpoint
+func TestDiscoverDirectory(t *testing.T) {
+	t.Logf("---%s---\n", t.Name())
+	const userID = "user1"
+	var dirTD *td.TD
 
-// 	// directoryID := module.DefaultDirectoryThingID
-// 	thing1ID := "thing1"
+	testEnv, m, cancelFn := StartDirectoryServer()
+	defer cancelFn()
+	assert.NotEmpty(t, m)
 
-// 	var bucketStore bucketstore.IBucketStore = kvbtree.NewKVStore("") // in-memory only
-// 	err := bucketStore.Open()
-// 	require.NoError(t, err)
-// 	defer bucketStore.Close()
-// 	router := chi.NewRouter()
+	dirTM := m.GetTM()
 
-// 	m := module.NewDirectoryModule(bucketStore, router)
-// 	err = m.Start("")
-// 	require.NoError(t, err)
-// 	defer m.Stop()
+	httpURL := testEnv.HttpServer.GetConnectURL()
+	tdURL := fmt.Sprintf("%s%s", httpURL, directory.WellKnownWoTPath)
+	httpClient := tlsclient.NewHttp2TLSClient(testEnv.CertBundle.CaCert, nil, time.Minute)
+	resp, err := httpClient.Get(tdURL)
+	require.NoError(t, err)
+	respBody, err := io.ReadAll(resp.Body)
+	require.NoError(t, err)
 
-// 	// connect the client to the server
-// 	tddUrl := fmt.Sprintf("https://localhost:%d", port)
+	err = json.Unmarshal(respBody, &dirTD)
+	require.NoError(t, err)
 
-// 	msgClient := api.NewDirectoryRestClient(0)
-// 	err = msgClient.Connect(tddUrl, clientID, authToken, caCert)
-// 	require.NoError(t, err)
+	assert.Equal(t, dirTM, string(respBody))
+}
 
-// 	// test create a TD
-// 	tdi1 := td.NewTD(thing1ID, "thing 1", "device")
-// 	tdi1Json := tdi1.ToString()
+// Read the directory using the http api
+func TestCRUDUsingRestAPI(t *testing.T) {
+	t.Logf("---%s---\n", t.Name())
 
-// 	err = msgClient.CreateThing(tdi1Json)
-// 	require.NoError(t, err)
+	const clientID = "user1"
 
-// 	// read the new TD
-// 	tdi2Json, err := msgClient.RetrieveThing(thing1ID)
-// 	require.NoError(t, err)
-// 	tdi2, err := td.UnmarshalTD(tdi2Json)
-// 	require.NoError(t, err)
-// 	assert.Equal(t, thing1ID, tdi2.ID)
+	thing1ID := "thing1"
 
-// 	// delete the new TD
-// 	err = msgClient.DeleteThing(thing1ID)
-// 	require.NoError(t, err)
+	testEnv, cancelFn := tptests.StartTestEnv(defaultProtocol)
+	defer cancelFn()
 
-// 	// read should fail
-// 	_, err = msgClient.RetrieveThing(thing1ID)
-// 	require.Error(t, err)
-// }
+	// normally discovery provides the address
+	tddUrl := testEnv.HttpServer.GetConnectURL()
 
-// func TestCustomModuleIDInConfig(t *testing.T) {
+	// create the client and connect to the http server that serves the directory TD
+	err := testEnv.Authenticator.AddClient(clientID, transports.ClientRoleManager, "", "")
+	require.NoError(t, err)
+	authToken, _, err := testEnv.Authenticator.CreateToken(clientID, time.Minute)
+	require.NoError(t, err)
+	require.NoError(t, err)
 
-// }
+	dirClient := directoryclient.NewDirectoryHttpClient(tddUrl, testEnv.CertBundle.CaCert)
+	// connect should read the directory TD
+	err = dirClient.ConnectWithToken(clientID, authToken)
+	require.NoError(t, err)
+
+	// test create a TD
+	tdi1 := td.NewTD(thing1ID, "thing 1", "device")
+	tdi1Json := tdi1.ToString()
+
+	err = dirClient.CreateThing(tdi1Json)
+	require.NoError(t, err)
+
+	// read the new TD
+	tdi2Json, err := dirClient.RetrieveThing(thing1ID)
+	require.NoError(t, err)
+	tdi2, err := td.UnmarshalTD(tdi2Json)
+	require.NoError(t, err)
+	assert.Equal(t, thing1ID, tdi2.ID)
+
+	// delete the new TD
+	err = dirClient.DeleteThing(thing1ID)
+	require.NoError(t, err)
+
+	// read should fail
+	_, err = dirClient.RetrieveThing(thing1ID)
+	require.Error(t, err)
+}

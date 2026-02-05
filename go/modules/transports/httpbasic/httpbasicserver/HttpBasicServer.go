@@ -125,7 +125,7 @@ func NewHttpBasicServer(httpServer transports.IHttpServer) *HttpBasicServer {
 	moduleID := httpbasic.DefaultHttpBasicThingID
 	connectURL := httpServer.GetConnectURL()
 
-	m.Init(moduleID, connectURL, transports.DefaultRpcTimeout)
+	m.Init(moduleID, connectURL)
 
 	// TODO: properties must match the module TM
 	// m.UpdateProperty(transports.PropName_NrConnections, 0)

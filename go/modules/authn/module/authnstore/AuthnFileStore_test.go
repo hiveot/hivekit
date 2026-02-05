@@ -15,6 +15,7 @@ import (
 	"github.com/hiveot/hivekit/go/lib/logging"
 	"github.com/hiveot/hivekit/go/modules/authn"
 	"github.com/hiveot/hivekit/go/modules/authn/module/authnstore"
+	"github.com/hiveot/hivekit/go/modules/transports"
 )
 
 const unpwFileName = "testunpwstore.passwd"
@@ -92,7 +93,7 @@ func TestAdd(t *testing.T) {
 	// add should succeed
 	profile := authn.ClientProfile{
 		ClientID: user1,
-		Role:     authn.ClientRoleViewer,
+		Role:     transports.ClientRoleViewer,
 	}
 	err = pwStore1.Add(profile)
 	require.NoError(t, err)
@@ -100,7 +101,7 @@ func TestAdd(t *testing.T) {
 	// adding existing user should fail it
 	err = pwStore1.Add(authn.ClientProfile{
 		ClientID:    user1,
-		Role:        authn.ClientRoleViewer,
+		Role:        transports.ClientRoleViewer,
 		DisplayName: "updated user 1",
 	})
 	assert.Error(t, err)
@@ -108,7 +109,7 @@ func TestAdd(t *testing.T) {
 	// adding missing clientID should fail
 	err = pwStore1.Add(authn.ClientProfile{
 		ClientID: "",
-		Role:     authn.ClientRoleViewer,
+		Role:     transports.ClientRoleViewer,
 	})
 	assert.Error(t, err)
 	// adding missing role should succeed
@@ -134,9 +135,9 @@ func TestVerifyHashAlgo(t *testing.T) {
 	defer pwStore1.Close()
 
 	err = pwStore1.Add(authn.ClientProfile{
-		ClientID: user1, Role: authn.ClientRoleViewer})
+		ClientID: user1, Role: transports.ClientRoleViewer})
 	err = pwStore1.Add(authn.ClientProfile{
-		ClientID: user2, Role: authn.ClientRoleViewer})
+		ClientID: user2, Role: transports.ClientRoleViewer})
 	err = pwStore1.SetPassword(user1, pass1)
 	require.NoError(t, err)
 	profile1, err := pwStore1.GetProfile(user1)
@@ -191,7 +192,7 @@ func TestName(t *testing.T) {
 	require.NoError(t, err)
 	defer pwStore1.Close()
 	err = pwStore1.Add(authn.ClientProfile{
-		ClientID: user1, Role: authn.ClientRoleViewer, DisplayName: name1})
+		ClientID: user1, Role: transports.ClientRoleViewer, DisplayName: name1})
 
 	entry, err := pwStore1.GetProfile(user1)
 	assert.NoError(t, err)
@@ -213,7 +214,7 @@ func TestSetPasswordTwoStores(t *testing.T) {
 	require.NoError(t, err)
 	err = pwStore1.Add(authn.ClientProfile{
 		ClientID: user1,
-		Role:     authn.ClientRoleViewer,
+		Role:     transports.ClientRoleViewer,
 	})
 	require.NoError(t, err)
 	//
@@ -222,7 +223,7 @@ func TestSetPasswordTwoStores(t *testing.T) {
 	require.NoError(t, err)
 	err = pwStore2.Add(authn.ClientProfile{
 		ClientID: user2,
-		Role:     authn.ClientRoleViewer,
+		Role:     transports.ClientRoleViewer,
 	})
 	require.NoError(t, err)
 	err = pwStore1.Reload()
@@ -297,7 +298,7 @@ func TestConcurrentReadWrite(t *testing.T) {
 			thingID := fmt.Sprintf("things-%d", i)
 			err = pwStore1.Add(authn.ClientProfile{
 				ClientID: thingID,
-				Role:     authn.ClientRoleViewer,
+				Role:     transports.ClientRoleViewer,
 			})
 			time.Sleep(time.Millisecond * 1)
 			if err != nil {
@@ -358,7 +359,7 @@ func TestUpdate(t *testing.T) {
 	require.NoError(t, err)
 	err = pwStore1.Add(authn.ClientProfile{
 		ClientID:    user1,
-		Role:        authn.ClientRoleViewer,
+		Role:        transports.ClientRoleViewer,
 		DisplayName: name1,
 	})
 	require.NoError(t, err)
@@ -366,14 +367,14 @@ func TestUpdate(t *testing.T) {
 	// update must be of the same user
 	err = pwStore1.UpdateProfile(authn.ClientProfile{
 		ClientID: user2,
-		Role:     authn.ClientRoleViewer,
+		Role:     transports.ClientRoleViewer,
 	})
 	assert.Error(t, err)
 
 	// update must succeed
 	err = pwStore1.UpdateProfile(authn.ClientProfile{
 		ClientID:    user1,
-		Role:        authn.ClientRoleViewer,
+		Role:        transports.ClientRoleViewer,
 		DisplayName: name2,
 		PubKeyPem:   key1,
 	})
@@ -386,7 +387,7 @@ func TestUpdate(t *testing.T) {
 	// update of non-existing user should fail
 	err = pwStore1.UpdateProfile(authn.ClientProfile{
 		ClientID: "notauser",
-		Role:     authn.ClientRoleViewer,
+		Role:     transports.ClientRoleViewer,
 	})
 	assert.Error(t, err)
 
@@ -394,7 +395,7 @@ func TestUpdate(t *testing.T) {
 
 func TestSetRole(t *testing.T) {
 	const user1 = "user1"
-	const role1 = authn.ClientRoleAgent
+	const role1 = transports.ClientRoleAgent
 
 	_ = os.Remove(unpwFilePath)
 	pwStore1 := authnstore.NewAuthnFileStore(unpwFilePath, "")
@@ -402,7 +403,7 @@ func TestSetRole(t *testing.T) {
 	require.NoError(t, err)
 	err = pwStore1.Add(authn.ClientProfile{
 		ClientID:    user1,
-		Role:        authn.ClientRoleViewer,
+		Role:        transports.ClientRoleViewer,
 		DisplayName: "test user",
 	})
 	require.NoError(t, err)

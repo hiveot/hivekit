@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/hiveot/hivekit/go/modules/transports"
 	"github.com/hiveot/hivekit/go/msg"
 	"github.com/hiveot/hivekit/go/wot"
 	"github.com/stretchr/testify/assert"
@@ -28,13 +29,13 @@ func TestObservePropertyByConsumer(t *testing.T) {
 	var propValue2 = "value2"
 
 	// 1. start the server
-	srv, tpauthn, cancelFn := StartTransportModule()
+	testEnv, cancelFn := StartTestEnv(defaultProtocol)
 	defer cancelFn()
 
 	// 2. connect with two consumers
-	co1, cc1, _ := NewTestConsumer(testClientID1, srv.GetConnectURL(), tpauthn, nil)
+	co1, cc1, _ := testEnv.NewConsumerClient(testClientID1, transports.ClientRoleViewer, nil)
 	defer cc1.Close()
-	co2, cc2, _ := NewTestConsumer(testClientID1, srv.GetConnectURL(), tpauthn, nil)
+	co2, cc2, _ := testEnv.NewConsumerClient(testClientID1, transports.ClientRoleViewer, nil)
 	defer cc2.Close()
 
 	// set the handler for property updates and subscribe
@@ -55,7 +56,7 @@ func TestObservePropertyByConsumer(t *testing.T) {
 	// 3. Server sends a property update to consumers
 	notif1 := msg.NewNotificationMessage(
 		wot.OpObserveProperty, thingID, propertyKey1, propValue1)
-	srv.SendNotification(notif1)
+	testEnv.Server.SendNotification(notif1)
 
 	// 4. both observers should have received it
 	time.Sleep(time.Millisecond)
@@ -70,10 +71,10 @@ func TestObservePropertyByConsumer(t *testing.T) {
 	// 6. Server sends a property update to consumers
 	notif2 := msg.NewNotificationMessage(
 		wot.OpObserveProperty, thingID, propertyKey1, propValue2)
-	srv.SendNotification(notif2)
+	testEnv.Server.SendNotification(notif2)
 	notif3 := msg.NewNotificationMessage(
 		wot.OpObserveProperty, thingID, propertyKey2, propValue2)
-	srv.SendNotification(notif3)
+	testEnv.Server.SendNotification(notif3)
 
 	// 7. property should not have been received
 	time.Sleep(time.Millisecond * 10)
@@ -85,7 +86,7 @@ func TestObservePropertyByConsumer(t *testing.T) {
 	time.Sleep(time.Millisecond * 10)
 	notif4 := msg.NewNotificationMessage(
 		wot.OpObserveProperty, thingID, propertyKey2, propValue1)
-	srv.SendNotification(notif4)
+	testEnv.Server.SendNotification(notif4)
 	// no change is expected
 	assert.Equal(t, propValue2, rxVal2.Load())
 
@@ -108,13 +109,12 @@ func TestPublishPropertyByAgent(t *testing.T) {
 	}
 
 	// 1. start the transport
-	srv, tpauthn, cancelFn := StartTransportModule()
-	srv.SetNotificationSink(notificationHandler)
-	_ = srv
+	testEnv, cancelFn := StartTestEnv(defaultProtocol)
+	testEnv.Server.SetNotificationSink(notificationHandler)
 	defer cancelFn()
 
 	// 2. connect as an agent
-	ag1, agConn1, _ := NewTestAgent(testAgentID1, srv.GetConnectURL(), tpauthn)
+	ag1, agConn1, _ := testEnv.NewRCAgent(testAgentID1)
 	defer agConn1.Close()
 
 	// 3. agent publishes a property update to subscribers
@@ -149,13 +149,12 @@ func TestReadProperty(t *testing.T) {
 		}
 		return replyTo(resp)
 	}
-	srv, tpauthn, cancelFn := StartTransportModule()
-	srv.SetRequestSink(appReqHandler)
-	_ = srv
+	testEnv, cancelFn := StartTestEnv(defaultProtocol)
+	testEnv.Server.SetRequestSink(appReqHandler)
 	defer cancelFn()
 
 	// 2. connect as a consumer
-	co1, cc1, _ := NewTestConsumer(testClientID1, srv.GetConnectURL(), tpauthn, nil)
+	co1, cc1, _ := testEnv.NewConsumerClient(testClientID1, transports.ClientRoleViewer, nil)
 	defer cc1.Close()
 
 	rxVal, err := co1.ReadProperty(thingID, propKey)
@@ -189,13 +188,12 @@ func TestReadAllProperties(t *testing.T) {
 		}
 		return replyTo(resp)
 	}
-	srv, tpauthn, cancelFn := StartTransportModule()
-	srv.SetRequestSink(appReqHandler)
-	_ = srv
+	testEnv, cancelFn := StartTestEnv(defaultProtocol)
+	testEnv.Server.SetRequestSink(appReqHandler)
 	defer cancelFn()
 
 	// 2. connect as a consumer
-	co1, cc1, _ := NewTestConsumer(testClientID1, srv.GetConnectURL(), tpauthn, nil)
+	co1, cc1, _ := testEnv.NewConsumerClient(testClientID1, transports.ClientRoleViewer, nil)
 	defer cc1.Close()
 
 	propMap, err := co1.ReadAllProperties(thingID)

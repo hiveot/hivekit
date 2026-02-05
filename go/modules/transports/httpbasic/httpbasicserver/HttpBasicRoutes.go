@@ -25,14 +25,9 @@ func (m *HttpBasicServer) createRoutes() {
 
 	//--- public routes do not require an authenticated session
 	pubRoutes := m.httpServer.GetPublicRoute()
+	_ = pubRoutes
 
-	//r.Get("/static/*", staticFileServer.ServeHTTP)
-	// build-in REST API for easy login to obtain a token
-
-	// register authentication endpoints
-	// FIXME: determine how WoT wants auth endpoints to be published
-	// pubRoutes.Post(httpbasic.HttpPostLoginPath, m.onHttpLogin)
-	pubRoutes.Get(httpbasic.HttpGetPingPath, m.onHttpPing)
+	//pubRoutes.Get("/static/*", staticFileServer.ServeHTTP)
 
 	//--- private routes that requires authentication (as published in the TD)
 	protRoutes := m.httpServer.GetProtectedRoute()

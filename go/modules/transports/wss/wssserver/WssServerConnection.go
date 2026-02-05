@@ -234,7 +234,7 @@ func (sc *WssServerConnection) onRequest(req *msg.RequestMessage) {
 func (sc *WssServerConnection) onResponse(resp *msg.ResponseMessage) {
 
 	// this responsehandler points to the rnrChannel that matches the correlationID to the replyTo handler
-	handled := sc.rnrChan.HandleResponse(resp)
+	handled := sc.rnrChan.HandleResponse(resp, sc.respTimeout)
 	if !handled {
 		slog.Warn("onResponse: No response handler for request, response is lost",
 			"correlationID", resp.CorrelationID,
@@ -322,7 +322,7 @@ func (sc *WssServerConnection) SendRequest(
 		req.CorrelationID = shortid.MustGenerate()
 	}
 	// the websocket connection response handlers will convert the message and pass it to the RNR channels
-	sc.rnrChan.WaitWithCallback(req.CorrelationID, responseHandler)
+	sc.rnrChan.WaitWithCallback(req.CorrelationID, sc.respTimeout, responseHandler)
 
 	// now the RNR channel is ready, send the request message
 	err = sc._send(wssMsg)
@@ -346,6 +346,11 @@ func (sc *WssServerConnection) SendResponse(resp *msg.ResponseMessage) (err erro
 	msg, _ := sc.messageConverter.EncodeResponse(resp)
 	err = sc._send(msg)
 	return err
+}
+
+// SetTimeout set the timeout sending requests
+func (sc *WssServerConnection) SetTimeout(timeout time.Duration) {
+	sc.respTimeout = timeout
 }
 
 // NewWSSServerConnection creates a new Websocket connection instance for use by
@@ -376,7 +381,7 @@ func NewWSSServerConnection(
 		messageConverter: messageConverter,
 		httpReq:          r,
 		lastActivity:     time.Time{},
-		rnrChan:          msg.NewRnRChan(transports.DefaultRpcTimeout),
+		rnrChan:          msg.NewRnRChan(),
 		respTimeout:      transports.DefaultRpcTimeout,
 		reqHandler:       reqHandler,
 		notifHandler:     notifHandler,

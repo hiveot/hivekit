@@ -54,6 +54,10 @@ func (cl *AuthnUserHttpClient) RefreshToken(oldToken string) (newToken string, e
 	return newToken, err
 }
 
+// NewAuthnHttpClient creates an instance of the authentication client to login and obtain auth tokens
+//
+//	serverURL is the host:port of the http server
+//	caCert is the server CA
 func NewAuthnHttpClient(serverURL string, caCert *x509.Certificate) *AuthnUserHttpClient {
 	parts, err := url.Parse(serverURL)
 	if err != nil {

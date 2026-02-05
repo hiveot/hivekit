@@ -1,4 +1,4 @@
-package authn
+package transports
 
 import (
 	"time"
@@ -15,6 +15,51 @@ var UnauthorizedError error = unauthorizedError{}
 // This returns an error if the token is invalid, the clientID is unknown or the token has expired.
 type ValidateTokenHandler func(token string) (clientID string, role string, validUntil time.Time, err error)
 
+// Predefined roles of a client
+// The roles are hierarchical in permissions:
+// Authorization using these roles is applied through an authz service.
+// Custom roles can be added if needed but their persmissions need to be
+// managed in the authz service.
+const (
+
+	// ClientRoleNone means that the client has no permissions.
+	// It can not do anything until the role is upgraded to viewer or better
+	ClientRoleNone string = "none"
+
+	// ClientRoleViewer for users that can view information for devices/services
+	// they have access to.
+	// Viewers cannot invoke actions or change configuration.
+	ClientRoleViewer string = "viewer"
+
+	// ClientRoleAgent for devices and services.
+	//
+	// Agents publish device information for the devices/services it manages and
+	// receive request for those devices/services.
+	ClientRoleAgent string = "agent"
+
+	// ClientRoleOperator for users that operate devices and services.
+	//
+	// Operators can view and control devices/services they have access to but
+	// not configure them.
+	ClientRoleOperator string = "operator"
+
+	// ClientRoleManager for users that manage devices.
+	//
+	// Managers can view, control and configure devices/services they have access to.
+	ClientRoleManager string = "manager"
+
+	// ClientRoleAdmin for users that administer the system.
+	//
+	// Administrators can view, control and configure all devices and services.
+	ClientRoleAdmin string = "admin"
+
+	// ClientRoleService for Service role
+	//
+	// Services are equivalent to an admin user and agent for devices/services they
+	// have access to.
+	ClientRoleService string = "service"
+)
+
 // UnauthorizedError for dealing with authorization problems
 type unauthorizedError struct {
 	Message string
@@ -27,6 +72,14 @@ func (e unauthorizedError) Error() string {
 // IAuthenticator is the interface of the authentication capability to obtain and
 // validate authentication tokens.
 type IAuthenticator interface {
+	// AddClient adds a client to the user database
+	//
+	//  role is the role of the client, eg ClientRoleManager
+	//  pubKeyPem is option and intended for (future) encryption
+	//
+	// This returns an error if the client already exists
+	AddClient(clientID string, role string, password string, pubKeyPem string) error
+
 	// AddSecurityScheme adds the wot securityscheme to the given TD
 	AddSecurityScheme(tdoc *td.TD)
 
