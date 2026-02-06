@@ -4,9 +4,9 @@ import (
 	"crypto/x509"
 	"time"
 
-	"github.com/go-chi/chi/v5"
 	"github.com/hiveot/hivekit/go/modules"
 	directory_module "github.com/hiveot/hivekit/go/modules/directory/module"
+	"github.com/hiveot/hivekit/go/modules/transports"
 )
 
 const DirectoryClient = "directoryClient"
@@ -22,8 +22,8 @@ type ModuleFactory struct {
 	// the root directory of the application storage area
 	storageRoot string
 	timeout     time.Duration
-	// the server router is used to tie a http server with and modules that serve http endpoints
-	serverHttpRouter *chi.Mux
+	// the http server with and modules that serve http endpoints
+	httpServer transports.IHttpServer
 }
 
 // NewModule returns a new instance of a module with the given name.
@@ -33,7 +33,7 @@ func (f *ModuleFactory) NewModule(name string) (m modules.IHiveModule) {
 
 	switch name {
 	case DirectoryClient:
-		m = directory_module.NewDirectoryModule(f.storageRoot, f.serverHttpRouter)
+		m = directory_module.NewDirectoryModule(f.storageRoot, f.httpServer)
 
 	}
 	return m
@@ -58,11 +58,11 @@ func (f *ModuleFactory) NewModule(name string) (m modules.IHiveModule) {
 // timeout is the connection timeout for use by clients
 func NewModuleFactory(clientID string, token string, caCert *x509.Certificate, timeout time.Duration) *ModuleFactory {
 	f := ModuleFactory{
-		clientID:         clientID,
-		authToken:        token,
-		caCert:           caCert,
-		timeout:          timeout,
-		serverHttpRouter: chi.NewMux(),
+		clientID:   clientID,
+		authToken:  token,
+		caCert:     caCert,
+		timeout:    timeout,
+		httpServer: nil,
 	}
 	return &f
 }

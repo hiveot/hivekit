@@ -230,14 +230,8 @@ func (co *Consumer) Rpc(operation, thingID, name string, input any, output any) 
 
 	ar := utils.NewAsyncReceiver[*msg.ResponseMessage]()
 	err := co.SendRequest(req, func(resp *msg.ResponseMessage) error {
-		var err2 error
 		slog.Info("Consumer RPC. Received response", "op", operation)
-		if resp != nil {
-			if resp.Error != nil {
-				err2 = resp.Error.AsError()
-			}
-		}
-		ar.SetResponse(resp, err2)
+		ar.SetResponse(resp)
 		return nil
 	})
 	if err == nil {

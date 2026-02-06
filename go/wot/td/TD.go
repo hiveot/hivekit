@@ -468,6 +468,13 @@ func (tdoc *TD) GetID() string {
 	return tdoc.ID
 }
 
+// GetAgentID returns the agentID of the thing TD
+// This returns the prefix of the thingID.
+func (tdoc *TD) GetAgentID() string {
+	parts := strings.Split(tdoc.ID, ":")
+	return parts[0]
+}
+
 // LoadFromJSON loads this TD from the given JSON encoded string
 //func (tdoc *TD) LoadFromJSON(tddJSON string) error {
 //	err := jsoniter.UnmarshalFromString(tddJSON, &tdoc)
@@ -560,7 +567,7 @@ func (tdoc *TD) UpdateTitleDescription(title string, description string) {
 // NewTD creates a new Thing Description document with properties, events and actions
 //
 // Conventions:
-// 1. thingID is a URI, starting with the "urn:" prefix as per WoT standard.
+// 1. the thingID contains the agentID prefix: thingID = {agentID}:{deviceID}
 // 2. Agents should add a property wot.WoTTitle and update the TD if it is set.
 // 3. Agents should add a property wot.WoTDescription and update the TD description if it is set.
 // 4. the deviceType comes from the vocabulary and has ID vocab.DeviceType<Xyz>
@@ -568,18 +575,28 @@ func (tdoc *TD) UpdateTitleDescription(title string, description string) {
 // Devices or bindings are not expected to use forms. The form content describes the
 // connection protocol which should reference the hub, not the device.
 //
-//	 Its structure:
-//		{
-//		     @context: "http://www.w3.org/ns/td",{"hiveot":"http://hiveot.net/vocab/v..."}
-//		     @type: <deviceType>,        // required in HiveOT. See DeviceType vocabulary
-//		     id: <thingID>,              // urn:[{prefix}:]{randomID}   required in hiveot
-//		     title: string,              // required. Name of the thing
-//		     created: <rfc3339>,         // will be the current timestamp. See vocabulary TimeFormat
-//		     actions: {name:TDAction, ...},
-//		     events:  {name: TDEvent, ...},
-//		     properties: {name: TDProperty, ...}
-//		}
-func NewTD(thingID string, title string, deviceType string) *TD {
+//		 Its structure:
+//			{
+//			     @context: "http://www.w3.org/ns/td",{"hiveot":"http://hiveot.net/vocab/v..."}
+//			     @type: <deviceType>,        // required in HiveOT. See DeviceType vocabulary
+//			     id: <thingID>,              // {agentID}:{deviceID}   required in hiveot
+//			     title: string,              // required. Name of the thing
+//			     created: <rfc3339>,         // will be the current timestamp. See vocabulary TimeFormat
+//			     actions: {name:TDAction, ...},
+//			     events:  {name: TDEvent, ...},
+//			     properties: {name: TDProperty, ...}
+//			}
+//
+//	 agentID is the ID of the service managing the device. Use "" if the device is the agent
+//	 deviceID is the unique ID of the device
+//		title to include in the TD
+//	 deviceType is the optional @type identifying the device
+func NewTD(agentID, deviceID string, title string, deviceType string) *TD {
+	// HiveOT convention is to include the agentID as the prefix in the thingID
+	var thingID = deviceID
+	if agentID != "" {
+		thingID = agentID + ":" + deviceID
+	}
 	thingID = strings.ReplaceAll(thingID, " ", "-")
 
 	td := TD{

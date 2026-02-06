@@ -26,8 +26,8 @@ func (d *DummyServer) GetConnectURL() string {
 	return d.url
 }
 
-func (d *DummyServer) GetClientIdFromContext(r *http.Request) (string, error) {
-	return "", errors.New("not implemented")
+func (d *DummyServer) GetClientIdFromContext(r *http.Request) (string, string, error) {
+	return "", "", errors.New("not implemented")
 }
 
 func (d *DummyServer) GetRequestParams(r *http.Request) (transports.RequestParams, error) {

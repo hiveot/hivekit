@@ -61,7 +61,7 @@ func (d *DummyAuthenticator) CreateToken(
 		validity = time.Minute
 	}
 
-	_, isClient := d.inSession[clientID]
+	_, isClient := d.passwords[clientID]
 	if !isClient {
 		return "", validUntil, fmt.Errorf("Unknown client %s", clientID)
 	}

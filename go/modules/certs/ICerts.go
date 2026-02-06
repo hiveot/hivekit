@@ -38,10 +38,12 @@ type ICertsService interface {
 	// Since the crypto api does not offer a method to obtain the public key from
 	// the private key, it has to be provided separately.
 	//
-	// moduleName is the name under which to store the key and certificate.
-	// hostname is the name or IP to include in the certificate SAN. "" to ignore.
-	// serverPrivKey is the server private key used to create the TLS certificate. nil to generate.
-	// serverPubKey is the corresponding public key.
+	//  moduleID is the ID under which to store the key and certificate.
+	//  hostname is the name or IP to include in the certificate SAN. "" to ignore.
+	//  serverPrivKey is the server private key used to create the TLS certificate. nil to generate.
+	//  serverPubKey is the corresponding public key.
+	//
+	// Only administrators are allowed to create certificates.
 	CreateServerCert(moduleID string, hostname string,
 		serverPrivKey crypto.PrivateKey, serverPubKey crypto.PublicKey) (*tls.Certificate, error)
 
@@ -54,6 +56,7 @@ type ICertsService interface {
 
 	// Return the default shared (between modules) server certificate.
 	//
+	// Only administrators are allowed to read the TLS certificate.
 	GetDefaultServerTlsCert() (*tls.Certificate, error)
 
 	// LoadServerCert loads a previously save server certificate from the
@@ -61,6 +64,7 @@ type ICertsService interface {
 	// This returns an error if certificate/key files are not found.
 	//
 	// moduleID whose certificate to retrieve
+	// Only administrators or modules themselves are allowed to load the TLS certificate.
 	LoadServerCert(moduleID string) (*tls.Certificate, error)
 
 	// Verify if the given certificate belongs to the module and is signed by the CA

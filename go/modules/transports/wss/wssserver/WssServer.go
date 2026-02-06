@@ -106,11 +106,14 @@ func (m *WssServer) Serve(w http.ResponseWriter, r *http.Request) {
 	// if err != nil {
 	// net.WriteError(w, err, 0)
 	// }
-	clientID, err := m.httpServer.GetClientIdFromContext(r)
+	clientID, role, err := m.httpServer.GetClientIdFromContext(r)
 	if err != nil {
 		utils.WriteError(w, err, 0)
 	}
-	slog.Info("Serve: Receiving Websocket connection", slog.String("clientID", clientID))
+	slog.Info("Serve: Receiving Websocket connection",
+		slog.String("clientID", clientID),
+		slog.String("role", role),
+	)
 
 	if err != nil {
 		slog.Warn("Serve. No clientID",

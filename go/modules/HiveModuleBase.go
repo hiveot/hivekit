@@ -98,7 +98,7 @@ func (m *HiveModuleBase) ForwardRequestWait(req *msg.RequestMessage) (resp *msg.
 	ar := utils.NewAsyncReceiver[*msg.ResponseMessage]()
 
 	err = m.ForwardRequest(req, func(r *msg.ResponseMessage) error {
-		ar.SetResponse(r, nil)
+		ar.SetResponse(r)
 		return nil
 	})
 	if err != nil {

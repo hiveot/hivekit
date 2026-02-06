@@ -8,6 +8,7 @@ import (
 	"github.com/hiveot/hivekit/go/msg"
 	"github.com/hiveot/hivekit/go/utils"
 	"github.com/hiveot/hivekit/go/wot"
+	"github.com/hiveot/hivekit/go/wot/td"
 )
 
 // Embed the directory TM
@@ -24,7 +25,8 @@ type DirectoryMsgHandler struct {
 
 // GetTm returns the TN of the directory RRN messaging API
 func (handler *DirectoryMsgHandler) GetTM() string {
-	return string(DirectoryTMJson)
+	tm := string(DirectoryTMJson)
+	return tm
 }
 
 // HandleRequest for module.
@@ -110,10 +112,23 @@ func (handler *DirectoryMsgHandler) RetrieveThing(req *msg.RequestMessage) (resp
 
 // UpdateThing updates a new thing in the store
 // req.Input is a string containing the TD JSON
+//
+// Requirement: for security reasons only the agent that owns the TD is allowed to update it
 func (handler *DirectoryMsgHandler) UpdateThing(req *msg.RequestMessage) (resp *msg.ResponseMessage) {
 	var tdJSON string
+	var tdi *td.TD
 
 	err := utils.Decode(req.Input, &tdJSON)
+	if err == nil {
+		tdi, err = td.UnmarshalTD(tdJSON)
+	}
+	if err == nil {
+		agentID := tdi.GetAgentID()
+		if req.SenderID != agentID {
+			err = fmt.Errorf("UpdateThing unauthorized. Sender isn't the agent of the TD")
+		}
+	}
+
 	if err == nil {
 		err = handler.service.UpdateThing(tdJSON)
 	}

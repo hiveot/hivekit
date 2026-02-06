@@ -10,6 +10,7 @@ import (
 
 	"github.com/gorilla/websocket"
 	"github.com/hiveot/hivekit/go/modules/transports"
+	"github.com/hiveot/hivekit/go/utils"
 )
 
 // ConnectWSS establishes a websocket session with the server using the given TLS client
@@ -63,10 +64,9 @@ func ConnectWSS2(
 	if err != nil {
 		// FIXME: when unauthorized, don't retry. A new token is needed. (session ended).
 		if r != nil && r.StatusCode == http.StatusUnauthorized {
-			msg := fmt.Sprintf("Unauthorized: Connection as '%s' to '%s' failed: %s",
-				tlsClient.GetClientID(), connectURL, err.Error())
-			slog.Warn(msg)
-			err = transports.UnauthorizedError
+			err = fmt.Errorf("%w: Connection as '%s' to '%s' failed: %s",
+				utils.UnauthorizedError, tlsClient.GetClientID(), connectURL, err.Error())
+			slog.Warn(err.Error())
 		}
 		wssCancelFn()
 		return nil, nil, err

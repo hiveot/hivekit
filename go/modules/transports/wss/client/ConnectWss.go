@@ -13,6 +13,7 @@ import (
 
 	"github.com/gorilla/websocket"
 	"github.com/hiveot/hivekit/go/modules/transports"
+	"github.com/hiveot/hivekit/go/utils"
 	"github.com/teris-io/shortid"
 )
 
@@ -100,10 +101,9 @@ func ConnectWSS(
 	if err != nil {
 		// FIXME: when unauthorized, don't retry. A new token is needed. (session ended).
 		if r != nil && r.StatusCode == http.StatusUnauthorized {
-			msg := fmt.Sprintf("Unauthorized: Connection as '%s' to '%s' failed: %s",
-				clientID, connectURL, err.Error())
-			slog.Warn(msg)
-			err = transports.UnauthorizedError
+			err = fmt.Errorf("%w: Connection as '%s' to '%s' failed: %s",
+				utils.UnauthorizedError, clientID, connectURL, err.Error())
+			slog.Warn(err.Error())
 		}
 		wssCancelFn()
 		return nil, nil, err

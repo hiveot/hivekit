@@ -72,7 +72,9 @@ func (cl *DirectoryHttpClient) ConnectWithToken(clientID string, token string) e
 		cl.tlsClient.Close()
 		return err
 	}
-	cl.directoryBasePath = tdi.Base
+	// don't need a base if its the same as the directory client path
+	_ = tdi.Base
+	// cl.directoryBasePath = tdi.Base
 	return nil
 }
 

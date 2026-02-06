@@ -56,7 +56,7 @@ func TestRnRWaitNoOpenFails(t *testing.T) {
 }
 
 func TestRnROpenWaitCallback(t *testing.T) {
-	rxData := false
+	var rxData atomic.Bool
 
 	corrID := "123"
 	resp := msg.NewResponseMessage("op1", "thing1", "name", nil, nil, corrID)
@@ -67,13 +67,13 @@ func TestRnROpenWaitCallback(t *testing.T) {
 	require.True(t, handled)
 
 	rnrChan.WaitWithCallback(corrID, DefaultResponseTimeout, func(resp *msg.ResponseMessage) error {
-		rxData = true
+		rxData.Store(true)
 		return nil
 	})
 	time.Sleep(time.Millisecond)
 	// response is handled in a separate goroutine
 	time.Sleep(time.Millisecond)
-	assert.True(t, rxData)
+	assert.True(t, rxData.Load())
 }
 
 // Test receiving a response before open
@@ -89,7 +89,7 @@ func TestRnRResponseNotHandled(t *testing.T) {
 // Test receiving a response twice
 func TestRnRResponseTwice(t *testing.T) {
 	corrID := "123"
-	rxData := false
+	var rxData atomic.Bool
 	shortTimeout := time.Second
 
 	resp := msg.NewResponseMessage("op1", "thing1", "name", nil, nil, corrID)
@@ -106,17 +106,17 @@ func TestRnRResponseTwice(t *testing.T) {
 
 	// this will close the channel
 	rnrChan.WaitWithCallback(corrID, shortTimeout, func(resp *msg.ResponseMessage) error {
-		rxData = true
+		rxData.Store(true)
 		return nil
 	})
 	// response is handled in a separate goroutine
 	time.Sleep(time.Millisecond)
-	assert.True(t, rxData)
+	assert.True(t, rxData.Load())
 
 }
 
 func TestRnRTimeout(t *testing.T) {
-	rxData := false
+	var rxData atomic.Bool
 	corrID := "123"
 	rnrChan := msg.NewRnRChan()
 	rnrChan.Open(corrID)
@@ -130,12 +130,12 @@ func TestRnRTimeout(t *testing.T) {
 
 	// try again with callback
 	rnrChan.WaitWithCallback(corrID, timeout, func(resp *msg.ResponseMessage) error {
-		rxData = true
+		rxData.Store(true)
 		return nil
 	})
 
 	rnrChan.Close(corrID)
-	assert.False(t, rxData)
+	assert.False(t, rxData.Load())
 }
 
 func TestRnRDoubleClose(t *testing.T) {
@@ -168,14 +168,14 @@ func TestRnRDoubleOpen(t *testing.T) {
 }
 
 func TestRnRNoOpenWaitCallback(t *testing.T) {
-	rxData := false
+	var rxData atomic.Bool
 
 	corrID := "123"
 	resp := msg.NewResponseMessage("op1", "thing1", "name", nil, nil, corrID)
 	rnrChan := msg.NewRnRChan()
 
 	rnrChan.WaitWithCallback(corrID, DefaultResponseTimeout, func(resp *msg.ResponseMessage) error {
-		rxData = true
+		rxData.Store(true)
 		return nil
 	})
 	handled := rnrChan.HandleResponse(resp, DefaultResponseTimeout)
@@ -183,7 +183,7 @@ func TestRnRNoOpenWaitCallback(t *testing.T) {
 	time.Sleep(time.Millisecond)
 	require.True(t, handled)
 
-	require.True(t, rxData)
+	require.True(t, rxData.Load())
 }
 
 func Benchmark_RnRBulkWaitCallback(b *testing.B) {

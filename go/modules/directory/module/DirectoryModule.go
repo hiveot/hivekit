@@ -5,12 +5,12 @@ import (
 	"log/slog"
 	"path/filepath"
 
-	"github.com/go-chi/chi/v5"
 	"github.com/hiveot/hivekit/go/modules"
 	"github.com/hiveot/hivekit/go/modules/bucketstore"
 	"github.com/hiveot/hivekit/go/modules/bucketstore/module/kvbtree"
 	"github.com/hiveot/hivekit/go/modules/directory"
 	"github.com/hiveot/hivekit/go/modules/directory/server"
+	"github.com/hiveot/hivekit/go/modules/transports"
 	"github.com/hiveot/hivekit/go/msg"
 )
 
@@ -39,10 +39,8 @@ type DirectoryModule struct {
 	msgAPI *server.DirectoryMsgHandler
 	// the API servers if enabled
 	restAPI *server.DirectoryRestHandler
-	// router for rest api
-	router *chi.Mux
-	// the directory service itself
-	// service *service.DirectoryService
+	// http server serving the REST API
+	httpServer transports.IHttpServer
 	// root directory of the storage area
 	storageRoot string
 }
@@ -97,8 +95,8 @@ func (m *DirectoryModule) Start(_ string) (err error) {
 	if err == nil {
 		m.msgAPI = server.NewDirectoryMsgHandler(moduleID, m)
 	}
-	if err == nil && m.router != nil {
-		m.restAPI = server.StartDirectoryRestHandler(m, m.router)
+	if err == nil && m.httpServer != nil {
+		m.restAPI = server.StartDirectoryRestHandler(m, m.httpServer)
 	}
 	return err
 }
@@ -120,14 +118,17 @@ func (m *DirectoryModule) Stop() {
 //
 // storageRoot is the root dir of the storage area. Use "" for testing with an in-memory store.
 // router is the html server router to register the html API handlers with. nil to ignore.
-func NewDirectoryModule(storageRoot string, router *chi.Mux) *DirectoryModule {
+func NewDirectoryModule(storageRoot string, httpServer transports.IHttpServer) *DirectoryModule {
 
 	m := &DirectoryModule{
 		HiveModuleBase: modules.HiveModuleBase{},
 		storageRoot:    storageRoot,
-		router:         router,
+		httpServer:     httpServer,
 	}
 	m.SetModuleID(directory.DefaultDirectoryThingID)
+	if httpServer == nil {
+		slog.Warn("NewDirectoryModule: no httpServer provided. HTTP interface not active.")
+	}
 	var _ modules.IHiveModule = m // interface check
 
 	return m

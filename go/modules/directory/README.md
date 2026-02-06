@@ -6,15 +6,23 @@ The primary objective is to let consumers discover what Things are available and
 
 This directly follows the WoT discovery specification https://w3c.github.io/wot-discovery/#exploration-directory.
 
-This module is not a full blow stand-alone application but simply offers the directory capabilities applications or services that include a directory. It must be linked to a server module to receive the requests.
+This module is not a full blow stand-alone application but simply offers the directory capabilities applications or services that want to include a directory. It must be linked to a server module to receive the requests.
 
 ## Status
 
 This module is in alpha. It is functional but breaking changes might still happen.
 
+There are two notable issues for which there is no standardization:
+1: For security reasons, a TD should only be writable by the owning agent. How to determine who this agent is?
+2: How to prevent thingID collisions? There is no mechanism to guarantee uniquenes between devices.
+
+Solution: HiveOT requires that thingIDs contain the agentID prefix separated by a colon. The format for thingID is: "{agentID}:{deviceID}", where {deviceID} is the ID of the device unique within the scope of the agent publishing the TD.
+
+If the TD is to be published in an internet based directory, the agentID must be globally unique and the forms must be updated to externally reachable addresses. In HiveOT this is not a concern of devices. Instead a gateway module must handle external exposure and security.
+
 ## Summary
 
-The WoT discovery specification defines the directory service API for storing and retrieving TD information. This modules exports a TM that matches the description provided in the specification.
+The WoT discovery specification defines the directory service API for storing and retrieving TD information. This module exports a TM that matches the description provided in the specification.
 
 The directory package contains a service and a client module. Both can be used as any other module, and operate client side or server side. The directory server module can be linked to a transport module to receive requests and publish notifications. Similarly the directory client module can be used by applications to query the TDs of the available Things.
 

@@ -49,6 +49,8 @@ type IDirectoryModule interface {
 
 	// CreateThing creates or updates the TD in the directory.
 	// If the thing doesn't exist in the directory it is added.
+	//
+	// Things are stored under the ID of the agent.
 	CreateThing(tdJson string) error
 
 	// DeleteThing removes a Thing TD document from the directory

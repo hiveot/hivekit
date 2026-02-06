@@ -1,12 +1,5 @@
 package utils
 
-var UnauthorizedError error = unauthorizedError{}
+import "errors"
 
-// UnauthorizedError for dealing with authorization problems
-type unauthorizedError struct {
-	Message string
-}
-
-func (e unauthorizedError) Error() string {
-	return "Unauthorized: " + e.Message
-}
+var UnauthorizedError error = errors.New("Unauthorized")

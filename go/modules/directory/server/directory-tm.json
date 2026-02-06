@@ -8,7 +8,7 @@
   ],
   "@type": ["tm:ThingModel", "ThingDirectory"],
   "id": "ThingDirectory",
-  "title": "DigiTwin Directory Service",
+  "title": "Directory Service",
   "description": "HiveOT directory service",
   "version": {
     "instance": "1.0.0"

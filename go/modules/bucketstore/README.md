@@ -20,6 +20,8 @@ Where:
 - Bucket is a collection of key-value pairs in the store. Supported operations are get (multiple), set (multiple), and delete.
 - Cursor is an iterator in a bucket to iterate to the first, last, next, previous, skip, and seek.
 
+Each client can open a bucket store that is visible only to themselves. To this end, their authenticated clientID is used as the bucket name.
+
 That is all there is to it. No magic.
 
 ## Backends
@@ -46,9 +48,9 @@ Pebble's data size is pretty much limited to the available disk space. Got 1TB, 
 
 This store is best suited for large amounts of data. For example, the time series data of the history store.
 
-### inmemory
+### sqlite
 
-The inmemory backend is a super simple hashmap based in-memory store with no persistance. It can be used for caching small data sets and is used in module testcases.
+SQLite store is planned.
 
 ### bolts - removed as overkill
 

@@ -114,12 +114,13 @@ func (m *HttpServerModule) addMiddleware(cfg *httpserver.HttpServerConfig) {
 		authWrap := func(next http.Handler) http.Handler {
 			return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				var clientID string
+				var clientRole string
 				var err error
 
 				if cfg.AuthenticateHandler != nil {
-					clientID, err = cfg.AuthenticateHandler(r)
+					clientID, clientRole, err = cfg.AuthenticateHandler(r)
 				} else {
-					clientID, err = m.DefaultAuthenticate(r)
+					clientID, clientRole, err = m.DefaultAuthenticate(r)
 				}
 				if err != nil {
 					// see https://w3c.github.io/wot-discovery/#exploration-secboot
@@ -132,7 +133,8 @@ func (m *HttpServerModule) addMiddleware(cfg *httpserver.HttpServerConfig) {
 					return
 				}
 				ctx := r.Context()
-				ctx = context.WithValue(ctx, transports.ClientContextID, clientID)
+				ctx = context.WithValue(ctx, transports.ClientIDContextID, clientID)
+				ctx = context.WithValue(ctx, transports.ClientRoleContextID, clientRole)
 				next.ServeHTTP(w, r.WithContext(ctx))
 			})
 
@@ -185,12 +187,12 @@ func (m *HttpServerModule) AddSessionFromToken() func(next http.Handler) http.Ha
 					"err", err, "clientID", clientID)
 				return
 			}
-			_ = role
 			_ = validUntil
 
 			// make clientID available in context
 			ctx := r.Context()
-			ctx = context.WithValue(ctx, transports.ClientContextID, clientID)
+			ctx = context.WithValue(ctx, transports.ClientIDContextID, clientID)
+			ctx = context.WithValue(ctx, transports.ClientRoleContextID, role)
 			next.ServeHTTP(w, r.WithContext(ctx))
 		})
 	}
@@ -216,6 +218,6 @@ func (m *HttpServerModule) GetRequestParams(r *http.Request) (transports.Request
 }
 
 // GetClientIdFromContext
-func (m *HttpServerModule) GetClientIdFromContext(r *http.Request) (string, error) {
+func (m *HttpServerModule) GetClientIdFromContext(r *http.Request) (string, string, error) {
 	return GetClientIdFromContext(r)
 }

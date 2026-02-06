@@ -20,6 +20,7 @@ import (
 	tlsclient "github.com/hiveot/hivekit/go/modules/transports/httpserver/client"
 	"github.com/hiveot/hivekit/go/modules/transports/wss/converter"
 	"github.com/hiveot/hivekit/go/msg"
+	"github.com/hiveot/hivekit/go/utils"
 
 	"github.com/teris-io/shortid"
 )
@@ -283,7 +284,7 @@ func (cl *WssClient) Reconnect() {
 		if !cl.retryOnDisconnect.Load() {
 			break
 		}
-		if errors.Is(err, transports.UnauthorizedError) {
+		if errors.Is(err, utils.UnauthorizedError) {
 			break
 		}
 		// the connection timeout doesn't seem to work for some reason

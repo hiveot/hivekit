@@ -28,6 +28,8 @@ func WriteError(w http.ResponseWriter, err error, code int) {
 // WriteReply is a convenience function that serializes the data and writes it as a response,
 // optionally reporting an error with code BadRequest.
 //
+// # If data is already serialized then use w.Write(data) instead
+//
 // when handled, this returns a 200 status code if no error is returned.
 // handled is false means the request is in progress. This returns a 201.
 // if an err is returned this returns a 400 bad request or 403 unauthorized error code

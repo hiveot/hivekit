@@ -31,7 +31,7 @@ type HttpServerModule struct {
 	modules.HiveModuleBase
 
 	// HTTP authentication handler.
-	authenticateHandler func(req *http.Request) (clientID string, err error)
+	authenticateHandler func(req *http.Request) (clientID string, role string, err error)
 
 	config     *httpserver.HttpServerConfig
 	connectURL string
@@ -60,24 +60,23 @@ type HttpServerModule struct {
 // The default token authentication handler extracts the bearer token from the authorization header
 // and passes it to the configured token validator.
 func (m *HttpServerModule) DefaultAuthenticate(req *http.Request) (
-	clientID string, err error) {
+	clientID string, clientRole string, err error) {
 
 	if m.config.ValidateToken == nil {
 		err := fmt.Errorf("DefaultAuthenticate: Missing ValidateToken handler in configuration")
-		return "", err
+		return "", "", err
 	}
 	bearerToken, err := utils.GetBearerToken(req)
 	if err != nil {
-		return "", err
+		return "", "", err
 	}
 	//check if the token is properly signed and still valid
 	clientID, role, validUntil, err := m.config.ValidateToken(bearerToken)
 	if err != nil {
-		return "", err
+		return "", "", err
 	}
-	_ = role
 	_ = validUntil
-	return clientID, err
+	return clientID, role, err
 }
 
 // Provide the HTTP base URL to connect to the server. Eg "https://addr:port/""

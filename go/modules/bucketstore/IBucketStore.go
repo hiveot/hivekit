@@ -63,6 +63,7 @@ type IBucketStore interface {
 	// GetBucket opens and returns a bucket to use.
 	// This creates the bucket if it doesn't exist.
 	// Use bucket.Close() to close the bucket and release its resources.
+	// The messaging request handler uses the authenticated clientID as the bucketID
 	GetBucket(bucketID string) (bucket IBucket)
 
 	// GetStoreDirectory returns the full storage directory path

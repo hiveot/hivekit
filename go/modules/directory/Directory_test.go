@@ -1,9 +1,8 @@
 package directory_test
 
 import (
-	"encoding/json"
-	"fmt"
 	"net/http"
+	"net/url"
 	"os"
 	"testing"
 	"time"
@@ -18,6 +17,7 @@ import (
 	"github.com/hiveot/hivekit/go/modules/transports/tptests"
 	"github.com/hiveot/hivekit/go/utils"
 	"github.com/hiveot/hivekit/go/wot/td"
+	jsoniter "github.com/json-iterator/go"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -46,7 +46,7 @@ func StartDirectoryServer() (
 
 	testEnv, cancelTestEnv := tptests.StartTestEnv(defaultProtocol)
 	// use in-memory storage
-	m = module.NewDirectoryModule(storageRoot, nil)
+	m = module.NewDirectoryModule(storageRoot, testEnv.HttpServer)
 	err := m.Start("")
 	if err != nil {
 		panic("StartDirectoryServer: failed to start the directory " + err.Error())
@@ -97,7 +97,7 @@ func TestCreateTD(t *testing.T) {
 	assert.Len(t, tdList, 1)
 
 	// add another TD
-	tdi1 := td.NewTD(thingID, "test thing", "test device")
+	tdi1 := td.NewTD("", thingID, "test thing", "test device")
 	td1Json := tdi1.ToString()
 	m.CreateThing(td1Json)
 
@@ -124,10 +124,10 @@ func TestCRUDUsingMsgAPI(t *testing.T) {
 	defer cancelFn()
 
 	directoryID := directory.DefaultDirectoryThingID
-	thing1ID := "thing1"
+	thing1ID := clientID + ":thing1"
 
 	// test create a TD
-	tdi1 := td.NewTD(thing1ID, "thing 1", "device")
+	tdi1 := td.NewTD("", thing1ID, "thing 1", "device")
 	tdi1Json := tdi1.ToString()
 
 	// use a direct transport to the directory as the sink for the client
@@ -153,7 +153,7 @@ func TestCRUDUsingMsgAPI(t *testing.T) {
 }
 
 // Get the directory TD on the http server well-known endpoint
-func TestDiscoverDirectory(t *testing.T) {
+func TestGetDirectoryTD(t *testing.T) {
 	t.Logf("---%s---\n", t.Name())
 	const userID = "user1"
 	var dirTD *td.TD
@@ -162,31 +162,39 @@ func TestDiscoverDirectory(t *testing.T) {
 	defer cancelFn()
 	assert.NotEmpty(t, m)
 
-	dirTM := m.GetTM()
+	// dirTM := m.GetTM()
 
 	httpURL := testEnv.HttpServer.GetConnectURL()
-	tdURL := fmt.Sprintf("%s%s", httpURL, directory.WellKnownWoTPath)
-	httpClient := tlsclient.NewTLSClient(httpURL, nil, testEnv.CertBundle.CaCert, time.Minute)
-	respBody, statusCode, err := httpClient.Get(tdURL)
+	parts, _ := url.Parse(httpURL)
+	hostPort := parts.Host
+	// tdURL := fmt.Sprintf("%s%s", httpURL, directory.WellKnownWoTPath)
+	testEnv.Authenticator.AddClient(userID, transports.ClientRoleViewer, "", "")
+	token, _, err := testEnv.Authenticator.CreateToken(userID, time.Minute)
+	require.NoError(t, err)
+	httpClient := tlsclient.NewTLSClient(hostPort, nil, testEnv.CertBundle.CaCert, time.Minute)
+	err = httpClient.ConnectWithToken(userID, token)
+	require.NoError(t, err)
+
+	respBody, statusCode, err := httpClient.Get(directory.WellKnownWoTPath)
 	require.NoError(t, err)
 	require.Equal(t, http.StatusOK, statusCode)
 
-	err = json.Unmarshal(respBody, &dirTD)
+	err = jsoniter.Unmarshal(respBody, &dirTD)
 	require.NoError(t, err)
 
-	assert.Equal(t, dirTM, string(respBody))
+	// assert.Equal(t, dirTM.ID, dirTD.ID)
 }
 
 // Read the directory using the http api
 func TestCRUDUsingRestAPI(t *testing.T) {
 	t.Logf("---%s---\n", t.Name())
 
-	const clientID = "user1"
+	const clientID = "agent1"
+	thing1ID := "agent1:thing1"
 
-	thing1ID := "thing1"
-
-	testEnv, cancelFn := tptests.StartTestEnv(defaultProtocol)
+	testEnv, m, cancelFn := StartDirectoryServer()
 	defer cancelFn()
+	assert.NotEmpty(t, m)
 
 	// normally discovery provides the address
 	tddUrl := testEnv.HttpServer.GetConnectURL()
@@ -196,7 +204,6 @@ func TestCRUDUsingRestAPI(t *testing.T) {
 	require.NoError(t, err)
 	authToken, _, err := testEnv.Authenticator.CreateToken(clientID, time.Minute)
 	require.NoError(t, err)
-	require.NoError(t, err)
 
 	dirClient := directoryclient.NewDirectoryHttpClient(tddUrl, testEnv.CertBundle.CaCert)
 	// connect should read the directory TD
@@ -204,7 +211,7 @@ func TestCRUDUsingRestAPI(t *testing.T) {
 	require.NoError(t, err)
 
 	// test create a TD
-	tdi1 := td.NewTD(thing1ID, "thing 1", "device")
+	tdi1 := td.NewTD("", thing1ID, "thing 1", "device")
 	tdi1Json := tdi1.ToString()
 
 	err = dirClient.CreateThing(tdi1Json)

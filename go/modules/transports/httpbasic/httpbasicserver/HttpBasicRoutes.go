@@ -109,13 +109,7 @@ func (m *HttpBasicServer) onHttpAffordanceOperation(w http.ResponseWriter, r *ht
 	// expected to be called before the timeout, otherwise this returns an error.
 	rx := utils.NewAsyncReceiver[*msg.ResponseMessage]()
 	err = m.serverRequestHandler(req, func(resp *msg.ResponseMessage) error {
-		var err2 error
-		if resp != nil {
-			if resp.Error != nil {
-				err2 = resp.Error.AsError()
-			}
-		}
-		rx.SetResponse(resp, err2)
+		rx.SetResponse(resp)
 		return nil
 	})
 	resp, err := rx.WaitForResponse(time.Second * 1)

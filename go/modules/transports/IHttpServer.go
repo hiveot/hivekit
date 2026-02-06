@@ -21,8 +21,9 @@ const (
 	// The default listening port if none is set
 	DefaultPort = 8444
 
-	// The context ID for authenticated clientID
-	ClientContextID = "clientID"
+	// The context ID's for authenticated clientID and role
+	ClientIDContextID   = "clientID"
+	ClientRoleContextID = "clientRole"
 
 	// context for session identification - not currently in use
 	// SessionContextID = "sessionID"
@@ -44,6 +45,7 @@ const (
 // RequestParams contains the parameters read from the HTTP request
 type RequestParams struct {
 	ClientID      string // authenticated client ID
+	ClientRole    string // the role of the client if available
 	CorrelationID string // tentative as it isn't in the spec
 	ConnectionID  string // connectionID as provided by the client
 	Payload       []byte // the raw request payload (body)
@@ -61,9 +63,9 @@ type IHttpServer interface {
 	// Returns the connection URL of the http server
 	GetConnectURL() string
 
-	// Return the authenticated client from the http request context
-	// The clientID is set in the middleware chain which includes auth check
-	GetClientIdFromContext(r *http.Request) (string, error)
+	// Return the authenticated client and its role from the http request context.
+	// The clientID and role are set in the context by the middleware chain.
+	GetClientIdFromContext(r *http.Request) (clientID string, role string, err error)
 
 	// GetRequestParams decode the HiveOT standardized request parameters:
 	// - clientID from context, provided by 'clientID' context, set by the http server authentication.

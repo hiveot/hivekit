@@ -6,8 +6,6 @@ import (
 	"github.com/hiveot/hivekit/go/wot/td"
 )
 
-var UnauthorizedError error = unauthorizedError{}
-
 // ValidateTokenHandler is the handler definition for validating authentication tokens.
 // In http this is the bearer token in the authorization header.
 // This handler is provided by the authn module, but can also be used by other authentication methods.
@@ -59,15 +57,6 @@ const (
 	// have access to.
 	ClientRoleService string = "service"
 )
-
-// UnauthorizedError for dealing with authorization problems
-type unauthorizedError struct {
-	Message string
-}
-
-func (e unauthorizedError) Error() string {
-	return "Unauthorized: " + e.Message
-}
 
 // IAuthenticator is the interface of the authentication capability to obtain and
 // validate authentication tokens.

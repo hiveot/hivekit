@@ -11,14 +11,17 @@ import (
 	"github.com/hiveot/hivekit/go/modules/transports"
 )
 
-// GetClientIdFromContext returns the authenticated clientID for the given request
-func GetClientIdFromContext(r *http.Request) (clientID string, err error) {
-	ctxClientID := r.Context().Value(transports.ClientContextID)
+// GetClientIdFromContext returns the authenticated clientID and role for the given request
+func GetClientIdFromContext(r *http.Request) (clientID string, clientRole string, err error) {
+
+	ctxClientID := r.Context().Value(transports.ClientIDContextID)
+	ctxClientRole := r.Context().Value(transports.ClientRoleContextID)
 	if ctxClientID == nil {
-		return "", errors.New("no clientID in context")
+		return "", "", errors.New("no clientID in context")
 	}
 	clientID = ctxClientID.(string)
-	return clientID, nil
+	clientRole = ctxClientRole.(string)
+	return clientID, clientRole, nil
 }
 
 // GetRequestParams reads the client session, URL parameters and body payload from the
@@ -39,7 +42,7 @@ func GetClientIdFromContext(r *http.Request) (clientID string, err error) {
 //	{name} is the property, event or action name. '+' means 'all'
 func GetRequestParams(r *http.Request) (reqParam transports.RequestParams, err error) {
 	// determine the clientID, either from context or client cert
-	reqParam.ClientID, err = GetClientIdFromContext(r)
+	reqParam.ClientID, reqParam.ClientRole, err = GetClientIdFromContext(r)
 	if err != nil {
 		clcerts := r.TLS.PeerCertificates
 		if len(clcerts) > 0 {

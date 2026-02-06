@@ -147,16 +147,12 @@ func (m *SsescServer) onHttpRequestMessage(w http.ResponseWriter, r *http.Reques
 	} else {
 		// server connection handles subscriptions so forward it
 		sc, _ := c.(*HiveotSseServerConnection)
-		handled, err := sc.onRequestMessage(req)
+		handled, _ := sc.onRequestMessage(req)
 
 		// if the connection doesnt handle the request then forward it to the
 		// registered request sink, a producer running on the server.
 		if !handled {
-			err = m.ForwardRequest(req,
-				func(resp *msg.ResponseMessage) error {
-					err = c.SendResponse(resp)
-					return err
-				})
+			err = m.ForwardRequest(req, c.SendResponse)
 		} else {
 
 		}

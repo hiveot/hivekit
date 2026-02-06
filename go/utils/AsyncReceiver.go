@@ -16,8 +16,19 @@ import (
 // received asynchronously then call SetResponse.
 type AsyncReceiver[T comparable] struct {
 	data  T
-	err   error
 	rChan chan T
+}
+
+// Write the answer to the channel
+func (arx *AsyncReceiver[T]) SetResponse(data T) {
+	ctx, cancelFn := context.WithTimeout(context.Background(), time.Second)
+	select {
+	case arx.rChan <- data:
+	case <-ctx.Done():
+		// this should never happen
+		panic("Response RPC go channel is full. Is no-one listening?")
+	}
+	cancelFn()
 }
 
 // WaitForResponse waits for the response to be set or times out.
@@ -25,7 +36,8 @@ type AsyncReceiver[T comparable] struct {
 // If timeout is 0 or negative, a default of 60 seconds is used.
 //
 // Returns the data and error set by SetResponse, or a timeout error.
-func (rnr *AsyncReceiver[T]) WaitForResponse(timeout time.Duration) (T, error) {
+func (arx *AsyncReceiver[T]) WaitForResponse(timeout time.Duration) (T, error) {
+	var err error
 	if timeout <= 0 {
 		timeout = time.Second * 60
 	}
@@ -34,25 +46,12 @@ func (rnr *AsyncReceiver[T]) WaitForResponse(timeout time.Duration) (T, error) {
 	defer cancelFunc()
 
 	select {
-	case rnr.data = <-rnr.rChan:
+	case arx.data = <-arx.rChan:
 		break
 	case <-ctx.Done():
-		rnr.err = errors.New("timeout")
+		err = errors.New("timeout")
 	}
-	return rnr.data, rnr.err
-}
-
-// Write the answer to the channel
-func (rnr *AsyncReceiver[T]) SetResponse(data T, err error) {
-	ctx, cancelFn := context.WithTimeout(context.Background(), time.Second)
-	select {
-	case rnr.rChan <- data:
-		rnr.err = err
-	case <-ctx.Done():
-		// this should never happen
-		rnr.err = errors.New("Response RPC go channel is full. Is no-one listening?")
-	}
-	cancelFn()
+	return arx.data, err
 }
 
 func NewAsyncReceiver[T comparable]() AsyncReceiver[T] {

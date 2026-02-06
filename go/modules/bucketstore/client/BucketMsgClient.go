@@ -7,7 +7,8 @@ import (
 	"github.com/hiveot/hivekit/go/wot"
 )
 
-// BucketMsgClient is the RRN client for service messages using a provided hub connection.
+// BucketMsgClient is the client for storing key-value data into a bucket.
+// The authenticated clientID is used as bucket key.
 //
 // The BucketMsgClient converts the bucketstore API to RRN messages and passes them
 // to the provided sink, typically a messaging protocol client.
