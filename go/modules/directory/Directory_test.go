@@ -3,17 +3,18 @@ package directory_test
 import (
 	"encoding/json"
 	"fmt"
-	"io"
+	"net/http"
+	"os"
 	"testing"
 	"time"
 
-	"github.com/hiveot/hivekit/go/lib/clients/tlsclient"
 	"github.com/hiveot/hivekit/go/modules/directory"
 	directoryclient "github.com/hiveot/hivekit/go/modules/directory/client"
 	"github.com/hiveot/hivekit/go/modules/directory/module"
 	"github.com/hiveot/hivekit/go/modules/directory/server"
 	"github.com/hiveot/hivekit/go/modules/transports"
 	"github.com/hiveot/hivekit/go/modules/transports/direct"
+	tlsclient "github.com/hiveot/hivekit/go/modules/transports/httpserver/client"
 	"github.com/hiveot/hivekit/go/modules/transports/tptests"
 	"github.com/hiveot/hivekit/go/utils"
 	"github.com/hiveot/hivekit/go/wot/td"
@@ -26,10 +27,24 @@ var storageRoot = ""
 const defaultProtocol = transports.ProtocolTypeWotWSS
 const TestKeyType = utils.KeyTypeED25519
 
-// Start a test environment with a directory module connected to the server
-func StartDirectoryServer() (testEnv *tptests.TestEnv, m directory.IDirectoryModule, cancelFn func()) {
+// TestMain create a test folder for certificates and private key
+func TestMain(m *testing.M) {
+	utils.SetLogging("info", "")
 
-	testEnv, cancelFn = tptests.StartTestEnv(defaultProtocol)
+	result := m.Run()
+	if result != 0 {
+		println("Test failed with code:", result)
+	} else {
+	}
+
+	os.Exit(result)
+}
+
+// Start a test environment with a directory module connected to the server
+func StartDirectoryServer() (
+	testEnv *tptests.TestEnv, m directory.IDirectoryModule, cancelFn func()) {
+
+	testEnv, cancelTestEnv := tptests.StartTestEnv(defaultProtocol)
 	// use in-memory storage
 	m = module.NewDirectoryModule(storageRoot, nil)
 	err := m.Start("")
@@ -41,7 +56,7 @@ func StartDirectoryServer() (testEnv *tptests.TestEnv, m directory.IDirectoryMod
 	m.SetNotificationSink(testEnv.Server.HandleNotification)
 	return testEnv, m, func() {
 		m.Stop()
-		cancelFn()
+		cancelTestEnv()
 	}
 }
 
@@ -97,8 +112,6 @@ func TestCreateTD(t *testing.T) {
 	// delete a thing
 	err = m.DeleteThing(thingID)
 	assert.NoError(t, err)
-
-	m.Stop()
 }
 
 // Test using the messaging API to create and read things
@@ -153,11 +166,10 @@ func TestDiscoverDirectory(t *testing.T) {
 
 	httpURL := testEnv.HttpServer.GetConnectURL()
 	tdURL := fmt.Sprintf("%s%s", httpURL, directory.WellKnownWoTPath)
-	httpClient := tlsclient.NewHttp2TLSClient(testEnv.CertBundle.CaCert, nil, time.Minute)
-	resp, err := httpClient.Get(tdURL)
+	httpClient := tlsclient.NewTLSClient(httpURL, nil, testEnv.CertBundle.CaCert, time.Minute)
+	respBody, statusCode, err := httpClient.Get(tdURL)
 	require.NoError(t, err)
-	respBody, err := io.ReadAll(resp.Body)
-	require.NoError(t, err)
+	require.Equal(t, http.StatusOK, statusCode)
 
 	err = json.Unmarshal(respBody, &dirTD)
 	require.NoError(t, err)

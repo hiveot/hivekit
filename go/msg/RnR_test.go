@@ -6,8 +6,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/hiveot/hivekit/go/lib/logging"
 	"github.com/hiveot/hivekit/go/msg"
+	"github.com/hiveot/hivekit/go/utils"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -189,7 +189,7 @@ func TestRnRNoOpenWaitCallback(t *testing.T) {
 func Benchmark_RnRBulkWaitCallback(b *testing.B) {
 	var rxCount atomic.Int32
 
-	logging.SetLogging("warning", "")
+	utils.SetLogging("warning", "")
 
 	b.Run("waitwithcallback", func(b *testing.B) {
 		for n := 0; n < b.N; n++ {

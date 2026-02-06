@@ -6,7 +6,6 @@ import (
 	"path"
 	"testing"
 
-	"github.com/hiveot/hivekit/go/lib/logging"
 	"github.com/hiveot/hivekit/go/utils"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -25,7 +24,7 @@ func TestMain(m *testing.M) {
 
 	testPrivKeyPemFile = path.Join(TestKeysFolder, "privKey.pem")
 	testPubKeyPemFile = path.Join(TestKeysFolder, "pubKey.pem")
-	logging.SetLogging("info", "")
+	utils.SetLogging("info", "")
 
 	result := m.Run()
 	if result != 0 {

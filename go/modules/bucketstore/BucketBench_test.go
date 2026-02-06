@@ -4,11 +4,10 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/hiveot/hivekit/go/utils"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/thanhpk/randstr"
-
-	"github.com/hiveot/hivekit/go/lib/logging"
 )
 
 // $ go test -bench=Benchmark_bucket -benchtime=3s -run=^#    (skip unit tests)
@@ -82,7 +81,7 @@ var testData = func() []TestEl {
 }()
 
 func Benchmark_bucket(b *testing.B) {
-	logging.SetLogging("warning", "")
+	utils.SetLogging("warning", "")
 
 	for _, v := range DataSizeTable {
 		//setup

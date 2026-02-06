@@ -12,10 +12,10 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/hiveot/hivekit/go/lib/logging"
 	"github.com/hiveot/hivekit/go/modules/authn"
 	"github.com/hiveot/hivekit/go/modules/authn/module/authnstore"
 	"github.com/hiveot/hivekit/go/modules/transports"
+	"github.com/hiveot/hivekit/go/utils"
 )
 
 const unpwFileName = "testunpwstore.passwd"
@@ -27,7 +27,7 @@ var algo = authn.PWHASH_ARGON2id
 
 // TestMain for all authn tests, setup of default folders and filenames
 func TestMain(m *testing.M) {
-	logging.SetLogging("info", "")
+	utils.SetLogging("info", "")
 	tempFolder = path.Join(os.TempDir(), "hiveot-authn-test")
 	_ = os.MkdirAll(tempFolder, 0700)
 

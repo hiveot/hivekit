@@ -22,7 +22,7 @@ package authn_test
 // TestMain runs a http server
 // Used for all test cases in this package
 // func TestMain(m *testing.M) {
-// 	logging.SetLogging("info", "")
+// 	utils.SetLogging("info", "")
 // 	slog.Info("------ TestMain of httpauthhandler ------")
 // 	testAddress = "127.0.0.1:9888"
 // 	// hostnames := []string{testAddress}

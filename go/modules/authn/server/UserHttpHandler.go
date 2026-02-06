@@ -6,9 +6,8 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/hiveot/hivekit/go/lib/servers/httpbasic"
-	"github.com/hiveot/hivekit/go/lib/servers/tlsserver"
 	"github.com/hiveot/hivekit/go/modules/transports"
+	"github.com/hiveot/hivekit/go/utils"
 	jsoniter "github.com/json-iterator/go"
 )
 
@@ -58,12 +57,12 @@ func (handler *UserHttpHandler) onHttpLogin(w http.ResponseWriter, r *http.Reque
 	}
 	if err != nil {
 		slog.Warn("HandleLogin failed:", "err", err.Error())
-		tlsserver.WriteError(w, err, http.StatusUnauthorized)
+		utils.WriteError(w, err, http.StatusUnauthorized)
 		return
 	}
 	// TODO: set client session cookie for browser clients
 	//srv.sessionManager.SetSessionCookie(cs.sessionID,token)
-	tlsserver.WriteReply(w, true, newToken, nil)
+	utils.WriteReply(w, true, newToken, nil)
 }
 
 // onHttpLogout ends the session and closes all client connections
@@ -74,7 +73,7 @@ func (handler *UserHttpHandler) onHttpLogout(w http.ResponseWriter, r *http.Requ
 		slog.Info("HandleLogout", "clientID", rp.ClientID)
 		handler.authenticator.Logout(rp.ClientID)
 	}
-	tlsserver.WriteReply(w, true, nil, err)
+	utils.WriteReply(w, true, nil, err)
 }
 
 // onHttpAuthRefresh refreshes the auth token using the session authenticator.
@@ -94,10 +93,10 @@ func (handler *UserHttpHandler) onHttpTokenRefresh(w http.ResponseWriter, r *htt
 	}
 	if err != nil {
 		slog.Warn("HandleAuthRefresh failed:", "err", err.Error())
-		tlsserver.WriteError(w, err, 0)
+		utils.WriteError(w, err, 0)
 		return
 	}
-	tlsserver.WriteReply(w, true, newToken, nil)
+	utils.WriteReply(w, true, newToken, nil)
 }
 
 // Create a http server handler for user facing requests and register endpoints
@@ -111,10 +110,10 @@ func NewUserHttpHandler(authenticator transports.IAuthenticator, httpServer tran
 	}
 	// create routes
 	pubRoutes := httpServer.GetPublicRoute()
-	pubRoutes.Post(httpbasic.HttpPostLoginPath, handler.onHttpLogin)
+	pubRoutes.Post(HttpPostLoginPath, handler.onHttpLogin)
 
 	protRoutes := httpServer.GetProtectedRoute()
-	protRoutes.Post(httpbasic.HttpPostRefreshPath, handler.onHttpTokenRefresh)
-	protRoutes.Post(httpbasic.HttpPostLogoutPath, handler.onHttpLogout)
+	protRoutes.Post(HttpPostRefreshPath, handler.onHttpTokenRefresh)
+	protRoutes.Post(HttpPostLogoutPath, handler.onHttpLogout)
 	return handler
 }

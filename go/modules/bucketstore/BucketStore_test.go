@@ -15,13 +15,12 @@ import (
 	"github.com/hiveot/hivekit/go/modules/bucketstore/module/kvbtree"
 	"github.com/hiveot/hivekit/go/modules/bucketstore/module/pebble"
 	"github.com/hiveot/hivekit/go/modules/transports/direct"
+	"github.com/hiveot/hivekit/go/utils"
 	"github.com/hiveot/hivekit/go/wot"
 	"github.com/hiveot/hivekit/go/wot/td"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-
-	"github.com/hiveot/hivekit/go/lib/logging"
 )
 
 var testBucketID = "default"
@@ -185,7 +184,7 @@ func startModule(t *testing.T) (*module.BucketStoreModule, func(), error) {
 }
 
 func TestMain(m *testing.M) {
-	logging.SetLogging("info", "")
+	utils.SetLogging("info", "")
 
 	res := m.Run()
 	os.Exit(res)

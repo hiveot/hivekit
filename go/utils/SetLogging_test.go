@@ -1,11 +1,11 @@
-package logging_test
+package utils_test
 
 import (
 	"log/slog"
 	"os"
 	"testing"
 
-	"github.com/hiveot/hivekit/go/lib/logging"
+	"github.com/hiveot/hivekit/go/utils"
 )
 
 func TestLogging(t *testing.T) {
@@ -14,13 +14,13 @@ func TestLogging(t *testing.T) {
 	logFile := ""
 
 	os.Remove(logFile)
-	logging.SetLogging("info", logFile)
+	utils.SetLogging("info", logFile)
 	slog.Info("Hello info")
-	logging.SetLogging("debug", logFile)
+	utils.SetLogging("debug", logFile)
 	slog.Debug("Hello debug")
-	logging.SetLogging("warn", logFile)
+	utils.SetLogging("warn", logFile)
 	slog.Warn("Hello warn")
-	logging.SetLogging("error", logFile)
+	utils.SetLogging("error", logFile)
 	slog.Error("Hello error")
 	//assert.FileExists(t, logFile)
 	//os.Remove(logFile)

@@ -5,7 +5,6 @@
 package authnclient
 
 import (
-	"github.com/hiveot/hivekit/go/lib/consumer"
 	"github.com/hiveot/hivekit/go/modules"
 	"github.com/hiveot/hivekit/go/modules/authn"
 	"github.com/hiveot/hivekit/go/modules/authn/server"
@@ -49,7 +48,7 @@ func (cl *AuthnUserMsgClient) Logout() (err error) {
 }
 
 // UserRefreshToken client method - Request a new auth token for the current client.
-func (cl *AuthnUserMsgClient) RefreshToken(hc *consumer.Consumer, oldToken string) (newToken string, err error) {
+func (cl *AuthnUserMsgClient) RefreshToken(hc *clients.Consumer, oldToken string) (newToken string, err error) {
 
 	err = cl.co.Rpc(wot.OpInvokeAction,
 		server.AuthnUserServiceID,
@@ -59,7 +58,7 @@ func (cl *AuthnUserMsgClient) RefreshToken(hc *consumer.Consumer, oldToken strin
 
 // UserUpdatePassword client method - Update Password.
 // Request changing the password of the current client
-func (cl *AuthnUserMsgClient) UpdateProfile(hc *consumer.Consumer, password string) (err error) {
+func (cl *AuthnUserMsgClient) UpdateProfile(hc *clients.Consumer, password string) (err error) {
 	err = cl.co.Rpc(wot.OpInvokeAction,
 		server.AuthnUserServiceID,
 		server.UserActionSetPassword, &password, nil)

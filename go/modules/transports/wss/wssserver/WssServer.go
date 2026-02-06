@@ -110,7 +110,7 @@ func (m *WssServer) Serve(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		utils.WriteError(w, err, 0)
 	}
-	slog.Info("Receiving Websocket connection", slog.String("clientID", clientID))
+	slog.Info("Serve: Receiving Websocket connection", slog.String("clientID", clientID))
 
 	if err != nil {
 		slog.Warn("Serve. No clientID",
@@ -124,7 +124,7 @@ func (m *WssServer) Serve(w http.ResponseWriter, r *http.Request) {
 	var upgrader = websocket.Upgrader{} // use default options
 	wssConn, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
-		slog.Warn("Serve. Connection upgrade failed",
+		slog.Warn("Serve: Connection upgrade failed",
 			"clientID", clientID, "err", err.Error())
 		return
 	}
@@ -162,7 +162,7 @@ func (m *WssServer) Serve(w http.ResponseWriter, r *http.Request) {
 //	yamlConfig: todo, wssPath
 func (m *WssServer) Start(yamlConfig string) (err error) {
 
-	slog.Info("Starting websocket module, Listening on: " + m.GetConnectURL())
+	slog.Info("Start: Starting websocket module, Listening on: " + m.GetConnectURL())
 
 	// TODO: detect if already running
 
@@ -180,7 +180,7 @@ func (m *WssServer) Start(yamlConfig string) (err error) {
 
 // Stop disconnects clients and remove connection listening
 func (m *WssServer) Stop() {
-	slog.Info("Stopping websocket module")
+	slog.Info("Stop: Stopping websocket module")
 	m.CloseAll()
 	router := m.httpServer.GetProtectedRoute()
 	router.Delete(m.wssPath, m.Serve)

@@ -10,7 +10,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/hiveot/hivekit/go/lib/logging"
 	"github.com/hiveot/hivekit/go/modules/certs/module/selfsigned"
 	tlsclient "github.com/hiveot/hivekit/go/modules/transports/httpserver/client"
 	"github.com/hiveot/hivekit/go/utils"
@@ -60,7 +59,7 @@ func startTestServer(mux *http.ServeMux) (*http.Server, error) {
 // TestMain runs a http server
 // Used for all test cases in this package
 func TestMain(m *testing.M) {
-	logging.SetLogging("info", "")
+	utils.SetLogging("info", "")
 	slog.Info("------ TestMain of httpauthhandler ------")
 	testAddress = "127.0.0.1:9888"
 	// hostnames := []string{testAddress}

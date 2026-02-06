@@ -10,7 +10,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/hiveot/hivekit/go/lib/logging"
 	"github.com/hiveot/hivekit/go/modules/certs/module/selfsigned"
 	"github.com/hiveot/hivekit/go/modules/transports"
 	"github.com/hiveot/hivekit/go/msg"
@@ -66,7 +65,7 @@ func DummyResponseHandler(response *msg.ResponseMessage) error {
 
 // TestMain sets logging
 func TestMain(m *testing.M) {
-	logging.SetLogging("info", "")
+	utils.SetLogging("info", "")
 	result := m.Run()
 	os.Exit(result)
 }

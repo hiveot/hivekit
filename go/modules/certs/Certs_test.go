@@ -6,7 +6,6 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/hiveot/hivekit/go/lib/logging"
 	"github.com/hiveot/hivekit/go/modules/certs"
 	"github.com/hiveot/hivekit/go/modules/certs/certutils"
 	certsclient "github.com/hiveot/hivekit/go/modules/certs/client"
@@ -41,7 +40,7 @@ func startModule(t *testing.T) (*module.CertsModule, func(), error) {
 func TestMain(m *testing.M) {
 	TestCertDir = filepath.Join(os.TempDir(), "hiveot-certs-test")
 
-	logging.SetLogging("info", "")
+	utils.SetLogging("info", "")
 
 	result := m.Run()
 	if result != 0 {

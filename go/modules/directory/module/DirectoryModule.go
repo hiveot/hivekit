@@ -76,7 +76,9 @@ func (m *DirectoryModule) HandleRequest(req *msg.RequestMessage, replyTo msg.Res
 // - enable the http request handler using the given router
 // - updates this service TD in the store
 func (m *DirectoryModule) Start(_ string) (err error) {
+
 	moduleID := m.GetModuleID()
+	slog.Info("Start: Starting directory module", "moduleID", moduleID)
 
 	storageDir := ""
 	if m.storageRoot != "" {
@@ -103,9 +105,10 @@ func (m *DirectoryModule) Start(_ string) (err error) {
 
 // Stop any running actions
 func (m *DirectoryModule) Stop() {
+	slog.Info("Stop: closing directory store")
 	err := m.bucket.Close()
 	if err != nil {
-		slog.Error("Stop error", "err", err.Error())
+		slog.Error("Stop: error stopping directory bucket", "err", err.Error())
 	}
 	m.bucketStore.Close()
 }

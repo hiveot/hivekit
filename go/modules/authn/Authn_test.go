@@ -6,7 +6,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/hiveot/hivekit/go/lib/logging"
 	"github.com/hiveot/hivekit/go/modules/authn"
 	"github.com/hiveot/hivekit/go/modules/authn/module"
 	"github.com/hiveot/hivekit/go/modules/certs/module/selfsigned"
@@ -108,7 +107,7 @@ func startTestAuthnModule(encryption string) (m *module.AuthnModule, stopFn func
 // TestMain creates a test environment
 // Used for all test cases in this package
 func TestMain(m *testing.M) {
-	logging.SetLogging("info", "")
+	utils.SetLogging("info", "")
 	res := m.Run()
 	if res == 0 {
 		_ = os.RemoveAll(testDir)

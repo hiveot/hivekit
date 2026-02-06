@@ -1,5 +1,5 @@
-// Package logging with logging configuration
-package logging
+// Package utils with logging configuration
+package utils
 
 import (
 	"io"

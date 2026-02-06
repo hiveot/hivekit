@@ -23,6 +23,10 @@ type DirectoryRestHandler struct {
 	router  *chi.Mux
 }
 
+// Read the directory service TD itself
+func (srv *DirectoryRestHandler) handleReadDirectoryTD(w http.ResponseWriter, r *http.Request) {
+}
+
 func (srv *DirectoryRestHandler) handleRetrieveThing(w http.ResponseWriter, r *http.Request) {
 	// A thingID is provided otherwise this handler would not have been called
 	thingID := chi.URLParam(r, ThingIDURIVar)
@@ -69,6 +73,7 @@ func StartDirectoryRestHandler(service directory.IDirectoryModule, router *chi.M
 		service: service,
 	}
 	// add secured routes
+	srv.router.Get(directory.WellKnownWoTPath, srv.handleReadDirectoryTD)
 	srv.router.Get(fmt.Sprintf("/things/{%s}", ThingIDURIVar), srv.handleRetrieveThing)
 	srv.router.Get("/things", srv.handleRetrieveAllThings)
 	srv.router.Put(fmt.Sprintf("/things/{%s}", ThingIDURIVar), srv.handleUpdateThing)

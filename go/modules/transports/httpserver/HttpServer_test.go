@@ -8,7 +8,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/hiveot/hivekit/go/lib/logging"
 	"github.com/hiveot/hivekit/go/modules/certs/module/selfsigned"
 	"github.com/hiveot/hivekit/go/modules/transports/httpserver"
 	tlsclient "github.com/hiveot/hivekit/go/modules/transports/httpserver/client"
@@ -28,7 +27,7 @@ var TestKeyType = utils.KeyTypeED25519
 // TestMain runs a http server
 // Used for all test cases in this package
 func TestMain(m *testing.M) {
-	logging.SetLogging("info", "")
+	utils.SetLogging("info", "")
 	// slog.Info("------ TestMain of TLSServer_test.go ------")
 	// serverAddress = utils.GetOutboundIP("").String()
 	// use the localhost interface for testing
