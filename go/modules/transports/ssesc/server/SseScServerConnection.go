@@ -145,7 +145,7 @@ func (sc *HiveotSseServerConnection) SendNotification(
 		slog.Info("SendNotification (subscribed)",
 			slog.String("clientID", clientID),
 			slog.String("thingID", notif.ThingID),
-			slog.String("op", notif.Operation),
+			slog.String("affordance", string(notif.AffordanceType)),
 			slog.String("name", notif.Name),
 		)
 		err := sc._send(msg.MessageTypeNotification, notif)

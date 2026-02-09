@@ -311,14 +311,14 @@ func (cl *WssClient) SendNotification(notif *msg.NotificationMessage) {
 	slog.Info("SendNotification",
 		slog.String("clientID", clientID),
 		slog.String("correlationID", notif.CorrelationID),
-		slog.String("operation", notif.Operation),
+		slog.String("affordance", string(notif.AffordanceType)),
 		slog.String("thingID", notif.ThingID),
 		slog.String("name", notif.Name),
 	)
 	// convert the operation into a protocol message
 	wssMsg, err := cl.msgConverter.EncodeNotification(notif)
 	if err != nil {
-		slog.Error("SendNotification: unknown operation", "op", notif.Operation)
+		slog.Error("SendNotification: unknown affordance", "affordanceType", notif.AffordanceType)
 	}
 	err = cl._send(wssMsg)
 	if err != nil {

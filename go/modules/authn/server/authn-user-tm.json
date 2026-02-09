@@ -97,7 +97,7 @@
       "input": {
         "type": "object",
         "properties": {
-          "clientID": {
+          "username": {
             "title": "Login ID",
             "type": "string"
           },

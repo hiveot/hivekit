@@ -9,7 +9,6 @@ import (
 
 	"github.com/hiveot/hivekit/go/modules/transports"
 	"github.com/hiveot/hivekit/go/msg"
-	"github.com/hiveot/hivekit/go/wot"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -52,7 +51,7 @@ func TestSubscribeAll(t *testing.T) {
 	co1.SetNotificationSink(func(ev *msg.NotificationMessage) {
 		slog.Info("client 1 receives event")
 		// receive event
-		rxVal.Store(ev.Value)
+		rxVal.Store(ev.Data)
 		//cancelFn()
 	})
 	co2.SetNotificationSink(func(ev *msg.NotificationMessage) {
@@ -78,7 +77,7 @@ func TestSubscribeAll(t *testing.T) {
 	// 3. Server sends event to consumers
 	time.Sleep(time.Millisecond * 10)
 	notif1 := msg.NewNotificationMessage(
-		wot.OpSubscribeEvent, thingID, eventKey, testMsg1)
+		agentID, msg.AffordanceTypeEvent, thingID, eventKey, testMsg1)
 	testEnv.Server.SendNotification(notif1)
 
 	// 4. subscriber should have received them
@@ -99,7 +98,7 @@ func TestSubscribeAll(t *testing.T) {
 
 	// 5. Server sends another event to consumers
 	notif2 := msg.NewNotificationMessage(
-		wot.OpSubscribeEvent, thingID, eventKey, testMsg2)
+		agentID, msg.AffordanceTypeEvent, thingID, eventKey, testMsg2)
 	testEnv.Server.SendNotification(notif2)
 	time.Sleep(time.Millisecond)
 	// update not received
@@ -125,7 +124,7 @@ func TestPublishEventsByAgent(t *testing.T) {
 	notificationHandler := func(msg *msg.NotificationMessage) {
 		// the server handler receives all notifications
 		if msg.ThingID == thingID {
-			evVal.Store(msg.Value)
+			evVal.Store(msg.Data)
 		}
 	}
 	testEnv, cancelFn := StartTestEnv(defaultProtocol)

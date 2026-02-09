@@ -2,8 +2,8 @@ package directory
 
 import "github.com/hiveot/hivekit/go/modules"
 
-// DefaultDirectoryThingID is the default thingID of the directory module.
-const DefaultDirectoryThingID = "directory"
+// DefaultDirectoryModuleID is the default moduleID of the directory module.
+const DefaultDirectoryModuleID = "directory"
 
 // The http path that provides the TD of the service
 // in case of the directory this provide the directory TD path

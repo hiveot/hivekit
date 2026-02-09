@@ -40,10 +40,10 @@ func TestObservePropertyByConsumer(t *testing.T) {
 
 	// set the handler for property updates and subscribe
 	co1.SetNotificationHook(func(ev *msg.NotificationMessage) {
-		rxVal1.Store(ev.Value)
+		rxVal1.Store(ev.Data)
 	})
 	co2.SetNotificationHook(func(ev *msg.NotificationMessage) {
-		rxVal2.Store(ev.Value)
+		rxVal2.Store(ev.Data)
 	})
 
 	// Client1 subscribes to one, client 2 to all property updates
@@ -55,7 +55,7 @@ func TestObservePropertyByConsumer(t *testing.T) {
 
 	// 3. Server sends a property update to consumers
 	notif1 := msg.NewNotificationMessage(
-		wot.OpObserveProperty, thingID, propertyKey1, propValue1)
+		thingID, msg.AffordanceTypeProperty, thingID, propertyKey1, propValue1)
 	testEnv.Server.SendNotification(notif1)
 
 	// 4. both observers should have received it
@@ -70,10 +70,10 @@ func TestObservePropertyByConsumer(t *testing.T) {
 
 	// 6. Server sends a property update to consumers
 	notif2 := msg.NewNotificationMessage(
-		wot.OpObserveProperty, thingID, propertyKey1, propValue2)
+		thingID, msg.AffordanceTypeProperty, thingID, propertyKey1, propValue2)
 	testEnv.Server.SendNotification(notif2)
 	notif3 := msg.NewNotificationMessage(
-		wot.OpObserveProperty, thingID, propertyKey2, propValue2)
+		thingID, msg.AffordanceTypeProperty, thingID, propertyKey2, propValue2)
 	testEnv.Server.SendNotification(notif3)
 
 	// 7. property should not have been received
@@ -85,7 +85,7 @@ func TestObservePropertyByConsumer(t *testing.T) {
 	err = co2.UnobserveProperty("", "")
 	time.Sleep(time.Millisecond * 10)
 	notif4 := msg.NewNotificationMessage(
-		wot.OpObserveProperty, thingID, propertyKey2, propValue1)
+		thingID, msg.AffordanceTypeProperty, thingID, propertyKey2, propValue1)
 	testEnv.Server.SendNotification(notif4)
 	// no change is expected
 	assert.Equal(t, propValue2, rxVal2.Load())
@@ -104,7 +104,7 @@ func TestPublishPropertyByAgent(t *testing.T) {
 	notificationHandler := func(msg *msg.NotificationMessage) {
 		// the server receives all notifications, we only want matching thingID
 		if msg.ThingID == thingID {
-			evVal.Store(msg.Value.(string))
+			evVal.Store(msg.Data.(string))
 		}
 	}
 
@@ -140,8 +140,10 @@ func TestReadProperty(t *testing.T) {
 	appReqHandler := func(req *msg.RequestMessage, replyTo msg.ResponseHandler) error {
 		var resp *msg.ResponseMessage
 		if req.Operation == wot.OpReadProperty && req.ThingID == thingID && req.Name == propKey {
-			tv := msg.NewThingValue(msg.AffordanceTypeProperty,
+			tv := msg.NewThingValue(
+				req.SenderID, msg.AffordanceTypeProperty,
 				"thingID", req.Name, propValue, timestamp)
+
 			resp = req.CreateResponse(tv, nil)
 			resp.Timestamp = timestamp
 		} else {
@@ -178,9 +180,9 @@ func TestReadAllProperties(t *testing.T) {
 		var resp *msg.ResponseMessage
 		if req.Operation == wot.OpReadAllProperties {
 			output := make(map[string]*msg.ThingValue)
-			output[name1] = msg.NewThingValue(
+			output[name1] = msg.NewThingValue(req.SenderID,
 				msg.AffordanceTypeProperty, thingID, name1, value1, "")
-			output[name2] = msg.NewThingValue(
+			output[name2] = msg.NewThingValue(req.SenderID,
 				msg.AffordanceTypeProperty, thingID, name2, value2, "")
 			resp = req.CreateResponse(output, nil)
 		} else {

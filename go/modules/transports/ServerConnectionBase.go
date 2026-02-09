@@ -7,7 +7,6 @@ import (
 	"sync/atomic"
 
 	"github.com/hiveot/hivekit/go/msg"
-	"github.com/hiveot/hivekit/go/wot"
 )
 
 // ServerConnectionBase is a base type for implementing transport connections server side.
@@ -60,9 +59,9 @@ func (c *ServerConnectionBase) GetConnectionID() string {
 // HasSubscription returns true if this connection has subscribed to the given
 // event notification or observing property changes.
 func (sc *ServerConnectionBase) HasSubscription(notif *msg.NotificationMessage) bool {
-	switch notif.Operation {
+	switch notif.AffordanceType {
 
-	case wot.OpSubscribeEvent, wot.OpSubscribeAllEvents:
+	case msg.AffordanceTypeEvent:
 		correlationID := sc.subscriptions.GetSubscription(notif.ThingID, notif.Name)
 		if correlationID != "" {
 			slog.Info("HasSubscription (event subscription)",
@@ -72,7 +71,7 @@ func (sc *ServerConnectionBase) HasSubscription(notif *msg.NotificationMessage) 
 			)
 			return true
 		}
-	case wot.OpObserveProperty, wot.OpObserveMultipleProperties, wot.OpObserveAllProperties:
+	case msg.AffordanceTypeProperty:
 		correlationID := sc.observations.GetSubscription(notif.ThingID, notif.Name)
 		if correlationID != "" {
 			slog.Info("HasSubscription (observed property(ies))",
@@ -82,7 +81,7 @@ func (sc *ServerConnectionBase) HasSubscription(notif *msg.NotificationMessage) 
 			)
 			return true
 		}
-	case wot.OpInvokeAction:
+	case msg.AffordanceTypeAction:
 		// action progress update, for original sender only
 		slog.Info("HasSubscription (action status)",
 			slog.String("clientID", sc.ClientID),
@@ -91,7 +90,7 @@ func (sc *ServerConnectionBase) HasSubscription(notif *msg.NotificationMessage) 
 		)
 		return true
 	default:
-		slog.Warn("Unknown notification: " + notif.Operation)
+		slog.Warn("HasSubscription: Unknown affordance: " + string(notif.AffordanceType))
 	}
 	return false
 }

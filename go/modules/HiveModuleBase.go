@@ -70,7 +70,7 @@ func (m *HiveModuleBase) ForwardNotification(notif *msg.NotificationMessage) {
 		// keep this warning for now.
 		slog.Warn("ForwardNotification: no handler set. Notification is dropped.",
 			"module", m.moduleID,
-			"operation", notif.Operation,
+			"affordance", notif.AffordanceType,
 			"thingID", notif.ThingID,
 			"name", notif.Name,
 		)
@@ -321,6 +321,6 @@ func (m *HiveModuleBase) UpdateProperty(name string, val any) {
 	m.propMux.Unlock()
 
 	//
-	notif := msg.NewNotificationMessage(wot.OpObserveProperty, m.moduleID, name, val)
+	notif := msg.NewNotificationMessage(m.moduleID, msg.AffordanceTypeProperty, m.moduleID, name, val)
 	m.ForwardNotification(notif)
 }

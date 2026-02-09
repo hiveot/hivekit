@@ -48,8 +48,6 @@ func (handler *UserHttpHandler) onHttpLogin(w http.ResponseWriter, r *http.Reque
 	}
 	if err == nil {
 		// the login is handled in-house and has an immediate return
-		// TODO: use-case for 3rd party login? oauth2 process support? tbd
-		// FIXME: hard-coded keys!? ugh
 		newToken, validUntil, err = handler.authenticator.Login(args.UserName, args.Password)
 
 		_ = validUntil

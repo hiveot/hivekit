@@ -74,7 +74,7 @@ func (m *SsescServer) onHttpNotificationMessage(w http.ResponseWriter, r *http.R
 	}
 	// the converter translates the payload to a NotificationMessage
 	notif := m.converter.DecodeNotification(rp.Payload)
-	if notif == nil || notif.Operation == "" {
+	if notif == nil || notif.AffordanceType == "" {
 		err = fmt.Errorf("onHttpNotificationMessage: missing notification in payload")
 		utils.WriteError(w, err, 0)
 		return

@@ -125,11 +125,11 @@ func NewDirectoryModule(storageRoot string, httpServer transports.IHttpServer) *
 		storageRoot:    storageRoot,
 		httpServer:     httpServer,
 	}
-	m.SetModuleID(directory.DefaultDirectoryThingID)
+	m.SetModuleID(directory.DefaultDirectoryModuleID)
 	if httpServer == nil {
 		slog.Warn("NewDirectoryModule: no httpServer provided. HTTP interface not active.")
 	}
-	var _ modules.IHiveModule = m // interface check
+	var _ directory.IDirectoryModule = m // interface check
 
 	return m
 }

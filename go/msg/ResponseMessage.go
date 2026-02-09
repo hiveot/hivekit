@@ -8,16 +8,6 @@ import (
 	"github.com/teris-io/shortid"
 )
 
-// ResponseMessage, ActionStatus and ThingValue define the standardized messaging
-// envelopes for handling responses.
-// Each transport protocol bindings map this format to this specific format.
-
-type AffordanceType string
-
-const AffordanceTypeEvent AffordanceType = "event"
-const AffordanceTypeProperty AffordanceType = "property"
-const AffordanceTypeAction AffordanceType = "action"
-
 // MessageTypeResponse identify the message as a response.
 const MessageTypeResponse = "response"
 
@@ -27,52 +17,6 @@ const MessageTypeResponse = "response"
 // This returns an error if the response cannot be delivered. This can be used to
 // retry sending the response at a later time.
 type ResponseHandler func(msg *ResponseMessage) error
-
-// ThingValue is the internal API response payload to subscribeevent, observeproperty,
-// readevent and readproperty operations. The protocol binding maps between this
-// and the protocol way of encoding values.
-type ThingValue struct {
-	// Type of affordance this is a value of: AffordanceTypeProperty|Event|Action
-	AffordanceType AffordanceType `json:"affordanceType"`
-
-	// Output with Payload
-	//
-	// Data in format as described by the thing's affordance
-	Data any `json:"data,omitempty"`
-
-	// Name with affordance name
-	//
-	// Name of the affordance holding the value
-	Name string `json:"name,omitempty"`
-
-	// ThingID with Thing ID
-	//
-	// Digital twin Thing ID
-	ThingID string `json:"thingID,omitempty"`
-
-	// Timestamp with Timestamp time
-	//
-	// Time the value was last updated
-	Timestamp string `json:"timestamp,omitempty"`
-}
-
-// ToString is a helper to easily read the response output as a string
-func (tv *ThingValue) ToString(maxlen int) string {
-	return utils.DecodeAsString(tv.Data, maxlen)
-}
-func NewThingValue(affordanceType AffordanceType, thingID, name string, data any, timestamp string) *ThingValue {
-	tv := &ThingValue{
-		AffordanceType: affordanceType,
-		Data:           data,
-		Name:           name,
-		ThingID:        thingID,
-		Timestamp:      timestamp,
-	}
-	if tv.Timestamp == "" {
-		tv.Timestamp = utils.FormatUTCMilli(time.Now())
-	}
-	return tv
-}
 
 // ResponseMessage serves to notify a client of the result of a request.
 //

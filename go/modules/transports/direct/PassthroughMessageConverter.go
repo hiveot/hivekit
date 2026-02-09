@@ -18,7 +18,7 @@ func (svc *PassthroughMessageConverter) DecodeNotification(raw []byte) *msg.Noti
 	var notif msg.NotificationMessage
 	err := jsoniter.Unmarshal(raw, &notif)
 	//err := tputils.DecodeAsObject(msg, &notif)
-	if err != nil || notif.MessageType != msg.MessageTypeNotification {
+	if err != nil || notif.AffordanceType == "" {
 		return nil
 	}
 	return &notif
@@ -55,7 +55,7 @@ func (svc *PassthroughMessageConverter) EncodeNotification(
 	notif *msg.NotificationMessage) ([]byte, error) {
 
 	// ensure this field is present as it is needed for decoding
-	notif.MessageType = msg.MessageTypeNotification
+	// notif.MessageType = msg.MessageTypeNotification
 	return jsoniter.Marshal(notif)
 }
 

@@ -16,6 +16,7 @@ import (
 // Websocket notification message with all possible fields for all operations
 type WotWssNotificationMessage struct {
 	msg.NotificationMessage
+	MessageType string `json:"messageType"` // notification
 }
 
 // Websocket requests message with all possible fields for all operations
@@ -75,8 +76,6 @@ func (svc *WotWssMsgConverter) DecodeNotification(raw []byte) *msg.NotificationM
 		return nil
 	}
 	notifmsg := &wssnotif.NotificationMessage
-	switch wssnotif.Operation {
-	}
 	return notifmsg
 }
 

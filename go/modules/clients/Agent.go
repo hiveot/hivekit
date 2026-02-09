@@ -6,7 +6,6 @@ import (
 
 	"github.com/hiveot/hivekit/go/msg"
 	"github.com/hiveot/hivekit/go/utils"
-	"github.com/hiveot/hivekit/go/wot"
 )
 
 // Agent is a helper module providing a Golang API for IoT device side WoT operations using the
@@ -64,7 +63,8 @@ func (ag *Agent) PubActionProgress(req msg.RequestMessage, value any) {
 		TimeUpdated:   utils.FormatNowUTCMilli(),
 	}
 
-	resp := msg.NewNotificationMessage(wot.OpInvokeAction, req.ThingID, req.Name, status)
+	resp := msg.NewNotificationMessage(
+		ag.GetClientID(), msg.AffordanceTypeAction, req.ThingID, req.Name, status)
 	ag.ForwardNotification(resp)
 }
 
@@ -76,7 +76,8 @@ func (ag *Agent) PubEvent(thingID string, name string, value any) {
 
 	// This is a response to subscription request.
 	// for now assume this is a hub connection and the hub wants all events
-	notif := msg.NewNotificationMessage(wot.OpSubscribeEvent, thingID, name, value)
+	notif := msg.NewNotificationMessage(
+		ag.GetClientID(), msg.AffordanceTypeEvent, thingID, name, value)
 	slog.Info("PubEvent",
 		"thingID", thingID,
 		"name", name,
@@ -92,7 +93,8 @@ func (ag *Agent) PubEvent(thingID string, name string, value any) {
 func (ag *Agent) PubProperty(thingID string, name string, value any) {
 	// This is a response to an observation request.
 	// send the property update as a response to the observe request
-	notif := msg.NewNotificationMessage(wot.OpObserveProperty, thingID, name, value)
+	notif := msg.NewNotificationMessage(
+		ag.GetClientID(), msg.AffordanceTypeProperty, thingID, name, value)
 	slog.Info("PubProperty",
 		"thingID", thingID,
 		"name", notif.Name,
@@ -105,14 +107,18 @@ func (ag *Agent) PubProperty(thingID string, name string, value any) {
 //
 // The underlying transport protocol binding handles the subscription mechanism.
 func (ag *Agent) PubProperties(thingID string, propMap map[string]any) {
-	notif := msg.NewNotificationMessage(wot.OpObserveMultipleProperties, thingID, "", propMap)
 
 	slog.Info("PubProperties",
 		"thingID", thingID,
 		"nrProps", len(propMap),
-		"value", notif.ToString(50),
 	)
-	ag.ForwardNotification(notif)
+
+	for propName, propVal := range propMap {
+		notif := msg.NewNotificationMessage(
+			ag.GetClientID(), msg.AffordanceTypeProperty, thingID, propName, propVal)
+
+		ag.ForwardNotification(notif)
+	}
 }
 
 // SendResponse sends a response for a previous request

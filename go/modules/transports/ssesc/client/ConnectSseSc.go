@@ -277,6 +277,7 @@ func (cl *SseScClient) handleSseEvent(event sse.Event) {
 			// "op", resp.Operation, "correlationID", resp.CorrelationID)
 		}
 	default:
+		// TBD: maybe this should just always fail?
 		if cl.notificationSink == nil {
 			slog.Error("handleSseEvent, received unexpected message",
 				"messageType", event.Type)
@@ -286,13 +287,13 @@ func (cl *SseScClient) handleSseEvent(event sse.Event) {
 		// all other events are intended for other use-cases such as the UI,
 		// and can have a formats of event/{dThingID}/{name}
 		// Attempt to deliver this for compatibility with other protocols (such has hiveoview test client)
-		notif := msg.NotificationMessage{}
-		notif.MessageType = msg.MessageTypeNotification
-		notif.Value = event.Data
-		notif.Operation = event.Type
+		senderID := "" // unknown
+		notif := msg.NewNotificationMessage(
+			senderID, msg.AffordanceType(event.Type), "", "", event.Data)
+
 		// don't block the receiver flow
 		go func() {
-			cl.notificationSink(&notif)
+			cl.notificationSink(notif)
 		}()
 	}
 }

@@ -76,7 +76,7 @@ func (cl *DirectoryMsgClient) UpdateThing(tdJson string) error {
 //	sink is the handler for requests send by the directory client and emitter of notifications
 func NewDirectoryMsgClient(thingID string, sink modules.IHiveModule) *DirectoryMsgClient {
 	if thingID == "" {
-		thingID = directory.DefaultDirectoryThingID
+		thingID = directory.DefaultDirectoryModuleID
 	}
 	cl := &DirectoryMsgClient{
 		directoryID: thingID,

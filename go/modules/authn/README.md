@@ -1,8 +1,8 @@
 # Authn - Authentication Module
 
-The authentication module provides a method to obtain authentication tokens using password based login and to manage clients.
+The authentication module provides a method to manage clients and obtain authentication tokens using password based login.
 
-Existing tokens can be refreshed and tokens can be cancelled.
+Existing tokens can be refreshed by clients and client tokens can be cancelled.
 
 ## Status
 
@@ -10,15 +10,15 @@ This module is in alpha. It is functional but breaking changes can be expected.
 
 ## Usage
 
-To create an instance of the module an authenticator is needed and an optional http server.
-
-The authenticators directory contains serveral authenticators. Create a new one and pass it to the authn module. PasetoAuthenticator is preferred.
+To create an instance of the module a http server must be provided that will serve the http endpoints.
 
 The http server is optional and used to make http endpoints available for logging in, logging out and token refresh. The AuthnHttpClient is a simple wrapper to simplify its usage.
 
-In order to login and create auth tokens, an account must be created first. The module api can be used to manage clients. The module TM also describes which actions are available for user management through RRN messages.
+In order to login and create auth tokens, an account must be created for the client first. The module api can be used to manage clients. The module TM also describes which actions are available for user management through RRN messages.
 
 ### HTTP API
+
+This module supports the [Things API](https://w3c.github.io/wot-discovery/#exploration-directory-api-things) of the discovery specification.
 
 The TD published by this module provides the actual endpoints for the various operations. The endpoints described below are examples that are based on the defaults.
 

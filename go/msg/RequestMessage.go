@@ -153,12 +153,12 @@ func (req *RequestMessage) CreateResponse(value any, err error) (resp *ResponseM
 // CreateNotification is a helper to easily create a status update of a running request.
 //
 //	data contains the payload to include in the notification
-func (req *RequestMessage) CreateNotification() (notif *NotificationMessage) {
-
-	notif = NewNotificationMessage(req.Operation, req.ThingID, req.Name, nil)
-	notif.CorrelationID = req.CorrelationID
-	return notif
-}
+// func (req *RequestMessage) CreateNotification() (notif *NotificationMessage) {
+// 	affType := AffordanceTypeAction
+// 	notif = NewNotificationMessage(req.SenderID, affType, req.ThingID, req.Name, nil)
+// 	notif.CorrelationID = req.CorrelationID
+// 	return notif
+// }
 
 // ToString is a helper to easily convert the request input to a string
 // maxlen is the maximum string length or 0 for unlimited

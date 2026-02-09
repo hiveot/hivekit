@@ -275,7 +275,7 @@ func (sc *WssServerConnection) SendNotification(notif *msg.NotificationMessage) 
 	slog.Info("SendNotification",
 		slog.String("clientID", sc.GetClientID()),
 		slog.String("thingID", notif.ThingID),
-		slog.String("op", notif.Operation),
+		slog.String("affordance", string(notif.AffordanceType)),
 		slog.String("name", notif.Name),
 	)
 	if sc.HasSubscription(notif) {

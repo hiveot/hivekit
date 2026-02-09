@@ -162,7 +162,7 @@ func (m *TransportServerBase) ForwardNotification(notif *msg.NotificationMessage
 		// Receiving notifications but with no sink set so likely a wiring issue.
 		slog.Error("ForwardNotification: no notification sink set. Server is not properly set up.",
 			"module", m.moduleID,
-			"operation", notif.Operation,
+			"affordance", notif.AffordanceType,
 			"name", notif.Name,
 		)
 		return
