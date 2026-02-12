@@ -267,9 +267,7 @@ func TestReconnect(t *testing.T) {
 				// cinfo := c.GetConnectionInfo()
 				// c2 := srv.GetConnectionByConnectionID(cinfo.ClientID, cinfo.ConnectionID)
 				// assert.NotEmpty(t, c2)
-				resp, as := req.CreateActionResponse(
-					req.CorrelationID, msg.StatusCompleted, output, nil)
-				_ = as
+				resp := req.CreateResponse(output, nil)
 				// err = c.SendResponse(resp)
 				err = replyTo(resp)
 				assert.NoError(t, err)

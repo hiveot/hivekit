@@ -50,17 +50,15 @@ func (ag *Agent) HandleRequest(
 //
 // This sends an ActionStatus message with status of running.
 func (ag *Agent) PubActionProgress(req msg.RequestMessage, value any) {
-	status := msg.ActionStatus{
+	status := msg.ResponseMessage{
 		//AgentID:   ag.GetClientID(),
-		ActionID:      req.CorrelationID,
-		Input:         req.Input,
-		Name:          req.Name,
-		Output:        value,
-		SenderID:      ag.GetClientID(),
-		State:         msg.StatusRunning,
-		ThingID:       req.ThingID,
-		TimeRequested: req.Created,
-		TimeUpdated:   utils.FormatNowUTCMilli(),
+		Input:     req.Input,
+		Name:      req.Name,
+		Output:    value,
+		AgentID:   ag.GetClientID(),
+		State:     msg.StatusRunning,
+		ThingID:   req.ThingID,
+		Timestamp: utils.FormatNowUTCMilli(),
 	}
 
 	resp := msg.NewNotificationMessage(

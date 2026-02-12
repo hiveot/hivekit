@@ -76,7 +76,7 @@ func TestStartStop(t *testing.T) {
 	// read all things
 	tdList, err := m.RetrieveAllThings(0, 10)
 	assert.NoError(t, err)
-	assert.NotNil(t, tdList)
+	assert.GreaterOrEqual(t, 1, len(tdList))
 }
 
 func TestCreateTD(t *testing.T) {

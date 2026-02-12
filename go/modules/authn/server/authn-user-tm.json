@@ -16,6 +16,7 @@
   "deny": ["none"],
 
   "links": [],
+
   "schemaDefinitions": {
     "ClientType": {
       "title": "Client Type",

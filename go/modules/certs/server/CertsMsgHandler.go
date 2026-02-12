@@ -62,7 +62,7 @@ func (handler *CertsMsgHandler) GetCaCert(req *msg.RequestMessage) (resp *msg.Re
 	}
 	// convert cert to PEM
 	caPEM := certutils.X509CertToPEM(cert)
-	resp, _ = req.CreateActionResponse("", msg.StatusCompleted, caPEM, err)
+	resp = req.CreateResponse(caPEM, err)
 	return resp, nil
 }
 
@@ -75,7 +75,7 @@ func (handler *CertsMsgHandler) GetDefaultServerCert(req *msg.RequestMessage) (r
 	}
 	// convert cert to PEM
 	certPEM := certutils.X509CertToPEM(cert)
-	resp, _ = req.CreateActionResponse("", msg.StatusCompleted, certPEM, err)
+	resp = req.CreateResponse(certPEM, err)
 	return resp, nil
 }
 

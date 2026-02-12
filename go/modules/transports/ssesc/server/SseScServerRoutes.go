@@ -190,7 +190,7 @@ func (m *SsescServer) onHttpResponseMessage(w http.ResponseWriter, r *http.Reque
 		return
 	}
 	// pass the response to the sinks
-	resp.SenderID = rp.ClientID
+	resp.AgentID = rp.ClientID
 
 	// If a request was sent to the client (via SSE) with a callback then an RNR channel was
 	// opened waiting for the response.

@@ -33,14 +33,34 @@ type WotWssActionStatus struct {
 	ActionID      string          `json:"actionID"`
 	Error         *msg.ErrorValue `json:"error,omitempty"`
 	Output        any             `json:"output,omitempty"` // when completed
-	State         string          `json:"state"`
+	State         string          `json:"state"`            // completed, failed, ...
 	TimeRequested string          `json:"timeRequested"`
 	TimeEnded     string          `json:"timeEnded,omitempty"` // when completed
 }
 
 // Websocket response message with all possible fields for all operations
 type WotWssResponseMessage struct {
-	msg.ResponseMessage
+	CorrelationID string `json:"correlationID,omitempty"`
+
+	// Error contains the short error description when status is failed.
+	// Matches RFC9457 https://www.rfc-editor.org/rfc/rfc9457
+	Error *msg.ErrorValue `json:"error"`
+
+	// MessageID unique ID of the message. Intended to detect duplicates.
+	MessageID string `json:"messageID,omitempty"`
+
+	// This is set to the value of MessageTypeResponse
+	MessageType string `json:"messageType"`
+
+	// Name of the action or property affordance this is a response from.
+	Name string `json:"name"`
+
+	// The operation this is a response to. This MUST be the operation provided in the request.
+	Operation string `json:"operation"`
+
+	// invokeaction output value (synchronous)
+	// for hiveot clients: readallproperties, readmultipleproperties ThingValue map
+	Output any `json:"output,omitempty"`
 
 	// invokeaction (async), queryaction response contains status
 	Status *WotWssActionStatus `json:"status,omitempty"`
@@ -48,14 +68,13 @@ type WotWssResponseMessage struct {
 	// queryallactions response:
 	Statuses map[string]WotWssActionStatus `json:"statuses,omitempty"`
 
+	// ThingID of the thing this is a response from.
+	ThingID string `json:"thingID,omitempty"`
+
 	// readallproperties,readmultipleproperties,
 	// writeallproperties, writemultipleproperties:
 	// object with property name-value pairs
 	Values any `json:"values,omitempty"`
-
-	// invokeaction output value (synchronous)
-	// for hiveot clients: readallproperties, readmultipleproperties ThingValue map
-	Output any `json:"output,omitempty"`
 }
 
 // Websocket message converter converts requests, responses and notifications
@@ -123,10 +142,15 @@ func (svc *WotWssMsgConverter) DecodeResponse(raw []byte) *msg.ResponseMessage {
 		return nil
 	}
 
-	respMsg := &wssResp.ResponseMessage
+	respMsg := msg.NewResponseMessage(
+		wssResp.Operation, wssResp.ThingID, wssResp.Name,
+		wssResp.Output,
+		err,
+		msg.StatusCompleted,
+		wssResp.CorrelationID)
 
 	// if the response is an error response then no need to decode any further
-	if respMsg.Error != nil {
+	if wssResp.Error != nil {
 		return respMsg
 	}
 
@@ -135,88 +159,80 @@ func (svc *WotWssMsgConverter) DecodeResponse(raw []byte) *msg.ResponseMessage {
 	case wot.OpCancelAction:
 		// hiveot response API doesnt contain the actionID. This is okay as the sender knows it.
 	case wot.OpInvokeAction:
-		// hiveot always returns an ActionStatus object
-		//
-		// in websocket profile synchronous actions respond with output,
-		// while async actions respond with actionID
-		as := msg.ActionStatus{
-			Name:    wssResp.Name,
-			Output:  wssResp.Output,
-			State:   msg.StatusCompleted,
-			ThingID: wssResp.ThingID,
-		}
-		// if wss contains an actionID the request is pending
+		// if wss contains a status object, use it
 		if wssResp.Status != nil {
-			as.State = wssResp.Status.State
-			as.TimeUpdated = wssResp.Status.TimeRequested
-			as.TimeUpdated = wssResp.Status.TimeEnded
+			respMsg.State = wssResp.Status.State
+			// respMsg.Timestamp = wssResp.Status.TimeRequested
+			respMsg.Timestamp = wssResp.Status.TimeEnded
 		}
-		respMsg.Value = as
 
 	case wot.OpQueryAction:
-		// ResponseMessage should contain ActionStatus object
+		// ResponseMessage contains a WSS ActionStatus object.
+		// which is converted to a HiveOT ResponseMessage as the value.
 		var wssStatus WotWssActionStatus
 		err = utils.Decode(wssResp.Status, &wssStatus)
 		if err != nil {
 			return nil
 		}
-		if respMsg.Value == nil {
-			// non hiveot server
-			as := msg.ActionStatus{
-				ActionID:      wssStatus.ActionID,
-				Name:          wssResp.Name,
-				Output:        wssStatus.Output,
-				State:         wssStatus.State,
-				ThingID:       wssResp.ThingID,
-				TimeRequested: wssStatus.TimeRequested,
-				TimeUpdated:   wssStatus.TimeEnded,
-			}
-			respMsg.Value = as
+		// reconstruct the action response
+		// Note that hiveOT uses correlationID instead of actionID
+		// hiveot also doesn't return timerequested
+		output := msg.ResponseMessage{
+			Operation:     wot.OpInvokeAction,
+			ThingID:       wssResp.ThingID,
+			Name:          wssResp.Name,
+			Output:        wssStatus.Output,
+			State:         wssStatus.State,
+			CorrelationID: wssResp.CorrelationID,
+			Timestamp:     wssStatus.TimeEnded,
+			Error:         wssResp.Error,
 		}
+		respMsg.Output = output
 
 	case wot.OpQueryAllActions:
-		// ResponseMessage should contain ActionStatus list
+		// WSS ResponseMessage contains ActionStatus map
 		var wssStatusMap map[string]WotWssActionStatus
-		actionStatusMap := make(map[string]msg.ActionStatus)
+		output := make(map[string]msg.ResponseMessage)
 		err = utils.Decode(wssResp.Statuses, &wssStatusMap)
 		if err != nil {
 			return nil
 		}
-		for k, wssStatus := range wssStatusMap {
-			actionStatusMap[k] = msg.ActionStatus{
+		// reconstruct the latest responses for the actions
+		for name, wssStatus := range wssStatusMap {
+			output[name] = msg.ResponseMessage{
+				Operation:     wot.OpInvokeAction,
 				ThingID:       wssResp.ThingID,
-				Name:          wssResp.Name,
-				ActionID:      wssStatus.ActionID,
-				State:         wssStatus.State,
-				TimeRequested: wssStatus.TimeRequested,
-				TimeUpdated:   wssStatus.TimeEnded,
+				Name:          name,
 				Output:        wssStatus.Output,
+				State:         wssStatus.State,
+				CorrelationID: wssResp.CorrelationID,
+				Timestamp:     wssStatus.TimeEnded,
+				Error:         wssResp.Error,
 			}
 		}
-		respMsg.Value = actionStatusMap
+		respMsg.Output = output
 
 	case wot.OpReadAllProperties, wot.OpReadMultipleProperties,
 		wot.OpWriteMultipleProperties:
 
 		// the 'Value' property from the msg.ResponseMessage embedded struct
 		// already contains the msg.ThingValue map.
-		// But, if the websocket response is from a non-hiveot device then convert
-		// the websocket 'Values' field k-v map to ThingValue map
+		// Convert the websocket 'Values' field k-v map to ThingValue map
 		tvMap := make(map[string]msg.ThingValue)
-		if respMsg.Value == nil {
+		if wssResp.Values != nil {
 			wssPropValues := make(map[string]any)
 			utils.DecodeAsObject(wssResp.Values, wssPropValues)
-			for k, v := range wssPropValues {
+			for propName, propValue := range wssPropValues {
 				tv := msg.ThingValue{
 					AffordanceType: msg.AffordanceTypeProperty,
-					Name:           k,
-					Data:           v,
+					Name:           propName,
+					Data:           propValue,
 					ThingID:        wssResp.ThingID,
 					// Timestamp: n/a
 				}
 				tvMap[tv.Name] = tv
 			}
-			respMsg.Value = tvMap
+			respMsg.Output = tvMap
 		}
 	}
 	return respMsg
@@ -258,81 +274,64 @@ func (svc *WotWssMsgConverter) EncodeResponse(resp *msg.ResponseMessage) ([]byte
 	// the hiveot response message partially identical to the websocket message
 	// only convert where they differ
 	wssResp := WotWssResponseMessage{
-		ResponseMessage: *resp, // correlationID, actionName etc
-	}
-
-	// convert the error response
-	if resp.Error != nil {
+		CorrelationID: resp.CorrelationID,
 		// the hiveot error response is identical to the websocket error response
-		return jsoniter.Marshal(wssResp)
+		Error:       resp.Error,
+		MessageID:   resp.MessageID,
+		MessageType: resp.MessageType,
+		Name:        resp.Name,
+		Operation:   resp.Operation,
+		Output:      resp.Output,
+		Status:      nil,
+		Statuses:    nil,
+		ThingID:     resp.ThingID,
+		Values:      nil,
 	}
-
-	// ensure this field is present as it is needed for decoding
-	wssResp.MessageType = msg.MessageTypeResponse
+	// last, set status(es) and values, depending on the operation
 	switch resp.Operation {
 	case wot.OpCancelAction:
 		// actionID of cancelled action ?
 		// wssResp.ActionID = resp.CorrelationID
 	case wot.OpInvokeAction:
-		// hiveot invokeaction always contains an ActionStatus object in the response
-		var as msg.ActionStatus
-		err = utils.Decode(resp.Value, &as)
-		if err != nil {
-			slog.Error("EncodeResponse: Action response value is not an ActionStatus object",
-				"senderID", resp.SenderID, "thingID", resp.ThingID, "name", resp.Name,
-				"correlationID", resp.CorrelationID)
-			err = fmt.Errorf("Response value is not an ActionStatus object")
-			wssResp.Error = msg.ErrorValueFromError(err)
-		}
-		if as.State == msg.StatusCompleted {
-			// websocket synchronous response
-			wssResp.Output = as.Output
-		} else {
+		wssResp.Status = &WotWssActionStatus{
 			// websocket asynchronous response returns ActionID
-			wssResp.Status = &WotWssActionStatus{
-				ActionID:      as.ActionID,
-				Error:         as.Error, // error fields are identical
-				State:         as.State,
-				TimeRequested: as.TimeRequested,
-			}
+			ActionID:  resp.CorrelationID,
+			Error:     resp.Error, // error fields are identical
+			State:     resp.State,
+			Output:    resp.Output,
+			TimeEnded: resp.Timestamp,
 		}
 	case wot.OpQueryAction:
-		// convert from msg.ActionStatus to WotWssActionStatus
-		var actionStatus msg.ActionStatus
-		err = utils.Decode(resp.Value, &actionStatus)
-		if err != nil {
-			wssResp.Error = msg.ErrorValueFromError(fmt.Errorf("Response does not contain ActionStatus object: %w", err))
-		}
+		// the output is the last response: convert it to an ActionStatus object
+		qResp := msg.ResponseMessage{}
+		utils.Decode(resp.Output, &qResp)
 		wssResp.Status = &WotWssActionStatus{
-			ActionID:      actionStatus.ActionID,
-			Error:         actionStatus.Error, // error fields are identical
-			Output:        actionStatus.Output,
-			State:         actionStatus.State,
-			TimeRequested: actionStatus.TimeRequested,
-			TimeEnded:     actionStatus.TimeUpdated,
+			ActionID:  qResp.CorrelationID,
+			Error:     qResp.Error, // error fields are identical
+			Output:    qResp.Output,
+			State:     qResp.State,
+			TimeEnded: qResp.Timestamp,
 		}
 	case wot.OpQueryAllActions:
-		// convert from msg.ActionStatus map to WotWssActionStatuses map
-		// FIXME: response is api.ActionStatus which differs from msg.ActionStatus
-		var actionStatusMap map[string]msg.ActionStatus
-		err = utils.Decode(resp.Value, &actionStatusMap)
+		// convert action responses in output to a  WotWssActionStatuses map
+		var hiveotActionStatusMap map[string]msg.ResponseMessage
+		err = utils.Decode(resp.Output, &hiveotActionStatusMap)
 		if err != nil {
-			err = fmt.Errorf("Can't convert ActionStatus map response to websocket type. "+
-				"Response does not contain ActionStatus map. "+
+			err = fmt.Errorf("Can't convert ResponseMessage map response to websocket actionstatus type. "+
+				"Response does not contain ResponseMessage map. "+
 				"thingID='%s'; name='%s'; operation='%s'; Received '%s'; Error='%s'",
 				resp.ThingID, resp.Name, resp.Operation,
-				utils.DecodeAsString(resp.Value, 200), err.Error())
+				utils.DecodeAsString(resp.Output, 200), err.Error())
 			wssResp.Error = msg.ErrorValueFromError(err)
 		}
 		wssStatusMap := make(map[string]WotWssActionStatus)
-		for _, actionStatus := range actionStatusMap {
-			wssStatusMap[actionStatus.Name] = WotWssActionStatus{
-				ActionID:      actionStatus.ActionID,
-				Error:         actionStatus.Error, // error fields are identical
-				State:         actionStatus.State,
-				TimeRequested: actionStatus.TimeRequested,
-				TimeEnded:     actionStatus.TimeUpdated,
-				Output:        actionStatus.Output,
+		for _, respMsg := range hiveotActionStatusMap {
+			wssStatusMap[respMsg.Name] = WotWssActionStatus{
+				ActionID:  respMsg.CorrelationID,
+				Error:     respMsg.Error, // error fields are identical
+				State:     respMsg.State,
+				TimeEnded: respMsg.Timestamp,
+				Output:    respMsg.Output,
 			}
 		}
 		wssResp.Statuses = wssStatusMap
@@ -340,7 +339,7 @@ func (svc *WotWssMsgConverter) EncodeResponse(resp *msg.ResponseMessage) ([]byte
 		// convert ThingValue map to map of name-value pairs
 		// the last updated timestamp is lost.
 		var thingValueList map[string]msg.ThingValue
-		err = utils.DecodeAsObject(resp.Value, &thingValueList)
+		err = utils.DecodeAsObject(resp.Output, &thingValueList)
 		if err != nil {
 			err = fmt.Errorf("encodeResponse (%s). Not a ThingValue map; err: %w", resp.Operation, err)
 			wssResp.Error = msg.ErrorValueFromError(err)

@@ -39,8 +39,7 @@ func TestInvokeActionFromConsumerToServer(t *testing.T) {
 		if req.Operation == wot.OpInvokeAction {
 			inputVal.Store(req.Input)
 			// CreateActionResponse returns ActionStatus
-			resp, _ = req.CreateActionResponse(
-				req.CorrelationID, msg.StatusCompleted, req.Input, nil)
+			resp = req.CreateResponse(req.Input, nil)
 		} else {
 			assert.Fail(t, "Not expecting operation: "+req.Operation)
 			resp = req.CreateResponse(nil, fmt.Errorf("Unexpected request operation '%s'", req.Operation))
@@ -62,13 +61,9 @@ func TestInvokeActionFromConsumerToServer(t *testing.T) {
 	// the response handler
 	responseHandler := func(resp *msg.ResponseMessage) error {
 		slog.Info("testOutput was updated asynchronously via the message handler")
-		var testActionStatus msg.ActionStatus
+
 		// response should be an ActionStatus object
-		err2 := utils.Decode(resp.Value, &testActionStatus)
-		if assert.NoError(t, err2) {
-			err2 = utils.DecodeAsObject(testActionStatus.Output, &testOutput)
-			assert.NoError(t, err2)
-		}
+		err2 := utils.Decode(resp.Output, &testOutput)
 		release1()
 		return err2
 	}
@@ -127,7 +122,7 @@ func TestInvokeActionFromServerToAgent(t *testing.T) {
 
 		slog.Info("Server: received response from agent",
 			"op", resp.Operation,
-			"output", resp.Value,
+			"output", resp.Output,
 		)
 		err := resp.Decode(&responseData)
 		assert.NoError(t, err)
@@ -155,9 +150,7 @@ func TestInvokeActionFromServerToAgent(t *testing.T) {
 		go func() {
 			time.Sleep(time.Millisecond)
 			// separately send a completed response
-			resp, as := req.CreateActionResponse(
-				req.CorrelationID, msg.StatusCompleted, testMsg2, nil)
-			_ = as
+			resp := req.CreateResponse(testMsg2, nil)
 			slog.Info("Agent sends response", "op", req.Operation)
 			err2 := replyTo(resp)
 			assert.NoError(t, err2)
@@ -195,7 +188,6 @@ func TestQueryActions(t *testing.T) {
 	var testMsg1 = "hello world 1"
 	var thingID = "dtw:thing1"
 	var actionKey = "action1"
-	var actionID = "action-id-123"
 
 	// 1. start the server. register a request handler for receiving a request
 	// from the agent after the server sends an invoke action.
@@ -207,14 +199,12 @@ func TestQueryActions(t *testing.T) {
 		switch req.Operation {
 		case wot.OpQueryAction:
 			// reply a response carrying the queried action status
-			actStat := &msg.ActionStatus{
-				ThingID:       req.ThingID,
-				Name:          req.Name,
-				ActionID:      actionID,
-				Output:        testMsg1,
-				State:         msg.StatusCompleted,
-				TimeRequested: req.Created,
-				TimeUpdated:   utils.FormatNowUTCMilli(),
+			actStat := &msg.ResponseMessage{
+				ThingID:   req.ThingID,
+				Name:      req.Name,
+				Output:    testMsg1,
+				State:     msg.StatusCompleted,
+				Timestamp: utils.FormatNowUTCMilli(),
 			}
 
 			resp = req.CreateResponse(actStat, nil)
@@ -222,38 +212,32 @@ func TestQueryActions(t *testing.T) {
 			//replyTo.SendResponse(msg.ThingID, msg.Name, output, msg.CorrelationID)
 		case wot.OpQueryAllActions:
 			// include an error status to ensure encode/decode of an error status works
-			actStat := map[string]msg.ActionStatus{
+			actStat := map[string]msg.ResponseMessage{
 				actionKey: {
-					ThingID:       req.ThingID,
-					Name:          actionKey,
-					ActionID:      actionID,
-					Output:        testMsg1,
-					State:         msg.StatusCompleted,
-					TimeRequested: req.Created,
-					TimeUpdated:   utils.FormatNowUTCMilli(),
+					ThingID:   req.ThingID,
+					Name:      actionKey,
+					Output:    testMsg1,
+					State:     msg.StatusCompleted,
+					Timestamp: utils.FormatNowUTCMilli(),
 				},
 				"action-2": {
-					ThingID:  req.ThingID,
-					Name:     "action-2",
-					ActionID: actionID,
+					ThingID: req.ThingID,
+					Name:    "action-2",
 					Error: &msg.ErrorValue{
 						Status: http.StatusBadRequest,
 						Type:   "http://testerror/",
 						Title:  "Testing error",
 						Detail: "test error detail",
 					},
-					State:         msg.StatusFailed,
-					TimeRequested: utils.FormatNowUTCMilli(),
-					TimeUpdated:   utils.FormatNowUTCMilli(),
+					State:     msg.StatusFailed,
+					Timestamp: utils.FormatNowUTCMilli(),
 				},
 				"action-3": {
-					ThingID:       req.ThingID,
-					Name:          "action-3",
-					ActionID:      actionID,
-					Output:        "other output",
-					State:         msg.StatusCompleted,
-					TimeRequested: utils.FormatNowUTCMilli(),
-					TimeUpdated:   utils.FormatNowUTCMilli(),
+					ThingID:   req.ThingID,
+					Name:      "action-3",
+					Output:    "other output",
+					State:     msg.StatusCompleted,
+					Timestamp: utils.FormatNowUTCMilli(),
 				}}
 			// the action status map is the payload for the action response.
 			// the action response itself is also an action status object.
@@ -274,14 +258,14 @@ func TestQueryActions(t *testing.T) {
 	defer cc1.Close()
 
 	// 3. Query action status
-	var status msg.ActionStatus
+	var status msg.ResponseMessage
 	err := co1.Rpc(wot.OpQueryAction, thingID, actionKey, nil, &status)
 	require.NoError(t, err)
 	require.Equal(t, thingID, status.ThingID)
 	require.Equal(t, actionKey, status.Name)
 
 	// 4. Query all actions
-	var statusMap map[string]msg.ActionStatus
+	var statusMap map[string]msg.ResponseMessage
 	err = co1.Rpc(wot.OpQueryAllActions, thingID, actionKey, nil, &statusMap)
 	require.NoError(t, err)
 	require.Equal(t, 3, len(statusMap))

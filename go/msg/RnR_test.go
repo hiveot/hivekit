@@ -23,7 +23,7 @@ func TestRnROpenClose(t *testing.T) {
 
 func TestRnRWaitAfterOpen(t *testing.T) {
 	corrID := "123"
-	resp := msg.NewResponseMessage("op1", "thing1", "name", nil, nil, corrID)
+	resp := msg.NewResponseMessage("op1", "thing1", "name", nil, nil, "", corrID)
 	rnrChan := msg.NewRnRChan()
 	rnrChan.Open(corrID)
 
@@ -41,7 +41,7 @@ func TestRnRWaitAfterOpen(t *testing.T) {
 
 func TestRnRWaitNoOpenFails(t *testing.T) {
 	corrID := "123"
-	resp := msg.NewResponseMessage("op1", "thing1", "name", nil, nil, corrID)
+	resp := msg.NewResponseMessage("op1", "thing1", "name", nil, nil, "", corrID)
 	rnrChan := msg.NewRnRChan()
 	// rnrChan.Open(corrID)
 
@@ -59,7 +59,7 @@ func TestRnROpenWaitCallback(t *testing.T) {
 	var rxData atomic.Bool
 
 	corrID := "123"
-	resp := msg.NewResponseMessage("op1", "thing1", "name", nil, nil, corrID)
+	resp := msg.NewResponseMessage("op1", "thing1", "name", nil, nil, "", corrID)
 	rnrChan := msg.NewRnRChan()
 	rnrChan.Open(corrID)
 
@@ -79,7 +79,7 @@ func TestRnROpenWaitCallback(t *testing.T) {
 // Test receiving a response before open
 func TestRnRResponseNotHandled(t *testing.T) {
 	corrID := "123"
-	resp := msg.NewResponseMessage("op1", "thing1", "name", nil, nil, corrID)
+	resp := msg.NewResponseMessage("op1", "thing1", "name", nil, nil, "", corrID)
 	rnrChan := msg.NewRnRChan()
 
 	handled := rnrChan.HandleResponse(resp, DefaultResponseTimeout)
@@ -92,7 +92,7 @@ func TestRnRResponseTwice(t *testing.T) {
 	var rxData atomic.Bool
 	shortTimeout := time.Second
 
-	resp := msg.NewResponseMessage("op1", "thing1", "name", nil, nil, corrID)
+	resp := msg.NewResponseMessage("op1", "thing1", "name", nil, nil, "", corrID)
 	rnrChan := msg.NewRnRChan()
 
 	rnrChan.Open(corrID)
@@ -171,7 +171,7 @@ func TestRnRNoOpenWaitCallback(t *testing.T) {
 	var rxData atomic.Bool
 
 	corrID := "123"
-	resp := msg.NewResponseMessage("op1", "thing1", "name", nil, nil, corrID)
+	resp := msg.NewResponseMessage("op1", "thing1", "name", nil, nil, "", corrID)
 	rnrChan := msg.NewRnRChan()
 
 	rnrChan.WaitWithCallback(corrID, DefaultResponseTimeout, func(resp *msg.ResponseMessage) error {
@@ -195,7 +195,7 @@ func Benchmark_RnRBulkWaitCallback(b *testing.B) {
 		for n := 0; n < b.N; n++ {
 			corrID := fmt.Sprintf("corr-%d", n)
 
-			resp := msg.NewResponseMessage("op1", "thing1", "name", nil, nil, corrID)
+			resp := msg.NewResponseMessage("op1", "thing1", "name", nil, nil, "", corrID)
 			rnrChan := msg.NewRnRChan()
 			rnrChan.Open(corrID)
 			go func() {

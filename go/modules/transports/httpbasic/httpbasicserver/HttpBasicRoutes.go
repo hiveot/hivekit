@@ -114,7 +114,7 @@ func (m *HttpBasicServer) onHttpAffordanceOperation(w http.ResponseWriter, r *ht
 	})
 	resp, err := rx.WaitForResponse(time.Second * 1)
 	if resp != nil {
-		output = resp.Value
+		output = resp.Output
 	} else {
 		slog.Info("no response")
 	}

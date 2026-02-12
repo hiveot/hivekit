@@ -18,6 +18,7 @@
   "support": "https://www.github.com/hiveot/hivekit",
   "base": "{{SERVER_BASE_URL}}",
   "deny": ["none"],
+
   "properties": {
     "things": {
       "description": "Retrieve all Thing Descriptions",

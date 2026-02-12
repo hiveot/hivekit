@@ -74,7 +74,7 @@ func (handler *BucketMsgHandler) Cursor(req *msg.RequestMessage) *msg.ResponseMe
 	if err != nil {
 		return req.CreateErrorResponse(err)
 	}
-	cursorKey := handler.cursorCache.Add(cursor, bucket, req.SenderID, lifespan)
+	cursorKey := handler.cursorCache.Add(req.SenderID, cursor, bucket, "", lifespan)
 	resp := req.CreateResponse(cursorKey, nil)
 	return resp
 }

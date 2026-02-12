@@ -18,7 +18,230 @@
   "support": "https://www.github.com/hiveot/hivekit",
   "base": "{{SERVER_BASE_URL}}",
   "deny": ["none"],
+
+  "schemaDefinitions": {
+    "CursorValue": {
+      "title": "Cursor Value",
+      "description": "ThingValue and valid status of the current cursor position",
+      "type": "object",
+      "properties": {
+        "valid": {
+          "title": "Valid",
+          "description": "Cursor points to a valid value",
+          "type": "bool"
+        },
+        "thingValue": {
+          "title": "ThingValue object",
+          "type": "object",
+          "schema": "ThingValue"
+        }
+      }
+    },
+    "CursorValueList": {
+      "title": "Cursor Value List",
+      "description": "List of ThingValue's and flag if values are remaining for iteration",
+      "type": "object",
+      "properties": {
+        "itemsRemaining": {
+          "title": "Items Remaining",
+          "description": "More items remaining for iteration",
+          "type": "bool"
+        },
+        "values": {
+          "title": "List of ThingValue objects",
+          "type": "array",
+          "items": {
+            "type": "object",
+            "schema": "ThingValue"
+          }
+        }
+      }
+    }
+  },
+
   "properties": {},
+
   "events": {},
-  "action": {}
+
+  "actions": {
+    "createCursor": {
+      "title": "Create Cursor",
+      "description": "Create a new cursor for iterating the store.",
+      "comment": "Cursors have a limited lifespan",
+      "idempotent": false,
+      "input": {
+        "title": "ThingID and affordance filter name",
+        "type": "object",
+        "properties": {
+          "thingID": {
+            "title": "ThingID",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "description": "optional affordance name to filter on",
+            "type": "string"
+          }
+        }
+      },
+      "output": {
+        "title": "cursorKey",
+        "description": "ID of the cursor used to iterate",
+        "type": "string"
+      }
+    },
+    "first": {
+      "title": "First",
+      "description": "First returns the oldest value in the history",
+      "idempotent": true,
+      "input": {
+        "title": "Cursor key",
+        "description": "Cursor key provided by CreateCursor",
+        "type": "string"
+      },
+      "output": {
+        "title": "Cursor Value",
+        "description": "Thing value and valid status at current cursor position",
+        "type": "object",
+        "schema": "CursorValue"
+      }
+    },
+    "last": {
+      "title": "Last",
+      "description": "Last return the newest value in the history",
+      "idempotent": false,
+      "input": {
+        "title": "Cursor key",
+        "description": "Cursor key provided by CreateCursor",
+        "type": "string"
+      },
+      "output": {
+        "title": "Cursor Value",
+        "description": "Thing value and valid status at current cursor position",
+        "type": "object",
+        "schema": "CursorValue"
+      }
+    },
+    "next": {
+      "title": "Next",
+      "description": "Last returns the next value in the history",
+      "idempotent": false,
+      "input": {
+        "title": "Cursor key",
+        "description": "Cursor key provided by CreateCursor",
+        "type": "string"
+      },
+      "output": {
+        "title": "Cursor Value",
+        "description": "Thing value and valid status at current cursor position",
+        "type": "object",
+        "schema": "CursorValue"
+      }
+    },
+    "nextN": {
+      "title": "NextN",
+      "description": "NextN returns a batch of next N historical values",
+      "idempotent": false,
+      "input": {
+        "title": "Args",
+        "description": "Input args with cursor key, limit and end time",
+        "type": "object",
+        "schema": "CursorNArgs"
+      },
+      "output": {
+        "title": "Cursor Value",
+        "description": "Thing value and valid status at current cursor position",
+        "type": "object",
+        "schema": "CursorValueList"
+      }
+    },
+    "prev": {
+      "title": "Prev",
+      "description": "Last returns the previous value in the history",
+      "idempotent": false,
+      "input": {
+        "title": "Cursor key",
+        "description": "Cursor key provided by CreateCursor",
+        "type": "string"
+      },
+      "output": {
+        "title": "Cursor Value",
+        "description": "Thing value and valid status at current cursor position",
+        "type": "CursorValue"
+      }
+    },
+    "prevN": {
+      "title": "PrevN",
+      "description": "returns a batch of previous N historical values",
+      "idempotent": false,
+      "input": {
+        "title": "Args",
+        "description": "Input args with cursor key, limit and end time",
+        "type": "object",
+        "schema": "CursorNArgs"
+      },
+      "output": {
+        "title": "Cursor Value",
+        "description": "Thing value and valid status at current cursor position",
+        "type": "object",
+        "schema": "CursorValueList"
+      }
+    },
+    "readHistory": {
+      "title": "Read History",
+      "description": "Return the value history for the given thingID, affordance name and time range",
+      "idempotent": false,
+      "input": {
+        "title": "thingID, affordance and time range to use in reading",
+        "type": "object",
+        "properties": {
+          "thingID": { "title": "ThingID", "type": "string" },
+          "affName": { "title": "Affordance name", "type": "string" },
+          "timeStamp": {
+            "title": "Start Time",
+            "description": "Start time to read from in RFC3339 format",
+            "type": "string"
+          },
+          "duration": {
+            "title": "Time period to read",
+            "type": "integer",
+            "unit": "seconds"
+          },
+          "limit": {
+            "title": "Limit",
+            "description": "Maximum number of values to return",
+            "default": "1000",
+            "type": "integer"
+          }
+        }
+      },
+      "output": {
+        "title": "Cursor Value",
+        "description": "Thing value and valid status at current cursor position",
+        "type": "CursorValue"
+      }
+    },
+    "seek": {
+      "title": "Seek",
+      "description": "Position the cursor at the starting point for the timestamp and optional filter",
+      "idempotent": false,
+      "input": {
+        "title": "Cursor key and timestamp to use in seek",
+        "type": "object",
+        "properties": {
+          "cursorKey": { "type": "string" },
+          "timeStamp": {
+            "title": "Time",
+            "description": "Time in RFC3339 format",
+            "type": "string"
+          }
+        }
+      },
+      "output": {
+        "title": "Cursor Value",
+        "description": "Thing value and valid status at current cursor position",
+        "type": "CursorValue"
+      }
+    }
+  }
 }

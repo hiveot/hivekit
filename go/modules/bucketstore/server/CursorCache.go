@@ -16,13 +16,17 @@ type ClientCursors []bucketstore.IBucketCursor
 type CursorInfo struct {
 	Key string
 	// Filter string
+
 	// optional bucket instance this cursor operates on
-	// if provided it will be released with the cursor
+	// if provided it will be released with the cursor. This allows opening a bucket
+	// and automatically closing it after use.
 	Bucket bucketstore.IBucket
 	// the stored cursor
 	Cursor bucketstore.IBucketCursor
 	// clientID of the cursor owner
 	OwnerID string
+	// Optional filter data for use by client while iterating
+	FilterData string
 	// last use of the cursor
 	LastUsed time.Time
 	// lifespan of cursor after last use
@@ -55,12 +59,16 @@ type CursorCache struct {
 
 // Add adds a cursor to the tracker and returns its key
 //
+//	clientID identifies the cursor owner
 //	cursor is the object holding the cursor
 //	bucket instance created specifically for this cursor. optional.
-//	clientID of the owner
+//	filterData is optional data for use by client while iterating.
+//	data optional associated data such as filter specifications
 //	lifespan of an unused cursor, after which it will be deleted. Default 1 minute.
 func (cc *CursorCache) Add(
-	cursor bucketstore.IBucketCursor, bucket bucketstore.IBucket, clientID string, lifespan time.Duration) string {
+	clientID string, cursor bucketstore.IBucketCursor, bucket bucketstore.IBucket,
+	filterData string, lifespan time.Duration) string {
+
 	cc.mux.Lock()
 	defer cc.mux.Unlock()
 
@@ -72,24 +80,25 @@ func (cc *CursorCache) Add(
 	// the key is not a secret, only the owner can use it
 	key := strconv.FormatUint(cc.cursorCounter, 16)
 	ci := &CursorInfo{
-		Key: key,
-		// Filter:   filter,
-		Bucket:   bucket,
-		Cursor:   cursor,
-		OwnerID:  clientID,
-		Lifespan: lifespan,
+		Key:        key,
+		Bucket:     bucket,
+		Cursor:     cursor,
+		FilterData: filterData,
+		OwnerID:    clientID,
+		Lifespan:   lifespan,
 	}
 	cc.cursorsByKey[key] = ci
 	return key
 }
 
 // Get returns the cursor with the given key.
+//
 // An error is returned if the cursor is not found, has expired, or belongs to a different owner.
 //
+//	clientID requesting the cursor. Must match the cursor owner.
 //	cursorKey obtained with Add()
-//	clientID requesting the cursor
 //	updateLastUsed resets the lifespan of the cursor to start now
-func (cc *CursorCache) Get(cursorKey string, clientID string, updateLastUsed bool) (
+func (cc *CursorCache) Get(clientID string, cursorKey string, updateLastUsed bool) (
 	cursor bucketstore.IBucketCursor, ci *CursorInfo, err error) {
 
 	cc.mux.Lock()

@@ -5,6 +5,7 @@ import (
 
 	"github.com/hiveot/hivekit/go/modules"
 	"github.com/hiveot/hivekit/go/modules/directory"
+	"github.com/hiveot/hivekit/go/modules/directory/server"
 	"github.com/hiveot/hivekit/go/msg"
 	"github.com/hiveot/hivekit/go/wot"
 )
@@ -49,7 +50,7 @@ func (cl *DirectoryMsgClient) RetrieveThing(thingID string) (tdJSON string, err 
 }
 
 func (cl *DirectoryMsgClient) RetrieveAllThings(offset int, limit int) (tdList []string, err error) {
-	args := directory.RetrieveAllThingsArgs{
+	args := server.RetrieveAllThingsArgs{
 		Offset: offset,
 		Limit:  limit,
 	}

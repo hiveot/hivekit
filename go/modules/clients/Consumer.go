@@ -124,7 +124,7 @@ func (co *Consumer) Ping() (err error) {
 // protocol specific messages.
 // The hiveot protocol passes this as-is as the output.
 func (co *Consumer) QueryAction(thingID, name string) (
-	value msg.ActionStatus, err error) {
+	value msg.ResponseMessage, err error) {
 
 	err = co.Rpc(wot.OpQueryAction, thingID, name, nil, &value)
 	// if state is empty then this action has not run before
@@ -149,7 +149,7 @@ func (co *Consumer) QueryAction(thingID, name string) (
 // ActionStatus message. All hiveot protocols include full information.
 // WoT bindings might not include update timestamp and such.
 func (co *Consumer) QueryAllActions(thingID string) (
-	values map[string]msg.ActionStatus, err error) {
+	values map[string]msg.ResponseMessage, err error) {
 
 	err = co.Rpc(wot.OpQueryAllActions, thingID, "", nil, &values)
 	return values, err

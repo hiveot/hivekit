@@ -152,7 +152,7 @@ func (sc *WssServerConnection) onMessage(raw []byte) {
 	resp = sc.messageConverter.DecodeResponse(raw)
 	if resp != nil {
 		// sender is identified by the server, not the client
-		resp.SenderID = sc.GetClientID()
+		resp.AgentID = sc.GetClientID()
 		sc.onResponse(resp)
 		return
 	}

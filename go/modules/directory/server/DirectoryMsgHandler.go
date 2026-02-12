@@ -88,7 +88,7 @@ func (handler *DirectoryMsgHandler) DeleteThing(req *msg.RequestMessage) (resp *
 func (handler *DirectoryMsgHandler) RetrieveAllThings(req *msg.RequestMessage) (resp *msg.ResponseMessage) {
 	var tdList []string
 	var err error
-	var args directory.RetrieveAllThingsArgs
+	var args RetrieveAllThingsArgs
 
 	err = utils.Decode(req.Input, &args)
 	if err == nil {

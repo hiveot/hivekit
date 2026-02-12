@@ -254,7 +254,7 @@ func (cl *HttpBasicClient) SendRequest(
 		if len(outputRaw) == 0 {
 			// nothing to unmarshal
 		} else {
-			err = jsoniter.UnmarshalFromString(string(outputRaw), &resp.Value)
+			err = jsoniter.UnmarshalFromString(string(outputRaw), &resp.Output)
 		}
 		if err != nil {
 			resp.Error = msg.ErrorValueFromError(err)
@@ -295,7 +295,7 @@ func (cl *HttpBasicClient) SendRequest(
 		if outputRaw == nil {
 			// nothing to unmarshal
 		} else {
-			err = jsoniter.UnmarshalFromString(string(outputRaw), &resp.Value)
+			err = jsoniter.UnmarshalFromString(string(outputRaw), &resp.Output)
 		}
 		httpProblemDetail := map[string]string{}
 		if len(outputRaw) > 0 {
