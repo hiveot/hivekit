@@ -1,4 +1,4 @@
-package server
+package historyserver
 
 import (
 	"fmt"
@@ -23,7 +23,8 @@ type ReadHistoryMsgHandler struct {
 	isRunning bool
 }
 
-func (svc *ReadHistoryMsgHandler) _HandleRequest(req *msg.RequestMessage, replyTo msg.ResponseHandler) (err error) {
+// HandleRequest handles incoming requests for reading the history
+func (svc *ReadHistoryMsgHandler) HandleRequest(req *msg.RequestMessage, replyTo msg.ResponseHandler) (err error) {
 	var resp *msg.ResponseMessage
 
 	if req.SenderID == "" {
@@ -43,8 +44,10 @@ func (svc *ReadHistoryMsgHandler) _HandleRequest(req *msg.RequestMessage, replyT
 		resp, err = svc.NextN(req)
 	case CursorPrevMethod:
 		resp, err = svc.Prev(req)
-	case CursorReleaseMethod:
+	case CursorPrevNMethod:
 		resp, err = svc.PrevN(req)
+	case CursorReleaseMethod:
+		resp, err = svc.ReleaseCursor(req)
 	case CursorSeekMethod:
 		resp, err = svc.Seek(req)
 	case ReadHistoryMethod:
@@ -72,7 +75,7 @@ func (svc *ReadHistoryMsgHandler) CreateCursor(req *msg.RequestMessage) (*msg.Re
 }
 
 // First
-func (svc *ReadHistoryMsgHandler) First(req msg.RequestMessage) (*msg.ResponseMessage, error) {
+func (svc *ReadHistoryMsgHandler) First(req *msg.RequestMessage) (*msg.ResponseMessage, error) {
 	var cursorKey string
 	var valueResp CursorValueResp
 
@@ -87,10 +90,97 @@ func (svc *ReadHistoryMsgHandler) First(req msg.RequestMessage) (*msg.ResponseMe
 	return resp, nil
 }
 
+// Last
+func (svc *ReadHistoryMsgHandler) Last(req *msg.RequestMessage) (*msg.ResponseMessage, error) {
+	var cursorKey string
+	var valueResp CursorValueResp
+
+	err := req.ToObject(&cursorKey)
+	if err != nil || cursorKey == "" {
+		return nil, fmt.Errorf("missing cursorKey")
+	}
+	tv, valid, err := svc.histStore.Last(req.SenderID, cursorKey)
+	valueResp.Valid = valid
+	valueResp.Value = tv
+	resp := req.CreateResponse(valueResp, err)
+	return resp, nil
+}
+
+func (svc *ReadHistoryMsgHandler) Next(req *msg.RequestMessage) (*msg.ResponseMessage, error) {
+	var cursorKey string
+	var valueResp CursorValueResp
+
+	err := req.ToObject(&cursorKey)
+	if err != nil || cursorKey == "" {
+		return nil, fmt.Errorf("missing cursorKey")
+	}
+	tv, valid, err := svc.histStore.Next(req.SenderID, cursorKey)
+	valueResp.Valid = valid
+	valueResp.Value = tv
+	resp := req.CreateResponse(valueResp, err)
+	return resp, nil
+}
+
+func (svc *ReadHistoryMsgHandler) NextN(req *msg.RequestMessage) (*msg.ResponseMessage, error) {
+	var cursorNArgs CursorNArgs
+	var cursorNResp CursorNResp
+
+	err := req.ToObject(&cursorNArgs)
+	if err != nil || cursorNArgs.CursorKey == "" {
+		return nil, fmt.Errorf("missing cursorKey")
+	}
+	until, err := dateparse.ParseAny(cursorNArgs.Until)
+	if err != nil {
+		return nil, fmt.Errorf("invalid timestamp '%s': %s", cursorNArgs.Until, err.Error())
+	}
+
+	tvList, itemsRemaining, err := svc.histStore.NextN(
+		req.SenderID, cursorNArgs.CursorKey, until, cursorNArgs.Limit)
+	cursorNResp.Values = tvList
+	cursorNResp.ItemsRemaining = itemsRemaining
+	resp := req.CreateResponse(cursorNResp, err)
+	return resp, nil
+}
+
+func (svc *ReadHistoryMsgHandler) Prev(req *msg.RequestMessage) (*msg.ResponseMessage, error) {
+	var cursorKey string
+	var valueResp CursorValueResp
+
+	err := req.ToObject(&cursorKey)
+	if err != nil || cursorKey == "" {
+		return nil, fmt.Errorf("missing cursorKey")
+	}
+	tv, valid, err := svc.histStore.Prev(req.SenderID, cursorKey)
+	valueResp.Valid = valid
+	valueResp.Value = tv
+	resp := req.CreateResponse(valueResp, err)
+	return resp, nil
+}
+
+func (svc *ReadHistoryMsgHandler) PrevN(req *msg.RequestMessage) (*msg.ResponseMessage, error) {
+	var cursorNArgs CursorNArgs
+	var cursorNResp CursorNResp
+
+	err := req.ToObject(&cursorNArgs)
+	if err != nil || cursorNArgs.CursorKey == "" {
+		return nil, fmt.Errorf("missing cursorKey")
+	}
+	until, err := dateparse.ParseAny(cursorNArgs.Until)
+	if err != nil {
+		return nil, fmt.Errorf("invalid timestamp '%s': %s", cursorNArgs.Until, err.Error())
+	}
+	tvList, itemsRemaining, err := svc.histStore.PrevN(
+		req.SenderID, cursorNArgs.CursorKey, until, cursorNArgs.Limit)
+	cursorNResp.Values = tvList
+	cursorNResp.ItemsRemaining = itemsRemaining
+	resp := req.CreateResponse(cursorNResp, err)
+	return resp, nil
+}
+
 // ReadHistory the history for the given time, duration and limit
 // For more extensive result use the cursor
 // To go back in time use the negative duration.
-func (svc *ReadHistoryMsgHandler) ReadHistory(req msg.RequestMessage) (*msg.ResponseMessage, error) {
+func (svc *ReadHistoryMsgHandler) ReadHistory(req *msg.RequestMessage) (*msg.ResponseMessage, error) {
 	var args ReadHistoryArgs
 	var output ReadHistoryResp
 
@@ -100,12 +190,42 @@ func (svc *ReadHistoryMsgHandler) ReadHistory(req msg.RequestMessage) (*msg.Resp
 	}
 	ts, err := dateparse.ParseAny(args.Timestamp)
 	if err != nil {
-		return nil, fmt.Errorf("ReadHistory: Invalid timestamp: " + err.Error())
+		return nil, fmt.Errorf("invalid timestamp '%s': %s", args.Timestamp, err.Error())
 	}
 	output.Values, output.ItemsRemaining, err = svc.histStore.ReadHistory(
 		args.ThingID, args.AffordanceName, ts, args.Duration, args.Limit)
-	resp := req.CreateActionResponse("", statuscompleted, output, err)
-	return resp, err
+	resp := req.CreateResponse(output, err)
+	return resp, nil
+}
+
+func (svc *ReadHistoryMsgHandler) ReleaseCursor(req *msg.RequestMessage) (*msg.ResponseMessage, error) {
+
+	cursorKey := req.ToString(0)
+	if cursorKey == "" {
+		return nil, fmt.Errorf("missing cursorKey")
+	}
+	err := svc.histStore.ReleaseCursor(req.SenderID, cursorKey)
+	resp := req.CreateResponse(nil, err)
+	return resp, nil
+}
+
+func (svc *ReadHistoryMsgHandler) Seek(req *msg.RequestMessage) (*msg.ResponseMessage, error) {
+	var seekArgs CursorSeekArgs
+	var valueResp CursorValueResp
+
+	err := req.ToObject(&seekArgs)
+	if err != nil || seekArgs.CursorKey == "" {
+		return nil, fmt.Errorf("missing cursorKey")
+	}
+	ts, err := dateparse.ParseAny(seekArgs.Timestamp)
+	if err != nil {
+		return nil, fmt.Errorf("invalid timestamp '%s': %s", seekArgs.Timestamp, err.Error())
+	}
+	tv, valid, err := svc.histStore.Seek(req.SenderID, seekArgs.CursorKey, ts)
+	valueResp.Valid = valid
+	valueResp.Value = tv
+	resp := req.CreateResponse(valueResp, err)
+	return resp, nil
 }
 
 // NewReadHistory starts the capability to read from a things's history

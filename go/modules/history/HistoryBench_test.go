@@ -5,8 +5,10 @@ import (
 	"testing"
 	"time"
 
+	"github.com/hiveot/hivekit/go/modules/history/historyclient"
+	"github.com/hiveot/hivekit/go/modules/transports"
+	"github.com/hiveot/hivekit/go/utils"
 	"github.com/hiveot/hivekit/go/wot/td"
-	"github.com/hiveot/hub/lib/logging"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -64,16 +66,14 @@ func BenchmarkAddEvents(b *testing.B) {
 	const timespanSec = 3600 * 24 * 10
 	var dThing0ID = td.MakeDigiTwinThingID(agentID, thing0ID)
 
-	logging.SetLogging("error", "")
+	utils.SetLogging("error", "")
 
 	for _, tbl := range DataSizeTable {
 		testData, _ := makeValueBatch("device1", tbl.dataSize, tbl.nrThings, timespanMonth)
-		svc, readHist, stopFn := startHistoryService(true)
+		m, stopFn := startHistoryService(true)
 		time.Sleep(time.Millisecond)
 		// build a dataset in the store
-		addBulkHistory(svc, agentID, tbl.dataSize, 10, timespanSec)
-
-		addHist := svc.GetAddHistory()
+		addBulkHistory(m, agentID, tbl.dataSize, 10, timespanSec)
 
 		// test adding records one by one
 		// add history directly access the history store. No comms protocol is used.
@@ -83,7 +83,7 @@ func BenchmarkAddEvents(b *testing.B) {
 
 					for i := 0; i < tbl.nrSets; i++ {
 						ev := testData[i]
-						err := addHist.AddValue(agentID, ev)
+						err := m.AddValue(&ev)
 						require.NoError(b, err)
 					}
 
@@ -96,23 +96,27 @@ func BenchmarkAddEvents(b *testing.B) {
 				bulk := testData[0:tbl.nrSets]
 				for n := 0; n < b.N; n++ {
 					for _, v := range bulk {
-						err := addHist.AddValue(agentID, v)
+						err := m.AddValue(&v)
 						require.NoError(b, err)
 					}
 				}
 			})
 
 		// test reading records
-		// readHist uses the hubclient library
+		// readHist connects using transport protocol
+		co1, _, _ := testEnv.NewConsumerClient(testClientID, transports.ClientRoleOperator, nil)
+		readHist := historyclient.NewReadHistoryClient(co1)
+		defer co1.Stop()
+
 		time.Sleep(time.Millisecond * 300) // let the add settle
 		b.Run(fmt.Sprintf("[dbsize:%d] #things:%d get-single:%d", tbl.dataSize, tbl.nrThings, tbl.nrSets),
 			func(b *testing.B) {
 				for n := 0; n < b.N; n++ {
 
-					cursor, releaseFn, _ := readHist.GetCursor(dThing0ID, "")
-					v, valid, _ := cursor.First()
+					cursorKey, releaseFn, _ := readHist.GetCursor(dThing0ID, "")
+					v, valid, _ := readHist.First(cursorKey)
 					for i := 0; i < tbl.nrSets-1; i++ {
-						v, valid, _ = cursor.Next()
+						v, valid, _ = readHist.Next(cursorKey)
 						if !assert.True(b, valid,
 							fmt.Sprintf("counting only '%d' records. Expected at least '%d'.", i, tbl.nrSets)) {
 							break
@@ -124,16 +128,17 @@ func BenchmarkAddEvents(b *testing.B) {
 			})
 		// test reading records
 		// readHist uses the hubclient library
+		until := time.Now()
 		b.Run(fmt.Sprintf("[dbsize:%d] #things:%d get-batch:%d", tbl.dataSize, tbl.nrThings, tbl.nrSets),
 			func(b *testing.B) {
 				for n := 0; n < b.N; n++ {
 
-					cursor, releaseFn, _ := readHist.GetCursor(dThing0ID, "")
-					require.NotNil(b, cursor)
-					tv, _, _ := cursor.First()
+					cursorKey, releaseFn, err := readHist.GetCursor(dThing0ID, "")
+					require.NoError(b, err)
+					tv, _, _ := readHist.First(cursorKey)
 					assert.NotEmpty(b, tv)
 					if tbl.nrSets > 1 {
-						tvBatch, _, _ := cursor.NextN(tbl.nrSets-1, "")
+						tvBatch, _, _ := readHist.NextN(cursorKey, until, tbl.nrSets-1)
 						if !assert.True(b, len(tvBatch) > 0,
 							fmt.Sprintf("counting only '%d' records. Expected at least '%d'.", len(tvBatch), tbl.nrSets)) {
 							break

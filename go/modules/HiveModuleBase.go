@@ -84,8 +84,8 @@ func (m *HiveModuleBase) ForwardNotification(notif *msg.NotificationMessage) {
 // If no sink os configured this returns an error
 func (m *HiveModuleBase) ForwardRequest(req *msg.RequestMessage, replyTo msg.ResponseHandler) (err error) {
 	if m.requestSink == nil {
-		return fmt.Errorf("ForwardRequest: no sink for request '%s/%s' to thingID '%s'",
-			req.Operation, req.Name, req.ThingID)
+		return fmt.Errorf("ForwardRequest: end of the line at '%s' for request '%s/%s' to thingID '%s'",
+			m.moduleID, req.Operation, req.Name, req.ThingID)
 	}
 	err = m.requestSink(req, replyTo)
 	return err

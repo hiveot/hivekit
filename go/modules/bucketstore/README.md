@@ -72,3 +72,21 @@ The mongoDB backend is not complete. One of the main stumbling blocks is that mo
 
 Redis is not an embedded store and requires external setup and maintenance. It is out of scope for this application.  
 That said, it has a well defined interface and superb performance so if a use-case comes up it can be considered.
+
+## Usage
+
+Start a module instance and obtain the bucket store:
+
+```go
+    // create a local instance
+    // storageRoot with path to storage directory or "" for in-memory storage.
+	m := module.NewBucketStoreModule(storageRoot)
+	err := m.Start("")
+
+    // direct access to the bucketstore
+    store := m.GetService()
+    // do stuff with the store
+
+    // end
+    m.Stop()
+```

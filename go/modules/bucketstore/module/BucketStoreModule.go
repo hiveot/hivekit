@@ -114,18 +114,23 @@ func (m *BucketStoreModule) Stop() {
 // Start a new bucket storage instance
 // Run Start() before use.
 //
+// If an embedded store is used then the history data is stored in the directory
+// {storageRoot}/{moduleID}.
+//
 // storageRoot is the application storage root directory, "" for testing with in-memory storage
-func NewBucketStoreModule(storageRoot string) *BucketStoreModule {
+func NewBucketStoreModule(storageRoot string, storeType string) *BucketStoreModule {
 
 	m := &BucketStoreModule{
 		HiveModuleBase: modules.HiveModuleBase{},
 		storageRoot:    storageRoot,
-		// StoreType:   defaultStoreType,
+		StoreType:      storeType,
 		// StoreName:   defaultStoreName,
 		// bucketStore: bucketStore,
 	}
 	m.SetModuleID(DefaultBucketStoreThingID)
-	var _ modules.IHiveModule = m // interface check
+
+	var _ modules.IHiveModule = m            // interface check
+	var _ bucketstore.IBucketStore = m.store // interface check
 
 	return m
 }

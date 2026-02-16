@@ -378,12 +378,16 @@ func (m *TransportServerBase) SendResponse(
 	return err
 }
 
-// Set the handler that will receive notifications emitted by this module
+// Set the handler that will receive notifications received from the remote agent
 func (m *TransportServerBase) SetNotificationSink(consumer msg.NotificationHandler) {
 	m.notificationSink = consumer
 }
 
-// Set the handler that will receive notifications emitted by this module
+// Set the handler that will receive requests received from the client
 func (m *TransportServerBase) SetRequestSink(sink msg.RequestHandler) {
+	// to be determined if there is a use-case for replacing the sink
+	if m.requestSink != nil {
+		slog.Warn("SetRequestSink: Overriding existing request sink", "moduleID", m.moduleID)
+	}
 	m.requestSink = sink
 }

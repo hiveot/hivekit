@@ -6,27 +6,56 @@ import (
 	"github.com/hiveot/hivekit/go/wot"
 )
 
+// Definition of message filters for events properties and actions
 type MessageFilter struct {
-	Steps []MessageFilterStep `yaml:"steps"`
+	// The default retain value if no steps match.
+	Events     []MessageFilterStep `yaml:"events"`
+	Properties []MessageFilterStep `yaml:"properties"`
+	Actions    []MessageFilterStep `yaml:"actions"`
 }
 
 // Determine if a notification should be retained based on the filter steps.
-// All steps must return true to retain the message.
+// The notification is retained if one step retails.
 func (m *MessageFilter) RetainNotification(notif *NotificationMessage) bool {
-	for _, step := range m.Steps {
-		if !step.RetainNotification(notif) {
-			return false
+	switch notif.AffordanceType {
+	case AffordanceTypeEvent:
+		for _, step := range m.Events {
+			if step.Match(notif.ThingID, notif.Name) {
+				return step.Retain
+			}
+		}
+	case AffordanceTypeProperty:
+		for _, step := range m.Properties {
+			if step.Match(notif.ThingID, notif.Name) {
+				return step.Retain
+			}
+		}
+	case AffordanceTypeAction:
+		for _, step := range m.Actions {
+			if step.Match(notif.ThingID, notif.Name) {
+				return step.Retain
+			}
 		}
 	}
-	return true
+	// no match
+	return false
 }
 
 // Determine if a request should be retained based on the filter steps.
 // All steps must return true to retain the message.
 func (m *MessageFilter) RetainRequest(req *RequestMessage) bool {
-	for _, step := range m.Steps {
-		if !step.RetainRequest(req) {
-			return false
+	switch req.Operation {
+	case wot.OpInvokeAction:
+		for _, step := range m.Actions {
+			if step.Match(req.ThingID, req.Name) {
+				return step.Retain
+			}
+		}
+	case wot.OpWriteProperty:
+		for _, step := range m.Properties {
+			if step.Match(req.ThingID, req.Name) {
+				return step.Retain
+			}
 		}
 	}
 	return true
@@ -34,8 +63,6 @@ func (m *MessageFilter) RetainRequest(req *RequestMessage) bool {
 
 // Filter whether to retain an action, property update or event
 type MessageFilterStep struct {
-	// AffordanceType, required: See AffordanceTypeEvent | Property | Action
-	AffordanceType AffordanceType `yaml:"messageType"`
 
 	// Optional, the rule applies to data from this (digital twin) Thing
 	ThingID string `yaml:"thingID,omitempty"`
@@ -47,33 +74,22 @@ type MessageFilterStep struct {
 	Retain bool `yaml:"retain" json:"retain"`
 }
 
-// RetainNotification returns true to retain the message, false to exclude it.
-func (m *MessageFilterStep) RetainNotification(notif *NotificationMessage) bool {
+// Match returns whether the provided filter parameters match this step.
+func (step *MessageFilterStep) Match(thingID string, name string) bool {
+
 	// filters on affordance type, operation, thingID and name
-	if m.AffordanceType != "" && notif.AffordanceType != m.AffordanceType {
-		return false
+	if step.ThingID != "" {
+		if thingID != step.ThingID {
+			// thingID provided but does not match
+			return false
+		}
 	}
-	if m.ThingID != "" && notif.ThingID != m.ThingID {
-		return false
+	// thingID matches or is not specified, which is a match by default
+	if step.Names != nil {
+		if !slices.Contains(step.Names, name) {
+			// names provided but none math this name
+			return false
+		}
 	}
-	if m.Names != nil && slices.Contains(m.Names, notif.Name) {
-		return false
-	}
-	return m.Retain
-}
-
-// RetainRequest returns true to retain the message, false to exclude it.
-func (m *MessageFilterStep) RetainRequest(req *RequestMessage) bool {
-	// exclude non-action config or requests
-	if m.AffordanceType != AffordanceTypeAction || req.Operation != wot.OpInvokeAction {
-		return false
-	}
-
-	if m.ThingID != "" && req.ThingID != m.ThingID {
-		return false
-	}
-	if m.Names != nil && slices.Contains(m.Names, req.Name) {
-		return false
-	}
-	return m.Retain
+	return true
 }

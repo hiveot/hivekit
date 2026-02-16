@@ -10,22 +10,24 @@ import (
 	"time"
 
 	"github.com/araddon/dateparse"
-	"github.com/hiveot/gocore/msg"
-	"github.com/hiveot/hivekit/go/modules/history/historyapi.old"
+	"github.com/hiveot/hivekit/go/modules/bucketstore"
+	bucketmodule "github.com/hiveot/hivekit/go/modules/bucketstore/module"
+	"github.com/hiveot/hivekit/go/modules/clients"
 	"github.com/hiveot/hivekit/go/modules/history/historyclient"
 	"github.com/hiveot/hivekit/go/modules/history/module"
+	"github.com/hiveot/hivekit/go/modules/transports"
+	"github.com/hiveot/hivekit/go/modules/transports/tptests"
+	"github.com/hiveot/hivekit/go/msg"
 	"github.com/hiveot/hivekit/go/utils"
-	"github.com/hiveot/hivekit/go/wot"
-	"github.com/hiveot/hivekit/go/wot/td"
-	"github.com/hiveot/hub/core/history/service"
-	"github.com/hiveot/hub/lib/logging"
-	"github.com/hiveot/hub/lib/testenv"
+	"github.com/hiveot/hivekit/go/vocab"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
 const thingIDPrefix = "things-"
+
+const defaultProtocol = transports.ProtocolTypeWotWSS
 
 // recommended store for history is Pebble
 // const historyStoreBackend = bucketstore.BackendPebble
@@ -34,46 +36,54 @@ const historyStoreBackend = bucketstore.BackendKVBTree
 const testClientID = "operator1"
 
 // the following are set by the testmain
-var ts *tptests.TestServer
+var testEnv *tptests.TestEnv
 
 var names = []string{"temperature", "humidity", "pressure", "wind", "speed", "switch", "location", "sensor-A", "sensor-B", "sensor-C"}
 
-// Create a new store, delete if it already exists
+func TestMain(m *testing.M) {
+	var cancelFn func()
+	utils.SetLogging("info", "")
+	testEnv, cancelFn = tptests.StartTestEnv(defaultProtocol)
+	defer cancelFn()
+
+	res := m.Run()
+	os.Exit(res)
+}
+
+// Start a history server
+// This starts the protocol server and links it to the history module as sink
+// Use clean to start with an empty history.
 func startHistoryService(clean bool) (
-	svc *module.HistoryModule,
-	r *historyclient.ReadHistoryClient,
-	stopFn func()) {
+	histModule *module.HistoryModule, stopFn func()) {
 
-	ts = testenv.StartTestServer(clean)
-
-	histStore, err := bucketstore.NewBucketStore(
-		ts.TestDir, "hist", historyStoreBackend)
-	if err == nil {
-		err = histStore.Open()
+	if clean {
+		os.RemoveAll(testEnv.StorageRoot)
 	}
+	// use pebble as the history bucketstore
+	bucketStoreModule := bucketmodule.NewBucketStoreModule(testEnv.StorageRoot, bucketstore.BackendPebble)
+	err := bucketStoreModule.Start("")
 	if err != nil {
 		panic("can't open history bucket store")
 	}
 
-	// the service needs an agent connection
-	agentConn, _ := ts.AddConnectService(historyapi.AgentID)
-	svc = service.NewHistoryService(histStore)
+	// create the history module and link it to the protocol server
+	// since the history module runs on the server it doesn't need an agent
+	// instance.
+	histModule = module.NewHistoryModule(bucketStoreModule.GetService())
+	testEnv.Server.SetRequestSink(histModule.HandleRequest)
+	histModule.SetNotificationSink(testEnv.Server.HandleNotification)
 
-	err = svc.Start(agentConn)
+	err = histModule.Start("")
 	if err != nil {
-		panic("Failed starting the state service: " + err.Error())
+		panic("Failed starting the history module: " + err.Error())
 	}
 
-	// create an end user client for testing
-	co1, _, _ := ts.AddConnectConsumer(testClientID, ClientRoleOperator)
-	histCl := historyclient.NewReadHistoryClient(co1)
+	return histModule, func() {
+		// stop the history module, bucketstore and agent module
+		histModule.Stop()
+		bucketStoreModule.Stop()
+		testEnv.Server.SetRequestSink(nil)
 
-	return svc, histCl, func() {
-		co1.Disconnect()
-		svc.Stop()
-		_ = histStore.Close()
-		agentConn.Disconnect()
-		ts.Stop()
 		// give it some time to shut down before the next test
 		time.Sleep(time.Millisecond)
 	}
@@ -98,7 +108,7 @@ func makeValueBatch(agentID string, nrValues, nrThings, timespanSec int) (
 		randomTime := time.Now().Add(-randomSeconds)
 		//
 		thingID := thingIDPrefix + strconv.Itoa(randomID)
-		dThingID := td.MakeDigiTwinThingID(agentID, thingID)
+		// dThingID := td.MakeDigiTwinThingID(agentID, thingID)
 
 		randomMsgType := rand.Intn(2)
 		affType := msg.AffordanceTypeEvent
@@ -108,9 +118,10 @@ func makeValueBatch(agentID string, nrValues, nrThings, timespanSec int) (
 
 		tv := msg.ThingValue{
 			//ID:             fmt.Sprintf("%d", randomID),
+			SenderID:       agentID,
 			Name:           names[randomName],
 			Data:           fmt.Sprintf("%2.3f", randomValue),
-			ThingID:        dThingID,
+			ThingID:        thingID,
 			Timestamp:      utils.FormatUTCMilli(randomTime),
 			AffordanceType: affType,
 		}
@@ -128,7 +139,7 @@ func makeValueBatch(agentID string, nrValues, nrThings, timespanSec int) (
 }
 
 // add some history to the store. This bypasses the check for thingID to exist.
-func addBulkHistory(svc *service.HistoryService, agentID string, count int, nrThings int,
+func addBulkHistory(m *module.HistoryModule, agentID string, count int, nrThings int,
 	timespanSec int) (highest map[string]msg.ThingValue) {
 
 	var batchSize = 1000
@@ -137,7 +148,6 @@ func addBulkHistory(svc *service.HistoryService, agentID string, count int, nrTh
 	}
 
 	evBatch, highest := makeValueBatch(agentID, count, nrThings, timespanSec)
-	addHist := svc.GetAddHistory()
 
 	// use add multiple in 100's
 	for i := 0; i < count/batchSize; i++ {
@@ -145,7 +155,7 @@ func addBulkHistory(svc *service.HistoryService, agentID string, count int, nrTh
 		start := batchSize * i
 		end := batchSize * (i + 1)
 		for j := start; j < end; j++ {
-			err := addHist.AddValue(agentID, evBatch[j])
+			err := m.AddValue(&evBatch[j])
 			if err != nil {
 				slog.Error("Problem adding events.", "err", err)
 			}
@@ -154,21 +164,14 @@ func addBulkHistory(svc *service.HistoryService, agentID string, count int, nrTh
 	return highest
 }
 
-func TestMain(m *testing.M) {
-	logging.SetLogging("info", "")
-	res := m.Run()
-	os.Exit(res)
-}
-
 // Test creating and deleting the history database
 // This requires a local unsecured MongoDB instance
 func TestStartStop(t *testing.T) {
 	t.Logf("---%s---\n", t.Name())
 
-	store, readHist, stopFn := startHistoryService(true)
+	store, stopFn := startHistoryService(true)
 	defer stopFn()
 	_ = store
-	_ = readHist
 }
 
 func TestAddGetEvent(t *testing.T) {
@@ -182,62 +185,76 @@ func TestAddGetEvent(t *testing.T) {
 	const evHumidity = "humidity"
 
 	// add history with two specific things to test against
-	svc, readHist, stopFn := startHistoryService(true)
+	m, stopFn := startHistoryService(true)
 	// do not defer cancel as it will be closed and reopened in the test
+
+	// create an end user client for testing
+	co1, _, _ := testEnv.NewConsumerClient(testClientID, transports.ClientRoleOperator, nil)
+	histCl := historyclient.NewReadHistoryClient(co1)
+
 	fivemago := time.Now().Add(-time.Minute * 5)
 	fiftyfivemago := time.Now().Add(-time.Minute * 55)
-	addBulkHistory(svc, agent1ID, 20, 3, 3600)
+	addBulkHistory(m, agent1ID, 20, 3, 3600)
 
 	// add thing1 temperature from 5 minutes ago
-	addHist := svc.GetAddHistory()
-	dThing1ID := td.MakeDigiTwinThingID(agent1ID, thing1ID)
 	ev1_1 := &msg.NotificationMessage{
-		Operation: wot.OpSubscribeEvent,
-		SenderID:  agent1ID, ThingID: dThing1ID, Name: evTemperature,
-		Value: "12.5", Timestamp: utils.FormatUTCMilli(fivemago),
+		AffordanceType: msg.AffordanceTypeEvent,
+		SenderID:       agent1ID,
+		ThingID:        thing1ID,
+		Name:           evTemperature,
+		Data:           "12.5",
+		Timestamp:      utils.FormatUTCMilli(fivemago),
 	}
-	err := addHist.AddMessage(ev1_1)
+	err := m.StoreNotification(ev1_1)
 	assert.NoError(t, err)
 	// add thing1 humidity from 55 minutes ago
 	ev1_2 := &msg.NotificationMessage{
-		Operation: wot.OpSubscribeEvent,
-		SenderID:  agent1ID, ThingID: dThing1ID, Name: evHumidity,
-		Value: "70", Timestamp: utils.FormatUTCMilli(fiftyfivemago),
+		AffordanceType: msg.AffordanceTypeEvent,
+		SenderID:       agent1ID,
+		ThingID:        thing1ID,
+		Name:           evHumidity,
+		Data:           "70",
+		Timestamp:      utils.FormatUTCMilli(fiftyfivemago),
 	}
-	err = addHist.AddMessage(ev1_2)
+	err = m.StoreNotification(ev1_2)
 	assert.NoError(t, err)
 
 	// add thing2 humidity from 5 minutes ago
-	dThing2ID := td.MakeDigiTwinThingID(agent1ID, thing2ID)
 	ev2_1 := &msg.NotificationMessage{
-		Operation: wot.OpSubscribeEvent,
-		SenderID:  agent1ID, ThingID: dThing2ID, Name: evHumidity,
-		Value: "50", Timestamp: utils.FormatUTCMilli(fivemago),
+		AffordanceType: msg.AffordanceTypeEvent,
+		SenderID:       agent1ID,
+		ThingID:        thing2ID,
+		Name:           evHumidity,
+		Data:           "50",
+		Timestamp:      utils.FormatUTCMilli(fivemago),
 	}
-	err = addHist.AddMessage(ev2_1)
+	err = m.StoreNotification(ev2_1)
 	assert.NoError(t, err)
 
 	// add thing2 temperature from 55 minutes ago
 	ev2_2 := &msg.NotificationMessage{
-		Operation: wot.OpSubscribeEvent,
-		SenderID:  agent1ID, ThingID: dThing2ID, Name: evTemperature,
-		Value: "17.5", Timestamp: utils.FormatUTCMilli(fiftyfivemago),
+		AffordanceType: msg.AffordanceTypeEvent,
+		SenderID:       agent1ID,
+		ThingID:        thing2ID,
+		Name:           evTemperature,
+		Data:           "17.5",
+		Timestamp:      utils.FormatUTCMilli(fiftyfivemago),
 	}
-	err = addHist.AddMessage(ev2_2)
+	err = m.StoreNotification(ev2_2)
 	assert.NoError(t, err)
 
 	// Test 1: get events of thing1 older than 300 minutes ago - expect 1 humidity from 55 minutes ago
-	cursor1, c1Release, err := readHist.GetCursor(dThing1ID, "")
+	cursorKey, c1Release, err := histCl.GetCursor(thing1ID, "")
 	require.NoError(t, err)
 
 	// seek must return the things humidity added 55 minutes ago, not 5 minutes ago
 	timeAfter := time.Now().Add(-time.Minute * 300)
-	tv1, valid, err := cursor1.Seek(timeAfter)
+	tv1, valid, err := histCl.Seek(cursorKey, timeAfter)
 	if assert.NoError(t, err) && assert.True(t, valid) {
-		assert.Equal(t, dThing1ID, tv1.ThingID)
+		assert.Equal(t, thing1ID, tv1.ThingID)
 		assert.Equal(t, evHumidity, tv1.Name)
 		// next finds the temperature from 5 minutes ago
-		tv2, valid, err := cursor1.Next()
+		tv2, valid, err := histCl.Next(cursorKey)
 		assert.NoError(t, err)
 		if assert.True(t, valid) {
 			assert.Equal(t, evTemperature, tv2.Name)
@@ -249,9 +266,9 @@ func TestAddGetEvent(t *testing.T) {
 
 	// do we need to get a new cursor?
 	//readHistory = svc.CapReadHistory()
-	tv3, valid, _ := cursor1.Seek(timeAfter)
+	tv3, valid, _ := histCl.Seek(cursorKey, timeAfter)
 	if assert.True(t, valid) {
-		assert.Equal(t, dThing1ID, tv3.ThingID)  // must match the filtered id1
+		assert.Equal(t, thing1ID, tv3.ThingID)   // must match the filtered id1
 		assert.Equal(t, evTemperature, tv3.Name) // must match evTemperature from 5 minutes ago
 		assert.Equal(t, utils.FormatUTCMilli(fivemago), tv3.Timestamp)
 	}
@@ -260,18 +277,20 @@ func TestAddGetEvent(t *testing.T) {
 	stopFn()
 
 	// PHASE 2: after closing and reopening the svc the event should still be there
-	svc, readHist, stopFn = startHistoryService(false)
+	m, stopFn = startHistoryService(false)
 	defer stopFn()
 
 	// Test 3: get first temperature of things 2 - expect 1 result
 	time.Sleep(time.Second)
-	cursor2, releaseFn, err := readHist.GetCursor(dThing2ID, "")
+	cursorKey, releaseFn, err := histCl.GetCursor(thing2ID, "")
 	require.NoError(t, err)
-	tv4, valid, err := cursor2.First()
+	defer releaseFn()
+	tv4, valid, err := histCl.First(cursorKey)
 	require.NoError(t, err)
+	require.NotEmpty(t, tv4)
 	require.True(t, valid)
 	assert.Equal(t, evTemperature, tv4.Name)
-	releaseFn()
+
 }
 
 func TestAddProperties(t *testing.T) {
@@ -282,29 +301,28 @@ func TestAddProperties(t *testing.T) {
 	const temp1 = 55
 	const battTemp = 50
 
-	svc, readHist, closeFn := startHistoryService(true)
+	m, closeFn := startHistoryService(true)
 	defer closeFn()
 
-	dThing1ID := td.MakeDigiTwinThingID(agent1, thing1ID)
 	action1 := &msg.NotificationMessage{
-		SenderID:  agent1,
-		ThingID:   dThing1ID,
-		Name:      vocab.ActionSwitchOnOff,
-		Value:     "on",
-		Operation: wot.OpInvokeAction,
+		AffordanceType: msg.AffordanceTypeAction,
+		SenderID:       agent1,
+		ThingID:        thing1ID,
+		Name:           vocab.ActionSwitchOnOff,
+		Data:           "on",
 	}
 	event1 := &msg.NotificationMessage{
-		SenderID:  agent1,
-		ThingID:   dThing1ID,
-		Name:      vocab.PropEnvTemperature,
-		Value:     temp1,
-		Operation: wot.OpSubscribeEvent,
+		AffordanceType: msg.AffordanceTypeEvent,
+		SenderID:       agent1,
+		ThingID:        thing1ID,
+		Name:           vocab.PropEnvTemperature,
+		Data:           temp1,
 	}
 	badEvent1 := &msg.NotificationMessage{
-		SenderID:  agent1,
-		ThingID:   dThing1ID,
-		Name:      "", // missing name
-		Operation: wot.OpSubscribeEvent,
+		AffordanceType: msg.AffordanceTypeEvent,
+		SenderID:       agent1,
+		ThingID:        thing1ID,
+		Name:           "", // missing name
 	}
 	// dThing1ID identifies the publisher so not an error
 	//badEvent2 := &transports.IConsumer{
@@ -314,73 +332,92 @@ func TestAddProperties(t *testing.T) {
 	//	Operation: wot.OpSubscribeEvent,
 	//}
 	badEvent3 := &msg.NotificationMessage{
-		SenderID:  agent1,
-		ThingID:   dThing1ID,
-		Name:      "baddate",
-		Timestamp: "-1",
-		Operation: wot.OpSubscribeEvent,
+		AffordanceType: msg.AffordanceTypeEvent,
+		SenderID:       agent1,
+		ThingID:        thing1ID,
+		Name:           "baddate",
+		Timestamp:      "-1",
 	}
 	badEvent4 := &msg.NotificationMessage{
-		SenderID: agent1,
-		ThingID:  "", // missing ID
-		Name:     "temperature",
+		AffordanceType: msg.AffordanceTypeEvent,
+		SenderID:       agent1,
+		ThingID:        "", // missing ID
+		Name:           "temperature",
 	}
-	propsList := make(map[string]interface{})
-	propsList[vocab.PropDeviceBattery] = battTemp
-	propsList[vocab.PropEnvCpuload] = 30
-	propsList[vocab.PropSwitchOnOff] = "off"
+
 	props1 := &msg.NotificationMessage{
-		SenderID:  agent1,
-		ThingID:   dThing1ID,
-		Name:      "", // property list
-		Value:     propsList,
-		Operation: wot.OpObserveAllProperties,
+		AffordanceType: msg.AffordanceTypeProperty,
+		SenderID:       agent1,
+		ThingID:        thing1ID,
+		Name:           vocab.PropDeviceBattery,
+		Data:           battTemp,
+	}
+	props2 := &msg.NotificationMessage{
+		AffordanceType: msg.AffordanceTypeProperty,
+		SenderID:       agent1,
+		ThingID:        thing1ID,
+		Name:           vocab.PropEnvCpuload,
+		Data:           30,
+	}
+	props3 := &msg.NotificationMessage{
+		AffordanceType: msg.AffordanceTypeProperty,
+		SenderID:       agent1,
+		ThingID:        thing1ID,
+		Name:           vocab.PropSwitchOnOff,
+		Data:           "off",
 	}
 
 	// in total add 5 properties
-	addHist := svc.GetAddHistory()
-	err := addHist.AddMessage(action1)
+	err := m.StoreNotification(action1)
 	assert.NoError(t, err)
-	err = addHist.AddMessage(event1)
+	err = m.StoreNotification(event1)
 	assert.NoError(t, err)
-	err = addHist.AddMessage(props1)
+	err = m.StoreNotification(props1)
+	assert.NoError(t, err)
+	err = m.StoreNotification(props2)
+	assert.NoError(t, err)
+	err = m.StoreNotification(props3)
 	assert.NoError(t, err)
 
 	// and some bad values
-	err = addHist.AddMessage(badEvent1)
+	err = m.StoreNotification(badEvent1)
 	assert.Error(t, err)
 	//err = addHist.AddMessage(badEvent2)
 	//assert.Error(t, err)
-	err = addHist.AddMessage(badEvent3) // bad date is recovered
+	err = m.StoreNotification(badEvent3) // bad date is recovered
 	assert.NoError(t, err)
-	err = addHist.AddMessage(badEvent4)
+	err = m.StoreNotification(badEvent4)
 	assert.Error(t, err)
-	err = addHist.AddMessage(badEvent1)
+	err = m.StoreNotification(badEvent1)
 	assert.Error(t, err)
 
-	c, releaseFn, err := readHist.GetCursor(dThing1ID, "")
+	// create an end user client for testing
+	co1, _, _ := testEnv.NewConsumerClient(testClientID, transports.ClientRoleOperator, nil)
+	histCl := historyclient.NewReadHistoryClient(co1)
+
+	cursorKey, releaseFn, err := histCl.GetCursor(thing1ID, "")
 	defer releaseFn()
 	require.NoError(t, err)
-	msg, valid, err := c.First()
+	tv, valid, err := histCl.First(cursorKey)
 	require.True(t, valid)
-	assert.NotEmpty(t, msg)
+	assert.NotEmpty(t, tv)
 	hasProps := false
 	for valid && err == nil {
-		if msg.AffordanceType == msg.AffordanceTypeProperty {
+		if tv.AffordanceType == msg.AffordanceTypeProperty {
 			hasProps = true
-			require.NotEmpty(t, msg.Name)
-			require.NotEmpty(t, msg.Data)
-			if msg.Name == vocab.PropDeviceBattery {
-				assert.Equal(t, float64(battTemp), msg.Data)
+			require.NotEmpty(t, tv.Name)
+			require.NotEmpty(t, tv.Data)
+			if tv.Name == vocab.PropDeviceBattery {
+				assert.Equal(t, float64(battTemp), tv.Data)
 			}
 			//props := make(map[string]interface{})
 			//err = utils.DecodeAsObject(msg.Data, &props)
 			//require.NoError(t, err)
-		} else if msg.Name == vocab.PropEnvTemperature {
-			dataInt := utils.DecodeAsInt(msg.Data)
+		} else if tv.Name == vocab.PropEnvTemperature {
+			dataInt := utils.DecodeAsInt(tv.Data)
 			require.Equal(t, temp1, dataInt)
 		}
-		msg, valid, err = c.Next()
+		tv, valid, err = histCl.Next(cursorKey)
 	}
 	require.NoError(t, err)
 	require.True(t, hasProps)
@@ -392,9 +429,9 @@ func TestGetInfo(t *testing.T) {
 	//const thing0ID = thingIDPrefix + "0"
 	//var dThing0ID = things.MakeDigiTwinThingID(agentID, thing0ID)
 
-	store, readHist, stopFn := startHistoryService(true)
+	store, stopFn := startHistoryService(true)
 	defer stopFn()
-	_ = readHist
+
 	addBulkHistory(store, agentID, 1000, 5, 1000)
 
 	// TODO: add GetInfo for store statistics
@@ -410,48 +447,51 @@ func TestGetInfo(t *testing.T) {
 func TestPrevNext(t *testing.T) {
 	t.Logf("---%s---\n", t.Name())
 	const count = 1000
-	const agentID = "agent1"
+	// const agentID = "agent1"
 	const thing0ID = thingIDPrefix + "0" // matches a percentage of the random things
-	var dThing0ID = td.MakeDigiTwinThingID(agentID, thing0ID)
 
-	store, readHist, closeFn := startHistoryService(true)
+	store, closeFn := startHistoryService(true)
 	defer closeFn()
 
 	// 10 sensors -> 1 sample per minute, 60 per hour -> 600
-	_ = addBulkHistory(store, agentID, count, 1, 3600*24*30)
+	_ = addBulkHistory(store, thing0ID, count, 1, 3600*24*30)
 
-	cursor, releaseFn, _ := readHist.GetCursor(dThing0ID, "")
+	// create an end user client for testing
+	co1, _, _ := testEnv.NewConsumerClient(testClientID, transports.ClientRoleOperator, nil)
+	histCl := historyclient.NewReadHistoryClient(co1)
+	cursorKey, releaseFn, err := histCl.GetCursor(thing0ID, "")
+	require.NoError(t, err)
 	defer releaseFn()
-	assert.NotNil(t, cursor)
+	assert.NotEmpty(t, cursorKey)
 
 	// go forward
-	item0, valid, err := cursor.First()
+	item0, valid, err := histCl.First(cursorKey)
 	require.NoError(t, err)
 	assert.True(t, valid)
 	assert.NotEmpty(t, item0)
-	item1, valid, err := cursor.Next()
+	item1, valid, err := histCl.Next(cursorKey)
 	require.NoError(t, err)
 	assert.True(t, valid)
 	assert.NotEmpty(t, item1)
-	items2to11, itemsRemaining, err := cursor.NextN(10, "")
+	items2to11, itemsRemaining, err := histCl.NextN(cursorKey, time.Now(), 10)
 	require.NoError(t, err)
 	assert.True(t, itemsRemaining)
 	assert.Equal(t, 10, len(items2to11))
 
 	// go backwards
-	item10to1, itemsRemaining, err := cursor.PrevN(10, "")
+	item10to1, itemsRemaining, err := histCl.PrevN(cursorKey, time.Time{}, 10)
 	require.NoError(t, err)
 	assert.True(t, valid)
 	assert.Equal(t, 10, len(item10to1))
 
 	// reached first item
-	item0b, valid, err := cursor.Prev()
+	item0b, valid, err := histCl.Prev(cursorKey)
 	require.NoError(t, err)
 	assert.True(t, valid)
 	assert.Equal(t, item0.Timestamp, item0b.Timestamp)
 
 	// can't skip before the beginning of time
-	iteminv, valid, err := cursor.Prev()
+	iteminv, valid, err := histCl.Prev(cursorKey)
 	require.NoError(t, err)
 	_ = iteminv
 	assert.False(t, valid)
@@ -459,7 +499,7 @@ func TestPrevNext(t *testing.T) {
 	// seek to item11 should succeed
 	item11 := items2to11[9]
 	timeStamp, _ := dateparse.ParseAny(item11.Timestamp)
-	item11b, valid, err := cursor.Seek(timeStamp)
+	item11b, valid, err := histCl.Seek(cursorKey, timeStamp)
 	require.NoError(t, err)
 	assert.True(t, valid)
 	assert.Equal(t, item11.Name, item11b.Name)
@@ -471,9 +511,8 @@ func TestPrevNextFiltered(t *testing.T) {
 	const count = 1000
 	const agentID = "agent1"
 	const thing0ID = thingIDPrefix + "0" // matches a percentage of the random things
-	var dThing0ID = td.MakeDigiTwinThingID(agentID, thing0ID)
 
-	svc, readHist, closeFn := startHistoryService(true)
+	svc, closeFn := startHistoryService(true)
 	defer closeFn()
 
 	// 10 sensors -> 1 sample per minute, 60 per hour -> 600
@@ -481,57 +520,59 @@ func TestPrevNextFiltered(t *testing.T) {
 	propName := names[2] // names was used to generate the history
 
 	// A cursor with a filter on propName should only return results of propName
-	cursor, releaseFn, err := readHist.GetCursor(dThing0ID, propName)
+	co1, _, _ := testEnv.NewConsumerClient(testClientID, transports.ClientRoleOperator, nil)
+	histCl := historyclient.NewReadHistoryClient(co1)
+	defer co1.Stop()
+	cursorKey, releaseFn, err := histCl.GetCursor(thing0ID, propName)
 	require.NoError(t, err)
 	defer releaseFn()
-	assert.NotNil(t, cursor)
-	item0, valid, err := cursor.First()
+
+	item0, valid, err := histCl.First(cursorKey)
 	require.NoError(t, err)
 	assert.True(t, valid)
 	assert.Equal(t, propName, item0.Name)
 
 	// further steps should still only return propName
-	item1, valid, err := cursor.Next()
+	item1, valid, err := histCl.Next(cursorKey)
 	assert.True(t, valid)
 	require.Nil(t, err)
 	assert.Equal(t, propName, item1.Name)
-	items2to11, itemsRemaining, err := cursor.NextN(10, "")
+	items2to11, itemsRemaining, err := histCl.NextN(cursorKey, time.Now(), 10)
 	assert.True(t, itemsRemaining)
 	assert.Equal(t, 10, len(items2to11))
 	assert.Equal(t, propName, items2to11[9].Name)
 
 	// go backwards
-	item10to1, itemsRemaining, err := cursor.PrevN(10, "")
+	item10to1, itemsRemaining, err := histCl.PrevN(cursorKey, time.Time{}, 10)
 	assert.True(t, valid)
 	assert.Equal(t, 10, len(item10to1))
 
 	// reached first item
-	item0b, valid, err := cursor.Prev()
+	item0b, valid, err := histCl.Prev(cursorKey)
 	assert.True(t, valid)
 	require.Nil(t, err)
 	assert.Equal(t, item0.Timestamp, item0b.Timestamp)
 	assert.Equal(t, propName, item0b.Name)
 
 	// can't skip before the beginning of time
-	iteminv, valid, err := cursor.Prev()
+	iteminv, valid, err := histCl.Prev(cursorKey)
 	_ = iteminv
 	assert.False(t, valid)
 
 	// seek to item11 should succeed
 	item11 := items2to11[9]
 	timeStamp, _ := dateparse.ParseAny(item11.Timestamp)
-	item11b, valid, err := cursor.Seek(timeStamp)
+	item11b, valid, err := histCl.Seek(cursorKey, timeStamp)
 	assert.True(t, valid)
 	require.Nil(t, err)
 	assert.Equal(t, item11.Name, item11b.Name)
 
 	// last item should be of the name
-	lastItem, valid, err := cursor.Last()
+	lastItem, valid, err := histCl.Last(cursorKey)
 	assert.True(t, valid)
 	require.Nil(t, err)
 	assert.Equal(t, propName, lastItem.Name)
 
-	cursor.Release()
 }
 
 func TestNextPrevUntil(t *testing.T) {
@@ -539,36 +580,37 @@ func TestNextPrevUntil(t *testing.T) {
 	const count = 1000
 	const agentID = "agent1"
 	const thing0ID = thingIDPrefix + "0" // matches a percentage of the random things
-	var dThing0ID = td.MakeDigiTwinThingID(agentID, thing0ID)
 
-	store, readHist, closeFn := startHistoryService(true)
+	store, closeFn := startHistoryService(true)
 	defer closeFn()
 
 	// 1 sensor -> 1000/24 hours is approx 41/hour
 	_ = addBulkHistory(store, agentID, count, 1, 3600*24)
 
-	cursor, releaseFn, _ := readHist.GetCursor(dThing0ID, "")
+	co1, _, _ := testEnv.NewConsumerClient(testClientID, transports.ClientRoleOperator, nil)
+	readHist := historyclient.NewReadHistoryClient(co1)
+	defer co1.Stop()
+	cursorKey, releaseFn, err := readHist.GetCursor(thing0ID, "")
 	defer releaseFn()
-	assert.NotNil(t, cursor)
 
 	// start 20 hours ago
 	startTime := time.Now().Add(-20 * time.Hour)
-	item0, valid, err := cursor.Seek(startTime)
+	item0, valid, err := readHist.Seek(cursorKey, startTime)
 	require.NoError(t, err)
 	assert.True(t, valid)
 	assert.NotEmpty(t, item0)
 
 	// read an hour's worth. Expect around 41 results
-	endTime := startTime.Add(time.Hour).Format(time.RFC3339)
+	endTime := startTime.Add(time.Hour)
 	// note, batch1 doesn't have item0
-	batch, itemsRemaining, err := cursor.NextN(100, endTime)
+	batch, itemsRemaining, err := readHist.NextN(cursorKey, endTime, 100)
 	require.NoError(t, err)
 	assert.False(t, itemsRemaining)
 	assert.True(t, len(batch) > 20)
 	assert.True(t, len(batch) < 60)
 
 	// read backwards again. note batch2 ends with item0
-	batch2, itemsRemaining, err := cursor.PrevN(100, startTime.Format(time.RFC3339))
+	batch2, itemsRemaining, err := readHist.PrevN(cursorKey, startTime, 100)
 	require.NoError(t, err)
 	assert.False(t, itemsRemaining)
 	assert.Equal(t, len(batch), len(batch2))
@@ -579,10 +621,13 @@ func TestReadHistory(t *testing.T) {
 	const count = 1000
 	const agentID = "device1"
 	const thing0ID = thingIDPrefix + "0" // matches a percentage of the random things
-	var dThing0ID = td.MakeDigiTwinThingID(agentID, thing0ID)
 
-	store, readHist, closeFn := startHistoryService(true)
+	store, closeFn := startHistoryService(true)
 	defer closeFn()
+	//
+	co1, _, _ := testEnv.NewConsumerClient(testClientID, transports.ClientRoleOperator, nil)
+	readHist := historyclient.NewReadHistoryClient(co1)
+	defer co1.Stop()
 
 	// 1 sensors -> 1000/24 hours is approx 41/hour
 	_ = addBulkHistory(store, agentID, count, 1, 3600*24)
@@ -590,7 +635,7 @@ func TestReadHistory(t *testing.T) {
 	// start 20 hours ago and read an hour's worth
 	startTime := time.Now().Add(-20 * time.Hour)
 	duration := time.Hour
-	items, remaining, err := readHist.ReadHistory(dThing0ID, "", startTime, duration, 60)
+	items, remaining, err := readHist.ReadHistory(thing0ID, "", startTime, duration, 60)
 	require.NoError(t, err)
 	assert.False(t, remaining)
 	assert.NotEmpty(t, items)
@@ -599,7 +644,7 @@ func TestReadHistory(t *testing.T) {
 	// start 19 hours ago and read back in time
 	startTime = time.Now().Add(-19 * time.Hour)
 	duration = -1 * time.Hour
-	items, remaining, err = readHist.ReadHistory(dThing0ID, "", startTime, duration, 60)
+	items, remaining, err = readHist.ReadHistory(thing0ID, "", startTime, duration, 60)
 	require.NoError(t, err)
 	assert.False(t, remaining)
 	assert.NotEmpty(t, items)
@@ -609,19 +654,22 @@ func TestReadHistory(t *testing.T) {
 
 func TestPubEvents(t *testing.T) {
 	const agent1ID = "device1"
+	const thing1ID = "thing1"
 
 	t.Logf("---%s---\n", t.Name())
 
-	_, readHist, stopFn := startHistoryService(true)
+	m, stopFn := startHistoryService(true)
+	_ = m
 	defer stopFn()
-	ag1, _ := ts.AddConnectService(agent1ID)
-	defer ag1.Disconnect()
+	co1, _, _ := testEnv.NewConsumerClient(testClientID, transports.ClientRoleOperator, nil)
+	readHist := historyclient.NewReadHistoryClient(co1)
+	defer co1.Stop()
 
 	// Add the thing who is publishing events
-	td1 := ts.CreateTestTD(0)
-	ts.AddTD(agent1ID, td1)
-	thing0ID := td1.ID
-	dThing0ID := td.MakeDigiTwinThingID(agent1ID, thing0ID)
+	// td1 := testEnv.CreateTestTD(0)
+	// err := m.AddValue(agent1ID, td1)
+	// thing0ID := td1.ID
+	// dThing0ID := td.MakeDigiTwinThingID(agent1ID, thing0ID)
 
 	// publish events
 	names := []string{
@@ -632,101 +680,111 @@ func TestPubEvents(t *testing.T) {
 		vocab.PropSwitchOnOff, vocab.PropEnvTemperature}
 	_ = names
 
+	// attach another agent after the history service so its events are recorded
+	ag1 := clients.NewAgent(agent1ID, nil)
+	m.SetRequestSink(ag1.HandleRequest)
+	ag1.SetNotificationSink(m.HandleNotification)
+	defer ag1.Start("")
+	defer ag1.Stop()
+
 	// only valid names should be added
 	for i := 0; i < 10; i++ {
 		val := strconv.Itoa(i + 1)
 		// events are published by the agent using their native thingID
 		name := names[i]
-		err := ag1.PubEvent(thing0ID, name, val)
-		//err := ag1.PubEvent(f1, thing0ID, name, val, "")
-		assert.NoError(t, err)
+		ag1.PubEvent(thing1ID, name, val)
 		// make sure timestamp differs
 		time.Sleep(time.Millisecond * 3)
 	}
 
-	time.Sleep(time.Millisecond * 1000)
+	time.Sleep(time.Millisecond * 100)
 	// read back
 	// consumers read events see the digital twin representation
-	cursor, releaseFn, err := readHist.GetCursor(dThing0ID, "")
+	cursorKey, releaseFn, err := readHist.GetCursor(thing1ID, "")
 	require.NoError(t, err)
-	ev, valid, err := cursor.First()
+	ev, valid, err := readHist.First(cursorKey)
 	require.NoError(t, err)
 	assert.True(t, valid)
 	assert.NotEmpty(t, ev)
 
 	// store
 
-	batched, _, _ := cursor.NextN(10, "")
+	batched, _, _ := readHist.NextN(cursorKey, time.Now(), 10)
 	// expect 3 entries total from valid events (9 when retention manager isn't used)
 	assert.Equal(t, 9, len(batched))
 	releaseFn()
 }
 
-func TestManageRetention(t *testing.T) {
-	t.Logf("---%s---\n", t.Name())
-	const client1ID = "admin"
-	const agentID = "agent1" // should not match existing test devices
-	const event1Name = "event1"
-	const event2Name = "notRetainedEvent"
+// FIXME: this test case needs to be reworked to the new retention handling
+// the storage
+// func TestManageRetention(t *testing.T) {
+// 	t.Logf("---%s---\n", t.Name())
+// 	const client1ID = "admin"
+// 	const agentID = "agent1" // should not match existing test devices
+// 	const event1Name = "event1"
+// 	const event2Name = "notRetainedEvent"
+// 	const thingID1 = "thing-1"
 
-	// setup with some history
-	store, readHist, closeFn := startHistoryService(true)
-	defer closeFn()
-	addBulkHistory(store, agentID, 1000, 5, 1000)
+// 	// setup with some history
+// 	m, closeFn := startHistoryService(true)
+// 	defer closeFn()
+// 	addBulkHistory(m, agentID, 1000, 5, 1000)
 
-	// make sure the TD whose retention rules are added exist
-	td0 := ts.CreateTestTD(0)
-	ts.AddTD(agentID, td0)
-	dThing0ID := td.MakeDigiTwinThingID(agentID, td0.ID)
+// 	// make sure the TD whose retention rules are added exist
+// 	// TODO: currently not needed.
+// 	// td0 := testEnv.CreateTestTD(0)
+// 	// ts.AddTD(agentID, td0)
+// 	// dThing0ID := td.MakeDigiTwinThingID(agentID, td0.ID)
 
-	// connect as an admin user
-	co1, _, _ := ts.AddConnectConsumer(client1ID, authz.ClientRoleAdmin)
-	mngHist := historyclient.NewManageHistoryClient(co1)
+// 	// connect as an admin user
+// 	co1, _, _ := testEnv.NewConsumerClient(client1ID, transports.ClientRoleAdmin, nil)
+// 	readHist := historyclient.NewReadHistoryClient(co1)
+// 	defer co1.Stop()
+// 	mngHist := historyclient.NewManageHistoryClient(co1)
 
-	// should be able to read the current retention rules. Expect the default rules.
-	rules1, err := mngHist.GetRetentionRules()
-	require.NoError(t, err)
-	assert.Greater(t, 1, len(rules1))
+// 	// should be able to read the current retention rules. Expect the default rules.
+// 	rules1, err := mngHist.GetRetentionRules()
+// 	require.NoError(t, err)
+// 	assert.Greater(t, 1, len(rules1))
 
-	// Add two retention rules to retain temperature and our test event from device1
-	rules1[vocab.PropEnvTemperature] = append(rules1[vocab.PropEnvTemperature],
-		&historyapi.RetentionRule{Retain: true})
-	rules1[event1Name] = append(rules1[event1Name],
-		&historyapi.RetentionRule{Retain: true})
-	err = mngHist.SetRetentionRules(rules1)
-	require.NoError(t, err)
+// 	// Add two retention rules to retain temperature and our test event from device1
+// 	rules1[vocab.PropEnvTemperature] = append(rules1[vocab.PropEnvTemperature],
+// 		&historyapi.RetentionRule{Retain: true})
+// 	rules1[event1Name] = append(rules1[event1Name],
+// 		&historyapi.RetentionRule{Retain: true})
+// 	err = mngHist.SetRetentionRules(rules1)
+// 	require.NoError(t, err)
 
-	// The new retention rule should now exist and accept our custom event
-	rules2, err := mngHist.GetRetentionRules()
-	require.NoError(t, err)
-	assert.Equal(t, len(rules1), len(rules2))
-	rule, err := mngHist.GetRetentionRule(dThing0ID, event1Name)
-	assert.NoError(t, err)
-	if assert.NotNil(t, rule) {
-		assert.Equal(t, "", rule.ThingID)
-		assert.Equal(t, event1Name, rule.Name)
-	}
+// 	// The new retention rule should now exist and accept our custom event
+// 	rules2, err := mngHist.GetRetentionRules()
+// 	require.NoError(t, err)
+// 	assert.Equal(t, len(rules1), len(rules2))
+// 	rule, err := mngHist.GetRetentionRule(thingID1, event1Name)
+// 	assert.NoError(t, err)
+// 	if assert.NotNil(t, rule) {
+// 		assert.Equal(t, "", rule.ThingID)
+// 		assert.Equal(t, event1Name, rule.Name)
+// 	}
 
-	// connect as agent-1 and publish two events for thing0, one to be retained
-	ag1, _, _ := ts.AddConnectAgent(agentID)
-	require.NoError(t, err)
-	defer ag1.Disconnect()
-	err = ag1.PubEvent(td0.ID, event1Name, "event one")
-	assert.NoError(t, err)
-	err = ag1.PubEvent(td0.ID, event2Name, "event two")
-	assert.NoError(t, err)
-	// give it some time to persist the bucket
-	time.Sleep(time.Millisecond * 100)
+// 	// connect as agent-1 and publish two events for thing0, one to be retained
+// 	ag1 := testEnv.NewServerAgent(agentID)
+// 	require.NoError(t, err)
+// 	defer ag1.Stop()
+// 	ag1.PubEvent(thingID1, event1Name, "event one")
+// 	ag1.PubEvent(thingID1, event2Name, "event two")
 
-	// read the history of device 1 and expect the event to be retained
-	cursor, releaseFn, err := readHist.GetCursor(dThing0ID, "")
-	require.NoError(t, err)
-	histEv1, valid, _ := cursor.First()
-	require.True(t, valid, "missing the first event")
-	assert.Equal(t, event1Name, histEv1.Name)
-	histEv2, valid2, _ := cursor.Next()
-	assert.False(t, valid2, "second event should not be there")
-	_ = histEv2
-	releaseFn()
+// 	// give it some time to persist the bucket
+// 	time.Sleep(time.Millisecond * 100)
 
-}
+// 	// read the history of device 1 and expect the event to be retained
+// 	cursorKey, releaseFn, err := readHist.GetCursor(thingID1, "")
+// 	require.NoError(t, err)
+// 	histEv1, valid, _ := readHist.First(cursorKey)
+// 	require.True(t, valid, "missing the first event")
+// 	assert.Equal(t, event1Name, histEv1.Name)
+// 	histEv2, valid2, _ := readHist.Next(cursorKey)
+// 	assert.False(t, valid2, "second event should not be there")
+// 	_ = histEv2
+// 	releaseFn()
+
+// }

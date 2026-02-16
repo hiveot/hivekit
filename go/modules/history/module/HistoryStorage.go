@@ -133,6 +133,7 @@ func validateValue(tv *msg.ThingValue) (err error) {
 }
 
 // AddValue adds a Thing value from a sender to the action history
+// The caller must validate the SenderID in the tv.
 func (svc *HistoryModule) AddValue(tv *msg.ThingValue) error {
 	//slog.Info("AddValue",
 	//	slog.String("senderID", senderID),
@@ -208,12 +209,12 @@ func (svc *HistoryModule) First(clientID string, cursorKey string) (
 		return nil, false, nil
 	}
 
-	tm, valid, err := decodeValue(cursor.BucketID(), k, raw)
+	tv, valid, err := decodeValue(cursor.BucketID(), k, raw)
 	// if an filter on affordance name was requested then iterate until found
-	if valid && affName != "" && tm.Name != affName {
-		tm, valid = svc.next(cursor, affName, until)
+	if valid && affName != "" && tv.Name != affName {
+		tv, valid = svc.next(cursor, affName, until)
 	}
-	return value, valid, err
+	return tv, valid, err
 }
 
 // Last positions the cursor at the last key in the ordered list
@@ -433,7 +434,7 @@ func (svc *HistoryModule) Prev(clientID string, cursorKey string) (
 		return nil, false, err
 	}
 	affName := ci.FilterData
-	until := time.Now()
+	until := time.Time{}
 	tv, valid = svc.prev(cursor, affName, until)
 
 	return tv, valid, nil

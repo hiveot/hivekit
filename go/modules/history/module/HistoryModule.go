@@ -9,7 +9,7 @@ import (
 	"github.com/hiveot/hivekit/go/modules/bucketstore"
 	bucketserver "github.com/hiveot/hivekit/go/modules/bucketstore/server"
 	"github.com/hiveot/hivekit/go/modules/history"
-	"github.com/hiveot/hivekit/go/modules/history/server"
+	historyserver "github.com/hiveot/hivekit/go/modules/history/server"
 	"github.com/hiveot/hivekit/go/msg"
 	"github.com/hiveot/hivekit/go/wot"
 	"go.yaml.in/yaml/v2"
@@ -38,7 +38,7 @@ type HistoryModule struct {
 	cursorLifespan time.Duration
 
 	// RRN message handler for reading history
-	readHistoryMsgHandler *server.ReadHistoryMsgHandler
+	readHistoryMsgHandler *historyserver.ReadHistoryMsgHandler
 }
 
 // Forward notifications to the registered sink and store if they pass the filter.
@@ -49,17 +49,34 @@ func (m *HistoryModule) HandleNotification(notif *msg.NotificationMessage) {
 				m.StoreNotification(notif)
 			}
 		}()
+	} else {
+		// no notification filter, store everything!
+		go func() {
+			m.StoreNotification(notif)
+		}()
 	}
 	m.ForwardNotification(notif)
 }
 
-// Forward requests to the registered sink and store if they pass the filter.
+// HandleRequest handles request for this module.
+// If not a module request then store it in the history store if it passes
+// the filters. Finally forward the request to the registered sink.
 func (m *HistoryModule) HandleRequest(req *msg.RequestMessage, replyTo msg.ResponseHandler) error {
-	if m.config.NotificationFilter != nil {
+	if req.ThingID == historyserver.ReadHistoryServiceID {
+		// handle requests for the history service itself
+		err := m.readHistoryMsgHandler.HandleRequest(req, replyTo)
+		return err
+	}
+	if m.config.RequestFilter != nil {
 		go func() {
 			if m.config.RequestFilter.RetainRequest(req) {
 				m.StoreRequest(req)
 			}
+		}()
+	} else {
+		// no request filter, store everything!
+		go func() {
+			m.StoreRequest(req)
 		}()
 	}
 	return m.ForwardRequest(req, replyTo)
@@ -68,18 +85,19 @@ func (m *HistoryModule) HandleRequest(req *msg.RequestMessage, replyTo msg.Respo
 // Start the history service
 // this loads the filters
 func (m *HistoryModule) Start(yamlConfig string) (err error) {
-
+	if yamlConfig != "" {
+		err = yaml.Unmarshal([]byte(yamlConfig), &m.config)
+		if err != nil {
+			slog.Error("Start: Failed to load history service config", "error", err)
+			return err
+		}
+		if m.config.ModuleID != "" {
+			m.SetModuleID(m.config.ModuleID)
+		}
+	}
 	slog.Info("Starting HistoryService", "moduleID", m.GetModuleID())
-	err = yaml.Unmarshal([]byte(yamlConfig), &m.config)
-	if err != nil {
-		slog.Error("Failed to load history service config", "error", err)
-		return err
-	}
 	// Messaging API handler for reading the history
-	m.readHistoryMsgHandler = server.NewReadHistoryMsgHandler(m)
-	if err != nil {
-		return err
-	}
+	m.readHistoryMsgHandler = historyserver.NewReadHistoryMsgHandler(m)
 
 	return err
 }
@@ -135,6 +153,7 @@ func NewHistoryModule(bucketStore bucketstore.IBucketStore) *HistoryModule {
 		cursorLifespan: time.Minute,
 		cursorCache:    bucketserver.NewCursorCache(),
 	}
+	m.SetModuleID(history.DefaultHistoryModuleID)
 
 	var _ history.IHistoryModule = m // interface check
 	return m

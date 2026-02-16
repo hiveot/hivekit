@@ -1,11 +1,11 @@
-package server
+package historyserver
 
 import (
 	"github.com/hiveot/hivekit/go/msg"
 )
 
 // ReadHistoryServiceID is the thingID of the reading service
-const ReadHistoryServiceID = "history:read"
+const ReadHistoryServiceID = "historyReader"
 
 // Action names as defined in the module TM
 const (
@@ -105,7 +105,7 @@ type CursorSeekArgs struct {
 	// Cursor identifier obtained with CreateCursor
 	CursorKey string `json:"cursorKey"`
 	// timestamp in rfc8601 format
-	TimeStamp string `json:"timeStamp"`
+	Timestamp string `json:"timeStamp"`
 }
 
 // ReadHistoryArgs arguments for reading a batch of historical values
