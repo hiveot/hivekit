@@ -11,7 +11,6 @@ import (
 
 	"github.com/araddon/dateparse"
 	"github.com/hiveot/hivekit/go/modules/bucketstore"
-	bucketmodule "github.com/hiveot/hivekit/go/modules/bucketstore/module"
 	"github.com/hiveot/hivekit/go/modules/clients"
 	"github.com/hiveot/hivekit/go/modules/history/historyclient"
 	"github.com/hiveot/hivekit/go/modules/history/module"
@@ -59,21 +58,15 @@ func startHistoryService(clean bool) (
 	if clean {
 		os.RemoveAll(testEnv.StorageRoot)
 	}
-	// use pebble as the history bucketstore
-	bucketStoreModule := bucketmodule.NewBucketStoreModule(testEnv.StorageRoot, bucketstore.BackendPebble)
-	err := bucketStoreModule.Start("")
-	if err != nil {
-		panic("can't open history bucket store")
-	}
 
 	// create the history module and link it to the protocol server
 	// since the history module runs on the server it doesn't need an agent
 	// instance.
-	histModule = module.NewHistoryModule(bucketStoreModule.GetService())
+	histModule = module.NewHistoryModule(testEnv.StorageRoot, historyStoreBackend)
 	testEnv.Server.SetRequestSink(histModule.HandleRequest)
 	histModule.SetNotificationSink(testEnv.Server.HandleNotification)
 
-	err = histModule.Start("")
+	err := histModule.Start("")
 	if err != nil {
 		panic("Failed starting the history module: " + err.Error())
 	}
@@ -81,7 +74,6 @@ func startHistoryService(clean bool) (
 	return histModule, func() {
 		// stop the history module, bucketstore and agent module
 		histModule.Stop()
-		bucketStoreModule.Stop()
 		testEnv.Server.SetRequestSink(nil)
 
 		// give it some time to shut down before the next test

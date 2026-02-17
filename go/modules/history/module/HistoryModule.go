@@ -8,7 +8,9 @@ import (
 	"github.com/hiveot/hivekit/go/modules"
 	"github.com/hiveot/hivekit/go/modules/bucketstore"
 	bucketserver "github.com/hiveot/hivekit/go/modules/bucketstore/server"
+	"github.com/hiveot/hivekit/go/modules/bucketstore/stores"
 	"github.com/hiveot/hivekit/go/modules/history"
+	"github.com/hiveot/hivekit/go/modules/history/config"
 	historyserver "github.com/hiveot/hivekit/go/modules/history/server"
 	"github.com/hiveot/hivekit/go/msg"
 	"github.com/hiveot/hivekit/go/wot"
@@ -28,7 +30,7 @@ type HistoryModule struct {
 	// The underlying bucketstore instance
 	bucketStore bucketstore.IBucketStore
 
-	config history.HistoryConfig
+	config config.HistoryConfig
 
 	// cache of cursors with lifecycle management intended for remote users
 	// re-use the one from the bucket store
@@ -41,48 +43,34 @@ type HistoryModule struct {
 	readHistoryMsgHandler *historyserver.ReadHistoryMsgHandler
 }
 
-// Forward notifications to the registered sink and store if they pass the filter.
+// Forward notifications to the registered sink and record it if they pass the filter.
 func (m *HistoryModule) HandleNotification(notif *msg.NotificationMessage) {
-	if m.config.NotificationFilter != nil {
-		go func() {
-			if m.config.NotificationFilter.RetainNotification(notif) {
-				m.StoreNotification(notif)
-			}
-		}()
-	} else {
-		// no notification filter, store everything!
-		go func() {
+	go func() {
+		if m.config.NotificationFilter.AcceptNotification(notif) {
 			m.StoreNotification(notif)
-		}()
-	}
+		}
+	}()
 	m.ForwardNotification(notif)
 }
 
 // HandleRequest handles request for this module.
-// If not a module request then store it in the history store if it passes
-// the filters. Finally forward the request to the registered sink.
+// If not a module request then record it in the history store if it passes
+// the filters and forward the request to the registered sink.
 func (m *HistoryModule) HandleRequest(req *msg.RequestMessage, replyTo msg.ResponseHandler) error {
 	if req.ThingID == historyserver.ReadHistoryServiceID {
 		// handle requests for the history service itself
 		err := m.readHistoryMsgHandler.HandleRequest(req, replyTo)
 		return err
 	}
-	if m.config.RequestFilter != nil {
-		go func() {
-			if m.config.RequestFilter.RetainRequest(req) {
-				m.StoreRequest(req)
-			}
-		}()
-	} else {
-		// no request filter, store everything!
-		go func() {
+	go func() {
+		if m.config.RequestFilter.AcceptRequest(req) {
 			m.StoreRequest(req)
-		}()
-	}
+		}
+	}()
 	return m.ForwardRequest(req, replyTo)
 }
 
-// Start the history service
+// Start the history module and open the store
 // this loads the filters
 func (m *HistoryModule) Start(yamlConfig string) (err error) {
 	if yamlConfig != "" {
@@ -91,10 +79,14 @@ func (m *HistoryModule) Start(yamlConfig string) (err error) {
 			slog.Error("Start: Failed to load history service config", "error", err)
 			return err
 		}
-		if m.config.ModuleID != "" {
-			m.SetModuleID(m.config.ModuleID)
-		}
 	}
+	m.SetModuleID(m.config.ModuleID)
+
+	m.bucketStore, err = stores.OpenBucketStore(m.config.StoreDirectory, m.config.Backend)
+	if err != nil {
+		return err
+	}
+
 	slog.Info("Starting HistoryService", "moduleID", m.GetModuleID())
 	// Messaging API handler for reading the history
 	m.readHistoryMsgHandler = historyserver.NewReadHistoryMsgHandler(m)
@@ -145,15 +137,14 @@ func (m *HistoryModule) StoreRequest(req *msg.RequestMessage) error {
 
 // NewHistoryModule creates a new instance for the history module using the given
 // storage bucket.
-// The bucket store is closed when the module is stopped.
-func NewHistoryModule(bucketStore bucketstore.IBucketStore) *HistoryModule {
+func NewHistoryModule(storeDirectory string, backend string) *HistoryModule {
 
 	m := &HistoryModule{
-		bucketStore:    bucketStore,
 		cursorLifespan: time.Minute,
 		cursorCache:    bucketserver.NewCursorCache(),
 	}
-	m.SetModuleID(history.DefaultHistoryModuleID)
+	// m.config = NewHistoryConfig()
+	m.config = config.NewHistoryConfig(storeDirectory, backend)
 
 	var _ history.IHistoryModule = m // interface check
 	return m

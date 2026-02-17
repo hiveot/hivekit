@@ -3,14 +3,13 @@ package module
 
 import (
 	_ "embed"
-	"fmt"
 	"path/filepath"
 
 	"github.com/hiveot/hivekit/go/modules"
 	"github.com/hiveot/hivekit/go/modules/bucketstore"
-	"github.com/hiveot/hivekit/go/modules/bucketstore/module/kvbtree"
-	"github.com/hiveot/hivekit/go/modules/bucketstore/module/pebble"
 	"github.com/hiveot/hivekit/go/modules/bucketstore/server"
+	"github.com/hiveot/hivekit/go/modules/bucketstore/stores"
+	"github.com/hiveot/hivekit/go/modules/bucketstore/stores/kvbtree"
 	"github.com/hiveot/hivekit/go/msg"
 )
 
@@ -75,16 +74,7 @@ func (m *BucketStoreModule) Start(yamlConfig string) (err error) {
 	// otherwise create an in-memory store.
 	if m.storageRoot != "" {
 		storeDirectory := filepath.Join(m.storageRoot, m.GetModuleID())
-		switch m.StoreType {
-		case bucketstore.BackendKVBTree:
-			m.store = kvbtree.NewKVStore(storeDirectory)
-		case bucketstore.BackendPebble:
-			m.store = pebble.NewPebbleStore(storeDirectory)
-		default:
-			// unknown storage type, use in-memory
-			err = fmt.Errorf("unknown storage type '%s'", m.StoreType)
-			return err
-		}
+		m.store, err = stores.NewBucketStore(storeDirectory, m.StoreType)
 	} else {
 		// no persistence. Use an in-memory store
 		m.store = kvbtree.NewKVStore("")

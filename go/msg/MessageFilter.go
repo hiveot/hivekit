@@ -1,6 +1,7 @@
 package msg
 
 import (
+	"log/slog"
 	"slices"
 
 	"github.com/hiveot/hivekit/go/wot"
@@ -8,57 +9,67 @@ import (
 
 // Definition of message filters for events properties and actions
 type MessageFilter struct {
-	// The default retain value if no steps match.
-	Events     []MessageFilterStep `yaml:"events"`
-	Properties []MessageFilterStep `yaml:"properties"`
-	Actions    []MessageFilterStep `yaml:"actions"`
+	Events     MessageFilterChain `yaml:"events"`
+	Properties MessageFilterChain `yaml:"properties"`
+	Actions    MessageFilterChain `yaml:"actions"`
 }
 
-// Determine if a notification should be retained based on the filter steps.
-// The notification is retained if one step retails.
-func (m *MessageFilter) RetainNotification(notif *NotificationMessage) bool {
-	switch notif.AffordanceType {
-	case AffordanceTypeEvent:
-		for _, step := range m.Events {
-			if step.Match(notif.ThingID, notif.Name) {
-				return step.Retain
+type MessageFilterChain []MessageFilterStep
+
+// Match returns whether the provided filter parameters pass the chain of steps.
+// If the filter is empty (no filter steps are defined) this returns true.
+func (chain MessageFilterChain) Accept(thingID string, name string) bool {
+	var hasMatch = len(chain) == 0
+	for _, step := range chain {
+		if step.Match(thingID, name) {
+			if !step.Accept {
+				return false
 			}
-		}
-	case AffordanceTypeProperty:
-		for _, step := range m.Properties {
-			if step.Match(notif.ThingID, notif.Name) {
-				return step.Retain
-			}
-		}
-	case AffordanceTypeAction:
-		for _, step := range m.Actions {
-			if step.Match(notif.ThingID, notif.Name) {
-				return step.Retain
-			}
+			hasMatch = true
 		}
 	}
-	// no match
+	return hasMatch
+}
+
+// AcceptNotification determines if a notification is accepted based on the filter steps.
+//
+// This returns true if no steps are defined or if all matching steps pass.
+//
+// This iterates a list of steps. Each matching step returns a pass or fail.
+// For a notification to pass, all matching steps must pass. If one match is rejected
+// then the notification is rejected.
+func (f *MessageFilter) AcceptNotification(notif *NotificationMessage) bool {
+	if notif == nil {
+		slog.Error("AcceptNotification: nil notification")
+		return false
+	} else if f == nil {
+		return true // no filter
+	}
+	switch notif.AffordanceType {
+	case AffordanceTypeEvent:
+		return len(f.Events) == 0 || f.Events.Accept(notif.ThingID, notif.Name)
+	case AffordanceTypeProperty:
+		return len(f.Properties) == 0 || f.Properties.Accept(notif.ThingID, notif.Name)
+	case AffordanceTypeAction:
+		return len(f.Actions) == 0 || f.Actions.Accept(notif.ThingID, notif.Name)
+	}
 	return false
 }
 
-// Determine if a request should be retained based on the filter steps.
-// All steps must return true to retain the message.
-func (m *MessageFilter) RetainRequest(req *RequestMessage) bool {
+// AcceptRequest determines if a request passes or is rejected based on the filter steps.
+//
+// The request passes if all matching steps are accepted.
+func (f *MessageFilter) AcceptRequest(req *RequestMessage) bool {
+	if f == nil {
+		return true // no filter
+	}
 	switch req.Operation {
 	case wot.OpInvokeAction:
-		for _, step := range m.Actions {
-			if step.Match(req.ThingID, req.Name) {
-				return step.Retain
-			}
-		}
+		return f.Actions.Accept(req.ThingID, req.Name)
 	case wot.OpWriteProperty:
-		for _, step := range m.Properties {
-			if step.Match(req.ThingID, req.Name) {
-				return step.Retain
-			}
-		}
+		return f.Properties.Accept(req.ThingID, req.Name)
 	}
-	return true
+	return false
 }
 
 // Filter whether to retain an action, property update or event
@@ -70,8 +81,8 @@ type MessageFilterStep struct {
 	// Optional, the rule applies to property, event or action with these names
 	Names []string `yaml:"names,omitempty"`
 
-	// Retain or exclude based on this rule
-	Retain bool `yaml:"retain" json:"retain"`
+	// Accept or reject based on this rule
+	Accept bool `yaml:"accept" json:"accept"`
 }
 
 // Match returns whether the provided filter parameters match this step.

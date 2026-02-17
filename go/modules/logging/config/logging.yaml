@@ -1,0 +1,34 @@
+# logging.yaml - example configuration file for logging module.
+
+# write logging to file
+#backend: "file"
+
+# optional log destination to write to, depending on the backend.
+# Default is the application ./logs directory
+#logDestination: ""
+
+# override default module instance ID
+#moduleID: "logging"
+
+# filters for notifications
+notifications:
+  # log all events
+  events:
+    - thingID: ""
+      pass: true
+  # retain temperature property updates
+  properties:
+    - thingID: ""
+      names: ["temperature"]
+      pass: true
+
+# filters for requests
+# log all configuration and action requests
+requests:
+  # retain all invoke action requests
+  actions:
+    - thingID: ""
+      pass: true
+  # retain all configuration updates
+  properties:
+    - pass: true

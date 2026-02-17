@@ -13,18 +13,6 @@ const DefaultHistoryModuleID = "history"
 // DefaultLimit nr items of none provided
 const DefaultLimit = 1000
 
-// HistoryConfig defines the configuration for the history module.
-type HistoryConfig struct {
-
-	// Optional history instance ID. If not provided, the default is 'history'.
-	ModuleID string `yaml:"moduleID,omitempty"`
-
-	// optional filter for notifications to retain. If not provided no notifications are retained.
-	NotificationFilter *msg.MessageFilter `yaml:"notifications,omitempty"`
-	// optional filter for requests to retain. If not provided no requests are retained.
-	RequestFilter *msg.MessageFilter `yaml:"requests,omitempty"`
-}
-
 // IHistoryModule defines the interface to the directory service module
 // This is implemented in the module and the client api
 //

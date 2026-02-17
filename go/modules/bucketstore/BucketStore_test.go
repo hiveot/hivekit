@@ -12,8 +12,7 @@ import (
 	"github.com/hiveot/hivekit/go/modules/bucketstore"
 	bucketstoreclient "github.com/hiveot/hivekit/go/modules/bucketstore/client"
 	"github.com/hiveot/hivekit/go/modules/bucketstore/module"
-	"github.com/hiveot/hivekit/go/modules/bucketstore/module/kvbtree"
-	"github.com/hiveot/hivekit/go/modules/bucketstore/module/pebble"
+	"github.com/hiveot/hivekit/go/modules/bucketstore/stores"
 	"github.com/hiveot/hivekit/go/modules/transports/direct"
 	"github.com/hiveot/hivekit/go/utils"
 	"github.com/hiveot/hivekit/go/wot"
@@ -66,12 +65,10 @@ var doc2 = []byte(`{
 // Create the bucket store using the backend
 func openNewStore(backendDirectory string) (store bucketstore.IBucketStore, err error) {
 	_ = os.RemoveAll(backendDirectory)
-	if testBackendType == bucketstore.BackendPebble {
-		store = pebble.NewPebbleStore(backendDirectory)
-	} else {
-		store = kvbtree.NewKVStore(backendDirectory)
+	store, err = stores.NewBucketStore(backendDirectory, testBackendType)
+	if err == nil {
+		err = store.Open()
 	}
-	err = store.Open()
 	return store, err
 }
 
