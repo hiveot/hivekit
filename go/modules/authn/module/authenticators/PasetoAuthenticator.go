@@ -30,23 +30,6 @@ type PasetoAuthenticator struct {
 	ServiceTokenValidityDays  int
 }
 
-// AddClient adds a client. This fails if the client already exists
-// func (m *PasetoAuthenticator) AddClient(
-// 	clientID string, displayName string, role string, pubKeyPem string) error {
-// 	_, err := m.clientStore.GetProfile(clientID)
-// 	if err == nil {
-// 		return fmt.Errorf("Account for client '%s' already exists", clientID)
-// 	}
-
-// 	newProfile := authn.ClientProfile{
-// 		ClientID:    clientID,
-// 		DisplayName: displayName,
-// 		Role:        role,
-// 		PubKeyPem:   pubKeyPem,
-// 	}
-// 	return m.clientStore.Add(newProfile)
-// }
-
 // AddSecurityScheme adds this authenticator's security scheme to the given TD.
 // This authenticator uses paseto tokens as bearer tokens that can be obtained from
 // the login authentication service.
@@ -79,6 +62,7 @@ func (svc *PasetoAuthenticator) CreateToken(clientID string, validity time.Durat
 	token string, validUntil time.Time, err error) {
 
 	profile, err := svc.clientStore.GetProfile(clientID)
+	_ = profile
 	if err != nil {
 		return "", validUntil, err
 	} else if validity == 0 {
@@ -100,7 +84,6 @@ func (svc *PasetoAuthenticator) CreateToken(clientID string, validity time.Durat
 	pToken.SetNotBefore(createdTime)
 	// custom claims
 	pToken.SetString("clientID", clientID)
-	pToken.SetString("role", string(profile.Role))
 
 	secretKey, err := paseto.NewV4AsymmetricSecretKeyFromEd25519(svc.signingKey)
 	if err != nil {
@@ -126,7 +109,7 @@ func (svc *PasetoAuthenticator) CreateToken(clientID string, validity time.Durat
 // or an error if invalid.
 func (svc *PasetoAuthenticator) DecodeToken(
 	sessionKey string, signedNonce string, nonce string) (
-	clientID string, role string, issuedAt time.Time, validUntil time.Time, err error) {
+	clientID string, issuedAt time.Time, validUntil time.Time, err error) {
 	var pToken *paseto.Token
 
 	pasetoParser := paseto.NewParserForValidNow()
@@ -139,49 +122,19 @@ func (svc *PasetoAuthenticator) DecodeToken(
 		clientID, err = pToken.GetString("clientID")
 	}
 	if err == nil {
-		role, err = pToken.GetString("role")
-	}
-	if err == nil {
 		issuedAt, err = pToken.GetIssuedAt()
 		validUntil, err = pToken.GetExpiration()
 	}
 	if err != nil {
 		slog.Warn("DecodeSessionToken: the given session token is no longer valid: ", "err", err.Error())
 	}
-	return clientID, role, issuedAt, validUntil, err
+	return clientID, issuedAt, validUntil, err
 }
 
 // GetAlg returns the authentication scheme and algorithm
 func (svc *PasetoAuthenticator) GetAlg() (string, string) {
 	return "paseto", "public"
 }
-
-// RefreshToken requests a new token based on the old token
-// // This requires that the existing session is still valid
-// func (svc *PasetoAuthenticator) RefreshToken(senderID string, oldToken string) (
-// 	newToken string, validUntil time.Time, err error) {
-
-// 	// validation only succeeds if there is an active session
-// 	tokenClientID, _, _, _, err := svc.ValidateToken(oldToken)
-// 	if err != nil || senderID != tokenClientID {
-// 		return newToken, validUntil, fmt.Errorf("Invalid token or senderID mismatch")
-// 	}
-// 	// must still be a valid client
-// 	prof, err := svc.clientStore.GetProfile(senderID)
-// 	_ = prof
-// 	if err != nil || prof.Disabled {
-// 		return newToken, validUntil, fmt.Errorf("Profile for '%s' is disabled", senderID)
-// 	}
-// 	validityDays := svc.ConsumerTokenValidityDays
-// 	if prof.Role == authn.ClientRoleAgent {
-// 		validityDays = svc.AgentTokenValidityDays
-// 	} else if prof.Role == authn.ClientRoleService {
-// 		validityDays = svc.ServiceTokenValidityDays
-// 	}
-// 	validity := time.Duration(validityDays) * 24 * time.Hour
-// 	newToken, validUntil, err = svc.CreateToken(senderID, validity)
-// 	return newToken, validUntil, err
-// }
 
 // SetAuthServerURI this sets the server endpoint starting the authorization flow.
 // This is included when adding the TD security scheme in AddSecurityScheme()
@@ -202,20 +155,20 @@ func (svc *PasetoAuthenticator) SetAuthServerURI(serverURI string) {
 
 // ValidateToken verifies the token and client are valid.
 func (svc *PasetoAuthenticator) ValidateToken(token string) (
-	clientID string, role string, issuedAt time.Time, validUntil time.Time, err error) {
+	clientID string, issuedAt time.Time, validUntil time.Time, err error) {
 
-	clientID, role, issuedAt, validUntil, err = svc.DecodeToken(token, "", "")
+	clientID, issuedAt, validUntil, err = svc.DecodeToken(token, "", "")
 
 	if err != nil {
-		return clientID, role, issuedAt, validUntil, err
+		return clientID, issuedAt, validUntil, err
 	}
 	// must still be a valid client
 	prof, err := svc.clientStore.GetProfile(clientID)
 	if err != nil || prof.Disabled {
-		return clientID, role, issuedAt, validUntil, fmt.Errorf("Profile for '%s' is disabled", clientID)
+		return clientID, issuedAt, validUntil, fmt.Errorf("Profile for '%s' is disabled", clientID)
 	}
 
-	return clientID, role, issuedAt, validUntil, nil
+	return clientID, issuedAt, validUntil, nil
 }
 
 // NewPasetoAuthenticator returns a new instance of a Paseto token authenticator using the given signing key

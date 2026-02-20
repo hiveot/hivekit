@@ -37,7 +37,7 @@ const (
 // ValidateToken verifies the token and client are valid.
 // This returns an error if the token is invalid, the token has expired,
 // or the client is not a valid and enabled client.
-type ValidateTokenHandler func(token string) (clientID string, role string, validUntil time.Time, err error)
+type ValidateTokenHandler func(token string) (clientID string, validUntil time.Time, err error)
 
 // A transport server module is a server module with hooks for sending messages to remote clients.
 type ITransportServer interface {

@@ -75,14 +75,14 @@ func (d *DummyAuthenticator) CreateToken(
 }
 
 func (d *DummyAuthenticator) DecodeToken(token string, signedNonce string, nonce string) (
-	clientID string, role string, issuedAt, validUntil time.Time, err error) {
+	clientID string, issuedAt, validUntil time.Time, err error) {
 
 	// fake it
 	issuedAt = time.Now().Add(-time.Minute)
 	// validUntil = time.Now().Add(time.Minute)
-	clientID, role, validUntil, err = d.ValidateToken(token)
+	clientID, validUntil, err = d.ValidateToken(token)
 
-	return clientID, role, issuedAt, validUntil, err
+	return clientID, issuedAt, validUntil, err
 }
 
 // GetAlg pretend to use jwt
@@ -116,8 +116,7 @@ func (d *DummyAuthenticator) ValidatePassword(clientID string, password string) 
 func (d *DummyAuthenticator) RefreshToken(
 	senderID string, oldToken string) (newToken string, validUntil time.Time, err error) {
 
-	tokenClientID, role, validUntil, err := d.ValidateToken(oldToken)
-	_ = role
+	tokenClientID, validUntil, err := d.ValidateToken(oldToken)
 	if err != nil || senderID != tokenClientID {
 		err = fmt.Errorf("invalid token, client or sender")
 	} else {
@@ -137,21 +136,21 @@ func (d *DummyAuthenticator) SetPassword(clientID, password string) error {
 
 // Validate the token
 func (d *DummyAuthenticator) ValidateToken(token string) (
-	clientID string, role string, validUntil time.Time, err error) {
+	clientID string, validUntil time.Time, err error) {
 
 	parts := strings.Split(token, "/")
 	if len(parts) != 3 {
-		return "", "", validUntil, fmt.Errorf("badToken")
+		return "", validUntil, fmt.Errorf("badToken")
 	}
 	clientID = parts[0]
-	role = parts[1]
+
 	// simulate a session by checking if a recent token was issued
 	_, found := d.inSession[clientID]
 	if !found {
 		err = errors.New("no active session")
 	}
 
-	return clientID, role, validUntil, err
+	return clientID, validUntil, err
 }
 
 func NewDummyAuthenticator() *DummyAuthenticator {

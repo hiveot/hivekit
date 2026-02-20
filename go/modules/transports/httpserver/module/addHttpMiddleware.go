@@ -113,13 +113,12 @@ func (m *HttpServerModule) addMiddleware(cfg *httpserver.HttpServerConfig) {
 		authWrap := func(next http.Handler) http.Handler {
 			return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				var clientID string
-				var clientRole string
 				var err error
 
 				if cfg.AuthenticateHandler != nil {
-					clientID, clientRole, err = cfg.AuthenticateHandler(r)
+					clientID, err = cfg.AuthenticateHandler(r)
 				} else {
-					clientID, clientRole, err = m.DefaultAuthenticate(r)
+					clientID, err = m.DefaultAuthenticate(r)
 				}
 				if err != nil {
 					// see https://w3c.github.io/wot-discovery/#exploration-secboot
@@ -133,7 +132,6 @@ func (m *HttpServerModule) addMiddleware(cfg *httpserver.HttpServerConfig) {
 				}
 				ctx := r.Context()
 				ctx = context.WithValue(ctx, transports.ClientIDContextID, clientID)
-				ctx = context.WithValue(ctx, transports.ClientRoleContextID, clientRole)
 				next.ServeHTTP(w, r.WithContext(ctx))
 			})
 
@@ -142,76 +140,6 @@ func (m *HttpServerModule) addMiddleware(cfg *httpserver.HttpServerConfig) {
 		r.Use(authWrap)
 	})
 }
-
-// AddSessionFromToken middleware decodes the bearer session token in the authorization header.
-//
-// Session tokens can be provided through a bearer token or a client cookie. The token
-// must match with an existing session ID.
-//
-// This distinguishes two types of tokens. Those with and those without a session ID.
-// If the token contains a session ID then that session must exist or the token is invalid.
-// User tokens are typically session tokens. Closing the session (logout) invalidates the token,
-// even if it hasn't yet expired. Sessions are currently only stored in memory so a service
-// restart also invalidates all session tokens.
-//
-// Non-session tokens, are used by services and device agents. These tokens are generated
-// on provisioning or token renewal and last until their expiry.
-//
-// The session can be retrieved from the request context using GetSessionFromContext()
-//
-// The client session contains the client ID, and stats for the current session.
-// If no valid session is found this will reply with an unauthorized status code.
-//
-// pubKey is the public key from the keypair used in creating the session token.
-// func (m *HttpServerModule) AddSessionFromToken() func(next http.Handler) http.Handler {
-// 	return func(next http.Handler) http.Handler {
-// 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-
-// 			// a valid client cert takes precedence over a token
-// 			if len(r.TLS.PeerCertificates) > 0 {
-// 				cert := r.TLS.PeerCertificates[0]
-// 				clientID := cert.Subject.CommonName
-// 				// role := ""
-// 				if clientID != "" {
-// 					// make clientID available in context
-// 					ctx := r.Context()
-// 					ctx = context.WithValue(ctx, transports.ClientIDContextID, clientID)
-// 					// ctx = context.WithValue(ctx, transports.ClientRoleContextID, role)
-// 					next.ServeHTTP(w, r.WithContext(ctx))
-// 					return
-// 				}
-// 			}
-
-// 			bearerToken, err := utils.GetBearerToken(r)
-// 			if err != nil {
-// 				// see https://w3c.github.io/wot-discovery/#exploration-secboot
-// 				// response with unauthorized and point to using the bearer token method
-// 				errMsg := "AddSessionFromToken: " + err.Error()
-// 				w.Header().Add("WWW-Authenticate", "Bearer")
-// 				http.Error(w, errMsg, http.StatusUnauthorized)
-// 				slog.Warn(errMsg)
-// 				return
-// 			}
-
-// 			//check if the token is properly signed
-// 			clientID, role, validUntil, err := m.config.ValidateTokenHandler(bearerToken)
-// 			if err != nil {
-// 				w.Header().Add("WWW-Authenticate", "Bearer")
-// 				http.Error(w, err.Error(), http.StatusUnauthorized)
-// 				slog.Warn("AddSessionFromToken: Invalid session token:",
-// 					"err", err, "clientID", clientID)
-// 				return
-// 			}
-// 			_ = validUntil
-
-// 			// make clientID available in context
-// 			ctx := r.Context()
-// 			ctx = context.WithValue(ctx, transports.ClientIDContextID, clientID)
-// 			ctx = context.WithValue(ctx, transports.ClientRoleContextID, role)
-// 			next.ServeHTTP(w, r.WithContext(ctx))
-// 		})
-// 	}
-// }
 
 // GetProtectedRouter returns the router with protected accessible routes for this server.
 // This router has cors protection enabled.
@@ -233,6 +161,6 @@ func (m *HttpServerModule) GetRequestParams(r *http.Request) (transports.Request
 }
 
 // GetClientIdFromContext
-func (m *HttpServerModule) GetClientIdFromContext(r *http.Request) (string, string, error) {
+func (m *HttpServerModule) GetClientIdFromContext(r *http.Request) (string, error) {
 	return GetClientIdFromContext(r)
 }

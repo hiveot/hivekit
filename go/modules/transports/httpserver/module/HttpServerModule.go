@@ -31,7 +31,7 @@ type HttpServerModule struct {
 	modules.HiveModuleBase
 
 	// HTTP authentication handler.
-	authenticateHandler func(req *http.Request) (clientID string, role string, err error)
+	authenticateHandler func(req *http.Request) (clientID string, err error)
 
 	config     *httpserver.HttpServerConfig
 	connectURL string
@@ -59,8 +59,7 @@ type HttpServerModule struct {
 
 // The default authentication handler extracts the bearer token from the authorization header
 // and passes it to the configured token validator.
-func (m *HttpServerModule) DefaultAuthenticate(req *http.Request) (
-	clientID string, clientRole string, err error) {
+func (m *HttpServerModule) DefaultAuthenticate(req *http.Request) (clientID string, err error) {
 
 	// first check client certificate
 	if len(req.TLS.PeerCertificates) > 0 {
@@ -68,26 +67,25 @@ func (m *HttpServerModule) DefaultAuthenticate(req *http.Request) (
 		cert := req.TLS.PeerCertificates[0]
 		clientID = cert.Subject.CommonName
 		if clientID != "" {
-			// roles shouldn't be in the certificate.
-			return clientID, "", nil
+			return clientID, nil
 		}
 	}
 
 	if m.config.ValidateTokenHandler == nil {
 		err := fmt.Errorf("DefaultAuthenticate: Missing ValidateToken handler in configuration")
-		return "", "", err
+		return "", err
 	}
 	bearerToken, err := utils.GetBearerToken(req)
 	if err != nil {
-		return "", "", err
+		return "", err
 	}
 	//check if the token is properly signed and still valid
-	clientID, role, validUntil, err := m.config.ValidateTokenHandler(bearerToken)
+	clientID, validUntil, err := m.config.ValidateTokenHandler(bearerToken)
 	if err != nil {
-		return "", "", err
+		return "", err
 	}
 	_ = validUntil
-	return clientID, role, err
+	return clientID, err
 }
 
 // Provide the HTTP base URL to connect to the server. Eg "https://addr:port/""

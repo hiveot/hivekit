@@ -15,8 +15,8 @@ func AdminAddClient(hc *clients.Consumer, clientID string, displayName string, r
 	var args = server.AdminAddClientArgs{
 		ClientID:    clientID,
 		DisplayName: displayName,
-		PubKey:      pubKey,
-		Role:        role}
+		Role:        role,
+	}
 	err = hc.Rpc(wot.OpInvokeAction,
 		authn.AdminServiceID, server.AdminActionAddClient, &args, &token)
 	return

@@ -18,7 +18,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// Note: RefreshToken is only possible when using JWT.
 func TestLoginRefresh(t *testing.T) {
 	var user1ID = "user1ID"
 	var tu1Pass = "tu1Pass"
@@ -27,7 +26,7 @@ func TestLoginRefresh(t *testing.T) {
 	defer stopFn()
 
 	// add user to test with
-	err := m.AddClient(user1ID, testClientID1, authn.ClientRoleViewer, "")
+	err := m.AddClient(user1ID, testClientID1, authn.ClientRoleViewer)
 	require.NoError(t, err)
 
 	err = m.SetPassword(user1ID, tu1Pass)
@@ -37,10 +36,9 @@ func TestLoginRefresh(t *testing.T) {
 	require.NoError(t, err)
 	require.Greater(t, validUntil, time.Now())
 
-	cid2, role2, validUntil2, err := m.ValidateToken(token1)
+	cid2, validUntil2, err := m.ValidateToken(token1)
 	require.NoError(t, err)
 	assert.Equal(t, user1ID, cid2)
-	assert.Equal(t, string(authn.ClientRoleViewer), role2)
 	require.Equal(t, validUntil2, validUntil)
 
 	// RefreshToken the token after a short delay
@@ -49,9 +47,8 @@ func TestLoginRefresh(t *testing.T) {
 	require.NotEmpty(t, token3)
 
 	// ValidateToken the new token
-	cid4, role4, validUntil4, err := m.ValidateToken(token3)
+	cid4, validUntil4, err := m.ValidateToken(token3)
 	assert.Equal(t, user1ID, cid4)
-	assert.Equal(t, string(authn.ClientRoleViewer), role4)
 	assert.Equal(t, validUntil3, validUntil4)
 	require.NoError(t, err)
 }
@@ -134,7 +131,7 @@ func TestUpdatePassword(t *testing.T) {
 	authCl := authnclient.NewAuthnUserMsgClient(co)
 	authCl.SetRequestSink(tp.HandleRequest)
 
-	err := m.AddClient(user1ID, tu1Name, authn.ClientRoleViewer, "oldpass")
+	err := m.AddClient(user1ID, tu1Name, authn.ClientRoleViewer)
 	m.SetPassword(user1ID, "oldpass")
 	require.NoError(t, err)
 
@@ -175,7 +172,7 @@ func TestUpdateName(t *testing.T) {
 	defer cancelFn()
 
 	// add user to test with
-	err := srv.AddClient(user1ID, tu1Name, authn.ClientRoleViewer, "")
+	err := srv.AddClient(user1ID, tu1Name, authn.ClientRoleViewer)
 	srv.SetPassword(user1ID, "oldpass")
 	require.NoError(t, err)
 
@@ -199,7 +196,7 @@ func TestClientUpdatePubKey(t *testing.T) {
 	defer cancelFn()
 
 	// add user to test with. don't set the public key yet
-	err := m.AddClient(user1ID, user1ID, authn.ClientRoleViewer, "")
+	err := m.AddClient(user1ID, user1ID, authn.ClientRoleViewer)
 	m.SetPassword(user1ID, "user1")
 	profile, err := m.GetProfile(user1ID)
 	require.NoError(t, err)
@@ -232,7 +229,7 @@ func TestAuthClientCert(t *testing.T) {
 	defer cancelFn()
 
 	// add user to test with. don't set the public key yet
-	err := m.AddClient(testCerts.ClientID, "user 1", authn.ClientRoleViewer, "")
+	err := m.AddClient(testCerts.ClientID, "user 1", authn.ClientRoleViewer)
 	serverAddress := m.GetConnectURL()
 	urlParts, err := url.Parse(serverAddress)
 

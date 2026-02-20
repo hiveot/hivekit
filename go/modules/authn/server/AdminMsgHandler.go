@@ -63,12 +63,6 @@ type AdminAddClientArgs struct {
 	// DisplayName with Display Name
 	DisplayName string `json:"displayName,omitempty"`
 
-	// Optional Client password
-	Password string `json:"password,omitempty`
-
-	// PubKey with Public Key
-	PubKey string `json:"pubKey,omitempty"`
-
 	// Role of the client
 	Role string `json:"role,omitempty"`
 }
@@ -92,7 +86,7 @@ func HandleAuthnAdminRequest(m authn.IAuthnModule, req *msg.RequestMessage, repl
 		args := AdminAddClientArgs{}
 		err = utils.DecodeAsObject(req.Input, &args)
 		if err == nil {
-			err = m.AddClient(args.ClientID, args.DisplayName, args.Role, args.PubKey)
+			err = m.AddClient(args.ClientID, args.DisplayName, args.Role)
 		}
 	case AdminActionGetProfile:
 		var clientID string
@@ -101,9 +95,7 @@ func HandleAuthnAdminRequest(m authn.IAuthnModule, req *msg.RequestMessage, repl
 			output, err = m.GetProfile(clientID)
 		}
 	case AdminActionGetProfiles:
-		if err == nil {
-			output, err = m.GetProfiles()
-		}
+		output, err = m.GetProfiles()
 	case AdminActionRemoveClient:
 		var clientID string
 		err = utils.DecodeAsObject(req.Input, &clientID)

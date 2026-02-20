@@ -141,7 +141,7 @@ func (svc *JWTAuthenticator) CreateToken(
 // This returns the authenticated clientID stored in the token and its expiry time,
 // or an error if invalid.
 func (svc *JWTAuthenticator) DecodeToken(token string, signedNonce string, nonce string) (
-	clientID string, role string, issuedAt time.Time, validUntil time.Time, err error) {
+	clientID string, issuedAt time.Time, validUntil time.Time, err error) {
 
 	signingKeyPub, _ := x509.MarshalPKIXPublicKey(&svc.signingKey.PublicKey)
 	signingKeyPubStr := base64.StdEncoding.EncodeToString(signingKeyPub)
@@ -163,12 +163,6 @@ func (svc *JWTAuthenticator) DecodeToken(token string, signedNonce string, nonce
 		clientID, err = claims.GetSubject()
 	}
 	if err == nil {
-		roleClaim := claims["role"]
-		if roleClaim != nil {
-			role = roleClaim.(string)
-		}
-	}
-	if err == nil {
 		var expiryTime *jwt.NumericDate
 		expiryTime, err = claims.GetExpirationTime()
 		if expiryTime != nil {
@@ -182,39 +176,16 @@ func (svc *JWTAuthenticator) DecodeToken(token string, signedNonce string, nonce
 			issuedAt = issuedTime.Time
 		}
 	}
-	if err == nil && (!jwtToken.Valid || role == "" || clientID == "") {
-		err = fmt.Errorf("Invalid token or missing role or clientID")
+	if err == nil && (!jwtToken.Valid || clientID == "") {
+		err = fmt.Errorf("Invalid token or missing clientID")
 	}
-	return clientID, role, issuedAt, validUntil, err
+	return clientID, issuedAt, validUntil, err
 }
 
 // GetAlg returns the authentication scheme (jwt) and algorithm
 func (svc *JWTAuthenticator) GetAlg() (string, string) {
 	return "jwt", svc.signingMethod.Alg()
 }
-
-// RefreshToken requests a new token based on the old token
-// This requires that the existing session is still valid
-// func (svc *JWTAuthenticator) RefreshToken(
-// 	senderID string, oldToken string) (newToken string, validUntil time.Time, err error) {
-
-// 	// validation only succeeds if there is an active session
-// 	tokenClientID, _, _, err := svc.ValidateToken(oldToken)
-// 	if err != nil || senderID != tokenClientID {
-// 		return newToken, validUntil, fmt.Errorf("Invalid token or senderID mismatch")
-// 	}
-// 	// must still be a valid client
-// 	prof, err := svc.clientStore.GetProfile(senderID)
-// 	validityDays := svc.ConsumerTokenValidityDays
-// 	if prof.Role == authn.ClientRoleAgent {
-// 		validityDays = svc.AgentTokenValidityDays
-// 	} else if prof.Role == authn.ClientRoleService {
-// 		validityDays = svc.ServiceTokenValidityDays
-// 	}
-// 	validity := time.Duration(validityDays) * 24 * time.Hour
-// 	newToken, validUntil, err = svc.CreateToken(senderID, validity)
-// 	return newToken, validUntil, err
-// }
 
 // SetAuthServerURI this sets the server endpoint needed to login.
 // This is included when adding the TD security scheme in AddSecurityScheme()
@@ -235,9 +206,9 @@ func (svc *JWTAuthenticator) SetAuthServerURI(serverURI string) {
 
 // ValidateToken verifies the token and client are valid.
 func (svc *JWTAuthenticator) ValidateToken(token string) (
-	clientID string, role string, issuedAt time.Time, validUntil time.Time, err error) {
+	clientID string, issuedAt time.Time, validUntil time.Time, err error) {
 
-	clientID, role, issuedAt, validUntil, err = svc.DecodeToken(token, "", "")
+	clientID, issuedAt, validUntil, err = svc.DecodeToken(token, "", "")
 
 	if err != nil {
 		return
@@ -254,14 +225,14 @@ func (svc *JWTAuthenticator) ValidateToken(token string) (
 	sessionStart, found := svc.sessionStart[clientID]
 	if !found {
 		slog.Warn("ValidateToken. No valid session found for client", "clientID", clientID)
-		return clientID, role, issuedAt, validUntil, fmt.Errorf("Session is no longer valid")
+		return clientID, issuedAt, validUntil, fmt.Errorf("Session is no longer valid")
 	}
 	if issuedAt.Before(sessionStart) {
 		slog.Warn("ValidateToken. The token session is no longer valid", "clientID", clientID)
-		return clientID, role, issuedAt, validUntil, fmt.Errorf("Session is no longer valid")
+		return clientID, issuedAt, validUntil, fmt.Errorf("Session is no longer valid")
 	}
 
-	return clientID, role, issuedAt, validUntil, nil
+	return clientID, issuedAt, validUntil, nil
 }
 
 // NewJWTAuthenticator returns a new instance of a JWT token authenticator

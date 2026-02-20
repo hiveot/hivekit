@@ -15,7 +15,7 @@ type IAuthenticator interface {
 
 	// CreateToken creates a signed authentication token for a client.
 	//
-	// The client must be a known client with an assigned role.
+	// The client must be a known client.
 	//
 	// If no session has started, a new one will be created. This is intended for
 	// issuing agent tokens (devices, services) where login is not applicable.
@@ -32,7 +32,7 @@ type IAuthenticator interface {
 
 	// DecodeToken and return its claims
 	DecodeToken(token string, signedNonce string, nonce string) (
-		clientID string, role string, issuedAt time.Time, validUntil time.Time, err error)
+		clientID string, issuedAt time.Time, validUntil time.Time, err error)
 
 	// GetAlg returns the supported security format and authentication algorithm.
 	// This uses the vocabulary as defined in the TD.
@@ -62,6 +62,5 @@ type IAuthenticator interface {
 	// ValidateToken verifies the token and client are valid.
 	// This returns an error if the token is invalid, the token has expired,
 	// or the client is not a valid and enabled client.
-	ValidateToken(token string) (
-		clientID string, role string, issuedAt time.Time, validUntil time.Time, err error)
+	ValidateToken(token string) (clientID string, issuedAt time.Time, validUntil time.Time, err error)
 }

@@ -30,7 +30,7 @@ type HttpServerConfig struct {
 	//
 	// Other authentication schemes can be implemented by providing your own
 	// function here.
-	AuthenticateHandler func(req *http.Request) (clientID string, role string, err error) `yaml:"-"`
+	AuthenticateHandler func(req *http.Request) (clientID string, err error) `yaml:"-"`
 
 	// CorsEnabled enables the use of net/http CORS and adds the relevant CORS
 	// headers to allow browser cross-domain calls in scripts.

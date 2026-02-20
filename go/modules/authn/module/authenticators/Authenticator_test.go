@@ -55,19 +55,17 @@ func TestCreateSessionToken(t *testing.T) {
 	assert.Greater(t, validUntil, time.Now())
 
 	// decode it
-	clientID2, role2, issuedAt2, validUntil2, err := svc.DecodeToken(token1, "", "")
+	clientID2, issuedAt2, validUntil2, err := svc.DecodeToken(token1, "", "")
 	require.NoError(t, err)
 	assert.Less(t, issuedAt2, time.Now())
 	require.Equal(t, clientID, clientID2)
 	// require.LessOrEqual(t, validUntil, validUntil2)  // second is truncated
-	require.Equal(t, role, role2)
 
 	// create a persistent auth token
 	token2, validUntil, err := svc.CreateToken(clientID, time.Minute)
-	clientID4, role3, iat2, validUntil2, err := svc.ValidateToken(token2)
+	clientID4, iat2, validUntil2, err := svc.ValidateToken(token2)
 	require.NoError(t, err)
 	require.Equal(t, clientID, clientID4)
-	require.Equal(t, role, role3)
 	require.Equal(t, validUntil.Unix(), validUntil2.Unix())
 	require.Greater(t, validUntil.Unix(), iat2.Unix())
 
@@ -94,13 +92,13 @@ func TestBadTokens(t *testing.T) {
 
 	// bad token
 	badToken := token1 + "-bad"
-	_, _, _, _, err = svc.ValidateToken(badToken)
+	_, _, _, err = svc.ValidateToken(badToken)
 	require.Error(t, err)
 
 	// expired
 	token2, _, err := svc.CreateToken(clientID, -1)
 	require.NoError(t, err)
-	clientID2, _, iat2, sid2, err := svc.ValidateToken(token2)
+	clientID2, iat2, sid2, err := svc.ValidateToken(token2)
 	require.Error(t, err)
 	assert.Empty(t, clientID2)
 	assert.Empty(t, iat2)

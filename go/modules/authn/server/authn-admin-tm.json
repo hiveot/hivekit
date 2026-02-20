@@ -65,10 +65,6 @@
             "title": "Display Name",
             "type": "string"
           },
-          "pubKey": {
-            "title": "Public Key",
-            "type": "string"
-          },
           "role": {
             "title": "Role",
             "type": "string"

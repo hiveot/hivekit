@@ -1,8 +1,7 @@
 // Package things with API interface definitions for the ExposedThing and ConsumedThing classes
 package td
 
-// EventAffordance with metadata that describes an event source, which asynchronously pushes
-// event data to MemberRoles (e.g., overheating alerts).
+// EventAffordance with metadata that describes an event source
 type EventAffordance struct {
 	//--- InteractionAffordance starts ---
 

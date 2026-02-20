@@ -36,9 +36,6 @@ type TD struct {
 	// All action-based interaction affordances of the things
 	Actions map[string]*ActionAffordance `json:"actions"`
 
-	// Roles that are allowed to use this thing. Default (empty) is all roles.
-	Allow []string `json:"allow,omitempty"`
-
 	// JSON-LD keyword to define shorthand names called terms that are used throughout a TD document. Required.
 	// in order to add the "hiveot" namespace, the context value can be a string or map
 	// Type: anyURO or Array
@@ -54,9 +51,6 @@ type TD struct {
 
 	// ISO8601 timestamp this document was first created. See also 'Modified'.
 	Created string `json:"created,omitempty"`
-
-	// Roles that are denied to use this thing. Default (empty or 'none') is no roles.
-	Deny []string `json:"deny,omitempty"`
 
 	// Describe the device in the default human-readable language.
 	// It is recommended to use the product description.

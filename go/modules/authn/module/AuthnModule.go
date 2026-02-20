@@ -44,8 +44,7 @@ type AuthnModule struct {
 
 // AddClient adds a client. This fails if the client already exists
 // This should only be usable by administrators.
-func (m *AuthnModule) AddClient(
-	clientID string, role string, password string, pubKeyPem string) error {
+func (m *AuthnModule) AddClient(clientID string, displayName string, role string) error {
 
 	_, err := m.authnStore.GetProfile(clientID)
 	if err == nil {
@@ -54,9 +53,8 @@ func (m *AuthnModule) AddClient(
 
 	newProfile := authn.ClientProfile{
 		ClientID:    clientID,
-		DisplayName: clientID,
+		DisplayName: displayName,
 		Role:        role,
-		PubKeyPem:   pubKeyPem,
 	}
 	return m.authnStore.Add(newProfile)
 }
@@ -94,7 +92,7 @@ func (m *AuthnModule) CreateSessionToken(clientID string, validity time.Duration
 // optionally verify the signed nonce using the client's public key.
 // This returns the auth info stored in the token.
 func (m *AuthnModule) DecodeToken(token string, signedNonce string, nonce string) (
-	clientID string, role string, issuedAt time.Time, validUntil time.Time, err error) {
+	clientID string, issuedAt time.Time, validUntil time.Time, err error) {
 	return m.authenticator.DecodeToken(token, signedNonce, nonce)
 }
 
@@ -157,7 +155,7 @@ func (m *AuthnModule) Login(
 	// If a session start time does not exist yet, then record this as the session start.
 	sessionStart, found := m.sessionStart[clientID]
 	if !found {
-		sessionStart = time.Now()
+		sessionStart = time.Now().Add(-time.Second) // prevent comparison with token iat failing
 		m.sessionStart[clientID] = sessionStart
 	}
 
@@ -234,7 +232,7 @@ func (m *AuthnModule) RefreshToken(senderID string, oldToken string) (
 	newToken string, validUntil time.Time, err error) {
 
 	// validation only succeeds if there is an active session
-	tokenClientID, _, _, err := m.ValidateToken(oldToken)
+	tokenClientID, _, err := m.ValidateToken(oldToken)
 	if err != nil || senderID != tokenClientID {
 		return newToken, validUntil, fmt.Errorf("Invalid token or senderID mismatch")
 	}
@@ -293,9 +291,9 @@ func (m *AuthnModule) ValidatePassword(clientID, password string) (err error) {
 
 // ValidateToken verifies the token and client are valid.
 func (m *AuthnModule) ValidateToken(token string) (
-	clientID string, role string, validUntil time.Time, err error) {
+	clientID string, validUntil time.Time, err error) {
 
-	clientID, role, issuedAt, validUntil, err := m.authenticator.ValidateToken(token)
+	clientID, issuedAt, validUntil, err := m.authenticator.ValidateToken(token)
 	if err != nil {
 		return
 	}
@@ -303,23 +301,23 @@ func (m *AuthnModule) ValidateToken(token string) (
 	// must still be a valid client
 	prof, err := m.authnStore.GetProfile(clientID)
 	if err != nil || prof.Disabled {
-		return clientID, role, validUntil, fmt.Errorf("Profile for '%s' is disabled", clientID)
+		return clientID, validUntil, fmt.Errorf("Profile for '%s' is disabled", clientID)
 	}
 	// check the token is of an active client
 	// this is set during CreateToken and Login
 	sessionStart, found := m.sessionStart[clientID]
 	if !found {
 		slog.Warn("ValidateToken. No valid session found for client", "clientID", clientID)
-		return clientID, role, validUntil, fmt.Errorf("Session is no longer valid")
+		return clientID, validUntil, fmt.Errorf("Session is no longer valid")
 	}
 	// the session must have started before the token was issued
 	// this allows a session restart to invalidate all old tokens
 	if issuedAt.Before(sessionStart) {
 		slog.Warn("ValidateToken. The token session is no longer valid", "clientID", clientID)
-		return clientID, role, validUntil, fmt.Errorf("Session is no longer valid")
+		return clientID, validUntil, fmt.Errorf("Session is no longer valid")
 	}
 
-	return clientID, role, validUntil, err
+	return clientID, validUntil, err
 }
 
 // Create a new authentication module.

@@ -59,13 +59,6 @@ type ActionAffordance struct {
 	// Lack of this keyword means that no claim on the synchronicity of the action
 	// can be made.
 	Synchronous bool `json:"synchronous,omitempty"`
-
-	// Allow is a HiveOT extension to list which roles are allowed to invoke this action
-	// Intended for present only allowable actions.
-	// Without it, the default role permissions apply.
-	//Allow []string `json:"allow,omitempty"`
-	// Deny is a HiveOT extension to list which roles are denied to invoke this action
-	//Deny []string `json:"deny,omitempty"`
 }
 
 // AddForm adds an interaction form to the action affordance

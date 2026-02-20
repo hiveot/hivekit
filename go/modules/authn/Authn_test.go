@@ -37,7 +37,7 @@ func NewTestConsumer(m *module.AuthnModule, serverURL, clientID string) (
 	*clients.Consumer, transports.IConnection, string) {
 
 	// ensure the client exists
-	_ = m.AddClient(clientID, clientID, authn.ClientRoleViewer, "")
+	_ = m.AddClient(clientID, "client 1", authn.ClientRoleViewer)
 	token, validUntil, _ := m.CreateSessionToken(clientID, time.Minute)
 	_ = validUntil
 	co, cc, err := clients.NewConsumerConnection(appID, serverURL, testCerts.CaCert)

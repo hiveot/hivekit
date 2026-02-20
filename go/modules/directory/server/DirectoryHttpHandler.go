@@ -9,7 +9,6 @@ import (
 	"strings"
 
 	"github.com/go-chi/chi/v5"
-	"github.com/hiveot/hivekit/go/modules/authn"
 	"github.com/hiveot/hivekit/go/modules/directory"
 	"github.com/hiveot/hivekit/go/modules/transports"
 	"github.com/hiveot/hivekit/go/utils"
@@ -96,8 +95,7 @@ func (srv *DirectoryRestHandler) handleUpdateThing(w http.ResponseWriter, r *htt
 	// only agents can update their own TD
 	if err == nil {
 		agentID := tdi.GetAgentID()
-		if rp.ClientRole != authn.ClientRoleAdmin &&
-			rp.ClientID != agentID {
+		if rp.ClientID != agentID {
 			err = fmt.Errorf("Sender '%s' isn't the agent of the TD '%s': %w",
 				rp.ClientID, tdi.GetID(), utils.UnauthorizedError)
 		}
