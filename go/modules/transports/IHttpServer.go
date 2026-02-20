@@ -84,7 +84,7 @@ type IHttpServer interface {
 
 	// Set the validator for http requests
 	// This enables the protected routes
-	SetAuthValidator(v IAuthValidator)
+	SetAuthValidator(v ValidateTokenHandler)
 }
 
 // ITlsClient interface for generic http/tls client.

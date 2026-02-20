@@ -371,8 +371,6 @@ func (cl *HttpBasicClient) Stop() {
 //	clientID to identify as. Must match the authentication information.
 //	caCert of the server to validate the server or nil to not check the server cert
 //	getForm is the handler for return a form for invoking an operation. nil for default
-//	sink is the application module receiving notifications or in case of agents, requests.
-//	timeout for waiting for response. 0 to use the default.
 func NewHttpBasicClient(
 	baseURL string, caCert *x509.Certificate, getForm transports.GetFormHandler) *HttpBasicClient {
 
@@ -385,7 +383,20 @@ func NewHttpBasicClient(
 	hostPort := urlParts.Host
 
 	tlsClient := tlsclient.NewTLSClient(hostPort, nil, caCert, timeout)
+	cl := NewHttpBasicTLSClient(tlsClient, getForm)
 
+	return cl
+}
+
+// NewHttpBasicTlsClient creates a new instance of the WoT compatible http-basic
+// protocol binding client using the given TLS client.
+//
+//	tlsClient used for the server connection
+//	getForm is the handler for return a form for invoking an operation. nil for default
+func NewHttpBasicTLSClient(
+	tlsClient *tlsclient.TLSClient, getForm transports.GetFormHandler) *HttpBasicClient {
+
+	timeout := tlsclient.DefaultClientTimeout
 	cl := &HttpBasicClient{
 		getForm:   getForm,
 		timeout:   timeout,

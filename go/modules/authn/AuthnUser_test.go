@@ -1,14 +1,19 @@
 package authn_test
 
 import (
+	"net/http"
+	"net/url"
 	"testing"
 	"time"
 
+	"github.com/hiveot/hivekit/go/modules/authn"
 	authnclient "github.com/hiveot/hivekit/go/modules/authn/client"
+	"github.com/hiveot/hivekit/go/modules/authn/server"
 	"github.com/hiveot/hivekit/go/modules/clients"
-	"github.com/hiveot/hivekit/go/modules/transports"
 	"github.com/hiveot/hivekit/go/modules/transports/direct"
+	tlsclient "github.com/hiveot/hivekit/go/modules/transports/httpserver/client"
 	"github.com/hiveot/hivekit/go/utils"
+	jsoniter "github.com/json-iterator/go"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -18,36 +23,35 @@ func TestLoginRefresh(t *testing.T) {
 	var user1ID = "user1ID"
 	var tu1Pass = "tu1Pass"
 
-	svc, stopFn := startTestAuthnModule(defaultHash)
+	m, stopFn := startTestAuthnModule(defaultHash)
 	defer stopFn()
-	authenticator := svc.GetAuthenticator()
 
 	// add user to test with
-	err := svc.AddClient(user1ID, testClientID1, transports.ClientRoleViewer, "")
+	err := m.AddClient(user1ID, testClientID1, authn.ClientRoleViewer, "")
 	require.NoError(t, err)
 
-	err = svc.SetPassword(user1ID, tu1Pass)
+	err = m.SetPassword(user1ID, tu1Pass)
 	require.NoError(t, err)
 
-	token1, validUntil, err := authenticator.Login(user1ID, tu1Pass)
+	token1, validUntil, err := m.Login(user1ID, tu1Pass)
 	require.NoError(t, err)
 	require.Greater(t, validUntil, time.Now())
 
-	cid2, role2, validUntil2, err := authenticator.ValidateToken(token1)
+	cid2, role2, validUntil2, err := m.ValidateToken(token1)
 	require.NoError(t, err)
 	assert.Equal(t, user1ID, cid2)
-	assert.Equal(t, string(transports.ClientRoleViewer), role2)
+	assert.Equal(t, string(authn.ClientRoleViewer), role2)
 	require.Equal(t, validUntil2, validUntil)
 
 	// RefreshToken the token after a short delay
-	token3, validUntil3, err := authenticator.RefreshToken(user1ID, token1)
+	token3, validUntil3, err := m.RefreshToken(user1ID, token1)
 	require.NoError(t, err)
 	require.NotEmpty(t, token3)
 
 	// ValidateToken the new token
-	cid4, role4, validUntil4, err := authenticator.ValidateToken(token3)
+	cid4, role4, validUntil4, err := m.ValidateToken(token3)
 	assert.Equal(t, user1ID, cid4)
-	assert.Equal(t, string(transports.ClientRoleViewer), role4)
+	assert.Equal(t, string(authn.ClientRoleViewer), role4)
 	assert.Equal(t, validUntil3, validUntil4)
 	require.NoError(t, err)
 }
@@ -114,41 +118,41 @@ func TestLogout(t *testing.T) {
 	assert.Error(t, err)
 	assert.Empty(t, token2)
 }
+
 func TestUpdatePassword(t *testing.T) {
 
 	var user1ID = "user1ID"
 	var tu1Name = "test user 1"
 
-	srv, cancelFn := startTestAuthnModule(defaultHash)
+	m, cancelFn := startTestAuthnModule(defaultHash)
 	defer cancelFn()
-	authenticator := srv.GetAuthenticator()
 
-	tp := direct.NewDirectTransport(user1ID, srv)
+	tp := direct.NewDirectTransport(user1ID, m)
 
 	// add user to test with
 	co := clients.NewConsumer("test")
 	authCl := authnclient.NewAuthnUserMsgClient(co)
 	authCl.SetRequestSink(tp.HandleRequest)
 
-	err := srv.AddClient(user1ID, tu1Name, transports.ClientRoleViewer, "oldpass")
-	srv.SetPassword(user1ID, "oldpass")
+	err := m.AddClient(user1ID, tu1Name, authn.ClientRoleViewer, "oldpass")
+	m.SetPassword(user1ID, "oldpass")
 	require.NoError(t, err)
 
 	// login should succeed
-	_, _, err = authenticator.Login(user1ID, "oldpass")
+	_, _, err = m.Login(user1ID, "oldpass")
 	require.NoError(t, err)
 
 	// change password
-	err = srv.SetPassword(user1ID, "newpass")
+	err = m.SetPassword(user1ID, "newpass")
 	require.NoError(t, err)
 
 	// login with old password should now fail
 	//t.Log("an error is expected logging in with the old password")
-	_, _, err = authenticator.Login(user1ID, "oldpass")
+	_, _, err = m.Login(user1ID, "oldpass")
 	require.Error(t, err)
 
 	// re-login with new password
-	_, _, err = authenticator.Login(user1ID, "newpass")
+	_, _, err = m.Login(user1ID, "newpass")
 	require.NoError(t, err)
 }
 
@@ -171,7 +175,7 @@ func TestUpdateName(t *testing.T) {
 	defer cancelFn()
 
 	// add user to test with
-	err := srv.AddClient(user1ID, tu1Name, transports.ClientRoleViewer, "")
+	err := srv.AddClient(user1ID, tu1Name, authn.ClientRoleViewer, "")
 	srv.SetPassword(user1ID, "oldpass")
 	require.NoError(t, err)
 
@@ -191,13 +195,13 @@ func TestUpdateName(t *testing.T) {
 func TestClientUpdatePubKey(t *testing.T) {
 	var user1ID = "user1ID"
 
-	srv, cancelFn := startTestAuthnModule(defaultHash)
+	m, cancelFn := startTestAuthnModule(defaultHash)
 	defer cancelFn()
 
 	// add user to test with. don't set the public key yet
-	err := srv.AddClient(user1ID, user1ID, transports.ClientRoleViewer, "")
-	srv.SetPassword(user1ID, "user1")
-	profile, err := srv.GetProfile(user1ID)
+	err := m.AddClient(user1ID, user1ID, authn.ClientRoleViewer, "")
+	m.SetPassword(user1ID, "user1")
+	profile, err := m.GetProfile(user1ID)
 	require.NoError(t, err)
 	assert.Equal(t, user1ID, profile.ClientID)
 	assert.Equal(t, user1ID, profile.DisplayName)
@@ -207,16 +211,61 @@ func TestClientUpdatePubKey(t *testing.T) {
 	privKey, pubKey := utils.NewKey(utils.KeyTypeECDSA)
 	pubKeyPem := utils.PublicKeyToPem(pubKey)
 	_ = privKey
-	profile2, err := srv.GetProfile(user1ID)
+	profile2, err := m.GetProfile(user1ID)
 	assert.Equal(t, user1ID, profile2.ClientID)
 	require.NoError(t, err)
 	profile2.PubKeyPem = pubKeyPem
-	err = srv.UpdateProfile(user1ID, profile2)
+	err = m.UpdateProfile(user1ID, profile2)
 	assert.NoError(t, err)
 
 	// check result
-	profile3, err := srv.GetProfile(user1ID)
+	profile3, err := m.GetProfile(user1ID)
 	require.NoError(t, err)
 	assert.Equal(t, user1ID, profile3.ClientID)
 	assert.Equal(t, pubKeyPem, profile3.PubKeyPem)
+}
+
+// // Test certificate based authentication
+func TestAuthClientCert(t *testing.T) {
+
+	m, cancelFn := startTestAuthnModule(defaultHash)
+	defer cancelFn()
+
+	// add user to test with. don't set the public key yet
+	err := m.AddClient(testCerts.ClientID, "user 1", authn.ClientRoleViewer, "")
+	serverAddress := m.GetConnectURL()
+	urlParts, err := url.Parse(serverAddress)
+
+	tlsClient := tlsclient.NewTLSClient(
+		urlParts.Host, testCerts.ClientCert, testCerts.CaCert, 0)
+
+	// client should be able to read its profile using just client cert as auth
+	getProfilePath := server.HttpGetProfilePath
+	outputRaw, status, err := tlsClient.Get(getProfilePath)
+	assert.NoError(t, err)
+	assert.Equal(t, http.StatusOK, status)
+
+	var profile authn.ClientProfile
+	jsoniter.Unmarshal(outputRaw, &profile)
+	assert.Equal(t, testCerts.ClientID, profile.ClientID)
+
+	// clients.NewTransportClient(testAddress, testCerts.ClientCert, testCerts.CaCert, 0)
+	// authCl := authnclient.NewAuthnHttpClient(urlParts.Host, testCerts.CaCert)
+
+	// clientCert := tlsClient.GetClientCertificate()
+	// assert.NotNil(t, clientCert)
+
+	// // verify service certificate against CA
+	// caCertPool := x509.NewCertPool()
+	// caCertPool.AddCert(testCerts.CaCert)
+	// opts := x509.VerifyOptions{
+	// 	Roots:     caCertPool,
+	// 	KeyUsages: []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth},
+	// }
+	// cert, err := x509.ParseCertificate(clientCert.Certificate[0])
+	// if err == nil {
+	// 	_, err = cert.Verify(opts)
+	// }
+	// assert.NoError(t, err)
+
 }

@@ -1,6 +1,7 @@
 package pipeline
 
 import (
+	"crypto/tls"
 	"crypto/x509"
 	"time"
 
@@ -16,12 +17,18 @@ const DirectoryClient = "directoryClient"
 // the clientID and authToken are used when instantiating client interfaces of modules.
 type ModuleFactory struct {
 	caCert *x509.Certificate
+	// the server certification for transport modules
+	serverCert *tls.Certificate
 	// when connecting a client interface using NewModuleClient
-	clientID  string
+	clientID string
+	// authentication token ...?
 	authToken string
-	// the root directory of the application storage area
+	// the root directory of the configuration storage directory
+	configRoot string
+	// the root directory of the application storage area (subdir per module)
 	storageRoot string
-	timeout     time.Duration
+	// the default timeout for transport modules
+	timeout time.Duration
 	// the http server with and modules that serve http endpoints
 	httpServer transports.IHttpServer
 }

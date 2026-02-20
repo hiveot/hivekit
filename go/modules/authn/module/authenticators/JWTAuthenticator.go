@@ -11,7 +11,6 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/hiveot/hivekit/go/modules/authn"
 	"github.com/hiveot/hivekit/go/modules/authn/module/authnstore"
-	"github.com/hiveot/hivekit/go/modules/transports"
 	"github.com/hiveot/hivekit/go/wot/td"
 )
 
@@ -38,22 +37,22 @@ type JWTAuthenticator struct {
 	signingMethod jwt.SigningMethod // default SigningMethodES256
 }
 
-// AddClient adds a client. This fails if the client already exists
-func (m *JWTAuthenticator) AddClient(
-	clientID string, displayName string, role string, pubKeyPem string) error {
-	_, err := m.clientStore.GetProfile(clientID)
-	if err == nil {
-		return fmt.Errorf("Account for client '%s' already exists", clientID)
-	}
+// // AddClient adds a client. This fails if the client already exists
+// func (m *JWTAuthenticator) AddClient(
+// 	clientID string, displayName string, role string, pubKeyPem string) error {
+// 	_, err := m.clientStore.GetProfile(clientID)
+// 	if err == nil {
+// 		return fmt.Errorf("Account for client '%s' already exists", clientID)
+// 	}
 
-	newProfile := authn.ClientProfile{
-		ClientID:    clientID,
-		DisplayName: displayName,
-		Role:        role,
-		PubKeyPem:   pubKeyPem,
-	}
-	return m.clientStore.Add(newProfile)
-}
+// 	newProfile := authn.ClientProfile{
+// 		ClientID:    clientID,
+// 		DisplayName: displayName,
+// 		Role:        role,
+// 		PubKeyPem:   pubKeyPem,
+// 	}
+// 	return m.clientStore.Add(newProfile)
+// }
 
 // AddSecurityScheme adds the security scheme that this authenticator supports.
 // http supports bearer tokens for request authentication, basic and digest authentication
@@ -132,7 +131,7 @@ func (svc *JWTAuthenticator) CreateToken(
 	return sessionToken, expiryTime, err
 }
 
-// DecodeSessionToken verifies the given JWT token and returns its claims.
+// DecodeToken decodeds the given JWT token and returns its claims.
 // optionally verify the signed nonce using the client's public key.
 // This returns the auth info stored in the token.
 //
@@ -194,66 +193,28 @@ func (svc *JWTAuthenticator) GetAlg() (string, string) {
 	return "jwt", svc.signingMethod.Alg()
 }
 
-// Login with password and generate a session token
-// Intended for end-users that want to establish a session.
-//
-//	clientID is the client to log in
-//	password to verify
-//
-// This returns a session token, its session ID, or an error if failed
-func (svc *JWTAuthenticator) Login(
-	clientID string, password string) (token string, validUntil time.Time, err error) {
-
-	// a user login always creates a session token
-	err = svc.ValidatePassword(clientID, password)
-	if err != nil {
-		return "", validUntil, err
-	}
-
-	// If a session start time does not exist yet, then record this as the session start.
-	sessionStart, found := svc.sessionStart[clientID]
-	if !found {
-		sessionStart = time.Now()
-		svc.sessionStart[clientID] = sessionStart
-	}
-
-	// create the session to allow token refresh
-	validity := time.Hour * time.Duration(24*svc.ConsumerTokenValidityDays)
-	token, validUntil, _ = svc.CreateToken(clientID, validity)
-
-	return token, validUntil, err
-}
-
-// Logout removes the client session
-func (svc *JWTAuthenticator) Logout(clientID string) {
-	_, found := svc.sessionStart[clientID]
-	if found {
-		delete(svc.sessionStart, clientID)
-	}
-}
-
 // RefreshToken requests a new token based on the old token
 // This requires that the existing session is still valid
-func (svc *JWTAuthenticator) RefreshToken(
-	senderID string, oldToken string) (newToken string, validUntil time.Time, err error) {
+// func (svc *JWTAuthenticator) RefreshToken(
+// 	senderID string, oldToken string) (newToken string, validUntil time.Time, err error) {
 
-	// validation only succeeds if there is an active session
-	tokenClientID, _, _, err := svc.ValidateToken(oldToken)
-	if err != nil || senderID != tokenClientID {
-		return newToken, validUntil, fmt.Errorf("Invalid token or senderID mismatch")
-	}
-	// must still be a valid client
-	prof, err := svc.clientStore.GetProfile(senderID)
-	validityDays := svc.ConsumerTokenValidityDays
-	if prof.Role == transports.ClientRoleAgent {
-		validityDays = svc.AgentTokenValidityDays
-	} else if prof.Role == transports.ClientRoleService {
-		validityDays = svc.ServiceTokenValidityDays
-	}
-	validity := time.Duration(validityDays) * 24 * time.Hour
-	newToken, validUntil, err = svc.CreateToken(senderID, validity)
-	return newToken, validUntil, err
-}
+// 	// validation only succeeds if there is an active session
+// 	tokenClientID, _, _, err := svc.ValidateToken(oldToken)
+// 	if err != nil || senderID != tokenClientID {
+// 		return newToken, validUntil, fmt.Errorf("Invalid token or senderID mismatch")
+// 	}
+// 	// must still be a valid client
+// 	prof, err := svc.clientStore.GetProfile(senderID)
+// 	validityDays := svc.ConsumerTokenValidityDays
+// 	if prof.Role == authn.ClientRoleAgent {
+// 		validityDays = svc.AgentTokenValidityDays
+// 	} else if prof.Role == authn.ClientRoleService {
+// 		validityDays = svc.ServiceTokenValidityDays
+// 	}
+// 	validity := time.Duration(validityDays) * 24 * time.Hour
+// 	newToken, validUntil, err = svc.CreateToken(senderID, validity)
+// 	return newToken, validUntil, err
+// }
 
 // SetAuthServerURI this sets the server endpoint needed to login.
 // This is included when adding the TD security scheme in AddSecurityScheme()
@@ -261,45 +222,46 @@ func (svc *JWTAuthenticator) SetAuthServerURI(serverURI string) {
 	svc.authServerURI = serverURI
 }
 
-func (svc *JWTAuthenticator) ValidatePassword(clientID, password string) (err error) {
-	clientProfile, err := svc.clientStore.VerifyPassword(clientID, password)
-	_ = clientProfile
-	return err
-}
+// func (svc *JWTAuthenticator) ValidatePassword(clientID, password string) (err error) {
+// 	clientProfile, err := svc.clientStore.VerifyPassword(clientID, password)
+// 	_ = clientProfile
+// 	return err
+// }
 
 // update the client's password
-func (svc *JWTAuthenticator) SetPassword(clientID, password string) error {
-	return svc.clientStore.SetPassword(clientID, password)
-}
+// func (svc *JWTAuthenticator) SetPassword(clientID, password string) error {
+// 	return svc.clientStore.SetPassword(clientID, password)
+// }
 
 // ValidateToken verifies the token and client are valid.
 func (svc *JWTAuthenticator) ValidateToken(token string) (
-	clientID string, role string, validUntil time.Time, err error) {
+	clientID string, role string, issuedAt time.Time, validUntil time.Time, err error) {
 
-	clientID, role, issuedAt, validUntil, err := svc.DecodeToken(token, "", "")
+	clientID, role, issuedAt, validUntil, err = svc.DecodeToken(token, "", "")
 
 	if err != nil {
-		return clientID, role, validUntil, err
+		return
 	}
 
 	// must still be a valid client
 	prof, err := svc.clientStore.GetProfile(clientID)
 	if err != nil || prof.Disabled {
-		return clientID, role, validUntil, fmt.Errorf("Profile for '%s' is disabled", clientID)
+		err = fmt.Errorf("Profile for '%s' is disabled", clientID)
+		return
 	}
 	// check the token is of an active client
 	// this is set during CreateToken and Login
 	sessionStart, found := svc.sessionStart[clientID]
 	if !found {
 		slog.Warn("ValidateToken. No valid session found for client", "clientID", clientID)
-		return clientID, role, validUntil, fmt.Errorf("Session is no longer valid")
+		return clientID, role, issuedAt, validUntil, fmt.Errorf("Session is no longer valid")
 	}
 	if issuedAt.Before(sessionStart) {
 		slog.Warn("ValidateToken. The token session is no longer valid", "clientID", clientID)
-		return clientID, role, validUntil, fmt.Errorf("Session is no longer valid")
+		return clientID, role, issuedAt, validUntil, fmt.Errorf("Session is no longer valid")
 	}
 
-	return clientID, role, validUntil, nil
+	return clientID, role, issuedAt, validUntil, nil
 }
 
 // NewJWTAuthenticator returns a new instance of a JWT token authenticator
@@ -316,7 +278,7 @@ func NewJWTAuthenticator(
 		signingMethod:             jwt.SigningMethodES256,
 		sessionStart:              make(map[string]time.Time),
 	}
-	var _ transports.IAuthenticator = svc // interface check
+	var _ IAuthenticator = svc // interface check
 	return svc
 }
 

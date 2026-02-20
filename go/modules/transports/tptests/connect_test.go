@@ -10,6 +10,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/hiveot/hivekit/go/modules/authn"
 	"github.com/hiveot/hivekit/go/modules/certs/module/selfsigned"
 	"github.com/hiveot/hivekit/go/modules/transports"
 	"github.com/hiveot/hivekit/go/msg"
@@ -77,7 +78,7 @@ func TestStartStop(t *testing.T) {
 	testEnv, cancelFn := StartTestEnv(defaultProtocol)
 
 	defer cancelFn()
-	co1, cc1, _ := testEnv.NewConsumerClient(testClientID1, transports.ClientRoleViewer, nil)
+	co1, cc1, _ := testEnv.NewConsumerClient(testClientID1, authn.ClientRoleViewer, nil)
 	defer cc1.Close()
 	assert.NotNil(t, co1)
 
@@ -90,7 +91,7 @@ func TestPing(t *testing.T) {
 
 	testEnv, cancelFn := StartTestEnv(defaultProtocol)
 	defer cancelFn()
-	co1, cc1, _ := testEnv.NewConsumerClient(testClientID1, transports.ClientRoleViewer, nil)
+	co1, cc1, _ := testEnv.NewConsumerClient(testClientID1, authn.ClientRoleViewer, nil)
 	defer cc1.Close()
 
 	for i := 0; i < 1; i++ {
@@ -298,7 +299,7 @@ func TestReconnect(t *testing.T) {
 			slog.Info("disconnect")
 		}
 	}
-	co1, cc1, _ := testEnv.NewConsumerClient(testClientID1, transports.ClientRoleViewer, connectHandler)
+	co1, cc1, _ := testEnv.NewConsumerClient(testClientID1, authn.ClientRoleViewer, connectHandler)
 	defer cc1.Close()
 
 	//  wait until the connection is established

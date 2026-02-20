@@ -9,7 +9,6 @@ import (
 	"github.com/hiveot/hivekit/go/modules/authn"
 	"github.com/hiveot/hivekit/go/modules/authn/module/authenticators"
 	"github.com/hiveot/hivekit/go/modules/authn/module/authnstore"
-	"github.com/hiveot/hivekit/go/modules/transports"
 	"github.com/hiveot/hivekit/go/utils"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -19,7 +18,7 @@ var authnStore authnstore.IAuthnStore
 var testDir = path.Join(os.TempDir(), "test-authn")
 var defaultHash = authn.PWHASH_ARGON2id
 
-func NewAuthenticator() (transports.IAuthenticator, authnstore.IAuthnStore) {
+func NewAuthenticator() (authenticators.IAuthenticator, authnstore.IAuthnStore) {
 	passwordFile := path.Join(testDir, "test.passwd")
 	authnStore = authnstore.NewAuthnFileStore(passwordFile, defaultHash)
 
@@ -33,6 +32,8 @@ func NewAuthenticator() (transports.IAuthenticator, authnstore.IAuthnStore) {
 }
 
 func TestCreateSessionToken(t *testing.T) {
+	t.Logf("---%s---\n", t.Name())
+
 	const clientID = "user1"
 	const pass1 = "pass1"
 	const role = "role1"
@@ -61,30 +62,20 @@ func TestCreateSessionToken(t *testing.T) {
 	// require.LessOrEqual(t, validUntil, validUntil2)  // second is truncated
 	require.Equal(t, role, role2)
 
-	// logout
-	svc.Logout(clientID2)
-
-	// validate the new token. Without a session this fails
-	clientID3, role2, validUntil, err := svc.ValidateToken(token1)
-	require.Error(t, err)
-	require.Equal(t, clientID, clientID3)
-	require.Equal(t, role, role2)
-	require.Greater(t, validUntil, time.Now())
-
-	_, _, err = svc.Login(clientID, pass1)
-	require.NoError(t, err)
-
 	// create a persistent auth token
 	token2, validUntil, err := svc.CreateToken(clientID, time.Minute)
-	clientID4, role3, validUntil2, err := svc.ValidateToken(token2)
+	clientID4, role3, iat2, validUntil2, err := svc.ValidateToken(token2)
 	require.NoError(t, err)
 	require.Equal(t, clientID, clientID4)
 	require.Equal(t, role, role3)
 	require.Equal(t, validUntil.Unix(), validUntil2.Unix())
+	require.Greater(t, validUntil.Unix(), iat2.Unix())
 
 }
 
 func TestBadTokens(t *testing.T) {
+	t.Logf("---%s---\n", t.Name())
+
 	const clientID = "user1"
 	const role = "role1"
 	//const clientType = authn.ClientTypeConsumer
@@ -92,7 +83,7 @@ func TestBadTokens(t *testing.T) {
 	svc, clientStore := NewAuthenticator()
 	_ = clientStore.Add(authn.ClientProfile{
 		ClientID:    clientID,
-		Role:        transports.ClientRoleViewer,
+		Role:        role,
 		Disabled:    false,
 		DisplayName: "test",
 	})
@@ -103,15 +94,16 @@ func TestBadTokens(t *testing.T) {
 
 	// bad token
 	badToken := token1 + "-bad"
-	_, _, _, err = svc.ValidateToken(badToken)
+	_, _, _, _, err = svc.ValidateToken(badToken)
 	require.Error(t, err)
 
 	// expired
 	token2, _, err := svc.CreateToken(clientID, -1)
 	require.NoError(t, err)
-	clientID2, _, sid2, err := svc.ValidateToken(token2)
+	clientID2, _, iat2, sid2, err := svc.ValidateToken(token2)
 	require.Error(t, err)
 	assert.Empty(t, clientID2)
+	assert.Empty(t, iat2)
 	assert.Empty(t, sid2)
 
 	// missing clientID

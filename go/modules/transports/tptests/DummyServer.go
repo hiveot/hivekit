@@ -40,8 +40,8 @@ func (d *DummyServer) GetProtectedRoute() chi.Router {
 func (d *DummyServer) GetPublicRoute() chi.Router {
 	return d.pubRoute
 }
-func (d *DummyServer) SetAuthValidator(validator transports.IAuthValidator) {
-	d.validateToken = validator.ValidateToken
+func (d *DummyServer) SetAuthValidator(validator transports.ValidateTokenHandler) {
+	d.validateToken = validator
 }
 func NewDummyServer(url string) transports.IHttpServer {
 	rootRouter := chi.NewRouter()

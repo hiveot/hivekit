@@ -5,8 +5,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/hiveot/hivekit/go/modules/authn"
 	"github.com/hiveot/hivekit/go/modules/history/historyclient"
-	"github.com/hiveot/hivekit/go/modules/transports"
 	"github.com/hiveot/hivekit/go/utils"
 	"github.com/hiveot/hivekit/go/wot/td"
 
@@ -104,7 +104,7 @@ func BenchmarkAddEvents(b *testing.B) {
 
 		// test reading records
 		// readHist connects using transport protocol
-		co1, _, _ := testEnv.NewConsumerClient(testClientID, transports.ClientRoleOperator, nil)
+		co1, _, _ := testEnv.NewConsumerClient(testClientID, authn.ClientRoleOperator, nil)
 		readHist := historyclient.NewReadHistoryClient(co1)
 		defer co1.Stop()
 

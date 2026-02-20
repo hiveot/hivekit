@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/hiveot/hivekit/go/modules/authn"
 	"github.com/hiveot/hivekit/go/modules/directory"
 	directoryclient "github.com/hiveot/hivekit/go/modules/directory/client"
 	"github.com/hiveot/hivekit/go/modules/directory/module"
@@ -168,8 +169,9 @@ func TestGetDirectoryTD(t *testing.T) {
 	parts, _ := url.Parse(httpURL)
 	hostPort := parts.Host
 	// tdURL := fmt.Sprintf("%s%s", httpURL, directory.WellKnownWoTPath)
-	testEnv.Authenticator.AddClient(userID, transports.ClientRoleViewer, "", "")
-	token, _, err := testEnv.Authenticator.CreateToken(userID, time.Minute)
+	// testEnv.Authenticator.AddClient(userID, authn.ClientRoleViewer, "", "")
+	testEnv.NewClient(userID, authn.ClientRoleViewer, nil)
+	token, _, err := testEnv.CreateToken(userID, time.Minute)
 	require.NoError(t, err)
 	httpClient := tlsclient.NewTLSClient(hostPort, nil, testEnv.CertBundle.CaCert, time.Minute)
 	err = httpClient.ConnectWithToken(userID, token)
@@ -200,9 +202,9 @@ func TestCRUDUsingRestAPI(t *testing.T) {
 	tddUrl := testEnv.HttpServer.GetConnectURL()
 
 	// create the client and connect to the http server that serves the directory TD
-	err := testEnv.Authenticator.AddClient(clientID, transports.ClientRoleManager, "", "")
-	require.NoError(t, err)
-	authToken, _, err := testEnv.Authenticator.CreateToken(clientID, time.Minute)
+	cl, _ := testEnv.NewClient(clientID, authn.ClientRoleManager, nil)
+	_ = cl
+	authToken, _, err := testEnv.CreateToken(clientID, time.Minute)
 	require.NoError(t, err)
 
 	dirClient := directoryclient.NewDirectoryHttpClient(tddUrl, testEnv.CertBundle.CaCert)

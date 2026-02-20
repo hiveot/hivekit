@@ -57,12 +57,23 @@ type HttpServerModule struct {
 	// msgAPI *api.HttpMsgHandler
 }
 
-// The default token authentication handler extracts the bearer token from the authorization header
+// The default authentication handler extracts the bearer token from the authorization header
 // and passes it to the configured token validator.
 func (m *HttpServerModule) DefaultAuthenticate(req *http.Request) (
 	clientID string, clientRole string, err error) {
 
-	if m.config.ValidateToken == nil {
+	// first check client certificate
+	if len(req.TLS.PeerCertificates) > 0 {
+		// the TLS server verifies the certificate so at this point only the clientID is needed
+		cert := req.TLS.PeerCertificates[0]
+		clientID = cert.Subject.CommonName
+		if clientID != "" {
+			// roles shouldn't be in the certificate.
+			return clientID, "", nil
+		}
+	}
+
+	if m.config.ValidateTokenHandler == nil {
 		err := fmt.Errorf("DefaultAuthenticate: Missing ValidateToken handler in configuration")
 		return "", "", err
 	}
@@ -71,7 +82,7 @@ func (m *HttpServerModule) DefaultAuthenticate(req *http.Request) (
 		return "", "", err
 	}
 	//check if the token is properly signed and still valid
-	clientID, role, validUntil, err := m.config.ValidateToken(bearerToken)
+	clientID, role, validUntil, err := m.config.ValidateTokenHandler(bearerToken)
 	if err != nil {
 		return "", "", err
 	}
@@ -86,8 +97,8 @@ func (m *HttpServerModule) GetConnectURL() string {
 
 // Set the handler that validates tokens.
 // This will enable the protected routes.
-func (m *HttpServerModule) SetAuthValidator(validator transports.IAuthValidator) {
-	m.config.ValidateToken = validator.ValidateToken
+func (m *HttpServerModule) SetAuthValidator(validator transports.ValidateTokenHandler) {
+	m.config.ValidateTokenHandler = validator
 }
 
 // Start readies the module for use.

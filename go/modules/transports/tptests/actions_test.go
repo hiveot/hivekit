@@ -10,7 +10,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/hiveot/hivekit/go/modules/transports"
+	"github.com/hiveot/hivekit/go/modules/authn"
 	"github.com/hiveot/hivekit/go/msg"
 	"github.com/hiveot/hivekit/go/utils"
 	"github.com/hiveot/hivekit/go/wot"
@@ -52,7 +52,7 @@ func TestInvokeActionFromConsumerToServer(t *testing.T) {
 	testEnv.Server.SetRequestSink(handleRequest)
 
 	// 2. connect a client
-	co1, cc1, token := testEnv.NewConsumerClient(testClientID1, transports.ClientRoleViewer, nil)
+	co1, cc1, token := testEnv.NewConsumerClient(testClientID1, authn.ClientRoleViewer, nil)
 	defer cc1.Close()
 	require.NotEmpty(t, token)
 	ctx1, release1 := context.WithTimeout(context.Background(), time.Minute)
@@ -254,7 +254,7 @@ func TestQueryActions(t *testing.T) {
 	testEnv.Server.SetRequestSink(requestHandler)
 
 	// 2. connect as a consumer
-	co1, cc1, _ := testEnv.NewConsumerClient(testClientID1, transports.ClientRoleViewer, nil)
+	co1, cc1, _ := testEnv.NewConsumerClient(testClientID1, authn.ClientRoleViewer, nil)
 	defer cc1.Close()
 
 	// 3. Query action status

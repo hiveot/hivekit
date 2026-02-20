@@ -3,7 +3,9 @@ package module
 import (
 	"crypto/ed25519"
 	"fmt"
+	"log/slog"
 	"net/url"
+	"time"
 
 	"github.com/hiveot/hivekit/go/modules"
 	"github.com/hiveot/hivekit/go/modules/authn"
@@ -13,6 +15,7 @@ import (
 	"github.com/hiveot/hivekit/go/modules/transports"
 	"github.com/hiveot/hivekit/go/msg"
 	"github.com/hiveot/hivekit/go/utils"
+	"github.com/hiveot/hivekit/go/wot/td"
 )
 
 // AuthnModule is a module that manages clients and issues authentication tokens.
@@ -28,26 +31,74 @@ type AuthnModule struct {
 	httpServer transports.IHttpServer
 
 	// The primary authenticator
-	authenticator transports.IAuthenticator
+	authenticator authenticators.IAuthenticator
 	//
 	authnStore authnstore.IAuthnStore
+
+	// track session start, used in validation
+	sessionStart map[string]time.Time
 
 	// Messaging API handlers
 	userHttpHandler *server.UserHttpHandler
 }
 
-// Add a new client to the store using the authenticator
+// AddClient adds a client. This fails if the client already exists
+// This should only be usable by administrators.
 func (m *AuthnModule) AddClient(
 	clientID string, role string, password string, pubKeyPem string) error {
-	return m.authenticator.AddClient(clientID, role, password, pubKeyPem)
+
+	_, err := m.authnStore.GetProfile(clientID)
+	if err == nil {
+		return fmt.Errorf("Account for client '%s' already exists", clientID)
+	}
+
+	newProfile := authn.ClientProfile{
+		ClientID:    clientID,
+		DisplayName: clientID,
+		Role:        role,
+		PubKeyPem:   pubKeyPem,
+	}
+	return m.authnStore.Add(newProfile)
 }
 
-// Return the authenticator for use by other modules
-func (m *AuthnModule) GetAuthenticator() transports.IAuthenticator {
-	return m.authenticator
+// AddSecurityScheme adds the authenticator's security scheme to the given TD.
+func (m *AuthnModule) AddSecurityScheme(tdoc *td.TD) {
+	m.authenticator.AddSecurityScheme(tdoc)
 }
 
-// GetConnectURL returns the URI of the authentication server to include in the TD
+// Return the authenticator
+// func (m *AuthnModule) GetAuthenticator() authenticators.IAuthenticator {
+// 	return m.authenticator
+// }
+
+// CreateSessionToken creates a new session token for the client using the configured authenticator.
+//
+// This creates a session that is valid until logout.
+//
+//	clientID is the account ID of a known client
+//	validity is the token validity period.
+//
+// This returns the token
+func (m *AuthnModule) CreateSessionToken(clientID string, validity time.Duration) (
+	token string, validUntil time.Time, err error) {
+
+	//
+	createdTime := time.Now()
+	m.sessionStart[clientID] = createdTime.Add(-time.Second)
+
+	token, validUntil, err = m.authenticator.CreateToken(clientID, validity)
+	return
+}
+
+// DecodeToken decodes the given token using the configured authenticator.
+// optionally verify the signed nonce using the client's public key.
+// This returns the auth info stored in the token.
+func (m *AuthnModule) DecodeToken(token string, signedNonce string, nonce string) (
+	clientID string, role string, issuedAt time.Time, validUntil time.Time, err error) {
+	return m.authenticator.DecodeToken(token, signedNonce, nonce)
+}
+
+// GetConnectURL Preturns the URI of the authentication server to include in the TD
 // security scheme.
 //
 // This is currently just the base for the login endpoint (post {base}/authn/login).
@@ -76,7 +127,7 @@ func (m *AuthnModule) GetProfiles() (profiles []authn.ClientProfile, err error) 
 // Handle requests to be served by this module
 func (m *AuthnModule) HandleRequest(req *msg.RequestMessage, replyTo msg.ResponseHandler) error {
 
-	//TODO: how to handle read property requests? admin or user?
+	//TODO: handle read property requests? admin or user?
 	if req.ThingID == server.AuthnAdminServiceID {
 		return server.HandleAuthnAdminRequest(m, req, replyTo)
 	} else if req.ThingID == server.AuthnUserServiceID {
@@ -84,6 +135,44 @@ func (m *AuthnModule) HandleRequest(req *msg.RequestMessage, replyTo msg.Respons
 	} else {
 		// forward
 		return m.HiveModuleBase.HandleRequest(req, replyTo)
+	}
+}
+
+// Login with password and generate a session token
+// Intended for end-users that want to establish a session.
+//
+//	clientID is the client to log in
+//	password to verify
+//
+// This returns a session token, its session ID, or an error if failed
+func (m *AuthnModule) Login(
+	clientID string, password string) (token string, validUntil time.Time, err error) {
+
+	// a user login always creates a session token
+	err = m.ValidatePassword(clientID, password)
+	if err != nil {
+		return "", validUntil, err
+	}
+
+	// If a session start time does not exist yet, then record this as the session start.
+	sessionStart, found := m.sessionStart[clientID]
+	if !found {
+		sessionStart = time.Now()
+		m.sessionStart[clientID] = sessionStart
+	}
+
+	// create the session to allow token refresh
+	validity := time.Hour * time.Duration(24*m.config.ConsumerTokenValidityDays)
+	token, validUntil, _ = m.authenticator.CreateToken(clientID, validity)
+
+	return token, validUntil, err
+}
+
+// Logout removes the client session
+func (m *AuthnModule) Logout(clientID string) {
+	_, found := m.sessionStart[clientID]
+	if found {
+		delete(m.sessionStart, clientID)
 	}
 }
 
@@ -98,12 +187,12 @@ func (m *AuthnModule) SetHttpServer(httpServer transports.IHttpServer) {
 	if m.httpServer != nil {
 		panic("An HTTP server is already set")
 	}
-	m.userHttpHandler = server.NewUserHttpHandler(m.authenticator, m.httpServer)
+	m.userHttpHandler = server.NewUserHttpHandler(m, m.httpServer)
 }
 
 // Change the password of a client
 func (m *AuthnModule) SetPassword(clientID string, password string) error {
-	return m.authenticator.SetPassword(clientID, password)
+	return m.authnStore.SetPassword(clientID, password)
 }
 
 // Change the role of a client
@@ -134,12 +223,41 @@ func (m *AuthnModule) Start(yamlConfig string) (err error) {
 		m.authnStore, signingPrivKey.(ed25519.PrivateKey))
 
 	if m.httpServer != nil {
-		m.userHttpHandler = server.NewUserHttpHandler(m.authenticator, m.httpServer)
+		m.userHttpHandler = server.NewUserHttpHandler(m, m.httpServer)
 	}
 	return err
 }
 
+// RefreshToken requests a new token based on the old token
+// This requires that the existing session is still valid
+func (m *AuthnModule) RefreshToken(senderID string, oldToken string) (
+	newToken string, validUntil time.Time, err error) {
+
+	// validation only succeeds if there is an active session
+	tokenClientID, _, _, err := m.ValidateToken(oldToken)
+	if err != nil || senderID != tokenClientID {
+		return newToken, validUntil, fmt.Errorf("Invalid token or senderID mismatch")
+	}
+	// must still be a valid client
+	prof, err := m.authnStore.GetProfile(senderID)
+	_ = prof
+	if err != nil || prof.Disabled {
+		return newToken, validUntil, fmt.Errorf("Profile for '%s' is disabled", senderID)
+	}
+	validityDays := m.config.ConsumerTokenValidityDays
+	if prof.Role == authn.ClientRoleAgent {
+		validityDays = m.config.AgentTokenValidityDays
+	} else if prof.Role == authn.ClientRoleService {
+		validityDays = m.config.ServiceTokenValidityDays
+	}
+	validity := time.Duration(validityDays) * 24 * time.Hour
+	newToken, validUntil, err = m.authenticator.CreateToken(senderID, validity)
+	return newToken, validUntil, err
+}
+
+// Stop closes the client store and releases resources
 func (m *AuthnModule) Stop() {
+	m.authnStore.Close()
 }
 
 // UpdateProfile update the client profile
@@ -155,7 +273,7 @@ func (m *AuthnModule) UpdateProfile(senderID string, newProfile authn.ClientProf
 	}
 	if senderID != newProfile.ClientID {
 		// only admin roles can update client profiles
-		if senderProf.Role != transports.ClientRoleAdmin && senderProf.Role != transports.ClientRoleService {
+		if senderProf.Role != authn.ClientRoleAdmin && senderProf.Role != authn.ClientRoleService {
 			return fmt.Errorf("Sender '%s' is not admin, not allowed to update profile", senderID)
 		}
 	} else {
@@ -167,10 +285,41 @@ func (m *AuthnModule) UpdateProfile(senderID string, newProfile authn.ClientProf
 	return m.authnStore.UpdateProfile(newProfile)
 }
 
-func (svc *AuthnModule) ValidatePassword(clientID, password string) (err error) {
-	clientProfile, err := svc.authnStore.VerifyPassword(clientID, password)
+func (m *AuthnModule) ValidatePassword(clientID, password string) (err error) {
+	clientProfile, err := m.authnStore.VerifyPassword(clientID, password)
 	_ = clientProfile
 	return err
+}
+
+// ValidateToken verifies the token and client are valid.
+func (m *AuthnModule) ValidateToken(token string) (
+	clientID string, role string, validUntil time.Time, err error) {
+
+	clientID, role, issuedAt, validUntil, err := m.authenticator.ValidateToken(token)
+	if err != nil {
+		return
+	}
+
+	// must still be a valid client
+	prof, err := m.authnStore.GetProfile(clientID)
+	if err != nil || prof.Disabled {
+		return clientID, role, validUntil, fmt.Errorf("Profile for '%s' is disabled", clientID)
+	}
+	// check the token is of an active client
+	// this is set during CreateToken and Login
+	sessionStart, found := m.sessionStart[clientID]
+	if !found {
+		slog.Warn("ValidateToken. No valid session found for client", "clientID", clientID)
+		return clientID, role, validUntil, fmt.Errorf("Session is no longer valid")
+	}
+	// the session must have started before the token was issued
+	// this allows a session restart to invalidate all old tokens
+	if issuedAt.Before(sessionStart) {
+		slog.Warn("ValidateToken. The token session is no longer valid", "clientID", clientID)
+		return clientID, role, validUntil, fmt.Errorf("Session is no longer valid")
+	}
+
+	return clientID, role, validUntil, err
 }
 
 // Create a new authentication module.
@@ -187,8 +336,9 @@ func (svc *AuthnModule) ValidatePassword(clientID, password string) (err error) 
 func NewAuthnModule(authnConfig authn.AuthnConfig, httpServer transports.IHttpServer) *AuthnModule {
 
 	m := &AuthnModule{
-		config:     authnConfig,
-		httpServer: httpServer,
+		config:       authnConfig,
+		httpServer:   httpServer,
+		sessionStart: make(map[string]time.Time),
 	}
 	var _ modules.IHiveModule = m // interface check
 	var _ authn.IAuthnModule = m  // interface check

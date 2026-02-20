@@ -6,7 +6,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/hiveot/hivekit/go/modules/transports"
 	"github.com/hiveot/hivekit/go/wot/td"
 	"github.com/teris-io/shortid"
 )
@@ -160,6 +159,6 @@ func NewDummyAuthenticator() *DummyAuthenticator {
 		passwords: make(map[string]string),
 		inSession: make(map[string]string),
 	}
-	var _ transports.IAuthValidator = d // interface check
+	// var _ transports.IAuthValidator = d // interface check
 	return d
 }

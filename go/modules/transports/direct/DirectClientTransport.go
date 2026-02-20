@@ -62,7 +62,7 @@ func (m *DirectClientTransport) SendRequest(
 // }
 
 // assign the authenticator of incoming connections
-func (m *DirectClientTransport) SetAuthenticationHandler(h transports.AuthenticationHandler) {
+func (m *DirectClientTransport) SetAuthenticationHandler(h transports.ValidateTokenHandler) {
 	_ = h
 }
 

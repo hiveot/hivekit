@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/hiveot/hivekit/go/modules/authn"
 	"github.com/hiveot/hivekit/go/modules/transports"
 	"github.com/hiveot/hivekit/go/utils"
 	jsoniter "github.com/json-iterator/go"
@@ -16,6 +17,7 @@ const (
 	HttpPostLoginPath   = "/authn/login"
 	HttpPostLogoutPath  = "/authn/logout"
 	HttpPostRefreshPath = "/authn/refresh"
+	HttpGetProfilePath  = "/authn/profile"
 )
 
 // helper for building a login request message
@@ -27,9 +29,21 @@ type UserLoginArgs struct {
 
 // UserHttpHandler for handling user requests such as login, logout, refresh over http
 type UserHttpHandler struct {
-	// module authn.IAuthn
-	authenticator transports.IAuthenticator
-	httpServer    transports.IHttpServer
+	m          authn.IAuthnModule
+	httpServer transports.IHttpServer
+}
+
+// onHttpGetProfile returns the client's profile
+func (handler *UserHttpHandler) onHttpGetProfile(w http.ResponseWriter, r *http.Request) {
+	var profile authn.ClientProfile
+	rp, err := handler.httpServer.GetRequestParams(r)
+	if err == nil {
+		profile, err = handler.m.GetProfile(rp.ClientID)
+	}
+	if err != nil {
+		slog.Warn("onHttpGetProfile failed", "clientID", rp.ClientID, "err", err.Error())
+	}
+	utils.WriteReply(w, true, profile, err)
 }
 
 // onHttpLogin handles a login request and returns an auth token.
@@ -48,18 +62,17 @@ func (handler *UserHttpHandler) onHttpLogin(w http.ResponseWriter, r *http.Reque
 	}
 	if err == nil {
 		// the login is handled in-house and has an immediate return
-		newToken, validUntil, err = handler.authenticator.Login(args.UserName, args.Password)
+		newToken, validUntil, err = handler.m.Login(args.UserName, args.Password)
 
 		_ = validUntil
-		slog.Info("HandleLogin", "clientID", args.UserName)
+		slog.Info("onHttpLogin", "clientID", args.UserName)
 	}
 	if err != nil {
-		slog.Warn("HandleLogin failed:", "err", err.Error())
+		slog.Warn("onHttpLogin failed:", "err", err.Error())
 		utils.WriteError(w, err, http.StatusUnauthorized)
 		return
 	}
-	// TODO: set client session cookie for browser clients
-	//srv.sessionManager.SetSessionCookie(cs.sessionID,token)
+	// TBD: set client session cookie for browser clients
 	utils.WriteReply(w, true, newToken, nil)
 }
 
@@ -68,8 +81,8 @@ func (handler *UserHttpHandler) onHttpLogout(w http.ResponseWriter, r *http.Requ
 	// use the authenticator
 	rp, err := handler.httpServer.GetRequestParams(r)
 	if err == nil {
-		slog.Info("HandleLogout", "clientID", rp.ClientID)
-		handler.authenticator.Logout(rp.ClientID)
+		slog.Info("onHttpLogout", "clientID", rp.ClientID)
+		handler.m.Logout(rp.ClientID)
 	}
 	utils.WriteReply(w, true, nil, err)
 }
@@ -85,12 +98,12 @@ func (handler *UserHttpHandler) onHttpTokenRefresh(w http.ResponseWriter, r *htt
 
 	if err == nil {
 		jsoniter.Unmarshal(rp.Payload, &oldToken)
-		slog.Info("HandleAuthRefresh", "clientID", rp.ClientID)
-		newToken, validUntil, err = handler.authenticator.RefreshToken(rp.ClientID, oldToken)
+		slog.Info("onHttpTokenRefresh", "clientID", rp.ClientID)
+		newToken, validUntil, err = handler.m.RefreshToken(rp.ClientID, oldToken)
 		_ = validUntil
 	}
 	if err != nil {
-		slog.Warn("HandleAuthRefresh failed:", "err", err.Error())
+		slog.Warn("onHttpTokenRefresh failed:", "err", err.Error())
 		utils.WriteError(w, err, 0)
 		return
 	}
@@ -98,13 +111,13 @@ func (handler *UserHttpHandler) onHttpTokenRefresh(w http.ResponseWriter, r *htt
 }
 
 // Create a http server handler for user facing requests and register endpoints
-func NewUserHttpHandler(authenticator transports.IAuthenticator, httpServer transports.IHttpServer) *UserHttpHandler {
-	if authenticator == nil || httpServer == nil {
+func NewUserHttpHandler(m authn.IAuthnModule, httpServer transports.IHttpServer) *UserHttpHandler {
+	if m == nil || httpServer == nil {
 		panic("NewUserHttpHandler: nil parameter")
 	}
 	handler := &UserHttpHandler{
-		httpServer:    httpServer,
-		authenticator: authenticator,
+		httpServer: httpServer,
+		m:          m,
 	}
 	// create routes
 	pubRoutes := httpServer.GetPublicRoute()
@@ -113,5 +126,6 @@ func NewUserHttpHandler(authenticator transports.IAuthenticator, httpServer tran
 	protRoutes := httpServer.GetProtectedRoute()
 	protRoutes.Post(HttpPostRefreshPath, handler.onHttpTokenRefresh)
 	protRoutes.Post(HttpPostLogoutPath, handler.onHttpLogout)
+	protRoutes.Get(HttpGetProfilePath, handler.onHttpGetProfile)
 	return handler
 }

@@ -85,7 +85,7 @@ type HttpServerConfig struct {
 	//
 	// Set to a custom function to perform actual token authentication.
 	// any transports.IAuthenticator implementation can provide a ValidateToken function.
-	ValidateToken transports.ValidateTokenHandler
+	ValidateTokenHandler transports.ValidateTokenHandler
 }
 
 // NewHttpServerConfig creates options with defaults
@@ -130,11 +130,11 @@ func NewHttpServerConfig(
 			"application/x-javascript",
 			"application/json",
 			"image/svg+xml"},
-		Logger:              middleware.Logger,
-		NoTLS:               false,
-		Recoverer:           middleware.Recoverer,
-		StripSlashesEnabled: true,
-		ValidateToken:       validateToken,
+		Logger:               middleware.Logger,
+		NoTLS:                false,
+		Recoverer:            middleware.Recoverer,
+		StripSlashesEnabled:  true,
+		ValidateTokenHandler: validateToken,
 	}
 	return o
 }

@@ -62,15 +62,13 @@ func HandleAuthnUserRequest(m authn.IAuthnModule, req *msg.RequestMessage, reply
 		}
 
 	case UserActionLogout:
-		authenticator := m.GetAuthenticator()
-		authenticator.Logout(req.SenderID)
+		m.Logout(req.SenderID)
 
 	case UserActionRefreshToken:
 		var oldToken string
 		err = utils.DecodeAsObject(req.Input, &oldToken)
 		if err == nil {
-			authenticator := m.GetAuthenticator()
-			output, _, err = authenticator.RefreshToken(req.SenderID, oldToken)
+			output, _, err = m.RefreshToken(req.SenderID, oldToken)
 		} else {
 			err = errors.New("bad function argument: " + err.Error())
 		}
@@ -79,7 +77,7 @@ func HandleAuthnUserRequest(m authn.IAuthnModule, req *msg.RequestMessage, reply
 		var newPassword string
 		err = utils.DecodeAsObject(req.Input, &newPassword)
 		if err == nil {
-			err = m.GetAuthenticator().SetPassword(req.SenderID, newPassword)
+			err = m.SetPassword(req.SenderID, newPassword)
 		} else {
 			err = errors.New("bad function argument: " + err.Error())
 		}

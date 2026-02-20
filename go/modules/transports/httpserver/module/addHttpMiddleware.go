@@ -7,7 +7,6 @@ import (
 
 	"github.com/hiveot/hivekit/go/modules/transports"
 	"github.com/hiveot/hivekit/go/modules/transports/httpserver"
-	"github.com/hiveot/hivekit/go/utils"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
@@ -164,39 +163,55 @@ func (m *HttpServerModule) addMiddleware(cfg *httpserver.HttpServerConfig) {
 // If no valid session is found this will reply with an unauthorized status code.
 //
 // pubKey is the public key from the keypair used in creating the session token.
-func (m *HttpServerModule) AddSessionFromToken() func(next http.Handler) http.Handler {
-	return func(next http.Handler) http.Handler {
-		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+// func (m *HttpServerModule) AddSessionFromToken() func(next http.Handler) http.Handler {
+// 	return func(next http.Handler) http.Handler {
+// 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
-			bearerToken, err := utils.GetBearerToken(r)
-			if err != nil {
-				// see https://w3c.github.io/wot-discovery/#exploration-secboot
-				// response with unauthorized and point to using the bearer token method
-				errMsg := "AddSessionFromToken: " + err.Error()
-				w.Header().Add("WWW-Authenticate", "Bearer")
-				http.Error(w, errMsg, http.StatusUnauthorized)
-				slog.Warn(errMsg)
-				return
-			}
-			//check if the token is properly signed
-			clientID, role, validUntil, err := m.config.ValidateToken(bearerToken)
-			if err != nil {
-				w.Header().Add("WWW-Authenticate", "Bearer")
-				http.Error(w, err.Error(), http.StatusUnauthorized)
-				slog.Warn("AddSessionFromToken: Invalid session token:",
-					"err", err, "clientID", clientID)
-				return
-			}
-			_ = validUntil
+// 			// a valid client cert takes precedence over a token
+// 			if len(r.TLS.PeerCertificates) > 0 {
+// 				cert := r.TLS.PeerCertificates[0]
+// 				clientID := cert.Subject.CommonName
+// 				// role := ""
+// 				if clientID != "" {
+// 					// make clientID available in context
+// 					ctx := r.Context()
+// 					ctx = context.WithValue(ctx, transports.ClientIDContextID, clientID)
+// 					// ctx = context.WithValue(ctx, transports.ClientRoleContextID, role)
+// 					next.ServeHTTP(w, r.WithContext(ctx))
+// 					return
+// 				}
+// 			}
 
-			// make clientID available in context
-			ctx := r.Context()
-			ctx = context.WithValue(ctx, transports.ClientIDContextID, clientID)
-			ctx = context.WithValue(ctx, transports.ClientRoleContextID, role)
-			next.ServeHTTP(w, r.WithContext(ctx))
-		})
-	}
-}
+// 			bearerToken, err := utils.GetBearerToken(r)
+// 			if err != nil {
+// 				// see https://w3c.github.io/wot-discovery/#exploration-secboot
+// 				// response with unauthorized and point to using the bearer token method
+// 				errMsg := "AddSessionFromToken: " + err.Error()
+// 				w.Header().Add("WWW-Authenticate", "Bearer")
+// 				http.Error(w, errMsg, http.StatusUnauthorized)
+// 				slog.Warn(errMsg)
+// 				return
+// 			}
+
+// 			//check if the token is properly signed
+// 			clientID, role, validUntil, err := m.config.ValidateTokenHandler(bearerToken)
+// 			if err != nil {
+// 				w.Header().Add("WWW-Authenticate", "Bearer")
+// 				http.Error(w, err.Error(), http.StatusUnauthorized)
+// 				slog.Warn("AddSessionFromToken: Invalid session token:",
+// 					"err", err, "clientID", clientID)
+// 				return
+// 			}
+// 			_ = validUntil
+
+// 			// make clientID available in context
+// 			ctx := r.Context()
+// 			ctx = context.WithValue(ctx, transports.ClientIDContextID, clientID)
+// 			ctx = context.WithValue(ctx, transports.ClientRoleContextID, role)
+// 			next.ServeHTTP(w, r.WithContext(ctx))
+// 		})
+// 	}
+// }
 
 // GetProtectedRouter returns the router with protected accessible routes for this server.
 // This router has cors protection enabled.

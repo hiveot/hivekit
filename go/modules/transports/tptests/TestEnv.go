@@ -8,6 +8,7 @@ import (
 	"path"
 	"time"
 
+	"github.com/hiveot/hivekit/go/modules/authn"
 	"github.com/hiveot/hivekit/go/modules/certs/module/selfsigned"
 	"github.com/hiveot/hivekit/go/modules/clients"
 	"github.com/hiveot/hivekit/go/modules/transports"
@@ -60,7 +61,7 @@ var ActionTypes = []string{vocab.ActionDimmer, vocab.ActionSwitch,
 // Test environment for testing modules
 type TestEnv struct {
 	// Authenticator to use for managing clients
-	Authenticator transports.IAuthenticator
+	DummyAuthn *DummyAuthenticator
 	// certificate bundle to use for this test environment
 	CertBundle selfsigned.TestCertBundle
 	// base http server
@@ -115,22 +116,28 @@ func (testEnv *TestEnv) CreateTestTD(i int) (tdi *td.TD) {
 	return tdi
 }
 
+// create a new authentication token
+func (testEnv *TestEnv) CreateToken(clientID string, validity time.Duration) (token string, validUntil time.Time, err error) {
+	token, validUntil, err = testEnv.DummyAuthn.CreateToken(clientID, validity)
+	return token, validUntil, err
+}
+
 // NewClient creates a new connected client with the given client ID.
 //
 // This creates an account and access token for the client if needed.
 //
 // This panics if a client cannot be created or cannot connect.
 func (testEnv *TestEnv) NewClient(clientID string, role string, ch transports.ConnectionHandler) (
-	clients.IClientModule, string) {
+	cl clients.IClientModule, token string) {
 
 	// ensure the test client account exists
-	err := testEnv.Authenticator.AddClient(clientID, clientID, role, "")
-	token, _, err := testEnv.Authenticator.CreateToken(clientID, time.Minute*10)
+	err := testEnv.DummyAuthn.AddClient(clientID, clientID, role, "")
+	token, _, err = testEnv.CreateToken(clientID, time.Minute*10)
 	if err != nil {
 		panic("NewClient: createToken failed: " + err.Error())
 	}
 	// create a connection to the test server
-	cl, err := clients.NewTransportClient(
+	cl, err = clients.NewTransportClient(
 		testEnv.ServerURL, testEnv.CertBundle.CaCert)
 	if err == nil {
 		cl.SetTimeout(TestTimeout)
@@ -177,7 +184,7 @@ func (testEnv *TestEnv) NewRCAgent(clientID string) (
 
 	// cc is the client connection for the agent that receives requests from the
 	// server for the agent and sends notifications to the server.
-	cl, authToken := testEnv.NewClient(clientID, transports.ClientRoleAgent, nil)
+	cl, authToken := testEnv.NewClient(clientID, authn.ClientRoleAgent, nil)
 
 	// simple agent, no application request handler yet
 	agent := clients.NewAgent(clientID+"-agent", nil)
@@ -267,7 +274,7 @@ func (testEnv *TestEnv) StartHttpServer() {
 		testEnv.CertBundle.ServerAddr, TestServerHttpPort,
 		testEnv.CertBundle.ServerCert,
 		testEnv.CertBundle.CaCert,
-		testEnv.Authenticator.ValidateToken)
+		testEnv.DummyAuthn.ValidateToken)
 
 	// cfg.Address = fmt.Sprintf("%s:%d", certBundle.ServerAddr, testServerHttpPort)
 
@@ -286,9 +293,9 @@ func (testEnv *TestEnv) StartHttpServer() {
 // This sets the storage root directory to {os.TempDir}/hivekit
 func NewTestEnv() *TestEnv {
 	testEnv := &TestEnv{
-		CertBundle:    selfsigned.CreateTestCertBundle(utils.KeyTypeED25519),
-		Authenticator: NewDummyAuthenticator(),
-		StorageRoot:   path.Join(os.TempDir(), "hivekit"),
+		CertBundle:  selfsigned.CreateTestCertBundle(utils.KeyTypeED25519),
+		DummyAuthn:  NewDummyAuthenticator(),
+		StorageRoot: path.Join(os.TempDir(), "hivekit"),
 	}
 	return testEnv
 }

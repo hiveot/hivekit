@@ -1,6 +1,8 @@
 package transports
 
 import (
+	"time"
+
 	"github.com/hiveot/hivekit/go/modules"
 	"github.com/hiveot/hivekit/go/msg"
 	"github.com/hiveot/hivekit/go/wot/td"
@@ -32,11 +34,10 @@ const (
 	ProtocolTypePassthrough   = "passthrough"
 )
 
-// AuthenticationHandler is the handler for use by transports to authenticate an incoming connection
-// and identify the remote client.
-//
-// If the token is invalid an error is returned
-type AuthenticationHandler func(token string) (clientID string, sessionID string, err error)
+// ValidateToken verifies the token and client are valid.
+// This returns an error if the token is invalid, the token has expired,
+// or the client is not a valid and enabled client.
+type ValidateTokenHandler func(token string) (clientID string, role string, validUntil time.Time, err error)
 
 // A transport server module is a server module with hooks for sending messages to remote clients.
 type ITransportServer interface {

@@ -395,7 +395,7 @@ func (cl *TLSClient) Trace(path string) (statusCode int, err error) {
 // Use setup/Remove to open and close connections
 //
 //	hostPort is the server address in host:port format
-//	clientCert is an optional client certificate used to authenticate
+//	clientCert is an optional client certificate used to authenticate. cert Subject is used as clientID
 //	caCert with the x509 CA certificate, nil if not available
 //	timeout duration for use with Delete,Get,Patch,Post,Put, 0 for DefaultClientTimeout
 //
@@ -403,6 +403,7 @@ func (cl *TLSClient) Trace(path string) (statusCode int, err error) {
 func NewTLSClient(hostPort string,
 	clientCert *tls.Certificate, caCert *x509.Certificate, timeout time.Duration) *TLSClient {
 
+	var clientID string
 	if timeout == 0 {
 		timeout = DefaultClientTimeout
 	}
@@ -432,6 +433,8 @@ func NewTLSClient(hostPort string,
 			// FIXME: TestCertAuth: certificate specifies incompatible key usage
 			// why? Is the certpool invalid? Yet the test succeeds
 			_, err = x509Cert.Verify(opts)
+			// cert subject is clientID
+			clientID = x509Cert.Subject.String()
 		}
 		if err != nil {
 			err = fmt.Errorf("NewTLSClient: certificate verfication failed: %w. Continuing for now.", err)
@@ -473,6 +476,7 @@ func NewTLSClient(hostPort string,
 	}
 
 	cl := &TLSClient{
+		clientID:      clientID, // only set through client certificate
 		hostPort:      hostPort,
 		httpClient:    httpClient,
 		timeout:       timeout,

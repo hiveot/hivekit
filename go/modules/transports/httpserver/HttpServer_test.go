@@ -110,7 +110,7 @@ func TestTokenAuth(t *testing.T) {
 	cfg := httpserver.NewHttpServerConfig(
 		serverAddress, serverPort, testCerts.ServerCert, testCerts.CaCert, nil)
 
-	cfg.ValidateToken = func(bearerToken string) (string, string, time.Time, error) {
+	cfg.ValidateTokenHandler = func(bearerToken string) (string, string, time.Time, error) {
 		assert.NotEmpty(t, bearerToken)
 		clientID := "bob"
 		return clientID, "", validUntil, nil //fmt.Errorf("test fail")

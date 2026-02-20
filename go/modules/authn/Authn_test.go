@@ -14,7 +14,6 @@ import (
 	"github.com/hiveot/hivekit/go/modules/transports/httpserver"
 	httpmodule "github.com/hiveot/hivekit/go/modules/transports/httpserver/module"
 	"github.com/hiveot/hivekit/go/utils"
-	"github.com/stretchr/testify/assert"
 )
 
 var testDir = path.Join(os.TempDir(), "test-authn")
@@ -38,8 +37,8 @@ func NewTestConsumer(m *module.AuthnModule, serverURL, clientID string) (
 	*clients.Consumer, transports.IConnection, string) {
 
 	// ensure the client exists
-	_ = m.AddClient(clientID, clientID, transports.ClientRoleViewer, "")
-	token, validUntil, _ := m.GetAuthenticator().CreateToken(clientID, time.Minute)
+	_ = m.AddClient(clientID, clientID, authn.ClientRoleViewer, "")
+	token, validUntil, _ := m.CreateSessionToken(clientID, time.Minute)
 	_ = validUntil
 	co, cc, err := clients.NewConsumerConnection(appID, serverURL, testCerts.CaCert)
 	if err != nil {
@@ -93,7 +92,7 @@ func startTestAuthnModule(encryption string) (m *module.AuthnModule, stopFn func
 
 	// last, link the http server and validator to enable the protected routes and enable the
 	// authn http endpoint.
-	httpServer.SetAuthValidator(m.GetAuthenticator())
+	httpServer.SetAuthValidator(m.ValidateToken)
 
 	return m, func() {
 		m.Stop()
@@ -120,8 +119,7 @@ func TestStartStop(t *testing.T) {
 	t.Logf("---%s---\n", t.Name())
 	// this creates the admin user key
 	m, stopFn := startTestAuthnModule(defaultHash)
-	authenticator := m.GetAuthenticator()
-	assert.NotNil(t, authenticator)
+	_ = m
 	defer stopFn()
 }
 

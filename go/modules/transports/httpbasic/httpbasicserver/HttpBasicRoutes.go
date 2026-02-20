@@ -34,20 +34,12 @@ func (m *HttpBasicServer) createRoutes() {
 	if protRoutes == nil {
 		panic("no protected route available")
 	}
-	// client sessions authenticate the sender
-	// protRoutes.Use(AddSessionFromToken(srv.authenticator))
-
-	// sub-protocols can add protected routes
-	// srv.protectedRoutes = r
 
 	// register generic handlers for operations on Thing and affordance level
 	// these endpoints are published in the forms of each TD. See also AddTDForms.
 	protRoutes.HandleFunc(httpbasic.HttpBasicAffordanceOperationPath, m.onHttpAffordanceOperation)
 	protRoutes.HandleFunc(httpbasic.HttpBasicThingOperationPath, m.onHttpThingOperation)
 
-	// http supported authentication endpoints
-	// protRoutes.Post(httpbasic.HttpPostRefreshPath, m.onHttpAuthRefresh)
-	// protRoutes.Post(httpbasic.HttpPostLogoutPath, m.onHttpLogout)
 }
 
 // EnableStatic adds a path to read files from the static directory. Auth required.
