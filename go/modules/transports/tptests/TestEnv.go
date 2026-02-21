@@ -131,7 +131,7 @@ func (testEnv *TestEnv) NewClient(clientID string, role string, ch transports.Co
 	cl clients.IClientModule, token string) {
 
 	// ensure the test client account exists
-	err := testEnv.DummyAuthn.AddClient(clientID, clientID, role, "")
+	err := testEnv.DummyAuthn.AddClient(clientID, clientID, role)
 	token, _, err = testEnv.CreateToken(clientID, time.Minute*10)
 	if err != nil {
 		panic("NewClient: createToken failed: " + err.Error())

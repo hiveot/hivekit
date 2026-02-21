@@ -20,8 +20,8 @@ type DummyAuthenticator struct {
 }
 
 // AddClient adds a test client and return an auth token
-func (d *DummyAuthenticator) AddClient(clientID string, role string, password string, pubKey string) error {
-	d.passwords[clientID] = password
+func (d *DummyAuthenticator) AddClient(clientID string, displayName string, role string) error {
+	d.passwords[clientID] = ""
 
 	token, validUntil, err := d.CreateToken(clientID, 0)
 	_ = validUntil

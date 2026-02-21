@@ -1,8 +1,6 @@
 package module
 
 import (
-	"fmt"
-
 	"github.com/hiveot/hivekit/go/modules/authn"
 	"github.com/hiveot/hivekit/go/msg"
 	"github.com/hiveot/hivekit/go/wot"
@@ -19,12 +17,14 @@ import (
 // 4. administrators can do everything
 // 5. agents can publish events (notifications) for their own devices and services
 // 6. services can publish events (notifications) for their own devices and services and subscribe to any events
-func (m *AuthzModule) ValidateAuthorization(req *msg.RequestMessage) (err error) {
-	prof, err := m.authn.GetProfile(req.SenderID)
-	if err != nil {
-		return err
+func (m *AuthzModule) HasPermission(req *msg.RequestMessage) (hasPermission bool) {
+	if m.getRoleHandler == nil {
+		return false
 	}
-	role := prof.Role
+	role, err := m.getRoleHandler(req.SenderID)
+	if err != nil {
+		return false // unknown sender
+	}
 
 	// TODO: can the messagefilter be used for configurable rules?
 	switch req.Operation {
@@ -32,27 +32,27 @@ func (m *AuthzModule) ValidateAuthorization(req *msg.RequestMessage) (err error)
 	// 1. everyone can read properties and subscribe to events
 	case wot.OpReadProperty, wot.OpReadMultipleProperties, wot.OpReadAllProperties,
 		wot.OpSubscribeEvent, wot.OpSubscribeAllEvents:
-		return nil
+		return true
 	// 2. operators, managers, administrators and services can also query and invoke actions
 	case wot.OpInvokeAction, wot.OpQueryAction, wot.OpQueryAllActions:
 		if role == authn.ClientRoleOperator ||
 			role == authn.ClientRoleManager ||
 			role == authn.ClientRoleAdmin ||
 			role == authn.ClientRoleService {
-			return nil
+			return true
 		}
 	// 3. managers, administrators and services can also write configuration
 	case wot.OpWriteProperty, wot.OpWriteMultipleProperties:
 		if role == authn.ClientRoleManager ||
 			role == authn.ClientRoleAdmin ||
 			role == authn.ClientRoleService {
-			return nil
+			return true
 		}
 		// 4. administrators and services can do everything else
 	default:
 		if role == authn.ClientRoleAdmin || role == authn.ClientRoleService {
-			return nil
+			return true
 		}
 	}
-	return fmt.Errorf("Client '%s' is unauthorized for operation '%s'", req.SenderID, req.Operation)
+	return false
 }
