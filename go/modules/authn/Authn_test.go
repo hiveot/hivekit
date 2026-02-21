@@ -28,6 +28,17 @@ const TestKeyType = utils.KeyTypeED25519
 
 const appID = "authn-test"
 
+// TestMain creates a test environment
+// Used for all test cases in this package
+func TestMain(m *testing.M) {
+	utils.SetLogging("info", "")
+	res := m.Run()
+	if res == 0 {
+		_ = os.RemoveAll(testDir)
+	}
+	os.Exit(res)
+}
+
 // NewTestConsumer creates a new connected consumer client with the given ID.
 // The transport server must be started first.
 //
@@ -101,17 +112,6 @@ func startTestAuthnModule(encryption string) (m *module.AuthnModule, stopFn func
 		// let background tasks finish
 		time.Sleep(time.Millisecond * 100)
 	}
-}
-
-// TestMain creates a test environment
-// Used for all test cases in this package
-func TestMain(m *testing.M) {
-	utils.SetLogging("info", "")
-	res := m.Run()
-	if res == 0 {
-		_ = os.RemoveAll(testDir)
-	}
-	os.Exit(res)
 }
 
 // Start the authn service and list clients
