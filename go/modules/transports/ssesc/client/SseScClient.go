@@ -13,7 +13,7 @@ import (
 	"github.com/hiveot/hivekit/go/modules"
 	"github.com/hiveot/hivekit/go/modules/transports"
 	"github.com/hiveot/hivekit/go/modules/transports/direct"
-	tlsclient "github.com/hiveot/hivekit/go/modules/transports/httpserver/client"
+	"github.com/hiveot/hivekit/go/modules/transports/httpserver/tlsclient"
 	"github.com/hiveot/hivekit/go/modules/transports/ssesc"
 	"github.com/hiveot/hivekit/go/msg"
 	jsoniter "github.com/json-iterator/go"

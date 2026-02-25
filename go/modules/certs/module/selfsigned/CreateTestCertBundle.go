@@ -9,7 +9,8 @@ import (
 	"github.com/hiveot/hivekit/go/utils"
 )
 
-const ServerAddress = "127.0.0.1"
+// can't use localhost because discovery needs the outbound interface
+var ServerAddress = utils.GetOutboundIP("").String() //"127.0.0.1"
 const TestServerID = "server1"
 const TestClientID = "client1"
 
@@ -37,7 +38,7 @@ type TestCertBundle struct {
 }
 
 // CreateTestCertBundle creates a bundle of ca, server certificates and keys for testing.
-// The server cert is valid for the 127.0.0.1, localhost and os.hostname.
+// The server cert is valid for the 127.0.0.1, localhost, os.hostname and outbound IP.
 func CreateTestCertBundle(keyType utils.KeyType) TestCertBundle {
 	var err error
 	certBundle := TestCertBundle{
@@ -53,7 +54,7 @@ func CreateTestCertBundle(keyType utils.KeyType) TestCertBundle {
 	certBundle.ServerPrivKey, certBundle.ServerPubKey = utils.NewKey(keyType)
 	certBundle.ClientPrivKey, certBundle.ClientPubKey = utils.NewKey(keyType)
 
-	names := []string{ServerAddress, "localhost"}
+	names := []string{ServerAddress}
 	serverCert, err := CreateSelfSignedServerCert(
 		TestServerID, "server", 1,
 		certBundle.ServerPubKey,

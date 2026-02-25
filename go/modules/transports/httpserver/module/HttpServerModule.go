@@ -21,7 +21,7 @@ import (
 	"github.com/lmittmann/tint"
 )
 
-// HttpServerModule is a module providing a TLS HTTPS server.
+// HttpServerModule is a hiveot module providing a TLS HTTPS server.
 // Intended for use by HTTP based application protocols.
 // This implements IHttpServer and IHiveModule interfaces.
 //

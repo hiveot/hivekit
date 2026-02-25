@@ -100,9 +100,6 @@ type IAuthnModule interface {
 	DecodeToken(token string, signedNonce string, nonce string) (
 		clientID string, issuedAt time.Time, validUntil time.Time, err error)
 
-	// Return the client authenticator for use by transport modules
-	// GetAuthenticator() transports.IAuthenticator
-
 	// GetAlg returns the supported security format and authentication algorithm.
 	// This uses the vocabulary as defined in the TD.
 	// JWT: "ES256", "ES512", "EdDSA"

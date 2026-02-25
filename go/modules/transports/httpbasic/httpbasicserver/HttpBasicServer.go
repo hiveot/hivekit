@@ -18,7 +18,7 @@ const (
 	DefaultHttpStaticDirectory = "stores/httpstatic" // relative to home
 )
 
-// NewHttpBasicModule is a transport module for serving the wot http-basic protocol.
+// HttpBasicServer is a transport module for serving the wot http-basic protocol.
 // This implements the ITransportModule and IHiveModule interfaces.
 //
 // This WoT defined protocol is build on top of HTTP and is uni-directional.

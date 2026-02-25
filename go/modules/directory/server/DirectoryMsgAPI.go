@@ -1,4 +1,4 @@
-package server
+package directoryserver
 
 // RetrieveAllThingsArgs defines the arguments of the retrieveAllThings action
 // Read all TDs - Read a batch of TD documents

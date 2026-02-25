@@ -1,4 +1,4 @@
-package server
+package directoryserver
 
 import (
 	_ "embed"

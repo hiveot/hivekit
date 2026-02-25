@@ -1,5 +1,5 @@
-// Package api with the WoT defined REST API
-package server
+// Package directoryserver with the WoT defined REST API
+package directoryserver
 
 import (
 	"fmt"

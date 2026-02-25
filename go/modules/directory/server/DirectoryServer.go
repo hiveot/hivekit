@@ -1,5 +1,5 @@
-// package module with the directory module factory
-package module
+// package directoryserver with the directory server module
+package directoryserver
 
 import (
 	"log/slog"
@@ -9,12 +9,11 @@ import (
 	"github.com/hiveot/hivekit/go/modules/bucketstore"
 	"github.com/hiveot/hivekit/go/modules/bucketstore/stores/kvbtree"
 	"github.com/hiveot/hivekit/go/modules/directory"
-	"github.com/hiveot/hivekit/go/modules/directory/server"
 	"github.com/hiveot/hivekit/go/modules/transports"
 	"github.com/hiveot/hivekit/go/msg"
 )
 
-// DirectoryModule is a module for serving a WoT Thing directory.
+// DirectoryServer is a module for serving a WoT Thing directory.
 // This implements the IHiveModule and IDirectoryService interfaces.
 //
 // The directory can be accessed:
@@ -27,7 +26,7 @@ import (
 // The module is configured using yaml.
 //
 // This uses the fast and lightweight kvbtree bucket store to persist TD documents.
-type DirectoryModule struct {
+type DirectoryServer struct {
 	modules.HiveModuleBase
 
 	// bucket store for use with this module
@@ -36,9 +35,9 @@ type DirectoryModule struct {
 	bucketStore bucketstore.IBucketStore
 
 	// the RRN messaging API
-	msgAPI *server.DirectoryMsgHandler
+	msgAPI *DirectoryMsgHandler
 	// the API servers if enabled
-	restAPI *server.DirectoryRestHandler
+	restAPI *DirectoryRestHandler
 	// http server serving the REST API
 	httpServer transports.IHttpServer
 	// root directory of the storage area
@@ -51,13 +50,13 @@ type DirectoryModule struct {
 
 // GetTM returns the module TM document
 // It includes forms for messaging access through the WoT.
-func (m *DirectoryModule) GetTM() string {
+func (m *DirectoryServer) GetTM() string {
 	tmJson := m.msgAPI.GetTM()
 	return string(tmJson)
 }
 
 // HandleRequest passes the module request messages to the API handler.
-func (m *DirectoryModule) HandleRequest(req *msg.RequestMessage, replyTo msg.ResponseHandler) (err error) {
+func (m *DirectoryServer) HandleRequest(req *msg.RequestMessage, replyTo msg.ResponseHandler) (err error) {
 	if req.ThingID == m.GetModuleID() {
 		err = m.msgAPI.HandleRequest(req, replyTo)
 	} else {
@@ -73,7 +72,7 @@ func (m *DirectoryModule) HandleRequest(req *msg.RequestMessage, replyTo msg.Res
 // - enable the messaging request handler
 // - enable the http request handler using the given router
 // - updates this service TD in the store
-func (m *DirectoryModule) Start(_ string) (err error) {
+func (m *DirectoryServer) Start(_ string) (err error) {
 
 	moduleID := m.GetModuleID()
 	slog.Info("Start: Starting directory module", "moduleID", moduleID)
@@ -93,16 +92,16 @@ func (m *DirectoryModule) Start(_ string) (err error) {
 		// m.service, err = service.StartDirectoryService(m.bucketStore, bucketName)
 	}
 	if err == nil {
-		m.msgAPI = server.NewDirectoryMsgHandler(moduleID, m)
+		m.msgAPI = NewDirectoryMsgHandler(moduleID, m)
 	}
 	if err == nil && m.httpServer != nil {
-		m.restAPI = server.StartDirectoryRestHandler(m, m.httpServer)
+		m.restAPI = StartDirectoryRestHandler(m, m.httpServer)
 	}
 	return err
 }
 
 // Stop any running actions
-func (m *DirectoryModule) Stop() {
+func (m *DirectoryServer) Stop() {
 	slog.Info("Stop: closing directory store")
 	err := m.bucket.Close()
 	if err != nil {
@@ -114,13 +113,15 @@ func (m *DirectoryModule) Stop() {
 // Start a new directory server module.
 // On start this opens or creates a directory store in root/moduleID.
 // Directory entries are stored in the 'directory' bucket.
-// If a router is provided this registers the HTTP API with the router.
+//
+// If a http server is provided this registers the HTTP API with the router and serves
+// its TD on the .well-known/wot endpoint as per discovery specification.
 //
 // storageRoot is the root dir of the storage area. Use "" for testing with an in-memory store.
 // router is the html server router to register the html API handlers with. nil to ignore.
-func NewDirectoryModule(storageRoot string, httpServer transports.IHttpServer) *DirectoryModule {
+func NewDirectoryServer(storageRoot string, httpServer transports.IHttpServer) *DirectoryServer {
 
-	m := &DirectoryModule{
+	m := &DirectoryServer{
 		HiveModuleBase: modules.HiveModuleBase{},
 		storageRoot:    storageRoot,
 		httpServer:     httpServer,

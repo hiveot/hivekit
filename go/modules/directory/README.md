@@ -24,7 +24,7 @@ If the TD is to be published in an internet based directory, the agentID must be
 
 The WoT discovery specification defines the directory service API for storing and retrieving TD information. This module exports a TM that matches the description provided in the specification.
 
-The directory package contains a service and a client module. Both can be used as any other module, and operate client side or server side. The directory server module can be linked to a transport module to receive requests and publish notifications. Similarly the directory client module can be used by applications to query the TDs of the available Things.
+The directory package contains a server and a client sub-module. Both can be used as any other module, and operate client side or server side. The directory server module can be linked to a transport module to receive requests and publish notifications. Similarly the directory client module can be used by applications to query the TDs of the available Things.
 
 The directory should be updated by IoT devices or their agent. In HiveOT, the convention is that Thing agents update the directory with one or more TD's of the Things it manages.
 

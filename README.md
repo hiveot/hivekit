@@ -18,30 +18,30 @@ Nov 2025: Kickoff, extraction from HiveOT Hub is complete.
 Nov 2025: Add documentation of building blocks and howto use.
 Dec 2025: Converting to modules.
 Jan 2026: Completed SSE-SC and Websocket transport modules
+Feb 2026: Completed migration of directory, history, authn and authz modules
 
 Transport modules:
 
-| status | module                 | description                 |
-| :----: | ---------------------- | --------------------------- |
-|   ✔️   | transport/direct       | simulation of transport     |
-|   ⬛   | transport/discovery    | WoT device discovery        |
-|   ✔️   | transport/ssesc        | HiveOT HTTP/SSE-SC protocol |
-|   ✔️   | transport/hiveotwss    | HiveOT Websocket messaging  |
-|   ⬛   | transport/discovery    | WoT device discovery        |
-|   ✔️   | transport/wothttpbasic | WoT HTTP basic protocol     |
-|   ✔️   | transport/wotwss       | WoT Websocket protocol      |
+| status | module               | description                   |
+| :----: | -------------------- | ----------------------------- |
+|   ✔️   | transport/direct     | simulation of transport       |
+|   ⬛   | transport/discovery  | WoT mDNS device discovery     |
+|   ✔️   | transport/httpbasic  | WoT HTTP basic protocol       |
+|   ✔️   | transport/httpserver | HTTP server for sub protocols |
+|   ✔️   | transport/ssesc      | HiveOT HTTP/SSE-SC protocol   |
+|   ✔️   | transport/wss        | WoT Websocket protocol        |
 
 Service modules:
 
 | status | module      | description                 |
 | :----: | ----------- | --------------------------- |
 |   ✔️   | authn       | authentication              |
-|   ⬛   | authz       | role based authorization    |
+|   ✔️   | authz       | role based authorization    |
 |   ✔️   | bucketstore | key-value data storage      |
 |   ✔️   | certs       | certificate management      |
 |   ✔️   | directory   | Thing Directory             |
-|   ⬛   | logging     | message logging             |
-|   ⬛   | history     | message history recorder    |
+|   ✔️   | logging     | basic message logging       |
+|   ✔️   | history     | message history recorder    |
 |   ⬛   | router      | message routing             |
 |   ⬛   | pipeline    | application pipeline        |
 |   ⬛   | twin        | digital twin                |
@@ -70,10 +70,8 @@ Security is big concern with today's IoT devices. The Internet of Things contain
 To two main goals of HiveOT are:
 
 - Aid in improving security of IoT devices by isolating them from bad actors and providing a single secure endpoint.
-- Simplify integration and usage of IoT devices by providing a single consist standardized way of interacting with all IoT devices including authentication, authorization, directory, history and other capabilities.
+- Simplify integration and usage of IoT devices by providing a single consistent standardized way of interacting with all IoT devices including authentication, authorization, directory, history and other capabilities.
 
 HiveOT is based on the [W3C WoT TD 1.1 specification](https://www.w3.org/TR/wot-thing-description11/) for interaction between IoT devices and consumers. It aims to be compatible with this standard.
 
 Integration with 3rd party IoT protocols is supported through the use of IoT plugins. These plugins translate between the WoT protocol and 3rd party IoT protocols, interacting using properties, events and actions.
-
-hub uses HiveFlow as its runtime and adds a digital twin model, service launcher, history, dashboard, and other features such as bridging in a single package.

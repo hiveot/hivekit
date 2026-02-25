@@ -10,11 +10,10 @@ import (
 	"github.com/hiveot/hivekit/go/modules/authn"
 	"github.com/hiveot/hivekit/go/modules/directory"
 	directoryclient "github.com/hiveot/hivekit/go/modules/directory/client"
-	"github.com/hiveot/hivekit/go/modules/directory/module"
-	"github.com/hiveot/hivekit/go/modules/directory/server"
+	directoryserver "github.com/hiveot/hivekit/go/modules/directory/server"
 	"github.com/hiveot/hivekit/go/modules/transports"
 	"github.com/hiveot/hivekit/go/modules/transports/direct"
-	tlsclient "github.com/hiveot/hivekit/go/modules/transports/httpserver/client"
+	"github.com/hiveot/hivekit/go/modules/transports/httpserver/tlsclient"
 	"github.com/hiveot/hivekit/go/modules/transports/tptests"
 	"github.com/hiveot/hivekit/go/utils"
 	"github.com/hiveot/hivekit/go/wot/td"
@@ -47,7 +46,7 @@ func StartDirectoryServer() (
 
 	testEnv, cancelTestEnv := tptests.StartTestEnv(defaultProtocol)
 	// use in-memory storage
-	m = module.NewDirectoryModule(storageRoot, testEnv.HttpServer)
+	m = directoryserver.NewDirectoryServer(storageRoot, testEnv.HttpServer)
 	err := m.Start("")
 	if err != nil {
 		panic("StartDirectoryServer: failed to start the directory " + err.Error())
@@ -65,13 +64,13 @@ func StartDirectoryServer() (
 func TestStartStop(t *testing.T) {
 	t.Logf("---%s---\n", t.Name())
 
-	m := module.NewDirectoryModule(storageRoot, nil)
+	m := directoryserver.NewDirectoryServer(storageRoot, nil)
 	err := m.Start("")
 	require.NoError(t, err)
 	defer m.Stop()
 
 	// add a thing
-	tdJson := server.DirectoryTMJson
+	tdJson := directoryserver.DirectoryTMJson
 	m.UpdateThing(string(tdJson))
 
 	// read all things
@@ -83,13 +82,13 @@ func TestStartStop(t *testing.T) {
 func TestCreateTD(t *testing.T) {
 	thingID := "thing1"
 
-	m := module.NewDirectoryModule(storageRoot, nil)
+	m := directoryserver.NewDirectoryServer(storageRoot, nil)
 	err := m.Start("")
 	require.NoError(t, err)
 	defer m.Stop()
 
 	// add the directory itself
-	tdJson := server.DirectoryTMJson
+	tdJson := directoryserver.DirectoryTMJson
 	m.UpdateThing(string(tdJson))
 
 	// read all things, expect 1

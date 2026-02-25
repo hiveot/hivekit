@@ -11,7 +11,7 @@ import (
 	"time"
 
 	"github.com/hiveot/hivekit/go/modules/certs/module/selfsigned"
-	tlsclient "github.com/hiveot/hivekit/go/modules/transports/httpserver/client"
+	"github.com/hiveot/hivekit/go/modules/transports/httpserver/tlsclient"
 	"github.com/hiveot/hivekit/go/utils"
 	jsoniter "github.com/json-iterator/go"
 	"github.com/stretchr/testify/require"

@@ -10,8 +10,8 @@ import (
 
 	"github.com/hiveot/hivekit/go/modules/certs/module/selfsigned"
 	"github.com/hiveot/hivekit/go/modules/transports/httpserver"
-	tlsclient "github.com/hiveot/hivekit/go/modules/transports/httpserver/client"
 	"github.com/hiveot/hivekit/go/modules/transports/httpserver/module"
+	"github.com/hiveot/hivekit/go/modules/transports/httpserver/tlsclient"
 	"github.com/hiveot/hivekit/go/utils"
 
 	"github.com/stretchr/testify/assert"

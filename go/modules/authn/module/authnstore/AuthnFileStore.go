@@ -334,7 +334,7 @@ func (store *AuthnFileStore) VerifyPassword(
 func WritePasswordsToTempFile(
 	folder string, entries map[string]AuthnEntry) (tempFileName string, err error) {
 
-	file, err := os.CreateTemp(folder, "hub-pwfilestore")
+	file, err := os.CreateTemp(folder, "hive-tmp-pwfile")
 
 	// file, err := os.OpenFile(path, os.O_TRUNC|os.O_CREATE|os.O_WRONLY, 0600)
 	if err != nil {

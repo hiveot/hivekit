@@ -1,5 +1,5 @@
-// Package module with IDirectoryService implementation
-package module
+// Package directoryserver with service methods
+package directoryserver
 
 import (
 	"log/slog"
@@ -9,7 +9,7 @@ import (
 )
 
 // CreateThing adds or replaces the TD in the store.
-func (svc *DirectoryModule) CreateThing(tdJson string) error {
+func (svc *DirectoryServer) CreateThing(tdJson string) error {
 
 	// validate the TD
 	tdi, err := td.UnmarshalTD(tdJson)
@@ -23,7 +23,7 @@ func (svc *DirectoryModule) CreateThing(tdJson string) error {
 }
 
 // DeleteThing removes a Thing TD document from the store
-func (svc *DirectoryModule) DeleteThing(thingID string) error {
+func (svc *DirectoryServer) DeleteThing(thingID string) error {
 	err := svc.bucket.Delete(thingID)
 	return err
 }
@@ -35,7 +35,7 @@ func (svc *DirectoryModule) DeleteThing(thingID string) error {
 //}
 
 // RetrieveThing returns a JSON encoded TD document
-func (svc *DirectoryModule) RetrieveThing(thingID string) (tdJSON string, err error) {
+func (svc *DirectoryServer) RetrieveThing(thingID string) (tdJSON string, err error) {
 	tdBytes, err := svc.bucket.Get(thingID)
 	tdJSON = string(tdBytes)
 	return tdJSON, err
@@ -43,7 +43,7 @@ func (svc *DirectoryModule) RetrieveThing(thingID string) (tdJSON string, err er
 
 // RetrieveAllThings returns a batch of TD documents
 // This returns a list of JSON encoded digital twin TD documents
-func (svc *DirectoryModule) RetrieveAllThings(offset int, limit int) (tdList []string, err error) {
+func (svc *DirectoryServer) RetrieveAllThings(offset int, limit int) (tdList []string, err error) {
 	tdList = make([]string, 0)
 
 	cursor, err := svc.bucket.Cursor()
@@ -82,7 +82,7 @@ func (svc *DirectoryModule) RetrieveAllThings(offset int, limit int) (tdList []s
 
 // UpdateThing replaces the TD in the store.
 // If the thing doesn't exist in the store it is added.
-func (svc *DirectoryModule) UpdateThing(tdJson string) error {
+func (svc *DirectoryServer) UpdateThing(tdJson string) error {
 
 	// validate the TD
 	tdi, err := td.UnmarshalTD(tdJson)

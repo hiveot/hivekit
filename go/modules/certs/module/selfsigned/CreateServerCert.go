@@ -17,9 +17,6 @@ const DefaultServerCertValidityDays = 100
 
 // CreateSelfSignedServerCert create a server certificate, signed by the given CA, for use in hiveot services.
 //
-// Note: While technically only the server's public key is needed, this requires a IHiveKey
-// key-pair to force type checking and avoid unexpected errors.
-//
 // The provided x509 certificate can be converted to a PEM text with:
 //
 //	  certPEM = certs.X509CertToPEM(cert)
