@@ -35,7 +35,7 @@ type DiscoveryServer struct {
 	httpServer transports.IHttpServer
 }
 
-// ServeDirectory registers the given directory TD with the http server
+// ServeDirectoryTDD registers the given directory TD with the http server
 // and publishes its endpoint using DNS-SD discovery.
 //
 // This fails if the http server isn't provided.

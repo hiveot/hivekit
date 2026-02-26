@@ -9,7 +9,7 @@ import (
 	"github.com/hiveot/hivekit/go/modules/authn"
 	"github.com/hiveot/hivekit/go/modules/authn/server"
 	"github.com/hiveot/hivekit/go/modules/transports"
-	tlsclient "github.com/hiveot/hivekit/go/modules/transports/httpserver/client"
+	"github.com/hiveot/hivekit/go/modules/transports/httpserver/tlsclient"
 	jsoniter "github.com/json-iterator/go"
 )
 

@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"net/url"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/grandcat/zeroconf"
@@ -102,6 +103,8 @@ func (cl *DiscoveryClient) DiscoverThings(
 	maxWaitTime time.Duration,
 	cb func(*DiscoveryResult) bool) ([]*DiscoveryResult, error) {
 
+	var mux sync.RWMutex
+
 	drList := make([]*DiscoveryResult, 0)
 
 	// run the scan to collect results
@@ -110,13 +113,19 @@ func (cl *DiscoveryClient) DiscoverThings(
 
 			// create a discovery record for the service entry
 			discoRecord := cl.ParseZeroconfServiceEntry(rec)
+			mux.Lock()
 			drList = append(drList, discoRecord)
+			mux.Unlock()
 			if cb != nil {
 				return cb(discoRecord) // return true to stop
 			}
 			return false // keep looking
 		})
-	return drList, err
+
+	mux.Lock()
+	result := drList
+	mux.Unlock()
+	return result, err
 }
 
 // DownloadTDD the directory TD.

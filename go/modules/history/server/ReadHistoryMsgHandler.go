@@ -186,7 +186,7 @@ func (svc *ReadHistoryMsgHandler) ReadHistory(req *msg.RequestMessage) (*msg.Res
 
 	err := req.ToObject(&args)
 	if err != nil || args.Timestamp == "" {
-		return nil, fmt.Errorf("ReadHistory: Invalid arguments: " + err.Error())
+		return nil, fmt.Errorf("ReadHistory: Invalid arguments: %w", err)
 	}
 	ts, err := dateparse.ParseAny(args.Timestamp)
 	if err != nil {

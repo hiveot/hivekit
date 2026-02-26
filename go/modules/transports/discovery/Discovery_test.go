@@ -2,6 +2,7 @@ package discovery_test
 
 import (
 	"net/url"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -20,18 +21,20 @@ const testServiceID = "hiveot-test"
 const testServicePort = 9999
 
 func TestDNSSDScan(t *testing.T) {
-	count := 0
+	var count atomic.Int32
 
 	r, err := discoveryclient.DnsSDScan("", "", time.Second*2,
 		func(_ *zeroconf.ServiceEntry) bool {
-			count++
+			count.Add(1)
 			return false
 		})
-	t.Logf("Found %d records in scan", count)
+
+	nrRecords := int(count.Load())
+	t.Logf("Found %d records in scan", nrRecords)
 
 	assert.NoError(t, err)
-	assert.Equal(t, count, len(r))
-	assert.Greater(t, count, 0, "No DNS records found")
+	assert.Equal(t, nrRecords, len(r))
+	assert.Greater(t, nrRecords, 0, "No DNS records found")
 }
 
 func TestDiscover(t *testing.T) {

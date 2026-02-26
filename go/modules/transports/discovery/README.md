@@ -6,7 +6,7 @@ Objectives:
 
 1. publish, discover and download directory TDs using WoT mDNS compatible protocols (server)
 2. publish, discover and download thing TDs using WoT mDNS compatible protocols (server)
-3. discover devices on the network that use mDNS protocols (client)
+3. option to add additional discovery mechanisms (tbd)
 
 ## Status
 
@@ -16,7 +16,7 @@ While care has been taken to be compliant with the WoT discovery specification, 
 
 ## Summary
 
-The discovery module provides both a client and server for device and directory discovery.
+The discovery module provides both a client and server for device or directory discovery.
 
 The server publishes a DNS-SD discovery record following the [WoT discovery specification](https://w3c.github.io/wot-discovery/#introduction-dns-sd-sec). This record contains the URL of the device or directory TD for accessing the directory as described in this specification. The provided http server serves this URL for downloading the TD of the device or directory.
 

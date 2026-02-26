@@ -25,7 +25,7 @@ Transport modules:
 | status | module               | description                   |
 | :----: | -------------------- | ----------------------------- |
 |   ✔️   | transport/direct     | simulation of transport       |
-|   ⬛   | transport/discovery  | WoT mDNS device discovery     |
+|   ✔️   | transport/discovery  | WoT mDNS device discovery     |
 |   ✔️   | transport/httpbasic  | WoT HTTP basic protocol       |
 |   ✔️   | transport/httpserver | HTTP server for sub protocols |
 |   ✔️   | transport/ssesc      | HiveOT HTTP/SSE-SC protocol   |
@@ -48,7 +48,7 @@ Service modules:
 |   ⬛   | rules       | rule based automation       |
 |   ⬛   | jsscript    | javascript based automation |
 
-Protocol Binding Modules:
+Protocol Integration Binding Modules:
 
 | status | module   | description                  |
 | :----: | -------- | ---------------------------- |

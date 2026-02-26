@@ -27,4 +27,16 @@ const DefaultHttpGetDirectoryTDPath = "/.well-known/wot"
 // This is a module that can be managed and controlled through request and notification messages.
 type IDiscoveryServer interface {
 	modules.IHiveModule
+
+	// ServeDirectoryTDD registers the given directory TD with the http server and publishes
+	// its endpoint using DNS-SD discovery.
+	//
+	// This fails if the http server isn't provided.
+	ServeDirectoryTDD(dirTDJSON string) (err error)
+
+	// ServeThingTD registers the given thing TD with the http server and publishes its
+	// endpoint using DNS-SD discovery.
+	//
+	// Indended for use by things that run servers. (not recommended or needed when using a gateway)
+	ServeThingTD(thingTDJSON string) (err error)
 }
