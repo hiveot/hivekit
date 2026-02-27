@@ -13,8 +13,8 @@ import (
 	"github.com/hiveot/hivekit/go/modules/authn"
 	"github.com/hiveot/hivekit/go/modules/bucketstore"
 	"github.com/hiveot/hivekit/go/modules/clients"
-	"github.com/hiveot/hivekit/go/modules/history/historyclient"
-	"github.com/hiveot/hivekit/go/modules/history/module"
+	historyclient "github.com/hiveot/hivekit/go/modules/history/client"
+	historyserver "github.com/hiveot/hivekit/go/modules/history/server"
 	"github.com/hiveot/hivekit/go/modules/transports"
 	"github.com/hiveot/hivekit/go/modules/transports/tptests"
 	"github.com/hiveot/hivekit/go/msg"
@@ -54,7 +54,7 @@ func TestMain(m *testing.M) {
 // This starts the protocol server and links it to the history module as sink
 // Use clean to start with an empty history.
 func startHistoryService(clean bool) (
-	histModule *module.HistoryModule, stopFn func()) {
+	histModule *historyserver.HistoryServer, stopFn func()) {
 
 	if clean {
 		os.RemoveAll(testEnv.StorageRoot)
@@ -63,7 +63,7 @@ func startHistoryService(clean bool) (
 	// create the history module and link it to the protocol server
 	// since the history module runs on the server it doesn't need an agent
 	// instance.
-	histModule = module.NewHistoryModule(testEnv.StorageRoot, historyStoreBackend)
+	histModule = historyserver.NewHistoryServer(testEnv.StorageRoot, historyStoreBackend)
 	testEnv.Server.SetRequestSink(histModule.HandleRequest)
 	histModule.SetNotificationSink(testEnv.Server.HandleNotification)
 
@@ -132,7 +132,7 @@ func makeValueBatch(agentID string, nrValues, nrThings, timespanSec int) (
 }
 
 // add some history to the store. This bypasses the check for thingID to exist.
-func addBulkHistory(m *module.HistoryModule, agentID string, count int, nrThings int,
+func addBulkHistory(m *historyserver.HistoryServer, agentID string, count int, nrThings int,
 	timespanSec int) (highest map[string]msg.ThingValue) {
 
 	var batchSize = 1000

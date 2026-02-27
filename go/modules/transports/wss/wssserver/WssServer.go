@@ -12,7 +12,7 @@ import (
 	"github.com/hiveot/hivekit/go/modules/transports"
 	"github.com/hiveot/hivekit/go/modules/transports/direct"
 	"github.com/hiveot/hivekit/go/modules/transports/wss"
-	"github.com/hiveot/hivekit/go/modules/transports/wss/converter"
+	wssconverter "github.com/hiveot/hivekit/go/modules/transports/wss/converter"
 	"github.com/hiveot/hivekit/go/msg"
 	"github.com/hiveot/hivekit/go/utils"
 )
@@ -106,7 +106,7 @@ func (m *WssServer) Serve(w http.ResponseWriter, r *http.Request) {
 	// if err != nil {
 	// net.WriteError(w, err, 0)
 	// }
-	clientID,  err := m.httpServer.GetClientIdFromContext(r)
+	clientID, err := m.httpServer.GetClientIdFromContext(r)
 	if err != nil {
 		utils.WriteError(w, err, 0)
 	}
@@ -232,7 +232,7 @@ func NewWotWssServer(httpServer transports.IHttpServer) *WssServer {
 	}
 	m := &WssServer{
 		httpServer:   httpServer,
-		msgConverter: converter.NewWotWssMsgConverter(),
+		msgConverter: wssconverter.NewWotWssMsgConverter(),
 		subprotocol:  wss.SubprotocolWotWSS,
 		wssPath:      wss.DefaultWotWssPath,
 	}

@@ -7,7 +7,7 @@ package authnclient
 import (
 	"github.com/hiveot/hivekit/go/modules"
 	"github.com/hiveot/hivekit/go/modules/authn"
-	"github.com/hiveot/hivekit/go/modules/authn/server"
+	authnserver "github.com/hiveot/hivekit/go/modules/authn/server"
 	"github.com/hiveot/hivekit/go/modules/clients"
 	"github.com/hiveot/hivekit/go/wot"
 )
@@ -25,8 +25,8 @@ type AuthnUserMsgClient struct {
 // UserGetProfile client method - Get Client Profile.
 func (cl *AuthnUserMsgClient) GetProfile() (resp authn.ClientProfile, err error) {
 	err = cl.co.Rpc(wot.OpInvokeAction,
-		server.AuthnUserServiceID,
-		server.UserActionGetProfile, nil, &resp)
+		authnserver.AuthnUserServiceID,
+		authnserver.UserActionGetProfile, nil, &resp)
 	return
 }
 
@@ -42,8 +42,8 @@ func (cl *AuthnUserMsgClient) GetProfile() (resp authn.ClientProfile, err error)
 func (cl *AuthnUserMsgClient) Logout() (err error) {
 
 	err = cl.co.Rpc(wot.OpInvokeAction,
-		server.AuthnUserServiceID,
-		server.UserActionLogout, nil, nil)
+		authnserver.AuthnUserServiceID,
+		authnserver.UserActionLogout, nil, nil)
 	return
 }
 
@@ -51,8 +51,8 @@ func (cl *AuthnUserMsgClient) Logout() (err error) {
 func (cl *AuthnUserMsgClient) RefreshToken(hc *clients.Consumer, oldToken string) (newToken string, err error) {
 
 	err = cl.co.Rpc(wot.OpInvokeAction,
-		server.AuthnUserServiceID,
-		server.UserActionRefreshToken, &oldToken, &newToken)
+		authnserver.AuthnUserServiceID,
+		authnserver.UserActionRefreshToken, &oldToken, &newToken)
 	return
 }
 
@@ -60,8 +60,8 @@ func (cl *AuthnUserMsgClient) RefreshToken(hc *clients.Consumer, oldToken string
 // Request changing the password of the current client
 func (cl *AuthnUserMsgClient) UpdateProfile(hc *clients.Consumer, password string) (err error) {
 	err = cl.co.Rpc(wot.OpInvokeAction,
-		server.AuthnUserServiceID,
-		server.UserActionSetPassword, &password, nil)
+		authnserver.AuthnUserServiceID,
+		authnserver.UserActionSetPassword, &password, nil)
 	return
 }
 

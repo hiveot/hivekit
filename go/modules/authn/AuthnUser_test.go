@@ -8,7 +8,7 @@ import (
 
 	"github.com/hiveot/hivekit/go/modules/authn"
 	authnclient "github.com/hiveot/hivekit/go/modules/authn/client"
-	"github.com/hiveot/hivekit/go/modules/authn/server"
+	authnserver "github.com/hiveot/hivekit/go/modules/authn/server"
 	"github.com/hiveot/hivekit/go/modules/clients"
 	"github.com/hiveot/hivekit/go/modules/transports/direct"
 	"github.com/hiveot/hivekit/go/modules/transports/httpserver/tlsclient"
@@ -237,7 +237,7 @@ func TestAuthClientCert(t *testing.T) {
 		urlParts.Host, testCerts.ClientCert, testCerts.CaCert, 0)
 
 	// client should be able to read its profile using just client cert as auth
-	getProfilePath := server.HttpGetProfilePath
+	getProfilePath := authnserver.HttpGetProfilePath
 	outputRaw, status, err := tlsClient.Get(getProfilePath)
 	assert.NoError(t, err)
 	assert.Equal(t, http.StatusOK, status)

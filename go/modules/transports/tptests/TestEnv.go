@@ -9,10 +9,10 @@ import (
 	"time"
 
 	"github.com/hiveot/hivekit/go/modules/authn"
-	"github.com/hiveot/hivekit/go/modules/certs/module/selfsigned"
+	"github.com/hiveot/hivekit/go/modules/certs/server/selfsigned"
 	"github.com/hiveot/hivekit/go/modules/clients"
 	"github.com/hiveot/hivekit/go/modules/transports"
-	"github.com/hiveot/hivekit/go/modules/transports/httpbasic/httpbasicserver"
+	httpbasicserver "github.com/hiveot/hivekit/go/modules/transports/httpbasic/server"
 	"github.com/hiveot/hivekit/go/modules/transports/httpserver"
 	"github.com/hiveot/hivekit/go/modules/transports/httpserver/module"
 	httpmodule "github.com/hiveot/hivekit/go/modules/transports/httpserver/module"

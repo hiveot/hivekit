@@ -14,11 +14,8 @@ HiveKit components were originally part of the HiveOT Hub and have been extracte
 
 ## Project Status
 
-Nov 2025: Kickoff, extraction from HiveOT Hub is complete.
-Nov 2025: Add documentation of building blocks and howto use.
-Dec 2025: Converting to modules.
-Jan 2026: Completed SSE-SC and Websocket transport modules
-Feb 2026: Completed migration of directory, history, authn and authz modules
+Hivekit is in alpha. It is functional but breaking changes can still be expected.
+Usable modules have a status checkmark.
 
 Transport modules:
 
@@ -40,23 +37,26 @@ Service modules:
 |   ✔️   | bucketstore | key-value data storage      |
 |   ✔️   | certs       | certificate management      |
 |   ✔️   | directory   | Thing Directory             |
+|   ⬛   | jsscript    | javascript based automation |
 |   ✔️   | logging     | basic message logging       |
 |   ✔️   | history     | message history recorder    |
-|   ⬛   | router      | message routing             |
 |   ⬛   | pipeline    | application pipeline        |
-|   ⬛   | twin        | digital twin                |
+|   ⬛   | router      | message routing (gateway\*) |
 |   ⬛   | rules       | rule based automation       |
-|   ⬛   | jsscript    | javascript based automation |
+|   ⬛   | vcache      | value cache (gateway\*)     |
+|   ⬛   | twin        | digital twin (gateway\*)    |
+
+\*) gateway modules are useful for building hub and gateway applications
 
 Protocol Integration Binding Modules:
 
 | status | module   | description                  |
 | :----: | -------- | ---------------------------- |
-|   ⬛   | isy99x   | ISY 99 protocol binding      |
-|   ⬛   | owserver | 1-wire owsererver binding    |
-|   ⬛   | zwavejs  | ZWave binding using zwave-js |
-|   ⬛   | weather  | Weather service bindings     |
 |   ⬛   | ipnet    | IP Network monitor           |
+|   ⬛   | isy99x   | ISY 99 protocol binding      |
+|   ⬛   | owserver | 1-wire owserrver binding     |
+|   ⬛   | weather  | Weather service bindings     |
+|   ⬛   | zwavejs  | ZWave binding using zwave-js |
 |   ⬛   | ...      | and many more...             |
 
 ## Audience

@@ -1,4 +1,4 @@
-package module
+package certsserver
 
 import (
 	"crypto"
@@ -11,7 +11,6 @@ import (
 	"github.com/hiveot/hivekit/go/modules"
 	"github.com/hiveot/hivekit/go/modules/certs"
 	"github.com/hiveot/hivekit/go/modules/certs/certutils"
-	"github.com/hiveot/hivekit/go/modules/certs/server"
 )
 
 // CertsModule is a module for managing certificates.
@@ -35,7 +34,7 @@ type CertsModule struct {
 	defaultServerTlsCert *tls.Certificate
 
 	// the RRN messaging API
-	msgHandler *server.CertsMsgHandler
+	msgHandler *CertsMsgHandler
 
 	// directory where certificates are stored
 	certsDir string
@@ -44,7 +43,7 @@ type CertsModule struct {
 // GetTM returns the module TM document
 // It includes forms for messaging access through the WoT.
 func (m *CertsModule) GetTM() string {
-	tmJson := server.CertsTMJson
+	tmJson := CertsTMJson
 	return string(tmJson)
 }
 
@@ -76,7 +75,7 @@ func (m *CertsModule) Start(yamlConfig string) (err error) {
 			certs.DefaultServerName, "", nil, nil)
 	}
 
-	m.msgHandler = server.NewCertsMsgHandler(m.GetModuleID(), m)
+	m.msgHandler = NewCertsMsgHandler(m.GetModuleID(), m)
 	m.SetRequestHook(m.msgHandler.HandleRequest)
 	return err
 }

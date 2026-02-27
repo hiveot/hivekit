@@ -9,8 +9,8 @@ import (
 	"github.com/hiveot/hivekit/go/modules/certs"
 	"github.com/hiveot/hivekit/go/modules/certs/certutils"
 	certsclient "github.com/hiveot/hivekit/go/modules/certs/client"
-	"github.com/hiveot/hivekit/go/modules/certs/module"
-	"github.com/hiveot/hivekit/go/modules/certs/module/selfsigned"
+	certsserver "github.com/hiveot/hivekit/go/modules/certs/server"
+	"github.com/hiveot/hivekit/go/modules/certs/server/selfsigned"
 	"github.com/hiveot/hivekit/go/modules/transports/direct"
 	"github.com/hiveot/hivekit/go/utils"
 	"github.com/stretchr/testify/assert"
@@ -22,13 +22,13 @@ var TestCertDir string
 // private key type used in test
 const TestKeyType = utils.KeyTypeECDSA
 
-func startModule(t *testing.T) (*module.CertsModule, func(), error) {
+func startModule(t *testing.T) (*certsserver.CertsModule, func(), error) {
 	testCertDir := filepath.Join(os.TempDir(), "hiveot-certs-test")
 
 	// clea start
 	_ = os.RemoveAll(TestCertDir)
 
-	m := module.NewCertsModule(testCertDir)
+	m := certsserver.NewCertsModule(testCertDir)
 	err := m.Start("")
 	require.NoError(t, err)
 	return m, func() {

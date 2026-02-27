@@ -16,4 +16,17 @@ Logging is implemented using slog, the golang structured logging framework. The 
 
 While slog provides a unified logging frontend, it supports different backends.
 
+This currently does not include a client to configure logging via commands. Instead a yaml configuration defines its configuration.
+
 This is work in progress.
+
+## Usage
+
+Placement in the module pipeline:
+
+One possible place is in the device behind the server so it receives all requests and the emitted events.
+
+```
+Requests:       [consumer] -> [client] -> [server] -> [logging] -> [device]
+Notifications:  [consumer] <- [client] <- [server] <- [logging] <- [device]
+```

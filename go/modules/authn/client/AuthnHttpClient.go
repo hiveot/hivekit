@@ -7,7 +7,7 @@ import (
 	"net/url"
 
 	"github.com/hiveot/hivekit/go/modules/authn"
-	"github.com/hiveot/hivekit/go/modules/authn/server"
+	authnserver "github.com/hiveot/hivekit/go/modules/authn/server"
 	"github.com/hiveot/hivekit/go/modules/transports"
 	"github.com/hiveot/hivekit/go/modules/transports/httpserver/tlsclient"
 	jsoniter "github.com/json-iterator/go"
@@ -34,7 +34,7 @@ func (cl *AuthnHttpClient) ConnectWithToken(clientID string, token string) (err 
 // Return the client's profile.
 // The client must be authenticated first.
 func (cl *AuthnHttpClient) GetProfile() (profile authn.ClientProfile, err error) {
-	getProfilePath := server.HttpGetProfilePath
+	getProfilePath := authnserver.HttpGetProfilePath
 	outputRaw, status, err := cl.tlsClient.Get(getProfilePath)
 
 	if err == nil && status == http.StatusOK {
@@ -59,13 +59,13 @@ func (cl *AuthnHttpClient) LoginWithPassword(clientID string, password string) (
 	//
 	slog.Info("LoginWithPassword", "clientID", clientID)
 
-	args := server.UserLoginArgs{
+	args := authnserver.UserLoginArgs{
 		UserName: clientID,
 		Password: password,
 	}
 
 	argsJSON, _ := jsoniter.Marshal(args)
-	loginPath := server.HttpPostLoginPath
+	loginPath := authnserver.HttpPostLoginPath
 	outputRaw, status, err := cl.tlsClient.Post(loginPath, []byte(argsJSON))
 
 	if err == nil && status == http.StatusOK {
@@ -82,7 +82,7 @@ func (cl *AuthnHttpClient) LoginWithPassword(clientID string, password string) (
 
 func (cl *AuthnHttpClient) Logout(token string) (err error) {
 
-	logoutPath := server.HttpPostLogoutPath
+	logoutPath := authnserver.HttpPostLogoutPath
 	_, _, err = cl.tlsClient.Post(logoutPath, nil)
 	cl.tlsClient.Close()
 	return err
@@ -92,7 +92,7 @@ func (cl *AuthnHttpClient) Logout(token string) (err error) {
 func (cl *AuthnHttpClient) RefreshToken(oldToken string) (newToken string, err error) {
 
 	clientID := cl.tlsClient.GetClientID()
-	refreshPath := server.HttpPostRefreshPath
+	refreshPath := authnserver.HttpPostRefreshPath
 	dataJSON, _ := jsoniter.Marshal(oldToken)
 	// first initialize the client with the old token
 	cl.tlsClient.ConnectWithToken(clientID, oldToken)

@@ -1,4 +1,4 @@
-package module
+package authzserver
 
 import (
 	"github.com/hiveot/hivekit/go/modules/authn"
@@ -17,7 +17,7 @@ import (
 // 4. administrators can do everything
 // 5. agents can publish events (notifications) for their own devices and services
 // 6. services can publish events (notifications) for their own devices and services and subscribe to any events
-func (m *AuthzModule) HasPermission(req *msg.RequestMessage) (hasPermission bool) {
+func (m *AuthzServer) HasPermission(req *msg.RequestMessage) (hasPermission bool) {
 	if m.getRoleHandler == nil {
 		return false
 	}

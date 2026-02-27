@@ -18,7 +18,7 @@ import (
 	"github.com/hiveot/hivekit/go/modules/transports"
 	"github.com/hiveot/hivekit/go/modules/transports/direct"
 	"github.com/hiveot/hivekit/go/modules/transports/httpserver/tlsclient"
-	"github.com/hiveot/hivekit/go/modules/transports/wss/converter"
+	wssconverter "github.com/hiveot/hivekit/go/modules/transports/wss/converter"
 	"github.com/hiveot/hivekit/go/msg"
 	"github.com/hiveot/hivekit/go/utils"
 
@@ -473,7 +473,7 @@ func NewWotWssClient(
 	cl := &WssClient{
 		caCert:               caCert,
 		maxReconnectAttempts: 0,
-		msgConverter:         converter.NewWotWssMsgConverter(),
+		msgConverter:         wssconverter.NewWotWssMsgConverter(),
 		rnrChan:              msg.NewRnRChan(),
 		tlsClient:            tlsClient,
 		timeout:              timeout,

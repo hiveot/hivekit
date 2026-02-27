@@ -1,4 +1,4 @@
-package module
+package historyserver
 
 import (
 	"fmt"
@@ -11,7 +11,6 @@ import (
 	"github.com/hiveot/hivekit/go/modules/bucketstore/stores"
 	"github.com/hiveot/hivekit/go/modules/history"
 	"github.com/hiveot/hivekit/go/modules/history/config"
-	historyserver "github.com/hiveot/hivekit/go/modules/history/server"
 	"github.com/hiveot/hivekit/go/msg"
 	"github.com/hiveot/hivekit/go/wot"
 	"go.yaml.in/yaml/v2"
@@ -24,7 +23,7 @@ import (
 //
 // Each Thing has a bucket with events and actions.
 // This implements the IHistoryService interface
-type HistoryModule struct {
+type HistoryServer struct {
 	modules.HiveModuleBase
 
 	// The underlying bucketstore instance
@@ -40,11 +39,11 @@ type HistoryModule struct {
 	cursorLifespan time.Duration
 
 	// RRN message handler for reading history
-	readHistoryMsgHandler *historyserver.ReadHistoryMsgHandler
+	readHistoryMsgHandler *ReadHistoryMsgHandler
 }
 
 // Forward notifications to the registered sink and record it if they pass the filter.
-func (m *HistoryModule) HandleNotification(notif *msg.NotificationMessage) {
+func (m *HistoryServer) HandleNotification(notif *msg.NotificationMessage) {
 	go func() {
 		if m.config.NotificationFilter.AcceptNotification(notif) {
 			m.StoreNotification(notif)
@@ -56,8 +55,8 @@ func (m *HistoryModule) HandleNotification(notif *msg.NotificationMessage) {
 // HandleRequest handles request for this module.
 // If not a module request then record it in the history store if it passes
 // the filters and forward the request to the registered sink.
-func (m *HistoryModule) HandleRequest(req *msg.RequestMessage, replyTo msg.ResponseHandler) error {
-	if req.ThingID == historyserver.ReadHistoryServiceID {
+func (m *HistoryServer) HandleRequest(req *msg.RequestMessage, replyTo msg.ResponseHandler) error {
+	if req.ThingID == ReadHistoryServiceID {
 		// handle requests for the history service itself
 		err := m.readHistoryMsgHandler.HandleRequest(req, replyTo)
 		return err
@@ -72,7 +71,7 @@ func (m *HistoryModule) HandleRequest(req *msg.RequestMessage, replyTo msg.Respo
 
 // Start the history module and open the store
 // this loads the filters
-func (m *HistoryModule) Start(yamlConfig string) (err error) {
+func (m *HistoryServer) Start(yamlConfig string) (err error) {
 	if yamlConfig != "" {
 		err = yaml.Unmarshal([]byte(yamlConfig), &m.config)
 		if err != nil {
@@ -89,19 +88,19 @@ func (m *HistoryModule) Start(yamlConfig string) (err error) {
 
 	slog.Info("Starting HistoryService", "moduleID", m.GetModuleID())
 	// Messaging API handler for reading the history
-	m.readHistoryMsgHandler = historyserver.NewReadHistoryMsgHandler(m)
+	m.readHistoryMsgHandler = NewReadHistoryMsgHandler(m)
 
 	return err
 }
 
 // Stop using the history service and release resources
-func (m *HistoryModule) Stop() {
+func (m *HistoryServer) Stop() {
 	slog.Info("Stopping HistoryService")
 	_ = m.bucketStore.Close()
 }
 
 // Store notifications for later retrieval
-func (m *HistoryModule) StoreNotification(notif *msg.NotificationMessage) error {
+func (m *HistoryServer) StoreNotification(notif *msg.NotificationMessage) error {
 
 	// convert the notification to a ThingValue for storage
 	tv := msg.NewThingValue(
@@ -117,7 +116,7 @@ func (m *HistoryModule) StoreNotification(notif *msg.NotificationMessage) error 
 }
 
 // Store notifications for later retrieval
-func (m *HistoryModule) StoreRequest(req *msg.RequestMessage) error {
+func (m *HistoryServer) StoreRequest(req *msg.RequestMessage) error {
 
 	if req.Operation != wot.OpInvokeAction {
 		return fmt.Errorf("AddAction: Operation is not invokeaction")
@@ -135,11 +134,11 @@ func (m *HistoryModule) StoreRequest(req *msg.RequestMessage) error {
 	return err
 }
 
-// NewHistoryModule creates a new instance for the history module using the given
+// NewHistoryServer creates a new instance for the history module using the given
 // storage bucket.
-func NewHistoryModule(storeDirectory string, backend string) *HistoryModule {
+func NewHistoryServer(storeDirectory string, backend string) *HistoryServer {
 
-	m := &HistoryModule{
+	m := &HistoryServer{
 		cursorLifespan: time.Minute,
 		cursorCache:    bucketserver.NewCursorCache(),
 	}

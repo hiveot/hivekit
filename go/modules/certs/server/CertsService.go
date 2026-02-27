@@ -1,4 +1,4 @@
-package module
+package certsserver
 
 import (
 	"crypto"
@@ -9,7 +9,7 @@ import (
 	"path"
 
 	"github.com/hiveot/hivekit/go/modules/certs/certutils"
-	"github.com/hiveot/hivekit/go/modules/certs/module/selfsigned"
+	"github.com/hiveot/hivekit/go/modules/certs/server/selfsigned"
 	"github.com/hiveot/hivekit/go/utils"
 )
 

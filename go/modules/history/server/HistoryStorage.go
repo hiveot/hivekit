@@ -1,5 +1,5 @@
-// Package module with methods for storage, iteration and querying of thing values
-package module
+// Package historyserver with methods for storage, iteration and querying of thing values
+package historyserver
 
 import (
 	"fmt"
@@ -134,7 +134,7 @@ func validateValue(tv *msg.ThingValue) (err error) {
 
 // AddValue adds a Thing value from a sender to the action history
 // The caller must validate the SenderID in the tv.
-func (svc *HistoryModule) AddValue(tv *msg.ThingValue) error {
+func (svc *HistoryServer) AddValue(tv *msg.ThingValue) error {
 	//slog.Info("AddValue",
 	//	slog.String("senderID", senderID),
 	//	slog.String("ID", tv.ID),
@@ -165,7 +165,7 @@ func (svc *HistoryModule) AddValue(tv *msg.ThingValue) error {
 //	clientID is the owner that must match iteration requests
 //	thingID is the Thing whose data to iteration
 //	affName of affordance to filter on or "" for any value from the thing
-func (svc *HistoryModule) CreateCursor(clientID string, thingID string, affName string) (cursorKey string, err error) {
+func (svc *HistoryServer) CreateCursor(clientID string, thingID string, affName string) (cursorKey string, err error) {
 
 	lifespan := svc.cursorLifespan
 
@@ -191,7 +191,7 @@ func (svc *HistoryModule) CreateCursor(clientID string, thingID string, affName 
 //	clientID must match the owner of the cursor
 //	cursorKey is the cursor to iterate.
 //	affName is the optional affordance name to search for, or "" for any
-func (svc *HistoryModule) First(clientID string, cursorKey string) (
+func (svc *HistoryServer) First(clientID string, cursorKey string) (
 	value *msg.ThingValue, valid bool, err error) {
 
 	until := time.Now().UTC()
@@ -220,7 +220,7 @@ func (svc *HistoryModule) First(clientID string, cursorKey string) (
 // Last positions the cursor at the last key in the ordered list
 // If an affordance name is provided then it rewinds to the first available value
 // for that affordance.
-func (svc *HistoryModule) Last(clientID string, cursorKey string) (
+func (svc *HistoryServer) Last(clientID string, cursorKey string) (
 	tv *msg.ThingValue, valid bool, err error) {
 
 	// the beginning of time?
@@ -254,7 +254,7 @@ func (svc *HistoryModule) Last(clientID string, cursorKey string) (
 //	cursor to iterate
 //	affName is the affordance name to match
 //	until is the time not to exceed in the result. Intended to avoid unnecessary iteration in range queries
-func (svc *HistoryModule) next(
+func (svc *HistoryServer) next(
 	cursor bucketstore.IBucketCursor, affName string, until time.Time) (
 	thingValue *msg.ThingValue, found bool) {
 
@@ -294,7 +294,7 @@ func (svc *HistoryModule) next(
 }
 
 // Read the next number of items until time or count limit is reached
-func (svc *HistoryModule) nextN(
+func (svc *HistoryServer) nextN(
 	cursor bucketstore.IBucketCursor, affName string, endTime time.Time, limit int) (
 	items []*msg.ThingValue, itemsRemaining bool) {
 
@@ -316,7 +316,7 @@ func (svc *HistoryModule) nextN(
 // If affName is provided then continue iterating until the affordance name matches.
 // First() or Seek must have been called first.
 // This returns an error if the cursor is not found.
-func (svc *HistoryModule) Next(clientID string, cursorKey string) (
+func (svc *HistoryServer) Next(clientID string, cursorKey string) (
 	tv *msg.ThingValue, valid bool, err error) {
 
 	cursor, ci, err := svc.cursorCache.Get(clientID, cursorKey, true)
@@ -336,7 +336,7 @@ func (svc *HistoryModule) Next(clientID string, cursorKey string) (
 // This returns the list with values and itemsRemaining, which is false if the iterator
 // has reached the end.
 // Intended to speed up with batch iterations over rpc.
-func (svc *HistoryModule) NextN(
+func (svc *HistoryServer) NextN(
 	clientID string, cursorKey string, until time.Time, limit int) (
 	tvList []*msg.ThingValue, itemsRemaining bool, err error) {
 
@@ -364,7 +364,7 @@ func (svc *HistoryModule) NextN(
 //	affName is the value affordance name (event,prop,action name) to match or "" for any.
 //	until is the limit of the time to read. Intended for time-range queries and
 //	to avoid unnecessary iteration in range queries
-func (svc *HistoryModule) prev(
+func (svc *HistoryServer) prev(
 	cursor bucketstore.IBucketCursor, affName string, until time.Time) (
 	thingValue *msg.ThingValue, found bool) {
 
@@ -405,7 +405,7 @@ func (svc *HistoryModule) prev(
 }
 
 // prevN reads the previous number of items until time or count limit is reached
-func (svc *HistoryModule) prevN(
+func (svc *HistoryServer) prevN(
 	cursor bucketstore.IBucketCursor, affName string, endTime time.Time, limit int) (
 	items []*msg.ThingValue, itemsRemaining bool) {
 
@@ -426,7 +426,7 @@ func (svc *HistoryModule) prevN(
 // Prev moves the cursor to the previous key from the current cursor
 // Last() or Seek must have been called first.
 // This returns an error if the cursor is not found.
-func (svc *HistoryModule) Prev(clientID string, cursorKey string) (
+func (svc *HistoryServer) Prev(clientID string, cursorKey string) (
 	tv *msg.ThingValue, valid bool, err error) {
 
 	cursor, ci, err := svc.cursorCache.Get(clientID, cursorKey, true)
@@ -445,7 +445,7 @@ func (svc *HistoryModule) Prev(clientID string, cursorKey string) (
 //
 // itemsRemaining returns false if the iterator has reached the beginning.
 // Intended to speed up with batch iterations over rpc.
-func (svc *HistoryModule) PrevN(
+func (svc *HistoryServer) PrevN(
 	clientID string, cursorKey string, until time.Time, limit int) (
 	tvList []*msg.ThingValue, itemsRemaining bool, err error) {
 
@@ -462,7 +462,7 @@ func (svc *HistoryModule) PrevN(
 }
 
 // ReadHistory returns the history for the given thingID, name and time range
-func (svc *HistoryModule) ReadHistory(
+func (svc *HistoryServer) ReadHistory(
 	thingID string, affName string, timestamp time.Time, durationSec int, limit int) (
 	values []*msg.ThingValue, itemsRemaining bool, err error) {
 
@@ -501,13 +501,13 @@ func (svc *HistoryModule) ReadHistory(
 
 // ReleaseCursor frees the cursor resources.
 // This invalidates all values obtained from the cursor
-func (svc *HistoryModule) ReleaseCursor(clientID string, cursorKey string) error {
+func (svc *HistoryServer) ReleaseCursor(clientID string, cursorKey string) error {
 
 	return svc.cursorCache.Release(clientID, cursorKey)
 }
 
 // seek internal function for seeking a time and affordance name
-func (svc *HistoryModule) seek(
+func (svc *HistoryServer) seek(
 	cursor bucketstore.IBucketCursor, ts time.Time, affName string) (
 	tv *msg.ThingValue, valid bool) {
 
@@ -536,7 +536,7 @@ func (svc *HistoryModule) seek(
 // Seek positions the cursor at the given time stamp and affordance name.
 // If the key is not found, the next key is returned.
 // This returns an error if the cursor is not valid.
-func (svc *HistoryModule) Seek(
+func (svc *HistoryServer) Seek(
 	clientID string, cursorKey string, ts time.Time) (
 	tv *msg.ThingValue, valid bool, err error) {
 

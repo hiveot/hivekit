@@ -1,4 +1,4 @@
-package module
+package authnserver
 
 import (
 	"crypto/ed25519"
@@ -9,9 +9,8 @@ import (
 
 	"github.com/hiveot/hivekit/go/modules"
 	"github.com/hiveot/hivekit/go/modules/authn"
-	"github.com/hiveot/hivekit/go/modules/authn/module/authenticators"
-	"github.com/hiveot/hivekit/go/modules/authn/module/authnstore"
-	"github.com/hiveot/hivekit/go/modules/authn/server"
+	"github.com/hiveot/hivekit/go/modules/authn/server/authenticators"
+	"github.com/hiveot/hivekit/go/modules/authn/server/authnstore"
 	"github.com/hiveot/hivekit/go/modules/transports"
 	"github.com/hiveot/hivekit/go/msg"
 	"github.com/hiveot/hivekit/go/utils"
@@ -39,7 +38,7 @@ type AuthnModule struct {
 	sessionStart map[string]time.Time
 
 	// Messaging API handlers
-	userHttpHandler *server.UserHttpHandler
+	userHttpHandler *UserHttpHandler
 }
 
 // AddClient adds a client. This fails if the client already exists
@@ -108,7 +107,7 @@ func (m *AuthnModule) DecodeToken(token string, signedNonce string, nonce string
 // Including the auth endpoint here is currently just a hint. How to integrate this?
 func (m *AuthnModule) GetConnectURL() string {
 	baseURL := m.httpServer.GetConnectURL()
-	loginURL, _ := url.JoinPath(baseURL, server.HttpPostLoginPath)
+	loginURL, _ := url.JoinPath(baseURL, HttpPostLoginPath)
 	return loginURL
 }
 
@@ -126,10 +125,10 @@ func (m *AuthnModule) GetProfiles() (profiles []authn.ClientProfile, err error) 
 func (m *AuthnModule) HandleRequest(req *msg.RequestMessage, replyTo msg.ResponseHandler) error {
 
 	//TODO: handle read property requests? admin or user?
-	if req.ThingID == server.AuthnAdminServiceID {
-		return server.HandleAuthnAdminRequest(m, req, replyTo)
-	} else if req.ThingID == server.AuthnUserServiceID {
-		return server.HandleAuthnUserRequest(m, req, replyTo)
+	if req.ThingID == AuthnAdminServiceID {
+		return HandleAuthnAdminRequest(m, req, replyTo)
+	} else if req.ThingID == AuthnUserServiceID {
+		return HandleAuthnUserRequest(m, req, replyTo)
 	} else {
 		// forward
 		return m.HiveModuleBase.HandleRequest(req, replyTo)
@@ -185,7 +184,7 @@ func (m *AuthnModule) SetHttpServer(httpServer transports.IHttpServer) {
 	if m.httpServer != nil {
 		panic("An HTTP server is already set")
 	}
-	m.userHttpHandler = server.NewUserHttpHandler(m, m.httpServer)
+	m.userHttpHandler = NewUserHttpHandler(m, m.httpServer)
 }
 
 // Change the password of a client
@@ -221,7 +220,7 @@ func (m *AuthnModule) Start(yamlConfig string) (err error) {
 		m.authnStore, signingPrivKey.(ed25519.PrivateKey))
 
 	if m.httpServer != nil {
-		m.userHttpHandler = server.NewUserHttpHandler(m, m.httpServer)
+		m.userHttpHandler = NewUserHttpHandler(m, m.httpServer)
 	}
 	return err
 }
@@ -331,7 +330,7 @@ func (m *AuthnModule) ValidateToken(token string) (
 //
 // authnConfig contains the password storage and token management configuration
 // httpServer to server the http endpoint or nil to not use http.
-func NewAuthnModule(authnConfig authn.AuthnConfig, httpServer transports.IHttpServer) *AuthnModule {
+func NewAuthnServer(authnConfig authn.AuthnConfig, httpServer transports.IHttpServer) *AuthnModule {
 
 	m := &AuthnModule{
 		config:       authnConfig,
