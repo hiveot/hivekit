@@ -13,7 +13,7 @@ const DefaultHistoryModuleID = "history"
 // DefaultLimit nr items of none provided
 const DefaultLimit = 1000
 
-// IHistoryModule defines the interface to the directory service module
+// IHistoryServer defines the interface to the directory service module
 // This is implemented in the module and the client api
 //
 // The history persists values stored per ThingID. Values are ordered by timestamp and
@@ -27,7 +27,7 @@ const DefaultLimit = 1000
 //
 // To prevent cursor hijacking, it is linked to the authenticated clientID of the caller
 // The caller's clientID of all iteration requests must match that of the cursor creator.
-type IHistoryModule interface {
+type IHistoryServer interface {
 	modules.IHiveModule
 
 	// CreateCursor creates a new iterator for reading historical values of a Thing.

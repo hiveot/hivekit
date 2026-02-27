@@ -24,9 +24,9 @@ const (
 	ActionUpdateThing       = "updateThing"
 )
 
-// IDirectoryModule defines the interface to the directory service module
+// IDirectoryServer defines the interface to the directory module server
 // This is implemented in the service and the client api
-type IDirectoryModule interface {
+type IDirectoryServer interface {
 	modules.IHiveModule
 
 	// CreateThing creates or updates the TD in the directory.

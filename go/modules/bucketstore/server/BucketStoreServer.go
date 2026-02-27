@@ -1,5 +1,5 @@
 // package module with the directory module factory
-package module
+package bucketstoreserver
 
 import (
 	_ "embed"
@@ -7,7 +7,6 @@ import (
 
 	"github.com/hiveot/hivekit/go/modules"
 	"github.com/hiveot/hivekit/go/modules/bucketstore"
-	"github.com/hiveot/hivekit/go/modules/bucketstore/server"
 	"github.com/hiveot/hivekit/go/modules/bucketstore/stores"
 	"github.com/hiveot/hivekit/go/modules/bucketstore/stores/kvbtree"
 	"github.com/hiveot/hivekit/go/msg"
@@ -16,13 +15,13 @@ import (
 // storage name and thingID
 const DefaultBucketStoreThingID = "bucketstore"
 
-// BucketStoreModule is a module for providing a persistent key-value storage
+// BucketStoreServer is a module for providing a persistent key-value storage
 // for remote services and bindings.
 // It is primarily intended for shared storage under 1GB used by one or more
 // services.
 //
 // The module is configured using yaml.
-type BucketStoreModule struct {
+type BucketStoreServer struct {
 	modules.HiveModuleBase
 
 	// Storage type from config, kvbtree for small stores <100MB) or pebble for big ones
@@ -41,15 +40,15 @@ type BucketStoreModule struct {
 	// cursorCache *CursorCache
 
 	// the WoT messaging API
-	msgAPI *server.BucketMsgHandler
+	msgAPI *BucketMsgHandler
 }
 
-func (m *BucketStoreModule) GetService() bucketstore.IBucketStore {
+func (m *BucketStoreServer) GetService() bucketstore.IBucketStore {
 	return m.store
 }
 
 // HandleRequest passes the module request messages to the API handler.
-func (m *BucketStoreModule) HandleRequest(req *msg.RequestMessage, replyTo msg.ResponseHandler) (err error) {
+func (m *BucketStoreServer) HandleRequest(req *msg.RequestMessage, replyTo msg.ResponseHandler) (err error) {
 	var resp *msg.ResponseMessage
 	if m.msgAPI != nil {
 		resp = m.msgAPI.HandleRequest(req)
@@ -68,7 +67,7 @@ func (m *BucketStoreModule) HandleRequest(req *msg.RequestMessage, replyTo msg.R
 // messaging request handler.
 //
 // yamlConfig with optional configuration (todo)
-func (m *BucketStoreModule) Start(yamlConfig string) (err error) {
+func (m *BucketStoreServer) Start(yamlConfig string) (err error) {
 
 	// if a storage directory is provided then open a store under the given name.
 	// otherwise create an in-memory store.
@@ -81,7 +80,7 @@ func (m *BucketStoreModule) Start(yamlConfig string) (err error) {
 	}
 	err = m.store.Open()
 	if err == nil {
-		m.msgAPI = server.NewBucketMsgHandler(m.GetModuleID(), m.store)
+		m.msgAPI = NewBucketMsgHandler(m.GetModuleID(), m.store)
 	}
 	// for remote iterators
 	// m.cursorCache = NewCursorCache()
@@ -90,7 +89,7 @@ func (m *BucketStoreModule) Start(yamlConfig string) (err error) {
 }
 
 // Stop any running actions
-func (m *BucketStoreModule) Stop() {
+func (m *BucketStoreServer) Stop() {
 	if m.bucket != nil {
 		m.bucket.Close()
 		m.bucket = nil
@@ -108,9 +107,9 @@ func (m *BucketStoreModule) Stop() {
 // {storageRoot}/{moduleID}.
 //
 // storageRoot is the application storage root directory, "" for testing with in-memory storage
-func NewBucketStoreModule(storageRoot string, storeType string) *BucketStoreModule {
+func NewBucketStoreServer(storageRoot string, storeType string) *BucketStoreServer {
 
-	m := &BucketStoreModule{
+	m := &BucketStoreServer{
 		HiveModuleBase: modules.HiveModuleBase{},
 		storageRoot:    storageRoot,
 		StoreType:      storeType,

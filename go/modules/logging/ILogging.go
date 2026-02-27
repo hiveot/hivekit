@@ -12,6 +12,8 @@ const (
 )
 const DefaultLoggingModuleID = "logging"
 
+// ILoggingModule logging module interface.
+// This does not have an external API.
 type ILoggingModule interface {
 	modules.IHiveModule
 }

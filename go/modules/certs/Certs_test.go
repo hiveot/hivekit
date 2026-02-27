@@ -22,13 +22,13 @@ var TestCertDir string
 // private key type used in test
 const TestKeyType = utils.KeyTypeECDSA
 
-func startModule(t *testing.T) (*certsserver.CertsModule, func(), error) {
+func startModule(t *testing.T) (*certsserver.CertsServer, func(), error) {
 	testCertDir := filepath.Join(os.TempDir(), "hiveot-certs-test")
 
 	// clea start
 	_ = os.RemoveAll(TestCertDir)
 
-	m := certsserver.NewCertsModule(testCertDir)
+	m := certsserver.NewCertsServer(testCertDir)
 	err := m.Start("")
 	require.NoError(t, err)
 	return m, func() {

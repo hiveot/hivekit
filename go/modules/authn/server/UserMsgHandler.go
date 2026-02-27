@@ -45,11 +45,11 @@ type UserSetPasswordArgs struct {
 
 // UserMsgServer provides the RRN messaging server for the authn user service.
 type UserMsgHandler struct {
-	m authn.IAuthnModule
+	m authn.IAuthnServer
 }
 
 // HandleAuthnUserRequest returns the RRN handler for the auth user requests.
-func HandleAuthnUserRequest(m authn.IAuthnModule, req *msg.RequestMessage, replyTo msg.ResponseHandler) error {
+func HandleAuthnUserRequest(m authn.IAuthnServer, req *msg.RequestMessage, replyTo msg.ResponseHandler) error {
 	var output any
 	var err error
 	switch req.Name {

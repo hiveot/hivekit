@@ -145,6 +145,6 @@ func NewHistoryServer(storeDirectory string, backend string) *HistoryServer {
 	// m.config = NewHistoryConfig()
 	m.config = config.NewHistoryConfig(storeDirectory, backend)
 
-	var _ history.IHistoryModule = m // interface check
+	var _ history.IHistoryServer = m // interface check
 	return m
 }

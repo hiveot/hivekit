@@ -13,15 +13,15 @@ import (
 	"github.com/hiveot/hivekit/go/modules/certs/certutils"
 )
 
-// CertsModule is a module for managing certificates.
-// This implements IHiveModule and ICertsService interfaces.
+// CertsServer is a module for managing certificates.
+// This implements IHiveModule and ICertsServer interfaces.
 //
 // The module can be accessed:
 //  1. Natively from golang. The module supports the ICertsService interface.
 //  2. Using hivekit RRN messaging (request-response-notification). See CertsMsgHandler.go
 //
 // # See certs-tm.json for the WoT TM definition of the module.
-type CertsModule struct {
+type CertsServer struct {
 	// base forwards unhandled requests and notifications
 	modules.HiveModuleBase
 
@@ -42,7 +42,7 @@ type CertsModule struct {
 
 // GetTM returns the module TM document
 // It includes forms for messaging access through the WoT.
-func (m *CertsModule) GetTM() string {
+func (m *CertsServer) GetTM() string {
 	tmJson := CertsTMJson
 	return string(tmJson)
 }
@@ -50,7 +50,7 @@ func (m *CertsModule) GetTM() string {
 // Start readies the certificate management module for use.
 //
 // yamlConfig : todo
-func (m *CertsModule) Start(yamlConfig string) (err error) {
+func (m *CertsServer) Start(yamlConfig string) (err error) {
 
 	caCertPath := path.Join(m.certsDir, certs.DefaultCaCertName)
 	caKeyPath := path.Join(m.certsDir, certs.DefaultCaKeyName)
@@ -81,18 +81,18 @@ func (m *CertsModule) Start(yamlConfig string) (err error) {
 }
 
 // Stop any running actions
-func (m *CertsModule) Stop() {
+func (m *CertsServer) Stop() {
 	// m.service.Stop()
 }
 
-// Create a new certificate management module
+// Create a new certificate server module
 // certsDir is the storage directory to read or create keys and certificates.
-func NewCertsModule(certsDir string) *CertsModule {
-	m := &CertsModule{
+func NewCertsServer(certsDir string) *CertsServer {
+	m := &CertsServer{
 		certsDir: certsDir,
 	}
 	m.SetModuleID(certs.DefaultCertsThingID)
 	var _ modules.IHiveModule = m // interface check
-	var _ certs.ICertsService = m // interface check
+	var _ certs.ICertsServer = m  // interface check
 	return m
 }

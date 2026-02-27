@@ -10,7 +10,7 @@ import (
 	"github.com/hiveot/hivekit/go/wot"
 )
 
-// CertsMsgClient is a client for the Certificate service using RRN messages.
+// CertsMsgClient is a client for the Certificate module using RRN messages.
 // This implements the ICertsService interface.
 type CertsMsgClient struct {
 	modules.HiveModuleBase // clients can be used as modules

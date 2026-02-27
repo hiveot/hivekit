@@ -17,11 +17,11 @@ import (
 	"github.com/hiveot/hivekit/go/wot/td"
 )
 
-// AuthnModule is a module that manages clients and issues authentication tokens.
+// AuthnServer is a module that manages clients and issues authentication tokens.
 //
 // This implements IHiveModule and IAuthnModule interfaces and is facade for the
 // account store and authenticator.
-type AuthnModule struct {
+type AuthnServer struct {
 	modules.HiveModuleBase
 
 	config authn.AuthnConfig
@@ -43,7 +43,7 @@ type AuthnModule struct {
 
 // AddClient adds a client. This fails if the client already exists
 // This should only be usable by administrators.
-func (m *AuthnModule) AddClient(clientID string, displayName string, role string) error {
+func (m *AuthnServer) AddClient(clientID string, displayName string, role string) error {
 
 	_, err := m.authnStore.GetProfile(clientID)
 	if err == nil {
@@ -59,7 +59,7 @@ func (m *AuthnModule) AddClient(clientID string, displayName string, role string
 }
 
 // AddSecurityScheme adds the authenticator's security scheme to the given TD.
-func (m *AuthnModule) AddSecurityScheme(tdoc *td.TD) {
+func (m *AuthnServer) AddSecurityScheme(tdoc *td.TD) {
 	m.authenticator.AddSecurityScheme(tdoc)
 }
 
@@ -76,7 +76,7 @@ func (m *AuthnModule) AddSecurityScheme(tdoc *td.TD) {
 //	validity is the token validity period.
 //
 // This returns the token
-func (m *AuthnModule) CreateSessionToken(clientID string, validity time.Duration) (
+func (m *AuthnServer) CreateSessionToken(clientID string, validity time.Duration) (
 	token string, validUntil time.Time, err error) {
 
 	//
@@ -90,7 +90,7 @@ func (m *AuthnModule) CreateSessionToken(clientID string, validity time.Duration
 // DecodeToken decodes the given token using the configured authenticator.
 // optionally verify the signed nonce using the client's public key.
 // This returns the auth info stored in the token.
-func (m *AuthnModule) DecodeToken(token string, signedNonce string, nonce string) (
+func (m *AuthnServer) DecodeToken(token string, signedNonce string, nonce string) (
 	clientID string, issuedAt time.Time, validUntil time.Time, err error) {
 	return m.authenticator.DecodeToken(token, signedNonce, nonce)
 }
@@ -105,24 +105,24 @@ func (m *AuthnModule) DecodeToken(token string, signedNonce string, nonce string
 // Note that web browsers do not directly access the runtime endpoints.
 // Instead a web server (hiveoview or other) provides the user interface.
 // Including the auth endpoint here is currently just a hint. How to integrate this?
-func (m *AuthnModule) GetConnectURL() string {
+func (m *AuthnServer) GetConnectURL() string {
 	baseURL := m.httpServer.GetConnectURL()
 	loginURL, _ := url.JoinPath(baseURL, HttpPostLoginPath)
 	return loginURL
 }
 
 // GetProfile return the client's profile
-func (m *AuthnModule) GetProfile(clientID string) (profile authn.ClientProfile, err error) {
+func (m *AuthnServer) GetProfile(clientID string) (profile authn.ClientProfile, err error) {
 	return m.authnStore.GetProfile(clientID)
 }
 
 // GetProfile return a list of client profiles
-func (m *AuthnModule) GetProfiles() (profiles []authn.ClientProfile, err error) {
+func (m *AuthnServer) GetProfiles() (profiles []authn.ClientProfile, err error) {
 	return m.authnStore.GetProfiles()
 }
 
 // Handle requests to be served by this module
-func (m *AuthnModule) HandleRequest(req *msg.RequestMessage, replyTo msg.ResponseHandler) error {
+func (m *AuthnServer) HandleRequest(req *msg.RequestMessage, replyTo msg.ResponseHandler) error {
 
 	//TODO: handle read property requests? admin or user?
 	if req.ThingID == AuthnAdminServiceID {
@@ -142,7 +142,7 @@ func (m *AuthnModule) HandleRequest(req *msg.RequestMessage, replyTo msg.Respons
 //	password to verify
 //
 // This returns a session token, its session ID, or an error if failed
-func (m *AuthnModule) Login(
+func (m *AuthnServer) Login(
 	clientID string, password string) (token string, validUntil time.Time, err error) {
 
 	// a user login always creates a session token
@@ -166,7 +166,7 @@ func (m *AuthnModule) Login(
 }
 
 // Logout removes the client session
-func (m *AuthnModule) Logout(clientID string) {
+func (m *AuthnServer) Logout(clientID string) {
 	_, found := m.sessionStart[clientID]
 	if found {
 		delete(m.sessionStart, clientID)
@@ -174,13 +174,13 @@ func (m *AuthnModule) Logout(clientID string) {
 }
 
 // Remove a client
-func (m *AuthnModule) RemoveClient(clientID string) error {
+func (m *AuthnServer) RemoveClient(clientID string) error {
 	return m.authnStore.Remove(clientID)
 }
 
 // Set the http server to open up the http endpoints
 // If an http server is already set then this panics.
-func (m *AuthnModule) SetHttpServer(httpServer transports.IHttpServer) {
+func (m *AuthnServer) SetHttpServer(httpServer transports.IHttpServer) {
 	if m.httpServer != nil {
 		panic("An HTTP server is already set")
 	}
@@ -188,12 +188,12 @@ func (m *AuthnModule) SetHttpServer(httpServer transports.IHttpServer) {
 }
 
 // Change the password of a client
-func (m *AuthnModule) SetPassword(clientID string, password string) error {
+func (m *AuthnServer) SetPassword(clientID string, password string) error {
 	return m.authnStore.SetPassword(clientID, password)
 }
 
 // Change the role of a client
-func (m *AuthnModule) SetRole(clientID string, role string) error {
+func (m *AuthnServer) SetRole(clientID string, role string) error {
 	return m.authnStore.SetRole(clientID, role)
 }
 
@@ -202,7 +202,7 @@ func (m *AuthnModule) SetRole(clientID string, role string) error {
 // authenticator instance.
 //
 // yamlConfig with module startup configuration (todo)
-func (m *AuthnModule) Start(yamlConfig string) (err error) {
+func (m *AuthnServer) Start(yamlConfig string) (err error) {
 
 	passwordFile := m.config.PasswordFile
 	encryption := m.config.Encryption
@@ -227,7 +227,7 @@ func (m *AuthnModule) Start(yamlConfig string) (err error) {
 
 // RefreshToken requests a new token based on the old token
 // This requires that the existing session is still valid
-func (m *AuthnModule) RefreshToken(senderID string, oldToken string) (
+func (m *AuthnServer) RefreshToken(senderID string, oldToken string) (
 	newToken string, validUntil time.Time, err error) {
 
 	// validation only succeeds if there is an active session
@@ -253,13 +253,13 @@ func (m *AuthnModule) RefreshToken(senderID string, oldToken string) (
 }
 
 // Stop closes the client store and releases resources
-func (m *AuthnModule) Stop() {
+func (m *AuthnServer) Stop() {
 	m.authnStore.Close()
 }
 
 // UpdateProfile update the client profile
 // only administrators are allowed to update the role
-func (m *AuthnModule) UpdateProfile(senderID string, newProfile authn.ClientProfile) error {
+func (m *AuthnServer) UpdateProfile(senderID string, newProfile authn.ClientProfile) error {
 	senderProf, err := m.authnStore.GetProfile(senderID)
 	if err != nil {
 		return fmt.Errorf("Unknown sender '%s'", senderID)
@@ -282,14 +282,14 @@ func (m *AuthnModule) UpdateProfile(senderID string, newProfile authn.ClientProf
 	return m.authnStore.UpdateProfile(newProfile)
 }
 
-func (m *AuthnModule) ValidatePassword(clientID, password string) (err error) {
+func (m *AuthnServer) ValidatePassword(clientID, password string) (err error) {
 	clientProfile, err := m.authnStore.VerifyPassword(clientID, password)
 	_ = clientProfile
 	return err
 }
 
 // ValidateToken verifies the token and client are valid.
-func (m *AuthnModule) ValidateToken(token string) (
+func (m *AuthnServer) ValidateToken(token string) (
 	clientID string, validUntil time.Time, err error) {
 
 	clientID, issuedAt, validUntil, err := m.authenticator.ValidateToken(token)
@@ -330,14 +330,14 @@ func (m *AuthnModule) ValidateToken(token string) (
 //
 // authnConfig contains the password storage and token management configuration
 // httpServer to server the http endpoint or nil to not use http.
-func NewAuthnServer(authnConfig authn.AuthnConfig, httpServer transports.IHttpServer) *AuthnModule {
+func NewAuthnServer(authnConfig authn.AuthnConfig, httpServer transports.IHttpServer) *AuthnServer {
 
-	m := &AuthnModule{
+	m := &AuthnServer{
 		config:       authnConfig,
 		httpServer:   httpServer,
 		sessionStart: make(map[string]time.Time),
 	}
 	var _ modules.IHiveModule = m // interface check
-	var _ authn.IAuthnModule = m  // interface check
+	var _ authn.IAuthnServer = m  // interface check
 	return m
 }

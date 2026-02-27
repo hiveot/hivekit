@@ -42,7 +42,7 @@ func TestMain(m *testing.M) {
 
 // Start a test environment with a directory module connected to the server
 func StartDirectoryServer() (
-	testEnv *tptests.TestEnv, m directory.IDirectoryModule, cancelFn func()) {
+	testEnv *tptests.TestEnv, m directory.IDirectoryServer, cancelFn func()) {
 
 	testEnv, cancelTestEnv := tptests.StartTestEnv(defaultProtocol)
 	// use in-memory storage

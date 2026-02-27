@@ -86,7 +86,7 @@ type ClientProfile struct {
 
 // Authentication server for login and refresh tokens.
 // This implements the facilities for managing clients.
-type IAuthnModule interface {
+type IAuthnServer interface {
 	modules.IHiveModule
 
 	// AddClient add a new client account. This fails if the client already exists.

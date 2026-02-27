@@ -13,7 +13,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/hiveot/hivekit/go/modules/authn"
-	"github.com/hiveot/hivekit/go/modules/authn/module/authnstore"
+	"github.com/hiveot/hivekit/go/modules/authn/server/authnstore"
 	"github.com/hiveot/hivekit/go/utils"
 )
 

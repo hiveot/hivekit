@@ -33,7 +33,7 @@ const DefaultCA_Validity = 365*20 + 5
 //
 // validityDays is the CA's validity in days
 // This returns the CA, key or an error
-func (m *CertsModule) CreateCACert() (
+func (m *CertsServer) CreateCACert() (
 	caCert *x509.Certificate, privKey crypto.PrivateKey, err error) {
 
 	caCert, privKey, _, err = selfsigned.CreateSelfSignedCA(
@@ -78,7 +78,7 @@ func (m *CertsModule) CreateCACert() (
 //
 // The certificate will be signed by the CA on file, if present.
 // If LetsEncrypt is configured then an internet connection is required. (a future feature)
-func (m *CertsModule) CreateServerCert(
+func (m *CertsServer) CreateServerCert(
 	moduleID string, hostname string,
 	serverPrivKey crypto.PrivateKey, serverPubKey crypto.PublicKey) (
 	tlsCert *tls.Certificate, err error) {
@@ -112,7 +112,7 @@ func (m *CertsModule) CreateServerCert(
 }
 
 // Return the configured CA certificate
-func (m *CertsModule) GetCACert() (*x509.Certificate, error) {
+func (m *CertsServer) GetCACert() (*x509.Certificate, error) {
 	if m.caCert == nil {
 		return nil, fmt.Errorf("service not initialized")
 	}
@@ -120,7 +120,7 @@ func (m *CertsModule) GetCACert() (*x509.Certificate, error) {
 }
 
 // Return the default server certificate
-func (m *CertsModule) GetDefaultServerCert() (*x509.Certificate, error) {
+func (m *CertsServer) GetDefaultServerCert() (*x509.Certificate, error) {
 	if m.defaultServerTlsCert == nil {
 		return nil, fmt.Errorf("server cert not initialized")
 	}
@@ -129,7 +129,7 @@ func (m *CertsModule) GetDefaultServerCert() (*x509.Certificate, error) {
 }
 
 // GetServerCert resturn the default shared server certificate.
-func (m *CertsModule) GetDefaultServerTlsCert() (cert *tls.Certificate, err error) {
+func (m *CertsServer) GetDefaultServerTlsCert() (cert *tls.Certificate, err error) {
 
 	if m.defaultServerTlsCert == nil {
 		return cert, fmt.Errorf("the default server certificate is not loaded")
@@ -140,7 +140,7 @@ func (m *CertsModule) GetDefaultServerTlsCert() (cert *tls.Certificate, err erro
 // GetServerCert loads a previously save module server certificate from the
 // certificate directory.
 // The file names used are {moduleID}Cert.pem and {moduleID}Key.pem
-func (m *CertsModule) LoadServerCert(moduleID string) (
+func (m *CertsServer) LoadServerCert(moduleID string) (
 	serverCert *tls.Certificate, err error) {
 
 	if m.certsDir == "" {
@@ -153,7 +153,7 @@ func (m *CertsModule) LoadServerCert(moduleID string) (
 	return serverCert, err
 }
 
-func (m *CertsModule) VerifyCert(moduleID string, cert *x509.Certificate) (err error) {
+func (m *CertsServer) VerifyCert(moduleID string, cert *x509.Certificate) (err error) {
 	cn, err := selfsigned.VerifyCert(cert, m.caCert)
 	if err == nil {
 		if cn != moduleID {

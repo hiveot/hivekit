@@ -180,7 +180,7 @@ func NewDirectoryHttpClient(serverURL string, caCert *x509.Certificate) *Directo
 		tlsClient: tlsClient,
 	}
 
-	var _ directory.IDirectoryModule = cl // API check
+	var _ directory.IDirectoryServer = cl // API check
 
 	return cl
 }

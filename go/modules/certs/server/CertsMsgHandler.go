@@ -19,7 +19,7 @@ var CertsTMJson []byte
 type CertsMsgHandler struct {
 	// the certificate manager instance ThingID that must match the requests
 	thingID string
-	service certs.ICertsService
+	service certs.ICertsServer
 }
 
 // HandleRequest for properties or actions
@@ -81,7 +81,7 @@ func (handler *CertsMsgHandler) GetDefaultServerCert(req *msg.RequestMessage) (r
 
 // Create a new directory message handler. On start this creates the server and store.
 // bucketStore is the store to use for this module chain.
-func NewCertsMsgHandler(thingID string, service certs.ICertsService) *CertsMsgHandler {
+func NewCertsMsgHandler(thingID string, service certs.ICertsServer) *CertsMsgHandler {
 
 	handler := &CertsMsgHandler{
 		thingID: thingID,

@@ -11,7 +11,7 @@ import (
 
 	"github.com/hiveot/hivekit/go/modules/bucketstore"
 	bucketstoreclient "github.com/hiveot/hivekit/go/modules/bucketstore/client"
-	"github.com/hiveot/hivekit/go/modules/bucketstore/module"
+	bucketstoreserver "github.com/hiveot/hivekit/go/modules/bucketstore/server"
 	"github.com/hiveot/hivekit/go/modules/bucketstore/stores"
 	"github.com/hiveot/hivekit/go/modules/transports/direct"
 	"github.com/hiveot/hivekit/go/utils"
@@ -171,8 +171,8 @@ func addDocs(store bucketstore.IBucketStore, bucketID string, count int) error {
 	return err
 }
 
-func startModule(t *testing.T) (*module.BucketStoreModule, func(), error) {
-	m := module.NewBucketStoreModule(storageRoot, testBackendType)
+func startModule(t *testing.T) (*bucketstoreserver.BucketStoreServer, func(), error) {
+	m := bucketstoreserver.NewBucketStoreServer(storageRoot, testBackendType)
 	err := m.Start("")
 	require.NoError(t, err)
 	return m, func() {

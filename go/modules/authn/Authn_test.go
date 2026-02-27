@@ -44,7 +44,7 @@ func TestMain(m *testing.M) {
 //
 // This uses the clientID as password
 // This panics if a client cannot be created
-func NewTestConsumer(m *authnserver.AuthnModule, serverURL, clientID string) (
+func NewTestConsumer(m *authnserver.AuthnServer, serverURL, clientID string) (
 	*clients.Consumer, transports.IConnection, string) {
 
 	// ensure the client exists
@@ -63,7 +63,7 @@ func NewTestConsumer(m *authnserver.AuthnModule, serverURL, clientID string) (
 // This test file sets up the environment for testing authn admin and client services.
 
 // launch the authn module and return the server side message handlers for using and managing it.
-func startTestAuthnModule(encryption string) (m *authnserver.AuthnModule, stopFn func()) {
+func startTestAuthnModule(encryption string) (m *authnserver.AuthnServer, stopFn func()) {
 
 	_ = os.RemoveAll(testDir)
 	_ = os.MkdirAll(testDir, 0700)

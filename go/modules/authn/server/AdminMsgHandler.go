@@ -77,7 +77,7 @@ type AdminGetProfilesResp []struct {
 }
 
 // Handle the admin RRN request
-func HandleAuthnAdminRequest(m authn.IAuthnModule, req *msg.RequestMessage, replyTo msg.ResponseHandler) error {
+func HandleAuthnAdminRequest(m authn.IAuthnServer, req *msg.RequestMessage, replyTo msg.ResponseHandler) error {
 	var output any
 	var err error
 	switch req.Name {

@@ -29,7 +29,7 @@ type UserLoginArgs struct {
 
 // UserHttpHandler for handling user requests such as login, logout, refresh over http
 type UserHttpHandler struct {
-	m          authn.IAuthnModule
+	m          authn.IAuthnServer
 	httpServer transports.IHttpServer
 }
 
@@ -111,7 +111,7 @@ func (handler *UserHttpHandler) onHttpTokenRefresh(w http.ResponseWriter, r *htt
 }
 
 // Create a http server handler for user facing requests and register endpoints
-func NewUserHttpHandler(m authn.IAuthnModule, httpServer transports.IHttpServer) *UserHttpHandler {
+func NewUserHttpHandler(m authn.IAuthnServer, httpServer transports.IHttpServer) *UserHttpHandler {
 	if m == nil || httpServer == nil {
 		panic("NewUserHttpHandler: nil parameter")
 	}

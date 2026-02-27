@@ -15,7 +15,7 @@ import (
 // This support a cursor for long range iteration of the history.
 type ReadHistoryMsgHandler struct {
 	// routing address of the things to read history of
-	histStore history.IHistoryModule
+	histStore history.IHistoryServer
 
 	// cache of remote cursors
 	cursorCache *bucketserver.CursorCache
@@ -232,7 +232,7 @@ func (svc *ReadHistoryMsgHandler) Seek(req *msg.RequestMessage) (*msg.ResponseMe
 //
 //	hc with the message bus connection. Its ID will be used as the agentID that provides the capability.
 //	thingBucket is the open bucket used to store history data
-func NewReadHistoryMsgHandler(histStore history.IHistoryModule) (svc *ReadHistoryMsgHandler) {
+func NewReadHistoryMsgHandler(histStore history.IHistoryServer) (svc *ReadHistoryMsgHandler) {
 
 	svc = &ReadHistoryMsgHandler{
 		histStore:   histStore,
