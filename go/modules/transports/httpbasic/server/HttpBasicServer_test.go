@@ -3,7 +3,7 @@ package httpbasicserver_test
 import (
 	"testing"
 
-	"github.com/hiveot/hivekit/go/modules/transports/httpbasic/httpbasicserver"
+	httpbasicserver "github.com/hiveot/hivekit/go/modules/transports/httpbasic/server"
 	"github.com/hiveot/hivekit/go/modules/transports/tptests"
 	"github.com/stretchr/testify/require"
 )

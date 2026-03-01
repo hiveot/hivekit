@@ -2,17 +2,17 @@
 
 The vcache module is a value-cache of notifications and requests that have passed through the module. This retains the last request and notification message of a Thing affordance.
 
-Requests for reading property, event or action status are answered by obtaining the value from the cache without access the module directly.
+Requests for reading properties and events are answered by obtaining the value from the cache without accessing the module directly. This does require that a subscription exists to the devices used.
 
 This can be used for:
 
-1. Performance improvements in clients to obtain value from the cache instead of querying the device itself.
+1. Performance improvements in clients to obtain values from the cache instead of querying the device itself.
 2. A gateway or hub to respond to queries without querying the device.
-3. Improved security, masking the actual device from the rest of the network by using connection reversal. Especially effective in combination with a twin module.
+3. Improved security, masking the actual device from the rest of the network by using connection reversal while serving requests from the cache. Especially effective in combination with a twin module.
 
 ## Status
 
-This module is under development.
+This module is in alpha. It is functional but basic and breaking changes can be expected.
 
 ## Summary
 

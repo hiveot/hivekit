@@ -3,11 +3,9 @@ package modules
 import (
 	"fmt"
 	"log/slog"
-	"sync"
 
 	"github.com/hiveot/hivekit/go/msg"
 	"github.com/hiveot/hivekit/go/utils"
-	"github.com/hiveot/hivekit/go/wot"
 )
 
 // Module application environment
@@ -31,15 +29,15 @@ type HiveModuleBase struct {
 	// notifications will also be forwarded upstream to the upstream handler.
 	appNotificationHook msg.NotificationHandler
 
-	// requestHandler is the application handler of requests addressed to this module.
+	// appRequestHook is the application handler of requests addressed to this module.
 	//
 	// HandleRequest will invoke this callback or forward requests not destined for
 	// this module (moduleID != request.ThingID) to requestSink.
-	appRequestHandler msg.RequestHandler
+	appRequestHook msg.RequestHandler
 
 	// Map of changed properties intended for sending property change notifications
 	// This map is empty until changes are made using UpdateProperty
-	changedProperties map[string]any
+	// changedProperties map[string]any
 
 	// moduleID/thingID is the unique instance ID of this module.
 	moduleID string
@@ -50,30 +48,37 @@ type HiveModuleBase struct {
 
 	// module properties and their value, nil if not used
 	// use UpdateProperty to modify a value and flag it for change
-	properties map[string]any
+	// properties map[string]any
 
 	// RW mutex to access properties
-	propMux sync.RWMutex
+	// propMux sync.RWMutex
 
 	// requestSink is the sink for forwarding requests messages to
 	requestSink msg.RequestHandler
 }
 
-// ForwardNotification (output) passes notifications to the registered callback.
+// ForwardNotification (output) passes notifications to a registered hook and
+// send it to the a registered sink.
+//
 // If none is registered this does nothing.
 // note that the handler is not the downstream sink but the upstream consumer.
 func (m *HiveModuleBase) ForwardNotification(notif *msg.NotificationMessage) {
-	if m.notificationSink == nil {
-		// End of the line. A downstream module could have subscribed.
-		// Should subscribers not have a direct callback? probably... tbd
+	if m.appNotificationHook != nil {
+		go m.appNotificationHook(notif)
+	}
 
-		// keep this warning for now.
-		slog.Warn("ForwardNotification: no handler set. Notification is dropped.",
-			"module", m.moduleID,
-			"affordance", notif.AffordanceType,
-			"thingID", notif.ThingID,
-			"name", notif.Name,
-		)
+	if m.notificationSink == nil {
+		// End of the line. If the notification isn't handled then warn about it
+		// A downstream module could have subscribed.
+		if m.appNotificationHook == nil {
+			// keep this warning for now.
+			slog.Warn("ForwardNotification: no handler set. Notification is dropped.",
+				"module", m.moduleID,
+				"affordance", notif.AffordanceType,
+				"thingID", notif.ThingID,
+				"name", notif.Name,
+			)
+		}
 		return
 	}
 	m.notificationSink(notif)
@@ -133,17 +138,15 @@ func (m *HiveModuleBase) GetTM() string {
 
 // HandleNotification receives an incoming notification from a producer.
 //
-// The default behavior passes the notification to the registered hook an
-// forwards it upstream to a register notification handler, if set.
+// The default behavior is to passes the notification to the registered hook and
+// send it upstream to a register notification handler, if set.
 //
-// Applications that use notifications should use SetNotificationHook to register
+// Applications that consume notifications should use SetNotificationHook to register
 // its handler as it leaves the chain intact..
 func (m *HiveModuleBase) HandleNotification(notif *msg.NotificationMessage) {
-	if m.appNotificationHook != nil {
-		go m.appNotificationHook(notif)
-	}
 	// the reason for the extra indirection is to ensure we're receiving the notification
 	// independently from when someone sets a custome notification handler.
+	// ForwardNotification will invoke the hook.
 	m.ForwardNotification(notif)
 }
 
@@ -169,8 +172,8 @@ func (m *HiveModuleBase) HandleNotification(notif *msg.NotificationMessage) {
 func (m *HiveModuleBase) HandleRequest(req *msg.RequestMessage, replyTo msg.ResponseHandler) (err error) {
 	var resp *msg.ResponseMessage
 
-	if m.appRequestHandler != nil {
-		err = m.appRequestHandler(req, replyTo)
+	if m.appRequestHook != nil {
+		err = m.appRequestHook(req, replyTo)
 		return err
 	}
 
@@ -180,13 +183,13 @@ func (m *HiveModuleBase) HandleRequest(req *msg.RequestMessage, replyTo msg.Resp
 	// handle the read property requests
 	switch req.Operation {
 
-	case wot.OpReadProperty:
-		resp, err = m.ReadProperty(req)
-	case wot.OpReadMultipleProperties:
-		resp, err = m.ReadMultipleProperties(req)
-	case wot.OpReadAllProperties:
-		resp, err = m.ReadAllProperties(req)
-		// directory specific operations could be handled here
+	// case wot.OpReadProperty:
+	// 	resp, err = m.ReadProperty(req)
+	// case wot.OpReadMultipleProperties:
+	// 	resp, err = m.ReadMultipleProperties(req)
+	// case wot.OpReadAllProperties:
+	// 	resp, err = m.ReadAllProperties(req)
+	// directory specific operations could be handled here
 	default:
 		err := fmt.Errorf("Unhandled request: thingID='%s', op='%s', name='%s", req.ThingID, req.Operation, req.Name)
 		slog.Warn(err.Error())
@@ -198,77 +201,77 @@ func (m *HiveModuleBase) HandleRequest(req *msg.RequestMessage, replyTo msg.Resp
 }
 
 // ReadAllProperties returns a response containing the map of all known property values
-func (m *HiveModuleBase) ReadAllProperties(req *msg.RequestMessage) (resp *msg.ResponseMessage, err error) {
-	m.propMux.RLock()
-	var propValueMap = make(map[string]any, 0)
-	for k, v := range m.properties {
-		propValueMap[k] = v
-	}
-	m.propMux.RUnlock()
-	resp = req.CreateResponse(propValueMap, nil)
-	return resp, err
-}
+// func (m *HiveModuleBase) ReadAllProperties(req *msg.RequestMessage) (resp *msg.ResponseMessage, err error) {
+// 	m.propMux.RLock()
+// 	var propValueMap = make(map[string]any, 0)
+// 	for k, v := range m.properties {
+// 		propValueMap[k] = v
+// 	}
+// 	m.propMux.RUnlock()
+// 	resp = req.CreateResponse(propValueMap, nil)
+// 	return resp, err
+// }
 
 // ReadChangedProperties returns the changed properties and clear the tracked changes
 // Intended to be used with sending a notification of changed properties.
 // This returns nil if no properties have changed.
-func (m *HiveModuleBase) ReadChangedProperties() (changes map[string]any) {
-	m.propMux.Lock()
-	defer m.propMux.Unlock()
+// func (m *HiveModuleBase) ReadChangedProperties() (changes map[string]any) {
+// 	m.propMux.Lock()
+// 	defer m.propMux.Unlock()
 
-	changes = m.changedProperties
-	m.changedProperties = nil
-	return changes
-}
+// 	changes = m.changedProperties
+// 	m.changedProperties = nil
+// 	return changes
+// }
 
 // ReadMultipleProperties returns a response containing the map of requested property values
 // If a requested property doesn't exist then it isn't included in the result. This
 // should be considered an error but not reason enough to fail reading the other properties.
-func (m *HiveModuleBase) ReadMultipleProperties(req *msg.RequestMessage) (resp *msg.ResponseMessage, err error) {
-	var propValueMap = make(map[string]any, 0)
+// func (m *HiveModuleBase) ReadMultipleProperties(req *msg.RequestMessage) (resp *msg.ResponseMessage, err error) {
+// 	var propValueMap = make(map[string]any, 0)
 
-	if m.properties != nil || req.Input != nil {
-		var propNames []string
-		err = utils.DecodeAsObject(req.Input, &propNames)
-		if err != nil {
-			resp = req.CreateErrorResponse(err)
-		} else {
-			m.propMux.RLock()
-			for _, propName := range propNames {
-				propValue, found := m.properties[propName]
-				if found {
-					propValueMap[propName] = propValue
-				} else {
-					// while this is an error, there is no reason to fail the whole request.
-				}
-			}
-			m.propMux.RUnlock()
-			resp = req.CreateResponse(propValueMap, nil)
-		}
-	}
-	return resp, err
-}
+// 	if m.properties != nil || req.Input != nil {
+// 		var propNames []string
+// 		err = utils.DecodeAsObject(req.Input, &propNames)
+// 		if err != nil {
+// 			resp = req.CreateErrorResponse(err)
+// 		} else {
+// 			m.propMux.RLock()
+// 			for _, propName := range propNames {
+// 				propValue, found := m.properties[propName]
+// 				if found {
+// 					propValueMap[propName] = propValue
+// 				} else {
+// 					// while this is an error, there is no reason to fail the whole request.
+// 				}
+// 			}
+// 			m.propMux.RUnlock()
+// 			resp = req.CreateResponse(propValueMap, nil)
+// 		}
+// 	}
+// 	return resp, err
+// }
 
 // ReadProperty returns a response containing the requested property value
 // This returns an error if the property doesn't exist.
-func (m *HiveModuleBase) ReadProperty(req *msg.RequestMessage) (resp *msg.ResponseMessage, err error) {
-	var found bool
-	var propValue any
+// func (m *HiveModuleBase) ReadProperty(req *msg.RequestMessage) (resp *msg.ResponseMessage, err error) {
+// 	var found bool
+// 	var propValue any
 
-	m.propMux.RLock()
-	if m.properties == nil {
-		found = false
-	} else {
-		propValue, found = m.properties[req.Name]
-	}
-	m.propMux.RUnlock()
-	if !found {
-		err = fmt.Errorf("Property '%s' doesn't exist on Thing '%s'", req.Name, req.ThingID)
-		return nil, err
-	}
-	resp = req.CreateResponse(propValue, nil)
-	return resp, err
-}
+// 	m.propMux.RLock()
+// 	if m.properties == nil {
+// 		found = false
+// 	} else {
+// 		propValue, found = m.properties[req.Name]
+// 	}
+// 	m.propMux.RUnlock()
+// 	if !found {
+// 		err = fmt.Errorf("Property '%s' doesn't exist on Thing '%s'", req.Name, req.ThingID)
+// 		return nil, err
+// 	}
+// 	resp = req.CreateResponse(propValue, nil)
+// 	return resp, err
+// }
 
 // Initialize the module base with a moduleID
 //
@@ -290,7 +293,7 @@ func (m *HiveModuleBase) SetNotificationSink(consumer msg.NotificationHandler) {
 // Set the hook to invoke with received requests directed at this module
 // Any other requests received by HandleRequest will be forwarded to the sink.
 func (m *HiveModuleBase) SetRequestHook(hook msg.RequestHandler) {
-	m.appRequestHandler = hook
+	m.appRequestHook = hook
 }
 
 // SetRequestSink sets the producer that will handle requests for this consumer and register this
@@ -308,19 +311,19 @@ func (m *HiveModuleBase) Stop() {}
 
 // UpdateProperty updates the given property value and sends a notification to subscribers.
 // This tracks the changes to properties that can be retrieved with GetChangedProperties()
-func (m *HiveModuleBase) UpdateProperty(name string, val any) {
-	m.propMux.Lock()
-	if m.properties == nil {
-		m.properties = make(map[string]any)
-	}
-	if m.changedProperties == nil {
-		m.changedProperties = make(map[string]any)
-	}
-	m.properties[name] = val
-	m.changedProperties[name] = val
-	m.propMux.Unlock()
+// func (m *HiveModuleBase) UpdateProperty(name string, val any) {
+// 	m.propMux.Lock()
+// 	if m.properties == nil {
+// 		m.properties = make(map[string]any)
+// 	}
+// 	if m.changedProperties == nil {
+// 		m.changedProperties = make(map[string]any)
+// 	}
+// 	m.properties[name] = val
+// 	m.changedProperties[name] = val
+// 	m.propMux.Unlock()
 
-	//
-	notif := msg.NewNotificationMessage(m.moduleID, msg.AffordanceTypeProperty, m.moduleID, name, val)
-	m.ForwardNotification(notif)
-}
+// 	//
+// 	notif := msg.NewNotificationMessage(m.moduleID, msg.AffordanceTypeProperty, m.moduleID, name, val)
+// 	m.ForwardNotification(notif)
+// }
