@@ -9,7 +9,7 @@ import (
 
 	"github.com/grandcat/zeroconf"
 	"github.com/hiveot/hivekit/go/modules"
-	"github.com/hiveot/hivekit/go/modules/directory"
+	directoryapi "github.com/hiveot/hivekit/go/modules/directory/api"
 	"github.com/hiveot/hivekit/go/modules/transports"
 	"github.com/hiveot/hivekit/go/modules/transports/discovery"
 )
@@ -45,7 +45,7 @@ func (m *DiscoveryServer) ServeDirectoryTDD(dirTDJSON string) (err error) {
 	}
 	publicRoute := m.httpServer.GetPublicRoute()
 	// TBD: support for base path?
-	wellKnownPath := directory.WellKnownWoTPath
+	wellKnownPath := directoryapi.WellKnownWoTPath
 	publicRoute.Get(wellKnownPath, func(w http.ResponseWriter, r *http.Request) {
 		_, _ = w.Write([]byte(dirTDJSON))
 	})
@@ -73,7 +73,7 @@ func (m *DiscoveryServer) ServeThingTD(thingTDJSON string) (err error) {
 
 	publicRoute := m.httpServer.GetPublicRoute()
 	// TBD: support for base path?
-	wellKnownPath := directory.WellKnownWoTPath
+	wellKnownPath := directoryapi.WellKnownWoTPath
 	publicRoute.Get(wellKnownPath, func(w http.ResponseWriter, r *http.Request) {
 		_, _ = w.Write([]byte(thingTDJSON))
 	})

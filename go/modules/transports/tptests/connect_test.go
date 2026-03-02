@@ -10,8 +10,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/hiveot/hivekit/go/modules/authn"
-	"github.com/hiveot/hivekit/go/modules/certs/server/selfsigned"
+	authnapi "github.com/hiveot/hivekit/go/modules/authn/api"
+	certstest "github.com/hiveot/hivekit/go/modules/certs/test"
 	"github.com/hiveot/hivekit/go/modules/transports"
 	"github.com/hiveot/hivekit/go/msg"
 	"github.com/hiveot/hivekit/go/utils"
@@ -29,7 +29,7 @@ var defaultProtocol = transports.ProtocolTypeHiveotSSE
 
 // var defaultProtocol = transports.ProtocolTypeWotWSS
 
-var certBundle = selfsigned.CreateTestCertBundle(utils.KeyTypeED25519)
+var certBundle = certstest.CreateTestCertBundle(utils.KeyTypeED25519)
 
 // Create a new form for the given operation
 // This uses the default protocol to generate the Form
@@ -78,7 +78,7 @@ func TestStartStop(t *testing.T) {
 	testEnv, cancelFn := StartTestEnv(defaultProtocol)
 
 	defer cancelFn()
-	co1, cc1, _ := testEnv.NewConsumerClient(testClientID1, authn.ClientRoleViewer, nil)
+	co1, cc1, _ := testEnv.NewConsumerClient(testClientID1, authnapi.ClientRoleViewer, nil)
 	defer cc1.Close()
 	assert.NotNil(t, co1)
 
@@ -91,7 +91,7 @@ func TestPing(t *testing.T) {
 
 	testEnv, cancelFn := StartTestEnv(defaultProtocol)
 	defer cancelFn()
-	co1, cc1, _ := testEnv.NewConsumerClient(testClientID1, authn.ClientRoleViewer, nil)
+	co1, cc1, _ := testEnv.NewConsumerClient(testClientID1, authnapi.ClientRoleViewer, nil)
 	defer cc1.Close()
 
 	for i := 0; i < 1; i++ {
@@ -119,7 +119,7 @@ func TestPing(t *testing.T) {
 // 	authnClient := authnclient.NewAuthnHttpClient(serverURL, certBundle.CaCert)
 
 // 	// 1: Login
-// 	tpauthn.AddClient(testClientID1, testPass)
+// 	tpauthnapi.AddClient(testClientID1, testPass)
 // 	token, err := authnClient.LoginWithPassword(testClientID1, testPass)
 // 	require.NoError(t, err)
 // 	require.NotEmpty(t, token)
@@ -299,7 +299,7 @@ func TestReconnect(t *testing.T) {
 			slog.Info("disconnect")
 		}
 	}
-	co1, cc1, _ := testEnv.NewConsumerClient(testClientID1, authn.ClientRoleViewer, connectHandler)
+	co1, cc1, _ := testEnv.NewConsumerClient(testClientID1, authnapi.ClientRoleViewer, connectHandler)
 	defer cc1.Close()
 
 	//  wait until the connection is established

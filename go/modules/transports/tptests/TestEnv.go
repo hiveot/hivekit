@@ -8,8 +8,8 @@ import (
 	"path"
 	"time"
 
-	"github.com/hiveot/hivekit/go/modules/authn"
-	"github.com/hiveot/hivekit/go/modules/certs/server/selfsigned"
+	authnapi "github.com/hiveot/hivekit/go/modules/authn/api"
+	certstest "github.com/hiveot/hivekit/go/modules/certs/test"
 	"github.com/hiveot/hivekit/go/modules/clients"
 	"github.com/hiveot/hivekit/go/modules/transports"
 	httpbasicserver "github.com/hiveot/hivekit/go/modules/transports/httpbasic/server"
@@ -63,7 +63,7 @@ type TestEnv struct {
 	// Authenticator to use for managing clients
 	DummyAuthn *DummyAuthenticator
 	// certificate bundle to use for this test environment
-	CertBundle selfsigned.TestCertBundle
+	CertBundle certstest.TestCertBundle
 	// base http server
 	HttpServer *httpmodule.HttpServerModule
 	// The transport server connection URL
@@ -184,7 +184,7 @@ func (testEnv *TestEnv) NewRCAgent(clientID string) (
 
 	// cc is the client connection for the agent that receives requests from the
 	// server for the agent and sends notifications to the server.
-	cl, authToken := testEnv.NewClient(clientID, authn.ClientRoleAgent, nil)
+	cl, authToken := testEnv.NewClient(clientID, authnapi.ClientRoleAgent, nil)
 
 	// simple agent, no application request handler yet
 	agent := clients.NewAgent(clientID+"-agent", nil)
@@ -293,7 +293,7 @@ func (testEnv *TestEnv) StartHttpServer() {
 // This sets the storage root directory to {os.TempDir}/hivekit
 func NewTestEnv() *TestEnv {
 	testEnv := &TestEnv{
-		CertBundle:  selfsigned.CreateTestCertBundle(utils.KeyTypeED25519),
+		CertBundle:  certstest.CreateTestCertBundle(utils.KeyTypeED25519),
 		DummyAuthn:  NewDummyAuthenticator(),
 		StorageRoot: path.Join(os.TempDir(), "hivekit"),
 	}

@@ -1,6 +1,6 @@
-# Logging Module
+# logging - Request and Notification Logging
 
-Logging captures the message flow and writes a filtered copy to the designated output.
+The logging modules captures the message flow and writes a filtered copy to the designated output.
 
 The purpose is to track specific messages for review later.
 

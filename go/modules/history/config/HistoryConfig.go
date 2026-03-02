@@ -1,8 +1,8 @@
 package config
 
 import (
-	"github.com/hiveot/hivekit/go/modules/bucketstore"
-	"github.com/hiveot/hivekit/go/modules/history"
+	bucketstoreapi "github.com/hiveot/hivekit/go/modules/bucketstore/api"
+	historyapi "github.com/hiveot/hivekit/go/modules/history/api"
 	"github.com/hiveot/hivekit/go/msg"
 )
 
@@ -19,19 +19,19 @@ type HistoryConfig struct {
 	StoreDirectory string `yaml:"storeDirectory"`
 
 	// Default retention from config by event name
-	// optional filter for notifications to record. If not provided no notifications are recorded.
+	// optional filter for notifications to record. If not provided all notifications are recorded.
 	NotificationFilter msg.MessageFilter `yaml:"notifications,omitempty"`
-	// optional filter for requests to record. If not provided no requests are recorded.
+	// optional filter for requests to record. If not provided all requests are recorded.
 	RequestFilter msg.MessageFilter `yaml:"requests,omitempty"`
 }
 
 // NewHistoryConfig creates a new config with default values
 func NewHistoryConfig(storeDirectory string, backend string) HistoryConfig {
 	if backend == "" {
-		backend = bucketstore.BackendPebble
+		backend = bucketstoreapi.BackendPebble
 	}
 	cfg := HistoryConfig{
-		ModuleID:       history.DefaultHistoryModuleID,
+		ModuleID:       historyapi.DefaultHistoryModuleID,
 		Backend:        backend,
 		StoreDirectory: storeDirectory,
 	}

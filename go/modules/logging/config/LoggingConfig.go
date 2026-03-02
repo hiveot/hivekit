@@ -1,7 +1,7 @@
 package config
 
 import (
-	"github.com/hiveot/hivekit/go/modules/logging"
+	loggingapi "github.com/hiveot/hivekit/go/modules/logging/api"
 	"github.com/hiveot/hivekit/go/msg"
 )
 
@@ -39,13 +39,13 @@ type LoggingConfig struct {
 // backend is the default backend to use
 func NewLoggingConfig(logDestination string, backend string) LoggingConfig {
 	if backend == "" {
-		backend = logging.LoggingBackendFile
+		backend = loggingapi.LoggingBackendFile
 	}
 	if logDestination == "" {
 
 	}
 	cfg := LoggingConfig{
-		ModuleID:       logging.DefaultLoggingModuleID,
+		ModuleID:       loggingapi.DefaultLoggingModuleID,
 		Backend:        backend,
 		LogDestination: logDestination,
 		TimeFormat:     "Jan _2 15:04:05.0000",

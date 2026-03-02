@@ -5,7 +5,7 @@
 # Default is history
 #moduleID: history
 
-# filters for notifications
+# filters for notifications. By default all events and property notifications are stored.
 notifications:
   # retain any of these events with names for temperature and humidity
   events:

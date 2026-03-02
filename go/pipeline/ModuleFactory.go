@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/hiveot/hivekit/go/modules"
-	directoryserver "github.com/hiveot/hivekit/go/modules/directory/server"
+	"github.com/hiveot/hivekit/go/modules/directory"
 	"github.com/hiveot/hivekit/go/modules/transports"
 )
 
@@ -40,7 +40,7 @@ func (f *ModuleFactory) NewModule(name string) (m modules.IHiveModule) {
 
 	switch name {
 	case DirectoryClient:
-		m = directoryserver.NewDirectoryServer(f.storageRoot, f.httpServer)
+		m = directory.NewDirectoryServer(f.storageRoot, f.httpServer)
 
 	}
 	return m

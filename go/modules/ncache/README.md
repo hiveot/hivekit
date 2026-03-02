@@ -1,4 +1,4 @@
-# Notification Cache Hivekit Module
+# ncache - Notification Cache
 
 The ncache module is a simple cache with property and event notifications that have passed through the module. This retains the notification messages of a Thing affordance.
 

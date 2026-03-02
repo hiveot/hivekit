@@ -10,7 +10,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/hiveot/hivekit/go/modules/certs/server/selfsigned"
+	certstest "github.com/hiveot/hivekit/go/modules/certs/test"
 	"github.com/hiveot/hivekit/go/modules/transports/httpserver/tlsclient"
 	"github.com/hiveot/hivekit/go/utils"
 	jsoniter "github.com/json-iterator/go"
@@ -24,7 +24,7 @@ var testAddress string
 var TestKeyType = utils.KeyTypeED25519
 
 // CA, server and plugin test certificate
-var authBundle selfsigned.TestCertBundle
+var authBundle certstest.TestCertBundle
 var serverTLSConf *tls.Config
 
 // x509CertToTLS combines a x509 certificate and private key into a TLS certificate
@@ -64,7 +64,7 @@ func TestMain(m *testing.M) {
 	testAddress = "127.0.0.1:9888"
 	// hostnames := []string{testAddress}
 
-	authBundle = selfsigned.CreateTestCertBundle(TestKeyType)
+	authBundle = certstest.CreateTestCertBundle(TestKeyType)
 
 	caCertPool := x509.NewCertPool()
 	caCertPool.AddCert(authBundle.CaCert)
@@ -180,15 +180,10 @@ func TestNoClientCert(t *testing.T) {
 }
 
 func TestBadClientCert(t *testing.T) {
-	// use cert not signed by the CA
-	otherCA, otherPrivKey, _, err := selfsigned.CreateSelfSignedCA(
-		"", "", "", "", "", 1, TestKeyType)
-	otherCert, err := selfsigned.CreateClientCert("name", "ou", 1,
-		authBundle.ClientPubKey, otherCA, otherPrivKey)
-	require.NoError(t, err)
-	otherTLS := x509CertToTLS(otherCert, authBundle.ClientPrivKey)
+	// use cert from a different CA
+	bundle2 := certstest.CreateTestCertBundle(TestKeyType)
 
-	cl := tlsclient.NewTLSClient(testAddress, otherTLS, authBundle.CaCert, 0)
+	cl := tlsclient.NewTLSClient(testAddress, bundle2.ServerCert, authBundle.CaCert, 0)
 	// this should produce an error in the log
 	//assert.Error(t, err)
 	cl.Close()

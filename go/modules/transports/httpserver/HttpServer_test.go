@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/hiveot/hivekit/go/modules/certs/server/selfsigned"
+	certstest "github.com/hiveot/hivekit/go/modules/certs/test"
 	"github.com/hiveot/hivekit/go/modules/transports/httpserver"
 	"github.com/hiveot/hivekit/go/modules/transports/httpserver/module"
 	"github.com/hiveot/hivekit/go/modules/transports/httpserver/tlsclient"
@@ -21,7 +21,7 @@ import (
 var serverAddress string
 var serverPort int = 9445
 var clientHostPort string
-var testCerts selfsigned.TestCertBundle
+var testCerts certstest.TestCertBundle
 var TestKeyType = utils.KeyTypeED25519
 
 // TestMain runs a http server
@@ -36,7 +36,7 @@ func TestMain(m *testing.M) {
 	// hostnames := []string{serverAddress}
 	clientHostPort = fmt.Sprintf("%s:%d", serverAddress, serverPort)
 
-	testCerts = selfsigned.CreateTestCertBundle(TestKeyType)
+	testCerts = certstest.CreateTestCertBundle(TestKeyType)
 	res := m.Run()
 
 	time.Sleep(time.Second)

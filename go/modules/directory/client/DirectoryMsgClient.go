@@ -4,8 +4,7 @@ import (
 	"errors"
 
 	"github.com/hiveot/hivekit/go/modules"
-	"github.com/hiveot/hivekit/go/modules/directory"
-	directoryserver "github.com/hiveot/hivekit/go/modules/directory/server"
+	directoryapi "github.com/hiveot/hivekit/go/modules/directory/api"
 	"github.com/hiveot/hivekit/go/msg"
 	"github.com/hiveot/hivekit/go/wot"
 )
@@ -24,21 +23,21 @@ type DirectoryMsgClient struct {
 
 func (cl *DirectoryMsgClient) CreateThing(tdJson string) error {
 	req := msg.NewRequestMessage(
-		wot.OpInvokeAction, cl.directoryID, directory.ActionCreateThing, tdJson, "")
+		wot.OpInvokeAction, cl.directoryID, directoryapi.ActionCreateThing, tdJson, "")
 	_, err := cl.ForwardRequestWait(req)
 	return err
 }
 
 func (cl *DirectoryMsgClient) DeleteThing(thingID string) error {
 	req := msg.NewRequestMessage(
-		wot.OpInvokeAction, cl.directoryID, directory.ActionDeleteThing, thingID, "")
+		wot.OpInvokeAction, cl.directoryID, directoryapi.ActionDeleteThing, thingID, "")
 	_, err := cl.ForwardRequestWait(req)
 	return err
 }
 
 func (cl *DirectoryMsgClient) RetrieveThing(thingID string) (tdJSON string, err error) {
 	req := msg.NewRequestMessage(
-		wot.OpInvokeAction, cl.directoryID, directory.ActionRetrieveThing, thingID, "")
+		wot.OpInvokeAction, cl.directoryID, directoryapi.ActionRetrieveThing, thingID, "")
 	resp, err := cl.ForwardRequestWait(req)
 	if resp == nil {
 		return "", errors.New("nil response")
@@ -50,12 +49,12 @@ func (cl *DirectoryMsgClient) RetrieveThing(thingID string) (tdJSON string, err 
 }
 
 func (cl *DirectoryMsgClient) RetrieveAllThings(offset int, limit int) (tdList []string, err error) {
-	args := directoryserver.RetrieveAllThingsArgs{
+	args := directoryapi.RetrieveAllThingsArgs{
 		Offset: offset,
 		Limit:  limit,
 	}
 	req := msg.NewRequestMessage(
-		wot.OpInvokeAction, cl.directoryID, directory.ActionRetrieveAllThings, args, "")
+		wot.OpInvokeAction, cl.directoryID, directoryapi.ActionRetrieveAllThings, args, "")
 	resp, err := cl.ForwardRequestWait(req)
 	if err == nil {
 		err = resp.Decode(&tdList)
@@ -65,7 +64,7 @@ func (cl *DirectoryMsgClient) RetrieveAllThings(offset int, limit int) (tdList [
 
 func (cl *DirectoryMsgClient) UpdateThing(tdJson string) error {
 	req := msg.NewRequestMessage(
-		wot.OpInvokeAction, cl.directoryID, directory.ActionUpdateThing, tdJson, "")
+		wot.OpInvokeAction, cl.directoryID, directoryapi.ActionUpdateThing, tdJson, "")
 	_, err := cl.ForwardRequestWait(req)
 	return err
 }
@@ -77,7 +76,7 @@ func (cl *DirectoryMsgClient) UpdateThing(tdJson string) error {
 //	sink is the handler for requests send by the directory client and emitter of notifications
 func NewDirectoryMsgClient(thingID string, sink modules.IHiveModule) *DirectoryMsgClient {
 	if thingID == "" {
-		thingID = directory.DefaultDirectoryModuleID
+		thingID = directoryapi.DefaultDirectoryServiceID
 	}
 	cl := &DirectoryMsgClient{
 		directoryID: thingID,

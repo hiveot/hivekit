@@ -6,8 +6,7 @@ import (
 	"net/http"
 	"net/url"
 
-	"github.com/hiveot/hivekit/go/modules/authn"
-	authnserver "github.com/hiveot/hivekit/go/modules/authn/server"
+	authnapi "github.com/hiveot/hivekit/go/modules/authn/api"
 	"github.com/hiveot/hivekit/go/modules/transports"
 	"github.com/hiveot/hivekit/go/modules/transports/httpserver/tlsclient"
 	jsoniter "github.com/json-iterator/go"
@@ -33,8 +32,8 @@ func (cl *AuthnHttpClient) ConnectWithToken(clientID string, token string) (err 
 
 // Return the client's profile.
 // The client must be authenticated first.
-func (cl *AuthnHttpClient) GetProfile() (profile authn.ClientProfile, err error) {
-	getProfilePath := authnserver.HttpGetProfilePath
+func (cl *AuthnHttpClient) GetProfile() (profile authnapi.ClientProfile, err error) {
+	getProfilePath := authnapi.HttpGetProfilePath
 	outputRaw, status, err := cl.tlsClient.Get(getProfilePath)
 
 	if err == nil && status == http.StatusOK {
@@ -59,13 +58,13 @@ func (cl *AuthnHttpClient) LoginWithPassword(clientID string, password string) (
 	//
 	slog.Info("LoginWithPassword", "clientID", clientID)
 
-	args := authnserver.UserLoginArgs{
+	args := authnapi.UserLoginArgs{
 		UserName: clientID,
 		Password: password,
 	}
 
 	argsJSON, _ := jsoniter.Marshal(args)
-	loginPath := authnserver.HttpPostLoginPath
+	loginPath := authnapi.HttpPostLoginPath
 	outputRaw, status, err := cl.tlsClient.Post(loginPath, []byte(argsJSON))
 
 	if err == nil && status == http.StatusOK {
@@ -82,7 +81,7 @@ func (cl *AuthnHttpClient) LoginWithPassword(clientID string, password string) (
 
 func (cl *AuthnHttpClient) Logout(token string) (err error) {
 
-	logoutPath := authnserver.HttpPostLogoutPath
+	logoutPath := authnapi.HttpPostLogoutPath
 	_, _, err = cl.tlsClient.Post(logoutPath, nil)
 	cl.tlsClient.Close()
 	return err
@@ -92,7 +91,7 @@ func (cl *AuthnHttpClient) Logout(token string) (err error) {
 func (cl *AuthnHttpClient) RefreshToken(oldToken string) (newToken string, err error) {
 
 	clientID := cl.tlsClient.GetClientID()
-	refreshPath := authnserver.HttpPostRefreshPath
+	refreshPath := authnapi.HttpPostRefreshPath
 	dataJSON, _ := jsoniter.Marshal(oldToken)
 	// first initialize the client with the old token
 	cl.tlsClient.ConnectWithToken(clientID, oldToken)

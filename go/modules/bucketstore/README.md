@@ -1,8 +1,10 @@
-# Key-Value Storage Module
+# bucketstore - Key-Value Storage Module
 
 Storage modules provides concurrent safe, key-value, iterative storage for IoT applications with the focus on simplicity. It defines a simple to use standardized key-value API with multiple backend implementations. It supports ordered-key seek and iteration.
 
 What the bucketstore is not, is a general purpose database. It is intended to be simple to use meet basic storage needs. If you need multiple indexes then this store is not the right fit.
+
+This module can be used as a stand-alone backend or its stores can be created via the factory function by modules that need an embedded store.
 
 ## Status
 

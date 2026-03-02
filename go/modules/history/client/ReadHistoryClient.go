@@ -5,7 +5,7 @@ import (
 	"time"
 
 	"github.com/hiveot/hivekit/go/modules/clients"
-	historyserver "github.com/hiveot/hivekit/go/modules/history/server"
+	historyapi "github.com/hiveot/hivekit/go/modules/history/api"
 	"github.com/hiveot/hivekit/go/msg"
 	"github.com/hiveot/hivekit/go/utils"
 	"github.com/hiveot/hivekit/go/wot"
@@ -18,7 +18,7 @@ import (
 // methods to iterate through the history.
 type ReadHistoryClient struct {
 	// Agent that handles the ThingID requests
-	histAgentID string
+	// histAgentID string
 	// ThingID of the service providing the read history capability
 	histThingID string
 	// consumer instance to use for sending requests
@@ -35,39 +35,39 @@ type ReadHistoryClient struct {
 func (cl *ReadHistoryClient) GetCursor(thingID string, filterOnName string) (
 	cursorKey string, releaseFn func(), err error) {
 
-	args := historyserver.CreateCursorArgs{
+	args := historyapi.CreateCursorArgs{
 		ThingID: thingID,
 		Name:    filterOnName,
 	}
 	err = cl.co.Rpc(wot.OpInvokeAction,
-		cl.histThingID, historyserver.CreateCursorMethod, &args, &cursorKey)
+		cl.histThingID, historyapi.CreateCursorMethod, &args, &cursorKey)
 	return cursorKey, func() { cl.ReleaseCursor(cursorKey) }, err
 }
 
 // First positions the cursor at the first key in the ordered list
 // This returns an error if the cursor has expired or is not found.
 func (cl *ReadHistoryClient) First(cursorKey string) (thingValue *msg.ThingValue, valid bool, err error) {
-	resp := historyserver.CursorValueResp{}
+	resp := historyapi.CursorValueResp{}
 	err = cl.co.Rpc(wot.OpInvokeAction,
-		cl.histThingID, historyserver.CursorFirstMethod, &cursorKey, &resp)
+		cl.histThingID, historyapi.CursorFirstMethod, &cursorKey, &resp)
 	return resp.Value, resp.Valid, err
 }
 
 // Last positions the cursor at the last key in the ordered list
 // This returns an error if the cursor has expired or is not found.
 func (cl *ReadHistoryClient) Last(cursorKey string) (thingValue *msg.ThingValue, valid bool, err error) {
-	resp := historyserver.CursorValueResp{}
+	resp := historyapi.CursorValueResp{}
 	err = cl.co.Rpc(wot.OpInvokeAction,
-		cl.histThingID, historyserver.CursorLastMethod, &cursorKey, &resp)
+		cl.histThingID, historyapi.CursorLastMethod, &cursorKey, &resp)
 	return resp.Value, resp.Valid, err
 }
 
 // Next moves the cursor to the next key from the current cursor
 // This returns an error if the cursor has expired or is not found.
 func (cl *ReadHistoryClient) Next(cursorKey string) (thingValue *msg.ThingValue, valid bool, err error) {
-	resp := historyserver.CursorValueResp{}
+	resp := historyapi.CursorValueResp{}
 	err = cl.co.Rpc(wot.OpInvokeAction,
-		cl.histThingID, historyserver.CursorNextMethod, &cursorKey, &resp)
+		cl.histThingID, historyapi.CursorNextMethod, &cursorKey, &resp)
 	return resp.Value, resp.Valid, err
 }
 
@@ -77,23 +77,23 @@ func (cl *ReadHistoryClient) NextN(cursorKey string, until time.Time, limit int)
 	value []*msg.ThingValue, itemsRemaining bool, err error) {
 
 	untilRFC := utils.FormatUTCMilli(until)
-	req := historyserver.CursorNArgs{
+	req := historyapi.CursorNArgs{
 		CursorKey: cursorKey,
 		Until:     untilRFC,
 		Limit:     limit,
 	}
-	resp := historyserver.CursorNResp{}
+	resp := historyapi.CursorNResp{}
 	err = cl.co.Rpc(wot.OpInvokeAction,
-		cl.histThingID, historyserver.CursorNextNMethod, &req, &resp)
+		cl.histThingID, historyapi.CursorNextNMethod, &req, &resp)
 	return resp.Values, resp.ItemsRemaining, err
 }
 
 // Prev moves the cursor to the previous key from the current cursor
 // This returns an error if the cursor has expired or is not found.
 func (cl *ReadHistoryClient) Prev(cursorKey string) (thingValue *msg.ThingValue, valid bool, err error) {
-	resp := historyserver.CursorValueResp{}
+	resp := historyapi.CursorValueResp{}
 	err = cl.co.Rpc(wot.OpInvokeAction,
-		cl.histThingID, historyserver.CursorPrevMethod, &cursorKey, &resp)
+		cl.histThingID, historyapi.CursorPrevMethod, &cursorKey, &resp)
 	return resp.Value, resp.Valid, err
 }
 
@@ -104,21 +104,21 @@ func (cl *ReadHistoryClient) PrevN(cursorKey string, until time.Time, limit int)
 	value []*msg.ThingValue, itemsRemaining bool, err error) {
 
 	untilRFC := utils.FormatUTCMilli(until)
-	req := historyserver.CursorNArgs{
+	req := historyapi.CursorNArgs{
 		CursorKey: cursorKey,
 		Until:     untilRFC,
 		Limit:     limit,
 	}
-	resp := historyserver.CursorNResp{}
+	resp := historyapi.CursorNResp{}
 	err = cl.co.Rpc(wot.OpInvokeAction,
-		cl.histThingID, historyserver.CursorPrevNMethod, &req, &resp)
+		cl.histThingID, historyapi.CursorPrevNMethod, &req, &resp)
 	return resp.Values, resp.ItemsRemaining, err
 }
 
 // Release the allocated cursor key
 func (cl *ReadHistoryClient) ReleaseCursor(cursorKey string) {
 	err := cl.co.Rpc(wot.OpInvokeAction,
-		cl.histThingID, historyserver.CursorReleaseMethod, &cursorKey, nil)
+		cl.histThingID, historyapi.CursorReleaseMethod, &cursorKey, nil)
 	if err != nil {
 		slog.Warn("ReleaseCursor failed", "cursorKey", cursorKey, "err", err)
 	}
@@ -139,16 +139,16 @@ func (cl *ReadHistoryClient) ReadHistory(thingID string, filterOnName string,
 	timestamp time.Time, duration time.Duration, limit int) (
 	batch []*msg.ThingValue, itemsRemaining bool, err error) {
 
-	args := historyserver.ReadHistoryArgs{
+	args := historyapi.ReadHistoryArgs{
 		ThingID:        thingID,
 		AffordanceName: filterOnName,
 		Timestamp:      timestamp.Format(time.RFC3339),
 		Duration:       int(duration.Seconds()),
 		Limit:          limit,
 	}
-	resp := historyserver.ReadHistoryResp{}
+	resp := historyapi.ReadHistoryResp{}
 	err = cl.co.Rpc(wot.OpInvokeAction,
-		cl.histThingID, historyserver.ReadHistoryMethod, &args, &resp)
+		cl.histThingID, historyapi.ReadHistoryMethod, &args, &resp)
 	return resp.Values, resp.ItemsRemaining, err
 }
 
@@ -157,13 +157,13 @@ func (cl *ReadHistoryClient) ReadHistory(thingID string, filterOnName string,
 func (cl *ReadHistoryClient) Seek(cursorKey string, timestamp time.Time) (
 	thingValue *msg.ThingValue, valid bool, err error) {
 	timeRFC := utils.FormatUTCMilli(timestamp)
-	args := historyserver.CursorSeekArgs{
+	args := historyapi.CursorSeekArgs{
 		CursorKey: cursorKey,
 		Timestamp: timeRFC,
 	}
-	resp := historyserver.CursorValueResp{}
+	resp := historyapi.CursorValueResp{}
 	err = cl.co.Rpc(wot.OpInvokeAction,
-		cl.histThingID, historyserver.CursorSeekMethod, &args, &resp)
+		cl.histThingID, historyapi.CursorSeekMethod, &args, &resp)
 	return resp.Value, resp.Valid, err
 }
 
@@ -172,13 +172,11 @@ func (cl *ReadHistoryClient) Seek(cursorKey string, timestamp time.Time) (
 //
 //	invokeAction is the TD invokeAction for the invoke-action operation of the history service
 func NewReadHistoryClient(co *clients.Consumer) *ReadHistoryClient {
-	// how to determine the agentID and thingID of the history service?
+	// how to determine the thingID of the history service?
 	// For now we use the well-known IDs. In future this needs discovery
-	agentID := historyserver.ReadHistoryServiceID
 	histCl := ReadHistoryClient{
 		co:          co,
-		histAgentID: agentID,
-		histThingID: historyserver.ReadHistoryServiceID,
+		histThingID: historyapi.DefaultHistoryModuleID,
 	}
 	return &histCl
 }

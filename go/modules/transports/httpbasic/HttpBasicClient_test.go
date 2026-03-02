@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/hiveot/hivekit/go/modules/certs/server/selfsigned"
+	certstest "github.com/hiveot/hivekit/go/modules/certs/test"
 	"github.com/hiveot/hivekit/go/modules/transports"
 	httpbasicclient "github.com/hiveot/hivekit/go/modules/transports/httpbasic/client"
 	httpbasicserver "github.com/hiveot/hivekit/go/modules/transports/httpbasic/server"
@@ -18,7 +18,7 @@ import (
 )
 
 var serverPort int = 9445
-var testCerts = selfsigned.CreateTestCertBundle(utils.KeyTypeED25519)
+var testCerts = certstest.CreateTestCertBundle(utils.KeyTypeED25519)
 
 func TestConnect(t *testing.T) {
 	baseURL := fmt.Sprintf("http://localhost:%d", serverPort)

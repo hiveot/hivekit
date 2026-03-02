@@ -4,7 +4,7 @@ import (
 	"crypto/x509"
 
 	"github.com/hiveot/hivekit/go/modules"
-	"github.com/hiveot/hivekit/go/modules/certs"
+	certsapi "github.com/hiveot/hivekit/go/modules/certs/api"
 	"github.com/hiveot/hivekit/go/modules/certs/certutils"
 	"github.com/hiveot/hivekit/go/msg"
 	"github.com/hiveot/hivekit/go/wot"
@@ -25,7 +25,7 @@ type CertsMsgClient struct {
 func (cl *CertsMsgClient) GetCACert() (cert *x509.Certificate, err error) {
 	var certPem string
 	req := msg.NewRequestMessage(
-		wot.OpInvokeAction, certs.DefaultCertsThingID, certs.ActionGetCACert, nil, "")
+		wot.OpInvokeAction, certsapi.DefaultCertsServiceID, certsapi.ActionGetCACert, nil, "")
 
 	resp, err := cl.ForwardRequestWait(req)
 	if err == nil {
@@ -44,7 +44,7 @@ func (cl *CertsMsgClient) GetCACert() (cert *x509.Certificate, err error) {
 //	sink is the handler that passes requests to the service and receives notifications.
 func NewCertsMsgClient(thingID string, sink modules.IHiveModule) *CertsMsgClient {
 	if thingID == "" {
-		thingID = certs.DefaultCertsThingID
+		thingID = certsapi.DefaultCertsServiceID
 	}
 	cl := &CertsMsgClient{
 		certServiceID: thingID,

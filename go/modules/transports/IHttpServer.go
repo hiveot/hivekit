@@ -81,7 +81,9 @@ type IHttpServer interface {
 	GetPublicRoute() chi.Router
 
 	// Set the validator for http requests
-	// This enables the protected routes
+	// This enables the protected routes.
+	//
+	// Note that the authn module invokes this methods to register itself as the authn validator.
 	SetAuthValidator(v ValidateTokenHandler)
 }
 

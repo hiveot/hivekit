@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/hiveot/hivekit/go/modules"
-	"github.com/hiveot/hivekit/go/modules/directory"
+	directoryapi "github.com/hiveot/hivekit/go/modules/directory/api"
 	"github.com/hiveot/hivekit/go/modules/transports"
 	"github.com/hiveot/hivekit/go/modules/transports/httpserver/tlsclient"
 	"github.com/hiveot/hivekit/go/utils"
@@ -61,7 +61,7 @@ func (cl *DirectoryHttpClient) ConnectWithToken(clientID string, token string) e
 	cl.tlsClient.ConnectWithToken(clientID, token)
 
 	// 2: read its TD
-	GetTDPath := directory.WellKnownWoTPath
+	GetTDPath := directoryapi.WellKnownWoTPath
 	resp, status, err := cl.tlsClient.Get(GetTDPath)
 	_ = status
 	if err != nil {
@@ -180,7 +180,7 @@ func NewDirectoryHttpClient(serverURL string, caCert *x509.Certificate) *Directo
 		tlsClient: tlsClient,
 	}
 
-	var _ directory.IDirectoryServer = cl // API check
+	var _ directoryapi.IDirectoryServer = cl // API check
 
 	return cl
 }

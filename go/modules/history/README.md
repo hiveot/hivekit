@@ -1,43 +1,31 @@
-# Thing Value History
+# history - Thing Notifications History Capture
 
 ## Objective
 
-Provide historical reading of thing notifications and actions using the bucket store.
+The Hivekit history module captures the notification and action history for later retrieval and analysis.
 
 ## Status
 
-This service is reworked to fit into HiveKit as an independent module that can be incorporated anywhere in a module chain.
+This module is in alpha. It is functional but breaking changes can be expected.
 
 Limitations:
 
 - Responses to requests are not recorded.
-- Data capture uses simple filter rules on operation, thingID, and affordance name.
-- Data retention using time based rules is out of scope.
 - Averaging of historical data is out of scope.
-- Storage monitoring is out of scope. This should be a bucketstore feature.
 - This requires a backend storage that implements the IBucketStore interface.
 - Analytics of historical information is out of scope. Recommended solution is to forward the captured data into an analytics backend.
-
-The IBucketStore api is quite basic which is both a strength and weakness. The ability to add features by additional modules to operate on the stored data should be possible but is currently untested.
 
 ## Summary
 
 The History module provides capture and retrieval of past notifications and actions. (responses are not tracked)
 
-This operates as a pipe where request and notification messages flow through without impeding or modifying these messages.
+This operates as a pipe where request and notification messages that flow through are recorded, without impeding or modifying these messages.
 
 Data ingress at a continuous rate of 1000 messages per second is readily supported on small systems with 500MB of RAM or more and plenty of disk space. Higher throughput can be supported if storage space, memory and CPU are available. Very-small environments with less than 100MB need some tuning of the amount of messages captured.
 
 Basic data queries are provided through the API for the purpose to retrieve and compare historical information.
 
-## for consideration
-
-- use buckets that expire based on a time rule
-  used for auto removal of low priority data
-- rules for sample intervals
-  used for storage of periodic data such as temp
-- counters
-  used for nr of motions/period
+This currently stores captures data into a bucket per Thing.
 
 ## Backend Storage
 
@@ -47,11 +35,11 @@ Extending the bucket store with external databases such as Mongodb, SQLite, Post
 
 The bucket-store API provides a cursor with key-ranged seek capability which can be used for time-based queries. All bucket store implementations support this range query through cursors.
 
-Currently, the Pebble bucket store is the default for the history store. It provides a good balance between storage size and resource usage for smaller systems. Pebble should be able to handle 1 TB of data or even more.
+Currently, the Pebble bucket store is the default for the history store. It provides a good balance between storage size and resource usage for smaller systems. Pebble should be able to handle up to 1 TB of data or more with sufficient hardware.
 
 More testing is needed to determine the actual limitations and improve performance.
 
-Note that the bucket store API is fairly basic. Ideally it is updated to support time queries better instead of relying the application to embed this into the keys.
+Note that the bucket store API is fairly basic. Ideally it is updated to improve support for data expiry and data averaging.
 
 ## Performance
 
@@ -61,7 +49,7 @@ Performance is mostly limited by the messaging protocol used. The bench test sho
 
 Data size of event samples depends on the type of sensor, actuator or service that captures the data. Below some example cases and the estimated memory to get an idea of the required space.
 
-Since the store uses a bucket per thingID, the thingID itself does not add significant size. The key is the msec timestamp since epoc, approx 15 characters.
+Since the store uses a bucket per Thing-ID, the Thing-ID itself does not add significant size. The key is the msec timestamp since epoc, approx 15 characters.
 
 The following estimates are based on a sample size of 100 bytes uncompressed (key:20, event name:10, value: 60, json: 10). These are worst case numbers as deduplication and compression can reduce the sizes significantly.
 
@@ -100,10 +88,6 @@ Data that loses its meaningful usage after time can be removed or averaged using
 ## Configuration
 
 This module is configured through a yaml file provided on startup. It defines a set of filter rules.
-
-Q: does each thing have its own bucket?
-Pro: easy to retire things and fast to query by thing
-Con: can't use buckets for lifecyle management
 
 ```yaml
 filters:

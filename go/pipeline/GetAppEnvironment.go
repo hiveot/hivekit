@@ -11,7 +11,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/hiveot/hivekit/go/modules/certs"
+	certsapi "github.com/hiveot/hivekit/go/modules/certs/api"
 	"github.com/hiveot/hivekit/go/modules/certs/certutils"
 	"gopkg.in/yaml.v3"
 )
@@ -200,7 +200,7 @@ func GetAppEnvironment(homeDir string, withFlags bool) AppEnvironment {
 		configFile = path.Join(configDir, clientID+".yaml")
 	}
 	// load the CA cert if found
-	caCertFile := path.Join(certsDir, certs.DefaultCaCertName)
+	caCertFile := path.Join(certsDir, certsapi.DefaultCaCertName)
 	caCert, _ := certutils.LoadX509CertFromPEM(caCertFile)
 
 	// determine the expected location of the service auth key and token
