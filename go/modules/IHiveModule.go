@@ -8,24 +8,10 @@ import (
 // Anything that accepts requests can be a module, including clients and servers.
 // This interface is the most basic module interface.
 type IHiveModule interface {
+
 	// GetModuleID returns module's ID.
 	// For agents/devices this is the ThingID, for consumers this is the clientID.
 	GetModuleID() string
-
-	// GetTM returns the module's [W3C WoT Thing Model](https://www.w3.org/TR/wot-thing-description11/#thing-model)
-	// in JSON, describing its properties, actions and events.
-	//
-	// The TM is converted to a TD using transport modules 'AddForms' which adds forms that describe
-	// the interaction using the given transport. The TD is then published in a directory
-	// service that is available to consumers. This is typically the responsibility of the pipeline
-	// service. If the pipeline service is not used then this is up to the application startup logic.
-	//
-	// Only actual producers of information need to implement a TM. The TM can be obtained
-	// after a successful start. If the module does not support a TM then this
-	// returns an empty string.
-	//
-	// The HiveModuleBase implements a default method returning an empty TM.
-	GetTM() string
 
 	// HandleRequest - invoked by consumer to this producer.
 	//  [producer] processes or forwards a request downstream to other producers.
@@ -61,7 +47,7 @@ type IHiveModule interface {
 	// This returns an error if the provided replyTo will not be able to receive a response.
 	HandleRequest(request *msg.RequestMessage, replyTo msg.ResponseHandler) error
 
-	// Handle the notification received from the producer.
+	// Handle the notification received from a producer.
 	// The default behavior is to forward it upstream to the handler set with SetNotificationSink.
 	HandleNotification(notif *msg.NotificationMessage)
 
@@ -71,7 +57,7 @@ type IHiveModule interface {
 	// This can be invoked before or after Start()
 	SetNotificationSink(sink msg.NotificationHandler)
 
-	// SetRequestSink sets the producer that will handle the requests emitted by this module.
+	// SetRequestSink sets the handler of requests emitted by this module.
 	//
 	// This can be invoked before or after Start() to allow for live rewiring of the
 	// module chain.

@@ -5,7 +5,7 @@ import (
 	"os"
 	"testing"
 
-	ncachemodule "github.com/hiveot/hivekit/go/modules/ncache/internal/module"
+	vcachemodule "github.com/hiveot/hivekit/go/modules/vcache/internal/module"
 	"github.com/hiveot/hivekit/go/msg"
 	"github.com/hiveot/hivekit/go/utils"
 	"github.com/hiveot/hivekit/go/wot"
@@ -30,7 +30,7 @@ func TestMain(m *testing.M) {
 func TestStartStop(t *testing.T) {
 	t.Logf("---%s---\n", t.Name())
 
-	m := ncachemodule.NewNCacheModule()
+	m := vcachemodule.NewVCacheModule()
 	err := m.Start("")
 	require.NoError(t, err)
 	defer m.Stop()
@@ -47,7 +47,7 @@ func TestPropertyNotifications(t *testing.T) {
 	const prop1Value = "value1"
 	const prop2Value = "value2"
 
-	m := ncachemodule.NewNCacheModule()
+	m := vcachemodule.NewVCacheModule()
 	err := m.Start("")
 	require.NoError(t, err)
 	defer m.Stop()
@@ -79,14 +79,14 @@ func TestPropertyNotifications(t *testing.T) {
 	assert.Equal(t, prop2Value, valueMap[prop2Name].Data)
 
 	// test 3: a read property request should be answered from the cache
-	var respValue *msg.NotificationMessage
+	var respValue string
 	req := msg.NewRequestMessage(wot.OpReadProperty, thing1ID, prop1Name, nil, "")
 	err = m.HandleRequest(req, func(resp *msg.ResponseMessage) error {
 		err = resp.Decode(&respValue)
 		return err
 	})
 	assert.NoError(t, err)
-	assert.Equal(t, prop1Value, respValue.Data)
+	assert.Equal(t, prop1Value, respValue)
 
 	// test 4: a read multiple properties request should also be answered from the cache
 	var multiResp map[string]any
@@ -95,8 +95,9 @@ func TestPropertyNotifications(t *testing.T) {
 		err = resp.Decode(&multiResp)
 		return err
 	})
-	assert.NoError(t, err)
-	assert.Equal(t, 2, len(multiResp))
+	require.NoError(t, err)
+	require.Equal(t, 2, len(multiResp))
+	require.Equal(t, prop1Value, multiResp[prop1Name])
 }
 
 // Capture event notifications and retrieving their value
@@ -110,7 +111,7 @@ func TestEventNotifications(t *testing.T) {
 	const ev1Value = "value1"
 	const ev2Value = "value2"
 
-	m := ncachemodule.NewNCacheModule()
+	m := vcachemodule.NewVCacheModule()
 	err := m.Start("")
 	require.NoError(t, err)
 	defer m.Stop()
@@ -129,8 +130,16 @@ func TestEventNotifications(t *testing.T) {
 	status := m.GetCacheStatus()
 	assert.Equal(t, 2, status.NrThings)
 
-	// test 1: reading a single eveny
+	// test 1: reading a single event notification
 	notif := m.ReadEvent(thing1ID, ev1Name)
 	require.NotNil(t, notif)
 	assert.Equal(t, ev1Value, notif.Data)
+
+	// test 2: RRN read request should return the value
+	req := msg.NewRequestMessage(wot.HTOpReadEvent, thing1ID, ev1Name, nil, "")
+	err = m.HandleRequest(req, func(resp *msg.ResponseMessage) error {
+		assert.Equal(t, ev1Value, resp.Output)
+		return nil
+	})
+	assert.NoError(t, err)
 }

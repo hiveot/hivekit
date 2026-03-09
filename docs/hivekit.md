@@ -130,7 +130,9 @@ Testing is facilitated by providing a testing runtime with tools to generate dev
 
 ### HiveOT Module API
 
-All (sub)modules support the HiveOT module API defined as IHiveModule. This API defines how to handle requests, responses and subscribe to notifications. Depending on the programming language static or dynamic linking can be used to implement the callback hooks.
+All (sub)modules support the HiveOT module API defined as IHiveModule. This API defines how to handle requests and responses.
+
+This defines two distinct message flow. Notifications flow from a devices/agents to consumers. Requests flow from consumers to devices/agents.
 
 ```go
 // The golang HiveOT module interface. The JS and Python implementation will offer something similar.
@@ -138,17 +140,21 @@ type IHiveModule interface {
   	// GetModuleID returns module's ID.
 	GetModuleID() string
 
-	// GetTM returns the module's [W3C WoT Thing Model](https://www.w3.org/TR/wot-thing-description11/#thing-model)
-	GetTM() string
+	// Handle the notification received from a producer.
+	// The default behavior is to forward it upstream to the handler set with SetNotificationSink.
+	HandleNotification(notif *msg.NotificationMessage)
 
-	// HandleRequest [producer] processes or forwards a request downstream.
+	// HandleRequest processes or forwards a request downstream.
 	HandleRequest(request *RequestMessage, replyTo(resp *ResponseMessage) error
 
 	// Set the handler of notifications produced (or forwarded) by this module
 	SetNotificationHandler(consumer msg.NotificationHandler)
 
-	// SetSink set the given module as the producer for requests and notifications.
-	SetSink(producer IHiveModule)
+	// Set the handler of notifications emitted by this module
+	SetNotificationSink(sink msg.NotificationHandler)
+
+	// SetRequestSink sets the handler of requests emitted by this module.
+	SetRequestSink(sink msg.RequestHandler)
 
 	// Start readies the module for use using the given yaml configuration.
 	Start(yamlConfig string) error

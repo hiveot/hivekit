@@ -24,10 +24,11 @@ import (
 
 var storageRoot = ""
 
+const defaultAgentID = "agent-smith"
 const defaultProtocol = transports.ProtocolTypeWotWSS
 const TestKeyType = utils.KeyTypeED25519
 
-// TestMain create a test folder for certificates and private key
+// TestMain setsup logging
 func TestMain(m *testing.M) {
 	utils.SetLogging("info", "")
 
@@ -71,7 +72,7 @@ func TestStartStop(t *testing.T) {
 
 	// add a thing
 	tdJson := directoryserver.DirectoryTMJson
-	m.UpdateThing(string(tdJson))
+	m.UpdateThing(defaultAgentID, string(tdJson))
 
 	// read all things
 	tdList, err := m.RetrieveAllThings(0, 10)
@@ -89,7 +90,7 @@ func TestCreateTD(t *testing.T) {
 
 	// add the directory itself
 	tdJson := directoryserver.DirectoryTMJson
-	m.UpdateThing(string(tdJson))
+	m.UpdateThing(defaultAgentID, string(tdJson))
 
 	// read all things, expect 1
 	tdList, err := m.RetrieveAllThings(0, 10)
@@ -99,7 +100,7 @@ func TestCreateTD(t *testing.T) {
 	// add another TD
 	tdi1 := td.NewTD("", thingID, "test thing", "test device")
 	td1Json := tdi1.ToString()
-	m.CreateThing(td1Json)
+	m.CreateThing(defaultAgentID, td1Json)
 
 	// retrieve a thing by ID
 	td2Json, err := m.RetrieveThing(thingID)
@@ -110,7 +111,7 @@ func TestCreateTD(t *testing.T) {
 	assert.Equal(t, td1Json, td2Json)
 
 	// delete a thing
-	err = m.DeleteThing(thingID)
+	err = m.DeleteThing(defaultAgentID, thingID)
 	assert.NoError(t, err)
 }
 

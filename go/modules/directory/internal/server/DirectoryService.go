@@ -2,6 +2,7 @@
 package directoryserver
 
 import (
+	"fmt"
 	"log/slog"
 
 	directoryapi "github.com/hiveot/hivekit/go/modules/directory/api"
@@ -9,22 +10,25 @@ import (
 )
 
 // CreateThing adds or replaces the TD in the store.
-func (svc *DirectoryServer) CreateThing(tdJson string) error {
+func (m *DirectoryServer) CreateThing(agentID string, tdJson string) error {
 
-	// validate the TD
-	tdi, err := td.UnmarshalTD(tdJson)
-	if err != nil {
-		return err
-	}
+	// TODO: link the TD to the agent that created it
 
-	slog.Info("CreateThing", slog.String("thingID", tdi.ID))
-	err = svc.bucket.Set(tdi.ID, []byte(tdJson))
-	return err
+	return m.UpdateThing(agentID, tdJson)
 }
 
-// DeleteThing removes a Thing TD document from the store
-func (svc *DirectoryServer) DeleteThing(thingID string) error {
-	err := svc.bucket.Delete(thingID)
+// DeleteThing removes a Thing TD document from the store.
+func (m *DirectoryServer) DeleteThing(agentID string, thingID string) (err error) {
+
+	// TODO: check that the agentID is linked to this TD, or an administrator.
+
+	// The hook can cancel the write
+	if m.deleteTDHook != nil {
+		err = m.deleteTDHook(agentID, thingID)
+	}
+	if err == nil {
+		err = m.bucket.Delete(thingID)
+	}
 	return err
 }
 
@@ -35,18 +39,18 @@ func (svc *DirectoryServer) DeleteThing(thingID string) error {
 //}
 
 // RetrieveThing returns a JSON encoded TD document
-func (svc *DirectoryServer) RetrieveThing(thingID string) (tdJSON string, err error) {
-	tdBytes, err := svc.bucket.Get(thingID)
+func (m *DirectoryServer) RetrieveThing(thingID string) (tdJSON string, err error) {
+	tdBytes, err := m.bucket.Get(thingID)
 	tdJSON = string(tdBytes)
 	return tdJSON, err
 }
 
 // RetrieveAllThings returns a batch of TD documents
 // This returns a list of JSON encoded digital twin TD documents
-func (svc *DirectoryServer) RetrieveAllThings(offset int, limit int) (tdList []string, err error) {
+func (m *DirectoryServer) RetrieveAllThings(offset int, limit int) (tdList []string, err error) {
 	tdList = make([]string, 0)
 
-	cursor, err := svc.bucket.Cursor()
+	cursor, err := m.bucket.Cursor()
 	if err != nil {
 		return nil, err
 	}
@@ -82,7 +86,9 @@ func (svc *DirectoryServer) RetrieveAllThings(offset int, limit int) (tdList []s
 
 // UpdateThing replaces the TD in the store.
 // If the thing doesn't exist in the store it is added.
-func (svc *DirectoryServer) UpdateThing(tdJson string) error {
+func (m *DirectoryServer) UpdateThing(agentID string, tdJson string) error {
+
+	// TODO: verify that the TD is the agent that created it.
 
 	// validate the TD
 	tdi, err := td.UnmarshalTD(tdJson)
@@ -90,8 +96,20 @@ func (svc *DirectoryServer) UpdateThing(tdJson string) error {
 		return err
 	}
 
+	// The hook can modify the TD or cancel the write
+	if m.writeTDHook != nil {
+		tdi2, err := m.writeTDHook(agentID, tdi)
+		if err != nil {
+			return err
+		} else if tdi2 == nil {
+			slog.Error("UpdateThing. writeTDHook returns a nil TD", "thingID", tdi.ID)
+			return fmt.Errorf("UpdateThing: Internal error, the writeTDHook returns a nil TD")
+		}
+		tdJson, _ = td.MarshalTD(tdi2)
+	}
+
 	slog.Info("UpdateThing", slog.String("thingID", tdi.ID))
-	err = svc.bucket.Set(tdi.ID, []byte(tdJson))
+	err = m.bucket.Set(tdi.ID, []byte(tdJson))
 	return err
 
 }

@@ -17,13 +17,15 @@ type HttpBasicMsgHandler struct {
 	module httpbasic.IHttpBasicTransport
 }
 
-// HandleRequest for writing configuration and invoking module actions
+// HandleRequest for this module's requests.
 // This has nothing to do with handling http requests.
 //
 // The request must be valid for this module before passing it.
 // This returns an error if the request is not handled here.
 func (msgHandler *HttpBasicMsgHandler) HandleRequest(
 	req *msg.RequestMessage, replyTo msg.ResponseHandler) (err error) {
+
+	// this should only be invoked if the thingID is the moduleID
 
 	err = fmt.Errorf("Request '%s' not supported", req.Operation)
 	// TODO: implement support for module actions or configuration

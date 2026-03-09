@@ -6,7 +6,6 @@ import (
 	"io"
 	"net/http"
 	"strconv"
-	"strings"
 
 	"github.com/go-chi/chi/v5"
 	directoryapi "github.com/hiveot/hivekit/go/modules/directory/api"
@@ -51,15 +50,9 @@ func (srv *DirectoryRestHandler) handleDeleteThing(w http.ResponseWriter, r *htt
 	// A thingID is provided otherwise this handler would not have been called
 	thingID := chi.URLParam(r, ThingIDURIVar)
 
-	// only agents can delete their own TD
 	rp, err := srv.httpServer.GetRequestParams(r)
 	if err == nil {
-		parts := strings.Split(thingID, ":")
-		agentID := parts[0]
-		if rp.ClientID != agentID {
-		} else {
-			err = srv.service.DeleteThing(thingID)
-		}
+		err = srv.service.DeleteThing(rp.ClientID, thingID)
 	}
 	utils.WriteReply(w, true, nil, err)
 }
@@ -81,27 +74,13 @@ func (srv *DirectoryRestHandler) handleRetrieveAllThings(w http.ResponseWriter, 
 // The thingID must contain the agent as the prefix to ensure unique namespace,
 // so the stored ThingID will be agentID:thingID.
 func (srv *DirectoryRestHandler) handleUpdateThing(w http.ResponseWriter, r *http.Request) {
-	var tdi *td.TD
 
-	tdJson, err := io.ReadAll(r.Body)
+	tdJsonBin, err := io.ReadAll(r.Body)
+	tdJson := string(tdJsonBin)
 
-	// agents can update their own TD - who is the agent of the thing?
-	// admin can also update things.
 	rp, err := srv.httpServer.GetRequestParams(r)
 	if err == nil {
-		// thing actual thingID is needed to determine the agent prefix
-		tdi, err = td.UnmarshalTD(string(tdJson))
-	}
-	// only agents can update their own TD
-	if err == nil {
-		agentID := tdi.GetAgentID()
-		if rp.ClientID != agentID {
-			err = fmt.Errorf("Sender '%s' isn't the agent of the TD '%s': %w",
-				rp.ClientID, tdi.GetID(), utils.UnauthorizedError)
-		}
-	}
-	if err == nil {
-		err = srv.service.UpdateThing(string(tdJson))
+		err = srv.service.UpdateThing(rp.ClientID, tdJson)
 	}
 	utils.WriteReply(w, true, nil, err)
 }

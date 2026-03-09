@@ -1,4 +1,4 @@
-package ncacheapi
+package vcacheapi
 
 import (
 	"github.com/hiveot/hivekit/go/modules"
@@ -8,7 +8,7 @@ import (
 // The default module instanceID
 // When using multiple instances, it is recommended to set a different ID using
 // SetModuleID()
-const DefaultNCacheModuleID = "ncache"
+const DefaultVCacheModuleID = "vcache"
 
 type CacheInfo struct {
 
@@ -20,7 +20,7 @@ type CacheInfo struct {
 // This module caches notification of properties and event and returns the cached value when a
 // ReadProperty operation is received. Intended for speeding up querying property values
 // and to provide answers when the queried thing is unavailable.
-type INCacheModule interface {
+type IVCacheModule interface {
 	modules.IHiveModule
 
 	// Return the current cache status

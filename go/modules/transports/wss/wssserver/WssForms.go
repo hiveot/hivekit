@@ -6,24 +6,27 @@ import (
 	"github.com/hiveot/hivekit/go/wot/td"
 )
 
-// AddTDForms adds forms for use of this protocol to the given TD.
+// AddTDForms adds base and forms for use of this protocol to the given TD.
 //
 // Since the contentType is the default application/json it is omitted
 //
 // 'includeAffordances' adds forms to all affordances to be compliant with the specifications.
-// This is a massive waste of space in the TD.
+// Btw, this is a waste of space in the TD as it required but not needed with some protocols.
 func (srv *WssServer) AddTDForms(tdoc *td.TD, includeAffordances bool) {
+	// 1. Add the base if none is set
+	tdoc.Base = srv.GetConnectURL()
 
-	// 1 form for all operations
-	form := td.NewForm("", srv.GetConnectURL(), wss.SubprotocolWotWSS)
+	// 2. form for all operations
+	// the href is empty because it is the same as base for all forms in this protocol
+	form := td.NewForm("", "", wss.SubprotocolWotWSS)
 	form["op"] = []string{
 		wot.OpQueryAllActions,
 		wot.OpObserveAllProperties, wot.OpUnobserveAllProperties,
-		wot.OpReadAllProperties, // wot.OpWriteMultipleProperties,
+		wot.OpReadAllProperties,
+		wot.HTOpReadAllEvents, // hiveot supports reading latest events
 		wot.OpSubscribeAllEvents, wot.OpUnsubscribeAllEvents,
 	}
 	//form["contentType"] = "application/json"
-
 	tdoc.Forms = append(tdoc.Forms, form)
 
 	// Add forms to all affordances to be compliant with the specifications.
@@ -35,7 +38,8 @@ func (srv *WssServer) AddTDForms(tdoc *td.TD, includeAffordances bool) {
 
 // AddAffordanceForms adds forms to affordances for interacting using the websocket protocol binding
 func (srv *WssServer) AddAffordanceForms(tdoc *td.TD) {
-	href := srv.GetConnectURL()
+	// websocket have no additional href
+	href := ""
 	for name, aff := range tdoc.Actions {
 		_ = name
 		form := td.NewForm("", href, wss.SubprotocolWotWSS)
@@ -46,7 +50,7 @@ func (srv *WssServer) AddAffordanceForms(tdoc *td.TD) {
 	for name, aff := range tdoc.Events {
 		_ = name
 		form := td.NewForm("", href, wss.SubprotocolWotWSS)
-		form["op"] = []string{wot.OpSubscribeEvent, wot.OpUnsubscribeEvent}
+		form["op"] = []string{wot.HTOpReadEvent, wot.OpSubscribeEvent, wot.OpUnsubscribeEvent}
 		aff.AddForm(form)
 	}
 	for name, aff := range tdoc.Properties {

@@ -31,7 +31,7 @@ func (srv *HttpBasicServer) AddTDForms(tdoc *td.TD, includeAffordances bool) {
 	// add thing level forms that apply to all things. http-basic only supports read/write
 	tdoc.Forms = append(tdoc.Forms,
 		srv.createThingLevelForm(wot.OpQueryAllActions, http.MethodGet, tdoc.ID),
-		//srv.createThingLevelForm(wot.OpReadAllEvents, http.MethodGet, tdoc.ID),
+		srv.createThingLevelForm(wot.HTOpReadAllEvents, http.MethodGet, tdoc.ID),
 		srv.createThingLevelForm(wot.OpReadAllProperties, http.MethodGet, tdoc.ID),
 		srv.createThingLevelForm(wot.OpWriteMultipleProperties, http.MethodPost, tdoc.ID),
 	)
@@ -49,10 +49,10 @@ func (srv *HttpBasicServer) AddAffordanceForms(tdoc *td.TD) {
 		f = srv.createAffordanceForm(wot.OpQueryAction, http.MethodGet, tdoc.ID, name)
 		aff.AddForm(f)
 	}
-	//for name, aff := range tdoc.Events {
-	//f = srv.createAffordanceForm(wot.HTOpReadEvent, http.MethodPut, baseURL, tdoc.ID, name)
-	//aff.AddForm(f)
-	//}
+	for name, aff := range tdoc.Events {
+		f := srv.createAffordanceForm(wot.HTOpReadEvent, http.MethodGet, tdoc.ID, name)
+		aff.AddForm(f)
+	}
 	for name, aff := range tdoc.Properties {
 		if !aff.WriteOnly {
 			// http-basic doesn't support observe/unobserve
@@ -68,6 +68,13 @@ func (srv *HttpBasicServer) AddAffordanceForms(tdoc *td.TD) {
 			aff.AddForm(f)
 		}
 	}
+}
+
+// GetForm returns a form for the given operation
+// Intended for updating TD's with forms to invoke a request
+func (m *HttpBasicServer) GetForm(operation string, thingID string, name string) *td.Form {
+	// TODO: use the standard path /operation/thingID/name
+	return nil
 }
 
 // createAffordanceForm returns a form for a thing action/event/property affordance operation

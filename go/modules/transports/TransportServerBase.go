@@ -237,12 +237,6 @@ func (m *TransportServerBase) GetModuleID() string {
 	return m.moduleID
 }
 
-// GetTM returns the module's TM describing its properties, actions and events.
-// This server does not expose a TM.
-func (m *TransportServerBase) GetTM() string {
-	return ""
-}
-
 // Initialize the module base with a moduleID and a messaging sink
 //
 //	moduleID is the transport instance ID to identify as.

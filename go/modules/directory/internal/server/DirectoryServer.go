@@ -34,14 +34,19 @@ type DirectoryServer struct {
 	bucketName  string
 	bucketStore bucketstoreapi.IBucketStore
 
-	// the RRN messaging API
+	// http server serving the REST API
+	httpServer transports.IHttpServer
+	// the RRN messaging API for the directory itself
 	msgAPI *DirectoryMsgHandler
 	// the API servers if enabled
 	restAPI *DirectoryRestHandler
-	// http server serving the REST API
-	httpServer transports.IHttpServer
 	// root directory of the storage area
 	storageRoot string
+
+	// hook to invoke before writing a TD into the store
+	writeTDHook directoryapi.WriteTDHook
+	// hook to invoke before deleting a TD into the store
+	deleteTDHook directoryapi.DeleteTDHook
 }
 
 // func (m *DirectoryModule) GetService() directory.IDirectoryService {
@@ -65,6 +70,14 @@ func (m *DirectoryServer) HandleRequest(req *msg.RequestMessage, replyTo msg.Res
 	return err
 }
 
+// SetTDHooks set the callbacks that are invoked before writing and deleting the TD
+// to the directory store.
+func (m *DirectoryServer) SetTDHooks(
+	writeHandler directoryapi.WriteTDHook, deleteHandler directoryapi.DeleteTDHook) {
+	m.deleteTDHook = deleteHandler
+	m.writeTDHook = writeHandler
+}
+
 // Start readies the module for use.
 //
 // This:
@@ -80,16 +93,13 @@ func (m *DirectoryServer) Start(_ string) (err error) {
 	storageDir := ""
 	if m.storageRoot != "" {
 		storageDir = filepath.Join(m.storageRoot, moduleID)
-		m.bucketStore, err = bucketstore.NewBucketStore(storageDir, bucketstoreapi.BackendKVBTree)
-	} else {
-		m.bucketStore, err = bucketstore.NewBucketStore("", bucketstoreapi.BackendKVBTree)
 	}
+	m.bucketStore, err = bucketstore.NewBucketStore(storageDir, bucketstoreapi.BackendKVBTree)
+
 	err = m.bucketStore.Open()
 	if err == nil {
 		m.bucketName = moduleID
 		m.bucket = m.bucketStore.GetBucket(m.bucketName)
-
-		// m.service, err = service.StartDirectoryService(m.bucketStore, bucketName)
 	}
 	if err == nil {
 		m.msgAPI = NewDirectoryMsgHandler(moduleID, m)

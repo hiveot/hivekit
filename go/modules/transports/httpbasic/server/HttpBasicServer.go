@@ -8,7 +8,6 @@ import (
 	"github.com/hiveot/hivekit/go/modules/transports"
 	"github.com/hiveot/hivekit/go/modules/transports/httpbasic"
 	"github.com/hiveot/hivekit/go/msg"
-	"github.com/hiveot/hivekit/go/wot/td"
 )
 
 // HTTP-basic profile constants
@@ -36,19 +35,6 @@ type HttpBasicServer struct {
 
 	// handler for received request messages
 	serverRequestHandler msg.RequestHandler
-}
-
-// GetForm returns a form for the given operation
-// Intended for updating TD's with forms to invoke a request
-func (m *HttpBasicServer) GetForm(operation string, thingID string, name string) *td.Form {
-	// TODO: use the standard path /operation/thingID/name
-	return nil
-}
-
-// GetTM returns the module's TM describing its properties, actions and events.
-// This server does not expose a TM.
-func (m *HttpBasicServer) GetTM() string {
-	return ""
 }
 
 // Handle a notification this module (or downstream in the chain) subscribed to.

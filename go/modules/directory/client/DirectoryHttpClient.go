@@ -15,9 +15,6 @@ import (
 	"github.com/hiveot/hivekit/go/wot/td"
 )
 
-// Default timeout for directory operations
-const defaultTimeout = 3 * time.Second
-
 // The DirectoryHttpClient is a client for the Directory service using the REST API.
 // It can be used to connect to a directory service and read its content.
 // This implements the IDirectory interface.
@@ -179,8 +176,6 @@ func NewDirectoryHttpClient(serverURL string, caCert *x509.Certificate) *Directo
 		timeout:   transports.DefaultRpcTimeout,
 		tlsClient: tlsClient,
 	}
-
-	var _ directoryapi.IDirectoryServer = cl // API check
 
 	return cl
 }

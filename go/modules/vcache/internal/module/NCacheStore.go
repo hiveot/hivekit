@@ -1,4 +1,4 @@
-package ncachemodule
+package VCacheModule
 
 import (
 	"sync"
@@ -12,20 +12,20 @@ type ThingNotifications struct {
 	Properties map[string]*msg.NotificationMessage `json:"properties"`
 }
 
-type NCacheStore struct {
+type VCacheStore struct {
 	mux    sync.RWMutex
 	Things map[string]ThingNotifications `json:"things"`
 }
 
 // Return the nr of things with cached values
-func (store *NCacheStore) GetNrThings() int {
+func (store *VCacheStore) GetNrThings() int {
 	store.mux.RLock()
 	defer store.mux.RUnlock()
 	return len(store.Things)
 }
 
 // Return the latest cached event or nil if not found
-func (store *NCacheStore) ReadEvent(thingID string, name string) (event *msg.NotificationMessage) {
+func (store *VCacheStore) ReadEvent(thingID string, name string) (event *msg.NotificationMessage) {
 	store.mux.RLock()
 	defer store.mux.RUnlock()
 	tn, found := store.Things[thingID]
@@ -36,7 +36,7 @@ func (store *NCacheStore) ReadEvent(thingID string, name string) (event *msg.Not
 }
 
 // Return the cached value of a property or nil if not found
-func (store *NCacheStore) ReadProperty(thingID string, name string) (prop *msg.NotificationMessage) {
+func (store *VCacheStore) ReadProperty(thingID string, name string) (prop *msg.NotificationMessage) {
 	store.mux.RLock()
 	defer store.mux.RUnlock()
 	tv, found := store.Things[thingID]
@@ -48,7 +48,7 @@ func (store *NCacheStore) ReadProperty(thingID string, name string) (prop *msg.N
 
 // Return the cached value of multiple properties
 // allFound is false if not all of them are found
-func (store *NCacheStore) ReadMultipleProperties(
+func (store *VCacheStore) ReadMultipleProperties(
 	thingID string, names []string) (notifMap map[string]*msg.NotificationMessage, allFound bool) {
 
 	store.mux.RLock()
@@ -69,7 +69,7 @@ func (store *NCacheStore) ReadMultipleProperties(
 }
 
 // Remove a property value from the cache
-func (store *NCacheStore) RemoveProperty(thingID string, name string) {
+func (store *VCacheStore) RemoveProperty(thingID string, name string) {
 	store.mux.Lock()
 	defer store.mux.Unlock()
 	tv, found := store.Things[thingID]
@@ -78,7 +78,7 @@ func (store *NCacheStore) RemoveProperty(thingID string, name string) {
 	}
 }
 
-func (store *NCacheStore) WriteEvent(notif *msg.NotificationMessage) {
+func (store *VCacheStore) WriteEvent(notif *msg.NotificationMessage) {
 	store.mux.Lock()
 	defer store.mux.Unlock()
 	tv, found := store.Things[notif.ThingID]
@@ -92,7 +92,7 @@ func (store *NCacheStore) WriteEvent(notif *msg.NotificationMessage) {
 	store.Things[notif.ThingID] = tv
 }
 
-func (store *NCacheStore) WriteProperty(notif *msg.NotificationMessage) {
+func (store *VCacheStore) WriteProperty(notif *msg.NotificationMessage) {
 	store.mux.Lock()
 	defer store.mux.Unlock()
 	tv, found := store.Things[notif.ThingID]
@@ -106,8 +106,8 @@ func (store *NCacheStore) WriteProperty(notif *msg.NotificationMessage) {
 	store.Things[notif.ThingID] = tv
 }
 
-func NewNCacheStore() *NCacheStore {
-	store := &NCacheStore{
+func NewNCacheStore() *VCacheStore {
+	store := &VCacheStore{
 		Things: make(map[string]ThingNotifications),
 	}
 	return store

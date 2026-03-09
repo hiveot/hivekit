@@ -1,6 +1,6 @@
-# ncache - Notification Cache
+# vcache - Value Cache
 
-The ncache module is a simple cache with property and event notifications that have passed through the module. This retains the notification messages of a Thing affordance.
+The vcache module is a simple cache with property and event notifications that have passed through the module. This retains the notification messages of a Thing affordance.
 
 Requests for reading properties and events are answered by obtaining the notification from the cache without accessing the device directly. This does require that a subscription exists to receive notifications for the devices used.
 
@@ -16,9 +16,9 @@ This module is in alpha. It is functional but basic and breaking changes can be 
 
 ## Summary
 
-The notification cache module stores the latest notifications that pass through the module. Requests for querying properties and events can be answered directly by the ncache without querying the actual device.
+The notification cache module stores the latest notifications that pass through the module. Requests for querying properties and events can be answered directly by the vcache without querying the actual device.
 
-The ncache is populated as notifications pass through. In order to receive notifications the module has to be placed in the path of the notifications. This placement is dependent on the pipeline configuration and use-case.
+The vcache is populated as notifications pass through. In order to receive notifications the module has to be placed in the path of the notifications. This placement is dependent on the pipeline configuration and use-case.
 
 1. Consumer placement. When the cache is placed in the pipeline of a consumer, right before the client connection module. All received notifications passed to the consumer are cached. When the client send requests to read Thing properties, events or action status, the cached value can be returned for the Things that the consumer subscribed to.
 
@@ -53,11 +53,11 @@ If continuous access to a device is important for an application, the use of a d
 Client placement in the module pipeline:
 
 ```
-Requests:       [consumer] -> [ncache] -> [client] -> [server] -> [device]
-Notifications:  [consumer] <- [ncache] <- [client] <- [server] <- [device]
+Requests:       [consumer] -> [vcache] -> [client] -> [server] -> [device]
+Notifications:  [consumer] <- [vcache] <- [client] <- [server] <- [device]
 ```
 
 Two ways to access cached data:
 
 1. Invoke an action to read properties of a Thing by publishing a request.
-2. Use the INCache module interface to read the latest values for properties and events.
+2. Use the Ivcache module interface to read the latest values for properties and events.

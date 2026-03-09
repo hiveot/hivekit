@@ -1,6 +1,9 @@
 package directoryapi
 
-import "github.com/hiveot/hivekit/go/modules"
+import (
+	"github.com/hiveot/hivekit/go/modules"
+	"github.com/hiveot/hivekit/go/wot/td"
+)
 
 // DefaultDirectoryServiceID is the default moduleID of the directory module instance.
 // note that if multiple directory instances are created they must use different thingIDs
@@ -13,6 +16,15 @@ const WellKnownWoTPath = "/.well-known/wot"
 // Default limit in retrieving things
 const DefaultLimit = 300
 
+// The handler of TD write requests
+// This returns the original or a modified TD
+// This returns an error if writing the TD is not allowed.
+type WriteTDHook func(agentID string, tdi *td.TD) (*td.TD, error)
+
+// The handler of deleting TD requests
+// This returns an error if deleting the TD is not allowed.
+type DeleteTDHook func(agentID string, thingID string) error
+
 // IDirectoryServer defines the interface to the directory module server
 // This is implemented in the service and the client api
 type IDirectoryServer interface {
@@ -21,11 +33,12 @@ type IDirectoryServer interface {
 	// CreateThing creates or updates the TD in the directory.
 	// If the thing doesn't exist in the directory it is added.
 	//
-	// Things are stored under the ID of the agent.
-	CreateThing(tdJson string) error
+	// Only agents can create a TD. If the administrator acts as the agent then it
+	// is also responsible for updating it if that is ever needed.
+	CreateThing(agentID string, tdJson string) error
 
 	// DeleteThing removes a Thing TD document from the directory
-	DeleteThing(thingID string) error
+	DeleteThing(agentID string, thingID string) error
 
 	// RetrieveThing returns a JSON encoded TD document
 	RetrieveThing(thingID string) (tdJSON string, err error)
@@ -34,7 +47,17 @@ type IDirectoryServer interface {
 	// This returns a list of JSON encoded digital twin TD documents
 	RetrieveAllThings(offset int, limit int) (tdList []string, err error)
 
+	// Install a hook that is called when a Thing is writing its TD to the directory.
+	// This hook returns the TD that is actually written.
+	// Intended for updating forms and for supporting the digital twin concept.
+	//
+	//  thingID is the ID whose thing is written.
+	//  tdi is the TD instance, or nil if the thing TD is deleted.
+	SetTDHooks(writeTDHandler WriteTDHook, deleteTDHandler DeleteTDHook)
+
 	// UpdateThing replaces the TD in the store.
 	// If the thing doesn't exist in the store it is added.
-	UpdateThing(tdJson string) error
+	//
+	// Only agents can update a TD.
+	UpdateThing(agentID string, tdJson string) error
 }

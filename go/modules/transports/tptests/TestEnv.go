@@ -77,9 +77,9 @@ type TestEnv struct {
 // CreateTestTD returns a test TD with ID "thing-{i}", and a variable
 // number of properties, events and actions.
 //
-//	properties are named "prop-{i}
-//	events are named "event-{i}
-//	actions are named "action-{i}
+//	properties are named "prop-{j}
+//	events are named "event-{j}
+//	actions are named "action-{j}
 //
 // The first 10 are predefined and always the same. A higher number generates at random.
 // i is the index.
@@ -226,6 +226,9 @@ func (testEnv *TestEnv) NewConsumerClient(
 
 // Create a new running test server instance using the given http server
 //
+// This can be called multiple times to support multiple servers. However, only the
+// first server will be stored.
+//
 // protocols is one of a list of the server protocols to support. nil for all
 // protocols:
 // * transports.ProtocolTypeHTTPBasic
@@ -258,8 +261,11 @@ func (testEnv *TestEnv) StartTestServer(protocol string) (srv transports.ITransp
 	if err != nil {
 		panic("Unable to create transport server module: " + err.Error())
 	}
-	testEnv.ServerURL = srv.GetConnectURL()
-
+	// dont override the first transport server in case multiple transports are used
+	if testEnv.Server == nil {
+		testEnv.Server = srv
+		testEnv.ServerURL = srv.GetConnectURL()
+	}
 	return srv
 }
 

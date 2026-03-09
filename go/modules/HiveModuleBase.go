@@ -126,16 +126,6 @@ func (m *HiveModuleBase) GetSink() msg.RequestHandler {
 	return m.requestSink
 }
 
-// GetTM returns the module's TM describing its properties, actions and events.
-// If supported, the TM can be obtained after a successful start.
-// If no TM is available then this returns "".
-// To convert the TM to a TD, use AddForms on the transport modules to include
-// forms that describe interactions. This can be handled by the pipeline server
-// or by the application itself.
-func (m *HiveModuleBase) GetTM() string {
-	return ""
-}
-
 // HandleNotification receives an incoming notification from a producer.
 //
 // The default behavior is to passes the notification to the registered hook and
