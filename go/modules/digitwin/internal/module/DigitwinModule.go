@@ -52,26 +52,25 @@ type DigitwinModule struct {
 	storageRoot string
 }
 
-// ForwardDigitalTwinRequest passes the request to the original device after restoring its thingID
-func (m *DigitwinModule) ForwardDigitwinRequest(req *msg.RequestMessage, replyTo msg.ResponseHandler) (err error) {
+// ForwardDigitalTwinRequest passes the request made to a digital twin to the original device.
+// This will restore the original device thingID before forwarding the request.
+func (m *DigitwinModule) ForwardDigitwinRequestToDevice(dtwReq *msg.RequestMessage, replyTo msg.ResponseHandler) (err error) {
 	// reverse the digital twin thingID
-	agentID, thingID, err := SplitDigitwinID(req.ThingID)
+	agentID, thingID, err := SplitDigitwinID(dtwReq.ThingID)
 
 	// the device agent expects the actual thingID
-	agentReq := *req
-	agentReq.ThingID = thingID
+	deviceReq := *dtwReq
+	deviceReq.ThingID = thingID
 
-	// FIXME: how to determine the connection of the agent?
+	// forward the request to the sink, which is responsible for routing it to the destination
 	_ = agentID
-	return fmt.Errorf("not yet implemented")
-
-	// option 1: use yet another hook?:
-	// c := m.FindAgentConnection(agentID)
-	// OR option 2: loop the request sink back to the server?:
-	// some kind of router should figure this out but how does it know the agent to send to?
-	// m.ForwardRequest(agentReq)
-
-	// return c.HandleRequest(agentReq, replyTo)
+	err = m.ForwardRequest(&deviceReq, func(resp *msg.ResponseMessage) error {
+		// put the digitwin thingID back into the response
+		resp.ThingID = dtwReq.ThingID
+		err = replyTo(resp)
+		return err
+	})
+	return err
 }
 
 // HandleNotification stores the latest notification things for retrieval as a digital twin value
@@ -119,7 +118,7 @@ func (m *DigitwinModule) HandleRequest(req *msg.RequestMessage, replyTo msg.Resp
 		case wot.OpWriteProperty,
 			wot.OpWriteMultipleProperties,
 			wot.OpInvokeAction:
-			return m.ForwardDigitwinRequest(req, replyTo)
+			return m.ForwardDigitwinRequestToDevice(req, replyTo)
 		}
 	}
 
@@ -131,19 +130,6 @@ func (m *DigitwinModule) HandleRequest(req *msg.RequestMessage, replyTo msg.Resp
 		return err
 	}
 	return m.msgAPI.HandleRequest(req, replyTo)
-}
-
-// forward vcache read requests after changing the thingID
-func (m *DigitwinModule) HandleUnhandledVCacheRequests(req *msg.RequestMessage, replyTo msg.ResponseHandler) error {
-	agentID, thingID, err := SplitDigitwinID(req.ThingID)
-	if err != nil {
-		return err
-	}
-	reqCpy := *req
-	reqCpy.ThingID = thingID
-	//forward request to agent
-	err = fmt.Errorf("todo: forward request to agent '%s'", agentID)
-	return err
 }
 
 // Start the digital twin module and open its native thing backup
@@ -173,7 +159,7 @@ func (m *DigitwinModule) Start(_ string) (err error) {
 	// note that the thingID is the digital twin ID, which needs to be converted
 	// back to the device thingID
 	m.vcache = vcache.NewVCacheModule()
-	m.vcache.SetRequestSink(m.HandleUnhandledVCacheRequests)
+	m.vcache.SetRequestSink(m.ForwardDigitwinRequestToDevice)
 
 	m.directory.SetTDHooks(m.HandleWriteDirectory, m.HandleDeleteTD)
 

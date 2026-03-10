@@ -1,6 +1,7 @@
 package digitwin_test
 
 import (
+	"fmt"
 	"log/slog"
 	"os"
 	"strings"
@@ -159,6 +160,18 @@ func TestReadDigitwinProperty(t *testing.T) {
 	testEnv, dir, dtw, stopFn := startService()
 	_ = dtw
 	defer stopFn()
+
+	// the digital twin sink will receive the request for read unknown property
+	dtw.SetRequestSink(func(req *msg.RequestMessage, replyTo msg.ResponseHandler) error {
+		if req.Operation == wot.OpReadProperty {
+			if req.ThingID == thing1ID && req.Name == prop1Name {
+				resp := req.CreateResponse(prop1Value, nil)
+				err := replyTo(resp)
+				return err
+			}
+		}
+		return fmt.Errorf("unknown request ")
+	})
 
 	// 1. pretent to be an agent that writes a TD to the directory
 	td1 := testEnv.CreateTestTD(0)
