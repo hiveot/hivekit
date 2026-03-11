@@ -192,7 +192,7 @@ func TestReadDigitwinProperty(t *testing.T) {
 	// the digital twin in return submits it to subscribers.
 
 	// 3. the consumer reads the property value
-	dtwThingID := module.CreateDigitwinID(agentID, thing1ID)
+	dtwThingID := module.MakeDigitwinID(agentID, thing1ID)
 	req1 := msg.NewRequestMessage(wot.OpReadProperty, dtwThingID, prop1Name, nil, "")
 	//
 	// vcache does not forward the request as the request thingID is that of the digitwin.

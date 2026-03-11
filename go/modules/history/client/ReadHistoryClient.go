@@ -46,7 +46,7 @@ func (cl *ReadHistoryClient) GetCursor(thingID string, filterOnName string) (
 
 // First positions the cursor at the first key in the ordered list
 // This returns an error if the cursor has expired or is not found.
-func (cl *ReadHistoryClient) First(cursorKey string) (thingValue *msg.ThingValue, valid bool, err error) {
+func (cl *ReadHistoryClient) First(cursorKey string) (value *msg.NotificationMessage, valid bool, err error) {
 	resp := historyapi.CursorValueResp{}
 	err = cl.co.Rpc(wot.OpInvokeAction,
 		cl.histThingID, historyapi.CursorFirstMethod, &cursorKey, &resp)
@@ -55,7 +55,7 @@ func (cl *ReadHistoryClient) First(cursorKey string) (thingValue *msg.ThingValue
 
 // Last positions the cursor at the last key in the ordered list
 // This returns an error if the cursor has expired or is not found.
-func (cl *ReadHistoryClient) Last(cursorKey string) (thingValue *msg.ThingValue, valid bool, err error) {
+func (cl *ReadHistoryClient) Last(cursorKey string) (thingValue *msg.NotificationMessage, valid bool, err error) {
 	resp := historyapi.CursorValueResp{}
 	err = cl.co.Rpc(wot.OpInvokeAction,
 		cl.histThingID, historyapi.CursorLastMethod, &cursorKey, &resp)
@@ -64,7 +64,7 @@ func (cl *ReadHistoryClient) Last(cursorKey string) (thingValue *msg.ThingValue,
 
 // Next moves the cursor to the next key from the current cursor
 // This returns an error if the cursor has expired or is not found.
-func (cl *ReadHistoryClient) Next(cursorKey string) (thingValue *msg.ThingValue, valid bool, err error) {
+func (cl *ReadHistoryClient) Next(cursorKey string) (thingValue *msg.NotificationMessage, valid bool, err error) {
 	resp := historyapi.CursorValueResp{}
 	err = cl.co.Rpc(wot.OpInvokeAction,
 		cl.histThingID, historyapi.CursorNextMethod, &cursorKey, &resp)
@@ -74,7 +74,7 @@ func (cl *ReadHistoryClient) Next(cursorKey string) (thingValue *msg.ThingValue,
 // NextN moves the cursor to the next N steps from the current cursor
 // This returns an error if the cursor has expired or is not found.
 func (cl *ReadHistoryClient) NextN(cursorKey string, until time.Time, limit int) (
-	value []*msg.ThingValue, itemsRemaining bool, err error) {
+	value []*msg.NotificationMessage, itemsRemaining bool, err error) {
 
 	untilRFC := utils.FormatUTCMilli(until)
 	req := historyapi.CursorNArgs{
@@ -90,7 +90,7 @@ func (cl *ReadHistoryClient) NextN(cursorKey string, until time.Time, limit int)
 
 // Prev moves the cursor to the previous key from the current cursor
 // This returns an error if the cursor has expired or is not found.
-func (cl *ReadHistoryClient) Prev(cursorKey string) (thingValue *msg.ThingValue, valid bool, err error) {
+func (cl *ReadHistoryClient) Prev(cursorKey string) (thingValue *msg.NotificationMessage, valid bool, err error) {
 	resp := historyapi.CursorValueResp{}
 	err = cl.co.Rpc(wot.OpInvokeAction,
 		cl.histThingID, historyapi.CursorPrevMethod, &cursorKey, &resp)
@@ -101,7 +101,7 @@ func (cl *ReadHistoryClient) Prev(cursorKey string) (thingValue *msg.ThingValue,
 // the batch of values and whether there are more items remaining.
 // This returns an error if the cursor has expired or is not found.
 func (cl *ReadHistoryClient) PrevN(cursorKey string, until time.Time, limit int) (
-	value []*msg.ThingValue, itemsRemaining bool, err error) {
+	value []*msg.NotificationMessage, itemsRemaining bool, err error) {
 
 	untilRFC := utils.FormatUTCMilli(until)
 	req := historyapi.CursorNArgs{
@@ -137,7 +137,7 @@ func (cl *ReadHistoryClient) ReleaseCursor(cursorKey string) {
 // to continue reading the next page.
 func (cl *ReadHistoryClient) ReadHistory(thingID string, filterOnName string,
 	timestamp time.Time, duration time.Duration, limit int) (
-	batch []*msg.ThingValue, itemsRemaining bool, err error) {
+	batch []*msg.NotificationMessage, itemsRemaining bool, err error) {
 
 	args := historyapi.ReadHistoryArgs{
 		ThingID:        thingID,
@@ -155,7 +155,8 @@ func (cl *ReadHistoryClient) ReadHistory(thingID string, filterOnName string,
 // Seek the starting point for iterating the history
 // This returns an error if the cursor has expired or is not found.
 func (cl *ReadHistoryClient) Seek(cursorKey string, timestamp time.Time) (
-	thingValue *msg.ThingValue, valid bool, err error) {
+	thingValue *msg.NotificationMessage, valid bool, err error) {
+
 	timeRFC := utils.FormatUTCMilli(timestamp)
 	args := historyapi.CursorSeekArgs{
 		CursorKey: cursorKey,

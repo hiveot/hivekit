@@ -34,6 +34,23 @@ const (
 	ProtocolTypePassthrough   = "passthrough"
 )
 
+// notifications sent by transport servers to server side services
+// These are published by TransportServerBase
+const (
+	// A client connected to the server
+	ConnectEventName = "connected"
+	// A client connection was removed
+	DisconnectEventName = "disconnected"
+)
+
+// payload of connection events
+type ConnectionInfo struct {
+	// ClientID holds the account ID of the connected client
+	ClientID string `json:"clientID"`
+	// ConnectionID holds the instance ID of the connected client
+	ConnectionID string `json:"cid"`
+}
+
 // ValidateToken verifies the token and client are valid.
 // This returns an error if the token is invalid, the token has expired,
 // or the client is not a valid and enabled client.
@@ -52,8 +69,8 @@ type ITransportServer interface {
 	// GetConnectURL returns connection URL of the server
 	GetConnectURL() string
 
-	// SendNotification [agent] sends a notification over the connection to
-	// subscribed consumers.
+	// SendNotification [agent] sends a notification over the connections to
+	// remote subscribed consumers.
 	SendNotification(notif *msg.NotificationMessage)
 
 	// SendRequest [consumer] sends a request to a connected agent.
@@ -71,10 +88,4 @@ type ITransportServer interface {
 	//
 	// Intended for use by agents that host one or more Things.
 	SendResponse(clientID string, cid string, resp *msg.ResponseMessage) error
-
-	// Set the handler for authentication connections to this transport module.
-	// SetAuthenticationHandler(h AuthenticationHandler)
-
-	// Set the handler for incoming connections
-	// SetConnectionHandler(h ConnectionHandler)
 }

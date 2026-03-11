@@ -29,24 +29,24 @@ import (
 // This returns the value, or nil if the key is invalid
 // If the json in the store is invalid this returns an error
 func decodeValue(bucketID string, storageKey string, raw []byte) (
-	thingValue *msg.ThingValue, valid bool, err error) {
+	value *msg.NotificationMessage, valid bool, err error) {
 
 	var senderID string
 	// key is constructed as  timestamp/name/{a|e|c}/sender, where sender can be omitted
 	parts := strings.Split(storageKey, "/")
 	if len(parts) < 2 {
 		// the key is invalid so return no-more-data
-		return thingValue, false, nil
+		return value, false, nil
 	}
 	createdMsec, _ := strconv.ParseInt(parts[0], 10, 64)
 	createdTime := time.UnixMilli(createdMsec)
 	name := parts[1]
-	valueType := msg.AffordanceTypeEvent
+	affType := msg.AffordanceTypeEvent
 	if len(parts) >= 2 {
 		if parts[2] == "a" {
-			valueType = msg.AffordanceTypeAction
+			affType = msg.AffordanceTypeAction
 		} else if parts[2] == "p" {
-			valueType = msg.AffordanceTypeProperty
+			affType = msg.AffordanceTypeProperty
 		}
 	}
 	if len(parts) > 3 {
@@ -63,45 +63,40 @@ func decodeValue(bucketID string, storageKey string, raw []byte) (
 			"thingID", bucketID, "name", name, "err", err.Error())
 	}
 
-	thingValue = &msg.ThingValue{
-		ThingID:        bucketID, // digital twin thingID that includes the agent prefix
-		Name:           name,
-		Data:           data,
-		Timestamp:      utils.FormatUTCMilli(createdTime),
-		AffordanceType: valueType,
-	}
+	value = msg.NewNotificationMessage(senderID, affType, bucketID, name, data)
+	value.Timestamp = utils.FormatUTCMilli(createdTime)
 	_ = senderID
-	return thingValue, true, err
+	return value, true, err
 }
 
 // encodeValue a ResponseMessage into a single storage key value pair for easy storage and filtering.
 // Encoding generates a key as: timestampMsec/name/a|e|p/sender,
 // where a|e|p indicates message type "action", "event" or "property"
-func encodeValue(tv *msg.ThingValue) (storageKey string, data []byte) {
+func encodeValue(value *msg.NotificationMessage) (storageKey string, data []byte) {
 	var err error
 	createdTime := time.Now().UTC()
-	if tv.Timestamp != "" {
-		createdTime, err = dateparse.ParseAny(tv.Timestamp)
+	if value.Timestamp != "" {
+		createdTime, err = dateparse.ParseAny(value.Timestamp)
 		if err != nil {
-			slog.Warn("Invalid Timestamp time. Using current time instead", "created", tv.Timestamp)
+			slog.Warn("Invalid Timestamp time. Using current time instead", "created", value.Timestamp)
 			createdTime = time.Now().UTC()
 		}
 	}
 
 	// the index uses milliseconds for timestamp
 	timestamp := createdTime.UnixMilli()
-	storageKey = strconv.FormatInt(timestamp, 10) + "/" + tv.Name
-	if tv.AffordanceType == msg.AffordanceTypeAction {
+	storageKey = strconv.FormatInt(timestamp, 10) + "/" + value.Name
+	if value.AffordanceType == msg.AffordanceTypeAction {
 		// TODO: actions subscriptions are currently not supported. This would be useful though.
 		storageKey = storageKey + "/a"
-	} else if tv.AffordanceType == msg.AffordanceTypeProperty {
+	} else if value.AffordanceType == msg.AffordanceTypeProperty {
 		storageKey = storageKey + "/p"
 	} else { // treat everything else as events
 		storageKey = storageKey + "/e"
 	}
-	storageKey = storageKey + "/" + tv.SenderID
+	storageKey = storageKey + "/" + value.SenderID
 	//if msg.Data != nil {
-	data, _ = jsoniter.Marshal(tv.Data)
+	data, _ = jsoniter.Marshal(value.Data)
 	//}
 	return storageKey, data
 }
@@ -110,23 +105,23 @@ func encodeValue(tv *msg.ThingValue) (storageKey string, data []byte) {
 // and returns if it is retained.
 //
 // an error will be returned if the senderID, thingID or name are empty.
-func validateValue(tv *msg.ThingValue) (err error) {
-	if tv.ThingID == "" {
-		return fmt.Errorf("validateValue: missing thingID in value with value name '%s'", tv.Name)
+func validateValue(value *msg.NotificationMessage) (err error) {
+	if value.ThingID == "" {
+		return fmt.Errorf("validateValue: missing thingID in value with value name '%s'", value.Name)
 	}
-	if tv.Name == "" {
-		return fmt.Errorf("validateValue: missing name for event or action for things '%s'", tv.ThingID)
+	if value.Name == "" {
+		return fmt.Errorf("validateValue: missing name for event or action for things '%s'", value.ThingID)
 	}
-	if tv.SenderID == "" {
-		return fmt.Errorf("validateValue: missing sender for action on thing '%s'", tv.ThingID)
+	if value.SenderID == "" {
+		return fmt.Errorf("validateValue: missing sender for action on thing '%s'", value.ThingID)
 	}
-	if tv.Timestamp == "" {
-		tv.Timestamp = utils.FormatNowUTCMilli()
+	if value.Timestamp == "" {
+		value.Timestamp = utils.FormatNowUTCMilli()
 	}
-	if tv.AffordanceType != msg.AffordanceTypeProperty &&
-		tv.AffordanceType != msg.AffordanceTypeEvent &&
-		tv.AffordanceType != msg.AffordanceTypeAction {
-		return fmt.Errorf("ValidateValue: Unknown affordancetype '%s'.", tv.AffordanceType)
+	if value.AffordanceType != msg.AffordanceTypeProperty &&
+		value.AffordanceType != msg.AffordanceTypeEvent &&
+		value.AffordanceType != msg.AffordanceTypeAction {
+		return fmt.Errorf("ValidateValue: Unknown affordancetype '%s'.", value.AffordanceType)
 	}
 
 	return nil
@@ -134,7 +129,7 @@ func validateValue(tv *msg.ThingValue) (err error) {
 
 // AddValue adds a Thing value from a sender to the action history
 // The caller must validate the SenderID in the tv.
-func (svc *HistoryServer) AddValue(tv *msg.ThingValue) error {
+func (svc *HistoryServer) AddValue(value *msg.NotificationMessage) error {
 	//slog.Info("AddValue",
 	//	slog.String("senderID", senderID),
 	//	slog.String("ID", tv.ID),
@@ -142,14 +137,14 @@ func (svc *HistoryServer) AddValue(tv *msg.ThingValue) error {
 	//	slog.String("name", tv.Name),
 	//	slog.String("affordance", tv.AffordanceType),
 	//)
-	err := validateValue(tv)
+	err := validateValue(value)
 	if err != nil {
 		slog.Info("AddValue value error", "err", err.Error())
 		return err
 	}
-	storageKey, val := encodeValue(tv)
-	bucket := svc.bucketStore.GetBucket(tv.ThingID)
-	err = bucket.Set(storageKey, val)
+	storageKey, data := encodeValue(value)
+	bucket := svc.bucketStore.GetBucket(value.ThingID)
+	err = bucket.Set(storageKey, data)
 	_ = bucket.Close()
 	//if svc.onAddedValue != nil {
 	//	svc.onAddedValue(actionValue)
@@ -192,7 +187,7 @@ func (svc *HistoryServer) CreateCursor(clientID string, thingID string, affName 
 //	cursorKey is the cursor to iterate.
 //	affName is the optional affordance name to search for, or "" for any
 func (svc *HistoryServer) First(clientID string, cursorKey string) (
-	value *msg.ThingValue, valid bool, err error) {
+	value *msg.NotificationMessage, valid bool, err error) {
 
 	until := time.Now().UTC()
 
@@ -209,19 +204,19 @@ func (svc *HistoryServer) First(clientID string, cursorKey string) (
 		return nil, false, nil
 	}
 
-	tv, valid, err := decodeValue(cursor.BucketID(), k, raw)
+	value, valid, err = decodeValue(cursor.BucketID(), k, raw)
 	// if an filter on affordance name was requested then iterate until found
-	if valid && affName != "" && tv.Name != affName {
-		tv, valid = svc.next(cursor, affName, until)
+	if valid && affName != "" && value.Name != affName {
+		value, valid = svc.next(cursor, affName, until)
 	}
-	return tv, valid, err
+	return value, valid, err
 }
 
 // Last positions the cursor at the last key in the ordered list
 // If an affordance name is provided then it rewinds to the first available value
 // for that affordance.
 func (svc *HistoryServer) Last(clientID string, cursorKey string) (
-	tv *msg.ThingValue, valid bool, err error) {
+	value *msg.NotificationMessage, valid bool, err error) {
 
 	// the beginning of time?
 	until := time.Time{}
@@ -236,13 +231,13 @@ func (svc *HistoryServer) Last(clientID string, cursorKey string) (
 		// bucket is empty
 		return nil, valid, nil
 	}
-	tv, valid, err = decodeValue(cursor.BucketID(), k, raw)
+	value, valid, err = decodeValue(cursor.BucketID(), k, raw)
 
 	// search back to the last valid value without an error
-	if (valid || err != nil) && affName != "" && tv.Name != affName {
-		tv, valid = svc.prev(cursor, affName, until)
+	if (valid || err != nil) && affName != "" && value.Name != affName {
+		value, valid = svc.prev(cursor, affName, until)
 	}
-	return tv, valid, nil
+	return value, valid, nil
 }
 
 // next iterates the cursor until the next value containing 'name' is found and the
@@ -256,7 +251,7 @@ func (svc *HistoryServer) Last(clientID string, cursorKey string) (
 //	until is the time not to exceed in the result. Intended to avoid unnecessary iteration in range queries
 func (svc *HistoryServer) next(
 	cursor bucketstoreapi.IBucketCursor, affName string, until time.Time) (
-	thingValue *msg.ThingValue, found bool) {
+	value *msg.NotificationMessage, found bool) {
 
 	untilMilli := until.UnixMilli()
 	found = false
@@ -278,13 +273,13 @@ func (svc *HistoryServer) next(
 				// we passed the given time limit
 				// undo the last step so that followup requests with a new time limit can include this result
 				cursor.Prev()
-				return thingValue, false
+				return value, false
 			}
 			if affName == "" || affName == parts[1] {
 				// found a match. Decode and return it
-				thingValue, found, err := decodeValue(cursor.BucketID(), k, raw)
+				value, found, err := decodeValue(cursor.BucketID(), k, raw)
 				if err == nil {
-					return thingValue, found
+					return value, found
 				}
 				// the data was invalid. ignore this entry
 			}
@@ -296,9 +291,9 @@ func (svc *HistoryServer) next(
 // Read the next number of items until time or count limit is reached
 func (svc *HistoryServer) nextN(
 	cursor bucketstoreapi.IBucketCursor, affName string, endTime time.Time, limit int) (
-	items []*msg.ThingValue, itemsRemaining bool) {
+	items []*msg.NotificationMessage, itemsRemaining bool) {
 
-	items = make([]*msg.ThingValue, 0, limit)
+	items = make([]*msg.NotificationMessage, 0, limit)
 	itemsRemaining = true
 
 	for i := 0; i < limit; i++ {
@@ -317,7 +312,7 @@ func (svc *HistoryServer) nextN(
 // First() or Seek must have been called first.
 // This returns an error if the cursor is not found.
 func (svc *HistoryServer) Next(clientID string, cursorKey string) (
-	tv *msg.ThingValue, valid bool, err error) {
+	value *msg.NotificationMessage, valid bool, err error) {
 
 	cursor, ci, err := svc.cursorCache.Get(clientID, cursorKey, true)
 	if err != nil {
@@ -325,9 +320,9 @@ func (svc *HistoryServer) Next(clientID string, cursorKey string) (
 	}
 	affName := ci.FilterData
 	until := time.Now()
-	tv, valid = svc.next(cursor, affName, until)
+	value, valid = svc.next(cursor, affName, until)
 
-	return tv, valid, nil
+	return value, valid, nil
 }
 
 // NextN moves the cursor to the next N places from the current cursor and return a
@@ -338,7 +333,7 @@ func (svc *HistoryServer) Next(clientID string, cursorKey string) (
 // Intended to speed up with batch iterations over rpc.
 func (svc *HistoryServer) NextN(
 	clientID string, cursorKey string, until time.Time, limit int) (
-	tvList []*msg.ThingValue, itemsRemaining bool, err error) {
+	valueList []*msg.NotificationMessage, itemsRemaining bool, err error) {
 
 	if limit <= 0 {
 		limit = historyapi.DefaultLimit
@@ -348,8 +343,8 @@ func (svc *HistoryServer) NextN(
 		return nil, false, err
 	}
 	affName := ci.FilterData
-	tvList, itemsRemaining = svc.nextN(cursor, affName, until, limit)
-	return tvList, itemsRemaining, err
+	valueList, itemsRemaining = svc.nextN(cursor, affName, until, limit)
+	return valueList, itemsRemaining, err
 }
 
 // Prev iterates the cursor until the previous value passes the filters and the
@@ -366,7 +361,7 @@ func (svc *HistoryServer) NextN(
 //	to avoid unnecessary iteration in range queries
 func (svc *HistoryServer) prev(
 	cursor bucketstoreapi.IBucketCursor, affName string, until time.Time) (
-	thingValue *msg.ThingValue, found bool) {
+	value *msg.NotificationMessage, found bool) {
 
 	untilMilli := until.UnixMilli()
 	found = false
@@ -374,7 +369,7 @@ func (svc *HistoryServer) prev(
 		k, raw, valid := cursor.Prev()
 		if !valid {
 			// key is invalid. This means we reached the beginning of cursor
-			return thingValue, false
+			return value, false
 		}
 		// key is constructed as  {timestamp}/{affName}/{a|e|c}/sender
 		parts := strings.Split(k, "/")
@@ -393,9 +388,9 @@ func (svc *HistoryServer) prev(
 
 			if affName == "" || affName == parts[1] {
 				// found a match. Decode and return it
-				thingValue, found, err := decodeValue(cursor.BucketID(), k, raw)
+				value, found, err := decodeValue(cursor.BucketID(), k, raw)
 				if err == nil {
-					return thingValue, found
+					return value, found
 				}
 				// the data was invalid for unknown reason. Skip this entry.
 			}
@@ -407,9 +402,9 @@ func (svc *HistoryServer) prev(
 // prevN reads the previous number of items until time or count limit is reached
 func (svc *HistoryServer) prevN(
 	cursor bucketstoreapi.IBucketCursor, affName string, endTime time.Time, limit int) (
-	items []*msg.ThingValue, itemsRemaining bool) {
+	items []*msg.NotificationMessage, itemsRemaining bool) {
 
-	items = make([]*msg.ThingValue, 0, limit)
+	items = make([]*msg.NotificationMessage, 0, limit)
 	itemsRemaining = true
 
 	for i := 0; i < limit; i++ {
@@ -427,7 +422,7 @@ func (svc *HistoryServer) prevN(
 // Last() or Seek must have been called first.
 // This returns an error if the cursor is not found.
 func (svc *HistoryServer) Prev(clientID string, cursorKey string) (
-	tv *msg.ThingValue, valid bool, err error) {
+	value *msg.NotificationMessage, valid bool, err error) {
 
 	cursor, ci, err := svc.cursorCache.Get(clientID, cursorKey, true)
 	if err != nil {
@@ -435,9 +430,9 @@ func (svc *HistoryServer) Prev(clientID string, cursorKey string) (
 	}
 	affName := ci.FilterData
 	until := time.Time{}
-	tv, valid = svc.prev(cursor, affName, until)
+	value, valid = svc.prev(cursor, affName, until)
 
-	return tv, valid, nil
+	return value, valid, nil
 }
 
 // PrevN moves the cursor to the previous N places from the current cursor
@@ -447,7 +442,7 @@ func (svc *HistoryServer) Prev(clientID string, cursorKey string) (
 // Intended to speed up with batch iterations over rpc.
 func (svc *HistoryServer) PrevN(
 	clientID string, cursorKey string, until time.Time, limit int) (
-	tvList []*msg.ThingValue, itemsRemaining bool, err error) {
+	valueList []*msg.NotificationMessage, itemsRemaining bool, err error) {
 
 	if limit <= 0 {
 		limit = historyapi.DefaultLimit
@@ -457,16 +452,16 @@ func (svc *HistoryServer) PrevN(
 		return nil, false, err
 	}
 	affName := ci.FilterData
-	tvList, itemsRemaining = svc.prevN(cursor, affName, until, limit)
-	return tvList, itemsRemaining, err
+	valueList, itemsRemaining = svc.prevN(cursor, affName, until, limit)
+	return valueList, itemsRemaining, err
 }
 
 // ReadHistory returns the history for the given thingID, name and time range
 func (svc *HistoryServer) ReadHistory(
 	thingID string, affName string, timestamp time.Time, durationSec int, limit int) (
-	values []*msg.ThingValue, itemsRemaining bool, err error) {
+	values []*msg.NotificationMessage, itemsRemaining bool, err error) {
 
-	values = make([]*msg.ThingValue, 0)
+	values = make([]*msg.NotificationMessage, 0)
 
 	if limit <= 0 {
 		limit = historyapi.DefaultLimit
@@ -486,7 +481,7 @@ func (svc *HistoryServer) ReadHistory(
 		// item0 is nil when seek after the last available item
 		values = append(values, item0)
 	}
-	var batch []*msg.ThingValue
+	var batch []*msg.NotificationMessage
 	until := timestamp.Add(time.Duration(durationSec) * time.Second)
 	if durationSec > 0 {
 		// read forward in time
@@ -509,7 +504,7 @@ func (svc *HistoryServer) ReleaseCursor(clientID string, cursorKey string) error
 // seek internal function for seeking a time and affordance name
 func (svc *HistoryServer) seek(
 	cursor bucketstoreapi.IBucketCursor, ts time.Time, affName string) (
-	tv *msg.ThingValue, valid bool) {
+	value *msg.NotificationMessage, valid bool) {
 
 	until := time.Now()
 
@@ -523,14 +518,14 @@ func (svc *HistoryServer) seek(
 		// bucket is empty, no error
 		return nil, valid
 	}
-	thingValue, valid, err := decodeValue(cursor.BucketID(), k, raw)
+	value, valid, err := decodeValue(cursor.BucketID(), k, raw)
 	if err != nil {
 		// the value cannot be decoded, skip this entry
-		thingValue, valid = svc.next(cursor, affName, until)
-	} else if valid && affName != "" && thingValue.Name != affName {
-		thingValue, valid = svc.next(cursor, affName, until)
+		value, valid = svc.next(cursor, affName, until)
+	} else if valid && affName != "" && value.Name != affName {
+		value, valid = svc.next(cursor, affName, until)
 	}
-	return thingValue, valid
+	return value, valid
 }
 
 // Seek positions the cursor at the given time stamp and affordance name.
@@ -538,7 +533,7 @@ func (svc *HistoryServer) seek(
 // This returns an error if the cursor is not valid.
 func (svc *HistoryServer) Seek(
 	clientID string, cursorKey string, ts time.Time) (
-	tv *msg.ThingValue, valid bool, err error) {
+	value *msg.NotificationMessage, valid bool, err error) {
 
 	slog.Info("Seek using timestamp",
 		slog.Time("timestamp", ts),
@@ -552,7 +547,7 @@ func (svc *HistoryServer) Seek(
 
 	// search the first occurrence at or after the given timestamp
 	// the buck index uses the stringified timestamp
-	tv, valid = svc.seek(cursor, ts, affName)
+	value, valid = svc.seek(cursor, ts, affName)
 
-	return tv, valid, err
+	return value, valid, err
 }

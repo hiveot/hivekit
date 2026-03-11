@@ -8,7 +8,6 @@ import (
 	authnapi "github.com/hiveot/hivekit/go/modules/authn/api"
 	historyclient "github.com/hiveot/hivekit/go/modules/history/client"
 	"github.com/hiveot/hivekit/go/utils"
-	"github.com/hiveot/hivekit/go/wot/td"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -64,7 +63,6 @@ func BenchmarkAddEvents(b *testing.B) {
 	const agentID = "agent1"
 	const thing0ID = thingIDPrefix + "0"
 	const timespanSec = 3600 * 24 * 10
-	var dThing0ID = td.MakeDigiTwinThingID(agentID, thing0ID)
 
 	utils.SetLogging("error", "")
 
@@ -113,7 +111,7 @@ func BenchmarkAddEvents(b *testing.B) {
 			func(b *testing.B) {
 				for n := 0; n < b.N; n++ {
 
-					cursorKey, releaseFn, _ := readHist.GetCursor(dThing0ID, "")
+					cursorKey, releaseFn, _ := readHist.GetCursor(thing0ID, "")
 					v, valid, _ := readHist.First(cursorKey)
 					for i := 0; i < tbl.nrSets-1; i++ {
 						v, valid, _ = readHist.Next(cursorKey)
@@ -133,7 +131,7 @@ func BenchmarkAddEvents(b *testing.B) {
 			func(b *testing.B) {
 				for n := 0; n < b.N; n++ {
 
-					cursorKey, releaseFn, err := readHist.GetCursor(dThing0ID, "")
+					cursorKey, releaseFn, err := readHist.GetCursor(thing0ID, "")
 					require.NoError(b, err)
 					tv, _, _ := readHist.First(cursorKey)
 					assert.NotEmpty(b, tv)

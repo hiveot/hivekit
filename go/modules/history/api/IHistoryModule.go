@@ -13,7 +13,7 @@ const DefaultHistoryModuleID = "history"
 // DefaultLimit nr items of none provided
 const DefaultLimit = 1000
 
-// IHistoryServer defines the interface to the directory service module
+// IHistoryServer defines the interface to the history service module
 // This is implemented in the module and the client api
 //
 // The history persists values stored per ThingID. Values are ordered by timestamp and
@@ -47,7 +47,7 @@ type IHistoryServer interface {
 	//	clientID must match the owner of the cursor
 	//	cursorKey is the cursor to iterate.
 	First(clientID string, cursorKey string) (
-		value *msg.ThingValue, valid bool, err error)
+		value *msg.NotificationMessage, valid bool, err error)
 
 	// Last positions the cursor at the last key in the ordered list
 	// If an affordance name is provided then it rewinds to the first available value
@@ -55,7 +55,7 @@ type IHistoryServer interface {
 	//	clientID must match the owner of the cursor
 	//	cursorKey is the cursor to iterate.
 	Last(clientID string, cursorKey string) (
-		tv *msg.ThingValue, valid bool, err error)
+		value *msg.NotificationMessage, valid bool, err error)
 
 	// Next moves the cursor to the next key from the current cursor.
 	// If affName was provided then continue iterating until the affordance name matches.
@@ -64,7 +64,7 @@ type IHistoryServer interface {
 	//	clientID must match the owner of the cursor
 	//	cursorKey is the cursor to iterate.
 	Next(clientID string, cursorKey string) (
-		tv *msg.ThingValue, valid bool, err error)
+		value *msg.NotificationMessage, valid bool, err error)
 
 	// NextN moves the cursor to the next N places from the current cursor and return a
 	// list with N values in incremental time order.
@@ -80,13 +80,13 @@ type IHistoryServer interface {
 	// This returns a list of values in time order and 'itemsRemaining' which is
 	// true if the iterator has reached the first match.
 	NextN(clientID string, cursorKey string, until time.Time, limit int) (
-		tvList []*msg.ThingValue, itemsRemaining bool, err error)
+		valueList []*msg.NotificationMessage, itemsRemaining bool, err error)
 
 	// Prev moves the cursor to the previous key from the current cursor
 	// Last() or Seek must have been called first.
 	// This returns an error if the cursor is not found.
 	Prev(clientID string, cursorKey string) (
-		tv *msg.ThingValue, valid bool, err error)
+		value *msg.NotificationMessage, valid bool, err error)
 
 	// PrevN moves the cursor to the previous N places from the current cursor
 	// and return a list with N values in reverse time order.
@@ -99,7 +99,7 @@ type IHistoryServer interface {
 	// This returns a list of values in reverse time order and 'itemsRemaining' which is
 	// false if the iterator has reached the first match.
 	PrevN(clientID string, cursorKey string, until time.Time, limit int) (
-		tvList []*msg.ThingValue, itemsRemaining bool, err error)
+		valueList []*msg.NotificationMessage, itemsRemaining bool, err error)
 
 	// ReadHistory returns the value history for the given thingID, affordance name and time range
 	//
@@ -109,7 +109,7 @@ type IHistoryServer interface {
 	//  durationSec is the time period to read in seconds
 	//  limit is the maximum number of values to read
 	ReadHistory(thingID string, affName string, timestamp time.Time, durationSec int, limit int) (
-		values []*msg.ThingValue, itemsRemaining bool, err error)
+		valueList []*msg.NotificationMessage, itemsRemaining bool, err error)
 
 	// Release releases the cursor and frees its resources.
 	// This invalidates all values obtained from the cursor
@@ -121,5 +121,5 @@ type IHistoryServer interface {
 	// This returns the item found and a flag 'valid' if an item is found.
 	// This returns an error if the cursor is not valid.
 	Seek(clientID string, cursorKey string, ts time.Time) (
-		tv *msg.ThingValue, valid bool, err error)
+		value *msg.NotificationMessage, valid bool, err error)
 }

@@ -140,11 +140,7 @@ func TestReadProperty(t *testing.T) {
 	appReqHandler := func(req *msg.RequestMessage, replyTo msg.ResponseHandler) error {
 		var resp *msg.ResponseMessage
 		if req.Operation == wot.OpReadProperty && req.ThingID == thingID && req.Name == propKey {
-			tv := msg.NewThingValue(
-				req.SenderID, msg.AffordanceTypeProperty,
-				"thingID", req.Name, propValue, timestamp)
-
-			resp = req.CreateResponse(tv, nil)
+			resp = req.CreateResponse(propValue, nil)
 			resp.Timestamp = timestamp
 		} else {
 			resp = req.CreateResponse(nil, errors.New("unexpected request"))
@@ -161,14 +157,13 @@ func TestReadProperty(t *testing.T) {
 
 	rxVal, err := co1.ReadProperty(thingID, propKey)
 	require.NoError(t, err)
-	assert.Equal(t, propValue, rxVal.Data)
-	assert.Equal(t, timestamp, rxVal.Timestamp)
+	assert.Equal(t, propValue, rxVal)
 }
 
 // Consumer reads events from agent
 func TestReadAllProperties(t *testing.T) {
 	t.Logf("---%s---\n", t.Name())
-	var thingID = "dtw:thing1"
+	var thingID = "thing1"
 	var name1 = "prop1"
 	var name2 = "prop2"
 	var value1 = "value1"
@@ -179,11 +174,9 @@ func TestReadAllProperties(t *testing.T) {
 	appReqHandler := func(req *msg.RequestMessage, replyTo msg.ResponseHandler) error {
 		var resp *msg.ResponseMessage
 		if req.Operation == wot.OpReadAllProperties {
-			output := make(map[string]*msg.ThingValue)
-			output[name1] = msg.NewThingValue(req.SenderID,
-				msg.AffordanceTypeProperty, thingID, name1, value1, "")
-			output[name2] = msg.NewThingValue(req.SenderID,
-				msg.AffordanceTypeProperty, thingID, name2, value2, "")
+			output := make(map[string]any)
+			output[name1] = value1
+			output[name2] = value2
 			resp = req.CreateResponse(output, nil)
 		} else {
 			resp = req.CreateResponse(nil, errors.New("unexpected request"))
@@ -201,6 +194,6 @@ func TestReadAllProperties(t *testing.T) {
 	propMap, err := co1.ReadAllProperties(thingID)
 	require.NoError(t, err)
 	require.Equal(t, 2, len(propMap))
-	require.Equal(t, value1, propMap[name1].Data)
-	require.Equal(t, value2, propMap[name2].Data)
+	require.Equal(t, value1, propMap[name1])
+	require.Equal(t, value2, propMap[name2])
 }

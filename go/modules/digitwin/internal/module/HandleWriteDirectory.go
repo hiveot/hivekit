@@ -20,7 +20,6 @@ func (m *DigitwinModule) HandleDeleteTD(agentID string, thingID string) error {
 // HandleWriteDirectory is invoked before a TD is updated in the directory.
 //
 // This filters TD's with the @type empty or set to service.
-// TODO: should @type device be used instead?
 //
 // If the TD is that of a service then do nothing, otherwise update a digital twin.
 //
@@ -34,7 +33,7 @@ func (m *DigitwinModule) HandleWriteDirectory(agentID string, tdi *td.TD) (*td.T
 	}
 
 	// store the original TD's under the digitwin ID for easy retrieval
-	digitwinThingID := CreateDigitwinID(agentID, tdi.ID)
+	digitwinThingID := MakeDigitwinID(agentID, tdi.ID)
 	tdJson, _ := jsoniter.Marshal(tdi)
 	m.bucket.Set(digitwinThingID, tdJson)
 

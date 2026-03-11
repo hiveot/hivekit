@@ -77,7 +77,7 @@ type CreateCursorArgs struct {
 // Used as output for First, Last, Next, Prev methods
 type CursorValueResp struct {
 	// The value at the new cursor position or nil if not valid
-	Value *msg.ThingValue `json:"value"`
+	Value *msg.NotificationMessage `json:"value"`
 	// The current position holds a valid value
 	Valid bool `json:"valid"`
 }
@@ -96,7 +96,7 @@ type CursorNArgs struct {
 type CursorNResp struct {
 	// Returns up to 'Limit' iterated values.
 	// This will be an empty list when trying to read past the last value.
-	Values []*msg.ThingValue `json:"values"`
+	Values []*msg.NotificationMessage `json:"values"`
 	// There are still items remaining.
 	ItemsRemaining bool `json:"itemsRemaining"`
 }
@@ -126,7 +126,7 @@ type ReadHistoryArgs struct {
 type ReadHistoryResp struct {
 	// Returns up to 'Limit' iterated values.
 	// This will be an empty list when trying to read past the last value.
-	Values []*msg.ThingValue `json:"values"`
+	Values []*msg.NotificationMessage `json:"values"`
 	// There are still items remaining.
 	ItemsRemaining bool `json:"itemsRemaining"`
 }

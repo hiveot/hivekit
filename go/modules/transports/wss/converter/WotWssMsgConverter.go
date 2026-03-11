@@ -71,6 +71,9 @@ type WotWssResponseMessage struct {
 	// ThingID of the thing this is a response from.
 	ThingID string `json:"thingID,omitempty"`
 
+	// readproperty returns the actual property value
+	Value any `json:"value,omitempty"`
+
 	// readallproperties,readmultipleproperties,
 	// writeallproperties, writemultipleproperties:
 	// object with property name-value pairs
@@ -212,28 +215,13 @@ func (svc *WotWssMsgConverter) DecodeResponse(raw []byte) *msg.ResponseMessage {
 		}
 		respMsg.Output = output
 
-	case wot.OpReadAllProperties, wot.OpReadMultipleProperties,
-		wot.OpWriteMultipleProperties:
-
-		// the 'Value' property from the msg.ResponseMessage embedded struct
-		// already contains the msg.ThingValue map.
-		// Convert the websocket 'Values' field k-v map to ThingValue map
-		tvMap := make(map[string]msg.ThingValue)
-		if wssResp.Values != nil {
-			wssPropValues := make(map[string]any)
-			utils.DecodeAsObject(wssResp.Values, wssPropValues)
-			for propName, propValue := range wssPropValues {
-				tv := msg.ThingValue{
-					AffordanceType: msg.AffordanceTypeProperty,
-					Name:           propName,
-					Data:           propValue,
-					ThingID:        wssResp.ThingID,
-					// Timestamp: n/a
-				}
-				tvMap[tv.Name] = tv
-			}
-			respMsg.Output = tvMap
-		}
+	case wot.OpReadAllProperties, wot.OpReadMultipleProperties:
+		// the 'Values' property from the msg.ResponseMessage embedded struct
+		// contains the object with all property-value names
+		respMsg.Output = wssResp.Values
+	case wot.OpReadProperty:
+		// the 'Value' property contains the actual value
+		respMsg.Output = wssResp.Value
 	}
 	return respMsg
 }
@@ -336,23 +324,10 @@ func (svc *WotWssMsgConverter) EncodeResponse(resp *msg.ResponseMessage) ([]byte
 		}
 		wssResp.Statuses = wssStatusMap
 	case wot.OpReadAllProperties, wot.OpReadMultipleProperties:
-		// convert ThingValue map to map of name-value pairs
-		// the last updated timestamp is lost.
-		var thingValueList map[string]msg.ThingValue
-		err = utils.DecodeAsObject(resp.Output, &thingValueList)
-		if err != nil {
-			err = fmt.Errorf("encodeResponse (%s). Not a ThingValue map; err: %w", resp.Operation, err)
-			wssResp.Error = msg.ErrorValueFromError(err)
-		}
-		wssPropValues := make(map[string]any)
-		for _, thingValue := range thingValueList {
-			wssPropValues[thingValue.Name] = thingValue.ToString(0)
-		}
-		wssResp.Values = wssPropValues
-		// Note that wssResp also includes the ResponseMessage 'Value' property
-		// which hiveot clients can use to obtain the ThingValue result.
-		// non-hiveot clients will see the key-value map in 'Values'
+		// ReadAllProperties has the same response object with property key-values
+		wssResp.Values = resp.Output
 	case wot.OpReadProperty:
+		wssResp.Value = resp.Output
 	}
 
 	return jsoniter.Marshal(wssResp)

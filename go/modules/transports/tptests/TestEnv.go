@@ -247,7 +247,7 @@ func (testEnv *TestEnv) StartTestServer(protocol string) (srv transports.ITransp
 		// http only, no subprotocol bindings
 
 	case transports.ProtocolTypeHiveotSSE:
-		srv = ssescserver.NewHiveotSsescServer(testEnv.HttpServer, nil)
+		srv = ssescserver.NewHiveotSsescServer(testEnv.HttpServer)
 		err = srv.Start("")
 
 	case transports.ProtocolTypeWotWSS:

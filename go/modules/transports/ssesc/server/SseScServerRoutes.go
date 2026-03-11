@@ -243,9 +243,9 @@ func (m *SsescServer) onHttpSseConnection(w http.ResponseWriter, r *http.Request
 	// c.SetRequestHandler(srv.serverRequestHandler)
 	// c.SetResponseHandler(srv.serverResponseHandler)
 	err = m.AddConnection(c)
-	if m.connectHandler != nil {
-		m.connectHandler(true, c, nil)
-	}
+	// if m.connectHandler != nil {
+	// m.connectHandler(true, c, nil)
+	// }
 
 	// if err != nil {
 	// http.Error(w, err.Error(), http.StatusUnauthorized)
@@ -256,7 +256,7 @@ func (m *SsescServer) onHttpSseConnection(w http.ResponseWriter, r *http.Request
 
 	// finally cleanup the connection
 	m.RemoveConnection(c)
-	if m.connectHandler != nil {
-		m.connectHandler(false, c, nil)
-	}
+	// if m.connectHandler != nil {
+	// m.connectHandler(false, c, nil)
+	// }
 }

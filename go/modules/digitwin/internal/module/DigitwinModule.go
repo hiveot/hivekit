@@ -77,7 +77,7 @@ func (m *DigitwinModule) ForwardDigitwinRequestToDevice(dtwReq *msg.RequestMessa
 func (m *DigitwinModule) HandleNotification(notif *msg.NotificationMessage) {
 
 	dtwNotif := *notif
-	dtwNotif.ThingID = td.MakeDigiTwinThingID(notif.SenderID, notif.ThingID)
+	dtwNotif.ThingID = MakeDigitwinID(notif.SenderID, notif.ThingID)
 	m.vcache.HandleNotification(&dtwNotif)
 
 	m.ForwardNotification(notif)
@@ -133,6 +133,7 @@ func (m *DigitwinModule) HandleRequest(req *msg.RequestMessage, replyTo msg.Resp
 }
 
 // Start the digital twin module and open its native thing backup
+// This subscribes to devices and agents that have a digital twin in the directory.
 func (m *DigitwinModule) Start(_ string) (err error) {
 
 	moduleID := m.GetModuleID()
@@ -162,6 +163,14 @@ func (m *DigitwinModule) Start(_ string) (err error) {
 	m.vcache.SetRequestSink(m.ForwardDigitwinRequestToDevice)
 
 	m.directory.SetTDHooks(m.HandleWriteDirectory, m.HandleDeleteTD)
+
+	// Subscribe to devices.
+	// lets hope there aren't too many or this can take a while.
+	// how to support wildcard device subscriptions? flatten the list of agents?
+	// digitalTwins, err := m.directory.RetrieveAllThings(0, 0)
+
+	// TODO: agents are subscribed to when they (re)connect,
+	// so subscribe to server 'connect' notifications instead
 
 	return nil
 }

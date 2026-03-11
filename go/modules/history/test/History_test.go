@@ -89,10 +89,10 @@ func startHistoryService(clean bool) (
 // generate a random batch of property and event values for testing
 // timespanSec is the range of timestamps up until now
 func makeValueBatch(agentID string, nrValues, nrThings, timespanSec int) (
-	batch []msg.ThingValue, highest map[string]msg.ThingValue) {
+	batch []msg.NotificationMessage, highest map[string]msg.NotificationMessage) {
 
-	highest = make(map[string]msg.ThingValue)
-	valueBatch := make([]msg.ThingValue, 0, nrValues)
+	highest = make(map[string]msg.NotificationMessage)
+	valueBatch := make([]msg.NotificationMessage, 0, nrValues)
 	for j := 0; j < nrValues; j++ {
 		randomID := rand.Intn(nrThings)
 		randomName := rand.Intn(10)
@@ -109,7 +109,7 @@ func makeValueBatch(agentID string, nrValues, nrThings, timespanSec int) (
 			affType = msg.AffordanceTypeProperty
 		}
 
-		tv := msg.ThingValue{
+		value := msg.NotificationMessage{
 			//ID:             fmt.Sprintf("%d", randomID),
 			SenderID:       agentID,
 			Name:           names[randomName],
@@ -121,19 +121,19 @@ func makeValueBatch(agentID string, nrValues, nrThings, timespanSec int) (
 
 		// track the actual most recent event for the name for things 3
 		if randomID == 0 {
-			if _, exists := highest[tv.Name]; !exists ||
-				highest[tv.Name].Timestamp < tv.Timestamp {
-				highest[tv.Name] = tv
+			if _, exists := highest[value.Name]; !exists ||
+				highest[value.Name].Timestamp < value.Timestamp {
+				highest[value.Name] = value
 			}
 		}
-		valueBatch = append(valueBatch, tv)
+		valueBatch = append(valueBatch, value)
 	}
 	return valueBatch, highest
 }
 
 // add some history to the store. This bypasses the check for thingID to exist.
 func addBulkHistory(m *historyserver.HistoryServer, agentID string, count int, nrThings int,
-	timespanSec int) (highest map[string]msg.ThingValue) {
+	timespanSec int) (highest map[string]msg.NotificationMessage) {
 
 	var batchSize = 1000
 	if batchSize > count {

@@ -17,8 +17,10 @@ import (
 
 // HistoryService provides storage for request and notification history.
 //
-// Requests received are forwarded to the registered sink and stored if they pass the filter.
-// Similarly, notifications are forwarded as-is and stored if they pass the notification filter.
+// Requests received are forwarded to the registered sink and stored if they pass the
+// filter. Storage is done using the NotificationMessage envelope.
+// Similarly, notifications are forwarded as-is and stored if they pass the
+// notification filter.
 //
 // Each Thing has a bucket with events and actions.
 // This implements the IHistoryService and IHiveModule interface
@@ -101,36 +103,26 @@ func (m *HistoryServer) Stop() {
 
 // Store notifications for later retrieval
 func (m *HistoryServer) StoreNotification(notif *msg.NotificationMessage) error {
-
-	// convert the notification to a ThingValue for storage
-	tv := msg.NewThingValue(
-		notif.SenderID,
-		notif.AffordanceType,
-		notif.ThingID,
-		notif.Name,
-		notif.Data,
-		notif.Timestamp,
-	)
-	err := m.AddValue(tv)
+	err := m.AddValue(notif)
 	return err
 }
 
-// Store notifications for later retrieval
+// Store requests for later retrieval
 func (m *HistoryServer) StoreRequest(req *msg.RequestMessage) error {
 
 	if req.Operation != wot.OpInvokeAction {
 		return fmt.Errorf("AddAction: Operation is not invokeaction")
 	}
 	// convert the notification to a ThingValue for storage
-	tv := msg.NewThingValue(
+	value := msg.NewNotificationMessage(
 		req.SenderID,
 		msg.AffordanceTypeAction,
 		req.ThingID,
 		req.Name,
 		req.Input,
-		req.Created,
 	)
-	err := m.AddValue(tv)
+	value.Timestamp = req.Created
+	err := m.AddValue(value)
 	return err
 }
 

@@ -16,7 +16,6 @@ import (
 	"github.com/hiveot/hivekit/go/msg"
 	"github.com/hiveot/hivekit/go/utils"
 	"github.com/hiveot/hivekit/go/wot"
-	"github.com/hiveot/hivekit/go/wot/td"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -25,9 +24,9 @@ const testAgentID1 = "agent1"
 const testClientID1 = "client1"
 
 // server endpoint/protocol used
-var defaultProtocol = transports.ProtocolTypeHiveotSSE
+// var defaultProtocol = transports.ProtocolTypeHiveotSSE
 
-// var defaultProtocol = transports.ProtocolTypeWotWSS
+var defaultProtocol = transports.ProtocolTypeWotWSS
 
 var certBundle = certstest.CreateTestCertBundle(utils.KeyTypeED25519)
 
@@ -250,8 +249,8 @@ func TestReconnect(t *testing.T) {
 	const thingID = "thing1"
 	const actionKey = "action1"
 	const agentID = "agent1"
+	var connectEvents atomic.Int32
 	var reconnectedCallback atomic.Bool
-	var dThingID = td.MakeDigiTwinThingID(agentID, thingID)
 
 	// this test handler receives an action and returns a 'pending status',
 	// it is intended to prove reconnect works.
@@ -285,6 +284,15 @@ func TestReconnect(t *testing.T) {
 	// start the servers and handle a request
 	testEnv, cancelFn := StartTestEnv(defaultProtocol)
 	testEnv.Server.SetRequestSink(handleRequest)
+	testEnv.Server.SetNotificationSink(func(notif *msg.NotificationMessage) {
+		// expect a connect-disconnect event
+		connectEvents.Add(1)
+		slog.Info("Notification by Server",
+			slog.String("type", string(notif.AffordanceType)),
+			slog.String("thingID", notif.ThingID),
+			slog.String("name", notif.Name),
+		)
+	})
 	defer cancelFn()
 
 	// connect as consumer and give client a second to reconnect
@@ -316,10 +324,10 @@ func TestReconnect(t *testing.T) {
 	var rpcArgs = "rpc test"
 	var rpcResp string
 	time.Sleep(time.Millisecond * 3000)
-	err := co1.Rpc(wot.OpInvokeAction, dThingID, actionKey, &rpcArgs, &rpcResp)
+	err := co1.Rpc(wot.OpInvokeAction, thingID, actionKey, &rpcArgs, &rpcResp)
 	require.NoError(t, err)
 	assert.Equal(t, rpcArgs, rpcResp)
-
+	assert.GreaterOrEqual(t, 4, int(connectEvents.Load()))
 	// expect the re-connected callback to be invoked
 	assert.True(t, reconnectedCallback.Load())
 }

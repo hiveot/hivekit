@@ -9,7 +9,7 @@ import (
 
 // Create a digital twin ID from the agent and device thingID
 // this joins the digitwin prefix with the agent and thingID
-func CreateDigitwinID(agentID string, thingID string) string {
+func MakeDigitwinID(agentID string, thingID string) string {
 	digitwinThingID := fmt.Sprintf("%s%s:%s",
 		digitwinapi.DigitwinIDPrefix, agentID, thingID)
 	return digitwinThingID

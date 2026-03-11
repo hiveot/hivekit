@@ -2,6 +2,7 @@ package tptests
 
 import (
 	"context"
+	"errors"
 	"log/slog"
 	"sync/atomic"
 	"testing"
@@ -9,6 +10,7 @@ import (
 
 	authnapi "github.com/hiveot/hivekit/go/modules/authn/api"
 	"github.com/hiveot/hivekit/go/msg"
+	"github.com/hiveot/hivekit/go/wot"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -147,44 +149,43 @@ func TestPublishEventsByAgent(t *testing.T) {
 	assert.Equal(t, testMsg, rxMsg2)
 }
 
-//// Consumer reads events from agent
-//func TestReadEvent(t *testing.T) {
-//	t.Logf("---%s---\n", t.Name())
-//	var thingID = "thing1"
-//	var eventKey = "event11"
-//	var eventValue = "value11"
-//	var timestamp = "eventtime"
-//
-//	// 1. start the agent transport with the request handler
-//	// in this case the consumer connects to the agent (unlike when using a hub)
-//	agentReqHandler := func(req *transports.RequestMessage, c transports.IConnection) *transports.ResponseMessage {
-//		if req.Operation == wot.HTOpReadEvent && req.ThingID == thingID && req.Name == eventKey {
-//			evVal := transports.ThingValue{
-//				ID:      "ud1",
-//				Name:    req.Name,
-//				Value:  eventValue,
-//				ThingID: thingID,
-//				Timestamp: timestamp,
-//			}
-//			resp := req.CreateResponse(evVal, nil)
-//			resp.Timestamp = timestamp
-//			return resp
-//		}
-//		return req.CreateResponse(nil, errors.New("unexpected request"))
-//	}
-//	srv, cancelFn := StartTransportServer(agentReqHandler, nil)
-//	_ = srv
-//	defer cancelFn()
-//
-//	// 2. connect as a consumer
-//	cc1, consumer1, _ := NewConsumer(testClientID1, srv.GetForm)
-//	defer cc1.Disconnect()
-//
-//	rxVal, err := consumer1.ReadEvent(thingID, eventKey)
-//	require.NoError(t, err)
-//	assert.Equal(t, eventValue, rxVal.Value)
-//	assert.Equal(t, timestamp, rxVal.Timestamp)
-//}
+// Consumer reads events from agent
+func TestReadEvent(t *testing.T) {
+	t.Logf("---%s---\n", t.Name())
+	var thingID = "thing1"
+	var eventKey = "event11"
+	var eventValue = "value11"
+	var timestamp = "eventtime"
+
+	// 1. start the agent transport with the request handler
+	// in this case the consumer connects to the agent (unlike when using a hub)
+	agentReqHandler := func(req *msg.RequestMessage, replyTo msg.ResponseHandler) error {
+		if req.Operation == wot.HTOpReadEvent && req.ThingID == thingID && req.Name == eventKey {
+			evNotif := msg.NewNotificationMessage("agent1", msg.AffordanceTypeEvent, thingID, req.Name, eventValue)
+			evNotif.Timestamp = timestamp
+
+			resp := req.CreateResponse(evNotif, nil)
+			resp.Timestamp = timestamp
+			return replyTo(resp)
+		}
+		resp := req.CreateResponse(nil, errors.New("unexpected request"))
+		return replyTo(resp)
+	}
+
+	testEnv, cancelFn := StartTestEnv(defaultProtocol)
+	testEnv.Server.SetRequestSink(agentReqHandler)
+	defer cancelFn()
+
+	// 2. connect as a consumer
+	co1, cc1, _ := testEnv.NewConsumerClient(testClientID1, authnapi.ClientRoleViewer, nil)
+	defer cc1.Close()
+
+	evNotif, err := co1.ReadEvent(thingID, eventKey)
+	require.NoError(t, err)
+	require.NotEmpty(t, evNotif)
+	assert.Equal(t, eventValue, evNotif.Data)
+
+}
 
 // Consumer reads events from agent
 //func TestReadAllEvents(t *testing.T) {

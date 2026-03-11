@@ -11,7 +11,17 @@ This approach provides the following benefits:
 
 ## Status
 
-This module is in alpha. It is functional but breaking changes can be expected. For it to be used as intended it requires a router module which is in development.
+This module is in development. It is partial functional but incomplete. Breaking changes can be expected.
+
+TODO:
+
+1. detect agent (dis)connection with server
+1. subscribe to agent notifications after they connect
+1. track online status of devices
+1. connect and subscribe to known WoT devices on startup and when they are discovered
+1. send notifications to consumers when digital twin device state changes or events are received
+1. test integration with router module for forwarding requests
+1. test OOB (out of band) provisioning by admin through upload of device TDs
 
 ## Summary
 

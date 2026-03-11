@@ -17,6 +17,13 @@ type NotificationHandler func(msg *NotificationMessage)
 // MessageTypeNotification identify the message as a notification.
 const MessageTypeNotification = "notification"
 
+// type of affordances used in messaging
+type AffordanceType string
+
+const AffordanceTypeEvent AffordanceType = "event"
+const AffordanceTypeProperty AffordanceType = "property"
+const AffordanceTypeAction AffordanceType = "action"
+
 // NotificationMessage for sending asynchronous notifications to a subscriber/observer
 //
 // The Data field contains the message response data as defined by the operation

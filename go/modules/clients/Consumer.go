@@ -157,23 +157,19 @@ func (co *Consumer) QueryAllActions(thingID string) (
 
 // ReadAllEvents sends a request to read all Thing event values from the hub.
 //
-// This returns a map of eventName and the last received event message.
-//
-// TODO: maybe better to send the last events on subscription...
-//func (co *WotClient) ReadAllEvents(thingID string) (
-//	values map[string]transports.ThingValue, err error) {
-//
-//	err = co.Rpc(wot.HTOpReadAllEvents, thingID, "", nil, &values)
-//	return values, err
-//}
+// This returns a map of eventName and the last sent notification message.
+func (co *Consumer) ReadAllEvents(thingID string) (
+	values map[string]*msg.NotificationMessage, err error) {
+
+	err = co.Rpc(wot.HTOpReadAllEvents, thingID, "", nil, &values)
+	return values, err
+}
 
 // ReadAllProperties sends a request to read all Thing property values.
 //
-// This depends on the underlying protocol binding to construct appropriate
-// ResponseMessages and include information such as Timestamp. All hiveot protocols
-// include full information. WoT bindings might be more limited.
+// This returns a map of property name-value pairs as described in the TD.
 func (co *Consumer) ReadAllProperties(thingID string) (
-	values map[string]msg.ThingValue, err error) {
+	values map[string]any, err error) {
 
 	err = co.Rpc(wot.OpReadAllProperties, thingID, "", nil, &values)
 	return values, err
@@ -187,26 +183,20 @@ func (co *Consumer) ReadAllProperties(thingID string) (
 //	return tdJSONs, err
 //}
 
-// ReadEvent sends a request to read a Thing event value.
+// ReadEvent sends a request to read the last event message sent by a Thing.
 //
-// This returns a ResponseMessage containing the value as described in the TD
-// event affordance schema.
-//
-// TODO: maybe better to send the last events on subscription...
-//func (co *WotClient) ReadEvent(thingID, name string) (
-//	value transports.ThingValue, err error) {
-//
-//	err = co.Rpc(wot.HTOpReadEvent, thingID, name, nil, &value)
-//	return value, err
-//}
+// This returns the NotificationMessage that was last sent, containing the timestamp
+// and value as described in the event affordance.
+func (co *Consumer) ReadEvent(thingID, name string) (value *msg.NotificationMessage, err error) {
 
-// ReadProperty sends a request to read a Thing property value.
+	err = co.Rpc(wot.HTOpReadEvent, thingID, name, nil, &value)
+	return value, err
+}
+
+// ReadProperty sends a request to read the current value of a Thing property.
 //
-// This depends on the underlying protocol binding to construct appropriate
-// ResponseMessages and include information such as Timestamp. All hiveot protocols
-// include full information. WoT bindings might be too limited.
-func (co *Consumer) ReadProperty(thingID, name string) (
-	value msg.ThingValue, err error) {
+// This returns the last known value of the property.
+func (co *Consumer) ReadProperty(thingID, name string) (value any, err error) {
 
 	err = co.Rpc(wot.OpReadProperty, thingID, name, nil, &value)
 	return value, err

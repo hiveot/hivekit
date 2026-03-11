@@ -302,13 +302,6 @@ func (sc *HiveotSseServerConnection) SetTimeout(timeout time.Duration) {
 	sc.respTimeout = timeout
 }
 
-// // SetConnectHandler set the connection changed callback. Used by the connection manager.
-// func (sc *HiveotSseServerConnection) SetConnectHandler(cb transports.ConnectionHandler) {
-// 	sc.mux.Lock()
-// 	sc.connectionHandler = cb
-// 	sc.mux.Unlock()
-// }
-
 // NewHiveotSseConnection creates a new SSE 1-way connection instance.
 // This implements the IConnection interface.
 //

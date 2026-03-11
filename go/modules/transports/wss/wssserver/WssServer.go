@@ -32,7 +32,7 @@ type WssServer struct {
 	msgConverter transports.IMessageConverter // WoT or Hiveot message format
 
 	// registered handler to notify of incoming connections
-	serverConnectHandler transports.ConnectionHandler
+	// connectHandler transports.ConnectionHandler
 
 	//
 	subprotocol string // WoT or Hiveot subprotocol
@@ -137,10 +137,10 @@ func (m *WssServer) Serve(w http.ResponseWriter, r *http.Request) {
 		m.ForwardRequest, m.ForwardNotification)
 
 	err = m.AddConnection(c)
-
-	if m.serverConnectHandler != nil {
-		m.serverConnectHandler(true, c, nil)
-	}
+	// todo: use connect handler to send notification?
+	// if m.connectHandler != nil {
+	// m.connectHandler(true, c, nil)
+	// }
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusUnauthorized)
 		return
@@ -154,9 +154,9 @@ func (m *WssServer) Serve(w http.ResponseWriter, r *http.Request) {
 	_ = err
 	// finally cleanup the connection
 	m.RemoveConnection(c)
-	if m.serverConnectHandler != nil {
-		m.serverConnectHandler(false, c, nil)
-	}
+	// if m.connectHandler != nil {
+	// m.connectHandler(false, c, nil)
+	// }
 }
 
 // Start listening for incoming websocket connections
@@ -203,11 +203,11 @@ func NewHiveotWssServer(httpServer transports.IHttpServer) *WssServer {
 	}
 
 	m := &WssServer{
-		httpServer:           httpServer,
-		msgConverter:         direct.NewPassthroughMessageConverter(),
-		subprotocol:          wss.SubprotocolHiveotWSS,
-		serverConnectHandler: nil,
-		wssPath:              wss.DefaultHiveotWssPath,
+		httpServer:   httpServer,
+		msgConverter: direct.NewPassthroughMessageConverter(),
+		subprotocol:  wss.SubprotocolHiveotWSS,
+		// connectHandler: nil,
+		wssPath: wss.DefaultHiveotWssPath,
 	}
 	moduleID := wss.DefaultHiveotWssModuleID
 	connectURL := fmt.Sprintf("%s://%s%s", wss.HiveotWssSchema, urlParts.Host, m.wssPath)

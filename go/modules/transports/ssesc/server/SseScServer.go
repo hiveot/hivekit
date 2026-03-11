@@ -23,7 +23,7 @@ type SsescServer struct {
 	transports.TransportServerBase
 
 	// handler to invoke when a connection is established or disappears
-	connectHandler transports.ConnectionHandler
+	// connectHandler transports.ConnectionHandler
 
 	// SSE protocol message converter
 	converter transports.IMessageConverter
@@ -128,9 +128,7 @@ func (m *SsescServer) Stop() {
 //
 // Use SetRequestSink to set the handler for requests send by consumers
 // Use SetNotificationSink to set the handler for notifications send by agents.
-func NewHiveotSsescServer(
-	server transports.IHttpServer,
-	connectHandler transports.ConnectionHandler) *SsescServer {
+func NewHiveotSsescServer(server transports.IHttpServer) *SsescServer {
 
 	ssePath := ssesc.DefaultSseScPath
 
@@ -143,10 +141,9 @@ func NewHiveotSsescServer(
 	converter := direct.NewPassthroughMessageConverter()
 
 	m := &SsescServer{
-		httpServer:     server,
-		connectHandler: connectHandler,
-		ssePath:        ssePath,
-		converter:      converter,
+		httpServer: server,
+		ssePath:    ssePath,
+		converter:  converter,
 	}
 	moduleID := ssesc.DefaultSseScThingID
 	m.Init(moduleID, connectURL)

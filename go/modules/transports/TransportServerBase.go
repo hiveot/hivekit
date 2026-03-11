@@ -64,7 +64,6 @@ func (m *TransportServerBase) AddConnection(c IConnection) error {
 		m.connectionsByClientID = make(map[string][]string)
 	}
 
-	// cinfo := c.GetConnectionInfo()
 	clientID := c.GetClientID()
 	cid := c.GetConnectionID()
 	// the client's connectionID for lookup
@@ -90,8 +89,16 @@ func (m *TransportServerBase) AddConnection(c IConnection) error {
 		clientList = append(clientList, cid)
 	}
 	m.connectionsByClientID[clientID] = clientList
-	// todo: nr of connections is a property of the module
-	// m.UpdateProperty(PropName_NrConnections, len(m.connectionsByClcid))
+
+	// notify listeners
+	// publish a notification about the new connection
+	connectionInfo := ConnectionInfo{
+		ClientID:     clientID,
+		ConnectionID: cid,
+	}
+	notif := msg.NewNotificationMessage(m.moduleID, msg.AffordanceTypeEvent, m.moduleID,
+		ConnectEventName, connectionInfo)
+	m.ForwardNotification(notif)
 	return nil
 }
 
@@ -248,25 +255,7 @@ func (m *TransportServerBase) Init(moduleID string, connectURL string) {
 	m.RnrChan = msg.NewRnRChan()
 }
 
-// // onNotificationFromSink receives an incoming notification from the registered sink.
-// //
-// // This sends the notifications to subscribed connections
-// func (m *TransportServerBase) onNotificationFromSink(notif *msg.NotificationMessage) {
-// 	// the reason for the extra indirection is to ensure we're receiving the notification
-// 	// independently from how it is processed. Primarily useful in debugging.
-// 	m.SendNotification(notif)
-// }
-
-// // onNotificationFromConnection receives an incoming notification from the remote connection
-// //
-// // This sends the notifications to the consumer notification handler, if any.
-// func (m *TransportServerBase) onNotificationFromConnection(notif *msg.NotificationMessage) {
-// 	// the reason for the extra indirection is to ensure we're receiving the notification
-// 	// independently from whether a consumer has set one.
-// 	m.ForwardNotification(notif)
-// }
-
-// removeConnection removes the connection.
+// removeConnection removes the connection and sends an event notification.
 // non-concurrent safe internal function that can be used from a locked section.
 // This will close the connnection if it isn't closed already.
 // Call this after the connection is closed or before closing.
@@ -322,6 +311,15 @@ func (m *TransportServerBase) RemoveConnection(c IConnection) {
 	m.cmux.Lock()
 	defer m.cmux.Unlock()
 	m.removeConnection(c)
+	// notify listeners
+	// publish a notification about the connection
+	connectionInfo := ConnectionInfo{
+		ClientID:     c.GetClientID(),
+		ConnectionID: c.GetConnectionID(),
+	}
+	notif := msg.NewNotificationMessage(m.moduleID, msg.AffordanceTypeEvent, m.moduleID,
+		DisconnectEventName, connectionInfo)
+	m.ForwardNotification(notif)
 }
 
 // SendNotification [agent] server sends a notification to its connections
