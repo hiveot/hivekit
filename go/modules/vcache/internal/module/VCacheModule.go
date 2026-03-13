@@ -143,7 +143,7 @@ func NewVCacheModule() *VCacheModule {
 	m := &VCacheModule{
 		store: *NewNCacheStore(),
 	}
-
+	m.SetModuleID(vcacheapi.DefaultVCacheModuleID)
 	var _ vcacheapi.IVCacheModule = m // interface check
 	return m
 }

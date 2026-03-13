@@ -27,7 +27,7 @@ func (m *DirectoryServer) DeleteThing(agentID string, thingID string) (err error
 		err = m.deleteTDHook(agentID, thingID)
 	}
 	if err == nil {
-		err = m.bucket.Delete(thingID)
+		err = m.tdBucket.Delete(thingID)
 	}
 	return err
 }
@@ -40,7 +40,7 @@ func (m *DirectoryServer) DeleteThing(agentID string, thingID string) (err error
 
 // RetrieveThing returns a JSON encoded TD document
 func (m *DirectoryServer) RetrieveThing(thingID string) (tdJSON string, err error) {
-	tdBytes, err := m.bucket.Get(thingID)
+	tdBytes, err := m.tdBucket.Get(thingID)
 	tdJSON = string(tdBytes)
 	return tdJSON, err
 }
@@ -50,7 +50,7 @@ func (m *DirectoryServer) RetrieveThing(thingID string) (tdJSON string, err erro
 func (m *DirectoryServer) RetrieveAllThings(offset int, limit int) (tdList []string, err error) {
 	tdList = make([]string, 0)
 
-	cursor, err := m.bucket.Cursor()
+	cursor, err := m.tdBucket.Cursor()
 	if err != nil {
 		return nil, err
 	}
@@ -109,7 +109,7 @@ func (m *DirectoryServer) UpdateThing(agentID string, tdJson string) error {
 	}
 
 	slog.Info("UpdateThing", slog.String("thingID", tdi.ID))
-	err = m.bucket.Set(tdi.ID, []byte(tdJson))
+	err = m.tdBucket.Set(tdi.ID, []byte(tdJson))
 	return err
 
 }

@@ -25,6 +25,14 @@ type WriteTDHook func(agentID string, tdi *td.TD) (*td.TD, error)
 // This returns an error if deleting the TD is not allowed.
 type DeleteTDHook func(agentID string, thingID string) error
 
+// Information of an agent that has registered Things
+type AgentInfo struct {
+	// The agent whose info this contains
+	AgentID string
+	// ThingIDs of the devices it has registered
+	ThingIDs []string
+}
+
 // IDirectoryServer defines the interface to the directory module server
 // This is implemented in the service and the client api
 type IDirectoryServer interface {
@@ -39,6 +47,9 @@ type IDirectoryServer interface {
 
 	// DeleteThing removes a Thing TD document from the directory
 	DeleteThing(agentID string, thingID string) error
+
+	// GetAgentInfo provides information on Things registered by an agent
+	// GetAgentInfo(agentID string) (info AgentInfo, found bool)
 
 	// RetrieveThing returns a JSON encoded TD document
 	RetrieveThing(thingID string) (tdJSON string, err error)

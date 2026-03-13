@@ -2,6 +2,7 @@ package digitwinapi
 
 import (
 	"github.com/hiveot/hivekit/go/modules"
+	directoryapi "github.com/hiveot/hivekit/go/modules/directory/api"
 	"github.com/hiveot/hivekit/go/vocab"
 )
 
@@ -17,4 +18,8 @@ const DeviceTypeService = vocab.ThingService
 // IDigitwinModule is the interface of the digitwin module
 type IDigitwinModule interface {
 	modules.IHiveModule
+
+	// Return the internal device directory
+	// Intended for modules like the router, that need to connect to the devices themselves.
+	GetDeviceDirectory() directoryapi.IDirectoryServer
 }

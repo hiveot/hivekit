@@ -115,7 +115,7 @@ func (m *WssServer) Serve(w http.ResponseWriter, r *http.Request) {
 	)
 
 	if err != nil {
-		slog.Warn("Serve. No clientID",
+		slog.Error("Serve. No clientID",
 			"remoteAddr", r.RemoteAddr)
 		errMsg := "no auth session available. Login first."
 		http.Error(w, errMsg, http.StatusUnauthorized)
@@ -126,21 +126,17 @@ func (m *WssServer) Serve(w http.ResponseWriter, r *http.Request) {
 	var upgrader = websocket.Upgrader{} // use default options
 	wssConn, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
-		slog.Warn("Serve: Connection upgrade failed",
+		slog.Error("Serve: Connection upgrade failed",
 			"clientID", clientID, "err", err.Error())
 		return
 	}
 
 	// the new server connection sends messages to the module sink
-	// no connection handler is needed as the serve detects and notifies of changes
 	c := NewWSSServerConnection(clientID, r, wssConn, m.msgConverter,
 		m.ForwardRequest, m.ForwardNotification)
-
+	// add connection sends a notification
 	err = m.AddConnection(c)
-	// todo: use connect handler to send notification?
-	// if m.connectHandler != nil {
-	// m.connectHandler(true, c, nil)
-	// }
+
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusUnauthorized)
 		return

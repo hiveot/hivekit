@@ -10,7 +10,9 @@ import (
 	"github.com/hiveot/hivekit/go/modules/bucketstore"
 	bucketstoreapi "github.com/hiveot/hivekit/go/modules/bucketstore/api"
 	digitwinapi "github.com/hiveot/hivekit/go/modules/digitwin/api"
+	"github.com/hiveot/hivekit/go/modules/directory"
 	directoryapi "github.com/hiveot/hivekit/go/modules/directory/api"
+	"github.com/hiveot/hivekit/go/modules/transports"
 	"github.com/hiveot/hivekit/go/modules/vcache"
 	vcacheapi "github.com/hiveot/hivekit/go/modules/vcache/api"
 	"github.com/hiveot/hivekit/go/msg"
@@ -21,7 +23,15 @@ import (
 // DefaultDigitwinServiceID is the default moduleID of the digital twin module instance.
 const DefaultDigitwinServiceID = "digitwin"
 
-// Implementation of the digital twin module
+// DigitwinModule implements the digital twin module.
+//
+// This module serves a Digital Twin for eligible devices. It hooks into the provided
+// thing directory to replace the device TD with a digital twin.
+// It subscribes to notifications from registered devices and handles read and write requests for the
+// digital twin. Where neccesary it forwards requests to the actual device if reachable.
+//
+// This tracks the TDs of the original devices in a separate device directory for use
+// by modules like the router.
 type DigitwinModule struct {
 	modules.HiveModuleBase
 
@@ -33,7 +43,12 @@ type DigitwinModule struct {
 	bucketName  string
 	bucketStore bucketstoreapi.IBucketStore
 
-	// the directory to inject digital twin TDs into
+	// the device directory holding TD's of the native devices/agents
+	deviceDirectory directoryapi.IDirectoryServer
+
+	// the Thing directory with digital twin TDs
+	// this also contains TDs of non-digital twin devices and services, as consumers
+	// should be able to use these as well.
 	directory directoryapi.IDirectoryServer
 
 	// the store that holds the digital twin TDs and value
@@ -72,10 +87,28 @@ func (m *DigitwinModule) ForwardDigitwinRequestToDevice(dtwReq *msg.RequestMessa
 	})
 	return err
 }
+func (m *DigitwinModule) GetDeviceDirectory() directoryapi.IDirectoryServer {
+	return m.deviceDirectory
+}
 
 // HandleNotification stores the latest notification things for retrieval as a digital twin value
 func (m *DigitwinModule) HandleNotification(notif *msg.NotificationMessage) {
 
+	// track online status of agents - this needs tracking of agents
+	// agentInfo := m.deviceDirectory.GetAgent(notif.SenderID)
+	if notif.Name == transports.ConnectedEventName {
+		// if this is an agent then subscribe to notifications
+		// actually this isn't needed as agents publish all notifications anyways
+		// if agentInfo != nil {
+		// slog.Info("Agent connected", slog.String("agentID", notif.SenderID))
+		// }
+	} else if notif.Name == transports.DisconnectedEventName {
+		// if this is an agent then its things are no longer online
+		// if agentInfo != nil {
+		// slog.Info("Agent disconnected", slog.String("agentID", notif.SenderID))
+		// }
+	}
+	// 1: is this a digital twin not
 	dtwNotif := *notif
 	dtwNotif.ThingID = MakeDigitwinID(notif.SenderID, notif.ThingID)
 	m.vcache.HandleNotification(&dtwNotif)
@@ -139,6 +172,17 @@ func (m *DigitwinModule) Start(_ string) (err error) {
 	moduleID := m.GetModuleID()
 	slog.Info("Start: Starting digitwin module", "moduleID", moduleID)
 
+	// the vcache holds the cached notifications
+	// if it doesn't contain a value it should forward the request to the device
+	// note that the thingID is the digital twin ID, which needs to be converted
+	// back to the device thingID
+	m.vcache = vcache.NewVCacheModule()
+	m.vcache.SetRequestSink(m.ForwardDigitwinRequestToDevice)
+	m.vcache.Start("")
+	// the device directory holds the unmodified device TDs
+	m.deviceDirectory = directory.NewDirectoryServer(m.storageRoot, nil)
+	m.deviceDirectory.Start("")
+
 	storageDir := ""
 	if m.storageRoot != "" {
 		storageDir = filepath.Join(m.storageRoot, moduleID)
@@ -154,13 +198,6 @@ func (m *DigitwinModule) Start(_ string) (err error) {
 	if err == nil {
 		m.msgAPI = NewDigitwinMsgHandler(m)
 	}
-
-	// the vcache holds the cached notifications
-	// if it doesn't contain a value it should forward the request to the device
-	// note that the thingID is the digital twin ID, which needs to be converted
-	// back to the device thingID
-	m.vcache = vcache.NewVCacheModule()
-	m.vcache.SetRequestSink(m.ForwardDigitwinRequestToDevice)
 
 	m.directory.SetTDHooks(m.HandleWriteDirectory, m.HandleDeleteTD)
 
@@ -183,27 +220,26 @@ func (m *DigitwinModule) Stop() {
 		slog.Error("Stop: error stopping digitwin bucket", "err", err.Error())
 	}
 	m.bucketStore.Close()
+	m.vcache.Stop()
+	m.deviceDirectory.Stop()
 }
 
 // Create a new digital twin module.
 //
-// This module is used together with a directory that serves devices and consumers.
-//
 // storageRoot is the root directory where modules create their storage, "" for in-memory testing
 //
-// dirModule is the directory module that devices discover to write their TD or consumers to read them.
-// the digitwin module registers a hook with this directory to intercept write requests.
+// thingDir is the directory module that holds Thing TDs.
 //
-// addForms is a handler from a transport server that injects forms describing interaction using
-// the server's protocols. This uses the generic RRN messaging format for the protocol that
-// works for all affordances.
+// addForms is a handler from a transport server for injecting forms in digital twin TDs
+// that describe how to interact via the server's protocols. Each transport server
+// provides a compatible handler.
 func NewDigitwinModule(storageRoot string,
-	dirModule directoryapi.IDirectoryServer,
+	thingDir directoryapi.IDirectoryServer,
 	addforms func(tdoc *td.TD, includeAffordances bool)) *DigitwinModule {
 
 	m := &DigitwinModule{
 		addForms:               addforms,
-		directory:              dirModule,
+		directory:              thingDir,
 		storageRoot:            storageRoot,
 		includeAffordanceForms: true,
 	}

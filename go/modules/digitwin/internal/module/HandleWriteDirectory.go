@@ -18,6 +18,10 @@ func (m *DigitwinModule) HandleDeleteTD(agentID string, thingID string) error {
 }
 
 // HandleWriteDirectory is invoked before a TD is updated in the directory.
+// This is the registered callback handler of the Thing directory.
+//
+// This replaces the TD with a digital twin and stores the original device TD
+// in the device directory instance.
 //
 // This filters TD's with the @type empty or set to service.
 //

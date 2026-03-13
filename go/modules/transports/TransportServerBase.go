@@ -54,50 +54,56 @@ type TransportServerBase struct {
 //
 // If an endpoint with this connectionID exists the existing connection is forcibly closed.
 func (m *TransportServerBase) AddConnection(c IConnection) error {
-	m.cmux.Lock()
-	defer m.cmux.Unlock()
+	var clientID string
+	var cid string
+	// enter protected block
+	prot := func() {
+		m.cmux.Lock()
+		defer m.cmux.Unlock()
 
-	if m.connectionsByClcid == nil {
-		m.connectionsByClcid = make(map[string]IConnection)
-	}
-	if m.connectionsByClientID == nil {
-		m.connectionsByClientID = make(map[string][]string)
-	}
+		if m.connectionsByClcid == nil {
+			m.connectionsByClcid = make(map[string]IConnection)
+		}
+		if m.connectionsByClientID == nil {
+			m.connectionsByClientID = make(map[string][]string)
+		}
 
-	clientID := c.GetClientID()
-	cid := c.GetConnectionID()
-	// the client's connectionID for lookup
-	clcid := clientID + ":" + cid
+		clientID = c.GetClientID()
+		cid = c.GetConnectionID()
+		// the client's connectionID for lookup
+		clcid := clientID + ":" + cid
 
-	// Refuse this if an existing connection with this ID exist
-	existingConn := m.connectionsByClcid[clcid]
-	if existingConn != nil {
-		err := fmt.Errorf("AddConnection. The connection ID '%s' of client '%s' already exists",
-			cid, clientID)
-		slog.Error("AddConnection: duplicate ConnectionID", "connectionID",
-			cid, "err", err.Error())
-		// close the existing connection
-		m.removeConnection(existingConn)
-		existingConn = nil
+		// Refuse this if an existing connection with this ID exist
+		existingConn := m.connectionsByClcid[clcid]
+		if existingConn != nil {
+			err := fmt.Errorf("AddConnection. The connection ID '%s' of client '%s' already exists",
+				cid, clientID)
+			slog.Error("AddConnection: duplicate ConnectionID", "connectionID",
+				cid, "err", err.Error())
+			// close the existing connection
+			m.removeConnection(existingConn)
+			existingConn = nil
+		}
+		m.connectionsByClcid[clcid] = c
+		// update the client index
+		clientList := m.connectionsByClientID[clientID]
+		if clientList == nil {
+			clientList = []string{cid}
+		} else {
+			clientList = append(clientList, cid)
+		}
+		m.connectionsByClientID[clientID] = clientList
 	}
-	m.connectionsByClcid[clcid] = c
-	// update the client index
-	clientList := m.connectionsByClientID[clientID]
-	if clientList == nil {
-		clientList = []string{cid}
-	} else {
-		clientList = append(clientList, cid)
-	}
-	m.connectionsByClientID[clientID] = clientList
+	prot()
 
-	// notify listeners
+	// notify listeners outside of locked area
 	// publish a notification about the new connection
 	connectionInfo := ConnectionInfo{
 		ClientID:     clientID,
 		ConnectionID: cid,
 	}
 	notif := msg.NewNotificationMessage(m.moduleID, msg.AffordanceTypeEvent, m.moduleID,
-		ConnectEventName, connectionInfo)
+		ConnectedEventName, connectionInfo)
 	m.ForwardNotification(notif)
 	return nil
 }
@@ -260,7 +266,6 @@ func (m *TransportServerBase) Init(moduleID string, connectURL string) {
 // This will close the connnection if it isn't closed already.
 // Call this after the connection is closed or before closing.
 func (m *TransportServerBase) removeConnection(c IConnection) {
-
 	clientID := c.GetClientID()
 	connectionID := c.GetConnectionID()
 	clcid := clientID + ":" + connectionID
@@ -308,9 +313,13 @@ func (m *TransportServerBase) removeConnection(c IConnection) {
 // This will close the connnection if it isn't closed already.
 // Call this after the connection is closed or before closing.
 func (m *TransportServerBase) RemoveConnection(c IConnection) {
-	m.cmux.Lock()
-	defer m.cmux.Unlock()
-	m.removeConnection(c)
+	// protected block
+	prot := func() {
+		m.cmux.Lock()
+		defer m.cmux.Unlock()
+		m.removeConnection(c)
+	}
+	prot()
 	// notify listeners
 	// publish a notification about the connection
 	connectionInfo := ConnectionInfo{
@@ -318,7 +327,7 @@ func (m *TransportServerBase) RemoveConnection(c IConnection) {
 		ConnectionID: c.GetConnectionID(),
 	}
 	notif := msg.NewNotificationMessage(m.moduleID, msg.AffordanceTypeEvent, m.moduleID,
-		DisconnectEventName, connectionInfo)
+		DisconnectedEventName, connectionInfo)
 	m.ForwardNotification(notif)
 }
 

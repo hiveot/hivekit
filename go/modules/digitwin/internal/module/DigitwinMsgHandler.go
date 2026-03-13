@@ -36,9 +36,11 @@ func (handler *DigitwinMsgHandler) HandleRequest(req *msg.RequestMessage, replyT
 		// 	resp = handler.HandleGetStatus(req)
 		default:
 			err = fmt.Errorf("Unknown request name '%s' for thingID '%s'", req.Name, req.ThingID)
+			resp = nil
 		}
 	default:
 		err = fmt.Errorf("Unsupported operation '%s' for thingID '%s'", req.Operation, req.ThingID)
+		resp = nil
 	}
 	if resp != nil {
 		err = replyTo(resp)

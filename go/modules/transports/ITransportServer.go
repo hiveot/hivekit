@@ -38,9 +38,9 @@ const (
 // These are published by TransportServerBase
 const (
 	// A client connected to the server
-	ConnectEventName = "connected"
+	ConnectedEventName = "connected"
 	// A client connection was removed
-	DisconnectEventName = "disconnected"
+	DisconnectedEventName = "disconnected"
 )
 
 // payload of connection events

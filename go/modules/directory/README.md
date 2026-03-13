@@ -4,7 +4,7 @@ This directory module provides the means to store and retrieve TD (Thing Descrip
 
 The primary objective is to let consumers discover what Things are available and obtain the information on how to access them.
 
-This directly follows the WoT discovery specification https://w3c.github.io/wot-discovery/#exploration-directory.
+This directly follows the WoT discovery specification https://w3c.github.io/wot-discovery/#exploration-directory and a subset of the TM described at https://w3c.github.io/wot-discovery/#directory-api-spec.
 
 This module is not a full blow stand-alone application but simply offers the directory capabilities applications or services that want to include a directory. It must be linked to a server module to receive the requests.
 

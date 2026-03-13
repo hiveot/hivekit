@@ -29,10 +29,10 @@ import (
 type DirectoryServer struct {
 	modules.HiveModuleBase
 
-	// bucket store for use with this module
-	bucket      bucketstoreapi.IBucket
-	bucketName  string
-	bucketStore bucketstoreapi.IBucketStore
+	// tdBucket store with TD's by thingID
+	tdBucket     bucketstoreapi.IBucket
+	tdBucketName string
+	bucketStore  bucketstoreapi.IBucketStore
 
 	// http server serving the REST API
 	httpServer transports.IHttpServer
@@ -49,15 +49,18 @@ type DirectoryServer struct {
 	deleteTDHook directoryapi.DeleteTDHook
 }
 
-// func (m *DirectoryModule) GetService() directory.IDirectoryService {
-// 	return m.service
-// }
+// GetAgentInfo provides information on Things registered by an agent
+func (m *DirectoryServer) GetAgentInfo(agentID string) (
+	info directoryapi.AgentInfo, found bool) {
 
-// GetTM returns the module TM document
-// It includes forms for messaging access through the WoT.
-func (m *DirectoryServer) GetTM() string {
-	tmJson := m.msgAPI.GetTM()
-	return string(tmJson)
+	// how are agents tracked?
+	// option 1: separate bucket with all agents
+	// option 2: a bucket per agent
+	// option 3: agent as prefix of thingID
+	//   + allows seek/filter while iterating
+	//   - cant lookup by thingID
+
+	return info, false
 }
 
 // HandleRequest passes the module request messages to the API handler.
@@ -98,8 +101,8 @@ func (m *DirectoryServer) Start(_ string) (err error) {
 
 	err = m.bucketStore.Open()
 	if err == nil {
-		m.bucketName = moduleID
-		m.bucket = m.bucketStore.GetBucket(m.bucketName)
+		m.tdBucketName = moduleID
+		m.tdBucket = m.bucketStore.GetBucket(m.tdBucketName)
 	}
 	if err == nil {
 		m.msgAPI = NewDirectoryMsgHandler(moduleID, m)
@@ -113,7 +116,7 @@ func (m *DirectoryServer) Start(_ string) (err error) {
 // Stop any running actions
 func (m *DirectoryServer) Stop() {
 	slog.Info("Stop: closing directory store")
-	err := m.bucket.Close()
+	err := m.tdBucket.Close()
 	if err != nil {
 		slog.Error("Stop: error stopping directory bucket", "err", err.Error())
 	}
