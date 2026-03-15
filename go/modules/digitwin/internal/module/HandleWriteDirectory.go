@@ -36,14 +36,15 @@ func (m *DigitwinModule) HandleWriteDirectory(agentID string, tdi *td.TD) (*td.T
 		return tdi, nil
 	}
 
-	// store the original TD's under the digitwin ID for easy retrieval
-	digitwinThingID := MakeDigitwinID(agentID, tdi.ID)
+	// store the original TD and its agent for retrieval by the router
+	tdi.AgentID = agentID
 	tdJson, _ := jsoniter.Marshal(tdi)
-	m.bucket.Set(digitwinThingID, tdJson)
+	m.bucket.Set(tdi.ID, tdJson)
 
 	// 1. change the device ID to the digitwin ID
 	// note that this modifies the original TD. - is this a problem?
 	dtwTD := tdi
+	digitwinThingID := MakeDigitwinID(agentID, tdi.ID)
 	dtwTD.ID = digitwinThingID
 
 	// 2. reset all existing forms and auth info

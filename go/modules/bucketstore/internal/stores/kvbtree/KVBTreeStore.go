@@ -230,7 +230,7 @@ func (store *KVBTreeStore) Close() error {
 		err = writeStoreFile(store.storePath, exportedCopy)
 	}
 	store.buckets = nil
-	slog.Info("store close completed. Background loop ended", "storePath", store.storePath)
+	slog.Debug("store close completed. Background loop ended", "storePath", store.storePath)
 	return err
 }
 
@@ -284,9 +284,9 @@ func (store *KVBTreeStore) onBucketUpdated(bucket *KVBTreeBucket) {
 // Open the store and start the background loop for saving changes
 func (store *KVBTreeStore) Open() error {
 	if store.storeDirectory == "" {
-		slog.Info("Opening in-memory kvbtree store")
+		slog.Debug("Opening in-memory kvbtree store")
 	} else {
-		slog.Info("Opening store", "path", store.storePath)
+		slog.Debug("Opening store", "path", store.storePath)
 	}
 	var err error
 	store.mutex.Lock()

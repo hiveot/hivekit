@@ -2,8 +2,8 @@ package digitwinapi
 
 import (
 	"github.com/hiveot/hivekit/go/modules"
-	directoryapi "github.com/hiveot/hivekit/go/modules/directory/api"
 	"github.com/hiveot/hivekit/go/vocab"
+	"github.com/hiveot/hivekit/go/wot/td"
 )
 
 // The default instance ID of the digital twin module
@@ -21,5 +21,8 @@ type IDigitwinModule interface {
 
 	// Return the internal device directory
 	// Intended for modules like the router, that need to connect to the devices themselves.
-	GetDeviceDirectory() directoryapi.IDirectoryServer
+	// GetDeviceDirectory() directoryapi.IDirectoryServer
+
+	// Return the original device TD by its thingID
+	GetDeviceTD(thingID string) *td.TD
 }

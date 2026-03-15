@@ -35,7 +35,6 @@ func (m *VCacheModule) HandleNotification(notif *msg.NotificationMessage) {
 	case msg.AffordanceTypeProperty:
 		m.store.WriteProperty(notif)
 	}
-
 	m.ForwardNotification(notif)
 }
 

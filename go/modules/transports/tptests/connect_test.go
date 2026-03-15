@@ -314,7 +314,7 @@ func TestReconnect(t *testing.T) {
 
 	// 3. close connection server side but keep the session.
 	// This should trigger auto-reconnect on the client.
-	t.Log("--- force disconnecting all clients ---")
+	t.Log("--- force disconnecting all clients. This can log a warning ---")
 	testEnv.Server.CloseAll()
 
 	<-ctx1.Done()

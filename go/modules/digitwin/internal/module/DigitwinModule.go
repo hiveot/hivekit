@@ -10,7 +10,6 @@ import (
 	"github.com/hiveot/hivekit/go/modules/bucketstore"
 	bucketstoreapi "github.com/hiveot/hivekit/go/modules/bucketstore/api"
 	digitwinapi "github.com/hiveot/hivekit/go/modules/digitwin/api"
-	"github.com/hiveot/hivekit/go/modules/directory"
 	directoryapi "github.com/hiveot/hivekit/go/modules/directory/api"
 	"github.com/hiveot/hivekit/go/modules/transports"
 	"github.com/hiveot/hivekit/go/modules/vcache"
@@ -44,7 +43,7 @@ type DigitwinModule struct {
 	bucketStore bucketstoreapi.IBucketStore
 
 	// the device directory holding TD's of the native devices/agents
-	deviceDirectory directoryapi.IDirectoryServer
+	// deviceDirectory directoryapi.IDirectoryServer
 
 	// the Thing directory with digital twin TDs
 	// this also contains TDs of non-digital twin devices and services, as consumers
@@ -87,8 +86,20 @@ func (m *DigitwinModule) ForwardDigitwinRequestToDevice(dtwReq *msg.RequestMessa
 	})
 	return err
 }
-func (m *DigitwinModule) GetDeviceDirectory() directoryapi.IDirectoryServer {
-	return m.deviceDirectory
+
+// func (m *DigitwinModule) GetDeviceDirectory() directoryapi.IDirectoryServer {
+// 	return m.deviceDirectory
+// }
+
+// Return the unmarshalled device TD
+// TODO: cache the unmarshalled TDs for faster handling
+func (m *DigitwinModule) GetDeviceTD(thingID string) *td.TD {
+	tdJson, err := m.bucket.Get(thingID)
+	if err != nil {
+		return nil
+	}
+	tdi, err := td.UnmarshalTD(string(tdJson))
+	return tdi
 }
 
 // HandleNotification stores the latest notification things for retrieval as a digital twin value
@@ -180,8 +191,8 @@ func (m *DigitwinModule) Start(_ string) (err error) {
 	m.vcache.SetRequestSink(m.ForwardDigitwinRequestToDevice)
 	m.vcache.Start("")
 	// the device directory holds the unmodified device TDs
-	m.deviceDirectory = directory.NewDirectoryServer(m.storageRoot, nil)
-	m.deviceDirectory.Start("")
+	// m.deviceDirectory = directory.NewDirectoryServer(m.storageRoot, nil)
+	// m.deviceDirectory.Start("")
 
 	storageDir := ""
 	if m.storageRoot != "" {
@@ -221,7 +232,7 @@ func (m *DigitwinModule) Stop() {
 	}
 	m.bucketStore.Close()
 	m.vcache.Stop()
-	m.deviceDirectory.Stop()
+	// m.deviceDirectory.Stop()
 }
 
 // Create a new digital twin module.

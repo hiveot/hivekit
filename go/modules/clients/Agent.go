@@ -8,17 +8,27 @@ import (
 	"github.com/hiveot/hivekit/go/utils"
 )
 
-// Agent is a helper module providing a Golang API for IoT device side WoT operations using the
+// Agent is a helper module providing a Golang API for IoT device WoT operations using the
 // standard RRN (request-response-notification) messages. The RRN interface is compatible
-// with all HiveKit transport and other modules.
+// with all HiveKit modules.
 //
-// This Agent is intended to link to a transport connection and supports features for
-// receiving and responding to requests, publishing events and publishing
+// This Agent is intended to be the request sink of a transport connection and supports
+// features for receiving and responding to requests, publishing events and publishing
 // property updates.
 //
-// IoT devices using Agent are connection agnostics. They can be used in a server configuration
-// or as a client to a supporting gateway using connection reversal. See the documentation on agent
-// configurations.
+// Usage:
+//  1. Set this agent as the request sink of a transport connection so it can receive requests
+//  2. Set this agent notification sink to the transport connection so it can publish notifications
+//  3. Set this agent request sink to other modules that handle server side requests.
+//
+// Alternatively when there is usage as a consumer:
+//  3. Set the agent request sink to the transport connection to allow sending requests to
+//     remote services, but only do so if the app request handler is set to handle all
+//     requests. Failure to do so can cause looping of requests.
+//  4. Set the agent as the notification sink of other agent modules
+//
+// Therefore if no appRequestHandler is set, then do not set the request sink to
+// the connection for use to send requests.
 //
 // An Agent is also a consumer as they are able to invoke services.
 type Agent struct {
@@ -29,9 +39,21 @@ type Agent struct {
 	appRequestHandlerPtr atomic.Pointer[msg.RequestHandler]
 }
 
-// HandleRequest passes a request to the application request handler and returns the response.
-// Handler must be set during init.
-// If no handler is set then this fails.
+// HandleRequest passes a request to the application request handler or forwards
+// the request to the request sink.
+//
+// Normally agents receive requests from consumers for processing by the application
+// handler set during creation.
+//
+// This request flows from:
+// A: server connection to agent if the agent runs on the server, or
+// B: from client connection to agent, if the agent app uses reverse connections.
+//
+// The agent request sink (used in ForwardRequest) can also be set to the server
+// to allow the agent to write a TD to the directory for example.
+//
+// If an application request handler is set, it is the handler's responsibility
+// to forward the request if it cannot handle it.
 func (ag *Agent) HandleRequest(
 	req *msg.RequestMessage, replyTo msg.ResponseHandler) (err error) {
 
@@ -40,8 +62,10 @@ func (ag *Agent) HandleRequest(
 	if hPtr != nil {
 		err = (*hPtr)(req, replyTo)
 	} else {
-		// tbd: pass to sink
-		// ag.forwardRequestToSink(req, replyTo)
+		// this agent does not have an application request handler set, so it
+		// is assumed that the request handler sink forwards it to the actual handler
+		// and does not forward it to the connection it was received on.
+		err = ag.ForwardRequest(req, replyTo)
 	}
 	return
 }

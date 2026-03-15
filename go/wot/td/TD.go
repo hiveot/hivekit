@@ -36,6 +36,10 @@ type TD struct {
 	// All action-based interaction affordances of the things
 	Actions map[string]*ActionAffordance `json:"actions"`
 
+	// AgentID is a hiveot extension containing the clientID of the agent that provided this TD
+	// Intended for supporting reverse connections instead of forms.
+	AgentID string `json:"hiveot:agentID,omitempty"`
+
 	// JSON-LD keyword to define shorthand names called terms that are used throughout a TD document. Required.
 	// in order to add the "hiveot" namespace, the context value can be a string or map
 	// Type: anyURO or Array
@@ -327,6 +331,12 @@ func (tdoc *TD) GetAction(actionName string) *ActionAffordance {
 	return actionAffordance
 }
 
+// GetAgentID returns the agentID of the thing TD
+// This returns the agentID field if available.
+func (tdoc *TD) GetAgentID() string {
+	return tdoc.AgentID
+}
+
 // GetEvent returns the Schema for the event or nil if the event doesn't exist
 func (tdoc *TD) GetEvent(eventName string) *EventAffordance {
 	//tdoc.updateMutex.RLock()
@@ -460,13 +470,6 @@ func (tdoc *TD) GetPropertyOfVocabType(vocabType string) (string, *PropertyAffor
 // GetID returns the ID of the things TD
 func (tdoc *TD) GetID() string {
 	return tdoc.ID
-}
-
-// GetAgentID returns the agentID of the thing TD
-// This returns the prefix of the thingID.
-func (tdoc *TD) GetAgentID() string {
-	parts := strings.Split(tdoc.ID, ":")
-	return parts[0]
 }
 
 // LoadFromJSON loads this TD from the given JSON encoded string

@@ -66,6 +66,10 @@ type ITransportServer interface {
 	// CloseAll closes all client connections. Mainly intended for testing.
 	CloseAll()
 
+	// Return the established connection of the given client, if one exists
+	// This returns nil if the client does not have an authenticated connection.
+	GetConnectionByClientID(clientID string) IConnection
+
 	// GetConnectURL returns connection URL of the server
 	GetConnectURL() string
 

@@ -3,15 +3,12 @@ package clients
 import (
 	"crypto/x509"
 	"errors"
-	"fmt"
-	"log/slog"
 	"sync"
 	"time"
 
 	"github.com/hiveot/hivekit/go/modules"
 	"github.com/hiveot/hivekit/go/modules/transports"
 	"github.com/hiveot/hivekit/go/msg"
-	"github.com/hiveot/hivekit/go/utils"
 	"github.com/hiveot/hivekit/go/wot"
 	"github.com/teris-io/shortid"
 )
@@ -59,11 +56,14 @@ func (co *Consumer) GetTM() string {
 	return ""
 }
 
+// consumer received a request from an upstream module (like a directory client)
+// forward it to the client to send to the server.
 func (co *Consumer) HandleRequest(
 	req *msg.RequestMessage, replyTo msg.ResponseHandler) error {
 
-	return fmt.Errorf("Unexpected request op='%s', thingID='%s', name='%s', from '%s'",
-		req.Operation, req.ThingID, req.Name, req.SenderID)
+	return co.ForwardRequest(req, replyTo)
+	// return fmt.Errorf("Unexpected request op='%s', thingID='%s', name='%s', from '%s'",
+	// 	req.Operation, req.ThingID, req.Name, req.SenderID)
 }
 
 // InvokeAction invokes an action on a thing and wait for the response
@@ -196,6 +196,7 @@ func (co *Consumer) ReadEvent(thingID, name string) (value *msg.NotificationMess
 // ReadProperty sends a request to read the current value of a Thing property.
 //
 // This returns the last known value of the property.
+// TODO: should this accept a pointer to the result instead to avoid type conversion
 func (co *Consumer) ReadProperty(thingID, name string) (value any, err error) {
 
 	err = co.Rpc(wot.OpReadProperty, thingID, name, nil, &value)
@@ -218,66 +219,68 @@ func (co *Consumer) Rpc(operation, thingID, name string, input any, output any) 
 	var resp *msg.ResponseMessage
 	req := msg.NewRequestMessage(operation, thingID, name, input, correlationID)
 
-	ar := utils.NewAsyncReceiver[*msg.ResponseMessage]()
-	err := co.SendRequest(req, func(resp *msg.ResponseMessage) error {
-		slog.Info("Consumer RPC. Received response", "op", operation)
-		ar.SetResponse(resp)
-		return nil
-	})
-	if err == nil {
-		resp, err = ar.WaitForResponse(co.rpcTimeout)
-	}
+	resp, err := co.ForwardRequestWait(req)
+
+	// ar := utils.NewAsyncReceiver[*msg.ResponseMessage]()
+	// err := co.ForwardRequest(req, func(resp *msg.ResponseMessage) error {
+	// 	slog.Info("Consumer RPC. Received response", "op", operation)
+	// 	ar.SetResponse(resp)
+	// 	return nil
+	// })
+	// if err == nil {
+	// resp, err = ar.WaitForResponse(co.rpcTimeout)
+	// }
 	if err == nil && resp != nil {
 		err = resp.Decode(output)
 	}
 	return err
 }
 
-// SendRequest sends an operation request and passes the response to the replyTo handler.
+// ForwardRequest sends an operation request and passes the response to the replyTo handler.
 //
 // If replyTo is nil then responses are ignored.
 //
-// If the request has no correlation ID, one will be generated.
-func (co *Consumer) SendRequest(req *msg.RequestMessage, replyTo msg.ResponseHandler) (err error) {
+// // If the request has no correlation ID, one will be generated.
+// func (co *Consumer) SendRequest(req *msg.RequestMessage, replyTo msg.ResponseHandler) (err error) {
 
-	t0 := time.Now()
-	slog.Info("SendRequest: ->",
-		slog.String("op", req.Operation),
-		slog.String("dThingID", req.ThingID),
-		slog.String("name", req.Name),
-		slog.String("correlationID", req.CorrelationID),
-		slog.String("input", req.ToString(30)),
-	)
-	if req.CorrelationID == "" {
-		req.CorrelationID = shortid.MustGenerate()
-	}
-	// if not waiting then return asap and pass the response to the async handler
-	err = co.ForwardRequest(req, func(resp *msg.ResponseMessage) error {
-		var err2 error
-		// intercept the response for logging and timing.
-		t1 := time.Now()
-		duration := t1.Sub(t0)
+// 	t0 := time.Now()
+// 	slog.Info("SendRequest: ->",
+// 		slog.String("op", req.Operation),
+// 		slog.String("dThingID", req.ThingID),
+// 		slog.String("name", req.Name),
+// 		slog.String("correlationID", req.CorrelationID),
+// 		slog.String("input", req.ToString(30)),
+// 	)
+// 	// if req.CorrelationID == "" {
+// 	// req.CorrelationID = shortid.MustGenerate()
+// 	// }
+// 	// if not waiting then return asap and pass the response to the async handler
+// 	err = co.ForwardRequest(req, func(resp *msg.ResponseMessage) error {
+// 		var err2 error
+// 		// intercept the response for logging and timing.
+// 		t1 := time.Now()
+// 		duration := t1.Sub(t0)
 
-		errMsg := ""
-		if resp.Error != nil {
-			errMsg = resp.Error.String()
-		}
-		slog.Info("SendRequest: <-",
-			slog.String("op", req.Operation),
-			slog.Float64("duration msec", float64(duration.Microseconds())/1000),
-			slog.String("correlationID", req.CorrelationID),
-			slog.String("err", errMsg),
-			slog.String("output", resp.ToString(30)),
-		)
-		if replyTo != nil {
-			err2 = replyTo(resp)
-		} else {
-			slog.Info("SendRequest: no response handler provided")
-		}
-		return err2
-	})
-	return err
-}
+// 		errMsg := ""
+// 		if resp.Error != nil {
+// 			errMsg = resp.Error.String()
+// 		}
+// 		slog.Info("SendRequest: <-",
+// 			slog.String("op", req.Operation),
+// 			slog.Float64("duration-msec", float64(duration.Microseconds())/1000),
+// 			slog.String("correlationID", req.CorrelationID),
+// 			slog.String("err", errMsg),
+// 			slog.String("output", resp.ToString(30)),
+// 		)
+// 		if replyTo != nil {
+// 			err2 = replyTo(resp)
+// 		} else {
+// 			slog.Info("SendRequest: no response handler provided")
+// 		}
+// 		return err2
+// 	})
+// 	return err
+// }
 
 // SetTimeout sets the RPC request handling timeout
 func (co *Consumer) SetTimeout(timeout time.Duration) {
@@ -290,7 +293,7 @@ func (co *Consumer) Start(yamlConfig string) error {
 	return nil
 }
 
-// Stop the consumer module and closes the client connection.
+// Stop the consumer module .. nothing to do here
 func (co *Consumer) Stop() {
 }
 
@@ -333,7 +336,7 @@ func (co *Consumer) WriteProperty(thingID string, name string, input any, wait b
 		err = co.Rpc(wot.OpWriteProperty, thingID, name, input, correlationID)
 	} else {
 		req := msg.NewRequestMessage(wot.OpWriteProperty, thingID, name, input, correlationID)
-		err = co.SendRequest(req, func(resp *msg.ResponseMessage) error {
+		err = co.ForwardRequest(req, func(resp *msg.ResponseMessage) error {
 			// just ignore the result
 			return nil
 		})
@@ -378,8 +381,9 @@ func NewConsumer(appID string) *Consumer {
 //	caCert is the server's CA certificate or nil to disable this important check.
 //	rpcTimeout of the rpc connections or 0 for default (3 sec)
 //
-// This returns the consumer and the client connection. The caller still needs to call
-// one of the ConnectWith... methods to provide the credentials.
+// This returns the consumer and the client connection.
+// The caller still needs to call one of the ConnectWith... methods to provide the credentials.
+// The caller must call client connection Stop or Close when done. The consumer cant do it.
 func NewConsumerConnection(
 	appID string, serverURL string, caCert *x509.Certificate) (
 	*Consumer, transports.IConnection, error) {

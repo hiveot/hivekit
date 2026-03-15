@@ -173,7 +173,8 @@ func (m *TransportServerBase) ForEachConnection(handler func(c IConnection)) {
 func (m *TransportServerBase) ForwardNotification(notif *msg.NotificationMessage) {
 	if m.notificationSink == nil {
 		// Receiving notifications but with no sink set so likely a wiring issue.
-		slog.Error("ForwardNotification: no notification sink set. Server is not properly set up.",
+		// This can be intentional in testing.
+		slog.Warn("ForwardNotification: no notification sink set. Server is not fully set up.",
 			"module", m.moduleID,
 			"affordance", notif.AffordanceType,
 			"name", notif.Name,
@@ -190,7 +191,7 @@ func (m *TransportServerBase) ForwardNotification(notif *msg.NotificationMessage
 // If no sink os configured this returns an error
 func (m *TransportServerBase) ForwardRequest(req *msg.RequestMessage, replyTo msg.ResponseHandler) (err error) {
 	if m.requestSink == nil {
-		slog.Error("ForwardRequest. Server has no request sink. Server is not properly set up.")
+		slog.Error("ForwardRequest. Server has no request sink. Server is not fully set up.")
 		return fmt.Errorf("ForwardRequest: no sink for request '%s/%s' to thingID '%s'",
 			req.Operation, req.Name, req.ThingID)
 	}
@@ -272,7 +273,9 @@ func (m *TransportServerBase) removeConnection(c IConnection) {
 
 	// if nothing to do
 	if m.connectionsByClcid == nil {
-		slog.Warn("RemoveConnection: no connections remaining",
+		// Most likely caused by a call to CloseAll() before the clients shut down.
+		// this isn't very nice but lets handle it gracefull.y
+		slog.Warn("RemoveConnection: connection was already removed",
 			"clcid", clcid)
 		return
 	}
@@ -285,7 +288,7 @@ func (m *TransportServerBase) removeConnection(c IConnection) {
 		delete(m.connectionsByClcid, clcid)
 	} else if len(m.connectionsByClcid) > 0 {
 		// this is unexpected. Not all connections were closed but this one is gone.
-		slog.Warn("RemoveConnection: connectionID not found",
+		slog.Error("RemoveConnection: connectionID not found",
 			"clcid", clcid)
 		return
 	}

@@ -40,11 +40,10 @@ func TestSubscribeAll(t *testing.T) {
 	co2, cc2, _ := testEnv.NewConsumerClient(testClientID1, authnapi.ClientRoleViewer, nil)
 	defer cc2.Close()
 
-	// ensure that agents can also subscribe (they cant use forms)
-	agent1, agConn1, _ := testEnv.NewRCAgent(agentID)
+	// test agents are wired to be usable as a consumer
+	// Note that those agents should have an apprequest handler set to avoid looping.
+	agent1, agConn1, _ := testEnv.NewRCAgent(agentID, nil)
 	defer agConn1.Close()
-
-	// FIXME: test subscription by agent
 
 	// set the handler for events and subscribe
 	ctx, cancelFn := context.WithTimeout(context.Background(), time.Minute)
@@ -59,7 +58,7 @@ func TestSubscribeAll(t *testing.T) {
 	co2.SetNotificationSink(func(ev *msg.NotificationMessage) {
 		slog.Info("client 2 receives event")
 	})
-	agent1.SetNotificationSink(func(ev *msg.NotificationMessage) {
+	agent1.SetNotificationHook(func(ev *msg.NotificationMessage) {
 		// receive event, tests whether agents work as a consumer
 		slog.Info("Agent receives event")
 		agentRxEvent.Store(true)
@@ -111,9 +110,7 @@ func TestSubscribeAll(t *testing.T) {
 }
 
 // Agent sends events to server
-// This is used if the Thing agent is connected as a client, and does not
-// run a server itself.
-// FIXME: server should subscribe to agent as a consumer
+// This is the normal setup if the Thing agent is connected via a client using connection reversal
 func TestPublishEventsByAgent(t *testing.T) {
 	t.Logf("---%s---\n", t.Name())
 	var evVal atomic.Value
@@ -134,8 +131,7 @@ func TestPublishEventsByAgent(t *testing.T) {
 	defer cancelFn()
 
 	// 2. connect an agent to the server - eg connection reversal
-	// FIXME: the client isn't sending notifications to the server in ForwardNotification
-	agent1, agConn1, _ := testEnv.NewRCAgent(testAgentID1)
+	agent1, agConn1, _ := testEnv.NewRCAgent(testAgentID1, nil)
 	defer agConn1.Close()
 
 	// 3. agent publishes an event

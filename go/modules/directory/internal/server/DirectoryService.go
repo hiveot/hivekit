@@ -28,8 +28,33 @@ func (m *DirectoryServer) DeleteThing(agentID string, thingID string) (err error
 	}
 	if err == nil {
 		err = m.tdBucket.Delete(thingID)
+		m.tdCacheMux.Lock()
+		delete(m.tdCache, thingID)
+		m.tdCacheMux.Unlock()
 	}
 	return err
+}
+
+// Return an instance of the thing TD if avaialable.
+// These instances are cached so successive requests are efficient.
+func (m *DirectoryServer) GetTD(thingID string) *td.TD {
+	m.tdCacheMux.RLock()
+	tdi, found := m.tdCache[thingID]
+	if found {
+		return tdi
+	}
+	m.tdCacheMux.RUnlock()
+	tdJSON, err := m.RetrieveThing(thingID)
+	if err != nil {
+		return nil
+	}
+	tdi, err = td.UnmarshalTD(tdJSON)
+	if err == nil {
+		m.tdCacheMux.Lock()
+		m.tdCache[thingID] = tdi
+		m.tdCacheMux.RUnlock()
+	}
+	return tdi
 }
 
 //func (svc *DirectoryService) QueryThings(
@@ -110,6 +135,11 @@ func (m *DirectoryServer) UpdateThing(agentID string, tdJson string) error {
 
 	slog.Info("UpdateThing", slog.String("thingID", tdi.ID))
 	err = m.tdBucket.Set(tdi.ID, []byte(tdJson))
+	// reload the td instance next time someone asks
+	m.tdCacheMux.Lock()
+	delete(m.tdCache, tdi.ID)
+	m.tdCacheMux.Unlock()
+
 	return err
 
 }

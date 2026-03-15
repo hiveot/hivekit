@@ -48,6 +48,10 @@ type IDirectoryServer interface {
 	// DeleteThing removes a Thing TD document from the directory
 	DeleteThing(agentID string, thingID string) error
 
+	// Return an instance of a TD from the store.
+	// These TD's are cached so successive requests do not parse the json each time.
+	GetTD(thingID string) *td.TD
+
 	// GetAgentInfo provides information on Things registered by an agent
 	// GetAgentInfo(agentID string) (info AgentInfo, found bool)
 

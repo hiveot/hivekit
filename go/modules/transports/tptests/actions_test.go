@@ -72,7 +72,7 @@ func TestInvokeActionFromConsumerToServer(t *testing.T) {
 	// the response handler above will receive the result
 	// testOutput can be updated as an immediate result or via the callback message handler
 	req := msg.NewRequestMessage(wot.OpInvokeAction, thingID, actionName, testMsg1, shortid.MustGenerate())
-	err := co1.SendRequest(req, responseHandler)
+	err := co1.ForwardRequest(req, responseHandler)
 
 	require.NoError(t, err)
 	<-ctx1.Done()
@@ -136,8 +136,8 @@ func TestInvokeActionFromServerToAgent(t *testing.T) {
 	testEnv, cancelFn2 := StartTestEnv(defaultProtocol)
 	defer cancelFn2()
 
-	// 2a. connect as an agent
-	ag1client, cc1, token := testEnv.NewRCAgent(testAgentID1)
+	// 2a. connect as an agent, app request handler is set separately
+	ag1client, cc1, token := testEnv.NewRCAgent(testAgentID1, nil)
 	require.NotEmpty(t, token)
 	defer cc1.Close()
 

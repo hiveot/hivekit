@@ -21,13 +21,6 @@ type DirectoryMsgClient struct {
 	directoryID string
 }
 
-func (cl *DirectoryMsgClient) CreateThing(tdJson string) error {
-	req := msg.NewRequestMessage(
-		wot.OpInvokeAction, cl.directoryID, directoryapi.ActionCreateThing, tdJson, "")
-	_, err := cl.ForwardRequestWait(req)
-	return err
-}
-
 func (cl *DirectoryMsgClient) DeleteThing(thingID string) error {
 	req := msg.NewRequestMessage(
 		wot.OpInvokeAction, cl.directoryID, directoryapi.ActionDeleteThing, thingID, "")
@@ -62,30 +55,43 @@ func (cl *DirectoryMsgClient) RetrieveAllThings(offset int, limit int) (tdList [
 	return tdList, err
 }
 
-func (cl *DirectoryMsgClient) UpdateThing(tdJson string) error {
-	req := msg.NewRequestMessage(
-		wot.OpInvokeAction, cl.directoryID, directoryapi.ActionUpdateThing, tdJson, "")
-	_, err := cl.ForwardRequestWait(req)
-	return err
-}
-
-// NewDirectoryMsgClient creates a new DirectoryMsgClient instance.
+// NewDirectoryMsgClient creates a new DirectoryMsgClient instance for consumers.
 // Use the sink to attach a transport module.
 //
-//	thingID is the unique ID of the directory service instance. This defaults to the directory module's thingID.
-//	sink is the handler for requests send by the directory client and emitter of notifications
-func NewDirectoryMsgClient(thingID string, sink modules.IHiveModule) *DirectoryMsgClient {
-	if thingID == "" {
-		thingID = directoryapi.DefaultDirectoryServiceID
+// Do not use this client with agents as it registers itself as the receiver of notifications.
+// This would prevent the agent to send its notifications to the server. Instead, use
+// the 'UpdateThing' method below.
+//
+// This registers the directory client as the sink for notifications from the request handler.
+// with the intent to receive directory updates.
+//
+//	serviceID is the thing ID of the directory service instance. This defaults to the directory module's thingID.
+//	reqSink is the handler for requests send by the directory client and emitter of notifications
+func NewDirectoryMsgClient(serviceID string, reqSink modules.IHiveModule) *DirectoryMsgClient {
+	if serviceID == "" {
+		serviceID = directoryapi.DefaultDirectoryServiceID
 	}
 	cl := &DirectoryMsgClient{
-		directoryID: thingID,
+		directoryID: serviceID,
 	}
-	cl.SetModuleID(thingID + "-client")
-	if sink != nil {
-		cl.SetRequestSink(sink.HandleRequest)
+	cl.SetModuleID(serviceID + "-client")
+	if reqSink != nil {
+		cl.SetRequestSink(reqSink.HandleRequest)
 		// notifications returned are passed to this client (if any subscriptions are made)
-		sink.SetNotificationSink(cl.HandleNotification)
+		reqSink.SetNotificationSink(cl.HandleNotification)
 	}
 	return cl
+}
+
+// Update a Thing TD in the directory and wait for confirmation
+// This retuns nil if success or an error if something went wrong.
+func UpdateTD(directoryServiceID string, tdJson string, reqHandler msg.RequestHandler) error {
+	if directoryServiceID == "" {
+		directoryServiceID = directoryapi.DefaultDirectoryServiceID
+	}
+	req := msg.NewRequestMessage(
+		wot.OpInvokeAction, directoryServiceID, directoryapi.ActionUpdateThing, tdJson, "")
+	_, err := msg.ForwardRequestWait(req, reqHandler)
+
+	return err
 }

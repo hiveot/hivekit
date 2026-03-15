@@ -124,6 +124,7 @@ func (cl *WssClient) _send(wssMsg []byte) (err error) {
 func (cl *WssClient) Close() {
 	slog.Info("Close",
 		slog.String("clientID", cl.tlsClient.GetClientID()),
+		slog.String("ConnectionID", cl.tlsClient.GetConnectionID()),
 	)
 	// dont try to reconnect
 	cl.retryOnDisconnect.Store(false)
@@ -141,7 +142,9 @@ func (cl *WssClient) Close() {
 func (cl *WssClient) ConnectWithToken(clientID string, token string, ch transports.ConnectionHandler) error {
 
 	// ensure disconnected (note that this resets retryOnDisconnect)
-	cl.Close()
+	if cl.isConnected.Load() {
+		cl.Close()
+	}
 	cl.connectHandler = ch
 	cl.bearerToken = token
 	// the clientID is the moduleID so set it now
@@ -273,15 +276,15 @@ func (cl *WssClient) Reconnect() {
 
 	clientID := cl.tlsClient.GetClientID()
 	for i := 0; cl.maxReconnectAttempts == 0 || i < cl.maxReconnectAttempts; i++ {
+		// retry until max repeat is reached, disconnect is called or authorization failed
+		if !cl.retryOnDisconnect.Load() {
+			break
+		}
 		slog.Warn("Reconnecting attempt",
 			slog.String("clientID", clientID),
 			slog.Int("i", i))
 		err = cl.ConnectWithToken(clientID, cl.bearerToken, cl.connectHandler)
 		if err == nil {
-			break
-		}
-		// retry until max repeat is reached, disconnect is called or authorization failed
-		if !cl.retryOnDisconnect.Load() {
 			break
 		}
 		if errors.Is(err, utils.UnauthorizedError) {
@@ -404,6 +407,11 @@ func (cl *WssClient) SendResponse(resp *msg.ResponseMessage) error {
 func (cl *WssClient) SetTimeout(timeout time.Duration) {
 	cl.tlsClient.SetTimeout(timeout)
 	cl.timeout = timeout
+}
+
+// Module stop
+func (cl *WssClient) Stop() {
+	cl.Close()
 }
 
 // NewHiveotWssClient creates a new instance of the hiveot websocket client.

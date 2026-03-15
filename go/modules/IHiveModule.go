@@ -51,11 +51,11 @@ type IHiveModule interface {
 	// The default behavior is to forward it upstream to the handler set with SetNotificationSink.
 	HandleNotification(notif *msg.NotificationMessage)
 
-	// Set the handler of notifications emitted by this module (acting as a producer)
+	// Set the consumer of notifications emitted by this module (acting as a producer)
 	// Intended to create a chain of notifications from producer to consumer.
 	//
 	// This can be invoked before or after Start()
-	SetNotificationSink(sink msg.NotificationHandler)
+	SetNotificationSink(consumer msg.NotificationHandler)
 
 	// SetRequestSink sets the handler of requests emitted by this module.
 	//

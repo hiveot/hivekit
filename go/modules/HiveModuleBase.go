@@ -5,7 +5,7 @@ import (
 	"log/slog"
 
 	"github.com/hiveot/hivekit/go/msg"
-	"github.com/hiveot/hivekit/go/utils"
+	"github.com/teris-io/shortid"
 )
 
 // Module application environment
@@ -72,7 +72,7 @@ func (m *HiveModuleBase) ForwardNotification(notif *msg.NotificationMessage) {
 		// A downstream module could have subscribed.
 		if m.appNotificationHook == nil {
 			// keep this warning for now.
-			slog.Warn("ForwardNotification: no handler set. Notification is dropped.",
+			slog.Info("ForwardNotification: end of the line, no more notification sink.",
 				"module", m.moduleID,
 				"affordance", notif.AffordanceType,
 				"thingID", notif.ThingID,
@@ -84,13 +84,19 @@ func (m *HiveModuleBase) ForwardNotification(notif *msg.NotificationMessage) {
 	m.notificationSink(notif)
 }
 
-// ForwardRequest (output) is a helper function to pass a request to the sink's
-// HandleRequest method.
+// ForwardRequest passes the request to the sink's HandleRequest method.
 // If no sink os configured this returns an error
+// This assigns a request correlationID if none is set.
 func (m *HiveModuleBase) ForwardRequest(req *msg.RequestMessage, replyTo msg.ResponseHandler) (err error) {
+	if req.CorrelationID == "" {
+		req.CorrelationID = shortid.MustGenerate()
+	}
 	if m.requestSink == nil {
 		return fmt.Errorf("ForwardRequest: end of the line at '%s' for request '%s/%s' to thingID '%s'",
 			m.moduleID, req.Operation, req.Name, req.ThingID)
+	}
+	if replyTo == nil {
+		slog.Info("ForwardRequest: no replyTo handler provided")
 	}
 	err = m.requestSink(req, replyTo)
 	return err
@@ -100,20 +106,7 @@ func (m *HiveModuleBase) ForwardRequest(req *msg.RequestMessage, replyTo msg.Res
 // If no sink os configured this returns an error.
 // If the response contains an error, that error is also returned.
 func (m *HiveModuleBase) ForwardRequestWait(req *msg.RequestMessage) (resp *msg.ResponseMessage, err error) {
-	ar := utils.NewAsyncReceiver[*msg.ResponseMessage]()
-
-	err = m.ForwardRequest(req, func(r *msg.ResponseMessage) error {
-		ar.SetResponse(r)
-		return nil
-	})
-	if err != nil {
-		return nil, err
-	}
-	resp, err = ar.WaitForResponse(0)
-	if err == nil {
-		err = resp.AsError()
-	}
-	return resp, err
+	return msg.ForwardRequestWait(req, m.ForwardRequest)
 }
 
 // GetModuleID returns the module's Thing ID
@@ -277,6 +270,10 @@ func (m *HiveModuleBase) SetNotificationHook(hook msg.NotificationHandler) {
 
 // Set the handler that will receive notifications emitted by this module
 func (m *HiveModuleBase) SetNotificationSink(consumer msg.NotificationHandler) {
+	if m.notificationSink != nil {
+		slog.Warn("SetNotificationSink: A notification sink already exists. It will be overwritten.",
+			"moduleID", m.GetModuleID())
+	}
 	m.notificationSink = consumer
 }
 

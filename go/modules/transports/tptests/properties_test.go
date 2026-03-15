@@ -114,7 +114,7 @@ func TestPublishPropertyByAgent(t *testing.T) {
 	defer cancelFn()
 
 	// 2. connect as an agent
-	ag1, agConn1, _ := testEnv.NewRCAgent(testAgentID1)
+	ag1, agConn1, _ := testEnv.NewRCAgent(testAgentID1, nil)
 	defer agConn1.Close()
 
 	// 3. agent publishes a property update to subscribers

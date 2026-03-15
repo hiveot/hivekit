@@ -1,6 +1,7 @@
 package directory_test
 
 import (
+	"log/slog"
 	"net/http"
 	"net/url"
 	"os"
@@ -133,11 +134,12 @@ func TestCRUDUsingMsgAPI(t *testing.T) {
 
 	// use a direct transport to the directory as the sink for the client
 	tp := direct.NewDirectTransport(clientID, m)
-	dirClient := directoryclient.NewDirectoryMsgClient(directoryID, tp)
-	err := dirClient.CreateThing(tdi1Json)
+	// err := dirClient.CreateThing(tdi1Json)
+	err := directoryclient.UpdateTD(directoryID, tdi1Json, tp.HandleRequest)
 	require.NoError(t, err)
 
 	// read the new TD
+	dirClient := directoryclient.NewDirectoryMsgClient(directoryID, tp)
 	tdi2Json, err := dirClient.RetrieveThing(thing1ID)
 	require.NoError(t, err)
 	tdi2, err := td.UnmarshalTD(tdi2Json)
@@ -168,14 +170,17 @@ func TestGetDirectoryTD(t *testing.T) {
 	httpURL := testEnv.HttpServer.GetConnectURL()
 	parts, _ := url.Parse(httpURL)
 	hostPort := parts.Host
-	// tdURL := fmt.Sprintf("%s%s", httpURL, directory.WellKnownWoTPath)
-	// testEnv.Authenticator.AddClient(userID, authn.ClientRoleViewer, "", "")
-	testEnv.NewClient(userID, authnapi.ClientRoleViewer, nil)
-	token, _, err := testEnv.CreateToken(userID, time.Minute)
-	require.NoError(t, err)
+	// Create a client account with token but don't use the client itself. This
+	// tests is specifically for using a basic http client to bootstrap discovery.
+	cl, token := testEnv.NewConnectedClient(userID, authnapi.ClientRoleViewer, nil)
+	cl.Close()
+	// token, _, err := testEnv.CreateToken(userID, time.Minute)
+	// require.NoError(t, err)
+
 	httpClient := tlsclient.NewTLSClient(hostPort, nil, testEnv.CertBundle.CaCert, time.Minute)
-	err = httpClient.ConnectWithToken(userID, token)
+	err := httpClient.ConnectWithToken(userID, token)
 	require.NoError(t, err)
+	defer httpClient.Close()
 
 	respBody, statusCode, err := httpClient.Get(directoryapi.WellKnownWoTPath)
 	require.NoError(t, err)
@@ -202,14 +207,14 @@ func TestCRUDUsingRestAPI(t *testing.T) {
 	tddUrl := testEnv.HttpServer.GetConnectURL()
 
 	// create the client and connect to the http server that serves the directory TD
-	cl, _ := testEnv.NewClient(clientID, authnapi.ClientRoleManager, nil)
-	_ = cl
-	authToken, _, err := testEnv.CreateToken(clientID, time.Minute)
-	require.NoError(t, err)
+	cl, authToken := testEnv.NewConnectedClient(clientID, authnapi.ClientRoleManager, nil)
+	cl.Close()
+	// authToken, _, err := testEnv.CreateToken(clientID, time.Minute)
+	// require.NoError(t, err)
 
 	dirClient := directoryclient.NewDirectoryHttpClient(tddUrl, testEnv.CertBundle.CaCert)
 	// connect should read the directory TD
-	err = dirClient.ConnectWithToken(clientID, authToken)
+	err := dirClient.ConnectWithToken(clientID, authToken)
 	require.NoError(t, err)
 
 	// test create a TD
@@ -231,6 +236,7 @@ func TestCRUDUsingRestAPI(t *testing.T) {
 	require.NoError(t, err)
 
 	// read should fail
+	slog.Warn("---expect an error below---")
 	_, err = dirClient.RetrieveThing(thing1ID)
 	require.Error(t, err)
 }

@@ -4,6 +4,7 @@ package directoryserver
 import (
 	"log/slog"
 	"path/filepath"
+	"sync"
 
 	"github.com/hiveot/hivekit/go/modules"
 	"github.com/hiveot/hivekit/go/modules/bucketstore"
@@ -11,6 +12,7 @@ import (
 	directoryapi "github.com/hiveot/hivekit/go/modules/directory/api"
 	"github.com/hiveot/hivekit/go/modules/transports"
 	"github.com/hiveot/hivekit/go/msg"
+	"github.com/hiveot/hivekit/go/wot/td"
 )
 
 // DirectoryServer is a module for serving a WoT Thing directory.
@@ -43,10 +45,14 @@ type DirectoryServer struct {
 	// root directory of the storage area
 	storageRoot string
 
-	// hook to invoke before writing a TD into the store
-	writeTDHook directoryapi.WriteTDHook
+	// cache of used TDs and the mutex to access it
+	tdCache    map[string]*td.TD
+	tdCacheMux sync.RWMutex
+
 	// hook to invoke before deleting a TD into the store
 	deleteTDHook directoryapi.DeleteTDHook
+	// hook to invoke before writing a TD into the store
+	writeTDHook directoryapi.WriteTDHook
 }
 
 // GetAgentInfo provides information on Things registered by an agent
@@ -138,6 +144,7 @@ func NewDirectoryServer(storageRoot string, httpServer transports.IHttpServer) *
 		HiveModuleBase: modules.HiveModuleBase{},
 		storageRoot:    storageRoot,
 		httpServer:     httpServer,
+		tdCache:        make(map[string]*td.TD),
 	}
 	m.SetModuleID(directoryapi.DefaultDirectoryServiceID)
 	if httpServer == nil {

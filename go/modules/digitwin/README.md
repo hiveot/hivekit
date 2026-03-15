@@ -7,7 +7,8 @@ This approach provides the following benefits:
 1. Improved security. Devices remain isolated from consumers. Many types of security vulnerabilities can not be utilized if the device cannot be reached directly.
 2. Thing state remains available even when a device is not reachable, like when it entered sleep mode or when its connection is intermittent.
 3. Access to devices no longer requires the consumer to use a variety of transport protocols and endpoints. Instead, a single protocol can be used to connect to the digital twin server.
-4. Simplified provisioning. Consumers only need a single account to access all devices. The devices only need to be provisioned with a digital twin account. This avoids the need to create consumer accounts on each device.
+4. Simplified device provisioning. Agent self-provision TD's in the device directory using random IDs or firmware encoded IDs.
+5. Simplified account management. Consumers only need a single account to access all devices. The devices only need to be provisioned with a digital twin account. This avoids the need to create consumer accounts on each device.
 
 ## Status
 
@@ -15,11 +16,15 @@ This module is in development. It is partial functional but incomplete. Breaking
 
 TODO:
 
-1. send notifications to consumers when digital twin device state changes or events are received
-1. detect agent (dis)connection with server to show online status of devices
+1. test write property to agent devices
+1. test invoke action to agent devices
+1. detect agent (dis)connection with server to show online status of digital twin
+1. test write property to WoT devices
+1. test invoke action to WoT devices
+1. detect WoT device (dis)connection to show online status of digital twin
 1. track online status of devices
-1. connect and subscribe to known WoT devices on startup and when they are discovered
-1. test integration with router module for forwarding requests
+1. connect and subscribe to WoT devices on startup
+1. connect and subscribe to WoT devices when they are newly discovered
 1. test OOB (out of band) provisioning by admin through upload of device TDs
 
 ## Summary
