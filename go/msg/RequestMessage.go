@@ -124,8 +124,8 @@ func (req *RequestMessage) ToString(maxlen int) string {
 	return utils.DecodeAsString(req.Input, maxlen)
 }
 
-// ToObject is a helper to easily convert the request input to an object
-func (req *RequestMessage) ToObject(input any) error {
+// Decode is a helper to easily convert the request input to an object
+func (req *RequestMessage) Decode(input any) error {
 	return utils.DecodeAsObject(req.Input, &input)
 }
 

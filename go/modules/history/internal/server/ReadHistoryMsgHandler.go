@@ -63,7 +63,7 @@ func (svc *ReadHistoryMsgHandler) HandleRequest(req *msg.RequestMessage, replyTo
 func (svc *ReadHistoryMsgHandler) CreateCursor(req *msg.RequestMessage) (*msg.ResponseMessage, error) {
 	var args historyapi.CreateCursorArgs
 
-	err := req.ToObject(&args)
+	err := req.Decode(&args)
 	if args.ThingID == "" {
 		return nil, fmt.Errorf("missing thingID")
 	}
@@ -79,7 +79,7 @@ func (svc *ReadHistoryMsgHandler) First(req *msg.RequestMessage) (*msg.ResponseM
 	var cursorKey string
 	var valueResp historyapi.CursorValueResp
 
-	err := req.ToObject(&cursorKey)
+	err := req.Decode(&cursorKey)
 	if err != nil || cursorKey == "" {
 		return nil, fmt.Errorf("missing cursorKey")
 	}
@@ -95,7 +95,7 @@ func (svc *ReadHistoryMsgHandler) Last(req *msg.RequestMessage) (*msg.ResponseMe
 	var cursorKey string
 	var valueResp historyapi.CursorValueResp
 
-	err := req.ToObject(&cursorKey)
+	err := req.Decode(&cursorKey)
 	if err != nil || cursorKey == "" {
 		return nil, fmt.Errorf("missing cursorKey")
 	}
@@ -110,7 +110,7 @@ func (svc *ReadHistoryMsgHandler) Next(req *msg.RequestMessage) (*msg.ResponseMe
 	var cursorKey string
 	var valueResp historyapi.CursorValueResp
 
-	err := req.ToObject(&cursorKey)
+	err := req.Decode(&cursorKey)
 	if err != nil || cursorKey == "" {
 		return nil, fmt.Errorf("missing cursorKey")
 	}
@@ -125,7 +125,7 @@ func (svc *ReadHistoryMsgHandler) NextN(req *msg.RequestMessage) (*msg.ResponseM
 	var cursorNArgs historyapi.CursorNArgs
 	var cursorNResp historyapi.CursorNResp
 
-	err := req.ToObject(&cursorNArgs)
+	err := req.Decode(&cursorNArgs)
 	if err != nil || cursorNArgs.CursorKey == "" {
 		return nil, fmt.Errorf("missing cursorKey")
 	}
@@ -146,7 +146,7 @@ func (svc *ReadHistoryMsgHandler) Prev(req *msg.RequestMessage) (*msg.ResponseMe
 	var cursorKey string
 	var valueResp historyapi.CursorValueResp
 
-	err := req.ToObject(&cursorKey)
+	err := req.Decode(&cursorKey)
 	if err != nil || cursorKey == "" {
 		return nil, fmt.Errorf("missing cursorKey")
 	}
@@ -161,7 +161,7 @@ func (svc *ReadHistoryMsgHandler) PrevN(req *msg.RequestMessage) (*msg.ResponseM
 	var cursorNArgs historyapi.CursorNArgs
 	var cursorNResp historyapi.CursorNResp
 
-	err := req.ToObject(&cursorNArgs)
+	err := req.Decode(&cursorNArgs)
 	if err != nil || cursorNArgs.CursorKey == "" {
 		return nil, fmt.Errorf("missing cursorKey")
 	}
@@ -184,7 +184,7 @@ func (svc *ReadHistoryMsgHandler) ReadHistory(req *msg.RequestMessage) (*msg.Res
 	var args historyapi.ReadHistoryArgs
 	var output historyapi.ReadHistoryResp
 
-	err := req.ToObject(&args)
+	err := req.Decode(&args)
 	if err != nil || args.Timestamp == "" {
 		return nil, fmt.Errorf("ReadHistory: Invalid arguments: %w", err)
 	}
@@ -213,7 +213,7 @@ func (svc *ReadHistoryMsgHandler) Seek(req *msg.RequestMessage) (*msg.ResponseMe
 	var seekArgs historyapi.CursorSeekArgs
 	var valueResp historyapi.CursorValueResp
 
-	err := req.ToObject(&seekArgs)
+	err := req.Decode(&seekArgs)
 	if err != nil || seekArgs.CursorKey == "" {
 		return nil, fmt.Errorf("missing cursorKey")
 	}

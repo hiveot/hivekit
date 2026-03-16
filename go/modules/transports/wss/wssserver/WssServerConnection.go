@@ -152,7 +152,7 @@ func (sc *WssServerConnection) onMessage(raw []byte) {
 	resp = sc.messageConverter.DecodeResponse(raw)
 	if resp != nil {
 		// sender is identified by the server, not the client
-		resp.AgentID = sc.GetClientID()
+		resp.SenderID = sc.GetClientID()
 		sc.onResponse(resp)
 		return
 	}
@@ -354,9 +354,9 @@ func (sc *WssServerConnection) SendResponse(resp *msg.ResponseMessage) (err erro
 		slog.String("correlationID", resp.CorrelationID),
 		slog.String("operation", resp.Operation),
 		slog.String("name", resp.Name),
-		slog.String("state", resp.State),
+		slog.String("state", resp.Status),
 		slog.String("type", resp.MessageType),
-		slog.String("agentID", resp.AgentID),
+		slog.String("agentID", resp.SenderID),
 	)
 
 	msg, _ := sc.messageConverter.EncodeResponse(resp)

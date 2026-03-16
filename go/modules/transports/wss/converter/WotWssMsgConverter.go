@@ -164,7 +164,7 @@ func (svc *WotWssMsgConverter) DecodeResponse(raw []byte) *msg.ResponseMessage {
 	case wot.OpInvokeAction:
 		// if wss contains a status object, use it
 		if wssResp.Status != nil {
-			respMsg.State = wssResp.Status.State
+			respMsg.Status = wssResp.Status.State
 			// respMsg.Timestamp = wssResp.Status.TimeRequested
 			respMsg.Timestamp = wssResp.Status.TimeEnded
 		}
@@ -185,7 +185,7 @@ func (svc *WotWssMsgConverter) DecodeResponse(raw []byte) *msg.ResponseMessage {
 			ThingID:       wssResp.ThingID,
 			Name:          wssResp.Name,
 			Output:        wssStatus.Output,
-			State:         wssStatus.State,
+			Status:        wssStatus.State,
 			CorrelationID: wssResp.CorrelationID,
 			Timestamp:     wssStatus.TimeEnded,
 			Error:         wssResp.Error,
@@ -207,7 +207,7 @@ func (svc *WotWssMsgConverter) DecodeResponse(raw []byte) *msg.ResponseMessage {
 				ThingID:       wssResp.ThingID,
 				Name:          name,
 				Output:        wssStatus.Output,
-				State:         wssStatus.State,
+				Status:        wssStatus.State,
 				CorrelationID: wssResp.CorrelationID,
 				Timestamp:     wssStatus.TimeEnded,
 				Error:         wssResp.Error,
@@ -285,7 +285,7 @@ func (svc *WotWssMsgConverter) EncodeResponse(resp *msg.ResponseMessage) ([]byte
 			// websocket asynchronous response returns ActionID
 			ActionID:  resp.CorrelationID,
 			Error:     resp.Error, // error fields are identical
-			State:     resp.State,
+			State:     resp.Status,
 			Output:    resp.Output,
 			TimeEnded: resp.Timestamp,
 		}
@@ -297,7 +297,7 @@ func (svc *WotWssMsgConverter) EncodeResponse(resp *msg.ResponseMessage) ([]byte
 			ActionID:  qResp.CorrelationID,
 			Error:     qResp.Error, // error fields are identical
 			Output:    qResp.Output,
-			State:     qResp.State,
+			State:     qResp.Status,
 			TimeEnded: qResp.Timestamp,
 		}
 	case wot.OpQueryAllActions:
@@ -317,7 +317,7 @@ func (svc *WotWssMsgConverter) EncodeResponse(resp *msg.ResponseMessage) ([]byte
 			wssStatusMap[respMsg.Name] = WotWssActionStatus{
 				ActionID:  respMsg.CorrelationID,
 				Error:     respMsg.Error, // error fields are identical
-				State:     respMsg.State,
+				State:     respMsg.Status,
 				TimeEnded: respMsg.Timestamp,
 				Output:    respMsg.Output,
 			}

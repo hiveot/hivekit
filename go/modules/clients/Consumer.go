@@ -128,7 +128,7 @@ func (co *Consumer) QueryAction(thingID, name string) (
 
 	err = co.Rpc(wot.OpQueryAction, thingID, name, nil, &value)
 	// if state is empty then this action has not run before
-	if err == nil && value.State == "" {
+	if err == nil && value.Status == "" {
 		value.ThingID = thingID
 		value.Name = name
 	}

@@ -5,6 +5,7 @@ import (
 	"log/slog"
 	"path/filepath"
 	"strings"
+	"sync"
 
 	"github.com/hiveot/hivekit/go/modules"
 	"github.com/hiveot/hivekit/go/modules/bucketstore"
@@ -34,6 +35,9 @@ const DefaultDigitwinServiceID = "digitwin"
 type DigitwinModule struct {
 	modules.HiveModuleBase
 
+	// track the connections of agents
+	agentStatus sync.Map
+
 	// hook to server to add forms to a TD for interacting with affordances
 	addForms func(tdoc *td.TD, includeAffordances bool)
 
@@ -60,7 +64,7 @@ type DigitwinModule struct {
 	msgAPI *DigitwinMsgHandler
 
 	// notification cache holding device property and events values
-	vcache vcacheapi.IVCacheModule
+	vcache vcacheapi.IVCacheServer
 
 	// location of the digital twin storage area
 	storageRoot string
@@ -103,28 +107,48 @@ func (m *DigitwinModule) GetDeviceTD(thingID string) *td.TD {
 }
 
 // HandleNotification stores the latest notification things for retrieval as a digital twin value
+// These notifications are received from (RC) agents connected to the server and from standalone devices.
+// This also includes connection events from the server, which are used to update agent online status.
 func (m *DigitwinModule) HandleNotification(notif *msg.NotificationMessage) {
 
 	// track online status of agents - this needs tracking of agents
 	// agentInfo := m.deviceDirectory.GetAgent(notif.SenderID)
 	if notif.Name == transports.ConnectedEventName {
-		// if this is an agent then subscribe to notifications
-		// actually this isn't needed as agents publish all notifications anyways
-		// if agentInfo != nil {
-		// slog.Info("Agent connected", slog.String("agentID", notif.SenderID))
-		// }
+		// if this is an agent then its things are no longer online
+		cinfo := transports.ConnectionInfo{}
+		err := notif.Decode(&cinfo)
+		if err == nil {
+			m.SetAgentStatus(cinfo.ClientID, true)
+		}
+		// send notifications upstream to potential consumers
+		m.ForwardNotification(notif)
+		return
 	} else if notif.Name == transports.DisconnectedEventName {
 		// if this is an agent then its things are no longer online
-		// if agentInfo != nil {
-		// slog.Info("Agent disconnected", slog.String("agentID", notif.SenderID))
-		// }
+		cinfo := transports.ConnectionInfo{}
+		err := notif.Decode(&cinfo)
+		if err == nil {
+			m.SetAgentStatus(cinfo.ClientID, false)
+		}
+		// send notifications upstream to potential consumers
+		m.ForwardNotification(notif)
+		return
 	}
-	// 1: is this a digital twin not
-	dtwNotif := *notif
-	dtwNotif.ThingID = MakeDigitwinID(notif.SenderID, notif.ThingID)
-	m.vcache.HandleNotification(&dtwNotif)
+	// if the thingID is a digital twin then store its value in the vcache
+	dtwThingID := MakeDigitwinID(notif.SenderID, notif.ThingID)
+	_, err := m.directory.RetrieveThing(dtwThingID)
+	if err == nil {
+		dtwNotif := *notif
+		dtwNotif.ThingID = dtwThingID
+		m.vcache.HandleNotification(&dtwNotif)
+		// emit this notification as a digital twin update
+		m.ForwardNotification(&dtwNotif)
 
-	m.ForwardNotification(notif)
+	} else {
+		// not a digital twin notification. Send it upstream to potential consumers
+		m.ForwardNotification(notif)
+	}
+
 }
 
 // HandleRequest for digital twins requests.
@@ -141,6 +165,8 @@ func (m *DigitwinModule) HandleNotification(notif *msg.NotificationMessage) {
 func (m *DigitwinModule) HandleRequest(req *msg.RequestMessage, replyTo msg.ResponseHandler) (err error) {
 
 	// Handle requests for a digital twin
+	// TODO: try to remove the thingID dependency on the digital twin.
+	// Maybe lookup the thingID in the digital twin directory... ?
 	if strings.HasPrefix(req.ThingID, digitwinapi.DigitwinIDPrefix) {
 		switch req.Operation {
 
@@ -162,6 +188,7 @@ func (m *DigitwinModule) HandleRequest(req *msg.RequestMessage, replyTo msg.Resp
 		case wot.OpWriteProperty,
 			wot.OpWriteMultipleProperties,
 			wot.OpInvokeAction:
+
 			return m.ForwardDigitwinRequestToDevice(req, replyTo)
 		}
 	}
@@ -176,6 +203,18 @@ func (m *DigitwinModule) HandleRequest(req *msg.RequestMessage, replyTo msg.Resp
 	return m.msgAPI.HandleRequest(req, replyTo)
 }
 
+// Set the connected status of an agent
+// TODO: This updates the online status of all its digitwin devices
+func (m *DigitwinModule) SetAgentStatus(agentID string, connected bool) {
+	// if this is an agent then its things are no longer online
+	m.agentStatus.Store(agentID, connected)
+	// IDList := m.directory.GetThingsByAgentID(agentID)
+	// for _, thingID := range IDList {
+	// m.vcache.SetProperty(thingID, digitwinapi.OnlinePropName, connected)
+	// // vcache will notify subscribers
+	// }
+}
+
 // Start the digital twin module and open its native thing backup
 // This subscribes to devices and agents that have a digital twin in the directory.
 func (m *DigitwinModule) Start(_ string) (err error) {
@@ -187,7 +226,7 @@ func (m *DigitwinModule) Start(_ string) (err error) {
 	// if it doesn't contain a value it should forward the request to the device
 	// note that the thingID is the digital twin ID, which needs to be converted
 	// back to the device thingID
-	m.vcache = vcache.NewVCacheModule()
+	m.vcache = vcache.NewVCacheServer()
 	m.vcache.SetRequestSink(m.ForwardDigitwinRequestToDevice)
 	m.vcache.Start("")
 	// the device directory holds the unmodified device TDs

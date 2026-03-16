@@ -1,6 +1,8 @@
 package msg
 
 import (
+	"fmt"
+
 	"github.com/hiveot/hivekit/go/utils"
 	"github.com/teris-io/shortid"
 )
@@ -61,6 +63,16 @@ type NotificationMessage struct {
 // ToString is a helper to easily read the notification data as a string
 func (notif *NotificationMessage) ToString(maxlen int) string {
 	return utils.DecodeAsString(notif.Data, maxlen)
+}
+
+// Decode the value in the response
+// If the response contains an error, then this error is returned.
+func (notif *NotificationMessage) Decode(output any) error {
+	if notif == nil {
+		return fmt.Errorf("no data")
+	}
+	err := utils.Decode(notif.Data, output)
+	return err
 }
 
 // NewNotificationMessage creates a new NotificationMessage instance.

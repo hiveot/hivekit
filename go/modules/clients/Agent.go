@@ -79,8 +79,8 @@ func (ag *Agent) PubActionProgress(req msg.RequestMessage, value any) {
 		Input:     req.Input,
 		Name:      req.Name,
 		Output:    value,
-		AgentID:   ag.GetClientID(),
-		State:     msg.StatusRunning,
+		SenderID:  ag.GetClientID(),
+		Status:    msg.StatusRunning,
 		ThingID:   req.ThingID,
 		Timestamp: utils.FormatNowUTCMilli(),
 	}

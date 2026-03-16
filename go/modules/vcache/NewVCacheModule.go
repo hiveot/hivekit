@@ -2,11 +2,11 @@ package vcache
 
 import (
 	vcacheapi "github.com/hiveot/hivekit/go/modules/vcache/api"
-	VCacheModule "github.com/hiveot/hivekit/go/modules/vcache/internal/module"
+	vcacheserver "github.com/hiveot/hivekit/go/modules/vcache/internal/server"
 )
 
 // Create a new instance of the value cache module.
-func NewVCacheModule() vcacheapi.IVCacheModule {
-	m := VCacheModule.NewVCacheModule()
+func NewVCacheServer() vcacheapi.IVCacheServer {
+	m := vcacheserver.NewVCacheServer()
 	return m
 }

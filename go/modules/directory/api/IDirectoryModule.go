@@ -34,7 +34,6 @@ type AgentInfo struct {
 }
 
 // IDirectoryServer defines the interface to the directory module server
-// This is implemented in the service and the client api
 type IDirectoryServer interface {
 	modules.IHiveModule
 

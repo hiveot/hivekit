@@ -48,18 +48,6 @@ const (
 //   - readallevents            map[name]ThingValue objects
 type ResponseMessage struct {
 
-	// Authenticated clientID of the agent sending the response.
-	//
-	// This is set by the transport server handling the request.
-	// When using reverse connection, the transport server sets this to the clientID of
-	// the agent that sends the response.
-	//
-	// This feature of hiveot enables tracking of which service instance responded to a
-	// request. See also ConsumerID
-	//
-	// The Hub protocol server MUST set this to the authenticated sender.
-	AgentID string `json:"agentID"`
-
 	// CorrelationID of the request this is a response to, if any.
 	// CorrelationID can be required for a response to find its way back to the client
 	// sending the request.
@@ -112,13 +100,25 @@ type ResponseMessage struct {
 	// If an error is returned then value is empty
 	Output any `json:"output,omitempty"`
 
-	// State of request with progress: pending, running, completed, failed.
+	// SenderID is the authenticated clientID of the agent sending the response.
+	//
+	// This is set by the transport server handling the request.
+	// When using reverse connection, the transport server sets this to the clientID of
+	// the agent that sends the response.
+	//
+	// This feature of hiveot enables tracking of which service instance responded to a
+	// request. See also ConsumerID
+	//
+	// The Hub protocol server MUST set this to the authenticated sender.
+	SenderID string `json:"agentID"`
+
+	// Status of request with progress: pending, running, completed, failed.
 	// In most cases there is only a single response to a request. This should not be
 	// relied on however.
 	// In case of long running requests this has state running (or pending). The HiveOT
 	// convention is to sent state changes due to actions as events with the action name, and
 	// state changes due to property writes as property update notifications
-	State string `json:"state,omitempty"`
+	Status string `json:"status,omitempty"`
 
 	// ThingID of the thing this is a response from.
 	// For responses passed to consumers this is the digitwin dThingID
@@ -184,7 +184,7 @@ func NewResponseMessage(
 		Name:          name,
 		Output:        output,
 		Operation:     operation,
-		State:         state,
+		Status:        state,
 		Timestamp:     utils.FormatUTCMilli(time.Now()),
 		ThingID:       thingID,
 	}

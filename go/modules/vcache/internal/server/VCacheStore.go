@@ -8,6 +8,7 @@ import (
 
 // ThingNotifications stores the latest event and property values of a thing
 type ThingNotifications struct {
+	Actions    map[string]*msg.NotificationMessage `json:"actions"`
 	Events     map[string]*msg.NotificationMessage `json:"events"`
 	Properties map[string]*msg.NotificationMessage `json:"properties"`
 }
@@ -22,6 +23,17 @@ func (store *VCacheStore) GetNrThings() int {
 	store.mux.RLock()
 	defer store.mux.RUnlock()
 	return len(store.Things)
+}
+
+// Return the latest cached action status or nil if not found
+func (store *VCacheStore) ReadAction(thingID string, name string) (action *msg.NotificationMessage) {
+	store.mux.RLock()
+	defer store.mux.RUnlock()
+	tn, found := store.Things[thingID]
+	if found {
+		action, found = tn.Actions[name]
+	}
+	return action
 }
 
 // Return the latest cached event or nil if not found
@@ -78,31 +90,25 @@ func (store *VCacheStore) RemoveProperty(thingID string, name string) {
 	}
 }
 
-func (store *VCacheStore) WriteEvent(notif *msg.NotificationMessage) {
+func (store *VCacheStore) WriteValue(notif *msg.NotificationMessage) {
 	store.mux.Lock()
 	defer store.mux.Unlock()
 	tv, found := store.Things[notif.ThingID]
 	if !found {
 		tv = ThingNotifications{
+			Actions:    make(map[string]*msg.NotificationMessage),
 			Events:     make(map[string]*msg.NotificationMessage),
 			Properties: make(map[string]*msg.NotificationMessage),
 		}
 	}
-	tv.Events[notif.Name] = notif
-	store.Things[notif.ThingID] = tv
-}
-
-func (store *VCacheStore) WriteProperty(notif *msg.NotificationMessage) {
-	store.mux.Lock()
-	defer store.mux.Unlock()
-	tv, found := store.Things[notif.ThingID]
-	if !found {
-		tv = ThingNotifications{
-			Events:     make(map[string]*msg.NotificationMessage),
-			Properties: make(map[string]*msg.NotificationMessage),
-		}
+	switch notif.AffordanceType {
+	case msg.AffordanceTypeAction:
+		tv.Actions[notif.Name] = notif
+	case msg.AffordanceTypeEvent:
+		tv.Events[notif.Name] = notif
+	case msg.AffordanceTypeProperty:
+		tv.Properties[notif.Name] = notif
 	}
-	tv.Properties[notif.Name] = notif
 	store.Things[notif.ThingID] = tv
 }
 

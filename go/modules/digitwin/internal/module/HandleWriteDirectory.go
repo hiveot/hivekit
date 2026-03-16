@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	digitwinapi "github.com/hiveot/hivekit/go/modules/digitwin/api"
+	"github.com/hiveot/hivekit/go/wot"
 	"github.com/hiveot/hivekit/go/wot/td"
 	jsoniter "github.com/json-iterator/go"
 )
@@ -20,34 +21,39 @@ func (m *DigitwinModule) HandleDeleteTD(agentID string, thingID string) error {
 // HandleWriteDirectory is invoked before a TD is updated in the directory.
 // This is the registered callback handler of the Thing directory.
 //
-// This replaces the TD with a digital twin and stores the original device TD
-// in the device directory instance.
-//
-// This filters TD's with the @type empty or set to service.
-//
-// If the TD is that of a service then do nothing, otherwise update a digital twin.
+// This:
+// 1. Ignores services - return them as-is
+// 2. Stores the original TD in the 'device TD bucket'
+// 3. Replace the ThingID with that of the digital twin
+// 4. Add a 'online' property that is updated if the agent changes connection status
+// 5. Removes all forms
+// 6. Inserts forms that point to the digital twin
 //
 // This returns the updated TD, or the old one if no digital twin is used for this Thing.
 func (m *DigitwinModule) HandleWriteDirectory(agentID string, tdi *td.TD) (*td.TD, error) {
 
-	// service types do not get a digital twin
+	// 1. service types do not get a digital twin
 	// this seems a bit simplistic but it avoids hiveot modules from getting a twin
 	if tdi.AtType == digitwinapi.DeviceTypeService {
 		return tdi, nil
 	}
 
-	// store the original TD and its agent for retrieval by the router
+	// 2. store the original TD and its agent for retrieval by the router
 	tdi.AgentID = agentID
 	tdJson, _ := jsoniter.Marshal(tdi)
 	m.bucket.Set(tdi.ID, tdJson)
 
-	// 1. change the device ID to the digitwin ID
+	// 3. change the device ID to the digitwin ID
 	// note that this modifies the original TD. - is this a problem?
 	dtwTD := tdi
 	digitwinThingID := MakeDigitwinID(agentID, tdi.ID)
 	dtwTD.ID = digitwinThingID
 
-	// 2. reset all existing forms and auth info
+	// 4. add a 'online' property indicating if it is reachable
+	dtwTD.AddProperty(digitwinapi.OnlinePropName,
+		"Online", "Indicate if the Thing is reachable", wot.DataTypeAnyURI)
+
+	// 5. reset all existing forms and auth info
 	dtwTD.Forms = make([]td.Form, 0)
 	dtwTD.Security = nil
 	dtwTD.SecurityDefinitions = make(map[string]td.SecurityScheme)
@@ -62,7 +68,7 @@ func (m *DigitwinModule) HandleWriteDirectory(agentID string, tdi *td.TD) (*td.T
 		aff.Forms = make([]td.Form, 0)
 	}
 
-	// 3. populate the TD with forms and security definitions of the available transports
+	// 6. populate the TD with forms and security definitions of the available transports
 	if m.addForms != nil {
 		m.addForms(dtwTD, m.includeAffordanceForms)
 	}

@@ -203,7 +203,7 @@ func TestQueryActions(t *testing.T) {
 				ThingID:   req.ThingID,
 				Name:      req.Name,
 				Output:    testMsg1,
-				State:     msg.StatusCompleted,
+				Status:    msg.StatusCompleted,
 				Timestamp: utils.FormatNowUTCMilli(),
 			}
 
@@ -217,7 +217,7 @@ func TestQueryActions(t *testing.T) {
 					ThingID:   req.ThingID,
 					Name:      actionKey,
 					Output:    testMsg1,
-					State:     msg.StatusCompleted,
+					Status:    msg.StatusCompleted,
 					Timestamp: utils.FormatNowUTCMilli(),
 				},
 				"action-2": {
@@ -229,14 +229,14 @@ func TestQueryActions(t *testing.T) {
 						Title:  "Testing error",
 						Detail: "test error detail",
 					},
-					State:     msg.StatusFailed,
+					Status:    msg.StatusFailed,
 					Timestamp: utils.FormatNowUTCMilli(),
 				},
 				"action-3": {
 					ThingID:   req.ThingID,
 					Name:      "action-3",
 					Output:    "other output",
-					State:     msg.StatusCompleted,
+					Status:    msg.StatusCompleted,
 					Timestamp: utils.FormatNowUTCMilli(),
 				}}
 			// the action status map is the payload for the action response.

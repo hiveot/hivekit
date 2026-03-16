@@ -12,7 +12,7 @@ This approach provides the following benefits:
 
 ## Status
 
-This module is in development. It is partial functional but incomplete. Breaking changes can be expected.
+This module is in early alpha. It supports managing digital twins of devices provided by RC (reverse connection) agents. Managing digital twins for standalone devices is under development. Breaking changes can be expected.
 
 TODOs for reverse connecting agents:
 
@@ -46,18 +46,18 @@ These modules are linked in a pipeline:
 
 ```
 
-(1) The http server is used by discovery, the directory, and messaging server. It authenticates and identifies connecting clients and routes http requests to the endpoint registered by the modules.
+(1) The http server is used by discovery, the directory, and messaging servers. It authenticates and identifies connecting clients and routes http requests to the endpoint registered by the modules.
 (2) The discovery server publishes the TDD as provided by a Thing directory using DNS-SD.
 (3) The messaging transport server(s) serves non-http messaging protocol such as websocket and mqtt. This transport receives property read, write and action requests from consumers, and property and event change notifications sent by agents.
-(4) The directory handles request messages for reading and writing the directory as included in the TDD forms. Optionally it also offers an HTTP API for the same as per specification.
+(4) The directory handles requests for reading and writing the directory as described in its TDD. This handles both RRN messages and optionally an HTTP API for the same purpose, as per WoT specification.
 (5) The digitwin module hooks into the directory to intercept directory write requests and replace TD's with a digital twin TD whose forms point to the digitwin module. All read/write requests for digital twins are handled by the digitwin module using the value cache module.
 
 - The original device TD's are stored in a separate device directory for use by the router.
-- Notifications received from devices with a digital twin are stored in a vcache.
+- Notifications received from devices that have a digital twin are stored in a vcache.
 
-(6) The router passes messaging requests to devices using the device TD.
-(7) The router establishes client connections for passing messages to standard WoT compatible devices.
-(8) The router uses the messaging server for passing messages to devices whose agents have a reverse connection.
+(6) The router passes request messages to devices using the device TD.
+(7) The router establishes client connections for passing requests to standard WoT compatible devices.
+(8) The router uses the messaging server for passing requests to devices whose agents have a reverse connection.
 
 Hiveot uses the concept of 'agents'. Agents are services that manage one or multiple Things. For example, a 1-wire bus can have up to 63 devices connected. The service that manages the 1-wire bus therefore represents up to 63 Things. It can create up to 63 TD's, each containing information on how to connect to the service. Thus, the service is the 'agent' for the 63 devices. When the term 'agent' is used it therefore refers to the service and not the Things that are managed by the agent. HiveOT agents use reverse connection to adhere to the 'Things dont run servers paradigm'.
 

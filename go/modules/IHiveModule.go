@@ -22,18 +22,18 @@ type IHiveModule interface {
 	//
 	// When the request is not for this producer then it is forwarded:
 	//
-	// 1. Most modules forward the request to their sink which is the linked downstream producer.
-	//    Flow: consumer -[sink]-> producer
+	// 1. By default modules forward unhandled requests to their request sink.
+	//    Flow: consumer -> module -[rsink]-> producer
 	//
 	// 2. If the module is a transport client: the request is transported to the server,
 	//    and the server passes it to the producer that is registered as its sink.
-	//    Flow: consumer -[sink]-> client -> server -[sink]-> producer
+	//    Flow: consumer -[rsink]-> tp-client -> tp-server -[rsink]-> producer
 	//
 	// 3. If the module is a transport server or server connection then the request is
 	//    transported to the remote client. The client passes it to its registered sink.
 	//    This sink should be a producer that can handle the request.
 	//    (In this case the consumer is a process running on the server)
-	//    Flow: consumer -[sink]-> server -> client -[sink]-> producer
+	//    Flow: consumer -[rsink]-> tp-server -> tp-client -[rsink]-> producer
 	//
 	//    Note this is the use-case where a device uses connection reversal to connect
 	//         to a server, like a hub or gateway, to serve IoT data. The gateway acts

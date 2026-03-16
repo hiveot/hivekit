@@ -15,6 +15,9 @@ const DigitwinIDPrefix = "dtw:"
 // Device types that are services do not get a digital twin
 const DeviceTypeService = vocab.ThingService
 
+// OnlinePropName is the digital twin property name indicating the device is reachable
+const OnlinePropName = "online"
+
 // IDigitwinModule is the interface of the digitwin module
 type IDigitwinModule interface {
 	modules.IHiveModule
