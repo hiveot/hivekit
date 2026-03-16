@@ -138,7 +138,10 @@ func TestEventNotifications(t *testing.T) {
 	// test 2: RRN read request should return the value
 	req := msg.NewRequestMessage(wot.HTOpReadEvent, thing1ID, ev1Name, nil, "")
 	err = m.HandleRequest(req, func(resp *msg.ResponseMessage) error {
-		assert.Equal(t, ev1Value, resp.Output)
+		var ev msg.NotificationMessage
+		err = resp.Decode(&ev)
+		require.NoError(t, err)
+		assert.Equal(t, ev1Value, ev.Data)
 		return nil
 	})
 	assert.NoError(t, err)

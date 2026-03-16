@@ -60,4 +60,7 @@ Notifications:  [consumer] <- [vcache] <- [client] <- [server] <- [device]
 Two ways to access cached data:
 
 1. Invoke an action to read properties of a Thing by publishing a request.
-2. Use the Ivcache module interface to read the latest values for properties and events.
+2. Use the IVCache module interface to read the latest values for properties and events.
+
+When issuing a request to read properties this returns the property value or map of property name-values.
+When issuing a request to read an even this returns the notification itself as the timing of the event is important.

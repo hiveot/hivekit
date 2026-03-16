@@ -1,4 +1,4 @@
-package VCacheModule
+package module
 
 import (
 	"sync"

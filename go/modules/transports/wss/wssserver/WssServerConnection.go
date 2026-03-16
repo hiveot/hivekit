@@ -180,6 +180,13 @@ func (sc *WssServerConnection) onRequest(req *msg.RequestMessage) {
 	var resp *msg.ResponseMessage
 	var err error
 
+	slog.Info("onRequest",
+		slog.String("senderID", sc.ClientID),
+		slog.String("op", req.Operation),
+		slog.String("thingID", req.ThingID),
+		slog.String("name", req.Name),
+		slog.String("correlationID", req.CorrelationID))
+
 	switch req.Operation {
 	case wot.HTOpPing:
 		resp = req.CreateResponse("pong", nil)
@@ -233,6 +240,13 @@ func (sc *WssServerConnection) onRequest(req *msg.RequestMessage) {
 // connection response handler.
 func (sc *WssServerConnection) onResponse(resp *msg.ResponseMessage) {
 
+	slog.Info("onResponse (from agent)",
+		slog.String("senderID", sc.ClientID),
+		slog.String("op", resp.Operation),
+		slog.String("thingID", resp.ThingID),
+		slog.String("name", resp.Name),
+		slog.String("correlationID", resp.CorrelationID))
+
 	// this responsehandler points to the rnrChannel that matches the correlationID to the replyTo handler
 	handled := sc.rnrChan.HandleResponse(resp, sc.respTimeout)
 	if !handled {
@@ -272,13 +286,15 @@ func (sc *WssServerConnection) ReadLoop(ctx context.Context, wssConn *websocket.
 // SendNotification sends a notification to the client if subscribed.
 func (sc *WssServerConnection) SendNotification(notif *msg.NotificationMessage) {
 
-	slog.Info("SendNotification",
-		slog.String("clientID", sc.GetClientID()),
-		slog.String("thingID", notif.ThingID),
-		slog.String("affordance", string(notif.AffordanceType)),
-		slog.String("name", notif.Name),
-	)
 	if sc.HasSubscription(notif) {
+		slog.Info("SendNotification",
+			slog.String("cid", sc.GetConnectionID()),
+			slog.String("senderID", notif.SenderID),
+			slog.String("clientID", sc.GetClientID()),
+			slog.String("thingID", notif.ThingID),
+			slog.String("affordance", string(notif.AffordanceType)),
+			slog.String("name", notif.Name),
+		)
 		msg, err := sc.messageConverter.EncodeNotification(notif)
 		if err == nil {
 			err = sc._send(msg)
@@ -333,15 +349,15 @@ func (sc *WssServerConnection) SendRequest(
 // If this returns an error then no response was sent.
 func (sc *WssServerConnection) SendResponse(resp *msg.ResponseMessage) (err error) {
 
-	//slog.Info("SendResponse (server->client)",
-	//	slog.String("clientID", sc.cinfo.ClientID),
-	//	slog.String("correlationID", resp.CorrelationID),
-	//	slog.String("operation", resp.Operation),
-	//	slog.String("name", resp.Name),
-	//	slog.String("status", resp.Status),
-	//	slog.String("type", resp.MessageType),
-	//	slog.String("senderID", resp.SenderID),
-	//)
+	slog.Info("SendResponse (server->client)",
+		slog.String("clientID", sc.ClientID),
+		slog.String("correlationID", resp.CorrelationID),
+		slog.String("operation", resp.Operation),
+		slog.String("name", resp.Name),
+		slog.String("state", resp.State),
+		slog.String("type", resp.MessageType),
+		slog.String("agentID", resp.AgentID),
+	)
 
 	msg, _ := sc.messageConverter.EncodeResponse(resp)
 	err = sc._send(msg)
@@ -369,6 +385,7 @@ func NewWSSServerConnection(
 	messageConverter transports.IMessageConverter,
 	reqHandler msg.RequestHandler,
 	notifHandler msg.NotificationHandler,
+	respTimeout time.Duration,
 ) *WssServerConnection {
 
 	cid := "WSS" + shortid.MustGenerate()
@@ -382,7 +399,7 @@ func NewWSSServerConnection(
 		httpReq:          r,
 		lastActivity:     time.Time{},
 		rnrChan:          msg.NewRnRChan(),
-		respTimeout:      transports.DefaultRpcTimeout,
+		respTimeout:      respTimeout,
 		reqHandler:       reqHandler,
 		notifHandler:     notifHandler,
 	}

@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+	"time"
 
 	"github.com/gorilla/websocket"
 	"github.com/hiveot/hivekit/go/modules"
@@ -31,8 +32,8 @@ type WssServer struct {
 	// Websocket protocol message converter
 	msgConverter transports.IMessageConverter // WoT or Hiveot message format
 
-	// registered handler to notify of incoming connections
-	// connectHandler transports.ConnectionHandler
+	// the time to wait for responses to request
+	respTimeout time.Duration
 
 	//
 	subprotocol string // WoT or Hiveot subprotocol
@@ -133,7 +134,7 @@ func (m *WssServer) Serve(w http.ResponseWriter, r *http.Request) {
 
 	// the new server connection sends messages to the module sink
 	c := NewWSSServerConnection(clientID, r, wssConn, m.msgConverter,
-		m.ForwardRequest, m.ForwardNotification)
+		m.ForwardRequest, m.ForwardNotification, m.respTimeout)
 	// add connection sends a notification
 	err = m.AddConnection(c)
 
@@ -190,7 +191,7 @@ func (m *WssServer) Stop() {
 //
 // Use SetRequestSink to set the handler for requests send by consumers
 // Use SetNotificationSink to set the handler for notifications send by agents.
-func NewHiveotWssServer(httpServer transports.IHttpServer) *WssServer {
+func NewHiveotWssServer(httpServer transports.IHttpServer, respTimeout time.Duration) *WssServer {
 
 	httpURL := httpServer.GetConnectURL()
 	urlParts, err := url.Parse(httpURL)
@@ -198,12 +199,16 @@ func NewHiveotWssServer(httpServer transports.IHttpServer) *WssServer {
 		panic("NewHiveotWssModule: Http server has invalid URL")
 	}
 
+	if respTimeout == 0 {
+		respTimeout = transports.DefaultRpcTimeout
+	}
 	m := &WssServer{
 		httpServer:   httpServer,
 		msgConverter: direct.NewPassthroughMessageConverter(),
 		subprotocol:  wss.SubprotocolHiveotWSS,
 		// connectHandler: nil,
-		wssPath: wss.DefaultHiveotWssPath,
+		respTimeout: respTimeout,
+		wssPath:     wss.DefaultHiveotWssPath,
 	}
 	moduleID := wss.DefaultHiveotWssModuleID
 	connectURL := fmt.Sprintf("%s://%s%s", wss.HiveotWssSchema, urlParts.Host, m.wssPath)
@@ -217,18 +222,23 @@ func NewHiveotWssServer(httpServer transports.IHttpServer) *WssServer {
 // the standard RRN messages and the WoT websocket message format.
 //
 // httpServer is the http server the websocket is using
+// respTimeout is the time the server waits for a response when receiving requests. defaults to 3sec
 //
 // Use SetRequestSink to set the handler for requests send by consumers
 // Use SetNotificationSink to set the handler for notifications send by agents.
-func NewWotWssServer(httpServer transports.IHttpServer) *WssServer {
+func NewWotWssServer(httpServer transports.IHttpServer, respTimeout time.Duration) *WssServer {
 	httpURL := httpServer.GetConnectURL()
 	urlParts, err := url.Parse(httpURL)
 	if err != nil {
 		panic("NewWotWssModule: Http server has invalid URL")
 	}
+	if respTimeout == 0 {
+		respTimeout = transports.DefaultRpcTimeout
+	}
 	m := &WssServer{
 		httpServer:   httpServer,
 		msgConverter: wssconverter.NewWotWssMsgConverter(),
+		respTimeout:  respTimeout,
 		subprotocol:  wss.SubprotocolWotWSS,
 		wssPath:      wss.DefaultWotWssPath,
 	}

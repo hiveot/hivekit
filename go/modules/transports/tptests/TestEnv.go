@@ -254,7 +254,7 @@ func (testEnv *TestEnv) StartTestServer(protocol string) (srv transports.ITransp
 		err = srv.Start("")
 
 	case transports.ProtocolTypeWotWSS:
-		srv = wssserver.NewWotWssServer(testEnv.HttpServer)
+		srv = wssserver.NewWotWssServer(testEnv.HttpServer, TestTimeout)
 		err = srv.Start("")
 
 	default:

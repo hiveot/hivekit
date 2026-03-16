@@ -14,18 +14,19 @@ This approach provides the following benefits:
 
 This module is in development. It is partial functional but incomplete. Breaking changes can be expected.
 
-TODO:
+TODOs for reverse connecting agents:
 
-1. test write property to agent devices
-1. test invoke action to agent devices
-1. detect agent (dis)connection with server to show online status of digital twin
-1. test write property to WoT devices
-1. test invoke action to WoT devices
-1. detect WoT device (dis)connection to show online status of digital twin
-1. track online status of devices
-1. connect and subscribe to WoT devices on startup
-1. connect and subscribe to WoT devices when they are newly discovered
-1. test OOB (out of band) provisioning by admin through upload of device TDs
+1. track online status of agent connected devices
+
+TODOs for connecting to standalone WoT devices
+
+1. add routing to standalone WoT devices (connect on demand)
+1. test write property to standalone WoT devices
+1. test invoke action to standalone WoT devices
+1. track online status of standalone WoT devices
+1. connect and subscribe to standalone WoT devices on startup
+1. connect and subscribe to standalone WoT devices when they are newly discovered
+1. test OOB (out of band) provisioning by admin of standalone WoT devices through upload of device TDs
 
 ## Summary
 

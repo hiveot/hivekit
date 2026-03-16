@@ -152,8 +152,8 @@ func (m *DigitwinModule) HandleRequest(req *msg.RequestMessage, replyTo msg.Resp
 		// server or client connection that can forward it.
 		case wot.OpReadAllProperties,
 			wot.OpReadMultipleProperties,
-			wot.OpReadProperty,
-			wot.HTOpReadEvent,
+			wot.OpReadProperty, // this returns the property value
+			wot.HTOpReadEvent,  // this returns the event notification (not just the value)
 			wot.HTOpReadAllEvents:
 			return m.vcache.HandleRequest(req, replyTo)
 

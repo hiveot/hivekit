@@ -22,6 +22,9 @@ func (m *DirectoryServer) DeleteThing(agentID string, thingID string) (err error
 
 	// TODO: check that the agentID is linked to this TD, or an administrator.
 
+	slog.Info("Delete Thing",
+		slog.String("agentID", agentID), slog.String("thingID", thingID))
+
 	// The hook can cancel the write
 	if m.deleteTDHook != nil {
 		err = m.deleteTDHook(agentID, thingID)
@@ -118,8 +121,12 @@ func (m *DirectoryServer) UpdateThing(agentID string, tdJson string) error {
 	// validate the TD
 	tdi, err := td.UnmarshalTD(tdJson)
 	if err != nil {
+		slog.Info("UpdateThing. Error unmarshalling TD",
+			slog.String("agentID", agentID), "err", err.Error())
 		return err
 	}
+	slog.Info("UpdateThing",
+		slog.String("agentID", agentID), slog.String("thingID", tdi.ID))
 
 	// The hook can modify the TD or cancel the write
 	if m.writeTDHook != nil {
@@ -133,7 +140,6 @@ func (m *DirectoryServer) UpdateThing(agentID string, tdJson string) error {
 		tdJson, _ = td.MarshalTD(tdi2)
 	}
 
-	slog.Info("UpdateThing", slog.String("thingID", tdi.ID))
 	err = m.tdBucket.Set(tdi.ID, []byte(tdJson))
 	// reload the td instance next time someone asks
 	m.tdCacheMux.Lock()
