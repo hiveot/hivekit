@@ -4,17 +4,18 @@ The objective of the router module is to deliver request messages to Things that
 
 ## Status
 
-This module is in development
+This module is in early alpha. Routing to connected RC agents is supported.
+Routing to stand-alone devices is under development.
 
 ## Summary
 
 This module aims to deliver request messages to IoT devices or services identified by the ThingID in the request, the operation and name in the request are used to determine the final href to use for deliving the request. The module can create outgoing connections to Things or use reverse-connections from device agents.
 
-The Thing Directory:
-The ThingID is used to lookup the TD (Thing Description) document of the Thing to address. The TD is typically retrieved from a Thing Directory. The Thing Directory can be discovered using the WoT discovery process, or be uploaded locally by an administrator in case of out-of-band provisioning. Finding the directory is out of scope for this module therefore a directory client must be provided during instantiation.
+The GetTD Method:
+The ThingID is used to lookup the TD (Thing Description) document of the Thing to address. The TD is typically retrieved from a Thing Directory which provides a RetrieveThing method. The Thing Directory can be discovered using the WoT discovery process, or be uploaded locally by an administrator in case of out-of-band provisioning. Finding the directory is out of scope for this module therefore a GetTD method must be provided during instantiation.
 
 Determining the request destination:
-With both the ThingID and directory access, the module looks up the TD of the Thing in the request. Combining the TD 'base' attribute and the href value of the operation's 'form' the full endpoint is known. This is described in the [WoT TD specification](https://www.w3.org/TR/wot-thing-description11/#form)
+With the TD known using the ThingID, the module looks up the form of the operation affordance. Combining the TD 'base' attribute and the href value of the operation's 'form' the full endpoint is known. This is described in the [WoT TD specification](https://www.w3.org/TR/wot-thing-description11/#form)
 
 Connecting to IoT devices:
 With the addres known, the router first determines if a connecting to the endpoint already exists. If so, it is reused with the path from the discovered form.

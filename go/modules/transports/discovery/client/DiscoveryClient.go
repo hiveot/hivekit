@@ -10,7 +10,7 @@ import (
 	"time"
 
 	"github.com/grandcat/zeroconf"
-	"github.com/hiveot/hivekit/go/modules/transports/discovery"
+	discoveryapi "github.com/hiveot/hivekit/go/modules/transports/discovery/api"
 	"github.com/hiveot/hivekit/go/modules/transports/httpserver/tlsclient"
 )
 
@@ -75,7 +75,7 @@ func (cl *DiscoveryClient) DiscoverDirectories(
 	drList := make([]*DiscoveryResult, 0)
 
 	// run the scan to collect results
-	_, err := DnsSDScan(instanceName, discovery.WOT_DIRECTORY_SERVICE_TYPE, maxWaitTime,
+	_, err := DnsSDScan(instanceName, discoveryapi.WOT_DIRECTORY_SERVICE_TYPE, maxWaitTime,
 		func(rec *zeroconf.ServiceEntry) bool {
 
 			// create a discovery record for the service entry
@@ -108,7 +108,7 @@ func (cl *DiscoveryClient) DiscoverThings(
 	drList := make([]*DiscoveryResult, 0)
 
 	// run the scan to collect results
-	_, err := DnsSDScan(instanceName, discovery.WOT_THING_SERVICE_TYPE, maxWaitTime,
+	_, err := DnsSDScan(instanceName, discoveryapi.WOT_THING_SERVICE_TYPE, maxWaitTime,
 		func(rec *zeroconf.ServiceEntry) bool {
 
 			// create a discovery record for the service entry
@@ -182,9 +182,9 @@ func (cl *DiscoveryClient) ParseZeroconfServiceEntry(rec *zeroconf.ServiceEntry)
 	}
 
 	// https://w3c.github.io/wot-discovery/#introduction-dns-sd-sec
-	if rec.ServiceName() == discovery.WOT_DIRECTORY_SERVICE_TYPE {
+	if rec.ServiceName() == discoveryapi.WOT_DIRECTORY_SERVICE_TYPE {
 		discoResult.IsDirectory = true
-	} else if rec.ServiceName() == discovery.WOT_THING_SERVICE_TYPE {
+	} else if rec.ServiceName() == discoveryapi.WOT_THING_SERVICE_TYPE {
 		//this is a thing
 		discoResult.IsThing = true
 	} else {
@@ -210,13 +210,13 @@ func (cl *DiscoveryClient) ParseZeroconfServiceEntry(rec *zeroconf.ServiceEntry)
 		} else if key == "scheme" {
 			// http (default), https, coap+tcp, coaps+tcp
 			discoResult.Schema = val // Scheme part of URL
-		} else if key == discovery.WSSEndpoint {
+		} else if key == discoveryapi.WSSEndpoint {
 			// 'base' is specific to hiveot to provide a default connection URL
 			discoResult.WSSEndpoint = val
-		} else if key == discovery.SSEEndpoint {
+		} else if key == discoveryapi.SSEEndpoint {
 			// 'base' is specific to hiveot to provide a default connection URL
 			discoResult.SSEEndpoint = val
-		} else if key == discovery.AuthEndpoint {
+		} else if key == discoveryapi.AuthEndpoint {
 			discoResult.AuthEndpoint = val
 		}
 		discoResult.Params[key] = val

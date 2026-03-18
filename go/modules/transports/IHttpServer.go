@@ -85,6 +85,12 @@ type IHttpServer interface {
 	//
 	// Note that the authn module invokes this methods to register itself as the authn validator.
 	SetAuthValidator(v ValidateTokenHandler)
+
+	// Start the server and open the listening port
+	Start() error
+
+	// Stop the server and end listening
+	Stop()
 }
 
 // ITlsClient interface for generic http/tls client.

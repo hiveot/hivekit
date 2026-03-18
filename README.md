@@ -30,21 +30,21 @@ Transport modules:
 
 Service modules:
 
-| status | module      | description                 |
-| :----: | ----------- | --------------------------- |
-|   ✔️   | authn       | authentication              |
-|   ✔️   | authz       | role based authorization    |
-|   ✔️   | bucketstore | key-value data storage      |
-|   ✔️   | certs       | certificate management      |
-|   ✔️   | directory   | Thing Directory             |
-|   ⬛   | jsscript    | javascript based automation |
-|   ✔️   | logging     | basic message logging       |
-|   ✔️   | history     | message history recorder    |
-|   ⬛   | pipeline    | application pipeline        |
-|   ⬛   | router      | message routing (gateway\*) |
-|   ⬛   | rules       | rule based automation       |
-|   ⬛   | vcache      | value cache (gateway\*)     |
-|   ⬛   | twin        | digital twin (gateway\*)    |
+| status | module      | description                  |
+| :----: | ----------- | ---------------------------- |
+|   ✔️   | authn       | authentication               |
+|   ✔️   | authz       | role based authorization     |
+|   ✔️   | bucketstore | key-value data storage       |
+|   ✔️   | certs       | certificate management       |
+|   ✔️   | digitwin    | digital twin (gateway\*)     |
+|   ✔️   | directory   | Thing Directory              |
+|   ✔️   | history     | message history recorder     |
+|   ⬛   | jsscript    | javascript based automation  |
+|   ✔️   | logging     | basic message logging        |
+|   ⬛   | pipeline    | dynamic application pipeline |
+|   ⬛   | router      | message routing (gateway\*)  |
+|   ⬛   | rules       | rule based automation        |
+|   ✔️   | vcache      | value cache (gateway\*)      |
 
 \*) gateway modules are useful for building hub and gateway applications
 

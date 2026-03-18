@@ -12,12 +12,11 @@ import (
 	certstest "github.com/hiveot/hivekit/go/modules/certs/test"
 	"github.com/hiveot/hivekit/go/modules/clients"
 	"github.com/hiveot/hivekit/go/modules/transports"
-	httpbasicserver "github.com/hiveot/hivekit/go/modules/transports/httpbasic/server"
+	"github.com/hiveot/hivekit/go/modules/transports/httpbasic"
 	"github.com/hiveot/hivekit/go/modules/transports/httpserver"
-	"github.com/hiveot/hivekit/go/modules/transports/httpserver/module"
-	httpmodule "github.com/hiveot/hivekit/go/modules/transports/httpserver/module"
-	ssescserver "github.com/hiveot/hivekit/go/modules/transports/ssesc/server"
-	"github.com/hiveot/hivekit/go/modules/transports/wss/wssserver"
+	httpserverapi "github.com/hiveot/hivekit/go/modules/transports/httpserver/api"
+	"github.com/hiveot/hivekit/go/modules/transports/ssesc"
+	"github.com/hiveot/hivekit/go/modules/transports/wss"
 	"github.com/hiveot/hivekit/go/msg"
 	"github.com/hiveot/hivekit/go/utils"
 	"github.com/hiveot/hivekit/go/vocab"
@@ -62,11 +61,11 @@ var ActionTypes = []string{vocab.ActionDimmer, vocab.ActionSwitch,
 // Test environment for testing modules
 type TestEnv struct {
 	// Authenticator to use for managing clients
-	DummyAuthn *DummyAuthenticator
+	TestAuthn *TestAuthenticator
 	// certificate bundle to use for this test environment
 	CertBundle certstest.TestCertBundle
 	// base http server
-	HttpServer *httpmodule.HttpServerModule
+	HttpServer transports.IHttpServer
 	// The transport server connection URL
 	ServerURL string
 	// the transport to use for this test environment
@@ -119,7 +118,7 @@ func (testEnv *TestEnv) CreateTestTD(i int) (tdi *td.TD) {
 
 // create a new authentication token
 func (testEnv *TestEnv) CreateToken(clientID string, validity time.Duration) (token string, validUntil time.Time, err error) {
-	token, validUntil, err = testEnv.DummyAuthn.CreateToken(clientID, validity)
+	token, validUntil, err = testEnv.TestAuthn.CreateToken(clientID, validity)
 	return token, validUntil, err
 }
 
@@ -132,7 +131,7 @@ func (testEnv *TestEnv) NewConnectedClient(clientID string, role string, ch tran
 	cl clients.IClientModule, token string) {
 
 	// ensure the test client account exists
-	err := testEnv.DummyAuthn.AddClient(clientID, clientID, role)
+	err := testEnv.TestAuthn.AddClient(clientID, clientID, role)
 	token, _, err = testEnv.CreateToken(clientID, time.Minute*10)
 	if err != nil {
 		panic("NewClient: createToken failed: " + err.Error())
@@ -245,16 +244,16 @@ func (testEnv *TestEnv) StartTestServer(protocol string) (srv transports.ITransp
 	switch protocol {
 	case transports.ProtocolTypeHTTPBasic:
 
-		srv = httpbasicserver.NewHttpBasicServer(testEnv.HttpServer)
+		srv = httpbasic.NewHttpBasicTransport(testEnv.HttpServer)
 		err = srv.Start("")
 		// http only, no subprotocol bindings
 
 	case transports.ProtocolTypeHiveotSSE:
-		srv = ssescserver.NewHiveotSsescServer(testEnv.HttpServer)
+		srv = ssesc.NewSseScTransport(testEnv.HttpServer, TestTimeout)
 		err = srv.Start("")
 
 	case transports.ProtocolTypeWotWSS:
-		srv = wssserver.NewWotWssServer(testEnv.HttpServer, TestTimeout)
+		srv = wss.NewWotWssTransport(testEnv.HttpServer, TestTimeout)
 		err = srv.Start("")
 
 	default:
@@ -279,15 +278,15 @@ func (testEnv *TestEnv) StartTestServer(protocol string) (srv transports.ITransp
 func (testEnv *TestEnv) StartHttpServer() {
 
 	// cert uses localhost
-	cfg := httpserver.NewHttpServerConfig(
+	cfg := httpserverapi.NewConfig(
 		testEnv.CertBundle.ServerAddr, TestServerHttpPort,
 		testEnv.CertBundle.ServerCert,
 		testEnv.CertBundle.CaCert,
-		testEnv.DummyAuthn.ValidateToken)
+		testEnv.TestAuthn.ValidateToken)
 
 	// cfg.Address = fmt.Sprintf("%s:%d", certBundle.ServerAddr, testServerHttpPort)
 
-	testEnv.HttpServer = module.NewHttpServerModule("", cfg)
+	testEnv.HttpServer = httpserver.NewHttpServerModule(cfg)
 	err := testEnv.HttpServer.Start()
 	if err != nil {
 		panic("unable to start TLS server: " + err.Error())
@@ -303,14 +302,14 @@ func (testEnv *TestEnv) StartHttpServer() {
 func NewTestEnv() *TestEnv {
 	testEnv := &TestEnv{
 		CertBundle:  certstest.CreateTestCertBundle(utils.KeyTypeED25519),
-		DummyAuthn:  NewDummyAuthenticator(),
+		TestAuthn:   NewTestAuthenticator(),
 		StorageRoot: path.Join(os.TempDir(), "hivekit"),
 	}
 	return testEnv
 }
 
 // StartTestEnv start a new test environment for the given transport protocol.
-// This creates a HTTP server, protocol server, certificates and a dummy authenticator
+// This starts a HTTP server, protocol server, certificates and a test authenticator
 func StartTestEnv(protocol string) (testEnv *TestEnv, cancelFunc func()) {
 	testEnv = NewTestEnv()
 	testEnv.StartHttpServer()

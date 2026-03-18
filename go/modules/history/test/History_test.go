@@ -101,7 +101,7 @@ func makeValueBatch(agentID string, nrValues, nrThings, timespanSec int) (
 		randomTime := time.Now().Add(-randomSeconds)
 		//
 		thingID := thingIDPrefix + strconv.Itoa(randomID)
-		// dThingID := td.MakeDigiTwinThingID(agentID, thingID)
+		// dThingID := digitwin.MakeDigitwinID(agentID, thingID)
 
 		randomMsgType := rand.Intn(2)
 		affType := msg.AffordanceTypeEvent
@@ -662,7 +662,7 @@ func TestPubEvents(t *testing.T) {
 	// td1 := testEnv.CreateTestTD(0)
 	// err := m.AddValue(agent1ID, td1)
 	// thing0ID := td1.ID
-	// dThing0ID := td.MakeDigiTwinThingID(agent1ID, thing0ID)
+	// dThing0ID := digitwin.MakeDigitwinID(agent1ID, thing0ID)
 
 	// publish events
 	names := []string{
@@ -727,7 +727,7 @@ func TestPubEvents(t *testing.T) {
 // 	// TODO: currently not needed.
 // 	// td0 := testEnv.CreateTestTD(0)
 // 	// ts.AddTD(agentID, td0)
-// 	// dThing0ID := td.MakeDigiTwinThingID(agentID, td0.ID)
+// 	// dThing0ID := digitwin.MakeDigitwinID(agentID, td0.ID)
 
 // 	// connect as an admin user
 // 	co1, _, _ := testEnv.NewConsumerClient(client1ID, authn.ClientRoleAdmin, nil)

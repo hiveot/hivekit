@@ -14,7 +14,7 @@ import (
 	"github.com/hiveot/hivekit/go/modules/transports"
 	"github.com/hiveot/hivekit/go/modules/transports/direct"
 	"github.com/hiveot/hivekit/go/modules/transports/httpserver/tlsclient"
-	"github.com/hiveot/hivekit/go/modules/transports/ssesc"
+	ssescapi "github.com/hiveot/hivekit/go/modules/transports/ssesc/api"
 	"github.com/hiveot/hivekit/go/msg"
 	jsoniter "github.com/json-iterator/go"
 	"github.com/teris-io/shortid"
@@ -173,7 +173,7 @@ func (cl *SseScClient) SendNotification(msg *msg.NotificationMessage) {
 	// Send as text, not binary, to avoid unmarshalling problems
 	outputJSON, _ := jsoniter.MarshalToString(msg)
 	_, _, err := cl.tlsClient.Post(
-		ssesc.PostSseScNotificationPath, []byte(outputJSON))
+		ssescapi.PostSseScNotificationPath, []byte(outputJSON))
 
 	if err != nil {
 		slog.Warn("SendNotification failed",
@@ -203,7 +203,7 @@ func (cl *SseScClient) SendRequest(
 	// be received async via SSE.
 	if replyTo == nil {
 		outputRaw, code, err := cl.tlsClient.Post(
-			ssesc.PostSseScRequestPath, []byte(outputJSON))
+			ssescapi.PostSseScRequestPath, []byte(outputJSON))
 		_ = code
 		_ = outputRaw
 
@@ -216,7 +216,7 @@ func (cl *SseScClient) SendRequest(
 	cl.rnrChan.Open(req.CorrelationID)
 
 	outputRaw, code, err := cl.tlsClient.Post(
-		ssesc.PostSseScRequestPath, []byte(outputJSON))
+		ssescapi.PostSseScRequestPath, []byte(outputJSON))
 
 	if err != nil {
 		cl.rnrChan.Close(req.CorrelationID)
@@ -275,7 +275,7 @@ func (cl *SseScClient) SendResponse(resp *msg.ResponseMessage) error {
 	// Send as text, not binary, to avoid unmarshalling problems
 	outputJSON, _ := jsoniter.MarshalToString(resp)
 	_, _, err := cl.tlsClient.Post(
-		ssesc.PostSseScResponsePath, []byte(outputJSON))
+		ssescapi.PostSseScResponsePath, []byte(outputJSON))
 	return err
 }
 

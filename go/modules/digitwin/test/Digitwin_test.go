@@ -18,7 +18,7 @@ import (
 	"github.com/hiveot/hivekit/go/modules/router"
 	"github.com/hiveot/hivekit/go/modules/transports"
 	"github.com/hiveot/hivekit/go/modules/transports/tptests"
-	"github.com/hiveot/hivekit/go/modules/transports/wss"
+	wssapi "github.com/hiveot/hivekit/go/modules/transports/wss/api"
 	"github.com/hiveot/hivekit/go/msg"
 	"github.com/hiveot/hivekit/go/utils"
 	"github.com/hiveot/hivekit/go/wot"
@@ -46,7 +46,7 @@ func TestMain(m *testing.M) {
 // This sets-up a module chain with a server, directory, digitwin, vcache, and router
 func startService() (
 	testEnv *tptests.TestEnv,
-	dir directoryapi.IDirectoryServer,
+	dir directoryapi.IDirectoryModuleServer,
 	dtw digitwinapi.IDigitwinModule,
 	stopFn func()) {
 
@@ -58,7 +58,7 @@ func startService() (
 	appServer := testEnv.StartTestServer(transports.ProtocolSchemeWotWSS)
 
 	// the directory server that will contain digitwin Things
-	dir = directory.NewDirectoryServer("", testEnv.HttpServer)
+	dir = directory.NewDirectoryModule("", testEnv.HttpServer)
 	err := dir.Start("")
 	if err != nil {
 		panic("Failed to start directory server")
@@ -147,7 +147,7 @@ func TestCreateDigitwinTD(t *testing.T) {
 		form0 := aff.Forms[0]
 		assert.NotEmpty(t, form0.GetOperations())
 		subprotocol, _ := form0.GetSubprotocol()
-		assert.Equal(t, subprotocol, wss.SubprotocolWotWSS)
+		assert.Equal(t, subprotocol, wssapi.SubprotocolWotWSS)
 	}
 	for _, aff := range dtw1.Events {
 		require.NotEmpty(t, aff.Forms)

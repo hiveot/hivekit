@@ -52,7 +52,7 @@ type DigitwinModule struct {
 	// the Thing directory with digital twin TDs
 	// this also contains TDs of non-digital twin devices and services, as consumers
 	// should be able to use these as well.
-	directory directoryapi.IDirectoryServer
+	directory directoryapi.IDirectoryModuleServer
 
 	// the store that holds the digital twin TDs and value
 	digitwinStore bucketstoreapi.IBucketStore
@@ -226,7 +226,7 @@ func (m *DigitwinModule) Start(_ string) (err error) {
 	// if it doesn't contain a value it should forward the request to the device
 	// note that the thingID is the digital twin ID, which needs to be converted
 	// back to the device thingID
-	m.vcache = vcache.NewVCacheServer()
+	m.vcache = vcache.NewVCacheModule()
 	m.vcache.SetRequestSink(m.ForwardDigitwinRequestToDevice)
 	m.vcache.Start("")
 	// the device directory holds the unmodified device TDs
@@ -284,7 +284,7 @@ func (m *DigitwinModule) Stop() {
 // that describe how to interact via the server's protocols. Each transport server
 // provides a compatible handler.
 func NewDigitwinModule(storageRoot string,
-	thingDir directoryapi.IDirectoryServer,
+	thingDir directoryapi.IDirectoryModuleServer,
 	addforms func(tdoc *td.TD, includeAffordances bool)) *DigitwinModule {
 
 	m := &DigitwinModule{

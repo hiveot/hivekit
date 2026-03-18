@@ -14,7 +14,7 @@ import (
 
 	"github.com/hiveot/hivekit/go/modules"
 	"github.com/hiveot/hivekit/go/modules/transports"
-	"github.com/hiveot/hivekit/go/modules/transports/httpbasic"
+	httpbasicapi "github.com/hiveot/hivekit/go/modules/transports/httpbasic/api"
 	"github.com/hiveot/hivekit/go/modules/transports/httpserver/tlsclient"
 	"github.com/hiveot/hivekit/go/msg"
 	"github.com/hiveot/hivekit/go/utils"
@@ -213,7 +213,7 @@ func (cl *HttpBasicClient) SendRequest(
 		// fall back to the 'well known' hiveot request URL using uri variables
 		// eg: /things/{operation}/{thingID}/{name} or /hiveot/request
 		method = http.MethodPost
-		href = httpbasic.HttpBasicAffordanceOperationPath
+		href = httpbasicapi.HttpBasicAffordanceOperationPath
 		inputJSON, _ = jsoniter.MarshalToString(req.Input)
 	}
 

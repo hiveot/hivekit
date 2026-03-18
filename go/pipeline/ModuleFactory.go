@@ -40,7 +40,7 @@ func (f *ModuleFactory) NewModule(name string) (m modules.IHiveModule) {
 
 	switch name {
 	case DirectoryClient:
-		m = directory.NewDirectoryServer(f.storageRoot, f.httpServer)
+		m = directory.NewDirectoryModule(f.storageRoot, f.httpServer)
 
 	}
 	return m

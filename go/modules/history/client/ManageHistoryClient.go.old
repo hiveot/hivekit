@@ -50,7 +50,7 @@ func (cl *ManageHistoryClient) SetRetentionRules(rules history.RetentionRuleSet)
 func NewManageHistoryClient(co *clients.Consumer) *ManageHistoryClient {
 	agentID := history.AgentID
 	mngCl := &ManageHistoryClient{
-		dThingID: td.MakeDigiTwinThingID(agentID, history.ManageHistoryServiceID),
+		dThingID: digitwin.MakeDigitwinID(agentID, history.ManageHistoryServiceID),
 		co:       co,
 	}
 	return mngCl

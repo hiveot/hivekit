@@ -9,9 +9,10 @@ import (
 	"time"
 
 	authnapi "github.com/hiveot/hivekit/go/modules/authn/api"
+	"github.com/hiveot/hivekit/go/modules/directory"
 	directoryapi "github.com/hiveot/hivekit/go/modules/directory/api"
 	directoryclient "github.com/hiveot/hivekit/go/modules/directory/client"
-	directoryserver "github.com/hiveot/hivekit/go/modules/directory/internal/server"
+	"github.com/hiveot/hivekit/go/modules/directory/internal/module"
 	"github.com/hiveot/hivekit/go/modules/transports"
 	"github.com/hiveot/hivekit/go/modules/transports/direct"
 	"github.com/hiveot/hivekit/go/modules/transports/httpserver/tlsclient"
@@ -44,11 +45,11 @@ func TestMain(m *testing.M) {
 
 // Start a test environment with a directory module connected to the server
 func StartDirectoryServer() (
-	testEnv *tptests.TestEnv, m directoryapi.IDirectoryServer, cancelFn func()) {
+	testEnv *tptests.TestEnv, m directoryapi.IDirectoryModuleServer, cancelFn func()) {
 
 	testEnv, cancelTestEnv := tptests.StartTestEnv(defaultProtocol)
 	// use in-memory storage
-	m = directoryserver.NewDirectoryServer(storageRoot, testEnv.HttpServer)
+	m = directory.NewDirectoryModule(storageRoot, testEnv.HttpServer)
 	err := m.Start("")
 	if err != nil {
 		panic("StartDirectoryServer: failed to start the directory " + err.Error())
@@ -66,13 +67,13 @@ func StartDirectoryServer() (
 func TestStartStop(t *testing.T) {
 	t.Logf("---%s---\n", t.Name())
 
-	m := directoryserver.NewDirectoryServer(storageRoot, nil)
+	m := directory.NewDirectoryModule(storageRoot, nil)
 	err := m.Start("")
 	require.NoError(t, err)
 	defer m.Stop()
 
 	// add a thing
-	tdJson := directoryserver.DirectoryTMJson
+	tdJson := module.DirectoryTMJson
 	m.UpdateThing(defaultAgentID, string(tdJson))
 
 	// read all things
@@ -84,13 +85,13 @@ func TestStartStop(t *testing.T) {
 func TestCreateTD(t *testing.T) {
 	thingID := "thing1"
 
-	m := directoryserver.NewDirectoryServer(storageRoot, nil)
+	m := directory.NewDirectoryModule(storageRoot, nil)
 	err := m.Start("")
 	require.NoError(t, err)
 	defer m.Stop()
 
 	// add the directory itself
-	tdJson := directoryserver.DirectoryTMJson
+	tdJson := module.DirectoryTMJson
 	m.UpdateThing(defaultAgentID, string(tdJson))
 
 	// read all things, expect 1
