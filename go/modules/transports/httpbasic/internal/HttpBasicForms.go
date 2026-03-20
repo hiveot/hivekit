@@ -24,11 +24,15 @@ var HttpKnownOperations = []string{
 // If the method names for get operations is default GET then it is omitted from the form.
 //
 // includeAffordances adds forms for all affordances to be compliant with the specifications.
-func (srv *HttpBasicTransport) AddTDForms(tdoc *td.TD, includeAffordances bool) {
+func (srv *HttpBasicTransport) AddTDSecForms(tdoc *td.TD, includeAffordances bool) {
 	// defaults to https://host:port/
 	tdoc.Base = fmt.Sprintf("%s", srv.GetConnectURL())
 
-	// add thing level forms that apply to all things. http-basic only supports read/write
+	// 2. Set the security scheme used by the authenticator.
+	authr := srv.httpServer.GetAuthenticator()
+	authr.AddSecurityScheme(tdoc)
+
+	// 3. add thing level forms that apply to all things. http-basic only supports read/write
 	tdoc.Forms = append(tdoc.Forms,
 		srv.createThingLevelForm(wot.OpQueryAllActions, http.MethodGet, tdoc.ID),
 		srv.createThingLevelForm(wot.HTOpReadAllEvents, http.MethodGet, tdoc.ID),

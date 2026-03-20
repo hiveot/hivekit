@@ -3,7 +3,8 @@ package tptests
 import (
 	"testing"
 
-	"github.com/hiveot/hivekit/go/wot/td"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 // test TD messages and forms
@@ -73,14 +74,24 @@ func TestAddForms(t *testing.T) {
 	defer cancelFn()
 
 	// 2. Create a TD
-	tdi := td.NewTD(thingID, "My gadget", DeviceTypeSensor)
+	// tdi := td.NewTD(thingID, "My gadget", DeviceTypeSensor)
+	tdi := testEnv.CreateTestTD(1)
+	tdi.ID = thingID
 
 	// 3. add forms
-	testEnv.Server.AddTDForms(tdi, true)
+	testEnv.Server.AddTDSecForms(tdi, true)
 
 	// 4. Check that at least 1 form are present
-	// TODO: add the hiveot endpoints
-	//assert.GreaterOrEqual(t, len(tdi.Forms), 1)
+	assert.GreaterOrEqual(t, len(tdi.Forms), 1)
+
+	// 5. Expect security scheme
+	require.NotEmpty(t, tdi.Security)
+	require.NotEmpty(t, tdi.SecurityDefinitions)
+
+	scheme, err := tdi.GetSecurityScheme()
+	assert.NoError(t, err)
+	assert.NotEmpty(t, scheme.Scheme)
+
 }
 
 //// Agent Publishes TD to the directory

@@ -57,6 +57,9 @@ type RequestParams struct {
 // IHttpServer is the minimal HTTP server interface as used by various http subprotocols.
 // The subprotocols can work with any http server module that supports this interface.
 type IHttpServer interface {
+	// GetAuthenticator returns the authenticator used to authenticate incoming connections
+	// Also used by sub-protocols to include security scheme in TD's
+	GetAuthenticator() IAuthenticator
 
 	// Returns the connection URL of the http server
 	GetConnectURL() string
@@ -80,11 +83,11 @@ type IHttpServer interface {
 	// Return the public route for adding endpoints.
 	GetPublicRoute() chi.Router
 
-	// Set the validator for http requests
+	// Set the authenticator for http requests
 	// This enables the protected routes.
 	//
-	// Note that the authn module invokes this methods to register itself as the authn validator.
-	SetAuthValidator(v ValidateTokenHandler)
+	// Note that the authn module can provide this capability
+	SetAuthenticator(authenticator IAuthenticator)
 
 	// Start the server and open the listening port
 	Start() error

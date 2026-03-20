@@ -20,7 +20,16 @@ type Config struct {
 	// NoTLS disables the use of TLS. For testing obviously
 	NoTLS bool `yaml:"noTLS,omitempty"`
 
-	// AuthenticateHandler authenticate requests on the protected route.
+	// Authenticator for protected routes.
+	// The authenticator token validator MUST check for a valid clientID and token validity.
+	//
+	// This defaults to blocking all requests.
+	//
+	// Set to a custom function to perform actual token authentication.
+	// any transports.IAuthenticator implementation can provide a ValidateToken function.
+	Authenticator transports.IAuthenticator
+
+	// AuthRequestHandler authenticate requests on the protected route.
 	//
 	// This is optional for using a custom authentication mechanism.
 	// This defaults to an internal function that takes the bearer token
@@ -30,7 +39,7 @@ type Config struct {
 	//
 	// Other authentication schemes can be implemented by providing your own
 	// function here.
-	AuthenticateHandler func(req *http.Request) (clientID string, err error) `yaml:"-"`
+	AuthRequestHandler func(req *http.Request) (clientID string, err error) `yaml:"-"`
 
 	// CorsEnabled enables the use of net/http CORS and adds the relevant CORS
 	// headers to allow browser cross-domain calls in scripts.
@@ -80,15 +89,6 @@ type Config struct {
 
 	// DisableStStripSlashesEnabledripSlashes remove trailing '/' in path
 	StripSlashesEnabled bool `yaml:"stripSlashesEnabled,omitempty"`
-
-	// Bearer token authenticator for protected routes.
-	// The token validator MUST check for a valid clientID and token validity.
-	//
-	// This defaults to blocking all requests.
-	//
-	// Set to a custom function to perform actual token authentication.
-	// any transports.IAuthenticator implementation can provide a ValidateToken function.
-	ValidateTokenHandler transports.ValidateTokenHandler
 }
 
 // NewConfig creates options with defaults
@@ -100,7 +100,7 @@ type Config struct {
 //	validateToken is the required handler for authenticating protected routes
 func NewConfig(
 	addr string, port int, serverCert *tls.Certificate, caCert *x509.Certificate,
-	validateToken transports.ValidateTokenHandler) *Config {
+	authenticator transports.IAuthenticator) *Config {
 
 	if addr == "" {
 		addr = utils.GetOutboundIP("").String()
@@ -115,9 +115,10 @@ func NewConfig(
 		ServerCert: serverCert,
 		CaCert:     caCert,
 		//
-		AuthenticateHandler: nil, // use default handler provided by server
-		CorsEnabled:         false,
-		CorsAllowedOrigins:  []string{"*"}, // replace this when enabling cors
+		Authenticator:      authenticator,
+		AuthRequestHandler: nil, // use default handler provided by server
+		CorsEnabled:        false,
+		CorsAllowedOrigins: []string{"*"}, // replace this when enabling cors
 
 		// Gzip compression is enabled by default
 		GZipEnabled: true,
@@ -133,11 +134,10 @@ func NewConfig(
 			"application/x-javascript",
 			"application/json",
 			"image/svg+xml"},
-		Logger:               middleware.Logger,
-		NoTLS:                false,
-		Recoverer:            middleware.Recoverer,
-		StripSlashesEnabled:  true,
-		ValidateTokenHandler: validateToken,
+		Logger:              middleware.Logger,
+		NoTLS:               false,
+		Recoverer:           middleware.Recoverer,
+		StripSlashesEnabled: true,
 	}
 	return o
 }

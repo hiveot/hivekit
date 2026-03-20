@@ -50,8 +50,8 @@ func (v *TestDevice) Start(_ string) error {
 		v.TransportServer = nil
 		return err
 	}
-	// populate the forms in the TD
-	v.TransportServer.AddTDForms(v.td, true)
+	// populate the security and forms in the TD
+	v.TransportServer.AddTDSecForms(v.td, true)
 	// create the agent and link it to the transport to serve requests
 	v.Agent = clients.NewAgent(v.agentID, nil)
 	v.TransportServer.SetRequestSink(v.Agent.HandleRequest)

@@ -17,8 +17,8 @@ type DirectClientTransport struct {
 	transports.TransportServerBase
 }
 
-// AddTDForms does nothing for a direct connection
-func (srv *DirectClientTransport) AddTDForms(tdi *td.TD, includeAffordances bool) {
+// AddTDSecForms does nothing for a direct connection
+func (srv *DirectClientTransport) AddTDSecForms(tdi *td.TD, includeAffordances bool) {
 }
 
 // Receive a notification from the sink and pass it on to the notification sink (the consumer)

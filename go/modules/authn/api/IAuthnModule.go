@@ -4,7 +4,7 @@ import (
 	"time"
 
 	"github.com/hiveot/hivekit/go/modules"
-	"github.com/hiveot/hivekit/go/wot/td"
+	"github.com/hiveot/hivekit/go/modules/transports"
 )
 
 // This module exposes two services, one admin service and one user oriented service.
@@ -89,17 +89,18 @@ type ClientProfile struct {
 // authentication tokens.
 type IAuthnServer interface {
 	modules.IHiveModule
+	transports.IAuthenticator
 
 	// AddClient add a new client account. This fails if the client already exists.
 	// Use authenticator's SetPassword or CreateToken to obtain a token to connect.
 	AddClient(clientID string, displayName string, role string) error
 
 	// AddSecurityScheme adds the wot securityscheme to the given TD
-	AddSecurityScheme(tdoc *td.TD)
+	// AddSecurityScheme(tdoc *td.TD)
 
 	// DecodeToken decodes the given token using the configured authenticator.
-	DecodeToken(token string, signedNonce string, nonce string) (
-		clientID string, issuedAt time.Time, validUntil time.Time, err error)
+	// DecodeToken(token string, signedNonce string, nonce string) (
+	// 	clientID string, issuedAt time.Time, validUntil time.Time, err error)
 
 	// GetAlg returns the supported security format and authentication algorithm.
 	// This uses the vocabulary as defined in the TD.
@@ -151,10 +152,10 @@ type IAuthnServer interface {
 	UpdateProfile(senderID string, profile ClientProfile) error
 
 	// ValidatePassword checks if the given password is valid for the client
-	ValidatePassword(clientID string, password string) (err error)
+	// ValidatePassword(clientID string, password string) (err error)
 
 	// ValidateToken verifies the token and client are valid.
 	// This returns an error if the token is invalid, the token has expired,
 	// or the client is not a valid and enabled client.
-	ValidateToken(token string) (clientID string, validUntil time.Time, err error)
+	// ValidateToken(token string) (clientID string, validUntil time.Time, err error)
 }

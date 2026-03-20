@@ -1,10 +1,12 @@
 package router_test
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"path"
 	"testing"
+	"time"
 
 	authnapi "github.com/hiveot/hivekit/go/modules/authn/api"
 	certstest "github.com/hiveot/hivekit/go/modules/certs/test"
@@ -22,7 +24,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-var storageRoot = path.Join(os.TempDir(), "router-test")
+var storageDir = path.Join(os.TempDir(), "router-test")
 
 var testDevicePort = 9993
 var testDeviceAddress = fmt.Sprintf(":%d", testDevicePort)
@@ -31,6 +33,7 @@ var testAuthn = tptests.NewTestAuthenticator()
 
 const testClientID = "client1"
 const testClientPass = "client1pass"
+const testClientToken = "client1Token"
 
 // the test directory that holds this td. http server is not needed
 
@@ -43,7 +46,7 @@ func startTestDevice(agentID string, thingID string) (v *tptests.TestDevice) {
 	// create a test device with server
 	cfg := httpserverapi.NewConfig(
 		certsBundle.ServerAddr, testDevicePort,
-		certsBundle.ServerCert, certsBundle.CaCert, testAuthn.ValidateToken)
+		certsBundle.ServerCert, certsBundle.CaCert, testAuthn)
 
 	var testTM *td.TD = td.NewTD(thingID, "test device", vocab.ThingDevice)
 
@@ -75,7 +78,7 @@ func TestStartStop(t *testing.T) {
 	var testDirMod = directory.NewDirectoryModule("", nil)
 	err := testDirMod.Start("")
 	require.NoError(t, err)
-	m := router.NewRouterModule(storageRoot, testDirMod.GetTD, nil, certsBundle.CaCert)
+	m := router.NewRouterModule(storageDir, testDirMod.GetTD, nil, certsBundle.CaCert)
 	err = m.Start("")
 	require.NoError(t, err)
 	defer m.Stop()
@@ -88,36 +91,37 @@ func TestSubscribeToDevice(t *testing.T) {
 	const agentID = "agent-1"
 	const event1Name = "event1"
 	const clientID = "client1"
-	const clientSecret = "secret"
 	var event1Value string = "value1"
 	var rxValue string
 
-	// setup the device side
+	// Setup the test device with server and a TD
+	// FIXME: use the test server for auth
 	testDevice := startTestDevice(agentID, thingID1)
 	defer testDevice.Stop()
 	req := msg.NewRequestMessage(wot.OpObserveAllProperties, thingID1, "", nil, "")
 	testDevice.HandleRequest(req, func(resp *msg.ResponseMessage) error {
 		return nil
 	})
+	deviceTDJson, _ := td.MarshalTD(testDevice.GetTD())
 
 	// setup the consumer side: directory, router and consumer
 	// register the device TD in the directory for use by the router
 	var testDirMod = directory.NewDirectoryModule("", nil)
 	err := testDirMod.Start("")
 	require.NoError(t, err)
-	deviceTDJson, _ := td.MarshalTD(testDevice.GetTD())
 	err = testDirMod.CreateThing(agentID, deviceTDJson)
 	require.NoError(t, err)
 
 	// the router uses the TD to connect to the device.
 	// this doesn't actually need a directory. GetTD could also simply return the device TD.
 	routerMod := router.NewRouterModule(
-		storageRoot, testDirMod.GetTD, nil, certsBundle.CaCert)
+		storageDir, testDirMod.GetTD, nil, certsBundle.CaCert)
 	err = routerMod.Start("")
 	require.NoError(t, err)
 	defer routerMod.Stop()
 	// to connect to the device, credentials are needed
-	routerMod.AddThingCredential(thingID1, clientID, clientSecret)
+	token, _, _ := testAuthn.CreateToken(testClientID, time.Minute)
+	routerMod.AddThingCredential(thingID1, clientID, token)
 
 	// a consumer links to the router and subscribes to the device
 	// note for the purpose of this test the router can run on the client
@@ -129,15 +133,18 @@ func TestSubscribeToDevice(t *testing.T) {
 	err = consumer.Subscribe(thingID1, "")
 	assert.NoError(t, err)
 
+	ctx, cancelFn := context.WithTimeout(context.Background(), time.Second*60)
 	consumer.SetNotificationHook(func(notif *msg.NotificationMessage) {
 		assert.Equal(t, event1Name, notif.Name)
 		err = notif.Decode(&rxValue)
 		assert.NoError(t, err)
+		cancelFn()
 	})
 
 	// the device publishes an event
 	testDevice.Agent.PubEvent(thingID1, event1Name, event1Value)
-
+	<-ctx.Done()
+	cancelFn()
 	assert.Equal(t, event1Value, rxValue)
 
 }

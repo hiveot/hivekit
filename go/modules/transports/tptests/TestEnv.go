@@ -283,7 +283,7 @@ func (testEnv *TestEnv) StartHttpServer() {
 		testEnv.CertBundle.ServerAddr, TestServerHttpPort,
 		testEnv.CertBundle.ServerCert,
 		testEnv.CertBundle.CaCert,
-		testEnv.TestAuthn.ValidateToken)
+		testEnv.TestAuthn)
 
 	// cfg.Address = fmt.Sprintf("%s:%d", certBundle.ServerAddr, testServerHttpPort)
 

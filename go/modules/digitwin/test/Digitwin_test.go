@@ -65,7 +65,7 @@ func startService() (
 		panic("Failed to start directory server")
 	}
 	// the digitwin module to test, it will create its own vcache module
-	dtw = digitwin.NewDigitwinModule(storageRoot, dir, appServer.AddTDForms)
+	dtw = digitwin.NewDigitwinModule(storageRoot, dir, appServer.AddTDSecForms)
 	err = dtw.Start("")
 	if err != nil {
 		panic("unable to start the digitwin service")

@@ -103,7 +103,7 @@ func startTestAuthnModule(encryption string) (m *authnserver.AuthnServer, stopFn
 
 	// last, link the http server and validator to enable the protected routes and enable the
 	// authn http endpoint.
-	httpServer.SetAuthValidator(m.ValidateToken)
+	httpServer.SetAuthenticator(m)
 
 	return m, func() {
 		m.Stop()

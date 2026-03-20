@@ -40,12 +40,13 @@ type RouterModule struct {
 	mux            sync.RWMutex
 	deviceAccounts map[string]DeviceAccount
 
-	// location of the encrypted device account store
-	storageRoot       string
-	deviceStorageFile string
+	// directory to store device accounts
+	storageDir string
+	// location of the encrypted device account store. "" for in-memory only.
+	storageFile string
 
 	// established device connections
-	deviceConnections map[string]transports.IClientConnection
+	deviceConnections map[string]clients.IClientModule
 }
 
 // Add the secret to access a Thing.
@@ -64,14 +65,15 @@ func (m *RouterModule) DeleteThingCredential(thingID string) {
 }
 
 // Obtain the connection credentials for connection to the device
-func (m *RouterModule) GetDeviceCredentials(destination *td.TD) (
+func (m *RouterModule) GetDeviceCredentials(tdi *td.TD) (
 	clientID string, token string, err error) {
-	thingID := destination.ID
+
+	thingID := tdi.ID
 	acct, found := m.deviceAccounts[thingID]
 	if !found {
-		return "", "", fmt.Errorf("Unknown thing with ID '%s'", destination.ID)
+		return "", "", fmt.Errorf("Unknown thing with ID '%s'", tdi.ID)
 	}
-	return acct.ClientID, acct.Secret, nil
+	return acct.ClientID, acct.Secret, err
 }
 
 // Return a client connection to the given href.
@@ -81,7 +83,7 @@ func (m *RouterModule) GetDeviceCredentials(destination *td.TD) (
 //
 // This returns an error if no connection can be established.
 func (m *RouterModule) GetClientConnection(tdi *td.TD) (
-	c transports.IClientConnection, err error) {
+	c clients.IClientModule, err error) {
 
 	href := tdi.Base
 	parts, err := url.Parse(href)
@@ -99,9 +101,11 @@ func (m *RouterModule) GetClientConnection(tdi *td.TD) (
 		}
 		if err == nil {
 			m.deviceConnections[connID] = c
+			// forward notifications from devices to this module and up to its consumer
+			c.SetNotificationSink(m.HandleNotification)
 		} else {
 			c = nil // auth failed
-			slog.Error("Router:GetClientConnection. Connection failed", "err", err.Error())
+			err = fmt.Errorf("Router:GetClientConnection. Connection failed: %w", err)
 		}
 	}
 	return c, err
@@ -219,7 +223,10 @@ func (m *RouterModule) RouteRequest(req *msg.RequestMessage, replyTo msg.Respons
 // Start the router module.
 // This loads to stored data
 func (m *RouterModule) Start(_ string) (err error) {
-	m.deviceStorageFile = filepath.Join(m.storageRoot, m.GetModuleID())
+	if m.storageDir != "" {
+		fileName := m.GetModuleID() + ".json"
+		m.storageFile = filepath.Join(m.storageDir, fileName)
+	}
 	m.deviceAccounts = make(map[string]DeviceAccount)
 	// TODO: load keys.
 	// k, err := keyloader.LoadKey("storage")
@@ -240,19 +247,21 @@ func (m *RouterModule) Stop() {
 
 // NewRouterModule creates a new router module
 //
-//	storageRoot is the root directory where modules create their storage, "" for in-memory testing
+//	storageDir with the module storage directory, "" for in-memory testing
 //	getTD is the handler to lookup a TD for a thingID from a directory
 //	transports is a list of transport servers that can contain reverse agent connections.
 //	caCert is the CA used to verify device connections
-func NewRouterModule(storageRoot string,
+func NewRouterModule(storageDir string,
 	getTD func(thingID string) *td.TD,
 	tpServers []transports.ITransportServer,
 	caCert *x509.Certificate) *RouterModule {
 
 	m := &RouterModule{
-		caCert:    caCert,
-		getTD:     getTD,
-		tpServers: tpServers,
+		caCert:            caCert,
+		getTD:             getTD,
+		storageDir:        storageDir,
+		tpServers:         tpServers,
+		deviceConnections: make(map[string]clients.IClientModule),
 	}
 	m.SetModuleID(routerapi.DefaultRouterServiceID)
 

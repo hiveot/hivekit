@@ -37,7 +37,7 @@ func (srv *TestAuthenticator) AddSecurityScheme(tdoc *td.TD) {
 
 	tdoc.AddSecurityScheme("bearer", td.SecurityScheme{
 		//AtType:        nil,
-		Description: "JWT dummy token authentication",
+		Description: "dummy token authentication",
 		//Descriptions:  nil,
 		//Proxy:         "",
 		Scheme:        "bearer", // nosec, basic, digest, bearer, psk, oauth2, apikey or auto

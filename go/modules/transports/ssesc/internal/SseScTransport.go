@@ -53,7 +53,11 @@ type SsescTransport struct {
 
 // AddTDForms for connecting to SSE, Subscribe, Observe, Send Requests, read and query
 // using hiveot RequestMessage and ResponseMessage envelopes.
-func (srv *SsescTransport) AddTDForms(tdi *td.TD, includeAffordances bool) {
+func (srv *SsescTransport) AddTDSecForms(tdoc *td.TD, includeAffordances bool) {
+
+	// 2. Set the security scheme used by the authenticator.
+	authr := srv.httpServer.GetAuthenticator()
+	authr.AddSecurityScheme(tdoc)
 
 	// TODO: add the hiveot http endpoints
 	//srv.httpBasicServer.AddOps()

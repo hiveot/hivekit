@@ -60,8 +60,10 @@ type ValidateTokenHandler func(token string) (clientID string, validUntil time.T
 type ITransportServer interface {
 	modules.IHiveModule
 
-	// AddTDForms updates the given Thing Description with forms for this transport module.
-	AddTDForms(tdoc *td.TD, includeAffordances bool)
+	// AddTDSecForms updates the given Thing Description with security and forms for this
+	// transport module.
+	// The security scheme in the TD is set by the authenticator used by the server.
+	AddTDSecForms(tdoc *td.TD, includeAffordances bool)
 
 	// CloseAll closes all client connections. Mainly intended for testing.
 	CloseAll()

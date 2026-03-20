@@ -92,10 +92,8 @@ type TD struct {
 
 	SchemaDefinitions map[string]DataSchema `json:"schemaDefinitions,omitempty"`
 
-	// Security is a string or array of security definition names, chosen from those defined
-	// in securityDefinitions.
-	// In HiveOT security is handled by the Hub.
-	// Type: string or array of string
+	// Security is a string or array of strings, chosen from those defined in securityDefinitions.
+	// See also constants defined 'SecSchemeXyz'
 	Security any `json:"security"`
 
 	// Set of named security configurations (definitions only).
@@ -274,7 +272,7 @@ func (tdoc *TD) AddSecurityScheme(name string, scheme SecurityScheme) {
 		tdoc.Security = secArr
 		return
 	}
-	slog.Error("AddSecurityScheme: security field has unknown content. Replacing it with: " + name)
+	slog.Error("AddSecurityScheme: security field has unknown content. Replacing it with: " + string(name))
 	tdoc.Security = name
 }
 
@@ -470,6 +468,34 @@ func (tdoc *TD) GetPropertyOfVocabType(vocabType string) (string, *PropertyAffor
 // GetID returns the ID of the things TD
 func (tdoc *TD) GetID() string {
 	return tdoc.ID
+}
+
+// Get the security scheme for connecting to this device.
+//
+// This only supports a single scheme as hivekit transports only handle a single scheme.
+// If multiple schemes apply then the application must handle it.
+//
+// If the Security field is empty, then return a nosec scheme.
+//
+// This returns a nil scheme if the TD has no security scheme
+// This returns an error if multiple schemes must be used. This is not supported.
+func (tdoc *TD) GetSecurityScheme() (scheme SecurityScheme, err error) {
+	if tdoc.Security == nil {
+		scheme.Scheme = "nosec"
+		return scheme, nil
+	}
+	// scheme name can be a string or array :/
+	name, valid := tdoc.Security.(string)
+	if valid {
+		scheme = tdoc.SecurityDefinitions[name]
+		return scheme, nil
+	}
+	nameArr, valid := tdoc.Security.([]string)
+	if valid && len(nameArr) == 1 {
+		scheme = tdoc.SecurityDefinitions[nameArr[0]]
+		return scheme, nil
+	}
+	return scheme, fmt.Errorf("unsupported security scheme in this TD")
 }
 
 // LoadFromJSON loads this TD from the given JSON encoded string

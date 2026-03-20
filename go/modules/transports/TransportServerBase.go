@@ -21,6 +21,7 @@ const PropName_NrConnections = "nrConnections"
 //
 // To initialize: call Init(moduleID, sink, connectURL)
 type TransportServerBase struct {
+
 	// moduleID/thingID is the unique instance ID of this server module.
 	moduleID string
 

@@ -121,15 +121,28 @@ func (cl *WssClient) _send(wssMsg []byte) (err error) {
 }
 
 // Authenticate the client connection with the server
+//
+// This currently only supports header bearer token authentication.
+//
 // This determine which auth schema the TD describes, obtains the credentials
 // and injects the authentication credentials according to the TDI schema.
 // This returns an error if the schema isn't supported or is not compatible.
 func (cl *WssClient) Authenticate(tdi *td.TD,
 	getCredentials transports.GetCredentials) error {
+
 	// for now just assume its bearer token, just to get it working
 	clientID, token, err := getCredentials(tdi)
-	if err == nil {
-		err = cl.ConnectWithToken(clientID, token)
+	secScheme, err := tdi.GetSecurityScheme()
+
+	// this websocket client only supports bearer token scheme
+	if secScheme.Scheme == td.SecSchemeAuto || secScheme.Scheme == td.SecSchemeBearer {
+		if secScheme.In == td.CredLocHeader || secScheme.In == td.CredLocAuto {
+			err = cl.ConnectWithToken(clientID, token)
+		} else {
+			err = fmt.Errorf("Unsupported credentials location '%s'. Expect auto or header", secScheme.In)
+		}
+	} else {
+		err = fmt.Errorf("Unsupported security scheme '%s'. Expect auto or bearer", secScheme.Scheme)
 	}
 	return err
 }
@@ -242,7 +255,9 @@ func (cl *WssClient) HandleWssMessage(raw []byte) {
 	if notif != nil {
 		// client receives a notification message from the server
 		// pass it on to the registered hook and sink
-		go cl.HiveModuleBase.HandleNotification(notif)
+		go func() {
+			cl.HiveModuleBase.HandleNotification(notif)
+		}()
 	} else if req != nil {
 		var err error
 		// client receives a request (using reverse connection)

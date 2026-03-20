@@ -30,8 +30,11 @@ import (
 type HttpServerModule struct {
 	modules.HiveModuleBase
 
+	// authenticator to validate incoming conncetions
+	// authenticator transports.IAuthenticator
+
 	// HTTP authentication handler.
-	authenticateHandler func(req *http.Request) (clientID string, err error)
+	authRequestHandler func(req *http.Request) (clientID string, err error)
 
 	config     *httpserverapi.Config
 	connectURL string
@@ -59,7 +62,7 @@ type HttpServerModule struct {
 
 // The default authentication handler extracts the bearer token from the authorization header
 // and passes it to the configured token validator.
-func (m *HttpServerModule) DefaultAuthenticate(req *http.Request) (clientID string, err error) {
+func (m *HttpServerModule) DefaultAuthRequest(req *http.Request) (clientID string, err error) {
 
 	// first check client certificate
 	if len(req.TLS.PeerCertificates) > 0 {
@@ -70,8 +73,8 @@ func (m *HttpServerModule) DefaultAuthenticate(req *http.Request) (clientID stri
 			return clientID, nil
 		}
 	}
-
-	if m.config.ValidateTokenHandler == nil {
+	authenticator := m.config.Authenticator
+	if authenticator == nil {
 		err := fmt.Errorf("DefaultAuthenticate: Missing ValidateToken handler in configuration")
 		return "", err
 	}
@@ -80,12 +83,17 @@ func (m *HttpServerModule) DefaultAuthenticate(req *http.Request) (clientID stri
 		return "", err
 	}
 	//check if the token is properly signed and still valid
-	clientID, validUntil, err := m.config.ValidateTokenHandler(bearerToken)
+	clientID, validUntil, err := authenticator.ValidateToken(bearerToken)
 	if err != nil {
 		return "", err
 	}
 	_ = validUntil
 	return clientID, err
+}
+
+// GetAuthenticator returns the authenticator used to authenticate incoming connections
+func (m *HttpServerModule) GetAuthenticator() transports.IAuthenticator {
+	return m.config.Authenticator
 }
 
 // Provide the HTTP base URL to connect to the server. Eg "https://addr:port/""
@@ -95,8 +103,8 @@ func (m *HttpServerModule) GetConnectURL() string {
 
 // Set the handler that validates tokens.
 // This will enable the protected routes.
-func (m *HttpServerModule) SetAuthValidator(validator transports.ValidateTokenHandler) {
-	m.config.ValidateTokenHandler = validator
+func (m *HttpServerModule) SetAuthenticator(authenticator transports.IAuthenticator) {
+	m.config.Authenticator = authenticator
 }
 
 // Start readies the module for use.
@@ -205,9 +213,9 @@ func NewHttpServerModule(
 	m := &HttpServerModule{
 		config: config,
 	}
-	m.authenticateHandler = config.AuthenticateHandler
-	if m.authenticateHandler == nil {
-		m.authenticateHandler = m.DefaultAuthenticate
+	m.authRequestHandler = config.AuthRequestHandler
+	if m.authRequestHandler == nil {
+		m.authRequestHandler = m.DefaultAuthRequest
 	}
 	// m.SetModuleID(config.ModuleID)
 	var _ transports.IHttpServer = m // interface check

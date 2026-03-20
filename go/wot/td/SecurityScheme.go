@@ -1,5 +1,28 @@
 package td
 
+// https://www.w3.org/TR/wot-thing-description11/#securityscheme
+const (
+	SecSchemeApiKey string = "apikey"
+	SecSchemeAuto   string = "auto"
+	SecSchemeBasic  string = "basic"
+	SecSchemeBearer string = "bearer"
+	SecSchemeDigest string = "digest"
+	SecSchemePSK    string = "psk"
+	SecSchemeNoSec  string = "nosec"
+	SecSchemeOAuth2 string = "oauth2"
+)
+
+// Location of credentials in securityScheme
+type CredLoc string
+
+const (
+	CredLocHeader CredLoc = "header"
+	CredLocQuery  CredLoc = "query"
+	CredLocBody   CredLoc = "body"
+	CredLocCookie CredLoc = "cookie"
+	CredLocAuto   CredLoc = "auto"
+)
+
 // SecurityScheme
 type SecurityScheme struct {
 	// JSON-LD keyword to label the object with semantic tags (or types).
@@ -16,6 +39,7 @@ type SecurityScheme struct {
 	Proxy string `json:"proxy,omitempty"`
 
 	// Identification of the security mechanism being configured.
+	// See also SecSchemeXyz above.
 	Scheme string `json:"scheme"`
 
 	//--- fields for bearer schema
@@ -39,6 +63,5 @@ type SecurityScheme struct {
 
 	// Specifies the location of security authentication information.
 	// one of: header, query, body, cookie or auto
-	// Used in Bearer Schema
-	In string `json:"in,omitempty"`
+	In CredLoc `json:"in,omitempty"`
 }

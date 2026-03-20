@@ -12,14 +12,18 @@ import (
 )
 
 // A dummy transport for testing
-// This implements IHttpServer and ITransportModule interfaces
+// This implements IHttpServer and ITransportServer interfaces
 type TestTransport struct {
 	modules.HiveModuleBase
 
-	url           string
-	protRoute     chi.Router
-	pubRoute      chi.Router
-	validateToken transports.ValidateTokenHandler
+	url       string
+	protRoute chi.Router
+	pubRoute  chi.Router
+	authr     transports.IAuthenticator
+}
+
+func (d *TestTransport) GetAuthenticator() transports.IAuthenticator {
+	return d.authr
 }
 
 func (d *TestTransport) GetConnectURL() string {
@@ -40,8 +44,8 @@ func (d *TestTransport) GetProtectedRoute() chi.Router {
 func (d *TestTransport) GetPublicRoute() chi.Router {
 	return d.pubRoute
 }
-func (d *TestTransport) SetAuthValidator(validator transports.ValidateTokenHandler) {
-	d.validateToken = validator
+func (d *TestTransport) SetAuthenticator(authr transports.IAuthenticator) {
+	d.authr = authr
 }
 func (d *TestTransport) Start() error {
 	return nil

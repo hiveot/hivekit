@@ -115,10 +115,10 @@ func (m *HttpServerModule) addMiddleware(cfg *httpserverapi.Config) {
 				var clientID string
 				var err error
 
-				if cfg.AuthenticateHandler != nil {
-					clientID, err = cfg.AuthenticateHandler(r)
+				if cfg.AuthRequestHandler != nil {
+					clientID, err = cfg.AuthRequestHandler(r)
 				} else {
-					clientID, err = m.DefaultAuthenticate(r)
+					clientID, err = m.DefaultAuthRequest(r)
 				}
 				if err != nil {
 					// see https://w3c.github.io/wot-discovery/#exploration-secboot

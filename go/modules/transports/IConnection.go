@@ -17,8 +17,12 @@ const DefaultRpcTimeout = time.Second * 3
 type ConnectionHandler func(connected bool, c IConnection, err error)
 
 // GetCredentials is the handler that provides the credentials for connecting to a thing.
-// This returns an error if the destination is unknown.
-type GetCredentials func(destination *td.TD) (clientID string, token string, err error)
+//
+// This returns:
+// - clientID is the account on the device to connect to
+// - cred is the credentials to authenticate with
+// - error if the destination is unknown.
+type GetCredentials func(destination *td.TD) (clientID string, cred string, err error)
 
 // IConnection defines the interfaces of a HiveOT server and client connection.
 // Intended for exchanging messages between client and server.

@@ -13,6 +13,7 @@ import (
 	httpserverapi "github.com/hiveot/hivekit/go/modules/transports/httpserver/api"
 	"github.com/hiveot/hivekit/go/modules/transports/httpserver/tlsclient"
 	"github.com/hiveot/hivekit/go/utils"
+	"github.com/hiveot/hivekit/go/wot/td"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -23,6 +24,18 @@ var serverPort int = 9445
 var clientHostPort string
 var testCerts certstest.TestCertBundle
 var TestKeyType = utils.KeyTypeED25519
+
+type TestAuthenticator struct {
+	ClientID   string
+	ValidUntil time.Time
+}
+
+func (ta *TestAuthenticator) AddSecurityScheme(tdoc *td.TD) {}
+
+func (ta *TestAuthenticator) ValidateToken(bearerToken string) (
+	clientID string, validUntil time.Time, err error) {
+	return ta.ClientID, ta.ValidUntil, nil //fmt.Errorf("test fail")
+}
 
 // TestMain runs a http server
 // Used for all test cases in this package
@@ -106,15 +119,14 @@ func TestTokenAuth(t *testing.T) {
 	badToken := "badtoken"
 	validUntil := time.Now()
 
+	testAuth := &TestAuthenticator{}
+	testAuth.ClientID = "bob"
+	testAuth.ValidUntil = validUntil
+
 	// setup server and client environment
 	cfg := httpserverapi.NewConfig(
-		serverAddress, serverPort, testCerts.ServerCert, testCerts.CaCert, nil)
+		serverAddress, serverPort, testCerts.ServerCert, testCerts.CaCert, testAuth)
 
-	cfg.ValidateTokenHandler = func(bearerToken string) (string, time.Time, error) {
-		assert.NotEmpty(t, bearerToken)
-		clientID := "bob"
-		return clientID, validUntil, nil //fmt.Errorf("test fail")
-	}
 	srv := httpserver.NewHttpServerModule(cfg)
 	err := srv.Start()
 	require.NoError(t, err)
@@ -151,6 +163,7 @@ func TestTokenAuth(t *testing.T) {
 	assert.Equal(t, 1, path1Hit)
 
 	// test a failed login
+	t.Log("--- test unauthorized token login ---")
 	cl.Close()
 	cl.ConnectWithToken(loginID1, badToken)
 	_, _, err = cl.Get(path1)

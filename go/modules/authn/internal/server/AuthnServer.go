@@ -225,7 +225,7 @@ func (m *AuthnServer) Start(yamlConfig string) (err error) {
 
 	// this module becomes the authentication validator for the http server
 	if m.httpServer != nil {
-		m.httpServer.SetAuthValidator(m.ValidateToken)
+		m.httpServer.SetAuthenticator(m)
 		m.userHttpHandler = NewUserHttpHandler(m, m.httpServer)
 	}
 	return err
