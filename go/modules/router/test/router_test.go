@@ -3,39 +3,51 @@ package router_test
 import (
 	"fmt"
 	"os"
+	"path"
 	"testing"
 
+	authnapi "github.com/hiveot/hivekit/go/modules/authn/api"
 	certstest "github.com/hiveot/hivekit/go/modules/certs/test"
+	"github.com/hiveot/hivekit/go/modules/clients"
+	"github.com/hiveot/hivekit/go/modules/directory"
 	"github.com/hiveot/hivekit/go/modules/router"
 	httpserverapi "github.com/hiveot/hivekit/go/modules/transports/httpserver/api"
 	"github.com/hiveot/hivekit/go/modules/transports/tptests"
 	"github.com/hiveot/hivekit/go/msg"
 	"github.com/hiveot/hivekit/go/utils"
+	"github.com/hiveot/hivekit/go/vocab"
 	"github.com/hiveot/hivekit/go/wot"
 	"github.com/hiveot/hivekit/go/wot/td"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+var storageRoot = path.Join(os.TempDir(), "router-test")
 
 var testDevicePort = 9993
 var testDeviceAddress = fmt.Sprintf(":%d", testDevicePort)
 var certsBundle = certstest.CreateTestCertBundle(utils.KeyTypeED25519)
 var testAuthn = tptests.NewTestAuthenticator()
 
-const testDeviceID = "device1"
+const testClientID = "client1"
+const testClientPass = "client1pass"
 
-var testTD *td.TD
+// the test directory that holds this td. http server is not needed
 
-func getTD(thingID string) *td.TD {
-	return testTD
-}
+// create a virtual device
+func startTestDevice(agentID string, thingID string) (v *tptests.TestDevice) {
 
-func startVirtualDevice() (v *VirtualDevice) {
+	testAuthn.AddClient(testClientID, "", authnapi.ClientRoleManager)
+	testAuthn.SetPassword(testClientID, testClientPass)
+
 	// create a test device with server
 	cfg := httpserverapi.NewConfig(
 		certsBundle.ServerAddr, testDevicePort,
 		certsBundle.ServerCert, certsBundle.CaCert, testAuthn.ValidateToken)
 
-	v = NewVirtualDevice(cfg, testDeviceID)
+	var testTM *td.TD = td.NewTD(thingID, "test device", vocab.ThingDevice)
+
+	v = tptests.NewTestDevice(cfg, agentID, testTM)
 	err := v.Start("")
 	if err != nil {
 		panic("failed starting test device")
@@ -60,8 +72,11 @@ func TestMain(m *testing.M) {
 func TestStartStop(t *testing.T) {
 	t.Logf("---%s---\n", t.Name())
 
-	m := router.NewRouterModule(getTD, nil)
-	err := m.Start("")
+	var testDirMod = directory.NewDirectoryModule("", nil)
+	err := testDirMod.Start("")
+	require.NoError(t, err)
+	m := router.NewRouterModule(storageRoot, testDirMod.GetTD, nil, certsBundle.CaCert)
+	err = m.Start("")
 	require.NoError(t, err)
 	defer m.Stop()
 }
@@ -70,16 +85,59 @@ func TestStartStop(t *testing.T) {
 func TestSubscribeToDevice(t *testing.T) {
 	t.Logf("---%s---\n", t.Name())
 	const thingID1 = "thing-1"
+	const agentID = "agent-1"
+	const event1Name = "event1"
+	const clientID = "client1"
+	const clientSecret = "secret"
+	var event1Value string = "value1"
+	var rxValue string
 
-	v := startVirtualDevice()
-	defer v.Stop()
+	// setup the device side
+	testDevice := startTestDevice(agentID, thingID1)
+	defer testDevice.Stop()
 	req := msg.NewRequestMessage(wot.OpObserveAllProperties, thingID1, "", nil, "")
-	v.HandleRequest(req, func(resp *msg.ResponseMessage) error {
+	testDevice.HandleRequest(req, func(resp *msg.ResponseMessage) error {
 		return nil
 	})
 
-	m := router.NewRouterModule(getTD, nil)
-	err := m.Start("")
+	// setup the consumer side: directory, router and consumer
+	// register the device TD in the directory for use by the router
+	var testDirMod = directory.NewDirectoryModule("", nil)
+	err := testDirMod.Start("")
 	require.NoError(t, err)
-	defer m.Stop()
+	deviceTDJson, _ := td.MarshalTD(testDevice.GetTD())
+	err = testDirMod.CreateThing(agentID, deviceTDJson)
+	require.NoError(t, err)
+
+	// the router uses the TD to connect to the device.
+	// this doesn't actually need a directory. GetTD could also simply return the device TD.
+	routerMod := router.NewRouterModule(
+		storageRoot, testDirMod.GetTD, nil, certsBundle.CaCert)
+	err = routerMod.Start("")
+	require.NoError(t, err)
+	defer routerMod.Stop()
+	// to connect to the device, credentials are needed
+	routerMod.AddThingCredential(thingID1, clientID, clientSecret)
+
+	// a consumer links to the router and subscribes to the device
+	// note for the purpose of this test the router can run on the client
+	consumer := clients.NewConsumer("")
+	consumer.SetRequestSink(routerMod.HandleRequest)
+	routerMod.SetNotificationSink(consumer.HandleNotification)
+	err = consumer.Start("")
+	assert.NoError(t, err)
+	err = consumer.Subscribe(thingID1, "")
+	assert.NoError(t, err)
+
+	consumer.SetNotificationHook(func(notif *msg.NotificationMessage) {
+		assert.Equal(t, event1Name, notif.Name)
+		err = notif.Decode(&rxValue)
+		assert.NoError(t, err)
+	})
+
+	// the device publishes an event
+	testDevice.Agent.PubEvent(thingID1, event1Name, event1Value)
+
+	assert.Equal(t, event1Value, rxValue)
+
 }

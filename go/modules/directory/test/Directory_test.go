@@ -100,7 +100,7 @@ func TestCreateTD(t *testing.T) {
 	assert.Len(t, tdList, 1)
 
 	// add another TD
-	tdi1 := td.NewTD("", thingID, "test thing", "test device")
+	tdi1 := td.NewTD(thingID, "test thing", "test device")
 	td1Json := tdi1.ToString()
 	m.CreateThing(defaultAgentID, td1Json)
 
@@ -130,7 +130,7 @@ func TestCRUDUsingMsgAPI(t *testing.T) {
 	thing1ID := clientID + ":thing1"
 
 	// test create a TD
-	tdi1 := td.NewTD("", thing1ID, "thing 1", "device")
+	tdi1 := td.NewTD(thing1ID, "thing 1", "device")
 	tdi1Json := tdi1.ToString()
 
 	// use a direct transport to the directory as the sink for the client
@@ -219,7 +219,7 @@ func TestCRUDUsingRestAPI(t *testing.T) {
 	require.NoError(t, err)
 
 	// test create a TD
-	tdi1 := td.NewTD("", thing1ID, "thing 1", "device")
+	tdi1 := td.NewTD(thing1ID, "thing 1", "device")
 	tdi1Json := tdi1.ToString()
 
 	err = dirClient.CreateThing(tdi1Json)

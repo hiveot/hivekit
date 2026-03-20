@@ -16,6 +16,7 @@ import (
 	"github.com/hiveot/hivekit/go/modules/transports/httpserver/tlsclient"
 	ssescapi "github.com/hiveot/hivekit/go/modules/transports/ssesc/api"
 	"github.com/hiveot/hivekit/go/msg"
+	"github.com/hiveot/hivekit/go/wot/td"
 	jsoniter "github.com/json-iterator/go"
 	"github.com/teris-io/shortid"
 )
@@ -77,16 +78,30 @@ type SseScClient struct {
 	tlsClient transports.ITlsClient
 }
 
+// Authenticate the client connection with the server
+// This determine which auth schema the TD describes, obtains the credentials
+// and injects the authentication credentials according to the TDI schema.
+// This returns an error if the schema isn't supported or is not compatible.
+func (cl *SseScClient) Authenticate(tdi *td.TD,
+	getCredentials transports.GetCredentials) error {
+
+	// for now just assume its bearer token, just to get it working
+	clientID, token, err := getCredentials(tdi)
+	if err == nil {
+		err = cl.ConnectWithToken(clientID, token)
+	}
+	return err
+}
+
 // ConnectWithToken sets the clientID and bearer token to use with requests and
 //
 //	establishes an SSE connection.
 //
 // If a connection exists it is closed first.
-func (cl *SseScClient) ConnectWithToken(clientID, token string, ch transports.ConnectionHandler) error {
+func (cl *SseScClient) ConnectWithToken(clientID, token string) error {
 
 	// ensure disconnected (note that this resets retryOnDisconnect)
 	cl.Close()
-	cl.connectHandler = ch
 
 	err := cl.tlsClient.ConnectWithToken(clientID, token)
 	if err != nil {
@@ -332,9 +347,9 @@ func (cl *SseScClient) Stop() {
 //
 //	sseURL full connection URL of SSE server and path
 //	caCert is the CA certificate to validate the server certificate
-//	sink is the application module receiving notifications or in case of agents, requests.
+//	ch is the connect/disconnect callback
 func NewSseScClient(
-	sseURL string, caCert *x509.Certificate) *SseScClient {
+	sseURL string, caCert *x509.Certificate, ch transports.ConnectionHandler) *SseScClient {
 
 	urlParts, err := url.Parse(sseURL)
 	if err != nil {
@@ -348,11 +363,12 @@ func NewSseScClient(
 	tlsClient := tlsclient.NewTLSClient(hostPort, nil, caCert, timeout)
 
 	cl := &SseScClient{
-		msgConverter: direct.NewPassthroughMessageConverter(),
-		rnrChan:      msg.NewRnRChan(),
-		ssePath:      ssePath,
-		tlsClient:    tlsClient,
-		timeout:      timeout,
+		connectHandler: ch,
+		msgConverter:   direct.NewPassthroughMessageConverter(),
+		rnrChan:        msg.NewRnRChan(),
+		ssePath:        ssePath,
+		tlsClient:      tlsClient,
+		timeout:        timeout,
 	}
 	var _ transports.IConnection = cl // interface check
 	var _ modules.IHiveModule = cl    // interface check

@@ -45,7 +45,7 @@ func TestMain(m *testing.M) {
 // This uses the clientID as password
 // This panics if a client cannot be created
 func NewTestConsumer(m *authnserver.AuthnServer, serverURL, clientID string) (
-	*clients.Consumer, transports.IConnection, string) {
+	*clients.Consumer, transports.IClientConnection, string) {
 
 	// ensure the client exists
 	_ = m.AddClient(clientID, "client 1", authnapi.ClientRoleViewer)
@@ -55,7 +55,7 @@ func NewTestConsumer(m *authnserver.AuthnServer, serverURL, clientID string) (
 	if err != nil {
 		panic("Failed creating consumer connection: " + err.Error())
 	}
-	cc.ConnectWithToken(clientID, token, nil)
+	cc.ConnectWithToken(clientID, token)
 
 	return co, cc, token
 }

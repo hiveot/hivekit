@@ -17,7 +17,7 @@ import (
 type WSSMessage map[string]any
 
 // WssServerConnection is  the server side instance of a connection by a client.
-// This implements the IServerConnection interface for sending messages to
+// This implements the IConnection interface for sending messages to
 // agent or consumers.
 type WssServerConnection struct {
 	transports.ServerConnectionBase
@@ -404,5 +404,7 @@ func NewWSSServerConnection(
 		notifHandler:     notifHandler,
 	}
 	c.Init(clientID, r.URL.String(), cid)
+
+	var _ transports.IConnection = c // interface check
 	return c
 }

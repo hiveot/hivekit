@@ -43,7 +43,6 @@ type DigitwinModule struct {
 
 	// internal storage with the original TDs
 	bucket      bucketstoreapi.IBucket
-	bucketName  string
 	bucketStore bucketstoreapi.IBucketStore
 
 	// the device directory holding TD's of the native devices/agents
@@ -241,8 +240,7 @@ func (m *DigitwinModule) Start(_ string) (err error) {
 
 	err = m.bucketStore.Open()
 	if err == nil {
-		m.bucketName = moduleID
-		m.bucket = m.bucketStore.GetBucket(m.bucketName)
+		m.bucket = m.bucketStore.GetBucket(moduleID)
 	}
 	// handling of messages for this module itself
 	if err == nil {
@@ -274,15 +272,13 @@ func (m *DigitwinModule) Stop() {
 	// m.deviceDirectory.Stop()
 }
 
-// Create a new digital twin module.
+// NewDigitwinModule creates a new digital twin module instance.
 //
-// storageRoot is the root directory where modules create their storage, "" for in-memory testing
-//
-// thingDir is the directory module that holds Thing TDs.
-//
-// addForms is a handler from a transport server for injecting forms in digital twin TDs
-// that describe how to interact via the server's protocols. Each transport server
-// provides a compatible handler.
+//	storageRoot is the root directory where modules create their storage, "" for in-memory testing
+//	thingDir is the directory module that holds Thing TDs.
+//	addForms is a handler from a transport server for injecting forms in digital twin TDs
+//	that describe how to interact via the server's protocols. Each transport server
+//	provides a compatible handler.
 func NewDigitwinModule(storageRoot string,
 	thingDir directoryapi.IDirectoryModuleServer,
 	addforms func(tdoc *td.TD, includeAffordances bool)) *DigitwinModule {

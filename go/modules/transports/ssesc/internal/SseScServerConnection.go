@@ -28,8 +28,7 @@ type SSEEvent struct {
 // to a client that connects over SSE. The client will use http to send messages
 // to the server.
 //
-// This implements the IServerConnection interface for sending messages to
-// the client over SSE.
+// This implements the IConnection interface for sending messages to the client over SSE.
 type HiveotSseServerConnection struct {
 	// Connection information such as clientID, cid, address, protocol etc
 	// subscriptions made through the http side.

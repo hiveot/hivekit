@@ -16,11 +16,10 @@ const deviceTypeThingSensor = "sensor"
 const propNameDeviceSoftwareVersion = "softwareVersion"
 const unitNamePercent = "%"
 
-const agentID = "agent1"
 const thing1ID = "thing1"
 
 func TestCreateTD(t *testing.T) {
-	tdoc := td.NewTD(agentID, thing1ID, "test TD", deviceTypeThingSensor)
+	tdoc := td.NewTD(thing1ID, "test TD", deviceTypeThingSensor)
 	assert.NotNil(t, tdoc)
 
 	// Set version
@@ -68,9 +67,6 @@ func TestCreateTD(t *testing.T) {
 
 	tdoc.SetForms([]td.Form{})
 
-	tid2 := tdoc.GetID()
-	assert.Equal(t, agentID+":"+thing1ID, tid2)
-
 	asMap := tdoc.AsMap()
 	assert.NotNil(t, asMap)
 }
@@ -78,7 +74,7 @@ func TestCreateTD(t *testing.T) {
 func TestMissingAffordance(t *testing.T) {
 
 	// test return nil if no affordance is found
-	tdoc := td.NewTD(agentID, thing1ID, "test TD", deviceTypeThingSensor)
+	tdoc := td.NewTD(thing1ID, "test TD", deviceTypeThingSensor)
 	assert.NotNil(t, tdoc)
 
 	prop := tdoc.GetProperty("prop1")
@@ -93,7 +89,7 @@ func TestMissingAffordance(t *testing.T) {
 
 func TestAddProp(t *testing.T) {
 	prop2AtType := "test:specialtype"
-	tdoc := td.NewTD(agentID, thing1ID, "test TD", deviceTypeThingSensor)
+	tdoc := td.NewTD(thing1ID, "test TD", deviceTypeThingSensor)
 	tdoc.AddProperty("prop1", "prop 1", "test property", wot.DataTypeBool)
 
 	aff := tdoc.AddProperty("prop2", "test property2", "", wot.DataTypeString)
@@ -120,7 +116,7 @@ func TestAddProp(t *testing.T) {
 // test that IDs with spaces are escaped
 func TestAddPropBadIDs(t *testing.T) {
 	propID := "prop 1"
-	tdoc := td.NewTD(agentID, thing1ID, "test TD", deviceTypeThingSensor)
+	tdoc := td.NewTD(thing1ID, "test TD", deviceTypeThingSensor)
 	tdoc.AddProperty(propID, "test property", "", wot.DataTypeBool)
 
 	tdoc.AddProperty("prop2", "test property2", "", wot.DataTypeString)
@@ -136,7 +132,7 @@ func TestAddPropBadIDs(t *testing.T) {
 }
 
 func TestAddEvent(t *testing.T) {
-	tdoc := td.NewTD(agentID, thing1ID, "test TD", deviceTypeThingSensor)
+	tdoc := td.NewTD(thing1ID, "test TD", deviceTypeThingSensor)
 	tdoc.AddEvent("event1", "Test Event", "", nil)
 
 	tdoc.AddEvent("event2", "Test Event", "", nil)
@@ -149,7 +145,7 @@ func TestAddEvent(t *testing.T) {
 }
 
 func TestAddAction(t *testing.T) {
-	tdoc := td.NewTD(agentID, thing1ID, "test TD", deviceTypeThingSensor)
+	tdoc := td.NewTD(thing1ID, "test TD", deviceTypeThingSensor)
 	tdoc.AddAction("action1", "test", "Test Action", nil)
 
 	// has a space
@@ -167,7 +163,7 @@ func TestForms(t *testing.T) {
 	const action1Name = "action1"
 	const prop1Name = "prop1"
 	const event1Name = "event1"
-	tdoc := td.NewTD(agentID, thing1ID, "test TD", deviceTypeThingSensor)
+	tdoc := td.NewTD(thing1ID, "test TD", deviceTypeThingSensor)
 	actAff := tdoc.AddAction(action1Name, "action", "Test Action", nil)
 	tdoc.AddProperty(prop1Name, "prop", "Test Prop", wot.DataTypeInteger)
 	tdoc.AddEvent(event1Name, "event", "Test Event", nil)

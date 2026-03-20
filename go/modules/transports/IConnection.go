@@ -16,6 +16,10 @@ const DefaultRpcTimeout = time.Second * 3
 //	err details why connection failed
 type ConnectionHandler func(connected bool, c IConnection, err error)
 
+// GetCredentials is the handler that provides the credentials for connecting to a thing.
+// This returns an error if the destination is unknown.
+type GetCredentials func(destination *td.TD) (clientID string, token string, err error)
+
 // IConnection defines the interfaces of a HiveOT server and client connection.
 // Intended for exchanging messages between client and server.
 //
@@ -29,24 +33,6 @@ type IConnection interface {
 
 	// Close disconnects the client.
 	Close()
-
-	// ConnectWithToken connects to the transport server using a clientID and
-	// corresponding authentication token.
-	// This method only applies to client connections. Server side connections will return an error.
-	//
-	// While most hiveot transport servers support token authentication, the method
-	// of obtaining a token depends on the environment. The authn module is intended for this.
-	//
-	// If a connection is already established on this client then it will be closed first.
-	//
-	// This connection method must be supported by all client implementations.
-	//
-	//	clientID is the ID to authenticate as, it must match the token
-	//	token is the authentication token obtained on login
-	//	ch is the optional callback that is notified when connection is established and disconnects.
-	//
-	// This returns an error if the token is not valid
-	ConnectWithToken(clientID, token string, ch ConnectionHandler) (err error)
 
 	// GetClientID returns the clientID used with authentication
 	GetClientID() string
@@ -91,3 +77,32 @@ type IConnection interface {
 // GetFormHandler is the handler that provides the client with the form needed to invoke an operation
 // This returns nil if no form is found for the operation.
 type GetFormHandler func(op string, thingID string, name string) *td.Form
+
+type IClientConnection interface {
+	IConnection
+
+	// Authenticate the client connection with the server
+	// This determine which auth schema the TD describes, obtains the credentials
+	// and injects the authentication credentials according to the TDI schema.
+	// This returns an error if the schema isn't supported or is not compatible.
+	Authenticate(tdi *td.TD, getCredentials GetCredentials) error
+
+	// ConnectWithToken connects to the transport server using a clientID and
+	// corresponding authentication token.
+	//
+	// This method can be used if it is known that bearer token basic authentication is supported
+	// by the server.
+	//
+	// While most hiveot transport servers support token authentication, the method
+	// of obtaining a token depends on the environment. The authn module is intended for this.
+	//
+	// If a connection is already established on this client then it will be closed first.
+	//
+	// This connection method must be supported by all client implementations.
+	//
+	//	clientID is the ID to authenticate as, it must match the token
+	//	token is the authentication token obtained on login
+	//
+	// This returns an error if the token is not valid
+	ConnectWithToken(clientID, token string) (err error)
+}

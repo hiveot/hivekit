@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
+	"path"
 	"strings"
 	"testing"
 	"time"
@@ -69,9 +70,11 @@ func startService() (
 	if err != nil {
 		panic("unable to start the digitwin service")
 	}
-	// the router module uses the digitwin device directory
+	// the router module uses the digitwin Thing Directory
 	// getDeviceTD := dtw.GetDeviceDirectory().GetTD
-	rtr := router.NewRouterModule(dtw.GetDeviceTD, []transports.ITransportServer{appServer})
+	routerStorage := path.Join(os.TempDir(), "router-test")
+	rtr := router.NewRouterModule(routerStorage,
+		dtw.GetDeviceTD, []transports.ITransportServer{appServer}, testEnv.CertBundle.CaCert)
 
 	// create a request pipeline server->directory->digitwin->router->server
 	appServer.SetRequestSink(dir.HandleRequest)

@@ -17,27 +17,29 @@ import (
 // This is intended to be used as a sink for publishing requests to a remote server and
 // to register a callback for notifications.
 type IClientModule interface {
-	transports.IConnection
+	transports.IClientConnection
 	modules.IHiveModule
 }
 
 // NewTransportClient returns a new client module instance ready to connect to a transport server
 // using the given URL.
 // This is intended to be used as a sink for application modules.
-func NewTransportClient(serverURL string, caCert *x509.Certificate) (cl IClientModule, err error) {
+func NewTransportClient(serverURL string, caCert *x509.Certificate,
+	ch transports.ConnectionHandler) (cl IClientModule, err error) {
+
 	parts, err := url.Parse(serverURL)
 	scheme := strings.ToLower(parts.Scheme)
 
 	switch scheme {
 	case transports.ProtocolTypeHiveotSSE: // "sse"
-		cl = ssescclient.NewSseScClient(serverURL, caCert)
+		cl = ssescclient.NewSseScClient(serverURL, caCert, ch)
 
 	case transports.ProtocolTypeWotWSS: // "wss"
-		cl = wssclient.NewWotWssClient(serverURL, caCert)
+		cl = wssclient.NewWotWssClient(serverURL, caCert, ch)
 
 	case transports.ProtocolTypeHTTPBasic: // "https"
 		caCert := caCert
-		cl = httpbasicclient.NewHttpBasicClient(serverURL, caCert, nil)
+		cl = httpbasicclient.NewHttpBasicClient(serverURL, caCert, nil, ch)
 
 	//case transports.ProtocolTypeWotMQTTWSS:
 	//	fullURL = testServerMqttWssURL

@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/hiveot/hivekit/go/utils"
+	"github.com/hiveot/hivekit/go/vocab"
 	"github.com/hiveot/hivekit/go/wot"
 	jsoniter "github.com/json-iterator/go"
 )
@@ -38,6 +39,7 @@ type TD struct {
 
 	// AgentID is a hiveot extension containing the clientID of the agent that provided this TD
 	// Intended for supporting reverse connections instead of forms.
+	// FIXME: this field is tentative for use in the digitwin. If possible try to remove this dependency.
 	AgentID string `json:"hiveot:agentID,omitempty"`
 
 	// JSON-LD keyword to define shorthand names called terms that are used throughout a TD document. Required.
@@ -73,8 +75,6 @@ type TD struct {
 	//Version VersionInfo `json:"version,omitempty"` // todo
 
 	// ID is the Thing instance identifier.
-	// HiveOT prefixes the thing's ID with the publishing agentID to help with uniqueness, separated by colon:
-	//  ThingID format used: urn:agentID:deviceID
 	ID string `json:"id,omitempty"`
 
 	// links: todo
@@ -331,8 +331,8 @@ func (tdoc *TD) GetAction(actionName string) *ActionAffordance {
 	return actionAffordance
 }
 
-// GetAgentID returns the agentID of the thing TD
-// This returns the agentID field if available.
+// GetAgentID returns the agentID of the thing TD, if set.
+// This returns the agentID field.
 func (tdoc *TD) GetAgentID() string {
 	return tdoc.AgentID
 }
@@ -564,10 +564,9 @@ func (tdoc *TD) UpdateTitleDescription(title string, description string) {
 // NewTD creates a new Thing Description document with properties, events and actions
 //
 // Conventions:
-// 1. the thingID contains the agentID prefix: thingID = {agentID}:{deviceID}
-// 2. Agents should add a property wot.WoTTitle and update the TD if it is set.
-// 3. Agents should add a property wot.WoTDescription and update the TD description if it is set.
-// 4. the deviceType comes from the vocabulary and has ID vocab.DeviceType<Xyz>
+// 1. Agents should add a property wot.WoTTitle and update the TD title if it is set.
+// 2. Agents should add a property wot.WoTDescription and update the TD description if it is set.
+// 3. the deviceType comes from the vocabulary and has ID vocab.DeviceType<Xyz>
 //
 // Devices or bindings are not expected to use forms. The form content describes the
 // connection protocol which should reference the hub, not the device.
@@ -576,7 +575,7 @@ func (tdoc *TD) UpdateTitleDescription(title string, description string) {
 //			{
 //			     @context: "http://www.w3.org/ns/td",{"hiveot":"http://hiveot.net/vocab/v..."}
 //			     @type: <deviceType>,        // required in HiveOT. See DeviceType vocabulary
-//			     id: <thingID>,              // {agentID}:{deviceID}   required in hiveot
+//			     id: <thingID>,              // required
 //			     title: string,              // required. Name of the thing
 //			     created: <rfc3339>,         // will be the current timestamp. See vocabulary TimeFormat
 //			     actions: {name:TDAction, ...},
@@ -584,15 +583,13 @@ func (tdoc *TD) UpdateTitleDescription(title string, description string) {
 //			     properties: {name: TDProperty, ...}
 //			}
 //
-//	 agentID is the ID of the service managing the device. Use "" if the device is the agent
 //	 deviceID is the unique ID of the device
 //		title to include in the TD
 //	 deviceType is the optional @type identifying the device
-func NewTD(agentID, deviceID string, title string, deviceType string) *TD {
-	// HiveOT convention is to include the agentID as the prefix in the thingID
+func NewTD(deviceID string, title string, deviceType string) *TD {
 	var thingID = deviceID
-	if agentID != "" {
-		thingID = agentID + ":" + deviceID
+	if deviceType == "" {
+		deviceType = vocab.ThingDevice
 	}
 	thingID = strings.ReplaceAll(thingID, " ", "-")
 

@@ -67,12 +67,12 @@ func TestBadRefresh(t *testing.T) {
 
 	// set the token
 	t.Log("Expecting SetBearerToken('bad-token') to fail")
-	err := cc1.ConnectWithToken(testClientID1, "bad-token", nil)
+	err := cc1.ConnectWithToken(testClientID1, "bad-token")
 	// http clients can't detect a bad token until making requests to a protected route
 	// assert.Error(t, err)
 
 	// reconnect with a valid token and connect with a bad client-id
-	err = cc1.ConnectWithToken(testClientID1, token1, nil)
+	err = cc1.ConnectWithToken(testClientID1, token1)
 	assert.NoError(t, err)
 
 	authCl := authnclient.NewAuthnHttpClient(serverURL, testCerts.CaCert)

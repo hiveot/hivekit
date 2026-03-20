@@ -14,6 +14,8 @@ This approach provides the following benefits:
 
 This module is in early alpha. It supports managing digital twins of devices provided by RC (reverse connection) agents. Managing digital twins for standalone devices is under development. Breaking changes can be expected.
 
+Managing digital twins for stand-alone devices is only partly supported as it requires as it requires credentials for each device and a way to handle certificate validation for TLS connections.
+
 TODOs for reverse connecting agents:
 
 1. track online status of agent connected devices

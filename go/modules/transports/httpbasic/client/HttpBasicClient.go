@@ -63,12 +63,26 @@ type HttpBasicClient struct {
 	tlsClient transports.ITlsClient
 }
 
+// Authenticate the client connection with the server
+// This determine which auth schema the TD describes, obtains the credentials
+// and injects the authentication credentials according to the TDI schema.
+// This returns an error if the schema isn't supported or is not compatible.
+func (cl *HttpBasicClient) Authenticate(tdi *td.TD,
+	getCredentials transports.GetCredentials) error {
+
+	// for now just assume its bearer token, just to get it working
+	clientID, token, err := getCredentials(tdi)
+	if err == nil {
+		err = cl.ConnectWithToken(clientID, token)
+	}
+	return err
+}
+
 // Set the clientID and authentication bearer token.
 // This performs a standard /ping health check that the hiveot http server supports.
 func (cl *HttpBasicClient) ConnectWithToken(
-	clientID string, token string, ch transports.ConnectionHandler) error {
+	clientID string, token string) error {
 
-	cl.connectHandler = ch
 	err := cl.tlsClient.ConnectWithToken(clientID, token)
 	if err == nil {
 		var status int
@@ -80,8 +94,8 @@ func (cl *HttpBasicClient) ConnectWithToken(
 			cl.isConnected.Store(false)
 		}
 		// notify if interested
-		if ch != nil {
-			ch(cl.isConnected.Load(), cl, nil)
+		if cl.connectHandler != nil {
+			cl.connectHandler(cl.isConnected.Load(), cl, nil)
 		}
 	}
 	return err
@@ -372,7 +386,9 @@ func (cl *HttpBasicClient) Stop() {
 //	caCert of the server to validate the server or nil to not check the server cert
 //	getForm is the handler for return a form for invoking an operation. nil for default
 func NewHttpBasicClient(
-	baseURL string, caCert *x509.Certificate, getForm transports.GetFormHandler) *HttpBasicClient {
+	baseURL string, caCert *x509.Certificate,
+	getForm transports.GetFormHandler,
+	ch transports.ConnectionHandler) *HttpBasicClient {
 
 	timeout := tlsclient.DefaultClientTimeout
 	urlParts, err := url.Parse(baseURL)
@@ -383,7 +399,7 @@ func NewHttpBasicClient(
 	hostPort := urlParts.Host
 
 	tlsClient := tlsclient.NewTLSClient(hostPort, nil, caCert, timeout)
-	cl := NewHttpBasicTLSClient(tlsClient, getForm)
+	cl := NewHttpBasicTLSClient(tlsClient, getForm, ch)
 
 	return cl
 }
@@ -394,13 +410,15 @@ func NewHttpBasicClient(
 //	tlsClient used for the server connection
 //	getForm is the handler for return a form for invoking an operation. nil for default
 func NewHttpBasicTLSClient(
-	tlsClient *tlsclient.TLSClient, getForm transports.GetFormHandler) *HttpBasicClient {
+	tlsClient *tlsclient.TLSClient, getForm transports.GetFormHandler,
+	ch transports.ConnectionHandler) *HttpBasicClient {
 
 	timeout := tlsclient.DefaultClientTimeout
 	cl := &HttpBasicClient{
-		getForm:   getForm,
-		timeout:   timeout,
-		tlsClient: tlsClient,
+		connectHandler: ch,
+		getForm:        getForm,
+		timeout:        timeout,
+		tlsClient:      tlsClient,
 	}
 	if cl.getForm == nil {
 		cl.getForm = cl.GetDefaultForm

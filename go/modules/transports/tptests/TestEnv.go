@@ -91,7 +91,7 @@ func (testEnv *TestEnv) CreateTestTD(i int) (tdi *td.TD) {
 		ttd.ID = fmt.Sprintf("thing-%d", rand.Intn(99823))
 	}
 
-	tdi = td.NewTD("", ttd.ID, ttd.Title, ttd.DeviceType)
+	tdi = td.NewTD(ttd.ID, ttd.Title, ttd.DeviceType)
 	// add random properties
 	for n := 0; n < ttd.NrProps; n++ {
 		propName := fmt.Sprintf("prop-%d", n)
@@ -127,7 +127,8 @@ func (testEnv *TestEnv) CreateToken(clientID string, validity time.Duration) (to
 // This creates an account and access token for the client if needed.
 //
 // This panics if a client cannot be created or cannot connect.
-func (testEnv *TestEnv) NewConnectedClient(clientID string, role string, ch transports.ConnectionHandler) (
+func (testEnv *TestEnv) NewConnectedClient(
+	clientID string, role string, ch transports.ConnectionHandler) (
 	cl clients.IClientModule, token string) {
 
 	// ensure the test client account exists
@@ -138,10 +139,10 @@ func (testEnv *TestEnv) NewConnectedClient(clientID string, role string, ch tran
 	}
 	// create a connection to the test server
 	cl, err = clients.NewTransportClient(
-		testEnv.ServerURL, testEnv.CertBundle.CaCert)
+		testEnv.ServerURL, testEnv.CertBundle.CaCert, ch)
 	if err == nil {
 		cl.SetTimeout(TestTimeout)
-		err = cl.ConnectWithToken(clientID, token, ch)
+		err = cl.ConnectWithToken(clientID, token)
 	}
 	if err != nil {
 		panic("NewClient failed to connect:" + err.Error())
@@ -161,7 +162,7 @@ func (testEnv *TestEnv) NewServerAgent(agentID string) *clients.Agent {
 	// Simple server side agent. No account needed
 	agent := clients.NewAgent(agentID, nil)
 
-	// the agent is the sink for the server
+	// the agent is the sink for the transport server
 	testEnv.Server.SetRequestSink(agent.HandleRequest)
 	agent.SetNotificationSink(testEnv.Server.SendNotification)
 	return agent

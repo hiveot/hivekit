@@ -7,6 +7,11 @@ The objective of the router module is to deliver request messages to Things that
 This module is in early alpha. Routing to connected RC agents is supported.
 Routing to stand-alone devices is under development.
 
+TODO:
+
+1. handle the authentication needed for connecting to devices
+2. persist encryption credentials
+
 ## Summary
 
 This module aims to deliver request messages to IoT devices or services identified by the ThingID in the request, the operation and name in the request are used to determine the final href to use for deliving the request. The module can create outgoing connections to Things or use reverse-connections from device agents.

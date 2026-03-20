@@ -21,6 +21,7 @@ import (
 	wssconverter "github.com/hiveot/hivekit/go/modules/transports/wss/converter"
 	"github.com/hiveot/hivekit/go/msg"
 	"github.com/hiveot/hivekit/go/utils"
+	"github.com/hiveot/hivekit/go/wot/td"
 
 	"github.com/teris-io/shortid"
 )
@@ -49,11 +50,10 @@ type WssClient struct {
 
 	caCert *x509.Certificate
 
-	// handler for requests send by clients
+	// handler for sending connection notifications
 	connectHandler transports.ConnectionHandler
 
 	isConnected atomic.Bool
-	// lastError   atomic.Pointer[error]
 
 	maxReconnectAttempts int // 0 for indefinite
 
@@ -106,7 +106,7 @@ func (cl *WssClient) _onConnectionChanged(connected bool, err error) {
 func (cl *WssClient) _send(wssMsg []byte) (err error) {
 	if !cl.isConnected.Load() {
 		// note, it might be trying to reconnect in the background
-		err := fmt.Errorf("_send: Not connected to the hub")
+		err := fmt.Errorf("_send: Can't send. Not connected")
 		return err
 	}
 	// websockets do not allow concurrent writes
@@ -116,6 +116,20 @@ func (cl *WssClient) _send(wssMsg []byte) (err error) {
 	err = cl.wssConn.WriteMessage(websocket.TextMessage, wssMsg)
 	if err != nil {
 		err = fmt.Errorf("WssClient._send write error: %s", err)
+	}
+	return err
+}
+
+// Authenticate the client connection with the server
+// This determine which auth schema the TD describes, obtains the credentials
+// and injects the authentication credentials according to the TDI schema.
+// This returns an error if the schema isn't supported or is not compatible.
+func (cl *WssClient) Authenticate(tdi *td.TD,
+	getCredentials transports.GetCredentials) error {
+	// for now just assume its bearer token, just to get it working
+	clientID, token, err := getCredentials(tdi)
+	if err == nil {
+		err = cl.ConnectWithToken(clientID, token)
 	}
 	return err
 }
@@ -139,13 +153,12 @@ func (cl *WssClient) Close() {
 
 // ConnectWithToken attempts to establish a websocket connection using a valid auth token
 // If a connection exists it is closed first.
-func (cl *WssClient) ConnectWithToken(clientID string, token string, ch transports.ConnectionHandler) error {
+func (cl *WssClient) ConnectWithToken(clientID string, token string) error {
 
 	// ensure disconnected (note that this resets retryOnDisconnect)
 	if cl.isConnected.Load() {
 		cl.Close()
 	}
-	cl.connectHandler = ch
 	cl.bearerToken = token
 	// the clientID is the moduleID so set it now
 	cl.SetModuleID(clientID)
@@ -283,7 +296,7 @@ func (cl *WssClient) Reconnect() {
 		slog.Warn("Reconnecting attempt",
 			slog.String("clientID", clientID),
 			slog.Int("i", i))
-		err = cl.ConnectWithToken(clientID, cl.bearerToken, cl.connectHandler)
+		err = cl.ConnectWithToken(clientID, cl.bearerToken)
 		if err == nil {
 			break
 		}
@@ -419,12 +432,12 @@ func (cl *WssClient) Stop() {
 // This uses the Hiveot passthrough message converter.
 //
 //	wssURL is the full websocket connection URL including path
-//	clientID is the authentication ID of the consumer or agent
 //	caCert is the server CA for TLS connection validation
 //	timeout is the maximum connection wait time
+//	ch is the connect/disconnect callback. nil to ignore
 func NewHiveotWssClient(
 	wssURL string, caCert *x509.Certificate,
-	timeout time.Duration) *WssClient {
+	timeout time.Duration, ch transports.ConnectionHandler) *WssClient {
 
 	// ensure the URL has port as 443 is not valid for this
 	urlParts, err := url.Parse(wssURL)
@@ -464,12 +477,10 @@ func NewHiveotWssClient(
 // Users must use ConnectWithToken to authenticate and connect.
 //
 //	wssURL is the full websocket connection URL
-//	clientID is the authentication ID of the consumer or agent
 //	caCert is the server CA for TLS connection validation
-//	sink is the application module receiving notifications or in case of agents, requests.
-//	timeout is the maximum connection wait time
-func NewWotWssClient(
-	wssURL string, caCert *x509.Certificate) *WssClient {
+//	ch is the connection callback handler, nil to ignore
+func NewWotWssClient(wssURL string, caCert *x509.Certificate,
+	ch transports.ConnectionHandler) *WssClient {
 
 	timeout := transports.DefaultRpcTimeout
 
@@ -480,6 +491,7 @@ func NewWotWssClient(
 
 	cl := &WssClient{
 		caCert:               caCert,
+		connectHandler:       ch,
 		maxReconnectAttempts: 0,
 		msgConverter:         wssconverter.NewWotWssMsgConverter(),
 		rnrChan:              msg.NewRnRChan(),
@@ -487,7 +499,7 @@ func NewWotWssClient(
 		timeout:              timeout,
 		wssPath:              wssPath,
 	}
-	var _ transports.IConnection = cl // interface check
-	var _ modules.IHiveModule = cl    // interface check
+	var _ transports.IClientConnection = cl // interface check
+	var _ modules.IHiveModule = cl          // interface check
 	return cl
 }

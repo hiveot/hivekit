@@ -55,7 +55,7 @@ func (m *DirectoryModuleServer) GetTD(thingID string) *td.TD {
 	if err == nil {
 		m.tdCacheMux.Lock()
 		m.tdCache[thingID] = tdi
-		m.tdCacheMux.RUnlock()
+		m.tdCacheMux.Unlock()
 	}
 	return tdi
 }
@@ -127,6 +127,10 @@ func (m *DirectoryModuleServer) UpdateThing(agentID string, tdJson string) error
 	}
 	slog.Info("UpdateThing",
 		slog.String("agentID", agentID), slog.String("thingID", tdi.ID))
+
+	// the agentID is stored to determine where to route requests to, when using RC agents
+	// RC agents have no 'base' address.
+	// tdi.AgentID = agentID
 
 	// The hook can modify the TD or cancel the write
 	if m.writeTDHook != nil {

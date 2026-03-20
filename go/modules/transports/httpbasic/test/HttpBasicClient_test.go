@@ -38,11 +38,11 @@ func TestConnect(t *testing.T) {
 	err = m.Start("")
 	require.NoError(t, err)
 
-	cl := httpbasicclient.NewHttpBasicClient(baseURL, caCert, nil)
-	err = cl.ConnectWithToken(clientID, token,
+	cl := httpbasicclient.NewHttpBasicClient(baseURL, caCert, nil,
 		func(connected bool, cl2 transports.IConnection, err2 error) {
 			isConnected = connected
 		})
+	err = cl.ConnectWithToken(clientID, token)
 	require.NoError(t, err)
 	time.Sleep(time.Millisecond)
 	assert.True(t, isConnected)
