@@ -44,14 +44,14 @@ func TestMain(m *testing.M) {
 //
 // This uses the clientID as password
 // This panics if a client cannot be created
-func NewTestConsumer(m *authnserver.AuthnServer, serverURL, clientID string) (
+func NewTestConsumer(m *authnserver.AuthnServer, protocolType, serverURL, clientID string) (
 	*clients.Consumer, transports.IClientConnection, string) {
 
 	// ensure the client exists
 	_ = m.AddClient(clientID, "client 1", authnapi.ClientRoleViewer)
 	token, validUntil, _ := m.CreateSessionToken(clientID, time.Minute)
 	_ = validUntil
-	co, cc, err := clients.NewConsumerConnection(appID, serverURL, testCerts.CaCert)
+	co, cc, err := clients.NewConsumerConnection(appID, protocolType, serverURL, testCerts.CaCert)
 	if err != nil {
 		panic("Failed creating consumer connection: " + err.Error())
 	}

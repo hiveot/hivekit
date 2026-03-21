@@ -85,7 +85,9 @@ func (m *RouterModule) GetDeviceCredentials(tdi *td.TD) (
 func (m *RouterModule) GetClientConnection(tdi *td.TD) (
 	c clients.IClientModule, err error) {
 
-	href := tdi.Base
+	// use URI scheme to determine the protocol, except for the hiveot WSS, which also
+	// has a wss scheme. Instead look at the base path which is fixed.
+	protocolType, href := tdi.GetProtocolType()
 	parts, err := url.Parse(href)
 	if err != nil {
 		return nil, err
@@ -95,7 +97,7 @@ func (m *RouterModule) GetClientConnection(tdi *td.TD) (
 	if !found || !c.IsConnected() {
 		// fixme: how to determine the CA for this server?
 		// connect and store the connection if successful
-		c, err = clients.NewTransportClient(href, m.caCert, nil)
+		c, err = clients.NewTransportClient(protocolType, href, m.caCert, nil)
 		if err == nil {
 			err = c.Authenticate(tdi, m.GetDeviceCredentials)
 		}

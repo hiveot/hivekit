@@ -11,29 +11,6 @@ import (
 // Transport server module definitions for use by transport protocols.
 // This contains the protocol types, authentication handler, and interfaces for the shared http server and tls client.
 
-// Supported transport protocol types
-const (
-	// WoT http basic protocol without return channel
-	ProtocolSchemeHTTPBasic = "https"
-	ProtocolTypeHTTPBasic   = "https"
-
-	// WoT websocket sub-protocol
-	ProtocolSchemeWotWSS = "wss"
-	ProtocolTypeWotWSS   = "wss"
-
-	// WoT MQTT protocol over WSS
-	ProtocolSchemeWotMQTTWSS = "mqtts"
-	ProtocolTypeWotMQTTWSS   = "mqtts"
-
-	// HiveOT http SSE subprotocol return channel with direct messaging
-	ProtocolSchemeHiveotSSE = "sse"
-	ProtocolTypeHiveotSSE   = "sse-sc"
-
-	// HiveOT message envelope passthrough
-	ProtocolSchemePassthrough = ""
-	ProtocolTypePassthrough   = "passthrough"
-)
-
 // notifications sent by transport servers to server side services
 // These are published by TransportServerBase
 const (
@@ -72,8 +49,8 @@ type ITransportServer interface {
 	// This returns nil if the client does not have an authenticated connection.
 	GetConnectionByClientID(clientID string) IConnection
 
-	// GetConnectURL returns connection URL of the server
-	GetConnectURL() string
+	// GetConnectURL returns connection URL and protocol of the server
+	GetConnectURL() (uri string, protocolType string)
 
 	// SendNotification [agent] sends a notification over the connections to
 	// remote subscribed consumers.

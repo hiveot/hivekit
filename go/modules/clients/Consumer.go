@@ -385,10 +385,10 @@ func NewConsumer(appID string) *Consumer {
 // The caller still needs to call one of the ConnectWith... methods to provide the credentials.
 // The caller must call client connection Stop or Close when done. The consumer cant do it.
 func NewConsumerConnection(
-	appID string, serverURL string, caCert *x509.Certificate) (
+	appID string, protocolType string, serverURL string, caCert *x509.Certificate) (
 	*Consumer, transports.IClientConnection, error) {
 
-	cc, err := NewTransportClient(serverURL, caCert, nil)
+	cc, err := NewTransportClient(protocolType, serverURL, caCert, nil)
 	if err != nil {
 		return nil, nil, err
 	}

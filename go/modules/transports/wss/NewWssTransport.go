@@ -16,7 +16,7 @@ import (
 //
 // Use SetRequestSink to set the handler for requests send by consumers
 // Use SetNotificationSink to set the handler for notifications send by agents.
-func NewHiveotWssTransport(httpServer transports.IHttpServer, respTimeout time.Duration) transports.ITransportServer {
+func NewHiveotTransport(httpServer transports.IHttpServer, respTimeout time.Duration) transports.ITransportServer {
 	wssTransport := internal.NewHiveotWssTransport(httpServer, respTimeout)
 	return wssTransport
 }
@@ -31,7 +31,7 @@ func NewHiveotWssTransport(httpServer transports.IHttpServer, respTimeout time.D
 //
 // Use SetRequestSink to set the handler for requests send by consumers
 // Use SetNotificationSink to set the handler for notifications send by agents.
-func NewWotWssTransport(httpServer transports.IHttpServer, respTimeout time.Duration) transports.ITransportServer {
+func NewWotTransport(httpServer transports.IHttpServer, respTimeout time.Duration) transports.ITransportServer {
 	wssTransport := internal.NewWotWssTransport(httpServer, respTimeout)
 	return wssTransport
 }

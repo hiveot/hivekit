@@ -56,7 +56,7 @@ func startService() (
 	// http server needed for all communications
 	testEnv.StartHttpServer()
 	// a websocket server for RRN messaging
-	appServer := testEnv.StartTestServer(transports.ProtocolSchemeWotWSS)
+	appServer := testEnv.StartTestServer(td.ProtocolSchemeWotWSS)
 
 	// the directory server that will contain digitwin Things
 	dir = directory.NewDirectoryModule("", testEnv.HttpServer)
@@ -141,7 +141,8 @@ func TestCreateDigitwinTD(t *testing.T) {
 
 	// 4. check if the base form points to the server
 	require.NotEmpty(t, dtw1.Base, "Missing base in TD")
-	expectedBase := testEnv.Server.GetConnectURL()
+	expectedBase, protocolType := testEnv.Server.GetConnectURL()
+	assert.NotEmpty(t, protocolType)
 	assert.Equal(t, expectedBase, dtw1.Base)
 
 	// 5. check if the forms in the affordances are replaced

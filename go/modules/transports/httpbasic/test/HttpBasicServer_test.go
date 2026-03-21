@@ -14,7 +14,7 @@ func TestStartStop(t *testing.T) {
 
 	dummyServer := tptests.NewDummyServer("")
 	// dummyAuthenticator := authnapi.NewDummyAuthenticator()
-	m := httpbasic.NewHttpBasicTransport(dummyServer)
+	m := httpbasic.NewTransport(dummyServer)
 	err := m.Start("")
 	require.NoError(t, err)
 	defer m.Stop()

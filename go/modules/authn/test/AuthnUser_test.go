@@ -58,9 +58,9 @@ func TestBadRefresh(t *testing.T) {
 
 	srv, cancelFn := startTestAuthnModule(defaultHash)
 	defer cancelFn()
-	serverURL := srv.GetConnectURL()
+	serverURL, protocolType := srv.GetConnectURL()
 
-	co1, cc1, token1 := NewTestConsumer(srv, serverURL, testClientID1)
+	co1, cc1, token1 := NewTestConsumer(srv, protocolType, serverURL, testClientID1)
 	_ = co1
 	_ = token1
 	defer cc1.Close()
@@ -90,10 +90,10 @@ func TestLogout(t *testing.T) {
 
 	srv, cancelFn := startTestAuthnModule(defaultHash)
 	defer cancelFn()
-	serverURL := srv.GetConnectURL()
+	serverURL, protocolType := srv.GetConnectURL()
 
 	// check if this test still works with a valid login
-	co1, cc1, token1 := NewTestConsumer(srv, serverURL, testClientID1)
+	co1, cc1, token1 := NewTestConsumer(srv, protocolType, serverURL, testClientID1)
 	_ = cc1
 	_ = co1
 	defer co1.Stop()
@@ -230,7 +230,8 @@ func TestAuthClientCert(t *testing.T) {
 
 	// add user to test with. don't set the public key yet
 	err := m.AddClient(testCerts.ClientID, "user 1", authnapi.ClientRoleViewer)
-	serverAddress := m.GetConnectURL()
+	serverAddress, protocolType := m.GetConnectURL()
+	_ = protocolType
 	urlParts, err := url.Parse(serverAddress)
 
 	tlsClient := tlsclient.NewTLSClient(

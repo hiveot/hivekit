@@ -6,7 +6,8 @@ import (
 	"github.com/hiveot/hivekit/go/modules/transports/httpbasic/internal"
 )
 
-func NewHttpBasicTransport(httpServer transports.IHttpServer) httpbasicapi.IHttpBasicTransport {
+// NewTransport creates a new WoT server supporting the http-basic protocol
+func NewTransport(httpServer transports.IHttpServer) httpbasicapi.IHttpBasicTransport {
 	srv := internal.NewHttpBasicTransport(httpServer)
 	return srv
 }

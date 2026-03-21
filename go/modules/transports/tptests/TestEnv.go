@@ -69,7 +69,8 @@ type TestEnv struct {
 	// The transport server connection URL
 	ServerURL string
 	// the transport to use for this test environment
-	Server transports.ITransportServer
+	Server         transports.ITransportServer
+	ServerProtocol string
 	// the storage root directory to use by modules. Module add their moduleID to the path.
 	StorageRoot string
 }
@@ -139,7 +140,7 @@ func (testEnv *TestEnv) NewConnectedClient(
 	}
 	// create a connection to the test server
 	cl, err = clients.NewTransportClient(
-		testEnv.ServerURL, testEnv.CertBundle.CaCert, ch)
+		testEnv.ServerProtocol, testEnv.ServerURL, testEnv.CertBundle.CaCert, ch)
 	if err == nil {
 		cl.SetTimeout(TestTimeout)
 		err = cl.ConnectWithToken(clientID, token)
@@ -243,18 +244,22 @@ func (testEnv *TestEnv) StartTestServer(protocol string) (srv transports.ITransp
 	var err error
 
 	switch protocol {
-	case transports.ProtocolTypeHTTPBasic:
+	case td.ProtocolTypeHiveotSSESC:
+		srv = ssesc.NewTransport(testEnv.HttpServer, TestTimeout)
+		err = srv.Start("")
 
-		srv = httpbasic.NewHttpBasicTransport(testEnv.HttpServer)
+	case td.ProtocolTypeHiveotWSS:
+		srv = wss.NewHiveotTransport(testEnv.HttpServer, TestTimeout)
+		err = srv.Start("")
+
+	case td.ProtocolTypeHTTPBasic:
+
+		srv = httpbasic.NewTransport(testEnv.HttpServer)
 		err = srv.Start("")
 		// http only, no subprotocol bindings
 
-	case transports.ProtocolTypeHiveotSSE:
-		srv = ssesc.NewSseScTransport(testEnv.HttpServer, TestTimeout)
-		err = srv.Start("")
-
-	case transports.ProtocolTypeWotWSS:
-		srv = wss.NewWotWssTransport(testEnv.HttpServer, TestTimeout)
+	case td.ProtocolTypeWotWSS:
+		srv = wss.NewWotTransport(testEnv.HttpServer, TestTimeout)
 		err = srv.Start("")
 
 	default:
@@ -267,7 +272,8 @@ func (testEnv *TestEnv) StartTestServer(protocol string) (srv transports.ITransp
 	// dont override the first transport server in case multiple transports are used
 	if testEnv.Server == nil {
 		testEnv.Server = srv
-		testEnv.ServerURL = srv.GetConnectURL()
+		testEnv.ServerProtocol = protocol
+		testEnv.ServerURL, _ = srv.GetConnectURL()
 	}
 	return srv
 }

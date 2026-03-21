@@ -31,9 +31,6 @@ type TransportServerBase struct {
 	// connectionIDs by clientID
 	connectionsByClientID map[string][]string
 
-	// The connection URL for this transport. Must be set during init
-	connectURL string
-
 	// mutex to manage the connections
 	cmux sync.RWMutex
 
@@ -200,11 +197,11 @@ func (m *TransportServerBase) ForwardRequest(req *msg.RequestMessage, replyTo ms
 	return err
 }
 
-// GetConnectURL returns SSE connection URL of the server
-// This uses the custom 'ssesc' schema which is non-wot compatible.
-func (m *TransportServerBase) GetConnectURL() string {
-	return m.connectURL
-}
+// // GetConnectURL returns SSE connection URL of the server
+// // This uses the custom 'ssesc' schema which is non-wot compatible.
+// func (m *TransportServerBase) GetConnectURL() string {
+// 	return m.connectURL
+// }
 
 // GetConnectionByConnectionID locates the connection of the client using the client's connectionID
 // This returns nil if no connection was found with the given connectionID
@@ -256,9 +253,8 @@ func (m *TransportServerBase) GetModuleID() string {
 //
 //	moduleID is the transport instance ID to identify as.
 //	connectURL is the URL this module can be reached at.
-func (m *TransportServerBase) Init(moduleID string, connectURL string) {
+func (m *TransportServerBase) Init(moduleID string) {
 	m.moduleID = moduleID
-	m.connectURL = connectURL
 	// m.HiveModuleBase.Init(moduleID, sink)
 	m.RnrChan = msg.NewRnRChan()
 }

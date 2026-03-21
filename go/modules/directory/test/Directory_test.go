@@ -13,7 +13,6 @@ import (
 	directoryapi "github.com/hiveot/hivekit/go/modules/directory/api"
 	directoryclient "github.com/hiveot/hivekit/go/modules/directory/client"
 	"github.com/hiveot/hivekit/go/modules/directory/internal/module"
-	"github.com/hiveot/hivekit/go/modules/transports"
 	"github.com/hiveot/hivekit/go/modules/transports/direct"
 	"github.com/hiveot/hivekit/go/modules/transports/httpserver/tlsclient"
 	"github.com/hiveot/hivekit/go/modules/transports/tptests"
@@ -27,7 +26,7 @@ import (
 var storageRoot = ""
 
 const defaultAgentID = "agent-smith"
-const defaultProtocol = transports.ProtocolTypeWotWSS
+const defaultProtocol = td.ProtocolTypeWotWSS
 const TestKeyType = utils.KeyTypeED25519
 
 // TestMain setsup logging

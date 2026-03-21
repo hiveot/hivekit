@@ -4,8 +4,10 @@ import (
 	"github.com/hiveot/hivekit/go/modules"
 	"github.com/hiveot/hivekit/go/modules/clients"
 	"github.com/hiveot/hivekit/go/modules/transports"
+	"github.com/hiveot/hivekit/go/modules/transports/httpbasic"
 	"github.com/hiveot/hivekit/go/modules/transports/httpserver"
 	httpserverapi "github.com/hiveot/hivekit/go/modules/transports/httpserver/api"
+	"github.com/hiveot/hivekit/go/modules/transports/ssesc"
 	"github.com/hiveot/hivekit/go/modules/transports/wss"
 	"github.com/hiveot/hivekit/go/wot/td"
 )
@@ -19,53 +21,64 @@ type TestDevice struct {
 	HttpServer      transports.IHttpServer
 	TransportServer transports.ITransportServer
 	Agent           *clients.Agent
+	// the server protocol to use, eg ProtocolTypeWotWSS, ...
+	protocolType string
 
 	td *td.TD
 }
 
 // return the TD of the test device
-func (v *TestDevice) GetTD() *td.TD {
-	return v.td
+func (device *TestDevice) GetTD() *td.TD {
+	return device.td
 }
 
 // Start the test device
 // This starts the http server, the messaging transport (sub-protocol) and
 // creates an agent instance.
-func (v *TestDevice) Start(_ string) error {
-	v.SetModuleID(v.agentID)
+func (device *TestDevice) Start(_ string) error {
+	device.SetModuleID(device.agentID)
 
 	// setup the server, transport and link the device to the transport
 	// cfg := httpserverapi.NewConfig(addr, port, serverCert, caCert, validateToken)
-	v.HttpServer = httpserver.NewHttpServerModule(v.cfg)
-	err := v.HttpServer.Start()
+	device.HttpServer = httpserver.NewHttpServerModule(device.cfg)
+	err := device.HttpServer.Start()
 	if err != nil {
-		v.HttpServer = nil
+		device.HttpServer = nil
 		return err
 	}
-	v.TransportServer = wss.NewWotWssTransport(v.HttpServer, 0)
-	err = v.TransportServer.Start("")
+	switch device.protocolType {
+	case td.ProtocolTypeHTTPBasic:
+		device.TransportServer = httpbasic.NewTransport(device.HttpServer)
+	case td.ProtocolTypeHiveotSSESC:
+		device.TransportServer = ssesc.NewTransport(device.HttpServer, 0)
+	case td.ProtocolTypeWotWSS:
+		device.TransportServer = wss.NewWotTransport(device.HttpServer, 0)
+	case td.ProtocolTypeHiveotWSS:
+		device.TransportServer = wss.NewHiveotTransport(device.HttpServer, 0)
+	}
+	err = device.TransportServer.Start("")
 	if err != nil {
-		v.HttpServer.Stop()
-		v.HttpServer = nil
-		v.TransportServer = nil
+		device.HttpServer.Stop()
+		device.HttpServer = nil
+		device.TransportServer = nil
 		return err
 	}
 	// populate the security and forms in the TD
-	v.TransportServer.AddTDSecForms(v.td, true)
+	device.TransportServer.AddTDSecForms(device.td, true)
 	// create the agent and link it to the transport to serve requests
-	v.Agent = clients.NewAgent(v.agentID, nil)
-	v.TransportServer.SetRequestSink(v.Agent.HandleRequest)
-	v.Agent.SetNotificationSink(v.TransportServer.SendNotification)
+	device.Agent = clients.NewAgent(device.agentID, nil)
+	device.TransportServer.SetRequestSink(device.Agent.HandleRequest)
+	device.Agent.SetNotificationSink(device.TransportServer.SendNotification)
 	return nil
 }
 
 // shutdown the server
-func (v *TestDevice) Stop() {
-	if v.TransportServer != nil {
-		v.TransportServer.Stop()
+func (device *TestDevice) Stop() {
+	if device.TransportServer != nil {
+		device.TransportServer.Stop()
 	}
-	if v.HttpServer != nil {
-		v.HttpServer.Stop()
+	if device.HttpServer != nil {
+		device.HttpServer.Stop()
 	}
 }
 
@@ -81,11 +94,14 @@ func (v *TestDevice) Stop() {
 // cfg defines the server setup.
 // agentID is the service that manages the device
 // tm is the TM of the thing to manage
-func NewTestDevice(cfg *httpserverapi.Config, agentID string, tm *td.TD) *TestDevice {
+// protocolType sets the type of server to use
+func NewTestDevice(cfg *httpserverapi.Config, agentID string, tm *td.TD,
+	protocolType string) *TestDevice {
 	v := &TestDevice{
-		agentID: agentID,
-		cfg:     cfg,
-		td:      tm,
+		protocolType: protocolType,
+		agentID:      agentID,
+		cfg:          cfg,
+		td:           tm,
 	}
 	return v
 }

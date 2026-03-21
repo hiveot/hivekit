@@ -7,7 +7,7 @@ import (
 	"github.com/hiveot/hivekit/go/modules/transports/ssesc/internal"
 )
 
-// NewHiveotWssTransport creates a websocket transport using the HiveOT RRN messaging format.
+// NewTransport creates a hiveot SSE-SC transport.
 //
 // This uses the HiveOT RRN messages as the payload without conversions.
 //
@@ -16,7 +16,7 @@ import (
 //
 // Use SetRequestSink to set the handler for requests send by consumers
 // Use SetNotificationSink to set the handler for notifications send by agents.
-func NewSseScTransport(httpServer transports.IHttpServer, respTimeout time.Duration) transports.ITransportServer {
+func NewTransport(httpServer transports.IHttpServer, respTimeout time.Duration) transports.ITransportServer {
 	transport := internal.NewSseScTransport(httpServer, respTimeout)
 	return transport
 }

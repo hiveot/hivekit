@@ -26,7 +26,8 @@ var HttpKnownOperations = []string{
 // includeAffordances adds forms for all affordances to be compliant with the specifications.
 func (srv *HttpBasicTransport) AddTDSecForms(tdoc *td.TD, includeAffordances bool) {
 	// defaults to https://host:port/
-	tdoc.Base = fmt.Sprintf("%s", srv.GetConnectURL())
+	connectURL, _ := srv.GetConnectURL()
+	tdoc.Base = fmt.Sprintf("%s", connectURL)
 
 	// 2. Set the security scheme used by the authenticator.
 	authr := srv.httpServer.GetAuthenticator()

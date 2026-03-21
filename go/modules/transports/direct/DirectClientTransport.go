@@ -21,6 +21,12 @@ type DirectClientTransport struct {
 func (srv *DirectClientTransport) AddTDSecForms(tdi *td.TD, includeAffordances bool) {
 }
 
+// GetConnectURL returns SSE connection URL of the server
+// This uses the custom 'ssesc' schema which is non-wot compatible.
+func (srv *DirectClientTransport) GetConnectURL() (string, string) {
+	return "", ""
+}
+
 // Receive a notification from the sink and pass it on to the notification sink (the consumer)
 func (m *DirectClientTransport) HandleNotification(notif *msg.NotificationMessage) {
 	m.ForwardNotification(notif)
@@ -85,7 +91,7 @@ func (m *DirectClientTransport) Stop() {
 func NewDirectTransport(
 	moduleID string, producer modules.IHiveModule) modules.IHiveModule {
 	t := &DirectClientTransport{}
-	t.Init(moduleID, "")
+	t.Init(moduleID)
 	producer.SetNotificationSink(t.HandleNotification)
 	t.SetRequestSink(producer.HandleRequest)
 	var _ transports.ITransportServer = t // interface check

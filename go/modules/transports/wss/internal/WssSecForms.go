@@ -1,7 +1,6 @@
 package internal
 
 import (
-	wssapi "github.com/hiveot/hivekit/go/modules/transports/wss/api"
 	"github.com/hiveot/hivekit/go/wot"
 	"github.com/hiveot/hivekit/go/wot/td"
 )
@@ -15,7 +14,7 @@ import (
 // Btw, this is a waste of space in the TD as it required but not needed with some protocols.
 func (srv *WssTransport) AddTDSecForms(tdoc *td.TD, includeAffordances bool) {
 	// 1. Add the base if none is set
-	tdoc.Base = srv.GetConnectURL()
+	tdoc.Base, _ = srv.GetConnectURL()
 
 	// 2. Set the security scheme used by the authenticator.
 	authr := srv.httpServer.GetAuthenticator()
@@ -23,7 +22,7 @@ func (srv *WssTransport) AddTDSecForms(tdoc *td.TD, includeAffordances bool) {
 
 	// 3. form for all operations
 	// the href is empty because it is the same as base for all forms in this protocol
-	form := td.NewForm("", "", wssapi.SubprotocolWotWSS)
+	form := td.NewForm("", "", srv.subprotocol)
 	form["op"] = []string{
 		wot.OpQueryAllActions,
 		wot.OpObserveAllProperties, wot.OpUnobserveAllProperties,
@@ -47,20 +46,20 @@ func (srv *WssTransport) AddAffordanceForms(tdoc *td.TD) {
 	href := ""
 	for name, aff := range tdoc.Actions {
 		_ = name
-		form := td.NewForm("", href, wssapi.SubprotocolWotWSS)
+		form := td.NewForm("", href, srv.subprotocol)
 		form["op"] = []string{wot.OpInvokeAction, wot.OpQueryAction}
 		aff.AddForm(form)
 		// cancel action is currently not supported
 	}
 	for name, aff := range tdoc.Events {
 		_ = name
-		form := td.NewForm("", href, wssapi.SubprotocolWotWSS)
+		form := td.NewForm("", href, srv.subprotocol)
 		form["op"] = []string{wot.HTOpReadEvent, wot.OpSubscribeEvent, wot.OpUnsubscribeEvent}
 		aff.AddForm(form)
 	}
 	for name, aff := range tdoc.Properties {
 		_ = name
-		form := td.NewForm("", href, wssapi.SubprotocolWotWSS)
+		form := td.NewForm("", href, srv.subprotocol)
 		ops := []string{}
 		if !aff.WriteOnly {
 			ops = append(ops, wot.OpReadProperty, wot.OpObserveProperty, wot.OpUnobserveProperty)

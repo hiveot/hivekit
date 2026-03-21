@@ -1,8 +1,8 @@
 package direct
 
 import (
-	"github.com/hiveot/hivekit/go/modules/transports"
 	"github.com/hiveot/hivekit/go/msg"
+	"github.com/hiveot/hivekit/go/wot/td"
 	jsoniter "github.com/json-iterator/go"
 )
 
@@ -75,7 +75,7 @@ func (svc *PassthroughMessageConverter) EncodeResponse(resp *msg.ResponseMessage
 
 // GetProtocolType returns the hiveot WSS protocol type identifier
 func (svc *PassthroughMessageConverter) GetProtocolType() string {
-	return transports.ProtocolTypeWotWSS
+	return td.ProtocolTypeWotWSS
 }
 
 // Create a new instance of the hiveot passthrough message converter

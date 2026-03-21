@@ -95,8 +95,8 @@ func (m *AuthnServer) DecodeToken(token string, signedNonce string, nonce string
 	return m.authenticator.DecodeToken(token, signedNonce, nonce)
 }
 
-// GetConnectURL Preturns the URI of the authentication server to include in the TD
-// security scheme.
+// GetConnectURL returns the URI of the authentication server with protocol to include
+// in the TD security scheme.
 //
 // This is currently just the base for the login endpoint (post {base}/authn/login).
 // The http server might need to include a web page where users can enter their login
@@ -105,10 +105,10 @@ func (m *AuthnServer) DecodeToken(token string, signedNonce string, nonce string
 // Note that web browsers do not directly access the runtime endpoints.
 // Instead a web server (hiveoview or other) provides the user interface.
 // Including the auth endpoint here is currently just a hint. How to integrate this?
-func (m *AuthnServer) GetConnectURL() string {
+func (m *AuthnServer) GetConnectURL() (uri string, protocolType string) {
 	baseURL := m.httpServer.GetConnectURL()
 	loginURL, _ := url.JoinPath(baseURL, HttpPostLoginPath)
-	return loginURL
+	return loginURL, td.ProtocolTypeHTTPBasic
 }
 
 // GetProfile return the client's profile

@@ -23,6 +23,7 @@ type SsescTransport struct {
 	// Transport base includes the RnR channel for matching request-response messages.
 	transports.TransportServerBase
 
+	connectURL string
 	// handler to invoke when a connection is established or disappears
 	// connectHandler transports.ConnectionHandler
 
@@ -76,6 +77,12 @@ func (m *SsescTransport) DetermineAgentConnection(thingID string) (transports.IC
 		return nil, fmt.Errorf("No connection found for ThingID '%s'", thingID)
 	}
 	return c, nil
+}
+
+// GetConnectURL returns SSE connection URL of the server
+// This uses the custom 'ssesc' schema which is non-wot compatible.
+func (m *SsescTransport) GetConnectURL() (string, string) {
+	return m.connectURL, td.ProtocolTypeHiveotSSESC
 }
 
 // Handle a notification this module (or downstream in the chain) subscribed to.
@@ -152,13 +159,14 @@ func NewSseScTransport(server transports.IHttpServer, respTimeout time.Duration)
 	}
 
 	m := &SsescTransport{
+		connectURL:  connectURL,
 		httpServer:  server,
 		ssePath:     ssePath,
 		converter:   converter,
 		respTimeout: respTimeout,
 	}
 	moduleID := ssescapi.DefaultSseScThingID
-	m.Init(moduleID, connectURL)
+	m.Init(moduleID)
 
 	var _ modules.IHiveModule = m         // interface check
 	var _ transports.ITransportServer = m // interface check

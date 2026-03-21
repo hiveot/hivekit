@@ -33,7 +33,7 @@ func TestConnect(t *testing.T) {
 	srv := httpserver.NewHttpServerModule(cfg)
 	err := srv.Start()
 	require.NoError(t, err)
-	m := httpbasic.NewHttpBasicTransport(srv)
+	m := httpbasic.NewTransport(srv)
 
 	err = m.Start("")
 	require.NoError(t, err)

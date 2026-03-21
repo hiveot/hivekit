@@ -2,7 +2,6 @@ package router_test
 
 import (
 	"context"
-	"fmt"
 	"os"
 	"path"
 	"testing"
@@ -27,21 +26,22 @@ import (
 var storageDir = path.Join(os.TempDir(), "router-test")
 
 var testDevicePort = 9993
-var testDeviceAddress = fmt.Sprintf(":%d", testDevicePort)
 var certsBundle = certstest.CreateTestCertBundle(utils.KeyTypeED25519)
 var testAuthn = tptests.NewTestAuthenticator()
 
-const testClientID = "client1"
-const testClientPass = "client1pass"
-const testClientToken = "client1Token"
+const testRouterID = "router1"
+
+// const serverType = td.ProtocolTypeHiveotWSS
+// const serverType = td.ProtocolTypeHiveotSSE
+// const serverType = td.ProtocolTypeHTTPBasic
+const serverType = td.ProtocolTypeWotWSS
 
 // the test directory that holds this td. http server is not needed
 
 // create a virtual device
 func startTestDevice(agentID string, thingID string) (v *tptests.TestDevice) {
 
-	testAuthn.AddClient(testClientID, "", authnapi.ClientRoleManager)
-	testAuthn.SetPassword(testClientID, testClientPass)
+	testAuthn.AddClient(testRouterID, "", authnapi.ClientRoleManager)
 
 	// create a test device with server
 	cfg := httpserverapi.NewConfig(
@@ -50,7 +50,7 @@ func startTestDevice(agentID string, thingID string) (v *tptests.TestDevice) {
 
 	var testTM *td.TD = td.NewTD(thingID, "test device", vocab.ThingDevice)
 
-	v = tptests.NewTestDevice(cfg, agentID, testTM)
+	v = tptests.NewTestDevice(cfg, agentID, testTM, serverType)
 	err := v.Start("")
 	if err != nil {
 		panic("failed starting test device")
@@ -95,7 +95,8 @@ func TestSubscribeToDevice(t *testing.T) {
 	var rxValue string
 
 	// Setup the test device with server and a TD
-	// FIXME: use the test server for auth
+	// The test device runs a server. The router will have to match its security as
+	// included in its TD
 	testDevice := startTestDevice(agentID, thingID1)
 	defer testDevice.Stop()
 	req := msg.NewRequestMessage(wot.OpObserveAllProperties, thingID1, "", nil, "")
@@ -109,6 +110,7 @@ func TestSubscribeToDevice(t *testing.T) {
 	var testDirMod = directory.NewDirectoryModule("", nil)
 	err := testDirMod.Start("")
 	require.NoError(t, err)
+	defer testDirMod.Stop()
 	err = testDirMod.CreateThing(agentID, deviceTDJson)
 	require.NoError(t, err)
 
@@ -120,7 +122,8 @@ func TestSubscribeToDevice(t *testing.T) {
 	require.NoError(t, err)
 	defer routerMod.Stop()
 	// to connect to the device, credentials are needed
-	token, _, _ := testAuthn.CreateToken(testClientID, time.Minute)
+	// FIXME: testAuthn does not properly test credentials. Use authn
+	token, _, _ := testAuthn.CreateToken(testRouterID, time.Minute)
 	routerMod.AddThingCredential(thingID1, clientID, token)
 
 	// a consumer links to the router and subscribes to the device

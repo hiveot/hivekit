@@ -1,9 +1,40 @@
-// Package things with API interface definitions for forms
+// Package td with API interface definitions for forms
 package td
 
 import (
 	"fmt"
 	"log/slog"
+)
+
+// Supported transport protocol types in the forms
+const (
+	// HiveOT http SSE subprotocol return channel with direct messaging
+	ProtocolSchemeHiveotSSESC = "sse"
+	ProtocolTypeHiveotSSESC   = "sse-sc"
+
+	// Hiveot websocket sub-protocol
+	ProtocolSchemeHiveotWSS = "wss"
+	ProtocolTypeHiveotWSS   = "hiveot-wss"
+
+	// WoT http basic protocol without return channel
+	ProtocolSchemeHTTPBasic = "https"
+	ProtocolTypeHTTPBasic   = "https"
+
+	// HiveOT message envelope passthrough
+	ProtocolSchemePassthrough = ""
+	ProtocolTypePassthrough   = "passthrough"
+
+	// WoT websocket sub-protocol
+	ProtocolSchemeWotWSS = "wss"
+	ProtocolTypeWotWSS   = "websocket" // subprotocol
+
+	// WoT SSE sub-protocol
+	ProtocolSchemeWotSSE = "sse"
+	ProtocolTypeWotSSE   = "sse"
+
+	// WoT MQTT protocol over WSS
+	ProtocolSchemeWotMQTTWSS = "mqtts"
+	ProtocolTypeWotMQTTWSS   = "mqtts"
 )
 
 // Form can be viewed as a statement of "To perform an operation type operation on form context, make a
