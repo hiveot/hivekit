@@ -5,6 +5,7 @@ import (
 	"log/slog"
 	"math/rand"
 	"os"
+	"path/filepath"
 	"strconv"
 	"testing"
 	"time"
@@ -13,6 +14,7 @@ import (
 	authnapi "github.com/hiveot/hivekit/go/modules/authn/api"
 	bucketstoreapi "github.com/hiveot/hivekit/go/modules/bucketstore/api"
 	"github.com/hiveot/hivekit/go/modules/clients"
+	historyapi "github.com/hiveot/hivekit/go/modules/history/api"
 	historyclient "github.com/hiveot/hivekit/go/modules/history/client"
 	historyserver "github.com/hiveot/hivekit/go/modules/history/internal/server"
 	"github.com/hiveot/hivekit/go/modules/transports"
@@ -56,14 +58,15 @@ func TestMain(m *testing.M) {
 func startHistoryService(clean bool) (
 	histModule *historyserver.HistoryServer, stopFn func()) {
 
+	dataDir := filepath.Join(testEnv.StorageRoot, historyapi.DefaultHistoryModuleID)
 	if clean {
-		os.RemoveAll(testEnv.StorageRoot)
+		os.RemoveAll(dataDir)
 	}
 
 	// create the history module and link it to the protocol server
 	// since the history module runs on the server it doesn't need an agent
 	// instance.
-	histModule = historyserver.NewHistoryServer(testEnv.StorageRoot, historyStoreBackend)
+	histModule = historyserver.NewHistoryServer(dataDir, historyStoreBackend)
 	testEnv.Server.SetRequestSink(histModule.HandleRequest)
 	histModule.SetNotificationSink(testEnv.Server.HandleNotification)
 

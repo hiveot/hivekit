@@ -22,7 +22,7 @@ import (
 // It includes a file watcher to automatically reload on update.
 type AuthnFileStore struct {
 	entries           map[string]AuthnEntry
-	storePath         string
+	storageFile       string
 	hashAlgo          string // hashing algorithm PWHASH_ARGON2id
 	minPasswordLength int
 	watcher           *fsnotify.Watcher
@@ -134,13 +134,13 @@ func (store *AuthnFileStore) GetEntries() (entries []AuthnEntry) {
 // This reads the password file and subscribes to file changes
 func (store *AuthnFileStore) Open() (err error) {
 	if store.watcher != nil {
-		err = fmt.Errorf("password file store '%s' is already open", store.storePath)
+		err = fmt.Errorf("password file store '%s' is already open", store.storageFile)
 	}
 	if err == nil {
 		err = store.Reload()
 	}
 	if err == nil {
-		store.watcher, err = utils.WatchFile(store.storePath, store.Reload)
+		store.watcher, err = utils.WatchFile(store.storageFile, store.Reload)
 	}
 	if err != nil {
 		err = fmt.Errorf("AddSession failed %w", err)
@@ -157,7 +157,7 @@ func (store *AuthnFileStore) Reload() error {
 	defer store.mutex.Unlock()
 
 	entries := make(map[string]AuthnEntry)
-	dataBytes, err := os.ReadFile(store.storePath)
+	dataBytes, err := os.ReadFile(store.storageFile)
 	if errors.Is(err, os.ErrNotExist) {
 		err = store.save()
 	} else if err != nil {
@@ -195,7 +195,7 @@ func (store *AuthnFileStore) Remove(clientID string) (err error) {
 // not concurrent save
 func (store *AuthnFileStore) save() error {
 
-	folder := path.Dir(store.storePath)
+	folder := path.Dir(store.storageFile)
 	// ensure the location exists
 	err := os.MkdirAll(folder, 0700)
 	if err != nil {
@@ -207,7 +207,7 @@ func (store *AuthnFileStore) save() error {
 		return err
 	}
 
-	err = os.Rename(tmpPath, store.storePath)
+	err = os.Rename(tmpPath, store.storageFile)
 	if err != nil {
 		err = fmt.Errorf("rename to password file failed: %w", err)
 		return err
@@ -359,7 +359,7 @@ func WritePasswordsToTempFile(
 //
 //	filepath location of the file store. See also DefaultPasswordFile for the recommended name.
 //	hashAlgo PWHASH_ARGON2id (default) or PWHASH_BCRYPT
-func NewAuthnFileStore(filepath string, hashAlgo string) *AuthnFileStore {
+func NewAuthnFileStore(storageFile string, hashAlgo string) *AuthnFileStore {
 	if hashAlgo == "" {
 		hashAlgo = authnapi.PWHASH_ARGON2id
 	}
@@ -367,7 +367,7 @@ func NewAuthnFileStore(filepath string, hashAlgo string) *AuthnFileStore {
 		slog.Error("unknown hash algorithm. Falling back to argon2id", "hashAlgo", hashAlgo)
 	}
 	store := &AuthnFileStore{
-		storePath:         filepath,
+		storageFile:       storageFile,
 		hashAlgo:          hashAlgo,
 		minPasswordLength: 5,
 		entries:           make(map[string]AuthnEntry),

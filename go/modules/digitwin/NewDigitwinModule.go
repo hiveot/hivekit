@@ -13,12 +13,12 @@ import (
 // The module will substitute the TDs with the digital twin and substitute forms with
 // those pointing to this module.
 //
-//		storageRoot is the root directory where modules store their data into a moduleID subdirectory
-//		dirModule is the directory service to hook into to intercept writes, or "" for in-memory testing
-//	 addForms is the handler to invoke to add forms to a TD
-func NewDigitwinModule(storageRoot string, dirModule directoryapi.IDirectoryServer,
+//	storageDir is the directory where the module stores its data
+//	dirModule is the directory service to hook into to intercept writes, or "" for in-memory testing
+//	addForms is the handler to invoke to add forms to a TD
+func NewDigitwinModule(storageDir string, dirModule directoryapi.IDirectoryServer,
 	addForms func(tdi *td.TD, includeAffordances bool)) digitwinapi.IDigitwinModule {
 
-	m := module.NewDigitwinModule(storageRoot, dirModule, addForms)
+	m := module.NewDigitwinModule(storageDir, dirModule, addForms)
 	return m
 }

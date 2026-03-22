@@ -3,7 +3,6 @@ package bucketstoreserver
 
 import (
 	_ "embed"
-	"path/filepath"
 
 	"github.com/hiveot/hivekit/go/modules"
 	"github.com/hiveot/hivekit/go/modules/bucketstore"
@@ -28,9 +27,9 @@ type BucketStoreServer struct {
 	// The default is kvbtree.
 	StoreType string `yaml:"storeType"`
 
-	// The persistence data directory root.
+	// The storage data directory.
 	// When empty, a non-persistent in-memory kvbtree store will be used. (mostly for testing)
-	storageRoot string
+	storageDir string
 
 	// The storage bucket store itself, kvbtree, pebble or the default, the pipeline store.
 	store  bucketstoreapi.IBucketStore
@@ -60,17 +59,15 @@ func (m *BucketStoreServer) HandleRequest(req *msg.RequestMessage, replyTo msg.R
 
 // Start readies the module for use using the given yaml configuration.
 //
-// This creates a bucket store in {storeRoot}/{moduleID} and enables the
-// messaging request handler.
+// This creates a bucket store in {storageDir} and enables the messaging request handler.
 //
 // yamlConfig with optional configuration (todo)
 func (m *BucketStoreServer) Start(yamlConfig string) (err error) {
 
-	// if a storage directory is provided then open a store under the given name.
+	// if a storage directory is provided then open a store
 	// otherwise create an in-memory store.
-	if m.storageRoot != "" {
-		storeDirectory := filepath.Join(m.storageRoot, m.GetModuleID())
-		m.store, err = bucketstore.NewBucketStore(storeDirectory, m.StoreType)
+	if m.storageDir != "" {
+		m.store, err = bucketstore.NewBucketStore(m.storageDir, m.StoreType)
 	} else {
 		// no persistence. Use an in-memory store
 		m.store = kvbtree.NewKVStore("")
@@ -100,15 +97,14 @@ func (m *BucketStoreServer) Stop() {
 // Start a new bucket storage instance
 // Run Start() before use.
 //
-// If an embedded store is used then the history data is stored in the directory
-// {storageRoot}/{moduleID}.
+// If an embedded store is used then the history data is stored in the storageDir directory.
 //
-// storageRoot is the application storage root directory, "" for testing with in-memory storage
-func NewBucketStoreServer(storageRoot string, storeType string) *BucketStoreServer {
+// storageDir is the bucket storage directory, "" for testing with in-memory storage
+func NewBucketStoreServer(storageDir string, storeType string) *BucketStoreServer {
 
 	m := &BucketStoreServer{
 		HiveModuleBase: modules.HiveModuleBase{},
-		storageRoot:    storageRoot,
+		storageDir:     storageDir,
 		StoreType:      storeType,
 		// StoreName:   defaultStoreName,
 		// bucketStore: bucketStore,

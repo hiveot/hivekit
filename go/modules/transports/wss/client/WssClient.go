@@ -122,27 +122,27 @@ func (cl *WssClient) _send(wssMsg []byte) (err error) {
 
 // Authenticate the client connection with the server
 //
-// This currently only supports header bearer token authentication.
+// This currently only supports bearer token authentication.
 //
 // This determine which auth schema the TD describes, obtains the credentials
 // and injects the authentication credentials according to the TDI schema.
 // This returns an error if the schema isn't supported or is not compatible.
-func (cl *WssClient) Authenticate(tdi *td.TD,
+func (cl *WssClient) Authenticate(tdDoc *td.TD,
 	getCredentials transports.GetCredentials) error {
 
 	// for now just assume its bearer token, just to get it working
-	clientID, token, err := getCredentials(tdi)
-	secScheme, err := tdi.GetSecurityScheme()
+	clientID, secret, schemeName, err := getCredentials(tdDoc.ID)
+	secScheme, err := tdDoc.GetSecurityScheme()
 
-	// this websocket client only supports bearer token scheme
-	if secScheme.Scheme == td.SecSchemeAuto || secScheme.Scheme == td.SecSchemeBearer {
-		if secScheme.In == td.CredLocHeader || secScheme.In == td.CredLocAuto {
-			err = cl.ConnectWithToken(clientID, token)
-		} else {
-			err = fmt.Errorf("Unsupported credentials location '%s'. Expect auto or header", secScheme.In)
-		}
+	if schemeName != secScheme.Scheme && schemeName != "" && schemeName != td.SecSchemeAuto {
+		err = fmt.Errorf("Security scheme doesn't match credentials TD scheme='%s', credentials scheme='%s'", secScheme.Scheme, schemeName)
+	} else if secScheme.Scheme == td.SecSchemeDigest {
+		// err = cl.ConnectWithDigest(clientID, secret)
+		err = fmt.Errorf("Digest authentication is not yet supported. Use bearer token instead")
+	} else if secScheme.Scheme == td.SecSchemeBearer || secScheme.Scheme == td.SecSchemeAuto {
+		err = cl.ConnectWithToken(clientID, secret)
 	} else {
-		err = fmt.Errorf("Unsupported security scheme '%s'. Expect auto or bearer", secScheme.Scheme)
+		err = fmt.Errorf("Unexpected security scheme '%s'", secScheme.Scheme)
 	}
 	return err
 }

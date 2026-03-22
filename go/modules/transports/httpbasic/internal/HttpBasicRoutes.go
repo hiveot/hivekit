@@ -99,10 +99,10 @@ func (m *HttpBasicTransport) onHttpAffordanceOperation(w http.ResponseWriter, r 
 		return
 	}
 
-	// This passes the request to the handler provided on startup. The replyTo is
+	// This passes the request to the request sink. The replyTo is
 	// expected to be called before the timeout, otherwise this returns an error.
 	rx := utils.NewAsyncReceiver[*msg.ResponseMessage]()
-	err = m.serverRequestHandler(req, func(resp *msg.ResponseMessage) error {
+	err = m.ForwardRequest(req, func(resp *msg.ResponseMessage) error {
 		rx.SetResponse(resp)
 		return nil
 	})

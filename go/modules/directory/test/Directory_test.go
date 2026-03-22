@@ -24,7 +24,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-var storageRoot = ""
+var storageDir = ""
 
 const defaultAgentID = "agent-smith"
 const defaultProtocol = transports.WotWebsocketProtocolType
@@ -49,7 +49,7 @@ func StartDirectoryServer() (
 
 	testEnv, cancelTestEnv := tptests.StartTestEnv(defaultProtocol)
 	// use in-memory storage
-	m = directory.NewDirectoryModule(storageRoot, testEnv.HttpServer)
+	m = directory.NewDirectoryModule(storageDir, testEnv.HttpServer)
 	err := m.Start("")
 	if err != nil {
 		panic("StartDirectoryServer: failed to start the directory " + err.Error())
@@ -67,7 +67,7 @@ func StartDirectoryServer() (
 func TestStartStop(t *testing.T) {
 	t.Logf("---%s---\n", t.Name())
 
-	m := directory.NewDirectoryModule(storageRoot, nil)
+	m := directory.NewDirectoryModule(storageDir, nil)
 	err := m.Start("")
 	require.NoError(t, err)
 	defer m.Stop()
@@ -85,7 +85,7 @@ func TestStartStop(t *testing.T) {
 func TestCreateTD(t *testing.T) {
 	thingID := "thing1"
 
-	m := directory.NewDirectoryModule(storageRoot, nil)
+	m := directory.NewDirectoryModule(storageDir, nil)
 	err := m.Start("")
 	require.NoError(t, err)
 	defer m.Stop()
@@ -126,7 +126,7 @@ func TestCRUDUsingMsgAPI(t *testing.T) {
 	_ = testEnv
 	defer cancelFn()
 
-	directoryID := directoryapi.DefaultDirectoryServiceID
+	directoryID := directoryapi.DefaultDirectoryModuleID
 	thing1ID := clientID + ":thing1"
 
 	// test create a TD

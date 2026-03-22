@@ -3,7 +3,6 @@ package module
 import (
 	"fmt"
 	"log/slog"
-	"path/filepath"
 	"strings"
 	"sync"
 
@@ -65,8 +64,8 @@ type DigitwinModule struct {
 	// notification cache holding device property and events values
 	vcache vcacheapi.IVCacheServer
 
-	// location of the digital twin storage area
-	storageRoot string
+	// location of the digital twin storage location
+	storageDir string
 }
 
 // ForwardDigitalTwinRequest passes the request made to a digital twin to the original device.
@@ -228,14 +227,8 @@ func (m *DigitwinModule) Start(_ string) (err error) {
 	m.vcache = vcache.NewVCacheModule()
 	m.vcache.SetRequestSink(m.ForwardDigitwinRequestToDevice)
 	m.vcache.Start("")
-	// the device directory holds the unmodified device TDs
-	// m.deviceDirectory = directory.NewDirectoryServer(m.storageRoot, nil)
-	// m.deviceDirectory.Start("")
 
 	storageDir := ""
-	if m.storageRoot != "" {
-		storageDir = filepath.Join(m.storageRoot, moduleID)
-	}
 	m.bucketStore, err = bucketstore.NewBucketStore(storageDir, bucketstoreapi.BackendKVBTree)
 
 	err = m.bucketStore.Open()
@@ -274,19 +267,19 @@ func (m *DigitwinModule) Stop() {
 
 // NewDigitwinModule creates a new digital twin module instance.
 //
-//	storageRoot is the root directory where modules create their storage, "" for in-memory testing
+//	storageDir is the directory where the module stores its data, "" for in-memory testing
 //	thingDir is the directory module that holds Thing TDs.
 //	addForms is a handler from a transport server for injecting forms in digital twin TDs
 //	that describe how to interact via the server's protocols. Each transport server
 //	provides a compatible handler.
-func NewDigitwinModule(storageRoot string,
+func NewDigitwinModule(storageDir string,
 	thingDir directoryapi.IDirectoryServer,
 	addforms func(tdoc *td.TD, includeAffordances bool)) *DigitwinModule {
 
 	m := &DigitwinModule{
 		addForms:               addforms,
 		directory:              thingDir,
-		storageRoot:            storageRoot,
+		storageDir:             storageDir,
 		includeAffordanceForms: true,
 	}
 	m.SetModuleID(digitwinapi.DefaultDigitwinModuleID)

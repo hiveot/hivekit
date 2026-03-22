@@ -66,13 +66,13 @@ type AuthnConfig struct {
 // Setup ensures config is valid
 //
 //	storesDir is the default storage root directory ($HOME/stores)
-func (cfg *AuthnConfig) Setup(keysDir, storesDir string) {
+func (cfg *AuthnConfig) Setup(keysDir, storageDir string) {
 
 	if cfg.PasswordFile == "" {
 		cfg.PasswordFile = DefaultPasswordFile
 	}
 	if !path.IsAbs(cfg.PasswordFile) {
-		cfg.PasswordFile = path.Join(storesDir, "authn", cfg.PasswordFile)
+		cfg.PasswordFile = path.Join(storageDir, cfg.PasswordFile)
 	}
 
 	if cfg.Encryption == "" {

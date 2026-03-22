@@ -25,7 +25,7 @@ import (
 var testBucketID = "default"
 
 // use in-memory storage
-var storageRoot = ""
+var storageDir = ""
 
 // pick the backend to run the tests on: kvbtre vs pebble
 // var testBackendType = bucketstore.BackendPebble
@@ -179,7 +179,7 @@ func addDocs(store bucketstoreapi.IBucketStore, bucketID string, count int) erro
 }
 
 func startModule(t *testing.T) (*bucketstoreserver.BucketStoreServer, func(), error) {
-	m := bucketstoreserver.NewBucketStoreServer(storageRoot, testBackendType)
+	m := bucketstoreserver.NewBucketStoreServer(storageDir, testBackendType)
 	err := m.Start("")
 	require.NoError(t, err)
 	return m, func() {

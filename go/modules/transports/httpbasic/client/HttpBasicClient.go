@@ -67,13 +67,21 @@ type HttpBasicClient struct {
 // This determine which auth schema the TD describes, obtains the credentials
 // and injects the authentication credentials according to the TDI schema.
 // This returns an error if the schema isn't supported or is not compatible.
-func (cl *HttpBasicClient) Authenticate(tdi *td.TD,
+func (cl *HttpBasicClient) Authenticate(tdDoc *td.TD,
 	getCredentials transports.GetCredentials) error {
 
-	// for now just assume its bearer token, just to get it working
-	clientID, token, err := getCredentials(tdi)
-	if err == nil {
-		err = cl.ConnectWithToken(clientID, token)
+	clientID, secret, schemeName, err := getCredentials(tdDoc.ID)
+	secScheme, err := tdDoc.GetSecurityScheme()
+
+	if schemeName != secScheme.Scheme && schemeName != "" && schemeName != td.SecSchemeAuto {
+		err = fmt.Errorf("Security scheme doesn't match credentials TD scheme='%s', credentials scheme='%s'", secScheme.Scheme, schemeName)
+	} else if secScheme.Scheme == td.SecSchemeDigest {
+		// err = cl.ConnectWithDigest(clientID, secret)
+		err = fmt.Errorf("Digest authentication is not yet supported. Use bearer token instead")
+	} else if secScheme.Scheme == td.SecSchemeBearer || secScheme.Scheme == td.SecSchemeAuto {
+		err = cl.ConnectWithToken(clientID, secret)
+	} else {
+		err = fmt.Errorf("Unexpected security scheme '%s'", secScheme.Scheme)
 	}
 	return err
 }

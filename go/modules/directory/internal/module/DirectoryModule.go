@@ -3,7 +3,6 @@ package module
 
 import (
 	"log/slog"
-	"path/filepath"
 	"sync"
 
 	"github.com/hiveot/hivekit/go/modules"
@@ -42,8 +41,8 @@ type DirectoryModuleServer struct {
 	msgAPI *DirectoryMsgHandler
 	// the API servers if enabled
 	restAPI *DirectoryRestHandler
-	// root directory of the storage area
-	storageRoot string
+	// data storage directory
+	storageDir string
 
 	// cache of used TDs and the mutex to access it
 	tdCache    map[string]*td.TD
@@ -100,9 +99,6 @@ func (m *DirectoryModuleServer) Start(_ string) (err error) {
 	slog.Info("Start: Starting directory module", "moduleID", moduleID)
 
 	storageDir := ""
-	if m.storageRoot != "" {
-		storageDir = filepath.Join(m.storageRoot, moduleID)
-	}
 	m.bucketStore, err = bucketstore.NewBucketStore(storageDir, bucketstoreapi.BackendKVBTree)
 
 	err = m.bucketStore.Open()
@@ -136,17 +132,17 @@ func (m *DirectoryModuleServer) Stop() {
 // If a http server is provided this registers the HTTP API with the router and serves
 // its TD on the .well-known/wot endpoint as per discovery specification.
 //
-// storageRoot is the root dir of the storage area. Use "" for testing with an in-memory store.
+// storageDir is the directory where the module stores its data. Use "" for testing with an in-memory store.
 // router is the html server router to register the html API handlers with. nil to ignore.
-func NewDirectoryModule(storageRoot string, httpServer transports.IHttpServer) *DirectoryModuleServer {
+func NewDirectoryModule(storageDir string, httpServer transports.IHttpServer) *DirectoryModuleServer {
 
 	m := &DirectoryModuleServer{
 		HiveModuleBase: modules.HiveModuleBase{},
-		storageRoot:    storageRoot,
+		storageDir:     storageDir,
 		httpServer:     httpServer,
 		tdCache:        make(map[string]*td.TD),
 	}
-	m.SetModuleID(directoryapi.DefaultDirectoryServiceID)
+	m.SetModuleID(directoryapi.DefaultDirectoryModuleID)
 	if httpServer == nil {
 		slog.Warn("NewDirectoryModule: no httpServer provided. HTTP interface not active.")
 	}

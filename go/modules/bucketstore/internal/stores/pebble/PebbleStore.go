@@ -121,7 +121,7 @@ func (store *PebbleStore) Open() (err error) {
 
 // NewPebbleStore creates a storage database with bucket support.
 //
-//	storeDirectory is the directory (not file) holding the database
+//	storeDirectory is the directory  holding the database
 func NewPebbleStore(storeDirectory string) *PebbleStore {
 	srv := &PebbleStore{
 		storeDirectory: storeDirectory,

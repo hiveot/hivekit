@@ -13,9 +13,9 @@ import (
 // If a http server is provided this registers the HTTP API with the router and serves
 // its TD on the .well-known/wot endpoint as per discovery specification.
 //
-// storageRoot is the root dir of the storage area. Use "" for testing with an in-memory store.
+// storageDir is the directory where the module stores its data. Use "" for testing with an in-memory store.
 // router is the html server router to register the html API handlers with. nil to ignore.
-func NewDirectoryModule(storageRoot string, httpServer transports.IHttpServer) directoryapi.IDirectoryServer {
-	m := module.NewDirectoryModule(storageRoot, httpServer)
+func NewDirectoryModule(storageDir string, httpServer transports.IHttpServer) directoryapi.IDirectoryServer {
+	m := module.NewDirectoryModule(storageDir, httpServer)
 	return m
 }

@@ -478,10 +478,10 @@ func (tdoc *TD) GetID() string {
 //
 // If the Security field is empty, then return a nosec scheme.
 //
-// This returns a nil scheme if the TD has no security scheme
-// This returns an error if multiple schemes must be used. This is not supported.
+// This returns an error if multiple schemes must be used or not scheme is defined
+// for the TD security field.
 func (tdoc *TD) GetSecurityScheme() (scheme SecurityScheme, err error) {
-	if tdoc.Security == nil {
+	if tdoc.Security == nil || tdoc.Security == SecSchemeNoSec {
 		scheme.Scheme = "nosec"
 		return scheme, nil
 	}

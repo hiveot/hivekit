@@ -17,13 +17,13 @@ import (
 	"github.com/hiveot/hivekit/go/wot/td"
 )
 
-// Login credentials for known devices
-type DeviceAccount struct {
-	ClientID string `json:"clientID"`
+// // Login credentials for known devices
+// type DeviceAccount struct {
+// 	ClientID string `json:"clientID"`
 
-	// Secre password or token
-	Secret string `json:"secret"`
-}
+// 	// Secre password or token
+// 	Secret string `json:"secret"`
+// }
 
 type RouterModule struct {
 	modules.HiveModuleBase
@@ -34,11 +34,11 @@ type RouterModule struct {
 	// handler that provides a TD for the given thingID
 	getTD func(thingID string) *td.TD
 
-	// deviceAccounts holds the credentials of devices by thingID
-	mux            sync.RWMutex
-	deviceAccounts map[string]DeviceAccount
+	// device credentials store
+	credStore *CredentialsStore
 
 	// established device connections
+	cmux              sync.RWMutex
 	deviceConnections map[string]clients.IClientModule
 
 	// directory to store device accounts
@@ -55,29 +55,13 @@ type RouterModule struct {
 
 // Add the secret to access a Thing.
 func (m *RouterModule) AddThingCredential(
-	thingID string, clientID string, secret string) {
-	m.mux.Lock()
-	defer m.mux.Unlock()
-	m.deviceAccounts[thingID] = DeviceAccount{ClientID: clientID, Secret: secret}
+	thingID string, clientID string, secret string, secScheme string) {
+	m.credStore.AddCredentials(thingID, clientID, secret, secScheme)
 }
 
 // Remove the secret to access a Thing
 func (m *RouterModule) DeleteThingCredential(thingID string) {
-	m.mux.Lock()
-	defer m.mux.Unlock()
-	delete(m.deviceAccounts, thingID)
-}
-
-// Obtain the connection credentials for connection to the device
-func (m *RouterModule) GetDeviceCredentials(tdi *td.TD) (
-	clientID string, token string, err error) {
-
-	thingID := tdi.ID
-	acct, found := m.deviceAccounts[thingID]
-	if !found {
-		return "", "", fmt.Errorf("Unknown thing with ID '%s'", tdi.ID)
-	}
-	return acct.ClientID, acct.Secret, err
+	m.credStore.DeleteCredentials(thingID)
 }
 
 // Return a client connection to the given href.
@@ -104,7 +88,7 @@ func (m *RouterModule) GetClientConnection(tdi *td.TD) (
 		c, err = clients.NewTransportClient(protocolType, href, m.caCert, nil)
 		c.SetTimeout(m.timeout)
 		if err == nil {
-			err = c.Authenticate(tdi, m.GetDeviceCredentials)
+			err = c.Authenticate(tdi, m.credStore.GetCredentials)
 		}
 		if err == nil {
 			m.deviceConnections[connID] = c
@@ -160,12 +144,9 @@ func (m *RouterModule) HandleRequest(req *msg.RequestMessage, replyTo msg.Respon
 	return err
 }
 
-// Return a flag indicating whether the credentials are set for a Thing
-func (m *RouterModule) HasThingCredential(thingID string) bool {
-	m.mux.RLock()
-	defer m.mux.RUnlock()
-	_, found := m.deviceAccounts[thingID]
-	return found
+// HasDeviceCredentials returns a flag if credentials are set for a Thing
+func (m *RouterModule) HasThingCredentials(thingID string) bool {
+	return m.credStore.HasCredentials(thingID)
 }
 
 // Determine if the thing is reachable by the router.
@@ -243,10 +224,8 @@ func (m *RouterModule) Start(_ string) (err error) {
 		fileName := m.GetModuleID() + ".json"
 		m.storageFile = filepath.Join(m.storageDir, fileName)
 	}
-	m.deviceAccounts = make(map[string]DeviceAccount)
-	// TODO: load keys.
-	// k, err := keyloader.LoadKey("storage")
-
+	m.credStore = NewCredentialsStore(m.storageDir)
+	err = m.credStore.Open()
 	return err
 }
 
@@ -257,8 +236,9 @@ func (m *RouterModule) Stop() {
 		_ = clientID
 		c.Close()
 	}
-	// save keys
 	m.deviceConnections = nil
+	// last close credential store
+	m.credStore.Close()
 }
 
 // NewRouterModule creates a new router module

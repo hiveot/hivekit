@@ -3,10 +3,12 @@ package pipeline
 import (
 	"crypto/tls"
 	"crypto/x509"
+	"path/filepath"
 	"time"
 
 	"github.com/hiveot/hivekit/go/modules"
 	"github.com/hiveot/hivekit/go/modules/directory"
+	directoryapi "github.com/hiveot/hivekit/go/modules/directory/api"
 	"github.com/hiveot/hivekit/go/modules/transports"
 )
 
@@ -40,7 +42,8 @@ func (f *ModuleFactory) NewModule(name string) (m modules.IHiveModule) {
 
 	switch name {
 	case DirectoryClient:
-		m = directory.NewDirectoryModule(f.storageRoot, f.httpServer)
+		dataDir := filepath.Join(f.storageRoot, directoryapi.DefaultDirectoryModuleID)
+		m = directory.NewDirectoryModule(dataDir, f.httpServer)
 
 	}
 	return m

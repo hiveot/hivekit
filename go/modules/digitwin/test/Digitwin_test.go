@@ -27,7 +27,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-var storageRoot = ""
+var storageDir = ""
 
 const rpcTimout = transports.DefaultRpcTimeout
 
@@ -66,7 +66,7 @@ func startService() (
 		panic("Failed to start directory server")
 	}
 	// the digitwin module to test, it will create its own vcache module
-	dtw = digitwin.NewDigitwinModule(storageRoot, dir, appServer.AddTDSecForms)
+	dtw = digitwin.NewDigitwinModule(storageDir, dir, appServer.AddTDSecForms)
 	err = dtw.Start("")
 	if err != nil {
 		panic("unable to start the digitwin service")
@@ -77,7 +77,10 @@ func startService() (
 	rtr := router.NewRouterModule(routerStorage,
 		dtw.GetDeviceTD, []transports.ITransportServer{appServer}, testEnv.CertBundle.CaCert)
 	rtr.SetTimeout(rpcTimout)
-
+	err = rtr.Start("")
+	if err != nil {
+		panic("unable to start the router service")
+	}
 	// create a request pipeline server->directory->digitwin->router->server
 	appServer.SetRequestSink(dir.HandleRequest)
 	dir.SetRequestSink(dtw.HandleRequest)
@@ -270,7 +273,7 @@ func TestWriteDigitwinProperty(t *testing.T) {
 			go ag.PubProperty(req.ThingID, req.Name, txPropValue)
 
 			return replyTo(resp)
-		} else if req.ThingID == directoryapi.DefaultDirectoryServiceID {
+		} else if req.ThingID == directoryapi.DefaultDirectoryModuleID {
 			// this is a request for the directory. Forward it
 			return ag.ForwardRequest(req, replyTo)
 		} else {
@@ -285,7 +288,7 @@ func TestWriteDigitwinProperty(t *testing.T) {
 	td1 := testEnv.CreateTestTD(0)
 	td1Json, _ := td.MarshalTD(td1)
 	err = directoryclient.UpdateTD(
-		directoryapi.DefaultDirectoryServiceID, td1Json, ag.ForwardRequest)
+		directoryapi.DefaultDirectoryModuleID, td1Json, ag.ForwardRequest)
 
 	assert.NoError(t, err)
 	// check whether the td is now in the directory
@@ -352,7 +355,7 @@ func TestInvokeDigitwinAction(t *testing.T) {
 			// submit an event after the action
 			go ag.PubEvent(req.ThingID, req.Name, req.Input)
 			return replyTo(resp)
-		} else if req.ThingID == directoryapi.DefaultDirectoryServiceID {
+		} else if req.ThingID == directoryapi.DefaultDirectoryModuleID {
 			// this is a request for the directory. Forward it
 			return ag.ForwardRequest(req, replyTo)
 		} else {
@@ -366,7 +369,7 @@ func TestInvokeDigitwinAction(t *testing.T) {
 	td1.ID = thingID
 	td1Json, _ := td.MarshalTD(td1)
 	err = directoryclient.UpdateTD(
-		directoryapi.DefaultDirectoryServiceID, td1Json, ag.ForwardRequest)
+		directoryapi.DefaultDirectoryModuleID, td1Json, ag.ForwardRequest)
 	assert.NoError(t, err)
 
 	// 4. Consumer invokes the first action

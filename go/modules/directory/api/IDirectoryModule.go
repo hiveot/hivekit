@@ -5,9 +5,9 @@ import (
 	"github.com/hiveot/hivekit/go/wot/td"
 )
 
-// DefaultDirectoryServiceID is the default moduleID of the directory module instance.
+// DefaultDirectoryModuleID is the default moduleID of the directory module instance.
 // note that if multiple directory instances are created they must use different thingIDs
-const DefaultDirectoryServiceID = "directory"
+const DefaultDirectoryModuleID = "directory"
 
 // The http path that provides the TD of the service
 // in case of the directory this provide the directory TD path

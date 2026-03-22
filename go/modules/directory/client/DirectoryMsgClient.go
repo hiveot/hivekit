@@ -69,7 +69,7 @@ func (cl *DirectoryMsgClient) RetrieveAllThings(offset int, limit int) (tdList [
 //	reqSink is the handler for requests send by the directory client and emitter of notifications
 func NewDirectoryMsgClient(serviceID string, reqSink modules.IHiveModule) *DirectoryMsgClient {
 	if serviceID == "" {
-		serviceID = directoryapi.DefaultDirectoryServiceID
+		serviceID = directoryapi.DefaultDirectoryModuleID
 	}
 	cl := &DirectoryMsgClient{
 		directoryID: serviceID,
@@ -87,7 +87,7 @@ func NewDirectoryMsgClient(serviceID string, reqSink modules.IHiveModule) *Direc
 // This retuns nil if success or an error if something went wrong.
 func UpdateTD(directoryServiceID string, tdJson string, reqHandler msg.RequestHandler) error {
 	if directoryServiceID == "" {
-		directoryServiceID = directoryapi.DefaultDirectoryServiceID
+		directoryServiceID = directoryapi.DefaultDirectoryModuleID
 	}
 	req := msg.NewRequestMessage(
 		wot.OpInvokeAction, directoryServiceID, directoryapi.ActionUpdateThing, tdJson, "")

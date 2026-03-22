@@ -37,11 +37,11 @@ const testRouterID = "router1"
 
 // const serverType = transports.HiveotWebsocketProtocolType
 
-const serverType = transports.HiveotSseScProtocolType
+// const serverType = transports.HiveotSseScProtocolType
 
 // const serverType = transports.WotHttpBasicProtocolType
 
-// const serverType = transports.WotWebsocketProtocolType
+const serverType = transports.WotWebsocketProtocolType
 
 // the test directory that holds this td. http server is not needed
 
@@ -182,13 +182,12 @@ func TestReadDeviceProperties(t *testing.T) {
 
 	// to connect to the device, credentials are needed
 	token, _, _ := testAuthn.CreateToken(testRouterID, time.Minute)
-	routerMod.AddThingCredential(thingID1, clientID, token)
+	routerMod.AddThingCredential(thingID1, clientID, token, td.SecSchemeBearer)
 
 	// this should cause the router to connect to the device
 	values, err := co.ReadAllProperties(thingID1)
 	assert.NoError(t, err)
 	assert.NotEmpty(t, values)
-
 }
 
 // connect to a test device and subscribe to events
@@ -228,7 +227,7 @@ func TestSubscribeToDevice(t *testing.T) {
 	// to connect to the device, credentials are needed
 	// FIXME: testAuthn does not properly test credentials. Use authn
 	token, _, _ := testAuthn.CreateToken(testRouterID, time.Minute)
-	routerMod.AddThingCredential(thingID1, clientID, token)
+	routerMod.AddThingCredential(thingID1, clientID, token, td.SecSchemeBearer)
 
 	// a consumer links to the router and subscribes to the device
 	// note for the purpose of this test the router can run on the client

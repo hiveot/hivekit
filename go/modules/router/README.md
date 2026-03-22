@@ -5,12 +5,10 @@ The objective of the router module is to deliver request messages to Things that
 ## Status
 
 This module is in early alpha. Routing to connected RC agents is supported.
-Routing to stand-alone devices is under development.
+Routing to stand-alone devices works for websocket and sse-sc protocols.
+Authentication with client devices works for bearer tokens. Additional security schemes should be implemented in the 'Authenticate' method of the client implementations.
 
-TODO:
-
-1. handle the authentication needed for connecting to devices
-2. persist encryption credentials
+TODO: persist the device credentials encrypted
 
 ## Summary
 

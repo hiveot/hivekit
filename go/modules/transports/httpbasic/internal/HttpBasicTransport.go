@@ -33,8 +33,8 @@ type HttpBasicTransport struct {
 	// actual httpServer exposing routes
 	httpServer transports.IHttpServer
 
-	// handler for received request messages
-	serverRequestHandler msg.RequestHandler
+	// reqHandler handles the requests received from the remote consumer
+	// requestHandler msg.RequestHandler
 }
 
 // GetProtocolType returns http-basic protocol type

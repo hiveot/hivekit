@@ -167,10 +167,6 @@ func (m *LoggingModule) Stop() {
 
 // Create a new instance of the logging module.
 //
-// The storageRoot is the root directory for storing log files.
-// It can be used to create a file-based log sink, or it can be ignored if the logging
-// module uses a different log sink (e.g. console, remote server).
-//
 // config is the default module configuration.
 func NewLoggingModule(config config.LoggingConfig) *LoggingModule {
 
