@@ -15,11 +15,11 @@ import (
 	"github.com/hiveot/hivekit/go/modules/clients"
 	historyclient "github.com/hiveot/hivekit/go/modules/history/client"
 	historyserver "github.com/hiveot/hivekit/go/modules/history/internal/server"
+	"github.com/hiveot/hivekit/go/modules/transports"
 	"github.com/hiveot/hivekit/go/modules/transports/tptests"
 	"github.com/hiveot/hivekit/go/msg"
 	"github.com/hiveot/hivekit/go/utils"
 	"github.com/hiveot/hivekit/go/vocab"
-	"github.com/hiveot/hivekit/go/wot/td"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -27,7 +27,7 @@ import (
 
 const thingIDPrefix = "things-"
 
-const defaultProtocol = td.ProtocolTypeWotWSS
+const defaultProtocol = transports.WotWebsocketProtocolType
 
 // recommended store for history is Pebble
 // const historyStoreBackend = bucketstore.BackendPebble

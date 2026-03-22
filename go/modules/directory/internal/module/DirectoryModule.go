@@ -150,7 +150,7 @@ func NewDirectoryModule(storageRoot string, httpServer transports.IHttpServer) *
 	if httpServer == nil {
 		slog.Warn("NewDirectoryModule: no httpServer provided. HTTP interface not active.")
 	}
-	var _ directoryapi.IDirectoryModuleServer = m // interface check
+	var _ directoryapi.IDirectoryServer = m // interface check
 
 	return m
 }

@@ -25,7 +25,7 @@ import (
 
 const (
 	TestServerHttpPort = 9445
-	TestTimeout        = time.Minute
+	TestTimeout        = time.Minute * 3
 )
 
 // testTDs are a bunch of TD's for generating test data. The first 5 are predefined and always the same.
@@ -244,21 +244,21 @@ func (testEnv *TestEnv) StartTestServer(protocol string) (srv transports.ITransp
 	var err error
 
 	switch protocol {
-	case td.ProtocolTypeHiveotSSESC:
+	case transports.HiveotSseScProtocolType:
 		srv = ssesc.NewTransport(testEnv.HttpServer, TestTimeout)
 		err = srv.Start("")
 
-	case td.ProtocolTypeHiveotWSS:
+	case transports.HiveotWebsocketProtocolType:
 		srv = wss.NewHiveotTransport(testEnv.HttpServer, TestTimeout)
 		err = srv.Start("")
 
-	case td.ProtocolTypeHTTPBasic:
+	case transports.WotHttpBasicProtocolType:
 
 		srv = httpbasic.NewTransport(testEnv.HttpServer)
 		err = srv.Start("")
 		// http only, no subprotocol bindings
 
-	case td.ProtocolTypeWotWSS:
+	case transports.WotWebsocketProtocolType:
 		srv = wss.NewWotTransport(testEnv.HttpServer, TestTimeout)
 		err = srv.Start("")
 
@@ -273,7 +273,7 @@ func (testEnv *TestEnv) StartTestServer(protocol string) (srv transports.ITransp
 	if testEnv.Server == nil {
 		testEnv.Server = srv
 		testEnv.ServerProtocol = protocol
-		testEnv.ServerURL, _ = srv.GetConnectURL()
+		testEnv.ServerURL = srv.GetConnectURL()
 	}
 	return srv
 }

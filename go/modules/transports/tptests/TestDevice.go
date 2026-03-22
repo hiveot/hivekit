@@ -47,13 +47,13 @@ func (device *TestDevice) Start(_ string) error {
 		return err
 	}
 	switch device.protocolType {
-	case td.ProtocolTypeHTTPBasic:
+	case transports.WotHttpBasicProtocolType:
 		device.TransportServer = httpbasic.NewTransport(device.HttpServer)
-	case td.ProtocolTypeHiveotSSESC:
+	case transports.HiveotSseScProtocolType:
 		device.TransportServer = ssesc.NewTransport(device.HttpServer, 0)
-	case td.ProtocolTypeWotWSS:
+	case transports.WotWebsocketProtocolType:
 		device.TransportServer = wss.NewWotTransport(device.HttpServer, 0)
-	case td.ProtocolTypeHiveotWSS:
+	case transports.HiveotWebsocketProtocolType:
 		device.TransportServer = wss.NewHiveotTransport(device.HttpServer, 0)
 	}
 	err = device.TransportServer.Start("")
@@ -69,6 +69,8 @@ func (device *TestDevice) Start(_ string) error {
 	device.Agent = clients.NewAgent(device.agentID, nil)
 	device.TransportServer.SetRequestSink(device.Agent.HandleRequest)
 	device.Agent.SetNotificationSink(device.TransportServer.SendNotification)
+	// this device envelope handles requests received via the agent
+	device.Agent.SetRequestSink(device.HandleRequest)
 	return nil
 }
 

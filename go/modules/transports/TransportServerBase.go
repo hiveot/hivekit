@@ -7,6 +7,8 @@ import (
 	"sync"
 
 	"github.com/hiveot/hivekit/go/msg"
+	"github.com/hiveot/hivekit/go/wot"
+	"github.com/hiveot/hivekit/go/wot/td"
 )
 
 // Module properties that can be exposed in a TM
@@ -22,8 +24,11 @@ const PropName_NrConnections = "nrConnections"
 // To initialize: call Init(moduleID, sink, connectURL)
 type TransportServerBase struct {
 
-	// moduleID/thingID is the unique instance ID of this server module.
-	moduleID string
+	// authenticator for incoming connections and for adding form security info
+	authenticator IAuthenticator
+
+	// The base URL used to connect. Used to set TD.Base field when adding forms
+	connectURL string
 
 	// connections by clcid = {clientID}:{connectionID}
 	connectionsByClcid map[string]IConnection
@@ -33,6 +38,9 @@ type TransportServerBase struct {
 
 	// mutex to manage the connections
 	cmux sync.RWMutex
+
+	// moduleID/thingID is the unique instance ID of this server module.
+	moduleID string
 
 	// Request and Response channel helper.
 	// Since some transports use unidirectional channels, a request to one channel
@@ -45,25 +53,28 @@ type TransportServerBase struct {
 
 	// Sink for forwarding requests
 	requestSink msg.RequestHandler
+
+	// The subprotocol to include in forms. Empty to ignore
+	subprotocol string
 }
 
 // AddConnection adds a new connection and notifies subscribers.
 // This requires the connection to have a unique client connection ID (connectionID).
 //
 // If an endpoint with this connectionID exists the existing connection is forcibly closed.
-func (m *TransportServerBase) AddConnection(c IConnection) error {
+func (srv *TransportServerBase) AddConnection(c IConnection) error {
 	var clientID string
 	var cid string
 	// enter protected block
 	prot := func() {
-		m.cmux.Lock()
-		defer m.cmux.Unlock()
+		srv.cmux.Lock()
+		defer srv.cmux.Unlock()
 
-		if m.connectionsByClcid == nil {
-			m.connectionsByClcid = make(map[string]IConnection)
+		if srv.connectionsByClcid == nil {
+			srv.connectionsByClcid = make(map[string]IConnection)
 		}
-		if m.connectionsByClientID == nil {
-			m.connectionsByClientID = make(map[string][]string)
+		if srv.connectionsByClientID == nil {
+			srv.connectionsByClientID = make(map[string][]string)
 		}
 
 		clientID = c.GetClientID()
@@ -72,25 +83,25 @@ func (m *TransportServerBase) AddConnection(c IConnection) error {
 		clcid := clientID + ":" + cid
 
 		// Refuse this if an existing connection with this ID exist
-		existingConn := m.connectionsByClcid[clcid]
+		existingConn := srv.connectionsByClcid[clcid]
 		if existingConn != nil {
 			err := fmt.Errorf("AddConnection. The connection ID '%s' of client '%s' already exists",
 				cid, clientID)
 			slog.Error("AddConnection: duplicate ConnectionID", "connectionID",
 				cid, "err", err.Error())
 			// close the existing connection
-			m.removeConnection(existingConn)
+			srv.removeConnection(existingConn)
 			existingConn = nil
 		}
-		m.connectionsByClcid[clcid] = c
+		srv.connectionsByClcid[clcid] = c
 		// update the client index
-		clientList := m.connectionsByClientID[clientID]
+		clientList := srv.connectionsByClientID[clientID]
 		if clientList == nil {
 			clientList = []string{cid}
 		} else {
 			clientList = append(clientList, cid)
 		}
-		m.connectionsByClientID[clientID] = clientList
+		srv.connectionsByClientID[clientID] = clientList
 	}
 	prot()
 
@@ -100,48 +111,116 @@ func (m *TransportServerBase) AddConnection(c IConnection) error {
 		ClientID:     clientID,
 		ConnectionID: cid,
 	}
-	notif := msg.NewNotificationMessage(m.moduleID, msg.AffordanceTypeEvent, m.moduleID,
+	notif := msg.NewNotificationMessage(srv.moduleID, msg.AffordanceTypeEvent, srv.moduleID,
 		ConnectedEventName, connectionInfo)
-	m.ForwardNotification(notif)
+	srv.ForwardNotification(notif)
 	return nil
 }
 
-// CloseAllClientConnections closes all connections of the given client.
-func (m *TransportServerBase) CloseAllClientConnections(clientID string) {
-	m.cmux.Lock()
-	defer m.cmux.Unlock()
+// AddTDSecForms updates the TD with base URI, security scheme and forms for use of
+// this protocol to the given TD.
+//
+// Since the contentType is the default application/json it is omitted
+//
+// 'includeAffordances' adds forms to all affordances to be compliant with the specifications.
+// Btw, this is a waste of space in the TD as it required but not needed with some protocols.
+func (srv *TransportServerBase) AddTDSecForms(tdoc *td.TD, includeAffordances bool) {
+	// 1. Add the base connection endpoint
+	tdoc.Base = srv.connectURL
 
-	if m.connectionsByClientID == nil {
+	// 2. Set the security scheme used by the authenticator.
+	srv.authenticator.AddSecurityScheme(tdoc)
+
+	// 3. add top level form for thing level  operations
+	// the href is empty because it is the same as base for all forms in this protocol
+	form := td.NewForm("", "", srv.subprotocol)
+	form["op"] = []string{
+		wot.OpQueryAllActions,
+		wot.OpObserveAllProperties, wot.OpUnobserveAllProperties,
+		wot.OpReadAllProperties,
+		wot.HTOpReadAllEvents, // hiveot supports reading latest events
+		wot.OpSubscribeAllEvents, wot.OpUnsubscribeAllEvents,
+	}
+	//form["contentType"] = "application/json"
+	tdoc.Forms = append(tdoc.Forms, form)
+
+	// Add forms to all affordances to be compliant with the specifications.
+	// This is a massive waste of space in the TD.
+	if includeAffordances {
+		srv.AddAffordanceForms(tdoc)
+	}
+}
+
+// AddAffordanceForms adds forms to affordances for interacting using the websocket protocol binding
+func (srv *TransportServerBase) AddAffordanceForms(tdoc *td.TD) {
+	// websocket have no additional href
+	href := ""
+	for name, aff := range tdoc.Actions {
+		_ = name
+		form := td.NewForm("", href, srv.subprotocol)
+		form["op"] = []string{wot.OpInvokeAction, wot.OpQueryAction}
+		aff.AddForm(form)
+		// cancel action is currently not supported
+	}
+	for name, aff := range tdoc.Events {
+		_ = name
+		form := td.NewForm("", href, srv.subprotocol)
+		form["op"] = []string{wot.HTOpReadEvent, wot.OpSubscribeEvent, wot.OpUnsubscribeEvent}
+		aff.AddForm(form)
+	}
+	for name, aff := range tdoc.Properties {
+		_ = name
+		form := td.NewForm("", href, srv.subprotocol)
+		ops := []string{}
+		if !aff.WriteOnly {
+			ops = append(ops, wot.OpReadProperty, wot.OpObserveProperty, wot.OpUnobserveProperty)
+		}
+		if !aff.ReadOnly {
+			ops = append(ops, wot.OpWriteProperty)
+		}
+
+		form["op"] = ops
+		aff.AddForm(form)
+
+	}
+}
+
+// CloseAllClientConnections closes all connections of the given client.
+func (srv *TransportServerBase) CloseAllClientConnections(clientID string) {
+	srv.cmux.Lock()
+	defer srv.cmux.Unlock()
+
+	if srv.connectionsByClientID == nil {
 		return
 	}
 
-	cList := m.connectionsByClientID[clientID]
+	cList := srv.connectionsByClientID[clientID]
 	for _, cid := range cList {
 		// force-close the connection
 		clcid := clientID + ":" + cid
-		c := m.connectionsByClcid[clcid]
+		c := srv.connectionsByClcid[clcid]
 		if c != nil {
-			delete(m.connectionsByClcid, clcid)
+			delete(srv.connectionsByClcid, clcid)
 			c.Close()
 		}
 	}
-	delete(m.connectionsByClientID, clientID)
+	delete(srv.connectionsByClientID, clientID)
 	// todo: property for nr of connection
 	//m.UpdateProperty(PropName_NrConnections, len(m.connectionsByClcid))
 }
 
 // CloseAll force-closes all connections
-func (m *TransportServerBase) CloseAll() {
-	m.cmux.Lock()
-	defer m.cmux.Unlock()
+func (srv *TransportServerBase) CloseAll() {
+	srv.cmux.Lock()
+	defer srv.cmux.Unlock()
 
-	slog.Info("CloseAll. Closing remaining connections", "count", len(m.connectionsByClcid))
-	for clcid, c := range m.connectionsByClcid {
+	slog.Info("CloseAll. Closing remaining connections", "count", len(srv.connectionsByClcid))
+	for clcid, c := range srv.connectionsByClcid {
 		_ = clcid
 		c.Close()
 	}
-	m.connectionsByClcid = nil
-	m.connectionsByClientID = nil
+	srv.connectionsByClcid = nil
+	srv.connectionsByClientID = nil
 	// todo: nr of connections
 	//m.UpdateProperty(PropName_NrConnections, 0)
 }
@@ -151,14 +230,14 @@ func (m *TransportServerBase) CloseAll() {
 //
 // This is concurrent safe as the iteration takes place on a copy.
 // The handler can be blocking on non-blocking (goroutine)
-func (m *TransportServerBase) ForEachConnection(handler func(c IConnection)) {
+func (srv *TransportServerBase) ForEachConnection(handler func(c IConnection)) {
 	// collect a list of connections
-	m.cmux.Lock()
-	connList := make([]IConnection, 0, len(m.connectionsByClcid))
-	for _, c := range m.connectionsByClcid {
+	srv.cmux.Lock()
+	connList := make([]IConnection, 0, len(srv.connectionsByClcid))
+	for _, c := range srv.connectionsByClcid {
 		connList = append(connList, c)
 	}
-	m.cmux.Unlock()
+	srv.cmux.Unlock()
 	//
 	for _, c := range connList {
 		// handler
@@ -168,18 +247,18 @@ func (m *TransportServerBase) ForEachConnection(handler func(c IConnection)) {
 
 // ForwardNotification passes notifications received by a server to the notification sink.
 // This can be a service running on the server that has subscribed to a remote producer.
-func (m *TransportServerBase) ForwardNotification(notif *msg.NotificationMessage) {
-	if m.notificationSink == nil {
+func (srv *TransportServerBase) ForwardNotification(notif *msg.NotificationMessage) {
+	if srv.notificationSink == nil {
 		// Receiving notifications but with no sink set so likely a wiring issue.
 		// This can be intentional in testing.
 		slog.Warn("ForwardNotification: no notification sink set. Server is not fully set up.",
-			"module", m.moduleID,
+			"module", srv.moduleID,
 			"affordance", notif.AffordanceType,
 			"name", notif.Name,
 		)
 		return
 	}
-	m.notificationSink(notif)
+	srv.notificationSink(notif)
 }
 
 // ForwardRequest passes a request from a client (agent) to the server request sink.
@@ -187,56 +266,56 @@ func (m *TransportServerBase) ForwardNotification(notif *msg.NotificationMessage
 //
 // This is used as the request handler of requests from incoming connections.
 // If no sink os configured this returns an error
-func (m *TransportServerBase) ForwardRequest(req *msg.RequestMessage, replyTo msg.ResponseHandler) (err error) {
-	if m.requestSink == nil {
+func (srv *TransportServerBase) ForwardRequest(req *msg.RequestMessage, replyTo msg.ResponseHandler) (err error) {
+	if srv.requestSink == nil {
 		slog.Error("ForwardRequest. Server has no request sink. Server is not fully set up.")
 		return fmt.Errorf("ForwardRequest: no sink for request '%s/%s' to thingID '%s'",
 			req.Operation, req.Name, req.ThingID)
 	}
-	err = m.requestSink(req, replyTo)
+	err = srv.requestSink(req, replyTo)
 	return err
 }
 
-// // GetConnectURL returns SSE connection URL of the server
-// // This uses the custom 'ssesc' schema which is non-wot compatible.
-// func (m *TransportServerBase) GetConnectURL() string {
-// 	return m.connectURL
-// }
+// GetConnectURL returns connection URL of the server
+// This is set with init
+func (m *TransportServerBase) GetConnectURL() string {
+	return m.connectURL
+}
 
 // GetConnectionByConnectionID locates the connection of the client using the client's connectionID
 // This returns nil if no connection was found with the given connectionID
-func (m *TransportServerBase) GetConnectionByConnectionID(clientID, connectionID string) (c IConnection) {
+func (srv *TransportServerBase) GetConnectionByConnectionID(clientID, connectionID string) (c IConnection) {
 	clcid := clientID + ":" + connectionID
-	m.cmux.Lock()
-	defer m.cmux.Unlock()
+	srv.cmux.Lock()
+	defer srv.cmux.Unlock()
 
-	if m.connectionsByClcid == nil {
+	if srv.connectionsByClcid == nil {
 		return nil
 	}
-	c = m.connectionsByClcid[clcid]
+	c = srv.connectionsByClcid[clcid]
 	return c
 }
 
 // GetConnectionByClientID locates the first connection of the client using its account ID.
 // Intended to find agents which only have a single connection.
 // This returns nil if no connection was found with the given login
-func (m *TransportServerBase) GetConnectionByClientID(clientID string) (c IConnection) {
+func (srv *TransportServerBase) GetConnectionByClientID(clientID string) (c IConnection) {
 
-	m.cmux.Lock()
-	defer m.cmux.Unlock()
-	if m.connectionsByClientID == nil {
+	srv.cmux.Lock()
+	defer srv.cmux.Unlock()
+	if srv.connectionsByClientID == nil {
 		// no incoming connections yet
 		slog.Warn("Requesting connection for client but none have been received", "clientID", clientID)
 		return nil
 	}
-	cList := m.connectionsByClientID[clientID]
+	cList := srv.connectionsByClientID[clientID]
 	if len(cList) == 0 {
 		return nil
 	}
 	clcid := clientID + ":" + cList[0]
 
 	// return the first connection of this client
-	c = m.connectionsByClcid[clcid]
+	c = srv.connectionsByClcid[clcid]
 	if c == nil {
 		slog.Error("GetConnectionByClientID: the client's connection list has disconnected endpoints",
 			"clientID", clientID, "nr alleged connections", len(cList))
@@ -245,31 +324,37 @@ func (m *TransportServerBase) GetConnectionByClientID(clientID string) (c IConne
 }
 
 // GetModuleID returns the module's Thing ID
-func (m *TransportServerBase) GetModuleID() string {
-	return m.moduleID
+func (srv *TransportServerBase) GetModuleID() string {
+	return srv.moduleID
 }
 
 // Initialize the module base with a moduleID and a messaging sink
 //
 //	moduleID is the transport instance ID to identify as.
-//	connectURL is the URL this module can be reached at.
-func (m *TransportServerBase) Init(moduleID string) {
-	m.moduleID = moduleID
-	// m.HiveModuleBase.Init(moduleID, sink)
-	m.RnrChan = msg.NewRnRChan()
+//	subprotocol optional name for including in form operations
+//	connectURL is the URL this module can be reached at. Used to set TD.Base
+//	authenticator used to include the security in TDs
+func (srv *TransportServerBase) Init(
+	moduleID string, subprotocol string, connectURL string, authenticator IAuthenticator) {
+
+	srv.authenticator = authenticator
+	srv.moduleID = moduleID
+	srv.subprotocol = subprotocol
+	srv.connectURL = connectURL
+	srv.RnrChan = msg.NewRnRChan()
 }
 
 // removeConnection removes the connection and sends an event notification.
 // non-concurrent safe internal function that can be used from a locked section.
 // This will close the connnection if it isn't closed already.
 // Call this after the connection is closed or before closing.
-func (m *TransportServerBase) removeConnection(c IConnection) {
+func (srv *TransportServerBase) removeConnection(c IConnection) {
 	clientID := c.GetClientID()
 	connectionID := c.GetConnectionID()
 	clcid := clientID + ":" + connectionID
 
 	// if nothing to do
-	if m.connectionsByClcid == nil {
+	if srv.connectionsByClcid == nil {
 		// Most likely caused by a call to CloseAll() before the clients shut down.
 		// this isn't very nice but lets handle it gracefull.y
 		slog.Warn("RemoveConnection: connection was already removed",
@@ -277,20 +362,20 @@ func (m *TransportServerBase) removeConnection(c IConnection) {
 		return
 	}
 
-	existingConn := m.connectionsByClcid[clcid]
+	existingConn := srv.connectionsByClcid[clcid]
 	// force close the existing connection just in case
 	if existingConn != nil {
 		//clientID = existingConn.GetClientID()
 		existingConn.Close()
-		delete(m.connectionsByClcid, clcid)
-	} else if len(m.connectionsByClcid) > 0 {
+		delete(srv.connectionsByClcid, clcid)
+	} else if len(srv.connectionsByClcid) > 0 {
 		// this is unexpected. Not all connections were closed but this one is gone.
 		slog.Error("RemoveConnection: connectionID not found",
 			"clcid", clcid)
 		return
 	}
 	// remove the cid from the client connection list
-	clientCids := m.connectionsByClientID[clientID]
+	clientCids := srv.connectionsByClientID[clientID]
 	i := slices.Index(clientCids, connectionID)
 	if i < 0 {
 		slog.Info("RemoveConnection: existing connection not in the connectionID list. Was it forcefully removed?",
@@ -303,7 +388,7 @@ func (m *TransportServerBase) removeConnection(c IConnection) {
 	} else {
 		clientCids = slices.Delete(clientCids, i, i+1)
 		//clientCids = utils.Remove(clientCids, i)
-		m.connectionsByClientID[clientID] = clientCids
+		srv.connectionsByClientID[clientID] = clientCids
 	}
 	// todo: module properties
 	// m.UpdateProperty(PropName_NrConnections, len(m.connectionsByClcid))
@@ -312,12 +397,12 @@ func (m *TransportServerBase) removeConnection(c IConnection) {
 // RemoveConnection removes the connection by its connectionID
 // This will close the connnection if it isn't closed already.
 // Call this after the connection is closed or before closing.
-func (m *TransportServerBase) RemoveConnection(c IConnection) {
+func (srv *TransportServerBase) RemoveConnection(c IConnection) {
 	// protected block
 	prot := func() {
-		m.cmux.Lock()
-		defer m.cmux.Unlock()
-		m.removeConnection(c)
+		srv.cmux.Lock()
+		defer srv.cmux.Unlock()
+		srv.removeConnection(c)
 	}
 	prot()
 	// notify listeners
@@ -326,15 +411,15 @@ func (m *TransportServerBase) RemoveConnection(c IConnection) {
 		ClientID:     c.GetClientID(),
 		ConnectionID: c.GetConnectionID(),
 	}
-	notif := msg.NewNotificationMessage(m.moduleID, msg.AffordanceTypeEvent, m.moduleID,
+	notif := msg.NewNotificationMessage(srv.moduleID, msg.AffordanceTypeEvent, srv.moduleID,
 		DisconnectedEventName, connectionInfo)
-	m.ForwardNotification(notif)
+	srv.ForwardNotification(notif)
 }
 
 // SendNotification [agent] server sends a notification to its connections
 // The connection handles subscriptions.
-func (m *TransportServerBase) SendNotification(notif *msg.NotificationMessage) {
-	m.ForEachConnection(func(c IConnection) {
+func (srv *TransportServerBase) SendNotification(notif *msg.NotificationMessage) {
+	srv.ForEachConnection(func(c IConnection) {
 		c.SendNotification(notif)
 	})
 }
@@ -348,10 +433,10 @@ func (m *TransportServerBase) SendNotification(notif *msg.NotificationMessage) {
 //
 // Note that the request message contains the ThingID of the thing for which the request
 // is intended. The agent must know how to forward the request to the Thing.
-func (m *TransportServerBase) SendRequest(
+func (srv *TransportServerBase) SendRequest(
 	agentID string, req *msg.RequestMessage, replyTo msg.ResponseHandler) (err error) {
 
-	c := m.GetConnectionByClientID(agentID)
+	c := srv.GetConnectionByClientID(agentID)
 	if c == nil {
 		return fmt.Errorf("No connection with agent '%s'", agentID)
 	}
@@ -364,11 +449,11 @@ func (m *TransportServerBase) SendRequest(
 // This is equivalent to calling SendResponse on the connection itself.
 //
 //	clientID identifies the consumer to send the response to
-func (m *TransportServerBase) SendResponse(
+func (srv *TransportServerBase) SendResponse(
 	clientID, cid string, resp *msg.ResponseMessage) (err error) {
 	// var c IConnection
 
-	c := m.GetConnectionByConnectionID(clientID, cid)
+	c := srv.GetConnectionByConnectionID(clientID, cid)
 
 	// if nothing to do
 	if c == nil {
@@ -380,15 +465,15 @@ func (m *TransportServerBase) SendResponse(
 }
 
 // Set the handler that will receive notifications received from the remote agent
-func (m *TransportServerBase) SetNotificationSink(consumer msg.NotificationHandler) {
-	m.notificationSink = consumer
+func (srv *TransportServerBase) SetNotificationSink(consumer msg.NotificationHandler) {
+	srv.notificationSink = consumer
 }
 
 // Set the handler that will receive requests received from the client
-func (m *TransportServerBase) SetRequestSink(sink msg.RequestHandler) {
+func (srv *TransportServerBase) SetRequestSink(sink msg.RequestHandler) {
 	// to be determined if there is a use-case for replacing the sink
-	if m.requestSink != nil {
-		slog.Warn("SetRequestSink: Overriding existing request sink", "moduleID", m.moduleID)
+	if srv.requestSink != nil {
+		slog.Warn("SetRequestSink: Overriding existing request sink", "moduleID", srv.moduleID)
 	}
-	m.requestSink = sink
+	srv.requestSink = sink
 }

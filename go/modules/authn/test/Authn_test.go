@@ -23,6 +23,7 @@ var defaultHash = authnapi.PWHASH_ARGON2id
 var serverPort int = 9445
 var testCerts certstest.TestCertBundle
 var testClientID1 = "client1"
+var rpcTimeout = time.Minute * 3
 
 const TestKeyType = utils.KeyTypeED25519
 
@@ -51,7 +52,8 @@ func NewTestConsumer(m *authnserver.AuthnServer, protocolType, serverURL, client
 	_ = m.AddClient(clientID, "client 1", authnapi.ClientRoleViewer)
 	token, validUntil, _ := m.CreateSessionToken(clientID, time.Minute)
 	_ = validUntil
-	co, cc, err := clients.NewConsumerConnection(appID, protocolType, serverURL, testCerts.CaCert)
+	co, cc, err := clients.NewConsumerConnection(
+		appID, protocolType, serverURL, testCerts.CaCert, rpcTimeout)
 	if err != nil {
 		panic("Failed creating consumer connection: " + err.Error())
 	}

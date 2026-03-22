@@ -19,6 +19,7 @@ import (
 
 var serverPort int = 9445
 var testCerts = certstest.CreateTestCertBundle(utils.KeyTypeED25519)
+var rpcTimeout = time.Minute * 3 // for debugging
 
 func TestConnect(t *testing.T) {
 	baseURL := fmt.Sprintf("http://localhost:%d", serverPort)
@@ -42,6 +43,7 @@ func TestConnect(t *testing.T) {
 		func(connected bool, cl2 transports.IConnection, err2 error) {
 			isConnected = connected
 		})
+	cl.SetTimeout(rpcTimeout)
 	err = cl.ConnectWithToken(clientID, token)
 	require.NoError(t, err)
 	time.Sleep(time.Millisecond)

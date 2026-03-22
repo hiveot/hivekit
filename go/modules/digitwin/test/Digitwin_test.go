@@ -19,7 +19,6 @@ import (
 	"github.com/hiveot/hivekit/go/modules/router"
 	"github.com/hiveot/hivekit/go/modules/transports"
 	"github.com/hiveot/hivekit/go/modules/transports/tptests"
-	wssapi "github.com/hiveot/hivekit/go/modules/transports/wss/api"
 	"github.com/hiveot/hivekit/go/msg"
 	"github.com/hiveot/hivekit/go/utils"
 	"github.com/hiveot/hivekit/go/wot"
@@ -29,6 +28,8 @@ import (
 )
 
 var storageRoot = ""
+
+const rpcTimout = transports.DefaultRpcTimeout
 
 // TestMain setup logging and creates a test environment
 func TestMain(m *testing.M) {
@@ -47,7 +48,7 @@ func TestMain(m *testing.M) {
 // This sets-up a module chain with a server, directory, digitwin, vcache, and router
 func startService() (
 	testEnv *tptests.TestEnv,
-	dir directoryapi.IDirectoryModuleServer,
+	dir directoryapi.IDirectoryServer,
 	dtw digitwinapi.IDigitwinModule,
 	stopFn func()) {
 
@@ -56,7 +57,7 @@ func startService() (
 	// http server needed for all communications
 	testEnv.StartHttpServer()
 	// a websocket server for RRN messaging
-	appServer := testEnv.StartTestServer(td.ProtocolSchemeWotWSS)
+	appServer := testEnv.StartTestServer(transports.WotWebsocketProtocolType)
 
 	// the directory server that will contain digitwin Things
 	dir = directory.NewDirectoryModule("", testEnv.HttpServer)
@@ -75,6 +76,7 @@ func startService() (
 	routerStorage := path.Join(os.TempDir(), "router-test")
 	rtr := router.NewRouterModule(routerStorage,
 		dtw.GetDeviceTD, []transports.ITransportServer{appServer}, testEnv.CertBundle.CaCert)
+	rtr.SetTimeout(rpcTimout)
 
 	// create a request pipeline server->directory->digitwin->router->server
 	appServer.SetRequestSink(dir.HandleRequest)
@@ -141,8 +143,9 @@ func TestCreateDigitwinTD(t *testing.T) {
 
 	// 4. check if the base form points to the server
 	require.NotEmpty(t, dtw1.Base, "Missing base in TD")
-	expectedBase, protocolType := testEnv.Server.GetConnectURL()
-	assert.NotEmpty(t, protocolType)
+	expectedBase := testEnv.Server.GetConnectURL()
+	expectedProtocolType := testEnv.Server.GetProtocolType()
+	assert.NotEmpty(t, expectedProtocolType)
 	assert.Equal(t, expectedBase, dtw1.Base)
 
 	// 5. check if the forms in the affordances are replaced
@@ -151,7 +154,7 @@ func TestCreateDigitwinTD(t *testing.T) {
 		form0 := aff.Forms[0]
 		assert.NotEmpty(t, form0.GetOperations())
 		subprotocol, _ := form0.GetSubprotocol()
-		assert.Equal(t, subprotocol, wssapi.SubprotocolWotWSS)
+		assert.Equal(t, subprotocol, transports.WotWebsocketSubprotocol)
 	}
 	for _, aff := range dtw1.Events {
 		require.NotEmpty(t, aff.Forms)

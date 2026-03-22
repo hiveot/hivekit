@@ -13,6 +13,7 @@ import (
 	directoryapi "github.com/hiveot/hivekit/go/modules/directory/api"
 	directoryclient "github.com/hiveot/hivekit/go/modules/directory/client"
 	"github.com/hiveot/hivekit/go/modules/directory/internal/module"
+	"github.com/hiveot/hivekit/go/modules/transports"
 	"github.com/hiveot/hivekit/go/modules/transports/direct"
 	"github.com/hiveot/hivekit/go/modules/transports/httpserver/tlsclient"
 	"github.com/hiveot/hivekit/go/modules/transports/tptests"
@@ -26,7 +27,7 @@ import (
 var storageRoot = ""
 
 const defaultAgentID = "agent-smith"
-const defaultProtocol = td.ProtocolTypeWotWSS
+const defaultProtocol = transports.WotWebsocketProtocolType
 const TestKeyType = utils.KeyTypeED25519
 
 // TestMain setsup logging
@@ -44,7 +45,7 @@ func TestMain(m *testing.M) {
 
 // Start a test environment with a directory module connected to the server
 func StartDirectoryServer() (
-	testEnv *tptests.TestEnv, m directoryapi.IDirectoryModuleServer, cancelFn func()) {
+	testEnv *tptests.TestEnv, m directoryapi.IDirectoryServer, cancelFn func()) {
 
 	testEnv, cancelTestEnv := tptests.StartTestEnv(defaultProtocol)
 	// use in-memory storage

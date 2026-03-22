@@ -21,7 +21,7 @@ import (
 
 // CreateRoutes add the routes used in SSE-SC sub-protocol
 // This is simple, one endpoint to connect, and one to pass requests, using URI variables
-func (m *SsescTransport) CreateRoutes(ssePath string, r chi.Router) {
+func (m *SseScTransport) CreateRoutes(ssePath string, r chi.Router) {
 	if r == nil {
 		slog.Error("HiveotSseModule CreateRoutes: missing router")
 		return
@@ -53,7 +53,7 @@ func (m *SsescTransport) CreateRoutes(ssePath string, r chi.Router) {
 }
 
 // DeleteRoutes removes the routes used in SSE-SC sub-protocol
-func (m *SsescTransport) DeleteRoutes(ssePath string, r chi.Router) {
+func (m *SseScTransport) DeleteRoutes(ssePath string, r chi.Router) {
 	r.Delete(ssePath, m.onHttpSseConnection)
 	r.Delete(ssescapi.PostSseScNotificationPath, m.onHttpNotificationMessage)
 	r.Delete(ssescapi.PostSseScRequestPath, m.onHttpRequestMessage)
@@ -64,7 +64,7 @@ func (m *SsescTransport) DeleteRoutes(ssePath string, r chi.Router) {
 //
 // The notification is decoded into a standard notification message and passed on
 // to the registered sink.
-func (m *SsescTransport) onHttpNotificationMessage(w http.ResponseWriter, r *http.Request) {
+func (m *SseScTransport) onHttpNotificationMessage(w http.ResponseWriter, r *http.Request) {
 
 	// 1. Decode the message
 	rp, err := m.httpServer.GetRequestParams(r)
@@ -99,7 +99,7 @@ func (m *SsescTransport) onHttpNotificationMessage(w http.ResponseWriter, r *htt
 //
 // Note that in case of invokeaction, the response should be an ActionStatus object.
 // The handler can easily create this using req.CreateActionResponse().
-func (m *SsescTransport) onHttpRequestMessage(w http.ResponseWriter, r *http.Request) {
+func (m *SseScTransport) onHttpRequestMessage(w http.ResponseWriter, r *http.Request) {
 	var resp *msg.ResponseMessage
 
 	// 1. Decode the request message
@@ -173,7 +173,7 @@ func (m *SsescTransport) onHttpRequestMessage(w http.ResponseWriter, r *http.Req
 // forwards to subscriber (which is the server again, or a consumer)
 //
 // The message body is unmarshalled and included as the response.
-func (m *SsescTransport) onHttpResponseMessage(w http.ResponseWriter, r *http.Request) {
+func (m *SseScTransport) onHttpResponseMessage(w http.ResponseWriter, r *http.Request) {
 
 	// 1. Decode the request message
 	rp, err := m.httpServer.GetRequestParams(r)
@@ -211,7 +211,7 @@ func (m *SsescTransport) onHttpResponseMessage(w http.ResponseWriter, r *http.Re
 
 // Serve a new incoming hiveot sse connection.
 // This doesn't return until the connection is closed by either client or server.
-func (m *SsescTransport) onHttpSseConnection(w http.ResponseWriter, r *http.Request) {
+func (m *SseScTransport) onHttpSseConnection(w http.ResponseWriter, r *http.Request) {
 
 	//An active session is required before accepting the request. This is created on
 	//authentication/login. Until then SSE cm are blocked.

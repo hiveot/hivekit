@@ -2,10 +2,12 @@ package httpbasicapi
 
 import "github.com/hiveot/hivekit/go/modules/transports"
 
-// DefaultHttpBasicThingID is the default thingID of the http basic transport module.
-const DefaultHttpBasicThingID = "http-basic"
-
 const (
+	// WotHttpBasicModuleID is the default thingID of the http basic transport module.
+	WotHttpBasicModuleID = "http-basic"
+	// WotHttpBasicProtocolType = "http-basic"
+	// WotHttpBasicSubprotocol  = ""
+	// WotHttpBasicUrlScheme    = "https"
 
 	// The generic path for thing operations over http
 	// See http server for definition of the URI variables

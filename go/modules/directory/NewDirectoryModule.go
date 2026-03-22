@@ -15,7 +15,7 @@ import (
 //
 // storageRoot is the root dir of the storage area. Use "" for testing with an in-memory store.
 // router is the html server router to register the html API handlers with. nil to ignore.
-func NewDirectoryModule(storageRoot string, httpServer transports.IHttpServer) directoryapi.IDirectoryModuleServer {
+func NewDirectoryModule(storageRoot string, httpServer transports.IHttpServer) directoryapi.IDirectoryServer {
 	m := module.NewDirectoryModule(storageRoot, httpServer)
 	return m
 }

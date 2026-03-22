@@ -21,7 +21,7 @@ const ThingIDURIVar = "thingID"
 // This uses the given chi router which should have authentication/authorization
 // middleware installed.
 type DirectoryRestHandler struct {
-	service    directoryapi.IDirectoryModuleServer
+	service    directoryapi.IDirectoryServer
 	httpServer transports.IHttpServer
 }
 
@@ -86,7 +86,7 @@ func (srv *DirectoryRestHandler) handleUpdateThing(w http.ResponseWriter, r *htt
 }
 
 // Create a new Directory REST handler and start listening on the given router
-func StartDirectoryRestHandler(service directoryapi.IDirectoryModuleServer, httpServer transports.IHttpServer) *DirectoryRestHandler {
+func StartDirectoryRestHandler(service directoryapi.IDirectoryServer, httpServer transports.IHttpServer) *DirectoryRestHandler {
 	srv := &DirectoryRestHandler{
 		httpServer: httpServer,
 		service:    service,

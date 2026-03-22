@@ -34,7 +34,7 @@ type IMessageConverter interface {
 	// This returns an error response if the message cannot be converted
 	EncodeResponse(resp *msg.ResponseMessage) ([]byte, error)
 
-	// GetProtocolType provides the protocol type for these messages,
-	// eg ProtocolTypeWSS
-	GetProtocolType() string
+	// // GetProtocolType provides the protocol type for these messages,
+	// // eg ProtocolTypeWSS
+	// GetProtocolType() string
 }

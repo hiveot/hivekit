@@ -385,6 +385,7 @@ func (cl *HttpBasicClient) Stop() {
 //	clientID to identify as. Must match the authentication information.
 //	caCert of the server to validate the server or nil to not check the server cert
 //	getForm is the handler for return a form for invoking an operation. nil for default
+//	ch optional callback with connection status changes
 func NewHttpBasicClient(
 	baseURL string, caCert *x509.Certificate,
 	getForm transports.GetFormHandler,

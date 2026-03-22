@@ -7,7 +7,6 @@ import (
 	"github.com/hiveot/hivekit/go/msg"
 	"github.com/hiveot/hivekit/go/utils"
 	"github.com/hiveot/hivekit/go/wot"
-	"github.com/hiveot/hivekit/go/wot/td"
 	jsoniter "github.com/json-iterator/go"
 )
 
@@ -334,9 +333,9 @@ func (svc *WotWssMsgConverter) EncodeResponse(resp *msg.ResponseMessage) ([]byte
 }
 
 // GetProtocolType returns the hiveot WSS protocol type identifier
-func (svc *WotWssMsgConverter) GetProtocolType() string {
-	return td.ProtocolTypeWotWSS
-}
+// func (svc *WotWssMsgConverter) GetProtocolType() string {
+// 	return wssapi.WotWSSProtocolType
+// }
 
 // Create a new instance of the WoT websocket to hiveot message converter
 func NewWotWssMsgConverter() *WotWssMsgConverter {

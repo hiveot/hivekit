@@ -8,7 +8,6 @@ import (
 	"github.com/hiveot/hivekit/go/modules/transports"
 	httpbasicapi "github.com/hiveot/hivekit/go/modules/transports/httpbasic/api"
 	"github.com/hiveot/hivekit/go/msg"
-	"github.com/hiveot/hivekit/go/wot/td"
 )
 
 // HTTP-basic profile constants
@@ -38,11 +37,9 @@ type HttpBasicTransport struct {
 	serverRequestHandler msg.RequestHandler
 }
 
-// GetConnectURL returns http-basic connection URL of the server
-func (m *HttpBasicTransport) GetConnectURL() (string, string) {
-
-	httpURL := m.httpServer.GetConnectURL()
-	return httpURL, td.ProtocolTypeHTTPBasic
+// GetProtocolType returns http-basic protocol type
+func (m *HttpBasicTransport) GetProtocolType() string {
+	return transports.WotHttpBasicProtocolType
 }
 
 // Handle a notification this module (or downstream in the chain) subscribed to.
@@ -116,9 +113,11 @@ func NewHttpBasicTransport(httpServer transports.IHttpServer) *HttpBasicTranspor
 	m := &HttpBasicTransport{
 		httpServer: httpServer,
 	}
-	moduleID := httpbasicapi.DefaultHttpBasicThingID
+	moduleID := httpbasicapi.WotHttpBasicModuleID
 
-	m.Init(moduleID)
+	connectURL := httpServer.GetConnectURL()
+	authenticator := httpServer.GetAuthenticator()
+	m.Init(moduleID, transports.WotHttpBasicSubprotocol, connectURL, authenticator)
 
 	// TODO: properties must match the module TM
 	// m.UpdateProperty(transports.PropName_NrConnections, 0)

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net/url"
+	"slices"
 	"sort"
 	"strings"
 
@@ -404,16 +405,16 @@ func (tdoc *TD) GetForms(operation string, name string) []Form {
 
 		// find the form for this operation that has the currently used transport type
 		for _, form := range availableForms {
-			op, found := form["op"]
-			if found && op == operation {
+			opList := form.GetOperations()
+			if slices.Index(opList, operation) >= 0 {
 				opForms = append(opForms, form)
 			}
 		}
 	}
 	// still not found? okay check the top level form
 	for _, form := range tdoc.Forms {
-		op, found := form["op"]
-		if found && op == operation {
+		opList := form.GetOperations()
+		if slices.Index(opList, operation) >= 0 {
 			opForms = append(opForms, form)
 		}
 	}
@@ -425,9 +426,9 @@ func (tdoc *TD) GetForms(operation string, name string) []Form {
 // in the TD.
 func (tdoc *TD) GetFormHRef(form Form, uriVars map[string]string) (href string, err error) {
 	href = form.GetHRef()
-	if href == "" {
-		return "", fmt.Errorf("form has no valid href field")
-	}
+	// if href == "" {
+	// return "", fmt.Errorf("form has no valid href field")
+	// }
 	uri, err := url.Parse(href)
 	if err != nil {
 		return "", err
@@ -463,62 +464,6 @@ func (tdoc *TD) GetPropertyOfVocabType(vocabType string) (string, *PropertyAffor
 		}
 	}
 	return "", nil
-}
-
-// GetProtocolType returns the bi-directional protocol used for connecting to this device.
-// This returns the subprotocol and connection href, if available.
-//
-// Note that TDs can use multiple protocols for its operations. HiveOT currently assumes
-// that only a single connection protocol is used, and falls back to http basic if it
-// cannot be determined.
-//
-//  1. lookup the forms of the 'observeallproperties' or 'subscribeallevents' top level operation,
-//     if present take the first form and lookup the subprotocol and href fields.
-//     if no subprotocol field exists, then use the scheme in the href.
-//
-//  2. if no form was found then use the scheme of the 'base' field in the td.
-//     wss maps to websocket, href can be longpoll, sse is hiveot sse-sc, etc.
-//
-// 3. if all else fails if still no scheme then assume its http basic
-func (tdoc *TD) GetProtocolType() (subprotocol string, href string) {
-	forms := tdoc.GetForms(wot.OpObserveAllProperties, "")
-	if len(forms) == 0 {
-		forms = tdoc.GetForms(wot.OpSubscribeAllEvents, "")
-	}
-	if len(forms) == 0 {
-		forms = tdoc.Forms // pick any
-	}
-	if len(forms) > 0 {
-		subprotocol, found := forms[0].GetSubprotocol()
-		href = forms[0].GetHRef()
-		parts, err := url.Parse(href)
-		// if href has no scheme then join with the 'base' field
-		if err == nil && parts.Scheme == "" && tdoc.Base != "" {
-			href, err = url.JoinPath(tdoc.Base, href)
-		}
-		if found {
-			return subprotocol, href
-		}
-	}
-	// if no subprotocol was found determine it from the href
-	if href == "" {
-		href = tdoc.Base
-	}
-	if strings.HasPrefix(href, ProtocolSchemeHTTPBasic) {
-		return href, ProtocolTypeHTTPBasic
-	}
-	// a normal TD device should have a subprotocol so not sure what is going on here.
-	// just some fallback options
-	if strings.HasPrefix(href, ProtocolSchemeWotWSS) {
-		return href, ProtocolTypeWotWSS
-	}
-	if strings.HasPrefix(href, ProtocolSchemeWotMQTTWSS) {
-		return href, ProtocolTypeWotMQTTWSS
-	}
-	if strings.HasPrefix(href, ProtocolSchemeWotSSE) {
-		return href, ProtocolTypeWotSSE
-	}
-	return "", href
 }
 
 // GetID returns the ID of the things TD

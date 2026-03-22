@@ -16,7 +16,6 @@ import (
 	"github.com/hiveot/hivekit/go/msg"
 	"github.com/hiveot/hivekit/go/utils"
 	"github.com/hiveot/hivekit/go/wot"
-	"github.com/hiveot/hivekit/go/wot/td"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -27,7 +26,7 @@ const testClientID1 = "client1"
 // server endpoint/protocol used
 // var defaultProtocol = transports.ProtocolTypeHiveotSSE
 
-var defaultProtocol = td.ProtocolTypeWotWSS
+var defaultProtocol = transports.WotWebsocketProtocolType
 
 var certBundle = certstest.CreateTestCertBundle(utils.KeyTypeED25519)
 
@@ -350,7 +349,8 @@ func TestServerURL(t *testing.T) {
 
 	testEnv, cancelFn := StartTestEnv(defaultProtocol)
 	defer cancelFn()
-	serverURL, protocol := testEnv.Server.GetConnectURL()
+	serverURL := testEnv.Server.GetConnectURL()
+	protocol := testEnv.Server.GetProtocolType()
 	_, err := url.Parse(serverURL)
 	require.NoError(t, err)
 	require.Equal(t, defaultProtocol, protocol)

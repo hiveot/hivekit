@@ -24,63 +24,63 @@ var HttpKnownOperations = []string{
 // If the method names for get operations is default GET then it is omitted from the form.
 //
 // includeAffordances adds forms for all affordances to be compliant with the specifications.
-func (srv *HttpBasicTransport) AddTDSecForms(tdoc *td.TD, includeAffordances bool) {
-	// defaults to https://host:port/
-	connectURL, _ := srv.GetConnectURL()
-	tdoc.Base = fmt.Sprintf("%s", connectURL)
+// func (srv *HttpBasicTransport) AddTDSecForms(tdoc *td.TD, includeAffordances bool) {
+// 	// defaults to https://host:port/
+// 	connectURL, _ := srv.GetConnectURL()
+// 	tdoc.Base = fmt.Sprintf("%s", connectURL)
 
-	// 2. Set the security scheme used by the authenticator.
-	authr := srv.httpServer.GetAuthenticator()
-	authr.AddSecurityScheme(tdoc)
+// 	// 2. Set the security scheme used by the authenticator.
+// 	authr := srv.httpServer.GetAuthenticator()
+// 	authr.AddSecurityScheme(tdoc)
 
-	// 3. add thing level forms that apply to all things. http-basic only supports read/write
-	tdoc.Forms = append(tdoc.Forms,
-		srv.createThingLevelForm(wot.OpQueryAllActions, http.MethodGet, tdoc.ID),
-		srv.createThingLevelForm(wot.HTOpReadAllEvents, http.MethodGet, tdoc.ID),
-		srv.createThingLevelForm(wot.OpReadAllProperties, http.MethodGet, tdoc.ID),
-		srv.createThingLevelForm(wot.OpWriteMultipleProperties, http.MethodPost, tdoc.ID),
-	)
-	if includeAffordances {
-		srv.AddAffordanceForms(tdoc)
-	}
-}
+// 	// 3. add thing level forms that apply to all things. http-basic only supports read/write
+// 	tdoc.Forms = append(tdoc.Forms,
+// 		srv.createThingLevelForm(wot.OpQueryAllActions, http.MethodGet, tdoc.ID),
+// 		srv.createThingLevelForm(wot.HTOpReadAllEvents, http.MethodGet, tdoc.ID),
+// 		srv.createThingLevelForm(wot.OpReadAllProperties, http.MethodGet, tdoc.ID),
+// 		srv.createThingLevelForm(wot.OpWriteMultipleProperties, http.MethodPost, tdoc.ID),
+// 	)
+// 	if includeAffordances {
+// 		srv.AddAffordanceForms(tdoc)
+// 	}
+// }
 
-// AddAffordanceForms adds forms to affordances for interacting using the websocket protocol binding
-// http-basic only supports read-write
-func (srv *HttpBasicTransport) AddAffordanceForms(tdoc *td.TD) {
-	for name, aff := range tdoc.Actions {
-		f := srv.createAffordanceForm(wot.OpInvokeAction, http.MethodPost, tdoc.ID, name)
-		aff.AddForm(f)
-		f = srv.createAffordanceForm(wot.OpQueryAction, http.MethodGet, tdoc.ID, name)
-		aff.AddForm(f)
-	}
-	for name, aff := range tdoc.Events {
-		f := srv.createAffordanceForm(wot.HTOpReadEvent, http.MethodGet, tdoc.ID, name)
-		aff.AddForm(f)
-	}
-	for name, aff := range tdoc.Properties {
-		if !aff.WriteOnly {
-			// http-basic doesn't support observe/unobserve
-			//f := srv.createAffordanceForm(wot.OpObserveProperty, http.MethodGet, tdoc.ID, name)
-			//aff.AddForm(f)
-			//f = srv.createAffordanceForm(wot.OpUnobserveProperty, http.MethodGet, tdoc.ID, name)
-			//aff.AddForm(f)
-			f := srv.createAffordanceForm(wot.OpReadProperty, http.MethodGet, tdoc.ID, name)
-			aff.AddForm(f)
-		}
-		if !aff.ReadOnly {
-			f := srv.createAffordanceForm(wot.OpWriteProperty, http.MethodPut, tdoc.ID, name)
-			aff.AddForm(f)
-		}
-	}
-}
+// // AddAffordanceForms adds forms to affordances for interacting using the websocket protocol binding
+// // http-basic only supports read-write
+// func (srv *HttpBasicTransport) AddAffordanceForms(tdoc *td.TD) {
+// 	for name, aff := range tdoc.Actions {
+// 		f := srv.createAffordanceForm(wot.OpInvokeAction, http.MethodPost, tdoc.ID, name)
+// 		aff.AddForm(f)
+// 		f = srv.createAffordanceForm(wot.OpQueryAction, http.MethodGet, tdoc.ID, name)
+// 		aff.AddForm(f)
+// 	}
+// 	for name, aff := range tdoc.Events {
+// 		f := srv.createAffordanceForm(wot.HTOpReadEvent, http.MethodGet, tdoc.ID, name)
+// 		aff.AddForm(f)
+// 	}
+// 	for name, aff := range tdoc.Properties {
+// 		if !aff.WriteOnly {
+// 			// http-basic doesn't support observe/unobserve
+// 			//f := srv.createAffordanceForm(wot.OpObserveProperty, http.MethodGet, tdoc.ID, name)
+// 			//aff.AddForm(f)
+// 			//f = srv.createAffordanceForm(wot.OpUnobserveProperty, http.MethodGet, tdoc.ID, name)
+// 			//aff.AddForm(f)
+// 			f := srv.createAffordanceForm(wot.OpReadProperty, http.MethodGet, tdoc.ID, name)
+// 			aff.AddForm(f)
+// 		}
+// 		if !aff.ReadOnly {
+// 			f := srv.createAffordanceForm(wot.OpWriteProperty, http.MethodPut, tdoc.ID, name)
+// 			aff.AddForm(f)
+// 		}
+// 	}
+// }
 
 // GetForm returns a form for the given operation
-// Intended for updating TD's with forms to invoke a request
-func (m *HttpBasicTransport) GetForm(operation string, thingID string, name string) *td.Form {
-	// TODO: use the standard path /operation/thingID/name
-	return nil
-}
+// // Intended for updating TD's with forms to invoke a request
+// func (m *HttpBasicTransport) GetForm(operation string, thingID string, name string) *td.Form {
+// 	// TODO: use the standard path /operation/thingID/name
+// 	return nil
+// }
 
 // createAffordanceForm returns a form for a thing action/event/property affordance operation
 // the href in the form has the format "{base}/{op}/{thingID}/{name}

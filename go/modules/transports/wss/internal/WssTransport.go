@@ -16,15 +16,12 @@ import (
 	wssconverter "github.com/hiveot/hivekit/go/modules/transports/wss/converter"
 	"github.com/hiveot/hivekit/go/msg"
 	"github.com/hiveot/hivekit/go/utils"
-	"github.com/hiveot/hivekit/go/wot/td"
 )
 
 // WssTransport is a transport module that serves Websocket connections over http.
 // This implements both ITransportServer and IHiveModule interfaces.
 type WssTransport struct {
 	transports.TransportServerBase
-
-	connectURL string
 
 	// this handles request for this module
 	msgAPI *WssRrnHandler
@@ -42,7 +39,7 @@ type WssTransport struct {
 	respTimeout time.Duration
 
 	// WoT or Hiveot subprotocol
-	subprotocol string
+	// subprotocol string
 
 	// listening path for incoming connections
 	wssPath string
@@ -61,10 +58,9 @@ func (m *WssTransport) DetermineAgentConnection(thingID string) (transports.ICon
 	return c, nil
 }
 
-// GetConnectURL returns SSE connection URL of the server
-// This uses the custom 'ssesc' schema which is non-wot compatible.
-func (m *WssTransport) GetConnectURL() (string, string) {
-	return m.connectURL, m.msgConverter.GetProtocolType()
+// GetProtocolType returns type identifier of the server protocol as defined by its module
+func (m *WssTransport) GetProtocolType() string {
+	return m.protocolType
 }
 
 // Handle a notification this module (or downstream in the chain) subscribed to.
@@ -170,7 +166,8 @@ func (m *WssTransport) Serve(w http.ResponseWriter, r *http.Request) {
 func (m *WssTransport) Start(yamlConfig string) (err error) {
 
 	connectURL := m.httpServer.GetConnectURL()
-	slog.Info("Start: Starting websocket module, Listening on: " + connectURL)
+	slog.Info("Start: Starting websocket module, Listening on: "+connectURL,
+		"protocolType", m.protocolType)
 
 	// TODO: detect if already running
 
@@ -214,16 +211,16 @@ func NewHiveotWssTransport(httpServer transports.IHttpServer, respTimeout time.D
 	m := &WssTransport{
 		httpServer:   httpServer,
 		msgConverter: direct.NewPassthroughMessageConverter(),
-		protocolType: td.ProtocolTypeWotWSS,
-		subprotocol:  wssapi.SubprotocolHiveotWSS,
+		protocolType: transports.HiveotWebsocketProtocolType,
 		// connectHandler: nil,
 		respTimeout: respTimeout,
-		wssPath:     wssapi.DefaultHiveotWssPath,
+		wssPath:     wssapi.HiveotWebsocketPath,
 	}
-	moduleID := wssapi.DefaultHiveotWssModuleID
-	m.connectURL = fmt.Sprintf("%s://%s%s", wssapi.HiveotWssSchema, urlParts.Host, m.wssPath)
 	// set the base parameters
-	m.Init(moduleID)
+	moduleID := wssapi.HiveotWebsocketModuleID
+	subProtocol := transports.HiveotWebsocketSubprotocol
+	connectURL := fmt.Sprintf("%s://%s%s", transports.HiveotWebsocketUrlScheme, urlParts.Host, m.wssPath)
+	m.Init(moduleID, subProtocol, connectURL, httpServer.GetAuthenticator())
 	return m
 }
 
@@ -249,14 +246,14 @@ func NewWotWssTransport(httpServer transports.IHttpServer, respTimeout time.Dura
 		httpServer:   httpServer,
 		msgConverter: wssconverter.NewWotWssMsgConverter(),
 		respTimeout:  respTimeout,
-		subprotocol:  wssapi.SubprotocolWotWSS,
-		protocolType: td.ProtocolTypeWotWSS,
-		wssPath:      wssapi.DefaultWotWssPath,
+		protocolType: transports.WotWebsocketProtocolType,
+		wssPath:      wssapi.WotWebsocketPath,
 	}
-	moduleID := wssapi.DefaultWotWssModuleID
-	m.connectURL = fmt.Sprintf("%s://%s%s", wssapi.WotWssSchema, urlParts.Host, m.wssPath)
 
-	m.Init(moduleID)
+	moduleID := wssapi.WotWebsocketModuleID
+	subProtocol := transports.WotWebsocketSubprotocol
+	connectURL := fmt.Sprintf("%s://%s%s", transports.WotWebsocketUrlScheme, urlParts.Host, m.wssPath)
+	m.Init(moduleID, subProtocol, connectURL, httpServer.GetAuthenticator())
 	// m.UpdateProperty(transports.PropName_NrConnections, 0)
 
 	var _ modules.IHiveModule = m         // interface check

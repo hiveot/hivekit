@@ -448,11 +448,10 @@ func (cl *WssClient) Stop() {
 //
 //	wssURL is the full websocket connection URL including path
 //	caCert is the server CA for TLS connection validation
-//	timeout is the maximum connection wait time. 0 for default.
 //	ch is the connect/disconnect callback. nil to ignore
 func NewHiveotWssClient(
 	wssURL string, caCert *x509.Certificate,
-	timeout time.Duration, ch transports.ConnectionHandler) *WssClient {
+	ch transports.ConnectionHandler) *WssClient {
 
 	// ensure the URL has port as 443 is not valid for this
 	urlParts, err := url.Parse(wssURL)
@@ -463,9 +462,7 @@ func NewHiveotWssClient(
 	hostPort := urlParts.Host
 	wssPath := urlParts.Path
 
-	if timeout == 0 {
-		timeout = transports.DefaultRpcTimeout
-	}
+	timeout := transports.DefaultRpcTimeout
 
 	tlsClient := tlsclient.NewTLSClient(hostPort, nil, caCert, timeout)
 
@@ -496,11 +493,9 @@ func NewHiveotWssClient(
 //	timeout is the maximum connection wait time. 0 for default.
 //	ch is the connection callback handler, nil to ignore
 func NewWotWssClient(wssURL string, caCert *x509.Certificate,
-	timeout time.Duration, ch transports.ConnectionHandler) *WssClient {
+	ch transports.ConnectionHandler) *WssClient {
 
-	if timeout == 0 {
-		timeout = transports.DefaultRpcTimeout
-	}
+	timeout := transports.DefaultRpcTimeout
 	urlParts, _ := url.Parse(wssURL)
 	hostPort := urlParts.Host
 	wssPath := urlParts.Path

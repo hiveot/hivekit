@@ -11,23 +11,18 @@ import (
 	"github.com/hiveot/hivekit/go/modules/transports/direct"
 	ssescapi "github.com/hiveot/hivekit/go/modules/transports/ssesc/api"
 	"github.com/hiveot/hivekit/go/msg"
-	"github.com/hiveot/hivekit/go/wot/td"
 )
 
-// SsescTransport is a transport module for serving the HiveOT SSE-SC transport protocol.
+// SseScTransport is a transport module for serving the HiveOT SSE-SC transport protocol.
 // This implements the ITransportModule (and IHiveModule) interface.
 //
 // This transport protocol is build on top of HTTP and is bi-directional.
 // It supports subscribing to events or observing properties.
-type SsescTransport struct {
+type SseScTransport struct {
 	// Transport base includes the RnR channel for matching request-response messages.
 	transports.TransportServerBase
 
-	connectURL string
-	// handler to invoke when a connection is established or disappears
-	// connectHandler transports.ConnectionHandler
-
-	// SSE protocol message converter
+	// SSE-Sc protocol message converter
 	converter transports.IMessageConverter
 
 	// the RRN messaging receiver
@@ -35,11 +30,6 @@ type SsescTransport struct {
 
 	// actual server exposing routes
 	httpServer transports.IHttpServer
-
-	// the linked authenticator
-	// authenticator transports.IAuthenticator
-
-	// service *service.HiveotSseService
 
 	// The connection address for subscription and URL to connect using SSE
 	// connectAddr string
@@ -52,23 +42,9 @@ type SsescTransport struct {
 	ssePath string
 }
 
-// AddTDForms for connecting to SSE, Subscribe, Observe, Send Requests, read and query
-// using hiveot RequestMessage and ResponseMessage envelopes.
-func (srv *SsescTransport) AddTDSecForms(tdoc *td.TD, includeAffordances bool) {
-
-	// 2. Set the security scheme used by the authenticator.
-	authr := srv.httpServer.GetAuthenticator()
-	authr.AddSecurityScheme(tdoc)
-
-	// TODO: add the hiveot http endpoints
-	//srv.httpBasicServer.AddOps()
-	// forms are handled through the http binding
-	//return srv.httpBasicServer.AddTDForms(tdi, includeAffordances)
-}
-
 // Get the agent/producer connection that serves the given ThingID
 // This supports using an agent prefix separated by ':' for the thingID
-func (m *SsescTransport) DetermineAgentConnection(thingID string) (transports.IConnection, error) {
+func (m *SseScTransport) DetermineAgentConnection(thingID string) (transports.IConnection, error) {
 	parts := strings.Split(thingID, ":")
 	agentID := parts[0]
 
@@ -79,16 +55,14 @@ func (m *SsescTransport) DetermineAgentConnection(thingID string) (transports.IC
 	return c, nil
 }
 
-// GetConnectURL returns SSE connection URL of the server
-// This uses the custom 'ssesc' schema which is non-wot compatible.
-func (m *SsescTransport) GetConnectURL() (string, string) {
-	return m.connectURL, td.ProtocolTypeHiveotSSESC
+func (m *SseScTransport) GetProtocolType() string {
+	return transports.HiveotSseScProtocolType
 }
 
 // Handle a notification this module (or downstream in the chain) subscribed to.
 // Notifications are forwarded to their upstream sink, which for a server is the
 // client.
-func (m *SsescTransport) HandleNotification(notif *msg.NotificationMessage) {
+func (m *SseScTransport) HandleNotification(notif *msg.NotificationMessage) {
 	m.SendNotification(notif)
 }
 
@@ -100,7 +74,7 @@ func (m *SsescTransport) HandleNotification(notif *msg.NotificationMessage) {
 //
 // This returns an error when the destination for the request cannot be found.
 // If multiple server protocols are used it is okay to try them one by one.
-func (m *SsescTransport) HandleRequest(
+func (m *SseScTransport) HandleRequest(
 	req *msg.RequestMessage, replyTo msg.ResponseHandler) (err error) {
 
 	// first attempt to procss the when targeted at this module
@@ -121,7 +95,7 @@ func (m *SsescTransport) HandleRequest(
 // Start readies the module for use.
 //
 // yamlConfig todo configure ssepath
-func (m *SsescTransport) Start(yamlConfig string) (err error) {
+func (m *SseScTransport) Start(yamlConfig string) (err error) {
 
 	// TODO: detect if already listening
 	// Add the routes used in SSE connection and subscription requests
@@ -133,7 +107,7 @@ func (m *SsescTransport) Start(yamlConfig string) (err error) {
 }
 
 // Stop any running actions
-func (m *SsescTransport) Stop() {
+func (m *SseScTransport) Stop() {
 }
 
 // Start a new HiveOT Http/SSE server using the given http server.
@@ -143,14 +117,14 @@ func (m *SsescTransport) Stop() {
 //
 // Use SetRequestSink to set the handler for requests send by consumers
 // Use SetNotificationSink to set the handler for notifications send by agents.
-func NewSseScTransport(server transports.IHttpServer, respTimeout time.Duration) *SsescTransport {
+func NewSseScTransport(httpServer transports.IHttpServer, respTimeout time.Duration) *SseScTransport {
 
-	ssePath := ssescapi.DefaultSseScPath
+	ssePath := ssescapi.HiveotSseScPath
 
-	httpAddr := server.GetConnectURL()
+	httpAddr := httpServer.GetConnectURL()
 	urlParts, _ := url.Parse(httpAddr)
 
-	connectURL := fmt.Sprintf("%s://%s%s", ssescapi.HiveotSsescSchema, urlParts.Host, ssePath)
+	connectURL := fmt.Sprintf("%s://%s%s", transports.HiveotSseScUrlScheme, urlParts.Host, ssePath)
 
 	// use the RRN message format. Simple passthrough.
 	converter := direct.NewPassthroughMessageConverter()
@@ -158,15 +132,14 @@ func NewSseScTransport(server transports.IHttpServer, respTimeout time.Duration)
 		respTimeout = transports.DefaultRpcTimeout
 	}
 
-	m := &SsescTransport{
-		connectURL:  connectURL,
-		httpServer:  server,
+	m := &SseScTransport{
+		httpServer:  httpServer,
 		ssePath:     ssePath,
 		converter:   converter,
 		respTimeout: respTimeout,
 	}
-	moduleID := ssescapi.DefaultSseScThingID
-	m.Init(moduleID)
+	moduleID := ssescapi.HiveotSseScModuleID
+	m.Init(moduleID, transports.HiveotSseScSubprotocol, connectURL, httpServer.GetAuthenticator())
 
 	var _ modules.IHiveModule = m         // interface check
 	var _ transports.ITransportServer = m // interface check

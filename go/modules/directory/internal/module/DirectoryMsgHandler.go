@@ -19,7 +19,7 @@ var DirectoryTMJson []byte
 type DirectoryMsgHandler struct {
 	// the directory instance ThingID that must match the requests
 	thingID string
-	service directoryapi.IDirectoryModuleServer
+	service directoryapi.IDirectoryServer
 }
 
 // GetTm returns the TN of the directory RRN messaging API
@@ -126,7 +126,7 @@ func (handler *DirectoryMsgHandler) UpdateThing(req *msg.RequestMessage) (resp *
 
 // Create a new directory message handler. On start this creates the server and store.
 // bucketStore is the store to use for this module chain.
-func NewDirectoryMsgHandler(thingID string, store directoryapi.IDirectoryModuleServer) *DirectoryMsgHandler {
+func NewDirectoryMsgHandler(thingID string, store directoryapi.IDirectoryServer) *DirectoryMsgHandler {
 
 	handler := &DirectoryMsgHandler{
 		thingID: thingID,

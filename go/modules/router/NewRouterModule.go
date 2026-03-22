@@ -20,7 +20,8 @@ func NewRouterModule(
 	storageDir string,
 	getTD func(thingID string) *td.TD,
 	transports []transports.ITransportServer,
-	caCert *x509.Certificate) routerapi.IRouterModule {
+	caCert *x509.Certificate,
+) routerapi.IRouterModule {
 
 	m := internal.NewRouterModule(storageDir, getTD, transports, caCert)
 	return m

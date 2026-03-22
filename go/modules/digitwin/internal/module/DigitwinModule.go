@@ -51,7 +51,7 @@ type DigitwinModule struct {
 	// the Thing directory with digital twin TDs
 	// this also contains TDs of non-digital twin devices and services, as consumers
 	// should be able to use these as well.
-	directory directoryapi.IDirectoryModuleServer
+	directory directoryapi.IDirectoryServer
 
 	// the store that holds the digital twin TDs and value
 	digitwinStore bucketstoreapi.IBucketStore
@@ -280,7 +280,7 @@ func (m *DigitwinModule) Stop() {
 //	that describe how to interact via the server's protocols. Each transport server
 //	provides a compatible handler.
 func NewDigitwinModule(storageRoot string,
-	thingDir directoryapi.IDirectoryModuleServer,
+	thingDir directoryapi.IDirectoryServer,
 	addforms func(tdoc *td.TD, includeAffordances bool)) *DigitwinModule {
 
 	m := &DigitwinModule{

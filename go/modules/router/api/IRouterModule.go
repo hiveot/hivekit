@@ -1,6 +1,10 @@
 package routerapi
 
-import "github.com/hiveot/hivekit/go/modules"
+import (
+	"time"
+
+	"github.com/hiveot/hivekit/go/modules"
+)
 
 const DefaultRouterServiceID = "router"
 
@@ -32,4 +36,7 @@ type IRouterModule interface {
 	// Return the ISO timestamp when the Thing was last seen by the router.
 	// This returns an empty string if no known record exists.
 	LastSeen(thingID string) string
+
+	// Set the communication timeout that is applied to new connections made by this module
+	SetTimeout(time.Duration)
 }

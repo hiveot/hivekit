@@ -33,8 +33,8 @@ type AgentInfo struct {
 	ThingIDs []string
 }
 
-// IDirectoryModuleServer defines the interface to the directory module server
-type IDirectoryModuleServer interface {
+// IDirectoryServer defines the interface to the directory module server
+type IDirectoryServer interface {
 	modules.IHiveModule
 
 	// CreateThing creates or updates the TD in the directory.

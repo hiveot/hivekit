@@ -348,8 +348,8 @@ func (cl *SseScClient) Stop() {
 //	sseURL full connection URL of SSE server and path
 //	caCert is the CA certificate to validate the server certificate
 //	ch is the connect/disconnect callback
-func NewSseScClient(
-	sseURL string, caCert *x509.Certificate, ch transports.ConnectionHandler) *SseScClient {
+func NewSseScClient(sseURL string, caCert *x509.Certificate,
+	ch transports.ConnectionHandler) *SseScClient {
 
 	urlParts, err := url.Parse(sseURL)
 	if err != nil {
@@ -358,7 +358,7 @@ func NewSseScClient(
 	}
 	hostPort := urlParts.Host
 	ssePath := urlParts.Path
-
+	// use SetTimeout to change the default
 	timeout := transports.DefaultRpcTimeout
 	tlsClient := tlsclient.NewTLSClient(hostPort, nil, caCert, timeout)
 

@@ -20,6 +20,34 @@ const (
 	DisconnectedEventName = "disconnected"
 )
 
+const (
+	HiveotSseScProtocolType = "hiveot-ssesc"
+	HiveotSseScSubprotocol  = "sse-sc"
+	HiveotSseScUrlScheme    = "sse"
+
+	HiveotWebsocketProtocolType = "hiveot-websocket"
+	HiveotWebsocketSubprotocol  = "hiveot:websocket"
+	HiveotWebsocketUrlScheme    = "wss"
+
+	WotHttpBasicProtocolType = "http-basic"
+	WotHttpBasicSubprotocol  = ""
+	WotHttpBasicUrlScheme    = "https"
+
+	WotHttpLongPollProtocolType = "http-longpoll"
+	WotHttpLongPollSubprotocol  = "longpoll"
+	WotHttpLongPollUrlScheme    = "https"
+
+	WotMqttProtocolType = "wot-mqtt"
+	WotMqttUrlScheme    = "mqtts"
+
+	WotSseProtocolType = "wot-sse"
+	WotSseUrlScheme    = "sse"
+
+	WotWebsocketProtocolType = "wot-websocket"
+	WotWebsocketSubprotocol  = "websocket"
+	WotWebsocketUrlScheme    = "wss"
+)
+
 // payload of connection events
 type ConnectionInfo struct {
 	// ClientID holds the account ID of the connected client
@@ -49,8 +77,11 @@ type ITransportServer interface {
 	// This returns nil if the client does not have an authenticated connection.
 	GetConnectionByClientID(clientID string) IConnection
 
-	// GetConnectURL returns connection URL and protocol of the server
-	GetConnectURL() (uri string, protocolType string)
+	// GetConnectURL returns connection URL of the server
+	GetConnectURL() (uri string)
+
+	// GetProtocolType returns type identifier of the server protocol as defined by its module
+	GetProtocolType() string
 
 	// SendNotification [agent] sends a notification over the connections to
 	// remote subscribed consumers.

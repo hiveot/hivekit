@@ -7,6 +7,7 @@ import (
 	"net/url"
 	"path/filepath"
 	"sync"
+	"time"
 
 	"github.com/hiveot/hivekit/go/modules"
 	"github.com/hiveot/hivekit/go/modules/clients"
@@ -33,20 +34,23 @@ type RouterModule struct {
 	// handler that provides a TD for the given thingID
 	getTD func(thingID string) *td.TD
 
-	// transport servers
-	tpServers []transports.ITransportServer
-
 	// deviceAccounts holds the credentials of devices by thingID
 	mux            sync.RWMutex
 	deviceAccounts map[string]DeviceAccount
+
+	// established device connections
+	deviceConnections map[string]clients.IClientModule
 
 	// directory to store device accounts
 	storageDir string
 	// location of the encrypted device account store. "" for in-memory only.
 	storageFile string
 
-	// established device connections
-	deviceConnections map[string]clients.IClientModule
+	// client communication timeout or 0 for default
+	timeout time.Duration
+
+	// transport servers
+	tpServers []transports.ITransportServer
 }
 
 // Add the secret to access a Thing.
@@ -87,7 +91,7 @@ func (m *RouterModule) GetClientConnection(tdi *td.TD) (
 
 	// use URI scheme to determine the protocol, except for the hiveot WSS, which also
 	// has a wss scheme. Instead look at the base path which is fixed.
-	protocolType, href := tdi.GetProtocolType()
+	protocolType, href := clients.GetProtocolType(tdi)
 	parts, err := url.Parse(href)
 	if err != nil {
 		return nil, err
@@ -98,6 +102,7 @@ func (m *RouterModule) GetClientConnection(tdi *td.TD) (
 		// fixme: how to determine the CA for this server?
 		// connect and store the connection if successful
 		c, err = clients.NewTransportClient(protocolType, href, m.caCert, nil)
+		c.SetTimeout(m.timeout)
 		if err == nil {
 			err = c.Authenticate(tdi, m.GetDeviceCredentials)
 		}
@@ -200,11 +205,14 @@ func (m *RouterModule) RouteRequest(req *msg.RequestMessage, replyTo msg.Respons
 		// TBD right now just use the first form.
 		href, err = tdi.GetFormHRef(forms[0], nil)
 	}
+	// if no form was found then simply use the Base attribute
 	if href == "" {
 		href = tdi.Base
 	}
 	// without href attempt looking up a reverse connection
-	if href == "" {
+	if href == "" && agentID == "" {
+		err = fmt.Errorf("No connection information in TD for Thing '%s'", req.ThingID)
+	} else if href == "" {
 		c := m.GetRCConnection(agentID)
 		if c == nil {
 			err = fmt.Errorf("Unable to connection with agent '%s'", agentID)
@@ -220,6 +228,12 @@ func (m *RouterModule) RouteRequest(req *msg.RequestMessage, replyTo msg.Respons
 		}
 	}
 	return err
+}
+
+// SetTimeout changes the default communication timeout applied to new connections
+// Existing connections are not changed.
+func (m *RouterModule) SetTimeout(rpcTimeout time.Duration) {
+	m.timeout = rpcTimeout
 }
 
 // Start the router module.
@@ -253,10 +267,12 @@ func (m *RouterModule) Stop() {
 //	getTD is the handler to lookup a TD for a thingID from a directory
 //	transports is a list of transport servers that can contain reverse agent connections.
 //	caCert is the CA used to verify device connections
+//	timeout is the maximum communication timeout with connect clients
 func NewRouterModule(storageDir string,
 	getTD func(thingID string) *td.TD,
 	tpServers []transports.ITransportServer,
-	caCert *x509.Certificate) *RouterModule {
+	caCert *x509.Certificate,
+) *RouterModule {
 
 	m := &RouterModule{
 		caCert:            caCert,
@@ -264,6 +280,7 @@ func NewRouterModule(storageDir string,
 		storageDir:        storageDir,
 		tpServers:         tpServers,
 		deviceConnections: make(map[string]clients.IClientModule),
+		timeout:           transports.DefaultRpcTimeout,
 	}
 	m.SetModuleID(routerapi.DefaultRouterServiceID)
 
