@@ -16,7 +16,7 @@ import (
 	"github.com/hiveot/hivekit/go/utils"
 )
 
-var testDir = path.Join(os.TempDir(), "test-authn")
+var testDir = path.Join(os.TempDir(), "hivekit", "test-authn")
 var authnConfig authnapi.AuthnConfig
 var defaultHash = authnapi.PWHASH_ARGON2id
 

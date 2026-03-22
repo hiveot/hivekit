@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"math/rand"
 	"os"
+	"path"
 	"testing"
 	"time"
 
@@ -25,13 +26,12 @@ import (
 var testBucketID = "default"
 
 // use in-memory storage
-var storageDir = ""
+var storageDir = path.Join(os.TempDir(), "hivekit", "bucket-test")
 
 // pick the backend to run the tests on: kvbtre vs pebble
 // var testBackendType = bucketstore.BackendPebble
 
 var testBackendType = bucketstoreapi.BackendKVBTree
-var defaultBackendDirectory = "/tmp/test-bucketstore"
 
 const (
 	doc1ID                    = "doc1"
@@ -64,15 +64,16 @@ var doc2 = []byte(`{
 
 func TestMain(m *testing.M) {
 	utils.SetLogging("info", "")
+	os.RemoveAll(storageDir)
 
 	res := m.Run()
 	os.Exit(res)
 }
 
 // Create the bucket store using the backend
-func openNewStore(backendDirectory string) (store bucketstoreapi.IBucketStore, err error) {
-	_ = os.RemoveAll(backendDirectory)
-	store, err = bucketstore.NewBucketStore(backendDirectory, testBackendType)
+func openNewStore(storageDir string) (store bucketstoreapi.IBucketStore, err error) {
+	_ = os.RemoveAll(storageDir)
+	store, err = bucketstore.NewBucketStore(storageDir, testBackendType)
 	if err == nil {
 		err = store.Open()
 	}
@@ -220,7 +221,7 @@ func TestAllBackends(t *testing.T) {
 func TestOpenClose(t *testing.T) {
 
 	t.Logf("---%s---\n", t.Name())
-	store, err := openNewStore(defaultBackendDirectory)
+	store, err := openNewStore(storageDir)
 	require.NoError(t, err)
 	err = store.Close()
 	assert.NoError(t, err)
@@ -253,7 +254,7 @@ func TestWriteRead(t *testing.T) {
 	const id5 = "id5"
 	const id22 = "id22"
 
-	store, err := openNewStore(defaultBackendDirectory)
+	store, err := openNewStore(storageDir)
 	assert.NoError(t, err)
 	err = addDocs(store, testBucketID, 3)
 
@@ -329,7 +330,7 @@ func TestWriteRead(t *testing.T) {
 }
 
 func TestWriteBadData(t *testing.T) {
-	store, err := openNewStore(defaultBackendDirectory)
+	store, err := openNewStore(storageDir)
 	require.NoError(t, err)
 	defer store.Close()
 	bucket := store.GetBucket(testBucketID)
@@ -350,7 +351,7 @@ func TestWriteReadMultiple(t *testing.T) {
 	const id22 = "id22"
 	docs := make(map[string][]byte)
 
-	store, err := openNewStore(defaultBackendDirectory)
+	store, err := openNewStore(storageDir)
 	require.NoError(t, err)
 	err = addDocs(store, testBucketID, 3)
 	require.NoError(t, err)
@@ -389,7 +390,7 @@ func TestSeek(t *testing.T) {
 	const seekCount = 200
 	const base = 300
 
-	store, err := openNewStore(defaultBackendDirectory)
+	store, err := openNewStore(storageDir)
 	require.NoError(t, err)
 	err = addDocs(store, testBucketID, docsCount)
 	require.NoError(t, err)
@@ -467,7 +468,7 @@ func TestPrevNextN(t *testing.T) {
 	// const base = 500
 
 	// setup
-	store, err := openNewStore(defaultBackendDirectory)
+	store, err := openNewStore(storageDir)
 	require.NoError(t, err)
 	err = addDocs(store, testBucketID, count)
 	require.NoError(t, err)

@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
-	"path"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -27,7 +27,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-var storageDir = ""
+var storageDir = filepath.Join(os.TempDir(), "hivekit", "digitwin-test")
 
 const rpcTimout = transports.DefaultRpcTimeout
 
@@ -60,7 +60,7 @@ func startService() (
 	appServer := testEnv.StartTestServer(transports.WotWebsocketProtocolType)
 
 	// the directory server that will contain digitwin Things
-	dir = directory.NewDirectoryModule("", testEnv.HttpServer)
+	dir = directory.NewDirectoryModule(storageDir, testEnv.HttpServer)
 	err := dir.Start("")
 	if err != nil {
 		panic("Failed to start directory server")
@@ -73,8 +73,7 @@ func startService() (
 	}
 	// the router module uses the digitwin Thing Directory
 	// getDeviceTD := dtw.GetDeviceDirectory().GetTD
-	routerStorage := path.Join(os.TempDir(), "router-test")
-	rtr := router.NewRouterModule(routerStorage,
+	rtr := router.NewRouterModule(storageDir,
 		dtw.GetDeviceTD, []transports.ITransportServer{appServer}, testEnv.CertBundle.CaCert)
 	rtr.SetTimeout(rpcTimout)
 	err = rtr.Start("")
@@ -187,7 +186,7 @@ func TestReadDigitwinProperty(t *testing.T) {
 
 	deviceTD1 := testEnv.CreateTestTD(0)
 
-	// the digital twin sink will receive the request to read property
+	// the digital twin will receive the request to read property.
 	// this tests if the dtw would forward it downstream as property is unknown.
 	dtw.SetRequestSink(func(req *msg.RequestMessage, replyTo msg.ResponseHandler) error {
 		if req.Operation == wot.OpReadProperty {
@@ -228,7 +227,7 @@ func TestReadDigitwinProperty(t *testing.T) {
 
 	ag.PubProperty(deviceTD1.ID, prop1Name, prop1Value)
 	// let the communication proceed
-	time.Sleep(time.Millisecond)
+	time.Sleep(time.Millisecond * 10)
 
 	// The digital twin module receives this thing notification and updates the
 	// digital twin property state.

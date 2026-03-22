@@ -8,7 +8,7 @@ This module is in early alpha. Routing to connected RC agents is supported.
 Routing to stand-alone devices works for websocket and sse-sc protocols.
 Authentication with client devices works for bearer tokens. Additional security schemes should be implemented in the 'Authenticate' method of the client implementations.
 
-TODO: persist the device credentials encrypted
+TODO: encryption of device credentials storage
 
 ## Summary
 

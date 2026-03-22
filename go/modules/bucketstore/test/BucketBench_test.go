@@ -86,7 +86,7 @@ func Benchmark_bucket(b *testing.B) {
 	for _, v := range DataSizeTable {
 		//setup
 		//testText := randstr.String(v.textSize)
-		store, _ := openNewStore(defaultBackendDirectory)
+		store, _ := openNewStore(storageDir)
 		err := addDocs(store, testBucketID, v.dataSize)
 		assert.NoError(b, err)
 

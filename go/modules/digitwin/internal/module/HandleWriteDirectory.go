@@ -14,7 +14,7 @@ import (
 func (m *DigitwinModule) HandleDeleteTD(agentID string, thingID string) error {
 
 	agentThingID := fmt.Sprint(agentID, ":", thingID)
-	m.bucket.Delete(agentThingID)
+	m.deviceTDBucket.Delete(agentThingID)
 	return nil
 }
 
@@ -41,7 +41,7 @@ func (m *DigitwinModule) HandleWriteDirectory(agentID string, tdi *td.TD) (*td.T
 	// 2. store the original TD and its agent for retrieval by the router
 	tdi.AgentID = agentID
 	tdJson, _ := jsoniter.Marshal(tdi)
-	m.bucket.Set(tdi.ID, tdJson)
+	m.deviceTDBucket.Set(tdi.ID, tdJson)
 
 	// 3. change the device ID to the digitwin ID
 	// note that this modifies the original TD. - is this a problem?
@@ -51,7 +51,7 @@ func (m *DigitwinModule) HandleWriteDirectory(agentID string, tdi *td.TD) (*td.T
 
 	// 4. add a 'online' property indicating if it is reachable
 	dtwTD.AddProperty(digitwinapi.OnlinePropName,
-		"Online", "Indicate if the Thing is reachable", wot.DataTypeAnyURI)
+		"Online", "Indicate if the Thing is reachable", wot.DataTypeBool)
 
 	// 5. reset all existing forms and auth info
 	dtwTD.Forms = make([]td.Form, 0)

@@ -27,7 +27,7 @@ var algo = authnapi.PWHASH_ARGON2id
 // TestMain for all authn tests, setup of default folders and filenames
 func TestMain(m *testing.M) {
 	utils.SetLogging("info", "")
-	tempFolder = path.Join(os.TempDir(), "hiveot-authn-test")
+	tempFolder = path.Join(os.TempDir(), "hivekit", "authn-file-test")
 	_ = os.MkdirAll(tempFolder, 0700)
 
 	// Connect without pw file

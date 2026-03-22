@@ -175,7 +175,10 @@ func (store *CredentialsStore) writeToTempFile(storageDir string) (tempFileName 
 
 // Create a new credentials store
 func NewCredentialsStore(storageDir string) *CredentialsStore {
-	storageFile := filepath.Join(storageDir, CredStoreFilename)
+	storageFile := ""
+	if storageDir != "" {
+		storageFile = filepath.Join(storageDir, CredStoreFilename)
+	}
 	store := &CredentialsStore{
 		storageFile: storageFile,
 	}

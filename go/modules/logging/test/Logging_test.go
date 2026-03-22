@@ -15,7 +15,7 @@ import (
 )
 
 // store location for logging
-var LogFile = path.Join(os.TempDir(), "hivekit/logs/module1.log")
+var LogFile = path.Join(os.TempDir(), "hivekit", "logs/module1.log")
 
 // Test creating and deleting the history database
 // This requires a local unsecured MongoDB instance

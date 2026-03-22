@@ -17,18 +17,17 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-var TestCertDir string
+var storageDir = filepath.Join(os.TempDir(), "hivekit", "certs-test")
 
 // private key type used in test
 const TestKeyType = utils.KeyTypeECDSA
 
 func startModule(t *testing.T) (certsapi.ICertsServer, func(), error) {
-	testCertDir := filepath.Join(os.TempDir(), "hiveot-certs-test")
 
-	// clea start
-	_ = os.RemoveAll(TestCertDir)
+	// clear start
+	_ = os.RemoveAll(storageDir)
 
-	m := certs.NewCertsServer(testCertDir)
+	m := certs.NewCertsServer(storageDir)
 	err := m.Start("")
 	require.NoError(t, err)
 	return m, func() {
@@ -38,17 +37,16 @@ func startModule(t *testing.T) (certsapi.ICertsServer, func(), error) {
 
 // TestMain create a test folder for certificates and private key
 func TestMain(m *testing.M) {
-	TestCertDir = filepath.Join(os.TempDir(), "hiveot-certs-test")
 
 	utils.SetLogging("info", "")
 
 	result := m.Run()
 	if result != 0 {
 		println("Test failed with code:", result)
-		println("Find test files in:", TestCertDir)
+		println("Find test files in:", storageDir)
 	} else {
 		// comment out the next line to be able to inspect results
-		_ = os.RemoveAll(TestCertDir)
+		// _ = os.RemoveAll(storageDir)
 	}
 
 	os.Exit(result)
@@ -75,7 +73,7 @@ func TestX509ToFromPem(t *testing.T) {
 
 func TestSaveLoadX509Cert(t *testing.T) {
 	// hostnames := []string{"localhost"}
-	caPemFile := path.Join(TestCertDir, "caCert.pem")
+	caPemFile := path.Join(storageDir, "caCert.pem")
 
 	testCerts := certstest.CreateTestCertBundle(TestKeyType)
 
@@ -103,8 +101,8 @@ func TestPublicKeyFromCert(t *testing.T) {
 
 func TestSaveLoadTLSCert(t *testing.T) {
 	// hostnames := []string{"localhost"}
-	certFile := path.Join(TestCertDir, "x509cert.pem")
-	keyFile := path.Join(TestCertDir, "tlskey.pem")
+	certFile := path.Join(storageDir, "x509cert.pem")
+	keyFile := path.Join(storageDir, "tlskey.pem")
 
 	testCerts := certstest.CreateTestCertBundle(TestKeyType)
 

@@ -40,9 +40,9 @@ type DigitwinModule struct {
 	// hook to server to add forms to a TD for interacting with affordances
 	addForms func(tdoc *td.TD, includeAffordances bool)
 
-	// internal storage with the original TDs
-	bucket      bucketstoreapi.IBucket
-	bucketStore bucketstoreapi.IBucketStore
+	// internal storage with the original device TDs
+	deviceTDBucket bucketstoreapi.IBucket
+	deviceTDStore  bucketstoreapi.IBucketStore
 
 	// the device directory holding TD's of the native devices/agents
 	// deviceDirectory directoryapi.IDirectoryServer
@@ -96,7 +96,7 @@ func (m *DigitwinModule) ForwardDigitwinRequestToDevice(dtwReq *msg.RequestMessa
 // Return the unmarshalled device TD
 // TODO: cache the unmarshalled TDs for faster handling
 func (m *DigitwinModule) GetDeviceTD(thingID string) *td.TD {
-	tdJson, err := m.bucket.Get(thingID)
+	tdJson, err := m.deviceTDBucket.Get(thingID)
 	if err != nil {
 		return nil
 	}
@@ -227,13 +227,12 @@ func (m *DigitwinModule) Start(_ string) (err error) {
 	m.vcache = vcache.NewVCacheModule()
 	m.vcache.SetRequestSink(m.ForwardDigitwinRequestToDevice)
 	m.vcache.Start("")
+	// FIXME: the store should use the digitwin name, not kvbtree.json
+	m.deviceTDStore, err = bucketstore.NewBucketStore(m.storageDir, bucketstoreapi.BackendKVBTree)
 
-	storageDir := ""
-	m.bucketStore, err = bucketstore.NewBucketStore(storageDir, bucketstoreapi.BackendKVBTree)
-
-	err = m.bucketStore.Open()
+	err = m.deviceTDStore.Open()
 	if err == nil {
-		m.bucket = m.bucketStore.GetBucket(moduleID)
+		m.deviceTDBucket = m.deviceTDStore.GetBucket(moduleID)
 	}
 	// handling of messages for this module itself
 	if err == nil {
@@ -256,11 +255,11 @@ func (m *DigitwinModule) Start(_ string) (err error) {
 // Stop the digital twin module and release the allocation resources
 func (m *DigitwinModule) Stop() {
 	slog.Info("Stop: closing digitwin store")
-	err := m.bucket.Close()
+	err := m.deviceTDBucket.Close()
 	if err != nil {
 		slog.Error("Stop: error stopping digitwin bucket", "err", err.Error())
 	}
-	m.bucketStore.Close()
+	m.deviceTDStore.Close()
 	m.vcache.Stop()
 	// m.deviceDirectory.Stop()
 }

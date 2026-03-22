@@ -15,7 +15,7 @@ import (
 )
 
 var authnStore authnstore.IAuthnStore
-var testDir = path.Join(os.TempDir(), "test-authn")
+var testDir = path.Join(os.TempDir(), "hivekit", "test-authn")
 var defaultHash = authnapi.PWHASH_ARGON2id
 
 func NewAuthenticator() (authenticators.IAuthenticator, authnstore.IAuthnStore) {

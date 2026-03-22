@@ -26,7 +26,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-var storageDir = path.Join(os.TempDir(), "router-test")
+var storageDir = path.Join(os.TempDir(), "hivekit", "router-test")
 
 var testDevicePort = 9993
 var certsBundle = certstest.CreateTestCertBundle(utils.KeyTypeED25519)
@@ -76,7 +76,7 @@ func SetupConsumerWithRouter() (
 
 	// setup the consumer side: directory, router and consumer
 	// register the device TD in the directory for use by the router
-	dirMod = directory.NewDirectoryModule("", nil)
+	dirMod = directory.NewDirectoryModule(storageDir, nil)
 	err := dirMod.Start("")
 	if err != nil {
 		panic("SetupConsumerWithRouter: Directory.Start: " + err.Error())
@@ -133,7 +133,8 @@ func TestStartStop(t *testing.T) {
 	var testDirMod = directory.NewDirectoryModule("", nil)
 	err := testDirMod.Start("")
 	require.NoError(t, err)
-	m := router.NewRouterModule(storageDir, testDirMod.GetTD, nil, certsBundle.CaCert)
+	// test no cred store
+	m := router.NewRouterModule("", testDirMod.GetTD, nil, certsBundle.CaCert)
 	m.SetTimeout(rpcTimeout)
 	err = m.Start("")
 	require.NoError(t, err)
@@ -253,5 +254,41 @@ func TestSubscribeToDevice(t *testing.T) {
 	<-ctx.Done()
 	cancelFn()
 	assert.Equal(t, event1Value, rxValue)
+
+}
+
+func TestCredStore(t *testing.T) {
+	t.Logf("---%s---\n", t.Name())
+	const thingID1 = "thing-1"
+	const clientID = "client1"
+	const clientCred = "secret"
+	const thingScheme = td.SecSchemeBearer
+
+	os.RemoveAll(storageDir)
+
+	// the router uses the TD to connect to the device.
+	// this doesn't actually need a directory. GetTD could also simply return the device TD.
+	routerMod := router.NewRouterModule(storageDir, nil, nil, nil)
+	routerMod.SetTimeout(rpcTimeout)
+	err := routerMod.Start("")
+	require.NoError(t, err)
+
+	hasCred := routerMod.HasThingCredentials(thingID1)
+	assert.False(t, hasCred)
+
+	routerMod.AddThingCredential(thingID1, clientID, clientCred, thingScheme)
+
+	hasCred = routerMod.HasThingCredentials(thingID1)
+	assert.True(t, hasCred)
+
+	routerMod.Stop()
+
+	// restarting the router module should retain the credentials
+	err = routerMod.Start("")
+	require.NoError(t, err)
+
+	hasCred = routerMod.HasThingCredentials(thingID1)
+	assert.True(t, hasCred)
+	routerMod.Stop()
 
 }
