@@ -78,7 +78,7 @@ func (cl *BucketMsgClient) SetMultiple(kv map[string]string) error {
 	return err
 }
 
-// NewBucketStoreMsgClient returns a client to access the bucket store.
+// NewBucketStoreMsgClient returns a client to access a remote bucket store.
 // Use the sink to attach a transport module.
 //
 //	thingID is the instance ID of the bucket store module

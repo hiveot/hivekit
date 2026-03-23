@@ -70,13 +70,13 @@ func startTestDevice(agentID string, thingID string) (testDevice *tptests.TestDe
 
 // Setup a consumer that uses the router to connect to devices
 func SetupConsumerWithRouter() (
-	routerMod routerapi.IRouterModule,
+	routerMod routerapi.IRouterService,
 	dirMod directoryapi.IDirectoryServer,
 	co *clients.Consumer) {
 
 	// setup the consumer side: directory, router and consumer
 	// register the device TD in the directory for use by the router
-	dirMod = directory.NewDirectoryModule(storageDir, nil)
+	dirMod = directory.NewDirectoryService(storageDir, nil)
 	err := dirMod.Start("")
 	if err != nil {
 		panic("SetupConsumerWithRouter: Directory.Start: " + err.Error())
@@ -87,7 +87,7 @@ func SetupConsumerWithRouter() (
 
 	// the router uses the TD to connect to the device.
 	// this doesn't actually need a directory. GetTD could also simply return the device TD.
-	routerMod = router.NewRouterModule(
+	routerMod = router.NewRouterService(
 		storageDir, dirMod.GetTD, nil, certsBundle.CaCert)
 	routerMod.SetTimeout(rpcTimeout)
 	err = routerMod.Start("")
@@ -130,11 +130,11 @@ func TestMain(m *testing.M) {
 func TestStartStop(t *testing.T) {
 	t.Logf("---%s---\n", t.Name())
 
-	var testDirMod = directory.NewDirectoryModule("", nil)
+	var testDirMod = directory.NewDirectoryService("", nil)
 	err := testDirMod.Start("")
 	require.NoError(t, err)
 	// test no cred store
-	m := router.NewRouterModule("", testDirMod.GetTD, nil, certsBundle.CaCert)
+	m := router.NewRouterService("", testDirMod.GetTD, nil, certsBundle.CaCert)
 	m.SetTimeout(rpcTimeout)
 	err = m.Start("")
 	require.NoError(t, err)
@@ -210,7 +210,7 @@ func TestSubscribeToDevice(t *testing.T) {
 
 	// setup the consumer side: directory, router and consumer
 	// register the device TD in the directory for use by the router
-	var testDirMod = directory.NewDirectoryModule("", nil)
+	var testDirMod = directory.NewDirectoryService("", nil)
 	err := testDirMod.Start("")
 	require.NoError(t, err)
 	defer testDirMod.Stop()
@@ -220,7 +220,7 @@ func TestSubscribeToDevice(t *testing.T) {
 
 	// the router uses the TD to connect to the device.
 	// this doesn't actually need a directory. GetTD could also simply return the device TD.
-	routerMod := router.NewRouterModule(storageDir, testDirMod.GetTD, nil, certsBundle.CaCert)
+	routerMod := router.NewRouterService(storageDir, testDirMod.GetTD, nil, certsBundle.CaCert)
 	routerMod.SetTimeout(rpcTimeout)
 	err = routerMod.Start("")
 	require.NoError(t, err)
@@ -268,7 +268,7 @@ func TestCredStore(t *testing.T) {
 
 	// the router uses the TD to connect to the device.
 	// this doesn't actually need a directory. GetTD could also simply return the device TD.
-	routerMod := router.NewRouterModule(storageDir, nil, nil, nil)
+	routerMod := router.NewRouterService(storageDir, nil, nil, nil)
 	routerMod.SetTimeout(rpcTimeout)
 	err := routerMod.Start("")
 	require.NoError(t, err)

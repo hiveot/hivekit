@@ -53,7 +53,7 @@ func (bucket *PebbleBucket) Cursor() (bucketstoreapi.IBucketCursor, error) {
 		LowerBound: []byte(bucket.bucketID + "$"),
 		// a bucketID that is longer would be included when using @. Is this a bug?
 		//UpperBound: []byte(bucket.bucketID + "@"), // this key never exists
-		// FIXME: add testcase
+		// TODO: add testcase
 		UpperBound:      []byte(bucket.bucketID + "%"), // this key never exists
 		TableFilter:     nil,
 		PointKeyFilters: nil,
@@ -143,7 +143,7 @@ func (bucket *PebbleBucket) Info() (info *bucketstoreapi.BucketStoreInfo) {
 	info = &bucketstoreapi.BucketStoreInfo{
 		Id:     bucket.bucketID,
 		Engine: bucketstoreapi.BackendPebble,
-		// FIXME: get bucket metrics
+		// TODO: get bucket metrics
 		DataSize:  -1, //int64(metrics.WAL.Size),
 		NrRecords: -1,
 		//Size: size,

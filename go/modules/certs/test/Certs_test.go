@@ -22,7 +22,7 @@ var storageDir = filepath.Join(os.TempDir(), "hivekit", "certs-test")
 // private key type used in test
 const TestKeyType = utils.KeyTypeECDSA
 
-func startModule(t *testing.T) (certsapi.ICertsServer, func(), error) {
+func startModule(t *testing.T) (certsapi.ICertsService, func(), error) {
 
 	// clear start
 	_ = os.RemoveAll(storageDir)
@@ -78,7 +78,6 @@ func TestSaveLoadX509Cert(t *testing.T) {
 	testCerts := certstest.CreateTestCertBundle(TestKeyType)
 
 	// save the test x509 cert
-	// FIXME: this CA is created with a different private key
 	err := certutils.SaveX509CertToPEM(testCerts.CaCert, caPemFile)
 	assert.NoError(t, err)
 

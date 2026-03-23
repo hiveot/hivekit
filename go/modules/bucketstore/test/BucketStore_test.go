@@ -7,13 +7,14 @@ import (
 	"math/rand"
 	"os"
 	"path"
+	"path/filepath"
 	"testing"
 	"time"
 
 	"github.com/hiveot/hivekit/go/modules/bucketstore"
 	bucketstoreapi "github.com/hiveot/hivekit/go/modules/bucketstore/api"
 	bucketstoreclient "github.com/hiveot/hivekit/go/modules/bucketstore/client"
-	bucketstoreserver "github.com/hiveot/hivekit/go/modules/bucketstore/internal/server"
+	"github.com/hiveot/hivekit/go/modules/bucketstore/internal/service"
 	"github.com/hiveot/hivekit/go/modules/transports/direct"
 	"github.com/hiveot/hivekit/go/utils"
 	"github.com/hiveot/hivekit/go/wot"
@@ -26,12 +27,12 @@ import (
 var testBucketID = "default"
 
 // use in-memory storage
-var storageDir = path.Join(os.TempDir(), "hivekit", "bucket-test")
+var storageLocation = path.Join(os.TempDir(), "hivekit", "bucketstore-test")
 
 // pick the backend to run the tests on: kvbtre vs pebble
-// var testBackendType = bucketstore.BackendPebble
+var testBackendType = bucketstoreapi.BackendPebble
 
-var testBackendType = bucketstoreapi.BackendKVBTree
+// var testBackendType = bucketstoreapi.BackendKVBTree
 
 const (
 	doc1ID                    = "doc1"
@@ -64,16 +65,19 @@ var doc2 = []byte(`{
 
 func TestMain(m *testing.M) {
 	utils.SetLogging("info", "")
-	os.RemoveAll(storageDir)
+	// os.RemoveAll(storageLocation)
+	// os.MkdirAll(storageLocation, 0700)
 
 	res := m.Run()
 	os.Exit(res)
 }
 
-// Create the bucket store using the backend
-func openNewStore(storageDir string) (store bucketstoreapi.IBucketStore, err error) {
-	_ = os.RemoveAll(storageDir)
-	store, err = bucketstore.NewBucketStore(storageDir, testBackendType)
+// Create the bucket store in the given directory using the backend
+func openNewStore(storeDir string) (store bucketstoreapi.IBucketStorage, err error) {
+	_ = os.RemoveAll(storeDir)
+	_ = os.MkdirAll(storageLocation, 0700)
+
+	store, err = bucketstore.NewBucketStore(storeDir, testBackendType)
 	if err == nil {
 		err = store.Open()
 	}
@@ -127,7 +131,7 @@ func createTD(id string) *td.TD {
 }
 
 // AddDocs adds documents doc1, doc2 and given nr additional docs
-func addDocs(store bucketstoreapi.IBucketStore, bucketID string, count int) error {
+func addDocs(store bucketstoreapi.IBucketStorage, bucketID string, count int) error {
 	slog.Info(fmt.Sprintf("Adding %d documents", count))
 	const batchSize = 50000
 	bucket := store.GetBucket(bucketID)
@@ -179,8 +183,8 @@ func addDocs(store bucketstoreapi.IBucketStore, bucketID string, count int) erro
 	return err
 }
 
-func startModule(t *testing.T) (*bucketstoreserver.BucketStoreServer, func(), error) {
-	m := bucketstoreserver.NewBucketStoreServer(storageDir, testBackendType)
+func startServer(t *testing.T) (*service.BucketStoreService, func(), error) {
+	m := service.NewBucketStoreService(storageLocation, testBackendType)
 	err := m.Start("")
 	require.NoError(t, err)
 	return m, func() {
@@ -192,7 +196,7 @@ func startModule(t *testing.T) (*bucketstoreserver.BucketStoreServer, func(), er
 func TestStartStop(t *testing.T) {
 	t.Logf("---%s---\n", t.Name())
 
-	m, stopFn, err := startModule(t)
+	m, stopFn, err := startServer(t)
 	_ = m
 	require.NoError(t, err)
 	defer stopFn()
@@ -221,7 +225,7 @@ func TestAllBackends(t *testing.T) {
 func TestOpenClose(t *testing.T) {
 
 	t.Logf("---%s---\n", t.Name())
-	store, err := openNewStore(storageDir)
+	store, err := openNewStore(storageLocation)
 	require.NoError(t, err)
 	err = store.Close()
 	assert.NoError(t, err)
@@ -254,7 +258,7 @@ func TestWriteRead(t *testing.T) {
 	const id5 = "id5"
 	const id22 = "id22"
 
-	store, err := openNewStore(storageDir)
+	store, err := openNewStore(filepath.Join(storageLocation, "test.kvbtree"))
 	assert.NoError(t, err)
 	err = addDocs(store, testBucketID, 3)
 
@@ -330,7 +334,7 @@ func TestWriteRead(t *testing.T) {
 }
 
 func TestWriteBadData(t *testing.T) {
-	store, err := openNewStore(storageDir)
+	store, err := openNewStore(storageLocation)
 	require.NoError(t, err)
 	defer store.Close()
 	bucket := store.GetBucket(testBucketID)
@@ -351,7 +355,7 @@ func TestWriteReadMultiple(t *testing.T) {
 	const id22 = "id22"
 	docs := make(map[string][]byte)
 
-	store, err := openNewStore(storageDir)
+	store, err := openNewStore(storageLocation)
 	require.NoError(t, err)
 	err = addDocs(store, testBucketID, 3)
 	require.NoError(t, err)
@@ -390,7 +394,7 @@ func TestSeek(t *testing.T) {
 	const seekCount = 200
 	const base = 300
 
-	store, err := openNewStore(storageDir)
+	store, err := openNewStore(storageLocation)
 	require.NoError(t, err)
 	err = addDocs(store, testBucketID, docsCount)
 	require.NoError(t, err)
@@ -468,7 +472,7 @@ func TestPrevNextN(t *testing.T) {
 	// const base = 500
 
 	// setup
-	store, err := openNewStore(storageDir)
+	store, err := openNewStore(storageLocation)
 	require.NoError(t, err)
 	err = addDocs(store, testBucketID, count)
 	require.NoError(t, err)
@@ -480,7 +484,7 @@ func TestPrevNextN(t *testing.T) {
 	// test NextN
 	cursor, err := bucket.Cursor()
 	require.NoError(t, err)
-	// FIXME: this sometimes returns a buffer filled with FF's. Can't reproduce.
+	// FIXME: during testing this sometimes returns a buffer filled with FF's. Can't reproduce.
 	k1, v1, valid := cursor.First()
 	assert.True(t, valid)
 	assert.NotEmpty(t, v1)
@@ -677,7 +681,7 @@ func TestGetSetMsgAPI(t *testing.T) {
 	val2 := ""
 	val3 := "value3"
 
-	m, stopFn, err := startModule(t)
+	m, stopFn, err := startServer(t)
 	require.NoError(t, err)
 	defer stopFn()
 	tp := direct.NewDirectTransport(clientID, m)

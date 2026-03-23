@@ -17,6 +17,7 @@ type ModuleEnv struct {
 }
 
 // HiveModuleBase implements the boilerplate of running a module.
+// This implements the IHiveModule interface.
 // - define and store properties
 // - manage message sinks
 // - generate TD

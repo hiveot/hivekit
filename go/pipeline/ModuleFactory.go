@@ -43,7 +43,7 @@ func (f *ModuleFactory) NewModule(name string) (m modules.IHiveModule) {
 	switch name {
 	case DirectoryClient:
 		dataDir := filepath.Join(f.storageRoot, directoryapi.DefaultDirectoryModuleID)
-		m = directory.NewDirectoryModule(dataDir, f.httpServer)
+		m = directory.NewDirectoryService(dataDir, f.httpServer)
 
 	}
 	return m

@@ -16,7 +16,7 @@ import (
 	"github.com/hiveot/hivekit/go/modules/clients"
 	historyapi "github.com/hiveot/hivekit/go/modules/history/api"
 	historyclient "github.com/hiveot/hivekit/go/modules/history/client"
-	historyserver "github.com/hiveot/hivekit/go/modules/history/internal/server"
+	"github.com/hiveot/hivekit/go/modules/history/internal"
 	"github.com/hiveot/hivekit/go/modules/transports"
 	"github.com/hiveot/hivekit/go/modules/transports/tptests"
 	"github.com/hiveot/hivekit/go/msg"
@@ -32,8 +32,9 @@ const thingIDPrefix = "things-"
 const defaultProtocol = transports.WotWebsocketProtocolType
 
 // recommended store for history is Pebble
-// const historyStoreBackend = bucketstore.BackendPebble
-const historyStoreBackend = bucketstoreapi.BackendKVBTree
+const historyStoreBackend = bucketstoreapi.BackendPebble
+
+// const historyStoreBackend = bucketstoreapi.BackendKVBTree
 
 const testClientID = "operator1"
 
@@ -56,17 +57,19 @@ func TestMain(m *testing.M) {
 // This starts the protocol server and links it to the history module as sink
 // Use clean to start with an empty history.
 func startHistoryService(clean bool) (
-	histModule *historyserver.HistoryServer, stopFn func()) {
+	histModule *internal.HistoryService, stopFn func()) {
 
-	dataDir := filepath.Join(testEnv.StorageRoot, historyapi.DefaultHistoryModuleID)
+	dataDir := filepath.Join(
+		testEnv.StorageRoot, historyapi.DefaultHistoryModuleID)
 	if clean {
 		os.RemoveAll(dataDir)
 	}
+	os.MkdirAll(dataDir, 0750)
 
 	// create the history module and link it to the protocol server
 	// since the history module runs on the server it doesn't need an agent
 	// instance.
-	histModule = historyserver.NewHistoryServer(dataDir, historyStoreBackend)
+	histModule = internal.NewHistoryService(dataDir, historyStoreBackend)
 	testEnv.Server.SetRequestSink(histModule.HandleRequest)
 	histModule.SetNotificationSink(testEnv.Server.HandleNotification)
 
@@ -135,7 +138,7 @@ func makeValueBatch(agentID string, nrValues, nrThings, timespanSec int) (
 }
 
 // add some history to the store. This bypasses the check for thingID to exist.
-func addBulkHistory(m *historyserver.HistoryServer, agentID string, count int, nrThings int,
+func addBulkHistory(m *internal.HistoryService, agentID string, count int, nrThings int,
 	timespanSec int) (highest map[string]msg.NotificationMessage) {
 
 	var batchSize = 1000

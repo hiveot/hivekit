@@ -55,9 +55,9 @@ const defaultStoreFileName = "kvbtree.json"
 // maintaining API compatibility.
 type KVBTreeStore struct {
 	// collection of buckets, one for each Thing, each being a map.
-	buckets              map[string]*KVBTreeBucket
-	storeDirectory       string       // storage directory or "" for in-memory only
-	storePath            string       // full path of storage file
+	buckets map[string]*KVBTreeBucket
+	// storeDirectory       string       // storage directory or "" for in-memory only
+	storePath            string       // full path of storage file or "" for in-memory only
 	mutex                sync.RWMutex // simple locking is still fast enough
 	updateCount          int32        // nr of updates since last save
 	backgroundLoopEnded  chan bool
@@ -199,7 +199,6 @@ func (store *KVBTreeStore) autoSaveLoop() {
 
 				// the store is a single file
 				// nothing we can do here. error is already logged
-				// FIXME: use separate write lock
 				_ = writeStoreFile(store.storePath, exportedCopy)
 			} else {
 				//store.mutex.Unlock()
@@ -270,8 +269,8 @@ func (store *KVBTreeStore) GetBucket(bucketID string) (bucket bucketstoreapi.IBu
 }
 
 // Return the location of the store
-func (store *KVBTreeStore) GetStoreDirectory() string {
-	return store.storeDirectory
+func (store *KVBTreeStore) GetLocation() string {
+	return store.storePath
 }
 
 // callback handler for notification that a bucket has been modified
@@ -283,10 +282,10 @@ func (store *KVBTreeStore) onBucketUpdated(bucket *KVBTreeBucket) {
 
 // Open the store and start the background loop for saving changes
 func (store *KVBTreeStore) Open() error {
-	if store.storeDirectory == "" {
+	if store.storePath == "" {
 		slog.Debug("Opening in-memory kvbtree store")
 	} else {
-		slog.Debug("Opening store", "path", store.storePath)
+		slog.Debug("Opening kvbtree store", "path", store.storePath)
 	}
 	var err error
 	store.mutex.Lock()
@@ -295,6 +294,21 @@ func (store *KVBTreeStore) Open() error {
 	if store.buckets != nil {
 		return fmt.Errorf("store already open")
 	}
+	// if storePath exists and points to a directory then modify it to a file in that directory
+	fileInfo, err := os.Stat(store.storePath)
+	if err == nil {
+		// store exists
+		if fileInfo.IsDir() {
+			store.storePath = filepath.Join(store.storePath, defaultStoreFileName)
+		} else {
+			// storePath is an existing file, just open it
+		}
+	} else {
+		// storePath doesn't exist. make sure its directory exists
+		storeDir := filepath.Dir(store.storePath)
+		os.MkdirAll(storeDir, 0750)
+	}
+
 	store.buckets, err = importStoreFile(store.storePath)
 	// recover from bad file. Missing file is okay.
 	if err != nil {
@@ -345,19 +359,17 @@ func (store *KVBTreeStore) SetWriteDelay(delay time.Duration) {
 
 // NewKVStore creates a store instance and load it with saved documents.
 // Run Start to start the background loop and Stop to end it.
-// If storePath is a directory a file named "kvbtree_store.json" is created there.
 //
-//	storePath path to storage file or directory, or "" for in-memory only
-func NewKVStore(storeDirectory string) (store *KVBTreeStore) {
+// If storePath is an existing directory, a file named "kvbtree.json" is created there,
+// otherwise a file {storePath} will be created.
+//
+//	storeFile path to storage file or directory, or "" for in-memory only
+func NewKVStore(storePath string) (store *KVBTreeStore) {
 	writeDelay := time.Duration(3000) * time.Millisecond
-	storePath := ""
-	if storeDirectory != "" {
-		storePath = path.Join(storeDirectory, defaultStoreFileName)
-	}
+
 	store = &KVBTreeStore{
 		//jsonDocs:             make(map[string]string),
 		buckets:              nil, // will be set after open
-		storeDirectory:       storeDirectory,
 		storePath:            storePath,
 		backgroundLoopEnding: nil,
 		backgroundLoopEnded:  nil,
@@ -365,6 +377,6 @@ func NewKVStore(storeDirectory string) (store *KVBTreeStore) {
 		writeDelay:           writeDelay,
 		//jsonCache:            make(map[string]interface{}),
 	}
-	var _ bucketstoreapi.IBucketStore = store // type check
+	var _ bucketstoreapi.IBucketStorage = store // type check
 	return store
 }

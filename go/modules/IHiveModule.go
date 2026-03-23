@@ -51,6 +51,9 @@ type IHiveModule interface {
 	// The default behavior is to forward it upstream to the handler set with SetNotificationSink.
 	HandleNotification(notif *msg.NotificationMessage)
 
+	// Set the hook to invoke with received notifications
+	// SetNotificationHook(hook msg.NotificationHandler)
+
 	// Set the consumer of notifications emitted by this module (acting as a producer)
 	// Intended to create a chain of notifications from producer to consumer.
 	//

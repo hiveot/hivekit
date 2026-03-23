@@ -5,7 +5,7 @@ import (
 	"os"
 	"testing"
 
-	vcacheserver "github.com/hiveot/hivekit/go/modules/vcache/internal/server"
+	"github.com/hiveot/hivekit/go/modules/vcache"
 	"github.com/hiveot/hivekit/go/msg"
 	"github.com/hiveot/hivekit/go/utils"
 	"github.com/hiveot/hivekit/go/wot"
@@ -30,7 +30,7 @@ func TestMain(m *testing.M) {
 func TestStartStop(t *testing.T) {
 	t.Logf("---%s---\n", t.Name())
 
-	m := vcacheserver.NewVCacheServer()
+	m := vcache.NewVCacheService()
 	err := m.Start("")
 	require.NoError(t, err)
 	defer m.Stop()
@@ -47,11 +47,11 @@ func TestPropertyNotifications(t *testing.T) {
 	const prop1Value = "value1"
 	const prop2Value = "value2"
 
-	m := vcacheserver.NewVCacheServer()
+	m := vcache.NewVCacheService()
 	err := m.Start("")
 	require.NoError(t, err)
 	defer m.Stop()
-	m.SetNotificationHook(func(n *msg.NotificationMessage) {
+	m.SetNotificationSink(func(n *msg.NotificationMessage) {
 		slog.Info("received the notification")
 	})
 
@@ -111,11 +111,11 @@ func TestEventNotifications(t *testing.T) {
 	const ev1Value = "value1"
 	const ev2Value = "value2"
 
-	m := vcacheserver.NewVCacheServer()
+	m := vcache.NewVCacheService()
 	err := m.Start("")
 	require.NoError(t, err)
 	defer m.Stop()
-	m.SetNotificationHook(func(n *msg.NotificationMessage) {
+	m.SetNotificationSink(func(n *msg.NotificationMessage) {
 		slog.Info("received the notification")
 	})
 

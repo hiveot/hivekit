@@ -7,7 +7,7 @@ import (
 	"time"
 
 	authnapi "github.com/hiveot/hivekit/go/modules/authn/api"
-	authnserver "github.com/hiveot/hivekit/go/modules/authn/internal/server"
+	"github.com/hiveot/hivekit/go/modules/authn/internal/service"
 	certstest "github.com/hiveot/hivekit/go/modules/certs/test"
 	"github.com/hiveot/hivekit/go/modules/clients"
 	"github.com/hiveot/hivekit/go/modules/transports"
@@ -16,7 +16,7 @@ import (
 	"github.com/hiveot/hivekit/go/utils"
 )
 
-var testDir = path.Join(os.TempDir(), "hivekit", "test-authn")
+var testDir = path.Join(os.TempDir(), "hivekit", "authn-test")
 var authnConfig authnapi.AuthnConfig
 var defaultHash = authnapi.PWHASH_ARGON2id
 
@@ -45,7 +45,7 @@ func TestMain(m *testing.M) {
 //
 // This uses the clientID as password
 // This panics if a client cannot be created
-func NewTestConsumer(m *authnserver.AuthnServer, protocolType, serverURL, clientID string) (
+func NewTestConsumer(m *service.AuthnService, protocolType, serverURL, clientID string) (
 	*clients.Consumer, transports.IClientConnection, string) {
 
 	// ensure the client exists
@@ -65,7 +65,7 @@ func NewTestConsumer(m *authnserver.AuthnServer, protocolType, serverURL, client
 // This test file sets up the environment for testing authn admin and client services.
 
 // launch the authn module and return the server side message handlers for using and managing it.
-func startTestAuthnModule(encryption string) (m *authnserver.AuthnServer, stopFn func()) {
+func startTestAuthnModule(encryption string) (m *service.AuthnService, stopFn func()) {
 
 	_ = os.RemoveAll(testDir)
 	_ = os.MkdirAll(testDir, 0700)
@@ -97,7 +97,7 @@ func startTestAuthnModule(encryption string) (m *authnserver.AuthnServer, stopFn
 	authnConfig.AgentTokenValidityDays = 1
 	authnConfig.Encryption = encryption
 
-	m = authnserver.NewAuthnServer(authnConfig, httpServer)
+	m = service.NewAuthnService(authnConfig, httpServer)
 	err = m.Start("")
 	if err != nil {
 		panic("Error starting authn admin service:" + err.Error())

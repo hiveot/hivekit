@@ -70,7 +70,7 @@ func (store *PebbleStore) GetBucket(bucketID string) (bucket bucketstoreapi.IBuc
 }
 
 // Return the location of the store
-func (store *PebbleStore) GetStoreDirectory() string {
+func (store *PebbleStore) GetLocation() string {
 	return store.storeDirectory
 }
 
@@ -121,7 +121,7 @@ func (store *PebbleStore) Open() (err error) {
 
 // NewPebbleStore creates a storage database with bucket support.
 //
-//	storeDirectory is the directory  holding the database
+//	storeDirectory is the directory  holding the database files
 func NewPebbleStore(storeDirectory string) *PebbleStore {
 	srv := &PebbleStore{
 		storeDirectory: storeDirectory,

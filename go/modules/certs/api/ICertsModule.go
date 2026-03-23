@@ -25,8 +25,8 @@ const (
 	ActionGetServerCert = "getServerCert"
 )
 
-// ICertsServer interface of the certificate module server
-type ICertsServer interface {
+// ICertsService interface of the certificate module server
+type ICertsService interface {
 	modules.IHiveModule
 
 	// Create and store the server TLS certificate for a server module.
