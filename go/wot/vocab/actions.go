@@ -1,4 +1,4 @@
-// Package vocab with HiveOT and WoT vocabulary names for TD Things, properties, events and actions
+// Package vocab with HiveOT action names
 package vocab
 
 // type: ActionClasses

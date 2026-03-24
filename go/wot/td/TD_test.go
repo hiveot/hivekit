@@ -5,7 +5,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/hiveot/hivekit/go/wot"
 	"github.com/hiveot/hivekit/go/wot/td"
 	"github.com/stretchr/testify/require"
 
@@ -26,7 +25,7 @@ func TestCreateTD(t *testing.T) {
 	//versions := map[string]string{"Software": "v10.1", "Hardware": "v2.0"}
 	propAffordance := &td.PropertyAffordance{
 		DataSchema: td.DataSchema{
-			Type:  wot.DataTypeArray,
+			Type:  td.DataTypeArray,
 			Title: "version",
 		},
 	}
@@ -35,7 +34,7 @@ func TestCreateTD(t *testing.T) {
 	// Define TD property
 	propAffordance = &td.PropertyAffordance{
 		DataSchema: td.DataSchema{
-			Type: wot.DataTypeString,
+			Type: td.DataTypeString,
 			Enum: make([]interface{}, 0), //{"value1", "value2"},
 			Unit: "C",
 		},
@@ -90,9 +89,9 @@ func TestMissingAffordance(t *testing.T) {
 func TestAddProp(t *testing.T) {
 	prop2AtType := "test:specialtype"
 	tdoc := td.NewTD(thing1ID, "test TD", deviceTypeThingSensor)
-	tdoc.AddProperty("prop1", "prop 1", "test property", wot.DataTypeBool)
+	tdoc.AddProperty("prop1", "prop 1", "test property", td.DataTypeBool)
 
-	aff := tdoc.AddProperty("prop2", "test property2", "", wot.DataTypeString)
+	aff := tdoc.AddProperty("prop2", "test property2", "", td.DataTypeString)
 	aff.SetAtType(prop2AtType)
 	aff.Unit = unitNamePercent
 
@@ -117,9 +116,9 @@ func TestAddProp(t *testing.T) {
 func TestAddPropBadIDs(t *testing.T) {
 	propID := "prop 1"
 	tdoc := td.NewTD(thing1ID, "test TD", deviceTypeThingSensor)
-	tdoc.AddProperty(propID, "test property", "", wot.DataTypeBool)
+	tdoc.AddProperty(propID, "test property", "", td.DataTypeBool)
 
-	tdoc.AddProperty("prop2", "test property2", "", wot.DataTypeString)
+	tdoc.AddProperty("prop2", "test property2", "", td.DataTypeString)
 
 	prop := tdoc.GetProperty(propID)
 	assert.Nil(t, prop)
@@ -165,24 +164,24 @@ func TestForms(t *testing.T) {
 	const event1Name = "event1"
 	tdoc := td.NewTD(thing1ID, "test TD", deviceTypeThingSensor)
 	actAff := tdoc.AddAction(action1Name, "action", "Test Action", nil)
-	tdoc.AddProperty(prop1Name, "prop", "Test Prop", wot.DataTypeInteger)
+	tdoc.AddProperty(prop1Name, "prop", "Test Prop", td.DataTypeInteger)
 	tdoc.AddEvent(event1Name, "event", "Test Event", nil)
 
-	actForm := td.NewForm(wot.OpInvokeAction, "https://localhost/action")
+	actForm := td.NewForm(td.OpInvokeAction, "https://localhost/action")
 	actAff.Forms = []td.Form{actForm}
 
 	forms := make([]td.Form, 0)
-	//forms = append(forms, td.NewForm(wot.OpInvokeAction, "https://localhost/action"))
-	forms = append(forms, td.NewForm(wot.OpWriteProperty, "https://localhost/prop"))
-	forms = append(forms, td.NewForm(wot.OpSubscribeEvent, "https://localhost/ev"))
+	//forms = append(forms, td.NewForm(td.OpInvokeAction, "https://localhost/action"))
+	forms = append(forms, td.NewForm(td.OpWriteProperty, "https://localhost/prop"))
+	forms = append(forms, td.NewForm(td.OpSubscribeEvent, "https://localhost/ev"))
 	tdoc.AddForms(forms)
 
 	//
-	f1 := tdoc.GetForms(wot.OpWriteProperty, prop1Name)
+	f1 := tdoc.GetForms(td.OpWriteProperty, prop1Name)
 	require.NotNil(t, f1)
-	f2 := tdoc.GetForms(wot.OpInvokeAction, action1Name)
+	f2 := tdoc.GetForms(td.OpInvokeAction, action1Name)
 	require.NotNil(t, f2)
-	f3 := tdoc.GetForms(wot.OpSubscribeEvent, event1Name)
+	f3 := tdoc.GetForms(td.OpSubscribeEvent, event1Name)
 	require.NotNil(t, f3)
 
 	uriVars := make(map[string]string)

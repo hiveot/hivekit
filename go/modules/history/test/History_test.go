@@ -21,7 +21,7 @@ import (
 	"github.com/hiveot/hivekit/go/modules/transports/tptests"
 	"github.com/hiveot/hivekit/go/msg"
 	"github.com/hiveot/hivekit/go/utils"
-	"github.com/hiveot/hivekit/go/vocab"
+	"github.com/hiveot/hivekit/go/wot/vocab"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -328,7 +328,7 @@ func TestAddProperties(t *testing.T) {
 	//	SenderID:  "", // missing publisher
 	//	ThingID:   dThing1ID,
 	//	Name:      "name",
-	//	Operation: wot.OpSubscribeEvent,
+	//	Operation: td.OpSubscribeEvent,
 	//}
 	badEvent3 := &msg.NotificationMessage{
 		AffordanceType: msg.AffordanceTypeEvent,

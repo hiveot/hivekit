@@ -8,7 +8,6 @@ import (
 	"strings"
 
 	"github.com/araddon/dateparse"
-	"github.com/hiveot/hivekit/go/wot"
 	jsoniter "github.com/json-iterator/go"
 )
 
@@ -59,7 +58,7 @@ func UnmarshalTDList(tdListJSON []string) (tdList []*TD, err error) {
 func ConvertToNative(strVal string, dataSchema *DataSchema) (val any, err error) {
 	if strVal == "" {
 		// nil value boolean input are always treated as false.
-		if dataSchema.Type == wot.DataTypeBool {
+		if dataSchema.Type == DataTypeBool {
 			return false, nil
 		}
 		return nil, nil
@@ -68,24 +67,24 @@ func ConvertToNative(strVal string, dataSchema *DataSchema) (val any, err error)
 		return nil, errors.New("nil DataSchema")
 	}
 	switch dataSchema.Type {
-	case wot.DataTypeBool:
+	case DataTypeBool:
 		// ParseBool is too restrictive
 		lowerVal := strings.ToLower(strVal)
 		val = false
 		if strVal == "1" || lowerVal == "true" || lowerVal == "on" {
 			val = true
 		}
-	case wot.DataTypeArray:
+	case DataTypeArray:
 		err = jsoniter.UnmarshalFromString(strVal, &val)
-	case wot.DataTypeDateTime:
+	case DataTypeDateTime:
 		val, err = dateparse.ParseAny(strVal)
-	case wot.DataTypeInteger:
+	case DataTypeInteger:
 		val, err = strconv.ParseInt(strVal, 10, 64)
-	case wot.DataTypeNumber:
+	case DataTypeNumber:
 		val, err = strconv.ParseFloat(strVal, 64)
-	case wot.DataTypeUnsignedInt:
+	case DataTypeUnsignedInt:
 		val, err = strconv.ParseUint(strVal, 10, 64)
-	case wot.DataTypeObject:
+	case DataTypeObject:
 		err = jsoniter.UnmarshalFromString(strVal, &val)
 	default:
 		val = strVal

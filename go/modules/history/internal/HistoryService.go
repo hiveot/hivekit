@@ -11,7 +11,7 @@ import (
 	historyapi "github.com/hiveot/hivekit/go/modules/history/api"
 	"github.com/hiveot/hivekit/go/modules/history/config"
 	"github.com/hiveot/hivekit/go/msg"
-	"github.com/hiveot/hivekit/go/wot"
+	"github.com/hiveot/hivekit/go/wot/td"
 	"go.yaml.in/yaml/v2"
 )
 
@@ -110,7 +110,7 @@ func (m *HistoryService) StoreNotification(notif *msg.NotificationMessage) error
 // Store requests for later retrieval
 func (m *HistoryService) StoreRequest(req *msg.RequestMessage) error {
 
-	if req.Operation != wot.OpInvokeAction {
+	if req.Operation != td.OpInvokeAction {
 		return fmt.Errorf("AddAction: Operation is not invokeaction")
 	}
 	// convert the notification to a ThingValue for storage

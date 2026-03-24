@@ -9,7 +9,7 @@ import (
 	"github.com/hiveot/hivekit/go/modules"
 	"github.com/hiveot/hivekit/go/modules/transports"
 	"github.com/hiveot/hivekit/go/msg"
-	"github.com/hiveot/hivekit/go/wot"
+	"github.com/hiveot/hivekit/go/wot/td"
 	"github.com/teris-io/shortid"
 )
 
@@ -71,7 +71,7 @@ func (co *Consumer) HandleRequest(
 func (co *Consumer) InvokeAction(
 	thingID, name string, input any, output any) error {
 
-	err := co.Rpc(wot.OpInvokeAction, thingID, name, input, output)
+	err := co.Rpc(td.OpInvokeAction, thingID, name, input, output)
 	return err
 }
 
@@ -80,9 +80,9 @@ func (co *Consumer) InvokeAction(
 //	thingID is empty for all things
 //	name is empty for all properties of the selected things
 func (co *Consumer) ObserveProperty(thingID string, name string) error {
-	op := wot.OpObserveProperty
+	op := td.OpObserveProperty
 	if name == "" {
-		op = wot.OpObserveAllProperties
+		op = td.OpObserveAllProperties
 	}
 
 	err := co.Rpc(op, thingID, name, nil, "")
@@ -104,7 +104,7 @@ func (co *Consumer) onNotification(notif *msg.NotificationMessage) {
 func (co *Consumer) Ping() (err error) {
 	var value any
 
-	err = co.Rpc(wot.HTOpPing, "", "", nil, &value)
+	err = co.Rpc(td.HTOpPing, "", "", nil, &value)
 	if err != nil {
 		return err
 	}
@@ -126,7 +126,7 @@ func (co *Consumer) Ping() (err error) {
 func (co *Consumer) QueryAction(thingID, name string) (
 	value msg.ResponseMessage, err error) {
 
-	err = co.Rpc(wot.OpQueryAction, thingID, name, nil, &value)
+	err = co.Rpc(td.OpQueryAction, thingID, name, nil, &value)
 	// if state is empty then this action has not run before
 	if err == nil && value.Status == "" {
 		value.ThingID = thingID
@@ -151,7 +151,7 @@ func (co *Consumer) QueryAction(thingID, name string) (
 func (co *Consumer) QueryAllActions(thingID string) (
 	values map[string]msg.ResponseMessage, err error) {
 
-	err = co.Rpc(wot.OpQueryAllActions, thingID, "", nil, &values)
+	err = co.Rpc(td.OpQueryAllActions, thingID, "", nil, &values)
 	return values, err
 }
 
@@ -161,7 +161,7 @@ func (co *Consumer) QueryAllActions(thingID string) (
 func (co *Consumer) ReadAllEvents(thingID string) (
 	values map[string]*msg.NotificationMessage, err error) {
 
-	err = co.Rpc(wot.HTOpReadAllEvents, thingID, "", nil, &values)
+	err = co.Rpc(td.HTOpReadAllEvents, thingID, "", nil, &values)
 	return values, err
 }
 
@@ -171,7 +171,7 @@ func (co *Consumer) ReadAllEvents(thingID string) (
 func (co *Consumer) ReadAllProperties(thingID string) (
 	values map[string]any, err error) {
 
-	err = co.Rpc(wot.OpReadAllProperties, thingID, "", nil, &values)
+	err = co.Rpc(td.OpReadAllProperties, thingID, "", nil, &values)
 	return values, err
 }
 
@@ -179,7 +179,7 @@ func (co *Consumer) ReadAllProperties(thingID string) (
 // This returns an array of TDs in JSON format
 // This is not a WoT operation (but maybe it should be)
 //func (co *WotClient) ReadAllTDs() (tdJSONs []string, err error) {
-//	err = co.Rpc(wot.HTOpReadAllTDs, "", "", nil, &tdJSONs)
+//	err = co.Rpc(td.HTOpReadAllTDs, "", "", nil, &tdJSONs)
 //	return tdJSONs, err
 //}
 
@@ -189,7 +189,7 @@ func (co *Consumer) ReadAllProperties(thingID string) (
 // and value as described in the event affordance.
 func (co *Consumer) ReadEvent(thingID, name string) (value *msg.NotificationMessage, err error) {
 
-	err = co.Rpc(wot.HTOpReadEvent, thingID, name, nil, &value)
+	err = co.Rpc(td.HTOpReadEvent, thingID, name, nil, &value)
 	return value, err
 }
 
@@ -199,7 +199,7 @@ func (co *Consumer) ReadEvent(thingID, name string) (value *msg.NotificationMess
 // TODO: should this accept a pointer to the result instead to avoid type conversion
 func (co *Consumer) ReadProperty(thingID, name string) (value any, err error) {
 
-	err = co.Rpc(wot.OpReadProperty, thingID, name, nil, &value)
+	err = co.Rpc(td.OpReadProperty, thingID, name, nil, &value)
 	return value, err
 }
 
@@ -207,7 +207,7 @@ func (co *Consumer) ReadProperty(thingID, name string) (value any, err error) {
 // This returns the TD in JSON format.
 // This is not a WoT operation (but maybe it should be)
 //func (co *WotClient) RetrieveThing(thingID string) (tdJSON string, err error) {
-//	err = co.Rpc(wot.HTOpReadTD, thingID, "", nil, &tdJSON)
+//	err = co.Rpc(td.HTOpReadTD, thingID, "", nil, &tdJSON)
 //	return tdJSON, err
 //}
 
@@ -300,9 +300,9 @@ func (co *Consumer) Stop() {
 // Subscribe to one or all events of a thing.
 // name is the event to subscribe to or "" for all events
 func (co *Consumer) Subscribe(thingID string, name string) error {
-	op := wot.OpSubscribeEvent
+	op := td.OpSubscribeEvent
 	if name == "" {
-		op = wot.OpSubscribeAllEvents
+		op = td.OpSubscribeAllEvents
 	}
 	err := co.Rpc(op, thingID, name, nil, "")
 	return err
@@ -310,9 +310,9 @@ func (co *Consumer) Subscribe(thingID string, name string) error {
 
 // UnobserveProperty a previous observed property or all properties
 func (co *Consumer) UnobserveProperty(thingID string, name string) error {
-	op := wot.OpUnobserveProperty
+	op := td.OpUnobserveProperty
 	if name == "" {
-		op = wot.OpUnobserveAllProperties
+		op = td.OpUnobserveAllProperties
 	}
 	err := co.Rpc(op, thingID, name, nil, "")
 	return err
@@ -320,9 +320,9 @@ func (co *Consumer) UnobserveProperty(thingID string, name string) error {
 
 // Unsubscribe is a helper for sending an unsubscribe request
 func (co *Consumer) Unsubscribe(thingID string, name string) error {
-	op := wot.OpUnsubscribeEvent
+	op := td.OpUnsubscribeEvent
 	if name == "" {
-		op = wot.OpUnsubscribeAllEvents
+		op = td.OpUnsubscribeAllEvents
 	}
 	err := co.Rpc(op, thingID, name, nil, "")
 	return err
@@ -333,9 +333,9 @@ func (co *Consumer) Unsubscribe(thingID string, name string) error {
 func (co *Consumer) WriteProperty(thingID string, name string, input any, wait bool) (err error) {
 	correlationID := shortid.MustGenerate()
 	if wait {
-		err = co.Rpc(wot.OpWriteProperty, thingID, name, input, correlationID)
+		err = co.Rpc(td.OpWriteProperty, thingID, name, input, correlationID)
 	} else {
-		req := msg.NewRequestMessage(wot.OpWriteProperty, thingID, name, input, correlationID)
+		req := msg.NewRequestMessage(td.OpWriteProperty, thingID, name, input, correlationID)
 		err = co.ForwardRequest(req, func(resp *msg.ResponseMessage) error {
 			// just ignore the result
 			return nil

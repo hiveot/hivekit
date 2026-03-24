@@ -9,7 +9,7 @@ import (
 	ssescapi "github.com/hiveot/hivekit/go/modules/transports/ssesc/api"
 	"github.com/hiveot/hivekit/go/msg"
 	"github.com/hiveot/hivekit/go/utils"
-	"github.com/hiveot/hivekit/go/wot"
+	"github.com/hiveot/hivekit/go/wot/td"
 )
 
 // routes for handling http server requests
@@ -138,7 +138,7 @@ func (m *SseScTransport) onHttpRequestMessage(w http.ResponseWriter, r *http.Req
 	}
 
 	// 3. handle ping operation internally
-	if req.Operation == wot.HTOpPing {
+	if req.Operation == td.HTOpPing {
 		// ping responds immediately via SSE
 		resp = req.CreateResponse("pong", nil)
 		//

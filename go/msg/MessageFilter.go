@@ -4,7 +4,7 @@ import (
 	"log/slog"
 	"slices"
 
-	"github.com/hiveot/hivekit/go/wot"
+	"github.com/hiveot/hivekit/go/wot/td"
 )
 
 // Definition of message filters for events properties and actions
@@ -64,9 +64,9 @@ func (f *MessageFilter) AcceptRequest(req *RequestMessage) bool {
 		return true // no filter
 	}
 	switch req.Operation {
-	case wot.OpInvokeAction:
+	case td.OpInvokeAction:
 		return f.Actions.Accept(req.ThingID, req.Name)
-	case wot.OpWriteProperty:
+	case td.OpWriteProperty:
 		return f.Properties.Accept(req.ThingID, req.Name)
 	}
 	return false

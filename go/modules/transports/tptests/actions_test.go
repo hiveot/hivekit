@@ -13,7 +13,7 @@ import (
 	authnapi "github.com/hiveot/hivekit/go/modules/authn/api"
 	"github.com/hiveot/hivekit/go/msg"
 	"github.com/hiveot/hivekit/go/utils"
-	"github.com/hiveot/hivekit/go/wot"
+	"github.com/hiveot/hivekit/go/wot/td"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/teris-io/shortid"
@@ -36,7 +36,7 @@ func TestInvokeActionFromConsumerToServer(t *testing.T) {
 	// the server will receive the action request and return an immediate result
 	handleRequest := func(req *msg.RequestMessage, replyTo msg.ResponseHandler) error {
 		var resp *msg.ResponseMessage
-		if req.Operation == wot.OpInvokeAction {
+		if req.Operation == td.OpInvokeAction {
 			inputVal.Store(req.Input)
 			// CreateActionResponse returns ActionStatus
 			resp = req.CreateResponse(req.Input, nil)
@@ -71,7 +71,7 @@ func TestInvokeActionFromConsumerToServer(t *testing.T) {
 	// 3. invoke the action without waiting for a result
 	// the response handler above will receive the result
 	// testOutput can be updated as an immediate result or via the callback message handler
-	req := msg.NewRequestMessage(wot.OpInvokeAction, thingID, actionName, testMsg1, shortid.MustGenerate())
+	req := msg.NewRequestMessage(td.OpInvokeAction, thingID, actionName, testMsg1, shortid.MustGenerate())
 	err := co1.ForwardRequest(req, responseHandler)
 
 	require.NoError(t, err)
@@ -118,7 +118,7 @@ func TestInvokeActionFromServerToAgent(t *testing.T) {
 		// The server receives a response message from the agent
 		// (which normally is forwarded to the remote consumer; but not in this test)
 		assert.NotEmpty(t, resp.CorrelationID)
-		assert.Equal(t, wot.OpInvokeAction, resp.Operation)
+		assert.Equal(t, td.OpInvokeAction, resp.Operation)
 
 		slog.Info("Server: received response from agent",
 			"op", resp.Operation,
@@ -165,7 +165,7 @@ func TestInvokeActionFromServerToAgent(t *testing.T) {
 	// ag1Server := srv.GetConnectionByClientID(testAgentID1)
 	// require.NotNil(t, ag1Server)
 
-	req := msg.NewRequestMessage(wot.OpInvokeAction, thingID, actionKey, testMsg1, corrID)
+	req := msg.NewRequestMessage(td.OpInvokeAction, thingID, actionKey, testMsg1, corrID)
 	req.SenderID = testClientID1
 	req.CorrelationID = "rpc-TestInvokeActionFromServerToAgent"
 	// err := ag1Server.SendRequest(req)
@@ -197,7 +197,7 @@ func TestQueryActions(t *testing.T) {
 		assert.NotNil(t, replyTo)
 		assert.NotNil(t, req.CorrelationID)
 		switch req.Operation {
-		case wot.OpQueryAction:
+		case td.OpQueryAction:
 			// reply a response carrying the queried action status
 			actStat := &msg.ResponseMessage{
 				ThingID:   req.ThingID,
@@ -210,7 +210,7 @@ func TestQueryActions(t *testing.T) {
 			resp = req.CreateResponse(actStat, nil)
 
 			//replyTo.SendResponse(msg.ThingID, msg.Name, output, msg.CorrelationID)
-		case wot.OpQueryAllActions:
+		case td.OpQueryAllActions:
 			// include an error status to ensure encode/decode of an error status works
 			actStat := map[string]msg.ResponseMessage{
 				actionKey: {
@@ -259,14 +259,14 @@ func TestQueryActions(t *testing.T) {
 
 	// 3. Query action status
 	var status msg.ResponseMessage
-	err := co1.Rpc(wot.OpQueryAction, thingID, actionKey, nil, &status)
+	err := co1.Rpc(td.OpQueryAction, thingID, actionKey, nil, &status)
 	require.NoError(t, err)
 	require.Equal(t, thingID, status.ThingID)
 	require.Equal(t, actionKey, status.Name)
 
 	// 4. Query all actions
 	var statusMap map[string]msg.ResponseMessage
-	err = co1.Rpc(wot.OpQueryAllActions, thingID, actionKey, nil, &statusMap)
+	err = co1.Rpc(td.OpQueryAllActions, thingID, actionKey, nil, &statusMap)
 	require.NoError(t, err)
 	require.Equal(t, 3, len(statusMap))
 }

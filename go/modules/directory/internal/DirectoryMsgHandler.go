@@ -7,7 +7,7 @@ import (
 	directoryapi "github.com/hiveot/hivekit/go/modules/directory/api"
 	"github.com/hiveot/hivekit/go/msg"
 	"github.com/hiveot/hivekit/go/utils"
-	"github.com/hiveot/hivekit/go/wot"
+	"github.com/hiveot/hivekit/go/wot/td"
 )
 
 // Embed the directory TM
@@ -42,7 +42,7 @@ func (handler *DirectoryMsgHandler) HandleRequest(req *msg.RequestMessage, reply
 		err := fmt.Errorf("missing senderID in request")
 		return err
 	}
-	if req.Operation == wot.OpInvokeAction {
+	if req.Operation == td.OpInvokeAction {
 		// directory specific operations
 		switch req.Name {
 		case directoryapi.ActionCreateThing:
@@ -58,7 +58,7 @@ func (handler *DirectoryMsgHandler) HandleRequest(req *msg.RequestMessage, reply
 		default:
 			err = fmt.Errorf("Unknown request name '%s' for thingID '%s'", req.Name, req.ThingID)
 		}
-	} else if req.Operation == wot.OpWriteProperty {
+	} else if req.Operation == td.OpWriteProperty {
 		// nothing to do here at the moment
 		err = fmt.Errorf("Property '%s' of Thing '%s' is invalid or not writable", req.Name, req.ThingID)
 	} else {

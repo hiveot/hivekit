@@ -5,7 +5,7 @@ import (
 
 	digitwinapi "github.com/hiveot/hivekit/go/modules/digitwin/api"
 	"github.com/hiveot/hivekit/go/msg"
-	"github.com/hiveot/hivekit/go/wot"
+	"github.com/hiveot/hivekit/go/wot/td"
 )
 
 // The handler for messages aimed at this module
@@ -21,15 +21,15 @@ func (handler *DigitwinMsgHandler) HandleRequest(req *msg.RequestMessage, replyT
 
 	// todo: add methods for digital twin status queries
 	switch req.Operation {
-	// case wot.OpReadProperty:
-	// case wot.OpReadAllProperties:
-	// case wot.OpReadMultipleProperties:
-	// case wot.HTOpReadEvent:
-	// case wot.HTOpReadAllEvents:
-	case wot.OpWriteProperty:
+	// case td.OpReadProperty:
+	// case td.OpReadAllProperties:
+	// case td.OpReadMultipleProperties:
+	// case td.HTOpReadEvent:
+	// case td.HTOpReadAllEvents:
+	case td.OpWriteProperty:
 		// nothing to do here at the moment
 		err = fmt.Errorf("Property '%s' of Thing '%s' is invalid or not writable", req.Name, req.ThingID)
-	case wot.OpInvokeAction:
+	case td.OpInvokeAction:
 		// directory specific operations
 		switch req.Name {
 		// case digitwinapi.GetStatusMethod:

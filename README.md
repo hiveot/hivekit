@@ -14,49 +14,52 @@ HiveKit components were originally part of the HiveOT Hub and have been extracte
 
 ## Project Status
 
-Hivekit is in alpha. It is functional but breaking changes can still be expected.
-Usable modules have a status checkmark.
+Hivekit is in alpha. Modules with a checkmark are functional but breaking changes can still be expected.
 
 Transport modules:
 
-| status | module               | description                   |
-| :----: | -------------------- | ----------------------------- |
-|   ✔️   | transport/direct     | simulation of transport       |
-|   ✔️   | transport/discovery  | WoT mDNS device discovery     |
-|   ✔️   | transport/httpbasic  | WoT HTTP basic protocol       |
-|   ✔️   | transport/httpserver | HTTP server for sub protocols |
-|   ✔️   | transport/ssesc      | HiveOT HTTP/SSE-SC protocol   |
-|   ✔️   | transport/wss        | WoT Websocket protocol        |
+| status | module               | description                   | version |
+| :----: | -------------------- | ----------------------------- | ------- |
+|   ✔️   | transport/direct     | simulation of transport       | alpha   |
+|   ✔️   | transport/discovery  | WoT mDNS device discovery     | alpha   |
+|   ✔️   | transport/httpbasic  | WoT HTTP basic protocol       | alpha   |
+|   ✔️   | transport/httpserver | HTTP server for sub protocols | alpha   |
+|   ✔️   | transport/ssesc      | HiveOT HTTP/SSE-SC protocol   | alpha   |
+|   ✔️   | transport/wss        | WoT Websocket protocol        | alpha   |
+|   ⬛   | transport/coap       | WoT CoAP protocol             | n/a     |
+|   ⬛   | transport/mqtt       | WoT MQTT protocol             | n/a     |
 
-Service modules:
+Core Service modules:
 
-| status | module      | description                  |
-| :----: | ----------- | ---------------------------- |
-|   ✔️   | authn       | authentication               |
-|   ✔️   | authz       | role based authorization     |
-|   ✔️   | bucketstore | key-value data storage       |
-|   ✔️   | certs       | certificate management       |
-|   ✔️   | digitwin    | digital twin (gateway\*)     |
-|   ✔️   | directory   | Thing Directory              |
-|   ✔️   | history     | message history recorder     |
-|   ⬛   | jsscript    | javascript based automation  |
-|   ✔️   | logging     | basic message logging        |
-|   ⬛   | pipeline    | dynamic application pipeline |
-|   ⬛   | router      | message routing (gateway\*)  |
-|   ⬛   | rules       | rule based automation        |
-|   ✔️   | vcache      | value cache (gateway\*)      |
+| status | module      | description                 | version |
+| :----: | ----------- | --------------------------- | ------- |
+|   ✔️   | authn       | authentication              | alpha   |
+|   ✔️   | authz       | role based authorization    | alpha   |
+|   ✔️   | bucketstore | key-value data storage      | alpha   |
+|   ✔️   | certs       | certificate management      | alpha   |
+|   ✔️   | digitwin    | digital twin                | alpha   |
+|   ✔️   | directory   | Thing Directory             | alpha   |
+|   ✔️   | history     | message history recorder    | alpha   |
+|   ✔️   | logging     | basic messaging logging     | alpha   |
+|   ✔️   | router      | message routing to devices  | alpha   |
+|   ✔️   | vcache      | value cache                 | alpha   |
+|   ⬛   | pipeline    | dynamic module pipeline     | dev     |
+|   ⬛   | jsscript    | javascript based automation | n/a     |
+|   ⬛   | rules       | rule based automation       | n/a     |
 
 \*) gateway modules are useful for building hub and gateway applications
 
-Protocol Integration Binding Modules:
+Integration Binding Modules:
 
 | status | module   | description                  |
 | :----: | -------- | ---------------------------- |
 |   ⬛   | ipnet    | IP Network monitor           |
 |   ⬛   | isy99x   | ISY 99 protocol binding      |
-|   ⬛   | owserver | 1-wire owserrver binding     |
-|   ⬛   | weather  | Weather service bindings     |
+|   ⬛   | owserver | 1-wire owserver binding      |
 |   ⬛   | zwavejs  | ZWave binding using zwave-js |
+|   ⬛   | weather  | Weather service bindings     |
+|   ⬛   | lorawan  | LoRaWan gateway binding      |
+|   ⬛   | canbus   | Canbus gateway binding       |
 |   ⬛   | ...      | and many more...             |
 
 ## Audience
@@ -69,8 +72,8 @@ Security is big concern with today's IoT devices. The Internet of Things contain
 
 To two main goals of HiveOT are:
 
-- Aid in improving security of IoT devices by isolating them from bad actors and providing a single secure endpoint.
-- Simplify integration and usage of IoT devices by providing a single consistent standardized way of interacting with all IoT devices including authentication, authorization, directory, history and other capabilities.
+1. Aid in improving security of IoT devices by isolating them from bad actors and providing a single secure endpoint.
+2. Simplify integration and usage of IoT devices by providing a single consistent standardized way of interacting with all IoT devices including authentication, authorization, directory, history and other capabilities.
 
 HiveOT is based on the [W3C WoT TD 1.1 specification](https://www.w3.org/TR/wot-thing-description11/) for interaction between IoT devices and consumers. It aims to be compatible with this standard.
 

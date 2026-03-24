@@ -16,7 +16,6 @@ import (
 	"github.com/hiveot/hivekit/go/modules/vcache"
 	vcacheapi "github.com/hiveot/hivekit/go/modules/vcache/api"
 	"github.com/hiveot/hivekit/go/msg"
-	"github.com/hiveot/hivekit/go/wot"
 	"github.com/hiveot/hivekit/go/wot/td"
 )
 
@@ -175,18 +174,18 @@ func (m *DigitwinService) HandleRequest(req *msg.RequestMessage, replyTo msg.Res
 		// Note unobservable properties will never be in the cache. If the value isn't cached
 		// the request is forwarded to the device. Eg set vcache sink to the server or client
 		// connection that can forward it.
-		case wot.OpReadAllProperties,
-			wot.OpReadMultipleProperties,
-			wot.OpReadProperty, // this returns the property value
-			wot.HTOpReadEvent,  // this returns the event notification (not just the value)
-			wot.HTOpReadAllEvents:
+		case td.OpReadAllProperties,
+			td.OpReadMultipleProperties,
+			td.OpReadProperty, // this returns the property value
+			td.HTOpReadEvent,  // this returns the event notification (not just the value)
+			td.HTOpReadAllEvents:
 			return m.vcache.HandleRequest(req, replyTo)
 
 		// write requests are forwarded to the actual device after mapping
 		// the thingID back to that of the device
-		case wot.OpWriteProperty,
-			wot.OpWriteMultipleProperties,
-			wot.OpInvokeAction:
+		case td.OpWriteProperty,
+			td.OpWriteMultipleProperties,
+			td.OpInvokeAction:
 
 			return m.ForwardDigitwinRequestToDevice(req, replyTo)
 		}

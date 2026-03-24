@@ -9,7 +9,7 @@ import (
 
 	authnapi "github.com/hiveot/hivekit/go/modules/authn/api"
 	"github.com/hiveot/hivekit/go/msg"
-	"github.com/hiveot/hivekit/go/wot"
+	"github.com/hiveot/hivekit/go/wot/td"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -139,7 +139,7 @@ func TestReadProperty(t *testing.T) {
 	// in this case the consumer connects to the agent (unlike when using a hub)
 	appReqHandler := func(req *msg.RequestMessage, replyTo msg.ResponseHandler) error {
 		var resp *msg.ResponseMessage
-		if req.Operation == wot.OpReadProperty && req.ThingID == thingID && req.Name == propKey {
+		if req.Operation == td.OpReadProperty && req.ThingID == thingID && req.Name == propKey {
 			resp = req.CreateResponse(propValue, nil)
 			resp.Timestamp = timestamp
 		} else {
@@ -173,7 +173,7 @@ func TestReadAllProperties(t *testing.T) {
 	// in this case the consumer connects to the agent (unlike when using a hub)
 	appReqHandler := func(req *msg.RequestMessage, replyTo msg.ResponseHandler) error {
 		var resp *msg.ResponseMessage
-		if req.Operation == wot.OpReadAllProperties {
+		if req.Operation == td.OpReadAllProperties {
 			output := make(map[string]any)
 			output[name1] = value1
 			output[name2] = value2

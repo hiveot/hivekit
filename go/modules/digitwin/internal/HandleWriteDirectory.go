@@ -4,8 +4,8 @@ import (
 	"fmt"
 
 	digitwinapi "github.com/hiveot/hivekit/go/modules/digitwin/api"
-	"github.com/hiveot/hivekit/go/wot"
 	"github.com/hiveot/hivekit/go/wot/td"
+	"github.com/hiveot/hivekit/go/wot/vocab"
 	jsoniter "github.com/json-iterator/go"
 )
 
@@ -34,7 +34,7 @@ func (m *DigitwinService) HandleWriteDirectory(agentID string, tdi *td.TD) (*td.
 
 	// 1. service types do not get a digital twin
 	// this seems a bit simplistic but it avoids hiveot modules from getting a twin
-	if tdi.AtType == digitwinapi.DeviceTypeService {
+	if tdi.AtType == vocab.DeviceTypeService {
 		return tdi, nil
 	}
 
@@ -51,7 +51,7 @@ func (m *DigitwinService) HandleWriteDirectory(agentID string, tdi *td.TD) (*td.
 
 	// 4. add a 'online' property indicating if it is reachable
 	dtwTD.AddProperty(digitwinapi.OnlinePropName,
-		"Online", "Indicate if the Thing is reachable", wot.DataTypeBool)
+		"Online", "Indicate if the Thing is reachable", td.DataTypeBool)
 
 	// 5. reset all existing forms and auth info
 	dtwTD.Forms = make([]td.Form, 0)

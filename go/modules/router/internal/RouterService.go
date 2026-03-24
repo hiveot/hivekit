@@ -119,11 +119,11 @@ func (m *RouterService) HandleRequest(req *msg.RequestMessage, replyTo msg.Respo
 	// handle requests for router module itself
 	switch req.Operation {
 
-	// case wot.OpReadProperty:
+	// case td.OpReadProperty:
 	// 	resp, err = m.ReadProperty(req)
-	// case wot.OpReadMultipleProperties:
+	// case td.OpReadMultipleProperties:
 	// 	resp, err = m.ReadMultipleProperties(req)
-	// case wot.OpReadAllProperties:
+	// case td.OpReadAllProperties:
 	// 	resp, err = m.ReadAllProperties(req)
 	// directory specific operations could be handled here
 	default:

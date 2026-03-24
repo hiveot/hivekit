@@ -19,8 +19,8 @@ import (
 	"github.com/hiveot/hivekit/go/modules/transports/wss"
 	"github.com/hiveot/hivekit/go/msg"
 	"github.com/hiveot/hivekit/go/utils"
-	"github.com/hiveot/hivekit/go/vocab"
 	"github.com/hiveot/hivekit/go/wot/td"
+	"github.com/hiveot/hivekit/go/wot/vocab"
 )
 
 const (
@@ -40,15 +40,15 @@ var testTDs = []struct {
 	NrActions  int
 }{
 	{ID: "thing-1", Title: "Environmental Sensor",
-		DeviceType: vocab.ThingSensorEnvironment, NrEvents: 1, NrProps: 1, NrActions: 3},
+		DeviceType: vocab.DeviceSensorEnvironment, NrEvents: 1, NrProps: 1, NrActions: 3},
 	{ID: "thing-2", Title: "Light Switch",
-		DeviceType: vocab.ThingActuatorLight, NrEvents: 2, NrProps: 2, NrActions: 0},
+		DeviceType: vocab.DeviceActuatorLight, NrEvents: 2, NrProps: 2, NrActions: 0},
 	{ID: "thing-3", Title: "Power meter",
-		DeviceType: vocab.ThingMeterElectric, NrEvents: 3, NrProps: 3, NrActions: 1},
+		DeviceType: vocab.DeviceMeterElectric, NrEvents: 3, NrProps: 3, NrActions: 1},
 	{ID: "thing-4", Title: "Multisensor",
-		DeviceType: vocab.ThingSensorMulti, NrEvents: 4, NrProps: 4, NrActions: 2},
+		DeviceType: vocab.DeviceSensorMulti, NrEvents: 4, NrProps: 4, NrActions: 2},
 	{ID: "thing-5", Title: "Alarm",
-		DeviceType: vocab.ThingActuatorAlarm, NrEvents: 2, NrProps: 2, NrActions: 2},
+		DeviceType: vocab.DeviceActuatorAlarm, NrEvents: 2, NrProps: 2, NrActions: 2},
 }
 
 var PropTypes = []string{vocab.PropDeviceMake, vocab.PropDeviceModel,
@@ -96,21 +96,21 @@ func (testEnv *TestEnv) CreateTestTD(i int) (tdi *td.TD) {
 	// add random properties
 	for n := 0; n < ttd.NrProps; n++ {
 		propName := fmt.Sprintf("prop-%d", n)
-		tdi.AddProperty(propName, "title-"+PropTypes[n], "", vocab.WoTDataTypeString).
+		tdi.AddProperty(propName, "title-"+PropTypes[n], "", td.DataTypeString).
 			SetAtType(PropTypes[n])
 	}
 	// add random events
 	for n := 0; n < ttd.NrEvents; n++ {
 		evName := fmt.Sprintf("event-%d", n)
 		tdi.AddEvent(evName, "title-"+EventTypes[n], "",
-			&td.DataSchema{Type: vocab.WoTDataTypeString}).
+			&td.DataSchema{Type: td.DataTypeString}).
 			SetAtType(EventTypes[n])
 	}
 	// add random actions
 	for n := 0; n < ttd.NrActions; n++ {
 		actionName := fmt.Sprintf("action-%d", n)
 		tdi.AddAction(actionName, "title-"+ActionTypes[n], "",
-			&td.DataSchema{Type: vocab.WoTDataTypeString},
+			&td.DataSchema{Type: td.DataTypeString},
 		).SetAtType(ActionTypes[n])
 	}
 

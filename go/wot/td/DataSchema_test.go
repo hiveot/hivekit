@@ -3,7 +3,6 @@ package td_test
 import (
 	"testing"
 
-	"github.com/hiveot/hivekit/go/wot"
 	"github.com/hiveot/hivekit/go/wot/td"
 	jsoniter "github.com/json-iterator/go"
 
@@ -14,7 +13,7 @@ import (
 
 func TestStringSchema(t *testing.T) {
 	ss := td.DataSchema{
-		Type:            wot.DataTypeString,
+		Type:            td.DataTypeString,
 		StringMinLength: 10,
 	}
 	enc1, err := jsoniter.Marshal(ss)
@@ -28,16 +27,16 @@ func TestStringSchema(t *testing.T) {
 func TestObjectSchema(t *testing.T) {
 	atType := "hiveot:complexType"
 	os := td.DataSchema{
-		Type:       wot.DataTypeObject,
+		Type:       td.DataTypeObject,
 		Properties: make(map[string]*td.DataSchema),
 		AtType:     atType,
 	}
 	os.Properties["stringProp"] = &td.DataSchema{
-		Type:            wot.DataTypeString,
+		Type:            td.DataTypeString,
 		StringMinLength: 10,
 	}
 	os.Properties["intProp"] = &td.DataSchema{
-		Type:    wot.DataTypeInteger,
+		Type:    td.DataTypeInteger,
 		Minimum: 10,
 		Maximum: 20,
 	}

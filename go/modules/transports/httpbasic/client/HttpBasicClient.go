@@ -18,7 +18,6 @@ import (
 	"github.com/hiveot/hivekit/go/modules/transports/httpserver/tlsclient"
 	"github.com/hiveot/hivekit/go/msg"
 	"github.com/hiveot/hivekit/go/utils"
-	"github.com/hiveot/hivekit/go/wot"
 	"github.com/hiveot/hivekit/go/wot/td"
 	jsoniter "github.com/json-iterator/go"
 )
@@ -140,7 +139,7 @@ func (cl *HttpBasicClient) GetConnectionID() string {
 // This simply returns nil for anything else than login, logout, ping or refresh.
 func (cl *HttpBasicClient) GetDefaultForm(op, thingID, name string) (f *td.Form) {
 	// login has its own URL as it is unauthenticated
-	if op == wot.HTOpPing {
+	if op == td.HTOpPing {
 		href := transports.DefaultPingPath
 		nf := td.NewForm(op, href)
 		nf.SetMethodName(http.MethodGet)

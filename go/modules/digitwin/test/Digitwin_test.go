@@ -21,7 +21,6 @@ import (
 	"github.com/hiveot/hivekit/go/modules/transports/tptests"
 	"github.com/hiveot/hivekit/go/msg"
 	"github.com/hiveot/hivekit/go/utils"
-	"github.com/hiveot/hivekit/go/wot"
 	"github.com/hiveot/hivekit/go/wot/td"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -52,6 +51,7 @@ func startService() (
 	dtw digitwinapi.IDigitwinServer,
 	stopFn func()) {
 
+	os.RemoveAll(storageDir)
 	// testEnv,cancelFn = tptests.StartTestEnv(transports.ProtocolSchemeWotWSS)
 	testEnv = tptests.NewTestEnv()
 	// http server needed for all communications
@@ -190,7 +190,7 @@ func TestReadDigitwinProperty(t *testing.T) {
 	// the digital twin will receive the request to read property.
 	// this tests if the dtw would forward it downstream as property is unknown.
 	dtw.SetRequestSink(func(req *msg.RequestMessage, replyTo msg.ResponseHandler) error {
-		if req.Operation == wot.OpReadProperty {
+		if req.Operation == td.OpReadProperty {
 			if req.ThingID == deviceTD1.ID && req.Name == prop1Name {
 				resp := req.CreateResponse(prop1Value, nil)
 				err := replyTo(resp)
@@ -236,7 +236,7 @@ func TestReadDigitwinProperty(t *testing.T) {
 
 	// 4. the consumer reads the property value
 	var respValue string
-	err = co.Rpc(wot.OpReadProperty, dtwThingID, prop1Name, nil, &respValue)
+	err = co.Rpc(td.OpReadProperty, dtwThingID, prop1Name, nil, &respValue)
 	require.NoError(t, err)
 	assert.Equal(t, prop1Value, respValue)
 }
@@ -265,7 +265,7 @@ func TestWriteDigitwinProperty(t *testing.T) {
 	ag, cc2, _ := testEnv.NewRCAgent(agentID, nil)
 	defer cc2.Close()
 	ag.SetAppRequestHandler(func(req *msg.RequestMessage, replyTo msg.ResponseHandler) error {
-		if req.Operation == wot.OpWriteProperty {
+		if req.Operation == td.OpWriteProperty {
 			txPropValue = req.ToString(0)
 			resp := req.CreateResponse(nil, nil)
 
@@ -349,7 +349,7 @@ func TestInvokeDigitwinAction(t *testing.T) {
 	defer cc2.Close()
 	ag.SetAppRequestHandler(func(req *msg.RequestMessage, replyTo msg.ResponseHandler) error {
 		// echo the input
-		if req.Operation == wot.OpInvokeAction {
+		if req.Operation == td.OpInvokeAction {
 			actionInput := req.ToString(0)
 			resp := req.CreateResponse(actionInput, nil)
 			// submit an event after the action

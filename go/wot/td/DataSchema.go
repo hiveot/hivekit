@@ -2,10 +2,6 @@
 // as described here: https://www.w3.org/TR/wot-thing-description/#sec-data-schema-vocabulary-definition
 package td
 
-import (
-	"github.com/hiveot/hivekit/go/wot"
-)
-
 // NoSchema is a read-only schema to use when schema is unknown.
 var noSchema = &DataSchema{ReadOnly: true}
 
@@ -170,10 +166,10 @@ func (ds *DataSchema) SetEnumAsStrings(e []string) {
 // If type is an object or array this returns false
 // Intended for use in input forms
 func (ds *DataSchema) IsNative() bool {
-	return ds.Type == wot.DataTypeAnyURI ||
-		ds.Type == wot.DataTypeBool ||
-		ds.Type == wot.DataTypeInteger ||
-		ds.Type == wot.DataTypeUnsignedInt ||
-		ds.Type == wot.DataTypeNumber ||
-		ds.Type == wot.DataTypeString
+	return ds.Type == DataTypeAnyURI ||
+		ds.Type == DataTypeBool ||
+		ds.Type == DataTypeInteger ||
+		ds.Type == DataTypeUnsignedInt ||
+		ds.Type == DataTypeNumber ||
+		ds.Type == DataTypeString
 }

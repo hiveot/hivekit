@@ -6,7 +6,7 @@ import (
 
 	"github.com/hiveot/hivekit/go/msg"
 	"github.com/hiveot/hivekit/go/utils"
-	"github.com/hiveot/hivekit/go/wot"
+	"github.com/hiveot/hivekit/go/wot/td"
 	jsoniter "github.com/json-iterator/go"
 )
 
@@ -123,7 +123,7 @@ func (svc *WotWssMsgConverter) DecodeRequest(raw []byte) *msg.RequestMessage {
 	reqmsg := &wssreq.RequestMessage
 	switch wssreq.Operation {
 
-	case wot.OpQueryAction, wot.OpCancelAction:
+	case td.OpQueryAction, td.OpCancelAction:
 		// input is actionID
 		reqmsg.Input = wssreq.ActionID
 	}
@@ -158,9 +158,9 @@ func (svc *WotWssMsgConverter) DecodeResponse(raw []byte) *msg.ResponseMessage {
 
 	switch wssResp.Operation {
 
-	case wot.OpCancelAction:
+	case td.OpCancelAction:
 		// hiveot response API doesnt contain the actionID. This is okay as the sender knows it.
-	case wot.OpInvokeAction:
+	case td.OpInvokeAction:
 		// if wss contains a status object, use it
 		if wssResp.Status != nil {
 			respMsg.Status = wssResp.Status.State
@@ -168,7 +168,7 @@ func (svc *WotWssMsgConverter) DecodeResponse(raw []byte) *msg.ResponseMessage {
 			respMsg.Timestamp = wssResp.Status.TimeEnded
 		}
 
-	case wot.OpQueryAction:
+	case td.OpQueryAction:
 		// ResponseMessage contains a WSS ActionStatus object.
 		// which is converted to a HiveOT ResponseMessage as the value.
 		var wssStatus WotWssActionStatus
@@ -180,7 +180,7 @@ func (svc *WotWssMsgConverter) DecodeResponse(raw []byte) *msg.ResponseMessage {
 		// Note that hiveOT uses correlationID instead of actionID
 		// hiveot also doesn't return timerequested
 		output := msg.ResponseMessage{
-			Operation:     wot.OpInvokeAction,
+			Operation:     td.OpInvokeAction,
 			ThingID:       wssResp.ThingID,
 			Name:          wssResp.Name,
 			Output:        wssStatus.Output,
@@ -191,7 +191,7 @@ func (svc *WotWssMsgConverter) DecodeResponse(raw []byte) *msg.ResponseMessage {
 		}
 		respMsg.Output = output
 
-	case wot.OpQueryAllActions:
+	case td.OpQueryAllActions:
 		// WSS ResponseMessage contains ActionStatus map
 		var wssStatusMap map[string]WotWssActionStatus
 		output := make(map[string]msg.ResponseMessage)
@@ -202,7 +202,7 @@ func (svc *WotWssMsgConverter) DecodeResponse(raw []byte) *msg.ResponseMessage {
 		// reconstruct the latest responses for the actions
 		for name, wssStatus := range wssStatusMap {
 			output[name] = msg.ResponseMessage{
-				Operation:     wot.OpInvokeAction,
+				Operation:     td.OpInvokeAction,
 				ThingID:       wssResp.ThingID,
 				Name:          name,
 				Output:        wssStatus.Output,
@@ -214,11 +214,11 @@ func (svc *WotWssMsgConverter) DecodeResponse(raw []byte) *msg.ResponseMessage {
 		}
 		respMsg.Output = output
 
-	case wot.OpReadAllProperties, wot.OpReadMultipleProperties:
+	case td.OpReadAllProperties, td.OpReadMultipleProperties:
 		// the 'Values' property from the msg.ResponseMessage embedded struct
 		// contains the object with all property-value names
 		respMsg.Output = wssResp.Values
-	case wot.OpReadProperty:
+	case td.OpReadProperty:
 		// the 'Value' property contains the actual value
 		respMsg.Output = wssResp.Value
 	}
@@ -244,9 +244,9 @@ func (svc *WotWssMsgConverter) EncodeRequest(req *msg.RequestMessage) ([]byte, e
 	// ensure this field is present as it is needed for decoding
 	wssReq.MessageType = msg.MessageTypeRequest
 	switch req.Operation {
-	case wot.OpWriteMultipleProperties:
+	case td.OpWriteMultipleProperties:
 		wssReq.Values = req.Input
-	case wot.OpQueryAction:
+	case td.OpQueryAction:
 		// correlationID is used as actionID
 		wssReq.ActionID = req.CorrelationID
 	}
@@ -276,10 +276,10 @@ func (svc *WotWssMsgConverter) EncodeResponse(resp *msg.ResponseMessage) ([]byte
 	}
 	// last, set status(es) and values, depending on the operation
 	switch resp.Operation {
-	case wot.OpCancelAction:
+	case td.OpCancelAction:
 		// actionID of cancelled action ?
 		// wssResp.ActionID = resp.CorrelationID
-	case wot.OpInvokeAction:
+	case td.OpInvokeAction:
 		wssResp.Status = &WotWssActionStatus{
 			// websocket asynchronous response returns ActionID
 			ActionID:  resp.CorrelationID,
@@ -288,7 +288,7 @@ func (svc *WotWssMsgConverter) EncodeResponse(resp *msg.ResponseMessage) ([]byte
 			Output:    resp.Output,
 			TimeEnded: resp.Timestamp,
 		}
-	case wot.OpQueryAction:
+	case td.OpQueryAction:
 		// the output is the last response: convert it to an ActionStatus object
 		qResp := msg.ResponseMessage{}
 		utils.Decode(resp.Output, &qResp)
@@ -299,7 +299,7 @@ func (svc *WotWssMsgConverter) EncodeResponse(resp *msg.ResponseMessage) ([]byte
 			State:     qResp.Status,
 			TimeEnded: qResp.Timestamp,
 		}
-	case wot.OpQueryAllActions:
+	case td.OpQueryAllActions:
 		// convert action responses in output to a  WotWssActionStatuses map
 		var hiveotActionStatusMap map[string]msg.ResponseMessage
 		err = utils.Decode(resp.Output, &hiveotActionStatusMap)
@@ -322,10 +322,10 @@ func (svc *WotWssMsgConverter) EncodeResponse(resp *msg.ResponseMessage) ([]byte
 			}
 		}
 		wssResp.Statuses = wssStatusMap
-	case wot.OpReadAllProperties, wot.OpReadMultipleProperties:
+	case td.OpReadAllProperties, td.OpReadMultipleProperties:
 		// ReadAllProperties has the same response object with property key-values
 		wssResp.Values = resp.Output
-	case wot.OpReadProperty:
+	case td.OpReadProperty:
 		wssResp.Value = resp.Output
 	}
 

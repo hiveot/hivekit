@@ -143,7 +143,7 @@ func NewAuthnHttpClient(serverURL string, caCert *x509.Certificate) *AuthnHttpCl
 //	formMock.Add("password", password)
 //
 //	var loginHRef string
-//	f := cl.getForm(wot.HTOpLoginWithForm, "", "")
+//	f := cl.getForm(td.HTOpLoginWithForm, "", "")
 //	if f != nil {
 //		loginHRef, _ = f.GetHRef()
 //	}

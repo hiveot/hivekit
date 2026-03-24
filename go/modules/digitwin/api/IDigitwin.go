@@ -2,7 +2,6 @@ package digitwinapi
 
 import (
 	"github.com/hiveot/hivekit/go/modules"
-	"github.com/hiveot/hivekit/go/vocab"
 	"github.com/hiveot/hivekit/go/wot/td"
 )
 
@@ -11,9 +10,6 @@ const DefaultDigitwinModuleID = "digitwin"
 
 // the prefix used for digital twins
 const DigitwinIDPrefix = "dtw:"
-
-// Device types that are services do not get a digital twin
-const DeviceTypeService = vocab.ThingService
 
 // OnlinePropName is the digital twin property name indicating the device is reachable
 const OnlinePropName = "online"

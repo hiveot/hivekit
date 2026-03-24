@@ -9,8 +9,6 @@ import (
 	"strings"
 
 	"github.com/hiveot/hivekit/go/utils"
-	"github.com/hiveot/hivekit/go/vocab"
-	"github.com/hiveot/hivekit/go/wot"
 	jsoniter "github.com/json-iterator/go"
 )
 
@@ -147,7 +145,7 @@ func (tdoc *TD) AddAction(name string, title string, description string,
 //func (tdoc *TD) AddDimmerAction(name string) *ActionAffordance {
 //	act := tdoc.AddAction(name, "", "",
 //		&DataSchema{
-//			Type: wot.DataTypeInteger,
+//			Type: DataTypeInteger,
 //		})
 //	act.SetAtType(vocab.ActionDimmer)
 //	return act
@@ -161,7 +159,7 @@ func (tdoc *TD) AddAction(name string, title string, description string,
 //	aff := tdoc.AddEvent(eventID, "", "",
 //		&DataSchema{
 //			AtType: vocab.PropSwitchDimmer,
-//			Type:   wot.DataTypeInteger,
+//			Type:   DataTypeInteger,
 //		})
 //	aff.SetAtType(vocab.PropSwitchDimmer)
 //	return aff
@@ -230,7 +228,7 @@ func (tdoc *TD) AddProperty(propName string, title string, description string, d
 func (tdoc *TD) AddPropertyAsString(
 	propName string, title string, description string) *PropertyAffordance {
 
-	return tdoc.AddProperty(propName, title, description, wot.DataTypeString)
+	return tdoc.AddProperty(propName, title, description, DataTypeString)
 }
 
 // AddPropertyAsBool is short for adding a read-only boolean property
@@ -239,7 +237,7 @@ func (tdoc *TD) AddPropertyAsString(
 func (tdoc *TD) AddPropertyAsBool(
 	propName string, title string, description string) *PropertyAffordance {
 
-	return tdoc.AddProperty(propName, title, description, wot.DataTypeBool)
+	return tdoc.AddProperty(propName, title, description, DataTypeBool)
 }
 
 // AddPropertyAsInt is short for adding a read-only integer property
@@ -248,7 +246,7 @@ func (tdoc *TD) AddPropertyAsBool(
 func (tdoc *TD) AddPropertyAsInt(
 	propName string, title string, description string) *PropertyAffordance {
 
-	return tdoc.AddProperty(propName, title, description, wot.DataTypeInteger)
+	return tdoc.AddProperty(propName, title, description, DataTypeInteger)
 }
 
 // AddSecurityScheme adds a security scheme to the TD
@@ -369,34 +367,34 @@ func (tdoc *TD) GetForms(operation string, name string) []Form {
 
 		switch operation {
 		case
-			wot.OpInvokeAction,
-			wot.OpCancelAction,
-			wot.OpQueryAction,
-			wot.OpQueryAllActions:
+			OpInvokeAction,
+			OpCancelAction,
+			OpQueryAction,
+			OpQueryAllActions:
 			aff := tdoc.Actions[name]
 			if aff != nil {
 				availableForms = aff.Forms
 			}
 
 		case
-			wot.OpObserveAllProperties,
-			wot.OpObserveProperty,
-			wot.OpReadAllProperties,
-			wot.OpReadProperty,
-			wot.OpUnobserveAllProperties,
-			wot.OpUnobserveProperty,
-			wot.OpWriteProperty,
-			wot.OpWriteMultipleProperties:
+			OpObserveAllProperties,
+			OpObserveProperty,
+			OpReadAllProperties,
+			OpReadProperty,
+			OpUnobserveAllProperties,
+			OpUnobserveProperty,
+			OpWriteProperty,
+			OpWriteMultipleProperties:
 			aff := tdoc.Properties[name]
 			if aff != nil {
 				availableForms = aff.Forms
 			}
 
 		case
-			wot.OpSubscribeAllEvents,
-			wot.OpSubscribeEvent,
-			wot.OpUnsubscribeAllEvents,
-			wot.OpUnsubscribeEvent:
+			OpSubscribeAllEvents,
+			OpSubscribeEvent,
+			OpUnsubscribeAllEvents,
+			OpUnsubscribeEvent:
 			aff := tdoc.Events[name]
 			if aff != nil {
 				availableForms = aff.Forms
@@ -591,8 +589,8 @@ func (tdoc *TD) UpdateTitleDescription(title string, description string) {
 // NewTD creates a new Thing Description document with properties, events and actions
 //
 // Conventions:
-// 1. Agents should add a property wot.WoTTitle and update the TD title if it is set.
-// 2. Agents should add a property wot.WoTDescription and update the TD description if it is set.
+// 1. Agents should add a property WoTTitle and update the TD title if it is set.
+// 2. Agents should add a property WoTDescription and update the TD description if it is set.
 // 3. the deviceType comes from the vocabulary and has ID vocab.DeviceType<Xyz>
 //
 // Devices or bindings are not expected to use forms. The form content describes the
@@ -615,9 +613,6 @@ func (tdoc *TD) UpdateTitleDescription(title string, description string) {
 //	 deviceType is the optional @type identifying the device
 func NewTD(deviceID string, title string, deviceType string) *TD {
 	var thingID = deviceID
-	if deviceType == "" {
-		deviceType = vocab.ThingDevice
-	}
 	thingID = strings.ReplaceAll(thingID, " ", "-")
 
 	td := TD{

@@ -9,7 +9,7 @@ import (
 	bucketstoreapi "github.com/hiveot/hivekit/go/modules/bucketstore/api"
 	"github.com/hiveot/hivekit/go/msg"
 	"github.com/hiveot/hivekit/go/utils"
-	"github.com/hiveot/hivekit/go/wot"
+	"github.com/hiveot/hivekit/go/wot/td"
 )
 
 // Embed the store TM
@@ -38,7 +38,7 @@ func (handler *BucketMsgHandler) HandleRequest(req *msg.RequestMessage) *msg.Res
 		err := fmt.Errorf("missing senderID in request")
 		return req.CreateErrorResponse(err)
 	}
-	if req.Operation == wot.OpInvokeAction {
+	if req.Operation == td.OpInvokeAction {
 		switch req.Name {
 		case bucketstoreapi.ActionDelete:
 			return handler.Delete(req)

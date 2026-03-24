@@ -7,7 +7,7 @@ import (
 	certsapi "github.com/hiveot/hivekit/go/modules/certs/api"
 	"github.com/hiveot/hivekit/go/modules/certs/certutils"
 	"github.com/hiveot/hivekit/go/msg"
-	"github.com/hiveot/hivekit/go/wot"
+	"github.com/hiveot/hivekit/go/wot/td"
 )
 
 // CertsMsgClient is a client for the Certificate module using RRN messages.
@@ -25,7 +25,7 @@ type CertsMsgClient struct {
 func (cl *CertsMsgClient) GetCACert() (cert *x509.Certificate, err error) {
 	var certPem string
 	req := msg.NewRequestMessage(
-		wot.OpInvokeAction, certsapi.DefaultCertsServiceID, certsapi.ActionGetCACert, nil, "")
+		td.OpInvokeAction, certsapi.DefaultCertsServiceID, certsapi.ActionGetCACert, nil, "")
 
 	resp, err := cl.ForwardRequestWait(req)
 	if err == nil {

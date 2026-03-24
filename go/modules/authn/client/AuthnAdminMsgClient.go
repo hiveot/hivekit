@@ -4,7 +4,7 @@ package authnclient
 import (
 	authnapi "github.com/hiveot/hivekit/go/modules/authn/api"
 	"github.com/hiveot/hivekit/go/modules/clients"
-	"github.com/hiveot/hivekit/go/wot"
+	"github.com/hiveot/hivekit/go/wot/td"
 )
 
 // AdminAddAgent client method - Add Agent.
@@ -18,7 +18,7 @@ func AdminAddClient(hc *clients.Consumer, clientID string, displayName string, r
 		Role:        role,
 	}
 	thingID := authnapi.DefaultAdminServiceID
-	err = hc.Rpc(wot.OpInvokeAction, thingID, authnapi.AdminActionAddClient, &args, &token)
+	err = hc.Rpc(td.OpInvokeAction, thingID, authnapi.AdminActionAddClient, &args, &token)
 	return
 }
 
@@ -28,7 +28,7 @@ func AdminGetClientProfile(hc *clients.Consumer, clientID string) (
 	profile authnapi.ClientProfile, err error) {
 
 	thingID := authnapi.DefaultAdminServiceID
-	err = hc.Rpc(wot.OpInvokeAction, thingID,
+	err = hc.Rpc(td.OpInvokeAction, thingID,
 		authnapi.AdminActionGetProfile, &clientID, &profile)
 	return
 }
@@ -38,7 +38,7 @@ func AdminGetClientProfile(hc *clients.Consumer, clientID string) (
 func AdminGetProfiles(hc *clients.Consumer) (clientProfiles []authnapi.ClientProfile, err error) {
 
 	thingID := authnapi.DefaultAdminServiceID
-	err = hc.Rpc(wot.OpInvokeAction, thingID,
+	err = hc.Rpc(td.OpInvokeAction, thingID,
 		authnapi.AdminActionGetProfiles, nil, &clientProfiles)
 	return
 }
@@ -48,7 +48,7 @@ func AdminGetProfiles(hc *clients.Consumer) (clientProfiles []authnapi.ClientPro
 func AdminRemoveClient(hc *clients.Consumer, clientID string) (err error) {
 
 	thingID := authnapi.DefaultAdminServiceID
-	err = hc.Rpc(wot.OpInvokeAction, thingID,
+	err = hc.Rpc(td.OpInvokeAction, thingID,
 		authnapi.AdminActionRemoveClient, &clientID, nil)
 	return
 }
@@ -60,7 +60,7 @@ func AdminSetClientPassword(hc *clients.Consumer, userName string, password stri
 		UserName: userName, Password: password}
 
 	thingID := authnapi.DefaultAdminServiceID
-	err = hc.Rpc(wot.OpInvokeAction, thingID,
+	err = hc.Rpc(td.OpInvokeAction, thingID,
 		authnapi.AdminActionSetPassword, &args, nil)
 	return
 }
@@ -70,7 +70,7 @@ func AdminSetClientPassword(hc *clients.Consumer, userName string, password stri
 func AdminUpdateClientProfile(hc *clients.Consumer, clientProfile authnapi.ClientProfile) (err error) {
 
 	thingID := authnapi.DefaultAdminServiceID
-	err = hc.Rpc(wot.OpInvokeAction,
+	err = hc.Rpc(td.OpInvokeAction,
 		authnapi.AuthnAdminServiceID, thingID, &clientProfile, nil)
 	return
 }

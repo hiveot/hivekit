@@ -10,7 +10,7 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/hiveot/hivekit/go/modules/transports"
 	"github.com/hiveot/hivekit/go/msg"
-	"github.com/hiveot/hivekit/go/wot"
+	"github.com/hiveot/hivekit/go/wot/td"
 	"github.com/teris-io/shortid"
 )
 
@@ -90,7 +90,7 @@ func (sc *WssServerConnection) Close() {
 // func (sc *WssServerConnection) HasSubscription(notif *msg.NotificationMessage) bool {
 // 	switch notif.Operation {
 
-// 	case wot.OpSubscribeEvent, wot.OpSubscribeAllEvents:
+// 	case td.OpSubscribeEvent, td.OpSubscribeAllEvents:
 // 		correlationID := sc.subscriptions.GetSubscription(notif.ThingID, notif.Name)
 // 		if correlationID != "" {
 // 			slog.Info("HasSubscription (event subscription)",
@@ -100,7 +100,7 @@ func (sc *WssServerConnection) Close() {
 // 			)
 // 			return true
 // 		}
-// 	case wot.OpObserveProperty, wot.OpObserveMultipleProperties, wot.OpObserveAllProperties:
+// 	case td.OpObserveProperty, td.OpObserveMultipleProperties, td.OpObserveAllProperties:
 // 		correlationID := sc.observations.GetSubscription(notif.ThingID, notif.Name)
 // 		if correlationID != "" {
 // 			slog.Info("HasSubscription (observed property(ies))",
@@ -110,7 +110,7 @@ func (sc *WssServerConnection) Close() {
 // 			)
 // 			return true
 // 		}
-// 	case wot.OpInvokeAction:
+// 	case td.OpInvokeAction:
 // 		// action progress update, for original sender only
 // 		slog.Info("HasSubscription (action status)",
 // 			slog.String("clientID", sc.cinfo.ClientID),
@@ -188,22 +188,22 @@ func (sc *WssServerConnection) onRequest(req *msg.RequestMessage) {
 		slog.String("correlationID", req.CorrelationID))
 
 	switch req.Operation {
-	case wot.HTOpPing:
+	case td.HTOpPing:
 		resp = req.CreateResponse("pong", nil)
 
-	case wot.OpSubscribeEvent, wot.OpSubscribeAllEvents:
+	case td.OpSubscribeEvent, td.OpSubscribeAllEvents:
 		sc.SubscribeEvent(req.ThingID, req.Name, req.CorrelationID)
 		resp = req.CreateResponse(nil, nil)
 
-	case wot.OpUnsubscribeEvent, wot.OpUnsubscribeAllEvents:
+	case td.OpUnsubscribeEvent, td.OpUnsubscribeAllEvents:
 		sc.UnsubscribeEvent(req.ThingID, req.Name)
 		resp = req.CreateResponse(nil, nil)
 
-	case wot.OpObserveProperty, wot.OpObserveAllProperties:
+	case td.OpObserveProperty, td.OpObserveAllProperties:
 		sc.ObserveProperty(req.ThingID, req.Name, req.CorrelationID)
 		resp = req.CreateResponse(nil, nil)
 
-	case wot.OpUnobserveProperty, wot.OpUnobserveAllProperties:
+	case td.OpUnobserveProperty, td.OpUnobserveAllProperties:
 		sc.UnobserveProperty(req.ThingID, req.Name)
 		resp = req.CreateResponse(nil, nil)
 	default:

@@ -33,10 +33,10 @@ const DeviceTypeSensor = "hiveot:sensor"
 //	agentReqHandler := func(req *transports.RequestMessage,
 //		connection transports.IConnection) *transports.ResponseMessage {
 //		t.Log("Received request: " + req.Operation)
-//		if req.Operation == wot.HTOpReadTD {
+//		if req.Operation == td.HTOpReadTD {
 //			tdJSON, err := jsoniter.Marshal(td1)
 //			return req.CreateResponse(tdJSON, err)
-//		} else if req.Operation == wot.HTOpReadAllTDs {
+//		} else if req.Operation == td.HTOpReadAllTDs {
 //			tdJSON, err := jsoniter.Marshal(td1)
 //			return req.CreateResponse([]string{string(tdJSON)}, err)
 //		} else {
@@ -108,7 +108,7 @@ func TestAddForms(t *testing.T) {
 //	requestHandler := func(msg *transports.RequestMessage,
 //		c transports.IConnection) *transports.ResponseMessage {
 //		var err error
-//		if msg.Operation == wot.HTOpUpdateTD {
+//		if msg.Operation == td.HTOpUpdateTD {
 //			assert.Equal(t, thingID, msg.ThingID)
 //			assert.Equal(t, td1JSON, msg.Input)
 //			assert.NotEmpty(t, msg.Input)

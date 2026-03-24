@@ -7,7 +7,7 @@ import (
 	certsapi "github.com/hiveot/hivekit/go/modules/certs/api"
 	"github.com/hiveot/hivekit/go/modules/certs/certutils"
 	"github.com/hiveot/hivekit/go/msg"
-	"github.com/hiveot/hivekit/go/wot"
+	"github.com/hiveot/hivekit/go/wot/td"
 )
 
 // Embed the certs TM
@@ -34,7 +34,7 @@ func (handler *CertsMsgHandler) HandleRequest(
 	} else if req.SenderID == "" {
 		// todo: is this really needed?
 		err = fmt.Errorf("missing senderID in request")
-	} else if req.Operation == wot.OpInvokeAction {
+	} else if req.Operation == td.OpInvokeAction {
 		// certificate specific operations
 		switch req.Name {
 		case certsapi.ActionGetCACert:

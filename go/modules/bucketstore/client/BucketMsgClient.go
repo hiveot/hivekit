@@ -4,7 +4,7 @@ import (
 	"github.com/hiveot/hivekit/go/modules"
 	bucketstoreapi "github.com/hiveot/hivekit/go/modules/bucketstore/api"
 	"github.com/hiveot/hivekit/go/msg"
-	"github.com/hiveot/hivekit/go/wot"
+	"github.com/hiveot/hivekit/go/wot/td"
 )
 
 // BucketMsgClient is the client for using a remote bucket store server module.
@@ -25,7 +25,7 @@ func (cl *BucketMsgClient) Close() error {
 // Delete removes the record with the given key.
 func (cl *BucketMsgClient) Delete(key string) error {
 	req := msg.NewRequestMessage(
-		wot.OpInvokeAction, cl.thingID, bucketstoreapi.ActionDelete, key, "")
+		td.OpInvokeAction, cl.thingID, bucketstoreapi.ActionDelete, key, "")
 	_, err := cl.ForwardRequestWait(req)
 	return err
 }
@@ -34,7 +34,7 @@ func (cl *BucketMsgClient) Delete(key string) error {
 // If the key doesn't exist this returns an error.
 func (cl *BucketMsgClient) Get(key string) (doc string, err error) {
 
-	req := msg.NewRequestMessage(wot.OpInvokeAction, cl.thingID, bucketstoreapi.ActionGet, key, "")
+	req := msg.NewRequestMessage(td.OpInvokeAction, cl.thingID, bucketstoreapi.ActionGet, key, "")
 	resp, err := cl.ForwardRequestWait(req)
 
 	err = resp.Decode(&doc)
@@ -48,7 +48,7 @@ func (cl *BucketMsgClient) Get(key string) (doc string, err error) {
 func (cl *BucketMsgClient) GetMultiple(keys []string) (values map[string]string, err error) {
 
 	req := msg.NewRequestMessage(
-		wot.OpInvokeAction, cl.thingID, bucketstoreapi.ActionGetMultiple, keys, "")
+		td.OpInvokeAction, cl.thingID, bucketstoreapi.ActionGetMultiple, keys, "")
 	resp, err := cl.ForwardRequestWait(req)
 	err = resp.Decode(&values)
 	return values, err
@@ -61,7 +61,7 @@ func (cl *BucketMsgClient) Set(key string, doc string) error {
 		Doc: doc,
 	}
 	req := msg.NewRequestMessage(
-		wot.OpInvokeAction, cl.thingID, bucketstoreapi.ActionSet, args, "")
+		td.OpInvokeAction, cl.thingID, bucketstoreapi.ActionSet, args, "")
 	_, err := cl.ForwardRequestWait(req)
 	return err
 }
@@ -73,7 +73,7 @@ func (cl *BucketMsgClient) SetMultiple(kv map[string]string) error {
 		args[k] = v
 	}
 	req := msg.NewRequestMessage(
-		wot.OpInvokeAction, cl.thingID, bucketstoreapi.ActionSetMultiple, args, "")
+		td.OpInvokeAction, cl.thingID, bucketstoreapi.ActionSetMultiple, args, "")
 	_, err := cl.ForwardRequestWait(req)
 	return err
 }

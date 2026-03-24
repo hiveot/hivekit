@@ -4,7 +4,7 @@ import (
 	"testing"
 
 	"github.com/hiveot/hivekit/go/msg"
-	"github.com/hiveot/hivekit/go/wot"
+	"github.com/hiveot/hivekit/go/wot/td"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -15,8 +15,8 @@ var ev4 = msg.NewNotificationMessage("sender1", msg.AffordanceTypeEvent, "thing2
 var prop1 = msg.NewNotificationMessage("sender1", msg.AffordanceTypeProperty, "thing1", "property1", nil)
 var act1 = msg.NewNotificationMessage("sender1", msg.AffordanceTypeAction, "thing1", "action1", nil)
 
-var reqProp1 = msg.NewRequestMessage(wot.OpWriteProperty, "thing1", "property1", nil, "")
-var reqAct2 = msg.NewRequestMessage(wot.OpInvokeAction, "thing1", "action1", nil, "")
+var reqProp1 = msg.NewRequestMessage(td.OpWriteProperty, "thing1", "property1", nil, "")
+var reqAct2 = msg.NewRequestMessage(td.OpInvokeAction, "thing1", "action1", nil, "")
 
 func TestAcceptEmpty(t *testing.T) {
 	t.Logf("---%s---\n", t.Name())

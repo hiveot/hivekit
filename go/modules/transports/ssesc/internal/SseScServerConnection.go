@@ -9,7 +9,7 @@ import (
 	"github.com/hiveot/hivekit/go/modules/transports"
 	ssescapi "github.com/hiveot/hivekit/go/modules/transports/ssesc/api"
 	"github.com/hiveot/hivekit/go/msg"
-	"github.com/hiveot/hivekit/go/wot"
+	"github.com/hiveot/hivekit/go/wot/td"
 	jsoniter "github.com/json-iterator/go"
 	"github.com/teris-io/shortid"
 )
@@ -113,13 +113,13 @@ func (sc *HiveotSseServerConnection) onRequestMessage(
 	// handle subscriptions using connection base
 	handled = true
 	switch req.Operation {
-	case wot.OpSubscribeEvent, wot.OpSubscribeAllEvents:
+	case td.OpSubscribeEvent, td.OpSubscribeAllEvents:
 		sc.SubscribeEvent(req.ThingID, req.Name, req.CorrelationID)
-	case wot.OpUnsubscribeEvent, wot.OpUnsubscribeAllEvents:
+	case td.OpUnsubscribeEvent, td.OpUnsubscribeAllEvents:
 		sc.UnsubscribeEvent(req.ThingID, req.Name)
-	case wot.OpObserveProperty, wot.OpObserveAllProperties:
+	case td.OpObserveProperty, td.OpObserveAllProperties:
 		sc.ObserveProperty(req.ThingID, req.Name, req.CorrelationID)
-	case wot.OpUnobserveProperty, wot.OpUnobserveAllProperties:
+	case td.OpUnobserveProperty, td.OpUnobserveAllProperties:
 		sc.UnobserveProperty(req.ThingID, req.Name)
 	default:
 		handled = false

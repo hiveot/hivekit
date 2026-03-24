@@ -8,7 +8,7 @@ import (
 	"github.com/hiveot/hivekit/go/modules/vcache"
 	"github.com/hiveot/hivekit/go/msg"
 	"github.com/hiveot/hivekit/go/utils"
-	"github.com/hiveot/hivekit/go/wot"
+	"github.com/hiveot/hivekit/go/wot/td"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -80,7 +80,7 @@ func TestPropertyNotifications(t *testing.T) {
 
 	// test 3: a read property request should be answered from the cache
 	var respValue string
-	req := msg.NewRequestMessage(wot.OpReadProperty, thing1ID, prop1Name, nil, "")
+	req := msg.NewRequestMessage(td.OpReadProperty, thing1ID, prop1Name, nil, "")
 	err = m.HandleRequest(req, func(resp *msg.ResponseMessage) error {
 		err = resp.Decode(&respValue)
 		return err
@@ -90,7 +90,7 @@ func TestPropertyNotifications(t *testing.T) {
 
 	// test 4: a read multiple properties request should also be answered from the cache
 	var multiResp map[string]any
-	req = msg.NewRequestMessage(wot.OpReadMultipleProperties, thing2ID, "", prop12Names, "")
+	req = msg.NewRequestMessage(td.OpReadMultipleProperties, thing2ID, "", prop12Names, "")
 	err = m.HandleRequest(req, func(resp *msg.ResponseMessage) error {
 		err = resp.Decode(&multiResp)
 		return err
@@ -136,7 +136,7 @@ func TestEventNotifications(t *testing.T) {
 	assert.Equal(t, ev1Value, notif.Data)
 
 	// test 2: RRN read request should return the value
-	req := msg.NewRequestMessage(wot.HTOpReadEvent, thing1ID, ev1Name, nil, "")
+	req := msg.NewRequestMessage(td.HTOpReadEvent, thing1ID, ev1Name, nil, "")
 	err = m.HandleRequest(req, func(resp *msg.ResponseMessage) error {
 		var ev msg.NotificationMessage
 		err = resp.Decode(&ev)

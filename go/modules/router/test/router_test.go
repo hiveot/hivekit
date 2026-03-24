@@ -20,8 +20,8 @@ import (
 	"github.com/hiveot/hivekit/go/modules/transports/tptests"
 	"github.com/hiveot/hivekit/go/msg"
 	"github.com/hiveot/hivekit/go/utils"
-	"github.com/hiveot/hivekit/go/vocab"
 	"github.com/hiveot/hivekit/go/wot/td"
+	"github.com/hiveot/hivekit/go/wot/vocab"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -56,7 +56,7 @@ func startTestDevice(agentID string, thingID string) (testDevice *tptests.TestDe
 		certsBundle.ServerAddr, testDevicePort,
 		certsBundle.ServerCert, certsBundle.CaCert, testAuthn)
 
-	var testTM *td.TD = td.NewTD(thingID, "test device", vocab.ThingDevice)
+	var testTM *td.TD = td.NewTD(thingID, "test device", vocab.Device)
 	testTM.AddPropertyAsString("property-1", "Property 1", "New and improved")
 
 	testDevice = tptests.NewTestDevice(cfg, agentID, testTM, serverType)
@@ -157,7 +157,7 @@ func TestReadDeviceProperties(t *testing.T) {
 	defer testDevice.Stop()
 	testDevice.SetRequestHook(func(req *msg.RequestMessage, replyTo msg.ResponseHandler) (err error) {
 		testTD := testDevice.GetTD()
-		if req.Operation == vocab.OpReadAllProperties {
+		if req.Operation == td.OpReadAllProperties {
 			props := make(map[string]any)
 			for name, aff := range testTD.Properties {
 				props[name] = aff.Title

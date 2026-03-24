@@ -6,7 +6,7 @@ import (
 	vcacheapi "github.com/hiveot/hivekit/go/modules/vcache/api"
 	"github.com/hiveot/hivekit/go/msg"
 	"github.com/hiveot/hivekit/go/utils"
-	"github.com/hiveot/hivekit/go/wot"
+	"github.com/hiveot/hivekit/go/wot/td"
 )
 
 // The RRN messsaging handler for this module
@@ -43,7 +43,7 @@ func (handler *VCacheMsgHandler) HandleRequest(req *msg.RequestMessage, replyTo 
 	// handle read requests
 	switch req.Operation {
 	// wot doesnt define operations for reading events
-	case wot.HTOpReadEvent:
+	case td.HTOpReadEvent:
 		// this is not a wot defined operation
 		// return the notification itself because the time of the event is relevant
 		notif := handler.m.ReadEvent(req.ThingID, req.Name)
@@ -51,14 +51,14 @@ func (handler *VCacheMsgHandler) HandleRequest(req *msg.RequestMessage, replyTo 
 			isCached = true
 			value = notif //.Data
 		}
-	case wot.OpReadProperty:
+	case td.OpReadProperty:
 		// WoT specifies that read property returns the latest value
 		notif := handler.m.ReadProperty(req.ThingID, req.Name)
 		if notif != nil {
 			isCached = true
 			value = notif.Data
 		}
-	case wot.OpReadMultipleProperties:
+	case td.OpReadMultipleProperties:
 		// WoT specifies that ReadMultipleProperties returns a map of [name]value
 		var names []string
 		err := utils.DecodeAsObject(req.Input, &names)
@@ -79,7 +79,7 @@ func (handler *VCacheMsgHandler) HandleRequest(req *msg.RequestMessage, replyTo 
 			}
 		}
 
-	case wot.OpReadAllProperties:
+	case td.OpReadAllProperties:
 		// querying all properties is not supported as there is no knowledge of all possible
 		// properties.
 		isCached = false

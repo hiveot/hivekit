@@ -11,7 +11,6 @@ import (
 	httpbasicclient "github.com/hiveot/hivekit/go/modules/transports/httpbasic/client"
 	ssescclient "github.com/hiveot/hivekit/go/modules/transports/ssesc/client"
 	wssclient "github.com/hiveot/hivekit/go/modules/transports/wss/client"
-	"github.com/hiveot/hivekit/go/wot"
 	"github.com/hiveot/hivekit/go/wot/td"
 )
 
@@ -38,9 +37,9 @@ type IClientModule interface {
 //
 // 3. if all else fails if still no scheme then assume its http basic
 func GetProtocolType(tdoc *td.TD) (protocolType string, href string) {
-	forms := tdoc.GetForms(wot.OpObserveAllProperties, "")
+	forms := tdoc.GetForms(td.OpObserveAllProperties, "")
 	if len(forms) == 0 {
-		forms = tdoc.GetForms(wot.OpSubscribeAllEvents, "")
+		forms = tdoc.GetForms(td.OpSubscribeAllEvents, "")
 	}
 	if len(forms) == 0 {
 		forms = tdoc.Forms // pick any

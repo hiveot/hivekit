@@ -9,7 +9,7 @@ import (
 	"github.com/hiveot/hivekit/go/modules/authz"
 	"github.com/hiveot/hivekit/go/msg"
 	"github.com/hiveot/hivekit/go/utils"
-	"github.com/hiveot/hivekit/go/vocab"
+	"github.com/hiveot/hivekit/go/wot/td"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -54,7 +54,7 @@ func TestHasPermission(t *testing.T) {
 	defer m.Stop()
 
 	// check missing clientID
-	req := msg.NewRequestMessage(vocab.OpReadProperty, thingID, key, nil, correlationID)
+	req := msg.NewRequestMessage(td.OpReadProperty, thingID, key, nil, correlationID)
 	req.SenderID = ""
 	hasPerm := m.HasPermission(req)
 	assert.False(t, hasPerm)
@@ -65,7 +65,7 @@ func TestHasPermission(t *testing.T) {
 	assert.True(t, hasPerm)
 
 	// check viewers do not have permission to publish actions and write-property requests
-	req.Operation = vocab.OpInvokeAction
+	req.Operation = td.OpInvokeAction
 	req.SenderID = clientID1
 	hasPerm = m.HasPermission(req)
 	assert.False(t, hasPerm)
@@ -85,7 +85,7 @@ func TestHasPermission(t *testing.T) {
 	assert.True(t, hasPerm)
 
 	// operators cannot respond with events updates
-	//resp := transports.NewResponseMessage(vocab.OpSubscribeEvent, thingID, key, "eventValue", nil, correlationID)
+	//resp := transports.NewResponseMessage(td.OpSubscribeEvent, thingID, key, "eventValue", nil, correlationID)
 	//resp.SenderID = operatorID
 	//// haspermission only validates requests and event/property notificates are now subscription responses
 	//hasPerm = svc.HasPermission(msg.SenderID, msg.Operation, msg.ThingID)

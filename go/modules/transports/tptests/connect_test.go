@@ -15,7 +15,7 @@ import (
 	"github.com/hiveot/hivekit/go/modules/transports"
 	"github.com/hiveot/hivekit/go/msg"
 	"github.com/hiveot/hivekit/go/utils"
-	"github.com/hiveot/hivekit/go/wot"
+	"github.com/hiveot/hivekit/go/wot/td"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -44,10 +44,10 @@ func DummyRequestHandler(req *msg.RequestMessage, replyTo msg.ResponseHandler) e
 	var output any
 	var err error
 	slog.Info("DummyRequestHandler: Received request", "op", req.Operation)
-	//if req.Operation == wot.HTOpRefresh {
+	//if req.Operation == td.HTOpRefresh {
 	//	oldToken := req.ToString(0)
 	//	output, err = dummyAuthenticator.RefreshToken(req.SenderID, oldToken)
-	//} else if req.Operation == wot.HTOpLogout {
+	//} else if req.Operation == td.HTOpLogout {
 	//	dummyAuthenticator.Logout(c.GetClientID())
 	//} else {
 	output = req.Input // echo
@@ -101,7 +101,7 @@ func TestPing(t *testing.T) {
 	// FIXME: SSE server sends ping event but it isn't received until later???
 
 	// var output any
-	// err = co1.Rpc(wot.HTOpPing, "", "", nil, &output)
+	// err = co1.Rpc(td.HTOpPing, "", "", nil, &output)
 	// assert.Equal(t, "pong", output)
 	// assert.NoError(t, err)
 }
@@ -258,7 +258,7 @@ func TestReconnect(t *testing.T) {
 		slog.Info("Received request", "op", req.Operation)
 		var err error
 		// prove that the return channel is connected
-		if req.Operation == wot.OpInvokeAction {
+		if req.Operation == td.OpInvokeAction {
 			go func() {
 				// send an asynchronous result after a short time
 				time.Sleep(time.Millisecond * 10)
@@ -324,7 +324,7 @@ func TestReconnect(t *testing.T) {
 	var rpcArgs = "rpc test"
 	var rpcResp string
 	time.Sleep(time.Millisecond * 3000)
-	err := co1.Rpc(wot.OpInvokeAction, thingID, actionKey, &rpcArgs, &rpcResp)
+	err := co1.Rpc(td.OpInvokeAction, thingID, actionKey, &rpcArgs, &rpcResp)
 	require.NoError(t, err)
 	assert.Equal(t, rpcArgs, rpcResp)
 	assert.GreaterOrEqual(t, 4, int(connectEvents.Load()))

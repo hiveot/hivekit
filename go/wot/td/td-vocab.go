@@ -1,18 +1,19 @@
-package wot
+// Package td with WoT TD vocabulary
+package td
 
-// HiveOT operations that are missing in WoT and those needed by hub connected agents
-// Keep in sync with vocab.yaml
+// HiveOT operations that are not defined with the TD and used in HiveOT.
 const (
-	HTOpPing          = "ping"
-	HTOpError         = "error"
-	HTOpLogin         = "login"
-	HTOpLogout        = "logout"
-	HTOpRefresh       = "refresh"
-	HTOpReadEvent     = "readevent"
-	HTOpReadAllEvents = "readallevents"
+	HTOpPing              = "ping"
+	HTOpLogout            = "logout"
+	HTOpObserveAction     = "observeaction"
+	HTOpObserveAllActions = "observeallactions"
+	HTOpReadEvent         = "readevent"
+	HTOpReadAllEvents     = "readallevents"
 )
 
-// WoT operations
+// See https://www.w3.org/TR/2020/WD-wot-thing-description11-20201124/#sec-core-vocabulary-definition
+
+// WoT TD1.1 operations
 const (
 	// actions
 	OpCancelAction    = "cancelaction"
