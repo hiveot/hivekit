@@ -387,7 +387,7 @@ func NewConsumer(appID string) *Consumer {
 func NewConsumerConnection(
 	appID string, protocolType string, serverURL string,
 	caCert *x509.Certificate, rpcTimeout time.Duration) (
-	*Consumer, transports.IClientConnection, error) {
+	*Consumer, transports.ITransportClient, error) {
 
 	cc, err := NewTransportClient(protocolType, serverURL, caCert, nil)
 	cc.SetTimeout(rpcTimeout)

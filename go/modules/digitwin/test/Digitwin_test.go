@@ -15,11 +15,10 @@ import (
 	"github.com/hiveot/hivekit/go/modules/digitwin/internal"
 	"github.com/hiveot/hivekit/go/modules/directory"
 	directoryapi "github.com/hiveot/hivekit/go/modules/directory/api"
-	directoryclient "github.com/hiveot/hivekit/go/modules/directory/client"
 	"github.com/hiveot/hivekit/go/modules/router"
 	"github.com/hiveot/hivekit/go/modules/transports"
-	"github.com/hiveot/hivekit/go/modules/transports/tptests"
 	"github.com/hiveot/hivekit/go/msg"
+	"github.com/hiveot/hivekit/go/testenv"
 	"github.com/hiveot/hivekit/go/utils"
 	"github.com/hiveot/hivekit/go/wot/td"
 	"github.com/stretchr/testify/assert"
@@ -46,14 +45,14 @@ func TestMain(m *testing.M) {
 // startService initializes a service and a client
 // This sets-up a module chain with a server, directory, digitwin, vcache, and router
 func startService() (
-	testEnv *tptests.TestEnv,
+	testEnv *testenv.TestEnv,
 	dir directoryapi.IDirectoryServer,
 	dtw digitwinapi.IDigitwinServer,
 	stopFn func()) {
 
 	os.RemoveAll(storageDir)
 	// testEnv,cancelFn = tptests.StartTestEnv(transports.ProtocolSchemeWotWSS)
-	testEnv = tptests.NewTestEnv()
+	testEnv = testenv.NewTestEnv()
 	// http server needed for all communications
 	testEnv.StartHttpServer()
 	// a websocket server for RRN messaging
@@ -269,7 +268,8 @@ func TestWriteDigitwinProperty(t *testing.T) {
 			txPropValue = req.ToString(0)
 			resp := req.CreateResponse(nil, nil)
 
-			// write property should send a notification that updates the digital twin
+			// write property sends a notification that is passed to the server
+			// and updates the digital twin.
 			go ag.PubProperty(req.ThingID, req.Name, txPropValue)
 
 			return replyTo(resp)
@@ -287,10 +287,10 @@ func TestWriteDigitwinProperty(t *testing.T) {
 	// but most likely it uses the default.
 	td1 := testEnv.CreateTestTD(0)
 	td1Json, _ := td.MarshalTD(td1)
-	err = directoryclient.UpdateTD(
+	err = directory.UpdateTD(
 		directoryapi.DefaultDirectoryModuleID, td1Json, ag.ForwardRequest)
-
 	assert.NoError(t, err)
+
 	// check whether the td is now in the directory
 	dtwThing1ID := internal.MakeDigitwinID(agentID, td1.ID)
 	td2Json, err := dir.RetrieveThing(dtwThing1ID)
@@ -302,7 +302,7 @@ func TestWriteDigitwinProperty(t *testing.T) {
 	assert.Equal(t, agentID, tdi2.AgentID)
 
 	// 4. Consumer reads the TD with its own directory client
-	dirCoCl := directoryclient.NewDirectoryMsgClient("", co)
+	dirCoCl := directory.NewDirectoryMsgClient("", co)
 	td3Json, err := dirCoCl.RetrieveThing(dtwThing1ID)
 	require.NoError(t, err)
 	td3, err := td.UnmarshalTD(td3Json)
@@ -368,7 +368,7 @@ func TestInvokeDigitwinAction(t *testing.T) {
 	td1 := testEnv.CreateTestTD(0)
 	td1.ID = thingID
 	td1Json, _ := td.MarshalTD(td1)
-	err = directoryclient.UpdateTD(
+	err = directory.UpdateTD(
 		directoryapi.DefaultDirectoryModuleID, td1Json, ag.ForwardRequest)
 	assert.NoError(t, err)
 

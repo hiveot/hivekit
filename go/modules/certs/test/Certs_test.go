@@ -9,7 +9,6 @@ import (
 	"github.com/hiveot/hivekit/go/modules/certs"
 	certsapi "github.com/hiveot/hivekit/go/modules/certs/api"
 	"github.com/hiveot/hivekit/go/modules/certs/certutils"
-	certsclient "github.com/hiveot/hivekit/go/modules/certs/client"
 	certstest "github.com/hiveot/hivekit/go/modules/certs/test"
 	"github.com/hiveot/hivekit/go/modules/transports/direct"
 	"github.com/hiveot/hivekit/go/utils"
@@ -145,7 +144,7 @@ func TestMsgClient(t *testing.T) {
 
 	// use a direct transport instead of running a client-server
 	tp := direct.NewDirectTransport("testclient", m)
-	cl := certsclient.NewCertsMsgClient(certsapi.DefaultCertsServiceID, tp)
+	cl := certs.NewCertsMsgClient(certsapi.DefaultCertsServiceID, tp)
 	caCert, err := cl.GetCACert()
 	require.NoError(t, err)
 	require.NotEmpty(t, caCert)
@@ -175,7 +174,7 @@ func TestCreateCerts(t *testing.T) {
 	require.NotNil(t, serverTlsCert)
 
 	// this needs completion
-	cl := certsclient.NewCertsMsgClient(certsapi.DefaultCertsServiceID, nil)
+	cl := certs.NewCertsMsgClient(certsapi.DefaultCertsServiceID, nil)
 	// var _ certs.ICertsService = cl // interface check
 	_ = cl
 }

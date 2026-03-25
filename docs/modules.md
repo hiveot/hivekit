@@ -1,19 +1,18 @@
 # HiveKit Modules
 
-This document provides an overview of available or planned HiveKit pipeline modules. It is divided into the following categories:
+This document provides a basic introduction to modules and how to use them.
 
-- messaging protocol modules for communication
-- messaging processing modules such as auth, routing, filtering, rate control, logging
-- service modules such as directory, history, etc
-- sensor modules for reading sensor data
-- actuator modules for controlling actuators
+## What is a HiveKit Module
 
-The priority listed here:
+A HiveKit module is anything that supports the IHiveModule interface. This interface governs the interaction with the module and enables the ability to add their functionality to a pipeline.
 
-- high, all features that the current hub is using
-- medium, features already planned or often requested
-- low, features that are not requested
-- not planned, features that are rely on unavailable hardware or software
+The types of modules are:
+
+1. Standard module. This is the most common and easy to implement module. It MUST implement the IHiveModule interface, regardless the language it is written in.
+
+2. Transport server module. The transport server module receives messages from clients and optionally sends messages to the client, depending on the protocol use. These modules MUST implement the ITransportServer interface. In most cases they are accompanied with a matching client module for the protocol used.
+
+3. Transport client module. The transport client implements a client side protocol for passing messages to a server. These modules MUST implement the IConnection interface. They are often bundled together with the transport server package.
 
 ## Transport Modules
 

@@ -13,7 +13,6 @@ import (
 
 	"github.com/hiveot/hivekit/go/modules/bucketstore"
 	bucketstoreapi "github.com/hiveot/hivekit/go/modules/bucketstore/api"
-	bucketstoreclient "github.com/hiveot/hivekit/go/modules/bucketstore/client"
 	"github.com/hiveot/hivekit/go/modules/bucketstore/internal/service"
 	"github.com/hiveot/hivekit/go/modules/transports/direct"
 	"github.com/hiveot/hivekit/go/utils"
@@ -684,7 +683,7 @@ func TestGetSetMsgAPI(t *testing.T) {
 	require.NoError(t, err)
 	defer stopFn()
 	tp := direct.NewDirectTransport(clientID, m)
-	cl := bucketstoreclient.NewBucketStoreMsgClient(m.GetModuleID(), tp)
+	cl := bucketstore.NewBucketStoreMsgClient(m.GetModuleID(), tp)
 	err = cl.Set(key1, val1)
 	require.NoError(t, err)
 

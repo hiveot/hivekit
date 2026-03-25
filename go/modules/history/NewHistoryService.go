@@ -1,4 +1,4 @@
-package directory
+package history
 
 import (
 	historyapi "github.com/hiveot/hivekit/go/modules/history/api"

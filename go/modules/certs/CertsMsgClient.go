@@ -1,0 +1,61 @@
+package certs
+
+import (
+	"crypto/x509"
+
+	"github.com/hiveot/hivekit/go/modules"
+	certsapi "github.com/hiveot/hivekit/go/modules/certs/api"
+	"github.com/hiveot/hivekit/go/modules/certs/certutils"
+	"github.com/hiveot/hivekit/go/msg"
+	"github.com/hiveot/hivekit/go/wot/td"
+)
+
+// CertsMsgClient is a client for the Certificate module using RRN messages.
+// This implements the ICertsService interface.
+type CertsMsgClient struct {
+	modules.HiveModuleBase // clients can be used as modules
+
+	// CertsMsgClient is the RRN client for the directory service.
+
+	// Certificate service ThingID to connect to.
+	certServiceID string
+}
+
+// GetCACert returns the x509 CA certificate.
+func (cl *CertsMsgClient) GetCACert() (cert *x509.Certificate, err error) {
+	var certPem string
+	req := msg.NewRequestMessage(
+		td.OpInvokeAction, certsapi.DefaultCertsServiceID, certsapi.ActionGetCACert, nil, "")
+
+	resp, err := cl.ForwardRequestWait(req)
+	if err == nil {
+		err = resp.Decode(&certPem)
+	}
+	if err == nil {
+		cert, err = certutils.X509CertFromPEM(certPem)
+	}
+	return cert, err
+}
+
+// NewCertsMsgClient creates a new CertsMsgClient instance.
+// Use the sink to attach a transport client
+//
+//	thingID is the unique ID of the certificate service instance
+//	sink is the handler that passes requests to the service and receives notifications.
+func NewCertsMsgClient(thingID string, sink modules.IHiveModule) *CertsMsgClient {
+	if thingID == "" {
+		thingID = certsapi.DefaultCertsServiceID
+	}
+	cl := &CertsMsgClient{
+		certServiceID: thingID,
+	}
+	cl.SetModuleID(thingID + "-client")
+	if sink != nil {
+		cl.SetRequestSink(sink.HandleRequest)
+		sink.SetNotificationSink(cl.HandleNotification)
+	}
+	// not all service methods are available through this client
+	// var _ certs.ICertsService = cl // API check
+
+	return cl
+}

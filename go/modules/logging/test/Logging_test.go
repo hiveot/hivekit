@@ -7,9 +7,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/hiveot/hivekit/go/modules/logging"
 	loggingapi "github.com/hiveot/hivekit/go/modules/logging/api"
 	"github.com/hiveot/hivekit/go/modules/logging/config"
-	"github.com/hiveot/hivekit/go/modules/logging/internal"
 	"github.com/hiveot/hivekit/go/msg"
 	"github.com/stretchr/testify/require"
 )
@@ -24,7 +24,7 @@ func TestStartStop(t *testing.T) {
 
 	os.RemoveAll(filepath.Dir(LogFile))
 	cfg := config.NewLoggingConfig(LogFile, loggingapi.LoggingBackendFile)
-	m := module.NewLoggingModule(cfg)
+	m := logging.NewLoggingService(cfg)
 	err := m.Start("")
 	require.NoError(t, err)
 	m.Stop()
@@ -37,7 +37,7 @@ func TestLogNotification(t *testing.T) {
 	os.RemoveAll(filepath.Dir(LogFile))
 	cfg := config.NewLoggingConfig(LogFile, loggingapi.LoggingBackendFile)
 	cfg.Log2Stdout = true
-	m := module.NewLoggingModule(cfg)
+	m := logging.NewLoggingService(cfg)
 	err := m.Start("")
 	require.NoError(t, err)
 	defer m.Stop()

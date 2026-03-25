@@ -12,8 +12,9 @@ const (
 	WotWebsocketPath     = "/wot/wss"
 )
 
-// IWssTransport defines the interface of the Websocket service server
-// Used for both WoT and Hiveot websocket message format.
-type IWssTransport interface {
+// Interface of the Hiveot websocket server module
+type IWssTransportServer interface {
 	transports.ITransportServer
+
+	// todo: future API  for servicing the module
 }

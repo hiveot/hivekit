@@ -1,0 +1,200 @@
+// test property messages between the protocol client and server
+package transporttests
+
+import (
+	"errors"
+	"sync/atomic"
+	"testing"
+	"time"
+
+	authnapi "github.com/hiveot/hivekit/go/modules/authn/api"
+	"github.com/hiveot/hivekit/go/msg"
+	"github.com/hiveot/hivekit/go/testenv"
+	"github.com/hiveot/hivekit/go/wot/td"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+)
+
+// test property messages between agent, server and client
+// this uses the client and server helpers defined in connect_test.go
+
+// Test observing and receiving all properties by consumer
+func TestObservePropertyByConsumer(t *testing.T) {
+	t.Logf("---%s---\n", t.Name())
+	var rxVal1 atomic.Value
+	var rxVal2 atomic.Value
+	var thingID = "dtw:thing1"
+	var propertyKey1 = "property1"
+	var propertyKey2 = "property2"
+	var propValue1 = "value1"
+	var propValue2 = "value2"
+
+	// 1. start the server
+	testEnv, cancelFn := testenv.StartTestEnv(defaultProtocol)
+	defer cancelFn()
+
+	// 2. connect with two consumers
+	co1, cc1, _ := testEnv.NewConsumerClient(testClientID1, authnapi.ClientRoleViewer, nil)
+	defer cc1.Close()
+	co2, cc2, _ := testEnv.NewConsumerClient(testClientID1, authnapi.ClientRoleViewer, nil)
+	defer cc2.Close()
+
+	// set the handler for property updates and subscribe
+	co1.SetNotificationHook(func(ev *msg.NotificationMessage) {
+		rxVal1.Store(ev.Data)
+	})
+	co2.SetNotificationHook(func(ev *msg.NotificationMessage) {
+		rxVal2.Store(ev.Data)
+	})
+
+	// Client1 subscribes to one, client 2 to all property updates
+	err := co1.ObserveProperty(thingID, propertyKey1)
+	require.NoError(t, err)
+	err = co2.ObserveProperty("", "")
+	require.NoError(t, err)
+	time.Sleep(time.Millisecond) // time to take effect
+
+	// 3. Server sends a property update to consumers
+	notif1 := msg.NewNotificationMessage(
+		thingID, msg.AffordanceTypeProperty, thingID, propertyKey1, propValue1)
+	testEnv.Server.SendNotification(notif1)
+
+	// 4. both observers should have received it
+	time.Sleep(time.Millisecond)
+	assert.Equal(t, propValue1, rxVal1.Load())
+	assert.Equal(t, propValue1, rxVal2.Load())
+
+	// 5. client 1 unobserves
+	err = co1.UnobserveProperty(thingID, propertyKey1)
+	require.NoError(t, err)
+	time.Sleep(time.Millisecond * 10) // time to take effect
+
+	// 6. Server sends a property update to consumers
+	notif2 := msg.NewNotificationMessage(
+		thingID, msg.AffordanceTypeProperty, thingID, propertyKey1, propValue2)
+	testEnv.Server.SendNotification(notif2)
+	notif3 := msg.NewNotificationMessage(
+		thingID, msg.AffordanceTypeProperty, thingID, propertyKey2, propValue2)
+	testEnv.Server.SendNotification(notif3)
+
+	// 7. property should not have been received
+	time.Sleep(time.Millisecond * 10)
+	assert.Equal(t, propValue1, rxVal1.Load())
+	assert.Equal(t, propValue2, rxVal2.Load())
+
+	// 8. client 2 unobserves
+	err = co2.UnobserveProperty("", "")
+	time.Sleep(time.Millisecond * 10)
+	notif4 := msg.NewNotificationMessage(
+		thingID, msg.AffordanceTypeProperty, thingID, propertyKey2, propValue1)
+	testEnv.Server.SendNotification(notif4)
+	// no change is expected
+	assert.Equal(t, propValue2, rxVal2.Load())
+
+}
+
+// Agent publishes property updates to subscribers
+func TestPublishPropertyByAgent(t *testing.T) {
+	t.Logf("---%s---\n", t.Name())
+	var evVal atomic.Value
+	var thingID = "thing1"
+	var propKey1 = "property1"
+	var propValue1 = "value1"
+
+	// handler of property updates on the server
+	notificationHandler := func(msg *msg.NotificationMessage) {
+		// the server receives all notifications, we only want matching thingID
+		if msg.ThingID == thingID {
+			evVal.Store(msg.Data.(string))
+		}
+	}
+
+	// 1. start the transport
+	testEnv, cancelFn := testenv.StartTestEnv(defaultProtocol)
+	testEnv.Server.SetNotificationSink(notificationHandler)
+	defer cancelFn()
+
+	// 2. connect as an agent
+	ag1, agConn1, _ := testEnv.NewRCAgent(testAgentID1, nil)
+	defer agConn1.Close()
+
+	// 3. agent publishes a property update to subscribers
+	ag1.PubProperty(thingID, propKey1, propValue1)
+	time.Sleep(time.Millisecond) // time to take effect
+
+	// property received by server
+	rxMsg2 := evVal.Load()
+	require.NotNil(t, rxMsg2)
+	assert.Equal(t, propValue1, rxMsg2)
+}
+
+// Consumer reads property from agent
+func TestReadProperty(t *testing.T) {
+	t.Logf("---%s---\n", t.Name())
+	var thingID = "dtw:thing1"
+	var propKey = "propKey1"
+	var propValue = "value11"
+	var timestamp = "mytime"
+
+	// 1. start the agent transport with the request handler
+	// in this case the consumer connects to the agent (unlike when using a hub)
+	appReqHandler := func(req *msg.RequestMessage, replyTo msg.ResponseHandler) error {
+		var resp *msg.ResponseMessage
+		if req.Operation == td.OpReadProperty && req.ThingID == thingID && req.Name == propKey {
+			resp = req.CreateResponse(propValue, nil)
+			resp.Timestamp = timestamp
+		} else {
+			resp = req.CreateResponse(nil, errors.New("unexpected request"))
+		}
+		return replyTo(resp)
+	}
+	testEnv, cancelFn := testenv.StartTestEnv(defaultProtocol)
+	testEnv.Server.SetRequestSink(appReqHandler)
+	defer cancelFn()
+
+	// 2. connect as a consumer
+	co1, cc1, _ := testEnv.NewConsumerClient(testClientID1, authnapi.ClientRoleViewer, nil)
+	defer cc1.Close()
+
+	rxVal, err := co1.ReadProperty(thingID, propKey)
+	require.NoError(t, err)
+	assert.Equal(t, propValue, rxVal)
+}
+
+// Consumer reads events from agent
+func TestReadAllProperties(t *testing.T) {
+	t.Logf("---%s---\n", t.Name())
+	var thingID = "thing1"
+	var name1 = "prop1"
+	var name2 = "prop2"
+	var value1 = "value1"
+	var value2 = "value2"
+
+	// 1. start the agent transport with the request handler
+	// in this case the consumer connects to the agent (unlike when using a hub)
+	appReqHandler := func(req *msg.RequestMessage, replyTo msg.ResponseHandler) error {
+		var resp *msg.ResponseMessage
+		if req.Operation == td.OpReadAllProperties {
+			output := make(map[string]any)
+			output[name1] = value1
+			output[name2] = value2
+			resp = req.CreateResponse(output, nil)
+		} else {
+			resp = req.CreateResponse(nil, errors.New("unexpected request"))
+		}
+		return replyTo(resp)
+	}
+	testEnv, cancelFn := testenv.StartTestEnv(defaultProtocol)
+	testEnv.Server.SetRequestSink(appReqHandler)
+	defer cancelFn()
+
+	// 2. connect as a consumer
+	co1, cc1, _ := testEnv.NewConsumerClient(testClientID1, authnapi.ClientRoleViewer, nil)
+	defer cc1.Close()
+
+	propMap, err := co1.ReadAllProperties(thingID)
+	require.NoError(t, err)
+	require.Equal(t, 2, len(propMap))
+	require.Equal(t, value1, propMap[name1])
+	require.Equal(t, value2, propMap[name2])
+}

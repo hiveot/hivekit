@@ -17,8 +17,8 @@ import (
 	routerapi "github.com/hiveot/hivekit/go/modules/router/api"
 	"github.com/hiveot/hivekit/go/modules/transports"
 	httpserverapi "github.com/hiveot/hivekit/go/modules/transports/httpserver/api"
-	"github.com/hiveot/hivekit/go/modules/transports/tptests"
 	"github.com/hiveot/hivekit/go/msg"
+	"github.com/hiveot/hivekit/go/testenv"
 	"github.com/hiveot/hivekit/go/utils"
 	"github.com/hiveot/hivekit/go/wot/td"
 	"github.com/hiveot/hivekit/go/wot/vocab"
@@ -30,7 +30,7 @@ var storageDir = path.Join(os.TempDir(), "hivekit", "router-test")
 
 var testDevicePort = 9993
 var certsBundle = certstest.CreateTestCertBundle(utils.KeyTypeED25519)
-var testAuthn = tptests.NewTestAuthenticator()
+var testAuthn = testenv.NewTestAuthenticator()
 
 const rpcTimeout = time.Minute * 3
 const testRouterID = "router1"
@@ -47,7 +47,7 @@ const serverType = transports.WotWebsocketProtocolType
 
 // create a virtual test device
 // this handles readallproperties requests
-func startTestDevice(agentID string, thingID string) (testDevice *tptests.TestDevice) {
+func startTestDevice(agentID string, thingID string) (testDevice *testenv.TestDevice) {
 
 	testAuthn.AddClient(testRouterID, "", authnapi.ClientRoleManager)
 
@@ -59,7 +59,7 @@ func startTestDevice(agentID string, thingID string) (testDevice *tptests.TestDe
 	var testTM *td.TD = td.NewTD(thingID, "test device", vocab.Device)
 	testTM.AddPropertyAsString("property-1", "Property 1", "New and improved")
 
-	testDevice = tptests.NewTestDevice(cfg, agentID, testTM, serverType)
+	testDevice = testenv.NewTestDevice(cfg, agentID, testTM, serverType)
 	err := testDevice.Start("")
 	if err != nil {
 		panic("failed starting test device")

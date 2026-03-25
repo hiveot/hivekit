@@ -10,7 +10,7 @@ import (
 	"github.com/hiveot/hivekit/go/modules/transports/discovery"
 	discoveryclient "github.com/hiveot/hivekit/go/modules/transports/discovery/client"
 	"github.com/hiveot/hivekit/go/modules/transports/discovery/internal"
-	"github.com/hiveot/hivekit/go/modules/transports/tptests"
+	"github.com/hiveot/hivekit/go/testenv"
 	"github.com/hiveot/hivekit/go/utils"
 
 	"github.com/stretchr/testify/assert"
@@ -101,7 +101,7 @@ func TestDiscoverDirectory(t *testing.T) {
 	testServiceAddress := utils.GetOutboundIP("").String()
 	endpoints := map[string]string{"wss": "wss://localhost/wssendpoint"}
 
-	testEnv := tptests.NewTestEnv()
+	testEnv := testenv.NewTestEnv()
 	testEnv.StartHttpServer()
 	defer testEnv.HttpServer.Stop()
 
@@ -132,7 +132,7 @@ func TestDiscoverDirectory(t *testing.T) {
 func TestDiscoverThings(t *testing.T) {
 	thingTD := "this is a Thing TD"
 
-	testEnv := tptests.NewTestEnv()
+	testEnv := testenv.NewTestEnv()
 	testEnv.StartHttpServer()
 	defer testEnv.HttpServer.Stop()
 
@@ -171,7 +171,7 @@ func TestDiscoverGetDirectoryTD(t *testing.T) {
 	dirTDJson := "this is the test JSON"
 
 	// run the server
-	testEnv := tptests.NewTestEnv()
+	testEnv := testenv.NewTestEnv()
 	testEnv.StartHttpServer()
 	defer testEnv.HttpServer.Stop()
 	m := discovery.NewDiscoveryServer(testEnv.HttpServer, nil)
@@ -197,7 +197,7 @@ func TestDiscoverGetThingTD(t *testing.T) {
 	thingTD := "{this is the test thing TD}"
 
 	// run the server
-	testEnv := tptests.NewTestEnv()
+	testEnv := testenv.NewTestEnv()
 	testEnv.StartHttpServer()
 	defer testEnv.HttpServer.Stop()
 	m := discovery.NewDiscoveryServer(testEnv.HttpServer, nil)

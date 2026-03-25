@@ -6,8 +6,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/hiveot/hivekit/go/modules/authn"
 	authnapi "github.com/hiveot/hivekit/go/modules/authn/api"
-	authnclient "github.com/hiveot/hivekit/go/modules/authn/client"
 	"github.com/hiveot/hivekit/go/modules/authn/internal/service"
 	"github.com/hiveot/hivekit/go/modules/clients"
 	"github.com/hiveot/hivekit/go/modules/transports/direct"
@@ -75,7 +75,7 @@ func TestBadRefresh(t *testing.T) {
 	err = cc1.ConnectWithToken(testClientID1, token1)
 	assert.NoError(t, err)
 
-	authCl := authnclient.NewAuthnHttpClient(serverURL, testCerts.CaCert)
+	authCl := authn.NewAuthnHttpClient(serverURL, testCerts.CaCert)
 	err = authCl.ConnectWithToken(testClientID1, token1)
 	assert.NoError(t, err)
 	validToken, err := authCl.RefreshToken(token1)
@@ -100,7 +100,7 @@ func TestLogout(t *testing.T) {
 	assert.NotEmpty(t, token1)
 
 	// logout
-	authnClient := authnclient.NewAuthnHttpClient(serverURL, testCerts.CaCert)
+	authnClient := authn.NewAuthnHttpClient(serverURL, testCerts.CaCert)
 	authnClient.ConnectWithToken(testClientID1, token1)
 	err := authnClient.Logout(token1)
 	assert.NoError(t, err)
@@ -128,7 +128,7 @@ func TestUpdatePassword(t *testing.T) {
 
 	// add user to test with
 	co := clients.NewConsumer("test")
-	authCl := authnclient.NewAuthnUserMsgClient(co)
+	authCl := authn.NewAuthnUserMsgClient(co)
 	authCl.SetRequestSink(tp.HandleRequest)
 
 	err := m.AddClient(user1ID, tu1Name, authnapi.ClientRoleViewer)

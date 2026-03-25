@@ -14,12 +14,12 @@ import (
 	authnapi "github.com/hiveot/hivekit/go/modules/authn/api"
 	bucketstoreapi "github.com/hiveot/hivekit/go/modules/bucketstore/api"
 	"github.com/hiveot/hivekit/go/modules/clients"
+	"github.com/hiveot/hivekit/go/modules/history"
 	historyapi "github.com/hiveot/hivekit/go/modules/history/api"
-	historyclient "github.com/hiveot/hivekit/go/modules/history/client"
 	"github.com/hiveot/hivekit/go/modules/history/internal"
 	"github.com/hiveot/hivekit/go/modules/transports"
-	"github.com/hiveot/hivekit/go/modules/transports/tptests"
 	"github.com/hiveot/hivekit/go/msg"
+	"github.com/hiveot/hivekit/go/testenv"
 	"github.com/hiveot/hivekit/go/utils"
 	"github.com/hiveot/hivekit/go/wot/vocab"
 
@@ -39,14 +39,14 @@ const historyStoreBackend = bucketstoreapi.BackendPebble
 const testClientID = "operator1"
 
 // the following are set by the testmain
-var testEnv *tptests.TestEnv
+var testEnv *testenv.TestEnv
 
 var names = []string{"temperature", "humidity", "pressure", "wind", "speed", "switch", "location", "sensor-A", "sensor-B", "sensor-C"}
 
 func TestMain(m *testing.M) {
 	var cancelFn func()
 	utils.SetLogging("info", "")
-	testEnv, cancelFn = tptests.StartTestEnv(defaultProtocol)
+	testEnv, cancelFn = testenv.StartTestEnv(defaultProtocol)
 	defer cancelFn()
 
 	res := m.Run()
@@ -189,7 +189,7 @@ func TestAddGetEvent(t *testing.T) {
 
 	// create an end user client for testing
 	co1, _, _ := testEnv.NewConsumerClient(testClientID, authnapi.ClientRoleOperator, nil)
-	histCl := historyclient.NewReadHistoryClient(co1)
+	histCl := history.NewReadHistoryClient(co1)
 
 	fivemago := time.Now().Add(-time.Minute * 5)
 	fiftyfivemago := time.Now().Add(-time.Minute * 55)
@@ -392,7 +392,7 @@ func TestAddProperties(t *testing.T) {
 
 	// create an end user client for testing
 	co1, _, _ := testEnv.NewConsumerClient(testClientID, authnapi.ClientRoleOperator, nil)
-	histCl := historyclient.NewReadHistoryClient(co1)
+	histCl := history.NewReadHistoryClient(co1)
 
 	cursorKey, releaseFn, err := histCl.GetCursor(thing1ID, "")
 	defer releaseFn()
@@ -457,7 +457,7 @@ func TestPrevNext(t *testing.T) {
 
 	// create an end user client for testing
 	co1, _, _ := testEnv.NewConsumerClient(testClientID, authnapi.ClientRoleOperator, nil)
-	histCl := historyclient.NewReadHistoryClient(co1)
+	histCl := history.NewReadHistoryClient(co1)
 	cursorKey, releaseFn, err := histCl.GetCursor(thing0ID, "")
 	require.NoError(t, err)
 	defer releaseFn()
@@ -520,7 +520,7 @@ func TestPrevNextFiltered(t *testing.T) {
 
 	// A cursor with a filter on propName should only return results of propName
 	co1, _, _ := testEnv.NewConsumerClient(testClientID, authnapi.ClientRoleOperator, nil)
-	histCl := historyclient.NewReadHistoryClient(co1)
+	histCl := history.NewReadHistoryClient(co1)
 	defer co1.Stop()
 	cursorKey, releaseFn, err := histCl.GetCursor(thing0ID, propName)
 	require.NoError(t, err)
@@ -587,7 +587,7 @@ func TestNextPrevUntil(t *testing.T) {
 	_ = addBulkHistory(store, agentID, count, 1, 3600*24)
 
 	co1, _, _ := testEnv.NewConsumerClient(testClientID, authnapi.ClientRoleOperator, nil)
-	readHist := historyclient.NewReadHistoryClient(co1)
+	readHist := history.NewReadHistoryClient(co1)
 	defer co1.Stop()
 	cursorKey, releaseFn, err := readHist.GetCursor(thing0ID, "")
 	defer releaseFn()
@@ -625,7 +625,7 @@ func TestReadHistory(t *testing.T) {
 	defer closeFn()
 	//
 	co1, _, _ := testEnv.NewConsumerClient(testClientID, authnapi.ClientRoleOperator, nil)
-	readHist := historyclient.NewReadHistoryClient(co1)
+	readHist := history.NewReadHistoryClient(co1)
 	defer co1.Stop()
 
 	// 1 sensors -> 1000/24 hours is approx 41/hour
@@ -661,7 +661,7 @@ func TestPubEvents(t *testing.T) {
 	_ = m
 	defer stopFn()
 	co1, _, _ := testEnv.NewConsumerClient(testClientID, authnapi.ClientRoleOperator, nil)
-	readHist := historyclient.NewReadHistoryClient(co1)
+	readHist := history.NewReadHistoryClient(co1)
 	defer co1.Stop()
 
 	// Add the thing who is publishing events

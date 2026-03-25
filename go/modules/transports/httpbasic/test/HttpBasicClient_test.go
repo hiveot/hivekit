@@ -9,7 +9,6 @@ import (
 	certstest "github.com/hiveot/hivekit/go/modules/certs/test"
 	"github.com/hiveot/hivekit/go/modules/transports"
 	"github.com/hiveot/hivekit/go/modules/transports/httpbasic"
-	httpbasicclient "github.com/hiveot/hivekit/go/modules/transports/httpbasic/client"
 	"github.com/hiveot/hivekit/go/modules/transports/httpserver"
 	httpserverapi "github.com/hiveot/hivekit/go/modules/transports/httpserver/api"
 	"github.com/hiveot/hivekit/go/utils"
@@ -34,12 +33,12 @@ func TestConnect(t *testing.T) {
 	srv := httpserver.NewHttpServerModule(cfg)
 	err := srv.Start()
 	require.NoError(t, err)
-	m := httpbasic.NewTransport(srv)
+	m := httpbasic.NewHttpBasicServer(srv)
 
 	err = m.Start("")
 	require.NoError(t, err)
 
-	cl := httpbasicclient.NewHttpBasicClient(baseURL, caCert, nil,
+	cl := httpbasic.NewHttpBasicClient(baseURL, caCert, nil,
 		func(connected bool, cl2 transports.IConnection, err2 error) {
 			isConnected = connected
 		})

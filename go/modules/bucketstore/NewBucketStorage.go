@@ -8,7 +8,7 @@ import (
 // NewBucketStore is the factory function that creates a new, unopened, instance of a bucketstore
 // for the given location and type. Open must be called before use. (or use OpenBucketStore)
 //
-// Intended for use by the bucketstore service and for modules that need internal storage.
+// Intended for use by the bucketstore service and for modules that need embedded storage.
 //
 // Note: intended for supporting configurable backends. If the backend type is fixed
 // then it is better to create an instance of that backend directly to reduce compile size.
@@ -31,7 +31,7 @@ func NewBucketStore(location string, backend string) (
 // This is the factory function that creates a new, opened, instance of a bucketstore
 // for the given location and type. Open must be called before use. (or use OpenBucketStore)
 //
-// Intended for the bucketstore module and for modules that need internal storage.
+// Intended for the bucketstore module and for modules that need embedded storage.
 //
 // Note: intended for supporting configurable backends. If the backend type is fixed
 // then it is better to create an instance of that backend directly to reduce compile size.

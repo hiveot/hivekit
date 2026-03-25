@@ -8,9 +8,9 @@ import (
 
 	"github.com/hiveot/hivekit/go/modules"
 	"github.com/hiveot/hivekit/go/modules/transports"
-	httpbasicclient "github.com/hiveot/hivekit/go/modules/transports/httpbasic/client"
-	ssescclient "github.com/hiveot/hivekit/go/modules/transports/ssesc/client"
-	wssclient "github.com/hiveot/hivekit/go/modules/transports/wss/client"
+	"github.com/hiveot/hivekit/go/modules/transports/httpbasic"
+	ssetransport "github.com/hiveot/hivekit/go/modules/transports/sse"
+	wsstransport "github.com/hiveot/hivekit/go/modules/transports/wss"
 	"github.com/hiveot/hivekit/go/wot/td"
 )
 
@@ -18,7 +18,7 @@ import (
 // This is intended to be used as a sink for publishing requests to a remote server and
 // to register a callback for notifications.
 type IClientModule interface {
-	transports.IClientConnection
+	transports.ITransportClient
 	modules.IHiveModule
 }
 
@@ -122,17 +122,17 @@ func NewTransportClient(protocolType string, serverURL string, caCert *x509.Cert
 
 	switch protocolType {
 	case transports.HiveotSseScProtocolType:
-		cl = ssescclient.NewSseScClient(serverURL, caCert, ch)
+		cl = ssetransport.NewHiveotSseClient(serverURL, caCert, ch)
 
 	case transports.HiveotWebsocketProtocolType:
-		cl = wssclient.NewHiveotWssClient(serverURL, caCert, ch)
+		cl = wsstransport.NewHiveotWssClient(serverURL, caCert, ch)
 
 	case transports.WotWebsocketProtocolType:
-		cl = wssclient.NewWotWssClient(serverURL, caCert, ch)
+		cl = wsstransport.NewWotWssClient(serverURL, caCert, ch)
 
 	case transports.WotHttpBasicProtocolType:
 		caCert := caCert
-		cl = httpbasicclient.NewHttpBasicClient(serverURL, caCert, nil, ch)
+		cl = httpbasic.NewHttpBasicClient(serverURL, caCert, nil, ch)
 
 	//case transports.ProtocolTypeWotMQTTWSS:
 	//	fullURL = testServerMqttWssURL

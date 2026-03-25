@@ -1,49 +1,45 @@
-# WoT Websocket Transport Module
+# Websocket Transport Module
 
-The WoT websocket transport module provides a full bi-directional asynchronous messaging between client and server using websockets.
+The websocket transport module provides a full bi-directional asynchronous messaging between client and server using websockets.
 
-This module supports two protocols:
+This module supports two sub-protocols:
 
 1. [WoT Websocket protocol](https://w3c.github.io/web-thing-protocol/). This is an offical WoT http subprotocol following the WoT websocket specification.
 
-2. The HiveOT websocket protocol which works akin to the WoT websocket protocol but passes the RRN message envelopes directly, instead of converting them to a more complicated message format.
+2. The HiveOT websocket protocol which works akin to the WoT websocket protocol but passes the RRN message envelopes as-is, instead of converting them to a more complicated message format. This makes it slightly more efficient. This is intended for connections that do not require WoT interoperability.
 
 Connecting over websockets requires a valid bearer token in the http authorization header.
 
 ## Status
 
-The Websocket transport module is in alpha. It is functional but breaking changes can be expected.
+The Websocket Transport module is in alpha. It is functional but breaking changes can be expected.
 
-## Dependencies
+## HTTP Server Dependency
 
-This module depends on IHttpServer interface, which can be provided by any compatible http server implementation such as the 'httpserver' module. This interface only has a few methods including two for getting public and protected (chi) routes, so it is easy to whip up an alternative module for this if needed.
+This module uses a http server that implements the IHttpServer interface. HiveKit includes the 'httpserver' module which implements this interface. This interface only has a few methods including two for getting public and protected (chi) routes, so it is easy to whip up an alternative module for this if needed.
 
 ## Summary
 
-This module can both receive and send messages via the server incoming connections. The connections are passed to the connections callback handler which must track these connections.
+This module can both receive and send messages over established websocket connections.
 
-Each connection contains callback handlers for receiving request, response and notification messages. A connection can also send these messages to the remote endpoint.
+Websocket Transport connections implement the IConnection interface which contains handlers for receiving and sending, request, response and notification messages. A connection can therefore be used as a consumer or device agent.
 
-This module is best paired with the Connections Module, which takes on the task of managing multiple incoming connections and receive the messages from these connections.
+This module uses the TransportServerBase library that takes care of managing multiple incoming connections.
 
-If this module is used stand-alone, the application is responsible for registering the connection callback, managing the connections and listen for messages.
+This module supports the AddTDSecForms method that updates TDs with the security information and forms to connect to the transport server.
 
 ## Configuration
 
 The module configuration includes:
 
-- wsspath - the websocket connection path. Defaults to /wot/wss
+- wsspath - the websocket connection path. WoT transports default to /wot/wss and HiveOT transports use /hiveot/wss.
 
 ## Usage
 
-There are two ways to create a WoT websocket module instance, manually or using the pipeline factory.
+There are two ways to create a websocket transport module instance, manually or using the pipeline factory.
 
-Consumers can connect using the WotWssClient, send requests and
+For manual instantiation call wsstransport.NewWoTWssTransport or NewHiveotWssTransport, and provide it an embedded http server. The http server must implement the transports.IHttpServer interface. The transports.httpserver package can be used with any transport that uses http.
 
-### Pipeline Factory
+When using the module pipeline factory, the module is automatically instantiated using the pipeline configuration and linked to the configured http server.
 
-When using the pipeline factory, the module is automatically instantiated using the pipeline configuration and linked to the configured http server and connection module.
-
-### Manual Module Creation
-
-This just needs a http server to run, and optionally a handler to receive connections.
+To create the websocket transport client, use wsstransportclient.NewWotWssTransportClient, or NewHiveotWssTransportClient. This requires a websocket URL and a CA certificate to validate the connection. The http server certificate must match this CA. The URL can be obtained using discovery, or provided through configuration. This is up to the application developer. The module pipeline also contains a recipe for discovering servers and creating a client for connecting to the discovered server. (\* still todo)

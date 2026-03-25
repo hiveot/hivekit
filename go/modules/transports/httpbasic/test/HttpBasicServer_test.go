@@ -4,7 +4,7 @@ import (
 	"testing"
 
 	"github.com/hiveot/hivekit/go/modules/transports/httpbasic"
-	"github.com/hiveot/hivekit/go/modules/transports/tptests"
+	"github.com/hiveot/hivekit/go/testenv"
 	"github.com/stretchr/testify/require"
 )
 
@@ -12,9 +12,9 @@ import (
 func TestStartStop(t *testing.T) {
 	t.Logf("---%s---\n", t.Name())
 
-	dummyServer := tptests.NewDummyServer("")
+	dummyServer := testenv.NewDummyServer("")
 	// dummyAuthenticator := authnapi.NewDummyAuthenticator()
-	m := httpbasic.NewTransport(dummyServer)
+	m := httpbasic.NewHttpBasicServer(dummyServer)
 	err := m.Start("")
 	require.NoError(t, err)
 	defer m.Stop()
