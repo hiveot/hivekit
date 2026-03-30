@@ -96,6 +96,18 @@ This probably needs a modified MIT license but that is beyond the scope of this 
 
 ## Getting Started
 
+### Build
+
+This project uses golang 1.25 or newer.
+
+To debug with vscode delve must be installed. To get the latest (on linux):
+
+> go install github.com/go-delve/delve/cmd/dlv
+> export $PATH=$PATH:~/go/bin
+> go mod tidy
+
+### Use
+
 The easiest way to get started is to use one of the predefined recipes of the pipeline module. There are recipes for constructing stand-alone IoT devices, a WoT compatible gateway, a digital twin hub, and client applications.
 
 ... this section is under development...

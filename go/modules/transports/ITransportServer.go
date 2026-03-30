@@ -23,29 +23,32 @@ const (
 const (
 	HiveotSseScProtocolType = "hiveot-ssesc"
 	HiveotSseScSubprotocol  = "sse-sc"
-	HiveotSseScUrlScheme    = "sse"
+	HiveotSseScUriScheme    = "sse"
+
+	HiveotUdsProtocolType = "hiveot-uds"
+	HiveotUdsUrlScheme    = "unix"
 
 	HiveotWebsocketProtocolType = "hiveot-websocket"
 	HiveotWebsocketSubprotocol  = "hiveot:websocket"
-	HiveotWebsocketUrlScheme    = "wss"
+	HiveotWebsocketUriScheme    = "wss"
 
 	WotHttpBasicProtocolType = "http-basic"
 	WotHttpBasicSubprotocol  = ""
-	WotHttpBasicUrlScheme    = "https"
+	WotHttpBasicUriScheme    = "https"
 
 	WotHttpLongPollProtocolType = "http-longpoll"
 	WotHttpLongPollSubprotocol  = "longpoll"
-	WotHttpLongPollUrlScheme    = "https"
+	WotHttpLongPollUriScheme    = "https"
 
 	WotMqttProtocolType = "wot-mqtt"
-	WotMqttUrlScheme    = "mqtts"
+	WotMqttUriScheme    = "mqtts"
 
 	WotSseProtocolType = "wot-sse"
-	WotSseUrlScheme    = "sse"
+	WotSseUriScheme    = "sse"
 
 	WotWebsocketProtocolType = "wot-websocket"
 	WotWebsocketSubprotocol  = "websocket"
-	WotWebsocketUrlScheme    = "wss"
+	WotWebsocketUriScheme    = "wss"
 )
 
 // payload of connection events

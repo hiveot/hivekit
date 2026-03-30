@@ -192,7 +192,7 @@ func (cl *WssTransportClient) ConnectWithToken(clientID string, token string) er
 	return err
 }
 
-// // GetClientID returns the client's connection details
+// GetClientID returns the client's connection details
 func (cl *WssTransportClient) GetClientID() string {
 	return cl.tlsClient.GetClientID()
 }
@@ -331,7 +331,7 @@ func (cl *WssTransportClient) Reconnect() {
 	}
 }
 
-// SendNotification Agent posts a notification over websockets
+// SendNotification Agent posts a notification over to the server
 // This passes the notification as-is as a payload.
 //
 // This posts the JSON-encoded NotificationMessage on the well-known hiveot notification href.

@@ -21,8 +21,10 @@ const (
 	// The default listening port if none is set
 	DefaultPort = 8444
 
-	// The context ID's for authenticated clientID
+	// The context ID's for authenticated clientID and connectionID
 	ClientIDContextID = "clientID"
+	// The client provided connection ID to differentiate different connections from the same clientID
+	ClientCIDContextID = "cid"
 
 	// context for session identification - not currently in use
 	// SessionContextID = "sessionID"

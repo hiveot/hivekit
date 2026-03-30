@@ -1,0 +1,70 @@
+package grpcclient
+
+import (
+	context "context"
+
+	grpc "google.golang.org/grpc"
+)
+
+const Name = "json"
+
+// Define the server interface and the client stub manually using grpc.ServiceDesc:
+
+type ChatServiceServer interface {
+	// Server‑streaming RPC: one request, many responses.
+	StreamMessages(*ChatMessage, ChatService_StreamMessagesServer) error
+}
+
+type ChatService_StreamMessagesServer interface {
+	Send(*ChatMessage) error
+	grpc.ServerStream
+}
+
+// client stub
+type ChatServiceClient interface {
+	StreamMessages(ctx context.Context, in *ChatMessage, opts ...grpc.CallOption) (ChatService_StreamMessagesClient, error)
+}
+
+type chatServiceClient struct {
+	cc *grpc.ClientConn
+}
+
+func NewChatServiceClient(cc *grpc.ClientConn) ChatServiceClient {
+	return &chatServiceClient{cc}
+}
+
+type ChatService_StreamMessagesClient interface {
+	Recv() (*ChatMessage, error)
+	grpc.ClientStream
+}
+
+func (c *chatServiceClient) StreamMessages(ctx context.Context, in *ChatMessage, opts ...grpc.CallOption) (ChatService_StreamMessagesClient, error) {
+	desc := &grpc.StreamDesc{
+		StreamName:    "StreamMessages",
+		ServerStreams: true,
+		ClientStreams: false,
+	}
+	stream, err := c.cc.NewStream(ctx, desc, "/example.ChatService/StreamMessages", opts...)
+	if err != nil {
+		return nil, err
+	}
+	if err := stream.SendMsg(in); err != nil {
+		return nil, err
+	}
+	if err := stream.CloseSend(); err != nil {
+		return nil, err
+	}
+	return &chatServiceStreamMessagesClient{stream}, nil
+}
+
+type chatServiceStreamMessagesClient struct {
+	grpc.ClientStream
+}
+
+func (x *chatServiceStreamMessagesClient) Recv() (*ChatMessage, error) {
+	m := new(ChatMessage)
+	if err := x.ClientStream.RecvMsg(m); err != nil {
+		return nil, err
+	}
+	return m, nil
+}

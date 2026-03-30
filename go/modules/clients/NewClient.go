@@ -72,18 +72,18 @@ func GetProtocolType(tdoc *td.TD) (protocolType string, href string) {
 	if href == "" {
 		href = tdoc.Base
 	}
-	if strings.HasPrefix(href, transports.WotHttpBasicUrlScheme) {
+	if strings.HasPrefix(href, transports.WotHttpBasicUriScheme) {
 		return transports.WotHttpBasicProtocolType, href
 	}
 	// a normal TD device should have a subprotocol so not sure what is going on here.
 	// just some fallback options
-	if strings.HasPrefix(href, transports.WotWebsocketUrlScheme) {
+	if strings.HasPrefix(href, transports.WotWebsocketUriScheme) {
 		return transports.WotWebsocketProtocolType, href
 	}
-	if strings.HasPrefix(href, transports.WotMqttUrlScheme) {
+	if strings.HasPrefix(href, transports.WotMqttUriScheme) {
 		return transports.WotMqttProtocolType, href
 	}
-	if strings.HasPrefix(href, transports.WotSseUrlScheme) {
+	if strings.HasPrefix(href, transports.WotSseUriScheme) {
 		return transports.WotSseProtocolType, href
 	}
 	return "", href
@@ -107,15 +107,15 @@ func NewTransportClient(protocolType string, serverURL string, caCert *x509.Cert
 
 	// use the URL to determine the protocol
 	if protocolType == "" {
-		if strings.HasPrefix(serverURL, transports.WotWebsocketUrlScheme) {
+		if strings.HasPrefix(serverURL, transports.WotWebsocketUriScheme) {
 			protocolType = transports.WotWebsocketProtocolType
-		} else if strings.HasPrefix(serverURL, transports.WotSseUrlScheme) {
+		} else if strings.HasPrefix(serverURL, transports.WotSseUriScheme) {
 			protocolType = transports.WotSseProtocolType
-		} else if strings.HasPrefix(serverURL, transports.WotMqttUrlScheme) {
+		} else if strings.HasPrefix(serverURL, transports.WotMqttUriScheme) {
 			protocolType = transports.WotMqttProtocolType
-		} else if strings.HasPrefix(serverURL, transports.WotHttpBasicUrlScheme) {
+		} else if strings.HasPrefix(serverURL, transports.WotHttpBasicUriScheme) {
 			protocolType = transports.WotHttpBasicProtocolType
-		} else if strings.HasPrefix(serverURL, transports.HiveotSseScUrlScheme) {
+		} else if strings.HasPrefix(serverURL, transports.HiveotSseScUriScheme) {
 			protocolType = transports.HiveotSseScProtocolType
 		}
 	}

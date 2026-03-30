@@ -124,7 +124,7 @@ func NewHiveotSseServer(httpServer transports.IHttpServer, respTimeout time.Dura
 	httpAddr := httpServer.GetConnectURL()
 	urlParts, _ := url.Parse(httpAddr)
 
-	connectURL := fmt.Sprintf("%s://%s%s", transports.HiveotSseScUrlScheme, urlParts.Host, ssePath)
+	connectURL := fmt.Sprintf("%s://%s%s", transports.HiveotSseScUriScheme, urlParts.Host, ssePath)
 
 	// use the RRN message format. Simple passthrough.
 	converter := direct.NewPassthroughMessageConverter()

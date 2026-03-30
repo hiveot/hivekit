@@ -44,10 +44,6 @@ type RequestMessage struct {
 	// This is optional. If omitted, no response will be received.
 	CorrelationID string `json:"correlationID,omitempty"`
 
-	// Created holds the timestamp the request was created in utc
-	// This MUST be set by the protocol server if not provided.
-	Created string `json:"created"`
-
 	// Input for the request as described in the TD affordance dataschema.
 	// If the operation is one of the Thing level operations, the input is specified
 	// by the operation's dataschema. WoT doesn't have this yet so hiveot will
@@ -82,6 +78,10 @@ type RequestMessage struct {
 	// For messages to agents this is the agent ThingID
 	// This field is required.
 	ThingID string `json:"thingID"`
+
+	// Timestamp the request was created in UTC.
+	// This MUST be set by the protocol server if not provided.
+	Timestamp string `json:"created"`
 }
 
 // CreateErrorResponse is a short to easily create an error response from a request.
@@ -144,7 +144,7 @@ func NewRequestMessage(operation string, thingID, name string, input any, correl
 		Name:          name,
 		Input:         input,
 		CorrelationID: correlationID,
-		Created:       utils.FormatUTCMilli(time.Now()),
+		Timestamp:     utils.FormatUTCMilli(time.Now()),
 		MessageID:     shortid.MustGenerate(),
 	}
 }
