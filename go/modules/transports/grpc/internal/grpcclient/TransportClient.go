@@ -156,7 +156,7 @@ func (cl *GrpcTransportClient) _onMessage(messageType string, jsonRaw string) {
 
 // IsConnected return whether the socket connection is established
 func (cl *GrpcTransportClient) IsConnected() bool {
-	return cl.grpcClient.isConnected.Load()
+	return cl.grpcClient.IsConnected()
 }
 
 // SendNotification Agent posts a notification to the server

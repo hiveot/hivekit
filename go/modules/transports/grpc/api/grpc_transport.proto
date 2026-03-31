@@ -3,6 +3,8 @@ syntax = "proto3";
 // buf:lint:ignore PACKAGE_DIRECTORY_MATCH
 package grpcapi;
 
+import "google/protobuf/empty.proto";
+
 option go_package = "github.com/hiveot/hivekit/go/modules/transports/grpc/grpcapi";
 
 message GrpcMsg {
@@ -10,7 +12,7 @@ message GrpcMsg {
   string jsonPayload = 2;
 }
 
-message PingMsg {
+message PingRespMsg {
   string text = 1;
 }
 
@@ -21,7 +23,7 @@ message PingMsg {
 // Once this works, figure out how to replace protobuf with a json codec instead.
 service GrpcService {
   // ping to test connectivity
-  rpc ping(PingMsg) returns (PingMsg);
+  rpc ping(google.protobuf.Empty) returns (PingRespMsg);
 
   // bi-directional message stream between client and server
   // buf:lint:ignore RPC_REQUEST_RESPONSE_UNIQUE

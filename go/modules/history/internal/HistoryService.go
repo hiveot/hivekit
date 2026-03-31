@@ -121,7 +121,7 @@ func (m *HistoryService) StoreRequest(req *msg.RequestMessage) error {
 		req.Name,
 		req.Input,
 	)
-	value.Timestamp = req.Created
+	value.Timestamp = req.Timestamp
 	err := m.AddValue(value)
 	return err
 }

@@ -83,7 +83,7 @@ func (m *VCacheServer) Stop() {
 func (m *VCacheServer) WriteAction(req *msg.RequestMessage) {
 	notif := msg.NewNotificationMessage(
 		req.SenderID, msg.AffordanceTypeAction, req.ThingID, req.Name, req.Input)
-	notif.Timestamp = req.Created
+	notif.Timestamp = req.Timestamp
 	notif.CorrelationID = req.CorrelationID
 	m.store.WriteValue(notif)
 }

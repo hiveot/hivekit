@@ -72,7 +72,7 @@ func (m *LoggingService) LogRequest(req *msg.RequestMessage) {
 		slog.String("thingID", req.ThingID),
 		slog.String("name", req.Name),
 		slog.String("value", value),
-		slog.String("created", req.Created),
+		slog.String("created", req.Timestamp),
 		slog.String("sender", string(req.SenderID)),
 	)
 

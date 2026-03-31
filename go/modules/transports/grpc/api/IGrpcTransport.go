@@ -19,6 +19,13 @@ var ErrInvalidToken = status.Errorf(codes.PermissionDenied, "invalid token")
 var ErrConnectionClosed = status.Errorf(codes.Canceled, "connection is closed")
 var ErrClientTooSlow = status.Errorf(codes.ResourceExhausted, "client is too slow to receive messages")
 
+// interface for the protobuf message stream. Used to 'equalize' the client
+// and server stream interfaces for the buffered stream implementation.
+type IGrpcMessageStream interface {
+	Send(*GrpcMsg) error
+	Recv() (*GrpcMsg, error)
+}
+
 // Interface of the Hiveot gRPC transport server module
 type IGrpcTransportServer interface {
 	transports.ITransportServer

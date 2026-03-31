@@ -7,6 +7,7 @@ import (
 	grpc "google.golang.org/grpc"
 	codes "google.golang.org/grpc/codes"
 	status "google.golang.org/grpc/status"
+	emptypb "google.golang.org/protobuf/types/known/emptypb"
 )
 
 // This is a compile-time assertion to ensure that this generated file
@@ -19,7 +20,7 @@ const _ = grpc.SupportPackageIsVersion7
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type GrpcServiceClient interface {
 	// ping to test connectivity
-	Ping(ctx context.Context, in *PingMsg, opts ...grpc.CallOption) (*PingMsg, error)
+	Ping(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*PingRespMsg, error)
 	// bi-directional message stream between client and server
 	// buf:lint:ignore RPC_REQUEST_RESPONSE_UNIQUE
 	MsgStream(ctx context.Context, opts ...grpc.CallOption) (GrpcService_MsgStreamClient, error)
@@ -33,8 +34,8 @@ func NewGrpcServiceClient(cc grpc.ClientConnInterface) GrpcServiceClient {
 	return &grpcServiceClient{cc}
 }
 
-func (c *grpcServiceClient) Ping(ctx context.Context, in *PingMsg, opts ...grpc.CallOption) (*PingMsg, error) {
-	out := new(PingMsg)
+func (c *grpcServiceClient) Ping(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*PingRespMsg, error) {
+	out := new(PingRespMsg)
 	err := c.cc.Invoke(ctx, "/grpcapi.GrpcService/ping", in, out, opts...)
 	if err != nil {
 		return nil, err
@@ -78,7 +79,7 @@ func (x *grpcServiceMsgStreamClient) Recv() (*GrpcMsg, error) {
 // for forward compatibility
 type GrpcServiceServer interface {
 	// ping to test connectivity
-	Ping(context.Context, *PingMsg) (*PingMsg, error)
+	Ping(context.Context, *emptypb.Empty) (*PingRespMsg, error)
 	// bi-directional message stream between client and server
 	// buf:lint:ignore RPC_REQUEST_RESPONSE_UNIQUE
 	MsgStream(GrpcService_MsgStreamServer) error
@@ -89,7 +90,7 @@ type GrpcServiceServer interface {
 type UnimplementedGrpcServiceServer struct {
 }
 
-func (UnimplementedGrpcServiceServer) Ping(context.Context, *PingMsg) (*PingMsg, error) {
+func (UnimplementedGrpcServiceServer) Ping(context.Context, *emptypb.Empty) (*PingRespMsg, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method Ping not implemented")
 }
 func (UnimplementedGrpcServiceServer) MsgStream(GrpcService_MsgStreamServer) error {
@@ -109,7 +110,7 @@ func RegisterGrpcServiceServer(s grpc.ServiceRegistrar, srv GrpcServiceServer) {
 }
 
 func _GrpcService_Ping_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(PingMsg)
+	in := new(emptypb.Empty)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
@@ -121,7 +122,7 @@ func _GrpcService_Ping_Handler(srv interface{}, ctx context.Context, dec func(in
 		FullMethod: "/grpcapi.GrpcService/ping",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(GrpcServiceServer).Ping(ctx, req.(*PingMsg))
+		return srv.(GrpcServiceServer).Ping(ctx, req.(*emptypb.Empty))
 	}
 	return interceptor(ctx, in, info, handler)
 }

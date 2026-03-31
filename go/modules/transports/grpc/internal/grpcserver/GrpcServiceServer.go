@@ -18,6 +18,7 @@ import (
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/types/known/emptypb"
 )
 
 // GRPC server handler of protobuf defined methods.
@@ -31,8 +32,8 @@ type GrpcServiceServer struct {
 	// the underlying GRPC server
 	grpcServer *grpc.Server
 
-	// callback for connection status changes
-	connectHandler func(strm *GrpcServiceStream) error
+	// callback for serving a new stream
+	serveHandler func(grpcStream grpcapi.GrpcService_MsgStreamServer) error
 
 	// how long to wait for a response after sending a request
 	respTimeout time.Duration
@@ -51,6 +52,8 @@ func (srv *GrpcServiceServer) streamInterceptor(
 	if srv.grpcAuthn != nil {
 		_, _, err := srv.grpcAuthn.Authenticate(ss.Context())
 		if err != nil {
+			slog.Error("streamInterceptor: Unauthenticated")
+
 			return status.Errorf(codes.Unauthenticated, "Unauthenticated: %w", err)
 		}
 	}
@@ -73,41 +76,39 @@ func (srv *GrpcServiceServer) unaryInterceptor(
 
 // Return the request parameters from the grpc context
 func (srv *GrpcServiceServer) GetRequestParams(ctx context.Context) (
-	clientID string, cid string, validUntil time.Time, err error) {
+	clientID string, cid string, err error) {
 
 	md, ok := metadata.FromIncomingContext(ctx)
 	if !ok {
 		slog.Error("GetRequestParams: missing auth metadata context")
-		return "", "", validUntil, fmt.Errorf("missing metadata")
+		return "", "", fmt.Errorf("missing metadata")
 	}
 	clientID = strings.Join(md[transports.ClientIDContextID], "")
 	cid = strings.Join(md[transports.ClientCIDContextID], "")
-	return clientID, cid, validUntil, err
+	return clientID, cid, err
 }
 
 // Handler an incoming connection for a MsgStream.
 // MsgStream is defined in protobuf.
+// Returning from the serve handler closes the stream.
 func (srv *GrpcServiceServer) MsgStream(grpcStream grpcapi.GrpcService_MsgStreamServer) error {
 
-	clientID, cid, validUntil, err := srv.GetRequestParams(grpcStream.Context())
-	_ = validUntil
+	clientID, cid, err := srv.GetRequestParams(grpcStream.Context())
 	if err != nil {
 		return err
 	}
 	slog.Info("MsgStream: Service received stream connection", "clientID", clientID, "cid", cid)
-	strm := NewGrpcServiceStream(grpcStream, srv.respTimeout)
-
-	srv.connectHandler(strm)
-
-	return nil
+	// the serve handler can ge
+	err = srv.serveHandler(grpcStream)
+	return err
 }
 
-// Handler of ping message
-func (srv *GrpcServiceServer) Ping(ctx context.Context, in *grpcapi.PingMsg) (*grpcapi.PingMsg, error) {
-	clientID, cid, _, err := srv.GetRequestParams(ctx)
+// Handler of ping message returns pong
+func (srv *GrpcServiceServer) Ping(ctx context.Context, e *emptypb.Empty) (*grpcapi.PingRespMsg, error) {
+	clientID, cid, err := srv.GetRequestParams(ctx)
 	_ = err
 	log.Printf("Ping: ping received from clientID '%s', cid='%s'", clientID, cid)
-	return &grpcapi.PingMsg{Text: in.Text}, nil
+	return &grpcapi.PingRespMsg{Text: "pong"}, nil
 }
 
 // graceful stop of the server
@@ -118,24 +119,31 @@ func (srv *GrpcServiceServer) Stop() {
 	}
 }
 
-// Start the GRPC server.
+// Start the GRPC server and listen for incoming connections.
+// Note that the proto file only defines a single bi-directional stream so all
+// traffic goes over these streams.
 //
-// The connectHandler is called when a connection is established that needs authentication
-// this can be a new message stream or a unary request call.
+// The serveHandler is called when a stream connection is established and
+// can be served. This should block until the connection closes.
+// This handler should return nil if the stream was served properly or an
+// error if the stream cannot be served.
+//
+// Use NewGrpcServiceStream(grpcStream) to create a buffered concurrently safe
+// connection from this stream.
 //
 //	lis is the network to listen on
 //	tlsCert is the TLS certificate to use for secure connections, or nil for insecure
-//	connectHandler is called when a messaging stream is opened by a client
+//	serveHandler is called with the raw stream when one is opened by a client
 //	respTimeout is the messaging timeout
 func StartGrpcServiceServer(lis net.Listener,
 	tlsCert *tls.Certificate,
-	connectHandler func(strm *GrpcServiceStream) error,
+	serveHandler func(grpcStream grpcapi.GrpcService_MsgStreamServer) error,
 	respTimeout time.Duration,
 ) (*GrpcServiceServer, error) {
 
 	srv := &GrpcServiceServer{
-		respTimeout:    respTimeout,
-		connectHandler: connectHandler,
+		respTimeout:  respTimeout,
+		serveHandler: serveHandler,
 		// grpcStream: nil,
 	}
 
@@ -150,8 +158,8 @@ func StartGrpcServiceServer(lis net.Listener,
 		opts = append(opts, grpc.Creds(creds))
 	}
 	// auth and stuff
-	opts = append(opts, grpc.UnaryInterceptor(srv.unaryInterceptor))
-	opts = append(opts, grpc.StreamInterceptor(srv.streamInterceptor))
+	// opts = append(opts, grpc.UnaryInterceptor(srv.unaryInterceptor))
+	// opts = append(opts, grpc.StreamInterceptor(srv.streamInterceptor))
 
 	// creds, err := credentials.NewClientTLSFromFile("cert/server.crt", "")
 	// dialOpt := grpc.WithTransportCredentials(insecure.NewCredentials())
@@ -168,5 +176,6 @@ func StartGrpcServiceServer(lis net.Listener,
 			slog.Error("StartGrpcServer: failed to serve", "err", err.Error())
 		}
 	}()
+	time.Sleep(time.Millisecond)
 	return srv, nil
 }
