@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log/slog"
 	"slices"
+	"strings"
 	"sync"
 
 	"github.com/hiveot/hivekit/go/msg"
@@ -58,9 +59,14 @@ type TransportServerBase struct {
 }
 
 // AddConnection adds a new connection and notifies subscribers.
-// This requires the connection to have a unique client connection ID (connectionID).
 //
-// If an endpoint with this connectionID exists the existing connection is forcibly closed.
+// The connection can be looked up with GetConnectionByClientID or indirectly
+// using DetermineAgentConnection(thingID).
+//
+// The given connection is stored under clientID:connectionID. If the connectionID
+// is empty then only a single connection for the client can be used.
+//
+// If an endpoint with this clientID:connectionID exists the existing connection is forcibly closed.
 func (srv *TransportServerBase) AddConnection(c IConnection) error {
 	var clientID string
 	var cid string
@@ -224,6 +230,33 @@ func (srv *TransportServerBase) CloseAll() {
 	//m.UpdateProperty(PropName_NrConnections, 0)
 }
 
+// Get the agent/producer connection that serves the given ThingID.
+//
+// Intended for looking up an agent with a reverse connection, when acting as a gateway.
+// HiveOT agents that use reverse connections are required to add their agentID as a prefix
+// in the thingID of the TDs they publish. For example: "agent1:thing1". This is a
+// convention but it is not required by the WoT specifications.
+//
+// The preferred approach however is that agents that write a TD for their Things leave out
+// the forms and protocol information when writing the TD to the HiveKit Directory. The directory
+// stores the agentID that wrote the TD and changes the forms to its own server. Consumers
+// reading the TD will see the (gateway) server address in the forms and send a request to this
+// server. This server forwards requests to its sink which reaches the router module. The router
+// module find the Thing TD and agent in the directory and uses this server GetConnectionByClientID
+// method to determine the connection to forward the request to. The benefit of this approach is that
+// it does not rely on a convention for the thingID, but it does require the use of the HiveOT
+// directory and router modules. This is documented with an example in the router module readme.
+func (m *TransportServerBase) DetermineAgentConnection(thingID string) (IConnection, error) {
+	parts := strings.Split(thingID, ":")
+	agentID := parts[0]
+
+	c := m.GetConnectionByClientID(agentID)
+	if c == nil {
+		return nil, fmt.Errorf("No connection found for ThingID '%s'", thingID)
+	}
+	return c, nil
+}
+
 // ForEachConnection invoke handler for each client connection
 // Intended for publishing event and property updates to subscribers
 //
@@ -325,6 +358,47 @@ func (srv *TransportServerBase) GetConnectionByClientID(clientID string) (c ICon
 // GetModuleID returns the module's Thing ID
 func (srv *TransportServerBase) GetModuleID() string {
 	return srv.moduleID
+}
+
+// Handle a notification this module (or downstream in the chain) subscribed to.
+// Notifications are forwarded to their upstream sink, which for a server is the
+// client.
+func (m *TransportServerBase) HandleNotification(notif *msg.NotificationMessage) {
+	m.SendNotification(notif)
+}
+
+// HandleRequest sends requests to connected client.
+//
+// This only happens when a consumer on the server or gateway passes the request to
+// this server module through the pipeline, when this server is the sink for the consumer.
+// Transport modules forward requests to connected clients instead of processing them locally.
+//
+// This uses the HiveOT convention that the ThingID in the request contains the clientID
+// of the connected agent, eg: "agentID:deviceID". It only applies to agents that
+// use reverse connections, which is the case for HiveOT agents.
+//
+// This returns an error when the destination for the request cannot be found.
+// If multiple server protocols are used it is okay to try them one by one.
+//
+// When using the router/directory module combo, this should not be used. Instead the router
+// determines the destination using the TD in the directory and determines the agent and connection
+// without relying on the agentID in ThingID convention.
+func (m *TransportServerBase) HandleRequest(
+	req *msg.RequestMessage, replyTo msg.ResponseHandler) (err error) {
+
+	// first attempt to procss the when targeted at this module
+	if req.ThingID == m.GetModuleID() {
+		err = fmt.Errorf("HandleRequest: request is targeted at this module '%s' and should not have passed to this base", m.GetModuleID())
+	} else {
+		// if the request is not for this module then pass it to the remote agent
+		// if the agent isn't connected then this returns an error. This can be valid
+		// in case multiple server protocols are used and the request is for another protocol.
+		c, err := m.DetermineAgentConnection(req.ThingID)
+		if err == nil {
+			err = c.SendRequest(req, replyTo)
+		}
+	}
+	return err
 }
 
 // Initialize the module base with a moduleID and a messaging sink

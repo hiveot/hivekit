@@ -3,7 +3,6 @@ package sseserver
 import (
 	"fmt"
 	"net/url"
-	"strings"
 	"time"
 
 	"github.com/hiveot/hivekit/go/modules"
@@ -42,28 +41,8 @@ type HiveotSseServer struct {
 	ssePath string
 }
 
-// Get the agent/producer connection that serves the given ThingID
-// This supports using an agent prefix separated by ':' for the thingID
-func (m *HiveotSseServer) DetermineAgentConnection(thingID string) (transports.IConnection, error) {
-	parts := strings.Split(thingID, ":")
-	agentID := parts[0]
-
-	c := m.GetConnectionByClientID(agentID)
-	if c == nil {
-		return nil, fmt.Errorf("No connection found for ThingID '%s'", thingID)
-	}
-	return c, nil
-}
-
 func (m *HiveotSseServer) GetProtocolType() string {
 	return transports.HiveotSseScProtocolType
-}
-
-// Handle a notification this module (or downstream in the chain) subscribed to.
-// Notifications are forwarded to their upstream sink, which for a server is the
-// client.
-func (m *HiveotSseServer) HandleNotification(notif *msg.NotificationMessage) {
-	m.SendNotification(notif)
 }
 
 // HandleRequest handles requests directed at this module or a connected agent.
@@ -82,12 +61,7 @@ func (m *HiveotSseServer) HandleRequest(
 		err = m.msgAPI.HandleRequest(req, replyTo)
 	} else {
 		// if the request is not for this server, then send the request to the connected agent
-		var c transports.IConnection
-		// if the request is not for this module then pass it to the remote connection
-		c, err := m.DetermineAgentConnection(req.ThingID)
-		if err == nil {
-			err = c.SendRequest(req, replyTo)
-		}
+		err = m.TransportServerBase.HandleRequest(req, replyTo)
 	}
 	return err
 }

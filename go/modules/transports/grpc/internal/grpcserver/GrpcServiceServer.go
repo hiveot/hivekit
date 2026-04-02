@@ -33,7 +33,7 @@ type GrpcServiceServer struct {
 	grpcServer *grpc.Server
 
 	// callback for serving a new stream
-	serveHandler func(grpcStream grpcapi.GrpcService_MsgStreamServer) error
+	serveHandler func(clientID string, cid string, grpcStream grpcapi.GrpcService_MsgStreamServer) error
 
 	// how long to wait for a response after sending a request
 	respTimeout time.Duration
@@ -54,7 +54,7 @@ func (srv *GrpcServiceServer) streamInterceptor(
 		if err != nil {
 			slog.Error("streamInterceptor: Unauthenticated")
 
-			return status.Errorf(codes.Unauthenticated, "Unauthenticated: %w", err)
+			return status.Errorf(codes.Unauthenticated, "Unauthenticated: %s", err.Error())
 		}
 	}
 	return handler(srv2, ss)
@@ -90,7 +90,7 @@ func (srv *GrpcServiceServer) GetRequestParams(ctx context.Context) (
 
 // Handler an incoming connection for a MsgStream.
 // MsgStream is defined in protobuf.
-// Returning from the serve handler closes the stream.
+// Returning from serveHandler closes the stream.
 func (srv *GrpcServiceServer) MsgStream(grpcStream grpcapi.GrpcService_MsgStreamServer) error {
 
 	clientID, cid, err := srv.GetRequestParams(grpcStream.Context())
@@ -98,8 +98,8 @@ func (srv *GrpcServiceServer) MsgStream(grpcStream grpcapi.GrpcService_MsgStream
 		return err
 	}
 	slog.Info("MsgStream: Service received stream connection", "clientID", clientID, "cid", cid)
-	// the serve handler can ge
-	err = srv.serveHandler(grpcStream)
+	// serveHandler should block until the stream is closed
+	err = srv.serveHandler(clientID, cid, grpcStream)
 	return err
 }
 
@@ -123,13 +123,11 @@ func (srv *GrpcServiceServer) Stop() {
 // Note that the proto file only defines a single bi-directional stream so all
 // traffic goes over these streams.
 //
-// The serveHandler is called when a stream connection is established and
-// can be served. This should block until the connection closes.
-// This handler should return nil if the stream was served properly or an
-// error if the stream cannot be served.
+// serveHandler is called when a stream connection is established and ready to be served.
+// This should block until the connection closes.
 //
 // Use NewGrpcServiceStream(grpcStream) to create a buffered concurrently safe
-// connection from this stream.
+// connection for this stream.
 //
 //	lis is the network to listen on
 //	tlsCert is the TLS certificate to use for secure connections, or nil for insecure
@@ -137,7 +135,7 @@ func (srv *GrpcServiceServer) Stop() {
 //	respTimeout is the messaging timeout
 func StartGrpcServiceServer(lis net.Listener,
 	tlsCert *tls.Certificate,
-	serveHandler func(grpcStream grpcapi.GrpcService_MsgStreamServer) error,
+	serveHandler func(clientID string, cid string, grpcStream grpcapi.GrpcService_MsgStreamServer) error,
 	respTimeout time.Duration,
 ) (*GrpcServiceServer, error) {
 
@@ -158,8 +156,8 @@ func StartGrpcServiceServer(lis net.Listener,
 		opts = append(opts, grpc.Creds(creds))
 	}
 	// auth and stuff
-	// opts = append(opts, grpc.UnaryInterceptor(srv.unaryInterceptor))
-	// opts = append(opts, grpc.StreamInterceptor(srv.streamInterceptor))
+	opts = append(opts, grpc.UnaryInterceptor(srv.unaryInterceptor))
+	opts = append(opts, grpc.StreamInterceptor(srv.streamInterceptor))
 
 	// creds, err := credentials.NewClientTLSFromFile("cert/server.crt", "")
 	// dialOpt := grpc.WithTransportCredentials(insecure.NewCredentials())
@@ -170,7 +168,7 @@ func StartGrpcServiceServer(lis net.Listener,
 	srv.grpcServer = grpcServer
 
 	// start the server
-	log.Printf("StartGrpcServer: starting  gRPC server on %s", lis.Addr().String())
+	slog.Info("StartGrpcServer: starting  gRPC server", slog.String("Address", lis.Addr().String()))
 	go func() {
 		if err := grpcServer.Serve(lis); err != nil {
 			slog.Error("StartGrpcServer: failed to serve", "err", err.Error())

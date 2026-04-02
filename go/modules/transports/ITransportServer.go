@@ -25,8 +25,10 @@ const (
 	HiveotSseScSubprotocol  = "sse-sc"
 	HiveotSseScUriScheme    = "sse"
 
-	HiveotUdsProtocolType = "hiveot-uds"
-	HiveotUdsUrlScheme    = "unix"
+	// hiveot grpc is intended for local inter-process communication using UDS,
+	// and uses the HiveOT RRN messages as the payload.
+	HiveotGrpcProtocolType = "hiveot-grpc"
+	HiveotGrpcUrlScheme    = "unix"
 
 	HiveotWebsocketProtocolType = "hiveot-websocket"
 	HiveotWebsocketSubprotocol  = "hiveot:websocket"

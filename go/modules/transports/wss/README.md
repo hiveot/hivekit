@@ -12,7 +12,7 @@ Connecting over websockets requires a valid bearer token in the http authorizati
 
 ## Status
 
-The Websocket Transport module is in alpha. It is functional but breaking changes can be expected.
+The Websocket Transport module is in alpha. It is functional but breaking changes might still be possible.
 
 ## HTTP Server Dependency
 
@@ -32,7 +32,9 @@ This module supports the AddTDSecForms method that updates TDs with the security
 
 The module configuration includes:
 
-- wsspath - the websocket connection path. WoT transports default to /wot/wss and HiveOT transports use /hiveot/wss.
+1. wsspath - the websocket connection path. WoT transports default to /wot/wss and HiveOT transports use /hiveot/wss.
+2. The embedded HTTP server which is configured for certificates and authentication.
+3. Optional timeout to facilitate testing and debugging. The default is defined in DefaultRpcTimeout.
 
 ## Usage
 

@@ -5,7 +5,6 @@ import (
 	"log/slog"
 	"net/http"
 	"net/url"
-	"strings"
 	"time"
 
 	"github.com/gorilla/websocket"
@@ -45,29 +44,9 @@ type WssTransportServer struct {
 	wssPath string
 }
 
-// Get the agent/producer connection that serves the given ThingID
-// This supports using an agent prefix separated by ':' for the thingID
-func (m *WssTransportServer) DetermineAgentConnection(thingID string) (transports.IConnection, error) {
-	parts := strings.Split(thingID, ":")
-	agentID := parts[0]
-
-	c := m.GetConnectionByClientID(agentID)
-	if c == nil {
-		return nil, fmt.Errorf("No connection found for ThingID '%s'", thingID)
-	}
-	return c, nil
-}
-
 // GetProtocolType returns type identifier of the server protocol as defined by its module
 func (m *WssTransportServer) GetProtocolType() string {
 	return m.protocolType
-}
-
-// Handle a notification this module (or downstream in the chain) subscribed to.
-// Notifications are forwarded to their upstream sink, which for a server is the
-// client.
-func (m *WssTransportServer) HandleNotification(notif *msg.NotificationMessage) {
-	m.SendNotification(notif)
 }
 
 // HandleRequest handles requests directed at this module or a connected agent.
@@ -86,12 +65,8 @@ func (m *WssTransportServer) HandleRequest(
 	if req.ThingID == m.GetModuleID() {
 		err = m.msgAPI.HandleRequest(req, replyTo)
 	} else {
-		var c transports.IConnection
 		// if the request is not for this module then pass it to the remote connection
-		c, err := m.DetermineAgentConnection(req.ThingID)
-		if err == nil {
-			err = c.SendRequest(req, replyTo)
-		}
+		err = m.TransportServerBase.HandleRequest(req, replyTo)
 	}
 	return err
 }

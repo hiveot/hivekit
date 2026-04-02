@@ -39,9 +39,10 @@ func TestMain(m *testing.M) {
 func TestConnectPing(t *testing.T) {
 	// test connect/disconnect with ping
 	t.Logf("---%s---\n", t.Name())
+	const clientID = "client1"
 
 	// setup the server
-	serveStream := func(grpcStream grpcapi.GrpcService_MsgStreamServer) error {
+	serveStream := func(clientID string, cid string, grpcStream grpcapi.GrpcService_MsgStreamServer) error {
 		return nil
 	}
 	lis, err := net.Listen(network, address)
@@ -55,11 +56,9 @@ func TestConnectPing(t *testing.T) {
 	// connect with the client
 	handleClientMessage := func(msgType string, jsonRaw string) {
 	}
-	handleClientConnected := func(connected bool, err error) {
-	}
+
 	serverURL := fmt.Sprintf("%s://%s", scheme, address)
-	cl := grpcclient.NewGrpcServiceClient(
-		serverURL, time.Minute, handleClientMessage, handleClientConnected)
+	cl := grpcclient.NewGrpcServiceClient(clientID, serverURL, nil, time.Minute, handleClientMessage)
 
 	err = cl.Connect()
 	require.NoError(t, err)
@@ -82,6 +81,7 @@ func TestStreamMessages(t *testing.T) {
 	t.Logf("---%s---\n", t.Name())
 	const clientID = "client1"
 	var msgCount atomic.Int32
+	var clientConnectCount atomic.Int32
 	var serviceCustomMsgType = "serviceMessagetype"
 	var clientSendMsg string = "client hello"
 	var serverSendMsg string = "server hello"
@@ -89,67 +89,74 @@ func TestStreamMessages(t *testing.T) {
 
 	// setup the server
 	handleServiceMessage := func(msgType string, jsonRaw string) {
-		slog.Info("test: service received message", "msgType", msgType)
 		assert.Equal(t, clientSendMsg, jsonRaw)
 		msgCount.Add(1)
 	}
-	serveStream := func(grpcStream grpcapi.GrpcService_MsgStreamServer) error {
+	serveStream := func(clientID, cid string, grpcStream grpcapi.GrpcService_MsgStreamServer) error {
 		// start the send and receive loop
 		bstrm := grpcclient.NewGrpcBufferedStream(grpcStream, handleServiceMessage, time.Minute)
 
 		// send is dispatched after the stream is
-		slog.Info("test: serveStream sending message", "msgType", serviceCustomMsgType)
 		err := bstrm.Send(serviceCustomMsgType, serverSendMsg)
 		assert.NoError(t, err)
 
-		// start the send and receive loop
-		bstrm.WaitUntilDisconnect()
 		// must block until connection closes
-		slog.Info("test: serveStream ended")
-
+		bstrm.WaitUntilDisconnect()
 		return nil
 	}
 	lis, err := net.Listen(network, address)
 	require.NoError(t, err)
 
-	svc, err = grpcserver.StartGrpcServiceServer(lis, nil,
-		serveStream, time.Minute)
+	svc, err = grpcserver.StartGrpcServiceServer(lis, nil, serveStream, time.Minute)
 	require.NoError(t, err)
-	defer svc.Stop()
+	//defer svc.Stop()
 
-	time.Sleep(time.Millisecond * 100)
+	time.Sleep(time.Millisecond)
 
 	// connect the client and receive the server message
 	onClientMessage := func(msgType string, jsonRaw string) {
-		slog.Info("test: Client received message", "msgType", msgType)
 		msgCount.Add(1)
+		assert.Equal(t, serviceCustomMsgType, msgType)
 		assert.Equal(t, serverSendMsg, jsonRaw)
 	}
-	onClientConnect := func(connected bool, err error) {
-		slog.Info("test: Client connection: ", "connected", connected)
-	}
+
 	serverURL := fmt.Sprintf("%s://%s", scheme, address)
-	cl := grpcclient.NewGrpcServiceClient(serverURL, time.Minute,
-		onClientMessage, onClientConnect)
+	cl := grpcclient.NewGrpcServiceClient(clientID, serverURL, nil, time.Minute, onClientMessage)
 
 	err = cl.Connect()
-	require.NoError(t, err)
+	assert.NoError(t, err) // (dont use require as svc.Stop is not a defer)
 	// defer cl.Close()
 	// run blocks until the stream is closed
-	go cl.Run()
+	go func() {
+		clientConnectCount.Add(1)
+		cl.WaitUntilDisconnect()
+		clientConnectCount.Add(1)
+	}()
 
-	cl.Send("notification", clientSendMsg)
+	// some brute force testing on Intel i5-4570S, 2.9GHz:
+	// UDS: 1K messages in 5msec; 10K in 44msec; 100K in 310msec; 1M in 3.2 sec
+	nrMsg := 1000000
+	t0 := time.Now()
+	for i := 0; i < nrMsg; i++ {
+		// slog.Info(fmt.Sprintf("sending %d", i))
+		cl.Send("notification", clientSendMsg)
+	}
+	dur := time.Since(t0)
+	slog.Info(fmt.Sprintf("sent %d messages in %s", nrMsg, dur))
 	time.Sleep(time.Millisecond * 10)
 
 	// both client and server side should have received a message
-	assert.Equal(t, 2, int(msgCount.Load()))
+	assert.Equal(t, nrMsg+1, int(msgCount.Load()))
 
 	// graceful shutdown no errors or warndings are expected
-	t.Log("test: Closing client")
+	slog.Info("shutting down")
 	cl.Close()
 
-	time.Sleep(time.Second * 1)
-	t.Log("test: end of test - defer close of server")
+	time.Sleep(time.Millisecond * 1)
+	svc.Stop()
+
+	// expect a connect and a disconnect
+	assert.Equal(t, 2, int(clientConnectCount.Load()))
 }
 
 func TestMultipleClients(t *testing.T) {

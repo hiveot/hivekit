@@ -445,6 +445,7 @@ func (cl *WssTransportClient) Stop() {
 // NewHiveotWssTransportClient creates a new instance of the hiveot websocket client.
 //
 // This uses the Hiveot passthrough message converter.
+// Users must use ConnectWithToken to authenticate and connect.
 //
 //	wssURL is the full websocket connection URL including path
 //	caCert is the server CA for TLS connection validation
@@ -482,10 +483,6 @@ func NewHiveotWssClient(
 
 // NewWotWssTransportClient creates a new instance of the WoT compatible websocket client.
 //
-// messageConverter offers the ability to use any websocket message format that
-// can be mapped to a RequestMessage and ResponseMessage. It is used to support
-// both hiveot and WoT websocket message formats.
-//
 // Users must use ConnectWithToken to authenticate and connect.
 //
 //	wssURL is the full websocket connection URL
@@ -512,6 +509,5 @@ func NewWotWssClient(wssURL string, caCert *x509.Certificate,
 		wssPath:              wssPath,
 	}
 	var _ transports.ITransportClient = cl // interface check
-	var _ modules.IHiveModule = cl         // interface check
 	return cl
 }

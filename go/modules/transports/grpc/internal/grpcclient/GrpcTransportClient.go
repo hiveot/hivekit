@@ -1,6 +1,7 @@
 package grpcclient
 
 import (
+	"crypto/x509"
 	"fmt"
 	"log/slog"
 	"sync/atomic"
@@ -11,15 +12,19 @@ import (
 	"github.com/hiveot/hivekit/go/msg"
 	"github.com/hiveot/hivekit/go/wot/td"
 	jsoniter "github.com/json-iterator/go"
+	"github.com/teris-io/shortid"
 )
 
-// gRPC client for hiveot
+// gRPC transport client for hiveot
 // This implements the ITransportClient interface
 type GrpcTransportClient struct {
 	modules.HiveModuleBase
 
-	addr       string
+	connectURL string
+	caCert     *x509.Certificate
 	clientID   string
+	bufStream  *BufferedStream
+
 	grpcClient *GrpcServiceClient
 
 	// handler for sending connection notifications
@@ -41,7 +46,7 @@ func (cl *GrpcTransportClient) _onConnectionChanged(connected bool, err error) {
 	if cl.connectHandler != nil {
 		cl.connectHandler(connected, cl, err)
 	}
-	// if retrying is enabled then try on disconnect
+	// TODO: if retrying is enabled then try on disconnect
 	if !connected && cl.retryOnDisconnect.Load() {
 		// go cl.grpcClient.Connect()
 	}
@@ -57,6 +62,11 @@ func (cl *GrpcTransportClient) Authenticate(tdDoc *td.TD,
 func (cl *GrpcTransportClient) Close() {
 	if cl.grpcClient != nil {
 		cl.grpcClient.Close()
+		cl.grpcClient = nil
+	}
+	if cl.bufStream != nil {
+		cl.bufStream.Close()
+		cl.bufStream = nil
 	}
 }
 
@@ -65,11 +75,17 @@ func (cl *GrpcTransportClient) Close() {
 func (cl *GrpcTransportClient) ConnectWithToken(clientID string, token string) (err error) {
 	cl.clientID = clientID
 
-	cl.grpcClient = NewGrpcServiceClient(cl.addr, cl.timeout, cl._onMessage, cl._onConnectionChanged)
+	cl.grpcClient = NewGrpcServiceClient(
+		clientID, cl.connectURL, cl.caCert, cl.timeout, cl._onMessage)
 	err = cl.grpcClient.Connect()
 	if err != nil {
-		slog.Error("Grpc connection failed", "addr", cl.addr)
+		slog.Error("Grpc connection failed", "addr", cl.connectURL)
 	}
+	go func() {
+		cl._onConnectionChanged(cl.grpcClient.IsConnected(), nil)
+		cl.grpcClient.WaitUntilDisconnect()
+		cl._onConnectionChanged(cl.grpcClient.IsConnected(), nil)
+	}()
 	return err
 }
 
@@ -83,7 +99,13 @@ func (cl *GrpcTransportClient) GetConnectionID() string {
 	return "todo need metadata"
 }
 
-// clients send requests to the server
+// HandleNotification forwards notifications to the server instead of forwarding to their sink.
+// incoming notifications are forwarded to the sink.
+func (cl *GrpcTransportClient) HandleNotification(notif *msg.NotificationMessage) {
+	cl.SendNotification(notif)
+}
+
+// HandleRequest forwards requests to the server
 func (cl *GrpcTransportClient) HandleRequest(request *msg.RequestMessage, replyTo msg.ResponseHandler) error {
 	err := cl.SendRequest(request, replyTo)
 	return err
@@ -156,7 +178,7 @@ func (cl *GrpcTransportClient) _onMessage(messageType string, jsonRaw string) {
 
 // IsConnected return whether the socket connection is established
 func (cl *GrpcTransportClient) IsConnected() bool {
-	return cl.grpcClient.IsConnected()
+	return cl.bufStream.IsConnected()
 }
 
 // SendNotification Agent posts a notification to the server
@@ -169,42 +191,84 @@ func (cl *GrpcTransportClient) SendNotification(notif *msg.NotificationMessage) 
 		slog.String("thingID", notif.ThingID),
 		slog.String("name", notif.Name),
 	)
-	// convert the operation into a protocol message
-
-	// err := cl.grpcClient.WriteMessage(notif)
-	// if err != nil {
-	// 	slog.Warn("SendNotification failed",
-	// 		"clientID", clientID,
-	// 		"err", err.Error())
-	// }
+	notifJson, err := jsoniter.MarshalToString(notif)
+	if err == nil {
+		err = cl.bufStream.Send(msg.MessageTypeNotification, notifJson)
+	}
 }
 
 // SendRequest send a request message the server
 func (cl *GrpcTransportClient) SendRequest(
 	req *msg.RequestMessage, replyTo msg.ResponseHandler) error {
 
-	return fmt.Errorf("not yet implemented")
+	if req.CorrelationID == "" {
+		req.CorrelationID = shortid.MustGenerate()
+	}
+	reqJson, _ := jsoniter.MarshalToString(req)
+
+	if replyTo == nil {
+		// responses are received asynchronously
+		err := cl.bufStream.Send(msg.MessageTypeRequest, reqJson)
+		return err
+	}
+
+	// a response handler is provided, callback when the response is received
+	cl.rnrChan.Open(req.CorrelationID)
+	err := cl.bufStream.Send(msg.MessageTypeRequest, reqJson)
+
+	if err != nil {
+		cl.rnrChan.Close(req.CorrelationID)
+		slog.Warn("SendRequest ->: error in sending request",
+			"dThingID", req.ThingID,
+			"name", req.Name,
+			"correlationID", req.CorrelationID,
+			"err", err.Error())
+		return err
+	}
+	hasResponse, resp := cl.rnrChan.WaitForResponse(req.CorrelationID, cl.timeout)
+	if hasResponse {
+		err = replyTo(resp)
+	}
+	return err
 }
 
 // SendResponse send a response message to the server
 func (cl *GrpcTransportClient) SendResponse(resp *msg.ResponseMessage) error {
-	return fmt.Errorf("not yet implemented")
+
+	respJson, err := jsoniter.MarshalToString(resp)
+	if err == nil {
+		err = cl.bufStream.Send(msg.MessageTypeResponse, respJson)
+	}
+	return err
 }
 
 func (cl *GrpcTransportClient) SetTimeout(timeout time.Duration) {
 	cl.timeout = timeout
 }
 
-// NewHiveotGrpcClient creates a new instance of the Hiveot UDS client
-func NewHiveotGrpcClient(addr string, timeout time.Duration) *GrpcTransportClient {
+// Module stop
+func (cl *GrpcTransportClient) Stop() {
+	cl.Close()
+}
+
+// NewGrpcTransportClient creates a new instance of the Hiveot UDS client
+//
+// when using network sockets, addr is the URL with CaCert the CA certificate to
+// validate the server connection.
+// Use SetTimeout to change the timeout for testing purposes.
+//
+// connectURL is the server URL, e.g.  unix://{/path.sock} or tcp://localhost:{port}
+// caCert is the CA certificate to validate the server connection, or nil for UDS or insecure connections.
+//
+// Users must use ConnectWithToken to authenticate and start.
+func NewGrpcTransportClient(connectURL string, caCert *x509.Certificate) *GrpcTransportClient {
 
 	cl := &GrpcTransportClient{
-		timeout: timeout,
-		addr:    addr,
+		connectURL: connectURL,
+		caCert:     caCert,
+		timeout:    transports.DefaultRpcTimeout,
 	}
-	// cl.grpcClient = NewGrpcClient(
-	// socketPath, timeout, cl.HandleUdsMessage, cl._onConnectionChanged)
 
-	var _ transports.ITransportClient = cl
+	var _ transports.ITransportClient = cl // check interface implementation
 	return cl
 }
