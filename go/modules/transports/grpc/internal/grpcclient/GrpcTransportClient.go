@@ -2,14 +2,17 @@ package grpcclient
 
 import (
 	"crypto/x509"
+	"errors"
 	"fmt"
 	"log/slog"
+	"math/rand/v2"
 	"sync/atomic"
 	"time"
 
 	"github.com/hiveot/hivekit/go/modules"
 	"github.com/hiveot/hivekit/go/modules/transports"
 	"github.com/hiveot/hivekit/go/msg"
+	"github.com/hiveot/hivekit/go/utils"
 	"github.com/hiveot/hivekit/go/wot/td"
 	jsoniter "github.com/json-iterator/go"
 	"github.com/teris-io/shortid"
@@ -20,6 +23,8 @@ import (
 type GrpcTransportClient struct {
 	modules.HiveModuleBase
 
+	bearerToken string
+
 	connectURL string
 	caCert     *x509.Certificate
 	clientID   string
@@ -29,6 +34,8 @@ type GrpcTransportClient struct {
 
 	// handler for sending connection notifications
 	connectHandler transports.ConnectionHandler
+
+	maxReconnectAttempts int // 0 for indefinite
 
 	retryOnDisconnect atomic.Bool
 
@@ -45,10 +52,6 @@ func (cl *GrpcTransportClient) _onConnectionChanged(connected bool, err error) {
 
 	if cl.connectHandler != nil {
 		cl.connectHandler(connected, cl, err)
-	}
-	// TODO: if retrying is enabled then try on disconnect
-	if !connected && cl.retryOnDisconnect.Load() {
-		// go cl.grpcClient.Connect()
 	}
 }
 
@@ -125,21 +128,31 @@ func (cl *GrpcTransportClient) Authenticate(tdDoc *td.TD,
 
 // Close disconnects
 func (cl *GrpcTransportClient) Close() {
+	// dont try to reconnect after close
+	cl.retryOnDisconnect.Store(false)
+
 	if cl.grpcClient != nil {
 		cl.grpcClient.Close()
-		cl.grpcClient = nil
-		// cl.bufStream.Close()
 	}
 }
 
 // ConnectWithToken attempts to establish a UDS connection
 // clientID and token are not used.
 func (cl *GrpcTransportClient) ConnectWithToken(clientID string, token string) (err error) {
+
+	// ensure disconnected (note that this resets retryOnDisconnect)
+	if cl.IsConnected() {
+		cl.Close()
+	}
+
 	cl.clientID = clientID
+	cl.bearerToken = token
+	cl.SetModuleID(clientID)
 
 	cl.grpcClient = NewGrpcServiceClient(
-		clientID, cl.connectURL, cl.caCert, cl.timeout, cl._onMessage)
-	err = cl.grpcClient.ConnectWithToken(token)
+		cl.connectURL, cl.caCert, cl.timeout, cl._onMessage)
+
+	err = cl.grpcClient.ConnectWithToken(clientID, token)
 	if err != nil {
 		slog.Error("Grpc connection failed", "addr", cl.connectURL, "err", err.Error())
 		return err
@@ -155,11 +168,20 @@ func (cl *GrpcTransportClient) ConnectWithToken(clientID string, token string) (
 			cl._onConnectionChanged(cl.grpcClient.IsConnected(), nil)
 			cl.grpcClient.WaitUntilDisconnect()
 			cl._onConnectionChanged(cl.grpcClient.IsConnected(), nil)
+
+			// if retrying is enabled then try on disconnect
+			if cl.retryOnDisconnect.Load() {
+				go cl.Reconnect()
+			}
 		} else {
 			slog.Error("ConnectWithToken: connection unexpectedly dropped")
 		}
 	}()
-	return nil
+
+	// even if connection failed right now, enable retry
+	cl.retryOnDisconnect.Store(true)
+
+	return err
 }
 
 // GetClientID returns the client's connection details
@@ -186,7 +208,41 @@ func (cl *GrpcTransportClient) HandleRequest(request *msg.RequestMessage, replyT
 
 // IsConnected return whether the socket connection is established
 func (cl *GrpcTransportClient) IsConnected() bool {
-	return cl.grpcClient.IsConnected()
+	return cl.grpcClient != nil && cl.grpcClient.IsConnected()
+}
+
+// Reconnect attempts to re-establish a dropped connection using the last token
+// This uses an increasing backoff period up to 15 seconds, starting random between 0-2 seconds
+func (cl *GrpcTransportClient) Reconnect() {
+	var err error
+	var backoffDuration time.Duration = time.Duration(rand.Uint64N(uint64(time.Second * 2)))
+
+	for i := 0; cl.maxReconnectAttempts == 0 || i < cl.maxReconnectAttempts; i++ {
+		// retry until max repeat is reached, disconnect is called or authorization failed
+		if !cl.retryOnDisconnect.Load() {
+			break
+		}
+		slog.Warn("gRPC Reconnecting attempt",
+			slog.String("clientID", cl.clientID),
+			slog.Int("i", i))
+		err = cl.ConnectWithToken(cl.clientID, cl.bearerToken)
+		if err == nil {
+			break
+		}
+		if errors.Is(err, utils.UnauthorizedError) {
+			break
+		}
+		// the connection timeout doesn't seem to work for some reason
+		//
+		time.Sleep(backoffDuration)
+		// slowly wait longer until 15 sec.
+		if backoffDuration < time.Second*15 {
+			backoffDuration += time.Second
+		}
+	}
+	if err != nil {
+		slog.Warn("Reconnect failed: ", "err", err.Error())
+	}
 }
 
 // SendNotification Agent posts a notification to the server
@@ -274,12 +330,12 @@ func NewGrpcTransportClient(
 	connectURL string, caCert *x509.Certificate, ch transports.ConnectionHandler) *GrpcTransportClient {
 
 	cl := &GrpcTransportClient{
-		connectURL:     connectURL,
-		connectHandler: ch,
-		rnrChan:        msg.NewRnRChan(),
-
-		caCert:  caCert,
-		timeout: transports.DefaultRpcTimeout,
+		caCert:               caCert,
+		connectHandler:       ch,
+		connectURL:           connectURL,
+		maxReconnectAttempts: 0,
+		rnrChan:              msg.NewRnRChan(),
+		timeout:              transports.DefaultRpcTimeout,
 	}
 
 	var _ transports.ITransportClient = cl // check interface implementation

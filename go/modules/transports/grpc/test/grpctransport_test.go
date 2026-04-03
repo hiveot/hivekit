@@ -10,6 +10,7 @@ import (
 	"time"
 
 	grpcapi "github.com/hiveot/hivekit/go/modules/transports/grpc/api"
+	"github.com/hiveot/hivekit/go/modules/transports/grpc/internal"
 	"github.com/hiveot/hivekit/go/modules/transports/grpc/internal/grpcclient"
 	"github.com/hiveot/hivekit/go/modules/transports/grpc/internal/grpcserver"
 	"github.com/hiveot/hivekit/go/utils"
@@ -59,9 +60,9 @@ func TestConnectPing(t *testing.T) {
 	}
 
 	serverURL := fmt.Sprintf("%s://%s", scheme, address)
-	cl := grpcclient.NewGrpcServiceClient(clientID, serverURL, nil, time.Minute, handleClientMessage)
+	cl := grpcclient.NewGrpcServiceClient(serverURL, nil, time.Minute, handleClientMessage)
 
-	err = cl.ConnectWithToken(token)
+	err = cl.ConnectWithToken(clientID, token)
 	require.NoError(t, err)
 
 	// test ping
@@ -98,7 +99,7 @@ func TestStreamMessages(t *testing.T) {
 		// todo test authentication?
 
 		// start the send and receive loop
-		bstrm := grpcclient.NewGrpcBufferedStream(grpcStream, handleServiceMessage, time.Minute)
+		bstrm := internal.NewGrpcBufferedStream(grpcStream, handleServiceMessage, time.Minute)
 
 		// send is dispatched after the stream is
 		err := bstrm.Send(serviceCustomMsgType, []byte(serverSendMsg))
@@ -125,9 +126,9 @@ func TestStreamMessages(t *testing.T) {
 	}
 
 	serverURL := fmt.Sprintf("%s://%s", scheme, address)
-	cl := grpcclient.NewGrpcServiceClient(clientID, serverURL, nil, time.Minute, onClientMessage)
+	cl := grpcclient.NewGrpcServiceClient(serverURL, nil, time.Minute, onClientMessage)
 
-	err = cl.ConnectWithToken(authToken)
+	err = cl.ConnectWithToken(clientID, authToken)
 	assert.NoError(t, err) // (dont use require as svc.Stop is not a defer)
 	// defer cl.Close()
 	// run blocks until the stream is closed

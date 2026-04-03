@@ -174,7 +174,12 @@ func (cl *WssTransportClient) ConnectWithToken(clientID string, token string) er
 	cl.bearerToken = token
 	// the clientID is the moduleID so set it now
 	cl.SetModuleID(clientID)
-	cl.tlsClient.ConnectWithToken(clientID, token)
+
+	err := cl.tlsClient.ConnectWithToken(clientID, token)
+	if err != nil {
+		slog.Error("ConnectWithToken connection failed", "addr", cl.wssURL, "err", err.Error())
+		return err
+	}
 	hostPort := cl.tlsClient.GetHostPort()
 	wssCancelFn, wssConn, err := ConnectWSS(
 		clientID, hostPort, cl.wssPath, cl.bearerToken, nil, cl.caCert,
@@ -307,7 +312,7 @@ func (cl *WssTransportClient) Reconnect() {
 		if !cl.retryOnDisconnect.Load() {
 			break
 		}
-		slog.Warn("Reconnecting attempt",
+		slog.Warn("Websocket reconnecting attempt",
 			slog.String("clientID", clientID),
 			slog.Int("i", i))
 		err = cl.ConnectWithToken(clientID, cl.bearerToken)
@@ -320,7 +325,7 @@ func (cl *WssTransportClient) Reconnect() {
 		// the connection timeout doesn't seem to work for some reason
 		//
 		time.Sleep(backoffDuration)
-		// slowly wait longer until 10 sec. FIXME: use random
+		// slowly wait longer until 15 sec.
 		if backoffDuration < time.Second*15 {
 			backoffDuration += time.Second
 		}
@@ -488,8 +493,8 @@ func NewHiveotWssClient(
 //	caCert is the server CA for TLS connection validation
 //	timeout is the maximum connection wait time. 0 for default.
 //	ch is the connection callback handler, nil to ignore
-func NewWotWssClient(wssURL string, caCert *x509.Certificate,
-	ch transports.ConnectionHandler) *WssTransportClient {
+func NewWotWssClient(
+	wssURL string, caCert *x509.Certificate, ch transports.ConnectionHandler) *WssTransportClient {
 
 	timeout := transports.DefaultRpcTimeout
 	urlParts, _ := url.Parse(wssURL)

@@ -7,10 +7,12 @@ import (
 	"fmt"
 	"log/slog"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/hiveot/hivekit/go/modules/transports"
 	grpcapi "github.com/hiveot/hivekit/go/modules/transports/grpc/api"
+	"github.com/hiveot/hivekit/go/modules/transports/grpc/internal"
 	"github.com/teris-io/shortid"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
@@ -31,7 +33,7 @@ type GrpcServiceClient struct {
 	authToken string
 
 	// buffered stream wrapper around the protobuf stream.
-	bufStream *BufferedStream
+	bufStream *internal.BufferedStream
 
 	// caCert in case the connectURL is an ip connection address
 	caCert *x509.Certificate
@@ -50,18 +52,21 @@ type GrpcServiceClient struct {
 	grpcConn          *grpc.ClientConn
 	grpcServiceClient grpcapi.GrpcServiceClient // interface
 	//
-	// msgStream       grpcapi.GrpcService_MsgStreamClient // interface
+
 	msgStreamCancel func()
+
+	// mutex for controlling writing and closing
+	mux sync.RWMutex
+
 	// ping from the gRPC protobuf definition
 	pingHandler func(context.Context, any) (reply string, err error)
 
 	// callback for incoming messages
 	recvHandler func(msgType string, rawJson string)
 
-	// mutex for controlling writing and closing
-	mux sync.RWMutex
-
 	respTimeout time.Duration
+
+	retryOnDisconnect atomic.Bool
 }
 
 // Close disconnects
@@ -83,9 +88,10 @@ func (cl *GrpcServiceClient) Close() {
 }
 
 // Initiate a connection to the grpc server
-func (cl *GrpcServiceClient) ConnectWithToken(authToken string) (err error) {
+func (cl *GrpcServiceClient) ConnectWithToken(clientID string, authToken string) (err error) {
 	cl.mux.Lock()
 	defer cl.mux.Unlock()
+	cl.clientID = clientID
 
 	// fail if a connection already exists
 	if cl.grpcConn != nil {
@@ -138,7 +144,7 @@ func (cl *GrpcServiceClient) ConnectWithToken(authToken string) (err error) {
 	}
 
 	// use buffered stream for sending and receiving
-	cl.bufStream = NewGrpcBufferedStream(msgStream, cl.recvHandler, cl.respTimeout)
+	cl.bufStream = internal.NewGrpcBufferedStream(msgStream, cl.recvHandler, cl.respTimeout)
 	cl.grpcServiceClient = grpcServiceClient
 
 	return nil
@@ -190,13 +196,12 @@ func (cl *GrpcServiceClient) WaitUntilDisconnect() {
 
 // Create a client for the GRPC protocol
 // caCert is optional for use with tcp sockets
-func NewGrpcServiceClient(clientID string, connectURI string, caCert *x509.Certificate, respTimeout time.Duration,
+func NewGrpcServiceClient(connectURI string, caCert *x509.Certificate, respTimeout time.Duration,
 	msgHandler func(msgType string, jsonRaw string),
 ) *GrpcServiceClient {
 
 	cl := &GrpcServiceClient{
 		caCert:       caCert,
-		clientID:     clientID,
 		connectionID: shortid.MustGenerate(),
 		connectURL:   connectURI,
 		recvHandler:  msgHandler,
