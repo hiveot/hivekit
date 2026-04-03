@@ -108,7 +108,7 @@ func (m *AuthnService) DecodeToken(token string, signedNonce string, nonce strin
 func (m *AuthnService) GetConnectURL() (uri string, protocolType string) {
 	baseURL := m.httpServer.GetConnectURL()
 	loginURL, _ := url.JoinPath(baseURL, HttpPostLoginPath)
-	return loginURL, transports.WotHttpBasicProtocolType
+	return loginURL, transports.ProtocolTypeWotHttpBasic
 }
 
 // GetProfile return the client's profile

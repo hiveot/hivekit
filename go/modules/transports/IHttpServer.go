@@ -22,7 +22,7 @@ const (
 	DefaultPort = 8444
 
 	// The context ID's for authenticated clientID and connectionID
-	ClientIDContextID = "clientID"
+	ClientIDContextID = "client-id"
 	// The client provided connection ID to differentiate different connections from the same clientID
 	ClientCIDContextID = "cid"
 

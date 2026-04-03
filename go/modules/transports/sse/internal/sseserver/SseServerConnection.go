@@ -322,7 +322,7 @@ func NewHiveotSseConnection(
 		rnrChan:     rnrChan,
 		respTimeout: respTimeout,
 	}
-	c.Init(clientID, httpReq.URL.String(), cid)
+	c.Init(clientID, httpReq.URL.String(), cid, nil, nil)
 
 	// interface check
 	var _ transports.IConnection = c

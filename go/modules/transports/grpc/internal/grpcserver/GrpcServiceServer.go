@@ -132,14 +132,17 @@ func (srv *GrpcServiceServer) Stop() {
 //	lis is the network to listen on
 //	tlsCert is the TLS certificate to use for secure connections, or nil for insecure
 //	serveHandler is called with the raw stream when one is opened by a client
+//	grpcAuthn is the grpc connection authenticator
 //	respTimeout is the messaging timeout
 func StartGrpcServiceServer(lis net.Listener,
 	tlsCert *tls.Certificate,
 	serveHandler func(clientID string, cid string, grpcStream grpcapi.GrpcService_MsgStreamServer) error,
+	grpcAuthn *GrpcAuthenticator,
 	respTimeout time.Duration,
 ) (*GrpcServiceServer, error) {
 
 	srv := &GrpcServiceServer{
+		grpcAuthn:    grpcAuthn,
 		respTimeout:  respTimeout,
 		serveHandler: serveHandler,
 		// grpcStream: nil,

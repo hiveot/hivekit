@@ -1,4 +1,4 @@
-package grpc
+package grpctransport
 
 import (
 	"crypto/x509"
@@ -11,12 +11,14 @@ import (
 //
 // This uses the HiveOT RRN messages as the payload.
 //
-// addr is the UDS path to connect to
-// caCert of the CA used by the server in establishing transport credentials
+// addr is the UDS path or tcp connection to connect with
+// caCert of the CA used for tcp URL's
 //
 // Use SetTimeout to change the default response timeout
 // Use SetRequestSink to set the handler for requests send by consumers
 // Use SetNotificationSink to set the handler for notifications send by agents.
-func NewHiveotGrpcClient(addr string, caCert *x509.Certificate) transports.ITransportClient {
-	return grpcclient.NewGrpcTransportClient(addr, caCert)
+func NewHiveotGrpcClient(
+	addr string, caCert *x509.Certificate, ch transports.ConnectionHandler) transports.ITransportClient {
+
+	return grpcclient.NewGrpcTransportClient(addr, caCert, ch)
 }

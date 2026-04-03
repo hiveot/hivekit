@@ -39,7 +39,7 @@ type HttpBasicServer struct {
 
 // GetProtocolType returns http-basic protocol type
 func (m *HttpBasicServer) GetProtocolType() string {
-	return transports.WotHttpBasicProtocolType
+	return transports.ProtocolTypeWotHttpBasic
 }
 
 // Handle a notification this module (or downstream in the chain) subscribed to.
@@ -117,7 +117,7 @@ func NewHttpBasicServer(httpServer transports.IHttpServer) *HttpBasicServer {
 
 	connectURL := httpServer.GetConnectURL()
 	authenticator := httpServer.GetAuthenticator()
-	m.Init(moduleID, transports.WotHttpBasicSubprotocol, connectURL, authenticator)
+	m.Init(moduleID, transports.SubprotocolWotHttpBasic, connectURL, authenticator)
 
 	// TODO: properties must match the module TM
 	// m.UpdateProperty(transports.PropName_NrConnections, 0)

@@ -13,6 +13,10 @@ const (
 	HiveotGrpcModuleID = "hiveot-grpc"
 )
 
+// The default socket path for the grpc UDS server
+// var HiveotGrpcSocketPath = filepath.Join(os.TempDir(), "/hiveot/grpc.sock")
+// var HiveotGrpcSocketPath = "/tmp/hiveot/grpc.sock"
+
 // error result codes
 var ErrMissingMetadata = status.Errorf(codes.InvalidArgument, "missing metadata")
 var ErrInvalidToken = status.Errorf(codes.PermissionDenied, "invalid token")

@@ -16,7 +16,6 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/hiveot/hivekit/go/modules"
 	"github.com/hiveot/hivekit/go/modules/transports"
-	"github.com/hiveot/hivekit/go/modules/transports/direct"
 	"github.com/hiveot/hivekit/go/modules/transports/httpserver/tlsclient"
 	"github.com/hiveot/hivekit/go/modules/transports/wss/internal/converter"
 	"github.com/hiveot/hivekit/go/msg"
@@ -460,17 +459,17 @@ func NewHiveotWssClient(
 		slog.Error("Invalid URL")
 		return nil
 	}
+	timeout := transports.DefaultRpcTimeout
 	hostPort := urlParts.Host
 	wssPath := urlParts.Path
-
-	timeout := transports.DefaultRpcTimeout
-
 	tlsClient := tlsclient.NewTLSClient(hostPort, nil, caCert, timeout)
 
 	cl := WssTransportClient{
+		caCert:               caCert,
+		connectHandler:       ch,
 		maxReconnectAttempts: 0,
 		// hiveot uses its own standardized RRN messages
-		msgConverter: direct.NewPassthroughMessageConverter(),
+		msgConverter: transports.NewRRNJsonEncoder(),
 		rnrChan:      msg.NewRnRChan(),
 		timeout:      timeout,
 		tlsClient:    tlsClient,

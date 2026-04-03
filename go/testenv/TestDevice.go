@@ -47,13 +47,13 @@ func (device *TestDevice) Start(_ string) error {
 		return err
 	}
 	switch device.protocolType {
-	case transports.WotHttpBasicProtocolType:
+	case transports.ProtocolTypeWotHttpBasic:
 		device.TransportServer = httpbasic.NewHttpBasicServer(device.HttpServer)
-	case transports.HiveotSseScProtocolType:
+	case transports.ProtocolTypeHiveotSsesc:
 		device.TransportServer = ssetransport.NewHiveotSseServer(device.HttpServer, 0)
-	case transports.WotWebsocketProtocolType:
+	case transports.ProtocolTypeWotWebsocket:
 		device.TransportServer = wsstransport.NewWotWssServer(device.HttpServer, 0)
-	case transports.HiveotWebsocketProtocolType:
+	case transports.ProtocolTypeHiveotWebsocket:
 		device.TransportServer = wsstransport.NewHiveotWssServer(device.HttpServer, 0)
 	}
 	err = device.TransportServer.Start("")

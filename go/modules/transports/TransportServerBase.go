@@ -134,7 +134,9 @@ func (srv *TransportServerBase) AddTDSecForms(tdoc *td.TD, includeAffordances bo
 	tdoc.Base = srv.connectURL
 
 	// 2. Set the security scheme used by the authenticator.
-	srv.authenticator.AddSecurityScheme(tdoc)
+	if srv.authenticator != nil {
+		srv.authenticator.AddSecurityScheme(tdoc)
+	}
 
 	// 3. add top level form for thing level  operations
 	// the href is empty because it is the same as base for all forms in this protocol
@@ -300,7 +302,8 @@ func (srv *TransportServerBase) ForwardNotification(notif *msg.NotificationMessa
 // If no sink os configured this returns an error
 func (srv *TransportServerBase) ForwardRequest(req *msg.RequestMessage, replyTo msg.ResponseHandler) (err error) {
 	if srv.requestSink == nil {
-		slog.Error("ForwardRequest. Server has no request sink. Server is not fully set up.")
+		slog.Error("ForwardRequest. Server has no request sink. Server is not fully set up.",
+			"op", req.Operation, "thingID", req.ThingID, "name", req.Name)
 		return fmt.Errorf("ForwardRequest: no sink for request '%s/%s' to thingID '%s'",
 			req.Operation, req.Name, req.ThingID)
 	}

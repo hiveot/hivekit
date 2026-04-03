@@ -56,7 +56,7 @@ func startService() (
 	// http server needed for all communications
 	testEnv.StartHttpServer()
 	// a websocket server for RRN messaging
-	appServer := testEnv.StartTestServer(transports.WotWebsocketProtocolType)
+	appServer := testEnv.StartTestServer(transports.ProtocolTypeWotWebsocket)
 
 	// the directory server that will contain digitwin Things
 	// digiDir := filepath.Join(storageDir, "digiDir.json")
@@ -156,7 +156,7 @@ func TestCreateDigitwinTD(t *testing.T) {
 		form0 := aff.Forms[0]
 		assert.NotEmpty(t, form0.GetOperations())
 		subprotocol, _ := form0.GetSubprotocol()
-		assert.Equal(t, subprotocol, transports.WotWebsocketSubprotocol)
+		assert.Equal(t, subprotocol, transports.SubprotocolWotWebsocket)
 	}
 	for _, aff := range dtw1.Events {
 		require.NotEmpty(t, aff.Forms)

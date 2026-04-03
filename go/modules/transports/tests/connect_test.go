@@ -25,9 +25,13 @@ const testAgentID1 = "agent1"
 const testClientID1 = "client1"
 
 // server endpoint/protocol used
-// var defaultProtocol = transports.ProtocolTypeHiveotSSE
+// var defaultProtocol = transports.ProtocolTypeHiveotSsesc
 
-var defaultProtocol = transports.WotWebsocketProtocolType
+var defaultProtocol = transports.ProtocolTypeHiveotGrpc
+
+// var defaultProtocol = transports.ProtocolTypeHiveotWebsocket
+
+// var defaultProtocol = transports.ProtocolTypeWotWebsocket
 
 var certBundle = certstest.CreateTestCertBundle(utils.KeyTypeED25519)
 

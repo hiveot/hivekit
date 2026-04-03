@@ -94,7 +94,8 @@ func TestInvokeActionFromConsumerToServer(t *testing.T) {
 }
 
 // Warning: this is a bit of a mind bender if you're used to classic consumer->thing interaction.
-// This test uses a Thing agent as a client and have it reply to a request from the server.
+// This test uses a Thing agent as a client (reverse connection) and have it reply to a request
+// from the server.
 // The server in this case passes on a message received from a consumer, which is also a client.
 // This reflects the use-case of agents using connection reversal to gateways.
 func TestInvokeActionFromServerToAgent(t *testing.T) {

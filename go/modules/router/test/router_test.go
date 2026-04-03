@@ -41,7 +41,7 @@ const testRouterID = "router1"
 
 // const serverType = transports.WotHttpBasicProtocolType
 
-const serverType = transports.WotWebsocketProtocolType
+const serverType = transports.ProtocolTypeWotWebsocket
 
 // the test directory that holds this td. http server is not needed
 

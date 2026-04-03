@@ -27,7 +27,7 @@ import (
 var storageDir = filepath.Join(os.TempDir(), "hivekit", "directory-test")
 
 const defaultAgentID = "agent-smith"
-const defaultProtocol = transports.WotWebsocketProtocolType
+const defaultProtocol = transports.ProtocolTypeWotWebsocket
 const TestKeyType = utils.KeyTypeED25519
 
 // TestMain setsup logging

@@ -100,11 +100,11 @@ func (sc *BufferedStream) IsConnected() bool {
 // If the buffer fills up then the send is retried 10 times, each with a (10usec) larger delay.
 // If this still fails then the client connection is broken or the receiver is stuck. In that
 // case this returns an error and the sender should consider closing the connection.
-func (bs *BufferedStream) Send(msgType, jsonPayload string) (err error) {
+func (bs *BufferedStream) Send(msgType string, jsonPayload []byte) (err error) {
 	const MaxRetryCount = 10
 	grpcMsg := &grpcapi.GrpcMsg{
 		MsgType:     msgType,
-		JsonPayload: jsonPayload,
+		JsonPayload: string(jsonPayload),
 	}
 	// if the send channel is full, allow a wait before disconnecting the client.
 	ctx, cancelFn := context.WithTimeout(context.Background(), bs.sendTimeout)
@@ -137,7 +137,7 @@ func (bs *BufferedStream) Send(msgType, jsonPayload string) (err error) {
 		default:
 			// if the channel is full then retry, but add a substantial delay
 			bs.fcDelay = bs.fcDelay + time.Microsecond*10
-			slog.Warn("Send: channel is full. increasing sent delay to ", "delay", bs.fcDelay)
+			slog.Warn("Send: channel is full. Retrying and increasing send delay to ", "delay", bs.fcDelay)
 			err = grpcapi.ErrClientTooSlow
 			if retryCount == 1 {
 				// ideally this never happens
@@ -157,8 +157,10 @@ func (bs *BufferedStream) Send(msgType, jsonPayload string) (err error) {
 // Intended to be called by the (server) serve handler to avoid the stream from
 // closing on return.
 func (bs *BufferedStream) WaitUntilDisconnect() {
-	<-(bs.cancelChan)
-	bs.isConnected.Store(false)
+	if bs.isConnected.Load() {
+		<-(bs.cancelChan)
+		bs.isConnected.Store(false)
+	}
 }
 
 // NewGrpcBufferedStream creates a concurrently safe buffered instance from a grpc stream.

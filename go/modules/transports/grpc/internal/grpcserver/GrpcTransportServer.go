@@ -4,6 +4,9 @@ import (
 	"crypto/tls"
 	"fmt"
 	"net"
+	"os"
+	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/hiveot/hivekit/go/modules/transports"
@@ -19,6 +22,8 @@ const DefaultUDSModuleID = "hiveotuds"
 // The embedded TransportServerBase is used for managing connections and forwarding messages to sinks.
 type GrpcTransportServer struct {
 	transports.TransportServerBase
+	// Authenticate
+	authn transports.IAuthenticator
 
 	tlsCert *tls.Certificate
 
@@ -32,7 +37,7 @@ type GrpcTransportServer struct {
 
 // GetProtocolType returns type identifier of the server protocol as defined by its module
 func (m *GrpcTransportServer) GetProtocolType() string {
-	return transports.HiveotGrpcProtocolType
+	return transports.ProtocolTypeHiveotGrpc
 }
 
 // a request passed to this server is forwarded to the connection with the matching ID
@@ -55,9 +60,12 @@ func (m *GrpcTransportServer) HandleRequest(
 // This creates a new transport connection for the stream and blocks until the stream is closed.
 func (m *GrpcTransportServer) serveStream(clientID string, cid string, grpcStream grpcapi.GrpcService_MsgStreamServer) error {
 
+	// authentication???
+
 	// Create a hiveot transport connection for this stream.
 	c := StartGrpcTransportConnection(clientID, cid, grpcStream,
-		m.ForwardRequest, m.ForwardNotification, m.respTimeout)
+		m.ForwardRequest, m.ForwardNotification)
+	c.SetTimeout(m.respTimeout)
 
 	m.AddConnection(c)
 	// must block until connection closes
@@ -69,15 +77,23 @@ func (m *GrpcTransportServer) serveStream(clientID string, cid string, grpcStrea
 func (m *GrpcTransportServer) Start(yamlConfig string) (err error) {
 	// FIXME: use the URL scheme to support network tcp and unix sockets
 	// connectURL := fmt.Sprintf("unix://%s", m.udsPath)
-	m.Init(DefaultUDSModuleID, "hiveot-uds", m.connectURL, nil)
+	m.Init(DefaultUDSModuleID, "hiveot-uds", m.connectURL, m.authn)
 
-	// start listening on unix sockets
-	lis, err := net.Listen("unix", m.connectURL)
+	udsFilePath := m.connectURL
+	// start listening on unix sockets. Make sure the directory exists and the socket file doesn't.
+	udsFilePath = strings.TrimPrefix(udsFilePath, "uds://")
+	udsFilePath = strings.TrimPrefix(udsFilePath, "unix://")
+	udsDir := filepath.Dir(udsFilePath)
+	err = os.MkdirAll(udsDir, 0700)
+	err = os.RemoveAll(udsFilePath)
+
+	lis, err := net.Listen("unix", udsFilePath)
 	if err != nil {
 		return err
 	}
-
-	m.grpcService, err = StartGrpcServiceServer(lis, nil, m.serveStream, time.Minute)
+	grpcAuthn := NewGrpcAuthenticator(m.authn)
+	m.grpcService, err = StartGrpcServiceServer(
+		lis, nil, m.serveStream, grpcAuthn, time.Minute)
 	if err != nil {
 		lis.Close()
 		return err
@@ -94,10 +110,12 @@ func (m *GrpcTransportServer) Stop() {
 //
 // connectURL is the URL to listen on, e.g. unix://{/path.sock} or tcp://localhost:{port}
 // tlsCert is the TLS certificate to use for secure connections, or nil for insecure
+// authn is the authenticator for verifying the client token
 // respTimeout is the time the server waits for a response when sending requests. defaults to 3sec
-func NewHiveotGrpcServer(connectURL string, tlsCert *tls.Certificate, respTimeout time.Duration) *GrpcTransportServer {
+func NewHiveotGrpcServer(connectURL string, tlsCert *tls.Certificate, authn transports.IAuthenticator, respTimeout time.Duration) *GrpcTransportServer {
 
 	srv := &GrpcTransportServer{
+		authn:       authn,
 		connectURL:  connectURL,
 		tlsCert:     tlsCert,
 		respTimeout: respTimeout,

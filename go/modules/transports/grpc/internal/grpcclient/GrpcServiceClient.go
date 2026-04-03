@@ -27,6 +27,8 @@ const ClientMsgChanSize = 30
 //
 // This also implements the PerTransportBundle PerRPCCredentials interface
 type GrpcServiceClient struct {
+	// pass auth token to GetRequestMetadata
+	authToken string
 
 	// buffered stream wrapper around the protobuf stream.
 	bufStream *BufferedStream
@@ -66,9 +68,8 @@ type GrpcServiceClient struct {
 func (cl *GrpcServiceClient) Close() {
 	cl.mux.Lock()
 	defer cl.mux.Unlock()
-	if cl.bufStream != nil {
+	if cl.bufStream.IsConnected() {
 		cl.bufStream.Close()
-		cl.bufStream = nil
 	}
 	if cl.msgStreamCancel != nil {
 		cl.msgStreamCancel()
@@ -82,7 +83,7 @@ func (cl *GrpcServiceClient) Close() {
 }
 
 // Initiate a connection to the grpc server
-func (cl *GrpcServiceClient) Connect() (err error) {
+func (cl *GrpcServiceClient) ConnectWithToken(authToken string) (err error) {
 	cl.mux.Lock()
 	defer cl.mux.Unlock()
 
@@ -114,10 +115,12 @@ func (cl *GrpcServiceClient) Connect() (err error) {
 		nocreds := grpc.WithTransportCredentials(insecure.NewCredentials())
 		dialOpts = append(dialOpts, nocreds)
 	}
+
 	// this client implements the PerRPCCredentials interface
 	// see: GetRequestMetadata and RequireTransportSecurity
-	// rpcCredOpt := grpc.WithPerRPCCredentials(cl)
-	// dialOpts = append(dialOpts, rpcCredOpt)
+	cl.authToken = authToken
+	rpcCredOpt := grpc.WithPerRPCCredentials(cl)
+	dialOpts = append(dialOpts, rpcCredOpt)
 
 	cl.grpcConn, err = grpc.NewClient(cl.connectURL, dialOpts...)
 	if err != nil {
@@ -147,7 +150,7 @@ func (cl *GrpcServiceClient) GetConnectionID() string {
 }
 
 func (cl *GrpcServiceClient) IsConnected() bool {
-	return cl.bufStream.IsConnected()
+	return cl.bufStream != nil && cl.bufStream.IsConnected()
 }
 
 func (cl *GrpcServiceClient) Ping(pingText string) (reply string, err error) {
@@ -162,18 +165,22 @@ func (cl *GrpcServiceClient) Ping(pingText string) (reply string, err error) {
 
 // PerRPCCredentials:GetRequestMetadata
 func (cl *GrpcServiceClient) GetRequestMetadata(ctx context.Context, uri ...string) (map[string]string, error) {
+	// bearer authentication
 	return map[string]string{
+		"authorization":               "bearer " + cl.authToken,
 		transports.ClientIDContextID:  cl.clientID,
 		transports.ClientCIDContextID: cl.connectionID,
 	}, nil
 }
 
 // PerRPCCredentials:RequireTransportSecurity
-func (cl *GrpcServiceClient) RequireTransportSecurity() bool { return true }
+// FIXME: support for TLS certificate only when using tcp connections, not when using UDS
+func (cl *GrpcServiceClient) RequireTransportSecurity() bool { return false }
 
 // Send a message to the server
-func (cl *GrpcServiceClient) Send(msgType string, jsonPayload string) {
-	cl.bufStream.Send(msgType, jsonPayload)
+func (cl *GrpcServiceClient) Send(msgType string, jsonPayload []byte) (err error) {
+	err = cl.bufStream.Send(msgType, jsonPayload)
+	return err
 }
 
 // WaitUntilDisconnect waits until the client connection is closed.

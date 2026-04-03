@@ -8,6 +8,7 @@ import (
 
 	"github.com/hiveot/hivekit/go/modules"
 	"github.com/hiveot/hivekit/go/modules/transports"
+	grpctransport "github.com/hiveot/hivekit/go/modules/transports/grpc"
 	"github.com/hiveot/hivekit/go/modules/transports/httpbasic"
 	ssetransport "github.com/hiveot/hivekit/go/modules/transports/sse"
 	wsstransport "github.com/hiveot/hivekit/go/modules/transports/wss"
@@ -54,14 +55,14 @@ func GetProtocolType(tdoc *td.TD) (protocolType string, href string) {
 		}
 		if found {
 			switch subprotocol {
-			case transports.HiveotSseScSubprotocol:
-				protocolType = transports.HiveotSseScProtocolType
-			case transports.HiveotWebsocketSubprotocol:
-				protocolType = transports.HiveotWebsocketProtocolType
-			case transports.WotWebsocketSubprotocol:
-				protocolType = transports.WotWebsocketProtocolType
-			case transports.WotHttpLongPollSubprotocol:
-				protocolType = transports.WotHttpLongPollProtocolType
+			case transports.SubprotocolHiveotSsesc:
+				protocolType = transports.ProtocolTypeHiveotSsesc
+			case transports.SubprotocolHiveotWebsocket:
+				protocolType = transports.ProtocolTypeHiveotWebsocket
+			case transports.SubprotocolWotWebsocket:
+				protocolType = transports.ProtocolTypeWotWebsocket
+			case transports.SubprotocolWotHttpLongPoll:
+				protocolType = transports.ProtocolTypeWotHttpLongPoll
 			}
 		}
 	}
@@ -72,19 +73,22 @@ func GetProtocolType(tdoc *td.TD) (protocolType string, href string) {
 	if href == "" {
 		href = tdoc.Base
 	}
-	if strings.HasPrefix(href, transports.WotHttpBasicUriScheme) {
-		return transports.WotHttpBasicProtocolType, href
+	if strings.HasPrefix(href, transports.UriSchemeWotHttpBasic) {
+		return transports.ProtocolTypeWotHttpBasic, href
 	}
 	// a normal TD device should have a subprotocol so not sure what is going on here.
 	// just some fallback options
-	if strings.HasPrefix(href, transports.WotWebsocketUriScheme) {
-		return transports.WotWebsocketProtocolType, href
+	if strings.HasPrefix(href, transports.UriSchemeWotWebsocket) {
+		return transports.ProtocolTypeWotWebsocket, href
 	}
-	if strings.HasPrefix(href, transports.WotMqttUriScheme) {
-		return transports.WotMqttProtocolType, href
+	if strings.HasPrefix(href, transports.UriSchemeWotMqtt) {
+		return transports.ProtocolTypeWotMqtt, href
 	}
-	if strings.HasPrefix(href, transports.WotSseUriScheme) {
-		return transports.WotSseProtocolType, href
+	if strings.HasPrefix(href, transports.UriSchemeWotSse) {
+		return transports.ProtocolTypeWotSse, href
+	}
+	if strings.HasPrefix(href, transports.UriSchemeHiveotGrpc) {
+		return transports.ProtocolTypeHiveotGrpc, href
 	}
 	return "", href
 }
@@ -107,30 +111,39 @@ func NewTransportClient(protocolType string, serverURL string, caCert *x509.Cert
 
 	// use the URL to determine the protocol
 	if protocolType == "" {
-		if strings.HasPrefix(serverURL, transports.WotWebsocketUriScheme) {
-			protocolType = transports.WotWebsocketProtocolType
-		} else if strings.HasPrefix(serverURL, transports.WotSseUriScheme) {
-			protocolType = transports.WotSseProtocolType
-		} else if strings.HasPrefix(serverURL, transports.WotMqttUriScheme) {
-			protocolType = transports.WotMqttProtocolType
-		} else if strings.HasPrefix(serverURL, transports.WotHttpBasicUriScheme) {
-			protocolType = transports.WotHttpBasicProtocolType
-		} else if strings.HasPrefix(serverURL, transports.HiveotSseScUriScheme) {
-			protocolType = transports.HiveotSseScProtocolType
+		if strings.HasPrefix(serverURL, transports.UriSchemeHiveotGrpc) {
+			protocolType = transports.ProtocolTypeHiveotGrpc
+		} else if strings.HasPrefix(serverURL, transports.UriSchemeWotWebsocket) {
+			protocolType = transports.ProtocolTypeWotWebsocket
+		} else if strings.HasPrefix(serverURL, transports.UriSchemeWotSse) {
+			protocolType = transports.ProtocolTypeWotSse
+		} else if strings.HasPrefix(serverURL, transports.UriSchemeWotMqtt) {
+			protocolType = transports.ProtocolTypeWotMqtt
+		} else if strings.HasPrefix(serverURL, transports.UriSchemeWotHttpBasic) {
+			protocolType = transports.ProtocolTypeWotHttpBasic
+		} else if strings.HasPrefix(serverURL, transports.UriSchemeHiveotSseSc) {
+			protocolType = transports.ProtocolTypeHiveotSsesc
 		}
 	}
 
 	switch protocolType {
-	case transports.HiveotSseScProtocolType:
+	case transports.ProtocolTypeHiveotGrpc:
+		// don't use TLS on unix domain sockets
+		if strings.HasPrefix(serverURL, "unix") {
+			caCert = nil
+		}
+		cl = grpctransport.NewHiveotGrpcClient(serverURL, caCert, ch)
+
+	case transports.ProtocolTypeHiveotSsesc:
 		cl = ssetransport.NewHiveotSseClient(serverURL, caCert, ch)
 
-	case transports.HiveotWebsocketProtocolType:
+	case transports.ProtocolTypeHiveotWebsocket:
 		cl = wsstransport.NewHiveotWssClient(serverURL, caCert, ch)
 
-	case transports.WotWebsocketProtocolType:
+	case transports.ProtocolTypeWotWebsocket:
 		cl = wsstransport.NewWotWssClient(serverURL, caCert, ch)
 
-	case transports.WotHttpBasicProtocolType:
+	case transports.ProtocolTypeWotHttpBasic:
 		caCert := caCert
 		cl = httpbasic.NewHttpBasicClient(serverURL, caCert, nil, ch)
 

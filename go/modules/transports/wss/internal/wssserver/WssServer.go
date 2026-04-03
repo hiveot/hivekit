@@ -10,7 +10,6 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/hiveot/hivekit/go/modules"
 	"github.com/hiveot/hivekit/go/modules/transports"
-	"github.com/hiveot/hivekit/go/modules/transports/direct"
 	wssapi "github.com/hiveot/hivekit/go/modules/transports/wss/api"
 	wssconverter "github.com/hiveot/hivekit/go/modules/transports/wss/internal/converter"
 	"github.com/hiveot/hivekit/go/msg"
@@ -113,7 +112,8 @@ func (m *WssTransportServer) Serve(w http.ResponseWriter, r *http.Request) {
 
 	// the new server connection sends messages to the module sink
 	c := NewWSSServerConnection(clientID, r, wssConn, m.msgConverter,
-		m.ForwardRequest, m.ForwardNotification, m.respTimeout)
+		m.ForwardRequest, m.ForwardNotification)
+	c.SetTimeout(m.respTimeout)
 	// add connection sends a notification
 	err = m.AddConnection(c)
 
@@ -186,16 +186,16 @@ func NewHiveotWssServer(httpServer transports.IHttpServer, respTimeout time.Dura
 	}
 	m := &WssTransportServer{
 		httpServer:   httpServer,
-		msgConverter: direct.NewPassthroughMessageConverter(),
-		protocolType: transports.HiveotWebsocketProtocolType,
+		msgConverter: transports.NewRRNJsonEncoder(),
+		protocolType: transports.ProtocolTypeHiveotWebsocket,
 		// connectHandler: nil,
 		respTimeout: respTimeout,
 		wssPath:     wssapi.HiveotWebsocketPath,
 	}
 	// set the base parameters
 	moduleID := wssapi.HiveotWebsocketModuleID
-	subProtocol := transports.HiveotWebsocketSubprotocol
-	connectURL := fmt.Sprintf("%s://%s%s", transports.HiveotWebsocketUriScheme, urlParts.Host, m.wssPath)
+	subProtocol := transports.SubprotocolHiveotWebsocket
+	connectURL := fmt.Sprintf("%s://%s%s", transports.UriSchemeHiveotWebsocket, urlParts.Host, m.wssPath)
 	m.Init(moduleID, subProtocol, connectURL, httpServer.GetAuthenticator())
 	return m
 }
@@ -222,13 +222,13 @@ func NewWotWssServer(httpServer transports.IHttpServer, respTimeout time.Duratio
 		httpServer:   httpServer,
 		msgConverter: wssconverter.NewWotWssMsgConverter(),
 		respTimeout:  respTimeout,
-		protocolType: transports.WotWebsocketProtocolType,
+		protocolType: transports.ProtocolTypeWotWebsocket,
 		wssPath:      wssapi.WotWebsocketPath,
 	}
 
 	moduleID := wssapi.WotWebsocketModuleID
-	subProtocol := transports.WotWebsocketSubprotocol
-	connectURL := fmt.Sprintf("%s://%s%s", transports.WotWebsocketUriScheme, urlParts.Host, m.wssPath)
+	subProtocol := transports.SubprotocolWotWebsocket
+	connectURL := fmt.Sprintf("%s://%s%s", transports.UriSchemeWotWebsocket, urlParts.Host, m.wssPath)
 	m.Init(moduleID, subProtocol, connectURL, httpServer.GetAuthenticator())
 	// m.UpdateProperty(transports.PropName_NrConnections, 0)
 

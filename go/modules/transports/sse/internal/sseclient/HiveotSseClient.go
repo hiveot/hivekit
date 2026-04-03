@@ -13,7 +13,6 @@ import (
 
 	"github.com/hiveot/hivekit/go/modules"
 	"github.com/hiveot/hivekit/go/modules/transports"
-	"github.com/hiveot/hivekit/go/modules/transports/direct"
 	"github.com/hiveot/hivekit/go/modules/transports/httpserver/tlsclient"
 	sseapi "github.com/hiveot/hivekit/go/modules/transports/sse/api"
 	"github.com/hiveot/hivekit/go/msg"
@@ -44,7 +43,7 @@ type HiveotSseClient struct {
 	lastError atomic.Pointer[error]
 
 	// convert the request/response to the SSE messaging protocol used
-	msgConverter transports.IMessageConverter
+	msgEncoder transports.IMessageConverter
 
 	// sse variables access
 	mux sync.RWMutex
@@ -259,7 +258,7 @@ func (cl *HiveotSseClient) handleSseEvent(event sse.Event) {
 	// Use the hiveot message envelopes for request, response and notification
 	switch event.Type {
 	case msg.MessageTypeNotification:
-		notif := cl.msgConverter.DecodeNotification([]byte(event.Data))
+		notif := cl.msgEncoder.DecodeNotification([]byte(event.Data))
 		if notif == nil {
 			return
 		}
@@ -282,7 +281,7 @@ func (cl *HiveotSseClient) handleSseEvent(event sse.Event) {
 		}
 	case msg.MessageTypeRequest:
 		var err error
-		req := cl.msgConverter.DecodeRequest([]byte(event.Data))
+		req := cl.msgEncoder.DecodeRequest([]byte(event.Data))
 		if req == nil {
 			return
 		}
@@ -309,7 +308,7 @@ func (cl *HiveotSseClient) handleSseEvent(event sse.Event) {
 		}
 
 	case msg.MessageTypeResponse:
-		resp := cl.msgConverter.DecodeResponse([]byte(event.Data))
+		resp := cl.msgEncoder.DecodeResponse([]byte(event.Data))
 		if resp == nil {
 			slog.Info("handleSseEvent: Received SSE Event but decoder returns nil", "data", string(event.Data))
 			return
@@ -543,7 +542,7 @@ func NewHiveotSseClient(sseURL string, caCert *x509.Certificate,
 
 	cl := &HiveotSseClient{
 		connectHandler: ch,
-		msgConverter:   direct.NewPassthroughMessageConverter(),
+		msgEncoder:     transports.NewRRNJsonEncoder(),
 		rnrChan:        msg.NewRnRChan(),
 		ssePath:        ssePath,
 		tlsClient:      tlsClient,

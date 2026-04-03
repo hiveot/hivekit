@@ -7,7 +7,6 @@ import (
 
 	"github.com/hiveot/hivekit/go/modules"
 	"github.com/hiveot/hivekit/go/modules/transports"
-	"github.com/hiveot/hivekit/go/modules/transports/direct"
 	sseapi "github.com/hiveot/hivekit/go/modules/transports/sse/api"
 	"github.com/hiveot/hivekit/go/msg"
 )
@@ -42,7 +41,7 @@ type HiveotSseServer struct {
 }
 
 func (m *HiveotSseServer) GetProtocolType() string {
-	return transports.HiveotSseScProtocolType
+	return transports.ProtocolTypeHiveotSsesc
 }
 
 // HandleRequest handles requests directed at this module or a connected agent.
@@ -98,10 +97,10 @@ func NewHiveotSseServer(httpServer transports.IHttpServer, respTimeout time.Dura
 	httpAddr := httpServer.GetConnectURL()
 	urlParts, _ := url.Parse(httpAddr)
 
-	connectURL := fmt.Sprintf("%s://%s%s", transports.HiveotSseScUriScheme, urlParts.Host, ssePath)
+	connectURL := fmt.Sprintf("%s://%s%s", transports.UriSchemeHiveotSseSc, urlParts.Host, ssePath)
 
 	// use the RRN message format. Simple passthrough.
-	converter := direct.NewPassthroughMessageConverter()
+	converter := transports.NewRRNJsonEncoder()
 	if respTimeout == 0 {
 		respTimeout = transports.DefaultRpcTimeout
 	}
@@ -113,7 +112,7 @@ func NewHiveotSseServer(httpServer transports.IHttpServer, respTimeout time.Dura
 		respTimeout: respTimeout,
 	}
 	moduleID := sseapi.HiveotSseScModuleID
-	m.Init(moduleID, transports.HiveotSseScSubprotocol, connectURL, httpServer.GetAuthenticator())
+	m.Init(moduleID, transports.SubprotocolHiveotSsesc, connectURL, httpServer.GetAuthenticator())
 
 	var _ modules.IHiveModule = m         // interface check
 	var _ transports.ITransportServer = m // interface check

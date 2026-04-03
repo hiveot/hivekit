@@ -12,6 +12,7 @@ import (
 	certstest "github.com/hiveot/hivekit/go/modules/certs/test"
 	"github.com/hiveot/hivekit/go/modules/clients"
 	"github.com/hiveot/hivekit/go/modules/transports"
+	grpctransport "github.com/hiveot/hivekit/go/modules/transports/grpc"
 	"github.com/hiveot/hivekit/go/modules/transports/httpbasic"
 	"github.com/hiveot/hivekit/go/modules/transports/httpserver"
 	httpserverapi "github.com/hiveot/hivekit/go/modules/transports/httpserver/api"
@@ -27,6 +28,9 @@ const (
 	TestServerHttpPort = 9445
 	TestTimeout        = time.Minute * 3
 )
+
+var TestUDSPath = "/tmp/hivekit/testenv.socket"
+var TestUDSURL = transports.UriSchemeHiveotGrpc + "://" + TestUDSPath
 
 // testTDs are a bunch of TD's for generating test data. The first 5 are predefined and always the same.
 // A higher number generates at random.
@@ -244,21 +248,25 @@ func (testEnv *TestEnv) StartTestServer(protocol string) (srv transports.ITransp
 	var err error
 
 	switch protocol {
-	case transports.HiveotSseScProtocolType:
+	case transports.ProtocolTypeHiveotGrpc:
+		srv = grpctransport.NewHiveotGrpcServer(
+			TestUDSURL, testEnv.CertBundle.ServerCert, testEnv.TestAuthn, TestTimeout)
+		err = srv.Start("")
+
+	case transports.ProtocolTypeHiveotSsesc:
 		srv = ssetransport.NewHiveotSseServer(testEnv.HttpServer, TestTimeout)
 		err = srv.Start("")
 
-	case transports.HiveotWebsocketProtocolType:
+	case transports.ProtocolTypeHiveotWebsocket:
 		srv = wsstransport.NewHiveotWssServer(testEnv.HttpServer, TestTimeout)
 		err = srv.Start("")
 
-	case transports.WotHttpBasicProtocolType:
-
+	case transports.ProtocolTypeWotHttpBasic:
 		srv = httpbasic.NewHttpBasicServer(testEnv.HttpServer)
 		err = srv.Start("")
 		// http only, no subprotocol bindings
 
-	case transports.WotWebsocketProtocolType:
+	case transports.ProtocolTypeWotWebsocket:
 		srv = wsstransport.NewWotWssServer(testEnv.HttpServer, TestTimeout)
 		err = srv.Start("")
 

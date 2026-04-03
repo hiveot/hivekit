@@ -25,8 +25,11 @@ func (srv *GrpcAuthenticator) Authenticate(ctx context.Context) (md metadata.MD,
 	if len(mdAuthn) == 0 {
 		return md, "", grpcapi.ErrInvalidToken
 	}
+	// remote the bearer prefix from the token
 	token := mdAuthn[0] // FIXME: is this bearer???
-	clientID, _, err = srv.authenticator.ValidateToken(token)
+	tokenParts := strings.Split(token, " ")
+	bearerToken := tokenParts[1]
+	clientID, _, err = srv.authenticator.ValidateToken(bearerToken)
 	if err != nil {
 		return md, "", err
 	} else if clientID != contextClientID {
