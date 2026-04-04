@@ -56,7 +56,7 @@ func startService() (
 	// http server needed for all communications
 	testEnv.StartHttpServer()
 	// a websocket server for RRN messaging
-	appServer := testEnv.StartTestServer(transports.ProtocolTypeWotWebsocket)
+	appServer := testEnv.StartTestServer("")
 
 	// the directory server that will contain digitwin Things
 	// digiDir := filepath.Join(storageDir, "digiDir.json")
@@ -146,7 +146,8 @@ func TestCreateDigitwinTD(t *testing.T) {
 	// 4. check if the base form points to the server
 	require.NotEmpty(t, dtw1.Base, "Missing base in TD")
 	expectedBase := testEnv.Server.GetConnectURL()
-	expectedProtocolType := testEnv.Server.GetProtocolType()
+	expectedProtocolType, expectedSubProtocol := testEnv.Server.GetProtocolType()
+	_ = expectedSubProtocol
 	assert.NotEmpty(t, expectedProtocolType)
 	assert.Equal(t, expectedBase, dtw1.Base)
 
@@ -156,7 +157,7 @@ func TestCreateDigitwinTD(t *testing.T) {
 		form0 := aff.Forms[0]
 		assert.NotEmpty(t, form0.GetOperations())
 		subprotocol, _ := form0.GetSubprotocol()
-		assert.Equal(t, subprotocol, transports.SubprotocolWotWebsocket)
+		assert.Equal(t, subprotocol, expectedSubProtocol)
 	}
 	for _, aff := range dtw1.Events {
 		require.NotEmpty(t, aff.Forms)

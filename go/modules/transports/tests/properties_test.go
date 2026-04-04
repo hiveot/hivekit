@@ -30,7 +30,7 @@ func TestObservePropertyByConsumer(t *testing.T) {
 	var propValue2 = "value2"
 
 	// 1. start the server
-	testEnv, cancelFn := testenv.StartTestEnv(defaultProtocol)
+	testEnv, cancelFn := testenv.StartTestEnv(testProtocol)
 	defer cancelFn()
 
 	// 2. connect with two consumers
@@ -110,7 +110,7 @@ func TestPublishPropertyByAgent(t *testing.T) {
 	}
 
 	// 1. start the transport
-	testEnv, cancelFn := testenv.StartTestEnv(defaultProtocol)
+	testEnv, cancelFn := testenv.StartTestEnv(testProtocol)
 	testEnv.Server.SetNotificationSink(notificationHandler)
 	defer cancelFn()
 
@@ -148,7 +148,7 @@ func TestReadProperty(t *testing.T) {
 		}
 		return replyTo(resp)
 	}
-	testEnv, cancelFn := testenv.StartTestEnv(defaultProtocol)
+	testEnv, cancelFn := testenv.StartTestEnv(testProtocol)
 	testEnv.Server.SetRequestSink(appReqHandler)
 	defer cancelFn()
 
@@ -184,7 +184,7 @@ func TestReadAllProperties(t *testing.T) {
 		}
 		return replyTo(resp)
 	}
-	testEnv, cancelFn := testenv.StartTestEnv(defaultProtocol)
+	testEnv, cancelFn := testenv.StartTestEnv(testProtocol)
 	testEnv.Server.SetRequestSink(appReqHandler)
 	defer cancelFn()
 

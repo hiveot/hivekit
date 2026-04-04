@@ -56,7 +56,7 @@ func TestConnectPing(t *testing.T) {
 	defer srv.Stop()
 
 	// connect with the client
-	handleClientMessage := func(msgType string, jsonRaw string) {
+	handleClientMessage := func(msgType string, raw []byte) {
 	}
 
 	serverURL := fmt.Sprintf("%s://%s", scheme, address)
@@ -91,8 +91,8 @@ func TestStreamMessages(t *testing.T) {
 	var svc *grpcserver.GrpcServiceServer
 
 	// setup the server
-	handleServiceMessage := func(msgType string, jsonRaw string) {
-		assert.Equal(t, clientSendMsg, jsonRaw)
+	handleServiceMessage := func(msgType string, raw []byte) {
+		assert.Equal(t, clientSendMsg, string(raw))
 		msgCount.Add(1)
 	}
 	serveStream := func(clientID, cid string, grpcStream grpcapi.GrpcService_MsgStreamServer) error {
@@ -119,10 +119,10 @@ func TestStreamMessages(t *testing.T) {
 	time.Sleep(time.Millisecond)
 
 	// connect the client and receive the server message
-	onClientMessage := func(msgType string, jsonRaw string) {
+	onClientMessage := func(msgType string, raw []byte) {
 		msgCount.Add(1)
 		assert.Equal(t, serviceCustomMsgType, msgType)
-		assert.Equal(t, serverSendMsg, jsonRaw)
+		assert.Equal(t, serverSendMsg, string(raw))
 	}
 
 	serverURL := fmt.Sprintf("%s://%s", scheme, address)

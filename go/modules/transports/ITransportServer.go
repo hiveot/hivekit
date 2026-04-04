@@ -28,7 +28,9 @@ const (
 
 	// HiveOT gRPC is intended for local inter-process communication using UDS,
 	// and uses the HiveOT RRN messages as the payload.
+	// TODO: also support the tcp variant
 	ProtocolTypeHiveotGrpc = "hiveot-grpc"
+	SubprotocolHiveotGrpc  = "" // not a subprotocol
 	UriSchemeHiveotGrpc    = "unix"
 
 	// HiveOT websocket uses RRN messages as the envelope.
@@ -92,8 +94,8 @@ type ITransportServer interface {
 	// GetConnectURL returns connection URL of the server
 	GetConnectURL() (uri string)
 
-	// GetProtocolType returns type identifier of the server protocol as defined by its module
-	GetProtocolType() string
+	// GetProtocolType returns type identifier of the server protocol type and form sub-protocol
+	GetProtocolType() (string, string)
 
 	// SendNotification [agent] sends a notification over the connections to
 	// remote subscribed consumers.

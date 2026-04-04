@@ -31,7 +31,7 @@ func TestSubscribeAll(t *testing.T) {
 	var agentRxEvent atomic.Bool
 
 	// 1. start the servers
-	testEnv, cancelFn := testenv.StartTestEnv(defaultProtocol)
+	testEnv, cancelFn := testenv.StartTestEnv(testProtocol)
 	defer cancelFn()
 
 	// 2. connect as consumers
@@ -127,7 +127,7 @@ func TestPublishEventsByAgent(t *testing.T) {
 			evVal.Store(msg.Data)
 		}
 	}
-	testEnv, cancelFn := testenv.StartTestEnv(defaultProtocol)
+	testEnv, cancelFn := testenv.StartTestEnv(testProtocol)
 	testEnv.Server.SetNotificationSink(notificationHandler)
 	defer cancelFn()
 
@@ -169,7 +169,7 @@ func TestReadEvent(t *testing.T) {
 		return replyTo(resp)
 	}
 
-	testEnv, cancelFn := testenv.StartTestEnv(defaultProtocol)
+	testEnv, cancelFn := testenv.StartTestEnv(testProtocol)
 	testEnv.Server.SetRequestSink(agentReqHandler)
 	defer cancelFn()
 

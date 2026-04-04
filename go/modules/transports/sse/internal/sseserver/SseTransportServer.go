@@ -11,17 +11,17 @@ import (
 	"github.com/hiveot/hivekit/go/msg"
 )
 
-// HiveotSseServer is a transport module for serving the HiveOT SSE-SC transport protocol.
+// SseTransportServer is a transport module for serving the HiveOT SSE-SC transport protocol.
 // This implements the ITransportModule (and IHiveModule) interface.
 //
 // This transport protocol is build on top of HTTP and is bi-directional.
 // It supports subscribing to events or observing properties.
-type HiveotSseServer struct {
+type SseTransportServer struct {
 	// Transport base includes the RnR channel for matching request-response messages.
 	transports.TransportServerBase
 
-	// SSE-Sc protocol message converter
-	converter transports.IMessageConverter
+	// SSE-Sc protocol message encoder
+	encoder transports.IMessageEncoder
 
 	// the RRN messaging receiver
 	msgAPI *HiveotSseMsgHandler
@@ -40,8 +40,8 @@ type HiveotSseServer struct {
 	ssePath string
 }
 
-func (m *HiveotSseServer) GetProtocolType() string {
-	return transports.ProtocolTypeHiveotSsesc
+func (m *SseTransportServer) GetProtocolType() (string, string) {
+	return transports.ProtocolTypeHiveotSsesc, transports.SubprotocolHiveotSsesc
 }
 
 // HandleRequest handles requests directed at this module or a connected agent.
@@ -52,7 +52,7 @@ func (m *HiveotSseServer) GetProtocolType() string {
 //
 // This returns an error when the destination for the request cannot be found.
 // If multiple server protocols are used it is okay to try them one by one.
-func (m *HiveotSseServer) HandleRequest(
+func (m *SseTransportServer) HandleRequest(
 	req *msg.RequestMessage, replyTo msg.ResponseHandler) (err error) {
 
 	// first attempt to procss the when targeted at this module
@@ -68,9 +68,8 @@ func (m *HiveotSseServer) HandleRequest(
 // Start readies the module for use.
 //
 // yamlConfig todo configure ssepath
-func (m *HiveotSseServer) Start(yamlConfig string) (err error) {
+func (m *SseTransportServer) Start(yamlConfig string) (err error) {
 
-	// TODO: detect if already listening
 	// Add the routes used in SSE connection and subscription requests
 	m.CreateRoutes(m.ssePath, m.httpServer.GetProtectedRoute())
 
@@ -80,7 +79,7 @@ func (m *HiveotSseServer) Start(yamlConfig string) (err error) {
 }
 
 // Stop any running actions
-func (m *HiveotSseServer) Stop() {
+func (m *SseTransportServer) Stop() {
 }
 
 // Start a new HiveOT Http/SSE server using the given http server.
@@ -90,7 +89,7 @@ func (m *HiveotSseServer) Stop() {
 //
 // Use SetRequestSink to set the handler for requests send by consumers
 // Use SetNotificationSink to set the handler for notifications send by agents.
-func NewHiveotSseServer(httpServer transports.IHttpServer, respTimeout time.Duration) *HiveotSseServer {
+func NewHiveotSseServer(httpServer transports.IHttpServer, respTimeout time.Duration) *SseTransportServer {
 
 	ssePath := sseapi.HiveotSseScPath
 
@@ -100,19 +99,22 @@ func NewHiveotSseServer(httpServer transports.IHttpServer, respTimeout time.Dura
 	connectURL := fmt.Sprintf("%s://%s%s", transports.UriSchemeHiveotSseSc, urlParts.Host, ssePath)
 
 	// use the RRN message format. Simple passthrough.
-	converter := transports.NewRRNJsonEncoder()
+	encoder := transports.NewRRNJsonEncoder()
 	if respTimeout == 0 {
 		respTimeout = transports.DefaultRpcTimeout
 	}
 
-	m := &HiveotSseServer{
+	m := &SseTransportServer{
 		httpServer:  httpServer,
 		ssePath:     ssePath,
-		converter:   converter,
+		encoder:     encoder,
 		respTimeout: respTimeout,
 	}
 	moduleID := sseapi.HiveotSseScModuleID
-	m.Init(moduleID, transports.SubprotocolHiveotSsesc, connectURL, httpServer.GetAuthenticator())
+	m.Init(moduleID,
+		transports.ProtocolTypeHiveotSsesc,
+		transports.SubprotocolHiveotSsesc,
+		connectURL, httpServer.GetAuthenticator())
 
 	var _ modules.IHiveModule = m         // interface check
 	var _ transports.ITransportServer = m // interface check

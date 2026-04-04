@@ -14,7 +14,6 @@ import (
 	"github.com/hiveot/hivekit/go/msg"
 	"github.com/hiveot/hivekit/go/utils"
 	"github.com/hiveot/hivekit/go/wot/td"
-	jsoniter "github.com/json-iterator/go"
 	"github.com/teris-io/shortid"
 )
 
@@ -25,15 +24,17 @@ type GrpcTransportClient struct {
 
 	bearerToken string
 
+	// handler for sending connection notifications
+	connectHandler transports.ConnectionHandler
+
 	connectURL string
 	caCert     *x509.Certificate
 	clientID   string
-	// bufStream  *BufferedStream
+
+	// encoding and decoding of RRN messages
+	encoder transports.IMessageEncoder
 
 	grpcClient *GrpcServiceClient
-
-	// handler for sending connection notifications
-	connectHandler transports.ConnectionHandler
 
 	maxReconnectAttempts int // 0 for indefinite
 
@@ -58,13 +59,12 @@ func (cl *GrpcTransportClient) _onConnectionChanged(connected bool, err error) {
 // onMessage processes the incoming message received from the server.
 // This decodes the message into a request or response message and passes
 // it to the application handler.
-func (cl *GrpcTransportClient) _onMessage(messageType string, jsonRaw string) {
+func (cl *GrpcTransportClient) _onGrpcMessage(messageType string, raw []byte) {
 
 	switch messageType {
 	case msg.MessageTypeNotification:
 		// client consumer receives a notification
-		var notif *msg.NotificationMessage
-		err := jsoniter.UnmarshalFromString(jsonRaw, &notif)
+		notif, err := cl.encoder.DecodeNotification(raw)
 		if err != nil {
 			slog.Error("_onMessage: unmarshalling notification failed", "err", err.Error())
 			return
@@ -76,8 +76,7 @@ func (cl *GrpcTransportClient) _onMessage(messageType string, jsonRaw string) {
 	case msg.MessageTypeRequest:
 		// client agent receives a request (using reverse connection)
 		go func() {
-			var req *msg.RequestMessage
-			err := jsoniter.UnmarshalFromString(jsonRaw, &req)
+			req, err := cl.encoder.DecodeRequest(raw)
 			if err != nil {
 				slog.Error("_onMessage: unmarshalling request failed", "err", err.Error())
 				return
@@ -99,8 +98,7 @@ func (cl *GrpcTransportClient) _onMessage(messageType string, jsonRaw string) {
 	case msg.MessageTypeResponse:
 		// client consumer receives a response
 		go func() {
-			var resp *msg.ResponseMessage
-			err := jsoniter.UnmarshalFromString(jsonRaw, &resp)
+			resp, err := cl.encoder.DecodeResponse(raw)
 			if err != nil {
 				slog.Error("_onMessage: unmarshalling response failed", "err", err.Error())
 				return
@@ -150,7 +148,7 @@ func (cl *GrpcTransportClient) ConnectWithToken(clientID string, token string) (
 	cl.SetModuleID(clientID)
 
 	cl.grpcClient = NewGrpcServiceClient(
-		cl.connectURL, cl.caCert, cl.timeout, cl._onMessage)
+		cl.connectURL, cl.caCert, cl.timeout, cl._onGrpcMessage)
 
 	err = cl.grpcClient.ConnectWithToken(clientID, token)
 	if err != nil {
@@ -180,6 +178,9 @@ func (cl *GrpcTransportClient) ConnectWithToken(clientID string, token string) (
 
 	// even if connection failed right now, enable retry
 	cl.retryOnDisconnect.Store(true)
+
+	// allow background tasks to complete
+	time.Sleep(time.Millisecond)
 
 	return err
 }
@@ -255,9 +256,9 @@ func (cl *GrpcTransportClient) SendNotification(notif *msg.NotificationMessage) 
 		slog.String("thingID", notif.ThingID),
 		slog.String("name", notif.Name),
 	)
-	notifJson, err := jsoniter.Marshal(notif)
+	raw, err := cl.encoder.EncodeNotification(notif)
 	if err == nil {
-		err = cl.grpcClient.Send(msg.MessageTypeNotification, notifJson)
+		err = cl.grpcClient.Send(msg.MessageTypeNotification, raw)
 	}
 }
 
@@ -268,17 +269,20 @@ func (cl *GrpcTransportClient) SendRequest(
 	if req.CorrelationID == "" {
 		req.CorrelationID = shortid.MustGenerate()
 	}
-	reqJson, _ := jsoniter.Marshal(req)
-
+	raw, err := cl.encoder.EncodeRequest(req)
+	if err != nil {
+		slog.Error("SendRequest: unknown request", "op", req.Operation, "err", err.Error())
+		return err
+	}
 	if replyTo == nil {
 		// responses are received asynchronously
-		err := cl.grpcClient.Send(msg.MessageTypeRequest, reqJson)
+		err := cl.grpcClient.Send(msg.MessageTypeRequest, raw)
 		return err
 	}
 
 	// a response handler is provided, callback when the response is received
 	cl.rnrChan.Open(req.CorrelationID)
-	err := cl.grpcClient.Send(msg.MessageTypeRequest, reqJson)
+	err = cl.grpcClient.Send(msg.MessageTypeRequest, raw)
 
 	if err != nil {
 		cl.rnrChan.Close(req.CorrelationID)
@@ -299,9 +303,9 @@ func (cl *GrpcTransportClient) SendRequest(
 // SendResponse send a response message to the server
 func (cl *GrpcTransportClient) SendResponse(resp *msg.ResponseMessage) error {
 
-	respJson, err := jsoniter.Marshal(resp)
+	raw, err := cl.encoder.EncodeResponse(resp)
 	if err == nil {
-		err = cl.grpcClient.Send(msg.MessageTypeResponse, respJson)
+		err = cl.grpcClient.Send(msg.MessageTypeResponse, raw)
 	}
 	return err
 }
@@ -333,6 +337,7 @@ func NewGrpcTransportClient(
 		caCert:               caCert,
 		connectHandler:       ch,
 		connectURL:           connectURL,
+		encoder:              transports.NewRRNJsonEncoder(),
 		maxReconnectAttempts: 0,
 		rnrChan:              msg.NewRnRChan(),
 		timeout:              transports.DefaultRpcTimeout,

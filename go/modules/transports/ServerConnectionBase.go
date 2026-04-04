@@ -2,6 +2,7 @@ package transports
 
 import (
 	"errors"
+	"fmt"
 	"log/slog"
 	"sync"
 	"sync/atomic"
@@ -44,7 +45,7 @@ type ServerConnectionBase struct {
 	isConnected atomic.Bool
 
 	// messageEncoder for request/response messages
-	messageEncoder IMessageConverter
+	messageEncoder IMessageEncoder
 
 	// property observations made by the client
 	observations Subscriptions
@@ -161,6 +162,11 @@ func (scb *ServerConnectionBase) OnRequest(
 
 	// sender is identified by the server, not the client
 	req.SenderID = scb.GetClientID()
+	if req.Operation == "" {
+		err = fmt.Errorf("OnRequest: no operation ")
+		slog.Error(err.Error())
+		return err
+	}
 
 	slog.Info("OnRequest",
 		slog.String("senderID", scb.ClientID),
@@ -357,7 +363,7 @@ func (scb *ServerConnectionBase) UnobserveProperty(dThingID, name string) {
 //	sendRaw is the underlying transport sending encoded messages
 func (scb *ServerConnectionBase) Init(
 	clientID, remoteAddr, cid string,
-	encoder IMessageConverter, sendRaw func(msgType string, raw []byte) error) {
+	encoder IMessageEncoder, sendRaw func(msgType string, raw []byte) error) {
 
 	if encoder == nil {
 		encoder = NewRRNJsonEncoder()

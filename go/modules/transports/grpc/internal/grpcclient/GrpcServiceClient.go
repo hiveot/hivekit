@@ -62,7 +62,7 @@ type GrpcServiceClient struct {
 	pingHandler func(context.Context, any) (reply string, err error)
 
 	// callback for incoming messages
-	recvHandler func(msgType string, rawJson string)
+	recvHandler func(msgType string, raw []byte)
 
 	respTimeout time.Duration
 
@@ -197,7 +197,7 @@ func (cl *GrpcServiceClient) WaitUntilDisconnect() {
 // Create a client for the GRPC protocol
 // caCert is optional for use with tcp sockets
 func NewGrpcServiceClient(connectURI string, caCert *x509.Certificate, respTimeout time.Duration,
-	msgHandler func(msgType string, jsonRaw string),
+	msgHandler func(msgType string, raw []byte),
 ) *GrpcServiceClient {
 
 	cl := &GrpcServiceClient{

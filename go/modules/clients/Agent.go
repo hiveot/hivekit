@@ -76,7 +76,7 @@ func (ag *Agent) HandleRequest(
 func (ag *Agent) PubActionProgress(req msg.RequestMessage, value any) {
 	status := msg.ResponseMessage{
 		//AgentID:   ag.GetClientID(),
-		Input:     req.Input,
+		// Input:     req.Input,
 		Name:      req.Name,
 		Output:    value,
 		SenderID:  ag.GetClientID(),

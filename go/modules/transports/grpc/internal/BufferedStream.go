@@ -40,7 +40,7 @@ type BufferedStream struct {
 
 // Start Processing a message stream from the client.
 // This returns when the stream is closed.
-func (bs *BufferedStream) recvLoop(recvHandler func(msgType string, jsonRaw string)) {
+func (bs *BufferedStream) recvLoop(recvHandler func(msgType string, raw []byte)) {
 	// see also https://stackoverflow.com/questions/46933538/how-to-close-grpc-stream-for-server
 	for {
 		if !bs.isConnected.Load() {
@@ -59,7 +59,7 @@ func (bs *BufferedStream) recvLoop(recvHandler func(msgType string, jsonRaw stri
 		}
 		slog.Debug("service recvLoop: received message:" + result.MsgType)
 		// parent handles flow control
-		recvHandler(result.MsgType, result.JsonPayload)
+		recvHandler(result.MsgType, []byte(result.JsonPayload))
 	}
 	slog.Debug("service recvLoop: recvLoop ended")
 
@@ -179,7 +179,7 @@ func (bs *BufferedStream) WaitUntilDisconnect() {
 //	 when the send buffer is full.
 func NewGrpcBufferedStream(
 	grpcStream grpcapi.IGrpcMessageStream,
-	recvHandler func(msgType string, jsonRaw string),
+	recvHandler func(msgType string, jsonRaw []byte),
 	sendTimeout time.Duration,
 ) *BufferedStream {
 	strm := &BufferedStream{

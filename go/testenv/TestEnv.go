@@ -32,6 +32,13 @@ const (
 var TestUDSPath = "/tmp/hivekit/testenv.socket"
 var TestUDSURL = transports.UriSchemeHiveotGrpc + "://" + TestUDSPath
 
+var DefaultProtocol = transports.ProtocolTypeHiveotGrpc
+
+// var DefaultProtocol = transports.ProtocolTypeHiveotSsesc
+// var DefaultProtocol = transports.ProtocolTypeHiveotWebsocket
+// var DefaultProtocol = transports.ProtocolTypeWotWebsocket
+// var DefaultProtocol = transports.ProtocolTypeWotHttpBasic
+
 // testTDs are a bunch of TD's for generating test data. The first 5 are predefined and always the same.
 // A higher number generates at random.
 // See CreateTestTD for details.
@@ -246,6 +253,9 @@ func (testEnv *TestEnv) NewConsumerClient(
 func (testEnv *TestEnv) StartTestServer(protocol string) (srv transports.ITransportServer) {
 
 	var err error
+	if protocol == "" {
+		protocol = DefaultProtocol
+	}
 
 	switch protocol {
 	case transports.ProtocolTypeHiveotGrpc:

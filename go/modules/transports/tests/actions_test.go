@@ -48,7 +48,7 @@ func TestInvokeActionFromConsumerToServer(t *testing.T) {
 		return replyTo(resp)
 	}
 	// 1. start the servers
-	testEnv, cancelFn := testenv.StartTestEnv(defaultProtocol)
+	testEnv, cancelFn := testenv.StartTestEnv(testProtocol)
 	defer cancelFn()
 	testEnv.Server.SetRequestSink(handleRequest)
 
@@ -135,7 +135,7 @@ func TestInvokeActionFromServerToAgent(t *testing.T) {
 	}
 	// tmpSink := &modules.HiveModuleBase{}
 	// tmpSink.SetResponseHandler(responseHandler)
-	testEnv, cancelFn2 := testenv.StartTestEnv(defaultProtocol)
+	testEnv, cancelFn2 := testenv.StartTestEnv(testProtocol)
 	defer cancelFn2()
 
 	// 2a. connect as an agent, app request handler is set separately
@@ -251,7 +251,7 @@ func TestQueryActions(t *testing.T) {
 	}
 
 	// 1. start the servers
-	testEnv, cancelFn := testenv.StartTestEnv(defaultProtocol)
+	testEnv, cancelFn := testenv.StartTestEnv(testProtocol)
 	defer cancelFn()
 	testEnv.Server.SetRequestSink(requestHandler)
 

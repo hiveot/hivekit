@@ -1,6 +1,8 @@
 package transports
 
 import (
+	"fmt"
+
 	"github.com/hiveot/hivekit/go/msg"
 	jsoniter "github.com/json-iterator/go"
 )
@@ -12,41 +14,48 @@ type RRNJsonEncoder struct {
 
 // DecodeNotification passes the notification message as-is
 // Raw is the json serialized encoded message
-func (svc *RRNJsonEncoder) DecodeNotification(raw []byte) *msg.NotificationMessage {
+func (svc *RRNJsonEncoder) DecodeNotification(raw []byte) (*msg.NotificationMessage, error) {
 
 	var notif msg.NotificationMessage
 	err := jsoniter.Unmarshal(raw, &notif)
-	//err := tputils.DecodeAsObject(msg, &notif)
-	if err != nil || notif.AffordanceType == "" {
-		return nil
+	if err != nil {
+		return nil, fmt.Errorf("DecodeNotification: unmarshal error: %w", err)
 	}
-	return &notif
+
+	if notif.AffordanceType == "" {
+		return nil, fmt.Errorf("DecodeRequest: Message is not a NotificationMessage")
+	}
+	return &notif, nil
 }
 
 // DecodeRequest passes the request message as-is
 // Raw is the json serialized encoded message
-func (svc *RRNJsonEncoder) DecodeRequest(raw []byte) *msg.RequestMessage {
+func (svc *RRNJsonEncoder) DecodeRequest(raw []byte) (*msg.RequestMessage, error) {
 
 	var req msg.RequestMessage
 	err := jsoniter.Unmarshal(raw, &req)
-	//err := tputils.DecodeAsObject(msg, &req)
-	if err != nil || req.MessageType != msg.MessageTypeRequest {
-		return nil
+	if err != nil {
+		return nil, fmt.Errorf("DecodeRequest: unmarshal error: %w", err)
 	}
-	return &req
+	if req.MessageType != msg.MessageTypeRequest {
+		return nil, fmt.Errorf("DecodeRequest: Message is not a RequestMessage")
+	}
+	return &req, nil
 }
 
 // DecodeResponse passes the response message as-is
 // Raw is the json serialized encoded message
-func (svc *RRNJsonEncoder) DecodeResponse(
-	raw []byte) *msg.ResponseMessage {
+func (svc *RRNJsonEncoder) DecodeResponse(raw []byte) (*msg.ResponseMessage, error) {
 
 	var resp msg.ResponseMessage
 	err := jsoniter.Unmarshal(raw, &resp)
-	if err != nil || resp.MessageType != msg.MessageTypeResponse {
-		return nil
+	if err != nil {
+		return nil, fmt.Errorf("DecodeResponse: unmarshal error: %w", err)
 	}
-	return &resp
+	if resp.MessageType != msg.MessageTypeResponse {
+		return nil, fmt.Errorf("Message isn't a ResponseMessage")
+	}
+	return &resp, nil
 }
 
 // EncodeNotification serializes the notification message as-is

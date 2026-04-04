@@ -39,7 +39,7 @@ type WssServerConnection struct {
 	// mux sync.RWMutex
 
 	// converter for request/response messages
-	messageConverter transports.IMessageConverter
+	encoder transports.IMessageEncoder
 
 	// notifHandler handles the requests received from the remote producer
 	notifHandler msg.NotificationHandler
@@ -69,116 +69,27 @@ func (sc *WssServerConnection) _onMessage(raw []byte) {
 	var resp *msg.ResponseMessage
 
 	// the only way to know which message type it is is to decode it
-	notif = sc.messageConverter.DecodeNotification(raw)
-	if notif != nil {
+	notif, err := sc.encoder.DecodeNotification(raw)
+	if err == nil {
+		notif.SenderID = sc.GetClientID()
 		sc.OnNotification(notif, sc.notifHandler)
 		return
 	}
-	resp = sc.messageConverter.DecodeResponse(raw)
-	if resp != nil {
+	resp, err = sc.encoder.DecodeResponse(raw)
+	if err == nil {
 		// the response hadler is already provided with the request
+		resp.SenderID = sc.GetClientID()
 		sc.OnResponse(resp)
 		return
 	}
-	req = sc.messageConverter.DecodeRequest(raw)
-	if req != nil {
+	req, err = sc.encoder.DecodeRequest(raw)
+	if err == nil {
+		req.SenderID = sc.GetClientID()
 		sc.OnRequest(req, sc.reqHandler)
 		return
 	}
 	slog.Warn("onMessage: Message is not a notification, request or response")
 }
-
-// server connection receives a notification from remote client (producer).
-// pass it on to the registered (upstream) notification handler.
-//
-// remote producer [notification] -> client<=>server -> _onNotification
-// func (sc *WssServerConnection) _onNotification(notif *msg.NotificationMessage) {
-// 	sc.notifHandler(notif)
-// }
-
-// // _onRequest is passed the received request message
-// // This method handles subscriptions using the ConnectionBase.
-// func (sc *WssServerConnection) _onRequest(req *msg.RequestMessage) {
-// 	var resp *msg.ResponseMessage
-// 	var err error
-
-// 	slog.Info("onRequest",
-// 		slog.String("senderID", sc.ClientID),
-// 		slog.String("op", req.Operation),
-// 		slog.String("thingID", req.ThingID),
-// 		slog.String("name", req.Name),
-// 		slog.String("correlationID", req.CorrelationID))
-
-// 	switch req.Operation {
-// 	case td.HTOpPing:
-// 		resp = req.CreateResponse("pong", nil)
-
-// 	case td.OpSubscribeEvent, td.OpSubscribeAllEvents:
-// 		sc.SubscribeEvent(req.ThingID, req.Name, req.CorrelationID)
-// 		resp = req.CreateResponse(nil, nil)
-
-// 	case td.OpUnsubscribeEvent, td.OpUnsubscribeAllEvents:
-// 		sc.UnsubscribeEvent(req.ThingID, req.Name)
-// 		resp = req.CreateResponse(nil, nil)
-
-// 	case td.OpObserveProperty, td.OpObserveAllProperties:
-// 		sc.ObserveProperty(req.ThingID, req.Name, req.CorrelationID)
-// 		resp = req.CreateResponse(nil, nil)
-
-// 	case td.OpUnobserveProperty, td.OpUnobserveAllProperties:
-// 		sc.UnobserveProperty(req.ThingID, req.Name)
-// 		resp = req.CreateResponse(nil, nil)
-// 	default:
-// 		// this is not a subscription to notifications so forward it to the module sink
-// 		// response will be handled asynchronously
-// 		err = sc.reqHandler(req, func(reply *msg.ResponseMessage) error {
-// 			// the callback is async so handle it separately
-// 			if reply != nil {
-// 				err = sc.SendResponse(reply)
-// 			} else {
-// 				slog.Error("onRequest: Sink response callback without response")
-// 			}
-// 			return err
-// 		})
-// 		// if handling the request failed, return an error response
-// 		if err != nil {
-// 			resp = req.CreateErrorResponse(err)
-// 		}
-// 	}
-// 	if resp != nil {
-// 		err = sc.SendResponse(resp)
-// 	}
-// 	if err != nil {
-// 		slog.Warn("Error handling request message", "err", err.Error())
-// 	}
-// }
-
-// // _onResponse is passed the received response message after decoding to the standard response message format.
-// //
-// // This passes the response to the RNR response handler to serve any request handlers that are waiting
-// // for a response. All this takes place asynchronously without blocking the connection.
-// //
-// // If the RNR handler doesn't have a matching correlationID listed then the response is passed to the
-// // connection response handler.
-// func (sc *WssServerConnection) _onResponse(resp *msg.ResponseMessage) {
-
-// 	slog.Info("onResponse (from agent)",
-// 		slog.String("senderID", sc.ClientID),
-// 		slog.String("op", resp.Operation),
-// 		slog.String("thingID", resp.ThingID),
-// 		slog.String("name", resp.Name),
-// 		slog.String("correlationID", resp.CorrelationID))
-
-// 	// this responsehandler points to the rnrChannel that matches the correlationID to the replyTo handler
-// 	handled := sc.rnrChan.HandleResponse(resp, sc.respTimeout)
-// 	if !handled {
-// 		slog.Warn("onResponse: No response handler for request, response is lost",
-// 			"correlationID", resp.CorrelationID,
-// 			"op", resp.Operation,
-// 			"thingID", resp.ThingID,
-// 			"name", resp.Name)
-// 	}
-// }
 
 // _sendRaw sends the seriaziled websocket message to the connected client
 // msgType is ignored since the socket doesn't support metadata
@@ -214,13 +125,12 @@ func (sc *WssServerConnection) ReadLoop(ctx context.Context, wssConn *websocket.
 
 	// close the client when the context ends drops
 	go func() {
-		select {
-		case <-ctx.Done(): // remote client connection closed
-			slog.Debug("WssServerConnection.ReadLoop: Remote client disconnected")
-			// close channel when no-one is writing
-			// in the meantime keep reading to prevent deadlock
-			_ = wssConn.Close()
-		}
+		<-ctx.Done() // remote client connection closed
+		slog.Debug("WssServerConnection.ReadLoop: Remote client disconnected")
+		// close channel when no-one is writing
+		// in the meantime keep reading to prevent deadlock
+		_ = wssConn.Close()
+
 	}()
 	// read messages from the client until the connection closes
 	for sc.IsConnected() { // sseMsg := range sseChan {
@@ -233,92 +143,6 @@ func (sc *WssServerConnection) ReadLoop(ctx context.Context, wssConn *websocket.
 		go sc._onMessage(raw)
 	}
 }
-
-// // SendNotification sends a notification to the client if subscribed.
-// func (sc *WssServerConnection) SendNotification(notif *msg.NotificationMessage) {
-
-// 	if sc.HasSubscription(notif) {
-// 		slog.Info("SendNotification",
-// 			slog.String("cid", sc.GetConnectionID()),
-// 			slog.String("senderID", notif.SenderID),
-// 			slog.String("clientID", sc.GetClientID()),
-// 			slog.String("thingID", notif.ThingID),
-// 			slog.String("affordance", string(notif.AffordanceType)),
-// 			slog.String("name", notif.Name),
-// 		)
-// 		msg, err := sc.messageConverter.EncodeNotification(notif)
-// 		if err == nil {
-// 			err = sc._send(msg)
-// 		}
-// 		if err != nil {
-// 			// maybe the connection dropped. It should have been removed though so something went wrong.
-// 			slog.Warn("SendNotification: Unable to send the notification to the client",
-// 				"clientID", sc.ClientID,
-// 				"err", err.Error())
-// 		}
-// 	}
-// }
-
-// // SendRequest sends the request to the client (agent).
-// //
-// // This accepts a response handler through which the response is received. If not
-// // provided then the response will be forwarded to the module sink.
-// //
-// // Intended to be used by gateways that forward requests from consumers to agents, where the agent
-// // has connected to the gateway using (connection reversal) and the gateway proxies on behalf of the consumer.
-// //
-// // When a response is received it is passed to the replyTo handler.
-// //
-// // If this returns an error then no request was sent.
-// func (sc *WssServerConnection) SendRequest(
-// 	req *msg.RequestMessage, replyTo msg.ResponseHandler) error {
-
-// 	wssMsg, err := sc.messageConverter.EncodeRequest(req)
-// 	if err != nil {
-// 		return err
-// 	}
-// 	// without a replyTo simply send the request
-// 	if replyTo == nil {
-// 		err = sc._send(wssMsg)
-// 		return err
-// 	}
-
-// 	// with a replyTo, send the response async to the replyTo handler
-// 	// catch the response in a channel linked by correlation-id
-// 	if req.CorrelationID == "" {
-// 		req.CorrelationID = shortid.MustGenerate()
-// 	}
-// 	// the websocket connection response handlers will convert the message and pass it to the RNR channels
-// 	sc.rnrChan.WaitWithCallback(req.CorrelationID, sc.respTimeout, replyTo)
-
-// 	// now the RNR channel is ready, send the request message
-// 	err = sc._send(wssMsg)
-// 	return err
-// }
-
-// SendResponse sends a response to the remote client.
-// If this returns an error then no response was sent.
-// func (sc *WssServerConnection) SendResponse(resp *msg.ResponseMessage) (err error) {
-
-// 	slog.Info("SendResponse (server->client)",
-// 		slog.String("clientID", sc.ClientID),
-// 		slog.String("correlationID", resp.CorrelationID),
-// 		slog.String("operation", resp.Operation),
-// 		slog.String("name", resp.Name),
-// 		slog.String("state", resp.Status),
-// 		slog.String("type", resp.MessageType),
-// 		slog.String("agentID", resp.SenderID),
-// 	)
-
-// 	msg, _ := sc.messageConverter.EncodeResponse(resp)
-// 	err = sc._send(msg)
-// 	return err
-// }
-
-// SetTimeout set the timeout sending requests
-// func (sc *WssServerConnection) SetTimeout(timeout time.Duration) {
-// 	sc.respTimeout = timeout
-// }
 
 // NewWSSServerConnection creates a new Websocket connection instance for use by
 // agents and consumers.
@@ -334,7 +158,7 @@ func NewWSSServerConnection(
 	clientID string,
 	r *http.Request,
 	wssConn *websocket.Conn,
-	messageConverter transports.IMessageConverter,
+	encoder transports.IMessageEncoder,
 	reqHandler msg.RequestHandler,
 	notifHandler msg.NotificationHandler,
 	// respTimeout time.Duration,
@@ -346,16 +170,16 @@ func NewWSSServerConnection(
 	}
 
 	c := &WssServerConnection{
-		wssConn:          wssConn,
-		messageConverter: messageConverter,
-		httpReq:          r,
-		lastActivity:     time.Time{},
+		wssConn:      wssConn,
+		encoder:      encoder,
+		httpReq:      r,
+		lastActivity: time.Time{},
 		// rnrChan:          msg.NewRnRChan(),
 		// respTimeout:      respTimeout,
 		reqHandler:   reqHandler,
 		notifHandler: notifHandler,
 	}
-	c.Init(clientID, r.URL.String(), cid, messageConverter, c._sendRaw)
+	c.Init(clientID, r.URL.String(), cid, encoder, c._sendRaw)
 
 	var _ transports.IConnection = c // interface check
 	return c

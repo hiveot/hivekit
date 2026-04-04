@@ -17,7 +17,7 @@ import (
 	"github.com/hiveot/hivekit/go/modules"
 	"github.com/hiveot/hivekit/go/modules/transports"
 	"github.com/hiveot/hivekit/go/modules/transports/httpserver/tlsclient"
-	"github.com/hiveot/hivekit/go/modules/transports/wss/internal/converter"
+	wssencoder "github.com/hiveot/hivekit/go/modules/transports/wss/internal/encoder"
 	"github.com/hiveot/hivekit/go/msg"
 	"github.com/hiveot/hivekit/go/utils"
 	"github.com/hiveot/hivekit/go/wot/td"
@@ -57,7 +57,7 @@ type WssTransportClient struct {
 	maxReconnectAttempts int // 0 for indefinite
 
 	// convert the request/response to the wss messaging protocol used
-	msgConverter transports.IMessageConverter
+	encoder transports.IMessageEncoder
 
 	// mutex for controlling writing and closing
 	mux sync.RWMutex
@@ -98,6 +98,63 @@ func (cl *WssTransportClient) _onConnectionChanged(connected bool, err error) {
 	// if retrying is enabled then try on disconnect
 	if !connected && cl.retryOnDisconnect.Load() {
 		cl.Reconnect()
+	}
+}
+
+// _onWssMessage processes the websocket message received from the server.
+// This decodes the message into a request or response message and passes
+// it to the application handler.
+func (cl *WssTransportClient) _onWssMessage(raw []byte) {
+	var notif *msg.NotificationMessage
+	var req *msg.RequestMessage
+	var resp *msg.ResponseMessage
+	clientID := cl.tlsClient.GetClientID()
+
+	// try to decode as notification first, then response, then request as websockets
+	// do not carry metadata per request.
+	notif, err := cl.encoder.DecodeNotification(raw)
+	if err != nil {
+		resp, err = cl.encoder.DecodeResponse(raw)
+		if err != nil {
+			req, err = cl.encoder.DecodeRequest(raw)
+		}
+	}
+	if notif != nil {
+		// client receives a notification message from the server
+		// pass it on to the registered hook and sink
+		go func() {
+			cl.HiveModuleBase.HandleNotification(notif)
+		}()
+	} else if req != nil {
+		var err error
+		// client receives a request (using reverse connection)
+		// pass it on to the linked producer.
+		err = cl.ForwardRequest(req, func(resp *msg.ResponseMessage) error {
+			// return the response to the caller
+			err2 := cl.SendResponse(resp)
+			return err2
+		})
+		// an error means the request could not be delivered
+		if err != nil {
+			resp := req.CreateErrorResponse(err)
+			_ = cl.SendResponse(resp)
+		}
+	} else if resp != nil {
+		// client receives a response message
+		// pass it on to the waiting consumer
+		handled := cl.rnrChan.HandleResponse(resp, cl.timeout)
+		if !handled {
+			slog.Error("_onWssMessage: received response but no matching request",
+				"correlationID", resp.CorrelationID,
+				"op", resp.Operation,
+				"name", resp.Name,
+				"clientID", clientID,
+			)
+		}
+	} else {
+		slog.Warn("_onWssMessage: Message is not a valid notification, request or response",
+			"raw", string(raw))
+		return
 	}
 }
 
@@ -183,7 +240,7 @@ func (cl *WssTransportClient) ConnectWithToken(clientID string, token string) er
 	hostPort := cl.tlsClient.GetHostPort()
 	wssCancelFn, wssConn, err := ConnectWSS(
 		clientID, hostPort, cl.wssPath, cl.bearerToken, nil, cl.caCert,
-		cl._onConnectionChanged, cl.HandleWssMessage)
+		cl._onConnectionChanged, cl._onWssMessage)
 
 	cl.mux.Lock()
 	cl.wssCancelFn = wssCancelFn
@@ -224,75 +281,6 @@ func (m *WssTransportClient) HandleNotification(notif *msg.NotificationMessage) 
 func (cl *WssTransportClient) HandleRequest(request *msg.RequestMessage, replyTo msg.ResponseHandler) error {
 	err := cl.SendRequest(request, replyTo)
 	return err
-}
-
-// HandleWssMessage processes the websocket message received from the server.
-// This decodes the message into a request or response message and passes
-// it to the application handler.
-func (cl *WssTransportClient) HandleWssMessage(raw []byte) {
-	var notif *msg.NotificationMessage
-	var req *msg.RequestMessage
-	var resp *msg.ResponseMessage
-	clientID := cl.tlsClient.GetClientID()
-
-	// // for testing:
-	// var jsonObj any
-	// err := jsoniter.Unmarshal(raw, &jsonObj)
-	// if err != nil {
-	// 	slog.Error("HandleWssMessage: failed to decode JSON",
-	// 		"clientID", cc.cinfo.ClientID,
-	// 		"err", err.Error(),
-	// 		"raw", string(raw))
-	// 	return
-	// }
-
-	// try to decode as notification first, then response, then request as
-
-	// both non-agents and agents receive responses
-	notif = cl.msgConverter.DecodeNotification(raw)
-	if notif == nil {
-		resp = cl.msgConverter.DecodeResponse(raw)
-		if resp == nil {
-			req = cl.msgConverter.DecodeRequest(raw)
-		}
-	}
-	if notif != nil {
-		// client receives a notification message from the server
-		// pass it on to the registered hook and sink
-		go func() {
-			cl.HiveModuleBase.HandleNotification(notif)
-		}()
-	} else if req != nil {
-		var err error
-		// client receives a request (using reverse connection)
-		// pass it on to the linked producer.
-		err = cl.ForwardRequest(req, func(resp *msg.ResponseMessage) error {
-			// return the response to the caller
-			err2 := cl.SendResponse(resp)
-			return err2
-		})
-		// an error means the request could not be delivered
-		if err != nil {
-			resp := req.CreateErrorResponse(err)
-			_ = cl.SendResponse(resp)
-		}
-	} else if resp != nil {
-		// client receives a response message
-		// pass it on to the waiting consumer
-		handled := cl.rnrChan.HandleResponse(resp, cl.timeout)
-		if !handled {
-			slog.Error("HandleWssMessage: received response but no matching request",
-				"correlationID", resp.CorrelationID,
-				"op", resp.Operation,
-				"name", resp.Name,
-				"clientID", clientID,
-			)
-		}
-	} else {
-		slog.Warn("HandleWssMessage: Message is not a valid notification, request or response",
-			"raw", string(raw))
-		return
-	}
 }
 
 // IsConnected return whether the return channel is connection, eg can receive data
@@ -351,7 +339,7 @@ func (cl *WssTransportClient) SendNotification(notif *msg.NotificationMessage) {
 		slog.String("name", notif.Name),
 	)
 	// convert the operation into a protocol message
-	wssMsg, err := cl.msgConverter.EncodeNotification(notif)
+	wssMsg, err := cl.encoder.EncodeNotification(notif)
 	if err != nil {
 		slog.Error("SendNotification: unknown affordance", "affordanceType", notif.AffordanceType)
 	}
@@ -380,7 +368,7 @@ func (cl *WssTransportClient) SendRequest(
 		req.CorrelationID = shortid.MustGenerate()
 	}
 	// convert the operation into a protocol message
-	wssMsg, err := cl.msgConverter.EncodeRequest(req)
+	wssMsg, err := cl.encoder.EncodeRequest(req)
 	if err != nil {
 		slog.Error("SendRequest: unknown request", "op", req.Operation)
 		return err
@@ -430,7 +418,7 @@ func (cl *WssTransportClient) SendResponse(resp *msg.ResponseMessage) error {
 	)
 
 	// convert the operation into a protocol message
-	wssMsg, err := cl.msgConverter.EncodeResponse(resp)
+	wssMsg, err := cl.encoder.EncodeResponse(resp)
 	err = cl._send(wssMsg)
 	return err
 }
@@ -474,12 +462,12 @@ func NewHiveotWssClient(
 		connectHandler:       ch,
 		maxReconnectAttempts: 0,
 		// hiveot uses its own standardized RRN messages
-		msgConverter: transports.NewRRNJsonEncoder(),
-		rnrChan:      msg.NewRnRChan(),
-		timeout:      timeout,
-		tlsClient:    tlsClient,
-		wssPath:      wssPath,
-		wssURL:       wssURL,
+		encoder:   transports.NewRRNJsonEncoder(),
+		rnrChan:   msg.NewRnRChan(),
+		timeout:   timeout,
+		tlsClient: tlsClient,
+		wssPath:   wssPath,
+		wssURL:    wssURL,
 	}
 	//cl.Init(fullURL, clientID, clientCert, caCert, getForm, timeout)
 	return &cl
@@ -505,8 +493,8 @@ func NewWotWssClient(
 	cl := &WssTransportClient{
 		caCert:               caCert,
 		connectHandler:       ch,
+		encoder:              wssencoder.NewWotWssMsgEncoder(),
 		maxReconnectAttempts: 0,
-		msgConverter:         converter.NewWotWssMsgConverter(),
 		rnrChan:              msg.NewRnRChan(),
 		tlsClient:            tlsClient,
 		timeout:              timeout,

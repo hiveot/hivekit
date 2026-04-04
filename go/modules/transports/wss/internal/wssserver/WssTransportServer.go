@@ -11,7 +11,7 @@ import (
 	"github.com/hiveot/hivekit/go/modules"
 	"github.com/hiveot/hivekit/go/modules/transports"
 	wssapi "github.com/hiveot/hivekit/go/modules/transports/wss/api"
-	wssconverter "github.com/hiveot/hivekit/go/modules/transports/wss/internal/converter"
+	wssencoder "github.com/hiveot/hivekit/go/modules/transports/wss/internal/encoder"
 	"github.com/hiveot/hivekit/go/msg"
 	"github.com/hiveot/hivekit/go/utils"
 )
@@ -28,10 +28,7 @@ type WssTransportServer struct {
 	httpServer transports.IHttpServer
 
 	// Websocket protocol message converter
-	msgConverter transports.IMessageConverter // WoT or Hiveot message format
-
-	// td.ProtocolTypeWotWSS, or td.ProtocolTypeHiveotWSS
-	protocolType string
+	encoder transports.IMessageEncoder // WoT or Hiveot message format
 
 	// the time to wait for responses to request
 	respTimeout time.Duration
@@ -41,11 +38,6 @@ type WssTransportServer struct {
 
 	// listening path for incoming connections
 	wssPath string
-}
-
-// GetProtocolType returns type identifier of the server protocol as defined by its module
-func (m *WssTransportServer) GetProtocolType() string {
-	return m.protocolType
 }
 
 // HandleRequest handles requests directed at this module or a connected agent.
@@ -70,7 +62,7 @@ func (m *WssTransportServer) HandleRequest(
 	return err
 }
 
-// Serve a new websocket connection.
+// ServeWssConnection serves a new websocket connection.
 // This creates an instance of the HiveotWSSConnection handler for reading and
 // writing messages.
 //
@@ -78,7 +70,7 @@ func (m *WssTransportServer) HandleRequest(
 //
 // serverRequestHandler and serverResponseHandler are used as handlers for incoming
 // messages.
-func (m *WssTransportServer) Serve(w http.ResponseWriter, r *http.Request) {
+func (m *WssTransportServer) ServeWssConnection(w http.ResponseWriter, r *http.Request) {
 	//An active session is required before accepting the request. This is created on
 	//authentication/login. Until then connections are blocked.
 	// rp, err := m.httpServer.GetRequestParams(r)
@@ -111,7 +103,7 @@ func (m *WssTransportServer) Serve(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// the new server connection sends messages to the module sink
-	c := NewWSSServerConnection(clientID, r, wssConn, m.msgConverter,
+	c := NewWSSServerConnection(clientID, r, wssConn, m.encoder,
 		m.ForwardRequest, m.ForwardNotification)
 	c.SetTimeout(m.respTimeout)
 	// add connection sends a notification
@@ -141,20 +133,15 @@ func (m *WssTransportServer) Serve(w http.ResponseWriter, r *http.Request) {
 func (m *WssTransportServer) Start(yamlConfig string) (err error) {
 
 	connectURL := m.httpServer.GetConnectURL()
-	slog.Info("Start: Starting websocket module, Listening on: "+connectURL,
-		"protocolType", m.protocolType)
-
-	// TODO: detect if already running
+	slog.Info("Start: Starting websocket module, Listening on: " + connectURL)
 
 	// create routes
 	router := m.httpServer.GetProtectedRoute()
-	router.Get(m.wssPath, m.Serve)
+	router.Get(m.wssPath, m.ServeWssConnection)
 
 	// The basic msg handler converts incoming module requests messages to the module API.
 	// This has nothing to do with the http server.
-	if err == nil {
-		m.msgAPI = NewWssRrnHandler(m)
-	}
+	m.msgAPI = NewWssRrnHandler(m)
 	return nil
 }
 
@@ -163,7 +150,7 @@ func (m *WssTransportServer) Stop() {
 	slog.Info("Stop: Stopping websocket module")
 	m.CloseAll()
 	router := m.httpServer.GetProtectedRoute()
-	router.Delete(m.wssPath, m.Serve)
+	router.Delete(m.wssPath, m.ServeWssConnection)
 }
 
 // NewHiveotWssTransportServer creates a websocket server module using serving HiveOT websocket
@@ -185,18 +172,19 @@ func NewHiveotWssServer(httpServer transports.IHttpServer, respTimeout time.Dura
 		respTimeout = transports.DefaultRpcTimeout
 	}
 	m := &WssTransportServer{
-		httpServer:   httpServer,
-		msgConverter: transports.NewRRNJsonEncoder(),
-		protocolType: transports.ProtocolTypeHiveotWebsocket,
+		httpServer: httpServer,
+		encoder:    transports.NewRRNJsonEncoder(),
 		// connectHandler: nil,
 		respTimeout: respTimeout,
 		wssPath:     wssapi.HiveotWebsocketPath,
 	}
 	// set the base parameters
 	moduleID := wssapi.HiveotWebsocketModuleID
-	subProtocol := transports.SubprotocolHiveotWebsocket
 	connectURL := fmt.Sprintf("%s://%s%s", transports.UriSchemeHiveotWebsocket, urlParts.Host, m.wssPath)
-	m.Init(moduleID, subProtocol, connectURL, httpServer.GetAuthenticator())
+	m.Init(moduleID,
+		transports.ProtocolTypeHiveotWebsocket,
+		transports.SubprotocolHiveotWebsocket,
+		connectURL, httpServer.GetAuthenticator())
 	return m
 }
 
@@ -219,17 +207,18 @@ func NewWotWssServer(httpServer transports.IHttpServer, respTimeout time.Duratio
 		respTimeout = transports.DefaultRpcTimeout
 	}
 	m := &WssTransportServer{
-		httpServer:   httpServer,
-		msgConverter: wssconverter.NewWotWssMsgConverter(),
-		respTimeout:  respTimeout,
-		protocolType: transports.ProtocolTypeWotWebsocket,
-		wssPath:      wssapi.WotWebsocketPath,
+		httpServer:  httpServer,
+		encoder:     wssencoder.NewWotWssMsgEncoder(),
+		respTimeout: respTimeout,
+		wssPath:     wssapi.WotWebsocketPath,
 	}
 
 	moduleID := wssapi.WotWebsocketModuleID
-	subProtocol := transports.SubprotocolWotWebsocket
 	connectURL := fmt.Sprintf("%s://%s%s", transports.UriSchemeWotWebsocket, urlParts.Host, m.wssPath)
-	m.Init(moduleID, subProtocol, connectURL, httpServer.GetAuthenticator())
+	m.Init(moduleID,
+		transports.ProtocolTypeWotWebsocket,
+		transports.SubprotocolWotWebsocket,
+		connectURL, httpServer.GetAuthenticator())
 	// m.UpdateProperty(transports.PropName_NrConnections, 0)
 
 	var _ modules.IHiveModule = m         // interface check

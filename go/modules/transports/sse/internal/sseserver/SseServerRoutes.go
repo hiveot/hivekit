@@ -21,40 +21,21 @@ import (
 
 // CreateRoutes add the routes used in SSE-SC sub-protocol
 // This is simple, one endpoint to connect, and one to pass requests, using URI variables
-func (m *HiveotSseServer) CreateRoutes(ssePath string, r chi.Router) {
+func (m *SseTransportServer) CreateRoutes(ssePath string, r chi.Router) {
 	if r == nil {
 		slog.Error("HiveotSseModule CreateRoutes: missing router")
 		return
 	}
 	// SSE connection endpoint
-	r.Get(ssePath, m.onHttpSseConnection)
+	r.Get(ssePath, m.onSseConnection)
 	r.Post(sseapi.PostSseScNotificationPath, m.onHttpNotificationMessage)
 	r.Post(sseapi.PostSseScRequestPath, m.onHttpRequestMessage)
 	r.Post(sseapi.PostSseScResponsePath, m.onHttpResponseMessage)
-
-	// Connect serves the SSE-SC protocol
-	//srv.httpBasicServer.AddOps(nil, []string{SSEOpConnect},
-	//	http.MethodGet, srv.ssePath, srv.Serve)
-	//
-	//// Handle notification messages from agents, containing a notification message envelope.
-	//srv.httpBasicServer.AddOps(nil,
-	//	[]string{"*"},
-	//	http.MethodPost, DefaultHiveotPostNotificationHRef, srv.HandleNotificationMessage)
-	//
-	//// Handle request messages using a single path with URI variables.
-	//srv.httpBasicServer.AddOps(nil,
-	//	[]string{"*"},
-	//	http.MethodPost, DefaultHiveotPostRequestHRef, srv.HandleRequestMessage)
-	//
-	//// Handle response messages from agents, containing a response message envelope.
-	//srv.httpBasicServer.AddOps(nil,
-	//	[]string{"*"},
-	//	http.MethodPost, DefaultHiveotPostResponseHRef, srv.HandleResponseMessage)
 }
 
 // DeleteRoutes removes the routes used in SSE-SC sub-protocol
-func (m *HiveotSseServer) DeleteRoutes(ssePath string, r chi.Router) {
-	r.Delete(ssePath, m.onHttpSseConnection)
+func (m *SseTransportServer) DeleteRoutes(ssePath string, r chi.Router) {
+	r.Delete(ssePath, m.onSseConnection)
 	r.Delete(sseapi.PostSseScNotificationPath, m.onHttpNotificationMessage)
 	r.Delete(sseapi.PostSseScRequestPath, m.onHttpRequestMessage)
 	r.Delete(sseapi.PostSseScResponsePath, m.onHttpResponseMessage)
@@ -64,7 +45,7 @@ func (m *HiveotSseServer) DeleteRoutes(ssePath string, r chi.Router) {
 //
 // The notification is decoded into a standard notification message and passed on
 // to the registered sink.
-func (m *HiveotSseServer) onHttpNotificationMessage(w http.ResponseWriter, r *http.Request) {
+func (m *SseTransportServer) onHttpNotificationMessage(w http.ResponseWriter, r *http.Request) {
 
 	// 1. Decode the message
 	rp, err := m.httpServer.GetRequestParams(r)
@@ -73,7 +54,7 @@ func (m *HiveotSseServer) onHttpNotificationMessage(w http.ResponseWriter, r *ht
 		return
 	}
 	// the converter translates the payload to a NotificationMessage
-	notif := m.converter.DecodeNotification(rp.Payload)
+	notif, err := m.encoder.DecodeNotification(rp.Payload)
 	if notif == nil || notif.AffordanceType == "" {
 		err = fmt.Errorf("onHttpNotificationMessage: missing notification in payload")
 		utils.WriteError(w, err, 0)
@@ -99,7 +80,7 @@ func (m *HiveotSseServer) onHttpNotificationMessage(w http.ResponseWriter, r *ht
 //
 // Note that in case of invokeaction, the response should be an ActionStatus object.
 // The handler can easily create this using req.CreateActionResponse().
-func (m *HiveotSseServer) onHttpRequestMessage(w http.ResponseWriter, r *http.Request) {
+func (m *SseTransportServer) onHttpRequestMessage(w http.ResponseWriter, r *http.Request) {
 	var resp *msg.ResponseMessage
 
 	// 1. Decode the request message
@@ -109,9 +90,9 @@ func (m *HiveotSseServer) onHttpRequestMessage(w http.ResponseWriter, r *http.Re
 		w.WriteHeader(http.StatusUnauthorized)
 		return
 	}
-	req := m.converter.DecodeRequest(rp.Payload)
-	if req == nil || req.Operation == "" {
-		err = fmt.Errorf("HandleRequestMessage: missing request in payload")
+	req, err := m.encoder.DecodeRequest(rp.Payload)
+	if err != nil || req.Operation == "" {
+		err = fmt.Errorf("HandleRequestMessage: missing or invalid request")
 		slog.Error(err.Error())
 		w.WriteHeader(http.StatusBadRequest)
 		return
@@ -173,7 +154,7 @@ func (m *HiveotSseServer) onHttpRequestMessage(w http.ResponseWriter, r *http.Re
 // forwards to subscriber (which is the server again, or a consumer)
 //
 // The message body is unmarshalled and included as the response.
-func (m *HiveotSseServer) onHttpResponseMessage(w http.ResponseWriter, r *http.Request) {
+func (m *SseTransportServer) onHttpResponseMessage(w http.ResponseWriter, r *http.Request) {
 
 	// 1. Decode the request message
 	rp, err := m.httpServer.GetRequestParams(r)
@@ -182,9 +163,9 @@ func (m *HiveotSseServer) onHttpResponseMessage(w http.ResponseWriter, r *http.R
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
-	resp := m.converter.DecodeResponse(rp.Payload)
-	if resp == nil || resp.Operation == "" {
-		err = fmt.Errorf("HandleResponseMessage: missing response in payload")
+	resp, err := m.encoder.DecodeResponse(rp.Payload)
+	if err != nil || resp.Operation == "" {
+		err = fmt.Errorf("HandleResponseMessage: invalid or missing response in payload")
 		slog.Error(err.Error())
 		w.WriteHeader(http.StatusBadRequest)
 		return
@@ -209,9 +190,9 @@ func (m *HiveotSseServer) onHttpResponseMessage(w http.ResponseWriter, r *http.R
 	}
 }
 
-// Serve a new incoming hiveot sse connection.
+// onSseConnection serves a new incoming hiveot SSE connection.
 // This doesn't return until the connection is closed by either client or server.
-func (m *HiveotSseServer) onHttpSseConnection(w http.ResponseWriter, r *http.Request) {
+func (m *SseTransportServer) onSseConnection(w http.ResponseWriter, r *http.Request) {
 
 	//An active session is required before accepting the request. This is created on
 	//authentication/login. Until then SSE cm are blocked.
@@ -236,22 +217,8 @@ func (m *HiveotSseServer) onHttpSseConnection(w http.ResponseWriter, r *http.Req
 	c := NewHiveotSseConnection(
 		rp.ClientID, rp.ConnectionID, r.RemoteAddr, r, m.RnrChan, m.respTimeout)
 
-	// By default the server collects the requests/responses to pass it to subscribers
-	// If a consumer takes over the connection (connection reversal) it will register
-	// its own handlers.
-	// c.SetNotificationHandler(srv.serverNotificationHandler)
-	// c.SetRequestHandler(srv.serverRequestHandler)
-	// c.SetResponseHandler(srv.serverResponseHandler)
 	err = m.AddConnection(c)
-	// if m.connectHandler != nil {
-	// m.connectHandler(true, c, nil)
-	// }
 
-	// if err != nil {
-	// http.Error(w, err.Error(), http.StatusUnauthorized)
-	// return
-	// }
-	// don't return until the connection is closed
 	c.Serve(w, r)
 
 	// finally cleanup the connection

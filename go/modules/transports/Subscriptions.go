@@ -29,17 +29,18 @@ func (s *Subscriptions) GetSubscription(thingID string, name string) string {
 		return ""
 	}
 	// wildcards
-	thingWC := "+." + name
-	nameWC := thingID + ".+"
-	sub := thingID + "." + name
+	thingIsWildcard := "+." + name
+	nameIsWildcard := thingID + ".+"
+	exactMatch := thingID + "." + name
 	for k, v := range s.subscriptions {
-		if k == "+.+" {
+		switch k {
+		case "+.+":
 			// step 1, full wildcard subscriptions
 			return v
-		} else if k == thingWC || k == nameWC {
+		case thingIsWildcard, nameIsWildcard:
 			// step 1, thing or name wildcard subscriptions
 			return v
-		} else if k == sub {
+		case exactMatch:
 			// step 1, exact match subscriptions
 			return v
 		}

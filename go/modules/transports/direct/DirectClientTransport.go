@@ -21,10 +21,6 @@ type DirectClientTransport struct {
 func (srv *DirectClientTransport) AddTDSecForms(tdi *td.TD, includeAffordances bool) {
 }
 
-func (srv *DirectClientTransport) GetProtocolType() string {
-	return ""
-}
-
 // Receive a notification from the sink and pass it on to the notification sink (the consumer)
 func (m *DirectClientTransport) HandleNotification(notif *msg.NotificationMessage) {
 	m.ForwardNotification(notif)
@@ -89,7 +85,7 @@ func (m *DirectClientTransport) Stop() {
 func NewDirectTransport(
 	moduleID string, producer modules.IHiveModule) modules.IHiveModule {
 	t := &DirectClientTransport{}
-	t.Init(moduleID, "", "", nil)
+	t.Init(moduleID, "", "", "", nil)
 	producer.SetNotificationSink(t.HandleNotification)
 	t.SetRequestSink(producer.HandleRequest)
 	var _ transports.ITransportServer = t // interface check

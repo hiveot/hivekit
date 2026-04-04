@@ -51,6 +51,9 @@ type TransportServerBase struct {
 	// Sink for forwarding notifications
 	notificationSink msg.NotificationHandler
 
+	// The protocol type of this server
+	protocolType string
+
 	// Sink for forwarding requests
 	requestSink msg.RequestHandler
 
@@ -363,6 +366,11 @@ func (srv *TransportServerBase) GetModuleID() string {
 	return srv.moduleID
 }
 
+// GetProtocolType returns type identifier of the server protocol as defined by its module
+func (m *TransportServerBase) GetProtocolType() (string, string) {
+	return m.protocolType, m.subprotocol
+}
+
 // Handle a notification this module (or downstream in the chain) subscribed to.
 // Notifications are forwarded to their upstream sink, which for a server is the
 // client.
@@ -402,22 +410,6 @@ func (m *TransportServerBase) HandleRequest(
 		}
 	}
 	return err
-}
-
-// Initialize the module base with a moduleID and a messaging sink
-//
-//	moduleID is the transport instance ID to identify as.
-//	subprotocol optional name for including in form operations
-//	connectURL is the URL this module can be reached at. Used to set TD.Base
-//	authenticator used to include the security in TDs
-func (srv *TransportServerBase) Init(
-	moduleID string, subprotocol string, connectURL string, authenticator IAuthenticator) {
-
-	srv.authenticator = authenticator
-	srv.moduleID = moduleID
-	srv.subprotocol = subprotocol
-	srv.connectURL = connectURL
-	srv.RnrChan = msg.NewRnRChan()
 }
 
 // removeConnection removes the connection and sends an event notification.
@@ -552,4 +544,21 @@ func (srv *TransportServerBase) SetRequestSink(sink msg.RequestHandler) {
 		slog.Warn("SetRequestSink: Overriding existing request sink", "moduleID", srv.moduleID)
 	}
 	srv.requestSink = sink
+}
+
+// Initialize the module base with a moduleID and a messaging sink
+//
+//	moduleID is the transport instance ID to identify as.
+//	subprotocol optional name for including in form operations
+//	connectURL is the URL this module can be reached at. Used to set TD.Base
+//	authenticator used to include the security in TDs
+func (srv *TransportServerBase) Init(
+	moduleID string, protocolType, subprotocol string, connectURL string, authenticator IAuthenticator) {
+
+	srv.authenticator = authenticator
+	srv.moduleID = moduleID
+	srv.protocolType = protocolType
+	srv.subprotocol = subprotocol
+	srv.connectURL = connectURL
+	srv.RnrChan = msg.NewRnRChan()
 }

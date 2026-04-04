@@ -11,7 +11,6 @@ import (
 	"time"
 
 	authnapi "github.com/hiveot/hivekit/go/modules/authn/api"
-	certstest "github.com/hiveot/hivekit/go/modules/certs/test"
 	"github.com/hiveot/hivekit/go/modules/transports"
 	"github.com/hiveot/hivekit/go/msg"
 	"github.com/hiveot/hivekit/go/testenv"
@@ -24,49 +23,14 @@ import (
 const testAgentID1 = "agent1"
 const testClientID1 = "client1"
 
-// server endpoint/protocol used
-// var defaultProtocol = transports.ProtocolTypeHiveotSsesc
+var testProtocol = transports.ProtocolTypeWotWebsocket
 
-var defaultProtocol = transports.ProtocolTypeHiveotGrpc
-
-// var defaultProtocol = transports.ProtocolTypeHiveotWebsocket
-
-// var defaultProtocol = transports.ProtocolTypeWotWebsocket
-
-var certBundle = certstest.CreateTestCertBundle(utils.KeyTypeED25519)
-
-// Create a new form for the given operation
-// This uses the default protocol to generate the Form
-//func NewForm(op, thingID, name string) *td.Form {
-//	switch defaultProtocol {
-//
-//	}
-//	form := transportServer.GetForm(op, thingID, name)
-//	return form
-//}
-
-// func DummyRequestHandler(req *msg.RequestMessage, replyTo msg.ResponseHandler) error {
-// 	var output any
-// 	var err error
-// 	slog.Info("DummyRequestHandler: Received request", "op", req.Operation)
-// 	//if req.Operation == td.HTOpRefresh {
-// 	//	oldToken := req.ToString(0)
-// 	//	output, err = dummyAuthenticator.RefreshToken(req.SenderID, oldToken)
-// 	//} else if req.Operation == td.HTOpLogout {
-// 	//	dummyAuthenticator.Logout(c.GetClientID())
-// 	//} else {
-// 	output = req.Input // echo
-// 	//}
-// 	resp := req.CreateResponse(output, err)
-// 	err = replyTo(resp)
-// 	return err
-// }
-
-// func DummyResponseHandler(response *msg.ResponseMessage) error {
-
-// 	slog.Info("DummyResponse: Received response", "op", response.Operation)
-// 	return nil
-// }
+var testProtocols = []string{
+	transports.ProtocolTypeHiveotSsesc,
+	transports.ProtocolTypeHiveotGrpc,
+	transports.ProtocolTypeHiveotWebsocket,
+	transports.ProtocolTypeWotWebsocket,
+}
 
 // TestMain sets logging
 func TestMain(m *testing.M) {
@@ -75,11 +39,20 @@ func TestMain(m *testing.M) {
 	os.Exit(result)
 }
 
+func TestConnectAll(t *testing.T) {
+	for _, testProtocol = range testProtocols {
+		t.Run("TestStartStop", TestStartStop)
+		t.Run(testProtocol, TestPing)
+		t.Run(testProtocol, TestReconnect)
+		t.Run(testProtocol, TestServerURL)
+	}
+}
+
 // test create a server and connect a client
 func TestStartStop(t *testing.T) {
-	t.Logf("---%s---\n", t.Name())
+	t.Logf("---%s %s---\n", t.Name(), testProtocol)
 
-	testEnv, cancelFn := testenv.StartTestEnv(defaultProtocol)
+	testEnv, cancelFn := testenv.StartTestEnv(testProtocol)
 
 	defer cancelFn()
 	co1, cc1, _ := testEnv.NewConsumerClient(testClientID1, authnapi.ClientRoleViewer, nil)
@@ -88,12 +61,17 @@ func TestStartStop(t *testing.T) {
 
 	isConnected := cc1.IsConnected()
 	assert.True(t, isConnected)
+
+	// time.Sleep(time.Millisecond)
+	// cc1.Close()
+
+	t.Log("---ending---")
 }
 
 func TestPing(t *testing.T) {
-	t.Logf("---%s---\n", t.Name())
+	t.Logf("---%s %s---\n", t.Name(), testProtocol)
 
-	testEnv, cancelFn := testenv.StartTestEnv(defaultProtocol)
+	testEnv, cancelFn := testenv.StartTestEnv(testProtocol)
 	defer cancelFn()
 	co1, cc1, _ := testEnv.NewConsumerClient(testClientID1, authnapi.ClientRoleViewer, nil)
 	defer cc1.Close()
@@ -111,145 +89,9 @@ func TestPing(t *testing.T) {
 	// assert.NoError(t, err)
 }
 
-// login/refresh
-// func TestLoginRefresh(t *testing.T) {
-// 	t.Logf("---%s---\n", t.Name())
-// 	testPass := "pass1"
-// 	srv, tpauthn, cancelFn := StartTransportModule(nil)
-// 	require.NotNil(t, srv)
-// 	defer cancelFn()
-
-// 	serverURL := srv.GetConnectURL()
-// 	authnClient := authnclient.NewAuthnHttpClient(serverURL, certBundle.CaCert)
-
-// 	// 1: Login
-// 	tpauthnapi.AddClient(testClientID1, testPass)
-// 	token, err := authnClient.LoginWithPassword(testClientID1, testPass)
-// 	require.NoError(t, err)
-// 	require.NotEmpty(t, token)
-
-// 	// 2: Refresh using auth token
-// 	token2, err := authnClient.RefreshToken(token)
-// 	require.NoError(t, err)
-// 	require.NotEmpty(t, token2)
-
-// 	// end the connection
-// 	authnClient.Close()
-// 	time.Sleep(time.Millisecond * 1)
-
-// 	// should be able to reconnect with the new token and refresh.
-// 	parts, _ := url.Parse(serverURL)
-// 	cl2 := tlsclient.NewTLSClient(parts.Host, nil, certBundle.CaCert, 0)
-// 	err = cl2.ConnectWithToken(testClientID1, token2)
-// 	require.NoError(t, err)
-
-// 	//token3, err := co1.RefreshToken(token2)
-// 	token3, err := authnclient.RefreshToken(cl2, testClientID1, token2)
-// 	assert.NoError(t, err)
-// 	assert.NotEmpty(t, token3)
-
-// 	// end the session
-// 	cl2.Close()
-// }
-
-// func TestLogout(t *testing.T) {
-// 	t.Logf("---%s---\n", t.Name())
-
-// 	srv, tpauthn, cancelFn := StartTransportModule(nil)
-// 	_ = srv
-// 	defer cancelFn()
-
-// 	// check if this test still works with a valid login
-//	cc1, co1, _ := NewTestConsumer(testClientID1, srv.GetConnectURL(), tpauthn)
-// 	_ = cc1
-// 	_ = co1
-// 	defer co1.Stop()
-// 	assert.NotEmpty(t, token1)
-
-// 	// logout
-// 	serverURL := srv.GetConnectURL()
-// 	authnClient := authnclient.NewAuthnHttpClient(serverURL, certBundle.CaCert)
-// 	authnClient.ConnectWithToken(testClientID1, token1)
-// 	err := authnClient.Logout(token1)
-// 	assert.NoError(t, err)
-
-// 	//authenticator.Logout(cc1, "")
-// 	//err := co1.Logout()
-// 	t.Log(">>> Logged out, an unauthorized error is expected next.")
-
-// 	// This causes Refresh to fail
-// 	token2, err := authnClient.RefreshToken(token1)
-// 	//token2, err := co1.RefreshToken(token1)
-// 	assert.Error(t, err)
-// 	assert.Empty(t, token2)
-// }
-
-//func TestBadLogin(t *testing.T) {
-//	t.Logf("---%s---\n", t.Name())
-//
-//	srv, cancelFn := StartTransportServer(nil, nil)
-//	defer cancelFn()
-//
-//	cc1, co1, _ := NewConsumer(testClientID1, srv.GetForm)
-//
-//	// check if this test still works with a valid login
-//	token1, err := cc1.ConnectWithPassword(testClientID1)
-//	assert.NoError(t, err)
-//
-//	// failed logins
-//	t.Log("Expecting ConnectWithPassword to fail")
-//	token2, err := cc1.ConnectWithPassword("bad-pass")
-//	assert.Error(t, err)
-//	assert.Empty(t, token2)
-//
-//	// can't refresh when no longer connected
-//	t.Log("Expecting RefreshToken to fail")
-//	token4, err := co1.RefreshToken(token1)
-//	assert.Error(t, err)
-//	assert.Empty(t, token4)
-//
-//	// disconnect should always succeed
-//	cc1.Disconnect()
-//
-//	// bad client ID
-//	t.Log("Expecting ConnectWithPassword('BadID') to fail")
-//	cc2, _, _ := NewConsumer("badID", srv.GetForm)
-//	token5, err := cc2.ConnectWithPassword(testClientID1)
-//	assert.Error(t, err)
-//	assert.Empty(t, token5)
-//}
-
-// func TestBadRefresh(t *testing.T) {
-// 	t.Logf("---%s---\n", t.Name())
-// 	srv, tpauthn, cancelFn := StartTransportModule(nil)
-// 	defer cancelFn()
-// 	cc1, co1, token1 := NewTestConsumer(tpauthn, testClientID1)
-// 	_ = co1
-// 	_ = token1
-// 	defer cc1.Close()
-
-// 	// set the token
-// 	t.Log("Expecting SetBearerToken('bad-token') to fail")
-// 	err := cc1.ConnectWithToken(testClientID1, "bad-token")
-// 	require.Error(t, err)
-
-// 	// reconnect with a valid token and connect with a bad client-id
-// 	err = cc1.ConnectWithToken(testClientID1, token1)
-// 	assert.NoError(t, err)
-
-// 	serverURL := srv.GetConnectURL()
-// 	authCl := authnclient.NewAuthnHttpClient(serverURL, certBundle.CaCert)
-// 	authCl.ConnectWithToken(testClientID1, token1)
-// 	validToken, err := authCl.RefreshToken(token1)
-// 	//validToken, err := co1.RefreshToken(token1)
-// 	assert.NoError(t, err)
-// 	assert.NotEmpty(t, validToken)
-// 	cc1.Close()
-// }
-
 // Auto-reconnect using hub client and server
 func TestReconnect(t *testing.T) {
-	t.Logf("---%s---\n", t.Name())
+	t.Logf("---%s %s---\n", t.Name(), testProtocol)
 
 	const thingID = "thing1"
 	const actionKey = "action1"
@@ -267,11 +109,8 @@ func TestReconnect(t *testing.T) {
 			go func() {
 				// send an asynchronous result after a short time
 				time.Sleep(time.Millisecond * 10)
-				// require.NotNil(t, c, "client doesnt have a connection")
 				output := req.Input
-				// cinfo := c.GetConnectionInfo()
-				// c2 := srv.GetConnectionByConnectionID(cinfo.ClientID, cinfo.ConnectionID)
-				// assert.NotEmpty(t, c2)
+
 				resp := req.CreateResponse(output, nil)
 				// err = c.SendResponse(resp)
 				err = replyTo(resp)
@@ -287,7 +126,7 @@ func TestReconnect(t *testing.T) {
 		return err
 	}
 	// start the servers and handle a request
-	testEnv, cancelFn := testenv.StartTestEnv(defaultProtocol)
+	testEnv, cancelFn := testenv.StartTestEnv(testProtocol)
 	testEnv.Server.SetRequestSink(handleRequest)
 	testEnv.Server.SetNotificationSink(func(notif *msg.NotificationMessage) {
 		// expect a connect-disconnect event
@@ -350,13 +189,14 @@ func TestReconnect(t *testing.T) {
 
 // Test getting server URL
 func TestServerURL(t *testing.T) {
-	t.Logf("---%s---\n", t.Name())
+	t.Logf("---%s %s---\n", t.Name(), testProtocol)
 
-	testEnv, cancelFn := testenv.StartTestEnv(defaultProtocol)
+	testEnv, cancelFn := testenv.StartTestEnv(testProtocol)
 	defer cancelFn()
 	serverURL := testEnv.Server.GetConnectURL()
-	protocol := testEnv.Server.GetProtocolType()
+	protocolType, subProtocol := testEnv.Server.GetProtocolType()
+	_ = subProtocol
 	_, err := url.Parse(serverURL)
 	require.NoError(t, err)
-	require.Equal(t, defaultProtocol, protocol)
+	require.Equal(t, testProtocol, protocolType)
 }

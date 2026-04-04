@@ -8,7 +8,6 @@ import (
 	grpcapi "github.com/hiveot/hivekit/go/modules/transports/grpc/api"
 	"github.com/hiveot/hivekit/go/modules/transports/grpc/internal"
 	"github.com/hiveot/hivekit/go/msg"
-	jsoniter "github.com/json-iterator/go"
 	"google.golang.org/grpc/peer"
 )
 
@@ -26,6 +25,7 @@ type TransportConnection struct {
 	// reqHandler handles the requests received from the remote consumer
 	reqHandler msg.RequestHandler
 
+	encoder transports.IMessageEncoder
 	// request-response channel used to server request replyTo callbacks
 	// rnrChan *msg.RnRChan
 
@@ -33,53 +33,39 @@ type TransportConnection struct {
 	// respTimeout time.Duration
 }
 
-// when the client disconnects, we want to make sure that the read loop exits gracefully and that all pending response handlers are notified of the disconnection. This is done by cancelling the stream context, which should cause the read loop to exit with a context.Canceled error. The response handlers will then be notified of the disconnection and can handle it accordingly.
-// func (sc *TransportConnection) cancelSafely() {
-// 	sc.isConnected.Store(false)
-// 	close(sc.cancelChan)
-// }
-
 // _onMessage handles an incoming message
 // The message is converted into a request, response or notification and passed
 // on to the registered handler.
-func (sc *TransportConnection) _onMessage(msgType string, jsonRaw string) {
+func (sc *TransportConnection) _onMessage(msgType string, raw []byte) {
 
 	switch msgType {
 	case msg.MessageTypeNotification:
-		var notifMsg msg.NotificationMessage
-		err := jsoniter.UnmarshalFromString(jsonRaw, &notifMsg)
+		notif, err := sc.encoder.DecodeNotification(raw)
 		if err != nil {
 			slog.Error("Failed to unmarshal notification message", "err", err.Error())
 			return
 		}
-		sc.OnNotification(&notifMsg, sc.notifHandler)
+		notif.SenderID = sc.GetClientID()
+		sc.OnNotification(notif, sc.notifHandler)
 
 	case msg.MessageTypeRequest:
-		var req msg.RequestMessage
-		err := jsoniter.UnmarshalFromString(jsonRaw, &req)
+		req, err := sc.encoder.DecodeRequest(raw)
 		if err != nil {
 			slog.Error("Failed to unmarshal request message", "err", err.Error())
 			return
 		}
 		req.SenderID = sc.GetClientID()
-		sc.OnRequest(&req, sc.reqHandler)
+		sc.OnRequest(req, sc.reqHandler)
 
 	case msg.MessageTypeResponse:
-		var resp msg.ResponseMessage
-		err := jsoniter.UnmarshalFromString(jsonRaw, &resp)
+		resp, err := sc.encoder.DecodeResponse(raw)
 		if err != nil {
 			slog.Error("Failed to unmarshal response message", "err", err.Error())
 			return
 		}
-		sc.OnResponse(&resp)
-		// handled := sc.rnrChan.HandleResponse(&resp, sc.respTimeout)
-		// if !handled {
-		// 	slog.Warn("_onMessage: No response handler for request, response is lost",
-		// 		"correlationID", resp.CorrelationID,
-		// 		"op", resp.Operation,
-		// 		"thingID", resp.ThingID,
-		// 		"name", resp.Name)
-		// }
+		resp.SenderID = sc.GetClientID()
+		sc.OnResponse(resp)
+
 	}
 }
 
@@ -87,13 +73,6 @@ func (sc *TransportConnection) _onMessage(msgType string, jsonRaw string) {
 func (sc *TransportConnection) Close() {
 	sc.bstrm.Close()
 }
-
-// func (sc *TransportConnection) GetClientID() string {
-// 	return sc.clientID
-// }
-// func (sc *TransportConnection) GetConnectionID() string {
-// 	return sc.connectionID
-// }
 
 // IsConnected returns the current connection status
 func (sc *TransportConnection) IsConnected() bool {
@@ -127,6 +106,7 @@ func StartGrpcTransportConnection(
 	c := &TransportConnection{
 		reqHandler:   reqHandler,
 		notifHandler: notifHandler,
+		encoder:      transports.NewRRNJsonEncoder(),
 		// respTimeout:  respTimeout,
 		// rnrChan:      msg.NewRnRChan(),
 	}

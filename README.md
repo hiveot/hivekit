@@ -26,6 +26,7 @@ Transport modules:
 | :----: | -------------------- | ----------------------------- | ----- |
 |   ✔️   | transport/direct     | Simulation of transport       | alpha |
 |   ✔️   | transport/discovery  | WoT mDNS device discovery     | alpha |
+|   ✔️   | transport/grpc       | HiveOT gRPC protocol          | alpha |
 |   ✔️   | transport/httpbasic  | WoT HTTP basic protocol       | alpha |
 |   ✔️   | transport/httpserver | HTTP server for sub protocols | alpha |
 |   ✔️   | transport/ssesc      | HiveOT HTTP/SSE-SC protocol   | alpha |

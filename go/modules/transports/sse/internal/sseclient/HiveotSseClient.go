@@ -42,8 +42,8 @@ type HiveotSseClient struct {
 
 	lastError atomic.Pointer[error]
 
-	// convert the request/response to the SSE messaging protocol used
-	msgEncoder transports.IMessageConverter
+	// encode/decode the request/response to the SSE messaging protocol used
+	encoder transports.IMessageEncoder
 
 	// sse variables access
 	mux sync.RWMutex
@@ -258,8 +258,8 @@ func (cl *HiveotSseClient) handleSseEvent(event sse.Event) {
 	// Use the hiveot message envelopes for request, response and notification
 	switch event.Type {
 	case msg.MessageTypeNotification:
-		notif := cl.msgEncoder.DecodeNotification([]byte(event.Data))
-		if notif == nil {
+		notif, err := cl.encoder.DecodeNotification([]byte(event.Data))
+		if err != nil {
 			return
 		}
 		// if cl.requestSink == nil {
@@ -281,8 +281,8 @@ func (cl *HiveotSseClient) handleSseEvent(event sse.Event) {
 		}
 	case msg.MessageTypeRequest:
 		var err error
-		req := cl.msgEncoder.DecodeRequest([]byte(event.Data))
-		if req == nil {
+		req, err := cl.encoder.DecodeRequest([]byte(event.Data))
+		if err != nil {
 			return
 		}
 		if cl.requestSink == nil {
@@ -308,8 +308,8 @@ func (cl *HiveotSseClient) handleSseEvent(event sse.Event) {
 		}
 
 	case msg.MessageTypeResponse:
-		resp := cl.msgEncoder.DecodeResponse([]byte(event.Data))
-		if resp == nil {
+		resp, err := cl.encoder.DecodeResponse([]byte(event.Data))
+		if err != nil {
 			slog.Info("handleSseEvent: Received SSE Event but decoder returns nil", "data", string(event.Data))
 			return
 		}
@@ -542,7 +542,7 @@ func NewHiveotSseClient(sseURL string, caCert *x509.Certificate,
 
 	cl := &HiveotSseClient{
 		connectHandler: ch,
-		msgEncoder:     transports.NewRRNJsonEncoder(),
+		encoder:        transports.NewRRNJsonEncoder(),
 		rnrChan:        msg.NewRnRChan(),
 		ssePath:        ssePath,
 		tlsClient:      tlsClient,

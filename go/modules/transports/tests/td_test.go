@@ -71,7 +71,7 @@ func TestAddForms(t *testing.T) {
 
 	// handler of TDs on the server
 	// 1. start the transport
-	testEnv, cancelFn := testenv.StartTestEnv(defaultProtocol)
+	testEnv, cancelFn := testenv.StartTestEnv(testProtocol)
 	defer cancelFn()
 
 	// 2. Create a TD

@@ -8,7 +8,8 @@ This transport module passes RRN messages as-is between gRPC client and server.
 
 This transport module is functional but breaking changes can be expected.
 
-TODO: Remove protobuf, just use gRPC. This currently uses gRPC protobuf to generate code for a single stream. Protobuf just adds an encoded to the existing json encoding so it isn't really helping in any way. It also adds another toolset dependency. It will be replaced with a non-protobuf encoder once the code is complete.
+TODO-1: Support for tcp sockets and URL
+TODO-2: Remove protobuf, just use gRPC. This currently uses gRPC protobuf to generate code for a single stream. Protobuf just adds an encoding to the existing json encoding so it isn't really helping in any way. It also adds another toolset dependency. It will be replaced with a non-protobuf encoder once the code is complete.
 
 ## Summary
 

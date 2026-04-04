@@ -235,58 +235,57 @@ func (sc *HiveotSseServerConnection) Serve(w http.ResponseWriter, r *http.Reques
 
 	// close the channel when the connection drops
 	go func() {
-		select {
-		case <-r.Context().Done(): // remote client connection closed
-			slog.Debug("SseConnection: Remote client disconnected (read context)")
-			// close channel when no-one is writing
-			// in the meantime keep reading to prevent deadlock
-			sc.Disconnect()
 
-		}
+		<-r.Context().Done() // remote client connection closed
+
+		slog.Debug("SseConnection: Remote client disconnected (read context)")
+		// close channel when no-one is writing
+		// in the meantime keep reading to prevent deadlock
+		sc.Disconnect()
+
 	}()
 
 	// read the message channel for sending messages until it closes
 	for sendLoop { // sseMsg := range sseChan {
-		select {
-		// keep reading to prevent blocking on channel on write
-		case sseMsg, ok := <-sc.sseChan: // received event
-			var err error
 
-			if !ok { // channel was closed by session
-				// avoid further writes
-				sendLoop = false
-				// ending the read loop and returning will close the connection
-				break
-			}
-			slog.Info("SseConnection: sending sse event to client",
-				//slog.String("sessionID", c.sessionID),
-				slog.String("clientID", sc.GetClientID()),
-				slog.String("connectionID", sc.ConnectionID),
-				slog.String("sse eventType", sseMsg.EventType),
-			)
-			var n int
-			n, err = fmt.Fprintf(w, "event: %s\ndata: %s\n\n",
-				sseMsg.EventType, sseMsg.Payload)
-			//_, err = fmt.Fprintf(w, "event: %s\ndata: %s\n\n",
-			//	sseMsg.EventType, sseMsg.ID, sseMsg.Payload)
-			if err != nil {
-				// the connection might be closing.
-				// don't exit the loop until the receive-channel is closed.
-				// just keep processing the message until that happens
-				// closed go channels panic when written to. So keep reading.
-				slog.Error("SseConnection: Error writing SSE event",
-					slog.String("Event", sseMsg.EventType),
-					slog.String("SenderID", sc.GetClientID()),
-					slog.Int("size", len(sseMsg.Payload)),
-				)
-			} else {
-				slog.Debug("SseConnection: SSE write to client",
-					slog.String("SenderID", sc.GetClientID()),
-					slog.String("Event", sseMsg.EventType),
-					slog.Int("N bytes", n))
-			}
-			w.(http.Flusher).Flush()
+		// keep reading to prevent blocking on channel on write
+		sseMsg, ok := <-sc.sseChan // received event
+		var err error
+
+		if !ok { // channel was closed by session
+			// avoid further writes
+			sendLoop = false
+			// ending the read loop and returning will close the connection
+			break
 		}
+		slog.Info("SseConnection: sending sse event to client",
+			//slog.String("sessionID", c.sessionID),
+			slog.String("clientID", sc.GetClientID()),
+			slog.String("connectionID", sc.ConnectionID),
+			slog.String("sse eventType", sseMsg.EventType),
+		)
+		var n int
+		n, err = fmt.Fprintf(w, "event: %s\ndata: %s\n\n",
+			sseMsg.EventType, sseMsg.Payload)
+		//_, err = fmt.Fprintf(w, "event: %s\ndata: %s\n\n",
+		//	sseMsg.EventType, sseMsg.ID, sseMsg.Payload)
+		if err != nil {
+			// the connection might be closing.
+			// don't exit the loop until the receive-channel is closed.
+			// just keep processing the message until that happens
+			// closed go channels panic when written to. So keep reading.
+			slog.Error("SseConnection: Error writing SSE event",
+				slog.String("Event", sseMsg.EventType),
+				slog.String("SenderID", sc.GetClientID()),
+				slog.Int("size", len(sseMsg.Payload)),
+			)
+		} else {
+			slog.Debug("SseConnection: SSE write to client",
+				slog.String("SenderID", sc.GetClientID()),
+				slog.String("Event", sseMsg.EventType),
+				slog.Int("N bytes", n))
+		}
+		w.(http.Flusher).Flush()
 	}
 	//cs.DeleteSSEChan(sseChan)
 	slog.Debug("SseConnection.Serve: sse connection closed",
