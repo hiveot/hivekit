@@ -200,11 +200,13 @@ func (scb *ServerConnectionBase) OnRequest(
 		err = forwardRequest(req, func(reply *msg.ResponseMessage) error {
 			// the callback is async so handle it separately
 			if reply != nil {
-				err = scb.SendResponse(reply)
+				return scb.SendResponse(reply)
 			} else {
-				slog.Error("onRequest: Sink response callback without response")
+				// not having a reply handler is an error
+				err := fmt.Errorf("onRequest: Sink response callback without response")
+				slog.Error(err.Error())
+				return err
 			}
-			return err
 		})
 		// if handling the request failed, return an error response
 		if err != nil {

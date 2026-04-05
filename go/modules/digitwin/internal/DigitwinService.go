@@ -83,8 +83,7 @@ func (m *DigitwinService) ForwardDigitwinRequestToDevice(dtwReq *msg.RequestMess
 	err = m.ForwardRequest(&deviceReq, func(resp *msg.ResponseMessage) error {
 		// put the digitwin thingID back into the response
 		resp.ThingID = dtwReq.ThingID
-		err = replyTo(resp)
-		return err
+		return replyTo(resp)
 	})
 	return err
 }

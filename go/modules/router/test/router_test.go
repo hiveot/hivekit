@@ -163,12 +163,11 @@ func TestReadDeviceProperties(t *testing.T) {
 				props[name] = aff.Title
 			}
 			resp := req.CreateResponse(props, nil)
-			err = replyTo(resp)
+			return replyTo(resp)
 		} else {
 			resp := req.CreateResponse(nil, fmt.Errorf("unsupported op '%s'", req.Operation))
-			err = replyTo(resp)
+			return replyTo(resp)
 		}
-		return err
 	})
 
 	// setup the consumer with the router module
