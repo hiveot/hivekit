@@ -16,6 +16,17 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func TestAllEventsProtocols(t *testing.T) {
+	for _, testProtocol = range testProtocols {
+		t.Run(testProtocol, TestAllEvents)
+	}
+}
+func TestAllEvents(t *testing.T) {
+	t.Run("TestSubscribeAll", TestSubscribeAll)
+	t.Run("TestPublishEventsByAgent", TestPublishEventsByAgent)
+	t.Run("TestReadEvent", TestReadEvent)
+}
+
 // test event messages between agent, server and client
 // this uses the client and server helpers defined in connect_test.go
 

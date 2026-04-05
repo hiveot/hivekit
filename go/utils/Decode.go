@@ -33,6 +33,8 @@ func DecodeAsString(value any, maxlen int) string {
 	}
 	asString := ""
 	switch value.(type) {
+	case []byte:
+		asString = string(value.([]byte))
 	case string:
 		asString = value.(string)
 	case *string:

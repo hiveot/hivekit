@@ -11,16 +11,29 @@ import (
 	"time"
 
 	"github.com/hiveot/hivekit/go/modules/transports"
-	grpcapi "github.com/hiveot/hivekit/go/modules/transports/grpc/api"
 	"github.com/hiveot/hivekit/go/modules/transports/grpc/internal"
+	"github.com/hiveot/hivekit/go/modules/transports/grpc/internal/grpcserver"
 	"github.com/teris-io/shortid"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/credentials/insecure"
-	"google.golang.org/protobuf/types/known/emptypb"
+	"google.golang.org/grpc/encoding"
 )
 
-const ClientMsgChanSize = 30
+const ClientMsgChanSize2 = 30
+
+// Stream info that matches the server
+// var streamInfo = grpc.StreamDesc{
+
+// 	// a not very original name for this stream
+// 	StreamName: "MsgStream",
+// 	// this handler serves the stream with StreamName name.
+// 	// Handler: func(srv interface{}, stream grpc.ServerStream) error {
+// 	// 	return srv.(*GrpcServiceServer2).MsgStream(stream)
+// 	// },
+// 	ServerStreams: true,
+// 	ClientStreams: true,
+// }
 
 // Grpc messaging client.
 // This uses the BufferedStream for sending and receiving messages on the GRPC stream
@@ -49,10 +62,11 @@ type GrpcServiceClient struct {
 	connectURL string
 
 	// conn         net.Conn
-	grpcConn          *grpc.ClientConn
-	grpcServiceClient grpcapi.GrpcServiceClient // interface
+	grpcConn *grpc.ClientConn
+	// grpcServiceClient grpcapi.GrpcServiceClient // interface
 	//
 
+	// message stream context cancellation
 	msgStreamCancel func()
 
 	// mutex for controlling writing and closing
@@ -62,7 +76,8 @@ type GrpcServiceClient struct {
 	pingHandler func(context.Context, any) (reply string, err error)
 
 	// callback for incoming messages
-	recvHandler func(msgType string, raw []byte)
+	// the grpc codec determines the type of any
+	recvHandler func(rawMsg []byte)
 
 	respTimeout time.Duration
 
@@ -128,26 +143,58 @@ func (cl *GrpcServiceClient) ConnectWithToken(clientID string, authToken string)
 	rpcCredOpt := grpc.WithPerRPCCredentials(cl)
 	dialOpts = append(dialOpts, rpcCredOpt)
 
+	// use the custom codec instead of protobuf
+	// this is a codec per-call, hence use WithDefaultCallOptions
+	encoding.RegisterCodec(internal.RawCodec{})
+	codecOption := grpc.WithDefaultCallOptions(grpc.CallContentSubtype("rawcodec"))
+	dialOpts = append(dialOpts, codecOption)
+
 	cl.grpcConn, err = grpc.NewClient(cl.connectURL, dialOpts...)
 	if err != nil {
 		slog.Error("Connect: NewClient failed", "err", err.Error())
 		return err
 	}
-	grpcServiceClient := grpcapi.NewGrpcServiceClient(cl.grpcConn)
+	// grpcServiceClient := grpcapi.NewGrpcServiceClient(cl.grpcConn)
+	// ctx, cancelFn := context.WithCancel(context.Background())
+	// cl.msgStreamCancel = cancelFn
+	// msgStream, err := grpcServiceClient.MsgStream(ctx)
 
+	// Create the messaging stream
 	ctx, cancelFn := context.WithCancel(context.Background())
 	cl.msgStreamCancel = cancelFn
-	msgStream, err := grpcServiceClient.MsgStream(ctx)
+	opts := []grpc.CallOption{}
+
+	// this returns a grpc.ClientStream
+	// NOTE: streamInfo must match the server
+	// var streamInfo = grpc.StreamDesc{
+	// 	StreamName:    grpcapi.GrpcTransportStreamName, // stream name must match the server
+	// 	ServerStreams: true,
+	// 	ClientStreams: true,
+	// }
+	// FIXME: the client requires stream name below
+	streamdesc := &grpcserver.ServiceDesc.Streams[0]
+	streamName := "/grpcapi.GrpcService/MsgStream"
+	grpcStream, err := cl.grpcConn.NewStream(ctx,
+		streamdesc, streamName, opts...)
+
 	if err != nil {
 		slog.Error("Connect: MsgStream failed", "err", err.Error())
 		return err
 	}
 
-	// use buffered stream for sending and receiving
-	cl.bufStream = internal.NewGrpcBufferedStream(msgStream, cl.recvHandler, cl.respTimeout)
-	cl.grpcServiceClient = grpcServiceClient
+	// This adds Send and Receive methods to the stream
+	// msgStream := NewGrpcServiceStreamClient2(grpcStream)
+	// var blob []byte
+	// err = grpcStream.RecvMsg(&blob)
+	// if err != nil {
+	// 	slog.Error("read stream failed ", err, err.Error())
+	// 	return err
+	// }
 
-	return nil
+	// use buffered stream for sending and receiving
+	cl.bufStream = internal.NewBufferedStream(grpcStream, cl.recvHandler, cl.respTimeout)
+
+	return err
 }
 
 // // GetConnectionID returns the client's connection details
@@ -159,14 +206,18 @@ func (cl *GrpcServiceClient) IsConnected() bool {
 	return cl.bufStream != nil && cl.bufStream.IsConnected()
 }
 
-func (cl *GrpcServiceClient) Ping(pingText string) (reply string, err error) {
+func (cl *GrpcServiceClient) Ping() (reply string, err error) {
 	ctx, cancelFn := context.WithTimeout(context.Background(), cl.respTimeout)
 	defer cancelFn()
-	replyMsg, err := cl.grpcServiceClient.Ping(ctx, &emptypb.Empty{})
+	opts := []grpc.CallOption{}
+	in := []byte("ping")
+	var out []byte
+	err = cl.grpcConn.Invoke(ctx, "/grpcapi.GrpcService/ping", in, &out, opts...)
+	// replyMsg, err := cl.grpcServiceClient.Ping(ctx, text)
 	if err != nil {
 		return "", err
 	}
-	return replyMsg.Text, nil
+	return string(out), nil
 }
 
 // PerRPCCredentials:GetRequestMetadata
@@ -184,8 +235,8 @@ func (cl *GrpcServiceClient) GetRequestMetadata(ctx context.Context, uri ...stri
 func (cl *GrpcServiceClient) RequireTransportSecurity() bool { return false }
 
 // Send a message to the server
-func (cl *GrpcServiceClient) Send(msgType string, jsonPayload []byte) (err error) {
-	err = cl.bufStream.Send(msgType, jsonPayload)
+func (cl *GrpcServiceClient) Send(rawMsg []byte) (err error) {
+	err = cl.bufStream.Send(rawMsg)
 	return err
 }
 
@@ -194,10 +245,12 @@ func (cl *GrpcServiceClient) WaitUntilDisconnect() {
 	cl.bufStream.WaitUntilDisconnect()
 }
 
-// Create a client for the GRPC protocol
+// Create a client for the GRPC transport
 // caCert is optional for use with tcp sockets
-func NewGrpcServiceClient(connectURI string, caCert *x509.Certificate, respTimeout time.Duration,
-	msgHandler func(msgType string, raw []byte),
+func NewGrpcServiceClient(
+	connectURI string, caCert *x509.Certificate,
+	respTimeout time.Duration,
+	msgHandler func(rawMsg []byte),
 ) *GrpcServiceClient {
 
 	cl := &GrpcServiceClient{

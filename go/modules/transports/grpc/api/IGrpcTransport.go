@@ -11,6 +11,9 @@ import (
 const (
 	// Hiveot gRPC module ID
 	HiveotGrpcModuleID = "hiveot-grpc"
+
+	// the stream name used in client and server
+	GrpcTransportStreamName = "MsgStream"
 )
 
 // The default socket path for the grpc UDS server
@@ -23,16 +26,15 @@ var ErrInvalidToken = status.Errorf(codes.PermissionDenied, "invalid token")
 var ErrConnectionClosed = status.Errorf(codes.Canceled, "connection is closed")
 var ErrClientTooSlow = status.Errorf(codes.ResourceExhausted, "client is too slow to receive messages")
 
-// interface for the protobuf message stream. Used to 'equalize' the client
-// and server stream interfaces for the buffered stream implementation.
-type IGrpcMessageStream interface {
-	Send(*GrpcMsg) error
-	Recv() (*GrpcMsg, error)
-}
-
 // Interface of the Hiveot gRPC transport server module
 type IGrpcTransportServer interface {
 	transports.ITransportServer
 
 	// todo: future API  for servicing the module
+}
+
+// API for use by all client/server streaming endpoints
+type IMsgStream interface {
+	SendMsg(msg any) error
+	RecvMsg(dest any) error
 }

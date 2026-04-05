@@ -59,28 +59,24 @@ func (cl *GrpcTransportClient) _onConnectionChanged(connected bool, err error) {
 // onMessage processes the incoming message received from the server.
 // This decodes the message into a request or response message and passes
 // it to the application handler.
-func (cl *GrpcTransportClient) _onGrpcMessage(messageType string, raw []byte) {
+func (cl *GrpcTransportClient) _onClientMessage(raw []byte) {
 
-	switch messageType {
-	case msg.MessageTypeNotification:
-		// client consumer receives a notification
-		notif, err := cl.encoder.DecodeNotification(raw)
-		if err != nil {
-			slog.Error("_onMessage: unmarshalling notification failed", "err", err.Error())
-			return
-		}
+	if raw == nil {
+		slog.Error("_onClientMessage: raw data is nil")
+	}
+	// assume message is a notification (most likely)
+	notif, err := cl.encoder.DecodeNotification(raw)
+	if err == nil {
 		go func() {
 			cl.HiveModuleBase.HandleNotification(notif)
 		}()
-
-	case msg.MessageTypeRequest:
+		return
+	}
+	// assume message is request
+	req, err := cl.encoder.DecodeRequest(raw)
+	if err == nil {
 		// client agent receives a request (using reverse connection)
 		go func() {
-			req, err := cl.encoder.DecodeRequest(raw)
-			if err != nil {
-				slog.Error("_onMessage: unmarshalling request failed", "err", err.Error())
-				return
-			}
 			// pass it on to the linked producer.
 			err = cl.ForwardRequest(req, func(resp *msg.ResponseMessage) error {
 				// return the response to the caller
@@ -92,17 +88,14 @@ func (cl *GrpcTransportClient) _onGrpcMessage(messageType string, raw []byte) {
 				resp := req.CreateErrorResponse(err)
 				_ = cl.SendResponse(resp)
 			}
-
 		}()
-
-	case msg.MessageTypeResponse:
+		return
+	}
+	// remaining option
+	resp, err := cl.encoder.DecodeResponse(raw)
+	if err == nil {
 		// client consumer receives a response
 		go func() {
-			resp, err := cl.encoder.DecodeResponse(raw)
-			if err != nil {
-				slog.Error("_onMessage: unmarshalling response failed", "err", err.Error())
-				return
-			}
 			// pass it on to the waiting consumer
 			handled := cl.rnrChan.HandleResponse(resp, cl.timeout)
 			if !handled {
@@ -113,9 +106,11 @@ func (cl *GrpcTransportClient) _onGrpcMessage(messageType string, raw []byte) {
 					"clientID", cl.clientID,
 				)
 			}
-
 		}()
+		return
 	}
+
+	slog.Error("_onClientMessage: Failed to unmarshal message", "err", err.Error())
 }
 
 // Authenticate and connect
@@ -148,7 +143,7 @@ func (cl *GrpcTransportClient) ConnectWithToken(clientID string, token string) (
 	cl.SetModuleID(clientID)
 
 	cl.grpcClient = NewGrpcServiceClient(
-		cl.connectURL, cl.caCert, cl.timeout, cl._onGrpcMessage)
+		cl.connectURL, cl.caCert, cl.timeout, cl._onClientMessage)
 
 	err = cl.grpcClient.ConnectWithToken(clientID, token)
 	if err != nil {
@@ -156,7 +151,7 @@ func (cl *GrpcTransportClient) ConnectWithToken(clientID string, token string) (
 		return err
 	}
 	// use ping as 'connect' might not detect a failed connection
-	_, err = cl.grpcClient.Ping("")
+	_, err = cl.grpcClient.Ping()
 	if err != nil {
 		slog.Error("Grpc ping failed", "err", err.Error())
 		return err
@@ -258,7 +253,7 @@ func (cl *GrpcTransportClient) SendNotification(notif *msg.NotificationMessage) 
 	)
 	raw, err := cl.encoder.EncodeNotification(notif)
 	if err == nil {
-		err = cl.grpcClient.Send(msg.MessageTypeNotification, raw)
+		err = cl.grpcClient.Send(raw)
 	}
 }
 
@@ -276,13 +271,13 @@ func (cl *GrpcTransportClient) SendRequest(
 	}
 	if replyTo == nil {
 		// responses are received asynchronously
-		err := cl.grpcClient.Send(msg.MessageTypeRequest, raw)
+		err := cl.grpcClient.Send(raw)
 		return err
 	}
 
 	// a response handler is provided, callback when the response is received
 	cl.rnrChan.Open(req.CorrelationID)
-	err = cl.grpcClient.Send(msg.MessageTypeRequest, raw)
+	err = cl.grpcClient.Send(raw)
 
 	if err != nil {
 		cl.rnrChan.Close(req.CorrelationID)
@@ -305,7 +300,7 @@ func (cl *GrpcTransportClient) SendResponse(resp *msg.ResponseMessage) error {
 
 	raw, err := cl.encoder.EncodeResponse(resp)
 	if err == nil {
-		err = cl.grpcClient.Send(msg.MessageTypeResponse, raw)
+		err = cl.grpcClient.Send(raw)
 	}
 	return err
 }

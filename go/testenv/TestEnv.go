@@ -242,14 +242,14 @@ func (testEnv *TestEnv) NewConsumerClient(
 // Create a new running test server instance using the given http server
 //
 // This can be called multiple times to support multiple servers. However, only the
-// first server will be stored.
+// first server will be stored in the 'TestEnv.Server' property.
 //
 // protocols is one of a list of the server protocols to support. nil for all
 // protocols:
 // * transports.ProtocolTypeHTTPBasic
 // * ProtocolTypeWotWSS
 // * ProtocolTypeHiveotSSE
-// * ProtocolTypePassthrough
+// * and more
 func (testEnv *TestEnv) StartTestServer(protocol string) (srv transports.ITransportServer) {
 
 	var err error
@@ -333,7 +333,8 @@ func NewTestEnv() *TestEnv {
 	return testEnv
 }
 
-// StartTestEnv start a new test environment for the given transport protocol.
+// StartTestEnv start a new test environment for the given transport protocol type.
+// If no protocol type is provided this uses the default protocol (top of this file.)
 // This starts a HTTP server, protocol server, certificates and a test authenticator
 func StartTestEnv(protocol string) (testEnv *TestEnv, cancelFunc func()) {
 	testEnv = NewTestEnv()

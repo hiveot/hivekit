@@ -15,6 +15,18 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func TestAllPropsProtocols(t *testing.T) {
+	for _, testProtocol = range testProtocols {
+		t.Run(testProtocol, TestAllProps)
+	}
+}
+func TestAllProps(t *testing.T) {
+	t.Run("TestObservePropertyByConsumer", TestObservePropertyByConsumer)
+	t.Run("TestPublishPropertyByAgent", TestPublishPropertyByAgent)
+	t.Run("TestReadProperty", TestReadProperty)
+	t.Run("TestReadAllProperties", TestReadAllProperties)
+}
+
 // test property messages between agent, server and client
 // this uses the client and server helpers defined in connect_test.go
 

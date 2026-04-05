@@ -12,28 +12,72 @@ import (
 
 	"github.com/hiveot/hivekit/go/modules/transports"
 	grpcapi "github.com/hiveot/hivekit/go/modules/transports/grpc/api"
+	"github.com/hiveot/hivekit/go/modules/transports/grpc/internal"
+
+	// grpcapi "github.com/hiveot/hivekit/go/modules/transports/grpc/api"
 	"github.com/hiveot/hivekit/go/msg"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials"
+	"google.golang.org/grpc/encoding"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
-	"google.golang.org/protobuf/types/known/emptypb"
 )
+
+// tbd: might not be needed
+type IGrpcServiceServer2 interface {
+	MsgStream(grpcStream grpc.ServerStream) error
+	Ping(ctx context.Context) (string, error)
+	// mustEmbedUnimplementedGrpcServiceServer()
+}
+
+func pingHandler(srv any, ctx context.Context,
+	dec func(any) error,
+	interceptor grpc.UnaryServerInterceptor) (any, error) {
+
+	out, err := srv.(IGrpcServiceServer2).Ping(ctx)
+	res := []byte(out)
+
+	return res, err
+}
+
+// ServiceDesc for server side registration of this
+var ServiceDesc = grpc.ServiceDesc{
+	// ServiceName: "GrpcServiceServer2",
+	ServiceName: "grpcapi.GrpcService",
+	HandlerType: (*IGrpcServiceServer2)(nil),
+	Methods: []grpc.MethodDesc{
+		{
+			MethodName: "ping",
+			Handler:    pingHandler,
+		},
+	},
+	Streams: []grpc.StreamDesc{
+		{
+			// a not very original name for this stream
+			StreamName: grpcapi.GrpcTransportStreamName,
+			// this handler serves the stream with StreamName name.
+			Handler: func(srv interface{}, stream grpc.ServerStream) error {
+				return srv.(*GrpcServiceServer).MsgStream(stream)
+			},
+			ServerStreams: true,
+			ClientStreams: true,
+		},
+	},
+	Metadata: "grpc_transport.proto",
+}
 
 // GRPC server handler of protobuf defined methods.
 // This currently only implements the Ping and MsgStream methods.
 // The future goal is to remove protobuf dependency entirely and just use grpc.
 type GrpcServiceServer struct {
-	grpcapi.UnimplementedGrpcServiceServer
-
 	grpcAuthn *GrpcAuthenticator
 
 	// the underlying GRPC server
 	grpcServer *grpc.Server
 
 	// callback for serving a new stream
-	serveHandler func(clientID string, cid string, grpcStream grpcapi.GrpcService_MsgStreamServer) error
+	serveHandler func(clientID string, cid string, grpcStream grpc.ServerStream) error
 
 	// how long to wait for a response after sending a request
 	respTimeout time.Duration
@@ -89,9 +133,12 @@ func (srv *GrpcServiceServer) GetRequestParams(ctx context.Context) (
 }
 
 // Handler an incoming connection for a MsgStream.
-// MsgStream is defined in protobuf.
+// This extracts the clientID and ConnectionID metadata from the stream and
+// invokes the registered stream server.
+// The stream closes when the serve handler returns.
+//
 // Returning from serveHandler closes the stream.
-func (srv *GrpcServiceServer) MsgStream(grpcStream grpcapi.GrpcService_MsgStreamServer) error {
+func (srv *GrpcServiceServer) MsgStream(grpcStream grpc.ServerStream) error {
 
 	clientID, cid, err := srv.GetRequestParams(grpcStream.Context())
 	if err != nil {
@@ -104,11 +151,11 @@ func (srv *GrpcServiceServer) MsgStream(grpcStream grpcapi.GrpcService_MsgStream
 }
 
 // Handler of ping message returns pong
-func (srv *GrpcServiceServer) Ping(ctx context.Context, e *emptypb.Empty) (*grpcapi.PingRespMsg, error) {
+func (srv *GrpcServiceServer) Ping(ctx context.Context) (result string, err error) {
 	clientID, cid, err := srv.GetRequestParams(ctx)
 	_ = err
 	log.Printf("Ping: ping received from clientID '%s', cid='%s'", clientID, cid)
-	return &grpcapi.PingRespMsg{Text: "pong"}, nil
+	return "pong", nil
 }
 
 // graceful stop of the server
@@ -136,7 +183,7 @@ func (srv *GrpcServiceServer) Stop() {
 //	respTimeout is the messaging timeout
 func StartGrpcServiceServer(lis net.Listener,
 	tlsCert *tls.Certificate,
-	serveHandler func(clientID string, cid string, grpcStream grpcapi.GrpcService_MsgStreamServer) error,
+	serveHandler func(clientID string, cid string, grpcStream grpc.ServerStream) error,
 	grpcAuthn *GrpcAuthenticator,
 	respTimeout time.Duration,
 ) (*GrpcServiceServer, error) {
@@ -145,7 +192,6 @@ func StartGrpcServiceServer(lis net.Listener,
 		grpcAuthn:    grpcAuthn,
 		respTimeout:  respTimeout,
 		serveHandler: serveHandler,
-		// grpcStream: nil,
 	}
 
 	var grpcServer *grpc.Server
@@ -158,17 +204,33 @@ func StartGrpcServiceServer(lis net.Listener,
 		// Create an array of gRPC options with the credentials
 		opts = append(opts, grpc.Creds(creds))
 	}
+
+	// not sure raw codec needs to do something for RRN messages or is []byte passthrough sufficient?
+	// !The incoming request content-type header must match the codec name.
+	// or force it using grpc.ForceServerCodec()
+	// note: registration applies to all client and servers
+	encoding.RegisterCodec(internal.RawCodec{})
+
 	// auth and stuff
 	opts = append(opts, grpc.UnaryInterceptor(srv.unaryInterceptor))
 	opts = append(opts, grpc.StreamInterceptor(srv.streamInterceptor))
-
-	// creds, err := credentials.NewClientTLSFromFile("cert/server.crt", "")
-	// dialOpt := grpc.WithTransportCredentials(insecure.NewCredentials())
-	// opts = append(opts, dialOpt)
+	// opts = append(opts, encoding.Codec(internal.RawCodec{}))
 
 	grpcServer = grpc.NewServer(opts...)
-	grpcapi.RegisterGrpcServiceServer(grpcServer, srv)
+
+	var _ IGrpcServiceServer2 = srv // interface check
+
+	// register the callback handler for incoming streams
+	grpcServer.RegisterService(&ServiceDesc, srv)
+
+	// grpcapi.RegisterGrpcServiceServer(grpcServer, srv)
 	srv.grpcServer = grpcServer
+
+	//---
+
+	// grpcServer.Hand
+
+	//---
 
 	// start the server
 	slog.Info("StartGrpcServer: starting  gRPC server", slog.String("Address", lis.Addr().String()))

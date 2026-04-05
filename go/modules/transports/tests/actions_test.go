@@ -20,6 +20,17 @@ import (
 	"github.com/teris-io/shortid"
 )
 
+func TestAllActionsProtocols(t *testing.T) {
+	for _, testProtocol = range testProtocols {
+		t.Run(testProtocol, TestAllActions)
+	}
+}
+func TestAllActions(t *testing.T) {
+	t.Run("TestInvokeActionFromConsumerToServer", TestInvokeActionFromConsumerToServer)
+	t.Run("TestInvokeActionFromServerToAgent", TestInvokeActionFromServerToAgent)
+	t.Run("TestQueryActions", TestQueryActions)
+}
+
 // TestInvokeActionFromConsumerToServer: classic 'consumer talks to the server'
 // as if it is a Thing. In this test the server replies.
 // (routing is not part of this package)

@@ -11,8 +11,8 @@ import (
 	"time"
 
 	"github.com/hiveot/hivekit/go/modules/transports"
-	grpcapi "github.com/hiveot/hivekit/go/modules/transports/grpc/api"
 	"github.com/hiveot/hivekit/go/msg"
+	"google.golang.org/grpc"
 )
 
 const DefaultUDSModuleID = "hiveot-uds"
@@ -54,7 +54,7 @@ func (m *GrpcTransportServer) HandleRequest(
 
 // The grpc service callback handler for incoming stream connections.
 // This creates a new transport connection for the stream and blocks until the stream is closed.
-func (m *GrpcTransportServer) ServeStreamConnection(clientID string, cid string, grpcStream grpcapi.GrpcService_MsgStreamServer) error {
+func (m *GrpcTransportServer) ServeStreamConnection(clientID string, cid string, grpcStream grpc.ServerStream) error {
 
 	// authentication???
 

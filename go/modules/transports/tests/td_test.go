@@ -1,9 +1,12 @@
 package transporttests
 
 import (
+	"errors"
 	"testing"
 
+	"github.com/hiveot/hivekit/go/msg"
 	"github.com/hiveot/hivekit/go/testenv"
+	"github.com/hiveot/hivekit/go/wot/td"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -11,58 +14,69 @@ import (
 // test TD messages and forms
 // this uses the client and server helpers defined in connect_test.go
 
+func TestAllTDProtocols(t *testing.T) {
+	for _, testProtocol = range testProtocols {
+		t.Run(testProtocol, TestAllTD)
+	}
+}
+func TestAllTD(t *testing.T) {
+	t.Run("TestAddForms", TestAddForms)
+	// t.Run("TestPublishTD", TestPublishTD)
+	t.Run("TestReadTDFromAgent", TestReadTDFromDevice)
+}
+
 const DeviceTypeSensor = "hiveot:sensor"
 
-//// Test consumer reads a TD from agent via the server
-//func TestReadTDFromAgent(t *testing.T) {
-//	t.Logf("---%s---\n", t.Name())
-//	var thingID = "thing1"
-//
-//	// 1. start the transport
-//	srv, cancelFn := StartTransportServer(nil, nil)
-//	_ = srv
-//	defer cancelFn()
-//
-//	// 2. connect as an agent
-//	agConn1, ag1, _ := NewAgent(testAgentID1)
-//	defer agConn1.Disconnect()
-//
-//	// 3. agent creates TD
-//	td1 := td.NewTD(thingID, "My gadget", DeviceTypeSensor)
-//
-//	// agent request handler to read TD
-//	agentReqHandler := func(req *transports.RequestMessage,
-//		connection transports.IConnection) *transports.ResponseMessage {
-//		t.Log("Received request: " + req.Operation)
-//		if req.Operation == td.HTOpReadTD {
-//			tdJSON, err := jsoniter.Marshal(td1)
-//			return req.CreateResponse(tdJSON, err)
-//		} else if req.Operation == td.HTOpReadAllTDs {
-//			tdJSON, err := jsoniter.Marshal(td1)
-//			return req.CreateResponse([]string{string(tdJSON)}, err)
-//		} else {
-//			return req.CreateResponse(nil,
-//				errors.New("agent receives unknown request: "+req.Operation))
-//		}
-//	}
-//	ag1.SetRequestHandler(agentReqHandler)
-//
-//	// 4. verify the TD can be read from the agent
-//	c := srv.GetConnectionByClientID(testAgentID1)
-//	require.True(t, c.IsConnected())
-//	// c is server side connection of the agent. The hub is the consumer of the agent.
-//	consumer := consumer.NewConsumer(c, testTimeout)
-//	tdList, err := consumer.ReadAllTDs()
-//	require.NoError(t, err)
-//	require.True(t, len(tdList) > 0)
-//
-//	var td2 td.TD
-//	err = jsoniter.UnmarshalFromString(tdList[0], &td2)
-//	require.NoError(t, err)
-//	assert.Equal(t, td1.ID, td2.ID)
-//	assert.Equal(t, td1.Title, td2.Title)
-//	assert.Equal(t, td1.AtType, td2.AtType)
-//}
+// Test consumer reads a TD from a device
+// the device runs a server and offers a 'td' property
+func TestReadTDFromDevice(t *testing.T) {
+	t.Logf("---%s---\n", t.Name())
+	var thingID = "thing1"
+	var agentID = "agent1"
+	var consumerID = "consumer1"
+
+	// handler of TDs on the server
+	// 1. start the transport
+	testEnv, cancelFn := testenv.StartTestEnv(testProtocol)
+	defer cancelFn()
+
+	// 2. create an agent linked to this server
+	ag1 := testEnv.NewServerAgent(agentID)
+	defer ag1.Stop()
+
+	// 3. agent creates TD
+	td1 := td.NewTD(thingID, "My gadget", DeviceTypeSensor)
+	td1.AddProperty("td", "Device TD", "", td.DataTypeString)
+
+	// agent request handler to read the device TD from the td property.
+	agentReqHandler := func(req *msg.RequestMessage, replyTo msg.ResponseHandler) error {
+		t.Log("Received request: " + req.Operation)
+		if req.Operation == td.OpReadProperty && req.Name == "td" {
+			tdJSON := td1.ToString()
+			resp := req.CreateResponse(tdJSON, nil)
+			return replyTo(resp)
+		} else {
+			resp := req.CreateResponse(nil,
+				errors.New("agent receives unknown request: "+req.Operation))
+			return replyTo(resp)
+		}
+	}
+	ag1.SetAppRequestHandler(agentReqHandler)
+
+	// 4. create a consumer and verify the TD can be read by a client
+	co, cc, _ := testEnv.NewConsumerClient(consumerID, "somerole", nil)
+	defer cc.Close()
+
+	var rxTDJson string
+	err := co.ReadPropertyAs(thingID, "td", &rxTDJson)
+	require.NoError(t, err)
+
+	rxTDoc, err := td.UnmarshalTD(rxTDJson)
+	require.NoError(t, err)
+
+	assert.Equal(t, td1.ID, rxTDoc.ID)
+	assert.Equal(t, td1.Title, rxTDoc.Title)
+}
 
 // Test if forms are indeed added to a TD, describing the transport protocol binding operations
 func TestAddForms(t *testing.T) {

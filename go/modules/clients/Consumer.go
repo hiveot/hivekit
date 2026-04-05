@@ -196,11 +196,19 @@ func (co *Consumer) ReadEvent(thingID, name string) (value *msg.NotificationMess
 // ReadProperty sends a request to read the current value of a Thing property.
 //
 // This returns the last known value of the property.
-// TODO: should this accept a pointer to the result instead to avoid type conversion
 func (co *Consumer) ReadProperty(thingID, name string) (value any, err error) {
 
 	err = co.Rpc(td.OpReadProperty, thingID, name, nil, &value)
 	return value, err
+}
+
+// ReadPropertyAs sends a request to read the current value of a Thing property.
+//
+// This converts the property value to the given type or returns an error
+func (co *Consumer) ReadPropertyAs(thingID, name string, prop any) (err error) {
+
+	err = co.Rpc(td.OpReadProperty, thingID, name, nil, prop)
+	return err
 }
 
 // RetrieveThing sends a request to read the latest Thing TD

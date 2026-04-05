@@ -5,9 +5,9 @@ import (
 	"time"
 
 	"github.com/hiveot/hivekit/go/modules/transports"
-	grpcapi "github.com/hiveot/hivekit/go/modules/transports/grpc/api"
 	"github.com/hiveot/hivekit/go/modules/transports/grpc/internal"
 	"github.com/hiveot/hivekit/go/msg"
+	"google.golang.org/grpc"
 	"google.golang.org/grpc/peer"
 )
 
@@ -36,37 +36,30 @@ type TransportConnection struct {
 // _onMessage handles an incoming message
 // The message is converted into a request, response or notification and passed
 // on to the registered handler.
-func (sc *TransportConnection) _onMessage(msgType string, raw []byte) {
+func (sc *TransportConnection) _onServerMessage(raw []byte) {
 
-	switch msgType {
-	case msg.MessageTypeNotification:
-		notif, err := sc.encoder.DecodeNotification(raw)
-		if err != nil {
-			slog.Error("Failed to unmarshal notification message", "err", err.Error())
-			return
-		}
+	if raw == nil {
+		slog.Error("_onServerMessage: raw data is nil")
+	}
+	notif, err := sc.encoder.DecodeNotification(raw)
+	if err == nil {
 		notif.SenderID = sc.GetClientID()
 		sc.OnNotification(notif, sc.notifHandler)
-
-	case msg.MessageTypeRequest:
-		req, err := sc.encoder.DecodeRequest(raw)
-		if err != nil {
-			slog.Error("Failed to unmarshal request message", "err", err.Error())
-			return
-		}
+		return
+	}
+	req, err := sc.encoder.DecodeRequest(raw)
+	if err == nil {
 		req.SenderID = sc.GetClientID()
 		sc.OnRequest(req, sc.reqHandler)
-
-	case msg.MessageTypeResponse:
-		resp, err := sc.encoder.DecodeResponse(raw)
-		if err != nil {
-			slog.Error("Failed to unmarshal response message", "err", err.Error())
-			return
-		}
+		return
+	}
+	resp, err := sc.encoder.DecodeResponse(raw)
+	if err == nil {
 		resp.SenderID = sc.GetClientID()
 		sc.OnResponse(resp)
-
+		return
 	}
+	slog.Error("_onServerMessage: Failed to unmarshal message", "err", err.Error())
 }
 
 // Close the stream connection
@@ -80,7 +73,7 @@ func (sc *TransportConnection) IsConnected() bool {
 }
 
 func (sc *TransportConnection) sendRaw(msgType string, raw []byte) error {
-	return sc.bstrm.Send(msgType, raw)
+	return sc.bstrm.Send(raw)
 }
 
 // Run starts processing a message stream from the client.
@@ -97,7 +90,7 @@ func (sc *TransportConnection) WaitUntilDisconnect() {
 func StartGrpcTransportConnection(
 	clientID string,
 	connectionID string,
-	grpcStream grpcapi.GrpcService_MsgStreamServer,
+	grpcStream grpc.ServerStream,
 	reqHandler msg.RequestHandler,
 	notifHandler msg.NotificationHandler,
 	// respTimeout time.Duration,
@@ -111,7 +104,7 @@ func StartGrpcTransportConnection(
 		// rnrChan:      msg.NewRnRChan(),
 	}
 	// // use the same buffered stream as the client uses for sending and receiving messages
-	c.bstrm = internal.NewGrpcBufferedStream(grpcStream, c._onMessage, time.Minute)
+	c.bstrm = internal.NewBufferedStream(grpcStream, c._onServerMessage, time.Minute)
 
 	// determine the client ID and connection ID from the grpc stream context
 	peerInfo, ok := peer.FromContext(grpcStream.Context())

@@ -2,18 +2,20 @@
 
 '[grpc](https://grpc.io/)' is a high performance Remote Procedure Call framework that can run in any environment.
 
-This transport module passes RRN messages as-is between gRPC client and server.
+This transport module passes RRN messages as-is between client and server using a bi-directional gRPC stream.
 
 ## Status
 
 This transport module is functional but breaking changes can be expected.
 
 TODO-1: Support for tcp sockets and URL
-TODO-2: Remove protobuf, just use gRPC. This currently uses gRPC protobuf to generate code for a single stream. Protobuf just adds an encoding to the existing json encoding so it isn't really helping in any way. It also adds another toolset dependency. It will be replaced with a non-protobuf encoder once the code is complete.
+TODO-2: change stream name
+TODO-3: use a separate notification stream
+TODO-4: fix race conditions
 
 ## Summary
 
-The primary purpose of the gRPC transport is to support Unix Domain Sockets for high performance (10K msg/sec on rPi3+, 100K on i5) local inter-process communication. Tcp sockets are also supported, expanding its use to the network.
+The primary purpose of the gRPC transport is to support Unix Domain Sockets for high performance (10K msg/sec on rPi3+, 100K/sec on i5) local inter-process communication. Tcp sockets are also supported, expanding its use to the network.
 
 It is mainly intended for agents that use reverse connections Since they represent multiple devices or services, performance is more important than with a single isolated device.
 

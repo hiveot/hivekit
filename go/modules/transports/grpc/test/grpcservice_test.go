@@ -1,3 +1,4 @@
+// Package grpc_test with test cases to specifically test the gRPC client and server part of the transport
 package grpc_test
 
 import (
@@ -9,13 +10,13 @@ import (
 	"testing"
 	"time"
 
-	grpcapi "github.com/hiveot/hivekit/go/modules/transports/grpc/api"
 	"github.com/hiveot/hivekit/go/modules/transports/grpc/internal"
 	"github.com/hiveot/hivekit/go/modules/transports/grpc/internal/grpcclient"
 	"github.com/hiveot/hivekit/go/modules/transports/grpc/internal/grpcserver"
 	"github.com/hiveot/hivekit/go/utils"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"google.golang.org/grpc"
 )
 
 var address = "/tmp/hivekit/grpc-test.sock" // host[:port]
@@ -44,7 +45,7 @@ func TestConnectPing(t *testing.T) {
 	const token = "secret1"
 
 	// setup the server
-	serveStream := func(clientID string, cid string, grpcStream grpcapi.GrpcService_MsgStreamServer) error {
+	serveStream := func(clientID string, cid string, grpcStream grpc.ServerStream) error {
 		return nil
 	}
 	lis, err := net.Listen(network, address)
@@ -56,7 +57,7 @@ func TestConnectPing(t *testing.T) {
 	defer srv.Stop()
 
 	// connect with the client
-	handleClientMessage := func(msgType string, raw []byte) {
+	handleClientMessage := func(raw []byte) {
 	}
 
 	serverURL := fmt.Sprintf("%s://%s", scheme, address)
@@ -66,7 +67,7 @@ func TestConnectPing(t *testing.T) {
 	require.NoError(t, err)
 
 	// test ping
-	reply, err := cl.Ping("hello")
+	reply, err := cl.Ping()
 	assert.NoError(t, err)
 	assert.Equal(t, "pong", reply)
 
@@ -85,24 +86,26 @@ func TestStreamMessages(t *testing.T) {
 	var authToken = "token1"
 	var msgCount atomic.Int32
 	var clientConnectCount atomic.Int32
-	var serviceCustomMsgType = "serviceMessagetype"
+	// var serviceCustomMsgType = "serviceMessagetype"
 	var clientSendMsg string = "client hello"
 	var serverSendMsg string = "server hello"
-	var svc *grpcserver.GrpcServiceServer
 
 	// setup the server
-	handleServiceMessage := func(msgType string, raw []byte) {
-		assert.Equal(t, clientSendMsg, string(raw))
+	handleServiceMessage := func(raw []byte) {
+		// rxMsg := utils.DecodeAsString(raw, 0)
+		rxMsg := utils.DecodeAsString(raw, 0)
+		assert.Equal(t, clientSendMsg, rxMsg)
 		msgCount.Add(1)
 	}
-	serveStream := func(clientID, cid string, grpcStream grpcapi.GrpcService_MsgStreamServer) error {
+	// serveStream := func(clientID, cid string, grpcStream grpcapi.GrpcService_MsgStreamServer) error {
+	serveStream2 := func(clientID, cid string, grpcStream grpc.ServerStream) error {
 		// todo test authentication?
 
 		// start the send and receive loop
-		bstrm := internal.NewGrpcBufferedStream(grpcStream, handleServiceMessage, time.Minute)
+		bstrm := internal.NewBufferedStream(grpcStream, handleServiceMessage, time.Minute)
 
 		// send is dispatched after the stream is
-		err := bstrm.Send(serviceCustomMsgType, []byte(serverSendMsg))
+		err := bstrm.Send([]byte(serverSendMsg))
 		assert.NoError(t, err)
 
 		// must block until connection closes
@@ -112,17 +115,20 @@ func TestStreamMessages(t *testing.T) {
 	lis, err := net.Listen(network, address)
 	require.NoError(t, err)
 
-	svc, err = grpcserver.StartGrpcServiceServer(lis, nil, serveStream, nil, time.Minute)
+	svc, err := grpcserver.StartGrpcServiceServer(lis, nil, serveStream2, nil, time.Minute)
 	require.NoError(t, err)
 	//defer svc.Stop()
 
 	time.Sleep(time.Millisecond)
 
 	// connect the client and receive the server message
-	onClientMessage := func(msgType string, raw []byte) {
+	onClientMessage := func(raw []byte) {
+		// onClientMessage := func(msgType string, raw []byte) {
 		msgCount.Add(1)
-		assert.Equal(t, serviceCustomMsgType, msgType)
-		assert.Equal(t, serverSendMsg, string(raw))
+		// assert.Equal(t, serviceCustomMsgType, msgType)
+		rxMsg := utils.DecodeAsString(raw, 0)
+		// rxMsg := string(raw)
+		assert.Equal(t, serverSendMsg, rxMsg)
 	}
 
 	serverURL := fmt.Sprintf("%s://%s", scheme, address)
@@ -139,16 +145,18 @@ func TestStreamMessages(t *testing.T) {
 	}()
 
 	// some brute force testing on Intel i5-4570S, 2.9GHz:
-	// UDS: 1K messages in 5msec; 10K in 44msec; 100K in 310msec; 1M in 3.2 sec
-	nrMsg := 10000
+	// UDS - using protobuf:   1K messages in 5msec; 10K in 44msec; 100K in 310msec; 1M in 3.2 sec
+	// UDS - removed protobuf: 1K messages in 3.5msec; 10K in 38msec; 100K in 300msec; 1M in 2.8 sec
+
+	nrMsg := 1000000
 	t0 := time.Now()
 	for i := 0; i < nrMsg; i++ {
 		// slog.Info(fmt.Sprintf("sending %d", i))
-		cl.Send("notification", []byte(clientSendMsg))
+		cl.Send([]byte(clientSendMsg))
 	}
 	dur := time.Since(t0)
 	slog.Info(fmt.Sprintf("sent %d messages in %s", nrMsg, dur))
-	time.Sleep(time.Millisecond * 10)
+	time.Sleep(time.Millisecond * 100)
 
 	// both client and server side should have received a message
 	assert.Equal(t, nrMsg+1, int(msgCount.Load()))

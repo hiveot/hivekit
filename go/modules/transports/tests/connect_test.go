@@ -39,7 +39,7 @@ func TestMain(m *testing.M) {
 	os.Exit(result)
 }
 
-func TestConnectAll(t *testing.T) {
+func TestConnectAllProtocols(t *testing.T) {
 	for _, testProtocol = range testProtocols {
 		t.Run("TestStartStop", TestStartStop)
 		t.Run(testProtocol, TestPing)
