@@ -43,16 +43,17 @@ func TestConnectPing(t *testing.T) {
 	t.Logf("---%s---\n", t.Name())
 	const clientID = "client1"
 	const token = "secret1"
+	const serviceName = "service1"
 
 	// setup the server
-	serveStream := func(clientID string, cid string, grpcStream grpc.ServerStream) error {
-		return nil
-	}
+
 	lis, err := net.Listen(network, address)
 	require.NoError(t, err)
 
-	srv, err := grpcserver.StartGrpcServiceServer(
-		lis, nil, serveStream, nil, time.Minute)
+	srv := grpcserver.NewGrpcServiceServer(
+		lis, nil, serviceName, nil, time.Minute)
+
+	err = srv.Start()
 	require.NoError(t, err)
 	defer srv.Stop()
 
@@ -61,16 +62,19 @@ func TestConnectPing(t *testing.T) {
 	}
 
 	serverURL := fmt.Sprintf("%s://%s", scheme, address)
-	cl := grpcclient.NewGrpcServiceClient(serverURL, nil, time.Minute, handleClientMessage)
+	cl := grpcclient.NewGrpcServiceClient(
+		serverURL, nil, time.Minute, serviceName, handleClientMessage)
 
 	err = cl.ConnectWithToken(clientID, token)
 	require.NoError(t, err)
 
 	// test ping
-	reply, err := cl.Ping()
+	t0 := time.Now()
+	reply, err := cl.Ping("hello world")
 	assert.NoError(t, err)
-	assert.Equal(t, "pong", reply)
-
+	assert.Equal(t, "hello world", reply)
+	d0 := (time.Since(t0) / 10000) * 10000 // rounding to usec
+	slog.Info(fmt.Sprintf("Ping performed in %s", d0.String()))
 	cl.Close()
 
 	// check closing twice not causing a panic
@@ -82,6 +86,17 @@ func TestConnectPing(t *testing.T) {
 func TestStreamMessages(t *testing.T) {
 	// test streaming to server by multiple clients
 	t.Logf("---%s---\n", t.Name())
+
+	// bulk message testing
+	// some brute force testing on Intel i5-4570S, 2.9GHz:
+	// UDS - using protobuf: (no longer supported)
+	//   1K messages in 5msec; 10K in 44msec; 100K in 310msec; 1M in 3.2 sec
+	// UDS - with the included JsonCodec:
+	//   1K messages in 3.2msec; 10K in 35msec; 100K in 300msec; 1M in 3.0 sec
+	const nrMsg = 1000
+	const serviceName = "service1"
+	const streamName = "stream1"
+
 	const clientID = "client1"
 	var authToken = "token1"
 	var msgCount atomic.Int32
@@ -102,7 +117,8 @@ func TestStreamMessages(t *testing.T) {
 		// todo test authentication?
 
 		// start the send and receive loop
-		bstrm := internal.NewBufferedStream(grpcStream, handleServiceMessage, time.Minute)
+		bstrm := internal.NewBufferedStream(
+			grpcStream, nil, handleServiceMessage, time.Minute)
 
 		// send is dispatched after the stream is
 		err := bstrm.Send([]byte(serverSendMsg))
@@ -115,9 +131,16 @@ func TestStreamMessages(t *testing.T) {
 	lis, err := net.Listen(network, address)
 	require.NoError(t, err)
 
-	svc, err := grpcserver.StartGrpcServiceServer(lis, nil, serveStream2, nil, time.Minute)
+	srv := grpcserver.NewGrpcServiceServer(lis, nil, serviceName, nil, time.Minute)
+	srv.AddStream(streamName, serveStream2)
+
+	err = srv.Start()
 	require.NoError(t, err)
+
 	//defer svc.Stop()
+
+	err = srv.AddStream(streamName, serveStream2)
+	require.NoError(t, err)
 
 	time.Sleep(time.Millisecond)
 
@@ -132,44 +155,50 @@ func TestStreamMessages(t *testing.T) {
 	}
 
 	serverURL := fmt.Sprintf("%s://%s", scheme, address)
-	cl := grpcclient.NewGrpcServiceClient(serverURL, nil, time.Minute, onClientMessage)
+	cl := grpcclient.NewGrpcServiceClient(
+		serverURL, nil, time.Minute, serviceName, onClientMessage)
 
 	err = cl.ConnectWithToken(clientID, authToken)
 	assert.NoError(t, err) // (dont use require as svc.Stop is not a defer)
+
+	_, err = cl.ConnectStream(streamName)
+	require.NoError(t, err) // (dont use require as svc.Stop is not a defer)
+
 	// defer cl.Close()
 	// run blocks until the stream is closed
 	go func() {
 		clientConnectCount.Add(1)
-		cl.WaitUntilDisconnect()
+		cl.WaitUntilDisconnect(streamName)
 		clientConnectCount.Add(1)
 	}()
 
-	// some brute force testing on Intel i5-4570S, 2.9GHz:
-	// UDS - using protobuf:   1K messages in 5msec; 10K in 44msec; 100K in 310msec; 1M in 3.2 sec
-	// UDS - removed protobuf: 1K messages in 3.5msec; 10K in 38msec; 100K in 300msec; 1M in 2.8 sec
-
-	nrMsg := 1000000
 	t0 := time.Now()
-	for i := 0; i < nrMsg; i++ {
+	var i int
+	for i = 0; i < nrMsg; i++ {
 		// slog.Info(fmt.Sprintf("sending %d", i))
-		cl.Send([]byte(clientSendMsg))
+		err = cl.Send(streamName, []byte(clientSendMsg))
+		assert.NoError(t, err)
+		if err != nil {
+			break
+		}
 	}
-	dur := time.Since(t0)
-	slog.Info(fmt.Sprintf("sent %d messages in %s", nrMsg, dur))
+	dur := (time.Since(t0) / 1000) * 1000 // rounding
+	slog.Info(fmt.Sprintf("sent %d messages in %s", i, dur))
 	time.Sleep(time.Millisecond * 100)
 
 	// both client and server side should have received a message
-	assert.Equal(t, nrMsg+1, int(msgCount.Load()))
+	assert.Equal(t, nrMsg+1, int(msgCount.Load()), "Client did not receive all messages")
 
 	// graceful shutdown no errors or warndings are expected
 	slog.Info("shutting down")
 	cl.Close()
 
 	time.Sleep(time.Millisecond * 1)
-	svc.Stop()
+	srv.Stop()
 
 	// expect a connect and a disconnect
 	assert.Equal(t, 2, int(clientConnectCount.Load()))
+
 }
 
 func TestMultipleClients(t *testing.T) {

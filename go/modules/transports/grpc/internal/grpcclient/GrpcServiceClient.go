@@ -12,7 +12,6 @@ import (
 
 	"github.com/hiveot/hivekit/go/modules/transports"
 	"github.com/hiveot/hivekit/go/modules/transports/grpc/internal"
-	"github.com/hiveot/hivekit/go/modules/transports/grpc/internal/grpcserver"
 	"github.com/teris-io/shortid"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
@@ -22,31 +21,23 @@ import (
 
 const ClientMsgChanSize2 = 30
 
-// Stream info that matches the server
-// var streamInfo = grpc.StreamDesc{
-
-// 	// a not very original name for this stream
-// 	StreamName: "MsgStream",
-// 	// this handler serves the stream with StreamName name.
-// 	// Handler: func(srv interface{}, stream grpc.ServerStream) error {
-// 	// 	return srv.(*GrpcServiceServer2).MsgStream(stream)
-// 	// },
-// 	ServerStreams: true,
-// 	ClientStreams: true,
-// }
-
 // Grpc messaging client.
 // This uses the BufferedStream for sending and receiving messages on the GRPC stream
 // connection. The buffer size is currently fixed to 30 messages, which should be
 // sufficient for most use cases.
 //
-// This also implements the PerTransportBundle PerRPCCredentials interface
+// Intended to implement the boilerplate of setting up a client side stream without
+// the use of protobuf. The only thing needed is service name, stream name and the
+// proper codec initialized by the application.
+// This uses the json codec. Might consider sticking to the default protobuf encoder?
+//
+// # This also implements the PerTransportBundle PerRPCCredentials interface
+//
+// This client is initially made for the transport module but could be generalized for
+// other purposes such as media streaming.
 type GrpcServiceClient struct {
 	// pass auth token to GetRequestMetadata
 	authToken string
-
-	// buffered stream wrapper around the protobuf stream.
-	bufStream *internal.BufferedStream
 
 	// caCert in case the connectURL is an ip connection address
 	caCert *x509.Certificate
@@ -63,11 +54,9 @@ type GrpcServiceClient struct {
 
 	// conn         net.Conn
 	grpcConn *grpc.ClientConn
-	// grpcServiceClient grpcapi.GrpcServiceClient // interface
-	//
 
 	// message stream context cancellation
-	msgStreamCancel func()
+	// msgStreamCancel func()
 
 	// mutex for controlling writing and closing
 	mux sync.RWMutex
@@ -82,18 +71,22 @@ type GrpcServiceClient struct {
 	respTimeout time.Duration
 
 	retryOnDisconnect atomic.Bool
+
+	// The GRPC server service description
+	serviceDesc grpc.ServiceDesc
+
+	// buffered stream wrapper around the gRPC streams by stream name (from serviceDesc)
+	streams map[string]*internal.BufferedStream
 }
 
 // Close disconnects
 func (cl *GrpcServiceClient) Close() {
 	cl.mux.Lock()
 	defer cl.mux.Unlock()
-	if cl.bufStream.IsConnected() {
-		cl.bufStream.Close()
-	}
-	if cl.msgStreamCancel != nil {
-		cl.msgStreamCancel()
-		cl.msgStreamCancel = nil
+	for _, s := range cl.streams {
+		if s.IsConnected() {
+			s.Close()
+		}
 	}
 	if cl.grpcConn != nil {
 		cl.grpcConn.Close()
@@ -102,7 +95,8 @@ func (cl *GrpcServiceClient) Close() {
 	slog.Info("client Close: ending read/write loops")
 }
 
-// Initiate a connection to the grpc server
+// Initiate a connection to the grpc server.
+// The owner must open the streams it wasnt to use using 'ConnectStream'.
 func (cl *GrpcServiceClient) ConnectWithToken(clientID string, authToken string) (err error) {
 	cl.mux.Lock()
 	defer cl.mux.Unlock()
@@ -143,10 +137,14 @@ func (cl *GrpcServiceClient) ConnectWithToken(clientID string, authToken string)
 	rpcCredOpt := grpc.WithPerRPCCredentials(cl)
 	dialOpts = append(dialOpts, rpcCredOpt)
 
-	// use the custom codec instead of protobuf
+	// use the custom JSON codec instead of the default protobuf.
 	// this is a codec per-call, hence use WithDefaultCallOptions
-	encoding.RegisterCodec(internal.RawCodec{})
-	codecOption := grpc.WithDefaultCallOptions(grpc.CallContentSubtype("rawcodec"))
+	// TODO: for use with http2 see also https://github.com/grpc/grpc/blob/master/doc/PROTOCOL-HTTP2.md#requests
+	// which seems to want base64 encoding. Not a concern right now.
+	codec := internal.JsonCodec{}
+	encoding.RegisterCodec(codec)
+
+	codecOption := grpc.WithDefaultCallOptions(grpc.CallContentSubtype(codec.Name()))
 	dialOpts = append(dialOpts, codecOption)
 
 	cl.grpcConn, err = grpc.NewClient(cl.connectURL, dialOpts...)
@@ -154,47 +152,49 @@ func (cl *GrpcServiceClient) ConnectWithToken(clientID string, authToken string)
 		slog.Error("Connect: NewClient failed", "err", err.Error())
 		return err
 	}
-	// grpcServiceClient := grpcapi.NewGrpcServiceClient(cl.grpcConn)
-	// ctx, cancelFn := context.WithCancel(context.Background())
-	// cl.msgStreamCancel = cancelFn
-	// msgStream, err := grpcServiceClient.MsgStream(ctx)
+
+	return err
+}
+
+// ConnectStream connects to a server stream
+// This returns a buffered stream.
+// the stream is added to the 'streams' map.
+// 'name' is the registered server stream name (eg, 'notification', or 'request/response')
+//
+// This returns the buffered stream or an error if failed
+func (cl *GrpcServiceClient) ConnectStream(name string) (*internal.BufferedStream, error) {
 
 	// Create the messaging stream
 	ctx, cancelFn := context.WithCancel(context.Background())
-	cl.msgStreamCancel = cancelFn
 	opts := []grpc.CallOption{}
 
-	// this returns a grpc.ClientStream
-	// NOTE: streamInfo must match the server
-	// var streamInfo = grpc.StreamDesc{
-	// 	StreamName:    grpcapi.GrpcTransportStreamName, // stream name must match the server
-	// 	ServerStreams: true,
-	// 	ClientStreams: true,
-	// }
-	// FIXME: the client requires stream name below
-	streamdesc := &grpcserver.ServiceDesc.Streams[0]
-	streamName := "/grpcapi.GrpcService/MsgStream"
-	grpcStream, err := cl.grpcConn.NewStream(ctx,
-		streamdesc, streamName, opts...)
+	// Open the stream
+	// the stream name is the service name / stream name
+	// client and server must use the same service name and stream name
+	streamDesc := &grpc.StreamDesc{
+		ServerStreams: true,
+		ClientStreams: true,
+	}
+	// Note, two issues here:
+	// 1. the stream name in streaemDesc isn't used by grpc
+	// 2. the stream name must be prefixed with the service name: full name=service/stream
+	serviceStreamName := cl.serviceDesc.ServiceName + "/" + name
+	stream, err := cl.grpcConn.NewStream(ctx,
+		streamDesc, serviceStreamName, opts...)
 
 	if err != nil {
 		slog.Error("Connect: MsgStream failed", "err", err.Error())
-		return err
+		cancelFn()
+		return nil, err
 	}
 
-	// This adds Send and Receive methods to the stream
-	// msgStream := NewGrpcServiceStreamClient2(grpcStream)
-	// var blob []byte
-	// err = grpcStream.RecvMsg(&blob)
-	// if err != nil {
-	// 	slog.Error("read stream failed ", err, err.Error())
-	// 	return err
-	// }
-
 	// use buffered stream for sending and receiving
-	cl.bufStream = internal.NewBufferedStream(grpcStream, cl.recvHandler, cl.respTimeout)
+	bufferedStream := internal.NewBufferedStream(stream, cancelFn, cl.recvHandler, cl.respTimeout)
 
-	return err
+	cl.mux.Lock()
+	defer cl.mux.Unlock()
+	cl.streams[name] = bufferedStream
+	return bufferedStream, nil
 }
 
 // // GetConnectionID returns the client's connection details
@@ -202,22 +202,41 @@ func (cl *GrpcServiceClient) GetConnectionID() string {
 	return cl.connectionID
 }
 
-func (cl *GrpcServiceClient) IsConnected() bool {
-	return cl.bufStream != nil && cl.bufStream.IsConnected()
+// GetStream returns the stream with the given name or an error if not found
+func (cl *GrpcServiceClient) GetStream(name string) (*internal.BufferedStream, error) {
+	cl.mux.RLock()
+	defer cl.mux.RUnlock()
+	strm, _ := cl.streams[name]
+	if strm == nil {
+		return nil, fmt.Errorf("Stream '%s' not found", name)
+	}
+	return strm, nil
 }
 
-func (cl *GrpcServiceClient) Ping() (reply string, err error) {
+// Test if the stream with the given name is connected
+func (cl *GrpcServiceClient) IsConnected(name string) bool {
+	strm, err := cl.GetStream(name)
+	if err != nil {
+		return false
+	}
+	return strm.IsConnected()
+}
+
+// a simple ping test
+// this echos the input or returns 'pong' if none is provided
+func (cl *GrpcServiceClient) Ping(input string) (reply string, err error) {
 	ctx, cancelFn := context.WithTimeout(context.Background(), cl.respTimeout)
 	defer cancelFn()
 	opts := []grpc.CallOption{}
-	in := []byte("ping")
-	var out []byte
-	err = cl.grpcConn.Invoke(ctx, "/grpcapi.GrpcService/ping", in, &out, opts...)
+	in := input
+	// TODO: the service name
+	serviceMethodName := cl.serviceDesc.ServiceName + "/ping"
+	err = cl.grpcConn.Invoke(ctx, serviceMethodName, in, &reply, opts...)
 	// replyMsg, err := cl.grpcServiceClient.Ping(ctx, text)
 	if err != nil {
 		return "", err
 	}
-	return string(out), nil
+	return reply, nil
 }
 
 // PerRPCCredentials:GetRequestMetadata
@@ -235,23 +254,45 @@ func (cl *GrpcServiceClient) GetRequestMetadata(ctx context.Context, uri ...stri
 func (cl *GrpcServiceClient) RequireTransportSecurity() bool { return false }
 
 // Send a message to the server
-func (cl *GrpcServiceClient) Send(rawMsg []byte) (err error) {
-	err = cl.bufStream.Send(rawMsg)
+// name selects the stream name
+func (cl *GrpcServiceClient) Send(name string, rawMsg []byte) (err error) {
+	strm, err := cl.GetStream(name)
+	if err == nil {
+		err = strm.Send(rawMsg)
+	}
 	return err
 }
 
-// WaitUntilDisconnect waits until the client connection is closed.
-func (cl *GrpcServiceClient) WaitUntilDisconnect() {
-	cl.bufStream.WaitUntilDisconnect()
+// WaitUntilDisconnect waits until the client streams are is closed.
+// This returns an error if the stream name isnt found
+func (cl *GrpcServiceClient) WaitUntilDisconnect(name string) error {
+	strm, err := cl.GetStream(name)
+	if err == nil {
+		strm.WaitUntilDisconnect()
+	}
+	return err
 }
 
 // Create a client for the GRPC transport
+//
+// The serviceName is provided by the application and must match the server.
+// Use ConnectStream(name) to connect to individual server streams.
 // caCert is optional for use with tcp sockets
 func NewGrpcServiceClient(
 	connectURI string, caCert *x509.Certificate,
 	respTimeout time.Duration,
+	serviceName string,
 	msgHandler func(rawMsg []byte),
 ) *GrpcServiceClient {
+
+	// generate the client side service description
+	// the service name should be provided by the user
+	serviceDesc := grpc.ServiceDesc{
+		ServiceName: serviceName, // grpcapi.GrpcTransportServiceName,
+		// HandlerType: not needed client side
+		Methods: []grpc.MethodDesc{},
+		Streams: []grpc.StreamDesc{},
+	}
 
 	cl := &GrpcServiceClient{
 		caCert:       caCert,
@@ -259,6 +300,8 @@ func NewGrpcServiceClient(
 		connectURL:   connectURI,
 		recvHandler:  msgHandler,
 		respTimeout:  respTimeout,
+		serviceDesc:  serviceDesc,
+		streams:      make(map[string]*internal.BufferedStream),
 	}
 	return cl
 }

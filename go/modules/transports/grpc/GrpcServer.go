@@ -22,5 +22,5 @@ import (
 // Use SetNotificationSink to set the handler for notifications send by agents.
 func NewHiveotGrpcServer(
 	connectURL string, tlsCert *tls.Certificate, authn transports.IAuthenticator, respTimeout time.Duration) grpcapi.IGrpcTransportServer {
-	return grpcserver.NewHiveotGrpcServer(connectURL, tlsCert, authn, respTimeout)
+	return grpcserver.NewHiveotGrpcTransportServer(connectURL, tlsCert, authn, respTimeout)
 }

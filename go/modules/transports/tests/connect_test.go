@@ -23,7 +23,7 @@ import (
 const testAgentID1 = "agent1"
 const testClientID1 = "client1"
 
-var testProtocol = transports.ProtocolTypeWotWebsocket
+var testProtocol = transports.ProtocolTypeHiveotGrpc
 
 var testProtocols = []string{
 	transports.ProtocolTypeHiveotSsesc,

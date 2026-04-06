@@ -104,7 +104,7 @@ func StartGrpcTransportConnection(
 		// rnrChan:      msg.NewRnRChan(),
 	}
 	// // use the same buffered stream as the client uses for sending and receiving messages
-	c.bstrm = internal.NewBufferedStream(grpcStream, c._onServerMessage, time.Minute)
+	c.bstrm = internal.NewBufferedStream(grpcStream, nil, c._onServerMessage, time.Minute)
 
 	// determine the client ID and connection ID from the grpc stream context
 	peerInfo, ok := peer.FromContext(grpcStream.Context())

@@ -12,8 +12,10 @@ const (
 	// Hiveot gRPC module ID
 	HiveotGrpcModuleID = "hiveot-grpc"
 
-	// the stream name used in client and server
-	GrpcTransportStreamName = "MsgStream"
+	GrpcTransportServiceName = "grpcTransport"
+	// the stream names used in client and server
+	StreamNameNotification    = "notification"
+	StreamNameRequestResponse = "requestresponse"
 )
 
 // The default socket path for the grpc UDS server

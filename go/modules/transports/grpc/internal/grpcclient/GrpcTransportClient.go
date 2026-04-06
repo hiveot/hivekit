@@ -11,6 +11,7 @@ import (
 
 	"github.com/hiveot/hivekit/go/modules"
 	"github.com/hiveot/hivekit/go/modules/transports"
+	grpcapi "github.com/hiveot/hivekit/go/modules/transports/grpc/api"
 	"github.com/hiveot/hivekit/go/msg"
 	"github.com/hiveot/hivekit/go/utils"
 	"github.com/hiveot/hivekit/go/wot/td"
@@ -143,24 +144,37 @@ func (cl *GrpcTransportClient) ConnectWithToken(clientID string, token string) (
 	cl.SetModuleID(clientID)
 
 	cl.grpcClient = NewGrpcServiceClient(
-		cl.connectURL, cl.caCert, cl.timeout, cl._onClientMessage)
+		cl.connectURL, cl.caCert, cl.timeout,
+		grpcapi.GrpcTransportServiceName, cl._onClientMessage)
 
 	err = cl.grpcClient.ConnectWithToken(clientID, token)
 	if err != nil {
 		slog.Error("Grpc connection failed", "addr", cl.connectURL, "err", err.Error())
 		return err
 	}
+
 	// use ping as 'connect' might not detect a failed connection
-	_, err = cl.grpcClient.Ping()
+	_, err = cl.grpcClient.Ping("")
 	if err != nil {
 		slog.Error("Grpc ping failed", "err", err.Error())
 		return err
 	}
+
+	// connect the streams want serve
+	_, err = cl.grpcClient.ConnectStream(grpcapi.StreamNameNotification)
+	if err == nil {
+		// FIXME: make dual stream work
+		// _, err = cl.grpcClient.ConnectStream(grpcapi.StreamNameRequestResponse)
+	}
+
 	go func() {
-		if cl.grpcClient.IsConnected() {
-			cl._onConnectionChanged(cl.grpcClient.IsConnected(), nil)
-			cl.grpcClient.WaitUntilDisconnect()
-			cl._onConnectionChanged(cl.grpcClient.IsConnected(), nil)
+		// for now assume that the notification stream drives the connectivity.
+		// the req/resp stream should follow like a good doggie
+		name := grpcapi.StreamNameNotification
+		if cl.grpcClient.IsConnected(name) {
+			cl._onConnectionChanged(cl.grpcClient.IsConnected(name), nil)
+			cl.grpcClient.WaitUntilDisconnect(name)
+			cl._onConnectionChanged(cl.grpcClient.IsConnected(name), nil)
 
 			// if retrying is enabled then try on disconnect
 			if cl.retryOnDisconnect.Load() {
@@ -202,9 +216,9 @@ func (cl *GrpcTransportClient) HandleRequest(request *msg.RequestMessage, replyT
 	return err
 }
 
-// IsConnected return whether the socket connection is established
+// IsConnected return whether the notification stream is established
 func (cl *GrpcTransportClient) IsConnected() bool {
-	return cl.grpcClient != nil && cl.grpcClient.IsConnected()
+	return cl.grpcClient != nil && cl.grpcClient.IsConnected(grpcapi.StreamNameNotification)
 }
 
 // Reconnect attempts to re-establish a dropped connection using the last token
@@ -253,7 +267,7 @@ func (cl *GrpcTransportClient) SendNotification(notif *msg.NotificationMessage) 
 	)
 	raw, err := cl.encoder.EncodeNotification(notif)
 	if err == nil {
-		err = cl.grpcClient.Send(raw)
+		err = cl.grpcClient.Send(grpcapi.StreamNameNotification, raw)
 	}
 }
 
@@ -271,13 +285,17 @@ func (cl *GrpcTransportClient) SendRequest(
 	}
 	if replyTo == nil {
 		// responses are received asynchronously
-		err := cl.grpcClient.Send(raw)
+		err := cl.grpcClient.Send(grpcapi.StreamNameNotification, raw)
+		// FIXME: make dual stream work
+		// err := cl.grpcClient.Send(grpcapi.StreamNameRequestResponse, raw)
 		return err
 	}
 
 	// a response handler is provided, callback when the response is received
 	cl.rnrChan.Open(req.CorrelationID)
-	err = cl.grpcClient.Send(raw)
+	err = cl.grpcClient.Send(grpcapi.StreamNameNotification, raw)
+	// FIXME: make dual stream work
+	// err = cl.grpcClient.Send(grpcapi.StreamNameRequestResponse, raw)
 
 	if err != nil {
 		cl.rnrChan.Close(req.CorrelationID)
@@ -300,7 +318,9 @@ func (cl *GrpcTransportClient) SendResponse(resp *msg.ResponseMessage) error {
 
 	raw, err := cl.encoder.EncodeResponse(resp)
 	if err == nil {
-		err = cl.grpcClient.Send(raw)
+		// FIXME: make dual stream work
+		err = cl.grpcClient.Send(grpcapi.StreamNameNotification, raw)
+		// err = cl.grpcClient.Send(grpcapi.StreamNameRequestResponse, raw)
 	}
 	return err
 }

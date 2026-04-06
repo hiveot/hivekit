@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/hiveot/hivekit/go/modules/transports"
+	grpcapi "github.com/hiveot/hivekit/go/modules/transports/grpc/api"
 	"github.com/hiveot/hivekit/go/msg"
 	"google.golang.org/grpc"
 )
@@ -34,6 +35,9 @@ type GrpcTransportServer struct {
 	// grpcServer *grpc.Server
 
 	respTimeout time.Duration
+
+	// the service name the streams are published under
+	serviceName string
 }
 
 // a request passed to this server is forwarded to the connection with the matching ID
@@ -54,13 +58,13 @@ func (m *GrpcTransportServer) HandleRequest(
 
 // The grpc service callback handler for incoming stream connections.
 // This creates a new transport connection for the stream and blocks until the stream is closed.
-func (m *GrpcTransportServer) ServeStreamConnection(clientID string, cid string, grpcStream grpc.ServerStream) error {
+func (m *GrpcTransportServer) ServeStreamConnection(
+	clientID string, cid string, grpcStream grpc.ServerStream) error {
 
 	// authentication???
 
 	// Create a hiveot transport connection for this stream.
-	c := StartGrpcTransportConnection(clientID, cid, grpcStream,
-		m.ForwardRequest, m.ForwardNotification)
+	c := StartGrpcTransportConnection(clientID, cid, grpcStream, m.ForwardRequest, m.ForwardNotification)
 	c.SetTimeout(m.respTimeout)
 
 	m.AddConnection(c)
@@ -91,8 +95,13 @@ func (m *GrpcTransportServer) Start(yamlConfig string) (err error) {
 		return err
 	}
 	grpcAuthn := NewGrpcAuthenticator(m.authn)
-	m.grpcService, err = StartGrpcServiceServer(
-		lis, nil, m.ServeStreamConnection, grpcAuthn, time.Minute)
+	m.grpcService = NewGrpcServiceServer(
+		lis, nil, m.serviceName, grpcAuthn, time.Minute)
+
+	m.grpcService.AddStream(grpcapi.StreamNameNotification, m.ServeStreamConnection)
+	// m.grpcService.AddStream(grpcapi.StreamNameRequestResponse, m.ServeStreamConnection)
+
+	err = m.grpcService.Start()
 	if err != nil {
 		lis.Close()
 		return err
@@ -113,13 +122,16 @@ func (m *GrpcTransportServer) Stop() {
 // tlsCert is the TLS certificate to use for secure connections, or nil for insecure
 // authn is the authenticator for verifying the client token
 // respTimeout is the time the server waits for a response when sending requests. defaults to 3sec
-func NewHiveotGrpcServer(connectURL string, tlsCert *tls.Certificate, authn transports.IAuthenticator, respTimeout time.Duration) *GrpcTransportServer {
+func NewHiveotGrpcTransportServer(
+	connectURL string, tlsCert *tls.Certificate,
+	authn transports.IAuthenticator, respTimeout time.Duration) *GrpcTransportServer {
 
 	srv := &GrpcTransportServer{
 		authn:       authn,
 		connectURL:  connectURL,
 		tlsCert:     tlsCert,
 		respTimeout: respTimeout,
+		serviceName: grpcapi.GrpcTransportServiceName,
 	}
 	return srv
 }
