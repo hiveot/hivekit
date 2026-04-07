@@ -1,18 +1,32 @@
-package internal
+package grpclib
 
 import (
 	"context"
-	"errors"
 	"io"
 	"log/slog"
 	"sync/atomic"
 	"time"
 
-	grpcapi "github.com/hiveot/hivekit/go/modules/transports/grpc/api"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
+// error result codes
+var ErrConnectionClosed = status.Errorf(codes.Canceled, "connection is closed")
+var ErrClientTooSlow = status.Errorf(codes.ResourceExhausted, "client is too slow to receive messages")
+
 // The size of the send channel buffer
-const SendChanSize = 30
+const SendChanSize = 42
+
+// these timings are arbitrary and depend on the expected receiver performance
+const FCDelayIncreaseStep = time.Microsecond * 30
+const FCDelayDecreaseStep = time.Microsecond * 30
+
+// API for use by all client/server streaming endpoints
+type IMsgStream interface {
+	SendMsg(msg any) error
+	RecvMsg(dest any) error
+}
 
 // BufferedStream for receiving and sending messages on a GRPC stream connection.
 // Use Run to start processing incoming messages.
@@ -21,13 +35,20 @@ const SendChanSize = 30
 // and lowers when the send buffer is below 30% the delay decreases but at 10% if the increase.
 type BufferedStream struct {
 
+	// flow control delays
+	FCDelayDecreaseStep time.Duration
+	FCDelayIncreaseStep time.Duration
+
+	// the maximum number of retries once the send buffer is full.
+	MaxRetryCount int
+
 	// this channel is used to signal the read/write loops to exit
 	cancelChan chan struct{}
 
 	isConnected atomic.Bool
 
 	// the raw GRPC stream
-	msgStream grpcapi.IMsgStream
+	msgStream IMsgStream
 
 	// cancel function of the raw stream context. Used in client streams.
 	msgStreamCancel func()
@@ -37,6 +58,8 @@ type BufferedStream struct {
 
 	// the send channel with buffer to force sequential sending
 	sendChan chan []byte
+
+	txMsgCnt int
 
 	// backoff flow control timer to delay sending
 	// This increases by 1us when the buffer is full and decreases after a successful sent
@@ -53,17 +76,21 @@ func (bs *BufferedStream) _recvLoop(recvHandler func(rawMsg []byte)) {
 			break
 		}
 		err := bs.msgStream.RecvMsg(&rxMsg)
-		if err == io.EOF {
-			slog.Debug("service recvLoop: stream read loop closed due to EOF")
-			break
-		} else if errors.Is(err, context.Canceled) {
-			slog.Debug("service recvLoop: Graceful shutdown")
-			break
-		} else if err != nil {
-			slog.Warn("service recvLoop: Recv error", "err", err.Error())
-			break
+		if err != nil {
+			if err == io.EOF {
+				slog.Debug("service recvLoop: stream read loop closed due to EOF")
+				break
+			}
+			stat, ok := status.FromError(err)
+			if ok && stat.Code() == codes.Canceled {
+				slog.Debug("service recvLoop: context cancelled. Graceful shutdown")
+				break
+			} else {
+				slog.Warn("service recvLoop: Recv error", "err", err.Error())
+				break
+			}
 		}
-		// parent handles flow control
+		// received a valid message, pass it to the handler
 		recvHandler(rxMsg)
 	}
 	slog.Debug("service recvLoop: recvLoop ended")
@@ -77,11 +104,11 @@ func (bs *BufferedStream) _recvLoop(recvHandler func(rawMsg []byte)) {
 func (bs *BufferedStream) _sendLoop() {
 	for msg := range bs.sendChan {
 		if err := bs.msgStream.SendMsg(msg); err != nil {
+			slog.Error("_sendLoop error", "err", err.Error())
 			break
 		}
 	}
 	slog.Debug("service sendLoop: sendLoop ended")
-	// bs.cancelSafely() // in	case client disconnected
 }
 
 // Close the stream and buffered channels
@@ -109,53 +136,55 @@ func (sc *BufferedStream) IsConnected() bool {
 // If this still fails then the client connection is broken or the receiver is stuck. In that
 // case this returns an error and the sender should consider closing the connection.
 func (bs *BufferedStream) Send(rawMsg []byte) (err error) {
-	const MaxRetryCount = 10
 
 	// if the send channel is full, allow a wait before disconnecting the client.
 	ctx, cancelFn := context.WithTimeout(context.Background(), bs.sendTimeout)
 	defer cancelFn()
 
+	bs.txMsgCnt++
+
 	// if the buffer is full then the remote client is considered stuck. The caller should close
 	// the connection.
-	for retryCount := MaxRetryCount; retryCount > 0; retryCount-- {
-		// slog.Info("- Send", "retrycnt", retryCount, "delay", bs.fcDelay, "chan level", len(bs.sendChan))
-
+	for retryCount := 0; ; retryCount++ {
 		// These self-balancing numbers are intended for UDS which is faster than tcp.
 		// if the send buffer fills up to 50% then increase the delay with a microsecond.
 		// if the send buffer falls below 30% then decrease the delay with 0.1 microsecond.
-		if len(bs.sendChan) > SendChanSize/2 {
-			bs.fcDelay += time.Microsecond
-		} else if bs.fcDelay > 0 && len(bs.sendChan) < SendChanSize/3 {
-			bs.fcDelay = bs.fcDelay - time.Nanosecond*100
+		// if the buffer is empty, reset the delay to 0 to allow burst sending
+		if len(bs.sendChan) == 0 {
+			bs.fcDelay = 0
+		} else if len(bs.sendChan) > SendChanSize/2 {
+			bs.fcDelay += bs.FCDelayIncreaseStep
+		} else if len(bs.sendChan) < SendChanSize/3 && bs.fcDelay > 0 {
+			// slow decrease for recovery
+			bs.fcDelay = bs.fcDelay - bs.FCDelayDecreaseStep
 		}
 		if bs.fcDelay > 0 {
+			// slog.Info("- Send", "txMsgCnt", bs.txMsgCnt, "retrycnt", retryCount, "delay", bs.fcDelay,
+			// "chan level", len(bs.sendChan))
 			time.Sleep(bs.fcDelay)
 		}
 		select {
 		case bs.sendChan <- rawMsg:
 			// all is well
-			err = nil
-			retryCount = 0 // end the retry loop
+			cancelFn()
+			return nil
 		case <-ctx.Done():
-			err = ctx.Err()
-			retryCount = 0
+			// context was closed. We're done here
+			cancelFn()
+			return nil
 		default:
-			// if the channel is full then retry, but add a substantial delay
-			bs.fcDelay = bs.fcDelay + time.Microsecond*10
-			slog.Warn("Send: channel is full. Retrying and increasing send delay to ", "delay", bs.fcDelay)
-			err = grpcapi.ErrClientTooSlow
-			if retryCount == 1 {
+			if retryCount >= bs.MaxRetryCount {
 				// ideally this never happens
-				slog.Error("Failed to send. Buffer is full.",
+				slog.Error("Failed to send. Client too slow.",
 					"retryCount", retryCount, "delay", bs.fcDelay)
+				return ErrClientTooSlow
 			}
-		}
-		if err == nil {
-			break
+			// if the channel is full then retry, but double the delay
+			bs.fcDelay = bs.fcDelay * 2
+			slog.Warn("Send: channel is full. Retrying and increasing send delay",
+				"sendCnt", bs.txMsgCnt, "delay", bs.fcDelay, "retryCount", retryCount)
 		}
 	}
-	cancelFn()
-	return err
 }
 
 // WaitUntilDisconnect waits until the send or receive stream is closed.
@@ -186,12 +215,18 @@ func (bs *BufferedStream) WaitUntilDisconnect() {
 //	sendTimeout is the default timeout for sending messages on this stream
 //	 when the send buffer is full.
 func NewBufferedStream(
-	msgStream grpcapi.IMsgStream, cancelFn func(), recvHandler func(rawMsg []byte), sendTimeout time.Duration,
+	msgStream IMsgStream, cancelFn func(), recvHandler func(rawMsg []byte), sendTimeout time.Duration,
 ) *BufferedStream {
 	strm := &BufferedStream{
 		msgStreamCancel: cancelFn,
 		sendTimeout:     sendTimeout,
 		msgStream:       msgStream,
+
+		MaxRetryCount: 10,
+		// flow control
+		FCDelayDecreaseStep: FCDelayDecreaseStep,
+		FCDelayIncreaseStep: FCDelayIncreaseStep,
+
 		// ServiceMsgChanSize is the default buffer size.
 		sendChan:   make(chan []byte, SendChanSize),
 		cancelChan: make(chan struct{}),

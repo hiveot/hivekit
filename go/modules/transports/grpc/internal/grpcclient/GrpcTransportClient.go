@@ -12,6 +12,7 @@ import (
 	"github.com/hiveot/hivekit/go/modules"
 	"github.com/hiveot/hivekit/go/modules/transports"
 	grpcapi "github.com/hiveot/hivekit/go/modules/transports/grpc/api"
+	grpclib "github.com/hiveot/hivekit/go/modules/transports/grpc/lib"
 	"github.com/hiveot/hivekit/go/msg"
 	"github.com/hiveot/hivekit/go/utils"
 	"github.com/hiveot/hivekit/go/wot/td"
@@ -35,7 +36,7 @@ type GrpcTransportClient struct {
 	// encoding and decoding of RRN messages
 	encoder transports.IMessageEncoder
 
-	grpcClient *GrpcServiceClient
+	grpcClient *grpclib.GrpcServiceClient
 
 	maxReconnectAttempts int // 0 for indefinite
 
@@ -143,7 +144,7 @@ func (cl *GrpcTransportClient) ConnectWithToken(clientID string, token string) (
 	cl.bearerToken = token
 	cl.SetModuleID(clientID)
 
-	cl.grpcClient = NewGrpcServiceClient(
+	cl.grpcClient = grpclib.NewGrpcServiceClient(
 		cl.connectURL, cl.caCert, cl.timeout,
 		grpcapi.GrpcTransportServiceName, cl._onClientMessage)
 

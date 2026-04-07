@@ -5,7 +5,7 @@ import (
 	"time"
 
 	"github.com/hiveot/hivekit/go/modules/transports"
-	"github.com/hiveot/hivekit/go/modules/transports/grpc/internal"
+	grpclib "github.com/hiveot/hivekit/go/modules/transports/grpc/lib"
 	"github.com/hiveot/hivekit/go/msg"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/peer"
@@ -17,7 +17,7 @@ import (
 type TransportConnection struct {
 	transports.ServerConnectionBase
 
-	bstrm *internal.BufferedStream
+	bstrm *grpclib.BufferedStream
 
 	// notifHandler handles the requests received from the remote producer
 	notifHandler msg.NotificationHandler
@@ -104,7 +104,7 @@ func StartGrpcTransportConnection(
 		// rnrChan:      msg.NewRnRChan(),
 	}
 	// // use the same buffered stream as the client uses for sending and receiving messages
-	c.bstrm = internal.NewBufferedStream(grpcStream, nil, c._onServerMessage, time.Minute)
+	c.bstrm = grpclib.NewBufferedStream(grpcStream, nil, c._onServerMessage, time.Minute)
 
 	// determine the client ID and connection ID from the grpc stream context
 	peerInfo, ok := peer.FromContext(grpcStream.Context())

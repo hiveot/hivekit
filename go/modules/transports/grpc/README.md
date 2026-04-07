@@ -28,4 +28,40 @@ The module configuration consists of:
 3. An authenticator for validating client credentials. This is optional when using UDS.
 4. Optional timeout to facilitate testing and debugging. The default is defined in DefaultRpcTimeout.
 
-## Usage
+## grpclib
+
+The lib directory contains a gRPC wrapper for creating bi-directional streams on the fly without protobuf. The user can create a stream on the server using 'CreateStream(name, handler)' and connect to it with the client using 'ConnectStream(name, handler)'. The test case shows a full example.
+
+Also included is a stream buffer that adds these features:
+
+- accept concurrent sending of messages (grpc stream send is not concurrent)
+- add a send buffer for immediate return after calling Send
+- flow control. Dynamically delay the caller time when the send buffer is 50% full and slowly reduce the delay when the buffer empties out.
+- if the send buffer is full then add an extra 10usec delay and repeat up to 10 times (configurable). After that returns ErrClientTooSlow error.
+
+No need for grpc magic and types and stuff. Simply add the stream on the server and connect to it on the client.
+This registers the 'jsonCodec' in case of complex objects. Or the user can simply send and receive string or []byte arrays and use their own encoder.
+
+On an intel i5 4570S, 2.9GHz this transfers 350K 300byte messages/sec or 270K 1K messages/sec using unix sockets.
+
+Server gist:
+
+```go
+	lis, err := net.Listen("unix", "/run/myapp.sock")
+	grpcServer := grpclib.NewGrpcServiceServer(
+       lis, nil, "myservicename", grpcAuthn, time.Minute)
+	grpcServer.CreateStream("stream-1", serverStreamHandler)
+   	err = m.grpcService.Start()
+```
+
+Client gist:
+
+```go
+	grpcClient = grpclib.NewGrpcServiceClient(
+        connectURL, nil, time.Minute, "myservicename", clientStreamHandler)
+	err := grpcClient.ConnectWithToken(clientID, token)
+	_, err = grpcClient.Ping("")
+	strm, err = grpcClient.ConnectStream("stream-1")
+    // this blocks
+	strm.WaitUntilDisconnect(name)
+```

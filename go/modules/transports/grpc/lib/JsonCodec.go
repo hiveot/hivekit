@@ -1,13 +1,12 @@
-package internal
+package grpclib
 
 import (
 	jsoniter "github.com/json-iterator/go"
 )
 
-// raw gRPC messaging codec.
+// JSON gRPC messaging codec.
 //
-// If the input is a byte array then it is a direct pass without conversion.
-// If the input is a string then it is returned as a byte array without conversion.
+// If the input is a string or byte array then it is a direct pass without conversion.
 // Any other data type is json encoded.
 type JsonCodec struct {
 }

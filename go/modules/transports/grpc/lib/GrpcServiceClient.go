@@ -1,4 +1,4 @@
-package grpcclient
+package grpclib
 
 import (
 	"context"
@@ -11,7 +11,6 @@ import (
 	"time"
 
 	"github.com/hiveot/hivekit/go/modules/transports"
-	"github.com/hiveot/hivekit/go/modules/transports/grpc/internal"
 	"github.com/teris-io/shortid"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
@@ -76,7 +75,7 @@ type GrpcServiceClient struct {
 	serviceDesc grpc.ServiceDesc
 
 	// buffered stream wrapper around the gRPC streams by stream name (from serviceDesc)
-	streams map[string]*internal.BufferedStream
+	streams map[string]*BufferedStream
 }
 
 // Close disconnects
@@ -141,7 +140,7 @@ func (cl *GrpcServiceClient) ConnectWithToken(clientID string, authToken string)
 	// this is a codec per-call, hence use WithDefaultCallOptions
 	// TODO: for use with http2 see also https://github.com/grpc/grpc/blob/master/doc/PROTOCOL-HTTP2.md#requests
 	// which seems to want base64 encoding. Not a concern right now.
-	codec := internal.JsonCodec{}
+	codec := JsonCodec{}
 	encoding.RegisterCodec(codec)
 
 	codecOption := grpc.WithDefaultCallOptions(grpc.CallContentSubtype(codec.Name()))
@@ -162,7 +161,7 @@ func (cl *GrpcServiceClient) ConnectWithToken(clientID string, authToken string)
 // 'name' is the registered server stream name (eg, 'notification', or 'request/response')
 //
 // This returns the buffered stream or an error if failed
-func (cl *GrpcServiceClient) ConnectStream(name string) (*internal.BufferedStream, error) {
+func (cl *GrpcServiceClient) ConnectStream(name string) (*BufferedStream, error) {
 
 	// Create the messaging stream
 	ctx, cancelFn := context.WithCancel(context.Background())
@@ -189,7 +188,7 @@ func (cl *GrpcServiceClient) ConnectStream(name string) (*internal.BufferedStrea
 	}
 
 	// use buffered stream for sending and receiving
-	bufferedStream := internal.NewBufferedStream(stream, cancelFn, cl.recvHandler, cl.respTimeout)
+	bufferedStream := NewBufferedStream(stream, cancelFn, cl.recvHandler, cl.respTimeout)
 
 	cl.mux.Lock()
 	defer cl.mux.Unlock()
@@ -203,7 +202,7 @@ func (cl *GrpcServiceClient) GetConnectionID() string {
 }
 
 // GetStream returns the stream with the given name or an error if not found
-func (cl *GrpcServiceClient) GetStream(name string) (*internal.BufferedStream, error) {
+func (cl *GrpcServiceClient) GetStream(name string) (*BufferedStream, error) {
 	cl.mux.RLock()
 	defer cl.mux.RUnlock()
 	strm, _ := cl.streams[name]
@@ -301,7 +300,7 @@ func NewGrpcServiceClient(
 		recvHandler:  msgHandler,
 		respTimeout:  respTimeout,
 		serviceDesc:  serviceDesc,
-		streams:      make(map[string]*internal.BufferedStream),
+		streams:      make(map[string]*BufferedStream),
 	}
 	return cl
 }

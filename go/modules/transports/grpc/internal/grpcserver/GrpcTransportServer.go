@@ -12,6 +12,7 @@ import (
 
 	"github.com/hiveot/hivekit/go/modules/transports"
 	grpcapi "github.com/hiveot/hivekit/go/modules/transports/grpc/api"
+	grpclib "github.com/hiveot/hivekit/go/modules/transports/grpc/lib"
 	"github.com/hiveot/hivekit/go/msg"
 	"google.golang.org/grpc"
 )
@@ -29,7 +30,7 @@ type GrpcTransportServer struct {
 
 	tlsCert *tls.Certificate
 
-	grpcService *GrpcServiceServer
+	grpcService *grpclib.GrpcServiceServer
 
 	connectURL string
 	// grpcServer *grpc.Server
@@ -94,11 +95,11 @@ func (m *GrpcTransportServer) Start(yamlConfig string) (err error) {
 	if err != nil {
 		return err
 	}
-	grpcAuthn := NewGrpcAuthenticator(m.authn)
-	m.grpcService = NewGrpcServiceServer(
+	grpcAuthn := grpclib.NewGrpcAuthenticator(m.authn)
+	m.grpcService = grpclib.NewGrpcServiceServer(
 		lis, nil, m.serviceName, grpcAuthn, time.Minute)
 
-	m.grpcService.AddStream(grpcapi.StreamNameNotification, m.ServeStreamConnection)
+	m.grpcService.CreateStream(grpcapi.StreamNameNotification, m.ServeStreamConnection)
 	// m.grpcService.AddStream(grpcapi.StreamNameRequestResponse, m.ServeStreamConnection)
 
 	err = m.grpcService.Start()

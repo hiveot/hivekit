@@ -1,4 +1,4 @@
-package grpcserver
+package grpclib
 
 import (
 	"context"
@@ -11,9 +11,7 @@ import (
 	"time"
 
 	"github.com/hiveot/hivekit/go/modules/transports"
-	"github.com/hiveot/hivekit/go/modules/transports/grpc/internal"
 
-	// grpcapi "github.com/hiveot/hivekit/go/modules/transports/grpc/api"
 	"github.com/hiveot/hivekit/go/msg"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
@@ -22,59 +20,6 @@ import (
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
 )
-
-// used by gRPC for API check
-type IGrpcServiceServer interface {
-	NewMsgStream(msgType string, grpcStream grpc.ServerStream) error
-	Ping(ctx context.Context, input string) (string, error)
-	// mustEmbedUnimplementedGrpcServiceServer()
-}
-
-// ServiceDesc for server side registration of the grpc methods and streams
-// var ServiceDesc = grpc.ServiceDesc{
-// 	// ServiceName: "GrpcServiceServer2",
-// 	ServiceName: "pleasesetaservicename",
-// 	HandlerType: (*IGrpcServiceServer)(nil),
-// 	Methods: []grpc.MethodDesc{
-// 		{
-// 			MethodName: "ping",
-// 			Handler: func(srv interface{}, ctx context.Context,
-// 				dec func(any) error,
-// 				interceptor grpc.UnaryServerInterceptor) (any, error) {
-
-// 				var input string
-// 				err := dec(&input)
-// 				if err == nil {
-// 					return srv.(*GrpcServiceServer).Ping(ctx, input)
-// 				}
-// 				return input, err
-// 			},
-// 		},
-// 	},
-// 	Streams: []grpc.StreamDesc{
-// 		// notification stream
-// 		{
-// 			StreamName: grpcapi.StreamNameNotification,
-// 			// this handler serves the stream with StreamName name.
-// 			Handler: func(srv interface{}, stream grpc.ServerStream) error {
-// 				return srv.(*GrpcServiceServer).NewMsgStream(msg.MessageTypeNotification, stream)
-// 			},
-// 			ServerStreams: true,
-// 			ClientStreams: true,
-// 		},
-// 		// request/response stream
-// 		{
-// 			StreamName: grpcapi.StreamNameRequestResponse,
-// 			// this handler serves the stream with StreamName name.
-// 			Handler: func(srv interface{}, stream grpc.ServerStream) error {
-// 				return srv.(*GrpcServiceServer).NewMsgStream(msg.MessageTypeRequest, stream)
-// 			},
-// 			ServerStreams: true,
-// 			ClientStreams: true,
-// 		},
-// 	},
-// 	Metadata: "grpc_transport.proto",
-// }
 
 // GRPC server handler of protobuf defined methods.
 // This currently only implements the Ping and MsgStream methods.
@@ -138,15 +83,18 @@ func (srv *GrpcServiceServer) unaryInterceptor(
 	return handler(ctx, req)
 }
 
-// Add a new stream to listen on
-func (srv *GrpcServiceServer) AddStream(
+// Create a new stream to listen on
+// Note that the handler is called with the raw grpc stream, which is not concurrent safe.
+//
+// Use NewBufferedStream(grpcStream) to create a buffered concurrently safe
+// connection for this stream. This buffered stream has send and receive methods.
+func (srv *GrpcServiceServer) CreateStream(
 	name string, handler func(clientID, cid string, grpcStream grpc.ServerStream) error) error {
 
 	srv.serviceDesc.Streams = append(srv.serviceDesc.Streams, grpc.StreamDesc{
 		StreamName: name,
 		// this handler serves the stream with StreamName name.
-		Handler: func(srvApi interface{}, stream grpc.ServerStream) error {
-			srv := srvApi.(*GrpcServiceServer)
+		Handler: func(_ interface{}, stream grpc.ServerStream) error {
 			clientID, cid, err := srv.GetRequestParams(stream.Context())
 			if err != nil {
 				return err
@@ -173,35 +121,6 @@ func (srv *GrpcServiceServer) GetRequestParams(ctx context.Context) (
 	clientID = strings.Join(md[transports.ClientIDContextID], "")
 	cid = strings.Join(md[transports.ClientCIDContextID], "")
 	return clientID, cid, err
-}
-
-// NewMsgStream is the handler of an incoming messaging stream connection
-// This extracts the clientID and ConnectionID metadata from the stream and
-// invokes the registered stream server.
-// The stream closes when the serve handler returns.
-//
-// name is the name of the stream: eg "notification"
-// Returning from serveHandler closes the stream.
-func (srv *GrpcServiceServer) NewMsgStream(name string, grpcStream grpc.ServerStream) error {
-	return fmt.Errorf("no longer valid. Use AddStream instead")
-	// clientID, cid, err := srv.GetRequestParams(grpcStream.Context())
-	//
-	//	if err != nil {
-	//		return err
-	//	}
-	//
-	// slog.Info("MsgStream: Service received a new stream", "clientID", clientID, "cid", cid, "msgType", name)
-	// // serveHandler should block until the stream is closed
-	// // FIXME: generalize - lookup available stream handlers
-	//
-	//	if name == msg.MessageTypeNotification {
-	//		err = srv.serveNotifStream(clientID, cid, grpcStream)
-	//	} else {
-	//
-	//		err = srv.serveReqRespStream(clientID, cid, grpcStream)
-	//	}
-	//
-	// return err
 }
 
 // Handler of ping message returns pong
@@ -238,7 +157,7 @@ func (srv *GrpcServiceServer) Start() error {
 	grpcServer = grpc.NewServer(opts...)
 
 	// ServiceDesc.ServiceName = serviceName
-	grpcServer.RegisterService(&srv.serviceDesc, srv)
+	grpcServer.RegisterService(&srv.serviceDesc, nil) // srv)
 
 	// grpcapi.RegisterGrpcServiceServer(grpcServer, srv)
 	srv.grpcServer = grpcServer
@@ -261,20 +180,11 @@ func (srv *GrpcServiceServer) Stop() {
 	}
 }
 
-// Start the GRPC server and listen for incoming connections.
-// Note that the proto file only defines a single bi-directional stream so all
-// traffic goes over these streams.
-//
-// serveHandler is called when a stream connection is established and ready to be served.
-// This should block until the connection closes.
-//
-// Use NewGrpcServiceStream(grpcStream) to create a buffered concurrently safe
-// connection for this stream.
+// Start the GRPC server, register a ping handler and listen for incoming connections.
 //
 //	lis is the network to listen on
 //	tlsCert is the TLS certificate to use for secure connections, or nil for insecure
 //	serviceName is the service name the streams are reachable under
-//	serveHandler is called with the raw stream when one is opened by a client
 //	grpcAuthn is the grpc connection authenticator
 //	respTimeout is the messaging timeout
 func NewGrpcServiceServer(lis net.Listener,
@@ -298,26 +208,26 @@ func NewGrpcServiceServer(lis net.Listener,
 	// !The incoming request content-type header must match the codec name.
 	// or force it using grpc.ForceServerCodec()
 	// note: registration applies to all client and servers
-	encoding.RegisterCodec(internal.JsonCodec{})
+	encoding.RegisterCodec(JsonCodec{})
 
-	var _ IGrpcServiceServer = srv // interface check
+	// var _ IGrpcServiceServer = srv // interface check
 
 	// create a service description with a default ping method
-	// streams can be added with 'AddStream' before Start is called.
+	// streams can be added with 'CreateStream' before Start is called.
 	srv.serviceDesc = grpc.ServiceDesc{
 		ServiceName: serviceName,
-		HandlerType: (*IGrpcServiceServer)(nil),
+		// HandlerType: (*IGrpcServiceServer)(nil),
 		Methods: []grpc.MethodDesc{
 			{
 				MethodName: "ping",
-				Handler: func(srv interface{}, ctx context.Context,
+				Handler: func(_ interface{}, ctx context.Context,
 					dec func(any) error,
 					interceptor grpc.UnaryServerInterceptor) (any, error) {
 
 					var input string
 					err := dec(&input)
 					if err == nil {
-						return srv.(*GrpcServiceServer).Ping(ctx, input)
+						return srv.Ping(ctx, input)
 					}
 					return input, err
 				},

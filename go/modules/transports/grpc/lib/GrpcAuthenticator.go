@@ -1,4 +1,4 @@
-package grpcserver
+package grpclib
 
 import (
 	"context"
@@ -6,9 +6,14 @@ import (
 	"strings"
 
 	"github.com/hiveot/hivekit/go/modules/transports"
-	grpcapi "github.com/hiveot/hivekit/go/modules/transports/grpc/api"
+	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/metadata"
+	"google.golang.org/grpc/status"
 )
+
+// error result codes
+var ErrMissingMetadata = status.Errorf(codes.InvalidArgument, "missing metadata")
+var ErrInvalidToken = status.Errorf(codes.PermissionDenied, "invalid token")
 
 type GrpcAuthenticator struct {
 	authenticator transports.IAuthenticator
@@ -18,12 +23,12 @@ type GrpcAuthenticator struct {
 func (srv *GrpcAuthenticator) Authenticate(ctx context.Context) (md metadata.MD, clientID string, err error) {
 	md, ok := metadata.FromIncomingContext(ctx)
 	if !ok {
-		return md, "", grpcapi.ErrMissingMetadata
+		return md, "", ErrMissingMetadata
 	}
 	contextClientID := strings.Join(md[transports.ClientIDContextID], "")
 	mdAuthn := md["authorization"]
 	if len(mdAuthn) == 0 {
-		return md, "", grpcapi.ErrInvalidToken
+		return md, "", ErrInvalidToken
 	}
 	// remote the bearer prefix from the token
 	token := mdAuthn[0] // FIXME: is this bearer???
