@@ -32,6 +32,9 @@ const (
 var TestUDSPath = "/tmp/hivekit/testenv.socket"
 var TestUDSURL = transports.UriSchemeHiveotGrpc + "://" + TestUDSPath
 
+// var TestUDSPath = ":8899"
+// var TestUDSURL = "tcp://" + TestUDSPath
+
 var DefaultProtocol = transports.ProtocolTypeHiveotGrpc
 
 // var DefaultProtocol = transports.ProtocolTypeHiveotSsesc

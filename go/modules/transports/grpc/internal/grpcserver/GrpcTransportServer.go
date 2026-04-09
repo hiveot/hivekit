@@ -14,6 +14,7 @@ import (
 	grpcapi "github.com/hiveot/hivekit/go/modules/transports/grpc/api"
 	grpclib "github.com/hiveot/hivekit/go/modules/transports/grpc/lib"
 	"github.com/hiveot/hivekit/go/msg"
+	"github.com/hiveot/hivekit/go/utils"
 	"google.golang.org/grpc"
 )
 
@@ -75,22 +76,44 @@ func (m *GrpcTransportServer) ServeStreamConnection(
 	return nil
 }
 
+// Start the server with the given configuration.
+// The server will listen on the configured URL and handle incoming connections.
+// This adapts the URL scheme "unix", "uds", or "tcp" to the appropriate network type for net.Listen
+// and update the connectURL to match the scheme used for listening.
 func (m *GrpcTransportServer) Start(yamlConfig string) (err error) {
 
-	m.Init(DefaultUDSModuleID,
-		transports.ProtocolTypeHiveotGrpc,
-		transports.SubprotocolHiveotGrpc,
-		m.connectURL, m.authn)
-
-	udsFilePath := m.connectURL
+	address := m.connectURL
+	network := "tcp"
 	// start listening on unix sockets. Make sure the directory exists and the socket file doesn't.
-	udsFilePath = strings.TrimPrefix(udsFilePath, "uds://")
-	udsFilePath = strings.TrimPrefix(udsFilePath, "unix://")
-	udsDir := filepath.Dir(udsFilePath)
-	err = os.MkdirAll(udsDir, 0700)
-	err = os.RemoveAll(udsFilePath)
-	// FIXME: use the scheme from the URL
-	lis, err := net.Listen("unix", udsFilePath)
+	if strings.HasPrefix(address, "unix") {
+		// m.connectURL is the same for the client
+		network = "unix"
+		address = strings.TrimPrefix(address, "unix://")
+		socketDir := filepath.Dir(address)
+		err = os.Remove(address)
+		err = os.MkdirAll(socketDir, 0700)
+	} else if strings.HasPrefix(address, "dns") {
+		// m.connectURL is the same for the client
+		address = strings.TrimPrefix(address, "dns:///") // dns scheme use triple slashes
+		network = "tcp"
+	} else if strings.HasPrefix(address, "tcp") {
+		// gRPC clients do not support tcp scheme. remove it and use the server IP
+		address = strings.TrimPrefix(address, "tcp://")
+		network = "tcp"
+	} else {
+		// some unknown or missing scheme. Use the tcp scheme instead.
+		network = "tcp"
+	}
+	if strings.HasPrefix(address, ":") {
+		port := address
+		outboundIP := utils.GetOutboundIP("")
+		m.connectURL = fmt.Sprintf("tcp://%s%s", outboundIP.String(), port)
+	} else {
+		// full address to connect
+		m.connectURL = fmt.Sprintf("%s://%s", network, address)
+	}
+
+	lis, err := net.Listen(network, address)
 	if err != nil {
 		return err
 	}
@@ -100,6 +123,11 @@ func (m *GrpcTransportServer) Start(yamlConfig string) (err error) {
 
 	m.grpcService.CreateStream(grpcapi.StreamNameNotification, m.ServeStreamConnection)
 	// m.grpcService.AddStream(grpcapi.StreamNameRequestResponse, m.ServeStreamConnection)
+
+	m.Init(DefaultUDSModuleID,
+		transports.ProtocolTypeHiveotGrpc,
+		transports.SubprotocolHiveotGrpc,
+		m.connectURL, m.authn)
 
 	err = m.grpcService.Start()
 	if err != nil {
@@ -114,6 +142,7 @@ func (m *GrpcTransportServer) Start(yamlConfig string) (err error) {
 func (m *GrpcTransportServer) Stop() {
 	slog.Info("Stop: Stopping gRPC module")
 	m.CloseAll()
+	m.grpcService.Stop()
 }
 
 // GRPC server using UDS or TCP sockets.

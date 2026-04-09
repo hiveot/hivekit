@@ -9,7 +9,6 @@ This transport module passes RRN messages as-is between client and server using 
 This transport module is functional but breaking changes can be expected.
 
 TODO-3: use a separate notification stream
-TODO-5: test CA cert when using tcp sockets
 TODO-6: authenticate with Client TLS cert when using tcp sockets
 
 ## Summary

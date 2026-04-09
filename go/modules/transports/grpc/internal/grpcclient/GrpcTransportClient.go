@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log/slog"
 	"math/rand/v2"
+	"strings"
 	"sync/atomic"
 	"time"
 
@@ -351,6 +352,9 @@ func (cl *GrpcTransportClient) Stop() {
 // Users must use ConnectWithToken to authenticate and start.
 func NewGrpcTransportClient(
 	connectURL string, caCert *x509.Certificate, ch transports.ConnectionHandler) *GrpcTransportClient {
+
+	// gRPC does not support tcp scheme, but we want to allow users to specify it for consistency with the server.
+	connectURL = strings.TrimPrefix(connectURL, "tcp://")
 
 	cl := &GrpcTransportClient{
 		caCert:               caCert,

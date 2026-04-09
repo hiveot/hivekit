@@ -180,6 +180,7 @@ func (srv *GrpcServiceServer) Stop() {
 		srv.grpcServer.GracefulStop()
 		srv.grpcServer = nil
 	}
+	srv.lis.Close()
 }
 
 // Create the GRPC server, register a ping handler and listen for incoming connections.
@@ -195,7 +196,7 @@ func (srv *GrpcServiceServer) Stop() {
 // > srv.Start()
 // > srv.CreateStream("stream1", onStream1)
 //
-//	lis is the network to listen on
+//	lis is the network to listen on. This will be closed when the server is stopped.
 //	tlsCert is the TLS certificate to use for secure connections, or nil for insecure
 //	serviceName is the service name the streams are reachable under
 //	grpcAuthn is the grpc connection authenticator
