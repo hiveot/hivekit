@@ -8,7 +8,6 @@ This transport module passes RRN messages as-is between client and server using 
 
 This transport module is functional but breaking changes can be expected.
 
-TODO-1: Support for tcp sockets and URL
 TODO-3: use a separate notification stream
 TODO-5: test CA cert when using tcp sockets
 TODO-6: authenticate with Client TLS cert when using tcp sockets
@@ -34,15 +33,15 @@ The lib directory contains a gRPC wrapper for creating bi-directional streams on
 
 Also included is a stream buffer that adds these features:
 
-- accept concurrent sending of messages (grpc stream send is not concurrent)
+- accept concurrent sending of messages (grpc stream SendMsg is not concurrent safe)
 - add a send buffer for immediate return after calling Send
 - flow control. Dynamically delay the caller time when the send buffer is 50% full and slowly reduce the delay when the buffer empties out.
 - if the send buffer is full then add an extra 10usec delay and repeat up to 10 times (configurable). After that returns ErrClientTooSlow error.
 
-No need for grpc magic and types and stuff. Simply add the stream on the server and connect to it on the client.
-This registers the 'jsonCodec' in case of complex objects. Or the user can simply send and receive string or []byte arrays and use their own encoder.
+No need for protobuf magic and types and stuff. Simply add the stream on the server and connect to it on the client.
+This registers the 'jsonCodec' in case of complex objects. Or the user can simply send and receive string or []byte arrays and use their own marshalling codec.
 
-On an intel i5 4570S, 2.9GHz this transfers 350K 300byte messages/sec or 270K 1K messages/sec using unix sockets.
+Overhead is negligable. On an intel i5 4570S, 2.9GHz this transfers 300K 300byte messages/sec or 250K 1K messages/sec using unix sockets.
 
 Server gist:
 
@@ -58,10 +57,36 @@ Client gist:
 
 ```go
 	grpcClient = grpclib.NewGrpcServiceClient(
-        connectURL, nil, time.Minute, "myservicename", clientStreamHandler)
+        "unix:///run/myapp.sock", nil, time.Minute, "myservicename", clientStreamHandler)
 	err := grpcClient.ConnectWithToken(clientID, token)
 	_, err = grpcClient.Ping("")
 	strm, err = grpcClient.ConnectStream("stream-1")
     // this blocks
 	strm.WaitUntilDisconnect(name)
+```
+
+To use TCP network socket using net.Listen with "tcp", ":port", and client URL "dns:///localhost:port". // Note the triple forward slashes that gRPC uses when no DNS server is provided.
+This is intended for educational and experimental purpose. It is recommended to use the module instead.
+
+## Usage
+
+1. Create and start the server module
+
+```go
+srv := NewHiveotGrpcServer(connectURL, tlsCert, authn, respTimeout)
+srv.Start()
+```
+
+2a. Link it to an agent for serving requests, when running a standalone device
+
+```go
+// create the agent and link it to the server
+agent := NewAgent(clientID)
+srv.SetRequestSink(agent.HandleRequest)
+agent.SetNotificationSink(srv.HandleNotification)
+// set the request handler
+agent.SetAppRequestHandler(myapphandler)
+// publish updates
+agent.PubEvent(thingID, eventName, value)
+agent.PubProperty(thingID, propName, value)
 ```

@@ -21,6 +21,8 @@ import (
 	"google.golang.org/grpc/status"
 )
 
+const PingMethodName = "ping"
+
 // GRPC server handler of protobuf defined methods.
 // This currently only implements the Ping and MsgStream methods.
 type GrpcServiceServer struct {
@@ -180,14 +182,26 @@ func (srv *GrpcServiceServer) Stop() {
 	}
 }
 
-// Start the GRPC server, register a ping handler and listen for incoming connections.
+// Create the GRPC server, register a ping handler and listen for incoming connections.
+//
+// Example usage:
+//
+// > lis, err := net.Listen("unix", "/var/app.sock")
+// > srv := NewGrpcServiceServer(lis, nil, "service1", nil, time.Minute)
+// or:
+// > lis, err := net.Listen("tcp", ":8899")
+// > srv := NewGrpcServiceServer(lis, tlsCert, "service1", authn, time.Minute)
+// then:
+// > srv.Start()
+// > srv.CreateStream("stream1", onStream1)
 //
 //	lis is the network to listen on
 //	tlsCert is the TLS certificate to use for secure connections, or nil for insecure
 //	serviceName is the service name the streams are reachable under
 //	grpcAuthn is the grpc connection authenticator
 //	respTimeout is the messaging timeout
-func NewGrpcServiceServer(lis net.Listener,
+func NewGrpcServiceServer(
+	lis net.Listener,
 	tlsCert *tls.Certificate,
 	serviceName string,
 	grpcAuthn *GrpcAuthenticator,
@@ -219,7 +233,7 @@ func NewGrpcServiceServer(lis net.Listener,
 		// HandlerType: (*IGrpcServiceServer)(nil),
 		Methods: []grpc.MethodDesc{
 			{
-				MethodName: "ping",
+				MethodName: PingMethodName,
 				Handler: func(_ interface{}, ctx context.Context,
 					dec func(any) error,
 					interceptor grpc.UnaryServerInterceptor) (any, error) {

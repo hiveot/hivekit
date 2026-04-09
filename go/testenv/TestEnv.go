@@ -147,7 +147,7 @@ func (testEnv *TestEnv) NewConnectedClient(
 	err := testEnv.TestAuthn.AddClient(clientID, clientID, role)
 	token, _, err = testEnv.CreateToken(clientID, time.Minute*10)
 	if err != nil {
-		panic("NewClient: createToken failed: " + err.Error())
+		panic("NewConnectedClient: createToken failed: " + err.Error())
 	}
 	// create a connection to the test server
 	cl, err = clients.NewTransportClient(
@@ -157,7 +157,7 @@ func (testEnv *TestEnv) NewConnectedClient(
 		err = cl.ConnectWithToken(clientID, token)
 	}
 	if err != nil {
-		panic("NewClient failed to connect:" + err.Error())
+		panic("NewConnectedClient failed to connect:" + err.Error())
 	}
 	return cl, token
 }
@@ -259,8 +259,9 @@ func (testEnv *TestEnv) StartTestServer(protocol string) (srv transports.ITransp
 
 	switch protocol {
 	case transports.ProtocolTypeHiveotGrpc:
+		serverCert := testEnv.CertBundle.ServerCert
 		srv = grpctransport.NewHiveotGrpcServer(
-			TestUDSURL, testEnv.CertBundle.ServerCert, testEnv.TestAuthn, TestTimeout)
+			TestUDSURL, serverCert, testEnv.TestAuthn, TestTimeout)
 		err = srv.Start("")
 
 	case transports.ProtocolTypeHiveotSsesc:

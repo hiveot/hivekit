@@ -4,6 +4,7 @@ import (
 	"context"
 	"io"
 	"log/slog"
+	"sync"
 	"sync/atomic"
 	"time"
 
@@ -19,8 +20,8 @@ var ErrClientTooSlow = status.Errorf(codes.ResourceExhausted, "client is too slo
 const SendChanSize = 42
 
 // these timings are arbitrary and depend on the expected receiver performance
-const FCDelayIncreaseStep = time.Microsecond * 30
-const FCDelayDecreaseStep = time.Microsecond * 30
+const FCDelayIncreaseStep = time.Microsecond * 10
+const FCDelayDecreaseStep = time.Microsecond * 3
 
 // API for use by all client/server streaming endpoints
 type IMsgStream interface {
@@ -53,13 +54,16 @@ type BufferedStream struct {
 	// cancel function of the raw stream context. Used in client streams.
 	msgStreamCancel func()
 
+	// mutex to protect the flow control delay and send channel length checks
+	mux sync.Mutex
+
 	// how long to wait for a response after sending a request
 	sendTimeout time.Duration
 
 	// the send channel with buffer to force sequential sending
 	sendChan chan []byte
 
-	txMsgCnt int
+	txMsgCnt atomic.Int64
 
 	// backoff flow control timer to delay sending
 	// This increases by 1us when the buffer is full and decreases after a successful sent
@@ -141,7 +145,7 @@ func (bs *BufferedStream) Send(rawMsg []byte) (err error) {
 	ctx, cancelFn := context.WithTimeout(context.Background(), bs.sendTimeout)
 	defer cancelFn()
 
-	bs.txMsgCnt++
+	bs.txMsgCnt.Add(1)
 
 	// if the buffer is full then the remote client is considered stuck. The caller should close
 	// the connection.
@@ -150,19 +154,23 @@ func (bs *BufferedStream) Send(rawMsg []byte) (err error) {
 		// if the send buffer fills up to 50% then increase the delay with a microsecond.
 		// if the send buffer falls below 30% then decrease the delay with 0.1 microsecond.
 		// if the buffer is empty, reset the delay to 0 to allow burst sending
+		bs.mux.Lock()
+		fcDelay := bs.fcDelay
 		if len(bs.sendChan) == 0 {
-			bs.fcDelay = 0
+			fcDelay = 0
 		} else if len(bs.sendChan) > SendChanSize/2 {
-			bs.fcDelay += bs.FCDelayIncreaseStep
+			fcDelay += bs.FCDelayIncreaseStep
 		} else if len(bs.sendChan) < SendChanSize/3 && bs.fcDelay > 0 {
 			// slow decrease for recovery
-			bs.fcDelay = bs.fcDelay - bs.FCDelayDecreaseStep
+			fcDelay = fcDelay - bs.FCDelayDecreaseStep
 		}
-		if bs.fcDelay > 0 {
-			// slog.Info("- Send", "txMsgCnt", bs.txMsgCnt, "retrycnt", retryCount, "delay", bs.fcDelay,
+		bs.fcDelay = fcDelay
+		if fcDelay > 0 {
+			// slog.Info("- Send", "txMsgCnt", bs.txMsgCnt.Load(), "retrycnt", retryCount, "delay", bs.fcDelay,
 			// "chan level", len(bs.sendChan))
-			time.Sleep(bs.fcDelay)
+			time.Sleep(fcDelay)
 		}
+		bs.mux.Unlock()
 		select {
 		case bs.sendChan <- rawMsg:
 			// all is well
@@ -180,9 +188,12 @@ func (bs *BufferedStream) Send(rawMsg []byte) (err error) {
 				return ErrClientTooSlow
 			}
 			// if the channel is full then retry, but double the delay
+			bs.mux.Lock()
 			bs.fcDelay = bs.fcDelay * 2
+			fcDelay := bs.fcDelay
+			bs.mux.Unlock()
 			slog.Warn("Send: channel is full. Retrying and increasing send delay",
-				"sendCnt", bs.txMsgCnt, "delay", bs.fcDelay, "retryCount", retryCount)
+				"sendCnt", bs.txMsgCnt.Load(), "delay", fcDelay, "retryCount", retryCount)
 		}
 	}
 }

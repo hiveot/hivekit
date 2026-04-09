@@ -10,6 +10,7 @@ import (
 	"testing"
 	"time"
 
+	certstest "github.com/hiveot/hivekit/go/modules/certs/test"
 	grpclib "github.com/hiveot/hivekit/go/modules/transports/grpc/lib"
 	"github.com/hiveot/hivekit/go/utils"
 	"github.com/stretchr/testify/assert"
@@ -18,9 +19,22 @@ import (
 	"google.golang.org/grpc"
 )
 
-var address = "/tmp/hivekit/grpc-test.sock" // host[:port]
-var network = "unix"                        // unix, tcp, tcp4, tcp6
-var scheme = "unix"                         // unix, dns, ipv4, ipv6
+// The simplest and fastest is to use UDS sockets
+var serverAddress = "/tmp/hivekit/grpc-test.sock"    // host[:port]
+var serverNetwork = "unix"                           // unix, tcp, tcp4, tcp6
+var clientURL = "unix:///tmp/hivekit/grpc-test.sock" // gRPC doesn't support ipv4, ipv6 schems  (used in client connection URL)
+
+// Using DNS scheme with localhost to avoid gRPC issues with UDS on some platforms (e.g. Windows) and to test the more common TCP use case.
+// var serverAddress = "localhost:9988"    // /host[:port]
+// var serverNetwork = "tcp"               // unix, tcp, tcp4, tcp6  (used in net.Listen)
+// var clientURL = "dns:///localhost:9988" // gRPC doesn't support ipv4, ipv6 schems  (used in client connection URL)
+
+// plain IP address, gRPC doesn't support schemes for ipv4 and ipv6, so simply omit the scheme
+// var serverAddress = "127.0.0.1:9988" // /host[:port]
+// var serverNetwork = "tcp"            // unix, tcp, tcp4, tcp6  (used in net.Listen)
+// var clientURL = serverAddress        // gRPC doesn't support ipv4, ipv6 schems  (used in client connection URL)
+
+var certBundle = certstest.CreateTestCertBundle(utils.KeyTypeED25519)
 
 // TestMain runs a gRPC server
 func TestMain(m *testing.M) {
@@ -28,15 +42,17 @@ func TestMain(m *testing.M) {
 	// slog.Info("------ TestMain of TLSServer_test.go ------")
 	// serverAddress = utils.GetOutboundIP("").String()
 	// use the localhost interface for testing
-	os.MkdirAll("/tmp/hivekit", 0700)
-	os.Remove(address)
-
+	if serverNetwork == "unix" {
+		os.MkdirAll("/tmp/hivekit", 0700)
+		os.Remove(serverAddress)
+	}
 	res := m.Run()
 
 	time.Sleep(time.Second)
 	os.Exit(res)
 }
 
+// TestConnectPing tests creating a UDS or TLS connection with authentication.
 func TestConnectPing(t *testing.T) {
 	// test connect/disconnect with ping
 	t.Logf("---%s---\n", t.Name())
@@ -45,12 +61,12 @@ func TestConnectPing(t *testing.T) {
 	const serviceName = "service1"
 
 	// setup the server
-
-	lis, err := net.Listen(network, address)
+	lis, err := net.Listen(serverNetwork, serverAddress)
 	require.NoError(t, err)
 
+	// TODO test authn
 	srv := grpclib.NewGrpcServiceServer(
-		lis, nil, serviceName, nil, time.Minute)
+		lis, certBundle.ServerCert, serviceName, nil, time.Minute)
 
 	err = srv.Start()
 	require.NoError(t, err)
@@ -60,9 +76,8 @@ func TestConnectPing(t *testing.T) {
 	handleClientMessage := func(raw []byte) {
 	}
 
-	serverURL := fmt.Sprintf("%s://%s", scheme, address)
 	cl := grpclib.NewGrpcServiceClient(
-		serverURL, nil, time.Minute, serviceName, handleClientMessage)
+		clientURL, certBundle.CaCert, time.Minute, serviceName, handleClientMessage)
 
 	err = cl.ConnectWithToken(clientID, token)
 	require.NoError(t, err)
@@ -88,9 +103,10 @@ func TestStreamMessages(t *testing.T) {
 
 	// bulk message testing
 	// some brute force testing on Intel i5-4570S, 2.9GHz:
-	// UDS: 100byte->420K msg/sec; 300byte->370K msg/sec; 1K->260K msg/sec; 100K->10000 msg/sec
-	var msgSize = 300
-	var rxDelay = time.Millisecond * 0
+	// UDS: 100byte->530K msg/sec; 300byte->470K msg/sec; 1K->320K msg/sec; 100K->8K msg/sec
+	// TCP: 100byte->480K msg/sec; 300byte->410K msg/sec; 1K->280K msg/sec; 100K->6K msg/sec
+	var msgSize = 1000
+	// var rxDelay = time.Millisecond * 0
 	const serviceName = "service1"
 	const streamName = "stream1"
 
@@ -105,7 +121,7 @@ func TestStreamMessages(t *testing.T) {
 
 	// Handler that receives messages
 	handleStream2Message := func(raw []byte) {
-		time.Sleep(rxDelay) // simulate some processing time
+		// time.Sleep(rxDelay) // simulate some processing time
 		// slog.Info("Receiving msg", "rxCount", rxCount.Load())
 		rxCount.Add(1)
 	}
@@ -125,10 +141,13 @@ func TestStreamMessages(t *testing.T) {
 		bstrm.WaitUntilDisconnect()
 		return nil
 	}
-	lis, err := net.Listen(network, address)
+	lis, err := net.Listen(serverNetwork, serverAddress)
 	require.NoError(t, err)
 
-	srv := grpclib.NewGrpcServiceServer(lis, nil, serviceName, nil, time.Minute)
+	// certBundle.ServerCert = nil
+	// certBundle.CaCert = nil
+
+	srv := grpclib.NewGrpcServiceServer(lis, certBundle.ServerCert, serviceName, nil, time.Minute)
 	srv.CreateStream(streamName, serveStream2)
 
 	err = srv.Start()
@@ -143,10 +162,8 @@ func TestStreamMessages(t *testing.T) {
 		// rxMsg := string(raw)
 		assert.Equal(t, serverSendMsg, rxMsg)
 	}
-
-	serverURL := fmt.Sprintf("%s://%s", scheme, address)
 	cl := grpclib.NewGrpcServiceClient(
-		serverURL, nil, time.Minute, serviceName, onClientMessage)
+		clientURL, certBundle.CaCert, time.Minute, serviceName, onClientMessage)
 
 	err = cl.ConnectWithToken(clientID, authToken)
 	assert.NoError(t, err) // (dont use require as svc.Stop is not a defer)

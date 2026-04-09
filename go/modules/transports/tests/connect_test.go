@@ -73,15 +73,12 @@ func TestPing(t *testing.T) {
 
 	testEnv, cancelFn := testenv.StartTestEnv(testProtocol)
 	defer cancelFn()
+	// NewConsumerClient creates a client
 	co1, cc1, _ := testEnv.NewConsumerClient(testClientID1, authnapi.ClientRoleViewer, nil)
 	defer cc1.Close()
 
-	for i := 0; i < 1; i++ {
-		err := co1.Ping()
-		require.NoError(t, err)
-	}
-
-	// FIXME: SSE server sends ping event but it isn't received until later???
+	err := co1.Ping()
+	require.NoError(t, err)
 
 	// var output any
 	// err = co1.Rpc(td.HTOpPing, "", "", nil, &output)

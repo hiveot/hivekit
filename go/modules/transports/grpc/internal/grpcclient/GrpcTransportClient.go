@@ -157,7 +157,7 @@ func (cl *GrpcTransportClient) ConnectWithToken(clientID string, token string) (
 	// use ping as 'connect' might not detect a failed connection
 	_, err = cl.grpcClient.Ping("")
 	if err != nil {
-		slog.Error("Grpc ping failed", "err", err.Error())
+		slog.Error(err.Error(), "url", cl.connectURL)
 		return err
 	}
 
@@ -335,13 +335,16 @@ func (cl *GrpcTransportClient) Stop() {
 	cl.Close()
 }
 
-// NewGrpcTransportClient creates a new instance of the Hiveot UDS client
+// NewGrpcTransportClient creates a new instance of the Hiveot gRPC client
 //
-// when using network sockets, addr is the URL with CaCert the CA certificate to
-// validate the server connection.
+// Note that go-gRPC uses the 'dns' scheme and does not support 'tcp'. In order
+// to remain consistent with the server, this client maps the 'tcp' scheme to 'dns'
+// when needed.
+// The ipv4 scheme is not supported.
+//
 // Use SetTimeout to change the timeout for testing purposes.
 //
-// connectURL is the server URL, e.g.  unix://{/path.sock} or tcp://localhost:{port}
+// connectURL is the server URL, e.g.  unix://{/path.sock}, tcp://localhost:{port} or simply "address:port"
 // caCert is the CA certificate to validate the server connection, or nil for UDS or insecure connections.
 // ch is the connect/disconnect callback
 //

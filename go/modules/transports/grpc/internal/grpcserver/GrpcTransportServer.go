@@ -76,8 +76,7 @@ func (m *GrpcTransportServer) ServeStreamConnection(
 }
 
 func (m *GrpcTransportServer) Start(yamlConfig string) (err error) {
-	// FIXME: use the URL scheme to support network tcp and unix sockets
-	// connectURL := fmt.Sprintf("unix://%s", m.udsPath)
+
 	m.Init(DefaultUDSModuleID,
 		transports.ProtocolTypeHiveotGrpc,
 		transports.SubprotocolHiveotGrpc,
@@ -90,14 +89,14 @@ func (m *GrpcTransportServer) Start(yamlConfig string) (err error) {
 	udsDir := filepath.Dir(udsFilePath)
 	err = os.MkdirAll(udsDir, 0700)
 	err = os.RemoveAll(udsFilePath)
-
+	// FIXME: use the scheme from the URL
 	lis, err := net.Listen("unix", udsFilePath)
 	if err != nil {
 		return err
 	}
 	grpcAuthn := grpclib.NewGrpcAuthenticator(m.authn)
 	m.grpcService = grpclib.NewGrpcServiceServer(
-		lis, nil, m.serviceName, grpcAuthn, time.Minute)
+		lis, m.tlsCert, m.serviceName, grpcAuthn, time.Minute)
 
 	m.grpcService.CreateStream(grpcapi.StreamNameNotification, m.ServeStreamConnection)
 	// m.grpcService.AddStream(grpcapi.StreamNameRequestResponse, m.ServeStreamConnection)
@@ -117,9 +116,14 @@ func (m *GrpcTransportServer) Stop() {
 	m.CloseAll()
 }
 
-// GRPC server using UDS or TCP sockets
+// GRPC server using UDS or TCP sockets.
 //
-// connectURL is the URL to listen on, e.g. unix://{/path.sock} or tcp://localhost:{port}
+// Server side listening uses net.Listen This accepts a scheme that is "unix" for UDS
+// sockets or "tcp" for TCP sockets.
+// The address part of the URL is the full path to the socket, eg /run/myapp.sock, or
+// in case of TCP sockets, the host and port, eg localhost:50051 or simply :50051.
+//
+// connectURL is the URL to listen on, e.g. scheme://address used in creating a net.listener
 // tlsCert is the TLS certificate to use for secure connections, or nil for insecure
 // authn is the authenticator for verifying the client token
 // respTimeout is the time the server waits for a response when sending requests. defaults to 3sec

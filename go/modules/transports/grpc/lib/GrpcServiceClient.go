@@ -47,15 +47,12 @@ type GrpcServiceClient struct {
 
 	// URL to connect to. see also https://github.com/grpc/grpc/blob/master/doc/naming.md
 	// unix:///path/to/socket
-	// ipv4://address:[port][,address[:port]]
-	// dns://address:[port]
+	// dns://[dnsserver]/address:[port]
+	// address:[port]      using ipv4 omit the scheme as it isn't supported by gRPC
 	connectURL string
 
 	// conn         net.Conn
 	grpcConn *grpc.ClientConn
-
-	// message stream context cancellation
-	// msgStreamCancel func()
 
 	// mutex for controlling writing and closing
 	mux sync.RWMutex
@@ -146,6 +143,7 @@ func (cl *GrpcServiceClient) ConnectWithToken(clientID string, authToken string)
 	codecOption := grpc.WithDefaultCallOptions(grpc.CallContentSubtype(codec.Name()))
 	dialOpts = append(dialOpts, codecOption)
 
+	//
 	cl.grpcConn, err = grpc.NewClient(cl.connectURL, dialOpts...)
 	if err != nil {
 		slog.Error("Connect: NewClient failed", "err", err.Error())
@@ -221,18 +219,20 @@ func (cl *GrpcServiceClient) IsConnected(name string) bool {
 	return strm.IsConnected()
 }
 
-// a simple ping test
+// A simple ping test to validate a connection
 // this echos the input or returns 'pong' if none is provided
 func (cl *GrpcServiceClient) Ping(input string) (reply string, err error) {
 	ctx, cancelFn := context.WithTimeout(context.Background(), cl.respTimeout)
 	defer cancelFn()
 	opts := []grpc.CallOption{}
-	in := input
-	// TODO: the service name
 	serviceMethodName := cl.serviceDesc.ServiceName + "/ping"
-	err = cl.grpcConn.Invoke(ctx, serviceMethodName, in, &reply, opts...)
-	// replyMsg, err := cl.grpcServiceClient.Ping(ctx, text)
+	err = cl.grpcConn.Invoke(ctx, serviceMethodName, input, &reply, opts...)
 	if err != nil {
+		if cl.caCert != nil {
+			err = fmt.Errorf("Ping: Connection Error. Wrong address or cert mismatch: %w", err)
+		} else {
+			err = fmt.Errorf("Ping: Connection Error. Wrong address or missing CA cert: %w", err)
+		}
 		return "", err
 	}
 	return reply, nil
@@ -272,7 +272,18 @@ func (cl *GrpcServiceClient) WaitUntilDisconnect(name string) error {
 	return err
 }
 
-// Create a client for the GRPC transport
+// Create a client for the GRPC transport.
+//
+// Note that ipv4 scheme isnt supported by go-gRPC. Simply omit the scheme.
+//
+// > cl := NewGrpcServiceClient("unix:///var/app.sock", nil, time.Minute, "service1", onClientMessage)
+// or
+// > cl := NewGrpcServiceClient("dns:///address:8899", caCert, time.Minute, "service1", onClientMessage)
+// or
+// > cl := NewGrpcServiceClient("127.0.0.1:8899", caCert, time.Minute, "service1", onClientMessage)
+// >
+// > cl.ConnectWithToken(clientID,authToken)
+// > cl.ConnectStream(streamName) to connect to individual server streams.
 //
 // The serviceName is provided by the application and must match the server.
 // Use ConnectStream(name) to connect to individual server streams.

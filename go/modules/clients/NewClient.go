@@ -129,9 +129,9 @@ func NewTransportClient(protocolType string, serverURL string, caCert *x509.Cert
 	switch protocolType {
 	case transports.ProtocolTypeHiveotGrpc:
 		// don't use TLS on unix domain sockets
-		if strings.HasPrefix(serverURL, "unix") {
-			caCert = nil
-		}
+		// if strings.HasPrefix(serverURL, "unix") {
+		// 	caCert = nil
+		// }
 		cl = grpctransport.NewHiveotGrpcClient(serverURL, caCert, ch)
 
 	case transports.ProtocolTypeHiveotSsesc:
