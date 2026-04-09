@@ -3,7 +3,7 @@ package authenticators
 import (
 	"time"
 
-	"github.com/hiveot/hivekit/go/wot/td"
+	"github.com/hiveot/hivekit/go/api/td"
 )
 
 // IAuthenticator is the interface of the authentication capability to obtain and

@@ -22,17 +22,15 @@ Hivekit is in alpha. Modules with a checkmark are functional but breaking change
 
 Transport modules:
 
-| status | module               | description                   | stage |
-| :----: | -------------------- | ----------------------------- | ----- |
-|   ✔️   | transport/direct     | Simulation of transport       | alpha |
-|   ✔️   | transport/discovery  | WoT mDNS device discovery     | alpha |
-|   ✔️   | transport/grpc       | HiveOT gRPC protocol          | alpha |
-|   ✔️   | transport/httpbasic  | WoT HTTP basic protocol       | alpha |
-|   ✔️   | transport/httpserver | HTTP server for sub protocols | alpha |
-|   ✔️   | transport/ssesc      | HiveOT HTTP/SSE-SC protocol   | alpha |
-|   ✔️   | transport/wss        | WoT Websocket protocol        | alpha |
-|   ⬛   | transport/coap       | WoT CoAP protocol             | n/a   |
-|   ⬛   | transport/mqtt       | WoT MQTT protocol             | n/a   |
+| status | module               | description                           | stage |
+| :----: | -------------------- | ------------------------------------- | ----- |
+|   ✔️   | transport/discovery  | WoT mDNS device discovery             | alpha |
+|   ✔️   | transport/grpc       | HiveOT gRPC message streaming         | alpha |
+|   ✔️   | transport/httpbasic  | WoT HTTP basic messaging protocol     | alpha |
+|   ✔️   | transport/httpserver | HTTP server for sub-protocols         | alpha |
+|   ✔️   | transport/ssesc      | HiveOT HTTP/SSE-SC messaging protocol | alpha |
+|   ✔️   | transport/wss        | WoT Websocket messaging protocol      | alpha |
+|   ⬛   | transport/mqtt       | WoT MQTT messaging protocol           | n/a   |
 
 Core Service modules:
 
@@ -48,7 +46,7 @@ Core Service modules:
 |   ✔️   | logging     | Basic messaging logging     | alpha |
 |   ✔️   | router      | Message routing to devices  | alpha |
 |   ✔️   | vcache      | Value cache                 | alpha |
-|   ⬛   | pipeline    | Dynamic module pipeline     | dev   |
+|   ⬛   | pipeline    | Module pipeline factory     | dev   |
 |   ⬛   | jsscript    | Javascript based automation | todo  |
 |   ⬛   | rules       | Rule based automation       | todo  |
 

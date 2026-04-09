@@ -4,9 +4,9 @@ import (
 	"log/slog"
 	"time"
 
+	"github.com/hiveot/hivekit/go/api/msg"
 	"github.com/hiveot/hivekit/go/modules/transports"
 	grpclib "github.com/hiveot/hivekit/go/modules/transports/grpc/lib"
-	"github.com/hiveot/hivekit/go/msg"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/peer"
 )

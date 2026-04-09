@@ -8,8 +8,8 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
+	"github.com/hiveot/hivekit/go/api/msg"
 	"github.com/hiveot/hivekit/go/modules/transports"
-	"github.com/hiveot/hivekit/go/msg"
 	"github.com/teris-io/shortid"
 )
 

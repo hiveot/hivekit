@@ -1,6 +1,6 @@
 package transports
 
-import "github.com/hiveot/hivekit/go/msg"
+import "github.com/hiveot/hivekit/go/api/msg"
 
 // IMessageEncoder encodes and decodes the RRN request-response-notification message
 // envelopes into the underlying protocol specific message format.

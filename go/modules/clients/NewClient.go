@@ -6,13 +6,13 @@ import (
 	"net/url"
 	"strings"
 
+	"github.com/hiveot/hivekit/go/api/td"
 	"github.com/hiveot/hivekit/go/modules"
 	"github.com/hiveot/hivekit/go/modules/transports"
 	grpctransport "github.com/hiveot/hivekit/go/modules/transports/grpc"
 	"github.com/hiveot/hivekit/go/modules/transports/httpbasic"
 	ssetransport "github.com/hiveot/hivekit/go/modules/transports/sse"
 	wsstransport "github.com/hiveot/hivekit/go/modules/transports/wss"
-	"github.com/hiveot/hivekit/go/wot/td"
 )
 
 // IClientModule is the combined interface of a client connection and HiveKit Module.

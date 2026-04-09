@@ -3,10 +3,10 @@ package router
 import (
 	"crypto/x509"
 
+	"github.com/hiveot/hivekit/go/api/td"
 	routerapi "github.com/hiveot/hivekit/go/modules/router/api"
 	"github.com/hiveot/hivekit/go/modules/router/internal"
 	"github.com/hiveot/hivekit/go/modules/transports"
-	"github.com/hiveot/hivekit/go/wot/td"
 )
 
 // NewRouterService creates a new instance of the router service module with the default module ID.

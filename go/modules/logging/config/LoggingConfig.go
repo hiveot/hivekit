@@ -1,8 +1,8 @@
 package config
 
 import (
+	"github.com/hiveot/hivekit/go/api/msg"
 	loggingapi "github.com/hiveot/hivekit/go/modules/logging/api"
-	"github.com/hiveot/hivekit/go/msg"
 )
 
 // LoggingConfig with logging configuration

@@ -3,11 +3,11 @@ package certs
 import (
 	"crypto/x509"
 
+	"github.com/hiveot/hivekit/go/api/msg"
+	"github.com/hiveot/hivekit/go/api/td"
 	"github.com/hiveot/hivekit/go/modules"
 	certsapi "github.com/hiveot/hivekit/go/modules/certs/api"
 	"github.com/hiveot/hivekit/go/modules/certs/certutils"
-	"github.com/hiveot/hivekit/go/msg"
-	"github.com/hiveot/hivekit/go/wot/td"
 )
 
 // CertsMsgClient is a client for the Certificate module using RRN messages.

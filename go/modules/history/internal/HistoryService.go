@@ -5,13 +5,13 @@ import (
 	"log/slog"
 	"time"
 
+	"github.com/hiveot/hivekit/go/api/msg"
+	"github.com/hiveot/hivekit/go/api/td"
 	"github.com/hiveot/hivekit/go/modules"
 	"github.com/hiveot/hivekit/go/modules/bucketstore"
 	bucketstoreapi "github.com/hiveot/hivekit/go/modules/bucketstore/api"
 	historyapi "github.com/hiveot/hivekit/go/modules/history/api"
 	"github.com/hiveot/hivekit/go/modules/history/config"
-	"github.com/hiveot/hivekit/go/msg"
-	"github.com/hiveot/hivekit/go/wot/td"
 	"go.yaml.in/yaml/v2"
 )
 

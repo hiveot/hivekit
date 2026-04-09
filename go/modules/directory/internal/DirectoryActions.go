@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"log/slog"
 
+	"github.com/hiveot/hivekit/go/api/td"
 	directoryapi "github.com/hiveot/hivekit/go/modules/directory/api"
-	"github.com/hiveot/hivekit/go/wot/td"
 )
 
 // CreateThing adds or replaces the TD in the store.

@@ -4,11 +4,11 @@ package service
 import (
 	_ "embed"
 
+	"github.com/hiveot/hivekit/go/api/msg"
 	"github.com/hiveot/hivekit/go/modules"
 	bucketstoreapi "github.com/hiveot/hivekit/go/modules/bucketstore/api"
 	"github.com/hiveot/hivekit/go/modules/bucketstore/internal/stores"
 	"github.com/hiveot/hivekit/go/modules/bucketstore/internal/stores/kvbtree"
-	"github.com/hiveot/hivekit/go/msg"
 )
 
 // storage name and thingID

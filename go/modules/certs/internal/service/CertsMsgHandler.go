@@ -4,10 +4,10 @@ import (
 	_ "embed"
 	"fmt"
 
+	"github.com/hiveot/hivekit/go/api/msg"
+	"github.com/hiveot/hivekit/go/api/td"
 	certsapi "github.com/hiveot/hivekit/go/modules/certs/api"
 	"github.com/hiveot/hivekit/go/modules/certs/certutils"
-	"github.com/hiveot/hivekit/go/msg"
-	"github.com/hiveot/hivekit/go/wot/td"
 )
 
 // Embed the certs TM

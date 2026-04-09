@@ -1,10 +1,10 @@
 package digitwin
 
 import (
+	"github.com/hiveot/hivekit/go/api/td"
 	digitwinapi "github.com/hiveot/hivekit/go/modules/digitwin/api"
 	"github.com/hiveot/hivekit/go/modules/digitwin/internal"
 	directoryapi "github.com/hiveot/hivekit/go/modules/directory/api"
-	"github.com/hiveot/hivekit/go/wot/td"
 )
 
 // NewDigitwinService creates a new instance of the digital twin service module.

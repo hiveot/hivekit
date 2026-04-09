@@ -6,10 +6,10 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/hiveot/hivekit/go/api/msg"
+	"github.com/hiveot/hivekit/go/api/td"
 	"github.com/hiveot/hivekit/go/modules/transports"
 	ssescapi "github.com/hiveot/hivekit/go/modules/transports/sse/api"
-	"github.com/hiveot/hivekit/go/msg"
-	"github.com/hiveot/hivekit/go/wot/td"
 	jsoniter "github.com/json-iterator/go"
 	"github.com/teris-io/shortid"
 )

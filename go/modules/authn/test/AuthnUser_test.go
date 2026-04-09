@@ -10,8 +10,8 @@ import (
 	authnapi "github.com/hiveot/hivekit/go/modules/authn/api"
 	"github.com/hiveot/hivekit/go/modules/authn/internal/service"
 	"github.com/hiveot/hivekit/go/modules/clients"
-	"github.com/hiveot/hivekit/go/modules/transports/direct"
 	"github.com/hiveot/hivekit/go/modules/transports/httpserver/tlsclient"
+	"github.com/hiveot/hivekit/go/testenv"
 	"github.com/hiveot/hivekit/go/utils"
 	jsoniter "github.com/json-iterator/go"
 	"github.com/stretchr/testify/assert"
@@ -124,7 +124,7 @@ func TestUpdatePassword(t *testing.T) {
 	m, cancelFn := startTestAuthnModule(defaultHash)
 	defer cancelFn()
 
-	tp := direct.NewDirectTransport(user1ID, m)
+	tp := testenv.NewTestTransport(user1ID, m)
 
 	// add user to test with
 	co := clients.NewConsumer("test")

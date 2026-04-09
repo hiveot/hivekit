@@ -12,13 +12,13 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/hiveot/hivekit/go/api/msg"
+	"github.com/hiveot/hivekit/go/api/td"
 	"github.com/hiveot/hivekit/go/modules"
 	"github.com/hiveot/hivekit/go/modules/transports"
 	httpbasicapi "github.com/hiveot/hivekit/go/modules/transports/httpbasic/api"
 	"github.com/hiveot/hivekit/go/modules/transports/httpserver/tlsclient"
-	"github.com/hiveot/hivekit/go/msg"
 	"github.com/hiveot/hivekit/go/utils"
-	"github.com/hiveot/hivekit/go/wot/td"
 	jsoniter "github.com/json-iterator/go"
 )
 

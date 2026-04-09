@@ -1,8 +1,8 @@
 package vcacheapi
 
 import (
+	"github.com/hiveot/hivekit/go/api/msg"
 	"github.com/hiveot/hivekit/go/modules"
-	"github.com/hiveot/hivekit/go/msg"
 )
 
 // The default module instanceID

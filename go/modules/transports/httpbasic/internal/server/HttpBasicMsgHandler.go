@@ -3,8 +3,8 @@ package server
 import (
 	"fmt"
 
+	"github.com/hiveot/hivekit/go/api/msg"
 	httpbasicapi "github.com/hiveot/hivekit/go/modules/transports/httpbasic/api"
-	"github.com/hiveot/hivekit/go/msg"
 )
 
 // Embed the module TM - TODO: currently this module does not have a TM

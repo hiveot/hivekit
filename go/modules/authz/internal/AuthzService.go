@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"log/slog"
 
+	"github.com/hiveot/hivekit/go/api/msg"
 	"github.com/hiveot/hivekit/go/modules"
 	authzapi "github.com/hiveot/hivekit/go/modules/authz/api"
-	"github.com/hiveot/hivekit/go/msg"
 )
 
 // AuthzService is a module for role based authorization of requests.

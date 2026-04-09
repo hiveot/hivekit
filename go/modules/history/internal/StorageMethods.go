@@ -9,9 +9,9 @@ import (
 	"time"
 
 	"github.com/araddon/dateparse"
+	"github.com/hiveot/hivekit/go/api/msg"
 	bucketstoreapi "github.com/hiveot/hivekit/go/modules/bucketstore/api"
 	historyapi "github.com/hiveot/hivekit/go/modules/history/api"
-	"github.com/hiveot/hivekit/go/msg"
 	"github.com/hiveot/hivekit/go/utils"
 	jsoniter "github.com/json-iterator/go"
 )

@@ -4,9 +4,9 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/hiveot/hivekit/go/msg"
+	"github.com/hiveot/hivekit/go/api/msg"
+	"github.com/hiveot/hivekit/go/api/td"
 	"github.com/hiveot/hivekit/go/testenv"
-	"github.com/hiveot/hivekit/go/wot/td"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

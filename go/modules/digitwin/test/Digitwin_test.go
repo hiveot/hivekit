@@ -10,6 +10,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/hiveot/hivekit/go/api/msg"
+	"github.com/hiveot/hivekit/go/api/td"
 	authnapi "github.com/hiveot/hivekit/go/modules/authn/api"
 	"github.com/hiveot/hivekit/go/modules/digitwin"
 	digitwinapi "github.com/hiveot/hivekit/go/modules/digitwin/api"
@@ -18,10 +20,8 @@ import (
 	directoryapi "github.com/hiveot/hivekit/go/modules/directory/api"
 	"github.com/hiveot/hivekit/go/modules/router"
 	"github.com/hiveot/hivekit/go/modules/transports"
-	"github.com/hiveot/hivekit/go/msg"
 	"github.com/hiveot/hivekit/go/testenv"
 	"github.com/hiveot/hivekit/go/utils"
-	"github.com/hiveot/hivekit/go/wot/td"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

@@ -5,13 +5,13 @@ import (
 	"path/filepath"
 	"sync"
 
+	"github.com/hiveot/hivekit/go/api/msg"
+	"github.com/hiveot/hivekit/go/api/td"
 	"github.com/hiveot/hivekit/go/modules"
 	"github.com/hiveot/hivekit/go/modules/bucketstore"
 	bucketstoreapi "github.com/hiveot/hivekit/go/modules/bucketstore/api"
 	directoryapi "github.com/hiveot/hivekit/go/modules/directory/api"
 	"github.com/hiveot/hivekit/go/modules/transports"
-	"github.com/hiveot/hivekit/go/msg"
-	"github.com/hiveot/hivekit/go/wot/td"
 )
 
 // DirectoryService is a module for serving a WoT Thing directory.

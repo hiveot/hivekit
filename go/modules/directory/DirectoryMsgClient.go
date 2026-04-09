@@ -3,10 +3,10 @@ package directory
 import (
 	"errors"
 
+	"github.com/hiveot/hivekit/go/api/msg"
+	"github.com/hiveot/hivekit/go/api/td"
 	"github.com/hiveot/hivekit/go/modules"
 	directoryapi "github.com/hiveot/hivekit/go/modules/directory/api"
-	"github.com/hiveot/hivekit/go/msg"
-	"github.com/hiveot/hivekit/go/wot/td"
 )
 
 // DirectoryMsgClient is a client for the Directory service using RRN messages.

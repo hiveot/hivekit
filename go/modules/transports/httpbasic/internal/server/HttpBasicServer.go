@@ -4,10 +4,10 @@ import (
 	"fmt"
 	"log/slog"
 
+	"github.com/hiveot/hivekit/go/api/msg"
 	"github.com/hiveot/hivekit/go/modules"
 	"github.com/hiveot/hivekit/go/modules/transports"
 	httpbasicapi "github.com/hiveot/hivekit/go/modules/transports/httpbasic/api"
-	"github.com/hiveot/hivekit/go/msg"
 )
 
 // HTTP-basic profile constants

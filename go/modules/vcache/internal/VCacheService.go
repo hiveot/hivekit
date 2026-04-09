@@ -1,9 +1,9 @@
 package internal
 
 import (
+	"github.com/hiveot/hivekit/go/api/msg"
 	"github.com/hiveot/hivekit/go/modules"
 	vcacheapi "github.com/hiveot/hivekit/go/modules/vcache/api"
-	"github.com/hiveot/hivekit/go/msg"
 )
 
 // VCacheServer is the value-cache server module implementation

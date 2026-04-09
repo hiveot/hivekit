@@ -1,7 +1,7 @@
 package historyapi
 
 import (
-	"github.com/hiveot/hivekit/go/msg"
+	"github.com/hiveot/hivekit/go/api/msg"
 )
 
 // ReadHistoryServiceID is the thingID of the reading service

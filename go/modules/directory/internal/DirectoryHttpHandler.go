@@ -8,10 +8,10 @@ import (
 	"strconv"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/hiveot/hivekit/go/api/td"
 	directoryapi "github.com/hiveot/hivekit/go/modules/directory/api"
 	"github.com/hiveot/hivekit/go/modules/transports"
 	"github.com/hiveot/hivekit/go/utils"
-	"github.com/hiveot/hivekit/go/wot/td"
 )
 
 const ThingIDURIVar = "thingID"

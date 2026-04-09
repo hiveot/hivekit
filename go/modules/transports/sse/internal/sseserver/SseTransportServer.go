@@ -5,10 +5,10 @@ import (
 	"net/url"
 	"time"
 
+	"github.com/hiveot/hivekit/go/api/msg"
 	"github.com/hiveot/hivekit/go/modules"
 	"github.com/hiveot/hivekit/go/modules/transports"
 	sseapi "github.com/hiveot/hivekit/go/modules/transports/sse/api"
-	"github.com/hiveot/hivekit/go/msg"
 )
 
 // SseTransportServer is a transport module for serving the HiveOT SSE-SC transport protocol.

@@ -3,7 +3,7 @@ package internal
 import (
 	"sync"
 
-	"github.com/hiveot/hivekit/go/msg"
+	"github.com/hiveot/hivekit/go/api/msg"
 )
 
 // ThingNotifications stores the latest event and property values of a thing

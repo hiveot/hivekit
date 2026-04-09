@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/hiveot/hivekit/go/msg"
+	"github.com/hiveot/hivekit/go/api/msg"
 	"github.com/hiveot/hivekit/go/utils"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"

@@ -3,9 +3,9 @@ package internal
 import (
 	"fmt"
 
+	"github.com/hiveot/hivekit/go/api/td"
+	"github.com/hiveot/hivekit/go/api/vocab"
 	digitwinapi "github.com/hiveot/hivekit/go/modules/digitwin/api"
-	"github.com/hiveot/hivekit/go/wot/td"
-	"github.com/hiveot/hivekit/go/wot/vocab"
 	jsoniter "github.com/json-iterator/go"
 )
 

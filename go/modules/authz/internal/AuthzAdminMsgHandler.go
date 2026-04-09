@@ -3,8 +3,8 @@ package internal
 import (
 	"fmt"
 
+	"github.com/hiveot/hivekit/go/api/msg"
 	authzapi "github.com/hiveot/hivekit/go/modules/authz/api"
-	"github.com/hiveot/hivekit/go/msg"
 )
 
 // AuthzAdminServiceID is the thingID of the device/service for administration of the module

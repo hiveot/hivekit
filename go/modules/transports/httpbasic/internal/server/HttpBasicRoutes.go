@@ -5,8 +5,8 @@ import (
 	"slices"
 	"time"
 
+	"github.com/hiveot/hivekit/go/api/msg"
 	httpbasicapi "github.com/hiveot/hivekit/go/modules/transports/httpbasic/api"
-	"github.com/hiveot/hivekit/go/msg"
 	"github.com/hiveot/hivekit/go/utils"
 	jsoniter "github.com/json-iterator/go"
 

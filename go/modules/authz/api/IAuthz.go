@@ -1,8 +1,8 @@
 package authzapi
 
 import (
+	"github.com/hiveot/hivekit/go/api/msg"
 	"github.com/hiveot/hivekit/go/modules"
-	"github.com/hiveot/hivekit/go/msg"
 )
 
 // default module instance identification

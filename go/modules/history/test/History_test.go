@@ -11,6 +11,8 @@ import (
 	"time"
 
 	"github.com/araddon/dateparse"
+	"github.com/hiveot/hivekit/go/api/msg"
+	"github.com/hiveot/hivekit/go/api/vocab"
 	authnapi "github.com/hiveot/hivekit/go/modules/authn/api"
 	bucketstoreapi "github.com/hiveot/hivekit/go/modules/bucketstore/api"
 	"github.com/hiveot/hivekit/go/modules/clients"
@@ -18,10 +20,8 @@ import (
 	historyapi "github.com/hiveot/hivekit/go/modules/history/api"
 	"github.com/hiveot/hivekit/go/modules/history/internal"
 	"github.com/hiveot/hivekit/go/modules/transports"
-	"github.com/hiveot/hivekit/go/msg"
 	"github.com/hiveot/hivekit/go/testenv"
 	"github.com/hiveot/hivekit/go/utils"
-	"github.com/hiveot/hivekit/go/wot/vocab"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"

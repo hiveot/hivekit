@@ -4,8 +4,8 @@ import (
 	_ "embed"
 	"errors"
 
+	"github.com/hiveot/hivekit/go/api/msg"
 	authnapi "github.com/hiveot/hivekit/go/modules/authn/api"
-	"github.com/hiveot/hivekit/go/msg"
 	"github.com/hiveot/hivekit/go/utils"
 )
 

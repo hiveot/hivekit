@@ -5,10 +5,10 @@ import (
 	"log/slog"
 
 	"github.com/araddon/dateparse"
+	"github.com/hiveot/hivekit/go/api/msg"
 	"github.com/hiveot/hivekit/go/modules/bucketstore"
 	bucketstoreapi "github.com/hiveot/hivekit/go/modules/bucketstore/api"
 	historyapi "github.com/hiveot/hivekit/go/modules/history/api"
-	"github.com/hiveot/hivekit/go/msg"
 )
 
 // ReadHistoryMsgHandler is the messaging request handler for reading the history

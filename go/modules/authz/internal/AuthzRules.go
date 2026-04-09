@@ -1,9 +1,9 @@
 package internal
 
 import (
+	"github.com/hiveot/hivekit/go/api/msg"
+	"github.com/hiveot/hivekit/go/api/td"
 	authnapi "github.com/hiveot/hivekit/go/modules/authn/api"
-	"github.com/hiveot/hivekit/go/msg"
-	"github.com/hiveot/hivekit/go/wot/td"
 )
 
 // ValidateAuthorization verifies that the sender is authorized for the request.

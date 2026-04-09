@@ -1,10 +1,10 @@
 package bucketstore
 
 import (
+	"github.com/hiveot/hivekit/go/api/msg"
+	"github.com/hiveot/hivekit/go/api/td"
 	"github.com/hiveot/hivekit/go/modules"
 	bucketstoreapi "github.com/hiveot/hivekit/go/modules/bucketstore/api"
-	"github.com/hiveot/hivekit/go/msg"
-	"github.com/hiveot/hivekit/go/wot/td"
 )
 
 // BucketMsgClient is the client for using a remote bucket store server module.

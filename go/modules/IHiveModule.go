@@ -1,7 +1,7 @@
 package modules
 
 import (
-	"github.com/hiveot/hivekit/go/msg"
+	"github.com/hiveot/hivekit/go/api/msg"
 )
 
 // The HiveOT module interface

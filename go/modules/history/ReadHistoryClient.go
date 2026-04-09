@@ -4,11 +4,11 @@ import (
 	"log/slog"
 	"time"
 
+	"github.com/hiveot/hivekit/go/api/msg"
+	"github.com/hiveot/hivekit/go/api/td"
 	"github.com/hiveot/hivekit/go/modules/clients"
 	historyapi "github.com/hiveot/hivekit/go/modules/history/api"
-	"github.com/hiveot/hivekit/go/msg"
 	"github.com/hiveot/hivekit/go/utils"
-	"github.com/hiveot/hivekit/go/wot/td"
 )
 
 // ReadHistoryClient for talking to the history service

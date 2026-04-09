@@ -7,12 +7,12 @@ import (
 	"net/url"
 	"time"
 
+	"github.com/hiveot/hivekit/go/api/td"
 	"github.com/hiveot/hivekit/go/modules"
 	directoryapi "github.com/hiveot/hivekit/go/modules/directory/api"
 	"github.com/hiveot/hivekit/go/modules/transports"
 	"github.com/hiveot/hivekit/go/modules/transports/httpserver/tlsclient"
 	"github.com/hiveot/hivekit/go/utils"
-	"github.com/hiveot/hivekit/go/wot/td"
 )
 
 // The DirectoryHttpClient is a client for the Directory service using the REST API.

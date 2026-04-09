@@ -10,13 +10,13 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/hiveot/hivekit/go/api/msg"
+	"github.com/hiveot/hivekit/go/api/td"
 	"github.com/hiveot/hivekit/go/modules"
 	"github.com/hiveot/hivekit/go/modules/transports"
 	grpcapi "github.com/hiveot/hivekit/go/modules/transports/grpc/api"
 	grpclib "github.com/hiveot/hivekit/go/modules/transports/grpc/lib"
-	"github.com/hiveot/hivekit/go/msg"
 	"github.com/hiveot/hivekit/go/utils"
-	"github.com/hiveot/hivekit/go/wot/td"
 	"github.com/teris-io/shortid"
 )
 

@@ -6,10 +6,10 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/hiveot/hivekit/go/api/msg"
 	"github.com/hiveot/hivekit/go/modules"
 	loggingapi "github.com/hiveot/hivekit/go/modules/logging/api"
 	"github.com/hiveot/hivekit/go/modules/logging/config"
-	"github.com/hiveot/hivekit/go/msg"
 	"github.com/hiveot/hivekit/go/utils"
 	"github.com/stretchr/testify/assert/yaml"
 )

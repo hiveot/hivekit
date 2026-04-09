@@ -10,10 +10,10 @@ import (
 	"strings"
 	"time"
 
+	"github.com/hiveot/hivekit/go/api/msg"
 	"github.com/hiveot/hivekit/go/modules/transports"
 	grpcapi "github.com/hiveot/hivekit/go/modules/transports/grpc/api"
 	grpclib "github.com/hiveot/hivekit/go/modules/transports/grpc/lib"
-	"github.com/hiveot/hivekit/go/msg"
 	"github.com/hiveot/hivekit/go/utils"
 	"google.golang.org/grpc"
 )

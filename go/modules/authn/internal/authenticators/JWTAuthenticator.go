@@ -9,9 +9,9 @@ import (
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
+	"github.com/hiveot/hivekit/go/api/td"
 	authnapi "github.com/hiveot/hivekit/go/modules/authn/api"
 	authnstore "github.com/hiveot/hivekit/go/modules/authn/internal/store"
-	"github.com/hiveot/hivekit/go/wot/td"
 )
 
 // JWTAuthenticator for generating and validating session tokens.

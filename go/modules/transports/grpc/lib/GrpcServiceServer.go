@@ -12,7 +12,7 @@ import (
 
 	"github.com/hiveot/hivekit/go/modules/transports"
 
-	"github.com/hiveot/hivekit/go/msg"
+	"github.com/hiveot/hivekit/go/api/msg"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials"

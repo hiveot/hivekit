@@ -3,7 +3,7 @@ package historyclient
 import (
 	"github.com/hiveot/hivekit/go/modules/clients"
 	"github.com/hiveot/hivekit/go/modules/history"
-	"github.com/hiveot/hivekit/go/wot/td"
+	"github.com/hiveot/hivekit/go/api/td"
 )
 
 // ManageHistoryClient client for managing retention of the history service

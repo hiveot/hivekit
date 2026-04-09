@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"log/slog"
 
-	"github.com/hiveot/hivekit/go/msg"
+	"github.com/hiveot/hivekit/go/api/msg"
 	"github.com/teris-io/shortid"
 )
 
@@ -178,7 +178,7 @@ func (m *HiveModuleBase) HandleRequest(req *msg.RequestMessage, replyTo msg.Resp
 		err := fmt.Errorf("Unhandled request: thingID='%s', op='%s', name='%s", req.ThingID, req.Operation, req.Name)
 		slog.Warn(err.Error())
 	}
-	if resp != nil {
+	if replyTo != nil {
 		err = replyTo(resp)
 	}
 	return err

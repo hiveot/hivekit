@@ -7,14 +7,14 @@ import (
 	"net/url"
 	"time"
 
+	"github.com/hiveot/hivekit/go/api/msg"
+	"github.com/hiveot/hivekit/go/api/td"
 	"github.com/hiveot/hivekit/go/modules"
 	authnapi "github.com/hiveot/hivekit/go/modules/authn/api"
 	"github.com/hiveot/hivekit/go/modules/authn/internal/authenticators"
 	authnstore "github.com/hiveot/hivekit/go/modules/authn/internal/store"
 	"github.com/hiveot/hivekit/go/modules/transports"
-	"github.com/hiveot/hivekit/go/msg"
 	"github.com/hiveot/hivekit/go/utils"
-	"github.com/hiveot/hivekit/go/wot/td"
 )
 
 // AuthnService is a module that manages clients and issues authentication tokens.

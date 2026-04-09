@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"net/http"
 
+	"github.com/hiveot/hivekit/go/api/td"
 	httpbasicapi "github.com/hiveot/hivekit/go/modules/transports/httpbasic/api"
-	"github.com/hiveot/hivekit/go/wot/td"
 )
 
 var HttpKnownOperations = []string{

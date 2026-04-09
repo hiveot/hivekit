@@ -7,9 +7,9 @@ import (
 	"time"
 
 	"aidanwoods.dev/go-paseto"
+	"github.com/hiveot/hivekit/go/api/td"
 	authnapi "github.com/hiveot/hivekit/go/modules/authn/api"
 	authnstore "github.com/hiveot/hivekit/go/modules/authn/internal/store"
-	"github.com/hiveot/hivekit/go/wot/td"
 )
 
 // PasetoAuthenticator for generating and validating session tokens.

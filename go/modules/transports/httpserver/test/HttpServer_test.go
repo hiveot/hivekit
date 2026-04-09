@@ -8,12 +8,12 @@ import (
 	"testing"
 	"time"
 
+	"github.com/hiveot/hivekit/go/api/td"
 	certstest "github.com/hiveot/hivekit/go/modules/certs/test"
 	"github.com/hiveot/hivekit/go/modules/transports/httpserver"
 	httpserverapi "github.com/hiveot/hivekit/go/modules/transports/httpserver/api"
 	"github.com/hiveot/hivekit/go/modules/transports/httpserver/tlsclient"
 	"github.com/hiveot/hivekit/go/utils"
-	"github.com/hiveot/hivekit/go/wot/td"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"

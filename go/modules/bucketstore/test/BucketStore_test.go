@@ -11,12 +11,12 @@ import (
 	"testing"
 	"time"
 
+	"github.com/hiveot/hivekit/go/api/td"
 	"github.com/hiveot/hivekit/go/modules/bucketstore"
 	bucketstoreapi "github.com/hiveot/hivekit/go/modules/bucketstore/api"
 	"github.com/hiveot/hivekit/go/modules/bucketstore/internal/service"
-	"github.com/hiveot/hivekit/go/modules/transports/direct"
+	"github.com/hiveot/hivekit/go/testenv"
 	"github.com/hiveot/hivekit/go/utils"
-	"github.com/hiveot/hivekit/go/wot/td"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -682,7 +682,7 @@ func TestGetSetMsgAPI(t *testing.T) {
 	m, stopFn, err := startServer(t)
 	require.NoError(t, err)
 	defer stopFn()
-	tp := direct.NewDirectTransport(clientID, m)
+	tp := testenv.NewTestTransport(clientID, m)
 	cl := bucketstore.NewBucketStoreMsgClient(m.GetModuleID(), tp)
 	err = cl.Set(key1, val1)
 	require.NoError(t, err)

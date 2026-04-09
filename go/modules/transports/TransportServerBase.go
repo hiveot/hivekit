@@ -7,8 +7,8 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/hiveot/hivekit/go/msg"
-	"github.com/hiveot/hivekit/go/wot/td"
+	"github.com/hiveot/hivekit/go/api/msg"
+	"github.com/hiveot/hivekit/go/api/td"
 )
 
 // Module properties that can be exposed in a TM

@@ -3,10 +3,10 @@ package internal
 import (
 	"log/slog"
 
+	"github.com/hiveot/hivekit/go/api/msg"
+	"github.com/hiveot/hivekit/go/api/td"
 	vcacheapi "github.com/hiveot/hivekit/go/modules/vcache/api"
-	"github.com/hiveot/hivekit/go/msg"
 	"github.com/hiveot/hivekit/go/utils"
-	"github.com/hiveot/hivekit/go/wot/td"
 )
 
 // The RRN messsaging handler for this module

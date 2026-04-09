@@ -3,9 +3,9 @@ package internal
 import (
 	"fmt"
 
+	"github.com/hiveot/hivekit/go/api/msg"
+	"github.com/hiveot/hivekit/go/api/td"
 	digitwinapi "github.com/hiveot/hivekit/go/modules/digitwin/api"
-	"github.com/hiveot/hivekit/go/msg"
-	"github.com/hiveot/hivekit/go/wot/td"
 )
 
 // The handler for messages aimed at this module

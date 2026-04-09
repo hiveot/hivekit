@@ -3,8 +3,8 @@ package sseserver
 import (
 	"fmt"
 
+	"github.com/hiveot/hivekit/go/api/msg"
 	sseapi "github.com/hiveot/hivekit/go/modules/transports/sse/api"
-	"github.com/hiveot/hivekit/go/msg"
 )
 
 // HiveotSseMsgHandler maps between RRN messages and the native module interface.

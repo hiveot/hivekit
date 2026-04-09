@@ -3,8 +3,8 @@ package wssserver
 import (
 	"fmt"
 
+	"github.com/hiveot/hivekit/go/api/msg"
 	"github.com/hiveot/hivekit/go/modules/transports"
-	"github.com/hiveot/hivekit/go/msg"
 )
 
 // WssRrnHandler maps between RRN messages and the native module API.

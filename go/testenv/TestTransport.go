@@ -1,65 +1,95 @@
 package testenv
 
 import (
-	"errors"
-	"fmt"
-	"net/http"
-
-	"github.com/go-chi/chi/v5"
-	"github.com/go-chi/chi/v5/middleware"
+	"github.com/hiveot/hivekit/go/api/msg"
+	"github.com/hiveot/hivekit/go/api/td"
 	"github.com/hiveot/hivekit/go/modules"
 	"github.com/hiveot/hivekit/go/modules/transports"
 )
 
-// A dummy transport for testing
-// This implements IHttpServer and ITransportServer interfaces
+// TestTransport is a direct transport module to connect consumer and
+// producer modules as if they were connected via a network transport,
+// but without the overhead of setting up a transport server and client.
+//
+// Intended for testing the messaging between client and server side of a module.
+//
+// This implements the IHiveTransport interface
 type TestTransport struct {
-	modules.HiveModuleBase
-
-	url       string
-	protRoute chi.Router
-	pubRoute  chi.Router
-	authr     transports.IAuthenticator
+	transports.TransportServerBase
 }
 
-func (d *TestTransport) GetAuthenticator() transports.IAuthenticator {
-	return d.authr
+// AddTDSecForms does nothing for a direct connection
+func (srv *TestTransport) AddTDSecForms(tdi *td.TD, includeAffordances bool) {
 }
 
-func (d *TestTransport) GetConnectURL() string {
-	return d.url
+// Receive a notification from the sink and pass it on to the notification sink (the consumer)
+func (m *TestTransport) HandleNotification(notif *msg.NotificationMessage) {
+	m.ForwardNotification(notif)
 }
 
-func (d *TestTransport) GetClientIdFromContext(r *http.Request) (string, error) {
-	return "", errors.New("not implemented")
+// Receive a request and forward it on to the sinks.
+func (m *TestTransport) HandleRequest(
+	req *msg.RequestMessage, replyTo msg.ResponseHandler) (err error) {
+	req.SenderID = m.GetModuleID()
+	return m.ForwardRequest(req, replyTo)
 }
 
-func (d *TestTransport) GetRequestParams(r *http.Request) (transports.RequestParams, error) {
-	rp := transports.RequestParams{}
-	return rp, fmt.Errorf("not supported in dummy server")
+// SendNotification sends a notification message to the consumer.
+// This would mean that the client's remote side receives a notification.
+// Since this doesn't do subscriptions, all notifications are received.
+func (m *TestTransport) SendNotification(notif *msg.NotificationMessage) {
+	m.ForwardNotification(notif)
 }
-func (d *TestTransport) GetProtectedRoute() chi.Router {
-	return d.protRoute
+
+// SendRequest sends a request message via the transport to the producer.
+// In a direct transport this is the registered sink, pretending to be the remote server.
+// Note this only has a single connection.
+func (m *TestTransport) SendRequest(
+	clientID string, req *msg.RequestMessage, replyTo msg.ResponseHandler) (err error) {
+
+	err = m.ForwardRequest(req, replyTo)
+	return err
 }
-func (d *TestTransport) GetPublicRoute() chi.Router {
-	return d.pubRoute
+
+// SendResponse sends a response message to the consumer,
+// // If the consumer is not connected this returns an error, otherwise nil.
+// func (m *DirectClientTransport) SendResponse(
+// 	clientID, cid string, resp *msg.ResponseMessage) (err error) {
+
+// 	if m.producer != nil {
+// 		// err = m.source.onResponse(resp)
+// 	}
+// 	return err
+// }
+
+// assign the authenticator of incoming connections
+func (m *TestTransport) SetAuthenticationHandler(h transports.ValidateTokenHandler) {
+	_ = h
 }
-func (d *TestTransport) SetAuthenticator(authr transports.IAuthenticator) {
-	d.authr = authr
-}
-func (d *TestTransport) Start() error {
+
+// assign the handler of new incoming connections
+// func (m *DirectClientTransport) SetConnectionHandler(h transports.ConnectionHandler) {
+// 	_ = h
+// }
+
+func (m *TestTransport) Start(yamlConfig string) (err error) {
 	return nil
 }
-func (d *TestTransport) Stop() {
+
+// Stop disconnects clients and remove connection listening
+func (m *TestTransport) Stop() {
 }
 
-func NewDummyServer(url string) transports.IHttpServer {
-	rootRouter := chi.NewRouter()
-	rootRouter.Use(middleware.Heartbeat(transports.DefaultPingPath))
-	d := &TestTransport{
-		url:       url,
-		protRoute: rootRouter.With(),
-		pubRoute:  rootRouter.With(),
-	}
-	return d
+// NewTestTransport returns a transport module that passes messages from a consumer to a producer
+// This sets the producer as the destination for requests and this module as
+// the destination for producer notifications.
+func NewTestTransport(
+	moduleID string, producer modules.IHiveModule) modules.IHiveModule {
+	t := &TestTransport{}
+	t.Init(moduleID, "", "", "", nil)
+	producer.SetNotificationSink(t.HandleNotification)
+	t.SetRequestSink(producer.HandleRequest)
+	var _ transports.ITransportServer = t // interface check
+	var _ modules.IHiveModule = t         // interface check
+	return t
 }

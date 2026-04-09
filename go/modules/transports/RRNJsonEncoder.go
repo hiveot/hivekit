@@ -3,7 +3,7 @@ package transports
 import (
 	"fmt"
 
-	"github.com/hiveot/hivekit/go/msg"
+	"github.com/hiveot/hivekit/go/api/msg"
 	jsoniter "github.com/json-iterator/go"
 )
 

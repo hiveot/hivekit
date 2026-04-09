@@ -4,7 +4,7 @@ import (
 	"log/slog"
 	"slices"
 
-	"github.com/hiveot/hivekit/go/wot/td"
+	"github.com/hiveot/hivekit/go/api/td"
 )
 
 // Definition of message filters for events properties and actions

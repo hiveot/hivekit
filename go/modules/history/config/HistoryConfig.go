@@ -1,9 +1,9 @@
 package config
 
 import (
+	"github.com/hiveot/hivekit/go/api/msg"
 	bucketstoreapi "github.com/hiveot/hivekit/go/modules/bucketstore/api"
 	historyapi "github.com/hiveot/hivekit/go/modules/history/api"
-	"github.com/hiveot/hivekit/go/msg"
 )
 
 // HistoryConfig with history store database configuration

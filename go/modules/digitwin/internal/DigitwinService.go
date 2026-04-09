@@ -7,6 +7,8 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/hiveot/hivekit/go/api/msg"
+	"github.com/hiveot/hivekit/go/api/td"
 	"github.com/hiveot/hivekit/go/modules"
 	"github.com/hiveot/hivekit/go/modules/bucketstore"
 	bucketstoreapi "github.com/hiveot/hivekit/go/modules/bucketstore/api"
@@ -15,8 +17,6 @@ import (
 	"github.com/hiveot/hivekit/go/modules/transports"
 	"github.com/hiveot/hivekit/go/modules/vcache"
 	vcacheapi "github.com/hiveot/hivekit/go/modules/vcache/api"
-	"github.com/hiveot/hivekit/go/msg"
-	"github.com/hiveot/hivekit/go/wot/td"
 )
 
 // DefaultDigitwinServiceID is the default moduleID of the digital twin module instance.

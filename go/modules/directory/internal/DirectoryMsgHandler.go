@@ -4,10 +4,10 @@ import (
 	_ "embed"
 	"fmt"
 
+	"github.com/hiveot/hivekit/go/api/msg"
+	"github.com/hiveot/hivekit/go/api/td"
 	directoryapi "github.com/hiveot/hivekit/go/modules/directory/api"
-	"github.com/hiveot/hivekit/go/msg"
 	"github.com/hiveot/hivekit/go/utils"
-	"github.com/hiveot/hivekit/go/wot/td"
 )
 
 // Embed the directory TM

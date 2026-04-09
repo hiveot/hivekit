@@ -9,16 +9,15 @@ import (
 	"testing"
 	"time"
 
+	"github.com/hiveot/hivekit/go/api/td"
 	authnapi "github.com/hiveot/hivekit/go/modules/authn/api"
 	"github.com/hiveot/hivekit/go/modules/directory"
 	directoryapi "github.com/hiveot/hivekit/go/modules/directory/api"
 	"github.com/hiveot/hivekit/go/modules/directory/internal"
 	"github.com/hiveot/hivekit/go/modules/transports"
-	"github.com/hiveot/hivekit/go/modules/transports/direct"
 	"github.com/hiveot/hivekit/go/modules/transports/httpserver/tlsclient"
 	"github.com/hiveot/hivekit/go/testenv"
 	"github.com/hiveot/hivekit/go/utils"
-	"github.com/hiveot/hivekit/go/wot/td"
 	jsoniter "github.com/json-iterator/go"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -134,7 +133,8 @@ func TestCRUDUsingMsgAPI(t *testing.T) {
 	tdi1Json := tdi1.ToString()
 
 	// use a direct transport to the directory as the sink for the client
-	tp := direct.NewDirectTransport(clientID, m)
+	tp := testenv.NewTestTransport(clientID, m)
+
 	// err := dirClient.CreateThing(tdi1Json)
 	err := directory.UpdateTD(directoryID, tdi1Json, tp.HandleRequest)
 	require.NoError(t, err)

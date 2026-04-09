@@ -3,7 +3,7 @@ package transports
 import (
 	"time"
 
-	"github.com/hiveot/hivekit/go/wot/td"
+	"github.com/hiveot/hivekit/go/api/td"
 )
 
 // Interface of the authentication capability for setting TD security scheme

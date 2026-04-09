@@ -3,7 +3,7 @@ package transports
 import (
 	"time"
 
-	"github.com/hiveot/hivekit/go/msg"
+	"github.com/hiveot/hivekit/go/api/msg"
 )
 
 // DefaultRpcTimeout is the default communication timeout

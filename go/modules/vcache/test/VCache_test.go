@@ -5,10 +5,10 @@ import (
 	"os"
 	"testing"
 
+	"github.com/hiveot/hivekit/go/api/msg"
+	"github.com/hiveot/hivekit/go/api/td"
 	"github.com/hiveot/hivekit/go/modules/vcache"
-	"github.com/hiveot/hivekit/go/msg"
 	"github.com/hiveot/hivekit/go/utils"
-	"github.com/hiveot/hivekit/go/wot/td"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

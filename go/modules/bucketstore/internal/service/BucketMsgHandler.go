@@ -6,10 +6,10 @@ import (
 	"log/slog"
 	"time"
 
+	"github.com/hiveot/hivekit/go/api/msg"
+	"github.com/hiveot/hivekit/go/api/td"
 	bucketstoreapi "github.com/hiveot/hivekit/go/modules/bucketstore/api"
-	"github.com/hiveot/hivekit/go/msg"
 	"github.com/hiveot/hivekit/go/utils"
-	"github.com/hiveot/hivekit/go/wot/td"
 )
 
 // Embed the store TM

@@ -1,6 +1,7 @@
 package testenv
 
 import (
+	"github.com/hiveot/hivekit/go/api/td"
 	"github.com/hiveot/hivekit/go/modules"
 	"github.com/hiveot/hivekit/go/modules/clients"
 	"github.com/hiveot/hivekit/go/modules/transports"
@@ -9,7 +10,6 @@ import (
 	httpserverapi "github.com/hiveot/hivekit/go/modules/transports/httpserver/api"
 	ssetransport "github.com/hiveot/hivekit/go/modules/transports/sse"
 	wsstransport "github.com/hiveot/hivekit/go/modules/transports/wss"
-	"github.com/hiveot/hivekit/go/wot/td"
 )
 
 // TestDevice contains a server and agent for testing and simulation

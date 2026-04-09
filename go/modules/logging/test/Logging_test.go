@@ -7,10 +7,10 @@ import (
 	"testing"
 	"time"
 
+	"github.com/hiveot/hivekit/go/api/msg"
 	"github.com/hiveot/hivekit/go/modules/logging"
 	loggingapi "github.com/hiveot/hivekit/go/modules/logging/api"
 	"github.com/hiveot/hivekit/go/modules/logging/config"
-	"github.com/hiveot/hivekit/go/msg"
 	"github.com/stretchr/testify/require"
 )
 

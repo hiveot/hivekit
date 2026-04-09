@@ -1,8 +1,8 @@
 package transports
 
 import (
+	"github.com/hiveot/hivekit/go/api/td"
 	"github.com/hiveot/hivekit/go/modules"
-	"github.com/hiveot/hivekit/go/wot/td"
 )
 
 // GetCredentials is the handler that provides the credentials for connecting

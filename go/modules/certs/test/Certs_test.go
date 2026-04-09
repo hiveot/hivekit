@@ -10,7 +10,7 @@ import (
 	certsapi "github.com/hiveot/hivekit/go/modules/certs/api"
 	"github.com/hiveot/hivekit/go/modules/certs/certutils"
 	certstest "github.com/hiveot/hivekit/go/modules/certs/test"
-	"github.com/hiveot/hivekit/go/modules/transports/direct"
+	"github.com/hiveot/hivekit/go/testenv"
 	"github.com/hiveot/hivekit/go/utils"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -143,7 +143,7 @@ func TestMsgClient(t *testing.T) {
 	defer cancelFn()
 
 	// use a direct transport instead of running a client-server
-	tp := direct.NewDirectTransport("testclient", m)
+	tp := testenv.NewTestTransport("testclient", m)
 	cl := certs.NewCertsMsgClient(certsapi.DefaultCertsServiceID, tp)
 	caCert, err := cl.GetCACert()
 	require.NoError(t, err)

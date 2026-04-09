@@ -4,7 +4,7 @@ import (
 	"log/slog"
 	"sync/atomic"
 
-	"github.com/hiveot/hivekit/go/msg"
+	"github.com/hiveot/hivekit/go/api/msg"
 	"github.com/hiveot/hivekit/go/utils"
 )
 

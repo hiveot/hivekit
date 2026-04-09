@@ -1,8 +1,8 @@
 package digitwinapi
 
 import (
+	"github.com/hiveot/hivekit/go/api/td"
 	"github.com/hiveot/hivekit/go/modules"
-	"github.com/hiveot/hivekit/go/wot/td"
 )
 
 // The default instance ID of the digital twin module
