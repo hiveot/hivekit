@@ -12,6 +12,7 @@ import (
 
 	certstest "github.com/hiveot/hivekit/go/modules/certs/test"
 	grpclib "github.com/hiveot/hivekit/go/modules/transports/grpc/lib"
+	"github.com/hiveot/hivekit/go/testenv"
 	"github.com/hiveot/hivekit/go/utils"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -19,10 +20,12 @@ import (
 	"google.golang.org/grpc"
 )
 
+const grpcServiceName = "service1"
+
 // The simplest and fastest is to use UDS sockets
-var serverAddress = "/tmp/hivekit/grpc-test.sock"    // host[:port]
-var serverNetwork = "unix"                           // unix, tcp, tcp4, tcp6
-var clientURL = "unix:///tmp/hivekit/grpc-test.sock" // gRPC doesn't support ipv4, ipv6 schems  (used in client connection URL)
+const serverAddress = "/tmp/hivekit/grpc-test.sock"    // host[:port]
+const serverNetwork = "unix"                           // unix, tcp, tcp4, tcp6
+const clientURL = "unix:///tmp/hivekit/grpc-test.sock" // gRPC doesn't support ipv4, ipv6 schems  (used in client connection URL)
 
 // Using DNS scheme with localhost to avoid gRPC issues with UDS on some platforms (e.g. Windows) and to test the more common TCP use case.
 // var serverAddress = "localhost:9988"    // /host[:port]
@@ -35,6 +38,7 @@ var clientURL = "unix:///tmp/hivekit/grpc-test.sock" // gRPC doesn't support ipv
 // var clientURL = serverAddress        // gRPC doesn't support ipv4, ipv6 schems  (used in client connection URL)
 
 var certBundle = certstest.CreateTestCertBundle(utils.KeyTypeED25519)
+var authn = testenv.NewTestAuthenticator()
 
 // TestMain runs a gRPC server
 func TestMain(m *testing.M) {
@@ -52,32 +56,41 @@ func TestMain(m *testing.M) {
 	os.Exit(res)
 }
 
-// TestConnectPing tests creating a UDS or TLS connection with authentication.
+// start a server with authentication
+func startServer() (*grpclib.GrpcServiceServer, *testenv.TestAuthenticator, error) {
+
+	lis, err := net.Listen(serverNetwork, serverAddress)
+	if err != nil {
+		return nil, nil, fmt.Errorf("Failed to listen: %w", err)
+	}
+	// include TLS and authentication support
+	authn := testenv.NewTestAuthenticator()
+	grpcAuthn := grpclib.NewGrpcAuthenticator(authn)
+	srv := grpclib.NewGrpcServiceServer(
+		lis, certBundle.ServerCert, grpcServiceName, grpcAuthn, time.Minute)
+	err = srv.Start()
+
+	return srv, authn, err
+}
+
+// TestConnectPing tests creating a UDS or TCP connection with TLS and authentication.
 func TestConnectPing(t *testing.T) {
 	// test connect/disconnect with ping
 	t.Logf("---%s---\n", t.Name())
-	const clientID = "client1"
-	const token = "secret1"
-	const serviceName = "service1"
+	var clientID = "client1"
 
-	// setup the server
-	lis, err := net.Listen(serverNetwork, serverAddress)
-	require.NoError(t, err)
-
-	// TODO test authn
-	srv := grpclib.NewGrpcServiceServer(
-		lis, certBundle.ServerCert, serviceName, nil, time.Minute)
-
-	err = srv.Start()
+	srv, authn, err := startServer()
 	require.NoError(t, err)
 	defer srv.Stop()
 
-	// connect with the client
-	handleClientMessage := func(raw []byte) {
-	}
+	// add a client to connect as
+	_ = authn.AddClient(clientID, "client 1", "myrole")
+	token, _, _ := authn.CreateToken(clientID, time.Minute)
 
+	// connect a client
+	handleClientMessage := func(raw []byte) {}
 	cl := grpclib.NewGrpcServiceClient(
-		clientURL, certBundle.CaCert, time.Minute, serviceName, handleClientMessage)
+		clientURL, certBundle.CaCert, time.Minute, grpcServiceName, handleClientMessage)
 
 	err = cl.ConnectWithToken(clientID, token)
 	require.NoError(t, err)
@@ -103,9 +116,9 @@ func TestStreamMessages(t *testing.T) {
 
 	// bulk message testing
 	// some brute force testing on Intel i5-4570S, 2.9GHz:
-	// UDS: 100byte->530K msg/sec; 300byte->470K msg/sec; 1K->320K msg/sec; 100K->8K msg/sec
-	// TCP: 100byte->480K msg/sec; 300byte->410K msg/sec; 1K->280K msg/sec; 100K->6K msg/sec
-	var msgSize = 1000
+	// UDS: 100byte->540K msg/sec; 300byte->490K msg/sec; 1K->340K msg/sec; 100K->8.9K msg/sec
+	// TCP: 100byte->520K msg/sec; 300byte->460K msg/sec; 1K->310K msg/sec; 100K->6.0K msg/sec
+	var msgSize = 100000
 	// var rxDelay = time.Millisecond * 0
 	const serviceName = "service1"
 	const streamName = "stream1"
@@ -194,7 +207,7 @@ func TestStreamMessages(t *testing.T) {
 	// give the receiver time to catch up
 	time.Sleep(time.Millisecond * 1000)
 
-	slog.Info(fmt.Sprintf("sent %d messages/sec;", nrMsg))
+	slog.Info(fmt.Sprintf("sent %d messages/sec of %d bytes over %s network", nrMsg, msgSize, serverNetwork))
 
 	// both client and server side should have received a message
 	assert.Equal(t, nrMsg+1, int(rxCount.Load()), "Client did not receive all messages. Some got lost!?")

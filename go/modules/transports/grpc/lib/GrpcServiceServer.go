@@ -54,7 +54,7 @@ type GrpcServiceServer struct {
 }
 
 // authenticate a new stream connection
-func (srv *GrpcServiceServer) streamInterceptor(
+func (srv *GrpcServiceServer) _streamInterceptor(
 	srv2 interface{},
 	ss grpc.ServerStream,
 	info *grpc.StreamServerInfo,
@@ -71,8 +71,8 @@ func (srv *GrpcServiceServer) streamInterceptor(
 	return handler(srv2, ss)
 }
 
-// unaryInterceptor calls authenticateClient with current context
-func (srv *GrpcServiceServer) unaryInterceptor(
+// _unaryInterceptor calls authenticateClient with current context
+func (srv *GrpcServiceServer) _unaryInterceptor(
 	ctx context.Context, req interface{}, info *grpc.UnaryServerInfo,
 	handler grpc.UnaryHandler) (interface{}, error) {
 
@@ -148,24 +148,23 @@ func (srv *GrpcServiceServer) Start() error {
 	// creds, err := credentials.NewServerTLSFromFile(certFile, keyFile)
 	if srv.tlsCert != nil {
 		creds := credentials.NewServerTLSFromCert(srv.tlsCert)
-		// Create an array of gRPC options with the credentials
 		opts = append(opts, grpc.Creds(creds))
 	}
 
 	// auth and stuff
-	opts = append(opts, grpc.UnaryInterceptor(srv.unaryInterceptor))
-	opts = append(opts, grpc.StreamInterceptor(srv.streamInterceptor))
+	opts = append(opts, grpc.StreamInterceptor(srv._streamInterceptor))
+	opts = append(opts, grpc.UnaryInterceptor(srv._unaryInterceptor))
 
 	grpcServer = grpc.NewServer(opts...)
 
-	// ServiceDesc.ServiceName = serviceName
-	grpcServer.RegisterService(&srv.serviceDesc, nil) // srv)
+	// The second param is not used as the handler is defined in the service description
+	// and we can't have compile time dependency for the dynamically added streams.
+	grpcServer.RegisterService(&srv.serviceDesc, nil)
 
-	// grpcapi.RegisterGrpcServiceServer(grpcServer, srv)
 	srv.grpcServer = grpcServer
 
 	// start the server
-	slog.Info("StartGrpcServer: starting  gRPC server", slog.String("Address", srv.lis.Addr().String()))
+	slog.Info("StartGrpcServer: starting gRPC server", slog.String("Address", srv.lis.Addr().String()))
 	go func() {
 		if err := grpcServer.Serve(srv.lis); err != nil {
 			slog.Error("StartGrpcServer: failed to serve", "err", err.Error())
@@ -235,16 +234,29 @@ func NewGrpcServiceServer(
 		Methods: []grpc.MethodDesc{
 			{
 				MethodName: PingMethodName,
+				// TODO: for dynamically added methods, extract this handler into a helper
+				// the gRPC interceptor adds unnecesary wrapping so just call the server interceptor directly.
 				Handler: func(_ interface{}, ctx context.Context,
 					dec func(any) error,
 					interceptor grpc.UnaryServerInterceptor) (any, error) {
 
 					var input string
 					err := dec(&input)
-					if err == nil {
+					if err != nil {
+						return nil, status.Errorf(codes.InvalidArgument, "invalid argument: %s", err.Error())
+					}
+					if interceptor == nil {
 						return srv.Ping(ctx, input)
 					}
-					return input, err
+
+					info := &grpc.UnaryServerInfo{
+						Server:     srv,
+						FullMethod: serviceName + "/" + PingMethodName,
+					}
+					handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+						return srv.Ping(ctx, input)
+					}
+					return interceptor(ctx, srv, info, handler)
 				},
 			},
 		},

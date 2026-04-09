@@ -15,6 +15,8 @@ import (
 var ErrMissingMetadata = status.Errorf(codes.InvalidArgument, "missing metadata")
 var ErrInvalidToken = status.Errorf(codes.PermissionDenied, "invalid token")
 
+// GrpcAuthenticator adapter that adapts the transports.IAuthenticator interface to be used
+// as a gRPC stream interceptor for authenticating incoming connections.
 type GrpcAuthenticator struct {
 	authenticator transports.IAuthenticator
 }
@@ -31,7 +33,7 @@ func (srv *GrpcAuthenticator) Authenticate(ctx context.Context) (md metadata.MD,
 		return md, "", ErrInvalidToken
 	}
 	// remote the bearer prefix from the token
-	token := mdAuthn[0] // FIXME: is this bearer???
+	token := mdAuthn[0]
 	tokenParts := strings.Split(token, " ")
 	bearerToken := tokenParts[1]
 	clientID, _, err = srv.authenticator.ValidateToken(bearerToken)
