@@ -11,8 +11,6 @@ import (
 	"github.com/hiveot/hivekit/go/modules/bucketstore"
 	bucketstoreapi "github.com/hiveot/hivekit/go/modules/bucketstore/api"
 	historyapi "github.com/hiveot/hivekit/go/modules/history/api"
-	"github.com/hiveot/hivekit/go/modules/history/config"
-	"go.yaml.in/yaml/v2"
 )
 
 // HistoryService provides storage for request and notification history.
@@ -30,7 +28,7 @@ type HistoryService struct {
 	// The underlying bucketstore instance
 	bucketStore bucketstoreapi.IBucketStorage
 
-	config config.HistoryConfig
+	config historyapi.HistoryConfig
 
 	// cache of cursors with lifecycle management intended for remote users
 	// re-use the one from the bucket store
@@ -73,16 +71,7 @@ func (m *HistoryService) HandleRequest(req *msg.RequestMessage, replyTo msg.Resp
 
 // Start the history module and open the store
 // this loads the filters
-func (m *HistoryService) Start(yamlConfig string) (err error) {
-	if yamlConfig != "" {
-		err = yaml.Unmarshal([]byte(yamlConfig), &m.config)
-		if err != nil {
-			slog.Error("Start: Failed to load history service config", "error", err)
-			return err
-		}
-	}
-	m.SetModuleID(m.config.ModuleID)
-
+func (m *HistoryService) Start() (err error) {
 	m.bucketStore, err = bucketstore.OpenBucketStore(m.config.StoreDirectory, m.config.Backend)
 	if err != nil {
 		return err
@@ -127,15 +116,19 @@ func (m *HistoryService) StoreRequest(req *msg.RequestMessage) error {
 }
 
 // NewHistoryService creates a new instance for the history module using the given
-// storage bucket.
-func NewHistoryService(storeDirectory string, backend string) *HistoryService {
+// configuration.
+//
+// A configuration can be created using: config.NewHistoryConfig(storeDirectory, backend)
+func NewHistoryService(config historyapi.HistoryConfig) *HistoryService {
 
 	m := &HistoryService{
 		cursorLifespan: time.Minute,
 		cursorCache:    bucketstore.NewCursorCache(),
+		config:         config,
 	}
+	m.SetModuleID(m.config.ModuleID)
 	// m.config = NewHistoryConfig()
-	m.config = config.NewHistoryConfig(storeDirectory, backend)
+	// m.config = config.NewHistoryConfig(storeDirectory, backend)
 
 	var _ historyapi.IHistoryService = m // interface check
 	return m

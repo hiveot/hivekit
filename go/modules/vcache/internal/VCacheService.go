@@ -70,7 +70,7 @@ func (m *VCacheServer) ReadMultipleProperties(
 }
 
 // Start opens the logging destination.
-func (m *VCacheServer) Start(configYaml string) (err error) {
+func (m *VCacheServer) Start() (err error) {
 	m.msgAPI = NewVCacheMsgHandler(m)
 	return err
 }

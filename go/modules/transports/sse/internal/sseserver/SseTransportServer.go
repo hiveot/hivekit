@@ -68,7 +68,7 @@ func (m *SseTransportServer) HandleRequest(
 // Start readies the module for use.
 //
 // yamlConfig todo configure ssepath
-func (m *SseTransportServer) Start(yamlConfig string) (err error) {
+func (m *SseTransportServer) Start() (err error) {
 
 	// Add the routes used in SSE connection and subscription requests
 	m.CreateRoutes(m.ssePath, m.httpServer.GetProtectedRoute())

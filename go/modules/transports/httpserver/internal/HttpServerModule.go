@@ -83,10 +83,11 @@ func (m *HttpServerModule) DefaultAuthRequest(req *http.Request) (clientID strin
 		return "", err
 	}
 	//check if the token is properly signed and still valid
-	clientID, validUntil, err := authenticator.ValidateToken(bearerToken)
+	clientID, issuedAt, validUntil, err := authenticator.ValidateToken(bearerToken)
 	if err != nil {
 		return "", err
 	}
+	_ = issuedAt
 	_ = validUntil
 	return clientID, err
 }
@@ -217,7 +218,7 @@ func NewHttpServerModule(
 	if m.authRequestHandler == nil {
 		m.authRequestHandler = m.DefaultAuthRequest
 	}
-	// m.SetModuleID(config.ModuleID)
+	m.SetModuleID(transports.DefaultHttpServerModuleID)
 	var _ transports.IHttpServer = m // interface check
 	return m
 }

@@ -80,7 +80,7 @@ func (m *GrpcTransportServer) ServeStreamConnection(
 // The server will listen on the configured URL and handle incoming connections.
 // This adapts the URL scheme "unix", "uds", or "tcp" to the appropriate network type for net.Listen
 // and update the connectURL to match the scheme used for listening.
-func (m *GrpcTransportServer) Start(yamlConfig string) (err error) {
+func (m *GrpcTransportServer) Start() (err error) {
 
 	address := m.connectURL
 	network := "tcp"

@@ -51,12 +51,10 @@ func (m *CertsService) GetTM() string {
 //
 // This loads the stored CA or creates a self-signed if none is found
 // This loads the default TLS certificate for use by servers or create a new if one isnt found
-//
-// yamlConfig : todo
-func (m *CertsService) Start(yamlConfig string) (err error) {
+func (m *CertsService) Start() (err error) {
 
-	caCertPath := path.Join(m.certsDir, certsapi.DefaultCaCertName)
-	caKeyPath := path.Join(m.certsDir, certsapi.DefaultCaKeyName)
+	caCertPath := path.Join(m.certsDir, certsapi.DefaultCaCertFile)
+	caKeyPath := path.Join(m.certsDir, certsapi.DefaultCaKeyFile)
 	if m.certsDir != "" {
 		m.caCert, m.caPrivKey, err = certutils.LoadCA(caCertPath, caKeyPath)
 
@@ -95,7 +93,7 @@ func NewCertsService(certsDir string) *CertsService {
 	m := &CertsService{
 		certsDir: certsDir,
 	}
-	m.SetModuleID(certsapi.DefaultCertsServiceID)
+	m.SetModuleID(certsapi.DefaultCertsServiceThingID)
 	var _ modules.IHiveModule = m    // interface check
 	var _ certsapi.ICertsService = m // interface check
 	return m

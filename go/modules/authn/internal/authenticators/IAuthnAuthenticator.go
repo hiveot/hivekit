@@ -4,11 +4,13 @@ import (
 	"time"
 
 	"github.com/hiveot/hivekit/go/api/td"
+	"github.com/hiveot/hivekit/go/modules/transports"
 )
 
-// IAuthenticator is the interface of the authentication capability to obtain and
+// IAuthnAuthenticator is the interface of the authentication capability to obtain and
 // validate authentication tokens.
-type IAuthenticator interface {
+type IAuthnAuthenticator interface {
+	transports.IAuthenticator
 
 	// AddSecurityScheme adds the wot securityscheme to the given TD
 	AddSecurityScheme(tdoc *td.TD)
@@ -38,7 +40,7 @@ type IAuthenticator interface {
 	// This uses the vocabulary as defined in the TD.
 	// JWT: "ES256", "ES512", "EdDSA"
 	// paseto: "local" (symmetric), "public" (asymmetric)
-	GetAlg() (string, string)
+	// GetAlg() (string, string)
 
 	// RefreshToken issues a new authentication token with an updated expiry time.
 	// This extends the life of the session.
@@ -62,5 +64,5 @@ type IAuthenticator interface {
 	// ValidateToken verifies the token and client are valid.
 	// This returns an error if the token is invalid, the token has expired,
 	// or the client is not a valid and enabled client.
-	ValidateToken(token string) (clientID string, issuedAt time.Time, validUntil time.Time, err error)
+	// ValidateToken(token string) (clientID string, issuedAt time.Time, validUntil time.Time, err error)
 }

@@ -77,10 +77,8 @@ func (d *TestAuthenticator) CreateToken(
 func (d *TestAuthenticator) DecodeToken(token string, signedNonce string, nonce string) (
 	clientID string, issuedAt, validUntil time.Time, err error) {
 
-	// fake it
-	issuedAt = time.Now().Add(-time.Minute)
 	// validUntil = time.Now().Add(time.Minute)
-	clientID, validUntil, err = d.ValidateToken(token)
+	clientID, issuedAt, validUntil, err = d.ValidateToken(token)
 
 	return clientID, issuedAt, validUntil, err
 }
@@ -92,6 +90,7 @@ func (d *TestAuthenticator) GetAlg() (string, string) {
 
 func (d *TestAuthenticator) Login(
 	clientID string, password string) (token string, validUntil time.Time, err error) {
+
 	currPass, isClient := d.passwords[clientID]
 	if isClient && currPass == password {
 		token, validUntil, _ = d.CreateToken(clientID, 0)
@@ -116,7 +115,8 @@ func (d *TestAuthenticator) ValidatePassword(clientID string, password string) (
 func (d *TestAuthenticator) RefreshToken(
 	senderID string, oldToken string) (newToken string, validUntil time.Time, err error) {
 
-	tokenClientID, validUntil, err := d.ValidateToken(oldToken)
+	tokenClientID, issuedAt, validUntil, err := d.ValidateToken(oldToken)
+	_ = issuedAt
 	if err != nil || senderID != tokenClientID {
 		err = fmt.Errorf("invalid token, client or sender")
 	} else {
@@ -136,11 +136,11 @@ func (d *TestAuthenticator) SetPassword(clientID, password string) error {
 
 // Validate the token
 func (d *TestAuthenticator) ValidateToken(token string) (
-	clientID string, validUntil time.Time, err error) {
+	clientID string, issuedAt time.Time, validUntil time.Time, err error) {
 
 	parts := strings.Split(token, "/")
 	if len(parts) != 3 {
-		return "", validUntil, fmt.Errorf("badToken")
+		return "", time.Now(), validUntil, fmt.Errorf("badToken")
 	}
 	clientID = parts[0]
 
@@ -150,7 +150,7 @@ func (d *TestAuthenticator) ValidateToken(token string) (
 		err = errors.New("no active session")
 	}
 
-	return clientID, validUntil, err
+	return clientID, time.Now(), validUntil, err
 }
 
 func NewTestAuthenticator() *TestAuthenticator {

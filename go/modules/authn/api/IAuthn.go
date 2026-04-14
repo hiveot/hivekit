@@ -1,16 +1,16 @@
 package authnapi
 
 import (
-	"time"
-
 	"github.com/hiveot/hivekit/go/modules"
-	"github.com/hiveot/hivekit/go/modules/transports"
 )
 
 // This module exposes two services, one admin service and one user oriented service.
 // Currently only a single instance of the authn service module is supported.
-const DefaultAdminServiceID = "authnAdmin"
-const DefaultUserServiceID = "authnUser"
+const (
+	AuthnModuleType       = "authn"
+	DefaultAdminServiceID = "authnAdmin"
+	DefaultUserServiceID  = "authnUser"
+)
 
 // Predefined roles of a client
 // The roles are hierarchical in permissions:
@@ -85,28 +85,14 @@ type ClientProfile struct {
 	TimeUpdated string `json:"updated,omitempty"`
 }
 
-// Interface of the authentication server module for managing clients and issue
-// authentication tokens.
+// Interface of the authentication server module for managing clients and provide
+// the session manager and authenticator.
 type IAuthnService interface {
 	modules.IHiveModule
-	transports.IAuthenticator
 
 	// AddClient add a new client account. This fails if the client already exists.
 	// Use authenticator's SetPassword or CreateToken to obtain a token to connect.
 	AddClient(clientID string, displayName string, role string) error
-
-	// AddSecurityScheme adds the wot securityscheme to the given TD
-	// AddSecurityScheme(tdoc *td.TD)
-
-	// DecodeToken decodes the given token using the configured authenticator.
-	// DecodeToken(token string, signedNonce string, nonce string) (
-	// 	clientID string, issuedAt time.Time, validUntil time.Time, err error)
-
-	// GetAlg returns the supported security format and authentication algorithm.
-	// This uses the vocabulary as defined in the TD.
-	// JWT: "ES256", "ES512", "EdDSA"
-	// paseto: "local" (symmetric), "public" (asymmetric)
-	// GetAlg() (string, string)
 
 	// GetProfile Get the client profile
 	GetProfile(clientID string) (profile ClientProfile, err error)
@@ -115,27 +101,8 @@ type IAuthnService interface {
 	// Get a list of all client profiles
 	GetProfiles() (profiles []ClientProfile, err error)
 
-	// Login with a password and obtain a new authentication token with limited duration.
-	// The token must be refreshed before it expires.
-	//
-	// Token validation is determined through configuration.
-	//
-	// This returns the authentication token and the expiration time before it must be refreshed.
-	// If the login fails this returns an error
-	Login(login string, password string) (token string, validUntil time.Time, err error)
-
-	// Logout invalidates all tokens of this client issued before now.
-	Logout(clientID string)
-
-	// RefreshToken issues a new authentication token with an updated expiry time.
-	// This extends the life of the session.
-	//
-	//	clientID Client whose token to refresh
-	//	oldToken must be valid
-	//
-	// This returns the token and the validity time before it must be refreshed,
-	// If the clientID is unknown or oldToken is no longer valid this returns an error
-	RefreshToken(clientID string, oldToken string) (newToken string, validUntil time.Time, err error)
+	// obtain the session manager for authentication use by transport modules
+	GetSessionManager() ISessionManager
 
 	// RemoveClient removes client account
 	RemoveClient(clientID string) error
@@ -150,12 +117,4 @@ type IAuthnService interface {
 	// UpdateProfile changes a client's profile.
 	// Only administrators can update the role. (senderID has role admin or service)
 	UpdateProfile(senderID string, profile ClientProfile) error
-
-	// ValidatePassword checks if the given password is valid for the client
-	// ValidatePassword(clientID string, password string) (err error)
-
-	// ValidateToken verifies the token and client are valid.
-	// This returns an error if the token is invalid, the token has expired,
-	// or the client is not a valid and enabled client.
-	// ValidateToken(token string) (clientID string, validUntil time.Time, err error)
 }

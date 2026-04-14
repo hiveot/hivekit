@@ -8,13 +8,11 @@ import (
 	"os"
 	"path"
 
+	certsapi "github.com/hiveot/hivekit/go/modules/certs/api"
 	"github.com/hiveot/hivekit/go/modules/certs/certutils"
 	"github.com/hiveot/hivekit/go/modules/certs/internal/providers/selfsigned"
 	"github.com/hiveot/hivekit/go/utils"
 )
-
-const DefaultCaCertFile = "caCert.pem"
-const DefaultCaKeyFile = "caKey.pem"
 
 // Defaults for a self-signed CA
 const DefaultCA_CN = "HiveOT"
@@ -47,8 +45,8 @@ func (m *CertsService) CreateCACert() (
 
 	if m.certsDir != "" {
 		// save the CA, but only if it won't overwrite an existing certificate
-		caCertPath := path.Join(m.certsDir, DefaultCaCertFile)
-		caKeyPath := path.Join(m.certsDir, DefaultCaKeyFile)
+		caCertPath := path.Join(m.certsDir, certsapi.DefaultCaCertFile)
+		caKeyPath := path.Join(m.certsDir, certsapi.DefaultCaKeyFile)
 
 		if _, err := os.Stat(caCertPath); err == nil {
 			err = fmt.Errorf("the CA certificate exists at %s", caCertPath)

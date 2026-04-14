@@ -6,8 +6,13 @@ import (
 	"github.com/hiveot/hivekit/go/api/td"
 )
 
+// Type for registration of a module that implements the IAuthenticator API below
+// This is usually the authn module but can be offloaded to another module.
+const AuthenticatorModuleType = "authenticator"
+
 // Interface of the authentication capability for setting TD security scheme
 // and authenticating incoming connections.
+
 type IAuthenticator interface {
 
 	// AddSecurityScheme adds the wot securityscheme to the given TD
@@ -29,5 +34,5 @@ type IAuthenticator interface {
 	// ValidateToken verifies the token and client are valid.
 	// This returns an error if the token is invalid, the token has expired,
 	// or the client is not a valid and enabled client.
-	ValidateToken(token string) (clientID string, validUntil time.Time, err error)
+	ValidateToken(token string) (clientID string, issuedAt time.Time, validUntil time.Time, err error)
 }

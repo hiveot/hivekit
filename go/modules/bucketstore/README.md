@@ -83,7 +83,7 @@ Start a module instance and obtain the bucket store:
     // create a local instance
     // storageDir with path to the bucket storage directory or "" for in-memory storage.
 	m := module.NewBucketStoreModule(storageDir)
-	err := m.Start("")
+	err := m.Start()
 
     // direct access to the bucketstore
     store := m.GetService()

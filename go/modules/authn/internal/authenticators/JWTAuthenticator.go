@@ -19,6 +19,8 @@ import (
 //
 // Sessions are stored in-memory by their 'sessionStart' time.
 type JWTAuthenticator struct {
+	AuthenticatorBase
+
 	// key used to create and verify session tokens
 	signingKey *ecdsa.PrivateKey
 	// client store for account verification
@@ -249,7 +251,7 @@ func NewJWTAuthenticator(
 		signingMethod:             jwt.SigningMethodES256,
 		sessionStart:              make(map[string]time.Time),
 	}
-	var _ IAuthenticator = svc // interface check
+	var _ IAuthnAuthenticator = svc // interface check
 	return svc
 }
 

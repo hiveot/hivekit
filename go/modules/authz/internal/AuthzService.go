@@ -41,11 +41,10 @@ func (m *AuthzService) HandleRequest(req *msg.RequestMessage, replyTo msg.Respon
 
 // start opens the store with authorization rules
 // currently the RBAC is hard coded so nothing to configure
-func (m *AuthzService) Start(yamlConfig string) (err error) {
+func (m *AuthzService) Start() (err error) {
 	if m.getRoleHandler == nil {
 		slog.Warn("AuthzModule: no getRoleHandler provided, only read requests will be accepted")
 	}
-	m.SetModuleID(authzapi.DefaultAuthzModuleID)
 	return nil
 }
 
@@ -59,6 +58,7 @@ func NewAuthzService(getRoleHandler func(clientID string) (role string, err erro
 	m := &AuthzService{
 		getRoleHandler: getRoleHandler,
 	}
+	m.SetModuleID(authzapi.DefaultAuthzModuleID)
 	var _ modules.IHiveModule = m // check interface
 	return m
 }

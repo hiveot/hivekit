@@ -13,13 +13,17 @@ import (
 // Standardized http transport definitions for use with HiveOT.
 // These are used by GetRequestParams but usage is optional.
 const (
+	// The http server module type that can be used to retrieve the server instance from the factor.
+	HttpServerModuleType = "httpserver"
+
+	// The default http server module instance ID
 	DefaultHttpServerModuleID = "httpserver"
 
 	// The default health check ping path to register
 	DefaultPingPath = "/ping"
 
-	// The default listening port if none is set
-	DefaultPort = 8444
+	// The default HTTP TLS listening port if none is set
+	DefaultHttpsPort = 8444
 
 	// The context ID's for authenticated clientID and connectionID
 	ClientIDContextID = "client-id"
@@ -58,6 +62,7 @@ type RequestParams struct {
 
 // IHttpServer is the minimal HTTP server interface as used by various http subprotocols.
 // The subprotocols can work with any http server module that supports this interface.
+// The factory provides a GetHttpServer() method to retrieve the embedded http server.
 type IHttpServer interface {
 	// GetAuthenticator returns the authenticator used to authenticate incoming connections
 	// Also used by sub-protocols to include security scheme in TD's

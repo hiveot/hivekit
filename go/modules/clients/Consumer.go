@@ -296,8 +296,7 @@ func (co *Consumer) SetTimeout(timeout time.Duration) {
 }
 
 // Start using the consumer
-// this module does not have a configuration
-func (co *Consumer) Start(yamlConfig string) error {
+func (co *Consumer) Start() error {
 	return nil
 }
 

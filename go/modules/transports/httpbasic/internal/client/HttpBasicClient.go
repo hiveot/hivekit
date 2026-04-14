@@ -372,7 +372,7 @@ func (cl *HttpBasicClient) SetTimeout(timeout time.Duration) {
 
 // start doesn't do anything. Use ConnectWith... to connect.
 // TBD: maybe this should connect using config?
-func (cl *HttpBasicClient) Start(yamlConfig string) error {
+func (cl *HttpBasicClient) Start() error {
 	return nil
 }
 

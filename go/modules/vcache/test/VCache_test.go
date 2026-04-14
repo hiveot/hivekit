@@ -31,7 +31,7 @@ func TestStartStop(t *testing.T) {
 	t.Logf("---%s---\n", t.Name())
 
 	m := vcache.NewVCacheService()
-	err := m.Start("")
+	err := m.Start()
 	require.NoError(t, err)
 	defer m.Stop()
 }
@@ -48,7 +48,7 @@ func TestPropertyNotifications(t *testing.T) {
 	const prop2Value = "value2"
 
 	m := vcache.NewVCacheService()
-	err := m.Start("")
+	err := m.Start()
 	require.NoError(t, err)
 	defer m.Stop()
 	m.SetNotificationSink(func(n *msg.NotificationMessage) {
@@ -112,7 +112,7 @@ func TestEventNotifications(t *testing.T) {
 	const ev2Value = "value2"
 
 	m := vcache.NewVCacheService()
-	err := m.Start("")
+	err := m.Start()
 	require.NoError(t, err)
 	defer m.Stop()
 	m.SetNotificationSink(func(n *msg.NotificationMessage) {

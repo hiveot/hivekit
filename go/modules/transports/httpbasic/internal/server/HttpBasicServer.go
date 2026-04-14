@@ -76,7 +76,7 @@ func (m *HttpBasicServer) HandleRequest(
 // will not be passed to connected clients.
 //
 // yamlConfig tbd: use base path?
-func (m *HttpBasicServer) Start(yamlConfig string) (err error) {
+func (m *HttpBasicServer) Start() (err error) {
 
 	slog.Info("Starting http-basic server module")
 	m.createRoutes()

@@ -214,7 +214,7 @@ func (m *DigitwinService) SetAgentStatus(agentID string, connected bool) {
 
 // Start the digital twin module and open its native thing backup
 // This subscribes to devices and agents that have a digital twin in the directory.
-func (m *DigitwinService) Start(_ string) (err error) {
+func (m *DigitwinService) Start() (err error) {
 
 	moduleID := m.GetModuleID()
 	slog.Info("Start: Starting digitwin module", "moduleID", moduleID)
@@ -225,7 +225,7 @@ func (m *DigitwinService) Start(_ string) (err error) {
 	// back to the device thingID
 	m.vcache = vcache.NewVCacheService()
 	m.vcache.SetRequestSink(m.ForwardDigitwinRequestToDevice)
-	m.vcache.Start("")
+	m.vcache.Start()
 	storageFile := filepath.Join(m.storageDir, "deviceTD.kvbtree")
 	m.deviceTDStore, err = bucketstore.NewBucketStore(storageFile, bucketstoreapi.BackendKVBTree)
 

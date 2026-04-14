@@ -25,7 +25,7 @@ type CertsMsgClient struct {
 func (cl *CertsMsgClient) GetCACert() (cert *x509.Certificate, err error) {
 	var certPem string
 	req := msg.NewRequestMessage(
-		td.OpInvokeAction, certsapi.DefaultCertsServiceID, certsapi.ActionGetCACert, nil, "")
+		td.OpInvokeAction, certsapi.DefaultCertsServiceThingID, certsapi.ActionGetCACert, nil, "")
 
 	resp, err := cl.ForwardRequestWait(req)
 	if err == nil {
@@ -44,7 +44,7 @@ func (cl *CertsMsgClient) GetCACert() (cert *x509.Certificate, err error) {
 //	sink is the handler that passes requests to the service and receives notifications.
 func NewCertsMsgClient(thingID string, sink modules.IHiveModule) *CertsMsgClient {
 	if thingID == "" {
-		thingID = certsapi.DefaultCertsServiceID
+		thingID = certsapi.DefaultCertsServiceThingID
 	}
 	cl := &CertsMsgClient{
 		certServiceID: thingID,

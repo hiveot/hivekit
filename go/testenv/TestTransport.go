@@ -72,7 +72,7 @@ func (m *TestTransport) SetAuthenticationHandler(h transports.ValidateTokenHandl
 // 	_ = h
 // }
 
-func (m *TestTransport) Start(yamlConfig string) (err error) {
+func (m *TestTransport) Start() (err error) {
 	return nil
 }
 

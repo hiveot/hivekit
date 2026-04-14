@@ -7,9 +7,8 @@ import (
 
 // NewHistoryService is the factory method to create a new history service module.
 //
-//	storeDirectory  is the full path to the directory where to store the history data
-//	backend store type as defined in the bucketstore eg, BackendKVBTree or BackendPebble.
-func NewHistoryService(storeDirectory string, backend string) historyapi.IHistoryService {
-	m := internal.NewHistoryService(storeDirectory, backend)
+// A configuration can be created using: config.NewHistoryConfig(storeDirectory, backend)
+func NewHistoryService(config historyapi.HistoryConfig) historyapi.IHistoryService {
+	m := internal.NewHistoryService(config)
 	return m
 }

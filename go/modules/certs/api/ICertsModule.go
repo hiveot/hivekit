@@ -8,16 +8,16 @@ import (
 	"github.com/hiveot/hivekit/go/modules"
 )
 
-// DefaultCertsServiceID is the default thingID of the certs service module.
-const DefaultCertsServiceID = "certs"
+// DefaultCertsServiceThingID is the default thingID of the certs service module.
+const DefaultCertsServiceThingID = "certs"
 
-const DefaultCaCertName = "caCert.pem"
-const DefaultCaKeyName = "caKey.pem"
+const DefaultCaCertFile = "caCert.pem"
+const DefaultCaKeyFile = "caKey.pem"
 
 // DefaultServerName is the name of the shared default server cert
 const DefaultServerName = "server"
-const DefaultServerCertName = DefaultServerName + "Cert.pem"
-const DefaultServerKeyName = DefaultServerName + "Key.pem"
+const DefaultServerCertFile = DefaultServerName + "Cert.pem"
+const DefaultServerKeyFile = DefaultServerName + "Key.pem"
 
 // RRN Actions
 const (

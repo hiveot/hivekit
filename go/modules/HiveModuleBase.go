@@ -292,7 +292,7 @@ func (m *HiveModuleBase) SetRequestSink(sink msg.RequestHandler) {
 	m.requestSink = sink
 }
 
-func (m *HiveModuleBase) Start(yamlConfig string) error {
+func (m *HiveModuleBase) Start() error {
 	return nil
 }
 func (m *HiveModuleBase) Stop() {}

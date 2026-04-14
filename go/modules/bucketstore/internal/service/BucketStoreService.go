@@ -60,9 +60,7 @@ func (m *BucketStoreService) HandleRequest(req *msg.RequestMessage, replyTo msg.
 // Start readies the module for use using the given yaml configuration.
 //
 // This creates a bucket store in {storageDir} and enables the messaging request handler.
-//
-// yamlConfig with optional configuration (todo)
-func (m *BucketStoreService) Start(yamlConfig string) (err error) {
+func (m *BucketStoreService) Start() (err error) {
 
 	// if a storage directory is provided then open a store
 	// otherwise create an in-memory store.

@@ -29,7 +29,7 @@ func TestMain(m *testing.M) {
 func TestStartStop(t *testing.T) {
 	// cfg := module.NewAuthzConfig()
 	svc := authz.NewAuthzService(nil)
-	err := svc.Start("")
+	err := svc.Start()
 	require.NoError(t, err)
 	svc.Stop()
 }
@@ -49,7 +49,7 @@ func TestHasPermission(t *testing.T) {
 		return "", fmt.Errorf("unknown client")
 	}
 	m := authz.NewAuthzService(getRole)
-	err := m.Start("")
+	err := m.Start()
 	require.NoError(t, err)
 	defer m.Stop()
 

@@ -1,14 +1,12 @@
 # HiveKit - HiveOT Development Kit
 
-HiveKit provides modules for building lightweight IoT applications that can interact with the Web of Things.
+HiveKit provides modules for building lightweight IoT applications that can interact with the Web of Things. Most modules are implemented in golang. Javascript and Python integration is planned. Using transport modules it is easy to link Javascript, Python and golang modules with minimal overhead.
 
 Modules included are WoT transport protocols, authentication, authorization, message routing, thing discovery, thing directory, data storage, history storage, digital twin, and more.
 
 HiveKit modules interact using _RRN_ Request-Response and publish-subscribe Notification messages. HiveKit combines the strengths of these two messaging patterns into a simple and easy to use messaging framework for module integration. RRN messages define an envelope that describes an operation, the Thing to address, the name of the message, and its payload, as described in the [W3C WoT standard](https://www.w3.org/TR/wot-thing-description11/).
 
 The modules in HiveKit are intended to be used to construct an application. They are not applications themselves.
-
-The 'pipeline' module provides a quick and easy way to construct an application using recipes. A recipe describes the modules to be used and how they are linked together. Custom modules can be included to provide the custom functionality of the application.
 
 HiveKit components were originally part of the HiveOT Hub and have been extracted to facilitate reuse in different applications.
 

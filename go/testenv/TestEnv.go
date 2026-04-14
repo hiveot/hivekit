@@ -265,24 +265,24 @@ func (testEnv *TestEnv) StartTestServer(protocol string) (srv transports.ITransp
 		serverCert := testEnv.CertBundle.ServerCert
 		srv = grpctransport.NewHiveotGrpcServer(
 			TestUDSURL, serverCert, testEnv.TestAuthn, TestTimeout)
-		err = srv.Start("")
+		err = srv.Start()
 
 	case transports.ProtocolTypeHiveotSsesc:
 		srv = ssetransport.NewHiveotSseServer(testEnv.HttpServer, TestTimeout)
-		err = srv.Start("")
+		err = srv.Start()
 
 	case transports.ProtocolTypeHiveotWebsocket:
 		srv = wsstransport.NewHiveotWssServer(testEnv.HttpServer, TestTimeout)
-		err = srv.Start("")
+		err = srv.Start()
 
 	case transports.ProtocolTypeWotHttpBasic:
 		srv = httpbasic.NewHttpBasicServer(testEnv.HttpServer)
-		err = srv.Start("")
+		err = srv.Start()
 		// http only, no subprotocol bindings
 
 	case transports.ProtocolTypeWotWebsocket:
 		srv = wsstransport.NewWotWssServer(testEnv.HttpServer, TestTimeout)
-		err = srv.Start("")
+		err = srv.Start()
 
 	default:
 		err = errors.New("unknown protocol name: " + protocol)

@@ -60,7 +60,7 @@ func startTestDevice(agentID string, thingID string) (testDevice *testenv.TestDe
 	testTM.AddPropertyAsString("property-1", "Property 1", "New and improved")
 
 	testDevice = testenv.NewTestDevice(cfg, agentID, testTM, serverType)
-	err := testDevice.Start("")
+	err := testDevice.Start()
 	if err != nil {
 		panic("failed starting test device")
 	}
@@ -77,7 +77,7 @@ func SetupConsumerWithRouter() (
 	// setup the consumer side: directory, router and consumer
 	// register the device TD in the directory for use by the router
 	dirMod = directory.NewDirectoryService(storageDir, nil)
-	err := dirMod.Start("")
+	err := dirMod.Start()
 	if err != nil {
 		panic("SetupConsumerWithRouter: Directory.Start: " + err.Error())
 	}
@@ -90,7 +90,7 @@ func SetupConsumerWithRouter() (
 	routerMod = router.NewRouterService(
 		storageDir, dirMod.GetTD, nil, certsBundle.CaCert)
 	routerMod.SetTimeout(rpcTimeout)
-	err = routerMod.Start("")
+	err = routerMod.Start()
 	if err != nil {
 		panic("SetupConsumerWithRouter: Router.Start: " + err.Error())
 	}
@@ -106,7 +106,7 @@ func SetupConsumerWithRouter() (
 	consumer := clients.NewConsumer("")
 	consumer.SetRequestSink(routerMod.HandleRequest)
 	routerMod.SetNotificationSink(consumer.HandleNotification)
-	err = consumer.Start("")
+	err = consumer.Start()
 	if err != nil {
 		panic("SetupConsumerWithRouter: Consumer.Start: " + err.Error())
 	}
@@ -131,12 +131,12 @@ func TestStartStop(t *testing.T) {
 	t.Logf("---%s---\n", t.Name())
 
 	var testDirMod = directory.NewDirectoryService("", nil)
-	err := testDirMod.Start("")
+	err := testDirMod.Start()
 	require.NoError(t, err)
 	// test no cred store
 	m := router.NewRouterService("", testDirMod.GetTD, nil, certsBundle.CaCert)
 	m.SetTimeout(rpcTimeout)
-	err = m.Start("")
+	err = m.Start()
 	require.NoError(t, err)
 	defer m.Stop()
 }
@@ -210,7 +210,7 @@ func TestSubscribeToDevice(t *testing.T) {
 	// setup the consumer side: directory, router and consumer
 	// register the device TD in the directory for use by the router
 	var testDirMod = directory.NewDirectoryService("", nil)
-	err := testDirMod.Start("")
+	err := testDirMod.Start()
 	require.NoError(t, err)
 	defer testDirMod.Stop()
 	deviceTDJson, _ := td.MarshalTD(testDevice.GetTD())
@@ -221,7 +221,7 @@ func TestSubscribeToDevice(t *testing.T) {
 	// this doesn't actually need a directory. GetTD could also simply return the device TD.
 	routerMod := router.NewRouterService(storageDir, testDirMod.GetTD, nil, certsBundle.CaCert)
 	routerMod.SetTimeout(rpcTimeout)
-	err = routerMod.Start("")
+	err = routerMod.Start()
 	require.NoError(t, err)
 	defer routerMod.Stop()
 	// to connect to the device, credentials are needed
@@ -234,7 +234,7 @@ func TestSubscribeToDevice(t *testing.T) {
 	consumer := clients.NewConsumer("")
 	consumer.SetRequestSink(routerMod.HandleRequest)
 	routerMod.SetNotificationSink(consumer.HandleNotification)
-	err = consumer.Start("")
+	err = consumer.Start()
 	assert.NoError(t, err)
 	// this should cause the router to connect to the device
 	err = consumer.Subscribe(thingID1, "")
@@ -269,7 +269,7 @@ func TestCredStore(t *testing.T) {
 	// this doesn't actually need a directory. GetTD could also simply return the device TD.
 	routerMod := router.NewRouterService(storageDir, nil, nil, nil)
 	routerMod.SetTimeout(rpcTimeout)
-	err := routerMod.Start("")
+	err := routerMod.Start()
 	require.NoError(t, err)
 
 	hasCred := routerMod.HasThingCredentials(thingID1)
@@ -283,7 +283,7 @@ func TestCredStore(t *testing.T) {
 	routerMod.Stop()
 
 	// restarting the router module should retain the credentials
-	err = routerMod.Start("")
+	err = routerMod.Start()
 	require.NoError(t, err)
 
 	hasCred = routerMod.HasThingCredentials(thingID1)

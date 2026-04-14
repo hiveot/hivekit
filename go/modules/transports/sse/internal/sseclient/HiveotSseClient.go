@@ -509,7 +509,7 @@ func (cl *HiveotSseClient) SetTimeout(timeout time.Duration) {
 
 // start doesn't do anything. Use ConnectWith... to connect.
 // TBD: maybe this should connect using config?
-func (cl *HiveotSseClient) Start(yamlConfig string) error {
+func (cl *HiveotSseClient) Start() error {
 	return nil
 }
 

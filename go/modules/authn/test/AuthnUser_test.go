@@ -32,22 +32,23 @@ func TestLoginRefresh(t *testing.T) {
 	err = m.SetPassword(user1ID, tu1Pass)
 	require.NoError(t, err)
 
-	token1, validUntil, err := m.Login(user1ID, tu1Pass)
+	sm := m.GetSessionManager()
+	token1, validUntil, err := sm.Login(user1ID, tu1Pass)
 	require.NoError(t, err)
 	require.Greater(t, validUntil, time.Now())
 
-	cid2, validUntil2, err := m.ValidateToken(token1)
+	cid2, _, validUntil2, err := sm.ValidateToken(token1)
 	require.NoError(t, err)
 	assert.Equal(t, user1ID, cid2)
 	require.Equal(t, validUntil2, validUntil)
 
 	// RefreshToken the token after a short delay
-	token3, validUntil3, err := m.RefreshToken(user1ID, token1)
+	token3, validUntil3, err := sm.RefreshToken(user1ID, token1)
 	require.NoError(t, err)
 	require.NotEmpty(t, token3)
 
 	// ValidateToken the new token
-	cid4, validUntil4, err := m.ValidateToken(token3)
+	cid4, _, validUntil4, err := sm.ValidateToken(token3)
 	assert.Equal(t, user1ID, cid4)
 	assert.Equal(t, validUntil3, validUntil4)
 	require.NoError(t, err)
@@ -136,7 +137,8 @@ func TestUpdatePassword(t *testing.T) {
 	require.NoError(t, err)
 
 	// login should succeed
-	_, _, err = m.Login(user1ID, "oldpass")
+	sm := m.GetSessionManager()
+	_, _, err = sm.Login(user1ID, "oldpass")
 	require.NoError(t, err)
 
 	// change password
@@ -145,11 +147,11 @@ func TestUpdatePassword(t *testing.T) {
 
 	// login with old password should now fail
 	//t.Log("an error is expected logging in with the old password")
-	_, _, err = m.Login(user1ID, "oldpass")
+	_, _, err = sm.Login(user1ID, "oldpass")
 	require.Error(t, err)
 
 	// re-login with new password
-	_, _, err = m.Login(user1ID, "newpass")
+	_, _, err = sm.Login(user1ID, "newpass")
 	require.NoError(t, err)
 }
 

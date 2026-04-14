@@ -1,19 +1,18 @@
 package authn
 
 import (
+	factoryapi "github.com/hiveot/hivekit/go/factory/api"
+	"github.com/hiveot/hivekit/go/modules"
 	authnapi "github.com/hiveot/hivekit/go/modules/authn/api"
 
 	"github.com/hiveot/hivekit/go/modules/authn/internal/service"
 	"github.com/hiveot/hivekit/go/modules/transports"
 )
 
-// NewAuthnService is the factory function to create a new instance of the
-// authentication server side module.
+// NewAuthnService create a new instance of the authentication service.
+// This service offers the ability to manage clients.
 //
-// Note 1: Currently, only a single instance of this module can be used as the
-// thingID's of the module services are fixed.
-//
-// Note 2: to avoid a chicken-and-egg problem between authentication and http server,
+// Note: to avoid a chicken-and-egg problem between authentication and http server,
 // create the http server first and pass it to the authenticator. The authenticator will
 // invoke httpserver.SetAuthValidator on start.
 //
@@ -23,6 +22,20 @@ func NewAuthnService(
 	authnConfig authnapi.AuthnConfig,
 	httpServer transports.IHttpServer) authnapi.IAuthnService {
 
+	m := service.NewAuthnService(authnConfig, httpServer)
+	m.SetModuleID(authnapi.AuthnModuleType)
+	return m
+}
+
+// Create a new instance of the authentication service using the factory. The factory will
+// provide the configuration and http server.
+func NewAuthnServiceFactory(f factoryapi.IModuleFactory) modules.IHiveModule {
+	env := f.GetEnvironment()
+	keysDir := env.CertsDir
+	storageDir := env.GetStorageDir(authnapi.AuthnModuleType)
+	authnConfig := authnapi.NewAuthnConfig(keysDir, storageDir)
+
+	httpServer := f.GetHttpServer()
 	m := service.NewAuthnService(authnConfig, httpServer)
 	return m
 }

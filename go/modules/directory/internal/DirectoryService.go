@@ -93,7 +93,7 @@ func (m *DirectoryService) SetTDHooks(
 // - enable the messaging request handler
 // - enable the http request handler using the given router
 // - updates this service TD in the store
-func (m *DirectoryService) Start(_ string) (err error) {
+func (m *DirectoryService) Start() (err error) {
 
 	storagePath := m.storageLoc
 	moduleID := m.GetModuleID()

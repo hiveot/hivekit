@@ -211,7 +211,7 @@ func (m *RouterService) SetTimeout(rpcTimeout time.Duration) {
 
 // Start the router module.
 // This loads to stored Thing credentials
-func (m *RouterService) Start(_ string) (err error) {
+func (m *RouterService) Start() (err error) {
 	if m.storageDir != "" {
 		fileName := "deviceCredentials.json"
 		m.storageFile = filepath.Join(m.storageDir, fileName)

@@ -183,7 +183,7 @@ func addDocs(store bucketstoreapi.IBucketStorage, bucketID string, count int) er
 
 func startServer(t *testing.T) (*service.BucketStoreService, func(), error) {
 	m := service.NewBucketStoreService(storageLocation, testBackendType)
-	err := m.Start("")
+	err := m.Start()
 	require.NoError(t, err)
 	return m, func() {
 		m.Stop()

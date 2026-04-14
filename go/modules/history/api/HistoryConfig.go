@@ -1,9 +1,8 @@
-package config
+package historyapi
 
 import (
 	"github.com/hiveot/hivekit/go/api/msg"
 	bucketstoreapi "github.com/hiveot/hivekit/go/modules/bucketstore/api"
-	historyapi "github.com/hiveot/hivekit/go/modules/history/api"
 )
 
 // HistoryConfig with history store database configuration
@@ -31,7 +30,7 @@ func NewHistoryConfig(storeDirectory string, backend string) HistoryConfig {
 		backend = bucketstoreapi.BackendPebble
 	}
 	cfg := HistoryConfig{
-		ModuleID:       historyapi.DefaultHistoryModuleID,
+		ModuleID:       DefaultHistoryModuleID,
 		Backend:        backend,
 		StoreDirectory: storeDirectory,
 	}

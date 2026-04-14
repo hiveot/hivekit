@@ -36,7 +36,7 @@ func (srv *GrpcAuthenticator) Authenticate(ctx context.Context) (md metadata.MD,
 	token := mdAuthn[0]
 	tokenParts := strings.Split(token, " ")
 	bearerToken := tokenParts[1]
-	clientID, _, err = srv.authenticator.ValidateToken(bearerToken)
+	clientID, _, _, err = srv.authenticator.ValidateToken(bearerToken)
 	if err != nil {
 		return md, "", err
 	} else if clientID != contextClientID {

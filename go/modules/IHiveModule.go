@@ -68,8 +68,7 @@ type IHiveModule interface {
 
 	// Start readies the module for use.
 	// Intended for modulues to initialize resources
-	//  yamlConfig is an optional configuration or "" if not used
-	Start(yamlConfig string) error
+	Start() error
 
 	// Stop halts module operation and releases resources.
 	// Intended for modulues to free resources

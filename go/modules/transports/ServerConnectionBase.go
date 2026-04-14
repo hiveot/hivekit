@@ -324,7 +324,7 @@ func (sc *ServerConnectionBase) SendResponse(resp *msg.ResponseMessage) (err err
 		slog.String("correlationID", resp.CorrelationID),
 		slog.String("operation", resp.Operation),
 		slog.String("name", resp.Name),
-		slog.String("state", resp.Status),
+		slog.String("status", resp.Status),
 		slog.String("type", resp.MessageType),
 		slog.String("agentID", resp.SenderID),
 	)

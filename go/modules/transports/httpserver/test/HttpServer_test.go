@@ -33,8 +33,8 @@ type TestAuthenticator struct {
 func (ta *TestAuthenticator) AddSecurityScheme(tdoc *td.TD) {}
 
 func (ta *TestAuthenticator) ValidateToken(bearerToken string) (
-	clientID string, validUntil time.Time, err error) {
-	return ta.ClientID, ta.ValidUntil, nil //fmt.Errorf("test fail")
+	clientID string, issuedAt time.Time, validUntil time.Time, err error) {
+	return ta.ClientID, time.Now(), ta.ValidUntil, nil //fmt.Errorf("test fail")
 }
 
 // TestMain runs a http server

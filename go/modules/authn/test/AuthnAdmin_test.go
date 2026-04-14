@@ -107,16 +107,17 @@ func TestUpdateClientPassword(t *testing.T) {
 	err = m.SetPassword(tu1ID, tuPass1)
 	require.NoError(t, err)
 
-	err = m.ValidatePassword(tu1ID, tuPass1)
+	sm := m.GetSessionManager()
+	err = sm.ValidatePassword(tu1ID, tuPass1)
 	require.NoError(t, err)
 
 	err = m.SetPassword(tu1ID, tuPass2)
 	require.NoError(t, err)
 
-	err = m.ValidatePassword(tu1ID, tuPass1)
+	err = sm.ValidatePassword(tu1ID, tuPass1)
 	require.Error(t, err)
 
-	err = m.ValidatePassword(tu1ID, tuPass2)
+	err = sm.ValidatePassword(tu1ID, tuPass2)
 	require.NoError(t, err)
 }
 
@@ -133,7 +134,8 @@ func TestUpdatePubKey(t *testing.T) {
 	m.SetPassword(tu1ID, tu1Pass)
 	require.NoError(t, err)
 	//
-	token, validUntil, err := m.CreateSessionToken(tu1ID, time.Minute)
+	sm := m.GetSessionManager()
+	token, validUntil, err := sm.CreateToken(tu1ID, time.Minute)
 	require.NoError(t, err)
 	require.NotEmpty(t, token)
 	require.NotEmpty(t, validUntil)
@@ -167,12 +169,13 @@ func TestNewAgentToken(t *testing.T) {
 	require.NoError(t, err)
 
 	// get a new token
-	token, _, err := m.CreateSessionToken(tu1ID, time.Minute)
+	sm := m.GetSessionManager()
+	token, _, err := sm.CreateToken(tu1ID, time.Minute)
 	require.NoError(t, err)
 	require.NotEmpty(t, token)
 
 	// login with new token
-	clientID, _, err := m.ValidateToken(token)
+	clientID, _, _, err := sm.ValidateToken(token)
 	require.NoError(t, err)
 	require.Equal(t, tu1ID, clientID)
 }

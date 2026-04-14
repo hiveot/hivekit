@@ -7,8 +7,11 @@ import (
 	"github.com/hiveot/hivekit/go/modules"
 )
 
-// DefaultHistoryModuleID is the default moduleID of the history module.
-const DefaultHistoryModuleID = "history"
+// The type of module that implements the IHistoryService interface
+const HistoryModuleType = "history"
+
+// DefaultHistoryModuleID is the default instance ID of the history module.
+const DefaultHistoryModuleID = HistoryModuleType
 
 // DefaultLimit nr items of none provided
 const DefaultLimit = 1000

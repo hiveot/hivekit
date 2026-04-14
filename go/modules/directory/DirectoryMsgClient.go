@@ -1,3 +1,5 @@
+// package directory provides a client for the Directory service using RRN messages.
+// This is a golang implementation of the published TD.
 package directory
 
 import (
@@ -97,9 +99,14 @@ func NewDirectoryMsgClient(serviceID string, reqSink modules.IHiveModule) *Direc
 // Update a Thing TD in the directory and wait for confirmation
 // This retuns nil if success or an error if something went wrong.
 //
-// NOTE this is intended for use by agents, while the above DirectoryClient methods
+// NOTE this is intended for use by agents while the above DirectoryClient methods
 // are intended for use by consumers. Since NewDirectoryMsgClient overwrites the
 // notification sinks, any agent notification would be lost.
+// Instead this method uses the given agent request handler to send the request.
+//
+// directoryServiceID is the thing ID of the directory service instance.
+// tdJson is the TD in JSON to update in the directory.
+// reqHandler is the request handler of the agent to send the request through.
 func UpdateTD(directoryServiceID string, tdJson string, reqHandler msg.RequestHandler) error {
 	if directoryServiceID == "" {
 		directoryServiceID = directoryapi.DefaultDirectoryModuleID

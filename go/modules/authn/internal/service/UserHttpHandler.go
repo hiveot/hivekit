@@ -55,7 +55,8 @@ func (handler *UserHttpHandler) onHttpLogin(w http.ResponseWriter, r *http.Reque
 	}
 	if err == nil {
 		// the login is handled in-house and has an immediate return
-		newToken, validUntil, err = handler.m.Login(args.UserName, args.Password)
+		sm := handler.m.GetSessionManager()
+		newToken, validUntil, err = sm.Login(args.UserName, args.Password)
 
 		_ = validUntil
 		slog.Info("onHttpLogin", "clientID", args.UserName)
@@ -75,7 +76,8 @@ func (handler *UserHttpHandler) onHttpLogout(w http.ResponseWriter, r *http.Requ
 	rp, err := handler.httpServer.GetRequestParams(r)
 	if err == nil {
 		slog.Info("onHttpLogout", "clientID", rp.ClientID)
-		handler.m.Logout(rp.ClientID)
+		sm := handler.m.GetSessionManager()
+		sm.Logout(rp.ClientID)
 	}
 	utils.WriteReply(w, true, nil, err)
 }
@@ -92,7 +94,8 @@ func (handler *UserHttpHandler) onHttpTokenRefresh(w http.ResponseWriter, r *htt
 	if err == nil {
 		jsoniter.Unmarshal(rp.Payload, &oldToken)
 		slog.Info("onHttpTokenRefresh", "clientID", rp.ClientID)
-		newToken, validUntil, err = handler.m.RefreshToken(rp.ClientID, oldToken)
+		sm := handler.m.GetSessionManager()
+		newToken, validUntil, err = sm.RefreshToken(rp.ClientID, oldToken)
 		_ = validUntil
 	}
 	if err != nil {

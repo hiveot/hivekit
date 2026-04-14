@@ -50,7 +50,8 @@ func NewTestConsumer(m *service.AuthnService, protocolType, serverURL, clientID 
 
 	// ensure the client exists
 	_ = m.AddClient(clientID, "client 1", authnapi.ClientRoleViewer)
-	token, validUntil, _ := m.CreateSessionToken(clientID, time.Minute)
+	sm := m.GetSessionManager()
+	token, validUntil, _ := sm.CreateToken(clientID, time.Minute)
 	_ = validUntil
 	co, cc, err := clients.NewConsumerConnection(
 		appID, protocolType, serverURL, testCerts.CaCert, rpcTimeout)
@@ -91,21 +92,21 @@ func startTestAuthnModule(encryption string) (m *service.AuthnService, stopFn fu
 	// the password file to use
 	passwordFile := path.Join(testDir, "test.passwd")
 
-	authnConfig = authnapi.NewAuthnConfig()
-	authnConfig.Setup(testDir, testDir)
+	authnConfig = authnapi.NewAuthnConfig(testDir, testDir)
 	authnConfig.PasswordFile = passwordFile
-	authnConfig.AgentTokenValidityDays = 1
+	// authnConfig.AgentTokenValidityDays = 1
 	authnConfig.Encryption = encryption
 
 	m = service.NewAuthnService(authnConfig, httpServer)
-	err = m.Start("")
+	err = m.Start()
 	if err != nil {
 		panic("Error starting authn admin service:" + err.Error())
 	}
 
 	// last, link the http server and validator to enable the protected routes and enable the
 	// authn http endpoint.
-	httpServer.SetAuthenticator(m)
+	var authenticator transports.IAuthenticator = m.GetSessionManager()
+	httpServer.SetAuthenticator(authenticator)
 
 	return m, func() {
 		m.Stop()

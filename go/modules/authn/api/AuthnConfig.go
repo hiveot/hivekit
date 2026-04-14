@@ -37,12 +37,12 @@ type AuthnConfig struct {
 	// Encryption of passwords: "argon2id" (default) or "bcrypt"
 	Encryption string `yaml:"encryption,omitempty"`
 
-	// Auth token validity for agents in days
-	AgentTokenValidityDays int `yaml:"agentTokenValidityDays,omitempty"`
-	// Auth token validity for consumers in days
-	ConsumerTokenValidityDays int `yaml:"consumerTokenValidityDays,omitempty"`
-	// Auth token validity for services in days
-	ServiceTokenValidityDays int `yaml:"serviceTokenValidityDays,omitempty"`
+	// // Auth token validity for agents in days
+	// AgentTokenValidityDays int `yaml:"agentTokenValidityDays,omitempty"`
+	// // Auth token validity for consumers in days
+	// ConsumerTokenValidityDays int `yaml:"consumerTokenValidityDays,omitempty"`
+	// // Auth token validity for services in days
+	// ServiceTokenValidityDays int `yaml:"serviceTokenValidityDays,omitempty"`
 
 	// NoAutoStart prevents the auth service for auto starting. Intended for testing or custom implementation.
 	// NoAutoStart bool `yaml:"noAutoStart,omitempty"`
@@ -65,7 +65,7 @@ type AuthnConfig struct {
 
 // Setup ensures config is valid
 //
-//	storesDir is the default storage root directory ($HOME/stores)
+//	storesDir is the default storage root directory ($HOME/stores/authn)
 func (cfg *AuthnConfig) Setup(keysDir, storageDir string) {
 
 	if cfg.PasswordFile == "" {
@@ -83,15 +83,15 @@ func (cfg *AuthnConfig) Setup(keysDir, storageDir string) {
 		cfg.Encryption = PWHASH_ARGON2id
 	}
 
-	if cfg.AgentTokenValidityDays == 0 {
-		cfg.AgentTokenValidityDays = DefaultAgentTokenValidityDays
-	}
-	if cfg.ServiceTokenValidityDays == 0 {
-		cfg.ServiceTokenValidityDays = DefaultServiceTokenValidityDays
-	}
-	if cfg.ConsumerTokenValidityDays == 0 {
-		cfg.ConsumerTokenValidityDays = DefaultConsumerTokenValidityDays
-	}
+	// if cfg.AgentTokenValidityDays == 0 {
+	// 	cfg.AgentTokenValidityDays = DefaultAgentTokenValidityDays
+	// }
+	// if cfg.ServiceTokenValidityDays == 0 {
+	// 	cfg.ServiceTokenValidityDays = DefaultServiceTokenValidityDays
+	// }
+	// if cfg.ConsumerTokenValidityDays == 0 {
+	// 	cfg.ConsumerTokenValidityDays = DefaultConsumerTokenValidityDays
+	// }
 	cfg.KeysDir = keysDir
 	cfg.AdminAccountID = DefaultAdminUserID
 	// cfg.LauncherAccountID = DefaultLauncherServiceID
@@ -124,10 +124,17 @@ func (cfg *AuthnConfig) Setup(keysDir, storageDir string) {
 	//}
 }
 
-func NewAuthnConfig() AuthnConfig {
+// NewAuthnConfig creates a new AuthnConfig with default values and applies the Setup to
+// ensure the config is valid.
+//
+// Location of client keys and tokens
+//
+//	storesDir is the authentication data storage directory ($HOME/stores/authn)
+func NewAuthnConfig(keysDir, storageDir string) AuthnConfig {
 	cfg := AuthnConfig{
 		// default password encryption method
 		Encryption: PWHASH_ARGON2id,
 	}
+	cfg.Setup(keysDir, storageDir)
 	return cfg
 }

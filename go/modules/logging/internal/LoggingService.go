@@ -11,7 +11,6 @@ import (
 	loggingapi "github.com/hiveot/hivekit/go/modules/logging/api"
 	"github.com/hiveot/hivekit/go/modules/logging/config"
 	"github.com/hiveot/hivekit/go/utils"
-	"github.com/stretchr/testify/assert/yaml"
 )
 
 // LoggingService is a module for writing request, response and notification messages to a log output.
@@ -139,17 +138,8 @@ func (m *LoggingService) SetSink(sink modules.IHiveModule) {
 }
 
 // Start opens the logging destination.
-func (m *LoggingService) Start(configYaml string) (err error) {
+func (m *LoggingService) Start() (err error) {
 
-	if configYaml != "" {
-		err = yaml.Unmarshal([]byte(configYaml), &m.Config)
-		if err != nil {
-			slog.Error("Start: Failed to load logging module config", "error", err)
-			return err
-		}
-	}
-
-	m.SetModuleID(loggingapi.DefaultLoggingModuleID)
 	// TBD: separate config for  notifications vs requests logs?
 	m.requestLogger, m.releaseFn = m.NewLogger(&m.Config)
 	m.notificationLogger = m.requestLogger
@@ -171,6 +161,7 @@ func NewLoggingService(config config.LoggingConfig) *LoggingService {
 
 	m := &LoggingService{}
 	m.Config = config
+	m.SetModuleID(loggingapi.DefaultLoggingModuleID)
 
 	var _ loggingapi.ILoggingService = m // interface check
 	return m

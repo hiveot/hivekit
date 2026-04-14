@@ -25,7 +25,7 @@ func TestStartStop(t *testing.T) {
 	os.RemoveAll(filepath.Dir(LogFile))
 	cfg := config.NewLoggingConfig(LogFile, loggingapi.LoggingBackendFile)
 	m := logging.NewLoggingService(cfg)
-	err := m.Start("")
+	err := m.Start()
 	require.NoError(t, err)
 	m.Stop()
 }
@@ -38,7 +38,7 @@ func TestLogNotification(t *testing.T) {
 	cfg := config.NewLoggingConfig(LogFile, loggingapi.LoggingBackendFile)
 	cfg.Log2Stdout = true
 	m := logging.NewLoggingService(cfg)
-	err := m.Start("")
+	err := m.Start()
 	require.NoError(t, err)
 	defer m.Stop()
 

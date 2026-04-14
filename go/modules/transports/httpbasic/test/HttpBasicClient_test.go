@@ -35,7 +35,7 @@ func TestConnect(t *testing.T) {
 	require.NoError(t, err)
 	m := httpbasic.NewHttpBasicServer(srv)
 
-	err = m.Start("")
+	err = m.Start()
 	require.NoError(t, err)
 
 	cl := httpbasic.NewHttpBasicClient(baseURL, caCert, nil,

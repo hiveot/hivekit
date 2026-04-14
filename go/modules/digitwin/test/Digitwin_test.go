@@ -62,13 +62,13 @@ func startService() (
 	// the directory server that will contain digitwin Things
 	// digiDir := filepath.Join(storageDir, "digiDir.json")
 	dir = directory.NewDirectoryService(storageDir, testEnv.HttpServer)
-	err := dir.Start("")
+	err := dir.Start()
 	if err != nil {
 		panic("Failed to start directory server")
 	}
 	// the digitwin module to test, it will create its own vcache module
 	dtw = digitwin.NewDigitwinService(storageDir, dir, appServer.AddTDSecForms)
-	err = dtw.Start("")
+	err = dtw.Start()
 	if err != nil {
 		panic("unable to start the digitwin service")
 	}
@@ -77,7 +77,7 @@ func startService() (
 	rtr := router.NewRouterService(storageDir,
 		dtw.GetDeviceTD, []transports.ITransportServer{appServer}, testEnv.CertBundle.CaCert)
 	rtr.SetTimeout(rpcTimout)
-	err = rtr.Start("")
+	err = rtr.Start()
 	if err != nil {
 		panic("unable to start the router service")
 	}

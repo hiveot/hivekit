@@ -27,7 +27,7 @@ func startModule(t *testing.T) (certsapi.ICertsService, func(), error) {
 	_ = os.RemoveAll(storageDir)
 
 	m := certs.NewCertsServer(storageDir)
-	err := m.Start("")
+	err := m.Start()
 	require.NoError(t, err)
 	return m, func() {
 		m.Stop()
@@ -144,7 +144,7 @@ func TestMsgClient(t *testing.T) {
 
 	// use a direct transport instead of running a client-server
 	tp := testenv.NewTestTransport("testclient", m)
-	cl := certs.NewCertsMsgClient(certsapi.DefaultCertsServiceID, tp)
+	cl := certs.NewCertsMsgClient(certsapi.DefaultCertsServiceThingID, tp)
 	caCert, err := cl.GetCACert()
 	require.NoError(t, err)
 	require.NotEmpty(t, caCert)
@@ -174,7 +174,7 @@ func TestCreateCerts(t *testing.T) {
 	require.NotNil(t, serverTlsCert)
 
 	// this needs completion
-	cl := certs.NewCertsMsgClient(certsapi.DefaultCertsServiceID, nil)
+	cl := certs.NewCertsMsgClient(certsapi.DefaultCertsServiceThingID, nil)
 	// var _ certs.ICertsService = cl // interface check
 	_ = cl
 }

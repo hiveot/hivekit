@@ -28,13 +28,15 @@ func HandleAuthnUserRequest(m authnapi.IAuthnService, req *msg.RequestMessage, r
 		}
 
 	case authnapi.UserActionLogout:
-		m.Logout(req.SenderID)
+		aa := m.GetSessionManager()
+		aa.Logout(req.SenderID)
 
 	case authnapi.UserActionRefreshToken:
 		var oldToken string
 		err = utils.DecodeAsObject(req.Input, &oldToken)
 		if err == nil {
-			output, _, err = m.RefreshToken(req.SenderID, oldToken)
+			aa := m.GetSessionManager()
+			output, _, err = aa.RefreshToken(req.SenderID, oldToken)
 		} else {
 			err = errors.New("bad function argument: " + err.Error())
 		}

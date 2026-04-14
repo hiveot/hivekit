@@ -130,7 +130,7 @@ func (m *WssTransportServer) ServeWssConnection(w http.ResponseWriter, r *http.R
 // Start listening for incoming websocket connections
 //
 //	yamlConfig: todo, wssPath
-func (m *WssTransportServer) Start(yamlConfig string) (err error) {
+func (m *WssTransportServer) Start() (err error) {
 
 	connectURL := m.httpServer.GetConnectURL()
 	slog.Info("Start: Starting websocket module, Listening on: " + connectURL)

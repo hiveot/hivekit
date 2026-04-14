@@ -35,7 +35,7 @@ func (device *TestDevice) GetTD() *td.TD {
 // Start the test device
 // This starts the http server, the messaging transport (sub-protocol) and
 // creates an agent instance.
-func (device *TestDevice) Start(_ string) error {
+func (device *TestDevice) Start() error {
 	device.SetModuleID(device.agentID)
 
 	// setup the server, transport and link the device to the transport
@@ -56,7 +56,7 @@ func (device *TestDevice) Start(_ string) error {
 	case transports.ProtocolTypeHiveotWebsocket:
 		device.TransportServer = wsstransport.NewHiveotWssServer(device.HttpServer, 0)
 	}
-	err = device.TransportServer.Start("")
+	err = device.TransportServer.Start()
 	if err != nil {
 		device.HttpServer.Stop()
 		device.HttpServer = nil

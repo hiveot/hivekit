@@ -96,7 +96,7 @@ func (m *DiscoveryServer) ServeThingTD(thingTDJSON string) (err error) {
 //     containing a TXT record for 'td', 'type', 'scheme' as described in
 //     https://w3c.github.io/wot-discovery/#introduction-dns-sd-sec
 //  3. start listening for devices and publish notifications on discovered devices
-func (m *DiscoveryServer) Start(_ string) (err error) {
+func (m *DiscoveryServer) Start() (err error) {
 
 	slog.Info("Start: Starting discovery module", "moduleID", m.GetModuleID())
 	return nil

@@ -103,9 +103,6 @@ func StartGrpcTransportConnection(
 		// respTimeout:  respTimeout,
 		// rnrChan:      msg.NewRnRChan(),
 	}
-	// // use the same buffered stream as the client uses for sending and receiving messages
-	c.bstrm = grpclib.NewBufferedStream(grpcStream, nil, c._onServerMessage, time.Minute)
-
 	// determine the client ID and connection ID from the grpc stream context
 	peerInfo, ok := peer.FromContext(grpcStream.Context())
 	var remoteAddr string
@@ -113,6 +110,10 @@ func StartGrpcTransportConnection(
 		remoteAddr = peerInfo.Addr.String()
 	}
 	c.Init(clientID, remoteAddr, connectionID, nil, c.sendRaw)
+
+	// // use the same buffered stream as the client uses for sending and receiving messages
+	c.bstrm = grpclib.NewBufferedStream(grpcStream, nil, c._onServerMessage, time.Minute)
+
 	var _ transports.IConnection = c // interface check
 
 	return c

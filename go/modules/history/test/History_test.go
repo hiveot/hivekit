@@ -69,11 +69,12 @@ func startHistoryService(clean bool) (
 	// create the history module and link it to the protocol server
 	// since the history module runs on the server it doesn't need an agent
 	// instance.
-	histModule = internal.NewHistoryService(dataDir, historyStoreBackend)
+	cfg := historyapi.NewHistoryConfig(dataDir, historyStoreBackend)
+	histModule = internal.NewHistoryService(cfg)
 	testEnv.Server.SetRequestSink(histModule.HandleRequest)
 	histModule.SetNotificationSink(testEnv.Server.HandleNotification)
 
-	err := histModule.Start("")
+	err := histModule.Start()
 	if err != nil {
 		panic("Failed starting the history module: " + err.Error())
 	}
@@ -683,7 +684,7 @@ func TestPubEvents(t *testing.T) {
 	ag1 := clients.NewAgent(agent1ID, nil)
 	m.SetRequestSink(ag1.HandleRequest)
 	ag1.SetNotificationSink(m.HandleNotification)
-	defer ag1.Start("")
+	defer ag1.Start()
 	defer ag1.Stop()
 
 	// only valid names should be added

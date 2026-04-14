@@ -232,6 +232,7 @@ func (svc *WotWssMsgEncoder) DecodeResponse(raw []byte) (*msg.ResponseMessage, e
 
 	respMsg := &msg.ResponseMessage{
 		CorrelationID: wssResp.CorrelationID,
+		Error:         wssResp.Error,
 		// Input:         wssResp.Input,
 		MessageID:   wssResp.MessageID,
 		MessageType: wssResp.MessageType,
@@ -242,11 +243,6 @@ func (svc *WotWssMsgEncoder) DecodeResponse(raw []byte) (*msg.ResponseMessage, e
 		Status:    msg.StatusCompleted,
 		ThingID:   wssResp.ThingID,
 		Timestamp: wssResp.Timestamp,
-	}
-
-	// if the response is an error response then no need to decode any further
-	if wssResp.Error != nil {
-		return respMsg, nil
 	}
 
 	switch wssResp.Operation {

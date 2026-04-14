@@ -188,7 +188,7 @@ func NewPasetoAuthenticator(
 		ConsumerTokenValidityDays: authnapi.DefaultConsumerTokenValidityDays,
 		ServiceTokenValidityDays:  authnapi.DefaultServiceTokenValidityDays,
 	}
-	var _ IAuthenticator = svc // interface check
+	var _ IAuthnAuthenticator = svc // interface check
 	return svc
 }
 

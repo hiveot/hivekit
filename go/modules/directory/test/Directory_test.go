@@ -49,7 +49,7 @@ func StartDirectoryServer() (
 	testEnv, cancelTestEnv := testenv.StartTestEnv(defaultProtocol)
 	// use in-memory storage
 	m = directory.NewDirectoryService(storageDir, testEnv.HttpServer)
-	err := m.Start("")
+	err := m.Start()
 	if err != nil {
 		panic("StartDirectoryServer: failed to start the directory " + err.Error())
 	}
@@ -67,7 +67,7 @@ func TestStartStop(t *testing.T) {
 	t.Logf("---%s---\n", t.Name())
 
 	m := directory.NewDirectoryService(storageDir, nil)
-	err := m.Start("")
+	err := m.Start()
 	require.NoError(t, err)
 	defer m.Stop()
 
@@ -85,7 +85,7 @@ func TestCreateTD(t *testing.T) {
 	thingID := "thing1"
 
 	m := directory.NewDirectoryService(storageDir, nil)
-	err := m.Start("")
+	err := m.Start()
 	require.NoError(t, err)
 	defer m.Stop()
 
