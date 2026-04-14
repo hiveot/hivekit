@@ -5,7 +5,6 @@ import (
 
 	"github.com/hiveot/hivekit/go/modules/transports"
 	"github.com/hiveot/hivekit/go/modules/transports/httpbasic/internal/client"
-	"github.com/hiveot/hivekit/go/modules/transports/httpserver/tlsclient"
 )
 
 // NewHttpBasicClient creates a new instance of the WoT compatible http-basic
@@ -35,7 +34,7 @@ func NewHttpBasicClient(
 //	getForm is the handler for return a form for invoking an operation. nil for default
 //	ch optional callback with connection status changes
 func NewHttpBasicTLSClient(
-	tlsClient *tlsclient.TLSClient, getForm transports.GetFormHandler,
+	tlsClient transports.ITLSClient, getForm transports.GetFormHandler,
 	ch transports.ConnectionHandler) transports.ITransportClient {
 
 	return client.NewHttpBasicTLSClient(tlsClient, getForm, ch)

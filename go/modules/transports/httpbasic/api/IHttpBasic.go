@@ -4,7 +4,8 @@ import "github.com/hiveot/hivekit/go/modules/transports"
 
 const (
 	// WotHttpBasicModuleID is the default thingID of the http basic transport module.
-	WotHttpBasicModuleID = "http-basic"
+	WotHttpBasicModuleType = "http-basic"
+	WotHttpBasicModuleID   = "http-basic"
 	// WotHttpBasicProtocolType = "http-basic"
 	// WotHttpBasicSubprotocol  = ""
 	// WotHttpBasicUrlScheme    = "https"

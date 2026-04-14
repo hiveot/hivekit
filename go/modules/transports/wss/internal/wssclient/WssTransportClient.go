@@ -18,7 +18,7 @@ import (
 	"github.com/hiveot/hivekit/go/api/td"
 	"github.com/hiveot/hivekit/go/modules"
 	"github.com/hiveot/hivekit/go/modules/transports"
-	"github.com/hiveot/hivekit/go/modules/transports/httpserver/tlsclient"
+	"github.com/hiveot/hivekit/go/modules/transports/httpclient"
 	wssencoder "github.com/hiveot/hivekit/go/modules/transports/wss/internal/encoder"
 	"github.com/hiveot/hivekit/go/utils"
 
@@ -78,7 +78,7 @@ type WssTransportClient struct {
 	//              [notif] <- client <- server <- [notif] <- module
 
 	// http2 client for posting messages
-	tlsClient transports.ITlsClient
+	tlsClient transports.ITLSClient
 
 	// underlying websocket connection
 	wssConn     *websocket.Conn
@@ -455,7 +455,7 @@ func NewHiveotWssClient(
 	timeout := transports.DefaultRpcTimeout
 	hostPort := urlParts.Host
 	wssPath := urlParts.Path
-	tlsClient := tlsclient.NewTLSClient(hostPort, nil, caCert, timeout)
+	tlsClient := httpclient.NewHttpClient(hostPort, nil, caCert, timeout)
 
 	cl := WssTransportClient{
 		caCert:               caCert,
@@ -488,7 +488,7 @@ func NewWotWssClient(
 	urlParts, _ := url.Parse(wssURL)
 	hostPort := urlParts.Host
 	wssPath := urlParts.Path
-	tlsClient := tlsclient.NewTLSClient(hostPort, nil, caCert, timeout)
+	tlsClient := httpclient.NewHttpClient(hostPort, nil, caCert, timeout)
 
 	cl := &WssTransportClient{
 		caCert:               caCert,

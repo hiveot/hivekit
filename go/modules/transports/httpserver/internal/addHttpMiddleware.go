@@ -6,7 +6,7 @@ import (
 	"net/http"
 
 	"github.com/hiveot/hivekit/go/modules/transports"
-	httpserverapi "github.com/hiveot/hivekit/go/modules/transports/httpserver/api"
+	httpserverconfig "github.com/hiveot/hivekit/go/modules/transports/httpserver/config"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
@@ -28,7 +28,7 @@ import (
 // # This includes middleware for ping health check
 //
 // Note that without authentication, the context will not have clientID or sessionID set.
-func (m *HttpServerModule) addMiddleware(cfg *httpserverapi.Config) {
+func (m *HttpServer) addMiddleware(cfg *httpserverconfig.Config) {
 	rootRouter := m.rootRouter
 
 	// handle CORS using the cors plugin
@@ -145,22 +145,22 @@ func (m *HttpServerModule) addMiddleware(cfg *httpserverapi.Config) {
 // This router has cors protection enabled.
 // This returns nil if authentication is not configured and will probably
 // cause a panic when used.
-func (m *HttpServerModule) GetProtectedRoute() chi.Router {
+func (m *HttpServer) GetProtectedRoute() chi.Router {
 	return m.protRoute
 }
 
 // GetPublicRouter returns the router with public accessible routes for this server.
 // This router has cors protection enabled.
-func (m *HttpServerModule) GetPublicRoute() chi.Router {
+func (m *HttpServer) GetPublicRoute() chi.Router {
 	return m.pubRoute
 }
 
 // GetRequestParams
-func (m *HttpServerModule) GetRequestParams(r *http.Request) (transports.RequestParams, error) {
+func (m *HttpServer) GetRequestParams(r *http.Request) (transports.RequestParams, error) {
 	return GetRequestParams(r)
 }
 
 // GetClientIdFromContext
-func (m *HttpServerModule) GetClientIdFromContext(r *http.Request) (string, error) {
+func (m *HttpServer) GetClientIdFromContext(r *http.Request) (string, error) {
 	return GetClientIdFromContext(r)
 }

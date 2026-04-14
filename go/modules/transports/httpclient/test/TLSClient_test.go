@@ -1,7 +1,6 @@
-package tlsclient_test
+package internal_test
 
 import (
-	"crypto"
 	"crypto/tls"
 	"crypto/x509"
 	"log/slog"
@@ -11,7 +10,8 @@ import (
 	"time"
 
 	certstest "github.com/hiveot/hivekit/go/modules/certs/test"
-	"github.com/hiveot/hivekit/go/modules/transports/httpserver/tlsclient"
+	"github.com/hiveot/hivekit/go/modules/transports/httpclient"
+	"github.com/hiveot/hivekit/go/modules/transports/httpclient/internal"
 	"github.com/hiveot/hivekit/go/utils"
 	jsoniter "github.com/json-iterator/go"
 	"github.com/stretchr/testify/require"
@@ -28,14 +28,14 @@ var authBundle certstest.TestCertBundle
 var serverTLSConf *tls.Config
 
 // x509CertToTLS combines a x509 certificate and private key into a TLS certificate
-func x509CertToTLS(cert *x509.Certificate, privKey crypto.PrivateKey) *tls.Certificate {
-	// A TLS certificate is a wrapper around x509 with private key
-	tlsCert := tls.Certificate{}
-	tlsCert.Certificate = append(tlsCert.Certificate, cert.Raw)
-	tlsCert.PrivateKey = privKey
+// func x509CertToTLS(cert *x509.Certificate, privKey crypto.PrivateKey) *tls.Certificate {
+// 	// A TLS certificate is a wrapper around x509 with private key
+// 	tlsCert := tls.Certificate{}
+// 	tlsCert.Certificate = append(tlsCert.Certificate, cert.Raw)
+// 	tlsCert.PrivateKey = privKey
 
-	return &tlsCert
-}
+// 	return &tlsCert
+// }
 
 func startTestServer(mux *http.ServeMux) (*http.Server, error) {
 	var err error
@@ -98,7 +98,7 @@ func TestNoCA(t *testing.T) {
 	assert.NoError(t, err)
 
 	// certificate authentication but no CA
-	cl := tlsclient.NewTLSClient(testAddress, authBundle.ClientCert, nil, 0)
+	cl := httpclient.NewHttpClient(testAddress, authBundle.ClientCert, nil, 0)
 	assert.NoError(t, err)
 
 	_, _, err = cl.Get(path1)
@@ -107,7 +107,7 @@ func TestNoCA(t *testing.T) {
 	cl.Close()
 
 	// No authentication
-	cl = tlsclient.NewTLSClient(testAddress, nil, nil, 0)
+	cl = httpclient.NewHttpClient(testAddress, nil, nil, 0)
 
 	_, _, err = cl.Get(path1)
 	assert.NoError(t, err)
@@ -132,7 +132,7 @@ func TestAuthClientCert(t *testing.T) {
 		path1Hit++
 	})
 	//
-	cl := tlsclient.NewTLSClient(testAddress, authBundle.ClientCert, authBundle.CaCert, 0)
+	cl := internal.NewHttpClient(testAddress, authBundle.ClientCert, authBundle.CaCert, 0)
 	assert.NoError(t, err)
 
 	clientCert := cl.GetClientCertificate()
@@ -169,13 +169,13 @@ func TestAuthClientCert(t *testing.T) {
 }
 
 func TestNotStarted(t *testing.T) {
-	cl := tlsclient.NewTLSClient(testAddress, nil, authBundle.CaCert, 0)
+	cl := httpclient.NewHttpClient(testAddress, nil, authBundle.CaCert, 0)
 	_, _, err := cl.Get("/notstarted")
 	assert.Error(t, err)
 	cl.Close()
 }
 func TestNoClientCert(t *testing.T) {
-	cl := tlsclient.NewTLSClient(testAddress, nil, authBundle.CaCert, 0)
+	cl := httpclient.NewHttpClient(testAddress, nil, authBundle.CaCert, 0)
 	cl.Close()
 }
 
@@ -183,7 +183,7 @@ func TestBadClientCert(t *testing.T) {
 	// use cert from a different CA
 	bundle2 := certstest.CreateTestCertBundle(TestKeyType)
 
-	cl := tlsclient.NewTLSClient(testAddress, bundle2.ServerCert, authBundle.CaCert, 0)
+	cl := httpclient.NewHttpClient(testAddress, bundle2.ServerCert, authBundle.CaCert, 0)
 	// this should produce an error in the log
 	//assert.Error(t, err)
 	cl.Close()
@@ -192,7 +192,7 @@ func TestBadClientCert(t *testing.T) {
 func TestNoServer(t *testing.T) {
 	// setup server and client environm
 	//
-	cl := tlsclient.NewTLSClient(testAddress, authBundle.ClientCert, authBundle.CaCert, 0)
+	cl := httpclient.NewHttpClient(testAddress, authBundle.ClientCert, authBundle.CaCert, 0)
 	_, _, err := cl.Get("/noserver")
 	assert.Error(t, err)
 	cl.Close()
@@ -202,7 +202,7 @@ func TestCert404(t *testing.T) {
 	srv, err := startTestServer(mux)
 	assert.NoError(t, err)
 
-	cl := tlsclient.NewTLSClient(testAddress, authBundle.ClientCert, authBundle.CaCert, 0)
+	cl := httpclient.NewHttpClient(testAddress, authBundle.ClientCert, authBundle.CaCert, 0)
 
 	_, _, err = cl.Get("/pathnotfound")
 	assert.Error(t, err)
@@ -235,7 +235,7 @@ func TestTokenAuth(t *testing.T) {
 	assert.NoError(t, err)
 
 	// connect using the given token
-	cl := tlsclient.NewTLSClient(testAddress, authBundle.ClientCert, authBundle.CaCert, 0)
+	cl := httpclient.NewHttpClient(testAddress, authBundle.ClientCert, authBundle.CaCert, 0)
 	err = cl.ConnectWithToken(user1, authToken)
 	require.NoError(t, err)
 
@@ -265,7 +265,7 @@ func TestTokenFail(t *testing.T) {
 		resp.WriteHeader(http.StatusUnauthorized)
 	})
 	//
-	cl := tlsclient.NewTLSClient(testAddress, nil, authBundle.CaCert, 0)
+	cl := httpclient.NewHttpClient(testAddress, nil, authBundle.CaCert, 0)
 	cl.ConnectWithToken(clientID, "badtoken")
 	resp, _, err := cl.Post(pathHello1, []byte("test"))
 	assert.Empty(t, resp)

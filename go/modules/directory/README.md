@@ -16,7 +16,7 @@ There are two notable issues for which there is no standardization:
 1: For security reasons, a TD should only be writable by the owning agent. How to determine who this agent is?
 2: How to prevent thingID collisions? There is no mechanism to guarantee uniquenes between devices.
 
-Solution: HiveOT requires that thingIDs contain the agentID prefix separated by a colon. The format for thingID is: "{agentID}:{deviceID}", where {deviceID} is the ID of the device unique within the scope of the agent publishing the TD.
+Current solution: HiveOT uses the convention that thingIDs contain the agentID prefix separated by a colon. The format for thingID is: "{agentID}:{deviceID}", where {deviceID} is the ID of the device unique within the scope of the agent publishing the TD.
 
 If the TD is to be published in an internet based directory, the agentID must be globally unique and the forms must be updated to externally reachable addresses. In HiveOT this is not a concern of devices. Instead a gateway module must handle external exposure and security.
 
@@ -34,13 +34,15 @@ To write their TD to the directory storage, IoT device agents need to discover t
 
 ## Backends
 
-This module internally uses a Key-Value bucket store for persisting TD documents. At this point there is no use-case for a custom store so this remains internal.
+This module internally uses a Key-Value bucket store for persisting TD documents. When read, TDs are cached in memory for fast access by consumers.
+
+TBD: maybe use a filesystem based backend where TDs are stored? It would make importing TDs out-of-band easier.
 
 ## Usage
 
 There are two ways to create an instance of the directory.
 
-1. Use the hivekit pipeline factory. This factory accepts a pipeline configuration and automatically creates instances of the neccesary modules.
+1. Use the hivekit module factory. This factory provides the application environment and automatically creates instances of the neccesary modules.
 
 2. Manually
    1. If the HTTP API is enabled, create an instance of the http server module. Most likely there already is one for use with one of the transport protocols.
@@ -49,6 +51,6 @@ There are two ways to create an instance of the directory.
 
    3. Call Start(). This will initialize or create the store and register the HTTP endpoints with the HTTP server module.
 
-   4. To use the RRN message API, link it as a sink to a server module pipeline. Any directory requests will be handled by the module.
+   4. To use the RRN message API, link it as a sink of a server module. Any directory requests will be handled by the module. Modules can be chained and it doesn't matter where in the chain the directory module reside.
 
    5. Before shutdown call Stop() to ensure the datastore is properly closed.

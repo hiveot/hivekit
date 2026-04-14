@@ -7,11 +7,13 @@ import (
 
 	"github.com/hiveot/hivekit/go/factory"
 	factoryapi "github.com/hiveot/hivekit/go/factory/api"
+	certstest "github.com/hiveot/hivekit/go/modules/certs/test"
 	"github.com/hiveot/hivekit/go/utils"
 	"github.com/stretchr/testify/assert"
 )
 
 var testDir = path.Join(os.TempDir(), "hivekit", "factory-test")
+var testCerts = certstest.CreateTestCertBundle(utils.KeyTypeED25519)
 
 // TestMain creates a test environment
 // Used for all test cases in this package
@@ -61,10 +63,9 @@ func TestStartStop(t *testing.T) {
 func TestGetAuthenticator(t *testing.T) {
 	// just test that the environment can be created and loaded
 	env := factoryapi.NewAppEnvironment(testDir, false)
-	err := env.LoadConfig(&env)
-	if err != nil {
-		t.Errorf("Failed loading config: %s", err.Error())
-	}
+	env.CaCert = testCerts.CaCert
+	env.ServerCert = testCerts.ServerCert
+
 	f := factory.NewModuleFactory(env, ServerModuleTable)
 	assert.NotNil(t, f)
 

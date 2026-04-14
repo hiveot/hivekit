@@ -19,7 +19,7 @@ import (
 	"github.com/hiveot/hivekit/go/modules/router"
 	routerapi "github.com/hiveot/hivekit/go/modules/router/api"
 	"github.com/hiveot/hivekit/go/modules/transports"
-	httpserverapi "github.com/hiveot/hivekit/go/modules/transports/httpserver/api"
+	httpserverconfig "github.com/hiveot/hivekit/go/modules/transports/httpserver/config"
 	"github.com/hiveot/hivekit/go/testenv"
 	"github.com/hiveot/hivekit/go/utils"
 	"github.com/stretchr/testify/assert"
@@ -52,7 +52,7 @@ func startTestDevice(agentID string, thingID string) (testDevice *testenv.TestDe
 	testAuthn.AddClient(testRouterID, "", authnapi.ClientRoleManager)
 
 	// create a test device with server
-	cfg := httpserverapi.NewConfig(
+	cfg := httpserverconfig.NewConfig(
 		certsBundle.ServerAddr, testDevicePort,
 		certsBundle.ServerCert, certsBundle.CaCert, testAuthn)
 

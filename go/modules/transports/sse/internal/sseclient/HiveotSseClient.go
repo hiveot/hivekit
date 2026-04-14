@@ -15,7 +15,7 @@ import (
 	"github.com/hiveot/hivekit/go/api/td"
 	"github.com/hiveot/hivekit/go/modules"
 	"github.com/hiveot/hivekit/go/modules/transports"
-	"github.com/hiveot/hivekit/go/modules/transports/httpserver/tlsclient"
+	"github.com/hiveot/hivekit/go/modules/transports/httpclient"
 	sseapi "github.com/hiveot/hivekit/go/modules/transports/sse/api"
 	jsoniter "github.com/json-iterator/go"
 	"github.com/teris-io/shortid"
@@ -76,7 +76,7 @@ type HiveotSseClient struct {
 	timeout time.Duration
 
 	// http2 client for posting messages
-	tlsClient transports.ITlsClient
+	tlsClient transports.ITLSClient
 }
 
 // Authenticate the client connection with the server
@@ -538,7 +538,7 @@ func NewHiveotSseClient(sseURL string, caCert *x509.Certificate,
 	ssePath := urlParts.Path
 	// use SetTimeout to change the default
 	timeout := transports.DefaultRpcTimeout
-	tlsClient := tlsclient.NewTLSClient(hostPort, nil, caCert, timeout)
+	tlsClient := httpclient.NewHttpClient(hostPort, nil, caCert, timeout)
 
 	cl := &HiveotSseClient{
 		connectHandler: ch,

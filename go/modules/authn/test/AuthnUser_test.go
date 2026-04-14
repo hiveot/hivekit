@@ -10,7 +10,7 @@ import (
 	authnapi "github.com/hiveot/hivekit/go/modules/authn/api"
 	"github.com/hiveot/hivekit/go/modules/authn/internal/service"
 	"github.com/hiveot/hivekit/go/modules/clients"
-	"github.com/hiveot/hivekit/go/modules/transports/httpserver/tlsclient"
+	"github.com/hiveot/hivekit/go/modules/transports/httpclient"
 	"github.com/hiveot/hivekit/go/testenv"
 	"github.com/hiveot/hivekit/go/utils"
 	jsoniter "github.com/json-iterator/go"
@@ -236,7 +236,7 @@ func TestAuthClientCert(t *testing.T) {
 	_ = protocolType
 	urlParts, err := url.Parse(serverAddress)
 
-	tlsClient := tlsclient.NewTLSClient(
+	tlsClient := httpclient.NewHttpClient(
 		urlParts.Host, testCerts.ClientCert, testCerts.CaCert, 0)
 
 	// client should be able to read its profile using just client cert as auth

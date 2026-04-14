@@ -18,7 +18,7 @@ import (
 	grpctransport "github.com/hiveot/hivekit/go/modules/transports/grpc"
 	"github.com/hiveot/hivekit/go/modules/transports/httpbasic"
 	"github.com/hiveot/hivekit/go/modules/transports/httpserver"
-	httpserverapi "github.com/hiveot/hivekit/go/modules/transports/httpserver/api"
+	"github.com/hiveot/hivekit/go/modules/transports/httpserver/config"
 	ssetransport "github.com/hiveot/hivekit/go/modules/transports/sse"
 	wsstransport "github.com/hiveot/hivekit/go/modules/transports/wss"
 	"github.com/hiveot/hivekit/go/utils"
@@ -307,7 +307,7 @@ func (testEnv *TestEnv) StartTestServer(protocol string) (srv transports.ITransp
 func (testEnv *TestEnv) StartHttpServer() {
 
 	// cert uses localhost
-	cfg := httpserverapi.NewConfig(
+	cfg := httpserverconfig.NewConfig(
 		testEnv.CertBundle.ServerAddr, TestServerHttpPort,
 		testEnv.CertBundle.ServerCert,
 		testEnv.CertBundle.CaCert,

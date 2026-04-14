@@ -22,16 +22,18 @@ type GetCredentials func(thingID string) (clientID string, cred string, credType
 // This returns nil if no form is found for the operation.
 type GetFormHandler func(op string, thingID string, name string) *td.Form
 
-// ITransportClient defines the interface of a transport client connection
+// ITransportClient defines the interface of a transport client connection.
 // This implements IHiveModule and IConnection.
 type ITransportClient interface {
 	modules.IHiveModule
 	IConnection
 
-	// Authenticate the client connection with the server
+	// Authenticate the client connection with the server.
 	// This determine which auth schema the TD describes, obtains the credentials
 	// and injects the authentication credentials according to the TDI schema.
 	// This returns an error if the schema isn't supported or is not compatible.
+	//
+	// Alternatively, use ConnectWithToken if it is known that token authentication is supported.
 	Authenticate(tdi *td.TD, getCredentials GetCredentials) error
 
 	// ConnectWithToken connects to the transport server using a clientID and

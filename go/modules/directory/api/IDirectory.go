@@ -5,6 +5,8 @@ import (
 	"github.com/hiveot/hivekit/go/modules"
 )
 
+const DirectoryModuleType = "directory"
+
 // DefaultDirectoryModuleID is the default moduleID of the directory module instance.
 // note that if multiple directory instances are created they must use different thingIDs
 const DefaultDirectoryModuleID = "directory"

@@ -1,8 +1,8 @@
 # Authn - Authentication Module
 
-The authentication module provides a method to manage clients and obtain authentication tokens using password based login.
+The authentication module provides the capabilities to manage clients, create login sessions and authenticate tokens.
 
-Existing tokens can be refreshed by clients and client tokens can be cancelled.
+The module supports the messaging API to manage clients, and offers a http API for password login, logout and token refresh.
 
 ## Status
 
@@ -10,9 +10,7 @@ This module is in alpha. It is functional but breaking changes can be expected.
 
 ## Usage
 
-To create an instance of the module a http server must be provided that will serve the http endpoints.
-
-The http server is optional and used to make http endpoints available for logging in, logging out and token refresh. The AuthnHttpClient is a simple wrapper to simplify its usage.
+To create an instance of the module a http server can be provided that will serve the http endpoints. The http server is optional and used to make http endpoints available for logging in, logging out and token refresh. The AuthnHttpClient is a simple wrapper to simplify its usage.
 
 In order to login and create auth tokens, an account must be created for the client first. The module api can be used to manage clients. The module TM also describes which actions are available for user management through RRN messages.
 

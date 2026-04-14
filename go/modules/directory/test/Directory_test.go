@@ -15,7 +15,7 @@ import (
 	directoryapi "github.com/hiveot/hivekit/go/modules/directory/api"
 	"github.com/hiveot/hivekit/go/modules/directory/internal"
 	"github.com/hiveot/hivekit/go/modules/transports"
-	"github.com/hiveot/hivekit/go/modules/transports/httpserver/tlsclient"
+	"github.com/hiveot/hivekit/go/modules/transports/httpclient"
 	"github.com/hiveot/hivekit/go/testenv"
 	"github.com/hiveot/hivekit/go/utils"
 	jsoniter "github.com/json-iterator/go"
@@ -178,7 +178,7 @@ func TestGetDirectoryTD(t *testing.T) {
 	// token, _, err := testEnv.CreateToken(userID, time.Minute)
 	// require.NoError(t, err)
 
-	httpClient := tlsclient.NewTLSClient(hostPort, nil, testEnv.CertBundle.CaCert, time.Minute)
+	httpClient := httpclient.NewHttpClient(hostPort, nil, testEnv.CertBundle.CaCert, time.Minute)
 	err := httpClient.ConnectWithToken(userID, token)
 	require.NoError(t, err)
 	defer httpClient.Close()

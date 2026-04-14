@@ -34,6 +34,9 @@ type ModuleFactory struct {
 	// instances of modules marked as singleton
 	singletonModules map[string]modules.IHiveModule
 
+	// the authenticator proxy
+	authProxy *AuthenticatorProxy
+
 	mux sync.RWMutex
 }
 
@@ -43,18 +46,9 @@ func (f *ModuleFactory) GetEnvironment() *factoryapi.AppEnvironment {
 }
 
 // Used for server modules that need to authenticate incoming connections
-// This returns nil if no authentication module is registered.
+// This returns a proxy to the actual authenticator.
 func (f *ModuleFactory) GetAuthenticator() transports.IAuthenticator {
-	m, err := f.GetModule(transports.AuthenticatorModuleType)
-	if err != nil {
-		slog.Warn("GetAuthenticator: no authentication module is registered")
-		return nil
-	}
-	iauthn, ok := m.(transports.IAuthenticator)
-	if !ok {
-		slog.Error("The http server module does not support the IHttpServer API")
-	}
-	return iauthn
+	return f.authProxy
 }
 
 // Used for various modules that need to serve http endpoints, e.g. http basic authn, directory, etc.
@@ -126,6 +120,10 @@ func (f *ModuleFactory) RegisterModule(moduleType string, moduleDef factoryapi.M
 	f.moduleTable[moduleType] = moduleDef
 }
 
+func (f *ModuleFactory) SetAuthenticator(impl transports.IAuthenticator) {
+	f.authProxy.SetAuthenticator(impl)
+}
+
 // NewModuleClient returns a client instance of a module with the given name.
 // If the name is unknown this returns nil.
 // func (f *ModuleFactory) NewModuleClient(name string) (m modules.IHiveModule) {
@@ -165,6 +163,7 @@ func NewModuleFactory(
 		moduleTable = make(map[string]factoryapi.ModuleDefinition)
 	}
 	f := &ModuleFactory{
+		authProxy:        NewAuthenticatorProxy(),
 		env:              env,
 		moduleTable:      moduleTable,
 		singletonModules: make(map[string]modules.IHiveModule),

@@ -29,7 +29,7 @@ const maxSSEMessageSize = 1024 * 1024 * 10
 // This invokes onConnect when the connection is lost. The caller must handle the
 // connection established when the first ping is received after successful connection.
 func ConnectSSE(
-	tlsClient transports.ITlsClient, // TLS client with bearer token
+	tlsClient transports.ITLSClient, // TLS client with bearer token
 	ssePath string,
 	onConnect func(bool, error),
 	onMessage func(event gosse.Event),

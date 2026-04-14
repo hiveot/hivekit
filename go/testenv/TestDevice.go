@@ -7,7 +7,7 @@ import (
 	"github.com/hiveot/hivekit/go/modules/transports"
 	"github.com/hiveot/hivekit/go/modules/transports/httpbasic"
 	"github.com/hiveot/hivekit/go/modules/transports/httpserver"
-	httpserverapi "github.com/hiveot/hivekit/go/modules/transports/httpserver/api"
+	httpserverconfig "github.com/hiveot/hivekit/go/modules/transports/httpserver/config"
 	ssetransport "github.com/hiveot/hivekit/go/modules/transports/sse"
 	wsstransport "github.com/hiveot/hivekit/go/modules/transports/wss"
 )
@@ -17,7 +17,7 @@ type TestDevice struct {
 	modules.HiveModuleBase
 
 	agentID         string
-	cfg             *httpserverapi.Config
+	cfg             *httpserverconfig.Config
 	HttpServer      transports.IHttpServer
 	TransportServer transports.ITransportServer
 	Agent           *clients.Agent
@@ -97,7 +97,7 @@ func (device *TestDevice) Stop() {
 // agentID is the service that manages the device
 // tm is the TM of the thing to manage
 // protocolType sets the type of server to use
-func NewTestDevice(cfg *httpserverapi.Config, agentID string, tm *td.TD,
+func NewTestDevice(cfg *httpserverconfig.Config, agentID string, tm *td.TD,
 	protocolType string) *TestDevice {
 	v := &TestDevice{
 		protocolType: protocolType,

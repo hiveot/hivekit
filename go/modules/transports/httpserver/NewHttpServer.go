@@ -4,17 +4,17 @@ import (
 	factoryapi "github.com/hiveot/hivekit/go/factory/api"
 	"github.com/hiveot/hivekit/go/modules"
 	"github.com/hiveot/hivekit/go/modules/transports"
-	httpserverapi "github.com/hiveot/hivekit/go/modules/transports/httpserver/api"
+	httpserverconfig "github.com/hiveot/hivekit/go/modules/transports/httpserver/config"
 	"github.com/hiveot/hivekit/go/modules/transports/httpserver/internal"
 )
 
-// Create a new http server instance with the given configuration
-func NewHttpServerModule(cfg *httpserverapi.Config) transports.IHttpServer {
-	srv := internal.NewHttpServerModule(cfg)
+// Create a new TLS server instance with the given configuration
+func NewHttpServerModule(cfg *httpserverconfig.Config) transports.IHttpServer {
+	srv := internal.NewHttpServer(cfg)
 	return srv
 }
 
-// Create a new http server instance for the provided factory environment
+// Create a new TLS server instance for the provided factory environment
 func NewHttpServerFactory(f factoryapi.IModuleFactory) modules.IHiveModule {
 
 	env := f.GetEnvironment()
@@ -26,11 +26,11 @@ func NewHttpServerFactory(f factoryapi.IModuleFactory) modules.IHiveModule {
 	if err != nil {
 		panic("unable to get the Server certificate")
 	}
-	authn := f.GetAuthenticator()
+	authenticator := f.GetAuthenticator()
 	addr := ""
 	port := transports.DefaultHttpsPort
-	cfg := httpserverapi.NewConfig(addr, port, serverCert, caCert, authn)
+	cfg := httpserverconfig.NewConfig(addr, port, serverCert, caCert, authenticator)
 
-	srv := internal.NewHttpServerModule(cfg)
+	srv := internal.NewHttpServer(cfg)
 	return srv
 }

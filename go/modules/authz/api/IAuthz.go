@@ -5,7 +5,8 @@ import (
 	"github.com/hiveot/hivekit/go/modules"
 )
 
-// default module instance identification
+// default module type and instance identification
+const AuthzModuleType = "authz"
 const DefaultAuthzModuleID = "authz"
 
 // Authorisation server module for authorizing module requests based on client roles.

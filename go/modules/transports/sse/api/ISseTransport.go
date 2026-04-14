@@ -26,5 +26,5 @@ const (
 type ISseTransportServer interface {
 	transports.ITransportServer
 
-	// todo: future API  for servicing the module
+	// todo: future API for configuration of the module
 }

@@ -1,4 +1,4 @@
-package httpserverapi
+package httpserverconfig
 
 import (
 	"crypto/tls"

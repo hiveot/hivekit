@@ -10,7 +10,7 @@ import (
 	"github.com/hiveot/hivekit/go/modules/transports"
 	"github.com/hiveot/hivekit/go/modules/transports/httpbasic"
 	"github.com/hiveot/hivekit/go/modules/transports/httpserver"
-	httpserverapi "github.com/hiveot/hivekit/go/modules/transports/httpserver/api"
+	httpserverconfig "github.com/hiveot/hivekit/go/modules/transports/httpserver/config"
 	"github.com/hiveot/hivekit/go/utils"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -28,7 +28,7 @@ func TestConnect(t *testing.T) {
 	var isConnected = false
 
 	// dummyAuthenticator := authnapi.NewDummyAuthenticator()
-	cfg := httpserverapi.NewConfig(
+	cfg := httpserverconfig.NewConfig(
 		"localhost", serverPort, testCerts.ServerCert, testCerts.CaCert, nil)
 	srv := httpserver.NewHttpServerModule(cfg)
 	err := srv.Start()

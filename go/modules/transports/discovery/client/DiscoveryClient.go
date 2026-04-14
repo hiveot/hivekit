@@ -11,7 +11,7 @@ import (
 
 	"github.com/grandcat/zeroconf"
 	discoveryapi "github.com/hiveot/hivekit/go/modules/transports/discovery/api"
-	"github.com/hiveot/hivekit/go/modules/transports/httpserver/tlsclient"
+	"github.com/hiveot/hivekit/go/modules/transports/httpclient"
 )
 
 type DiscoveryResult struct {
@@ -152,7 +152,7 @@ func (cl *DiscoveryClient) DownloadTDD(tddURL string, caCert *x509.Certificate) 
 	if err != nil {
 		return "", err
 	}
-	httpCl := tlsclient.NewTLSClient(parts.Host, nil, caCert, 0)
+	httpCl := httpclient.NewHttpClient(parts.Host, nil, caCert, 0)
 	resp, statusCode, err := httpCl.Get(parts.Path)
 	_ = statusCode
 	if err != nil {

@@ -27,14 +27,14 @@ func NewAuthnService(
 	return m
 }
 
-// Create a new instance of the authentication service using the factory. The factory will
-// provide the configuration and http server.
+// Create a new instance of the authentication service using the factory environment.
+// The factory will provide the configuration and http server.
 func NewAuthnServiceFactory(f factoryapi.IModuleFactory) modules.IHiveModule {
 	env := f.GetEnvironment()
 	keysDir := env.CertsDir
 	storageDir := env.GetStorageDir(authnapi.AuthnModuleType)
 	authnConfig := authnapi.NewAuthnConfig(keysDir, storageDir)
-
+	// TODO: configuration for using http endpoints in authn
 	httpServer := f.GetHttpServer()
 	m := service.NewAuthnService(authnConfig, httpServer)
 	return m

@@ -48,10 +48,10 @@ type AppEnvironment struct {
 	// the server certification for transport modules if applicable
 	// Intended for gateways or hub that runs a server.
 	// Also usable for devices that run a server.
-	serverCert *tls.Certificate `yaml:"-"`
+	ServerCert *tls.Certificate `yaml:"-"`
 
-	// rpcTimeout is the communication timeout for use by transport client and server modules
-	rpcTimeout time.Duration
+	// RpcTimeout is the communication timeout for use by transport client and server modules
+	RpcTimeout time.Duration
 
 	//--- ID and credentials for running as a client or using reverse connections ---
 
@@ -87,13 +87,13 @@ func (env *AppEnvironment) GetCA() (caCert *x509.Certificate, err error) {
 // This will load the certificate on first use.
 // This returns nil if the server certificate cannot be loaded.
 func (env *AppEnvironment) GetServerCert() (cert *tls.Certificate, err error) {
-	if env.serverCert != nil {
-		return env.serverCert, nil
+	if env.ServerCert != nil {
+		return env.ServerCert, nil
 	}
 	serverCertPath := filepath.Join(env.CertsDir, certsapi.DefaultServerCertFile)
 	serverKeyPath := filepath.Join(env.CertsDir, certsapi.DefaultServerKeyFile)
-	env.serverCert, err = certutils.LoadTLSCertFromPEM(serverCertPath, serverKeyPath)
-	return env.serverCert, err
+	env.ServerCert, err = certutils.LoadTLSCertFromPEM(serverCertPath, serverKeyPath)
+	return env.ServerCert, err
 }
 
 // Return the directory where a module stores its data.

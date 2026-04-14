@@ -1,5 +1,5 @@
-// Package tlsclient with a TLS client helper supporting certificate, JWT or Basic authentication
-package tlsclient
+// Package internal with a TLS client helper supporting certificate, JWT or Basic authentication
+package internal
 
 import (
 	"bytes"
@@ -21,10 +21,8 @@ import (
 	"golang.org/x/net/publicsuffix"
 )
 
-// The default wait timeout for connecting. Use SetTimeout() to override.
-const DefaultClientTimeout = time.Second * 60
-
 // TLSClient is a simple TLS Client with authentication using certificates or JWT authentication with login/pw
+// this implements the ITLSClient interface
 type TLSClient struct {
 
 	// Authorization header bearer token
@@ -391,7 +389,7 @@ func (cl *TLSClient) Trace(path string) (statusCode int, err error) {
 	return statusCode, err
 }
 
-// NewTLSClient creates a new TLS Client instance.
+// NewHttpClient creates a new TLS Client instance.
 // Use setup/Remove to open and close connections
 //
 //	hostPort is the server address in host:port format
@@ -400,12 +398,12 @@ func (cl *TLSClient) Trace(path string) (statusCode int, err error) {
 //	timeout duration for use with Delete,Get,Patch,Post,Put, 0 for DefaultClientTimeout
 //
 // returns TLS client for submitting requests
-func NewTLSClient(hostPort string,
+func NewHttpClient(hostPort string,
 	clientCert *tls.Certificate, caCert *x509.Certificate, timeout time.Duration) *TLSClient {
 
 	var clientID string
 	if timeout == 0 {
-		timeout = DefaultClientTimeout
+		timeout = transports.DefaultClientTimeout
 	}
 	// Use CA certificate for server authentication if it exists
 	if caCert == nil {
@@ -486,7 +484,7 @@ func NewTLSClient(hostPort string,
 	}
 
 	// interface check
-	var _ transports.ITlsClient = cl
+	var _ transports.ITLSClient = cl
 
 	return cl
 }

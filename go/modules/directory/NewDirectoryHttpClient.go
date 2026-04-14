@@ -11,21 +11,20 @@ import (
 	"github.com/hiveot/hivekit/go/modules"
 	directoryapi "github.com/hiveot/hivekit/go/modules/directory/api"
 	"github.com/hiveot/hivekit/go/modules/transports"
-	"github.com/hiveot/hivekit/go/modules/transports/httpserver/tlsclient"
+	"github.com/hiveot/hivekit/go/modules/transports/httpclient"
 	"github.com/hiveot/hivekit/go/utils"
 )
 
-// The DirectoryHttpClient is a client for the Directory service using the REST API.
+// The DirectoryHttpClient is a client module for the Directory service using the REST API.
 // It can be used to connect to a directory service and read its content.
-// This implements the IDirectory interface.
 //
 // Note, this client is based on the directory specification found here:
 //
 //	https://www.w3.org/TR/wot-discovery/#exploration-directory-api-things
 //
-// Note: This does not use the Directory TD forms to generate as it needlessly
-// complicates the implementation. Instead, it uses fixed paths as per the
-// specification along with the base URL from the directory TD.
+// Note: This does not use the Directory TD forms to determine endpoints.
+// Instead, it uses fixed paths as per the specification along with the base
+// URL from the directory TD.
 //
 // Intended for use by consumers of the directory to read TDs they have access to.
 type DirectoryHttpClient struct {
@@ -38,7 +37,7 @@ type DirectoryHttpClient struct {
 	directoryBasePath string
 
 	// Connection to the directory for reading or update
-	tlsClient transports.ITlsClient
+	tlsClient transports.ITLSClient
 
 	timeout time.Duration
 }
@@ -170,12 +169,11 @@ func NewDirectoryHttpClient(serverURL string, caCert *x509.Certificate) *Directo
 		return nil
 	}
 
-	tlsClient := tlsclient.NewTLSClient(parts.Host, nil, caCert, 0)
+	tlsClient := httpclient.NewHttpClient(parts.Host, nil, caCert, 0)
 
 	cl := &DirectoryHttpClient{
 		timeout:   transports.DefaultRpcTimeout,
 		tlsClient: tlsClient,
 	}
-
 	return cl
 }

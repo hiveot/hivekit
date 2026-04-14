@@ -17,7 +17,7 @@ import (
 	"github.com/hiveot/hivekit/go/modules"
 	"github.com/hiveot/hivekit/go/modules/transports"
 	httpbasicapi "github.com/hiveot/hivekit/go/modules/transports/httpbasic/api"
-	"github.com/hiveot/hivekit/go/modules/transports/httpserver/tlsclient"
+	"github.com/hiveot/hivekit/go/modules/transports/httpclient"
 	"github.com/hiveot/hivekit/go/utils"
 	jsoniter "github.com/json-iterator/go"
 )
@@ -59,7 +59,7 @@ type HttpBasicClient struct {
 	timeout time.Duration
 
 	// http2 client for posting messages
-	tlsClient transports.ITlsClient
+	tlsClient transports.ITLSClient
 }
 
 // Authenticate the client connection with the server
@@ -153,7 +153,7 @@ func (cl *HttpBasicClient) GetModuleID() string {
 }
 
 // Return the TLS client used by this connection
-func (cl *HttpBasicClient) GetTlsClient() transports.ITlsClient {
+func (cl *HttpBasicClient) GetTlsClient() transports.ITLSClient {
 	cl.mux.RLock()
 	defer cl.mux.RUnlock()
 	return cl.tlsClient
@@ -398,7 +398,7 @@ func NewHttpBasicClient(
 	getForm transports.GetFormHandler,
 	ch transports.ConnectionHandler) *HttpBasicClient {
 
-	timeout := tlsclient.DefaultClientTimeout
+	timeout := transports.DefaultClientTimeout
 	urlParts, err := url.Parse(baseURL)
 	if err != nil {
 		slog.Error("Invalid URL")
@@ -406,7 +406,7 @@ func NewHttpBasicClient(
 	}
 	hostPort := urlParts.Host
 
-	tlsClient := tlsclient.NewTLSClient(hostPort, nil, caCert, timeout)
+	tlsClient := httpclient.NewHttpClient(hostPort, nil, caCert, timeout)
 	cl := NewHttpBasicTLSClient(tlsClient, getForm, ch)
 
 	return cl
@@ -418,14 +418,13 @@ func NewHttpBasicClient(
 //	tlsClient used for the server connection
 //	getForm is the handler for return a form for invoking an operation. nil for default
 func NewHttpBasicTLSClient(
-	tlsClient *tlsclient.TLSClient, getForm transports.GetFormHandler,
+	tlsClient transports.ITLSClient, getForm transports.GetFormHandler,
 	ch transports.ConnectionHandler) *HttpBasicClient {
 
-	timeout := tlsclient.DefaultClientTimeout
 	cl := &HttpBasicClient{
 		connectHandler: ch,
 		getForm:        getForm,
-		timeout:        timeout,
+		timeout:        transports.DefaultClientTimeout,
 		tlsClient:      tlsClient,
 	}
 	if cl.getForm == nil {

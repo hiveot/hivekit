@@ -16,18 +16,18 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/hiveot/hivekit/go/modules"
 	"github.com/hiveot/hivekit/go/modules/transports"
-	httpserverapi "github.com/hiveot/hivekit/go/modules/transports/httpserver/api"
+	httpserverconfig "github.com/hiveot/hivekit/go/modules/transports/httpserver/config"
 	"github.com/hiveot/hivekit/go/utils"
 	"github.com/lmittmann/tint"
 )
 
-// HttpServerModule is a hiveot module providing a TLS HTTPS server.
+// HttpServer is a hiveot module providing a TLS HTTPS server.
 // Intended for use by HTTP based application protocols.
 // This implements IHttpServer and IHiveModule interfaces.
 //
 // Note that this does not implement the ITransportModule interface as this module provides the
 // http server for use by transport modules.
-type HttpServerModule struct {
+type HttpServer struct {
 	modules.HiveModuleBase
 
 	// authenticator to validate incoming conncetions
@@ -36,7 +36,7 @@ type HttpServerModule struct {
 	// HTTP authentication handler.
 	authRequestHandler func(req *http.Request) (clientID string, err error)
 
-	config     *httpserverapi.Config
+	config     *httpserverconfig.Config
 	connectURL string
 
 	// the actual golang HTTP/TLS server
@@ -62,7 +62,7 @@ type HttpServerModule struct {
 
 // The default authentication handler extracts the bearer token from the authorization header
 // and passes it to the configured token validator.
-func (m *HttpServerModule) DefaultAuthRequest(req *http.Request) (clientID string, err error) {
+func (m *HttpServer) DefaultAuthRequest(req *http.Request) (clientID string, err error) {
 
 	// first check client certificate
 	if len(req.TLS.PeerCertificates) > 0 {
@@ -93,18 +93,18 @@ func (m *HttpServerModule) DefaultAuthRequest(req *http.Request) (clientID strin
 }
 
 // GetAuthenticator returns the authenticator used to authenticate incoming connections
-func (m *HttpServerModule) GetAuthenticator() transports.IAuthenticator {
+func (m *HttpServer) GetAuthenticator() transports.IAuthenticator {
 	return m.config.Authenticator
 }
 
 // Provide the HTTP base URL to connect to the server. Eg "https://addr:port/""
-func (m *HttpServerModule) GetConnectURL() string {
+func (m *HttpServer) GetConnectURL() string {
 	return m.connectURL
 }
 
 // Set the handler that validates tokens.
 // This will enable the protected routes.
-func (m *HttpServerModule) SetAuthenticator(authenticator transports.IAuthenticator) {
+func (m *HttpServer) SetAuthenticator(authenticator transports.IAuthenticator) {
 	m.config.Authenticator = authenticator
 }
 
@@ -112,7 +112,7 @@ func (m *HttpServerModule) SetAuthenticator(authenticator transports.IAuthentica
 // This starts a http server instance and sets-up a public and protected route.
 //
 // Starts a HTTPS TLS service
-func (m *HttpServerModule) Start() (err error) {
+func (m *HttpServer) Start() (err error) {
 	var tlsConf *tls.Config
 	cfg := m.config
 	m.connectURL = fmt.Sprintf("https://%s:%d", cfg.Address, cfg.Port)
@@ -181,7 +181,7 @@ func (m *HttpServerModule) Start() (err error) {
 // Stop the TLS server and close all connections.
 // this waits until for up to 3 seconds for connections are closed. After that
 // continue.
-func (m *HttpServerModule) Stop() {
+func (m *HttpServer) Stop() {
 
 	if m.httpServer != nil {
 		// note that this does not (cannot?) close existing client connections
@@ -200,18 +200,18 @@ func (m *HttpServerModule) Stop() {
 	time.Sleep(time.Millisecond)
 }
 
-// Create a new Https server module instance.
+// Create a new HTTP TLS server module instance.
 //
 // config MUST have been configured with a CA and server certificate unless
 // NoTLS is set.
-func NewHttpServerModule(
-	config *httpserverapi.Config) *HttpServerModule {
+func NewHttpServer(
+	config *httpserverconfig.Config) *HttpServer {
 
 	// if config.ModuleID == "" {
 	// 	config.ModuleID = transports.DefaultHttpServerModuleID
 	// }
 
-	m := &HttpServerModule{
+	m := &HttpServer{
 		config: config,
 	}
 	m.authRequestHandler = config.AuthRequestHandler

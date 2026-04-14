@@ -39,9 +39,12 @@ type ModuleDefinition struct {
 // manages multiple things.
 type IModuleFactory interface {
 
-	// Provide the means to authenticate incoming connections
+	// Provide the means to authenticate incoming connections.
 	// Intended for transport server modules.
-	// This requires that an authn module is registered.
+	// This returns a proxy stub that can be updated with SetAuthenticator.
+	// If no authenticator is set the this proxy fails all authentication attempts.
+	//
+	// SetAuthenticator is called by the authn module when it is created.
 	GetAuthenticator() transports.IAuthenticator
 
 	// GetEnvironment returns the application environment used by the factory for
@@ -68,4 +71,8 @@ type IModuleFactory interface {
 	// moduleType identifies the type of the module. (not instance)
 	// moduleDef defines the module attributes and constructor function
 	RegisterModule(moduleType string, moduleDef ModuleDefinition)
+
+	// SetAuthenticator sets the authenticator returned by GetAuthenticator.
+	// Note that GetAuthenticator returns a proxy to the actual authenticator.
+	SetAuthenticator(a transports.IAuthenticator)
 }

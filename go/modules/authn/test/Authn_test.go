@@ -12,7 +12,7 @@ import (
 	"github.com/hiveot/hivekit/go/modules/clients"
 	"github.com/hiveot/hivekit/go/modules/transports"
 	"github.com/hiveot/hivekit/go/modules/transports/httpserver"
-	httpserverapi "github.com/hiveot/hivekit/go/modules/transports/httpserver/api"
+	httpserverconfig "github.com/hiveot/hivekit/go/modules/transports/httpserver/config"
 	"github.com/hiveot/hivekit/go/utils"
 )
 
@@ -77,7 +77,7 @@ func startTestAuthnModule(encryption string) (m *service.AuthnService, stopFn fu
 
 	testCerts = certstest.CreateTestCertBundle(TestKeyType)
 	// http is needed for testing the authn http api
-	cfg := httpserverapi.NewConfig(
+	cfg := httpserverconfig.NewConfig(
 		"localhost", serverPort,
 		testCerts.ServerCert, testCerts.CaCert, nil)
 	httpServer := httpserver.NewHttpServerModule(cfg)

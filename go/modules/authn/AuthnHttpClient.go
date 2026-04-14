@@ -8,14 +8,14 @@ import (
 
 	authnapi "github.com/hiveot/hivekit/go/modules/authn/api"
 	"github.com/hiveot/hivekit/go/modules/transports"
-	"github.com/hiveot/hivekit/go/modules/transports/httpserver/tlsclient"
+	"github.com/hiveot/hivekit/go/modules/transports/httpclient"
 	jsoniter "github.com/json-iterator/go"
 )
 
 // AuthnHttpClient is a client for authentication operations such as login using http requests.
 // This is a simple API for clients to be able to obtain an auth token and refresh it.
 type AuthnHttpClient struct {
-	tlsClient transports.ITlsClient
+	tlsClient transports.ITLSClient
 }
 
 // Close the underlying TLS client used by the authentication client
@@ -44,7 +44,7 @@ func (cl *AuthnHttpClient) GetProfile() (profile authnapi.ClientProfile, err err
 
 // Return the TLS client used to connect to the authn server.
 // This can be used anywhere an http client is needed for the same server.
-func (cl *AuthnHttpClient) GetTlsClient() transports.ITlsClient {
+func (cl *AuthnHttpClient) GetTlsClient() transports.ITLSClient {
 	return cl.tlsClient
 }
 
@@ -123,7 +123,7 @@ func NewAuthnHttpClient(serverURL string, caCert *x509.Certificate) *AuthnHttpCl
 		return nil
 	}
 
-	tlsClient := tlsclient.NewTLSClient(parts.Host, nil, caCert, 0)
+	tlsClient := httpclient.NewHttpClient(parts.Host, nil, caCert, 0)
 	return &AuthnHttpClient{
 		tlsClient: tlsClient,
 	}

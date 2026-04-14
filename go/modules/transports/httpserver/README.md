@@ -1,10 +1,8 @@
-# HTTP Transport Module
+# HTTP Server
 
-The HTTP TLS Module is intended for use by http based transport protocols. The module server includes support for common middleware such as cors, logging, recovery, compression. authentication and file server and provides callback hooks for logging and authentication interaction.
+The HTTP server module is intended for use by http based transport protocols. This module includes support for common middleware such as cors, logging, recovery, compression. authentication and file server and provides callback hooks for logging and authentication interaction.
 
 The server provides two convenient routers for adding endpoints, a secured router which requires authentication and an unsecured router.
-
-The client contains the boilerplate for establishing TLS connections including CA certificate, authorization bearer token, cid, other headers, URI parameters and request timeout.
 
 ## Configuration
 
@@ -39,7 +37,7 @@ Other configuration:
 
 There are two ways to create a HttpsBase module instance: using the pipeline factory or manually.
 
-### Pipeline Factory
+### Factory
 
 This module is intended for use with http based transport protocols such as WoT HTTP-Basic, Websocket, the HiveOT SSE subprotocols and the authentication service for handling login and token refresh.
 
@@ -59,10 +57,10 @@ See NewHttpsBaseOptions for defaults.
  config.CaCert = certsModule.GetCACert(),
  config.ServerCert = certsModule.GetDefaultServerCert(),
  config.Authenticator = authnModule.GetAuthenticator()
- module := NewHttpsBaseModule(config)
+ module := NewHttpServerModule(config)
  err := module.Start()
  prouter := module.GetPublicRouter()
  srouter := module.GetSecuredRouter()
 ```
 
-The routers can directly be used in the transport modules.
+The public and secured routers are for use by transport and other modules to register their http endpoints.
