@@ -14,12 +14,8 @@ import (
 
 // Table of modules used for running servers.
 var ServerModuleTable = map[string]factoryapi.ModuleDefinition{
-	// transport authenticator provider
-	transports.AuthenticatorModuleType: {
-		Singleton:   true,
-		Constructor: authn.NewAuthenticatorFactory,
-	},
-	// authentication management provider
+
+	// client and session management provider
 	authnapi.AuthnModuleType: {
 		Singleton:   true,
 		Constructor: authn.NewAuthnServiceFactory,

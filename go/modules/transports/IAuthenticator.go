@@ -6,10 +6,6 @@ import (
 	"github.com/hiveot/hivekit/go/api/td"
 )
 
-// Type for registration of a module that implements the IAuthenticator API below
-// This is usually the authn module but can be offloaded to another module.
-const AuthenticatorModuleType = "authenticator"
-
 // Interface of the authentication capability for setting TD security scheme
 // and authenticating incoming connections.
 

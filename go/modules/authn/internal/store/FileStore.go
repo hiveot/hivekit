@@ -353,7 +353,7 @@ func WritePasswordsToTempFile(
 }
 
 // NewAuthnFileStore creates a new instance of a file based identity store.
-// Call AddSession/Release to start/stop using this store.
+// Call Open/Close to start/stop using this store.
 // Note: this store is intended for one writer and many readers.
 // Multiple concurrent writes are not supported and might lead to one write being ignored.
 //

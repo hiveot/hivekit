@@ -23,11 +23,14 @@ type SessionManager struct {
 	// Auth token validity for services in days
 	ServiceTokenValidityDays int `yaml:"serviceTokenValidityDays,omitempty"`
 
-	//
+	// storage for clients and authentication data
 	authnStore authnstore.IAuthnStore
 
-	// The primary authenticator
+	// The module authenticator, eg the session manager
 	authenticator authenticators.IAuthnAuthenticator
+
+	// directory where the signing key is stored
+	keysDir string
 
 	// track session start, used in validation
 	sessionStart map[string]time.Time
@@ -169,19 +172,30 @@ func (sm *SessionManager) ValidateToken(token string) (
 }
 
 // Start a new session manager for client sessions
-func StartSessionManager(
-	authnStore authnstore.IAuthnStore, keysDir string) (*SessionManager, error) {
+func (sm *SessionManager) Start() error {
 
 	clientID := "authn"
 
 	// store the signing key
 	signingPrivKey, _, err := utils.LoadCreateKeyPair(
-		clientID, keysDir, utils.KeyTypeED25519)
+		clientID, sm.keysDir, utils.KeyTypeED25519)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
+	sm.authenticator = authenticators.NewPasetoAuthenticator(
+		sm.authnStore, signingPrivKey.(ed25519.PrivateKey))
+
+	return nil
+}
+
+// Create a new session manager for client sessions
+// Call Start() and Stop() to ...
+func NewSessionManager(
+	authnStore authnstore.IAuthnStore, keysDir string) *SessionManager {
+
 	sm := &SessionManager{
+		keysDir:                   keysDir,
 		authnStore:                authnStore,
 		AgentTokenValidityDays:    authnapi.DefaultAgentTokenValidityDays,
 		ServiceTokenValidityDays:  authnapi.DefaultServiceTokenValidityDays,
@@ -189,9 +203,6 @@ func StartSessionManager(
 		sessionStart:              make(map[string]time.Time),
 	}
 
-	sm.authenticator = authenticators.NewPasetoAuthenticator(
-		sm.authnStore, signingPrivKey.(ed25519.PrivateKey))
-
 	var _ authnapi.ISessionManager = sm // interface check
-	return sm, nil
+	return sm
 }

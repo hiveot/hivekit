@@ -23,12 +23,12 @@ func NewAuthnService(
 	httpServer transports.IHttpServer) authnapi.IAuthnService {
 
 	m := service.NewAuthnService(authnConfig, httpServer)
-	m.SetModuleID(authnapi.AuthnModuleType)
 	return m
 }
 
 // Create a new instance of the authentication service using the factory environment.
 // The factory will provide the configuration and http server.
+// This sets the authn session manager as the factory authenticator.
 func NewAuthnServiceFactory(f factoryapi.IModuleFactory) modules.IHiveModule {
 	env := f.GetEnvironment()
 	keysDir := env.CertsDir
@@ -36,6 +36,7 @@ func NewAuthnServiceFactory(f factoryapi.IModuleFactory) modules.IHiveModule {
 	authnConfig := authnapi.NewAuthnConfig(keysDir, storageDir)
 	// TODO: configuration for using http endpoints in authn
 	httpServer := f.GetHttpServer()
-	m := service.NewAuthnService(authnConfig, httpServer)
+	m := NewAuthnService(authnConfig, httpServer)
+	f.SetAuthenticator(m.GetSessionManager())
 	return m
 }

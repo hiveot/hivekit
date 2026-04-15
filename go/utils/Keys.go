@@ -15,6 +15,7 @@ import (
 	"fmt"
 	"os"
 	"path"
+	"path/filepath"
 	"reflect"
 )
 
@@ -338,22 +339,35 @@ func PublicKeyToPem(pubKey crypto.PublicKey) (pemKey string) {
 // SavePublicKeyToFile saves the public key to file in PEM format.
 // The file permissions are set to 0644, current user can write, rest can read.
 //
+// If the directory does not exist it will be created
+//
 //	Returns error in case the public key is invalid or file cannot be written.
 func SavePublicKey(pubKey crypto.PublicKey, pemPath string) error {
 	pemEncoded := PublicKeyToPem(pubKey)
-	err := os.WriteFile(pemPath, []byte(pemEncoded), 0644)
+	// ensure the directory exists
+	pemDir := filepath.Dir(pemPath)
+	err := os.MkdirAll(pemDir, 0755)
+	if err == nil {
+		err = os.WriteFile(pemPath, []byte(pemEncoded), 0644)
+	}
 	return err
 }
 
 // SavePrivateKeyToFile saves the private key to file in PEM format.
 // The file permissions are set to 0400, current user only, read-write permissions.
+// If the directory does not exist it will becreated
 //
 //	Returns error in case the key is invalid or file cannot be written.
 func SavePrivateKey(privKey crypto.PrivateKey, pemPath string) error {
 	privPEM := PrivateKeyToPem(privKey)
 	// remove existing key since perm 0400 doesn't allow overwriting it
 	_ = os.Remove(pemPath)
-	err := os.WriteFile(pemPath, []byte(privPEM), 0400)
+	// ensure the directory exists
+	pemDir := filepath.Dir(pemPath)
+	err := os.MkdirAll(pemDir, 0755)
+	if err == nil {
+		err = os.WriteFile(pemPath, []byte(privPEM), 0400)
+	}
 	return err
 }
 

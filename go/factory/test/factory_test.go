@@ -7,6 +7,7 @@ import (
 
 	"github.com/hiveot/hivekit/go/factory"
 	factoryapi "github.com/hiveot/hivekit/go/factory/api"
+	authnapi "github.com/hiveot/hivekit/go/modules/authn/api"
 	certstest "github.com/hiveot/hivekit/go/modules/certs/test"
 	"github.com/hiveot/hivekit/go/utils"
 	"github.com/stretchr/testify/assert"
@@ -75,4 +76,9 @@ func TestGetAuthenticator(t *testing.T) {
 
 	httpServer := f.GetHttpServer()
 	assert.NotNil(t, httpServer)
+
+	// loading the authenticator switches the factory to use it
+	authnMod, err := f.GetModule(authnapi.AuthnModuleType)
+	assert.NotNil(t, authnMod)
+	assert.NoError(t, err)
 }

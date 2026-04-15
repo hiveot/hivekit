@@ -25,8 +25,9 @@ type ModuleFactory struct {
 	// storageRoot string
 	// the default timeout for transport modules
 	// timeout time.Duration
+
 	// the http server with and modules that serve http endpoints
-	// httpServer transports.IHttpServer
+	httpServer transports.IHttpServer
 
 	// the module definition table, used for creating module instances by name
 	moduleTable map[string]factoryapi.ModuleDefinition
@@ -53,6 +54,14 @@ func (f *ModuleFactory) GetAuthenticator() transports.IAuthenticator {
 
 // Used for various modules that need to serve http endpoints, e.g. http basic authn, directory, etc.
 func (f *ModuleFactory) GetHttpServer() transports.IHttpServer {
+	f.mux.RLock()
+	httpServer := f.httpServer
+	f.mux.RUnlock()
+
+	if httpServer != nil {
+		return httpServer
+	}
+
 	m, err := f.GetModule(transports.HttpServerModuleType)
 	if err != nil {
 		slog.Warn("GetHttpServer: no http server module is registered")
@@ -62,17 +71,22 @@ func (f *ModuleFactory) GetHttpServer() transports.IHttpServer {
 	if !ok {
 		slog.Error("The http server module does not support the IHttpServer API")
 	}
+	f.mux.Lock()
+	f.httpServer = httpServer
+	f.mux.Unlock()
 	return httpServer
 }
 
 // GetModule loads and starts an instance of a module by its type.
 // If the module is a singleton then the same instance is returned for multiple calls with the same type.
 func (f *ModuleFactory) GetModule(moduleType string) (modules.IHiveModule, error) {
-	m, err := f.LoadModule(moduleType)
+	m, isNew, err := f.LoadModule(moduleType)
 	if err != nil {
 		return nil, err
 	}
-	err = m.Start()
+	if isNew {
+		err = m.Start()
+	}
 	return m, err
 }
 
@@ -80,28 +94,22 @@ func (f *ModuleFactory) GetModule(moduleType string) (modules.IHiveModule, error
 // If the module is a singleton then the same instance is returned for multiple calls with the same type.
 //
 // The caller has to start the module before it can be used.
-func (f *ModuleFactory) LoadModule(moduleType string) (modules.IHiveModule, error) {
-	f.mux.Lock()
-	if f.singletonModules[moduleType] != nil {
-		return f.singletonModules[moduleType], nil
+func (f *ModuleFactory) LoadModule(moduleType string) (m modules.IHiveModule, isNew bool, err error) {
+	f.mux.RLock()
+	m, ok := f.singletonModules[moduleType]
+	f.mux.RUnlock()
+	if m != nil {
+		return m, false, nil
 	}
-	def, ok := f.moduleTable[moduleType]
-	f.mux.Unlock()
 
+	def, ok := f.moduleTable[moduleType]
 	if !ok {
 		err := fmt.Errorf("LoadModule: module '%s' not found", moduleType)
 		slog.Error(err.Error())
-		return nil, err
+		return nil, false, err
 	}
 	slog.Info("LoadModule loaded new module instance", "moduleType", moduleType)
 	constructor := def.Constructor
-	// // singleton module use the moduleType as their ID
-	// moduleID := moduleType
-	// if !def.Singleton {
-	// 	// non-singleton module use the moduleType-{random} as their unique ID
-	// 	moduleID = moduleType + "-" + shortid.MustGenerate()
-	// }
-	// mod := constructor(f, moduleID)
 	mod := constructor(f)
 
 	// store the singleton on successful start
@@ -110,7 +118,7 @@ func (f *ModuleFactory) LoadModule(moduleType string) (modules.IHiveModule, erro
 		f.singletonModules[moduleType] = mod
 		f.mux.Unlock()
 	}
-	return mod, nil
+	return mod, true, nil
 }
 
 // RegisterModule registers a module definition to the factory, making it available for creation.

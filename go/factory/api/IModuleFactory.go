@@ -74,5 +74,7 @@ type IModuleFactory interface {
 
 	// SetAuthenticator sets the authenticator returned by GetAuthenticator.
 	// Note that GetAuthenticator returns a proxy to the actual authenticator.
+	// Intended for use by the module that offers authentication capabilities,
+	// such as the authn module. Other authentication modules can be used instead.
 	SetAuthenticator(a transports.IAuthenticator)
 }

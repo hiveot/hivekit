@@ -30,7 +30,7 @@ type AuthnService struct {
 	userHttpHandler *UserHttpHandler
 
 	// Creation and validation of session tokens
-	sessionManager authnapi.ISessionManager
+	sessionManager *SessionManager
 }
 
 // AddClient adds a client. This fails if the client already exists
@@ -120,8 +120,7 @@ func (m *AuthnService) SetRole(clientID string, role string) error {
 
 // Start the authentication module and listen for login and token refresh requests.
 //
-// This reloads the signing key, opens the password store and starts the
-// authenticator instance.
+// Opens the password store and starts the session manager instance.
 //
 // If an http server is provided this registers the http auth endpoint,
 // and set this authn module as the auth validation handler.
@@ -129,11 +128,11 @@ func (m *AuthnService) SetRole(clientID string, role string) error {
 // yamlConfig with module startup configuration (todo)
 func (m *AuthnService) Start() (err error) {
 
-	passwordFile := m.config.PasswordFile
-	encryption := m.config.Encryption
-
-	m.authnStore = authnstore.NewAuthnFileStore(passwordFile, encryption)
-	m.sessionManager, err = StartSessionManager(m.authnStore, m.config.KeysDir)
+	err = m.authnStore.Open()
+	if err != nil {
+		return err
+	}
+	err = m.sessionManager.Start()
 	if err != nil {
 		return err
 	}
@@ -242,11 +241,19 @@ func (m *AuthnService) UpdateProfile(senderID string, newProfile authnapi.Client
 // httpServer to server the http endpoint or nil to not use http.
 func NewAuthnService(authnConfig authnapi.AuthnConfig, httpServer transports.IHttpServer) *AuthnService {
 
+	passwordFile := authnConfig.PasswordFile
+	encryption := authnConfig.Encryption
+	authnStore := authnstore.NewAuthnFileStore(passwordFile, encryption)
+	sessionManager := NewSessionManager(authnStore, authnConfig.KeysDir)
+
 	m := &AuthnService{
-		config:     authnConfig,
-		httpServer: httpServer,
+		config:         authnConfig,
+		httpServer:     httpServer,
+		authnStore:     authnStore,
+		sessionManager: sessionManager,
 		// sessionStart: make(map[string]time.Time),
 	}
+	m.SetModuleID(authnapi.AuthnModuleType)
 	var _ modules.IHiveModule = m    // interface check
 	var _ authnapi.IAuthnService = m // interface check
 	return m
