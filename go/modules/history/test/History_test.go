@@ -60,7 +60,7 @@ func startHistoryService(clean bool) (
 	histModule *internal.HistoryService, stopFn func()) {
 
 	dataDir := filepath.Join(
-		testEnv.StorageRoot, historyapi.DefaultHistoryModuleID)
+		testEnv.StorageRoot, historyapi.HistoryModuleType)
 	if clean {
 		os.RemoveAll(dataDir)
 	}

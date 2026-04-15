@@ -4,6 +4,8 @@ import (
 	"crypto/tls"
 	"time"
 
+	factoryapi "github.com/hiveot/hivekit/go/factory/api"
+	"github.com/hiveot/hivekit/go/modules"
 	"github.com/hiveot/hivekit/go/modules/transports"
 	grpcapi "github.com/hiveot/hivekit/go/modules/transports/grpc/api"
 	"github.com/hiveot/hivekit/go/modules/transports/grpc/internal/grpcserver"
@@ -23,4 +25,15 @@ import (
 func NewHiveotGrpcServer(
 	connectURL string, tlsCert *tls.Certificate, authn transports.IAuthenticator, respTimeout time.Duration) grpcapi.IGrpcTransportServer {
 	return grpcserver.NewHiveotGrpcTransportServer(connectURL, tlsCert, authn, respTimeout)
+}
+
+// Create a new instance of the hiveot gRPC server using the factory environment
+func NewHiveotGrpcServerFactory(f factoryapi.IModuleFactory) modules.IHiveModule {
+	// TODO: determine a good default
+	connectURL := "unix:///var/hiveot/hivekit.sock"
+	env := f.GetEnvironment()
+	tlsCert, err := env.GetServerCert()
+	_ = err
+	authenticator := f.GetAuthenticator()
+	return NewHiveotGrpcServer(connectURL, tlsCert, authenticator, env.RpcTimeout)
 }

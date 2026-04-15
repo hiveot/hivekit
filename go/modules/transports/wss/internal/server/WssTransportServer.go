@@ -1,4 +1,4 @@
-package wssserver
+package server
 
 import (
 	"fmt"
@@ -133,7 +133,7 @@ func (m *WssTransportServer) ServeWssConnection(w http.ResponseWriter, r *http.R
 func (m *WssTransportServer) Start() (err error) {
 
 	connectURL := m.httpServer.GetConnectURL()
-	slog.Info("Start: Starting websocket module, Listening on: " + connectURL)
+	slog.Info("Start: Starting websocket transport server, Listening on: " + connectURL)
 
 	// create routes
 	router := m.httpServer.GetProtectedRoute()
@@ -147,7 +147,7 @@ func (m *WssTransportServer) Start() (err error) {
 
 // Stop disconnects clients and remove connection listening
 func (m *WssTransportServer) Stop() {
-	slog.Info("Stop: Stopping websocket module")
+	slog.Info("Stop: Stopping websocket transport server")
 	m.CloseAll()
 	router := m.httpServer.GetProtectedRoute()
 	router.Delete(m.wssPath, m.ServeWssConnection)
@@ -179,9 +179,9 @@ func NewHiveotWssServer(httpServer transports.IHttpServer, respTimeout time.Dura
 		wssPath:     wssapi.HiveotWebsocketPath,
 	}
 	// set the base parameters
-	moduleID := wssapi.HiveotWebsocketModuleID
 	connectURL := fmt.Sprintf("%s://%s%s", transports.UriSchemeHiveotWebsocket, urlParts.Host, m.wssPath)
-	m.Init(moduleID,
+	m.Init(
+		wssapi.HiveotWebsocketModuleType,
 		transports.ProtocolTypeHiveotWebsocket,
 		transports.SubprotocolHiveotWebsocket,
 		connectURL, httpServer.GetAuthenticator())
@@ -213,9 +213,9 @@ func NewWotWssServer(httpServer transports.IHttpServer, respTimeout time.Duratio
 		wssPath:     wssapi.WotWebsocketPath,
 	}
 
-	moduleID := wssapi.WotWebsocketModuleID
 	connectURL := fmt.Sprintf("%s://%s%s", transports.UriSchemeWotWebsocket, urlParts.Host, m.wssPath)
-	m.Init(moduleID,
+	m.Init(
+		wssapi.WotWebsocketModuleType,
 		transports.ProtocolTypeWotWebsocket,
 		transports.SubprotocolWotWebsocket,
 		connectURL, httpServer.GetAuthenticator())

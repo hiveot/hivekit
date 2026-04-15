@@ -18,8 +18,8 @@ import (
 	grpctransport "github.com/hiveot/hivekit/go/modules/transports/grpc"
 	"github.com/hiveot/hivekit/go/modules/transports/httpbasic"
 	"github.com/hiveot/hivekit/go/modules/transports/httpserver"
-	"github.com/hiveot/hivekit/go/modules/transports/httpserver/config"
-	ssetransport "github.com/hiveot/hivekit/go/modules/transports/sse"
+	httpserverconfig "github.com/hiveot/hivekit/go/modules/transports/httpserver/config"
+	ssetransport "github.com/hiveot/hivekit/go/modules/transports/ssesc"
 	wsstransport "github.com/hiveot/hivekit/go/modules/transports/wss"
 	"github.com/hiveot/hivekit/go/utils"
 )
@@ -268,7 +268,7 @@ func (testEnv *TestEnv) StartTestServer(protocol string) (srv transports.ITransp
 		err = srv.Start()
 
 	case transports.ProtocolTypeHiveotSsesc:
-		srv = ssetransport.NewHiveotSseServer(testEnv.HttpServer, TestTimeout)
+		srv = ssetransport.NewSseScServer(testEnv.HttpServer, TestTimeout)
 		err = srv.Start()
 
 	case transports.ProtocolTypeHiveotWebsocket:

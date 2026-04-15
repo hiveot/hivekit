@@ -8,7 +8,7 @@ import (
 	"github.com/hiveot/hivekit/go/modules/transports/httpbasic"
 	"github.com/hiveot/hivekit/go/modules/transports/httpserver"
 	httpserverconfig "github.com/hiveot/hivekit/go/modules/transports/httpserver/config"
-	ssetransport "github.com/hiveot/hivekit/go/modules/transports/sse"
+	ssetransport "github.com/hiveot/hivekit/go/modules/transports/ssesc"
 	wsstransport "github.com/hiveot/hivekit/go/modules/transports/wss"
 )
 
@@ -50,7 +50,7 @@ func (device *TestDevice) Start() error {
 	case transports.ProtocolTypeWotHttpBasic:
 		device.TransportServer = httpbasic.NewHttpBasicServer(device.HttpServer)
 	case transports.ProtocolTypeHiveotSsesc:
-		device.TransportServer = ssetransport.NewHiveotSseServer(device.HttpServer, 0)
+		device.TransportServer = ssetransport.NewSseScServer(device.HttpServer, 0)
 	case transports.ProtocolTypeWotWebsocket:
 		device.TransportServer = wsstransport.NewWotWssServer(device.HttpServer, 0)
 	case transports.ProtocolTypeHiveotWebsocket:

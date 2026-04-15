@@ -11,7 +11,7 @@ import (
 	"github.com/hiveot/hivekit/go/modules/transports"
 	grpctransport "github.com/hiveot/hivekit/go/modules/transports/grpc"
 	"github.com/hiveot/hivekit/go/modules/transports/httpbasic"
-	ssetransport "github.com/hiveot/hivekit/go/modules/transports/sse"
+	ssetransport "github.com/hiveot/hivekit/go/modules/transports/ssesc"
 	wsstransport "github.com/hiveot/hivekit/go/modules/transports/wss"
 )
 

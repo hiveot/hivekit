@@ -1,6 +1,8 @@
 package certs
 
 import (
+	factoryapi "github.com/hiveot/hivekit/go/factory/api"
+	"github.com/hiveot/hivekit/go/modules"
 	certsapi "github.com/hiveot/hivekit/go/modules/certs/api"
 	"github.com/hiveot/hivekit/go/modules/certs/internal/service"
 )
@@ -8,7 +10,17 @@ import (
 // Create a new instance of the certs server module
 // This module is reachable as the DefaultCertsServiceID ThingID
 // certsDir is the storage directory to read or create keys and certificates.
-func NewCertsServer(certsDir string) certsapi.ICertsService {
+func NewCertsService(certsDir string) certsapi.ICertsService {
+	m := service.NewCertsService(certsDir)
+	return m
+}
+
+// Create a new instance of the certs server module using the factory environment
+// This module is reachable as the DefaultCertsServiceID ThingID
+// certsDir is the storage directory to read or create keys and certificates.
+func NewCertsServiceFactory(f factoryapi.IModuleFactory) modules.IHiveModule {
+	envDir := f.GetEnvironment()
+	certsDir := envDir.CertsDir
 	m := service.NewCertsService(certsDir)
 	return m
 }

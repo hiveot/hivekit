@@ -1,6 +1,7 @@
 package factoryapi
 
 import (
+	"github.com/hiveot/hivekit/go/api/td"
 	"github.com/hiveot/hivekit/go/modules"
 	"github.com/hiveot/hivekit/go/modules/transports"
 )
@@ -38,6 +39,9 @@ type ModuleDefinition struct {
 // This is common for protocol bindings like zwave or other device protocols where the module
 // manages multiple things.
 type IModuleFactory interface {
+	// Add security and forms to the TD for all running transport protocols
+	// Intended for devices to add forms before exporting a TD.
+	AddTDSecForms(tdoc *td.TD, includeAffordances bool)
 
 	// Provide the means to authenticate incoming connections.
 	// Intended for transport server modules.
@@ -54,6 +58,9 @@ type IModuleFactory interface {
 	// Used for modules that need to serve http endpoints, e.g. http basic authn, directory, etc.
 	// This requires that an httpserver module is registered.
 	GetHttpServer() transports.IHttpServer
+
+	// Return the list of available transport servers
+	GetTransportServers() []transports.ITransportServer
 
 	// GetModule creates and starts an instance of a module by its type.
 	//

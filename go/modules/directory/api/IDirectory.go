@@ -5,11 +5,8 @@ import (
 	"github.com/hiveot/hivekit/go/modules"
 )
 
+// DirectoryModuleType identifies the directory module
 const DirectoryModuleType = "directory"
-
-// DefaultDirectoryModuleID is the default moduleID of the directory module instance.
-// note that if multiple directory instances are created they must use different thingIDs
-const DefaultDirectoryModuleID = "directory"
 
 // The http path that provides the TD of the service
 // in case of the directory this provide the directory TD path

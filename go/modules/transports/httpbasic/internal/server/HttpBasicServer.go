@@ -78,7 +78,7 @@ func (m *HttpBasicServer) HandleRequest(
 // yamlConfig tbd: use base path?
 func (m *HttpBasicServer) Start() (err error) {
 
-	slog.Info("Starting http-basic server module")
+	slog.Info("Start: Starting httpbasic transport server")
 	m.createRoutes()
 
 	// The basic msg handler converts incoming module requests messages to the module API.
@@ -91,6 +91,7 @@ func (m *HttpBasicServer) Start() (err error) {
 
 // Stop any running actions
 func (m *HttpBasicServer) Stop() {
+	slog.Info("Stop: Stopping httpbasic transport server")
 
 }
 
@@ -108,7 +109,7 @@ func NewHttpBasicServer(httpServer transports.IHttpServer) *HttpBasicServer {
 	m := &HttpBasicServer{
 		httpServer: httpServer,
 	}
-	moduleID := httpbasicapi.WotHttpBasicModuleID
+	moduleID := httpbasicapi.HttpBasicModuleID
 
 	connectURL := httpServer.GetConnectURL()
 	authenticator := httpServer.GetAuthenticator()

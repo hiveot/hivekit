@@ -6,7 +6,7 @@ import (
 )
 
 // The default instance ID of the digital twin module
-const DefaultDigitwinModuleID = "digitwin"
+const DigitwinModuleType = "digitwin"
 
 // the prefix used for digital twins
 const DigitwinIDPrefix = "dtw:"

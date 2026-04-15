@@ -1,4 +1,4 @@
-package wssserver
+package server
 
 // AddTDSecForms updates the TD with base URI, security scheme and forms for use of
 // this protocol to the given TD.

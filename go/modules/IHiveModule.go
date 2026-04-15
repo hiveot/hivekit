@@ -9,8 +9,14 @@ import (
 // This interface is the most basic module interface.
 type IHiveModule interface {
 
-	// GetModuleID returns module's ID.
-	// For agents/devices this is the ThingID, for consumers this is the clientID.
+	// GetModuleType returns module's Type.
+	// This is not the instance ID.
+	// GetModuleType() string
+
+	// Get ModuleID returns the module instance ID.
+	// Module ID's must be locally unique.
+	// For singleton modules this can be the module type.
+	// For non-singleton modules this is the instance ID.
 	GetModuleID() string
 
 	// HandleRequest - invoked by consumer to this producer.

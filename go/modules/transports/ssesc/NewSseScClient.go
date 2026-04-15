@@ -1,11 +1,10 @@
-// package wsstransport with facade to websocket transport client and server
-package ssetransport
+package ssesc
 
 import (
 	"crypto/x509"
 
 	"github.com/hiveot/hivekit/go/modules/transports"
-	"github.com/hiveot/hivekit/go/modules/transports/sse/internal/sseclient"
+	"github.com/hiveot/hivekit/go/modules/transports/ssesc/internal/client"
 )
 
 // NewHiveotSseClient creates a new instance of the hiveot SSE-SC client.
@@ -16,7 +15,7 @@ import (
 func NewHiveotSseClient(sseURL string, caCert *x509.Certificate,
 	ch transports.ConnectionHandler) transports.ITransportClient {
 
-	return sseclient.NewHiveotSseClient(sseURL, caCert, ch)
+	return client.NewHiveotSseClient(sseURL, caCert, ch)
 }
 
 // NewWotSseClient creates a new instance of the WoT compatible SSE client.

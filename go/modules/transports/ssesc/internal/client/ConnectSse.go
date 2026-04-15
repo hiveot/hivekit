@@ -1,4 +1,4 @@
-package sseclient
+package client
 
 import (
 	"context"
@@ -11,7 +11,7 @@ import (
 	"time"
 
 	"github.com/hiveot/hivekit/go/modules/transports"
-	sseapi "github.com/hiveot/hivekit/go/modules/transports/sse/api"
+	ssescapi "github.com/hiveot/hivekit/go/modules/transports/ssesc/api"
 	gosse "github.com/tmaxmax/go-sse"
 )
 
@@ -70,7 +70,7 @@ func ConnectSSE(
 
 	// Wait for max 3 seconds to detect a connection
 	waitConnectCtx, waitConnectCancelFn := context.WithTimeout(context.Background(), timeout)
-	conn.SubscribeEvent(sseapi.SSEPingEvent, func(event gosse.Event) {
+	conn.SubscribeEvent(ssescapi.SSEPingEvent, func(event gosse.Event) {
 		// WORKAROUND since go-sse has no callback for a successful (re)connect, simulate one here.
 		// As soon as a connection is established the server could send a 'ping' event.
 		// success!

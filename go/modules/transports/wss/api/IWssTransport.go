@@ -4,12 +4,12 @@ import "github.com/hiveot/hivekit/go/modules/transports"
 
 const (
 	// Hiveot websocket sub-protocol
-	HiveotWebsocketModuleID = "hiveot-wss"
-	HiveotWebsocketPath     = "/hiveot/wss"
+	HiveotWebsocketModuleType = "hiveot-wss"
+	HiveotWebsocketPath       = "/hiveot/wss"
 
 	// WoT websocket sub-protocol
-	WotWebsocketModuleID = "wot-wss"
-	WotWebsocketPath     = "/wot/wss"
+	WotWebsocketModuleType = "wot-wss"
+	WotWebsocketPath       = "/wot/wss"
 )
 
 // Interface of the Hiveot websocket server module

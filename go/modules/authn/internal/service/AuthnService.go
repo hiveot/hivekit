@@ -2,6 +2,7 @@ package service
 
 import (
 	"fmt"
+	"log/slog"
 	"net/url"
 
 	"github.com/hiveot/hivekit/go/api/msg"
@@ -128,6 +129,7 @@ func (m *AuthnService) SetRole(clientID string, role string) error {
 // yamlConfig with module startup configuration (todo)
 func (m *AuthnService) Start() (err error) {
 
+	slog.Info("Start: Starting authn")
 	err = m.authnStore.Open()
 	if err != nil {
 		return err
@@ -181,6 +183,7 @@ func (m *AuthnService) Start() (err error) {
 
 // Stop closes the client store and releases resources
 func (m *AuthnService) Stop() {
+	slog.Info("Stop: Stopping authn")
 	m.authnStore.Close()
 }
 
@@ -253,7 +256,7 @@ func NewAuthnService(authnConfig authnapi.AuthnConfig, httpServer transports.IHt
 		sessionManager: sessionManager,
 		// sessionStart: make(map[string]time.Time),
 	}
-	m.SetModuleID(authnapi.AuthnModuleType)
+	m.SetModuleID(authnapi.AuthnAdminServiceID)
 	var _ modules.IHiveModule = m    // interface check
 	var _ authnapi.IAuthnService = m // interface check
 	return m

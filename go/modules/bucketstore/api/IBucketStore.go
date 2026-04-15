@@ -4,10 +4,13 @@ package bucketstoreapi
 
 import "github.com/hiveot/hivekit/go/modules"
 
+const BucketStoreModuleType = "bucketstore"
+
 // Available embedded bucket store implementations with low memory overhead
 const (
-	BackendKVBTree = "kvbtree" // fastest and best for small to medium amounts of data (dependent on available memory)
-	BackendPebble  = "pebble"  // a good middle ground between performance and memory
+	BackendInMemory = ""        // empty type defaults to in-memory kvbtree
+	BackendKVBTree  = "kvbtree" // fastest and best for small to medium amounts of data (dependent on available memory)
+	BackendPebble   = "pebble"  // a good middle ground between performance and memory
 	// BackendRedis   = "redis"   // URL to redis endpoint
 	// BackendSqlite  = "sqlite"  // SQLite storage
 )

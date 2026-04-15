@@ -1,22 +1,23 @@
-package sseserver
+package server
 
 import (
 	"fmt"
+	"log/slog"
 	"net/url"
 	"time"
 
 	"github.com/hiveot/hivekit/go/api/msg"
 	"github.com/hiveot/hivekit/go/modules"
 	"github.com/hiveot/hivekit/go/modules/transports"
-	sseapi "github.com/hiveot/hivekit/go/modules/transports/sse/api"
+	ssescapi "github.com/hiveot/hivekit/go/modules/transports/ssesc/api"
 )
 
-// SseTransportServer is a transport module for serving the HiveOT SSE-SC transport protocol.
+// TransportServer is a transport module for serving the HiveOT SSE-SC transport protocol.
 // This implements the ITransportModule (and IHiveModule) interface.
 //
 // This transport protocol is build on top of HTTP and is bi-directional.
 // It supports subscribing to events or observing properties.
-type SseTransportServer struct {
+type TransportServer struct {
 	// Transport base includes the RnR channel for matching request-response messages.
 	transports.TransportServerBase
 
@@ -24,7 +25,7 @@ type SseTransportServer struct {
 	encoder transports.IMessageEncoder
 
 	// the RRN messaging receiver
-	msgAPI *HiveotSseMsgHandler
+	// msgAPI *HiveotSseScMsgHandler
 
 	// actual server exposing routes
 	httpServer transports.IHttpServer
@@ -40,7 +41,7 @@ type SseTransportServer struct {
 	ssePath string
 }
 
-func (m *SseTransportServer) GetProtocolType() (string, string) {
+func (m *TransportServer) GetProtocolType() (string, string) {
 	return transports.ProtocolTypeHiveotSsesc, transports.SubprotocolHiveotSsesc
 }
 
@@ -52,12 +53,12 @@ func (m *SseTransportServer) GetProtocolType() (string, string) {
 //
 // This returns an error when the destination for the request cannot be found.
 // If multiple server protocols are used it is okay to try them one by one.
-func (m *SseTransportServer) HandleRequest(
+func (m *TransportServer) HandleRequest(
 	req *msg.RequestMessage, replyTo msg.ResponseHandler) (err error) {
 
 	// first attempt to procss the when targeted at this module
 	if req.ThingID == m.GetModuleID() {
-		err = m.msgAPI.HandleRequest(req, replyTo)
+		err = m.HandleModuleRequest(req, replyTo)
 	} else {
 		// if the request is not for this server, then send the request to the connected agent
 		err = m.TransportServerBase.HandleRequest(req, replyTo)
@@ -68,18 +69,22 @@ func (m *SseTransportServer) HandleRequest(
 // Start readies the module for use.
 //
 // yamlConfig todo configure ssepath
-func (m *SseTransportServer) Start() (err error) {
+func (m *TransportServer) Start() (err error) {
+
+	slog.Info("Start: Starting ssesc transport server")
 
 	// Add the routes used in SSE connection and subscription requests
 	m.CreateRoutes(m.ssePath, m.httpServer.GetProtectedRoute())
 
-	// The msg handler invokes the module API.
-	m.msgAPI = NewHiveotSseMsgHandler(m)
+	// The handler for messaging requests directed at this module
+	// m.msgAPI = NewHiveotSseMsgHandler(m)
 	return err
 }
 
 // Stop any running actions
-func (m *SseTransportServer) Stop() {
+func (m *TransportServer) Stop() {
+	slog.Info("Stop: Stopping ssesc transport server")
+	m.CloseAll()
 }
 
 // Start a new HiveOT Http/SSE server using the given http server.
@@ -89,9 +94,9 @@ func (m *SseTransportServer) Stop() {
 //
 // Use SetRequestSink to set the handler for requests send by consumers
 // Use SetNotificationSink to set the handler for notifications send by agents.
-func NewHiveotSseServer(httpServer transports.IHttpServer, respTimeout time.Duration) *SseTransportServer {
+func NewHiveotSseServer(httpServer transports.IHttpServer, respTimeout time.Duration) *TransportServer {
 
-	ssePath := sseapi.HiveotSseScPath
+	ssePath := ssescapi.SseScPath
 
 	httpAddr := httpServer.GetConnectURL()
 	urlParts, _ := url.Parse(httpAddr)
@@ -104,14 +109,13 @@ func NewHiveotSseServer(httpServer transports.IHttpServer, respTimeout time.Dura
 		respTimeout = transports.DefaultRpcTimeout
 	}
 
-	m := &SseTransportServer{
+	m := &TransportServer{
 		httpServer:  httpServer,
 		ssePath:     ssePath,
 		encoder:     encoder,
 		respTimeout: respTimeout,
 	}
-	moduleID := sseapi.HiveotSseScModuleID
-	m.Init(moduleID,
+	m.Init(ssescapi.SseScServerModuleType,
 		transports.ProtocolTypeHiveotSsesc,
 		transports.SubprotocolHiveotSsesc,
 		connectURL, httpServer.GetAuthenticator())

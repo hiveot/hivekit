@@ -5,6 +5,7 @@ import (
 	"log/slog"
 	"sync"
 
+	"github.com/hiveot/hivekit/go/api/td"
 	factoryapi "github.com/hiveot/hivekit/go/factory/api"
 	"github.com/hiveot/hivekit/go/modules"
 	"github.com/hiveot/hivekit/go/modules/transports"
@@ -35,10 +36,25 @@ type ModuleFactory struct {
 	// instances of modules marked as singleton
 	singletonModules map[string]modules.IHiveModule
 
+	// list of all transport modules
+	transportModules []transports.ITransportServer
+
 	// the authenticator proxy
 	authProxy *AuthenticatorProxy
 
 	mux sync.RWMutex
+}
+
+// Add forms to the TD for all running transport servers
+// This invokes all singletonModules that implement the ITransportServer interface
+func (f *ModuleFactory) AddTDSecForms(tdoc *td.TD, includeAffordances bool) {
+	f.mux.RLock()
+	tpList := []transports.ITransportServer{}
+	copy(tpList, f.transportModules)
+	f.mux.RUnlock()
+	for _, tp := range tpList {
+		tp.AddTDSecForms(tdoc, includeAffordances)
+	}
 }
 
 // Return the application environment used by the factory.
@@ -90,6 +106,15 @@ func (f *ModuleFactory) GetModule(moduleType string) (modules.IHiveModule, error
 	return m, err
 }
 
+// Return a copy of the list with loaded transport servers
+func (f *ModuleFactory) GetTransportServers() []transports.ITransportServer {
+	f.mux.RLock()
+	tpList := []transports.ITransportServer{}
+	copy(tpList, f.transportModules)
+	f.mux.RUnlock()
+	return tpList
+}
+
 // LoadModule loads an instance of a module but does not start it yet.
 // If the module is a singleton then the same instance is returned for multiple calls with the same type.
 //
@@ -116,6 +141,10 @@ func (f *ModuleFactory) LoadModule(moduleType string) (m modules.IHiveModule, is
 	if def.Singleton {
 		f.mux.Lock()
 		f.singletonModules[moduleType] = mod
+		tp, ok := mod.(transports.ITransportServer)
+		if ok {
+			f.transportModules = append(f.transportModules, tp)
+		}
 		f.mux.Unlock()
 	}
 	return mod, true, nil

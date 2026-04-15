@@ -10,6 +10,8 @@ import (
 	"github.com/hiveot/hivekit/go/modules/authz/internal"
 )
 
+const AuthzModuleType = "authz"
+
 func NewAuthzService(getRoleHandler func(clientID string) (role string, err error)) authzapi.IAuthzService {
 	m := internal.NewAuthzService(getRoleHandler)
 	return m

@@ -104,7 +104,7 @@ func NewVCacheService() *VCacheServer {
 	m := &VCacheServer{
 		store: *NewVCacheStore(),
 	}
-	m.SetModuleID(vcacheapi.DefaultVCacheModuleID)
+	m.SetModuleID(vcacheapi.VCacheModuleType)
 	var _ vcacheapi.IVCacheService = m // interface check
 	return m
 }

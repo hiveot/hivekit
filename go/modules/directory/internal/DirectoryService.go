@@ -97,11 +97,11 @@ func (m *DirectoryService) Start() (err error) {
 
 	storagePath := m.storageLoc
 	moduleID := m.GetModuleID()
-	slog.Info("Start: Starting directory module", "moduleID", moduleID)
+	slog.Info("Start: Starting directory module")
 
 	// if no storageLoc is set, use the in-memory store
 	if m.storageLoc != "" {
-		storagePath = filepath.Join(m.storageLoc, m.GetModuleID()+".kvbtree")
+		storagePath = filepath.Join(m.storageLoc, moduleID+".kvbtree")
 	}
 	m.bucketStore, err = bucketstore.NewBucketStore(storagePath, bucketstoreapi.BackendKVBTree)
 
@@ -121,7 +121,7 @@ func (m *DirectoryService) Start() (err error) {
 
 // Stop any running actions
 func (m *DirectoryService) Stop() {
-	slog.Info("Stop: closing directory store")
+	slog.Info("Stop: Stopping directory module")
 	err := m.tdBucket.Close()
 	if err != nil {
 		slog.Error("Stop: error stopping directory bucket", "err", err.Error())
@@ -146,7 +146,7 @@ func NewDirectoryService(location string, httpServer transports.IHttpServer) *Di
 		httpServer:     httpServer,
 		tdCache:        make(map[string]*td.TD),
 	}
-	m.SetModuleID(directoryapi.DefaultDirectoryModuleID)
+	m.SetModuleID(directoryapi.DirectoryModuleType)
 	if httpServer == nil {
 		slog.Warn("NewDirectoryModule: no httpServer provided. HTTP interface not active.")
 	}

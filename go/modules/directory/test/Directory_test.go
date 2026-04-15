@@ -125,7 +125,7 @@ func TestCRUDUsingMsgAPI(t *testing.T) {
 	_ = testEnv
 	defer cancelFn()
 
-	directoryID := directoryapi.DefaultDirectoryModuleID
+	directoryID := directoryapi.DirectoryModuleType
 	thing1ID := clientID + ":thing1"
 
 	// test create a TD

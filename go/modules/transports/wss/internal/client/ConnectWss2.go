@@ -1,4 +1,4 @@
-package wssclient
+package client
 
 import (
 	"context"

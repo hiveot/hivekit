@@ -4,13 +4,16 @@ import (
 	"os"
 	"path"
 	"testing"
+	"time"
 
 	"github.com/hiveot/hivekit/go/factory"
 	factoryapi "github.com/hiveot/hivekit/go/factory/api"
 	authnapi "github.com/hiveot/hivekit/go/modules/authn/api"
 	certstest "github.com/hiveot/hivekit/go/modules/certs/test"
+	digitwinapi "github.com/hiveot/hivekit/go/modules/digitwin/api"
 	"github.com/hiveot/hivekit/go/utils"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 var testDir = path.Join(os.TempDir(), "hivekit", "factory-test")
@@ -48,6 +51,8 @@ func TestAppEnv(t *testing.T) {
 }
 
 func TestStartStop(t *testing.T) {
+	_ = os.RemoveAll(testDir)
+
 	// just test that the environment can be created and loaded
 	env := factoryapi.NewAppEnvironment(testDir, false)
 	err := env.LoadConfig(&env)
@@ -76,9 +81,43 @@ func TestGetAuthenticator(t *testing.T) {
 
 	httpServer := f.GetHttpServer()
 	assert.NotNil(t, httpServer)
+	httpAuth := httpServer.GetAuthenticator()
+	assert.NotNil(t, httpAuth)
 
-	// loading the authenticator switches the factory to use it
-	authnMod, err := f.GetModule(authnapi.AuthnModuleType)
-	assert.NotNil(t, authnMod)
+	// loading the authn module switches the factory to use it as authenticator
+	m, err := f.GetModule(authnapi.AuthnModuleType)
+	require.NotNil(t, m)
+	assert.NoError(t, err)
+
+	// create a token using authn session manager. It should validate with http authenticator now.
+	authnMod, ok := m.(authnapi.IAuthnService)
+	require.True(t, ok)
+	sm := authnMod.GetSessionManager()
+	err = authnMod.AddClient("client1", "client 1", "some role")
+	require.NoError(t, err)
+	token, _, err := sm.CreateToken("client1", time.Minute)
+	require.NoError(t, err)
+
+	// the httpauthn uses the factory authenticator which is set by authn to its session manager
+	clientID, issAt, validUnt, err := httpAuth.ValidateToken(token)
+	require.NoError(t, err)
+	assert.Equal(t, "client1", clientID)
+	assert.NotNil(t, issAt)
+	assert.NotNil(t, validUnt)
+}
+
+// test with the digital twin factory
+func TestDigitwin(t *testing.T) {
+	// just test that the environment can be created and loaded
+	env := factoryapi.NewAppEnvironment(testDir, false)
+	env.CaCert = testCerts.CaCert
+	env.ServerCert = testCerts.ServerCert
+
+	f := factory.NewModuleFactory(env, ServerModuleTable)
+
+	// load the digitwin module
+	// this should start the directory and http server
+	m, err := f.GetModule(digitwinapi.DigitwinModuleType)
+	require.NotNil(t, m)
 	assert.NoError(t, err)
 }

@@ -82,6 +82,8 @@ func (m *GrpcTransportServer) ServeStreamConnection(
 // and update the connectURL to match the scheme used for listening.
 func (m *GrpcTransportServer) Start() (err error) {
 
+	slog.Info("Start: Starting grpc transport server", slog.String("address", m.connectURL))
+
 	address := m.connectURL
 	network := "tcp"
 	// start listening on unix sockets. Make sure the directory exists and the socket file doesn't.
@@ -140,7 +142,7 @@ func (m *GrpcTransportServer) Start() (err error) {
 
 // Stop any running actions
 func (m *GrpcTransportServer) Stop() {
-	slog.Info("Stop: Stopping gRPC module")
+	slog.Info("Stop: Stopping grpc transport server")
 	m.CloseAll()
 	m.grpcService.Stop()
 }

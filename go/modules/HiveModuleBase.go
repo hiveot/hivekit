@@ -40,6 +40,8 @@ type HiveModuleBase struct {
 	// This map is empty until changes are made using UpdateProperty
 	// changedProperties map[string]any
 
+	// FIXME: should this be module ID or the Thing ID? what if the module uses multiple?
+	// try to remove this
 	// moduleID/thingID is the unique instance ID of this module.
 	moduleID string
 
@@ -257,9 +259,7 @@ func (m *HiveModuleBase) HandleRequest(req *msg.RequestMessage, replyTo msg.Resp
 // 	return resp, err
 // }
 
-// Initialize the module base with a moduleID
-//
-// This sets this module notification handler with the sink.
+// Initialize the module base with a module instance ID
 func (m *HiveModuleBase) SetModuleID(moduleID string) {
 	m.moduleID = moduleID
 }

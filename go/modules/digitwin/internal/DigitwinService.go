@@ -37,7 +37,7 @@ type DigitwinService struct {
 	// track the connections of agents
 	agentStatus sync.Map
 
-	// hook to server to add forms to a TD for interacting with affordances
+	// hook to server to add secforms to a TD for interacting with affordances
 	addForms func(tdoc *td.TD, includeAffordances bool)
 
 	// internal storage with the original device TDs
@@ -217,7 +217,7 @@ func (m *DigitwinService) SetAgentStatus(agentID string, connected bool) {
 func (m *DigitwinService) Start() (err error) {
 
 	moduleID := m.GetModuleID()
-	slog.Info("Start: Starting digitwin module", "moduleID", moduleID)
+	slog.Info("Start: Starting digitwin module")
 
 	// the vcache holds the cached notifications
 	// if it doesn't contain a value it should forward the request to the device
@@ -240,12 +240,12 @@ func (m *DigitwinService) Start() (err error) {
 
 	m.directory.SetTDHooks(m.HandleWriteDirectory, m.HandleDeleteTD)
 
-	// Subscribe to devices.
+	// FIXME: Subscribe to devices.
 	// lets hope there aren't too many or this can take a while.
 	// how to support wildcard device subscriptions? flatten the list of agents?
 	// digitalTwins, err := m.directory.RetrieveAllThings(0, 0)
 
-	// TODO: agents are subscribed to when they (re)connect,
+	// FIXME: agents are subscribed to when they (re)connect,
 	// so subscribe to server 'connect' notifications instead
 
 	return nil
@@ -253,7 +253,7 @@ func (m *DigitwinService) Start() (err error) {
 
 // Stop the digital twin module and release the allocation resources
 func (m *DigitwinService) Stop() {
-	slog.Info("Stop: closing digitwin store")
+	slog.Info("Stop: stopping digitwin module")
 	err := m.deviceTDBucket.Close()
 	if err != nil {
 		slog.Error("Stop: error stopping digitwin bucket", "err", err.Error())
@@ -280,7 +280,7 @@ func NewDigitwinService(storageDir string,
 		storageDir:             storageDir,
 		includeAffordanceForms: true,
 	}
-	m.SetModuleID(digitwinapi.DefaultDigitwinModuleID)
+	m.SetModuleID(digitwinapi.DigitwinModuleType)
 
 	var _ digitwinapi.IDigitwinServer = m // interface check
 	return m

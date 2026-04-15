@@ -26,7 +26,7 @@ func startModule(t *testing.T) (certsapi.ICertsService, func(), error) {
 	// clear start
 	_ = os.RemoveAll(storageDir)
 
-	m := certs.NewCertsServer(storageDir)
+	m := certs.NewCertsService(storageDir)
 	err := m.Start()
 	require.NoError(t, err)
 	return m, func() {

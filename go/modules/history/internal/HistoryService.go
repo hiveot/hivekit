@@ -77,7 +77,7 @@ func (m *HistoryService) Start() (err error) {
 		return err
 	}
 
-	slog.Info("Starting HistoryService", "moduleID", m.GetModuleID())
+	slog.Info("Start: Starting history module")
 	// Messaging API handler for reading the history
 	m.readHistoryMsgHandler = NewReadHistoryMsgHandler(m)
 
@@ -86,7 +86,7 @@ func (m *HistoryService) Start() (err error) {
 
 // Stop using the history service and release resources
 func (m *HistoryService) Stop() {
-	slog.Info("Stopping HistoryService")
+	slog.Info("Stop: Stopping history module")
 	_ = m.bucketStore.Close()
 }
 

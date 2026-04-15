@@ -1,4 +1,4 @@
-package sseserver
+package server
 
 import (
 	"fmt"
@@ -9,7 +9,7 @@ import (
 	"github.com/hiveot/hivekit/go/api/msg"
 	"github.com/hiveot/hivekit/go/api/td"
 	"github.com/hiveot/hivekit/go/modules/transports"
-	ssescapi "github.com/hiveot/hivekit/go/modules/transports/sse/api"
+	ssescapi "github.com/hiveot/hivekit/go/modules/transports/ssesc/api"
 	jsoniter "github.com/json-iterator/go"
 	"github.com/teris-io/shortid"
 )
@@ -19,7 +19,7 @@ type SSEEvent struct {
 	Payload   string // message content
 }
 
-// HiveotSseServerConnection handles the SSE connection by remote client
+// ServerConnection handles the SSE connection by remote client
 //
 // The Sse-sc (sse single connection) protocol binding uses a 'hiveot' message
 // envelope for sending messages between server and consumer.
@@ -29,7 +29,7 @@ type SSEEvent struct {
 // to the server.
 //
 // This implements the IConnection interface for sending messages to the client over SSE.
-type HiveotSseServerConnection struct {
+type ServerConnection struct {
 	// Connection information such as clientID, cid, address, protocol etc
 	// subscriptions made through the http side.
 	transports.ServerConnectionBase
@@ -58,7 +58,7 @@ type HiveotSseServerConnection struct {
 // _send sends a request, response or notification message to the client over SSE.
 // This is different from the WoT SSE subprotocol in that the payload is the
 // message envelope and can carry any operation.
-func (sc *HiveotSseServerConnection) _send(msgType string, msg any) (err error) {
+func (sc *ServerConnection) _send(msgType string, msg any) (err error) {
 
 	payloadJSON, _ := jsoniter.MarshalToString(msg)
 	sseMsg := SSEEvent{
@@ -82,7 +82,7 @@ func (sc *HiveotSseServerConnection) _send(msgType string, msg any) (err error) 
 }
 
 // Close closes the connection and ends the read loop
-func (sc *HiveotSseServerConnection) Close() {
+func (sc *ServerConnection) Close() {
 	sc.Mux.Lock()
 	defer sc.Mux.Unlock()
 	if sc.IsConnected() {
@@ -107,7 +107,7 @@ func (sc *HiveotSseServerConnection) Close() {
 // This sends a response to the client, confirming the subscription.
 //
 // Everything else returns with handled false.
-func (sc *HiveotSseServerConnection) onRequestMessage(
+func (sc *ServerConnection) onRequestMessage(
 	req *msg.RequestMessage) (handled bool, err error) {
 
 	// handle subscriptions using connection base
@@ -133,7 +133,7 @@ func (sc *HiveotSseServerConnection) onRequestMessage(
 }
 
 // SendNotification sends a notification to the client if subscribed.
-func (sc *HiveotSseServerConnection) SendNotification(
+func (sc *ServerConnection) SendNotification(
 	notif *msg.NotificationMessage) {
 
 	clientID := sc.GetClientID()
@@ -162,7 +162,7 @@ func (sc *HiveotSseServerConnection) SendNotification(
 
 // SendRequest sends a request message to an agent over SSE.
 // If responseHandler is provided then the response is received via http using rnrChan.
-func (sc *HiveotSseServerConnection) SendRequest(
+func (sc *ServerConnection) SendRequest(
 	req *msg.RequestMessage, responseHandler msg.ResponseHandler) (err error) {
 
 	// This sends the message as-is over SSE
@@ -195,7 +195,7 @@ func (sc *HiveotSseServerConnection) SendRequest(
 }
 
 // SendResponse send a response from server to client over SSE.
-func (sc *HiveotSseServerConnection) SendResponse(resp *msg.ResponseMessage) error {
+func (sc *ServerConnection) SendResponse(resp *msg.ResponseMessage) error {
 	// This simply sends the message as-is
 	return sc._send(msg.MessageTypeResponse, resp)
 }
@@ -204,7 +204,7 @@ func (sc *HiveotSseServerConnection) SendResponse(resp *msg.ResponseMessage) err
 // This listens for outgoing requests on the given channel
 // It ends when the client disconnects or the connection is closed with Close()
 // Sse requests are refused if no valid session is found.
-func (sc *HiveotSseServerConnection) Serve(w http.ResponseWriter, r *http.Request) {
+func (sc *ServerConnection) Serve(w http.ResponseWriter, r *http.Request) {
 	// Set headers for SSE response
 	//w.Header().Set("Access-Control-Allow-Origin", "*")
 	w.Header().Set("Access-Control-Expose-Headers", "Content-Type")
@@ -296,7 +296,7 @@ func (sc *HiveotSseServerConnection) Serve(w http.ResponseWriter, r *http.Reques
 }
 
 // SetTimeout set the timeout sending requests
-func (sc *HiveotSseServerConnection) SetTimeout(timeout time.Duration) {
+func (sc *ServerConnection) SetTimeout(timeout time.Duration) {
 	sc.respTimeout = timeout
 }
 
@@ -311,9 +311,9 @@ func (sc *HiveotSseServerConnection) SetTimeout(timeout time.Duration) {
 func NewHiveotSseConnection(
 	clientID string, cid string, remoteAddr string,
 	httpReq *http.Request, rnrChan *msg.RnRChan,
-	respTimeout time.Duration) *HiveotSseServerConnection {
+	respTimeout time.Duration) *ServerConnection {
 
-	c := &HiveotSseServerConnection{
+	c := &ServerConnection{
 		remoteAddr:   remoteAddr,
 		httpReq:      httpReq,
 		lastActivity: time.Now(),

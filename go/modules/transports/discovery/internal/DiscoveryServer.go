@@ -98,13 +98,13 @@ func (m *DiscoveryServer) ServeThingTD(thingTDJSON string) (err error) {
 //  3. start listening for devices and publish notifications on discovered devices
 func (m *DiscoveryServer) Start() (err error) {
 
-	slog.Info("Start: Starting discovery module", "moduleID", m.GetModuleID())
+	slog.Info("Start: Starting discovery transport server")
 	return nil
 }
 
 // Stop any running services and release resources
 func (m *DiscoveryServer) Stop() {
-	slog.Info("Stop: ending discovery services")
+	slog.Info("Stop: Stopping discovery transport server")
 	if m.dnssdServer != nil {
 		m.dnssdServer.Shutdown()
 		// the DNS server takes a wee bit of time to really stop

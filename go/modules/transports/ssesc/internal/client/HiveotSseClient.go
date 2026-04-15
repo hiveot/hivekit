@@ -1,4 +1,4 @@
-package sseclient
+package client
 
 import (
 	"context"
@@ -16,10 +16,10 @@ import (
 	"github.com/hiveot/hivekit/go/modules"
 	"github.com/hiveot/hivekit/go/modules/transports"
 	"github.com/hiveot/hivekit/go/modules/transports/httpclient"
-	sseapi "github.com/hiveot/hivekit/go/modules/transports/sse/api"
+	ssescapi "github.com/hiveot/hivekit/go/modules/transports/ssesc/api"
 	jsoniter "github.com/json-iterator/go"
 	"github.com/teris-io/shortid"
-	sse "github.com/tmaxmax/go-sse"
+	gosse "github.com/tmaxmax/go-sse"
 )
 
 // HiveotSseClient is the http client for connecting a WoT client to a http
@@ -247,11 +247,11 @@ func (cl *HiveotSseClient) handleSSEConnect(connected bool, err error) {
 // requests have an operation and correlationID
 // responses have no operations and a correlationID
 // notifications have an operations and no correlationID
-func (cl *HiveotSseClient) handleSseEvent(event sse.Event) {
+func (cl *HiveotSseClient) handleSseEvent(event gosse.Event) {
 	clientID := cl.tlsClient.GetClientID()
 
 	// no further processing of a ping needed
-	if event.Type == sseapi.SSEPingEvent {
+	if event.Type == ssescapi.SSEPingEvent {
 		return
 	}
 
@@ -367,7 +367,7 @@ func (cl *HiveotSseClient) SendNotification(msg *msg.NotificationMessage) {
 	// Send as text, not binary, to avoid unmarshalling problems
 	outputJSON, _ := jsoniter.MarshalToString(msg)
 	_, _, err := cl.tlsClient.Post(
-		sseapi.PostSseScNotificationPath, []byte(outputJSON))
+		ssescapi.PostSseScNotificationPath, []byte(outputJSON))
 
 	if err != nil {
 		slog.Warn("SendNotification failed",
@@ -397,7 +397,7 @@ func (cl *HiveotSseClient) SendRequest(
 	// be received async via SSE.
 	if replyTo == nil {
 		outputRaw, code, err := cl.tlsClient.Post(
-			sseapi.PostSseScRequestPath, []byte(outputJSON))
+			ssescapi.PostSseScRequestPath, []byte(outputJSON))
 		_ = code
 		_ = outputRaw
 
@@ -410,7 +410,7 @@ func (cl *HiveotSseClient) SendRequest(
 	cl.rnrChan.Open(req.CorrelationID)
 
 	outputRaw, code, err := cl.tlsClient.Post(
-		sseapi.PostSseScRequestPath, []byte(outputJSON))
+		ssescapi.PostSseScRequestPath, []byte(outputJSON))
 
 	if err != nil {
 		cl.rnrChan.Close(req.CorrelationID)
@@ -469,7 +469,7 @@ func (cl *HiveotSseClient) SendResponse(resp *msg.ResponseMessage) error {
 	// Send as text, not binary, to avoid unmarshalling problems
 	outputJSON, _ := jsoniter.MarshalToString(resp)
 	_, _, err := cl.tlsClient.Post(
-		sseapi.PostSseScResponsePath, []byte(outputJSON))
+		ssescapi.PostSseScResponsePath, []byte(outputJSON))
 	return err
 }
 

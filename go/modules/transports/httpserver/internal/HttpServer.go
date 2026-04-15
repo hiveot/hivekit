@@ -117,7 +117,9 @@ func (m *HttpServer) Start() (err error) {
 	cfg := m.config
 	m.connectURL = fmt.Sprintf("https://%s:%d", cfg.Address, cfg.Port)
 
-	slog.Info("Starting HTTP server module", "address", cfg.Address, "port", cfg.Port)
+	slog.Info("Start: Starting 'httpserver' transport server",
+		"address", cfg.Address, "port", cfg.Port)
+
 	if cfg.CaCert == nil || cfg.ServerCert == nil {
 		//no TLS possible
 		if cfg.NoTLS == false {
@@ -164,7 +166,7 @@ func (m *HttpServer) Start() (err error) {
 	// finally run the server in the background
 	go func() {
 		// serverTLSConf contains certificate and key
-		slog.Info("TLSServer - Listening")
+		// slog.Debug("TLSServer - Listening", "addr", lisn.Addr().String())
 		err2 := m.httpServer.ServeTLS(lisn, "", "")
 		//err2 := srv.httpServer.ListenAndServeTLS("", "")
 		if err2 != nil && !errors.Is(err2, http.ErrServerClosed) {
@@ -183,16 +185,18 @@ func (m *HttpServer) Start() (err error) {
 // continue.
 func (m *HttpServer) Stop() {
 
+	slog.Info("Stop: Stopping httpserver transport server")
+
 	if m.httpServer != nil {
 		// note that this does not (cannot?) close existing client connections
 		ctx, cancelFn := context.WithTimeout(context.Background(), time.Second*30)
 		err := m.httpServer.Shutdown(ctx)
 		if err != nil {
-			slog.Error("Stop: TLS server graceful shutdown failed. Forcing Remove", "err", err.Error())
+			slog.Error("Stop: HTTP server graceful shutdown failed. Forcing Remove", "err", err.Error())
 			_ = m.httpServer.Close()
 		}
 		cancelFn()
-		slog.Info("Stopped HttpTransportModule")
+		// slog.Info("Stopped HttpTransportModule")
 	} else {
 		slog.Info("Stop HttpTransportModule - not running")
 	}

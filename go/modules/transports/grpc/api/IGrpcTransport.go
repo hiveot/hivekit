@@ -8,8 +8,11 @@ import (
 
 const (
 	// Hiveot gRPC module ID
-	HiveotGrpcModuleID = "hiveot-grpc"
+	HiveotGrpcModuleType = "hiveot-grpc"
 
+	// there is no WoT gRPC specification
+
+	// The grpc service that identifies the streams
 	GrpcTransportServiceName = "grpcTransport"
 	// the stream names used in client and server
 	StreamNameNotification    = "notification"

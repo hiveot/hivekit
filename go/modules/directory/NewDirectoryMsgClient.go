@@ -78,11 +78,11 @@ func (cl *DirectoryMsgClient) RetrieveAllThings(offset int, limit int) (tdList [
 // This registers the directory client as the sink for notifications from the request handler.
 // with the intent to receive directory updates.
 //
-//	serviceID is the thing ID of the directory service instance. This defaults to the directory module's thingID.
+//	serviceID is the thing ID of the directory service instance. This defaults to the directory module's type.
 //	reqSink is the handler for requests send by the directory client and emitter of notifications
 func NewDirectoryMsgClient(serviceID string, reqSink modules.IHiveModule) *DirectoryMsgClient {
 	if serviceID == "" {
-		serviceID = directoryapi.DefaultDirectoryModuleID
+		serviceID = directoryapi.DirectoryModuleType
 	}
 	cl := &DirectoryMsgClient{
 		directoryID: serviceID,
@@ -104,12 +104,12 @@ func NewDirectoryMsgClient(serviceID string, reqSink modules.IHiveModule) *Direc
 // notification sinks, any agent notification would be lost.
 // Instead this method uses the given agent request handler to send the request.
 //
-// directoryServiceID is the thing ID of the directory service instance.
+// directoryServiceID is the thing ID of the directory service instance. Defaults to the module type
 // tdJson is the TD in JSON to update in the directory.
 // reqHandler is the request handler of the agent to send the request through.
 func UpdateTD(directoryServiceID string, tdJson string, reqHandler msg.RequestHandler) error {
 	if directoryServiceID == "" {
-		directoryServiceID = directoryapi.DefaultDirectoryModuleID
+		directoryServiceID = directoryapi.DirectoryModuleType
 	}
 	req := msg.NewRequestMessage(
 		td.OpInvokeAction, directoryServiceID, directoryapi.ActionUpdateThing, tdJson, "")

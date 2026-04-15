@@ -1,4 +1,4 @@
-package sseapi
+package ssescapi
 
 import "github.com/hiveot/hivekit/go/modules/transports"
 
@@ -6,9 +6,10 @@ import "github.com/hiveot/hivekit/go/modules/transports"
 const SSEPingEvent = "sse-ping"
 
 const (
-	// SseScModuleID is the default thingID of the sse-sc transport module.
-	HiveotSseScModuleID = "hiveot-ssesc"
-	HiveotSseScPath     = "/hiveot/ssesc"
+	// Hide type of the hiveot HTTP/SSE-SC server
+	SseScServerModuleType = "hiveot-ssesc"
+
+	SseScPath = "/hiveot/ssesc"
 
 	// PostSseScRequestPath HTTP endpoint that accepts HiveOT RequestMessage envelopes
 	PostSseScRequestPath = "/hiveot/request"
@@ -22,8 +23,8 @@ const (
 	SseScOpConnect = "ssesc-connect"
 )
 
-// Interface of the HiveotSse transport module
-type ISseTransportServer interface {
+// Interface of the HiveotSseSc transport module
+type ISseScTransportServer interface {
 	transports.ITransportServer
 
 	// todo: future API for configuration of the module

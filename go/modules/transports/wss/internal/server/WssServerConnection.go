@@ -1,4 +1,4 @@
-package wssserver
+package server
 
 import (
 	"context"

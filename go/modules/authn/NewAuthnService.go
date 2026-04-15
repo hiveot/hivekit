@@ -34,7 +34,7 @@ func NewAuthnServiceFactory(f factoryapi.IModuleFactory) modules.IHiveModule {
 	keysDir := env.CertsDir
 	storageDir := env.GetStorageDir(authnapi.AuthnModuleType)
 	authnConfig := authnapi.NewAuthnConfig(keysDir, storageDir)
-	// TODO: configuration for using http endpoints in authn
+	// TODO: option to enable/disable the authn http endpoints
 	httpServer := f.GetHttpServer()
 	m := NewAuthnService(authnConfig, httpServer)
 	f.SetAuthenticator(m.GetSessionManager())

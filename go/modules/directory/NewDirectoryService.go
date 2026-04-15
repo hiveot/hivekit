@@ -28,6 +28,6 @@ func NewDirectoryServiceFactory(f factoryapi.IModuleFactory) modules.IHiveModule
 	// FIXME: how to configure use of the http server?
 	httpServer := f.GetHttpServer()
 
-	m := internal.NewDirectoryService(storageDir, httpServer)
+	m := NewDirectoryService(storageDir, httpServer)
 	return m
 }

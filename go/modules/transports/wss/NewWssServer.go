@@ -4,9 +4,11 @@ package wsstransport
 import (
 	"time"
 
+	factoryapi "github.com/hiveot/hivekit/go/factory/api"
+	"github.com/hiveot/hivekit/go/modules"
 	"github.com/hiveot/hivekit/go/modules/transports"
 	wssapi "github.com/hiveot/hivekit/go/modules/transports/wss/api"
-	"github.com/hiveot/hivekit/go/modules/transports/wss/internal/wssserver"
+	"github.com/hiveot/hivekit/go/modules/transports/wss/internal/server"
 )
 
 // NewHiveotWssServer creates a websocket transport using the HiveOT RRN messaging format.
@@ -21,8 +23,16 @@ import (
 func NewHiveotWssServer(
 	httpServer transports.IHttpServer, respTimeout time.Duration) wssapi.IWssTransportServer {
 
-	wssTransport := wssserver.NewHiveotWssServer(httpServer, respTimeout)
+	wssTransport := server.NewHiveotWssServer(httpServer, respTimeout)
 	return wssTransport
+}
+
+// Load the HiveOT websocket server using the factory environment
+// This loads the http server
+func NewHiveotWssServerFactory(f factoryapi.IModuleFactory) modules.IHiveModule {
+	httpServer := f.GetHttpServer()
+	timeout := f.GetEnvironment().RpcTimeout
+	return NewHiveotWssServer(httpServer, timeout)
 }
 
 // NewWotWssServer creates a websocket module using WoT Websocket messaging format.
@@ -38,6 +48,14 @@ func NewHiveotWssServer(
 func NewWotWssServer(
 	httpServer transports.IHttpServer, respTimeout time.Duration) wssapi.IWssTransportServer {
 
-	wssTransport := wssserver.NewWotWssServer(httpServer, respTimeout)
+	wssTransport := server.NewWotWssServer(httpServer, respTimeout)
 	return wssTransport
+}
+
+// Load the Wot websocket server using the factory environment
+// This loads the http server
+func NewWotWssServerFactory(f factoryapi.IModuleFactory) modules.IHiveModule {
+	httpServer := f.GetHttpServer()
+	timeout := f.GetEnvironment().RpcTimeout
+	return NewWotWssServer(httpServer, timeout)
 }

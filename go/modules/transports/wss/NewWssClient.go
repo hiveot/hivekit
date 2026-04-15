@@ -5,7 +5,7 @@ import (
 	"crypto/x509"
 
 	"github.com/hiveot/hivekit/go/modules/transports"
-	"github.com/hiveot/hivekit/go/modules/transports/wss/internal/wssclient"
+	"github.com/hiveot/hivekit/go/modules/transports/wss/internal/client"
 )
 
 // NewHiveotWssClient creates a new instance of the hiveot websocket client.
@@ -17,7 +17,7 @@ import (
 //	ch is the connect/disconnect callback. nil to ignore
 func NewHiveotWssClient(wssURL string, caCert *x509.Certificate,
 	ch transports.ConnectionHandler) transports.ITransportClient {
-	return wssclient.NewHiveotWssClient(wssURL, caCert, ch)
+	return client.NewHiveotWssClient(wssURL, caCert, ch)
 }
 
 // NewWotWssClient creates a new instance of the WoT compatible websocket client.
@@ -34,5 +34,5 @@ func NewHiveotWssClient(wssURL string, caCert *x509.Certificate,
 //	ch is the connection callback handler, nil to ignore
 func NewWotWssClient(wssURL string, caCert *x509.Certificate,
 	ch transports.ConnectionHandler) transports.ITransportClient {
-	return wssclient.NewWotWssClient(wssURL, caCert, ch)
+	return client.NewWotWssClient(wssURL, caCert, ch)
 }

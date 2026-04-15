@@ -212,6 +212,7 @@ func (m *RouterService) SetTimeout(rpcTimeout time.Duration) {
 // Start the router module.
 // This loads to stored Thing credentials
 func (m *RouterService) Start() (err error) {
+	slog.Info("Start: Starting router module")
 	if m.storageDir != "" {
 		fileName := "deviceCredentials.json"
 		m.storageFile = filepath.Join(m.storageDir, fileName)
@@ -224,6 +225,7 @@ func (m *RouterService) Start() (err error) {
 // Stop the router module.
 // This closes all established client connections.
 func (m *RouterService) Stop() {
+	slog.Info("Stop: Stopping router module")
 	for clientID, c := range m.deviceConnections {
 		_ = clientID
 		c.Close()
@@ -254,7 +256,7 @@ func NewRouterService(storageDir string,
 		deviceConnections: make(map[string]clients.IClientModule),
 		timeout:           transports.DefaultRpcTimeout,
 	}
-	m.SetModuleID(routerapi.DefaultRouterServiceID)
+	m.SetModuleID(routerapi.RouterModuleType)
 
 	var _ routerapi.IRouterService = m // interface check
 

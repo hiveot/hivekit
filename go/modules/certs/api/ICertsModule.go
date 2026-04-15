@@ -8,6 +8,9 @@ import (
 	"github.com/hiveot/hivekit/go/modules"
 )
 
+// module type for factory. Must implement ICertsService
+const CertsModuleType = "certs"
+
 // DefaultCertsServiceThingID is the default thingID of the certs service module.
 const DefaultCertsServiceThingID = "certs"
 

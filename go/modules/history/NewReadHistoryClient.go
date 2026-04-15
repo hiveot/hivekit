@@ -177,7 +177,7 @@ func NewReadHistoryClient(co *clients.Consumer) *ReadHistoryClient {
 	// For now we use the well-known IDs. In future this needs discovery
 	histCl := ReadHistoryClient{
 		co:          co,
-		histThingID: historyapi.DefaultHistoryModuleID,
+		histThingID: historyapi.HistoryModuleType,
 	}
 	return &histCl
 }

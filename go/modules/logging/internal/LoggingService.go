@@ -139,7 +139,7 @@ func (m *LoggingService) SetSink(sink modules.IHiveModule) {
 
 // Start opens the logging destination.
 func (m *LoggingService) Start() (err error) {
-
+	slog.Info("Start: Starting logging module")
 	// TBD: separate config for  notifications vs requests logs?
 	m.requestLogger, m.releaseFn = m.NewLogger(&m.Config)
 	m.notificationLogger = m.requestLogger
@@ -148,6 +148,7 @@ func (m *LoggingService) Start() (err error) {
 
 // Stop closes the logging destination.
 func (m *LoggingService) Stop() {
+	slog.Info("Stop: Stopping logging module")
 	if m.releaseFn != nil {
 		m.releaseFn()
 		m.releaseFn = nil
@@ -161,7 +162,7 @@ func NewLoggingService(config config.LoggingConfig) *LoggingService {
 
 	m := &LoggingService{}
 	m.Config = config
-	m.SetModuleID(loggingapi.DefaultLoggingModuleID)
+	m.SetModuleID(loggingapi.LoggingModuleType)
 
 	var _ loggingapi.ILoggingService = m // interface check
 	return m

@@ -7,7 +7,6 @@ import (
 
 // default module type and instance identification
 const AuthzModuleType = "authz"
-const DefaultAuthzModuleID = "authz"
 
 // Authorisation server module for authorizing module requests based on client roles.
 type IAuthzService interface {

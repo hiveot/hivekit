@@ -2,6 +2,9 @@ package discoveryapi
 
 import "github.com/hiveot/hivekit/go/modules"
 
+// The discovery server module type
+const DiscoveryServerModuleType = "discovery"
+
 // The discovery module instance ID
 const DefaultDiscoveryModuleID = "hivekit-discovery"
 

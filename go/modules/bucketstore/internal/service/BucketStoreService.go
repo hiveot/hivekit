@@ -3,6 +3,7 @@ package service
 
 import (
 	_ "embed"
+	"log/slog"
 
 	"github.com/hiveot/hivekit/go/api/msg"
 	"github.com/hiveot/hivekit/go/modules"
@@ -62,6 +63,7 @@ func (m *BucketStoreService) HandleRequest(req *msg.RequestMessage, replyTo msg.
 // This creates a bucket store in {storageDir} and enables the messaging request handler.
 func (m *BucketStoreService) Start() (err error) {
 
+	slog.Info("Start: Starting bucketstore module")
 	// if a storage directory is provided then open a store
 	// otherwise create an in-memory store.
 	if m.location != "" {
@@ -82,6 +84,7 @@ func (m *BucketStoreService) Start() (err error) {
 
 // Stop any running actions
 func (m *BucketStoreService) Stop() {
+	slog.Info("Stop: Stopping bucketstore module")
 	if m.bucket != nil {
 		m.bucket.Close()
 		m.bucket = nil

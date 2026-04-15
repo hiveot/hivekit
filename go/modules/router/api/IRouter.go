@@ -6,7 +6,7 @@ import (
 	"github.com/hiveot/hivekit/go/modules"
 )
 
-const DefaultRouterServiceID = "router"
+const RouterModuleType = "router"
 
 type IRouterService interface {
 	modules.IHiveModule

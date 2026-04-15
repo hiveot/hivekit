@@ -1,4 +1,4 @@
-package sseserver
+package server
 
 import (
 	"fmt"
@@ -8,7 +8,7 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/hiveot/hivekit/go/api/msg"
 	"github.com/hiveot/hivekit/go/api/td"
-	sseapi "github.com/hiveot/hivekit/go/modules/transports/sse/api"
+	sseapi "github.com/hiveot/hivekit/go/modules/transports/ssesc/api"
 	"github.com/hiveot/hivekit/go/utils"
 )
 
@@ -21,7 +21,7 @@ import (
 
 // CreateRoutes add the routes used in SSE-SC sub-protocol
 // This is simple, one endpoint to connect, and one to pass requests, using URI variables
-func (m *SseTransportServer) CreateRoutes(ssePath string, r chi.Router) {
+func (m *TransportServer) CreateRoutes(ssePath string, r chi.Router) {
 	if r == nil {
 		slog.Error("HiveotSseModule CreateRoutes: missing router")
 		return
@@ -34,7 +34,7 @@ func (m *SseTransportServer) CreateRoutes(ssePath string, r chi.Router) {
 }
 
 // DeleteRoutes removes the routes used in SSE-SC sub-protocol
-func (m *SseTransportServer) DeleteRoutes(ssePath string, r chi.Router) {
+func (m *TransportServer) DeleteRoutes(ssePath string, r chi.Router) {
 	r.Delete(ssePath, m.onSseConnection)
 	r.Delete(sseapi.PostSseScNotificationPath, m.onHttpNotificationMessage)
 	r.Delete(sseapi.PostSseScRequestPath, m.onHttpRequestMessage)
@@ -45,7 +45,7 @@ func (m *SseTransportServer) DeleteRoutes(ssePath string, r chi.Router) {
 //
 // The notification is decoded into a standard notification message and passed on
 // to the registered sink.
-func (m *SseTransportServer) onHttpNotificationMessage(w http.ResponseWriter, r *http.Request) {
+func (m *TransportServer) onHttpNotificationMessage(w http.ResponseWriter, r *http.Request) {
 
 	// 1. Decode the message
 	rp, err := m.httpServer.GetRequestParams(r)
@@ -80,7 +80,7 @@ func (m *SseTransportServer) onHttpNotificationMessage(w http.ResponseWriter, r 
 //
 // Note that in case of invokeaction, the response should be an ActionStatus object.
 // The handler can easily create this using req.CreateActionResponse().
-func (m *SseTransportServer) onHttpRequestMessage(w http.ResponseWriter, r *http.Request) {
+func (m *TransportServer) onHttpRequestMessage(w http.ResponseWriter, r *http.Request) {
 	var resp *msg.ResponseMessage
 
 	// 1. Decode the request message
@@ -127,7 +127,7 @@ func (m *SseTransportServer) onHttpRequestMessage(w http.ResponseWriter, r *http
 		// debugger bug not stopping on WriteReply when at the bottom?
 	} else {
 		// server connection handles subscriptions so forward it
-		sc, _ := c.(*HiveotSseServerConnection)
+		sc, _ := c.(*ServerConnection)
 		handled, _ := sc.onRequestMessage(req)
 
 		// if the connection doesnt handle the request then forward it to the
@@ -154,7 +154,7 @@ func (m *SseTransportServer) onHttpRequestMessage(w http.ResponseWriter, r *http
 // forwards to subscriber (which is the server again, or a consumer)
 //
 // The message body is unmarshalled and included as the response.
-func (m *SseTransportServer) onHttpResponseMessage(w http.ResponseWriter, r *http.Request) {
+func (m *TransportServer) onHttpResponseMessage(w http.ResponseWriter, r *http.Request) {
 
 	// 1. Decode the request message
 	rp, err := m.httpServer.GetRequestParams(r)
@@ -192,7 +192,7 @@ func (m *SseTransportServer) onHttpResponseMessage(w http.ResponseWriter, r *htt
 
 // onSseConnection serves a new incoming hiveot SSE connection.
 // This doesn't return until the connection is closed by either client or server.
-func (m *SseTransportServer) onSseConnection(w http.ResponseWriter, r *http.Request) {
+func (m *TransportServer) onSseConnection(w http.ResponseWriter, r *http.Request) {
 
 	//An active session is required before accepting the request. This is created on
 	//authentication/login. Until then SSE cm are blocked.

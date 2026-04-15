@@ -5,6 +5,7 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	_ "embed"
+	"log/slog"
 	"os"
 	"path"
 
@@ -52,6 +53,7 @@ func (m *CertsService) GetTM() string {
 // This loads the stored CA or creates a self-signed if none is found
 // This loads the default TLS certificate for use by servers or create a new if one isnt found
 func (m *CertsService) Start() (err error) {
+	slog.Info("Start: Starting certs module")
 
 	caCertPath := path.Join(m.certsDir, certsapi.DefaultCaCertFile)
 	caKeyPath := path.Join(m.certsDir, certsapi.DefaultCaKeyFile)
@@ -84,6 +86,7 @@ func (m *CertsService) Start() (err error) {
 
 // Stop any running actions
 func (m *CertsService) Stop() {
+	slog.Info("Stop: Stopping certs module")
 	// m.service.Stop()
 }
 

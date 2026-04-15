@@ -14,7 +14,7 @@ type HistoryConfig struct {
 	// optional moduleID override for multiple instances
 	ModuleID string `yaml:"moduleID"`
 
-	// Bucket store location where to store the history
+	// Bucketstore location where to store the history
 	StoreDirectory string `yaml:"storeDirectory"`
 
 	// Default retention from config by event name
@@ -25,12 +25,15 @@ type HistoryConfig struct {
 }
 
 // NewHistoryConfig creates a new config with default values
+//
+// storeDirectory the bucketstore location where to store the history
+// backend is the bucketstore backend as described in IBucketStore; "" for default pebble.
 func NewHistoryConfig(storeDirectory string, backend string) HistoryConfig {
 	if backend == "" {
 		backend = bucketstoreapi.BackendPebble
 	}
 	cfg := HistoryConfig{
-		ModuleID:       DefaultHistoryModuleID,
+		ModuleID:       HistoryModuleType,
 		Backend:        backend,
 		StoreDirectory: storeDirectory,
 	}

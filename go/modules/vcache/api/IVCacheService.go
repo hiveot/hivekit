@@ -8,7 +8,7 @@ import (
 // The default module instanceID
 // When using multiple instances, it is recommended to set a different ID using
 // SetModuleID()
-const DefaultVCacheModuleID = "vcache"
+const VCacheModuleType = "vcache"
 
 type CacheInfo struct {
 

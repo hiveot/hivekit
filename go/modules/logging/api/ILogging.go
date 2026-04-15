@@ -10,7 +10,7 @@ const (
 	// TODO: log to syslog
 	// LoggingBackendSyslog = "syslog"
 )
-const DefaultLoggingModuleID = "logging"
+const LoggingModuleType = "logging"
 
 // ILoggingService logging module interface.
 // This does not have an external API.
