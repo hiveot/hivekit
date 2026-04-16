@@ -5,8 +5,11 @@ import (
 	"github.com/hiveot/hivekit/go/modules"
 )
 
-// DirectoryModuleType identifies the directory module
+// DirectoryModuleType identifies the directory module implementation
 const DirectoryModuleType = "directory"
+
+// The thingID this directory identifies as for messaging. Must match the TD ID.
+const DefaultDirectoryThingID = "thingDirectory"
 
 // The http path that provides the TD of the service
 // in case of the directory this provide the directory TD path

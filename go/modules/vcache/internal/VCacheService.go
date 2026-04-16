@@ -15,6 +15,9 @@ type VCacheServer struct {
 
 	// map of thingID/name/affordance to cached value
 	store VCacheStore
+
+	// thingID of this service for handling requests
+	// vcacheThingID string
 }
 
 func (m *VCacheServer) GetCacheStatus() vcacheapi.CacheInfo {
@@ -103,8 +106,8 @@ func NewVCacheService() *VCacheServer {
 
 	m := &VCacheServer{
 		store: *NewVCacheStore(),
+		// vcacheThingID: vcacheapi.DefaultVCacheThingID,
 	}
-	m.SetModuleID(vcacheapi.VCacheModuleType)
 	var _ vcacheapi.IVCacheService = m // interface check
 	return m
 }

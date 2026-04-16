@@ -76,7 +76,7 @@ func SetupConsumerWithRouter() (
 
 	// setup the consumer side: directory, router and consumer
 	// register the device TD in the directory for use by the router
-	dirMod = directory.NewDirectoryService(storageDir, nil)
+	dirMod = directory.NewDirectoryService("", storageDir, nil)
 	err := dirMod.Start()
 	if err != nil {
 		panic("SetupConsumerWithRouter: Directory.Start: " + err.Error())
@@ -130,7 +130,7 @@ func TestMain(m *testing.M) {
 func TestStartStop(t *testing.T) {
 	t.Logf("---%s---\n", t.Name())
 
-	var testDirMod = directory.NewDirectoryService("", nil)
+	var testDirMod = directory.NewDirectoryService("", "", nil)
 	err := testDirMod.Start()
 	require.NoError(t, err)
 	// test no cred store
@@ -209,7 +209,7 @@ func TestSubscribeToDevice(t *testing.T) {
 
 	// setup the consumer side: directory, router and consumer
 	// register the device TD in the directory for use by the router
-	var testDirMod = directory.NewDirectoryService("", nil)
+	var testDirMod = directory.NewDirectoryService("", "", nil)
 	err := testDirMod.Start()
 	require.NoError(t, err)
 	defer testDirMod.Stop()

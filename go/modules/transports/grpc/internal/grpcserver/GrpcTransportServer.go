@@ -10,7 +10,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/hiveot/hivekit/go/api/msg"
 	"github.com/hiveot/hivekit/go/modules/transports"
 	grpcapi "github.com/hiveot/hivekit/go/modules/transports/grpc/api"
 	grpclib "github.com/hiveot/hivekit/go/modules/transports/grpc/lib"
@@ -40,22 +39,6 @@ type GrpcTransportServer struct {
 
 	// the service name the streams are published under
 	serviceName string
-}
-
-// a request passed to this server is forwarded to the connection with the matching ID
-// this is intended for passing requests to agents that have a reverse connection.
-func (m *GrpcTransportServer) HandleRequest(
-	req *msg.RequestMessage, replyTo msg.ResponseHandler) (err error) {
-
-	// first attempt to procss the when targeted at this module
-	if req.ThingID == m.GetModuleID() {
-		// currently nothing to do here
-		// err = m.msgAPI.HandleRequest(req, replyTo)
-		err = fmt.Errorf("HandleRequest: no operations for this module '%s' re defined: ", m.GetModuleID())
-	} else {
-		err = m.TransportServerBase.HandleRequest(req, replyTo)
-	}
-	return err
 }
 
 // The grpc service callback handler for incoming stream connections.
@@ -126,7 +109,8 @@ func (m *GrpcTransportServer) Start() (err error) {
 	m.grpcService.CreateStream(grpcapi.StreamNameNotification, m.ServeStreamConnection)
 	// m.grpcService.AddStream(grpcapi.StreamNameRequestResponse, m.ServeStreamConnection)
 
-	m.Init(DefaultUDSModuleID,
+	m.Init(
+		grpcapi.HiveotGrpcModuleType,
 		transports.ProtocolTypeHiveotGrpc,
 		transports.SubprotocolHiveotGrpc,
 		m.connectURL, m.authn)

@@ -61,7 +61,8 @@ func startService() (
 
 	// the directory server that will contain digitwin Things
 	// digiDir := filepath.Join(storageDir, "digiDir.json")
-	dir = directory.NewDirectoryService(storageDir, testEnv.HttpServer)
+	dirThingID := directoryapi.DefaultDirectoryThingID
+	dir = directory.NewDirectoryService(dirThingID, storageDir, testEnv.HttpServer)
 	err := dir.Start()
 	if err != nil {
 		panic("Failed to start directory server")
@@ -276,7 +277,7 @@ func TestWriteDigitwinProperty(t *testing.T) {
 			go ag.PubProperty(req.ThingID, req.Name, txPropValue)
 
 			return replyTo(resp)
-		} else if req.ThingID == directoryapi.DirectoryModuleType {
+		} else if req.ThingID == directoryapi.DefaultDirectoryThingID {
 			// this is a request for the directory. Forward it
 			return ag.ForwardRequest(req, replyTo)
 		} else {
@@ -291,7 +292,7 @@ func TestWriteDigitwinProperty(t *testing.T) {
 	td1 := testEnv.CreateTestTD(0)
 	td1Json, _ := td.MarshalTD(td1)
 	err = directory.UpdateTD(
-		directoryapi.DirectoryModuleType, td1Json, ag.ForwardRequest)
+		directoryapi.DefaultDirectoryThingID, td1Json, ag.ForwardRequest)
 	assert.NoError(t, err)
 
 	// check whether the td is now in the directory
@@ -358,7 +359,7 @@ func TestInvokeDigitwinAction(t *testing.T) {
 			// submit an event after the action
 			go ag.PubEvent(req.ThingID, req.Name, req.Input)
 			return replyTo(resp)
-		} else if req.ThingID == directoryapi.DirectoryModuleType {
+		} else if req.ThingID == directoryapi.DefaultDirectoryThingID {
 			// this is a request for the directory. Forward it
 			return ag.ForwardRequest(req, replyTo)
 		} else {
@@ -372,7 +373,7 @@ func TestInvokeDigitwinAction(t *testing.T) {
 	td1.ID = thingID
 	td1Json, _ := td.MarshalTD(td1)
 	err = directory.UpdateTD(
-		directoryapi.DirectoryModuleType, td1Json, ag.ForwardRequest)
+		directoryapi.DefaultDirectoryThingID, td1Json, ag.ForwardRequest)
 	assert.NoError(t, err)
 
 	// 4. Consumer invokes the first action

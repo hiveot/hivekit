@@ -96,6 +96,7 @@ func (handler *VCacheMsgHandler) HandleRequest(req *msg.RequestMessage, replyTo 
 }
 
 // Return a new instance of the RRN messaging handler of this module
+// Note that this vcache does not serve its requests for itself, so it doesnt have a thingID.
 func NewVCacheMsgHandler(m vcacheapi.IVCacheService) *VCacheMsgHandler {
 	handler := &VCacheMsgHandler{
 		m: m,

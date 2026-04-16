@@ -162,7 +162,6 @@ func NewLoggingService(config config.LoggingConfig) *LoggingService {
 
 	m := &LoggingService{}
 	m.Config = config
-	m.SetModuleID(loggingapi.LoggingModuleType)
 
 	var _ loggingapi.ILoggingService = m // interface check
 	return m

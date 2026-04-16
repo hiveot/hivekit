@@ -87,7 +87,6 @@ func NewBucketStoreMsgClient(thingID string, sink modules.IHiveModule) *BucketMs
 	cl := &BucketMsgClient{
 		thingID: thingID,
 	}
-	cl.SetModuleID(thingID + "-client")
 	cl.SetRequestSink(sink.HandleRequest)
 	sink.SetNotificationSink(cl.HandleNotification)
 

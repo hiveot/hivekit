@@ -7,7 +7,7 @@
     }
   ],
   "@type": ["tm:ThingModel", "ThingDirectory"],
-  "id": "ThingDirectory",
+  "id": "thingDirectory",
   "title": "Directory Service",
   "description": "HiveOT directory service",
   "version": {

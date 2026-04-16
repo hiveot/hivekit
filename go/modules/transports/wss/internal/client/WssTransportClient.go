@@ -230,7 +230,6 @@ func (cl *WssTransportClient) ConnectWithToken(clientID string, token string) er
 	}
 	cl.bearerToken = token
 	// the clientID is the moduleID so set it now
-	cl.SetModuleID(clientID)
 
 	err := cl.tlsClient.ConnectWithToken(clientID, token)
 	if err != nil {

@@ -256,7 +256,6 @@ func NewAuthnService(authnConfig authnapi.AuthnConfig, httpServer transports.IHt
 		sessionManager: sessionManager,
 		// sessionStart: make(map[string]time.Time),
 	}
-	m.SetModuleID(authnapi.AuthnAdminServiceID)
 	var _ modules.IHiveModule = m    // interface check
 	var _ authnapi.IAuthnService = m // interface check
 	return m

@@ -48,7 +48,7 @@ func StartDirectoryServer() (
 
 	testEnv, cancelTestEnv := testenv.StartTestEnv(defaultProtocol)
 	// use in-memory storage
-	m = directory.NewDirectoryService(storageDir, testEnv.HttpServer)
+	m = directory.NewDirectoryService("", storageDir, testEnv.HttpServer)
 	err := m.Start()
 	if err != nil {
 		panic("StartDirectoryServer: failed to start the directory " + err.Error())
@@ -66,7 +66,7 @@ func StartDirectoryServer() (
 func TestStartStop(t *testing.T) {
 	t.Logf("---%s---\n", t.Name())
 
-	m := directory.NewDirectoryService(storageDir, nil)
+	m := directory.NewDirectoryService("", storageDir, nil)
 	err := m.Start()
 	require.NoError(t, err)
 	defer m.Stop()
@@ -84,7 +84,7 @@ func TestStartStop(t *testing.T) {
 func TestCreateTD(t *testing.T) {
 	thingID := "thing1"
 
-	m := directory.NewDirectoryService(storageDir, nil)
+	m := directory.NewDirectoryService("", storageDir, nil)
 	err := m.Start()
 	require.NoError(t, err)
 	defer m.Stop()
@@ -125,7 +125,7 @@ func TestCRUDUsingMsgAPI(t *testing.T) {
 	_ = testEnv
 	defer cancelFn()
 
-	directoryID := directoryapi.DirectoryModuleType
+	directoryID := directoryapi.DefaultDirectoryThingID
 	thing1ID := clientID + ":thing1"
 
 	// test create a TD

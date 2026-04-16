@@ -21,6 +21,9 @@ import (
 type DiscoveryServer struct {
 	modules.HiveModuleBase
 
+	// this instance thingID
+	discoveryThingID string
+
 	// optional additional endpoints to publish in the discovery record in addition to
 	// the well-known exploration URL.
 	endpoints map[string]string
@@ -49,7 +52,7 @@ func (m *DiscoveryServer) ServeDirectoryTDD(dirTDJSON string) (err error) {
 	publicRoute.Get(wellKnownPath, func(w http.ResponseWriter, r *http.Request) {
 		_, _ = w.Write([]byte(dirTDJSON))
 	})
-	instanceName := m.GetModuleID()
+	instanceName := m.discoveryThingID
 	tddURL, err := url.JoinPath(m.httpServer.GetConnectURL(), wellKnownPath)
 	m.dnssdServer, err = ServeWotDiscovery(
 		instanceName, tddURL, discoveryapi.WOT_DIRECTORY_SERVICE_TYPE, m.endpoints)
@@ -77,7 +80,7 @@ func (m *DiscoveryServer) ServeThingTD(thingTDJSON string) (err error) {
 	publicRoute.Get(wellKnownPath, func(w http.ResponseWriter, r *http.Request) {
 		_, _ = w.Write([]byte(thingTDJSON))
 	})
-	instanceName := m.GetModuleID()
+	instanceName := m.discoveryThingID
 	thingTDURL, err := url.JoinPath(m.httpServer.GetConnectURL(), wellKnownPath)
 	m.dnssdServer, err = ServeWotDiscovery(instanceName, thingTDURL, discoveryapi.WOT_THING_SERVICE_TYPE, nil)
 	if err != nil {
@@ -115,16 +118,21 @@ func (m *DiscoveryServer) Stop() {
 
 // NewDiscoveryServer creates a new discovery server module instance.
 //
-//	dirTDJSON is the http path to the directory TD to be included in the discovery record.
 //	httpServer is the server that serves the TD on the well-known endpoint.
 //	endpoints are optional additional URLS to include in the DNS-SD discovery record
-//	where key is the schema "http", "wss", "sse-sc" and value the URL.
-func NewDiscoveryServer(httpServer transports.IHttpServer, endpoints map[string]string) *DiscoveryServer {
-	m := &DiscoveryServer{
-		endpoints:  endpoints,
-		httpServer: httpServer,
+//	 where key is the schema "http", "wss", "sse-sc" and value the URL.
+//	thingID is the service
+func NewDiscoveryServer(
+	httpServer transports.IHttpServer, endpoints map[string]string, serviceID string) *DiscoveryServer {
+
+	if serviceID == "" {
+		serviceID = discoveryapi.DefaultDiscoveryThingID
 	}
-	m.SetModuleID(discoveryapi.DefaultDiscoveryModuleID)
+	m := &DiscoveryServer{
+		discoveryThingID: serviceID,
+		endpoints:        endpoints,
+		httpServer:       httpServer,
+	}
 	var _ discoveryapi.IDiscoveryServer = m // interface check
 	return m
 }

@@ -33,6 +33,9 @@ type RouterService struct {
 	cmux              sync.RWMutex
 	deviceConnections map[string]clients.IClientModule
 
+	// the thingID of this service for messaging
+	routerThingID string
+
 	// directory to store device accounts
 	storageDir string
 	// location of the device credentials store. "" for in-memory only.
@@ -113,7 +116,7 @@ func (m *RouterService) GetRCConnection(clientID string) (c transports.IConnecti
 func (m *RouterService) HandleRequest(req *msg.RequestMessage, replyTo msg.ResponseHandler) (err error) {
 	var resp *msg.ResponseMessage
 
-	if req.ThingID != m.GetModuleID() {
+	if req.ThingID != m.routerThingID {
 		return m.RouteRequest(req, replyTo)
 	}
 	// handle requests for router module itself
@@ -254,9 +257,9 @@ func NewRouterService(storageDir string,
 		storageDir:        storageDir,
 		tpServers:         tpServers,
 		deviceConnections: make(map[string]clients.IClientModule),
+		routerThingID:     routerapi.DefaultRouterThingID,
 		timeout:           transports.DefaultRpcTimeout,
 	}
-	m.SetModuleID(routerapi.RouterModuleType)
 
 	var _ routerapi.IRouterService = m // interface check
 

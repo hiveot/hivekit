@@ -12,12 +12,14 @@ import (
 
 // NewDiscoveryServer creates a new discovery server module instance.
 //
-//	dirTDJSON is the http path to the directory TD to be included in the discovery record.
-//	httpServer is the server that serves the TD on the well-known endpoint.
-//	endpoints are optional additional URLS to include in the DNS-SD discovery record
-//	where key is the schema "http", "wss", "sse-sc" and value the URL.
-func NewDiscoveryServer(httpServer transports.IHttpServer, endpoints map[string]string) discoveryapi.IDiscoveryServer {
-	srv := internal.NewDiscoveryServer(httpServer, endpoints)
+//		httpServer is the server that serves the TD on the well-known endpoint.
+//		endpoints are optional additional URLS to include in the DNS-SD discovery record
+//		 where key is the schema "http", "wss", "sse-sc" and value the URL.
+//	 serviceID to publish as. This is the module thingID
+func NewDiscoveryServer(
+	httpServer transports.IHttpServer, endpoints map[string]string, serviceID string) discoveryapi.IDiscoveryServer {
+
+	srv := internal.NewDiscoveryServer(httpServer, endpoints, serviceID)
 	return srv
 }
 
@@ -34,5 +36,5 @@ func NewDiscoveryServerFactory(f factoryapi.IModuleFactory) modules.IHiveModule 
 		scheme := parts[0]
 		endpoints[scheme] = connectURL
 	}
-	return NewDiscoveryServer(httpServer, endpoints)
+	return NewDiscoveryServer(httpServer, endpoints, discoveryapi.DefaultDiscoveryThingID)
 }

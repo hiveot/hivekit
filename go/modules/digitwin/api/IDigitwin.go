@@ -8,6 +8,9 @@ import (
 // The default instance ID of the digital twin module
 const DigitwinModuleType = "digitwin"
 
+// the default digital twin service ID for handling digitwin requests
+const DefaultDigitwinThingID = "digitwin"
+
 // the prefix used for digital twins
 const DigitwinIDPrefix = "dtw:"
 

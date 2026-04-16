@@ -16,6 +16,9 @@ import (
 // This implements the IHiveTransport interface
 type TestTransport struct {
 	transports.TransportServerBase
+
+	// The senderID this transport represents (simulate a single connection)
+	senderID string
 }
 
 // AddTDSecForms does nothing for a direct connection
@@ -30,7 +33,7 @@ func (m *TestTransport) HandleNotification(notif *msg.NotificationMessage) {
 // Receive a request and forward it on to the sinks.
 func (m *TestTransport) HandleRequest(
 	req *msg.RequestMessage, replyTo msg.ResponseHandler) (err error) {
-	req.SenderID = m.GetModuleID()
+	req.SenderID = m.senderID
 	return m.ForwardRequest(req, replyTo)
 }
 
@@ -84,9 +87,11 @@ func (m *TestTransport) Stop() {
 // This sets the producer as the destination for requests and this module as
 // the destination for producer notifications.
 func NewTestTransport(
-	moduleID string, producer modules.IHiveModule) modules.IHiveModule {
-	t := &TestTransport{}
-	t.Init(moduleID, "", "", "", nil)
+	senderID string, producer modules.IHiveModule) modules.IHiveModule {
+	t := &TestTransport{
+		senderID: senderID,
+	}
+	t.Init(senderID, "", "", "", nil)
 	producer.SetNotificationSink(t.HandleNotification)
 	t.SetRequestSink(producer.HandleRequest)
 	var _ transports.ITransportServer = t // interface check

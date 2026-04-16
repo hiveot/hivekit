@@ -13,12 +13,6 @@ type IHiveModule interface {
 	// This is not the instance ID.
 	// GetModuleType() string
 
-	// Get ModuleID returns the module instance ID.
-	// Module ID's must be locally unique.
-	// For singleton modules this can be the module type.
-	// For non-singleton modules this is the instance ID.
-	GetModuleID() string
-
 	// HandleRequest - invoked by consumer to this producer.
 	//  [producer] processes or forwards a request downstream to other producers.
 	//

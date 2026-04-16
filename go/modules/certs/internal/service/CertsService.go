@@ -31,6 +31,9 @@ type CertsService struct {
 	// ca key-pair
 	caPrivKey crypto.PrivateKey
 
+	// the ThingID of the service
+	certServiceThingID string
+
 	// the default server certificate as shared between modules
 	defaultServerTlsCert *tls.Certificate
 
@@ -79,7 +82,7 @@ func (m *CertsService) Start() (err error) {
 			certsapi.DefaultServerName, "", nil, nil)
 	}
 
-	m.msgHandler = NewCertsMsgHandler(m.GetModuleID(), m)
+	m.msgHandler = NewCertsMsgHandler(m.certServiceThingID, m)
 	m.SetRequestHook(m.msgHandler.HandleRequest)
 	return err
 }
@@ -94,9 +97,9 @@ func (m *CertsService) Stop() {
 // certsDir is the storage directory to read or create keys and certificates.
 func NewCertsService(certsDir string) *CertsService {
 	m := &CertsService{
-		certsDir: certsDir,
+		certsDir:           certsDir,
+		certServiceThingID: certsapi.DefaultCertsServiceThingID,
 	}
-	m.SetModuleID(certsapi.DefaultCertsServiceThingID)
 	var _ modules.IHiveModule = m    // interface check
 	var _ certsapi.ICertsService = m // interface check
 	return m

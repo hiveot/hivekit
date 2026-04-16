@@ -26,10 +26,6 @@ const (
 type HttpBasicServer struct {
 	transports.TransportServerBase
 
-	// the RRN messaging receiver
-	// this handles request for this module
-	msgHandler *HttpBasicMsgHandler
-
 	// actual httpServer exposing routes
 	httpServer transports.IHttpServer
 
@@ -50,12 +46,8 @@ func (m *HttpBasicServer) HandleNotification(notif *msg.NotificationMessage) {
 func (m *HttpBasicServer) HandleRequest(
 	req *msg.RequestMessage, replyTo msg.ResponseHandler) (err error) {
 
-	if req.ThingID == m.GetModuleID() {
-		err = m.msgHandler.HandleRequest(req, replyTo)
-	} else {
-		err = fmt.Errorf("SendRequest. HTTP can't send requests to remote clients.")
-		slog.Error(err.Error())
-	}
+	err = fmt.Errorf("SendRequest. HTTP can't send requests to remote clients.")
+	slog.Error(err.Error())
 	return err
 }
 
@@ -81,11 +73,6 @@ func (m *HttpBasicServer) Start() (err error) {
 	slog.Info("Start: Starting httpbasic transport server")
 	m.createRoutes()
 
-	// The basic msg handler converts incoming module requests messages to the module API.
-	// This has nothing to do with the http server.
-	if err == nil {
-		m.msgHandler = NewHttpBasicMsgHandler(m)
-	}
 	return err
 }
 
@@ -109,11 +96,11 @@ func NewHttpBasicServer(httpServer transports.IHttpServer) *HttpBasicServer {
 	m := &HttpBasicServer{
 		httpServer: httpServer,
 	}
-	moduleID := httpbasicapi.HttpBasicModuleID
 
 	connectURL := httpServer.GetConnectURL()
 	authenticator := httpServer.GetAuthenticator()
-	m.Init(moduleID,
+	m.Init(
+		httpbasicapi.HttpBasicServerModuleType,
 		transports.ProtocolTypeWotHttpBasic,
 		transports.SubprotocolWotHttpBasic,
 		connectURL, authenticator)

@@ -10,6 +10,10 @@ import (
 // The type of module that implements the IHistoryService interface
 const HistoryModuleType = "history"
 
+// The default ThingID of this history service instance for messaging
+// This must match the ID in the TD.
+const DefaultHistoryThingID = "history"
+
 // DefaultLimit nr items of none provided
 const DefaultLimit = 1000
 

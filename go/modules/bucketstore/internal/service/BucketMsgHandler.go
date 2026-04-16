@@ -18,6 +18,7 @@ import (
 var BucketStoreTMJson []byte
 
 // DirectoryMsgHandler maps RRN messages to the native directory interface
+// This uses the authenticated sender clientID as the bucket ID for requests.
 type BucketMsgHandler struct {
 	// thingID of this instance
 	thingID string
@@ -148,7 +149,6 @@ func (handler *BucketMsgHandler) SetMultiple(req *msg.RequestMessage) *msg.Respo
 
 // NewBucketMsgHandler returns a new instance of the messaging handler for
 // serving bucket requests.
-// This opens buckets using the authenticated client's senderID.
 func NewBucketMsgHandler(thingID string, service bucketstoreapi.IBucketStorage) *BucketMsgHandler {
 	agent := BucketMsgHandler{
 		thingID:     thingID,

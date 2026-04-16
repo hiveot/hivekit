@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
-	"github.com/hiveot/hivekit/go/api/msg"
 	"github.com/hiveot/hivekit/go/modules"
 	"github.com/hiveot/hivekit/go/modules/transports"
 	wssapi "github.com/hiveot/hivekit/go/modules/transports/wss/api"
@@ -20,9 +19,6 @@ import (
 // This implements both ITransportServer and IHiveModule interfaces.
 type WssTransportServer struct {
 	transports.TransportServerBase
-
-	// this handles request for this module
-	msgAPI *WssRrnHandler
 
 	// actual server exposing routes including websocket endpoint
 	httpServer transports.IHttpServer
@@ -38,28 +34,6 @@ type WssTransportServer struct {
 
 	// listening path for incoming connections
 	wssPath string
-}
-
-// HandleRequest handles requests directed at this module or a connected agent.
-//
-// If not directed to this module then forward the request to the remote client.
-// This means that a consumer running on the server sends a request to a producer
-// connected as a client using connection reversal.
-// The ThingID in the request must match the clientID of a connected client.
-//
-// This returns an error when the destination for the request cannot be found.
-// If multiple server protocols are used it is okay to try them one by one.
-func (m *WssTransportServer) HandleRequest(
-	req *msg.RequestMessage, replyTo msg.ResponseHandler) (err error) {
-
-	// first attempt to procss the when targeted at this module
-	if req.ThingID == m.GetModuleID() {
-		err = m.msgAPI.HandleRequest(req, replyTo)
-	} else {
-		// if the request is not for this module then pass it to the remote connection
-		err = m.TransportServerBase.HandleRequest(req, replyTo)
-	}
-	return err
 }
 
 // ServeWssConnection serves a new websocket connection.
@@ -138,10 +112,6 @@ func (m *WssTransportServer) Start() (err error) {
 	// create routes
 	router := m.httpServer.GetProtectedRoute()
 	router.Get(m.wssPath, m.ServeWssConnection)
-
-	// The basic msg handler converts incoming module requests messages to the module API.
-	// This has nothing to do with the http server.
-	m.msgAPI = NewWssRrnHandler(m)
 	return nil
 }
 
@@ -215,7 +185,7 @@ func NewWotWssServer(httpServer transports.IHttpServer, respTimeout time.Duratio
 
 	connectURL := fmt.Sprintf("%s://%s%s", transports.UriSchemeWotWebsocket, urlParts.Host, m.wssPath)
 	m.Init(
-		wssapi.WotWebsocketModuleType,
+		wssapi.HiveotWebsocketModuleType,
 		transports.ProtocolTypeWotWebsocket,
 		transports.SubprotocolWotWebsocket,
 		connectURL, httpServer.GetAuthenticator())

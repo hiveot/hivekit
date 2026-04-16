@@ -148,9 +148,6 @@ func (cl *HttpBasicClient) GetDefaultForm(op, thingID, name string) (f *td.Form)
 	// everything else has no default form, so falls back to hiveot protocol endpoints
 	return f
 }
-func (cl *HttpBasicClient) GetModuleID() string {
-	return cl.GetClientID()
-}
 
 // Return the TLS client used by this connection
 func (cl *HttpBasicClient) GetTlsClient() transports.ITLSClient {

@@ -29,6 +29,8 @@ import (
 // This uses the fast and lightweight kvbtree bucket store to persist TD documents.
 type DirectoryService struct {
 	modules.HiveModuleBase
+	// The thingID this service identifies as
+	directoryThingID string
 
 	// tdBucket store with TD's by thingID
 	tdBucket     bucketstoreapi.IBucket
@@ -70,7 +72,7 @@ func (m *DirectoryService) GetAgentInfo(agentID string) (
 
 // HandleRequest passes the module request messages to the API handler.
 func (m *DirectoryService) HandleRequest(req *msg.RequestMessage, replyTo msg.ResponseHandler) (err error) {
-	if req.ThingID == m.GetModuleID() {
+	if req.ThingID == m.directoryThingID {
 		err = m.msgAPI.HandleRequest(req, replyTo)
 	} else {
 		err = m.HiveModuleBase.HandleRequest(req, replyTo)
@@ -96,22 +98,21 @@ func (m *DirectoryService) SetTDHooks(
 func (m *DirectoryService) Start() (err error) {
 
 	storagePath := m.storageLoc
-	moduleID := m.GetModuleID()
 	slog.Info("Start: Starting directory module")
 
 	// if no storageLoc is set, use the in-memory store
 	if m.storageLoc != "" {
-		storagePath = filepath.Join(m.storageLoc, moduleID+".kvbtree")
+		storagePath = filepath.Join(m.storageLoc, m.directoryThingID+".kvbtree")
 	}
 	m.bucketStore, err = bucketstore.NewBucketStore(storagePath, bucketstoreapi.BackendKVBTree)
 
 	err = m.bucketStore.Open()
 	if err == nil {
-		m.tdBucketName = moduleID
+		m.tdBucketName = m.directoryThingID
 		m.tdBucket = m.bucketStore.GetBucket(m.tdBucketName)
 	}
 	if err == nil {
-		m.msgAPI = NewDirectoryMsgHandler(moduleID, m)
+		m.msgAPI = NewDirectoryMsgHandler(m.directoryThingID, m)
 	}
 	if err == nil && m.httpServer != nil {
 		m.restAPI = StartDirectoryRestHandler(m, m.httpServer)
@@ -138,15 +139,18 @@ func (m *DirectoryService) Stop() {
 //
 // location is the location where the module stores its data. Use "" for testing with an in-memory store.
 // router is the html server router to register the html API handlers with. nil to ignore.
-func NewDirectoryService(location string, httpServer transports.IHttpServer) *DirectoryService {
+func NewDirectoryService(thingID string, location string, httpServer transports.IHttpServer) *DirectoryService {
 
-	m := &DirectoryService{
-		HiveModuleBase: modules.HiveModuleBase{},
-		storageLoc:     location,
-		httpServer:     httpServer,
-		tdCache:        make(map[string]*td.TD),
+	if thingID == "" {
+		thingID = directoryapi.DefaultDirectoryThingID
 	}
-	m.SetModuleID(directoryapi.DirectoryModuleType)
+	m := &DirectoryService{
+		HiveModuleBase:   modules.HiveModuleBase{},
+		directoryThingID: thingID,
+		storageLoc:       location,
+		httpServer:       httpServer,
+		tdCache:          make(map[string]*td.TD),
+	}
 	if httpServer == nil {
 		slog.Warn("NewDirectoryModule: no httpServer provided. HTTP interface not active.")
 	}

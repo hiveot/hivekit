@@ -6,7 +6,6 @@ import (
 	"net/url"
 	"time"
 
-	"github.com/hiveot/hivekit/go/api/msg"
 	"github.com/hiveot/hivekit/go/modules"
 	"github.com/hiveot/hivekit/go/modules/transports"
 	ssescapi "github.com/hiveot/hivekit/go/modules/transports/ssesc/api"
@@ -43,27 +42,6 @@ type TransportServer struct {
 
 func (m *TransportServer) GetProtocolType() (string, string) {
 	return transports.ProtocolTypeHiveotSsesc, transports.SubprotocolHiveotSsesc
-}
-
-// HandleRequest handles requests directed at this module or a connected agent.
-// If not directed to this module then forward the request to the remote client.
-// This means that a consumer running on the server sends a request to a producer
-// connected as a client using connection reversal.
-// The ThingID in the request must match the clientID of a connected client.
-//
-// This returns an error when the destination for the request cannot be found.
-// If multiple server protocols are used it is okay to try them one by one.
-func (m *TransportServer) HandleRequest(
-	req *msg.RequestMessage, replyTo msg.ResponseHandler) (err error) {
-
-	// first attempt to procss the when targeted at this module
-	if req.ThingID == m.GetModuleID() {
-		err = m.HandleModuleRequest(req, replyTo)
-	} else {
-		// if the request is not for this server, then send the request to the connected agent
-		err = m.TransportServerBase.HandleRequest(req, replyTo)
-	}
-	return err
 }
 
 // Start readies the module for use.
@@ -115,7 +93,8 @@ func NewHiveotSseServer(httpServer transports.IHttpServer, respTimeout time.Dura
 		encoder:     encoder,
 		respTimeout: respTimeout,
 	}
-	m.Init(ssescapi.SseScServerModuleType,
+	m.Init(
+		ssescapi.SseScServerModuleType,
 		transports.ProtocolTypeHiveotSsesc,
 		transports.SubprotocolHiveotSsesc,
 		connectURL, httpServer.GetAuthenticator())

@@ -143,7 +143,6 @@ func (cl *GrpcTransportClient) ConnectWithToken(clientID string, token string) (
 
 	cl.clientID = clientID
 	cl.bearerToken = token
-	cl.SetModuleID(clientID)
 
 	cl.grpcClient = grpclib.NewGrpcServiceClient(
 		cl.connectURL, cl.caCert, cl.timeout,

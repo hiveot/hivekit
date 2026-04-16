@@ -49,7 +49,6 @@ func NewCertsMsgClient(thingID string, sink modules.IHiveModule) *CertsMsgClient
 	cl := &CertsMsgClient{
 		certServiceID: thingID,
 	}
-	cl.SetModuleID(thingID + "-client")
 	if sink != nil {
 		cl.SetRequestSink(sink.HandleRequest)
 		sink.SetNotificationSink(cl.HandleNotification)

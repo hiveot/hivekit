@@ -39,15 +39,6 @@ type TransportServerBase struct {
 	// mutex to manage the connections
 	cmux sync.RWMutex
 
-	// moduleID/thingID is the unique instance ID of this server module.
-	moduleID string
-
-	// Request and Response channel helper.
-	// Since some transports use unidirectional channels, a request to one channel
-	// will result in a response over the other. RnRChan will pass the response from
-	// one channel to the requester.
-	RnrChan *msg.RnRChan
-
 	// Sink for forwarding notifications
 	notificationSink msg.NotificationHandler
 
@@ -57,8 +48,17 @@ type TransportServerBase struct {
 	// Sink for forwarding requests
 	requestSink msg.RequestHandler
 
+	// Request and Response channel helper.
+	// Since some transports use unidirectional channels, a request to one channel
+	// will result in a response over the other. RnRChan will pass the response from
+	// one channel to the requester.
+	RnrChan *msg.RnRChan
+
 	// The subprotocol to include in forms. Empty to ignore
 	subprotocol string
+
+	// the server module thingID used for sending connect/disconnect notifications
+	thingID string
 }
 
 // AddConnection adds a new connection and notifies subscribers.
@@ -119,7 +119,10 @@ func (srv *TransportServerBase) AddConnection(c IConnection) error {
 		ClientID:     clientID,
 		ConnectionID: cid,
 	}
-	notif := msg.NewNotificationMessage(srv.moduleID, msg.AffordanceTypeEvent, srv.moduleID,
+	// publish a notification for those interested
+	senderID := srv.thingID
+	thingID := srv.thingID
+	notif := msg.NewNotificationMessage(senderID, msg.AffordanceTypeEvent, thingID,
 		ConnectedEventName, connectionInfo)
 	srv.ForwardNotification(notif)
 	return nil
@@ -289,7 +292,7 @@ func (srv *TransportServerBase) ForwardNotification(notif *msg.NotificationMessa
 		// Receiving notifications but with no sink set so likely a wiring issue.
 		// This can be intentional in testing.
 		slog.Warn("ForwardNotification: no notification sink set. Server is not fully set up.",
-			"module", srv.moduleID,
+			"module", fmt.Sprintf("%T", srv),
 			"affordance", notif.AffordanceType,
 			"name", notif.Name,
 		)
@@ -361,11 +364,6 @@ func (srv *TransportServerBase) GetConnectionByClientID(clientID string) (c ICon
 	return c
 }
 
-// GetModuleID returns the module's Thing ID
-func (srv *TransportServerBase) GetModuleID() string {
-	return srv.moduleID
-}
-
 // GetProtocolType returns type identifier of the server protocol as defined by its module
 func (m *TransportServerBase) GetProtocolType() (string, string) {
 	return m.protocolType, m.subprotocol
@@ -381,12 +379,8 @@ func (m *TransportServerBase) HandleNotification(notif *msg.NotificationMessage)
 // HandleRequest sends requests to connected client.
 //
 // This only happens when a consumer on the server or gateway passes the request to
-// this server module through the pipeline, when this server is the sink for the consumer.
+// this server module through the chain, when this server is the sink for the consumer.
 // Transport modules forward requests to connected clients instead of processing them locally.
-//
-// This uses the HiveOT convention that the ThingID in the request contains the clientID
-// of the connected agent, eg: "agentID:deviceID". It only applies to agents that
-// use reverse connections, which is the case for HiveOT agents.
 //
 // This returns an error when the destination for the request cannot be found.
 // If multiple server protocols are used it is okay to try them one by one.
@@ -398,16 +392,12 @@ func (m *TransportServerBase) HandleRequest(
 	req *msg.RequestMessage, replyTo msg.ResponseHandler) (err error) {
 
 	// first attempt to procss the when targeted at this module
-	if req.ThingID == m.GetModuleID() {
-		err = fmt.Errorf("HandleRequest: request is targeted at this module '%s' and should not have passed to this base", m.GetModuleID())
-	} else {
-		// if the request is not for this module then pass it to the remote agent
-		// if the agent isn't connected then this returns an error. This can be valid
-		// in case multiple server protocols are used and the request is for another protocol.
-		c, err := m.DetermineAgentConnection(req.ThingID)
-		if err == nil {
-			err = c.SendRequest(req, replyTo)
-		}
+	// if the request is not for this module then pass it to the remote agent
+	// if the agent isn't connected then this returns an error. This can be valid
+	// in case multiple server protocols are used and the request is for another protocol.
+	c, err := m.DetermineAgentConnection(req.ThingID)
+	if err == nil {
+		err = c.SendRequest(req, replyTo)
 	}
 	return err
 }
@@ -479,7 +469,9 @@ func (srv *TransportServerBase) RemoveConnection(c IConnection) {
 		ClientID:     c.GetClientID(),
 		ConnectionID: c.GetConnectionID(),
 	}
-	notif := msg.NewNotificationMessage(srv.moduleID, msg.AffordanceTypeEvent, srv.moduleID,
+	senderID := srv.thingID
+	thingID := srv.thingID
+	notif := msg.NewNotificationMessage(senderID, msg.AffordanceTypeEvent, thingID,
 		DisconnectedEventName, connectionInfo)
 	srv.ForwardNotification(notif)
 }
@@ -541,7 +533,8 @@ func (srv *TransportServerBase) SetNotificationSink(consumer msg.NotificationHan
 func (srv *TransportServerBase) SetRequestSink(sink msg.RequestHandler) {
 	// to be determined if there is a use-case for replacing the sink
 	if srv.requestSink != nil {
-		slog.Warn("SetRequestSink: Overriding existing request sink", "moduleID", srv.moduleID)
+		slog.Warn("SetRequestSink: Overriding existing request sink",
+			"module", fmt.Sprintf("%T", srv))
 	}
 	srv.requestSink = sink
 }
@@ -553,10 +546,10 @@ func (srv *TransportServerBase) SetRequestSink(sink msg.RequestHandler) {
 //	connectURL is the URL this module can be reached at. Used to set TD.Base
 //	authenticator used to include the security in TDs
 func (srv *TransportServerBase) Init(
-	moduleID string, protocolType, subprotocol string, connectURL string, authenticator IAuthenticator) {
+	thingID, protocolType, subprotocol string, connectURL string, authenticator IAuthenticator) {
 
+	srv.thingID = thingID
 	srv.authenticator = authenticator
-	srv.moduleID = moduleID
 	srv.protocolType = protocolType
 	srv.subprotocol = subprotocol
 	srv.connectURL = connectURL

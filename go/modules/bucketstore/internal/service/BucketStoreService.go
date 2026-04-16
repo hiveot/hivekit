@@ -24,6 +24,9 @@ const DefaultBucketStoreThingID = "bucketstore"
 type BucketStoreService struct {
 	modules.HiveModuleBase
 
+	// the thingID of the bucket service;
+	serviceThingID string
+
 	// Storage type from config, kvbtree for small stores <100MB) or pebble for big ones
 	// The default is kvbtree.
 	StoreType string `yaml:"storeType"`
@@ -74,7 +77,7 @@ func (m *BucketStoreService) Start() (err error) {
 	}
 	err = m.store.Open()
 	if err == nil {
-		m.msgAPI = NewBucketMsgHandler(m.GetModuleID(), m.store)
+		m.msgAPI = NewBucketMsgHandler(m.serviceThingID, m.store)
 	}
 	// for remote iterators
 	// m.cursorCache = NewCursorCache()
@@ -108,10 +111,10 @@ func NewBucketStoreService(location string, storeType string) *BucketStoreServic
 		HiveModuleBase: modules.HiveModuleBase{},
 		location:       location,
 		StoreType:      storeType,
+		serviceThingID: DefaultBucketStoreThingID,
 		// StoreName:   defaultStoreName,
 		// bucketStore: bucketStore,
 	}
-	m.SetModuleID(DefaultBucketStoreThingID)
 
 	var _ modules.IHiveModule = m                 // interface check
 	var _ bucketstoreapi.IBucketStorage = m.store // interface check

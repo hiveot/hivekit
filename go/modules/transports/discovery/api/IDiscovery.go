@@ -5,8 +5,8 @@ import "github.com/hiveot/hivekit/go/modules"
 // The discovery server module type
 const DiscoveryServerModuleType = "discovery"
 
-// The discovery module instance ID
-const DefaultDiscoveryModuleID = "hivekit-discovery"
+// The discovery module instance thingID
+const DefaultDiscoveryThingID = "hivekit-discovery"
 
 //const WOT_UDP_DNSSD_TYPE = "_wot._udp"
 

@@ -19,20 +19,20 @@ type DirectoryMsgClient struct {
 
 	// DirectoryMsgClient is the RRN client for the directory service.
 
-	// directoryID ThingID of the directory service. This defaults to the directory ThingID
-	directoryID string
+	// directoryThingID ThingID of the directory service. This defaults to the directory ThingID
+	directoryThingID string
 }
 
 func (cl *DirectoryMsgClient) DeleteThing(thingID string) error {
 	req := msg.NewRequestMessage(
-		td.OpInvokeAction, cl.directoryID, directoryapi.ActionDeleteThing, thingID, "")
+		td.OpInvokeAction, cl.directoryThingID, directoryapi.ActionDeleteThing, thingID, "")
 	_, err := cl.ForwardRequestWait(req)
 	return err
 }
 
 func (cl *DirectoryMsgClient) RetrieveThing(thingID string) (tdJSON string, err error) {
 	req := msg.NewRequestMessage(
-		td.OpInvokeAction, cl.directoryID, directoryapi.ActionRetrieveThing, thingID, "")
+		td.OpInvokeAction, cl.directoryThingID, directoryapi.ActionRetrieveThing, thingID, "")
 	resp, err := cl.ForwardRequestWait(req)
 	if resp == nil {
 		return "", errors.New("nil response")
@@ -49,7 +49,7 @@ func (cl *DirectoryMsgClient) RetrieveAllThings(offset int, limit int) (tdList [
 		Limit:  limit,
 	}
 	req := msg.NewRequestMessage(
-		td.OpInvokeAction, cl.directoryID, directoryapi.ActionRetrieveAllThings, args, "")
+		td.OpInvokeAction, cl.directoryThingID, directoryapi.ActionRetrieveAllThings, args, "")
 	resp, err := cl.ForwardRequestWait(req)
 	if err == nil {
 		err = resp.Decode(&tdList)
@@ -80,14 +80,13 @@ func (cl *DirectoryMsgClient) RetrieveAllThings(offset int, limit int) (tdList [
 //
 //	serviceID is the thing ID of the directory service instance. This defaults to the directory module's type.
 //	reqSink is the handler for requests send by the directory client and emitter of notifications
-func NewDirectoryMsgClient(serviceID string, reqSink modules.IHiveModule) *DirectoryMsgClient {
-	if serviceID == "" {
-		serviceID = directoryapi.DirectoryModuleType
+func NewDirectoryMsgClient(directoryThingID string, reqSink modules.IHiveModule) *DirectoryMsgClient {
+	if directoryThingID == "" {
+		directoryThingID = directoryapi.DefaultDirectoryThingID
 	}
 	cl := &DirectoryMsgClient{
-		directoryID: serviceID,
+		directoryThingID: directoryThingID,
 	}
-	cl.SetModuleID(serviceID + "-client")
 	if reqSink != nil {
 		cl.SetRequestSink(reqSink.HandleRequest)
 		// notifications returned are passed to this client (if any subscriptions are made)
@@ -107,12 +106,12 @@ func NewDirectoryMsgClient(serviceID string, reqSink modules.IHiveModule) *Direc
 // directoryServiceID is the thing ID of the directory service instance. Defaults to the module type
 // tdJson is the TD in JSON to update in the directory.
 // reqHandler is the request handler of the agent to send the request through.
-func UpdateTD(directoryServiceID string, tdJson string, reqHandler msg.RequestHandler) error {
-	if directoryServiceID == "" {
-		directoryServiceID = directoryapi.DirectoryModuleType
+func UpdateTD(directoryThingID string, tdJson string, reqHandler msg.RequestHandler) error {
+	if directoryThingID == "" {
+		directoryThingID = directoryapi.DirectoryModuleType
 	}
 	req := msg.NewRequestMessage(
-		td.OpInvokeAction, directoryServiceID, directoryapi.ActionUpdateThing, tdJson, "")
+		td.OpInvokeAction, directoryThingID, directoryapi.ActionUpdateThing, tdJson, "")
 	_, err := msg.ForwardRequestWait(req, reqHandler)
 
 	return err

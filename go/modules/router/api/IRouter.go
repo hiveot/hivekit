@@ -8,6 +8,9 @@ import (
 
 const RouterModuleType = "router"
 
+// The instance ThingID of the router. This must match its TD (if any)
+const DefaultRouterThingID = "router"
+
 type IRouterService interface {
 	modules.IHiveModule
 

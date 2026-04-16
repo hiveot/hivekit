@@ -36,7 +36,6 @@ func (device *TestDevice) GetTD() *td.TD {
 // This starts the http server, the messaging transport (sub-protocol) and
 // creates an agent instance.
 func (device *TestDevice) Start() error {
-	device.SetModuleID(device.agentID)
 
 	// setup the server, transport and link the device to the transport
 	// cfg := httpserverapi.NewConfig(addr, port, serverCert, caCert, validateToken)

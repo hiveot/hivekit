@@ -6,7 +6,6 @@ import (
 
 	"github.com/hiveot/hivekit/go/api/msg"
 	"github.com/hiveot/hivekit/go/modules"
-	authzapi "github.com/hiveot/hivekit/go/modules/authz/api"
 )
 
 // AuthzService is a module for role based authorization of requests.
@@ -60,7 +59,6 @@ func NewAuthzService(getRoleHandler func(clientID string) (role string, err erro
 	m := &AuthzService{
 		getRoleHandler: getRoleHandler,
 	}
-	m.SetModuleID(authzapi.AuthzModuleType)
 	var _ modules.IHiveModule = m // check interface
 	return m
 }

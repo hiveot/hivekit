@@ -52,6 +52,9 @@ type DigitwinService struct {
 	// should be able to use these as well.
 	directory directoryapi.IDirectoryServer
 
+	// The digitwin service instance thing-ID for handling requests
+	digitwinThingID string
+
 	// the store that holds the digital twin TDs and value
 	digitwinStore bucketstoreapi.IBucketStorage
 
@@ -191,7 +194,7 @@ func (m *DigitwinService) HandleRequest(req *msg.RequestMessage, replyTo msg.Res
 	}
 
 	// Handle requests for this module
-	if req.ThingID != m.GetModuleID() {
+	if req.ThingID != m.digitwinThingID {
 		return nil
 	} else if req.SenderID == "" {
 		err := fmt.Errorf("missing senderID in request")
@@ -216,7 +219,6 @@ func (m *DigitwinService) SetAgentStatus(agentID string, connected bool) {
 // This subscribes to devices and agents that have a digital twin in the directory.
 func (m *DigitwinService) Start() (err error) {
 
-	moduleID := m.GetModuleID()
 	slog.Info("Start: Starting digitwin module")
 
 	// the vcache holds the cached notifications
@@ -231,7 +233,7 @@ func (m *DigitwinService) Start() (err error) {
 
 	err = m.deviceTDStore.Open()
 	if err == nil {
-		m.deviceTDBucket = m.deviceTDStore.GetBucket(moduleID)
+		m.deviceTDBucket = m.deviceTDStore.GetBucket(m.digitwinThingID)
 	}
 	// handling of messages for this module itself
 	if err == nil {
@@ -276,11 +278,11 @@ func NewDigitwinService(storageDir string,
 
 	m := &DigitwinService{
 		addForms:               addforms,
+		digitwinThingID:        digitwinapi.DefaultDigitwinThingID,
 		directory:              thingDir,
 		storageDir:             storageDir,
 		includeAffordanceForms: true,
 	}
-	m.SetModuleID(digitwinapi.DigitwinModuleType)
 
 	var _ digitwinapi.IDigitwinServer = m // interface check
 	return m

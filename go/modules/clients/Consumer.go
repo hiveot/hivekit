@@ -30,6 +30,7 @@ type Consumer struct {
 	// This consumer is a sink for the connection
 	modules.HiveModuleBase
 
+	// appID is the clientID this consumer identifies as
 	appID string
 
 	// The sink that will forward the requests and respond with notifications.
@@ -43,11 +44,6 @@ type Consumer struct {
 
 // GetClientID returns the client's account ID
 func (co *Consumer) GetClientID() string {
-	return co.GetModuleID()
-}
-
-// GetModuleID returns the application
-func (co *Consumer) GetModuleID() string {
 	return co.appID
 }
 
@@ -369,7 +365,6 @@ func NewConsumer(appID string) *Consumer {
 		rpcTimeout: transports.DefaultRpcTimeout,
 	}
 
-	consumer.SetModuleID(appID)
 	return consumer
 }
 

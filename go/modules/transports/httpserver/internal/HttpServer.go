@@ -222,7 +222,6 @@ func NewHttpServer(
 	if m.authRequestHandler == nil {
 		m.authRequestHandler = m.DefaultAuthRequest
 	}
-	m.SetModuleID(transports.DefaultHttpServerModuleID)
 	var _ transports.IHttpServer = m // interface check
 	return m
 }

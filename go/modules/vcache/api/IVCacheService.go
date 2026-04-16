@@ -5,10 +5,10 @@ import (
 	"github.com/hiveot/hivekit/go/modules"
 )
 
-// The default module instanceID
-// When using multiple instances, it is recommended to set a different ID using
-// SetModuleID()
 const VCacheModuleType = "vcache"
+
+// The default thingID of this vcache for messaging (if any)
+// const DefaultVCacheThingID = "vcache"  - does not handle requests for itself
 
 type CacheInfo struct {
 

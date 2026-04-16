@@ -39,25 +39,23 @@ func TestDNSSDScan(t *testing.T) {
 }
 
 func TestDiscover(t *testing.T) {
-	serviceID := "serviceID"
 	testServiceType := "_discovery.test-type._tcp"
 	address := utils.GetOutboundIP("").String()
 
 	srv, err := internal.ServeDnsSD(
-		serviceID, testServiceType, address, testServicePort, nil)
+		testServiceID, testServiceType, address, testServicePort, nil)
 	assert.NoError(t, err)
 	defer srv.Shutdown()
 
-	r, err := discoveryclient.DnsSDScan(serviceID, testServiceType, time.Second,
+	r, err := discoveryclient.DnsSDScan(testServiceID, testServiceType, time.Second,
 		func(*zeroconf.ServiceEntry) bool {
 			return true // stop
 		})
 	require.Len(t, r, 1)
-	assert.Equal(t, serviceID, r[0].Instance)
+	assert.Equal(t, testServiceID, r[0].Instance)
 }
 
 func TestNoInstanceID(t *testing.T) {
-	serviceID := "serviceID"
 	address := utils.GetOutboundIP("").String()
 	testServiceType := "test-service-type"
 
@@ -66,27 +64,25 @@ func TestNoInstanceID(t *testing.T) {
 	assert.Error(t, err) // missing instance name
 
 	_, err = internal.ServeDnsSD(
-		serviceID, "", address, testServicePort, nil)
+		testServiceID, "", address, testServicePort, nil)
 	assert.Error(t, err) // missing service name
 }
 
 func TestBadAddress(t *testing.T) {
-	instanceID := "idprov-test-id"
 	testServiceType := "test-service-type"
 
 	discoServer, err := internal.ServeDnsSD(
-		instanceID, testServiceType, "notanipaddress", testServicePort, nil)
+		testServiceID, testServiceType, "notanipaddress", testServicePort, nil)
 
 	assert.Error(t, err)
 	assert.Nil(t, discoServer)
 }
 
 func TestExternalAddress(t *testing.T) {
-	instanceID := "idprov-test-id"
 	testServiceType := "test-service-type"
 
 	discoServer, err := internal.ServeDnsSD(
-		instanceID, testServiceType, "1.2.3.4", testServicePort, nil)
+		testServiceID, testServiceType, "1.2.3.4", testServicePort, nil)
 
 	// expect a warning
 	assert.NoError(t, err)
@@ -105,7 +101,7 @@ func TestDiscoverDirectory(t *testing.T) {
 	testEnv.StartHttpServer()
 	defer testEnv.HttpServer.Stop()
 
-	m := discovery.NewDiscoveryServer(testEnv.HttpServer, endpoints)
+	m := discovery.NewDiscoveryServer(testEnv.HttpServer, endpoints, testServiceID)
 	err := m.Start()
 	require.NoError(t, err)
 	defer m.Stop()
@@ -116,11 +112,11 @@ func TestDiscoverDirectory(t *testing.T) {
 	// Test if it is discovered
 	cl := discoveryclient.NewDiscoveryClient()
 	// records, err := cl.DiscoverDirectories(testServiceID, time.Second, true, nil)
-	records, err := cl.DiscoverDirectories("", time.Second, true, nil)
+	records, err := cl.DiscoverDirectories(testServiceID, time.Second, true, nil)
 	require.NoError(t, err)
 	require.NotEmpty(t, records)
 	rec0 := records[0]
-	assert.Equal(t, m.GetModuleID(), rec0.Instance)
+	assert.Equal(t, testServiceID, rec0.Instance)
 	assert.Equal(t, testServiceAddress, rec0.Addr)
 	assert.NotEmpty(t, rec0.TD)
 	assert.Equal(t, true, rec0.IsDirectory)
@@ -130,18 +126,17 @@ func TestDiscoverDirectory(t *testing.T) {
 
 // discover things without the server module
 func TestDiscoverThings(t *testing.T) {
-	thingTD := "this is a Thing TD"
+	// thingTD := "this is a Thing TD"
 
 	testEnv := testenv.NewTestEnv()
 	testEnv.StartHttpServer()
 	defer testEnv.HttpServer.Stop()
 
-	m := discovery.NewDiscoveryServer(testEnv.HttpServer, nil)
-	testServiceID := m.GetModuleID()
+	m := discovery.NewDiscoveryServer(testEnv.HttpServer, nil, testServiceID)
 	err := m.Start()
 	require.NoError(t, err)
 	defer m.Stop()
-	err = m.ServeThingTD(thingTD)
+	err = m.ServeThingTD(testServiceID)
 	require.NoError(t, err)
 
 	// Test if it is discovered
@@ -156,13 +151,11 @@ func TestDiscoverThings(t *testing.T) {
 }
 
 func TestDiscoverBadPort(t *testing.T) {
-	serviceID := "idprov-test"
 	testServiceType := "test-service-type"
 
 	badPort := 0
 	address := utils.GetOutboundIP("").String()
-	_, err := internal.ServeDnsSD(
-		serviceID, testServiceType, address, badPort, nil)
+	_, err := internal.ServeDnsSD(testServiceID, testServiceType, address, badPort, nil)
 
 	assert.Error(t, err)
 }
@@ -174,7 +167,7 @@ func TestDiscoverGetDirectoryTD(t *testing.T) {
 	testEnv := testenv.NewTestEnv()
 	testEnv.StartHttpServer()
 	defer testEnv.HttpServer.Stop()
-	m := discovery.NewDiscoveryServer(testEnv.HttpServer, nil)
+	m := discovery.NewDiscoveryServer(testEnv.HttpServer, nil, testServiceID)
 	err := m.Start()
 	require.NoError(t, err)
 	defer m.Stop()
@@ -182,9 +175,8 @@ func TestDiscoverGetDirectoryTD(t *testing.T) {
 	require.NoError(t, err)
 
 	// discover the server
-	instanceID := m.GetModuleID()
 	cl := discoveryclient.NewDiscoveryClient()
-	record, err := cl.DiscoverFirstDirectory(instanceID)
+	record, err := cl.DiscoverFirstDirectory(testServiceID)
 	require.NoError(t, err)
 	require.NotEmpty(t, record)
 	tddJSON, err := cl.DownloadTDD(record.AsURL(), nil)
@@ -200,7 +192,7 @@ func TestDiscoverGetThingTD(t *testing.T) {
 	testEnv := testenv.NewTestEnv()
 	testEnv.StartHttpServer()
 	defer testEnv.HttpServer.Stop()
-	m := discovery.NewDiscoveryServer(testEnv.HttpServer, nil)
+	m := discovery.NewDiscoveryServer(testEnv.HttpServer, nil, testServiceID)
 	err := m.Start()
 	require.NoError(t, err)
 	defer m.Stop()
@@ -208,9 +200,8 @@ func TestDiscoverGetThingTD(t *testing.T) {
 	require.NoError(t, err)
 
 	// discover the server
-	instanceID := m.GetModuleID()
 	cl := discoveryclient.NewDiscoveryClient()
-	records, err := cl.DiscoverThings(instanceID, time.Second, nil)
+	records, err := cl.DiscoverThings(testServiceID, time.Second, nil)
 	require.NoError(t, err)
 	require.NotZero(t, len(records), "no things discovered")
 	tdJSON, err := cl.DownloadTDD(records[0].AsURL(), nil)

@@ -184,9 +184,7 @@ func (cl *HiveotSseClient) GetHttpClient() *http.Client {
 	defer cl.mux.RUnlock()
 	return cl.tlsClient.GetHttpClient()
 }
-func (cl *HiveotSseClient) GetModuleID() string {
-	return cl.GetClientID()
-}
+
 func (cl *HiveotSseClient) GetTM() string {
 	return ""
 }

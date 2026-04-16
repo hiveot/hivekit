@@ -25,6 +25,9 @@ import (
 type HistoryService struct {
 	modules.HiveModuleBase
 
+	// The thingID of the history service for messaging
+	historyThingID string
+
 	// The underlying bucketstore instance
 	bucketStore bucketstoreapi.IBucketStorage
 
@@ -56,7 +59,7 @@ func (m *HistoryService) HandleNotification(notif *msg.NotificationMessage) {
 // the filters and forward the request to the registered sink.
 func (m *HistoryService) HandleRequest(req *msg.RequestMessage, replyTo msg.ResponseHandler) error {
 
-	if req.ThingID == m.GetModuleID() {
+	if req.ThingID == m.historyThingID {
 		// handle requests for the history service itself
 		err := m.readHistoryMsgHandler.HandleRequest(req, replyTo)
 		return err
@@ -122,11 +125,11 @@ func (m *HistoryService) StoreRequest(req *msg.RequestMessage) error {
 func NewHistoryService(config historyapi.HistoryConfig) *HistoryService {
 
 	m := &HistoryService{
+		historyThingID: historyapi.DefaultHistoryThingID,
 		cursorLifespan: time.Minute,
 		cursorCache:    bucketstore.NewCursorCache(),
 		config:         config,
 	}
-	m.SetModuleID(m.config.ModuleID)
 	// m.config = NewHistoryConfig()
 	// m.config = config.NewHistoryConfig(storeDirectory, backend)
 

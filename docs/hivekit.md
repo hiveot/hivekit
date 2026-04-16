@@ -137,8 +137,6 @@ This defines two distinct message flow. Notifications flow from a devices/agents
 ```go
 // The golang HiveOT module interface. The JS and Python implementation will offer something similar.
 type IHiveModule interface {
-  	// GetModuleID returns module's ID.
-	GetModuleID() string
 
 	// Handle the notification received from a producer.
 	// The default behavior is to forward it upstream to the handler set with SetNotificationSink.
@@ -156,8 +154,8 @@ type IHiveModule interface {
 	// SetRequestSink sets the handler of requests emitted by this module.
 	SetRequestSink(sink msg.RequestHandler)
 
-	// Start readies the module for use using the given yaml configuration.
-	Start(yamlConfig string) error
+	// Start readies the module for use
+	Start() error
 	Stop()
 }
 ```
