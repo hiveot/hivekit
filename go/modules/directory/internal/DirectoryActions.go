@@ -6,7 +6,7 @@ import (
 	"log/slog"
 
 	"github.com/hiveot/hivekit/go/api/td"
-	directoryapi "github.com/hiveot/hivekit/go/modules/directory/api"
+	"github.com/hiveot/hivekit/go/modules/directory"
 )
 
 // CreateThing adds or replaces the TD in the store.
@@ -83,7 +83,7 @@ func (m *DirectoryService) RetrieveAllThings(offset int, limit int) (tdList []st
 		return nil, err
 	}
 	if limit <= 0 {
-		limit = directoryapi.DefaultLimit
+		limit = directory.DefaultLimit
 	}
 	itemsToRead := limit
 	if offset != 0 {
@@ -92,7 +92,7 @@ func (m *DirectoryService) RetrieveAllThings(offset int, limit int) (tdList []st
 
 	for {
 		// read in batches of defaultLimit TD documents
-		readCount := min(directoryapi.DefaultLimit, itemsToRead)
+		readCount := min(directory.DefaultLimit, itemsToRead)
 		itemsToRead -= readCount
 		tdmap, itemsRemaining := cursor.NextN(uint(readCount))
 		for _, tdBin := range tdmap {

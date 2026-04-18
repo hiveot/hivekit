@@ -11,7 +11,7 @@ import (
 
 	"github.com/alexedwards/argon2id"
 	"github.com/fsnotify/fsnotify"
-	authnapi "github.com/hiveot/hivekit/go/modules/authn/api"
+	"github.com/hiveot/hivekit/go/modules/authn"
 	"github.com/hiveot/hivekit/go/utils"
 	jsoniter "github.com/json-iterator/go"
 	"golang.org/x/crypto/bcrypt"
@@ -32,7 +32,7 @@ type AuthnFileStore struct {
 // Add a new client.
 // clientID is required, the rest is optional.
 // This fails if the client already exists.
-func (store *AuthnFileStore) Add(profile authnapi.ClientProfile) error {
+func (store *AuthnFileStore) Add(profile authn.ClientProfile) error {
 
 	store.mutex.Lock()
 	defer store.mutex.Unlock()
@@ -78,7 +78,7 @@ func (store *AuthnFileStore) Count() int {
 
 // GetProfile returns the client's profile
 func (store *AuthnFileStore) GetProfile(
-	clientID string) (profile authnapi.ClientProfile, err error) {
+	clientID string) (profile authn.ClientProfile, err error) {
 
 	store.mutex.RLock()
 	defer store.mutex.RUnlock()
@@ -91,10 +91,10 @@ func (store *AuthnFileStore) GetProfile(
 }
 
 // GetProfiles returns a list of all client profiles in the store
-func (store *AuthnFileStore) GetProfiles() (profiles []authnapi.ClientProfile, err error) {
+func (store *AuthnFileStore) GetProfiles() (profiles []authn.ClientProfile, err error) {
 	store.mutex.RLock()
 	defer store.mutex.RUnlock()
-	profiles = make([]authnapi.ClientProfile, 0, len(store.entries))
+	profiles = make([]authn.ClientProfile, 0, len(store.entries))
 	for _, entry := range store.entries {
 		profiles = append(profiles, entry.ClientProfile)
 	}
@@ -257,13 +257,13 @@ func (store *AuthnFileStore) SetPassword(loginID string, password string) (err e
 	if len(password) < store.minPasswordLength {
 		return fmt.Errorf("password too short (%d chars)", len(password))
 	}
-	if store.hashAlgo == authnapi.PWHASH_ARGON2id {
+	if store.hashAlgo == authn.PWHASH_ARGON2id {
 		params := argon2id.DefaultParams
 		params.Memory = 16 * 1024
 		params.Iterations = 2
 		params.Parallelism = 4 // what happens with fewer cores?
 		hash, err = argon2id.CreateHash(password, params)
-	} else if store.hashAlgo == authnapi.PWHASH_BCRYPT {
+	} else if store.hashAlgo == authn.PWHASH_BCRYPT {
 		hashBytes, err2 := bcrypt.GenerateFromPassword([]byte(password), 0)
 		err = err2
 		hash = string(hashBytes)
@@ -280,7 +280,7 @@ func (store *AuthnFileStore) SetPassword(loginID string, password string) (err e
 //
 // This does not update the role. Use SetRole for updating the role instead.
 // SetRole is an admin function while clients can update their own profile.
-func (store *AuthnFileStore) UpdateProfile(profile authnapi.ClientProfile) error {
+func (store *AuthnFileStore) UpdateProfile(profile authn.ClientProfile) error {
 	store.mutex.Lock()
 	defer store.mutex.Unlock()
 
@@ -307,7 +307,7 @@ func (store *AuthnFileStore) UpdateProfile(profile authnapi.ClientProfile) error
 // VerifyPassword verifies the given password with the stored hash
 // This returns the matching user's entry or an error if the password doesn't match
 func (store *AuthnFileStore) VerifyPassword(
-	loginID, password string) (profile authnapi.ClientProfile, err error) {
+	loginID, password string) (profile authn.ClientProfile, err error) {
 	isValid := false
 	store.mutex.Lock()
 	defer store.mutex.Unlock()
@@ -316,9 +316,9 @@ func (store *AuthnFileStore) VerifyPassword(
 	if !found {
 		// unknown user
 		isValid = false
-	} else if store.hashAlgo == authnapi.PWHASH_ARGON2id {
+	} else if store.hashAlgo == authn.PWHASH_ARGON2id {
 		isValid, _ = argon2id.ComparePasswordAndHash(password, entry.PasswordHash)
-	} else if store.hashAlgo == authnapi.PWHASH_BCRYPT {
+	} else if store.hashAlgo == authn.PWHASH_BCRYPT {
 		err := bcrypt.CompareHashAndPassword([]byte(entry.PasswordHash), []byte(password))
 		isValid = err == nil
 	}
@@ -361,9 +361,9 @@ func WritePasswordsToTempFile(
 //	hashAlgo PWHASH_ARGON2id (default) or PWHASH_BCRYPT
 func NewAuthnFileStore(storageFile string, hashAlgo string) *AuthnFileStore {
 	if hashAlgo == "" {
-		hashAlgo = authnapi.PWHASH_ARGON2id
+		hashAlgo = authn.PWHASH_ARGON2id
 	}
-	if hashAlgo != authnapi.PWHASH_ARGON2id && hashAlgo != authnapi.PWHASH_BCRYPT {
+	if hashAlgo != authn.PWHASH_ARGON2id && hashAlgo != authn.PWHASH_BCRYPT {
 		slog.Error("unknown hash algorithm. Falling back to argon2id", "hashAlgo", hashAlgo)
 	}
 	store := &AuthnFileStore{

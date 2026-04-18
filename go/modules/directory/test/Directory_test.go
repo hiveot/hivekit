@@ -10,10 +10,10 @@ import (
 	"time"
 
 	"github.com/hiveot/hivekit/go/api/td"
-	authnapi "github.com/hiveot/hivekit/go/modules/authn/api"
+	"github.com/hiveot/hivekit/go/modules/authn"
 	"github.com/hiveot/hivekit/go/modules/directory"
-	directoryapi "github.com/hiveot/hivekit/go/modules/directory/api"
 	"github.com/hiveot/hivekit/go/modules/directory/internal"
+	directorypkg "github.com/hiveot/hivekit/go/modules/directory/pkg"
 	"github.com/hiveot/hivekit/go/modules/transports"
 	"github.com/hiveot/hivekit/go/modules/transports/httpclient"
 	"github.com/hiveot/hivekit/go/testenv"
@@ -44,11 +44,11 @@ func TestMain(m *testing.M) {
 
 // Start a test environment with a directory module connected to the server
 func StartDirectoryServer() (
-	testEnv *testenv.TestEnv, m directoryapi.IDirectoryServer, cancelFn func()) {
+	testEnv *testenv.TestEnv, m directory.IDirectoryServer, cancelFn func()) {
 
 	testEnv, cancelTestEnv := testenv.StartTestEnv(defaultProtocol)
 	// use in-memory storage
-	m = directory.NewDirectoryService("", storageDir, testEnv.HttpServer)
+	m = directorypkg.NewDirectoryService("", storageDir, testEnv.HttpServer)
 	err := m.Start()
 	if err != nil {
 		panic("StartDirectoryServer: failed to start the directory " + err.Error())
@@ -66,7 +66,7 @@ func StartDirectoryServer() (
 func TestStartStop(t *testing.T) {
 	t.Logf("---%s---\n", t.Name())
 
-	m := directory.NewDirectoryService("", storageDir, nil)
+	m := directorypkg.NewDirectoryService("", storageDir, nil)
 	err := m.Start()
 	require.NoError(t, err)
 	defer m.Stop()
@@ -84,7 +84,7 @@ func TestStartStop(t *testing.T) {
 func TestCreateTD(t *testing.T) {
 	thingID := "thing1"
 
-	m := directory.NewDirectoryService("", storageDir, nil)
+	m := directorypkg.NewDirectoryService("", storageDir, nil)
 	err := m.Start()
 	require.NoError(t, err)
 	defer m.Stop()
@@ -125,7 +125,7 @@ func TestCRUDUsingMsgAPI(t *testing.T) {
 	_ = testEnv
 	defer cancelFn()
 
-	directoryID := directoryapi.DefaultDirectoryThingID
+	directoryID := directory.DefaultDirectoryThingID
 	thing1ID := clientID + ":thing1"
 
 	// test create a TD
@@ -136,11 +136,11 @@ func TestCRUDUsingMsgAPI(t *testing.T) {
 	tp := testenv.NewTestTransport(clientID, m)
 
 	// err := dirClient.CreateThing(tdi1Json)
-	err := directory.UpdateTD(directoryID, tdi1Json, tp.HandleRequest)
+	err := directorypkg.UpdateTD(directoryID, tdi1Json, tp.HandleRequest)
 	require.NoError(t, err)
 
 	// read the new TD
-	dirClient := directory.NewDirectoryMsgClient(directoryID, tp)
+	dirClient := directorypkg.NewDirectoryMsgClient(directoryID, tp)
 	tdi2Json, err := dirClient.RetrieveThing(thing1ID)
 	require.NoError(t, err)
 	tdi2, err := td.UnmarshalTD(tdi2Json)
@@ -173,7 +173,7 @@ func TestGetDirectoryTD(t *testing.T) {
 	hostPort := parts.Host
 	// Create a client account with token but don't use the client itself. This
 	// tests is specifically for using a basic http client to bootstrap discovery.
-	cl, token := testEnv.NewConnectedClient(userID, authnapi.ClientRoleViewer, nil)
+	cl, token := testEnv.NewConnectedClient(userID, authn.ClientRoleViewer, nil)
 	cl.Close()
 	// token, _, err := testEnv.CreateToken(userID, time.Minute)
 	// require.NoError(t, err)
@@ -183,7 +183,7 @@ func TestGetDirectoryTD(t *testing.T) {
 	require.NoError(t, err)
 	defer httpClient.Close()
 
-	respBody, statusCode, err := httpClient.Get(directoryapi.WellKnownWoTPath)
+	respBody, statusCode, err := httpClient.Get(directory.WellKnownWoTPath)
 	require.NoError(t, err)
 	require.Equal(t, http.StatusOK, statusCode)
 
@@ -208,12 +208,12 @@ func TestCRUDUsingRestAPI(t *testing.T) {
 	tddUrl := testEnv.HttpServer.GetConnectURL()
 
 	// create the client and connect to the http server that serves the directory TD
-	cl, authToken := testEnv.NewConnectedClient(clientID, authnapi.ClientRoleManager, nil)
+	cl, authToken := testEnv.NewConnectedClient(clientID, authn.ClientRoleManager, nil)
 	cl.Close()
 	// authToken, _, err := testEnv.CreateToken(clientID, time.Minute)
 	// require.NoError(t, err)
 
-	dirClient := directory.NewDirectoryHttpClient(tddUrl, testEnv.CertBundle.CaCert)
+	dirClient := directorypkg.NewDirectoryHttpClient(tddUrl, testEnv.CertBundle.CaCert)
 	// connect should read the directory TD
 	err := dirClient.ConnectWithToken(clientID, authToken)
 	require.NoError(t, err)

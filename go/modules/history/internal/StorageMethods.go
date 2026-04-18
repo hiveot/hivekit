@@ -10,8 +10,8 @@ import (
 
 	"github.com/araddon/dateparse"
 	"github.com/hiveot/hivekit/go/api/msg"
-	bucketstoreapi "github.com/hiveot/hivekit/go/modules/bucketstore/api"
-	historyapi "github.com/hiveot/hivekit/go/modules/history/api"
+	"github.com/hiveot/hivekit/go/modules/bucketstore"
+	"github.com/hiveot/hivekit/go/modules/history"
 	"github.com/hiveot/hivekit/go/utils"
 	jsoniter "github.com/json-iterator/go"
 )
@@ -250,7 +250,7 @@ func (svc *HistoryService) Last(clientID string, cursorKey string) (
 //	affName is the affordance name to match
 //	until is the time not to exceed in the result. Intended to avoid unnecessary iteration in range queries
 func (svc *HistoryService) next(
-	cursor bucketstoreapi.IBucketCursor, affName string, until time.Time) (
+	cursor bucketstore.IBucketCursor, affName string, until time.Time) (
 	value *msg.NotificationMessage, found bool) {
 
 	untilMilli := until.UnixMilli()
@@ -290,7 +290,7 @@ func (svc *HistoryService) next(
 
 // Read the next number of items until time or count limit is reached
 func (svc *HistoryService) nextN(
-	cursor bucketstoreapi.IBucketCursor, affName string, endTime time.Time, limit int) (
+	cursor bucketstore.IBucketCursor, affName string, endTime time.Time, limit int) (
 	items []*msg.NotificationMessage, itemsRemaining bool) {
 
 	items = make([]*msg.NotificationMessage, 0, limit)
@@ -336,7 +336,7 @@ func (svc *HistoryService) NextN(
 	valueList []*msg.NotificationMessage, itemsRemaining bool, err error) {
 
 	if limit <= 0 {
-		limit = historyapi.DefaultLimit
+		limit = history.DefaultLimit
 	}
 	cursor, ci, err := svc.cursorCache.Get(clientID, cursorKey, true)
 	if err != nil {
@@ -360,7 +360,7 @@ func (svc *HistoryService) NextN(
 //	until is the limit of the time to read. Intended for time-range queries and
 //	to avoid unnecessary iteration in range queries
 func (svc *HistoryService) prev(
-	cursor bucketstoreapi.IBucketCursor, affName string, until time.Time) (
+	cursor bucketstore.IBucketCursor, affName string, until time.Time) (
 	value *msg.NotificationMessage, found bool) {
 
 	untilMilli := until.UnixMilli()
@@ -401,7 +401,7 @@ func (svc *HistoryService) prev(
 
 // prevN reads the previous number of items until time or count limit is reached
 func (svc *HistoryService) prevN(
-	cursor bucketstoreapi.IBucketCursor, affName string, endTime time.Time, limit int) (
+	cursor bucketstore.IBucketCursor, affName string, endTime time.Time, limit int) (
 	items []*msg.NotificationMessage, itemsRemaining bool) {
 
 	items = make([]*msg.NotificationMessage, 0, limit)
@@ -445,7 +445,7 @@ func (svc *HistoryService) PrevN(
 	valueList []*msg.NotificationMessage, itemsRemaining bool, err error) {
 
 	if limit <= 0 {
-		limit = historyapi.DefaultLimit
+		limit = history.DefaultLimit
 	}
 	cursor, ci, err := svc.cursorCache.Get(clientID, cursorKey, true)
 	if err != nil {
@@ -464,7 +464,7 @@ func (svc *HistoryService) ReadHistory(
 	values = make([]*msg.NotificationMessage, 0)
 
 	if limit <= 0 {
-		limit = historyapi.DefaultLimit
+		limit = history.DefaultLimit
 	}
 	if thingID == "" {
 		return nil, false, fmt.Errorf("missing thingID")
@@ -503,7 +503,7 @@ func (svc *HistoryService) ReleaseCursor(clientID string, cursorKey string) erro
 
 // seek internal function for seeking a time and affordance name
 func (svc *HistoryService) seek(
-	cursor bucketstoreapi.IBucketCursor, ts time.Time, affName string) (
+	cursor bucketstore.IBucketCursor, ts time.Time, affName string) (
 	value *msg.NotificationMessage, valid bool) {
 
 	until := time.Now()

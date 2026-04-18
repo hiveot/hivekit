@@ -5,7 +5,7 @@ import (
 	"errors"
 
 	"github.com/hiveot/hivekit/go/api/msg"
-	authnapi "github.com/hiveot/hivekit/go/modules/authn/api"
+	"github.com/hiveot/hivekit/go/modules/authn"
 	"github.com/hiveot/hivekit/go/utils"
 )
 
@@ -15,39 +15,39 @@ import (
 var AuthnAdminTMJson []byte
 
 // Handle the admin RRN request
-func HandleAuthnAdminRequest(m authnapi.IAuthnService, req *msg.RequestMessage, replyTo msg.ResponseHandler) error {
+func HandleAuthnAdminRequest(m authn.IAuthnService, req *msg.RequestMessage, replyTo msg.ResponseHandler) error {
 	var output any
 	var err error
 	switch req.Name {
 
-	case authnapi.AdminActionAddClient:
-		args := authnapi.AdminAddClientArgs{}
+	case authn.AdminActionAddClient:
+		args := authn.AdminAddClientArgs{}
 		err = utils.DecodeAsObject(req.Input, &args)
 		if err == nil {
 			err = m.AddClient(args.ClientID, args.DisplayName, args.Role)
 		}
-	case authnapi.AdminActionGetProfile:
+	case authn.AdminActionGetProfile:
 		var clientID string
 		err = utils.DecodeAsObject(req.Input, &clientID)
 		if err == nil {
 			output, err = m.GetProfile(clientID)
 		}
-	case authnapi.AdminActionGetProfiles:
+	case authn.AdminActionGetProfiles:
 		output, err = m.GetProfiles()
-	case authnapi.AdminActionRemoveClient:
+	case authn.AdminActionRemoveClient:
 		var clientID string
 		err = utils.DecodeAsObject(req.Input, &clientID)
 		if err == nil {
 			err = m.RemoveClient(clientID)
 		}
-	case authnapi.AdminActionSetPassword:
-		var args authnapi.AdminSetPasswordArgs // same as user
+	case authn.AdminActionSetPassword:
+		var args authn.AdminSetPasswordArgs // same as user
 		err = utils.DecodeAsObject(req.Input, &args)
 		if err == nil {
 			err = m.SetPassword(args.UserName, args.Password)
 		}
-	case authnapi.AdminActionUpdateProfile:
-		var profile authnapi.ClientProfile
+	case authn.AdminActionUpdateProfile:
+		var profile authn.ClientProfile
 		err = utils.DecodeAsObject(req.Input, &profile)
 		if err == nil {
 			err = m.UpdateProfile(req.SenderID, profile)

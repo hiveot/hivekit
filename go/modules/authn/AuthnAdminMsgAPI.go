@@ -1,0 +1,69 @@
+// package authnapi with admin service messaging definitions
+package authn
+
+// AuthnAdminServiceID is the default thingID of the admin service.
+const AuthnAdminServiceID = "authn:admin"
+
+// property, event and action names
+const (
+	// Property names
+	AdminPropNrClients = "nrClients"
+
+	// Event names
+	AdminEventAdded   = "added"
+	AdminEventRemoved = "removed"
+
+	// Action names
+	AdminActionAddClient   = "addClient"
+	AdminActionGetProfile  = "getProfile"
+	AdminActionGetProfiles = "getProfiles"
+	// AdminActionGetSessions  = "getSessions"
+	AdminActionRemoveClient  = "removeClient"
+	AdminActionSetPassword   = "setPassword"
+	AdminActionSetRole       = "setRole"
+	AdminActionUpdateProfile = "updateProfile"
+)
+
+// args for setting a client's password
+// used in http and rrn messaging
+type AdminSetPasswordArgs struct {
+	UserName string `json:"username"`
+	Password string `json:"password"`
+}
+
+// args for setting a client's role
+// used in rrn messaging
+type AdminSetRoleArgs struct {
+	ClientID string `json:"clientID"`
+	Role     string `json:"role"`
+}
+
+// args for updating a client's profile
+// used in http and rrn messaging
+type AdminUpdateProfileArgs struct {
+	ClientID string        `json:"clientID"`
+	Profile  ClientProfile `json:"profile"`
+}
+
+// AdminAddClientArgs defines the arguments of the addAgent function
+// Add Agent - Create an account for IoT device agents
+type AdminAddClientArgs struct {
+
+	// ClientID with Client ID
+	ClientID string `json:"clientID,omitempty"`
+
+	// DisplayName with Display Name
+	DisplayName string `json:"displayName,omitempty"`
+
+	// Role of the client
+	Role string `json:"role,omitempty"`
+}
+
+// AdminGetProfilesResp defines the response of the getProfiles function
+// Get Profiles - Get a list of all client profiles
+// AdminGetProfilesResp defines a Client Profiles data schema.
+type AdminGetProfilesResp []struct {
+
+	// AdminGetProfilesResp with Client Profile
+	AdminGetProfilesResp *ClientProfile `json:"AdminGetProfilesResp,omitempty"`
+}

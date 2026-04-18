@@ -9,9 +9,9 @@ import (
 
 	"github.com/grandcat/zeroconf"
 	"github.com/hiveot/hivekit/go/modules"
-	directoryapi "github.com/hiveot/hivekit/go/modules/directory/api"
+	"github.com/hiveot/hivekit/go/modules/directory"
 	"github.com/hiveot/hivekit/go/modules/transports"
-	discoveryapi "github.com/hiveot/hivekit/go/modules/transports/discovery/api"
+	"github.com/hiveot/hivekit/go/modules/transports/discovery"
 )
 
 // DiscoveryModule is a module for serving a directory endpoint and discovering
@@ -48,14 +48,14 @@ func (m *DiscoveryServer) ServeDirectoryTDD(dirTDJSON string) (err error) {
 	}
 	publicRoute := m.httpServer.GetPublicRoute()
 	// TBD: support for base path?
-	wellKnownPath := directoryapi.WellKnownWoTPath
+	wellKnownPath := directory.WellKnownWoTPath
 	publicRoute.Get(wellKnownPath, func(w http.ResponseWriter, r *http.Request) {
 		_, _ = w.Write([]byte(dirTDJSON))
 	})
 	instanceName := m.discoveryThingID
 	tddURL, err := url.JoinPath(m.httpServer.GetConnectURL(), wellKnownPath)
 	m.dnssdServer, err = ServeWotDiscovery(
-		instanceName, tddURL, discoveryapi.WOT_DIRECTORY_SERVICE_TYPE, m.endpoints)
+		instanceName, tddURL, discovery.WOT_DIRECTORY_SERVICE_TYPE, m.endpoints)
 	if err != nil {
 		slog.Error("Failed starting introduction server for DNS-SD",
 			"TDD URL", tddURL,
@@ -76,13 +76,13 @@ func (m *DiscoveryServer) ServeThingTD(thingTDJSON string) (err error) {
 
 	publicRoute := m.httpServer.GetPublicRoute()
 	// TBD: support for base path?
-	wellKnownPath := directoryapi.WellKnownWoTPath
+	wellKnownPath := directory.WellKnownWoTPath
 	publicRoute.Get(wellKnownPath, func(w http.ResponseWriter, r *http.Request) {
 		_, _ = w.Write([]byte(thingTDJSON))
 	})
 	instanceName := m.discoveryThingID
 	thingTDURL, err := url.JoinPath(m.httpServer.GetConnectURL(), wellKnownPath)
-	m.dnssdServer, err = ServeWotDiscovery(instanceName, thingTDURL, discoveryapi.WOT_THING_SERVICE_TYPE, nil)
+	m.dnssdServer, err = ServeWotDiscovery(instanceName, thingTDURL, discovery.WOT_THING_SERVICE_TYPE, nil)
 	if err != nil {
 		slog.Error("Failed starting introduction server for DNS-SD",
 			"Thing TD URL", thingTDURL,
@@ -126,13 +126,13 @@ func NewDiscoveryServer(
 	httpServer transports.IHttpServer, endpoints map[string]string, serviceID string) *DiscoveryServer {
 
 	if serviceID == "" {
-		serviceID = discoveryapi.DefaultDiscoveryThingID
+		serviceID = discovery.DefaultDiscoveryThingID
 	}
 	m := &DiscoveryServer{
 		discoveryThingID: serviceID,
 		endpoints:        endpoints,
 		httpServer:       httpServer,
 	}
-	var _ discoveryapi.IDiscoveryServer = m // interface check
+	var _ discovery.IDiscoveryServer = m // interface check
 	return m
 }

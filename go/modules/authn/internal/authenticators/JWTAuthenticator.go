@@ -10,7 +10,7 @@ import (
 
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/hiveot/hivekit/go/api/td"
-	authnapi "github.com/hiveot/hivekit/go/modules/authn/api"
+	"github.com/hiveot/hivekit/go/modules/authn"
 	authnstore "github.com/hiveot/hivekit/go/modules/authn/internal/store"
 )
 
@@ -245,9 +245,9 @@ func NewJWTAuthenticator(
 		clientStore:   authnStore,
 		authServerURI: authServerURI,
 		// validity can be changed by user of this service
-		AgentTokenValidityDays:    authnapi.DefaultAgentTokenValidityDays,
-		ConsumerTokenValidityDays: authnapi.DefaultConsumerTokenValidityDays,
-		ServiceTokenValidityDays:  authnapi.DefaultServiceTokenValidityDays,
+		AgentTokenValidityDays:    authn.DefaultAgentTokenValidityDays,
+		ConsumerTokenValidityDays: authn.DefaultConsumerTokenValidityDays,
+		ServiceTokenValidityDays:  authn.DefaultServiceTokenValidityDays,
 		signingMethod:             jwt.SigningMethodES256,
 		sessionStart:              make(map[string]time.Time),
 	}

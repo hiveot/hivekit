@@ -11,7 +11,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	bucketstoreapi "github.com/hiveot/hivekit/go/modules/bucketstore/api"
+	bucketstore "github.com/hiveot/hivekit/go/modules/bucketstore"
 )
 
 const defaultStoreFileName = "kvbtree.json"
@@ -248,7 +248,7 @@ func (store *KVBTreeStore) Export() map[string]map[string][]byte {
 }
 
 // GetBucket returns a bucket and creates it if it doesn't exist
-func (store *KVBTreeStore) GetBucket(bucketID string) (bucket bucketstoreapi.IBucket) {
+func (store *KVBTreeStore) GetBucket(bucketID string) (bucket bucketstore.IBucket) {
 
 	if store.buckets == nil {
 		panic("store is not open")
@@ -377,6 +377,6 @@ func NewKVStore(storePath string) (store *KVBTreeStore) {
 		writeDelay:           writeDelay,
 		//jsonCache:            make(map[string]interface{}),
 	}
-	var _ bucketstoreapi.IBucketStorage = store // type check
+	var _ bucketstore.IBucketStorage = store // type check
 	return store
 }

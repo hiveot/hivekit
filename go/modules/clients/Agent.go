@@ -5,8 +5,12 @@ import (
 	"sync/atomic"
 
 	"github.com/hiveot/hivekit/go/api/msg"
+	"github.com/hiveot/hivekit/go/modules"
+	"github.com/hiveot/hivekit/go/modules/factory"
 	"github.com/hiveot/hivekit/go/utils"
 )
+
+const AgentModuleType = "agent"
 
 // Agent is a helper module providing a Golang API for IoT device WoT operations using the
 // standard RRN (request-response-notification) messages. The RRN interface is compatible
@@ -171,7 +175,15 @@ func NewAgent(agentID string, appReqHandler msg.RequestHandler) *Agent {
 	agent := &Agent{}
 	agent.Consumer = NewConsumer(agentID)
 
-	agent.SetAppRequestHandler(appReqHandler)
-
+	if appReqHandler != nil {
+		agent.SetAppRequestHandler(appReqHandler)
+	}
 	return agent
+}
+
+// Factory for creating an agent module using the factory environment
+func NewAgentFactory(f factory.IModuleFactory) modules.IHiveModule {
+	appID := f.GetEnvironment().AppID
+	c := NewAgent(appID, nil)
+	return c
 }

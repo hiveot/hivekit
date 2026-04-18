@@ -24,6 +24,12 @@ const PropName_NrConnections = "nrConnections"
 // To initialize: call Init(moduleID, sink, connectURL)
 type TransportServerBase struct {
 
+	// appRequestHook is the application handler of requests addressed to this module's thingID.
+	//
+	// HandleRequest will invoke this callback or forward requests not destined for
+	// this module (moduleID != request.ThingID) to requestSink.
+	appRequestHook msg.RequestHandler
+
 	// authenticator for incoming connections and for adding form security info
 	authenticator IAuthenticator
 
@@ -391,6 +397,14 @@ func (m *TransportServerBase) HandleNotification(notif *msg.NotificationMessage)
 func (m *TransportServerBase) HandleRequest(
 	req *msg.RequestMessage, replyTo msg.ResponseHandler) (err error) {
 
+	if req.ThingID == m.thingID {
+		if m.appRequestHook != nil {
+			return m.appRequestHook(req, replyTo)
+		} else {
+			return fmt.Errorf("HandleRequest: no request handler set for this transport server module", "thingID", m.thingID)
+		}
+	}
+
 	// first attempt to procss the when targeted at this module
 	// if the request is not for this module then pass it to the remote agent
 	// if the agent isn't connected then this returns an error. This can be valid
@@ -529,6 +543,12 @@ func (srv *TransportServerBase) SetNotificationSink(consumer msg.NotificationHan
 	srv.notificationSink = consumer
 }
 
+// Set the hook to invoke with received requests directed at this module
+// Any other requests received by HandleRequest will be forwarded to the sink.
+func (m *TransportServerBase) SetRequestHook(hook msg.RequestHandler) {
+	m.appRequestHook = hook
+}
+
 // Set the handler that will receive requests received from the client
 func (srv *TransportServerBase) SetRequestSink(sink msg.RequestHandler) {
 	// to be determined if there is a use-case for replacing the sink
@@ -541,7 +561,7 @@ func (srv *TransportServerBase) SetRequestSink(sink msg.RequestHandler) {
 
 // Initialize the module base with a moduleID and a messaging sink
 //
-//	moduleID is the transport instance ID to identify as.
+//	thingID is the transport instance ID for connect/disconnect notifications
 //	subprotocol optional name for including in form operations
 //	connectURL is the URL this module can be reached at. Used to set TD.Base
 //	authenticator used to include the security in TDs

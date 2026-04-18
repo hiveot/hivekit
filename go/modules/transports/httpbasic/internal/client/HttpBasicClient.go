@@ -16,7 +16,7 @@ import (
 	"github.com/hiveot/hivekit/go/api/td"
 	"github.com/hiveot/hivekit/go/modules"
 	"github.com/hiveot/hivekit/go/modules/transports"
-	httpbasicapi "github.com/hiveot/hivekit/go/modules/transports/httpbasic/api"
+	"github.com/hiveot/hivekit/go/modules/transports/httpbasic"
 	"github.com/hiveot/hivekit/go/modules/transports/httpclient"
 	"github.com/hiveot/hivekit/go/utils"
 	jsoniter "github.com/json-iterator/go"
@@ -34,6 +34,7 @@ import (
 // hiveot RequestMessage and ResponseMessage endpoints. If no form is available
 // then use the default hiveot endpoints that are defined with this protocol binding.
 type HttpBasicClient struct {
+	modules.HiveModuleBase
 
 	// handler for requests send by clients
 	connectHandler transports.ConnectionHandler
@@ -231,7 +232,7 @@ func (cl *HttpBasicClient) SendRequest(
 		// fall back to the 'well known' hiveot request URL using uri variables
 		// eg: /things/{operation}/{thingID}/{name} or /hiveot/request
 		method = http.MethodPost
-		href = httpbasicapi.HttpBasicAffordanceOperationPath
+		href = httpbasic.HttpBasicAffordanceOperationPath
 		inputJSON, _ = jsoniter.MarshalToString(req.Input)
 	}
 

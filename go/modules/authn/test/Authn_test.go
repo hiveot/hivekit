@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	authnapi "github.com/hiveot/hivekit/go/modules/authn/api"
+	"github.com/hiveot/hivekit/go/modules/authn"
 	"github.com/hiveot/hivekit/go/modules/authn/internal/service"
 	certstest "github.com/hiveot/hivekit/go/modules/certs/test"
 	"github.com/hiveot/hivekit/go/modules/clients"
@@ -17,8 +17,8 @@ import (
 )
 
 var testDir = path.Join(os.TempDir(), "hivekit", "authn-test")
-var authnConfig authnapi.AuthnConfig
-var defaultHash = authnapi.PWHASH_ARGON2id
+var authnConfig authn.AuthnConfig
+var defaultHash = authn.PWHASH_ARGON2id
 
 var serverPort int = 9445
 var testCerts certstest.TestCertBundle
@@ -49,7 +49,7 @@ func NewTestConsumer(m *service.AuthnService, protocolType, serverURL, clientID 
 	*clients.Consumer, transports.ITransportClient, string) {
 
 	// ensure the client exists
-	_ = m.AddClient(clientID, "client 1", authnapi.ClientRoleViewer)
+	_ = m.AddClient(clientID, "client 1", authn.ClientRoleViewer)
 	sm := m.GetSessionManager()
 	token, validUntil, _ := sm.CreateToken(clientID, time.Minute)
 	_ = validUntil
@@ -92,7 +92,7 @@ func startTestAuthnModule(encryption string) (m *service.AuthnService, stopFn fu
 	// the password file to use
 	passwordFile := path.Join(testDir, "test.passwd")
 
-	authnConfig = authnapi.NewAuthnConfig(testDir, testDir)
+	authnConfig = authn.NewAuthnConfig(testDir, testDir)
 	authnConfig.PasswordFile = passwordFile
 	// authnConfig.AgentTokenValidityDays = 1
 	authnConfig.Encryption = encryption

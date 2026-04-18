@@ -4,7 +4,7 @@ import (
 	"testing"
 	"time"
 
-	authnapi "github.com/hiveot/hivekit/go/modules/authn/api"
+	"github.com/hiveot/hivekit/go/modules/authn"
 	"github.com/hiveot/hivekit/go/utils"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -29,26 +29,26 @@ func TestAddRemoveClientsSuccess(t *testing.T) {
 
 	//err := svc.AdminSvc.AddConsumer(serviceID,
 	//         authnapi.AdminAddConsumerArgs{ "user1", "user 1", "pass1")
-	err := m.AddClient("user1", "User 1", authnapi.ClientRoleViewer)
+	err := m.AddClient("user1", "User 1", authn.ClientRoleViewer)
 	require.NoError(t, err)
 	err2 := m.SetPassword("user1", "pass1")
 	require.NoError(t, err2)
 
 	// duplicate should fail
-	err = m.AddClient("user1", "user 1 updated", authnapi.ClientRoleViewer)
+	err = m.AddClient("user1", "user 1 updated", authn.ClientRoleViewer)
 	require.Error(t, err)
 
-	err = m.AddClient("user2", "user 2", authnapi.ClientRoleViewer)
+	err = m.AddClient("user2", "user 2", authn.ClientRoleViewer)
 	assert.NoError(t, err)
-	err = m.AddClient("user3", "user 3", authnapi.ClientRoleViewer)
+	err = m.AddClient("user3", "user 3", authn.ClientRoleViewer)
 	assert.NoError(t, err)
-	err = m.AddClient("user4", "user 4", authnapi.ClientRoleViewer)
-	assert.NoError(t, err)
-
-	err = m.AddClient(deviceID, "agent 1", authnapi.ClientRoleAgent)
+	err = m.AddClient("user4", "user 4", authn.ClientRoleViewer)
 	assert.NoError(t, err)
 
-	err = m.AddClient(serviceID, "service 1", authnapi.ClientRoleService)
+	err = m.AddClient(deviceID, "agent 1", authn.ClientRoleAgent)
+	assert.NoError(t, err)
+
+	err = m.AddClient(serviceID, "service 1", authn.ClientRoleService)
 	assert.NoError(t, err)
 
 	// there should be 6 clients
@@ -72,7 +72,7 @@ func TestAddRemoveClientsSuccess(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, 2, len(profiles))
 
-	err = m.AddClient("user1", "user 1", authnapi.ClientRoleViewer)
+	err = m.AddClient("user1", "user 1", authn.ClientRoleViewer)
 	m.SetPassword("user1", "pass1")
 	assert.NoError(t, err)
 }
@@ -85,11 +85,11 @@ func TestAddRemoveClientsFail(t *testing.T) {
 	defer stopFn()
 
 	// missing clientID should fail
-	err := m.AddClient("", "user 1", authnapi.ClientRoleService)
+	err := m.AddClient("", "user 1", authn.ClientRoleService)
 	assert.Error(t, err)
 
 	// a bad key is not an error
-	err = m.AddClient("user2", "user 2", authnapi.ClientRoleViewer)
+	err = m.AddClient("user2", "user 2", authn.ClientRoleViewer)
 	assert.NoError(t, err)
 }
 
@@ -102,7 +102,7 @@ func TestUpdateClientPassword(t *testing.T) {
 
 	m, stopFn := startTestAuthnModule(defaultHash)
 	defer stopFn()
-	err := m.AddClient(tu1ID, "user tu1", authnapi.ClientRoleViewer)
+	err := m.AddClient(tu1ID, "user tu1", authn.ClientRoleViewer)
 	require.NoError(t, err)
 	err = m.SetPassword(tu1ID, tuPass1)
 	require.NoError(t, err)
@@ -130,7 +130,7 @@ func TestUpdatePubKey(t *testing.T) {
 	defer stopFn()
 
 	// add user to test with. don't set the public key yet
-	err := m.AddClient(tu1ID, "user tu1", authnapi.ClientRoleViewer)
+	err := m.AddClient(tu1ID, "user tu1", authn.ClientRoleViewer)
 	m.SetPassword(tu1ID, tu1Pass)
 	require.NoError(t, err)
 	//
@@ -165,7 +165,7 @@ func TestNewAgentToken(t *testing.T) {
 	defer stopFn()
 
 	// add agent to test with and connect
-	err := m.AddClient(tu1ID, tu1Name, authnapi.ClientRoleAgent)
+	err := m.AddClient(tu1ID, tu1Name, authn.ClientRoleAgent)
 	require.NoError(t, err)
 
 	// get a new token
@@ -190,7 +190,7 @@ func TestUpdateProfile(t *testing.T) {
 	defer stopFn()
 
 	// add user to test with and connect
-	err := m.AddClient(tu1ID, tu1Name, authnapi.ClientRoleViewer)
+	err := m.AddClient(tu1ID, tu1Name, authn.ClientRoleViewer)
 	require.NoError(t, err)
 	//tu1Key, _ := testServer.MsgServer.CreateKP()
 
@@ -198,7 +198,7 @@ func TestUpdateProfile(t *testing.T) {
 	const newDisplayName = "new display name"
 	profile, err := m.GetProfile(tu1ID)
 	require.NoError(t, err)
-	assert.Equal(t, authnapi.ClientRoleViewer, profile.Role)
+	assert.Equal(t, authn.ClientRoleViewer, profile.Role)
 	profile.DisplayName = newDisplayName
 	err = m.UpdateProfile(tu1ID, profile)
 	assert.NoError(t, err)
@@ -207,7 +207,7 @@ func TestUpdateProfile(t *testing.T) {
 	profile2, err := m.GetProfile(tu1ID)
 	require.NoError(t, err)
 	assert.Equal(t, newDisplayName, profile2.DisplayName)
-	assert.Equal(t, authnapi.ClientRoleViewer, profile2.Role)
+	assert.Equal(t, authn.ClientRoleViewer, profile2.Role)
 }
 
 func TestUpdateProfileFail(t *testing.T) {
@@ -219,10 +219,10 @@ func TestUpdateProfileFail(t *testing.T) {
 	m, stopFn := startTestAuthnModule(defaultHash)
 	defer stopFn()
 	// add user to test with and connect
-	err := m.AddClient(tu1ID, tu1Name, authnapi.ClientRoleViewer)
+	err := m.AddClient(tu1ID, tu1Name, authn.ClientRoleViewer)
 	require.NoError(t, err)
 
 	// this fails as badclient doesn't exist
-	err = m.UpdateProfile(adminID, authnapi.ClientProfile{ClientID: "badclient"})
+	err = m.UpdateProfile(adminID, authn.ClientProfile{ClientID: "badclient"})
 	assert.Error(t, err)
 }

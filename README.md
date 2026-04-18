@@ -14,7 +14,7 @@ HiveKit components were originally part of the HiveOT Hub and have been extracte
 
 ## Project Status
 
-(updated march 2026)
+(updated april 2026)
 
 Hivekit is in alpha. Modules with a checkmark are functional but breaking changes can still be expected.
 
@@ -44,7 +44,7 @@ Core Service modules:
 |   ✔️   | logging     | Basic messaging logging     | alpha |
 |   ✔️   | router      | Message routing to devices  | alpha |
 |   ✔️   | vcache      | Value cache                 | alpha |
-|   ⬛   | pipeline    | Module pipeline factory     | dev   |
+|   ✔️   | factory     | Module factory              | alpha |
 |   ⬛   | jsscript    | Javascript based automation | todo  |
 |   ⬛   | rules       | Rule based automation       | todo  |
 

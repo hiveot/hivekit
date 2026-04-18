@@ -7,7 +7,7 @@ import (
 
 	"github.com/hiveot/hivekit/go/api/msg"
 	"github.com/hiveot/hivekit/go/modules"
-	bucketstoreapi "github.com/hiveot/hivekit/go/modules/bucketstore/api"
+	bucketstore "github.com/hiveot/hivekit/go/modules/bucketstore"
 	"github.com/hiveot/hivekit/go/modules/bucketstore/internal/stores"
 	"github.com/hiveot/hivekit/go/modules/bucketstore/internal/stores/kvbtree"
 )
@@ -36,14 +36,14 @@ type BucketStoreService struct {
 	location string
 
 	// The storage bucket store itself, kvbtree, pebble or the default, the pipeline store.
-	store  bucketstoreapi.IBucketStorage
-	bucket bucketstoreapi.IBucket
+	store  bucketstore.IBucketStorage
+	bucket bucketstore.IBucket
 
 	// the WoT messaging API
 	msgAPI *BucketMsgHandler
 }
 
-func (m *BucketStoreService) GetService() bucketstoreapi.IBucketStorage {
+func (m *BucketStoreService) GetService() bucketstore.IBucketStorage {
 	return m.store
 }
 
@@ -116,8 +116,8 @@ func NewBucketStoreService(location string, storeType string) *BucketStoreServic
 		// bucketStore: bucketStore,
 	}
 
-	var _ modules.IHiveModule = m                 // interface check
-	var _ bucketstoreapi.IBucketStorage = m.store // interface check
+	var _ modules.IHiveModule = m              // interface check
+	var _ bucketstore.IBucketStorage = m.store // interface check
 
 	return m
 }

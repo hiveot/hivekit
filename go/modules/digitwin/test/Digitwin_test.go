@@ -12,13 +12,13 @@ import (
 
 	"github.com/hiveot/hivekit/go/api/msg"
 	"github.com/hiveot/hivekit/go/api/td"
-	authnapi "github.com/hiveot/hivekit/go/modules/authn/api"
+	"github.com/hiveot/hivekit/go/modules/authn"
 	"github.com/hiveot/hivekit/go/modules/digitwin"
-	digitwinapi "github.com/hiveot/hivekit/go/modules/digitwin/api"
 	"github.com/hiveot/hivekit/go/modules/digitwin/internal"
+	digitwinpkg "github.com/hiveot/hivekit/go/modules/digitwin/pkg"
 	"github.com/hiveot/hivekit/go/modules/directory"
-	directoryapi "github.com/hiveot/hivekit/go/modules/directory/api"
-	"github.com/hiveot/hivekit/go/modules/router"
+	directorypkg "github.com/hiveot/hivekit/go/modules/directory/pkg"
+	routerpkg "github.com/hiveot/hivekit/go/modules/router/pkg"
 	"github.com/hiveot/hivekit/go/modules/transports"
 	"github.com/hiveot/hivekit/go/testenv"
 	"github.com/hiveot/hivekit/go/utils"
@@ -47,8 +47,8 @@ func TestMain(m *testing.M) {
 // This sets-up a module chain with a server, directory, digitwin, vcache, and router
 func startService() (
 	testEnv *testenv.TestEnv,
-	dir directoryapi.IDirectoryServer,
-	dtw digitwinapi.IDigitwinServer,
+	dir directory.IDirectoryServer,
+	dtw digitwin.IDigitwinService,
 	stopFn func()) {
 
 	os.RemoveAll(storageDir)
@@ -61,21 +61,21 @@ func startService() (
 
 	// the directory server that will contain digitwin Things
 	// digiDir := filepath.Join(storageDir, "digiDir.json")
-	dirThingID := directoryapi.DefaultDirectoryThingID
-	dir = directory.NewDirectoryService(dirThingID, storageDir, testEnv.HttpServer)
+	dirThingID := directory.DefaultDirectoryThingID
+	dir = directorypkg.NewDirectoryService(dirThingID, storageDir, testEnv.HttpServer)
 	err := dir.Start()
 	if err != nil {
 		panic("Failed to start directory server")
 	}
 	// the digitwin module to test, it will create its own vcache module
-	dtw = digitwin.NewDigitwinService(storageDir, dir, appServer.AddTDSecForms)
+	dtw = digitwinpkg.NewDigitwinService(storageDir, dir, appServer.AddTDSecForms)
 	err = dtw.Start()
 	if err != nil {
 		panic("unable to start the digitwin service")
 	}
 	// the router module uses the digitwin Thing Directory
 	// getDeviceTD := dtw.GetDeviceDirectory().GetTD
-	rtr := router.NewRouterService(storageDir,
+	rtr := routerpkg.NewRouterService(storageDir,
 		dtw.GetDeviceTD, []transports.ITransportServer{appServer}, testEnv.CertBundle.CaCert)
 	rtr.SetTimeout(rpcTimout)
 	err = rtr.Start()
@@ -138,7 +138,7 @@ func TestCreateDigitwinTD(t *testing.T) {
 	require.NoError(t, err)
 
 	// 2. The digitwin ID should have the dtw prefix
-	assert.True(t, strings.HasPrefix(dtw1.ID, digitwinapi.DigitwinIDPrefix))
+	assert.True(t, strings.HasPrefix(dtw1.ID, digitwin.DigitwinIDPrefix))
 
 	// 3. check if properties, events and actions are still there
 	require.Less(t, len(td1.Properties), len(dtw1.Properties)) // digitwin added properties
@@ -203,7 +203,7 @@ func TestReadDigitwinProperty(t *testing.T) {
 	})
 
 	// 1: create a consumer that subscribes to notifications
-	co, cc1, _ := testEnv.NewConsumerClient(userID, authnapi.ClientRoleViewer, nil)
+	co, cc1, _ := testEnv.NewConsumerClient(userID, authn.ClientRoleViewer, nil)
 	err := co.ObserveProperty("", prop1Name)
 	require.NoError(t, err)
 	defer cc1.Stop()
@@ -259,7 +259,7 @@ func TestWriteDigitwinProperty(t *testing.T) {
 	defer stopFn()
 
 	// 1: create a consumer that writes a property
-	co, cc1, _ := testEnv.NewConsumerClient(userID, authnapi.ClientRoleViewer, nil)
+	co, cc1, _ := testEnv.NewConsumerClient(userID, authn.ClientRoleViewer, nil)
 	err := co.ObserveProperty("", prop1Name)
 	require.NoError(t, err)
 	defer cc1.Stop()
@@ -277,7 +277,7 @@ func TestWriteDigitwinProperty(t *testing.T) {
 			go ag.PubProperty(req.ThingID, req.Name, txPropValue)
 
 			return replyTo(resp)
-		} else if req.ThingID == directoryapi.DefaultDirectoryThingID {
+		} else if req.ThingID == directory.DefaultDirectoryThingID {
 			// this is a request for the directory. Forward it
 			return ag.ForwardRequest(req, replyTo)
 		} else {
@@ -291,8 +291,8 @@ func TestWriteDigitwinProperty(t *testing.T) {
 	// but most likely it uses the default.
 	td1 := testEnv.CreateTestTD(0)
 	td1Json, _ := td.MarshalTD(td1)
-	err = directory.UpdateTD(
-		directoryapi.DefaultDirectoryThingID, td1Json, ag.ForwardRequest)
+	err = directorypkg.UpdateTD(
+		directory.DefaultDirectoryThingID, td1Json, ag.ForwardRequest)
 	assert.NoError(t, err)
 
 	// check whether the td is now in the directory
@@ -306,7 +306,7 @@ func TestWriteDigitwinProperty(t *testing.T) {
 	assert.Equal(t, agentID, tdi2.AgentID)
 
 	// 4. Consumer reads the TD with its own directory client
-	dirCoCl := directory.NewDirectoryMsgClient("", co)
+	dirCoCl := directorypkg.NewDirectoryMsgClient("", co)
 	td3Json, err := dirCoCl.RetrieveThing(dtwThing1ID)
 	require.NoError(t, err)
 	td3, err := td.UnmarshalTD(td3Json)
@@ -342,7 +342,7 @@ func TestInvokeDigitwinAction(t *testing.T) {
 	defer stopFn()
 
 	// 1: create a consumer
-	co, cc1, _ := testEnv.NewConsumerClient(userID, authnapi.ClientRoleViewer, nil)
+	co, cc1, _ := testEnv.NewConsumerClient(userID, authn.ClientRoleViewer, nil)
 	// the action will submit an event
 	err := co.Subscribe(dtwThing1ID, actionName)
 	require.NoError(t, err)
@@ -359,7 +359,7 @@ func TestInvokeDigitwinAction(t *testing.T) {
 			// submit an event after the action
 			go ag.PubEvent(req.ThingID, req.Name, req.Input)
 			return replyTo(resp)
-		} else if req.ThingID == directoryapi.DefaultDirectoryThingID {
+		} else if req.ThingID == directory.DefaultDirectoryThingID {
 			// this is a request for the directory. Forward it
 			return ag.ForwardRequest(req, replyTo)
 		} else {
@@ -372,8 +372,8 @@ func TestInvokeDigitwinAction(t *testing.T) {
 	td1 := testEnv.CreateTestTD(0)
 	td1.ID = thingID
 	td1Json, _ := td.MarshalTD(td1)
-	err = directory.UpdateTD(
-		directoryapi.DefaultDirectoryThingID, td1Json, ag.ForwardRequest)
+	err = directorypkg.UpdateTD(
+		directory.DefaultDirectoryThingID, td1Json, ag.ForwardRequest)
 	assert.NoError(t, err)
 
 	// 4. Consumer invokes the first action

@@ -13,7 +13,7 @@ import (
 	"github.com/hiveot/hivekit/go/api/td"
 	"github.com/hiveot/hivekit/go/modules"
 	"github.com/hiveot/hivekit/go/modules/clients"
-	routerapi "github.com/hiveot/hivekit/go/modules/router/api"
+	"github.com/hiveot/hivekit/go/modules/router"
 	"github.com/hiveot/hivekit/go/modules/transports"
 )
 
@@ -31,7 +31,7 @@ type RouterService struct {
 
 	// established device connections
 	cmux              sync.RWMutex
-	deviceConnections map[string]clients.IClientModule
+	deviceConnections map[string]transports.ITransportClient
 
 	// the thingID of this service for messaging
 	routerThingID string
@@ -66,7 +66,7 @@ func (m *RouterService) DeleteThingCredential(thingID string) {
 //
 // This returns an error if no connection can be established.
 func (m *RouterService) GetClientConnection(tdi *td.TD) (
-	c clients.IClientModule, err error) {
+	c transports.ITransportClient, err error) {
 
 	// use URI scheme to determine the protocol, except for the hiveot WSS, which also
 	// has a wss scheme. Instead look at the base path which is fixed.
@@ -256,12 +256,12 @@ func NewRouterService(storageDir string,
 		getTD:             getTD,
 		storageDir:        storageDir,
 		tpServers:         tpServers,
-		deviceConnections: make(map[string]clients.IClientModule),
-		routerThingID:     routerapi.DefaultRouterThingID,
+		deviceConnections: make(map[string]transports.ITransportClient),
+		routerThingID:     router.DefaultRouterThingID,
 		timeout:           transports.DefaultRpcTimeout,
 	}
 
-	var _ routerapi.IRouterService = m // interface check
+	var _ router.IRouterService = m // interface check
 
 	return m
 }

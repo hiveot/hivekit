@@ -5,11 +5,11 @@ import (
 	"github.com/hiveot/hivekit/go/modules"
 	"github.com/hiveot/hivekit/go/modules/clients"
 	"github.com/hiveot/hivekit/go/modules/transports"
-	"github.com/hiveot/hivekit/go/modules/transports/httpbasic"
+	httpbasicpkg "github.com/hiveot/hivekit/go/modules/transports/httpbasic/pkg"
 	"github.com/hiveot/hivekit/go/modules/transports/httpserver"
 	httpserverconfig "github.com/hiveot/hivekit/go/modules/transports/httpserver/config"
-	ssetransport "github.com/hiveot/hivekit/go/modules/transports/ssesc"
-	wsstransport "github.com/hiveot/hivekit/go/modules/transports/wss"
+	ssescpkg "github.com/hiveot/hivekit/go/modules/transports/ssesc/pkg"
+	wsspkg "github.com/hiveot/hivekit/go/modules/transports/wss/pkg"
 )
 
 // TestDevice contains a server and agent for testing and simulation
@@ -47,13 +47,13 @@ func (device *TestDevice) Start() error {
 	}
 	switch device.protocolType {
 	case transports.ProtocolTypeWotHttpBasic:
-		device.TransportServer = httpbasic.NewHttpBasicServer(device.HttpServer)
+		device.TransportServer = httpbasicpkg.NewHttpBasicServer(device.HttpServer)
 	case transports.ProtocolTypeHiveotSsesc:
-		device.TransportServer = ssetransport.NewSseScServer(device.HttpServer, 0)
+		device.TransportServer = ssescpkg.NewSseScServer(device.HttpServer, 0)
 	case transports.ProtocolTypeWotWebsocket:
-		device.TransportServer = wsstransport.NewWotWssServer(device.HttpServer, 0)
+		device.TransportServer = wsspkg.NewWotWssServer(device.HttpServer, 0)
 	case transports.ProtocolTypeHiveotWebsocket:
-		device.TransportServer = wsstransport.NewHiveotWssServer(device.HttpServer, 0)
+		device.TransportServer = wsspkg.NewHiveotWssServer(device.HttpServer, 0)
 	}
 	err = device.TransportServer.Start()
 	if err != nil {

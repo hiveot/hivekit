@@ -5,7 +5,7 @@ import (
 	"errors"
 
 	"github.com/hiveot/hivekit/go/api/msg"
-	authnapi "github.com/hiveot/hivekit/go/modules/authn/api"
+	"github.com/hiveot/hivekit/go/modules/authn"
 	"github.com/hiveot/hivekit/go/utils"
 )
 
@@ -15,23 +15,23 @@ import (
 var AuthnUserTMJson []byte
 
 // HandleAuthnUserRequest returns the RRN handler for the auth user requests.
-func HandleAuthnUserRequest(m authnapi.IAuthnService, req *msg.RequestMessage, replyTo msg.ResponseHandler) error {
+func HandleAuthnUserRequest(m authn.IAuthnService, req *msg.RequestMessage, replyTo msg.ResponseHandler) error {
 	var output any
 	var err error
 	switch req.Name {
 
-	case authnapi.UserActionGetProfile:
+	case authn.UserActionGetProfile:
 		if err == nil {
 			output, err = m.GetProfile(req.SenderID)
 		} else {
 			err = errors.New("bad function argument: " + err.Error())
 		}
 
-	case authnapi.UserActionLogout:
+	case authn.UserActionLogout:
 		aa := m.GetSessionManager()
 		aa.Logout(req.SenderID)
 
-	case authnapi.UserActionRefreshToken:
+	case authn.UserActionRefreshToken:
 		var oldToken string
 		err = utils.DecodeAsObject(req.Input, &oldToken)
 		if err == nil {
@@ -41,7 +41,7 @@ func HandleAuthnUserRequest(m authnapi.IAuthnService, req *msg.RequestMessage, r
 			err = errors.New("bad function argument: " + err.Error())
 		}
 
-	case authnapi.UserActionSetPassword:
+	case authn.UserActionSetPassword:
 		var newPassword string
 		err = utils.DecodeAsObject(req.Input, &newPassword)
 		if err == nil {
@@ -50,8 +50,8 @@ func HandleAuthnUserRequest(m authnapi.IAuthnService, req *msg.RequestMessage, r
 			err = errors.New("bad function argument: " + err.Error())
 		}
 
-	case authnapi.UserActionUpdateProfile:
-		var profile authnapi.ClientProfile
+	case authn.UserActionUpdateProfile:
+		var profile authn.ClientProfile
 
 		err = utils.DecodeAsObject(req.Input, &profile)
 		if err == nil {

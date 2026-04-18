@@ -7,7 +7,7 @@ import (
 	"os"
 
 	"github.com/cockroachdb/pebble"
-	bucketstoreapi "github.com/hiveot/hivekit/go/modules/bucketstore/api"
+	bucketstore "github.com/hiveot/hivekit/go/modules/bucketstore"
 	"golang.org/x/sys/unix"
 )
 
@@ -64,7 +64,7 @@ func (store *PebbleStore) Close() error {
 
 // GetBucket returns a bucket with the given ID.
 // If the bucket doesn't yet exist it will be created.
-func (store *PebbleStore) GetBucket(bucketID string) (bucket bucketstoreapi.IBucket) {
+func (store *PebbleStore) GetBucket(bucketID string) (bucket bucketstore.IBucket) {
 	pb := NewPebbleBucket(bucketID, store.db)
 	return pb
 }

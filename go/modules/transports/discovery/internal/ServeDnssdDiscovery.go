@@ -11,7 +11,7 @@ import (
 	"strings"
 
 	"github.com/grandcat/zeroconf"
-	discoveryapi "github.com/hiveot/hivekit/go/modules/transports/discovery/api"
+	"github.com/hiveot/hivekit/go/modules/transports/discovery"
 	"github.com/hiveot/hivekit/go/utils"
 )
 
@@ -49,7 +49,7 @@ func ServeWotDiscovery(
 	}
 	tdPath := parts.Path
 	if tdPath == "" {
-		tdPath = discoveryapi.DefaultHttpGetDirectoryTDPath
+		tdPath = discovery.DefaultHttpGetDirectoryTDPath
 	}
 	portString := parts.Port()
 	portNr, err := strconv.Atoi(portString)

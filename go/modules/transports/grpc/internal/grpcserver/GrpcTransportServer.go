@@ -11,7 +11,7 @@ import (
 	"time"
 
 	"github.com/hiveot/hivekit/go/modules/transports"
-	grpcapi "github.com/hiveot/hivekit/go/modules/transports/grpc/api"
+	"github.com/hiveot/hivekit/go/modules/transports/grpc"
 	grpclib "github.com/hiveot/hivekit/go/modules/transports/grpc/lib"
 	"github.com/hiveot/hivekit/go/utils"
 	"google.golang.org/grpc"
@@ -106,11 +106,11 @@ func (m *GrpcTransportServer) Start() (err error) {
 	m.grpcService = grpclib.NewGrpcServiceServer(
 		lis, m.tlsCert, m.serviceName, grpcAuthn, time.Minute)
 
-	m.grpcService.CreateStream(grpcapi.StreamNameNotification, m.ServeStreamConnection)
+	m.grpcService.CreateStream(grpctransport.StreamNameNotification, m.ServeStreamConnection)
 	// m.grpcService.AddStream(grpcapi.StreamNameRequestResponse, m.ServeStreamConnection)
 
 	m.Init(
-		grpcapi.HiveotGrpcModuleType,
+		grpctransport.HiveotGrpcModuleType,
 		transports.ProtocolTypeHiveotGrpc,
 		transports.SubprotocolHiveotGrpc,
 		m.connectURL, m.authn)
@@ -151,7 +151,7 @@ func NewHiveotGrpcTransportServer(
 		connectURL:  connectURL,
 		tlsCert:     tlsCert,
 		respTimeout: respTimeout,
-		serviceName: grpcapi.GrpcTransportServiceName,
+		serviceName: grpctransport.GrpcTransportServiceName,
 	}
 	return srv
 }

@@ -8,7 +8,7 @@ import (
 
 	"github.com/hiveot/hivekit/go/api/msg"
 	"github.com/hiveot/hivekit/go/api/td"
-	bucketstoreapi "github.com/hiveot/hivekit/go/modules/bucketstore/api"
+	bucketstore "github.com/hiveot/hivekit/go/modules/bucketstore"
 	"github.com/hiveot/hivekit/go/utils"
 )
 
@@ -23,7 +23,7 @@ type BucketMsgHandler struct {
 	// thingID of this instance
 	thingID string
 	// the underlying bucket store to access
-	service bucketstoreapi.IBucketStorage
+	service bucketstore.IBucketStorage
 	// serving cursor requests
 	cursorCache *CursorCache
 }
@@ -41,15 +41,15 @@ func (handler *BucketMsgHandler) HandleRequest(req *msg.RequestMessage) *msg.Res
 	}
 	if req.Operation == td.OpInvokeAction {
 		switch req.Name {
-		case bucketstoreapi.ActionDelete:
+		case bucketstore.ActionDelete:
 			return handler.Delete(req)
-		case bucketstoreapi.ActionGet:
+		case bucketstore.ActionGet:
 			return handler.Get(req)
-		case bucketstoreapi.ActionGetMultiple:
+		case bucketstore.ActionGetMultiple:
 			return handler.GetMultiple(req)
-		case bucketstoreapi.ActionSet:
+		case bucketstore.ActionSet:
 			return handler.Set(req)
-		case bucketstoreapi.ActionSetMultiple:
+		case bucketstore.ActionSetMultiple:
 			return handler.SetMultiple(req)
 		}
 	}
@@ -125,7 +125,7 @@ func (handler *BucketMsgHandler) GetMultiple(req *msg.RequestMessage) *msg.Respo
 
 func (handler *BucketMsgHandler) Set(req *msg.RequestMessage) *msg.ResponseMessage {
 	bucket := handler.service.GetBucket(req.SenderID)
-	input := bucketstoreapi.SetArgs{}
+	input := bucketstore.SetArgs{}
 	err := utils.Decode(req.Input, &input)
 	if err == nil {
 		err = bucket.Set(input.Key, []byte(input.Doc))
@@ -149,7 +149,7 @@ func (handler *BucketMsgHandler) SetMultiple(req *msg.RequestMessage) *msg.Respo
 
 // NewBucketMsgHandler returns a new instance of the messaging handler for
 // serving bucket requests.
-func NewBucketMsgHandler(thingID string, service bucketstoreapi.IBucketStorage) *BucketMsgHandler {
+func NewBucketMsgHandler(thingID string, service bucketstore.IBucketStorage) *BucketMsgHandler {
 	agent := BucketMsgHandler{
 		thingID:     thingID,
 		service:     service,

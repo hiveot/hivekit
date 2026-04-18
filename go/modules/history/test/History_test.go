@@ -13,12 +13,12 @@ import (
 	"github.com/araddon/dateparse"
 	"github.com/hiveot/hivekit/go/api/msg"
 	"github.com/hiveot/hivekit/go/api/vocab"
-	authnapi "github.com/hiveot/hivekit/go/modules/authn/api"
-	bucketstoreapi "github.com/hiveot/hivekit/go/modules/bucketstore/api"
+	"github.com/hiveot/hivekit/go/modules/authn"
+	"github.com/hiveot/hivekit/go/modules/bucketstore"
 	"github.com/hiveot/hivekit/go/modules/clients"
 	"github.com/hiveot/hivekit/go/modules/history"
-	historyapi "github.com/hiveot/hivekit/go/modules/history/api"
 	"github.com/hiveot/hivekit/go/modules/history/internal"
+	historypkg "github.com/hiveot/hivekit/go/modules/history/pkg"
 	"github.com/hiveot/hivekit/go/modules/transports"
 	"github.com/hiveot/hivekit/go/testenv"
 	"github.com/hiveot/hivekit/go/utils"
@@ -32,9 +32,9 @@ const thingIDPrefix = "things-"
 const defaultProtocol = transports.ProtocolTypeWotWebsocket
 
 // recommended store for history is Pebble
-const historyStoreBackend = bucketstoreapi.BackendPebble
+const historyStoreBackend = bucketstore.BackendPebble
 
-// const historyStoreBackend = bucketstoreapi.BackendKVBTree
+// const historyStoreBackend = bucketstore.BackendKVBTree
 
 const testClientID = "operator1"
 
@@ -60,7 +60,7 @@ func startHistoryService(clean bool) (
 	histModule *internal.HistoryService, stopFn func()) {
 
 	dataDir := filepath.Join(
-		testEnv.StorageRoot, historyapi.HistoryModuleType)
+		testEnv.StorageRoot, history.HistoryModuleType)
 	if clean {
 		os.RemoveAll(dataDir)
 	}
@@ -69,7 +69,7 @@ func startHistoryService(clean bool) (
 	// create the history module and link it to the protocol server
 	// since the history module runs on the server it doesn't need an agent
 	// instance.
-	cfg := historyapi.NewHistoryConfig(dataDir, historyStoreBackend)
+	cfg := history.NewHistoryConfig(dataDir, historyStoreBackend)
 	histModule = internal.NewHistoryService(cfg)
 	testEnv.Server.SetRequestSink(histModule.HandleRequest)
 	histModule.SetNotificationSink(testEnv.Server.HandleNotification)
@@ -189,8 +189,8 @@ func TestAddGetEvent(t *testing.T) {
 	// do not defer cancel as it will be closed and reopened in the test
 
 	// create an end user client for testing
-	co1, _, _ := testEnv.NewConsumerClient(testClientID, authnapi.ClientRoleOperator, nil)
-	histCl := history.NewReadHistoryClient(co1)
+	co1, _, _ := testEnv.NewConsumerClient(testClientID, authn.ClientRoleOperator, nil)
+	histCl := historypkg.NewReadHistoryClient(co1)
 
 	fivemago := time.Now().Add(-time.Minute * 5)
 	fiftyfivemago := time.Now().Add(-time.Minute * 55)
@@ -392,8 +392,8 @@ func TestAddProperties(t *testing.T) {
 	assert.Error(t, err)
 
 	// create an end user client for testing
-	co1, _, _ := testEnv.NewConsumerClient(testClientID, authnapi.ClientRoleOperator, nil)
-	histCl := history.NewReadHistoryClient(co1)
+	co1, _, _ := testEnv.NewConsumerClient(testClientID, authn.ClientRoleOperator, nil)
+	histCl := historypkg.NewReadHistoryClient(co1)
 
 	cursorKey, releaseFn, err := histCl.GetCursor(thing1ID, "")
 	defer releaseFn()
@@ -457,8 +457,8 @@ func TestPrevNext(t *testing.T) {
 	_ = addBulkHistory(store, thing0ID, count, 1, 3600*24*30)
 
 	// create an end user client for testing
-	co1, _, _ := testEnv.NewConsumerClient(testClientID, authnapi.ClientRoleOperator, nil)
-	histCl := history.NewReadHistoryClient(co1)
+	co1, _, _ := testEnv.NewConsumerClient(testClientID, authn.ClientRoleOperator, nil)
+	histCl := historypkg.NewReadHistoryClient(co1)
 	cursorKey, releaseFn, err := histCl.GetCursor(thing0ID, "")
 	require.NoError(t, err)
 	defer releaseFn()
@@ -520,8 +520,8 @@ func TestPrevNextFiltered(t *testing.T) {
 	propName := names[2] // names was used to generate the history
 
 	// A cursor with a filter on propName should only return results of propName
-	co1, _, _ := testEnv.NewConsumerClient(testClientID, authnapi.ClientRoleOperator, nil)
-	histCl := history.NewReadHistoryClient(co1)
+	co1, _, _ := testEnv.NewConsumerClient(testClientID, authn.ClientRoleOperator, nil)
+	histCl := historypkg.NewReadHistoryClient(co1)
 	defer co1.Stop()
 	cursorKey, releaseFn, err := histCl.GetCursor(thing0ID, propName)
 	require.NoError(t, err)
@@ -587,8 +587,8 @@ func TestNextPrevUntil(t *testing.T) {
 	// 1 sensor -> 1000/24 hours is approx 41/hour
 	_ = addBulkHistory(store, agentID, count, 1, 3600*24)
 
-	co1, _, _ := testEnv.NewConsumerClient(testClientID, authnapi.ClientRoleOperator, nil)
-	readHist := history.NewReadHistoryClient(co1)
+	co1, _, _ := testEnv.NewConsumerClient(testClientID, authn.ClientRoleOperator, nil)
+	readHist := historypkg.NewReadHistoryClient(co1)
 	defer co1.Stop()
 	cursorKey, releaseFn, err := readHist.GetCursor(thing0ID, "")
 	defer releaseFn()
@@ -625,8 +625,8 @@ func TestReadHistory(t *testing.T) {
 	store, closeFn := startHistoryService(true)
 	defer closeFn()
 	//
-	co1, _, _ := testEnv.NewConsumerClient(testClientID, authnapi.ClientRoleOperator, nil)
-	readHist := history.NewReadHistoryClient(co1)
+	co1, _, _ := testEnv.NewConsumerClient(testClientID, authn.ClientRoleOperator, nil)
+	readHist := historypkg.NewReadHistoryClient(co1)
 	defer co1.Stop()
 
 	// 1 sensors -> 1000/24 hours is approx 41/hour
@@ -661,8 +661,8 @@ func TestPubEvents(t *testing.T) {
 	m, stopFn := startHistoryService(true)
 	_ = m
 	defer stopFn()
-	co1, _, _ := testEnv.NewConsumerClient(testClientID, authnapi.ClientRoleOperator, nil)
-	readHist := history.NewReadHistoryClient(co1)
+	co1, _, _ := testEnv.NewConsumerClient(testClientID, authn.ClientRoleOperator, nil)
+	readHist := historypkg.NewReadHistoryClient(co1)
 	defer co1.Stop()
 
 	// Add the thing who is publishing events

@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/hiveot/hivekit/go/api/msg"
-	httpbasicapi "github.com/hiveot/hivekit/go/modules/transports/httpbasic/api"
+	"github.com/hiveot/hivekit/go/modules/transports/httpbasic"
 	"github.com/hiveot/hivekit/go/utils"
 	jsoniter "github.com/json-iterator/go"
 
@@ -38,9 +38,9 @@ func (m *HttpBasicServer) createRoutes() {
 	// register generic handlers for operations on Thing and affordance level
 	// these endpoints are published in the forms of each TD. See also AddTDForms.
 	protRoutes.HandleFunc(
-		httpbasicapi.HttpBasicAffordanceOperationPath, m.onHttpAffordanceOperation)
+		httpbasic.HttpBasicAffordanceOperationPath, m.onHttpAffordanceOperation)
 	protRoutes.HandleFunc(
-		httpbasicapi.HttpBasicThingOperationPath, m.onHttpThingOperation)
+		httpbasic.HttpBasicThingOperationPath, m.onHttpThingOperation)
 
 }
 

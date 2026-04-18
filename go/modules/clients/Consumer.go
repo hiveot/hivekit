@@ -9,9 +9,12 @@ import (
 	"github.com/hiveot/hivekit/go/api/msg"
 	"github.com/hiveot/hivekit/go/api/td"
 	"github.com/hiveot/hivekit/go/modules"
+	factory "github.com/hiveot/hivekit/go/modules/factory"
 	"github.com/hiveot/hivekit/go/modules/transports"
 	"github.com/teris-io/shortid"
 )
+
+const ConsumerModuleType = "consumer"
 
 // Consumer is a module representing a WoT consumer.
 // This implements the IHiveModule interface.
@@ -52,16 +55,6 @@ func (co *Consumer) GetTM() string {
 	return ""
 }
 
-// consumer received a request from an upstream module (like a directory client)
-// forward it to the client to send to the server.
-func (co *Consumer) HandleRequest(
-	req *msg.RequestMessage, replyTo msg.ResponseHandler) error {
-
-	return co.ForwardRequest(req, replyTo)
-	// return fmt.Errorf("Unexpected request op='%s', thingID='%s', name='%s', from '%s'",
-	// 	req.Operation, req.ThingID, req.Name, req.SenderID)
-}
-
 // InvokeAction invokes an action on a thing and wait for the response
 // If the response type is known then provide it with output, otherwise use interface{}
 func (co *Consumer) InvokeAction(
@@ -83,16 +76,6 @@ func (co *Consumer) ObserveProperty(thingID string, name string) error {
 
 	err := co.Rpc(op, thingID, name, nil, "")
 	return err
-}
-
-// handle incoming notifications from the sink
-//
-// If this consumer has a notification handler set (eg when used as a sink itself)
-// then pass the notification to this handler.
-// This logs an error if the consumer does not have a notification handler set, as
-// notifications are only received when subscribed something must have gone wrong.
-func (co *Consumer) onNotification(notif *msg.NotificationMessage) {
-	co.ForwardNotification(notif)
 }
 
 // Ping the server and wait for a response.
@@ -366,6 +349,13 @@ func NewConsumer(appID string) *Consumer {
 	}
 
 	return consumer
+}
+
+// Factory for creating a consumer module using the factory environment
+func NewConsumerFactory(f factory.IModuleFactory) modules.IHiveModule {
+	appID := f.GetEnvironment().AppID
+	c := NewConsumer(appID)
+	return c
 }
 
 // NewConsumerConnection creates a client connection and returns a new instance of

@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/hiveot/hivekit/go/api/td"
-	authnapi "github.com/hiveot/hivekit/go/modules/authn/api"
+	"github.com/hiveot/hivekit/go/modules/authn"
 	"github.com/hiveot/hivekit/go/modules/authn/internal/authenticators"
 	authnstore "github.com/hiveot/hivekit/go/modules/authn/internal/store"
 	"github.com/hiveot/hivekit/go/utils"
@@ -128,9 +128,9 @@ func (sm *SessionManager) RefreshToken(senderID string, oldToken string) (
 		return newToken, validUntil, fmt.Errorf("Profile for '%s' is disabled", senderID)
 	}
 	validityDays := sm.ConsumerTokenValidityDays
-	if prof.Role == authnapi.ClientRoleAgent {
+	if prof.Role == authn.ClientRoleAgent {
 		validityDays = sm.AgentTokenValidityDays
-	} else if prof.Role == authnapi.ClientRoleService {
+	} else if prof.Role == authn.ClientRoleService {
 		validityDays = sm.ServiceTokenValidityDays
 	}
 	validity := time.Duration(validityDays) * 24 * time.Hour
@@ -197,12 +197,12 @@ func NewSessionManager(
 	sm := &SessionManager{
 		keysDir:                   keysDir,
 		authnStore:                authnStore,
-		AgentTokenValidityDays:    authnapi.DefaultAgentTokenValidityDays,
-		ServiceTokenValidityDays:  authnapi.DefaultServiceTokenValidityDays,
-		ConsumerTokenValidityDays: authnapi.DefaultConsumerTokenValidityDays,
+		AgentTokenValidityDays:    authn.DefaultAgentTokenValidityDays,
+		ServiceTokenValidityDays:  authn.DefaultServiceTokenValidityDays,
+		ConsumerTokenValidityDays: authn.DefaultConsumerTokenValidityDays,
 		sessionStart:              make(map[string]time.Time),
 	}
 
-	var _ authnapi.ISessionManager = sm // interface check
+	var _ authn.ISessionManager = sm // interface check
 	return sm
 }

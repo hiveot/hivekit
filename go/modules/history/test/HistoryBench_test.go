@@ -5,8 +5,8 @@ import (
 	"testing"
 	"time"
 
-	authnapi "github.com/hiveot/hivekit/go/modules/authn/api"
-	"github.com/hiveot/hivekit/go/modules/history"
+	"github.com/hiveot/hivekit/go/modules/authn"
+	historypkg "github.com/hiveot/hivekit/go/modules/history/pkg"
 	"github.com/hiveot/hivekit/go/utils"
 
 	"github.com/stretchr/testify/assert"
@@ -102,8 +102,8 @@ func BenchmarkAddEvents(b *testing.B) {
 
 		// test reading records
 		// readHist connects using transport protocol
-		co1, _, _ := testEnv.NewConsumerClient(testClientID, authnapi.ClientRoleOperator, nil)
-		readHist := history.NewReadHistoryClient(co1)
+		co1, _, _ := testEnv.NewConsumerClient(testClientID, authn.ClientRoleOperator, nil)
+		readHist := historypkg.NewReadHistoryClient(co1)
 		defer co1.Stop()
 
 		time.Sleep(time.Millisecond * 300) // let the add settle

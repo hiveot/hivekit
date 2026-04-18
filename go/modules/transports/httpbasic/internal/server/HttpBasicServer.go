@@ -7,7 +7,7 @@ import (
 	"github.com/hiveot/hivekit/go/api/msg"
 	"github.com/hiveot/hivekit/go/modules"
 	"github.com/hiveot/hivekit/go/modules/transports"
-	httpbasicapi "github.com/hiveot/hivekit/go/modules/transports/httpbasic/api"
+	"github.com/hiveot/hivekit/go/modules/transports/httpbasic"
 )
 
 // HTTP-basic profile constants
@@ -100,7 +100,7 @@ func NewHttpBasicServer(httpServer transports.IHttpServer) *HttpBasicServer {
 	connectURL := httpServer.GetConnectURL()
 	authenticator := httpServer.GetAuthenticator()
 	m.Init(
-		httpbasicapi.HttpBasicServerModuleType,
+		httpbasic.HttpBasicServerModuleType,
 		transports.ProtocolTypeWotHttpBasic,
 		transports.SubprotocolWotHttpBasic,
 		connectURL, authenticator)

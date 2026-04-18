@@ -5,7 +5,7 @@ import (
 	"net/http"
 
 	"github.com/hiveot/hivekit/go/api/td"
-	httpbasicapi "github.com/hiveot/hivekit/go/modules/transports/httpbasic/api"
+	httpbasictransport "github.com/hiveot/hivekit/go/modules/transports/httpbasic"
 )
 
 var HttpKnownOperations = []string{
@@ -91,7 +91,7 @@ var HttpKnownOperations = []string{
 func (srv *HttpBasicServer) createAffordanceForm(op string, httpMethod string,
 	thingID string, name string) td.Form {
 
-	href := fmt.Sprintf("%s/%s/%s/%s", httpbasicapi.HttpBaseFormOp, op, thingID, name)
+	href := fmt.Sprintf("%s/%s/%s/%s", httpbasictransport.HttpBaseFormOp, op, thingID, name)
 	form := td.NewForm(op, href)
 	if httpMethod != "" && httpMethod != http.MethodGet {
 		form.SetMethodName(httpMethod)
@@ -105,7 +105,7 @@ func (srv *HttpBasicServer) createAffordanceForm(op string, httpMethod string,
 // the href in the form has the format "https://host:port/things/{op}/{thingID}
 func (srv *HttpBasicServer) createThingLevelForm(op string, httpMethod string, thingID string) td.Form {
 	// href is relative to base
-	href := fmt.Sprintf("%s/%s/%s", httpbasicapi.HttpBaseFormOp, op, thingID)
+	href := fmt.Sprintf("%s/%s/%s", httpbasictransport.HttpBaseFormOp, op, thingID)
 	form := td.NewForm(op, href)
 	form.SetMethodName(httpMethod)
 	//form["contentType"] = "application/json"

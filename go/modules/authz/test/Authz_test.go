@@ -7,8 +7,8 @@ import (
 
 	"github.com/hiveot/hivekit/go/api/msg"
 	"github.com/hiveot/hivekit/go/api/td"
-	authnapi "github.com/hiveot/hivekit/go/modules/authn/api"
-	"github.com/hiveot/hivekit/go/modules/authz"
+	"github.com/hiveot/hivekit/go/modules/authn"
+	authzpkg "github.com/hiveot/hivekit/go/modules/authz/pkg"
 	"github.com/hiveot/hivekit/go/utils"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -28,7 +28,7 @@ func TestMain(m *testing.M) {
 // Test starting and stopping authorization service
 func TestStartStop(t *testing.T) {
 	// cfg := module.NewAuthzConfig()
-	svc := authz.NewAuthzService(nil)
+	svc := authzpkg.NewAuthzService(nil)
 	err := svc.Start()
 	require.NoError(t, err)
 	svc.Stop()
@@ -39,7 +39,7 @@ func TestHasPermission(t *testing.T) {
 	const thingID = "thing1"
 	const key = "key1"
 	const correlationID = "req-1"
-	var testRole = authnapi.ClientRoleViewer
+	var testRole = authn.ClientRoleViewer
 
 	// handler for providing the role of a client
 	getRole := func(clientID string) (role string, err error) {
@@ -48,7 +48,7 @@ func TestHasPermission(t *testing.T) {
 		}
 		return "", fmt.Errorf("unknown client")
 	}
-	m := authz.NewAuthzService(getRole)
+	m := authzpkg.NewAuthzService(getRole)
 	err := m.Start()
 	require.NoError(t, err)
 	defer m.Stop()
@@ -71,16 +71,16 @@ func TestHasPermission(t *testing.T) {
 	assert.False(t, hasPerm)
 
 	// check operators do have permission to publish actions and write-property requests
-	testRole = authnapi.ClientRoleOperator
+	testRole = authn.ClientRoleOperator
 	hasPerm = m.HasPermission(req)
 	assert.True(t, hasPerm)
-	testRole = authnapi.ClientRoleManager
+	testRole = authn.ClientRoleManager
 	hasPerm = m.HasPermission(req)
 	assert.True(t, hasPerm)
-	testRole = authnapi.ClientRoleAdmin
+	testRole = authn.ClientRoleAdmin
 	hasPerm = m.HasPermission(req)
 	assert.True(t, hasPerm)
-	testRole = authnapi.ClientRoleService
+	testRole = authn.ClientRoleService
 	hasPerm = m.HasPermission(req)
 	assert.True(t, hasPerm)
 

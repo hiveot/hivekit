@@ -7,9 +7,8 @@ import (
 	"time"
 
 	"github.com/grandcat/zeroconf"
-	"github.com/hiveot/hivekit/go/modules/transports/discovery"
-	discoveryclient "github.com/hiveot/hivekit/go/modules/transports/discovery/client"
 	"github.com/hiveot/hivekit/go/modules/transports/discovery/internal"
+	"github.com/hiveot/hivekit/go/modules/transports/discovery/pkg"
 	"github.com/hiveot/hivekit/go/testenv"
 	"github.com/hiveot/hivekit/go/utils"
 
@@ -24,7 +23,7 @@ const testServicePort = 9999
 func TestDNSSDScan(t *testing.T) {
 	var count atomic.Int32
 
-	r, err := discoveryclient.DnsSDScan("", "", time.Second*2,
+	r, err := discoverypkg.DnsSDScan("", "", time.Second*2,
 		func(_ *zeroconf.ServiceEntry) bool {
 			count.Add(1)
 			return false
@@ -47,7 +46,7 @@ func TestDiscover(t *testing.T) {
 	assert.NoError(t, err)
 	defer srv.Shutdown()
 
-	r, err := discoveryclient.DnsSDScan(testServiceID, testServiceType, time.Second,
+	r, err := discoverypkg.DnsSDScan(testServiceID, testServiceType, time.Second,
 		func(*zeroconf.ServiceEntry) bool {
 			return true // stop
 		})
@@ -101,7 +100,7 @@ func TestDiscoverDirectory(t *testing.T) {
 	testEnv.StartHttpServer()
 	defer testEnv.HttpServer.Stop()
 
-	m := discovery.NewDiscoveryServer(testEnv.HttpServer, endpoints, testServiceID)
+	m := discoverypkg.NewDiscoveryServer(testEnv.HttpServer, endpoints, testServiceID)
 	err := m.Start()
 	require.NoError(t, err)
 	defer m.Stop()
@@ -110,7 +109,7 @@ func TestDiscoverDirectory(t *testing.T) {
 	require.NoError(t, err)
 
 	// Test if it is discovered
-	cl := discoveryclient.NewDiscoveryClient()
+	cl := discoverypkg.NewDiscoveryClient()
 	// records, err := cl.DiscoverDirectories(testServiceID, time.Second, true, nil)
 	records, err := cl.DiscoverDirectories(testServiceID, time.Second, true, nil)
 	require.NoError(t, err)
@@ -132,7 +131,7 @@ func TestDiscoverThings(t *testing.T) {
 	testEnv.StartHttpServer()
 	defer testEnv.HttpServer.Stop()
 
-	m := discovery.NewDiscoveryServer(testEnv.HttpServer, nil, testServiceID)
+	m := discoverypkg.NewDiscoveryServer(testEnv.HttpServer, nil, testServiceID)
 	err := m.Start()
 	require.NoError(t, err)
 	defer m.Stop()
@@ -142,7 +141,7 @@ func TestDiscoverThings(t *testing.T) {
 	// Test if it is discovered
 	serverAddr := testEnv.HttpServer.GetConnectURL()
 	urlParts, _ := url.Parse(serverAddr)
-	cl := discoveryclient.NewDiscoveryClient()
+	cl := discoverypkg.NewDiscoveryClient()
 	records, err := cl.DiscoverThings(testServiceID, time.Second, nil)
 	require.NoError(t, err)
 	require.Equal(t, len(records), 1, "the test thing record was not discovered")
@@ -167,7 +166,7 @@ func TestDiscoverGetDirectoryTD(t *testing.T) {
 	testEnv := testenv.NewTestEnv()
 	testEnv.StartHttpServer()
 	defer testEnv.HttpServer.Stop()
-	m := discovery.NewDiscoveryServer(testEnv.HttpServer, nil, testServiceID)
+	m := discoverypkg.NewDiscoveryServer(testEnv.HttpServer, nil, testServiceID)
 	err := m.Start()
 	require.NoError(t, err)
 	defer m.Stop()
@@ -175,7 +174,7 @@ func TestDiscoverGetDirectoryTD(t *testing.T) {
 	require.NoError(t, err)
 
 	// discover the server
-	cl := discoveryclient.NewDiscoveryClient()
+	cl := discoverypkg.NewDiscoveryClient()
 	record, err := cl.DiscoverFirstDirectory(testServiceID)
 	require.NoError(t, err)
 	require.NotEmpty(t, record)
@@ -192,7 +191,7 @@ func TestDiscoverGetThingTD(t *testing.T) {
 	testEnv := testenv.NewTestEnv()
 	testEnv.StartHttpServer()
 	defer testEnv.HttpServer.Stop()
-	m := discovery.NewDiscoveryServer(testEnv.HttpServer, nil, testServiceID)
+	m := discoverypkg.NewDiscoveryServer(testEnv.HttpServer, nil, testServiceID)
 	err := m.Start()
 	require.NoError(t, err)
 	defer m.Stop()
@@ -200,7 +199,7 @@ func TestDiscoverGetThingTD(t *testing.T) {
 	require.NoError(t, err)
 
 	// discover the server
-	cl := discoveryclient.NewDiscoveryClient()
+	cl := discoverypkg.NewDiscoveryClient()
 	records, err := cl.DiscoverThings(testServiceID, time.Second, nil)
 	require.NoError(t, err)
 	require.NotZero(t, len(records), "no things discovered")

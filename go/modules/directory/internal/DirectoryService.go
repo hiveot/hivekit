@@ -9,8 +9,8 @@ import (
 	"github.com/hiveot/hivekit/go/api/td"
 	"github.com/hiveot/hivekit/go/modules"
 	"github.com/hiveot/hivekit/go/modules/bucketstore"
-	bucketstoreapi "github.com/hiveot/hivekit/go/modules/bucketstore/api"
-	directoryapi "github.com/hiveot/hivekit/go/modules/directory/api"
+	bucketstorepkg "github.com/hiveot/hivekit/go/modules/bucketstore/pkg"
+	"github.com/hiveot/hivekit/go/modules/directory"
 	"github.com/hiveot/hivekit/go/modules/transports"
 )
 
@@ -33,9 +33,9 @@ type DirectoryService struct {
 	directoryThingID string
 
 	// tdBucket store with TD's by thingID
-	tdBucket     bucketstoreapi.IBucket
+	tdBucket     bucketstore.IBucket
 	tdBucketName string
-	bucketStore  bucketstoreapi.IBucketStorage
+	bucketStore  bucketstore.IBucketStorage
 
 	// http server serving the REST API
 	httpServer transports.IHttpServer
@@ -51,14 +51,14 @@ type DirectoryService struct {
 	tdCacheMux sync.RWMutex
 
 	// hook to invoke before deleting a TD into the store
-	deleteTDHook directoryapi.DeleteTDHook
+	deleteTDHook directory.DeleteTDHook
 	// hook to invoke before writing a TD into the store
-	writeTDHook directoryapi.WriteTDHook
+	writeTDHook directory.WriteTDHook
 }
 
 // GetAgentInfo provides information on Things registered by an agent
 func (m *DirectoryService) GetAgentInfo(agentID string) (
-	info directoryapi.AgentInfo, found bool) {
+	info directory.AgentInfo, found bool) {
 
 	// how are agents tracked?
 	// option 1: separate bucket with all agents
@@ -83,7 +83,7 @@ func (m *DirectoryService) HandleRequest(req *msg.RequestMessage, replyTo msg.Re
 // SetTDHooks set the callbacks that are invoked before writing and deleting the TD
 // to the directory store.
 func (m *DirectoryService) SetTDHooks(
-	writeHandler directoryapi.WriteTDHook, deleteHandler directoryapi.DeleteTDHook) {
+	writeHandler directory.WriteTDHook, deleteHandler directory.DeleteTDHook) {
 	m.deleteTDHook = deleteHandler
 	m.writeTDHook = writeHandler
 }
@@ -104,7 +104,7 @@ func (m *DirectoryService) Start() (err error) {
 	if m.storageLoc != "" {
 		storagePath = filepath.Join(m.storageLoc, m.directoryThingID+".kvbtree")
 	}
-	m.bucketStore, err = bucketstore.NewBucketStore(storagePath, bucketstoreapi.BackendKVBTree)
+	m.bucketStore, err = bucketstorepkg.NewBucketStore(storagePath, bucketstore.BackendKVBTree)
 
 	err = m.bucketStore.Open()
 	if err == nil {
@@ -142,7 +142,7 @@ func (m *DirectoryService) Stop() {
 func NewDirectoryService(thingID string, location string, httpServer transports.IHttpServer) *DirectoryService {
 
 	if thingID == "" {
-		thingID = directoryapi.DefaultDirectoryThingID
+		thingID = directory.DefaultDirectoryThingID
 	}
 	m := &DirectoryService{
 		HiveModuleBase:   modules.HiveModuleBase{},
@@ -154,7 +154,7 @@ func NewDirectoryService(thingID string, location string, httpServer transports.
 	if httpServer == nil {
 		slog.Warn("NewDirectoryModule: no httpServer provided. HTTP interface not active.")
 	}
-	var _ directoryapi.IDirectoryServer = m // interface check
+	var _ directory.IDirectoryServer = m // interface check
 
 	return m
 }

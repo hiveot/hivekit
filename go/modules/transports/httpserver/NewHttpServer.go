@@ -1,8 +1,8 @@
 package httpserver
 
 import (
-	factoryapi "github.com/hiveot/hivekit/go/factory/api"
 	"github.com/hiveot/hivekit/go/modules"
+	"github.com/hiveot/hivekit/go/modules/factory"
 	"github.com/hiveot/hivekit/go/modules/transports"
 	httpserverconfig "github.com/hiveot/hivekit/go/modules/transports/httpserver/config"
 	"github.com/hiveot/hivekit/go/modules/transports/httpserver/internal"
@@ -15,7 +15,7 @@ func NewHttpServerModule(cfg *httpserverconfig.Config) transports.IHttpServer {
 }
 
 // Create a new TLS server instance for the provided factory environment
-func NewHttpServerFactory(f factoryapi.IModuleFactory) modules.IHiveModule {
+func NewHttpServerFactory(f factory.IModuleFactory) modules.IHiveModule {
 
 	env := f.GetEnvironment()
 	caCert, err := env.GetCA()

@@ -355,7 +355,7 @@ func (svc *WotWssMsgEncoder) EncodeRequest(req *msg.RequestMessage) ([]byte, err
 		Value:  req.Input, // in case of writeproperty
 		Values: req.Input, // in case of writeallproperties, writemultipleproperties
 	}
-	if req.Operation == td.OpReadAllProperties || req.Operation == td.OpReadMultipleProperties {
+	if req.Operation == td.OpReadMultipleProperties {
 		names, ok := req.Input.([]string)
 		if !ok {
 			slog.Error("EncodeRequest: Input expected an array of names for op", "op", req.Operation)

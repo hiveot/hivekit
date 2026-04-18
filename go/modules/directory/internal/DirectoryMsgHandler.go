@@ -6,7 +6,7 @@ import (
 
 	"github.com/hiveot/hivekit/go/api/msg"
 	"github.com/hiveot/hivekit/go/api/td"
-	directoryapi "github.com/hiveot/hivekit/go/modules/directory/api"
+	"github.com/hiveot/hivekit/go/modules/directory"
 	"github.com/hiveot/hivekit/go/utils"
 )
 
@@ -19,7 +19,7 @@ var DirectoryTMJson []byte
 type DirectoryMsgHandler struct {
 	// the directory instance ThingID that must match the requests
 	thingID string
-	service directoryapi.IDirectoryServer
+	service directory.IDirectoryServer
 }
 
 // GetTm returns the TN of the directory RRN messaging API
@@ -45,15 +45,15 @@ func (handler *DirectoryMsgHandler) HandleRequest(req *msg.RequestMessage, reply
 	if req.Operation == td.OpInvokeAction {
 		// directory specific operations
 		switch req.Name {
-		case directoryapi.ActionCreateThing:
+		case directory.ActionCreateThing:
 			resp = handler.UpdateThing(req)
-		case directoryapi.ActionDeleteThing:
+		case directory.ActionDeleteThing:
 			resp = handler.DeleteThing(req)
-		case directoryapi.ActionRetrieveThing:
+		case directory.ActionRetrieveThing:
 			resp = handler.RetrieveThing(req)
-		case directoryapi.ActionRetrieveAllThings:
+		case directory.ActionRetrieveAllThings:
 			resp = handler.RetrieveAllThings(req)
-		case directoryapi.ActionUpdateThing:
+		case directory.ActionUpdateThing:
 			resp = handler.UpdateThing(req)
 		default:
 			err = fmt.Errorf("Unknown request name '%s' for thingID '%s'", req.Name, req.ThingID)
@@ -87,7 +87,7 @@ func (handler *DirectoryMsgHandler) DeleteThing(req *msg.RequestMessage) (resp *
 func (handler *DirectoryMsgHandler) RetrieveAllThings(req *msg.RequestMessage) (resp *msg.ResponseMessage) {
 	var tdList []string
 	var err error
-	var args directoryapi.RetrieveAllThingsArgs
+	var args directory.RetrieveAllThingsArgs
 
 	err = utils.Decode(req.Input, &args)
 	if err == nil {
@@ -126,7 +126,7 @@ func (handler *DirectoryMsgHandler) UpdateThing(req *msg.RequestMessage) (resp *
 
 // Create a new directory message handler. On start this creates the server and store.
 // bucketStore is the store to use for this module chain.
-func NewDirectoryMsgHandler(thingID string, store directoryapi.IDirectoryServer) *DirectoryMsgHandler {
+func NewDirectoryMsgHandler(thingID string, store directory.IDirectoryServer) *DirectoryMsgHandler {
 
 	handler := &DirectoryMsgHandler{
 		thingID: thingID,

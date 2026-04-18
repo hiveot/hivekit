@@ -3,7 +3,7 @@ package stores
 import (
 	"fmt"
 
-	bucketstoreapi "github.com/hiveot/hivekit/go/modules/bucketstore/api"
+	bucketstore "github.com/hiveot/hivekit/go/modules/bucketstore"
 	"github.com/hiveot/hivekit/go/modules/bucketstore/internal/stores/kvbtree"
 	"github.com/hiveot/hivekit/go/modules/bucketstore/internal/stores/pebble"
 )
@@ -25,15 +25,15 @@ import (
 //
 // backend, one of the supported backends (BackendKVBTree, BackendPebble)
 func NewBucketStorage(location string, backend string) (
-	store bucketstoreapi.IBucketStorage, err error) {
+	store bucketstore.IBucketStorage, err error) {
 
 	if location == "" {
-		backend = bucketstoreapi.BackendKVBTree
+		backend = bucketstore.BackendKVBTree
 	}
 	switch backend {
-	case bucketstoreapi.BackendKVBTree:
+	case bucketstore.BackendKVBTree:
 		store = kvbtree.NewKVStore(location)
-	case bucketstoreapi.BackendPebble:
+	case bucketstore.BackendPebble:
 		store = pebble.NewPebbleStore(location)
 	default:
 		// unknown storage type

@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	authnapi "github.com/hiveot/hivekit/go/modules/authn/api"
+	"github.com/hiveot/hivekit/go/modules/authn"
 	"github.com/hiveot/hivekit/go/modules/authn/internal/authenticators"
 	authnstore "github.com/hiveot/hivekit/go/modules/authn/internal/store"
 	"github.com/hiveot/hivekit/go/utils"
@@ -16,7 +16,7 @@ import (
 
 var authnStore authnstore.IAuthnStore
 var testDir = path.Join(os.TempDir(), "hivekit", "test-authn")
-var defaultHash = authnapi.PWHASH_ARGON2id
+var defaultHash = authn.PWHASH_ARGON2id
 
 func NewAuthenticator() (authenticators.IAuthnAuthenticator, authnstore.IAuthnStore) {
 	passwordFile := path.Join(testDir, "test.passwd")
@@ -40,7 +40,7 @@ func TestCreateSessionToken(t *testing.T) {
 	//const clientType = authn.ClientTypeConsumer
 
 	svc, clientStore := NewAuthenticator()
-	_ = clientStore.Add(authnapi.ClientProfile{
+	_ = clientStore.Add(authn.ClientProfile{
 		ClientID:    clientID,
 		Role:        role,
 		Disabled:    false,
@@ -79,7 +79,7 @@ func TestBadTokens(t *testing.T) {
 	//const clientType = authn.ClientTypeConsumer
 
 	svc, clientStore := NewAuthenticator()
-	_ = clientStore.Add(authnapi.ClientProfile{
+	_ = clientStore.Add(authn.ClientProfile{
 		ClientID:    clientID,
 		Role:        role,
 		Disabled:    false,

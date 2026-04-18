@@ -12,7 +12,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	authnapi "github.com/hiveot/hivekit/go/modules/authn/api"
+	"github.com/hiveot/hivekit/go/modules/authn"
 	authnstore "github.com/hiveot/hivekit/go/modules/authn/internal/store"
 	"github.com/hiveot/hivekit/go/utils"
 )
@@ -22,7 +22,7 @@ const unpwFileName = "testunpwstore.passwd"
 var unpwFilePath string
 
 var tempFolder string
-var algo = authnapi.PWHASH_ARGON2id
+var algo = authn.PWHASH_ARGON2id
 
 // TestMain for all authn tests, setup of default folders and filenames
 func TestMain(m *testing.M) {
@@ -92,7 +92,7 @@ func TestAdd(t *testing.T) {
 	defer pwStore1.Close()
 
 	// add should succeed
-	profile := authnapi.ClientProfile{
+	profile := authn.ClientProfile{
 		ClientID: user1,
 		Role:     role1,
 	}
@@ -100,7 +100,7 @@ func TestAdd(t *testing.T) {
 	require.NoError(t, err)
 
 	// adding existing user should fail it
-	err = pwStore1.Add(authnapi.ClientProfile{
+	err = pwStore1.Add(authn.ClientProfile{
 		ClientID:    user1,
 		Role:        role1,
 		DisplayName: "updated user 1",
@@ -108,13 +108,13 @@ func TestAdd(t *testing.T) {
 	assert.Error(t, err)
 
 	// adding missing clientID should fail
-	err = pwStore1.Add(authnapi.ClientProfile{
+	err = pwStore1.Add(authn.ClientProfile{
 		ClientID: "",
 		Role:     role1,
 	})
 	assert.Error(t, err)
 	// adding missing role should succeed
-	err = pwStore1.Add(authnapi.ClientProfile{
+	err = pwStore1.Add(authn.ClientProfile{
 		ClientID: user2,
 		Role:     "",
 	})
@@ -136,9 +136,9 @@ func TestVerifyHashAlgo(t *testing.T) {
 	require.NoError(t, err)
 	defer pwStore1.Close()
 
-	err = pwStore1.Add(authnapi.ClientProfile{
+	err = pwStore1.Add(authn.ClientProfile{
 		ClientID: user1, Role: role1})
-	err = pwStore1.Add(authnapi.ClientProfile{
+	err = pwStore1.Add(authn.ClientProfile{
 		ClientID: user2, Role: role1})
 	err = pwStore1.SetPassword(user1, pass1)
 	require.NoError(t, err)
@@ -179,9 +179,9 @@ func TestVerifyHashAlgo(t *testing.T) {
 
 // verify password
 func TestVerifyBCryptAlgo(t *testing.T) {
-	algo = authnapi.PWHASH_BCRYPT
+	algo = authn.PWHASH_BCRYPT
 	TestVerifyHashAlgo(t)
-	algo = authnapi.PWHASH_ARGON2id
+	algo = authn.PWHASH_ARGON2id
 }
 
 func TestName(t *testing.T) {
@@ -194,7 +194,7 @@ func TestName(t *testing.T) {
 	err := pwStore1.Open()
 	require.NoError(t, err)
 	defer pwStore1.Close()
-	err = pwStore1.Add(authnapi.ClientProfile{
+	err = pwStore1.Add(authn.ClientProfile{
 		ClientID: user1, Role: role1, DisplayName: name1})
 
 	entry, err := pwStore1.GetProfile(user1)
@@ -217,7 +217,7 @@ func TestSetPasswordTwoStores(t *testing.T) {
 	pwStore1 := authnstore.NewAuthnFileStore(unpwFilePath, "")
 	err := pwStore1.Open()
 	require.NoError(t, err)
-	err = pwStore1.Add(authnapi.ClientProfile{
+	err = pwStore1.Add(authn.ClientProfile{
 		ClientID: user1,
 		Role:     role1,
 	})
@@ -226,7 +226,7 @@ func TestSetPasswordTwoStores(t *testing.T) {
 	pwStore2 := authnstore.NewAuthnFileStore(unpwFilePath, "")
 	err = pwStore2.Open()
 	require.NoError(t, err)
-	err = pwStore2.Add(authnapi.ClientProfile{
+	err = pwStore2.Add(authn.ClientProfile{
 		ClientID: user2,
 		Role:     role2,
 	})
@@ -302,7 +302,7 @@ func TestConcurrentReadWrite(t *testing.T) {
 	go func() {
 		for i = 0; i < 30; i++ {
 			thingID := fmt.Sprintf("things-%d", i)
-			err = pwStore1.Add(authnapi.ClientProfile{
+			err = pwStore1.Add(authn.ClientProfile{
 				ClientID: thingID,
 				Role:     role1,
 			})
@@ -364,7 +364,7 @@ func TestUpdate(t *testing.T) {
 	pwStore1 := authnstore.NewAuthnFileStore(unpwFilePath, "")
 	err := pwStore1.Open()
 	require.NoError(t, err)
-	err = pwStore1.Add(authnapi.ClientProfile{
+	err = pwStore1.Add(authn.ClientProfile{
 		ClientID:    user1,
 		Role:        role1,
 		DisplayName: name1,
@@ -372,14 +372,14 @@ func TestUpdate(t *testing.T) {
 	require.NoError(t, err)
 
 	// update must be of the same user
-	err = pwStore1.UpdateProfile(authnapi.ClientProfile{
+	err = pwStore1.UpdateProfile(authn.ClientProfile{
 		ClientID: user2,
 		Role:     role1,
 	})
 	assert.Error(t, err)
 
 	// update must succeed
-	err = pwStore1.UpdateProfile(authnapi.ClientProfile{
+	err = pwStore1.UpdateProfile(authn.ClientProfile{
 		ClientID:    user1,
 		Role:        role1,
 		DisplayName: name2,
@@ -392,7 +392,7 @@ func TestUpdate(t *testing.T) {
 	assert.Equal(t, key1, prof.PubKeyPem)
 
 	// update of non-existing user should fail
-	err = pwStore1.UpdateProfile(authnapi.ClientProfile{
+	err = pwStore1.UpdateProfile(authn.ClientProfile{
 		ClientID: "notauser",
 		Role:     role1,
 	})
@@ -409,7 +409,7 @@ func TestSetRole(t *testing.T) {
 	pwStore1 := authnstore.NewAuthnFileStore(unpwFilePath, "")
 	err := pwStore1.Open()
 	require.NoError(t, err)
-	err = pwStore1.Add(authnapi.ClientProfile{
+	err = pwStore1.Add(authn.ClientProfile{
 		ClientID:    user1,
 		Role:        role1,
 		DisplayName: "test user",

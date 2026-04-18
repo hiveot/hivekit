@@ -9,7 +9,7 @@ import (
 	"github.com/hiveot/hivekit/go/api/msg"
 	"github.com/hiveot/hivekit/go/api/td"
 	"github.com/hiveot/hivekit/go/modules/transports"
-	ssescapi "github.com/hiveot/hivekit/go/modules/transports/ssesc/api"
+	"github.com/hiveot/hivekit/go/modules/transports/ssesc"
 	jsoniter "github.com/json-iterator/go"
 	"github.com/teris-io/shortid"
 )
@@ -220,7 +220,7 @@ func (sc *ServerConnection) Serve(w http.ResponseWriter, r *http.Request) {
 	sc.Mux.Unlock()
 
 	// _send a ping event as the go-sse client doesn't have a 'connected callback'
-	pingEvent := SSEEvent{EventType: ssescapi.SSEPingEvent}
+	pingEvent := SSEEvent{EventType: ssesc.SSEPingEvent}
 	sc.Mux.Lock()
 	sc.sseChan <- pingEvent
 	sc.Mux.Unlock()

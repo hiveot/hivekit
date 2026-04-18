@@ -8,8 +8,7 @@ import (
 
 	"github.com/hiveot/hivekit/go/api/msg"
 	"github.com/hiveot/hivekit/go/modules"
-	loggingapi "github.com/hiveot/hivekit/go/modules/logging/api"
-	"github.com/hiveot/hivekit/go/modules/logging/config"
+	"github.com/hiveot/hivekit/go/modules/logging"
 	"github.com/hiveot/hivekit/go/utils"
 )
 
@@ -19,7 +18,7 @@ type LoggingService struct {
 	modules.HiveModuleBase
 
 	// configuration. Allow manual configuration
-	Config config.LoggingConfig
+	Config logging.LoggingConfig
 
 	// log destination for notifications
 	notificationLogger *slog.Logger
@@ -79,14 +78,14 @@ func (m *LoggingService) LogRequest(req *msg.RequestMessage) {
 
 // NewLogger returns a new instance of a logger using the given backend along with
 // a function to release resources.
-func (m *LoggingService) NewLogger(cfg *config.LoggingConfig) (
+func (m *LoggingService) NewLogger(cfg *logging.LoggingConfig) (
 	logger *slog.Logger, releaseFn func()) {
 
 	var logFile *os.File
 	var logWriter io.Writer
 	var err error
 
-	if cfg.Backend == loggingapi.LoggingBackendFile {
+	if cfg.Backend == logging.LoggingBackendFile {
 		// ensure the directory exists
 		logDir := filepath.Dir(cfg.LogDestination)
 		_ = os.MkdirAll(logDir, 0750)
@@ -158,11 +157,10 @@ func (m *LoggingService) Stop() {
 // NewLoggingService creates a new instance of the logging module.
 //
 // config is the default module configuration.
-func NewLoggingService(config config.LoggingConfig) *LoggingService {
+func NewLoggingService(config logging.LoggingConfig) *LoggingService {
 
 	m := &LoggingService{}
 	m.Config = config
 
-	var _ loggingapi.ILoggingService = m // interface check
 	return m
 }

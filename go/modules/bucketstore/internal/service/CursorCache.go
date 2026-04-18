@@ -8,10 +8,10 @@ import (
 	"sync"
 	"time"
 
-	bucketstoreapi "github.com/hiveot/hivekit/go/modules/bucketstore/api"
+	bucketstore "github.com/hiveot/hivekit/go/modules/bucketstore"
 )
 
-type ClientCursors []bucketstoreapi.IBucketCursor
+type ClientCursors []bucketstore.IBucketCursor
 
 // type CursorInfo struct {
 // 	Key string
@@ -20,9 +20,9 @@ type ClientCursors []bucketstoreapi.IBucketCursor
 // 	// optional bucket instance this cursor operates on
 // 	// if provided it will be released with the cursor. This allows opening a bucket
 // 	// and automatically closing it after use.
-// 	Bucket bucketstoreapi.IBucket
+// 	Bucket bucketstore.IBucket
 // 	// the stored cursor
-// 	Cursor bucketstoreapi.IBucketCursor
+// 	Cursor bucketstore.IBucketCursor
 // 	// clientID of the cursor owner
 // 	OwnerID string
 // 	// Optional filter data for use by client while iterating
@@ -48,7 +48,7 @@ type ClientCursors []bucketstoreapi.IBucketCursor
 // if the client's ID matches that of the cursor owner, it can be used.
 type CursorCache struct {
 	// lookup a cursor by key
-	cursorsByKey map[string]*bucketstoreapi.CursorInfo
+	cursorsByKey map[string]*bucketstore.CursorInfo
 
 	// at 1000 cursors per sec this lasts 500M years between reboots ;)
 	cursorCounter uint64
@@ -66,7 +66,7 @@ type CursorCache struct {
 //	data optional associated data such as filter specifications
 //	lifespan of an unused cursor, after which it will be deleted. Default 1 minute.
 func (cc *CursorCache) Add(
-	clientID string, cursor bucketstoreapi.IBucketCursor, bucket bucketstoreapi.IBucket,
+	clientID string, cursor bucketstore.IBucketCursor, bucket bucketstore.IBucket,
 	filterData string, lifespan time.Duration) string {
 
 	cc.mux.Lock()
@@ -79,7 +79,7 @@ func (cc *CursorCache) Add(
 	cc.cursorCounter++
 	// the key is not a secret, only the owner can use it
 	key := strconv.FormatUint(cc.cursorCounter, 16)
-	ci := &bucketstoreapi.CursorInfo{
+	ci := &bucketstore.CursorInfo{
 		Key:        key,
 		Bucket:     bucket,
 		Cursor:     cursor,
@@ -99,7 +99,7 @@ func (cc *CursorCache) Add(
 //	cursorKey obtained with Add()
 //	updateLastUsed resets the lifespan of the cursor to start now
 func (cc *CursorCache) Get(clientID string, cursorKey string, updateLastUsed bool) (
-	cursor bucketstoreapi.IBucketCursor, ci *bucketstoreapi.CursorInfo, err error) {
+	cursor bucketstore.IBucketCursor, ci *bucketstore.CursorInfo, err error) {
 
 	cc.mux.Lock()
 	defer cc.mux.Unlock()
@@ -125,8 +125,8 @@ func (cc *CursorCache) Get(clientID string, cursorKey string, updateLastUsed boo
 
 // GetExpiredCursors returns a list of cursors that have expired
 // It is up to the user to remove and release the cursor
-func (cc *CursorCache) GetExpiredCursors() []*bucketstoreapi.CursorInfo {
-	expiredCursors := make([]*bucketstoreapi.CursorInfo, 0)
+func (cc *CursorCache) GetExpiredCursors() []*bucketstore.CursorInfo {
+	expiredCursors := make([]*bucketstore.CursorInfo, 0)
 	cc.mux.RLock()
 	defer cc.mux.RUnlock()
 
@@ -145,8 +145,8 @@ func (cc *CursorCache) GetExpiredCursors() []*bucketstoreapi.CursorInfo {
 // GetCursorsByOwner returns a list of cursors that are owned by a client.
 // Intended to remove cursors whose owner has disconnected.
 // It is up to the user to remove and release the cursor
-func (cc *CursorCache) GetCursorsByOwner(ownerID string) []*bucketstoreapi.CursorInfo {
-	ownedCursors := make([]*bucketstoreapi.CursorInfo, 0)
+func (cc *CursorCache) GetCursorsByOwner(ownerID string) []*bucketstore.CursorInfo {
+	ownedCursors := make([]*bucketstore.CursorInfo, 0)
 	cc.mux.RLock()
 	defer cc.mux.RUnlock()
 	// rather brute force, might need to switch this to a map if heavily used
@@ -219,7 +219,7 @@ func (cc *CursorCache) Stop() {
 // Intended for servers that let remote clients iterate a cursor in the bucket store.
 func NewCursorCache() *CursorCache {
 	cc := CursorCache{
-		cursorsByKey:  make(map[string]*bucketstoreapi.CursorInfo),
+		cursorsByKey:  make(map[string]*bucketstore.CursorInfo),
 		cursorCounter: 1,
 		mux:           sync.RWMutex{},
 		stopCh:        make(chan bool),

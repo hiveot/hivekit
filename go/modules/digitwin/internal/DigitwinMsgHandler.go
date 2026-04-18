@@ -5,12 +5,12 @@ import (
 
 	"github.com/hiveot/hivekit/go/api/msg"
 	"github.com/hiveot/hivekit/go/api/td"
-	digitwinapi "github.com/hiveot/hivekit/go/modules/digitwin/api"
+	"github.com/hiveot/hivekit/go/modules/digitwin"
 )
 
 // The handler for messages aimed at this module
 type DigitwinMsgHandler struct {
-	digitwinModule digitwinapi.IDigitwinServer
+	digitwinModule digitwin.IDigitwinService
 }
 
 // HandleRequest handles requests aimed at the digital twin module
@@ -32,7 +32,7 @@ func (handler *DigitwinMsgHandler) HandleRequest(req *msg.RequestMessage, replyT
 	case td.OpInvokeAction:
 		// directory specific operations
 		switch req.Name {
-		// case digitwinapi.GetStatusMethod:
+		// case digitwin.GetStatusMethod:
 		// 	resp = handler.HandleGetStatus(req)
 		default:
 			err = fmt.Errorf("Unknown request name '%s' for thingID '%s'", req.Name, req.ThingID)
@@ -50,7 +50,7 @@ func (handler *DigitwinMsgHandler) HandleRequest(req *msg.RequestMessage, replyT
 	return err
 }
 
-func NewDigitwinMsgHandler(digitwinModule digitwinapi.IDigitwinServer) *DigitwinMsgHandler {
+func NewDigitwinMsgHandler(digitwinModule digitwin.IDigitwinService) *DigitwinMsgHandler {
 	handler := &DigitwinMsgHandler{
 		digitwinModule: digitwinModule,
 	}

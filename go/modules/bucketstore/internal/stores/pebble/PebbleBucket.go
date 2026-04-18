@@ -7,7 +7,7 @@ import (
 	"log/slog"
 
 	"github.com/cockroachdb/pebble"
-	bucketstoreapi "github.com/hiveot/hivekit/go/modules/bucketstore/api"
+	bucketstore "github.com/hiveot/hivekit/go/modules/bucketstore"
 )
 
 // PebbleBucket represents a transactional bucket using Pebble
@@ -46,7 +46,7 @@ func (bucket *PebbleBucket) Close() (err error) {
 // Cursor provides an iterator for the bucket using a pebble iterator with prefix bounds
 //
 //	optional name for use by application
-func (bucket *PebbleBucket) Cursor() (bucketstoreapi.IBucketCursor, error) {
+func (bucket *PebbleBucket) Cursor() (bucketstore.IBucketCursor, error) {
 	// bucket prefix is {bucketID}$
 	// range bounds end at {bucketID}@
 	opts := &pebble.IterOptions{
@@ -125,7 +125,7 @@ func (bucket *PebbleBucket) ID() string {
 
 // Info returns bucket information
 // FIXME: Unable to determine the number of records in a bucket (or even in the DB)
-func (bucket *PebbleBucket) Info() (info *bucketstoreapi.BucketStoreInfo) {
+func (bucket *PebbleBucket) Info() (info *bucketstore.BucketStoreInfo) {
 
 	//metrics := bucket.db.Metrics()
 	// bucket key range
@@ -140,9 +140,9 @@ func (bucket *PebbleBucket) Info() (info *bucketstoreapi.BucketStoreInfo) {
 	//	}
 	//}
 
-	info = &bucketstoreapi.BucketStoreInfo{
+	info = &bucketstore.BucketStoreInfo{
 		Id:     bucket.bucketID,
-		Engine: bucketstoreapi.BackendPebble,
+		Engine: bucketstore.BackendPebble,
 		// TODO: get bucket metrics
 		DataSize:  -1, //int64(metrics.WAL.Size),
 		NrRecords: -1,

@@ -11,16 +11,16 @@ import (
 	"github.com/hiveot/hivekit/go/api/msg"
 	"github.com/hiveot/hivekit/go/api/td"
 	"github.com/hiveot/hivekit/go/api/vocab"
-	authnapi "github.com/hiveot/hivekit/go/modules/authn/api"
+	"github.com/hiveot/hivekit/go/modules/authn"
 	certstest "github.com/hiveot/hivekit/go/modules/certs/test"
 	"github.com/hiveot/hivekit/go/modules/clients"
 	"github.com/hiveot/hivekit/go/modules/transports"
-	grpctransport "github.com/hiveot/hivekit/go/modules/transports/grpc"
-	"github.com/hiveot/hivekit/go/modules/transports/httpbasic"
+	grpctransportpkg "github.com/hiveot/hivekit/go/modules/transports/grpc/pkg"
+	httpbasicpkg "github.com/hiveot/hivekit/go/modules/transports/httpbasic/pkg"
 	"github.com/hiveot/hivekit/go/modules/transports/httpserver"
 	httpserverconfig "github.com/hiveot/hivekit/go/modules/transports/httpserver/config"
-	ssetransport "github.com/hiveot/hivekit/go/modules/transports/ssesc"
-	wsstransport "github.com/hiveot/hivekit/go/modules/transports/wss"
+	ssescpkg "github.com/hiveot/hivekit/go/modules/transports/ssesc/pkg"
+	wsspkg "github.com/hiveot/hivekit/go/modules/transports/wss/pkg"
 	"github.com/hiveot/hivekit/go/utils"
 )
 
@@ -144,7 +144,7 @@ func (testEnv *TestEnv) CreateToken(clientID string, validity time.Duration) (to
 // This panics if a client cannot be created or cannot connect.
 func (testEnv *TestEnv) NewConnectedClient(
 	clientID string, role string, ch transports.ConnectionHandler) (
-	cl clients.IClientModule, token string) {
+	cl transports.ITransportClient, token string) {
 
 	// ensure the test client account exists
 	err := testEnv.TestAuthn.AddClient(clientID, clientID, role)
@@ -202,7 +202,7 @@ func (testEnv *TestEnv) NewRCAgent(clientID string, appReqHandler msg.RequestHan
 
 	// cc is the client connection for the agent that receives requests from the
 	// server for the agent and sends notifications to the server.
-	cl, authToken := testEnv.NewConnectedClient(clientID, authnapi.ClientRoleAgent, nil)
+	cl, authToken := testEnv.NewConnectedClient(clientID, authn.ClientRoleAgent, nil)
 
 	// simple agent, no application request handler yet
 	agent := clients.NewAgent(clientID+"-agent", appReqHandler)
@@ -230,7 +230,7 @@ func (testEnv *TestEnv) NewRCAgent(clientID string, appReqHandler msg.RequestHan
 //	optional connection change callback
 func (testEnv *TestEnv) NewConsumerClient(
 	clientID string, role string, ch transports.ConnectionHandler) (
-	co *clients.Consumer, cc clients.IClientModule, token string) {
+	co *clients.Consumer, cc transports.ITransportClient, token string) {
 
 	cc, token = testEnv.NewConnectedClient(clientID, role, ch)
 
@@ -263,25 +263,25 @@ func (testEnv *TestEnv) StartTestServer(protocol string) (srv transports.ITransp
 	switch protocol {
 	case transports.ProtocolTypeHiveotGrpc:
 		serverCert := testEnv.CertBundle.ServerCert
-		srv = grpctransport.NewHiveotGrpcServer(
+		srv = grpctransportpkg.NewHiveotGrpcServer(
 			TestUDSURL, serverCert, testEnv.TestAuthn, TestTimeout)
 		err = srv.Start()
 
 	case transports.ProtocolTypeHiveotSsesc:
-		srv = ssetransport.NewSseScServer(testEnv.HttpServer, TestTimeout)
+		srv = ssescpkg.NewSseScServer(testEnv.HttpServer, TestTimeout)
 		err = srv.Start()
 
 	case transports.ProtocolTypeHiveotWebsocket:
-		srv = wsstransport.NewHiveotWssServer(testEnv.HttpServer, TestTimeout)
+		srv = wsspkg.NewHiveotWssServer(testEnv.HttpServer, TestTimeout)
 		err = srv.Start()
 
 	case transports.ProtocolTypeWotHttpBasic:
-		srv = httpbasic.NewHttpBasicServer(testEnv.HttpServer)
+		srv = httpbasicpkg.NewHttpBasicServer(testEnv.HttpServer)
 		err = srv.Start()
 		// http only, no subprotocol bindings
 
 	case transports.ProtocolTypeWotWebsocket:
-		srv = wsstransport.NewWotWssServer(testEnv.HttpServer, TestTimeout)
+		srv = wsspkg.NewWotWssServer(testEnv.HttpServer, TestTimeout)
 		err = srv.Start()
 
 	default:

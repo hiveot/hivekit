@@ -11,9 +11,9 @@ import (
 	"github.com/hiveot/hivekit/go/api/td"
 	"github.com/hiveot/hivekit/go/modules"
 	"github.com/hiveot/hivekit/go/modules/bucketstore"
-	bucketstoreapi "github.com/hiveot/hivekit/go/modules/bucketstore/api"
-	digitwinapi "github.com/hiveot/hivekit/go/modules/digitwin/api"
-	directoryapi "github.com/hiveot/hivekit/go/modules/directory/api"
+	bucketstorepkg "github.com/hiveot/hivekit/go/modules/bucketstore/pkg"
+	"github.com/hiveot/hivekit/go/modules/digitwin"
+	"github.com/hiveot/hivekit/go/modules/directory"
 	"github.com/hiveot/hivekit/go/modules/transports"
 	"github.com/hiveot/hivekit/go/modules/vcache"
 	vcacheapi "github.com/hiveot/hivekit/go/modules/vcache/api"
@@ -41,22 +41,22 @@ type DigitwinService struct {
 	addForms func(tdoc *td.TD, includeAffordances bool)
 
 	// internal storage with the original device TDs
-	deviceTDBucket bucketstoreapi.IBucket
-	deviceTDStore  bucketstoreapi.IBucketStorage
+	deviceTDBucket bucketstore.IBucket
+	deviceTDStore  bucketstore.IBucketStorage
 
 	// the device directory holding TD's of the native devices/agents
-	// deviceDirectory directoryapi.IDirectoryServer
+	// deviceDirectory directory.IDirectoryServer
 
 	// the Thing directory with digital twin TDs
 	// this also contains TDs of non-digital twin devices and services, as consumers
 	// should be able to use these as well.
-	directory directoryapi.IDirectoryServer
+	directory directory.IDirectoryServer
 
 	// The digitwin service instance thing-ID for handling requests
 	digitwinThingID string
 
 	// the store that holds the digital twin TDs and value
-	digitwinStore bucketstoreapi.IBucketStorage
+	digitwinStore bucketstore.IBucketStorage
 
 	// configuration to add forms to all the affordances of a TD
 	includeAffordanceForms bool
@@ -91,7 +91,7 @@ func (m *DigitwinService) ForwardDigitwinRequestToDevice(dtwReq *msg.RequestMess
 	return err
 }
 
-// func (m *DigitwinModule) GetDeviceDirectory() directoryapi.IDirectoryServer {
+// func (m *DigitwinModule) GetDeviceDirectory() directory.IDirectoryServer {
 // 	return m.deviceDirectory
 // }
 
@@ -167,7 +167,7 @@ func (m *DigitwinService) HandleRequest(req *msg.RequestMessage, replyTo msg.Res
 	// Handle requests for a digital twin
 	// TODO: try to remove the thingID dependency on the digital twin.
 	// Maybe lookup the thingID in the digital twin directory... ?
-	if strings.HasPrefix(req.ThingID, digitwinapi.DigitwinIDPrefix) {
+	if strings.HasPrefix(req.ThingID, digitwin.DigitwinIDPrefix) {
 		switch req.Operation {
 
 		// read requests are handled by the value cache
@@ -210,7 +210,7 @@ func (m *DigitwinService) SetAgentStatus(agentID string, connected bool) {
 	m.agentStatus.Store(agentID, connected)
 	// IDList := m.directory.GetThingsByAgentID(agentID)
 	// for _, thingID := range IDList {
-	// m.vcache.SetProperty(thingID, digitwinapi.OnlinePropName, connected)
+	// m.vcache.SetProperty(thingID, digitwin.OnlinePropName, connected)
 	// // vcache will notify subscribers
 	// }
 }
@@ -229,7 +229,7 @@ func (m *DigitwinService) Start() (err error) {
 	m.vcache.SetRequestSink(m.ForwardDigitwinRequestToDevice)
 	m.vcache.Start()
 	storageFile := filepath.Join(m.storageDir, "deviceTD.kvbtree")
-	m.deviceTDStore, err = bucketstore.NewBucketStore(storageFile, bucketstoreapi.BackendKVBTree)
+	m.deviceTDStore, err = bucketstorepkg.NewBucketStore(storageFile, bucketstore.BackendKVBTree)
 
 	err = m.deviceTDStore.Open()
 	if err == nil {
@@ -273,17 +273,17 @@ func (m *DigitwinService) Stop() {
 //	that describe how to interact via the server's protocols. Each transport server
 //	provides a compatible handler.
 func NewDigitwinService(storageDir string,
-	thingDir directoryapi.IDirectoryServer,
+	thingDir directory.IDirectoryServer,
 	addforms func(tdoc *td.TD, includeAffordances bool)) *DigitwinService {
 
 	m := &DigitwinService{
 		addForms:               addforms,
-		digitwinThingID:        digitwinapi.DefaultDigitwinThingID,
+		digitwinThingID:        digitwin.DefaultDigitwinThingID,
 		directory:              thingDir,
 		storageDir:             storageDir,
 		includeAffordanceForms: true,
 	}
 
-	var _ digitwinapi.IDigitwinServer = m // interface check
+	var _ digitwin.IDigitwinService = m // interface check
 	return m
 }

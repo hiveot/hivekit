@@ -7,8 +7,8 @@ import (
 	"time"
 
 	"github.com/hiveot/hivekit/go/modules/authn"
-	authnapi "github.com/hiveot/hivekit/go/modules/authn/api"
 	"github.com/hiveot/hivekit/go/modules/authn/internal/service"
+	authnpkg "github.com/hiveot/hivekit/go/modules/authn/pkg"
 	"github.com/hiveot/hivekit/go/modules/clients"
 	"github.com/hiveot/hivekit/go/modules/transports/httpclient"
 	"github.com/hiveot/hivekit/go/testenv"
@@ -26,7 +26,7 @@ func TestLoginRefresh(t *testing.T) {
 	defer stopFn()
 
 	// add user to test with
-	err := m.AddClient(user1ID, testClientID1, authnapi.ClientRoleViewer)
+	err := m.AddClient(user1ID, testClientID1, authn.ClientRoleViewer)
 	require.NoError(t, err)
 
 	err = m.SetPassword(user1ID, tu1Pass)
@@ -76,7 +76,7 @@ func TestBadRefresh(t *testing.T) {
 	err = cc1.ConnectWithToken(testClientID1, token1)
 	assert.NoError(t, err)
 
-	authCl := authn.NewAuthnHttpClient(serverURL, testCerts.CaCert)
+	authCl := authnpkg.NewAuthnHttpClient(serverURL, testCerts.CaCert)
 	err = authCl.ConnectWithToken(testClientID1, token1)
 	assert.NoError(t, err)
 	validToken, err := authCl.RefreshToken(token1)
@@ -101,7 +101,7 @@ func TestLogout(t *testing.T) {
 	assert.NotEmpty(t, token1)
 
 	// logout
-	authnClient := authn.NewAuthnHttpClient(serverURL, testCerts.CaCert)
+	authnClient := authnpkg.NewAuthnHttpClient(serverURL, testCerts.CaCert)
 	authnClient.ConnectWithToken(testClientID1, token1)
 	err := authnClient.Logout(token1)
 	assert.NoError(t, err)
@@ -129,10 +129,10 @@ func TestUpdatePassword(t *testing.T) {
 
 	// add user to test with
 	co := clients.NewConsumer("test")
-	authCl := authn.NewAuthnUserMsgClient(co)
+	authCl := authnpkg.NewAuthnUserMsgClient(co)
 	authCl.SetRequestSink(tp.HandleRequest)
 
-	err := m.AddClient(user1ID, tu1Name, authnapi.ClientRoleViewer)
+	err := m.AddClient(user1ID, tu1Name, authn.ClientRoleViewer)
 	m.SetPassword(user1ID, "oldpass")
 	require.NoError(t, err)
 
@@ -174,7 +174,7 @@ func TestUpdateName(t *testing.T) {
 	defer cancelFn()
 
 	// add user to test with
-	err := srv.AddClient(user1ID, tu1Name, authnapi.ClientRoleViewer)
+	err := srv.AddClient(user1ID, tu1Name, authn.ClientRoleViewer)
 	srv.SetPassword(user1ID, "oldpass")
 	require.NoError(t, err)
 
@@ -198,7 +198,7 @@ func TestClientUpdatePubKey(t *testing.T) {
 	defer cancelFn()
 
 	// add user to test with. don't set the public key yet
-	err := m.AddClient(user1ID, user1ID, authnapi.ClientRoleViewer)
+	err := m.AddClient(user1ID, user1ID, authn.ClientRoleViewer)
 	m.SetPassword(user1ID, "user1")
 	profile, err := m.GetProfile(user1ID)
 	require.NoError(t, err)
@@ -231,7 +231,7 @@ func TestAuthClientCert(t *testing.T) {
 	defer cancelFn()
 
 	// add user to test with. don't set the public key yet
-	err := m.AddClient(testCerts.ClientID, "user 1", authnapi.ClientRoleViewer)
+	err := m.AddClient(testCerts.ClientID, "user 1", authn.ClientRoleViewer)
 	serverAddress, protocolType := m.GetConnectURL()
 	_ = protocolType
 	urlParts, err := url.Parse(serverAddress)
@@ -245,7 +245,7 @@ func TestAuthClientCert(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, http.StatusOK, status)
 
-	var profile authnapi.ClientProfile
+	var profile authn.ClientProfile
 	jsoniter.Unmarshal(outputRaw, &profile)
 	assert.Equal(t, testCerts.ClientID, profile.ClientID)
 

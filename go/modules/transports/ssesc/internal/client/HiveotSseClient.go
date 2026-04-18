@@ -16,7 +16,7 @@ import (
 	"github.com/hiveot/hivekit/go/modules"
 	"github.com/hiveot/hivekit/go/modules/transports"
 	"github.com/hiveot/hivekit/go/modules/transports/httpclient"
-	ssescapi "github.com/hiveot/hivekit/go/modules/transports/ssesc/api"
+	"github.com/hiveot/hivekit/go/modules/transports/ssesc"
 	jsoniter "github.com/json-iterator/go"
 	"github.com/teris-io/shortid"
 	gosse "github.com/tmaxmax/go-sse"
@@ -36,6 +36,8 @@ import (
 // hiveot RequestMessage and ResponseMessage endpoints. If no form is available
 // then use the default hiveot endpoints that are defined with this protocol binding.
 type HiveotSseClient struct {
+	modules.HiveModuleBase
+
 	connectHandler transports.ConnectionHandler
 
 	isConnected atomic.Bool
@@ -249,7 +251,7 @@ func (cl *HiveotSseClient) handleSseEvent(event gosse.Event) {
 	clientID := cl.tlsClient.GetClientID()
 
 	// no further processing of a ping needed
-	if event.Type == ssescapi.SSEPingEvent {
+	if event.Type == ssesc.SSEPingEvent {
 		return
 	}
 
@@ -365,7 +367,7 @@ func (cl *HiveotSseClient) SendNotification(msg *msg.NotificationMessage) {
 	// Send as text, not binary, to avoid unmarshalling problems
 	outputJSON, _ := jsoniter.MarshalToString(msg)
 	_, _, err := cl.tlsClient.Post(
-		ssescapi.PostSseScNotificationPath, []byte(outputJSON))
+		ssesc.PostSseScNotificationPath, []byte(outputJSON))
 
 	if err != nil {
 		slog.Warn("SendNotification failed",
@@ -395,7 +397,7 @@ func (cl *HiveotSseClient) SendRequest(
 	// be received async via SSE.
 	if replyTo == nil {
 		outputRaw, code, err := cl.tlsClient.Post(
-			ssescapi.PostSseScRequestPath, []byte(outputJSON))
+			ssesc.PostSseScRequestPath, []byte(outputJSON))
 		_ = code
 		_ = outputRaw
 
@@ -408,7 +410,7 @@ func (cl *HiveotSseClient) SendRequest(
 	cl.rnrChan.Open(req.CorrelationID)
 
 	outputRaw, code, err := cl.tlsClient.Post(
-		ssescapi.PostSseScRequestPath, []byte(outputJSON))
+		ssesc.PostSseScRequestPath, []byte(outputJSON))
 
 	if err != nil {
 		cl.rnrChan.Close(req.CorrelationID)
@@ -467,7 +469,7 @@ func (cl *HiveotSseClient) SendResponse(resp *msg.ResponseMessage) error {
 	// Send as text, not binary, to avoid unmarshalling problems
 	outputJSON, _ := jsoniter.MarshalToString(resp)
 	_, _, err := cl.tlsClient.Post(
-		ssescapi.PostSseScResponsePath, []byte(outputJSON))
+		ssesc.PostSseScResponsePath, []byte(outputJSON))
 	return err
 }
 

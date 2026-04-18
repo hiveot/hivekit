@@ -8,7 +8,7 @@ import (
 
 	"aidanwoods.dev/go-paseto"
 	"github.com/hiveot/hivekit/go/api/td"
-	authnapi "github.com/hiveot/hivekit/go/modules/authn/api"
+	"github.com/hiveot/hivekit/go/modules/authn"
 	authnstore "github.com/hiveot/hivekit/go/modules/authn/internal/store"
 )
 
@@ -184,9 +184,9 @@ func NewPasetoAuthenticator(
 		clientStore: authnStore,
 		//authServerURI: authServerURI, use SetAuthServerURI
 		// validity can be changed by user of this service
-		AgentTokenValidityDays:    authnapi.DefaultAgentTokenValidityDays,
-		ConsumerTokenValidityDays: authnapi.DefaultConsumerTokenValidityDays,
-		ServiceTokenValidityDays:  authnapi.DefaultServiceTokenValidityDays,
+		AgentTokenValidityDays:    authn.DefaultAgentTokenValidityDays,
+		ConsumerTokenValidityDays: authn.DefaultConsumerTokenValidityDays,
+		ServiceTokenValidityDays:  authn.DefaultServiceTokenValidityDays,
 	}
 	var _ IAuthnAuthenticator = svc // interface check
 	return svc

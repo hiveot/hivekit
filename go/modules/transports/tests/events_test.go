@@ -10,7 +10,7 @@ import (
 
 	"github.com/hiveot/hivekit/go/api/msg"
 	"github.com/hiveot/hivekit/go/api/td"
-	authnapi "github.com/hiveot/hivekit/go/modules/authn/api"
+	"github.com/hiveot/hivekit/go/modules/authn"
 	"github.com/hiveot/hivekit/go/testenv"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -46,10 +46,10 @@ func TestSubscribeAll(t *testing.T) {
 	defer cancelFn()
 
 	// 2. connect as consumers
-	co1, cc1, _ := testEnv.NewConsumerClient(testClientID1, authnapi.ClientRoleViewer, nil)
+	co1, cc1, _ := testEnv.NewConsumerClient(testClientID1, authn.ClientRoleViewer, nil)
 	defer cc1.Close()
 
-	co2, cc2, _ := testEnv.NewConsumerClient(testClientID1, authnapi.ClientRoleViewer, nil)
+	co2, cc2, _ := testEnv.NewConsumerClient(testClientID1, authn.ClientRoleViewer, nil)
 	defer cc2.Close()
 
 	// test agents are wired to be usable as a consumer
@@ -185,7 +185,7 @@ func TestReadEvent(t *testing.T) {
 	defer cancelFn()
 
 	// 2. connect as a consumer
-	co1, cc1, _ := testEnv.NewConsumerClient(testClientID1, authnapi.ClientRoleViewer, nil)
+	co1, cc1, _ := testEnv.NewConsumerClient(testClientID1, authn.ClientRoleViewer, nil)
 	defer cc1.Close()
 
 	evNotif, err := co1.ReadEvent(thingID, eventKey)

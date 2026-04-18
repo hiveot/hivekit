@@ -60,6 +60,12 @@ type IHiveModule interface {
 	// This can be invoked before or after Start()
 	SetNotificationSink(consumer msg.NotificationHandler)
 
+	// SetRequestHook sets the handler that receives unhandled requests that pass through
+	// this module.
+	// The handler decides if it can handle the request and should forward the request if it
+	// cannot be handled.
+	SetRequestHook(hook msg.RequestHandler)
+
 	// SetRequestSink sets the handler of requests emitted by this module.
 	//
 	// This can be invoked before or after Start() to allow for live rewiring of the

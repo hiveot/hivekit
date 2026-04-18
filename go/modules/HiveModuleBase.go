@@ -61,9 +61,10 @@ type HiveModuleBase struct {
 // If none is registered this does nothing.
 // note that the handler is not the downstream sink but the upstream consumer.
 func (m *HiveModuleBase) ForwardNotification(notif *msg.NotificationMessage) {
-	if m.appNotificationHook != nil {
-		go m.appNotificationHook(notif)
-	}
+	// why would this be here instead in HandleNotification?
+	// if m.appNotificationHook != nil {
+	// 	go m.appNotificationHook(notif)
+	// }
 
 	if m.notificationSink == nil {
 		// End of the line. If the notification isn't handled then warn about it
@@ -115,11 +116,14 @@ func (m *HiveModuleBase) GetSink() msg.RequestHandler {
 // HandleNotification receives an incoming notification from a producer.
 //
 // The default behavior is to passes the notification to the registered hook and
-// send it upstream to a register notification handler, if set.
+// send it upstream to the registered notification handler, if set.
 //
 // Applications that consume notifications should use SetNotificationHook to register
 // its handler as it leaves the chain intact..
 func (m *HiveModuleBase) HandleNotification(notif *msg.NotificationMessage) {
+	if m.appNotificationHook != nil {
+		m.appNotificationHook(notif)
+	}
 	// the reason for the extra indirection is to ensure we're receiving the notification
 	// independently from when someone sets a custome notification handler.
 	// ForwardNotification will invoke the hook.
@@ -136,6 +140,8 @@ func (m *HiveModuleBase) HandleNotification(notif *msg.NotificationMessage) {
 // simply forwards the request if no request handler hook is set.
 func (m *HiveModuleBase) HandleRequest(req *msg.RequestMessage, replyTo msg.ResponseHandler) (err error) {
 
+	// Note, there is no thingID. So if the parent passes the request down and a request hook is set
+	// then assume the handler will take care of forwarding the request as needed.
 	if m.appRequestHook != nil {
 		err = m.appRequestHook(req, replyTo)
 		return err

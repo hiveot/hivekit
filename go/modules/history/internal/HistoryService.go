@@ -9,8 +9,8 @@ import (
 	"github.com/hiveot/hivekit/go/api/td"
 	"github.com/hiveot/hivekit/go/modules"
 	"github.com/hiveot/hivekit/go/modules/bucketstore"
-	bucketstoreapi "github.com/hiveot/hivekit/go/modules/bucketstore/api"
-	historyapi "github.com/hiveot/hivekit/go/modules/history/api"
+	bucketstorepkg "github.com/hiveot/hivekit/go/modules/bucketstore/pkg"
+	"github.com/hiveot/hivekit/go/modules/history"
 )
 
 // HistoryService provides storage for request and notification history.
@@ -29,13 +29,13 @@ type HistoryService struct {
 	historyThingID string
 
 	// The underlying bucketstore instance
-	bucketStore bucketstoreapi.IBucketStorage
+	bucketStore bucketstore.IBucketStorage
 
-	config historyapi.HistoryConfig
+	config history.HistoryConfig
 
 	// cache of cursors with lifecycle management intended for remote users
 	// re-use the one from the bucket store
-	cursorCache bucketstoreapi.ICursorCache
+	cursorCache bucketstore.ICursorCache
 
 	// lifespan of cursor iterator
 	cursorLifespan time.Duration
@@ -75,7 +75,7 @@ func (m *HistoryService) HandleRequest(req *msg.RequestMessage, replyTo msg.Resp
 // Start the history module and open the store
 // this loads the filters
 func (m *HistoryService) Start() (err error) {
-	m.bucketStore, err = bucketstore.OpenBucketStore(m.config.StoreDirectory, m.config.Backend)
+	m.bucketStore, err = bucketstorepkg.OpenBucketStore(m.config.StoreDirectory, m.config.Backend)
 	if err != nil {
 		return err
 	}
@@ -122,17 +122,17 @@ func (m *HistoryService) StoreRequest(req *msg.RequestMessage) error {
 // configuration.
 //
 // A configuration can be created using: config.NewHistoryConfig(storeDirectory, backend)
-func NewHistoryService(config historyapi.HistoryConfig) *HistoryService {
+func NewHistoryService(config history.HistoryConfig) *HistoryService {
 
 	m := &HistoryService{
-		historyThingID: historyapi.DefaultHistoryThingID,
+		historyThingID: history.DefaultHistoryThingID,
 		cursorLifespan: time.Minute,
-		cursorCache:    bucketstore.NewCursorCache(),
+		cursorCache:    bucketstorepkg.NewCursorCache(),
 		config:         config,
 	}
 	// m.config = NewHistoryConfig()
 	// m.config = config.NewHistoryConfig(storeDirectory, backend)
 
-	var _ historyapi.IHistoryService = m // interface check
+	var _ history.IHistoryService = m // interface check
 	return m
 }

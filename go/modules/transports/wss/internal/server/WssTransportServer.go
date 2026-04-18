@@ -10,7 +10,7 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/hiveot/hivekit/go/modules"
 	"github.com/hiveot/hivekit/go/modules/transports"
-	wssapi "github.com/hiveot/hivekit/go/modules/transports/wss/api"
+	"github.com/hiveot/hivekit/go/modules/transports/wss"
 	wssencoder "github.com/hiveot/hivekit/go/modules/transports/wss/internal/encoder"
 	"github.com/hiveot/hivekit/go/utils"
 )
@@ -146,12 +146,12 @@ func NewHiveotWssServer(httpServer transports.IHttpServer, respTimeout time.Dura
 		encoder:    transports.NewRRNJsonEncoder(),
 		// connectHandler: nil,
 		respTimeout: respTimeout,
-		wssPath:     wssapi.HiveotWebsocketPath,
+		wssPath:     wss.HiveotWebsocketPath,
 	}
 	// set the base parameters
 	connectURL := fmt.Sprintf("%s://%s%s", transports.UriSchemeHiveotWebsocket, urlParts.Host, m.wssPath)
 	m.Init(
-		wssapi.HiveotWebsocketModuleType,
+		wss.HiveotWebsocketServerModuleType,
 		transports.ProtocolTypeHiveotWebsocket,
 		transports.SubprotocolHiveotWebsocket,
 		connectURL, httpServer.GetAuthenticator())
@@ -180,12 +180,12 @@ func NewWotWssServer(httpServer transports.IHttpServer, respTimeout time.Duratio
 		httpServer:  httpServer,
 		encoder:     wssencoder.NewWotWssMsgEncoder(),
 		respTimeout: respTimeout,
-		wssPath:     wssapi.WotWebsocketPath,
+		wssPath:     wss.WotWebsocketPath,
 	}
 
 	connectURL := fmt.Sprintf("%s://%s%s", transports.UriSchemeWotWebsocket, urlParts.Host, m.wssPath)
 	m.Init(
-		wssapi.HiveotWebsocketModuleType,
+		wss.HiveotWebsocketServerThingID,
 		transports.ProtocolTypeWotWebsocket,
 		transports.SubprotocolWotWebsocket,
 		connectURL, httpServer.GetAuthenticator())

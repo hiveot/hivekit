@@ -7,7 +7,7 @@ import (
 	"log/slog"
 	"sync"
 
-	bucketstoreapi "github.com/hiveot/hivekit/go/modules/bucketstore/api"
+	bucketstore "github.com/hiveot/hivekit/go/modules/bucketstore"
 	"github.com/tidwall/btree"
 )
 
@@ -62,7 +62,7 @@ func (kvb *KVBTreeBucket) Close() (err error) {
 // This should be fast enough for many use-cases. 100K records takes around 27msec on an i5@2.9GHz
 //
 // This returns a cursor with Next() and Prev() iterators
-func (kvb *KVBTreeBucket) Cursor() (bucketstoreapi.IBucketCursor, error) {
+func (kvb *KVBTreeBucket) Cursor() (bucketstore.IBucketCursor, error) {
 
 	kvb.mutex.RLock()
 	defer kvb.mutex.RUnlock()
@@ -244,13 +244,13 @@ func (kvb *KVBTreeBucket) incrRefCounter() {
 }
 
 // Info returns the bucket info
-func (kvb *KVBTreeBucket) Info() (info *bucketstoreapi.BucketStoreInfo) {
-	info = &bucketstoreapi.BucketStoreInfo{}
+func (kvb *KVBTreeBucket) Info() (info *bucketstore.BucketStoreInfo) {
+	info = &bucketstore.BucketStoreInfo{}
 	// are these are full store sizes
 	info.NrRecords = int64(kvb.kvtree.Len())
 	info.DataSize = -1
 	//
-	info.Engine = bucketstoreapi.BackendKVBTree
+	info.Engine = bucketstore.BackendKVBTree
 	info.Id = kvb.BucketID
 	return
 }

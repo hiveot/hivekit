@@ -7,21 +7,12 @@ import (
 	"strings"
 
 	"github.com/hiveot/hivekit/go/api/td"
-	"github.com/hiveot/hivekit/go/modules"
 	"github.com/hiveot/hivekit/go/modules/transports"
-	grpctransport "github.com/hiveot/hivekit/go/modules/transports/grpc"
-	"github.com/hiveot/hivekit/go/modules/transports/httpbasic"
-	ssetransport "github.com/hiveot/hivekit/go/modules/transports/ssesc"
-	wsstransport "github.com/hiveot/hivekit/go/modules/transports/wss"
+	grpctransportpkg "github.com/hiveot/hivekit/go/modules/transports/grpc/pkg"
+	httpbasicpkg "github.com/hiveot/hivekit/go/modules/transports/httpbasic/pkg"
+	ssescpkg "github.com/hiveot/hivekit/go/modules/transports/ssesc/pkg"
+	wsspkg "github.com/hiveot/hivekit/go/modules/transports/wss/pkg"
 )
-
-// IClientModule is the combined interface of a client connection and HiveKit Module.
-// This is intended to be used as a sink for publishing requests to a remote server and
-// to register a callback for notifications.
-type IClientModule interface {
-	transports.ITransportClient
-	modules.IHiveModule
-}
 
 // GetProtocolType returns the protocol used for connecting to this device.
 // This returns the protocol type and connection href, if available.
@@ -103,7 +94,7 @@ func GetProtocolType(tdoc *td.TD) (protocolType string, href string) {
 //
 // This is intended to be used as a sink for application modules.
 func NewTransportClient(protocolType string, serverURL string, caCert *x509.Certificate,
-	ch transports.ConnectionHandler) (cl IClientModule, err error) {
+	ch transports.ConnectionHandler) (cl transports.ITransportClient, err error) {
 
 	parts, err := url.Parse(serverURL)
 	scheme := strings.ToLower(parts.Scheme)
@@ -132,20 +123,20 @@ func NewTransportClient(protocolType string, serverURL string, caCert *x509.Cert
 		// if strings.HasPrefix(serverURL, "unix") {
 		// 	caCert = nil
 		// }
-		cl = grpctransport.NewHiveotGrpcClient(serverURL, caCert, ch)
+		cl = grpctransportpkg.NewHiveotGrpcClient(serverURL, caCert, ch)
 
 	case transports.ProtocolTypeHiveotSsesc:
-		cl = ssetransport.NewHiveotSseClient(serverURL, caCert, ch)
+		cl = ssescpkg.NewHiveotSseClient(serverURL, caCert, ch)
 
 	case transports.ProtocolTypeHiveotWebsocket:
-		cl = wsstransport.NewHiveotWssClient(serverURL, caCert, ch)
+		cl = wsspkg.NewHiveotWssClient(serverURL, caCert, ch)
 
 	case transports.ProtocolTypeWotWebsocket:
-		cl = wsstransport.NewWotWssClient(serverURL, caCert, ch)
+		cl = wsspkg.NewWotWssClient(serverURL, caCert, ch)
 
 	case transports.ProtocolTypeWotHttpBasic:
 		caCert := caCert
-		cl = httpbasic.NewHttpBasicClient(serverURL, caCert, nil, ch)
+		cl = httpbasicpkg.NewHttpBasicClient(serverURL, caCert, nil, ch)
 
 	//case transports.ProtocolTypeWotMQTTWSS:
 	//	fullURL = testServerMqttWssURL

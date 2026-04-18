@@ -12,7 +12,7 @@ import (
 
 	"github.com/hiveot/hivekit/go/api/msg"
 	"github.com/hiveot/hivekit/go/api/td"
-	authnapi "github.com/hiveot/hivekit/go/modules/authn/api"
+	"github.com/hiveot/hivekit/go/modules/authn"
 	"github.com/hiveot/hivekit/go/modules/transports"
 	"github.com/hiveot/hivekit/go/testenv"
 	"github.com/hiveot/hivekit/go/utils"
@@ -23,7 +23,7 @@ import (
 const testAgentID1 = "agent1"
 const testClientID1 = "client1"
 
-var testProtocol = transports.ProtocolTypeHiveotGrpc
+var testProtocol = transports.ProtocolTypeWotWebsocket
 
 var testProtocols = []string{
 	transports.ProtocolTypeHiveotSsesc,
@@ -56,7 +56,7 @@ func TestStartStop(t *testing.T) {
 	testEnv, cancelFn := testenv.StartTestEnv(testProtocol)
 
 	defer cancelFn()
-	co1, cc1, _ := testEnv.NewConsumerClient(testClientID1, authnapi.ClientRoleViewer, nil)
+	co1, cc1, _ := testEnv.NewConsumerClient(testClientID1, authn.ClientRoleViewer, nil)
 	defer cc1.Close()
 	assert.NotNil(t, co1)
 
@@ -75,7 +75,7 @@ func TestPing(t *testing.T) {
 	testEnv, cancelFn := testenv.StartTestEnv(testProtocol)
 	defer cancelFn()
 	// NewConsumerClient creates a client
-	co1, cc1, _ := testEnv.NewConsumerClient(testClientID1, authnapi.ClientRoleViewer, nil)
+	co1, cc1, _ := testEnv.NewConsumerClient(testClientID1, authn.ClientRoleViewer, nil)
 	defer cc1.Close()
 
 	err := co1.Ping()
@@ -149,7 +149,7 @@ func TestReconnect(t *testing.T) {
 			slog.Info("disconnect")
 		}
 	}
-	co1, cc1, _ := testEnv.NewConsumerClient(testClientID1, authnapi.ClientRoleViewer, connectHandler)
+	co1, cc1, _ := testEnv.NewConsumerClient(testClientID1, authn.ClientRoleViewer, connectHandler)
 	defer cc1.Close()
 
 	//  wait until the connection is established

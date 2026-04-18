@@ -1,12 +1,12 @@
 package kvbtree
 
 import (
-	bucketstoreapi "github.com/hiveot/hivekit/go/modules/bucketstore/api"
+	bucketstore "github.com/hiveot/hivekit/go/modules/bucketstore"
 	"github.com/tidwall/btree"
 )
 
 type KVBTreeCursor struct {
-	bucket bucketstoreapi.IBucket
+	bucket bucketstore.IBucket
 	kviter btree.MapIter[string, []byte]
 }
 
@@ -143,7 +143,7 @@ func (cursor *KVBTreeCursor) Skip(steps int) (itemsRemaining bool) {
 //	orderedKeys is a snapshot of the keys in ascending order
 //
 // func NewKVCursor(bucket bucketstorage.IBucket, orderedKeys []string, kvbtree btree.Map[string, []byte]) *KVBTreeCursor {
-func NewKVCursor(bucket bucketstoreapi.IBucket, kvIter btree.MapIter[string, []byte]) *KVBTreeCursor {
+func NewKVCursor(bucket bucketstore.IBucket, kvIter btree.MapIter[string, []byte]) *KVBTreeCursor {
 	cursor := &KVBTreeCursor{
 		bucket: bucket,
 		kviter: kvIter,

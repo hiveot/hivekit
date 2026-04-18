@@ -11,13 +11,13 @@ import (
 	"github.com/hiveot/hivekit/go/api/msg"
 	"github.com/hiveot/hivekit/go/api/td"
 	"github.com/hiveot/hivekit/go/api/vocab"
-	authnapi "github.com/hiveot/hivekit/go/modules/authn/api"
+	"github.com/hiveot/hivekit/go/modules/authn"
 	certstest "github.com/hiveot/hivekit/go/modules/certs/test"
 	"github.com/hiveot/hivekit/go/modules/clients"
 	"github.com/hiveot/hivekit/go/modules/directory"
-	directoryapi "github.com/hiveot/hivekit/go/modules/directory/api"
+	directorypkg "github.com/hiveot/hivekit/go/modules/directory/pkg"
 	"github.com/hiveot/hivekit/go/modules/router"
-	routerapi "github.com/hiveot/hivekit/go/modules/router/api"
+	routerpkg "github.com/hiveot/hivekit/go/modules/router/pkg"
 	"github.com/hiveot/hivekit/go/modules/transports"
 	httpserverconfig "github.com/hiveot/hivekit/go/modules/transports/httpserver/config"
 	"github.com/hiveot/hivekit/go/testenv"
@@ -49,7 +49,7 @@ const serverType = transports.ProtocolTypeWotWebsocket
 // this handles readallproperties requests
 func startTestDevice(agentID string, thingID string) (testDevice *testenv.TestDevice) {
 
-	testAuthn.AddClient(testRouterID, "", authnapi.ClientRoleManager)
+	testAuthn.AddClient(testRouterID, "", authn.ClientRoleManager)
 
 	// create a test device with server
 	cfg := httpserverconfig.NewConfig(
@@ -70,13 +70,13 @@ func startTestDevice(agentID string, thingID string) (testDevice *testenv.TestDe
 
 // Setup a consumer that uses the router to connect to devices
 func SetupConsumerWithRouter() (
-	routerMod routerapi.IRouterService,
-	dirMod directoryapi.IDirectoryServer,
+	routerMod router.IRouterService,
+	dirMod directory.IDirectoryServer,
 	co *clients.Consumer) {
 
 	// setup the consumer side: directory, router and consumer
 	// register the device TD in the directory for use by the router
-	dirMod = directory.NewDirectoryService("", storageDir, nil)
+	dirMod = directorypkg.NewDirectoryService("", storageDir, nil)
 	err := dirMod.Start()
 	if err != nil {
 		panic("SetupConsumerWithRouter: Directory.Start: " + err.Error())
@@ -87,7 +87,7 @@ func SetupConsumerWithRouter() (
 
 	// the router uses the TD to connect to the device.
 	// this doesn't actually need a directory. GetTD could also simply return the device TD.
-	routerMod = router.NewRouterService(
+	routerMod = routerpkg.NewRouterService(
 		storageDir, dirMod.GetTD, nil, certsBundle.CaCert)
 	routerMod.SetTimeout(rpcTimeout)
 	err = routerMod.Start()
@@ -130,11 +130,11 @@ func TestMain(m *testing.M) {
 func TestStartStop(t *testing.T) {
 	t.Logf("---%s---\n", t.Name())
 
-	var testDirMod = directory.NewDirectoryService("", "", nil)
+	var testDirMod = directorypkg.NewDirectoryService("", "", nil)
 	err := testDirMod.Start()
 	require.NoError(t, err)
 	// test no cred store
-	m := router.NewRouterService("", testDirMod.GetTD, nil, certsBundle.CaCert)
+	m := routerpkg.NewRouterService("", testDirMod.GetTD, nil, certsBundle.CaCert)
 	m.SetTimeout(rpcTimeout)
 	err = m.Start()
 	require.NoError(t, err)
@@ -209,7 +209,7 @@ func TestSubscribeToDevice(t *testing.T) {
 
 	// setup the consumer side: directory, router and consumer
 	// register the device TD in the directory for use by the router
-	var testDirMod = directory.NewDirectoryService("", "", nil)
+	var testDirMod = directorypkg.NewDirectoryService("", "", nil)
 	err := testDirMod.Start()
 	require.NoError(t, err)
 	defer testDirMod.Stop()
@@ -219,7 +219,7 @@ func TestSubscribeToDevice(t *testing.T) {
 
 	// the router uses the TD to connect to the device.
 	// this doesn't actually need a directory. GetTD could also simply return the device TD.
-	routerMod := router.NewRouterService(storageDir, testDirMod.GetTD, nil, certsBundle.CaCert)
+	routerMod := routerpkg.NewRouterService(storageDir, testDirMod.GetTD, nil, certsBundle.CaCert)
 	routerMod.SetTimeout(rpcTimeout)
 	err = routerMod.Start()
 	require.NoError(t, err)
@@ -267,7 +267,7 @@ func TestCredStore(t *testing.T) {
 
 	// the router uses the TD to connect to the device.
 	// this doesn't actually need a directory. GetTD could also simply return the device TD.
-	routerMod := router.NewRouterService(storageDir, nil, nil, nil)
+	routerMod := routerpkg.NewRouterService(storageDir, nil, nil, nil)
 	routerMod.SetTimeout(rpcTimeout)
 	err := routerMod.Start()
 	require.NoError(t, err)

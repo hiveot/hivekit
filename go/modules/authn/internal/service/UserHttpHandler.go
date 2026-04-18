@@ -6,7 +6,7 @@ import (
 	"net/http"
 	"time"
 
-	authnapi "github.com/hiveot/hivekit/go/modules/authn/api"
+	"github.com/hiveot/hivekit/go/modules/authn"
 	"github.com/hiveot/hivekit/go/modules/transports"
 	"github.com/hiveot/hivekit/go/utils"
 	jsoniter "github.com/json-iterator/go"
@@ -22,13 +22,13 @@ const (
 
 // UserHttpHandler for handling user requests such as login, logout, refresh over http
 type UserHttpHandler struct {
-	m          authnapi.IAuthnService
+	m          authn.IAuthnService
 	httpServer transports.IHttpServer
 }
 
 // onHttpGetProfile returns the client's profile
 func (handler *UserHttpHandler) onHttpGetProfile(w http.ResponseWriter, r *http.Request) {
-	var profile authnapi.ClientProfile
+	var profile authn.ClientProfile
 	rp, err := handler.httpServer.GetRequestParams(r)
 	if err == nil {
 		profile, err = handler.m.GetProfile(rp.ClientID)
@@ -46,7 +46,7 @@ func (handler *UserHttpHandler) onHttpGetProfile(w http.ResponseWriter, r *http.
 // This uses the configured session authenticator.
 func (handler *UserHttpHandler) onHttpLogin(w http.ResponseWriter, r *http.Request) {
 	var newToken string
-	var args authnapi.UserLoginArgs
+	var args authn.UserLoginArgs
 	var validUntil time.Time
 
 	payload, err := io.ReadAll(r.Body)
@@ -107,7 +107,7 @@ func (handler *UserHttpHandler) onHttpTokenRefresh(w http.ResponseWriter, r *htt
 }
 
 // Create a http server handler for user facing requests and register endpoints
-func NewUserHttpHandler(m authnapi.IAuthnService, httpServer transports.IHttpServer) *UserHttpHandler {
+func NewUserHttpHandler(m authn.IAuthnService, httpServer transports.IHttpServer) *UserHttpHandler {
 	if m == nil || httpServer == nil {
 		panic("NewUserHttpHandler: nil parameter")
 	}

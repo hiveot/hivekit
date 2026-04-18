@@ -5,7 +5,7 @@ import (
 
 	"github.com/hiveot/hivekit/go/api/td"
 	"github.com/hiveot/hivekit/go/api/vocab"
-	digitwinapi "github.com/hiveot/hivekit/go/modules/digitwin/api"
+	"github.com/hiveot/hivekit/go/modules/digitwin"
 	jsoniter "github.com/json-iterator/go"
 )
 
@@ -50,7 +50,7 @@ func (m *DigitwinService) HandleWriteDirectory(agentID string, tdi *td.TD) (*td.
 	dtwTD.ID = digitwinThingID
 
 	// 4. add a 'online' property indicating if it is reachable
-	dtwTD.AddProperty(digitwinapi.OnlinePropName,
+	dtwTD.AddProperty(digitwin.OnlinePropName,
 		"Online", "Indicate if the Thing is reachable", td.DataTypeBool)
 
 	// 5. reset all existing forms and auth info

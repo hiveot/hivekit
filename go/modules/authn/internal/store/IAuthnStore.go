@@ -1,12 +1,12 @@
 package authnstore
 
-import authnapi "github.com/hiveot/hivekit/go/modules/authn/api"
+import "github.com/hiveot/hivekit/go/modules/authn"
 
 // AuthnEntry containing client profile and password hash
 // For internal use.
 type AuthnEntry struct {
 	// Client's profile
-	authnapi.ClientProfile `yaml:"clientProfile" json:"clientProfile"`
+	authn.ClientProfile `yaml:"clientProfile" json:"clientProfile"`
 
 	// PasswordHash password encrypted with argon2id or bcrypt
 	PasswordHash string `yaml:"passwordHash" json:"passwordHash"`
@@ -22,7 +22,7 @@ type IAuthnStore interface {
 	// If the client already exists this fails.
 	//
 	//  profile to add. Empty fields can receive valid defaults.
-	Add(profile authnapi.ClientProfile) error
+	Add(profile authn.ClientProfile) error
 
 	// Close the store
 	Close()
@@ -37,10 +37,10 @@ type IAuthnStore interface {
 
 	// GetProfile returns the client's profile
 	// Returns an error if the clientID doesn't exist
-	GetProfile(clientID string) (profile authnapi.ClientProfile, err error)
+	GetProfile(clientID string) (profile authn.ClientProfile, err error)
 
 	// GetProfiles returns all client profiles in the store
-	GetProfiles() (entries []authnapi.ClientProfile, err error)
+	GetProfiles() (entries []authn.ClientProfile, err error)
 
 	// GetRole returns the client's role
 	// This returns an error if the client is disabled
@@ -68,9 +68,9 @@ type IAuthnStore interface {
 
 	// UpdateProfile updates client profile.
 	// This fails if the client doesn't exist.
-	UpdateProfile(profile authnapi.ClientProfile) error
+	UpdateProfile(profile authn.ClientProfile) error
 
 	// VerifyPassword verifies the given password against the stored hash
 	// Returns the client profile and an error if the verification fails.
-	VerifyPassword(loginID, password string) (authnapi.ClientProfile, error)
+	VerifyPassword(loginID, password string) (authn.ClientProfile, error)
 }

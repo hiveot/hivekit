@@ -7,7 +7,7 @@ import (
 
 	"github.com/hiveot/hivekit/go/api/msg"
 	"github.com/hiveot/hivekit/go/modules"
-	authnapi "github.com/hiveot/hivekit/go/modules/authn/api"
+	"github.com/hiveot/hivekit/go/modules/authn"
 	authnstore "github.com/hiveot/hivekit/go/modules/authn/internal/store"
 	"github.com/hiveot/hivekit/go/modules/transports"
 )
@@ -19,7 +19,7 @@ import (
 type AuthnService struct {
 	modules.HiveModuleBase
 
-	config authnapi.AuthnConfig
+	config authn.AuthnConfig
 
 	// The http/tls server to register endpoints
 	httpServer transports.IHttpServer
@@ -43,7 +43,7 @@ func (m *AuthnService) AddClient(clientID string, displayName string, role strin
 		return fmt.Errorf("Account for client '%s' already exists", clientID)
 	}
 
-	newProfile := authnapi.ClientProfile{
+	newProfile := authn.ClientProfile{
 		ClientID:    clientID,
 		DisplayName: displayName,
 		Role:        role,
@@ -68,16 +68,16 @@ func (m *AuthnService) GetConnectURL() (uri string, protocolType string) {
 }
 
 // GetProfile return the client's profile
-func (m *AuthnService) GetProfile(clientID string) (profile authnapi.ClientProfile, err error) {
+func (m *AuthnService) GetProfile(clientID string) (profile authn.ClientProfile, err error) {
 	return m.authnStore.GetProfile(clientID)
 }
 
 // GetProfile return a list of client profiles
-func (m *AuthnService) GetProfiles() (profiles []authnapi.ClientProfile, err error) {
+func (m *AuthnService) GetProfiles() (profiles []authn.ClientProfile, err error) {
 	return m.authnStore.GetProfiles()
 }
 
-func (m *AuthnService) GetSessionManager() authnapi.ISessionManager {
+func (m *AuthnService) GetSessionManager() authn.ISessionManager {
 	return m.sessionManager
 }
 
@@ -85,9 +85,9 @@ func (m *AuthnService) GetSessionManager() authnapi.ISessionManager {
 func (m *AuthnService) HandleRequest(req *msg.RequestMessage, replyTo msg.ResponseHandler) error {
 
 	switch req.ThingID {
-	case authnapi.AuthnAdminServiceID:
+	case authn.AuthnAdminServiceID:
 		return HandleAuthnAdminRequest(m, req, replyTo)
-	case authnapi.AuthnUserServiceID:
+	case authn.AuthnUserServiceID:
 		return HandleAuthnUserRequest(m, req, replyTo)
 	default:
 		// forward
@@ -189,7 +189,7 @@ func (m *AuthnService) Stop() {
 
 // UpdateProfile update the client profile
 // only administrators are allowed to update the role
-func (m *AuthnService) UpdateProfile(senderID string, newProfile authnapi.ClientProfile) error {
+func (m *AuthnService) UpdateProfile(senderID string, newProfile authn.ClientProfile) error {
 	senderProf, err := m.authnStore.GetProfile(senderID)
 	if err != nil {
 		return fmt.Errorf("Unknown sender '%s'", senderID)
@@ -200,7 +200,7 @@ func (m *AuthnService) UpdateProfile(senderID string, newProfile authnapi.Client
 	}
 	if senderID != newProfile.ClientID {
 		// only admin roles can update client profiles
-		if senderProf.Role != authnapi.ClientRoleAdmin && senderProf.Role != authnapi.ClientRoleService {
+		if senderProf.Role != authn.ClientRoleAdmin && senderProf.Role != authn.ClientRoleService {
 			return fmt.Errorf("Sender '%s' is not admin, not allowed to update profile", senderID)
 		}
 	} else {
@@ -242,7 +242,7 @@ func (m *AuthnService) UpdateProfile(senderID string, newProfile authnapi.Client
 //
 // authnConfig contains the password storage and token management configuration
 // httpServer to server the http endpoint or nil to not use http.
-func NewAuthnService(authnConfig authnapi.AuthnConfig, httpServer transports.IHttpServer) *AuthnService {
+func NewAuthnService(authnConfig authn.AuthnConfig, httpServer transports.IHttpServer) *AuthnService {
 
 	passwordFile := authnConfig.PasswordFile
 	encryption := authnConfig.Encryption
@@ -256,7 +256,7 @@ func NewAuthnService(authnConfig authnapi.AuthnConfig, httpServer transports.IHt
 		sessionManager: sessionManager,
 		// sessionStart: make(map[string]time.Time),
 	}
-	var _ modules.IHiveModule = m    // interface check
-	var _ authnapi.IAuthnService = m // interface check
+	var _ modules.IHiveModule = m // interface check
+	var _ authn.IAuthnService = m // interface check
 	return m
 }

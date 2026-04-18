@@ -13,8 +13,8 @@ import (
 
 	"github.com/hiveot/hivekit/go/api/td"
 	"github.com/hiveot/hivekit/go/modules/bucketstore"
-	bucketstoreapi "github.com/hiveot/hivekit/go/modules/bucketstore/api"
 	"github.com/hiveot/hivekit/go/modules/bucketstore/internal/service"
+	bucketstorepkg "github.com/hiveot/hivekit/go/modules/bucketstore/pkg"
 	"github.com/hiveot/hivekit/go/testenv"
 	"github.com/hiveot/hivekit/go/utils"
 
@@ -28,9 +28,9 @@ var testBucketID = "default"
 var storageLocation = path.Join(os.TempDir(), "hivekit", "bucketstore-test")
 
 // pick the backend to run the tests on: kvbtre vs pebble
-var testBackendType = bucketstoreapi.BackendPebble
+var testBackendType = bucketstore.BackendPebble
 
-// var testBackendType = bucketstoreapi.BackendKVBTree
+// var testBackendType = bucketstore.BackendKVBTree
 
 const (
 	doc1ID                    = "doc1"
@@ -71,11 +71,11 @@ func TestMain(m *testing.M) {
 }
 
 // Create the bucket store in the given directory using the backend
-func openNewStore(storeDir string) (store bucketstoreapi.IBucketStorage, err error) {
+func openNewStore(storeDir string) (store bucketstore.IBucketStorage, err error) {
 	_ = os.RemoveAll(storeDir)
 	_ = os.MkdirAll(storageLocation, 0700)
 
-	store, err = bucketstore.NewBucketStore(storeDir, testBackendType)
+	store, err = bucketstorepkg.NewBucketStore(storeDir, testBackendType)
 	if err == nil {
 		err = store.Open()
 	}
@@ -129,7 +129,7 @@ func createTD(id string) *td.TD {
 }
 
 // AddDocs adds documents doc1, doc2 and given nr additional docs
-func addDocs(store bucketstoreapi.IBucketStorage, bucketID string, count int) error {
+func addDocs(store bucketstore.IBucketStorage, bucketID string, count int) error {
 	slog.Info(fmt.Sprintf("Adding %d documents", count))
 	const batchSize = 50000
 	bucket := store.GetBucket(bucketID)
@@ -203,7 +203,7 @@ func TestStartStop(t *testing.T) {
 func TestAllBackends(t *testing.T) {
 	t.Logf("---%s---\n", t.Name())
 
-	backends := []string{bucketstoreapi.BackendPebble, bucketstoreapi.BackendKVBTree}
+	backends := []string{bucketstore.BackendPebble, bucketstore.BackendKVBTree}
 	for _, backend := range backends {
 		testBackendType = backend
 		// Generic directory store testcases
@@ -684,7 +684,7 @@ func TestGetSetMsgAPI(t *testing.T) {
 	require.NoError(t, err)
 	defer stopFn()
 	tp := testenv.NewTestTransport(clientID, m)
-	cl := bucketstore.NewBucketStoreMsgClient(storeThingID, tp)
+	cl := bucketstorepkg.NewBucketStoreMsgClient(storeThingID, tp)
 	err = cl.Set(key1, val1)
 	require.NoError(t, err)
 

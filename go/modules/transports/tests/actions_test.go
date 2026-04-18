@@ -12,7 +12,7 @@ import (
 
 	"github.com/hiveot/hivekit/go/api/msg"
 	"github.com/hiveot/hivekit/go/api/td"
-	authnapi "github.com/hiveot/hivekit/go/modules/authn/api"
+	"github.com/hiveot/hivekit/go/modules/authn"
 	"github.com/hiveot/hivekit/go/testenv"
 	"github.com/hiveot/hivekit/go/utils"
 	"github.com/stretchr/testify/assert"
@@ -64,7 +64,7 @@ func TestInvokeActionFromConsumerToServer(t *testing.T) {
 	testEnv.Server.SetRequestSink(handleRequest)
 
 	// 2. connect a client
-	co1, cc1, token := testEnv.NewConsumerClient(testClientID1, authnapi.ClientRoleViewer, nil)
+	co1, cc1, token := testEnv.NewConsumerClient(testClientID1, authn.ClientRoleViewer, nil)
 	defer cc1.Close()
 	require.NotEmpty(t, token)
 	ctx1, release1 := context.WithTimeout(context.Background(), time.Minute)
@@ -267,7 +267,7 @@ func TestQueryActions(t *testing.T) {
 	testEnv.Server.SetRequestSink(requestHandler)
 
 	// 2. connect as a consumer
-	co1, cc1, _ := testEnv.NewConsumerClient(testClientID1, authnapi.ClientRoleViewer, nil)
+	co1, cc1, _ := testEnv.NewConsumerClient(testClientID1, authn.ClientRoleViewer, nil)
 	defer cc1.Close()
 
 	// 3. Query action status
