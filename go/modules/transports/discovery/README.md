@@ -4,9 +4,9 @@ The discovery module offers ways to publish and discover WoT devices and directo
 
 Objectives:
 
-1. publish, discover and download directory TDs using WoT mDNS compatible protocols (server)
-2. publish, discover and download thing TDs using WoT mDNS compatible protocols (server)
-3. option to add additional discovery mechanisms (tbd)
+1. Serve Thing or directory TDs using WoT mDNS compatible protocols
+1. Discover directory TDs using WoT mDNS compatible protocols .
+1. Support discovery of protocol endpoints for RC (reverse connections).
 
 ## Status
 

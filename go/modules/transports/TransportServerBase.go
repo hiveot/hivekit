@@ -291,8 +291,12 @@ func (srv *TransportServerBase) ForEachConnection(handler func(c IConnection)) {
 	}
 }
 
-// ForwardNotification passes notifications received by a server to the notification sink.
-// This can be a service running on the server that has subscribed to a remote producer.
+// ForwardNotification passes notifications received by a server to the linked notification sink.
+// These notifications are typically sent by remote agents that use RC, or by this server
+// module itself to notify of connect/disconnects.  They are intended for services
+// running on the server, or to be forwarded to clients that subscribed to them.
+//
+// This logs a warning if no notification handler is set as the notification will be lost.
 func (srv *TransportServerBase) ForwardNotification(notif *msg.NotificationMessage) {
 	if srv.notificationSink == nil {
 		// Receiving notifications but with no sink set so likely a wiring issue.
@@ -401,7 +405,7 @@ func (m *TransportServerBase) HandleRequest(
 		if m.appRequestHook != nil {
 			return m.appRequestHook(req, replyTo)
 		} else {
-			return fmt.Errorf("HandleRequest: no request handler set for this transport server module", "thingID", m.thingID)
+			return fmt.Errorf("HandleRequest: no request handler set for this transport server module '%s'", m.thingID)
 		}
 	}
 
