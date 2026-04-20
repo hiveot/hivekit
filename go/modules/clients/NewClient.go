@@ -126,7 +126,7 @@ func NewTransportClient(protocolType string, serverURL string, caCert *x509.Cert
 		cl = grpctransportpkg.NewHiveotGrpcClient(serverURL, caCert, ch)
 
 	case transports.ProtocolTypeHiveotSsesc:
-		cl = ssescpkg.NewHiveotSseClient(serverURL, caCert, ch)
+		cl = ssescpkg.NewSseScClient(serverURL, caCert, ch)
 
 	case transports.ProtocolTypeHiveotWebsocket:
 		cl = wsspkg.NewHiveotWssClient(serverURL, caCert, ch)

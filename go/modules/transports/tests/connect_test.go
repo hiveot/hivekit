@@ -166,7 +166,7 @@ func TestReconnect(t *testing.T) {
 	var rpcArgs = "rpc test"
 	var rpcResp string
 	time.Sleep(time.Millisecond * 3000)
-	err := co1.Rpc(td.OpInvokeAction, thingID, actionKey, &rpcArgs, &rpcResp)
+	err := co1.InvokeAction(thingID, actionKey, &rpcArgs, &rpcResp)
 	require.NoError(t, err)
 	assert.Equal(t, rpcArgs, rpcResp)
 	assert.GreaterOrEqual(t, 4, int(connectEvents.Load()))

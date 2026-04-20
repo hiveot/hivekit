@@ -537,7 +537,7 @@ func NewHiveotSseClient(sseURL string, caCert *x509.Certificate,
 	hostPort := urlParts.Host
 	ssePath := urlParts.Path
 	// use SetTimeout to change the default
-	timeout := transports.DefaultRpcTimeout
+	timeout := msg.DefaultRnRTimeout
 	tlsClient := httpclient.NewHttpClient(hostPort, nil, caCert, timeout)
 
 	cl := &HiveotSseClient{

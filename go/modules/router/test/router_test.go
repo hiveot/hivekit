@@ -54,7 +54,7 @@ func startTestDevice(agentID string, thingID string) (testDevice *testenv.TestDe
 	// create a test device with server
 	cfg := httpserverconfig.NewConfig(
 		certsBundle.ServerAddr, testDevicePort,
-		certsBundle.ServerCert, certsBundle.CaCert, testAuthn)
+		certsBundle.ServerCert, certsBundle.CaCert, testAuthn, true)
 
 	var testTM *td.TD = td.NewTD(thingID, "test device", vocab.Device)
 	testTM.AddPropertyAsString("property-1", "Property 1", "New and improved")

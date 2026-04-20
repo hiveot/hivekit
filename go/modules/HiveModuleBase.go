@@ -3,8 +3,10 @@ package modules
 import (
 	"fmt"
 	"log/slog"
+	"time"
 
 	"github.com/hiveot/hivekit/go/api/msg"
+	"github.com/hiveot/hivekit/go/utils"
 	"github.com/teris-io/shortid"
 )
 
@@ -53,6 +55,12 @@ type HiveModuleBase struct {
 
 	// requestSink is the sink for forwarding requests messages to
 	requestSink msg.RequestHandler
+
+	rpcTimeout time.Duration
+
+	// the senderID for requests. Intended to hold the authenticated clientID.
+	// Client side modules can use their moduleID for use in logging.
+	// senderID string
 }
 
 // ForwardNotification (output) passes notifications to a registered hook and
@@ -104,8 +112,30 @@ func (m *HiveModuleBase) ForwardRequest(req *msg.RequestMessage, replyTo msg.Res
 // ForwardRequestWait is a helper function to pass a request to the sink and wait for a response.
 // If no sink os configured this returns an error.
 // If the response contains an error, that error is also returned.
-func (m *HiveModuleBase) ForwardRequestWait(req *msg.RequestMessage) (resp *msg.ResponseMessage, err error) {
-	return msg.ForwardRequestWait(req, m.ForwardRequest)
+func (m *HiveModuleBase) ForwardRequestWait(
+	req *msg.RequestMessage) (resp *msg.ResponseMessage, err error) {
+
+	if req.CorrelationID == "" {
+		req.CorrelationID = shortid.MustGenerate()
+	}
+
+	ar := utils.NewAsyncReceiver[*msg.ResponseMessage]()
+	err = m.ForwardRequest(req, func(r *msg.ResponseMessage) error {
+		ar.SetResponse(r)
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	timeout := m.rpcTimeout
+	if timeout == 0 {
+		timeout = msg.DefaultRnRTimeout
+	}
+	resp, err = ar.WaitForResponse(timeout)
+	if err == nil {
+		err = resp.AsError()
+	}
+	return resp, err
 }
 
 // GetSink returns the module's request sink
@@ -150,6 +180,35 @@ func (m *HiveModuleBase) HandleRequest(req *msg.RequestMessage, replyTo msg.Resp
 	return m.ForwardRequest(req, replyTo)
 }
 
+// Rpc is a convenience function to create and send a request message and decode the a response.
+// This returns an error if the request fails or if the response contains an error
+//
+// senderID can be empty on the client side as the transport connection sets it to
+// the authenticated clientID.
+//
+//	senderID is the ID authenticated sender (used server side)
+//	operation is the WoT operation to send
+//	thingID is the Thing to address
+//	name is the operation name as defined in the TD
+//	input are optional input parameters or nil if none
+//	output is a pointer to the  struct where the result will be decoded
+func (m *HiveModuleBase) Rpc(
+	senderID string, operation, thingID, name string, input any, output any) error {
+
+	correlationID := shortid.MustGenerate()
+
+	var resp *msg.ResponseMessage
+	req := msg.NewRequestMessage(operation, thingID, name, input, correlationID)
+	req.SenderID = senderID
+
+	resp, err := m.ForwardRequestWait(req)
+
+	if err == nil && resp != nil {
+		err = resp.Decode(output)
+	}
+	return err
+}
+
 // Set the hook to invoke with received notifications
 func (m *HiveModuleBase) SetNotificationHook(hook msg.NotificationHandler) {
 	m.appNotificationHook = hook
@@ -177,26 +236,21 @@ func (m *HiveModuleBase) SetRequestSink(sink msg.RequestHandler) {
 	m.requestSink = sink
 }
 
-func (m *HiveModuleBase) Start() error {
-	return nil
-}
-func (m *HiveModuleBase) Stop() {}
-
-// UpdateProperty updates the given property value and sends a notification to subscribers.
-// This tracks the changes to properties that can be retrieved with GetChangedProperties()
-// func (m *HiveModuleBase) UpdateProperty(name string, val any) {
-// 	m.propMux.Lock()
-// 	if m.properties == nil {
-// 		m.properties = make(map[string]any)
-// 	}
-// 	if m.changedProperties == nil {
-// 		m.changedProperties = make(map[string]any)
-// 	}
-// 	m.properties[name] = val
-// 	m.changedProperties[name] = val
-// 	m.propMux.Unlock()
-
-// 	//
-// 	notif := msg.NewNotificationMessage(m.moduleID, msg.AffordanceTypeProperty, m.moduleID, name, val)
-// 	m.ForwardNotification(notif)
+// Start the module. This must be defined in the actual module
+// func (m *HiveModuleBase) Start() error {
+// 	return nil
 // }
+
+// Stop the module. This must be defined in the actual module
+// func (m *HiveModuleBase) Stop() {}
+
+// SetTimeout sets the timeout when waiting for result.
+func (m *HiveModuleBase) SetTimeout(rpcTimeout time.Duration) {
+	m.rpcTimeout = rpcTimeout
+}
+
+// Start the consumer module .. subclasses must implement this
+func (co *HiveModuleBase) Start() error { return nil }
+
+// Stop the consumer module .. subclasses must implement this
+func (co *HiveModuleBase) Stop() {}

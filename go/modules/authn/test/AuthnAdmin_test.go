@@ -23,12 +23,10 @@ func TestAddRemoveClientsSuccess(t *testing.T) {
 	// servicePrivKey, servicePubKey := utils.NewKey(utils.KeyTypeECDSA)
 	// _ = servicePrivKey
 
-	m, stopFn := startTestAuthnModule(defaultHash)
+	_, m, stopFn := startTestAuthnModule(defaultHash)
 	defer stopFn()
-	//hc := embedded.NewEmbeddedClient(serviceID, adminHandler)
 
-	//err := svc.AdminSvc.AddConsumer(serviceID,
-	//         authnapi.AdminAddConsumerArgs{ "user1", "user 1", "pass1")
+	// add the client that is going to be authenticated
 	err := m.AddClient("user1", "User 1", authn.ClientRoleViewer)
 	require.NoError(t, err)
 	err2 := m.SetPassword("user1", "pass1")
@@ -71,17 +69,13 @@ func TestAddRemoveClientsSuccess(t *testing.T) {
 	// two accounts remaining (user 3 and 4)
 	require.NoError(t, err)
 	assert.Equal(t, 2, len(profiles))
-
-	err = m.AddClient("user1", "user 1", authn.ClientRoleViewer)
-	m.SetPassword("user1", "pass1")
-	assert.NoError(t, err)
 }
 
 // Create manage users
 func TestAddRemoveClientsFail(t *testing.T) {
 	t.Logf("---%s---\n", t.Name())
 	const adminID = "administrator-1"
-	m, stopFn := startTestAuthnModule(defaultHash)
+	_, m, stopFn := startTestAuthnModule(defaultHash)
 	defer stopFn()
 
 	// missing clientID should fail
@@ -100,7 +94,7 @@ func TestUpdateClientPassword(t *testing.T) {
 	var tuPass2 = "tuPass2"
 	const adminID = "administrator-1"
 
-	m, stopFn := startTestAuthnModule(defaultHash)
+	_, m, stopFn := startTestAuthnModule(defaultHash)
 	defer stopFn()
 	err := m.AddClient(tu1ID, "user tu1", authn.ClientRoleViewer)
 	require.NoError(t, err)
@@ -126,7 +120,7 @@ func TestUpdatePubKey(t *testing.T) {
 	var tu1ID = "tu1ID"
 	var tu1Pass = "tu1Pass"
 
-	m, stopFn := startTestAuthnModule(defaultHash)
+	_, m, stopFn := startTestAuthnModule(defaultHash)
 	defer stopFn()
 
 	// add user to test with. don't set the public key yet
@@ -161,7 +155,7 @@ func TestNewAgentToken(t *testing.T) {
 	var tu1Name = "agent 1"
 
 	const adminID = "administrator-1"
-	m, stopFn := startTestAuthnModule(defaultHash)
+	_, m, stopFn := startTestAuthnModule(defaultHash)
 	defer stopFn()
 
 	// add agent to test with and connect
@@ -186,7 +180,7 @@ func TestUpdateProfile(t *testing.T) {
 	var tu1Name = "test user 1"
 
 	// const adminID = "administrator-1"
-	m, stopFn := startTestAuthnModule(defaultHash)
+	_, m, stopFn := startTestAuthnModule(defaultHash)
 	defer stopFn()
 
 	// add user to test with and connect
@@ -216,7 +210,7 @@ func TestUpdateProfileFail(t *testing.T) {
 	var tu1ID = "tu1ID"
 	var tu1Name = "test user 1"
 
-	m, stopFn := startTestAuthnModule(defaultHash)
+	_, m, stopFn := startTestAuthnModule(defaultHash)
 	defer stopFn()
 	// add user to test with and connect
 	err := m.AddClient(tu1ID, tu1Name, authn.ClientRoleViewer)

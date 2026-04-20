@@ -2,7 +2,7 @@
 
 The module factory creates module instances for the configured environment. Use of the factory is optional. It does make life easier though so give it a spin.
 
-The factory is a module itself that passes requests to the chain of loaded modules and sends notifications.
+The factory is a module itself that passes requests to the chain of loaded modules and returns notifications.
 
 ## Status
 
@@ -10,15 +10,13 @@ This module is in alpha. It is functional but breaking changes can be expected.
 
 ## Summary
 
-The purpose of the factory module is the simplify instantiation and linking of (golang) modules for a client or server application. It operates using a collection of registered modules. 3rd party modules can easily be added to the registry. By making modules for the customized logic, a complete application can be generated from the factory.
+The purpose of the factory module is the simplify instantiation and linking of (golang) modules for a client or server applications. It operates using a collection of registered modules. 3rd party modules can easily be added to the registry. By making modules for application logic, a complete application can be generated from the factory.
 
-The factory can be used to obtain individual modules or a chain of modules following a 'recipe'. When obtaining individual modules there is no need to know the right order of module instantiation as each module can use the factory to load additional modules it depends on.
-
-Some functionality, such as authentication, might not be available until later. For this case the factory uses a proxy implementation that can be linked to a module that offers the desired functionality. In most cases however the factory simply instantiates the registered module.
+The factory can be used to obtain individual modules or a chain of modules following a 'recipe'. Module dependencies are automatically resolved by letting modules load other modules during instantiation..
 
 Each module is registered using a module-type. The module type identifies the implementation and can require that a specific interface is implemented. Modules can be replaced with custom functionality as long as the replacement implements the interface for that module type.
 
-Applications can generate the module instances using 'GetModule(moduleType)'. The module uses the factory provided environment to obtain directory locations, certificates as needed.
+Applications can generate the module instances using 'GetModule(moduleType)'. The module uses the factory provided environment to obtain directory locations, certificates as needed. In case of clients the environment offers the server URL which can be set manually or by the discovery module.
 
 ## Usage
 
@@ -27,18 +25,18 @@ The easiest method to build an application is to use one of the predefined recip
 ```go (tenative)
 func main(){
     // 1. start with one of the factory templates and add the application
-    recipe := templates.StandardServerRecipe()
-    // 2. optionally register the application as a module or modify the recipe
+    recipe := recipe.StandardServerTemplate()
+    // 2. optionally register the application logic as a module or modify the recipe
     recipe.AddModule(MyAppModuleType, NewAppModuleFn)
-    // 3. create and optionally modify the environment
+    // 3. create the application environment. This handles commandline options.
     env := factory.NewAppEnvironment("", true)
     // 4. instantiate the factory and run the recipe
     f := factory.NewModuleFactory(env, nil)
-    f.StartRecipe(recipe)
+    recipe.Start(f)
     // 5. wait for Control-C or other signal to end the application
-    app.WaitForSignal()
+    f.WaitForSignal(context.Background())
     // 6. Graceful shutdown
-    app.StopAll()
+    f.StopAll()
 }
 ```
 
@@ -71,10 +69,10 @@ After generating the environment it is used to instantiate the factory and its m
 
 The homeDir is the root of application. This can follow two approaches, a user home or a system home directory.
 
-When a user home directory is chosen this defines the following application folder structure:
+When a user home directory is chosen this defines the following application folder structure (on Linux):
 
 ```
-~/bin/home
+~/bin/myapp
         |- bin               Application binaries, cli and launcher
         |- plugins           Plugin binaries controlled by the launcher
         |- config            Service configuration yaml files
@@ -97,6 +95,8 @@ When a system home directory is chosen it should be a directory /opt/{appname}. 
 /var/lib/{appname}/{service}  Storage of service data
 ```
 
+A Windows directory structure can be accomodated by setting the paths directly.
+
 ### Commandline arguments
 
 When building an application it is not uncommon to be able to specify different directories from the commandline.
@@ -115,7 +115,8 @@ NewAppEnvironment uses the golang 'flag' library to allow overriding the directo
 
 ### Certificates
 
-Servers need certificates and certificates need to be created. The environment defined in the previous paragraph expects certificates to exist in the 'certs' directory. If they don't exist during initialization a set of self-signed certificates will be created.
+Servers need certificates and these certificates need to be created somehow. The environment expects certificates to exist in the configured 'certs' directory.
+If they don't exist during initialization a set of self-signed CA and server certificates will be created when a server module is instantiated.
 
 ```
 - caCert.pem     - the CA certificate.
@@ -126,8 +127,10 @@ Servers need certificates and certificates need to be created. The environment d
 
 ### Keys
 
-Services that run stand-alone and connect to a server need keys to authenticate. These are stored in the certs directory and are read-only to the user that runs the factory.
+Services that run stand-alone and connect to a server need keys (bearer tokens) to authenticate. These are also stored in the certs directory and are read-only to the user that runs the factory.
 
 The key file has the application-ID as the filename with ".key" as the suffix. The keys can be generated manually using a commandline utility or automatically through a launcher service if used. By default the application-ID is the name of the binary.
 
 If the server side uses the authn module for authentication (recommended) then the keys must be generated using this module.
+
+The cli and launcher mentioned above are applications build with HiveKit. See the go/apps directory for details.

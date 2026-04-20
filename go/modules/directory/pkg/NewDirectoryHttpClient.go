@@ -7,6 +7,7 @@ import (
 	"net/url"
 	"time"
 
+	"github.com/hiveot/hivekit/go/api/msg"
 	"github.com/hiveot/hivekit/go/api/td"
 	"github.com/hiveot/hivekit/go/modules"
 	"github.com/hiveot/hivekit/go/modules/directory"
@@ -172,7 +173,7 @@ func NewDirectoryHttpClient(serverURL string, caCert *x509.Certificate) *Directo
 	tlsClient := httpclient.NewHttpClient(parts.Host, nil, caCert, 0)
 
 	cl := &DirectoryHttpClient{
-		timeout:   transports.DefaultRpcTimeout,
+		timeout:   msg.DefaultRnRTimeout,
 		tlsClient: tlsClient,
 	}
 	return cl

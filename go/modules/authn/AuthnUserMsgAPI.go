@@ -1,4 +1,4 @@
-// package authnapi with messaging definitions for the authn user service
+// package authn with messaging definitions for the authn user service
 package authn
 
 // AuthnUserThingID is the Thing instance ID of the user facing auth service.
@@ -12,6 +12,7 @@ const (
 
 	// Action names
 	UserActionGetProfile    = "getProfile"
+	UserActionLogin         = "login"
 	UserActionLogout        = "Logout"
 	UserActionRefreshToken  = "refreshToken"
 	UserActionSetPassword   = "setPassword"

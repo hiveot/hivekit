@@ -3,13 +3,11 @@ package service
 import (
 	"fmt"
 	"log/slog"
-	"net/url"
 
 	"github.com/hiveot/hivekit/go/api/msg"
 	"github.com/hiveot/hivekit/go/modules"
 	"github.com/hiveot/hivekit/go/modules/authn"
 	authnstore "github.com/hiveot/hivekit/go/modules/authn/internal/store"
-	"github.com/hiveot/hivekit/go/modules/transports"
 )
 
 // AuthnService is a module that manages clients and issues authentication tokens.
@@ -21,14 +19,7 @@ type AuthnService struct {
 
 	config authn.AuthnConfig
 
-	// The http/tls server to register endpoints
-	httpServer transports.IHttpServer
-
-	//
 	authnStore authnstore.IAuthnStore
-
-	// Messaging API handlers
-	userHttpHandler *UserHttpHandler
 
 	// Creation and validation of session tokens
 	sessionManager *SessionManager
@@ -49,22 +40,6 @@ func (m *AuthnService) AddClient(clientID string, displayName string, role strin
 		Role:        role,
 	}
 	return m.authnStore.Add(newProfile)
-}
-
-// GetConnectURL returns the URI of the authentication server with protocol to include
-// in the TD security scheme.
-//
-// This is currently just the base for the login endpoint (post {base}/authn/login).
-// The http server might need to include a web page where users can enter their login
-// name and password, although that won't work for machines... tbd
-//
-// Note that web browsers do not directly access the runtime endpoints.
-// Instead a web server (hiveoview or other) provides the user interface.
-// Including the auth endpoint here is currently just a hint. How to integrate this?
-func (m *AuthnService) GetConnectURL() (uri string, protocolType string) {
-	baseURL := m.httpServer.GetConnectURL()
-	loginURL, _ := url.JoinPath(baseURL, HttpPostLoginPath)
-	return loginURL, transports.ProtocolTypeWotHttpBasic
 }
 
 // GetProfile return the client's profile
@@ -147,10 +122,10 @@ func (m *AuthnService) Start() (err error) {
 	// }
 
 	// if an http server is provided then register the endpoints
-	if m.httpServer != nil {
-		// m.httpServer.SetAuthenticator(m)
-		m.userHttpHandler = NewUserHttpHandler(m, m.httpServer)
-	}
+	// if m.httpServer != nil {
+	// 	// m.httpServer.SetAuthenticator(m)
+	// 	m.userHttpHandler = NewAuthnUserHttpHandler(m, m.httpServer)
+	// }
 	return err
 }
 
@@ -242,7 +217,7 @@ func (m *AuthnService) UpdateProfile(senderID string, newProfile authn.ClientPro
 //
 // authnConfig contains the password storage and token management configuration
 // httpServer to server the http endpoint or nil to not use http.
-func NewAuthnService(authnConfig authn.AuthnConfig, httpServer transports.IHttpServer) *AuthnService {
+func NewAuthnService(authnConfig authn.AuthnConfig) *AuthnService {
 
 	passwordFile := authnConfig.PasswordFile
 	encryption := authnConfig.Encryption
@@ -251,7 +226,6 @@ func NewAuthnService(authnConfig authn.AuthnConfig, httpServer transports.IHttpS
 
 	m := &AuthnService{
 		config:         authnConfig,
-		httpServer:     httpServer,
 		authnStore:     authnStore,
 		sessionManager: sessionManager,
 		// sessionStart: make(map[string]time.Time),

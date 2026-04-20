@@ -28,7 +28,7 @@ import (
 
 var storageDir = filepath.Join(os.TempDir(), "hivekit", "digitwin-test")
 
-const rpcTimout = transports.DefaultRpcTimeout
+const rpcTimout = msg.DefaultRnRTimeout
 
 // TestMain setup logging and creates a test environment
 func TestMain(m *testing.M) {
@@ -55,7 +55,7 @@ func startService() (
 	// testEnv,cancelFn = tptests.StartTestEnv(transports.ProtocolSchemeWotWSS)
 	testEnv = testenv.NewTestEnv()
 	// http server needed for all communications
-	testEnv.StartHttpServer()
+	testEnv.StartHttpServer(true)
 	// a websocket server for RRN messaging
 	appServer := testEnv.StartTestServer("")
 
@@ -239,7 +239,7 @@ func TestReadDigitwinProperty(t *testing.T) {
 
 	// 4. the consumer reads the property value
 	var respValue string
-	err = co.Rpc(td.OpReadProperty, dtwThingID, prop1Name, nil, &respValue)
+	err = co.ReadProperty(dtwThingID, prop1Name, &respValue)
 	require.NoError(t, err)
 	assert.Equal(t, prop1Value, respValue)
 }
@@ -321,7 +321,8 @@ func TestWriteDigitwinProperty(t *testing.T) {
 	time.Sleep(time.Millisecond * 10)
 
 	// 6. Consumer reads the property
-	rxPropValue, err := co.ReadProperty(dtwThing1ID, prop1Name)
+	var rxPropValue string
+	err = co.ReadProperty(dtwThing1ID, prop1Name, &rxPropValue)
 	require.NoError(t, err)
 	assert.Equal(t, prop1Value, rxPropValue)
 }

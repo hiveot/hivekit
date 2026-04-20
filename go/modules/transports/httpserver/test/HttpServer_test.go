@@ -59,7 +59,7 @@ func TestMain(m *testing.M) {
 func TestStartStop(t *testing.T) {
 	t.Logf("---%s---\n", t.Name())
 	cfg := httpserverconfig.NewConfig(
-		serverAddress, serverPort, testCerts.ServerCert, testCerts.CaCert, nil)
+		serverAddress, serverPort, testCerts.ServerCert, testCerts.CaCert, nil, true)
 	srv := httpserver.NewHttpServerModule(cfg)
 	err := srv.Start()
 	assert.NoError(t, err)
@@ -69,7 +69,7 @@ func TestStartStop(t *testing.T) {
 func TestNoServerCert(t *testing.T) {
 	t.Logf("---%s---\n", t.Name())
 	cfg := httpserverconfig.NewConfig(
-		serverAddress, serverPort, nil, testCerts.CaCert, nil)
+		serverAddress, serverPort, nil, testCerts.CaCert, nil, true)
 
 	srv := httpserver.NewHttpServerModule(cfg)
 	err := srv.Start()
@@ -84,7 +84,7 @@ func TestNoAuth(t *testing.T) {
 	path1Hit := 0
 
 	cfg := httpserverconfig.NewConfig(
-		serverAddress, serverPort, testCerts.ServerCert, testCerts.CaCert, nil)
+		serverAddress, serverPort, testCerts.ServerCert, testCerts.CaCert, nil, true)
 
 	srv := httpserver.NewHttpServerModule(cfg)
 
@@ -125,7 +125,7 @@ func TestTokenAuth(t *testing.T) {
 
 	// setup server and client environment
 	cfg := httpserverconfig.NewConfig(
-		serverAddress, serverPort, testCerts.ServerCert, testCerts.CaCert, testAuth)
+		serverAddress, serverPort, testCerts.ServerCert, testCerts.CaCert, testAuth, true)
 
 	srv := httpserver.NewHttpServerModule(cfg)
 	err := srv.Start()
@@ -179,7 +179,7 @@ func TestClientCert(t *testing.T) {
 	// 	testCerts.ServerCert, testCerts.CaCert)
 
 	cfg := httpserverconfig.NewConfig(
-		serverAddress, serverPort, testCerts.ServerCert, testCerts.CaCert, nil)
+		serverAddress, serverPort, testCerts.ServerCert, testCerts.CaCert, nil, true)
 	srv := httpserver.NewHttpServerModule(cfg)
 
 	err := srv.Start()
@@ -263,7 +263,7 @@ func TestWriteResponse(t *testing.T) {
 	path2Hit := 0
 
 	cfg := httpserverconfig.NewConfig(
-		serverAddress, serverPort, testCerts.ServerCert, testCerts.CaCert, nil)
+		serverAddress, serverPort, testCerts.ServerCert, testCerts.CaCert, nil, true)
 	srv := httpserver.NewHttpServerModule(cfg)
 
 	err := srv.Start()
@@ -295,7 +295,7 @@ func TestBadPort(t *testing.T) {
 	t.Logf("---%s---\n", t.Name())
 
 	cfg := httpserverconfig.NewConfig(
-		serverAddress, serverPort, testCerts.ServerCert, testCerts.CaCert, nil)
+		serverAddress, serverPort, testCerts.ServerCert, testCerts.CaCert, nil, true)
 
 	cfg.Address = serverAddress
 	cfg.Port = 1 // bad port

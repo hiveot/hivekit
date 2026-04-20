@@ -98,9 +98,10 @@ type Config struct {
 //	serverCert TLS certificate signed by the CA
 //	caCert x509 CA certificate
 //	validateToken is the required handler for authenticating protected routes
+//	logging enable middleware logging
 func NewConfig(
 	addr string, port int, serverCert *tls.Certificate, caCert *x509.Certificate,
-	authenticator transports.IAuthenticator) *Config {
+	authenticator transports.IAuthenticator, logging bool) *Config {
 
 	if addr == "" {
 		addr = utils.GetOutboundIP("").String()
@@ -134,10 +135,13 @@ func NewConfig(
 			"application/x-javascript",
 			"application/json",
 			"image/svg+xml"},
-		Logger:              middleware.Logger,
+		// Logger:              middleware.Logger, // log posts to stdout
 		NoTLS:               false,
 		Recoverer:           middleware.Recoverer,
 		StripSlashesEnabled: true,
+	}
+	if logging {
+		o.Logger = middleware.Logger
 	}
 	return o
 }

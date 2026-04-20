@@ -4,6 +4,8 @@ import (
 	"github.com/hiveot/hivekit/go/api/msg"
 )
 
+const ReadHistoryClientModuleType = "readHistoryClient"
+
 // Action names as defined in the module TM
 const (
 

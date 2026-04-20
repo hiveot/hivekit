@@ -190,7 +190,8 @@ func TestAddGetEvent(t *testing.T) {
 
 	// create an end user client for testing
 	co1, _, _ := testEnv.NewConsumerClient(testClientID, authn.ClientRoleOperator, nil)
-	histCl := historypkg.NewReadHistoryClient(co1)
+	histCl := historypkg.NewReadHistoryClient()
+	histCl.SetRequestSink(co1.HandleRequest)
 
 	fivemago := time.Now().Add(-time.Minute * 5)
 	fiftyfivemago := time.Now().Add(-time.Minute * 55)
@@ -279,6 +280,9 @@ func TestAddGetEvent(t *testing.T) {
 	// PHASE 2: after closing and reopening the svc the event should still be there
 	m, stopFn = startHistoryService(false)
 	defer stopFn()
+	co1, _, _ = testEnv.NewConsumerClient(testClientID, authn.ClientRoleOperator, nil)
+	histCl = historypkg.NewReadHistoryClient()
+	histCl.SetRequestSink(co1.HandleRequest)
 
 	// Test 3: get first temperature of things 2 - expect 1 result
 	time.Sleep(time.Second)
@@ -393,7 +397,8 @@ func TestAddProperties(t *testing.T) {
 
 	// create an end user client for testing
 	co1, _, _ := testEnv.NewConsumerClient(testClientID, authn.ClientRoleOperator, nil)
-	histCl := historypkg.NewReadHistoryClient(co1)
+	histCl := historypkg.NewReadHistoryClient()
+	histCl.SetRequestSink(co1.HandleRequest)
 
 	cursorKey, releaseFn, err := histCl.GetCursor(thing1ID, "")
 	defer releaseFn()
@@ -457,8 +462,10 @@ func TestPrevNext(t *testing.T) {
 	_ = addBulkHistory(store, thing0ID, count, 1, 3600*24*30)
 
 	// create an end user client for testing
+	histCl := historypkg.NewReadHistoryClient()
 	co1, _, _ := testEnv.NewConsumerClient(testClientID, authn.ClientRoleOperator, nil)
-	histCl := historypkg.NewReadHistoryClient(co1)
+	histCl.SetRequestSink(co1.HandleRequest)
+
 	cursorKey, releaseFn, err := histCl.GetCursor(thing0ID, "")
 	require.NoError(t, err)
 	defer releaseFn()
@@ -520,8 +527,10 @@ func TestPrevNextFiltered(t *testing.T) {
 	propName := names[2] // names was used to generate the history
 
 	// A cursor with a filter on propName should only return results of propName
+	histCl := historypkg.NewReadHistoryClient()
 	co1, _, _ := testEnv.NewConsumerClient(testClientID, authn.ClientRoleOperator, nil)
-	histCl := historypkg.NewReadHistoryClient(co1)
+	histCl.SetRequestSink(co1.HandleRequest)
+
 	defer co1.Stop()
 	cursorKey, releaseFn, err := histCl.GetCursor(thing0ID, propName)
 	require.NoError(t, err)
@@ -588,7 +597,8 @@ func TestNextPrevUntil(t *testing.T) {
 	_ = addBulkHistory(store, agentID, count, 1, 3600*24)
 
 	co1, _, _ := testEnv.NewConsumerClient(testClientID, authn.ClientRoleOperator, nil)
-	readHist := historypkg.NewReadHistoryClient(co1)
+	readHist := historypkg.NewReadHistoryClient()
+	readHist.SetRequestSink(co1.HandleRequest)
 	defer co1.Stop()
 	cursorKey, releaseFn, err := readHist.GetCursor(thing0ID, "")
 	defer releaseFn()
@@ -626,7 +636,8 @@ func TestReadHistory(t *testing.T) {
 	defer closeFn()
 	//
 	co1, _, _ := testEnv.NewConsumerClient(testClientID, authn.ClientRoleOperator, nil)
-	readHist := historypkg.NewReadHistoryClient(co1)
+	readHist := historypkg.NewReadHistoryClient()
+	readHist.SetRequestSink(co1.HandleRequest)
 	defer co1.Stop()
 
 	// 1 sensors -> 1000/24 hours is approx 41/hour
@@ -662,7 +673,8 @@ func TestPubEvents(t *testing.T) {
 	_ = m
 	defer stopFn()
 	co1, _, _ := testEnv.NewConsumerClient(testClientID, authn.ClientRoleOperator, nil)
-	readHist := historypkg.NewReadHistoryClient(co1)
+	readHist := historypkg.NewReadHistoryClient()
+	readHist.SetRequestSink(co1.HandleRequest)
 	defer co1.Stop()
 
 	// Add the thing who is publishing events

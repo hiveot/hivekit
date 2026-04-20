@@ -20,18 +20,23 @@ const timespanMonth = timespanDay * 31
 const timespanYear = timespanDay * 365
 
 // $go test -bench=BenchmarkAddEvents -benchtime=3s -run ^#
-//                                                                                          --- WOT protocol bindings (reading) ---
-//                                      ---------------  MQTT/NATS BROKER --------------     HTTPSSE runtime          WSS runtime
-//	DBSize #Things                      kvbtree (msec)    pebble (msec)     bbolt (msec)      pebble (msec)           pebble (msec)
-//	 10K      10    add 1K single (*)       2.5             4.7             4600/4600             5.6                    6.1           <- increase of 40% due to internal changes
-//	 10K      10    add 1K batch (*)        1.2             2.4               76/72               5.6                    3.5
-//	 10K      10    get 1K single         330/125         324/130            300/130            770     (!! ouch)      190
-//	 10K      10    get 1K batch          5.5/4.3           7                5.5/4.3             17     (!!)            15
 //
-//	100K      10    add 1K single (*)       2.9             4.3             4900/4900             6.7                    5.5
-//	100K      10    add 1K batch (*)        1.4             2.4               84/82               5.8                    3.1
-//	100K      10    get 1K single         340/130         320/128            325/130            750     (!! ouch)      190
-//	100K      10    get 1K batch          6.0/4.2           7                5.2/4.3             15                     16
+// Notes:
+// - Take this comparison with a pot of salt. The mqtt/nats was a different environment altogether but shows what is possible
+// - These tests run faster in vscode than the commandline listed above. Use the commandline for comparison.
+//
+//                                                                                          --- WOT protocol bindings (reading) ---
+//                                      ---------------  MQTT/NATS BROKER --------------      HTTP/SSE-SC         WSS          gRPC
+//	DBSize #Things                      kvbtree (msec)    pebble (msec)     bbolt (msec)      pebble (msec)     pebble        pebble
+//	 10K      10    add 1K single (*)       2.5             4.7             4600/4600             5.3              5.4          5.2
+//	 10K      10    add 1K batch (*)        1.2             2.4               76/72               5.4              5.4          5.2
+//	 10K      10    get 1K single         330/125         324/130            300/130            240              220          130
+//	 10K      10    get 1K batch          5.5/4.3           7                5.5/4.3             17               27           16
+//
+//	100K      10    add 1K single (*)       2.9             4.3             4900/4900             3.8              3.9          3.9
+//	100K      10    add 1K batch (*)        1.4             2.4               84/82               3.9              3.9          3.9
+//	100K      10    get 1K single         340/130         320/128            325/130            230              220          130
+//	100K      10    get 1K batch          6.0/4.2           7                5.2/4.3             19               25           19
 //
 //	  1M     100    add 1K single (*)       2.9             5.7             5500
 //	  1M     100    add 1K batch (*)        1.4             3.1              580
@@ -64,11 +69,10 @@ func BenchmarkAddEvents(b *testing.B) {
 	const thing0ID = thingIDPrefix + "0"
 	const timespanSec = 3600 * 24 * 10
 
-	utils.SetLogging("error", "")
-
 	for _, tbl := range DataSizeTable {
 		testData, _ := makeValueBatch("device1", tbl.dataSize, tbl.nrThings, timespanMonth)
 		m, stopFn := startHistoryService(true)
+		utils.SetLogging("error", "")
 		time.Sleep(time.Millisecond)
 		// build a dataset in the store
 		addBulkHistory(m, agentID, tbl.dataSize, 10, timespanSec)
@@ -103,7 +107,8 @@ func BenchmarkAddEvents(b *testing.B) {
 		// test reading records
 		// readHist connects using transport protocol
 		co1, _, _ := testEnv.NewConsumerClient(testClientID, authn.ClientRoleOperator, nil)
-		readHist := historypkg.NewReadHistoryClient(co1)
+		readHist := historypkg.NewReadHistoryClient()
+		readHist.SetRequestSink(co1.HandleRequest)
 		defer co1.Stop()
 
 		time.Sleep(time.Millisecond * 300) // let the add settle

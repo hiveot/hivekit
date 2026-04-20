@@ -208,8 +208,7 @@ func (m *HttpServer) Stop() {
 //
 // config MUST have been configured with a CA and server certificate unless
 // NoTLS is set.
-func NewHttpServer(
-	config *httpserverconfig.Config) *HttpServer {
+func NewHttpServer(config *httpserverconfig.Config) *HttpServer {
 
 	// if config.ModuleID == "" {
 	// 	config.ModuleID = transports.DefaultHttpServerModuleID

@@ -6,23 +6,30 @@ import (
 
 	"github.com/hiveot/hivekit/go/api/msg"
 	"github.com/hiveot/hivekit/go/api/td"
-	"github.com/hiveot/hivekit/go/modules/clients"
+	"github.com/hiveot/hivekit/go/modules"
+	"github.com/hiveot/hivekit/go/modules/factory"
 	"github.com/hiveot/hivekit/go/modules/history"
 	"github.com/hiveot/hivekit/go/utils"
 )
 
-// ReadHistoryClient for talking to the history service
+// ReadHistoryClient module for messaging the history service
 // This client supports both the cursor-based iteration and the batch read history method.
 //
 // To use the cursor-based iteration, use GetCursor to obtain a cursor and then use the cursor
 // methods to iterate through the history.
+//
+// This client module only handles the messaging. It must be linked to a transport client
+// that connects to the service.
 type ReadHistoryClient struct {
-	// Agent that handles the ThingID requests
-	// histAgentID string
+	modules.HiveModuleBase
+
 	// ThingID of the service providing the read history capability
 	histThingID string
-	// consumer instance to use for sending requests
-	co *clients.Consumer
+}
+
+// invoke action on the history service
+func (cl *ReadHistoryClient) call(name string, input any, output any) error {
+	return cl.Rpc("ReadHistoryClient", td.OpInvokeAction, cl.histThingID, name, input, output)
 }
 
 // GetCursor obtains a cursor key to iterate using the iteration functions.
@@ -39,8 +46,7 @@ func (cl *ReadHistoryClient) GetCursor(thingID string, filterOnName string) (
 		ThingID: thingID,
 		Name:    filterOnName,
 	}
-	err = cl.co.Rpc(td.OpInvokeAction,
-		cl.histThingID, history.CreateCursorMethod, &args, &cursorKey)
+	err = cl.call(history.CreateCursorMethod, &args, &cursorKey)
 	return cursorKey, func() { cl.ReleaseCursor(cursorKey) }, err
 }
 
@@ -48,8 +54,7 @@ func (cl *ReadHistoryClient) GetCursor(thingID string, filterOnName string) (
 // This returns an error if the cursor has expired or is not found.
 func (cl *ReadHistoryClient) First(cursorKey string) (value *msg.NotificationMessage, valid bool, err error) {
 	resp := history.CursorValueResp{}
-	err = cl.co.Rpc(td.OpInvokeAction,
-		cl.histThingID, history.CursorFirstMethod, &cursorKey, &resp)
+	err = cl.call(history.CursorFirstMethod, &cursorKey, &resp)
 	return resp.Value, resp.Valid, err
 }
 
@@ -57,8 +62,7 @@ func (cl *ReadHistoryClient) First(cursorKey string) (value *msg.NotificationMes
 // This returns an error if the cursor has expired or is not found.
 func (cl *ReadHistoryClient) Last(cursorKey string) (thingValue *msg.NotificationMessage, valid bool, err error) {
 	resp := history.CursorValueResp{}
-	err = cl.co.Rpc(td.OpInvokeAction,
-		cl.histThingID, history.CursorLastMethod, &cursorKey, &resp)
+	err = cl.call(history.CursorLastMethod, &cursorKey, &resp)
 	return resp.Value, resp.Valid, err
 }
 
@@ -66,8 +70,7 @@ func (cl *ReadHistoryClient) Last(cursorKey string) (thingValue *msg.Notificatio
 // This returns an error if the cursor has expired or is not found.
 func (cl *ReadHistoryClient) Next(cursorKey string) (thingValue *msg.NotificationMessage, valid bool, err error) {
 	resp := history.CursorValueResp{}
-	err = cl.co.Rpc(td.OpInvokeAction,
-		cl.histThingID, history.CursorNextMethod, &cursorKey, &resp)
+	err = cl.call(history.CursorNextMethod, &cursorKey, &resp)
 	return resp.Value, resp.Valid, err
 }
 
@@ -83,8 +86,7 @@ func (cl *ReadHistoryClient) NextN(cursorKey string, until time.Time, limit int)
 		Limit:     limit,
 	}
 	resp := history.CursorNResp{}
-	err = cl.co.Rpc(td.OpInvokeAction,
-		cl.histThingID, history.CursorNextNMethod, &req, &resp)
+	err = cl.call(history.CursorNextNMethod, &req, &resp)
 	return resp.Values, resp.ItemsRemaining, err
 }
 
@@ -92,8 +94,7 @@ func (cl *ReadHistoryClient) NextN(cursorKey string, until time.Time, limit int)
 // This returns an error if the cursor has expired or is not found.
 func (cl *ReadHistoryClient) Prev(cursorKey string) (thingValue *msg.NotificationMessage, valid bool, err error) {
 	resp := history.CursorValueResp{}
-	err = cl.co.Rpc(td.OpInvokeAction,
-		cl.histThingID, history.CursorPrevMethod, &cursorKey, &resp)
+	err = cl.call(history.CursorPrevMethod, &cursorKey, &resp)
 	return resp.Value, resp.Valid, err
 }
 
@@ -110,15 +111,13 @@ func (cl *ReadHistoryClient) PrevN(cursorKey string, until time.Time, limit int)
 		Limit:     limit,
 	}
 	resp := history.CursorNResp{}
-	err = cl.co.Rpc(td.OpInvokeAction,
-		cl.histThingID, history.CursorPrevNMethod, &req, &resp)
+	err = cl.call(history.CursorPrevNMethod, &req, &resp)
 	return resp.Values, resp.ItemsRemaining, err
 }
 
 // Release the allocated cursor key
 func (cl *ReadHistoryClient) ReleaseCursor(cursorKey string) {
-	err := cl.co.Rpc(td.OpInvokeAction,
-		cl.histThingID, history.CursorReleaseMethod, &cursorKey, nil)
+	err := cl.call(history.CursorReleaseMethod, &cursorKey, nil)
 	if err != nil {
 		slog.Warn("ReleaseCursor failed", "cursorKey", cursorKey, "err", err)
 	}
@@ -147,8 +146,7 @@ func (cl *ReadHistoryClient) ReadHistory(thingID string, filterOnName string,
 		Limit:          limit,
 	}
 	resp := history.ReadHistoryResp{}
-	err = cl.co.Rpc(td.OpInvokeAction,
-		cl.histThingID, history.ReadHistoryMethod, &args, &resp)
+	err = cl.call(history.ReadHistoryMethod, &args, &resp)
 	return resp.Values, resp.ItemsRemaining, err
 }
 
@@ -163,21 +161,32 @@ func (cl *ReadHistoryClient) Seek(cursorKey string, timestamp time.Time) (
 		Timestamp: timeRFC,
 	}
 	resp := history.CursorValueResp{}
-	err = cl.co.Rpc(td.OpInvokeAction,
-		cl.histThingID, history.CursorSeekMethod, &args, &resp)
+	err = cl.call(history.CursorSeekMethod, &args, &resp)
 	return resp.Value, resp.Valid, err
 }
 
-// NewReadHistoryClient returns an instance of the read history client using the given
-// consumer connection.
+// NewReadHistoryClient returns an instance of the read history client.
+//
+// The client must be linked to a client connection.
+// (multiple clients can be chained this way)
 //
 //	invokeAction is the TD invokeAction for the invoke-action operation of the history service
-func NewReadHistoryClient(co *clients.Consumer) *ReadHistoryClient {
+func NewReadHistoryClient() *ReadHistoryClient {
 	// how to determine the thingID of the history service?
 	// For now we use the well-known IDs. In future this needs discovery
 	histCl := ReadHistoryClient{
-		co:          co,
 		histThingID: history.HistoryModuleType,
 	}
 	return &histCl
+}
+
+// NewReadHistoryClientFactory returns an instance of the read history client
+// using the given factory environment.
+//
+// The client must be linked to a client connection.
+// (multiple clients can be chained this way)
+//
+//	invokeAction is the TD invokeAction for the invoke-action operation of the history service
+func NewReadHistoryClientFactory(f factory.IModuleFactory) modules.IHiveModule {
+	return NewReadHistoryClient()
 }

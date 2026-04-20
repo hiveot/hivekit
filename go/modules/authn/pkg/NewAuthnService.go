@@ -6,23 +6,19 @@ import (
 	"github.com/hiveot/hivekit/go/modules/factory"
 
 	"github.com/hiveot/hivekit/go/modules/authn/internal/service"
-	"github.com/hiveot/hivekit/go/modules/transports"
 )
 
-// NewAuthnService create a new instance of the authentication service.
+// NewAuthnService create a new instance of the authentication service using RRN messaging.
 // This service offers the ability to manage clients.
 //
-// Note: to avoid a chicken-and-egg problem between authentication and http server,
-// create the http server first and pass it to the authenticator. The authenticator will
-// invoke httpserver.SetAuthValidator on start.
+// See also the AuthnHttpService that provides the http API to this service.
 //
 // authnConfig contains the password storage and token management configuration
 // httpServer to server the http endpoint or nil to not use http.
 func NewAuthnService(
-	authnConfig authn.AuthnConfig,
-	httpServer transports.IHttpServer) authn.IAuthnService {
+	authnConfig authn.AuthnConfig) authn.IAuthnService {
 
-	m := service.NewAuthnService(authnConfig, httpServer)
+	m := service.NewAuthnService(authnConfig)
 	return m
 }
 
@@ -34,9 +30,7 @@ func NewAuthnServiceFactory(f factory.IModuleFactory) modules.IHiveModule {
 	keysDir := env.CertsDir
 	storageDir := env.GetStorageDir(authn.AuthnModuleType)
 	authnConfig := authn.NewAuthnConfig(keysDir, storageDir)
-	// TODO: option to enable/disable the authn http endpoints
-	httpServer := f.GetHttpServer()
-	m := NewAuthnService(authnConfig, httpServer)
+	m := NewAuthnService(authnConfig)
 	f.SetAuthenticator(m.GetSessionManager())
 	return m
 }

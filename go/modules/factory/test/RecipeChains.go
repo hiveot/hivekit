@@ -7,12 +7,12 @@ import (
 
 // module types of a device server agent chain
 var TestDeviceServerChain = []string{
-	wss.WotWebsocketServerType,
+	wss.WotWebsocketServerModuleType,
 	clients.AgentModuleType,
 }
 
 // module types of a device client chain
 var TestDeviceClientChain = []string{
 	clients.ConsumerModuleType,
-	wss.WotWebsocketClientType,
+	wss.WotWebsocketClientModuleType,
 }

@@ -272,14 +272,16 @@ func TestQueryActions(t *testing.T) {
 
 	// 3. Query action status
 	var status msg.ResponseMessage
-	err := co1.Rpc(td.OpQueryAction, thingID, actionKey, nil, &status)
+	status, err := co1.QueryAction(thingID, actionKey)
+	// err := co1.Rpc(td.OpQueryAction, thingID, actionKey, nil, &status)
 	require.NoError(t, err)
 	require.Equal(t, thingID, status.ThingID)
 	require.Equal(t, actionKey, status.Name)
 
 	// 4. Query all actions
 	var statusMap map[string]msg.ResponseMessage
-	err = co1.Rpc(td.OpQueryAllActions, thingID, actionKey, nil, &statusMap)
+	statusMap, err = co1.QueryAllActions(thingID)
+	// err = co1.Rpc(td.OpQueryAllActions, thingID, actionKey, nil, &statusMap)
 	require.NoError(t, err)
 	require.Equal(t, 3, len(statusMap))
 }

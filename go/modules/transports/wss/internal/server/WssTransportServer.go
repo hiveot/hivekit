@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
+	"github.com/hiveot/hivekit/go/api/msg"
 	"github.com/hiveot/hivekit/go/modules"
 	"github.com/hiveot/hivekit/go/modules/transports"
 	"github.com/hiveot/hivekit/go/modules/transports/wss"
@@ -139,7 +140,7 @@ func NewHiveotWssServer(httpServer transports.IHttpServer, respTimeout time.Dura
 	}
 
 	if respTimeout == 0 {
-		respTimeout = transports.DefaultRpcTimeout
+		respTimeout = msg.DefaultRnRTimeout
 	}
 	m := &WssTransportServer{
 		httpServer: httpServer,
@@ -174,7 +175,7 @@ func NewWotWssServer(httpServer transports.IHttpServer, respTimeout time.Duratio
 		panic("NewWotWssModule: Http server has invalid URL")
 	}
 	if respTimeout == 0 {
-		respTimeout = transports.DefaultRpcTimeout
+		respTimeout = msg.DefaultRnRTimeout
 	}
 	m := &WssTransportServer{
 		httpServer:  httpServer,

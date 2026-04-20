@@ -10,10 +10,10 @@ const (
 	HiveotWebsocketPath             = "/hiveot/wss"
 
 	// WoT websocket sub-protocol
-	WotWebsocketClientType    = "wot-wss-client"
-	WotWebsocketServerType    = "wot-wss-server"
-	WotWebsocketServerThingID = WotWebsocketServerType
-	WotWebsocketPath          = "/wot/wss"
+	WotWebsocketClientModuleType = "wot-wss-client"
+	WotWebsocketServerModuleType = "wot-wss-server"
+	WotWebsocketServerThingID    = WotWebsocketServerModuleType
+	WotWebsocketPath             = "/wot/wss"
 )
 
 // Interface of the Hiveot websocket server module

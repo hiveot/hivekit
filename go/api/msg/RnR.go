@@ -8,7 +8,7 @@ import (
 	"time"
 )
 
-// the default timeout to use if none is provided
+// The default request-response timeout to use if none is provided
 const DefaultRnRTimeout = time.Second * 3
 
 // RnRChan is a helper for Request 'n Response message handling using channels.

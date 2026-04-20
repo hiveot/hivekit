@@ -71,7 +71,7 @@ func (m *HttpServer) addMiddleware(cfg *httpserverconfig.Config) {
 		rootRouter.Use(corsMiddleware.Handler)
 	}
 	if cfg.Logger != nil {
-		rootRouter.Use(cfg.Logger)
+		// rootRouter.Use(cfg.Logger)
 	}
 	if cfg.Recoverer != nil {
 		rootRouter.Use(cfg.Recoverer)

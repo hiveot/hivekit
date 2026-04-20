@@ -258,7 +258,7 @@ func NewRouterService(storageDir string,
 		tpServers:         tpServers,
 		deviceConnections: make(map[string]transports.ITransportClient),
 		routerThingID:     router.DefaultRouterThingID,
-		timeout:           transports.DefaultRpcTimeout,
+		timeout:           msg.DefaultRnRTimeout,
 	}
 
 	var _ router.IRouterService = m // interface check

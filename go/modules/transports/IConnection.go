@@ -6,10 +6,6 @@ import (
 	"github.com/hiveot/hivekit/go/api/msg"
 )
 
-// DefaultRpcTimeout is the default communication timeout
-// Connection timeouts can be changed by calling SetTimeout on the IConnection of clients and servers
-const DefaultRpcTimeout = time.Second * 3
-
 // ConnectionHandler handles a change in connection status
 //
 //	connected is true when connected without errors

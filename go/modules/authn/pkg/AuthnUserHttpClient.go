@@ -1,6 +1,7 @@
 package authnpkg
 
 import (
+	"crypto/tls"
 	"crypto/x509"
 	"log/slog"
 	"net/http"
@@ -12,19 +13,19 @@ import (
 	jsoniter "github.com/json-iterator/go"
 )
 
-// AuthnHttpClient is a client for authentication operations such as login using http requests.
+// AuthnUserHttpClient is a http client for authentication operations such as login using http requests.
 // This is a simple API for clients to be able to obtain an auth token and refresh it.
-type AuthnHttpClient struct {
+type AuthnUserHttpClient struct {
 	tlsClient transports.ITLSClient
 }
 
 // Close the underlying TLS client used by the authentication client
-func (cl *AuthnHttpClient) Close() {
+func (cl *AuthnUserHttpClient) Close() {
 	cl.tlsClient.Close()
 }
 
 // set the clientID and authn token this client uses
-func (cl *AuthnHttpClient) ConnectWithToken(clientID string, token string) (err error) {
+func (cl *AuthnUserHttpClient) ConnectWithToken(clientID string, token string) (err error) {
 
 	cl.tlsClient.ConnectWithToken(clientID, token)
 	return nil
@@ -32,7 +33,7 @@ func (cl *AuthnHttpClient) ConnectWithToken(clientID string, token string) (err 
 
 // Return the client's profile.
 // The client must be authenticated first.
-func (cl *AuthnHttpClient) GetProfile() (profile authn.ClientProfile, err error) {
+func (cl *AuthnUserHttpClient) GetProfile() (profile authn.ClientProfile, err error) {
 	getProfilePath := authn.HttpGetProfilePath
 	outputRaw, status, err := cl.tlsClient.Get(getProfilePath)
 
@@ -44,11 +45,11 @@ func (cl *AuthnHttpClient) GetProfile() (profile authn.ClientProfile, err error)
 
 // Return the TLS client used to connect to the authn server.
 // This can be used anywhere an http client is needed for the same server.
-func (cl *AuthnHttpClient) GetTlsClient() transports.ITLSClient {
+func (cl *AuthnUserHttpClient) GetTlsClient() transports.ITLSClient {
 	return cl.tlsClient
 }
 
-func (cl *AuthnHttpClient) LoginWithPassword(clientID string, password string) (newToken string, err error) {
+func (cl *AuthnUserHttpClient) LoginWithPassword(clientID string, password string) (newToken string, err error) {
 
 	// LoginWithPassword posts a login request to the TLS server using a login ID and
 	// password and obtain an auth token for use with ConnectWithToken.
@@ -79,7 +80,7 @@ func (cl *AuthnHttpClient) LoginWithPassword(clientID string, password string) (
 
 }
 
-func (cl *AuthnHttpClient) Logout(token string) (err error) {
+func (cl *AuthnUserHttpClient) Logout(token string) (err error) {
 
 	logoutPath := authn.HttpPostLogoutPath
 	_, _, err = cl.tlsClient.Post(logoutPath, nil)
@@ -88,7 +89,7 @@ func (cl *AuthnHttpClient) Logout(token string) (err error) {
 }
 
 // Use the http address to request a token refresh
-func (cl *AuthnHttpClient) RefreshToken(oldToken string) (newToken string, err error) {
+func (cl *AuthnUserHttpClient) RefreshToken(oldToken string) (newToken string, err error) {
 
 	clientID := cl.tlsClient.GetClientID()
 	refreshPath := authn.HttpPostRefreshPath
@@ -111,20 +112,21 @@ func (cl *AuthnHttpClient) RefreshToken(oldToken string) (newToken string, err e
 	return newToken, err
 }
 
-// NewAuthnHttpClient creates an instance of the authentication client to login and obtain
+// NewUserAuthnHttpClient creates an instance of the authentication client to login and obtain
 // auth tokens.
 //
 //	serverURL is the host:port of the http server
 //	caCert is the server CA
-func NewAuthnHttpClient(serverURL string, caCert *x509.Certificate) *AuthnHttpClient {
+//	clientCert is optional. Use nil to use ConnectWithToken instead.
+func NewUserAuthnHttpClient(serverURL string, clientCert *tls.Certificate, caCert *x509.Certificate) *AuthnUserHttpClient {
 	parts, err := url.Parse(serverURL)
 	if err != nil {
 		slog.Error("NewAuthnClient: invalid server URL", "err", err.Error())
 		return nil
 	}
 
-	tlsClient := httpclient.NewHttpClient(parts.Host, nil, caCert, 0)
-	return &AuthnHttpClient{
+	tlsClient := httpclient.NewHttpClient(parts.Host, clientCert, caCert, 0)
+	return &AuthnUserHttpClient{
 		tlsClient: tlsClient,
 	}
 }

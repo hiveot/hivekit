@@ -428,6 +428,11 @@ func (cl *WssTransportClient) SetTimeout(timeout time.Duration) {
 	cl.timeout = timeout
 }
 
+// Start the module. Use ConnectWithToken instead
+func (cl *WssTransportClient) Start() error {
+	return nil
+}
+
 // Module stop
 func (cl *WssTransportClient) Stop() {
 	cl.Close()
@@ -451,7 +456,7 @@ func NewHiveotWssClient(
 		slog.Error("Invalid URL")
 		return nil
 	}
-	timeout := transports.DefaultRpcTimeout
+	timeout := msg.DefaultRnRTimeout
 	hostPort := urlParts.Host
 	wssPath := urlParts.Path
 	tlsClient := httpclient.NewHttpClient(hostPort, nil, caCert, timeout)
@@ -483,7 +488,7 @@ func NewHiveotWssClient(
 func NewWotWssClient(
 	wssURL string, caCert *x509.Certificate, ch transports.ConnectionHandler) *WssTransportClient {
 
-	timeout := transports.DefaultRpcTimeout
+	timeout := msg.DefaultRnRTimeout
 	urlParts, _ := url.Parse(wssURL)
 	hostPort := urlParts.Host
 	wssPath := urlParts.Path

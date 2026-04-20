@@ -8,7 +8,7 @@ import (
 
 	"github.com/grandcat/zeroconf"
 	"github.com/hiveot/hivekit/go/modules/transports/discovery/internal"
-	"github.com/hiveot/hivekit/go/modules/transports/discovery/pkg"
+	discoverypkg "github.com/hiveot/hivekit/go/modules/transports/discovery/pkg"
 	"github.com/hiveot/hivekit/go/testenv"
 	"github.com/hiveot/hivekit/go/utils"
 
@@ -97,7 +97,7 @@ func TestDiscoverDirectory(t *testing.T) {
 	endpoints := map[string]string{"wss": "wss://localhost/wssendpoint"}
 
 	testEnv := testenv.NewTestEnv()
-	testEnv.StartHttpServer()
+	testEnv.StartHttpServer(true)
 	defer testEnv.HttpServer.Stop()
 
 	m := discoverypkg.NewDiscoveryServer(testEnv.HttpServer, endpoints, testServiceID)
@@ -128,7 +128,7 @@ func TestDiscoverThings(t *testing.T) {
 	// thingTD := "this is a Thing TD"
 
 	testEnv := testenv.NewTestEnv()
-	testEnv.StartHttpServer()
+	testEnv.StartHttpServer(true)
 	defer testEnv.HttpServer.Stop()
 
 	m := discoverypkg.NewDiscoveryServer(testEnv.HttpServer, nil, testServiceID)
@@ -164,7 +164,7 @@ func TestDiscoverGetDirectoryTD(t *testing.T) {
 
 	// run the server
 	testEnv := testenv.NewTestEnv()
-	testEnv.StartHttpServer()
+	testEnv.StartHttpServer(true)
 	defer testEnv.HttpServer.Stop()
 	m := discoverypkg.NewDiscoveryServer(testEnv.HttpServer, nil, testServiceID)
 	err := m.Start()
@@ -189,7 +189,7 @@ func TestDiscoverGetThingTD(t *testing.T) {
 
 	// run the server
 	testEnv := testenv.NewTestEnv()
-	testEnv.StartHttpServer()
+	testEnv.StartHttpServer(true)
 	defer testEnv.HttpServer.Stop()
 	m := discoverypkg.NewDiscoveryServer(testEnv.HttpServer, nil, testServiceID)
 	err := m.Start()

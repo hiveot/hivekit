@@ -7,7 +7,8 @@ const SSEPingEvent = "sse-ping"
 
 const (
 	// Hide type of the hiveot HTTP/SSE-SC server
-	SseScServerModuleType = "hiveot-ssesc"
+	SseScClientModuleType = "hiveot-ssesc-client"
+	SseScServerModuleType = "hiveot-ssesc-server"
 
 	SseScPath = "/hiveot/ssesc"
 

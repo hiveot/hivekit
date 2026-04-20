@@ -1,6 +1,8 @@
 package factory
 
 import (
+	"context"
+
 	"github.com/hiveot/hivekit/go/api/td"
 	"github.com/hiveot/hivekit/go/modules"
 	"github.com/hiveot/hivekit/go/modules/transports"
@@ -8,7 +10,7 @@ import (
 
 // the constructor function to create an instance of the module using the given environment
 // The recommended moduleID is auto-generated. The module can decide to override if needed.
-type ModuleFactoryFn func(f IModuleFactory) modules.IHiveModule
+// type ModuleFactoryFn func(f IModuleFactory) modules.IHiveModule
 
 // ModuleDefinition defines the constructor for a module, used for registration in the module factory
 // This can also be used to add custom modules.
@@ -25,7 +27,7 @@ type ModuleDefinition struct {
 	Type string
 
 	// the constructor function to create an instance of the module
-	Constructor ModuleFactoryFn
+	Constructor func(f IModuleFactory) modules.IHiveModule
 }
 
 // IModuleFactory is the interface for the module factory, used to create and manage
@@ -39,6 +41,8 @@ type ModuleDefinition struct {
 // This is common for protocol bindings like zwave or other device protocols where the module
 // manages multiple things.
 type IModuleFactory interface {
+	modules.IHiveModule // the factory is also a module
+
 	// Add security and forms to the TD for all running transport protocols
 	// Intended for devices to add forms before exporting a TD.
 	AddTDSecForms(tdoc *td.TD, includeAffordances bool)
@@ -104,4 +108,8 @@ type IModuleFactory interface {
 	// Stop all loaded modules in reverse order of loading.
 	// Intended for graceful shutdown.
 	StopAll()
+
+	// WaitForSignal waits until an OS SigTerm signal is received or context is cancelled.
+	// Call StopAll() afters this returns for proper cleanup.
+	WaitForSignal(ctx context.Context)
 }

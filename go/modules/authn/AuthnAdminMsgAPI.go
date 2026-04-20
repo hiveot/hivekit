@@ -1,4 +1,4 @@
-// package authnapi with admin service messaging definitions
+// package authn with admin service messaging definitions
 package authn
 
 // AuthnAdminServiceID is the default thingID of the admin service.

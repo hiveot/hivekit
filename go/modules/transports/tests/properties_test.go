@@ -168,7 +168,8 @@ func TestReadProperty(t *testing.T) {
 	co1, cc1, _ := testEnv.NewConsumerClient(testClientID1, authn.ClientRoleViewer, nil)
 	defer cc1.Close()
 
-	rxVal, err := co1.ReadProperty(thingID, propKey)
+	var rxVal string
+	err := co1.ReadProperty(thingID, propKey, &rxVal)
 	require.NoError(t, err)
 	assert.Equal(t, propValue, rxVal)
 }

@@ -29,7 +29,7 @@ func TestConnect(t *testing.T) {
 
 	// dummyAuthenticator := authnapi.NewDummyAuthenticator()
 	cfg := httpserverconfig.NewConfig(
-		"localhost", serverPort, testCerts.ServerCert, testCerts.CaCert, nil)
+		"localhost", serverPort, testCerts.ServerCert, testCerts.CaCert, nil, true)
 	srv := httpserver.NewHttpServerModule(cfg)
 	err := srv.Start()
 	require.NoError(t, err)

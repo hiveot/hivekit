@@ -17,12 +17,23 @@ import (
 const ConsumerModuleType = "consumer"
 
 // Consumer is a module representing a WoT consumer.
-// This implements the IHiveModule interface.
+//
+// This implements the IHiveModule interface and a number of convenience functions to
+// construct requests for subscribing to events and properties, reading properties, etc.
+//
+// Use of this is optional as clients also just use HiveModuleBase and use the Rpc() method.
 //
 // Usage:
 //
+//	This module can be used as a base for service clients that like to use the
+//	ready-to-use API for sending requests and querying properties.
+//
+//	While it uses a clientID, this ID is merely for testing convenience when no transport
+//	or a direct transport is used. Normally the transport inserts the authenticated clientID
+//	as the sender.
+//
 //	To use this consumer it needs to be linked to a transport client module in order to deliver requests
-//	and receive notifications using one of the available WoT compatible protocols.
+//	and receive notifications using one of the available transport protocols.
 //
 //	SetRequestSink(transportclient.Handlerequest) to set the transport for delivering requests.
 //	SetNotificationSink(consumer.HandleNotification) to receive notifications from the client
@@ -33,8 +44,8 @@ type Consumer struct {
 	// This consumer is a sink for the connection
 	modules.HiveModuleBase
 
-	// appID is the clientID this consumer identifies as
-	appID string
+	// clientID is the clientID this consumer identifies as
+	clientID string
 
 	// The sink that will forward the requests and respond with notifications.
 	// sink modules.IHiveModule
@@ -47,12 +58,7 @@ type Consumer struct {
 
 // GetClientID returns the client's account ID
 func (co *Consumer) GetClientID() string {
-	return co.appID
-}
-
-// GetTM returns empty
-func (co *Consumer) GetTM() string {
-	return ""
+	return co.clientID
 }
 
 // InvokeAction invokes an action on a thing and wait for the response
@@ -60,7 +66,7 @@ func (co *Consumer) GetTM() string {
 func (co *Consumer) InvokeAction(
 	thingID, name string, input any, output any) error {
 
-	err := co.Rpc(td.OpInvokeAction, thingID, name, input, output)
+	err := co.Rpc(co.clientID, td.OpInvokeAction, thingID, name, input, output)
 	return err
 }
 
@@ -74,7 +80,7 @@ func (co *Consumer) ObserveProperty(thingID string, name string) error {
 		op = td.OpObserveAllProperties
 	}
 
-	err := co.Rpc(op, thingID, name, nil, "")
+	err := co.Rpc(co.clientID, op, thingID, name, nil, "")
 	return err
 }
 
@@ -83,7 +89,7 @@ func (co *Consumer) ObserveProperty(thingID string, name string) error {
 func (co *Consumer) Ping() (err error) {
 	var value any
 
-	err = co.Rpc(td.HTOpPing, "", "", nil, &value)
+	err = co.Rpc(co.clientID, td.HTOpPing, "", "", nil, &value)
 	if err != nil {
 		return err
 	}
@@ -105,7 +111,7 @@ func (co *Consumer) Ping() (err error) {
 func (co *Consumer) QueryAction(thingID, name string) (
 	value msg.ResponseMessage, err error) {
 
-	err = co.Rpc(td.OpQueryAction, thingID, name, nil, &value)
+	err = co.Rpc(co.clientID, td.OpQueryAction, thingID, name, nil, &value)
 	// if state is empty then this action has not run before
 	if err == nil && value.Status == "" {
 		value.ThingID = thingID
@@ -130,7 +136,7 @@ func (co *Consumer) QueryAction(thingID, name string) (
 func (co *Consumer) QueryAllActions(thingID string) (
 	values map[string]msg.ResponseMessage, err error) {
 
-	err = co.Rpc(td.OpQueryAllActions, thingID, "", nil, &values)
+	err = co.Rpc(co.clientID, td.OpQueryAllActions, thingID, "", nil, &values)
 	return values, err
 }
 
@@ -140,7 +146,7 @@ func (co *Consumer) QueryAllActions(thingID string) (
 func (co *Consumer) ReadAllEvents(thingID string) (
 	values map[string]*msg.NotificationMessage, err error) {
 
-	err = co.Rpc(td.HTOpReadAllEvents, thingID, "", nil, &values)
+	err = co.Rpc(co.clientID, td.HTOpReadAllEvents, thingID, "", nil, &values)
 	return values, err
 }
 
@@ -150,7 +156,7 @@ func (co *Consumer) ReadAllEvents(thingID string) (
 func (co *Consumer) ReadAllProperties(thingID string) (
 	values map[string]any, err error) {
 
-	err = co.Rpc(td.OpReadAllProperties, thingID, "", nil, &values)
+	err = co.Rpc(co.clientID, td.OpReadAllProperties, thingID, "", nil, &values)
 	return values, err
 }
 
@@ -168,17 +174,17 @@ func (co *Consumer) ReadAllProperties(thingID string) (
 // and value as described in the event affordance.
 func (co *Consumer) ReadEvent(thingID, name string) (value *msg.NotificationMessage, err error) {
 
-	err = co.Rpc(td.HTOpReadEvent, thingID, name, nil, &value)
+	err = co.Rpc(co.clientID, td.HTOpReadEvent, thingID, name, nil, &value)
 	return value, err
 }
 
 // ReadProperty sends a request to read the current value of a Thing property.
 //
-// This returns the last known value of the property.
-func (co *Consumer) ReadProperty(thingID, name string) (value any, err error) {
+// This decodes the value into the provided type
+func (co *Consumer) ReadProperty(thingID, name string, value any) (err error) {
 
-	err = co.Rpc(td.OpReadProperty, thingID, name, nil, &value)
-	return value, err
+	err = co.Rpc(co.clientID, td.OpReadProperty, thingID, name, nil, value)
+	return err
 }
 
 // ReadPropertyAs sends a request to read the current value of a Thing property.
@@ -186,7 +192,7 @@ func (co *Consumer) ReadProperty(thingID, name string) (value any, err error) {
 // This converts the property value to the given type or returns an error
 func (co *Consumer) ReadPropertyAs(thingID, name string, prop any) (err error) {
 
-	err = co.Rpc(td.OpReadProperty, thingID, name, nil, prop)
+	err = co.Rpc(co.clientID, td.OpReadProperty, thingID, name, nil, prop)
 	return err
 }
 
@@ -198,30 +204,30 @@ func (co *Consumer) ReadPropertyAs(thingID, name string, prop any) (err error) {
 //	return tdJSON, err
 //}
 
-// Rpc sends a request message and waits for a response.
-// This returns an error if the request fails or if the response contains an error
-func (co *Consumer) Rpc(operation, thingID, name string, input any, output any) error {
-	correlationID := shortid.MustGenerate()
+// // Rpc sends a request message and waits for a response.
+// // This returns an error if the request fails or if the response contains an error
+// func (co *Consumer) Rpc(operation, thingID, name string, input any, output any) error {
+// 	correlationID := shortid.MustGenerate()
 
-	var resp *msg.ResponseMessage
-	req := msg.NewRequestMessage(operation, thingID, name, input, correlationID)
+// 	var resp *msg.ResponseMessage
+// 	req := msg.NewRequestMessage(operation, thingID, name, input, correlationID)
 
-	resp, err := co.ForwardRequestWait(req)
+// 	resp, err := co.ForwardRequestWait(req)
 
-	// ar := utils.NewAsyncReceiver[*msg.ResponseMessage]()
-	// err := co.ForwardRequest(req, func(resp *msg.ResponseMessage) error {
-	// 	slog.Info("Consumer RPC. Received response", "op", operation)
-	// 	ar.SetResponse(resp)
-	// 	return nil
-	// })
-	// if err == nil {
-	// resp, err = ar.WaitForResponse(co.rpcTimeout)
-	// }
-	if err == nil && resp != nil {
-		err = resp.Decode(output)
-	}
-	return err
-}
+// 	// ar := utils.NewAsyncReceiver[*msg.ResponseMessage]()
+// 	// err := co.ForwardRequest(req, func(resp *msg.ResponseMessage) error {
+// 	// 	slog.Info("Consumer RPC. Received response", "op", operation)
+// 	// 	ar.SetResponse(resp)
+// 	// 	return nil
+// 	// })
+// 	// if err == nil {
+// 	// resp, err = ar.WaitForResponse(co.rpcTimeout)
+// 	// }
+// 	if err == nil && resp != nil {
+// 		err = resp.Decode(output)
+// 	}
+// 	return err
+// }
 
 // ForwardRequest sends an operation request and passes the response to the replyTo handler.
 //
@@ -274,15 +280,6 @@ func (co *Consumer) SetTimeout(timeout time.Duration) {
 	co.rpcTimeout = timeout
 }
 
-// Start using the consumer
-func (co *Consumer) Start() error {
-	return nil
-}
-
-// Stop the consumer module .. nothing to do here
-func (co *Consumer) Stop() {
-}
-
 // Subscribe to one or all events of a thing.
 // name is the event to subscribe to or "" for all events
 func (co *Consumer) Subscribe(thingID string, name string) error {
@@ -290,7 +287,7 @@ func (co *Consumer) Subscribe(thingID string, name string) error {
 	if name == "" {
 		op = td.OpSubscribeAllEvents
 	}
-	err := co.Rpc(op, thingID, name, nil, "")
+	err := co.Rpc(co.clientID, op, thingID, name, nil, "")
 	return err
 }
 
@@ -300,7 +297,7 @@ func (co *Consumer) UnobserveProperty(thingID string, name string) error {
 	if name == "" {
 		op = td.OpUnobserveAllProperties
 	}
-	err := co.Rpc(op, thingID, name, nil, "")
+	err := co.Rpc(co.clientID, op, thingID, name, nil, "")
 	return err
 }
 
@@ -310,7 +307,7 @@ func (co *Consumer) Unsubscribe(thingID string, name string) error {
 	if name == "" {
 		op = td.OpUnsubscribeAllEvents
 	}
-	err := co.Rpc(op, thingID, name, nil, "")
+	err := co.Rpc(co.clientID, op, thingID, name, nil, "")
 	return err
 }
 
@@ -319,7 +316,7 @@ func (co *Consumer) Unsubscribe(thingID string, name string) error {
 func (co *Consumer) WriteProperty(thingID string, name string, input any, wait bool) (err error) {
 	correlationID := shortid.MustGenerate()
 	if wait {
-		err = co.Rpc(td.OpWriteProperty, thingID, name, input, correlationID)
+		err = co.Rpc(co.clientID, td.OpWriteProperty, thingID, name, input, correlationID)
 	} else {
 		req := msg.NewRequestMessage(td.OpWriteProperty, thingID, name, input, correlationID)
 		err = co.ForwardRequest(req, func(resp *msg.ResponseMessage) error {
@@ -342,10 +339,8 @@ func (co *Consumer) WriteProperty(thingID string, name string, input any, wait b
 //	appID the ID of this application
 func NewConsumer(appID string) *Consumer {
 	consumer := &Consumer{
-		// sink:  sink,
-		appID: appID,
-		// rnrChan:    NewRnRChan(),
-		rpcTimeout: transports.DefaultRpcTimeout,
+		clientID:   appID,
+		rpcTimeout: msg.DefaultRnRTimeout,
 	}
 
 	return consumer
@@ -368,7 +363,7 @@ func NewConsumerFactory(f factory.IModuleFactory) modules.IHiveModule {
 // Use SetResponseHandler to set the callback to receive async responses.
 // Use SetConnectHandler to set the callback to be notified of connection changes.
 //
-//	appID the ID of this application
+//	clientID the ID of this application
 //	serverURL is the full URL identifying the protocol using its schema (wss, sse, https, mqtt)
 //	caCert is the server's CA certificate or nil to disable this important check.
 //	rpcTimeout of the rpc connections or 0 for default (3 sec)

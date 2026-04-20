@@ -330,6 +330,11 @@ func (cl *GrpcTransportClient) SetTimeout(timeout time.Duration) {
 	cl.timeout = timeout
 }
 
+// Start the module. Use ConnectWithToken instead
+func (cl *GrpcTransportClient) Start() error {
+	return nil
+}
+
 // Module stop
 func (cl *GrpcTransportClient) Stop() {
 	cl.Close()
@@ -362,7 +367,7 @@ func NewGrpcTransportClient(
 		encoder:              transports.NewRRNJsonEncoder(),
 		maxReconnectAttempts: 0,
 		rnrChan:              msg.NewRnRChan(),
-		timeout:              transports.DefaultRpcTimeout,
+		timeout:              msg.DefaultRnRTimeout,
 	}
 
 	var _ transports.ITransportClient = cl // check interface implementation

@@ -8,12 +8,14 @@ import (
 
 	"github.com/hiveot/hivekit/go/modules/authn"
 	"github.com/hiveot/hivekit/go/modules/authn/internal/service"
+	authnpkg "github.com/hiveot/hivekit/go/modules/authn/pkg"
 	certstest "github.com/hiveot/hivekit/go/modules/certs/test"
 	"github.com/hiveot/hivekit/go/modules/clients"
 	"github.com/hiveot/hivekit/go/modules/transports"
 	"github.com/hiveot/hivekit/go/modules/transports/httpserver"
 	httpserverconfig "github.com/hiveot/hivekit/go/modules/transports/httpserver/config"
 	"github.com/hiveot/hivekit/go/utils"
+	"github.com/stretchr/testify/require"
 )
 
 var testDir = path.Join(os.TempDir(), "hivekit", "authn-test")
@@ -63,29 +65,12 @@ func NewTestConsumer(m *service.AuthnService, protocolType, serverURL, clientID 
 	return co, cc, token
 }
 
-// This test file sets up the environment for testing authn admin and client services.
-
-// launch the authn module and return the server side message handlers for using and managing it.
-func startTestAuthnModule(encryption string) (m *service.AuthnService, stopFn func()) {
+// This test file sets up the environment for testing authn admin and user services.
+// This starts the authn module with a http server for testing the http API
+func startTestAuthnModule(encryption string) (tp transports.IHttpServer, authnSvc *service.AuthnService, stopFn func()) {
 
 	_ = os.RemoveAll(testDir)
 	_ = os.MkdirAll(testDir, 0700)
-
-	//--- start the http server
-
-	// the http server is used for serving the http endpoints
-
-	testCerts = certstest.CreateTestCertBundle(TestKeyType)
-	// http is needed for testing the authn http api
-	cfg := httpserverconfig.NewConfig(
-		"localhost", serverPort,
-		testCerts.ServerCert, testCerts.CaCert, nil)
-	httpServer := httpserver.NewHttpServerModule(cfg)
-
-	err := httpServer.Start()
-	if err != nil {
-		panic("Unable to start http server: " + err.Error())
-	}
 
 	//--- create the authentication service ---
 
@@ -97,19 +82,33 @@ func startTestAuthnModule(encryption string) (m *service.AuthnService, stopFn fu
 	// authnConfig.AgentTokenValidityDays = 1
 	authnConfig.Encryption = encryption
 
-	m = service.NewAuthnService(authnConfig, httpServer)
-	err = m.Start()
+	authnSvc = service.NewAuthnService(authnConfig)
+	err := authnSvc.Start()
 	if err != nil {
 		panic("Error starting authn admin service:" + err.Error())
 	}
 
+	// create the http api handler for authn user requests over http
+	testCerts = certstest.CreateTestCertBundle(TestKeyType)
+	cfg := httpserverconfig.NewConfig(
+		"localhost", serverPort,
+		testCerts.ServerCert, testCerts.CaCert, nil, true)
+	httpServer := httpserver.NewHttpServerModule(cfg)
+	err = httpServer.Start()
+	if err != nil {
+		panic("Unable to start http server: " + err.Error())
+	}
+	authnHttpMod := authnpkg.NewAuthnUserHttpService(httpServer)
+	_ = authnHttpMod.Start()
+	authnHttpMod.SetRequestSink(authnSvc.HandleRequest)
+
 	// last, link the http server and validator to enable the protected routes and enable the
 	// authn http endpoint.
-	var authenticator transports.IAuthenticator = m.GetSessionManager()
+	var authenticator transports.IAuthenticator = authnSvc.GetSessionManager()
 	httpServer.SetAuthenticator(authenticator)
 
-	return m, func() {
-		m.Stop()
+	return httpServer, authnSvc, func() {
+		authnSvc.Stop()
 		httpServer.Stop()
 
 		// let background tasks finish
@@ -121,8 +120,9 @@ func startTestAuthnModule(encryption string) (m *service.AuthnService, stopFn fu
 func TestStartStop(t *testing.T) {
 	t.Logf("---%s---\n", t.Name())
 	// this creates the admin user key
-	m, stopFn := startTestAuthnModule(defaultHash)
-	_ = m
+	httpServer, m, stopFn := startTestAuthnModule(defaultHash)
+	require.NotNil(t, m)
+	require.NotNil(t, httpServer)
 	defer stopFn()
 }
 

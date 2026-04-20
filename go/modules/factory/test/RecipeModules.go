@@ -58,16 +58,28 @@ var RecipeModules = map[string]factory.ModuleDefinition{
 	httpbasic.HttpBasicServerModuleType: {
 		Constructor: httpbasicpkg.NewHttpBasicServerFactory,
 	},
+	// sse-sc transport client
+	ssesc.SseScClientModuleType: {
+		Constructor: ssescpkg.NewSseScClientFactory,
+	},
 	// sse-sc transport server
 	ssesc.SseScServerModuleType: {
 		Constructor: ssescpkg.NewSseScServerFactory,
+	},
+	// wss transport client for hiveot RRN messaging
+	wss.HiveotWebsocketClientModuleType: {
+		Constructor: wsspkg.NewHiveotWssClientFactory,
 	},
 	// wss transport server for hiveot RRN messaging
 	wss.HiveotWebsocketServerModuleType: {
 		Constructor: wsspkg.NewHiveotWssServerFactory,
 	},
+	// wss transport client for WoT websocket messaging
+	wss.WotWebsocketClientModuleType: {
+		Constructor: wsspkg.NewWotWssClientFactory,
+	},
 	// wss transport server for WoT websocket messaging
-	wss.WotWebsocketServerType: {
+	wss.WotWebsocketServerModuleType: {
 		Constructor: wsspkg.NewWotWssServerFactory,
 	},
 
@@ -120,5 +132,8 @@ var RecipeModules = map[string]factory.ModuleDefinition{
 	},
 	clients.ConsumerModuleType: {
 		Constructor: clients.NewConsumerFactory,
+	},
+	history.ReadHistoryClientModuleType: {
+		Constructor: historypkg.NewReadHistoryClientFactory,
 	},
 }

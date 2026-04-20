@@ -22,6 +22,7 @@ type DirectoryMsgClient struct {
 }
 
 func (cl *DirectoryMsgClient) DeleteThing(thingID string) error {
+
 	req := msg.NewRequestMessage(
 		td.OpInvokeAction, cl.directoryThingID, directory.ActionDeleteThing, thingID, "")
 	_, err := cl.ForwardRequestWait(req)
@@ -110,7 +111,7 @@ func UpdateTD(directoryThingID string, tdJson string, reqHandler msg.RequestHand
 	}
 	req := msg.NewRequestMessage(
 		td.OpInvokeAction, directoryThingID, directory.ActionUpdateThing, tdJson, "")
-	_, err := msg.ForwardRequestWait(req, reqHandler)
+	_, err := msg.ForwardRequestWait(req, reqHandler, msg.DefaultRnRTimeout)
 
 	return err
 }

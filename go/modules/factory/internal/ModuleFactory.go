@@ -1,9 +1,13 @@
 package internal
 
 import (
+	"context"
 	"fmt"
 	"log/slog"
+	"os"
+	"os/signal"
 	"sync"
+	"syscall"
 
 	"github.com/hiveot/hivekit/go/api/td"
 	"github.com/hiveot/hivekit/go/modules"
@@ -12,7 +16,11 @@ import (
 )
 
 // ModuleFactory for creating instances of modules using the application environment.
+//
+// This factory itself is the first module in the chain of modules created by this factory.
 type ModuleFactory struct {
+	modules.HiveModuleBase
+
 	env *factory.AppEnvironment
 
 	// when connecting a client interface using NewModuleClient
@@ -81,6 +89,16 @@ func (f *ModuleFactory) GetAuthenticator() transports.IAuthenticator {
 	return f.authProxy
 }
 
+// Return the first loaded module. This returns nil if no modules are loaded
+func (f *ModuleFactory) GetFirstModule() modules.IHiveModule {
+	f.mux.RLock()
+	defer f.mux.RUnlock()
+	if len(f.loadedModules) > 0 {
+		return f.loadedModules[0]
+	}
+	return nil
+}
+
 // Used for various modules that need to serve http endpoints, e.g. http basic authn, directory, etc.
 func (f *ModuleFactory) GetHttpServer() transports.IHttpServer {
 	f.mux.RLock()
@@ -106,6 +124,16 @@ func (f *ModuleFactory) GetHttpServer() transports.IHttpServer {
 	return httpServer
 }
 
+// Return the last loaded module. This returns nil if no modules are loaded
+func (f *ModuleFactory) GetLastModule() modules.IHiveModule {
+	f.mux.RLock()
+	defer f.mux.RUnlock()
+	if len(f.loadedModules) > 0 {
+		return f.loadedModules[0]
+	}
+	return nil
+}
+
 // GetModule loads and starts an instance of a module by its type.
 // If the module is a singleton then the same instance is returned for multiple calls with the same type.
 func (f *ModuleFactory) GetModule(moduleType string) (modules.IHiveModule, error) {
@@ -119,7 +147,7 @@ func (f *ModuleFactory) GetModule(moduleType string) (modules.IHiveModule, error
 	return m, err
 }
 
-// Return a copy of the list with loaded transport servers
+// Return a copy of the list with loaded transport servers.
 func (f *ModuleFactory) GetTransportServers() []transports.ITransportServer {
 	f.mux.RLock()
 	tpList := []transports.ITransportServer{}
@@ -128,10 +156,10 @@ func (f *ModuleFactory) GetTransportServers() []transports.ITransportServer {
 	return tpList
 }
 
-// LoadModule loads an instance of a module but does not start it yet.
-// If the module is a singleton then the same instance is returned for multiple calls with the same type.
+// LoadModule loads an instance of a module without starting it.
 //
-// The caller has to start the module before it can be used.
+// If the module implements the ITransportModule interface it is added to the list of available
+// transports. See GetTransportServers() to obtain the collection of all loaded servers.
 func (f *ModuleFactory) LoadModule(moduleType string) (m modules.IHiveModule, isNew bool, err error) {
 	f.mux.RLock()
 	m, ok := f.singletonModules[moduleType]
@@ -168,6 +196,7 @@ func (f *ModuleFactory) LoadModule(moduleType string) (m modules.IHiveModule, is
 }
 
 // RegisterModule registers a module definition to the factory, making it available for creation.
+// Intended to support 3rd party modules.
 func (f *ModuleFactory) RegisterModule(moduleType string, moduleDef factory.ModuleDefinition) {
 	f.mux.Lock()
 	defer f.mux.Unlock()
@@ -187,6 +216,21 @@ func (f *ModuleFactory) StopAll() {
 		m.Stop()
 	}
 	f.loadedModules = make([]modules.IHiveModule, 0)
+}
+
+// Wait for an OS signal or until the context is cancelled
+func (f *ModuleFactory) WaitForSignal(ctx context.Context) {
+
+	// catch all signals since not explicitly listing
+	exitChannel := make(chan os.Signal, 1)
+
+	signal.Notify(exitChannel, syscall.SIGINT, syscall.SIGTERM)
+	select {
+	case sigID := <-exitChannel:
+		println("WaitForSignal done with signal ", sigID, ": ", os.Args[0], "\n")
+	case <-ctx.Done():
+		println("WaitForSignal context closed")
+	}
 }
 
 // Create a new module factory.

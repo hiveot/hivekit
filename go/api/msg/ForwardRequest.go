@@ -1,6 +1,8 @@
 package msg
 
 import (
+	"time"
+
 	"github.com/hiveot/hivekit/go/utils"
 	"github.com/teris-io/shortid"
 )
@@ -11,7 +13,9 @@ import (
 // This assigns a request correlationID if none is set.
 //
 // If the response contains an error, it is return as the error.
-func ForwardRequestWait(req *RequestMessage, reqHandler RequestHandler) (resp *ResponseMessage, err error) {
+func ForwardRequestWait(
+	req *RequestMessage, reqHandler RequestHandler, timeout time.Duration) (resp *ResponseMessage, err error) {
+
 	if req.CorrelationID == "" {
 		req.CorrelationID = shortid.MustGenerate()
 	}
@@ -24,7 +28,7 @@ func ForwardRequestWait(req *RequestMessage, reqHandler RequestHandler) (resp *R
 	if err != nil {
 		return nil, err
 	}
-	resp, err = ar.WaitForResponse(0)
+	resp, err = ar.WaitForResponse(timeout)
 	if err == nil {
 		err = resp.AsError()
 	}

@@ -6,6 +6,7 @@ import (
 	"net/url"
 	"time"
 
+	"github.com/hiveot/hivekit/go/api/msg"
 	"github.com/hiveot/hivekit/go/modules"
 	"github.com/hiveot/hivekit/go/modules/transports"
 	"github.com/hiveot/hivekit/go/modules/transports/ssesc"
@@ -84,7 +85,7 @@ func NewHiveotSseServer(httpServer transports.IHttpServer, respTimeout time.Dura
 	// use the RRN message format. Simple passthrough.
 	encoder := transports.NewRRNJsonEncoder()
 	if respTimeout == 0 {
-		respTimeout = transports.DefaultRpcTimeout
+		respTimeout = msg.DefaultRnRTimeout
 	}
 
 	m := &SseScServer{

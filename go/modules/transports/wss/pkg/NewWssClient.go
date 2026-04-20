@@ -46,8 +46,7 @@ func NewWotWssClient(wssURL string, caCert *x509.Certificate,
 }
 
 // Create a websocket client for the given factory environment
-func NewWotWssClientFactory(f factory.IModuleFactory) transports.ITransportClient {
+func NewWotWssClientFactory(f factory.IModuleFactory) modules.IHiveModule {
 	env := f.GetEnvironment()
-	wssURL := "" // todo: how to determine the server URL?
-	return NewWotWssClient(wssURL, env.CaCert, nil)
+	return NewWotWssClient(env.ServerURL, env.CaCert, nil)
 }

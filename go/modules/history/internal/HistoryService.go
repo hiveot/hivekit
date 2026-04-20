@@ -80,7 +80,7 @@ func (m *HistoryService) Start() (err error) {
 		return err
 	}
 
-	slog.Info("Start: Starting history module")
+	slog.Info("Start: Starting history module with backend " + m.config.Backend)
 	// Messaging API handler for reading the history
 	m.readHistoryMsgHandler = NewReadHistoryMsgHandler(m)
 

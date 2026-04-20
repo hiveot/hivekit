@@ -29,7 +29,7 @@ func NewHttpServerFactory(f factory.IModuleFactory) modules.IHiveModule {
 	authenticator := f.GetAuthenticator()
 	addr := ""
 	port := transports.DefaultHttpsPort
-	cfg := httpserverconfig.NewConfig(addr, port, serverCert, caCert, authenticator)
+	cfg := httpserverconfig.NewConfig(addr, port, serverCert, caCert, authenticator, true)
 
 	srv := internal.NewHttpServer(cfg)
 	return srv

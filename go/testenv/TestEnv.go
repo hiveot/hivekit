@@ -304,14 +304,14 @@ func (testEnv *TestEnv) StartTestServer(protocol string) (srv transports.ITransp
 // This server is needed for http-basic, websocket, hiveot-sse-sc subprotocols
 // Also used to serve http endpoints for the directory and authn users.
 // This panic if the server cannot be started.
-func (testEnv *TestEnv) StartHttpServer() {
+func (testEnv *TestEnv) StartHttpServer(logging bool) {
 
 	// cert uses localhost
 	cfg := httpserverconfig.NewConfig(
 		testEnv.CertBundle.ServerAddr, TestServerHttpPort,
 		testEnv.CertBundle.ServerCert,
 		testEnv.CertBundle.CaCert,
-		testEnv.TestAuthn)
+		testEnv.TestAuthn, logging)
 
 	// cfg.Address = fmt.Sprintf("%s:%d", certBundle.ServerAddr, testServerHttpPort)
 
@@ -342,7 +342,7 @@ func NewTestEnv() *TestEnv {
 // This starts a HTTP server, protocol server, certificates and a test authenticator
 func StartTestEnv(protocol string) (testEnv *TestEnv, cancelFunc func()) {
 	testEnv = NewTestEnv()
-	testEnv.StartHttpServer()
+	testEnv.StartHttpServer(true)
 	testEnv.Server = testEnv.StartTestServer(protocol)
 	return testEnv, func() {
 		// give connections time to close client side before forcing them to close server side
