@@ -52,10 +52,10 @@ func TestObservePropertyByConsumer(t *testing.T) {
 	defer cc2.Close()
 
 	// set the handler for property updates and subscribe
-	co1.SetNotificationHook(func(ev *msg.NotificationMessage) {
+	co1.SetAppNotificationHook(func(ev *msg.NotificationMessage) {
 		rxVal1.Store(ev.Data)
 	})
-	co2.SetNotificationHook(func(ev *msg.NotificationMessage) {
+	co2.SetAppNotificationHook(func(ev *msg.NotificationMessage) {
 		rxVal2.Store(ev.Data)
 	})
 

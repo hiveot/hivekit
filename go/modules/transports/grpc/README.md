@@ -84,7 +84,7 @@ agent := NewAgent(clientID)
 srv.SetRequestSink(agent.HandleRequest)
 agent.SetNotificationSink(srv.HandleNotification)
 // set the request handler
-agent.SetAppRequestHandler(myapphandler)
+agent.SetAppRequestHook(myapphandler)
 // publish updates
 agent.PubEvent(thingID, eventName, value)
 agent.PubProperty(thingID, propName, value)

@@ -28,5 +28,7 @@ func NewSseScClientFactory(f factory.IModuleFactory) modules.IHiveModule {
 	// do clients use onconnectionchanged? -> yes, show connection status
 	// how do they get informed? -> client submits an event
 	clientCert, _ := env.GetClientCert()
-	return NewSseScClient(env.ServerURL, clientCert, env.CaCert, nil)
+	m := NewSseScClient(env.ServerURL, clientCert, env.CaCert, nil)
+	m.SetTimeout(env.RpcTimeout)
+	return m
 }

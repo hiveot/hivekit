@@ -155,7 +155,7 @@ func TestReadDeviceProperties(t *testing.T) {
 	// included in its TD
 	testDevice := startTestDevice(agentID, thingID1)
 	defer testDevice.Stop()
-	testDevice.SetRequestHook(func(req *msg.RequestMessage, replyTo msg.ResponseHandler) (err error) {
+	testDevice.SetAppRequestHook(func(req *msg.RequestMessage, replyTo msg.ResponseHandler) (err error) {
 		testTD := testDevice.GetTD()
 		if req.Operation == td.OpReadAllProperties {
 			props := make(map[string]any)
@@ -241,7 +241,7 @@ func TestSubscribeToDevice(t *testing.T) {
 	assert.NoError(t, err)
 
 	ctx, cancelFn := context.WithTimeout(context.Background(), time.Second*60)
-	consumer.SetNotificationHook(func(notif *msg.NotificationMessage) {
+	consumer.SetAppNotificationHook(func(notif *msg.NotificationMessage) {
 		assert.Equal(t, event1Name, notif.Name)
 		err = notif.Decode(&rxValue)
 		assert.NoError(t, err)

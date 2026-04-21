@@ -38,6 +38,7 @@ func (r *FactoryRecipe) Start(f factory.IModuleFactory) error {
 	modList := make([]modules.IHiveModule, 0, len(r.ModuleChain))
 	var prevModule modules.IHiveModule
 	for _, modType := range r.ModuleChain {
+		// getmodule starts it if needed
 		m, err := r.f.GetModule(modType)
 		modList = append(modList, m)
 		if err == nil {
@@ -46,7 +47,6 @@ func (r *FactoryRecipe) Start(f factory.IModuleFactory) error {
 				prevModule.SetRequestSink(m.HandleRequest)
 				m.SetNotificationSink(prevModule.HandleNotification)
 			}
-			err = m.Start()
 		}
 		// oops
 		if err != nil {

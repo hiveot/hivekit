@@ -210,7 +210,7 @@ func (m *HiveModuleBase) Rpc(
 }
 
 // Set the hook to invoke with received notifications
-func (m *HiveModuleBase) SetNotificationHook(hook msg.NotificationHandler) {
+func (m *HiveModuleBase) SetAppNotificationHook(hook msg.NotificationHandler) {
 	m.appNotificationHook = hook
 }
 
@@ -222,9 +222,16 @@ func (m *HiveModuleBase) SetNotificationSink(consumer msg.NotificationHandler) {
 	m.notificationSink = consumer
 }
 
-// Set the hook to invoke with received requests directed at this module
-// Any other requests received by HandleRequest will be forwarded to the sink.
-func (m *HiveModuleBase) SetRequestHook(hook msg.RequestHandler) {
+// Set the hook to invoke when requests are received by this module.
+// The handler must either handle the request or forward it down the chain.
+//
+// This hook is intended to customize behavior without having to replace the module.
+// This comes in handy to handle requests by a simple agent without having to implement
+// a separate module. Another use-case is to trace requests for logging or other monitoring tasks.
+//
+// Failure to forward it without calling replyTo, or returning an error, results in
+// the request being lost and the caller waiting for a response until timeout.
+func (m *HiveModuleBase) SetAppRequestHook(hook msg.RequestHandler) {
 	m.appRequestHook = hook
 }
 

@@ -209,7 +209,7 @@ func TestReadDigitwinProperty(t *testing.T) {
 	defer cc1.Stop()
 	// expect a digital twin notification from changing the device property
 	dtwThingID := internal.MakeDigitwinID(agentID, deviceTD1.ID)
-	co.SetNotificationHook(func(notif *msg.NotificationMessage) {
+	co.SetAppNotificationHook(func(notif *msg.NotificationMessage) {
 		// rxPropValue = notif.ToString(0)
 		rxPropValue.Store(notif.ToString(0))
 		require.NotEmpty(t, rxPropValue)
@@ -267,7 +267,7 @@ func TestWriteDigitwinProperty(t *testing.T) {
 	// 2. create an agent that receives the write request
 	ag, cc2, _ := testEnv.NewRCAgent(agentID, nil)
 	defer cc2.Close()
-	ag.SetAppRequestHandler(func(req *msg.RequestMessage, replyTo msg.ResponseHandler) error {
+	ag.SetAppRequestHook(func(req *msg.RequestMessage, replyTo msg.ResponseHandler) error {
 		if req.Operation == td.OpWriteProperty {
 			txPropValue = req.ToString(0)
 			resp := req.CreateResponse(nil, nil)
@@ -352,7 +352,7 @@ func TestInvokeDigitwinAction(t *testing.T) {
 	// 2. create an RC agent that receives the action request
 	ag, cc2, _ := testEnv.NewRCAgent(agentID, nil)
 	defer cc2.Close()
-	ag.SetAppRequestHandler(func(req *msg.RequestMessage, replyTo msg.ResponseHandler) error {
+	ag.SetAppRequestHook(func(req *msg.RequestMessage, replyTo msg.ResponseHandler) error {
 		// echo the input
 		if req.Operation == td.OpInvokeAction {
 			actionInput := req.ToString(0)

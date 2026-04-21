@@ -2,7 +2,6 @@ package clients
 
 import (
 	"log/slog"
-	"sync/atomic"
 
 	"github.com/hiveot/hivekit/go/api/msg"
 	"github.com/hiveot/hivekit/go/modules"
@@ -40,7 +39,7 @@ type Agent struct {
 
 	// the application's request handler set with SetRequestHandler
 	// intended for sub-protocols that can receive requests. (agents)
-	appRequestHandlerPtr atomic.Pointer[msg.RequestHandler]
+	// appRequestHandlerPtr atomic.Pointer[msg.RequestHandler]
 }
 
 // HandleRequest passes a request to the application request handler or forwards
@@ -58,21 +57,21 @@ type Agent struct {
 //
 // If an application request handler is set, it is the handler's responsibility
 // to forward the request if it cannot handle it.
-func (ag *Agent) HandleRequest(
-	req *msg.RequestMessage, replyTo msg.ResponseHandler) (err error) {
-
-	// handle requests if any
-	hPtr := ag.appRequestHandlerPtr.Load()
-	if hPtr != nil {
-		err = (*hPtr)(req, replyTo)
-	} else {
-		// this agent does not have an application request handler set, so it
-		// is assumed that the request handler sink forwards it to the actual handler
-		// and does not forward it to the connection it was received on.
-		err = ag.ForwardRequest(req, replyTo)
-	}
-	return
-}
+// HiveModuleBase now handles this
+// func (ag *Agent) HandleRequest(
+// 	req *msg.RequestMessage, replyTo msg.ResponseHandler) (err error) {
+// 	// handle requests if any
+// 	hPtr := ag.appRequestHandlerPtr.Load()
+// 	if hPtr != nil {
+// 		err = (*hPtr)(req, replyTo)
+// 	} else {
+// 		// this agent does not have an application request handler set, so it
+// 		// is assumed that the request handler sink forwards it to the actual handler
+// 		// and does not forward it to the connection it was received on.
+// 		err = ag.ForwardRequest(req, replyTo)
+// 	}
+// 	return
+// }
 
 // PubActionProgress helper for agents to send a 'running' ActionStatus notification
 //
@@ -154,13 +153,13 @@ func (ag *Agent) PubProperties(thingID string, propMap map[string]any) {
 
 // SetAppRequestHandler set the application handler for incoming requests
 // requests that are not handled are forwarded to the sink.
-func (ag *Agent) SetAppRequestHandler(cb msg.RequestHandler) {
-	if cb == nil {
-		ag.appRequestHandlerPtr.Store(nil)
-	} else {
-		ag.appRequestHandlerPtr.Store(&cb)
-	}
-}
+// func (ag *Agent) SetAppRequestHandler(cb msg.RequestHandler) {
+// 	if cb == nil {
+// 		ag.appRequestHandlerPtr.Store(nil)
+// 	} else {
+// 		ag.appRequestHandlerPtr.Store(&cb)
+// 	}
+// }
 
 // NewAgent creates a new agent (producer) instance for serving requests and sending notifications.
 //
@@ -176,7 +175,7 @@ func NewAgent(agentID string, appReqHandler msg.RequestHandler) *Agent {
 	agent.Consumer = NewConsumer(agentID)
 
 	if appReqHandler != nil {
-		agent.SetAppRequestHandler(appReqHandler)
+		agent.SetAppRequestHook(appReqHandler)
 	}
 	return agent
 }

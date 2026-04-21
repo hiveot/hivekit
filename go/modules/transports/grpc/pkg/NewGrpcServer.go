@@ -35,5 +35,6 @@ func NewHiveotGrpcServerFactory(f factory.IModuleFactory) modules.IHiveModule {
 	tlsCert, err := env.GetServerCert()
 	_ = err
 	authenticator := f.GetAuthenticator()
-	return NewHiveotGrpcServer(connectURL, tlsCert, authenticator, env.RpcTimeout)
+	m := NewHiveotGrpcServer(connectURL, tlsCert, authenticator, env.RpcTimeout)
+	return m
 }

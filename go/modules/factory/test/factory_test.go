@@ -139,6 +139,7 @@ func TestClientServerRecipe(t *testing.T) {
 
 	env := factory.NewAppEnvironment(testDir, false)
 	env.CaCert = testCerts.CaCert
+	env.ClientCert = testCerts.ClientCert
 	env.ServerCert = testCerts.ServerCert
 
 	serverFactory := factorypkg.NewModuleFactory(env, RecipeModules)
@@ -146,16 +147,11 @@ func TestClientServerRecipe(t *testing.T) {
 	err := serverChain.Start(serverFactory)
 	require.NoError(t, err)
 	defer serverFactory.StopAll()
+	env.ServerURL = serverFactory.GetConnectURL()
 
-	clientFactory := factorypkg.NewModuleFactory(env, RecipeModules)
-	clientChain := factoryrecipe.NewFactoryRecipe(RecipeModules, TestDeviceClientChain)
-	err = clientChain.Start(clientFactory)
-	require.NoError(t, err)
-	defer clientFactory.StopAll()
-
-	// the agent handles the server requests
-	ag, _ := clientFactory.GetModule(clients.AgentModuleType)
-	ag.SetRequestHook(func(req *msg.RequestMessage, replyTo msg.ResponseHandler) error {
+	// the server agent handles the server requests
+	ag, _ := serverFactory.GetModule(clients.AgentModuleType)
+	ag.SetAppRequestHook(func(req *msg.RequestMessage, replyTo msg.ResponseHandler) error {
 		if req.ThingID == thingID {
 			slog.Info("Received request", "name", req.Name)
 			resp := req.CreateResponse("42", nil)
@@ -165,12 +161,18 @@ func TestClientServerRecipe(t *testing.T) {
 	})
 
 	// the client sends requests and receives responses
-	// FIXME: this fails
-	// m, _ := clientFactory.GetModule(clients.ConsumerModuleType)
-	// co := m.(*clients.Consumer)
-	// props, err := co.ReadAllProperties(thingID)
-	// assert.NoError(t, err)
-	// assert.NotEmpty(t, props)
+	clientFactory := factorypkg.NewModuleFactory(env, RecipeModules)
+	clientChain := factoryrecipe.NewFactoryRecipe(RecipeModules, TestDeviceClientChain)
+	err = clientChain.Start(clientFactory)
+	require.NoError(t, err)
+	defer clientFactory.StopAll()
 
-	// send a request
+	m2, err := clientFactory.GetModule(clients.ConsumerModuleType)
+	assert.NoError(t, err)
+	co := m2.(*clients.Consumer)
+	var propValue string
+	err = co.ReadProperty(thingID, "fortytwo", &propValue)
+	assert.NoError(t, err)
+	assert.NotEmpty(t, propValue)
+
 }

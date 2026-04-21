@@ -12,7 +12,7 @@ import (
 	grpctransportpkg "github.com/hiveot/hivekit/go/modules/transports/grpc/pkg"
 	httpbasicpkg "github.com/hiveot/hivekit/go/modules/transports/httpbasic/pkg"
 	ssescpkg "github.com/hiveot/hivekit/go/modules/transports/ssesc/pkg"
-	wsspkg "github.com/hiveot/hivekit/go/modules/transports/wss/pkg"
+	wsspkg "github.com/hiveot/hivekit/go/modules/transports/wss1/pkg"
 )
 
 // GetProtocolType returns the protocol used for connecting to this device.

@@ -182,9 +182,9 @@ func (co *Consumer) ReadEvent(thingID, name string) (value *msg.NotificationMess
 // ReadProperty sends a request to read the current value of a Thing property.
 //
 // This decodes the value into the provided type
-func (co *Consumer) ReadProperty(thingID, name string, value any) (err error) {
+func (co *Consumer) ReadProperty(thingID, name string, output any) (err error) {
 
-	err = co.Rpc(co.clientID, td.OpReadProperty, thingID, name, nil, value)
+	err = co.Rpc(co.clientID, td.OpReadProperty, thingID, name, nil, output)
 	return err
 }
 

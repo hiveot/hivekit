@@ -425,7 +425,7 @@ func NewHttpClient(hostPort string,
 		x509Cert, err := x509.ParseCertificate(clientCert.Certificate[0])
 		if err == nil {
 			// cert subject is clientID
-			clientID = x509Cert.Subject.String()
+			clientID = x509Cert.Subject.CommonName
 			// verify the validity of this certificate against the CA
 			// without this one can spend a long time figuring out why the connection fails.
 			opts := x509.VerifyOptions{

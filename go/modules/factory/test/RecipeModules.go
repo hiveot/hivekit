@@ -31,8 +31,8 @@ import (
 	"github.com/hiveot/hivekit/go/modules/transports/httpserver"
 	"github.com/hiveot/hivekit/go/modules/transports/ssesc"
 	ssescpkg "github.com/hiveot/hivekit/go/modules/transports/ssesc/pkg"
-	"github.com/hiveot/hivekit/go/modules/transports/wss"
-	wsspkg "github.com/hiveot/hivekit/go/modules/transports/wss/pkg"
+	"github.com/hiveot/hivekit/go/modules/transports/wss1"
+	wsspkg "github.com/hiveot/hivekit/go/modules/transports/wss1/pkg"
 	"github.com/hiveot/hivekit/go/modules/vcache"
 	vcacheapi "github.com/hiveot/hivekit/go/modules/vcache/api"
 )

@@ -549,7 +549,7 @@ func (srv *TransportServerBase) SetNotificationSink(consumer msg.NotificationHan
 
 // Set the hook to invoke with received requests directed at this module
 // Any other requests received by HandleRequest will be forwarded to the sink.
-func (m *TransportServerBase) SetRequestHook(hook msg.RequestHandler) {
+func (m *TransportServerBase) SetAppRequestHook(hook msg.RequestHandler) {
 	m.appRequestHook = hook
 }
 

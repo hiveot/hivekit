@@ -9,7 +9,7 @@ import (
 	"github.com/hiveot/hivekit/go/modules/transports/httpserver"
 	httpserverconfig "github.com/hiveot/hivekit/go/modules/transports/httpserver/config"
 	ssescpkg "github.com/hiveot/hivekit/go/modules/transports/ssesc/pkg"
-	wsspkg "github.com/hiveot/hivekit/go/modules/transports/wss/pkg"
+	wsspkg "github.com/hiveot/hivekit/go/modules/transports/wss1/pkg"
 )
 
 // TestDevice contains a server and agent for testing and simulation

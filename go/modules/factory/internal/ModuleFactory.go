@@ -147,10 +147,19 @@ func (f *ModuleFactory) GetModule(moduleType string) (modules.IHiveModule, error
 	return m, err
 }
 
+// Return the connectURL of the first server
+func (f *ModuleFactory) GetConnectURL() string {
+	servers := f.GetTransportServers()
+	if len(servers) == 0 {
+		return ""
+	}
+	return servers[0].GetConnectURL()
+}
+
 // Return a copy of the list with loaded transport servers.
 func (f *ModuleFactory) GetTransportServers() []transports.ITransportServer {
 	f.mux.RLock()
-	tpList := []transports.ITransportServer{}
+	tpList := make([]transports.ITransportServer, len(f.transportModules))
 	copy(tpList, f.transportModules)
 	f.mux.RUnlock()
 	return tpList

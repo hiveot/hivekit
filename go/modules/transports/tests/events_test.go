@@ -70,7 +70,7 @@ func TestSubscribeAll(t *testing.T) {
 	co2.SetNotificationSink(func(ev *msg.NotificationMessage) {
 		slog.Info("client 2 receives event")
 	})
-	agent1.SetNotificationHook(func(ev *msg.NotificationMessage) {
+	agent1.SetAppNotificationHook(func(ev *msg.NotificationMessage) {
 		// receive event, tests whether agents work as a consumer
 		slog.Info("Agent receives event")
 		agentRxEvent.Store(true)

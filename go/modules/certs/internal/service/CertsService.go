@@ -83,7 +83,7 @@ func (m *CertsService) Start() (err error) {
 	}
 
 	m.msgHandler = NewCertsMsgHandler(m.certServiceThingID, m)
-	m.SetRequestHook(m.msgHandler.HandleRequest)
+	m.SetAppRequestHook(m.msgHandler.HandleRequest)
 	return err
 }
 

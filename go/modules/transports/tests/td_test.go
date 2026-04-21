@@ -61,7 +61,7 @@ func TestReadTDFromDevice(t *testing.T) {
 			return replyTo(resp)
 		}
 	}
-	ag1.SetAppRequestHandler(agentReqHandler)
+	ag1.SetAppRequestHook(agentReqHandler)
 
 	// 4. create a consumer and verify the TD can be read by a client
 	co, cc, _ := testEnv.NewConsumerClient(consumerID, "somerole", nil)

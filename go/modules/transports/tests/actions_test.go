@@ -155,7 +155,7 @@ func TestInvokeActionFromServerToAgent(t *testing.T) {
 	defer cc1.Close()
 
 	// an agent receives requests from the server
-	ag1client.SetAppRequestHandler(func(req *msg.RequestMessage, replyTo msg.ResponseHandler) error {
+	ag1client.SetAppRequestHook(func(req *msg.RequestMessage, replyTo msg.ResponseHandler) error {
 		// agent receives action request and returns a result
 		slog.Info("Agent receives request", "op", req.Operation)
 		assert.Equal(t, testClientID1, req.SenderID)

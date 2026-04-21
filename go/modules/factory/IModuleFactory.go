@@ -59,6 +59,11 @@ type IModuleFactory interface {
 	// SetAuthenticator is called by the authn module when it is created.
 	GetAuthenticator() transports.IAuthenticator
 
+	// Get the connection URL of the first loaded server module or "" if none.
+	// Primarily intended for testing. It is recommended to use a discovery module in the
+	// factory server and client chains to facilitate discovery of server by the client.
+	GetConnectURL() string
+
 	// GetEnvironment returns the application environment used by the factory for
 	// confuring modules.
 	GetEnvironment() *AppEnvironment

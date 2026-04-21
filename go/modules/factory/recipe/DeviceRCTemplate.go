@@ -4,8 +4,8 @@ import (
 	"github.com/hiveot/hivekit/go/modules/clients"
 	"github.com/hiveot/hivekit/go/modules/factory"
 	"github.com/hiveot/hivekit/go/modules/logging"
-	"github.com/hiveot/hivekit/go/modules/transports/wss"
-	wsspkg "github.com/hiveot/hivekit/go/modules/transports/wss/pkg"
+	"github.com/hiveot/hivekit/go/modules/transports/wss1"
+	wsspkg "github.com/hiveot/hivekit/go/modules/transports/wss1/pkg"
 )
 
 // Recipe for a simple device that uses a reverse connection to a gateway

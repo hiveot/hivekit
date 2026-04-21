@@ -332,8 +332,16 @@ func (cl *GrpcTransportClient) SetTimeout(timeout time.Duration) {
 	cl.timeout = timeout
 }
 
-// Start the module. Use ConnectWithToken instead
+// Start the module and attempt to connect to the server if not already connected.
+//
+// Intended for use by the factory as the factory provides a clientID/token or client
+// certificate.
+//
+// Most users will use ConnectWithToken() instead.
 func (cl *GrpcTransportClient) Start() error {
+	if !cl.IsConnected() {
+		cl.ConnectWithToken(cl.GetClientID(), cl.bearerToken)
+	}
 	return nil
 }
 
