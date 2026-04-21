@@ -38,9 +38,6 @@ type GrpcServiceClient struct {
 	// pass auth token to GetRequestMetadata
 	authToken string
 
-	// caCert in case the connectURL is an ip connection address
-	caCert *x509.Certificate
-
 	// clientID and connectionID to include in the grpc metadata.
 	clientID     string
 	connectionID string
@@ -73,6 +70,9 @@ type GrpcServiceClient struct {
 
 	// buffered stream wrapper around the gRPC streams by stream name (from serviceDesc)
 	streams map[string]*BufferedStream
+
+	// If a certificate was provided then this contains the caCert and optionally the clientCert
+	tlsConfig *tls.Config
 }
 
 // Close disconnects
@@ -106,20 +106,10 @@ func (cl *GrpcServiceClient) ConnectWithToken(clientID string, authToken string)
 	dialOpts := []grpc.DialOption{}
 
 	// If a CA certificate is set the use Transport credentials
-	if cl.caCert != nil {
+	if cl.tlsConfig != nil {
 		// configure the TransportCredentials dial option
-		var clientCertList []tls.Certificate
-		// TODO: support client cert auth
 
-		caCertPool := x509.NewCertPool()
-		caCertPool.AddCert(cl.caCert)
-
-		tlsConfig := &tls.Config{
-			RootCAs:            caCertPool,
-			InsecureSkipVerify: false,
-			Certificates:       clientCertList,
-		}
-		tlsCreds := credentials.NewTLS(tlsConfig)
+		tlsCreds := credentials.NewTLS(cl.tlsConfig)
 		tlsCredOpt := grpc.WithTransportCredentials(tlsCreds)
 		dialOpts = append(dialOpts, tlsCredOpt)
 	} else {
@@ -228,7 +218,7 @@ func (cl *GrpcServiceClient) Ping(input string) (reply string, err error) {
 	serviceMethodName := cl.serviceDesc.ServiceName + "/ping"
 	err = cl.grpcConn.Invoke(ctx, serviceMethodName, input, &reply, opts...)
 	if err != nil {
-		if cl.caCert != nil {
+		if cl.tlsConfig != nil {
 			err = fmt.Errorf("Ping: Connection Error. Wrong address or cert mismatch: %w", err)
 		} else {
 			err = fmt.Errorf("Ping: Connection Error. Wrong address or missing CA cert: %w", err)
@@ -287,9 +277,11 @@ func (cl *GrpcServiceClient) WaitUntilDisconnect(name string) error {
 //
 // The serviceName is provided by the application and must match the server.
 // Use ConnectStream(name) to connect to individual server streams.
+// clientCert is optional for use with tcp sockets
 // caCert is optional for use with tcp sockets
 func NewGrpcServiceClient(
-	connectURI string, caCert *x509.Certificate,
+	connectURI string,
+	clientCert *tls.Certificate, caCert *x509.Certificate,
 	respTimeout time.Duration,
 	serviceName string,
 	msgHandler func(rawMsg []byte),
@@ -304,8 +296,45 @@ func NewGrpcServiceClient(
 		Streams: []grpc.StreamDesc{},
 	}
 
+	// include TLS options when a CA cert is provided
+	// if a clientCert is provided then extract the clientID
+	var tlsConfig *tls.Config
+	var clientID string
+	var clientCertList []tls.Certificate
+	if caCert != nil {
+		caCertPool := x509.NewCertPool()
+		caCertPool.AddCert(caCert)
+		if clientCert != nil {
+			clientCertList = []tls.Certificate{*clientCert}
+			x509Cert, err := x509.ParseCertificate(clientCert.Certificate[0])
+			if err == nil {
+				// cert subject is clientID
+				clientID = x509Cert.Subject.String()
+				// verify the validity of this certificate against the CA to warn the user
+				// without this one can spend a long time figuring out why the connection fails.
+				opts := x509.VerifyOptions{
+					Roots:     caCertPool,
+					KeyUsages: []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth},
+				}
+				_, err = x509Cert.Verify(opts)
+			}
+			if err != nil {
+				err = fmt.Errorf("NewGrpcServiceClient: certificate verfication failed: %w. Continuing for now.", err)
+				slog.Error(err.Error())
+			}
+		}
+
+		tlsConfig = &tls.Config{
+			RootCAs: caCertPool,
+			// why is ServerName not required?
+			InsecureSkipVerify: caCert == nil,
+			Certificates:       clientCertList,
+		}
+	}
+
 	cl := &GrpcServiceClient{
-		caCert:       caCert,
+		clientID:     clientID,
+		tlsConfig:    tlsConfig,
 		connectionID: shortid.MustGenerate(),
 		connectURL:   connectURI,
 		recvHandler:  msgHandler,

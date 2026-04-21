@@ -56,7 +56,7 @@ func NewTestConsumer(m *service.AuthnService, protocolType, serverURL, clientID 
 	token, validUntil, _ := sm.CreateToken(clientID, time.Minute)
 	_ = validUntil
 	co, cc, err := clients.NewConsumerConnection(
-		appID, protocolType, serverURL, testCerts.CaCert, rpcTimeout)
+		appID, protocolType, serverURL, nil, testCerts.CaCert, rpcTimeout)
 	if err != nil {
 		panic("Failed creating consumer connection: " + err.Error())
 	}

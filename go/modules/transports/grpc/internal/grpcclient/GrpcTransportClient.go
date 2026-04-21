@@ -1,6 +1,7 @@
 package grpcclient
 
 import (
+	"crypto/tls"
 	"crypto/x509"
 	"errors"
 	"fmt"
@@ -32,6 +33,7 @@ type GrpcTransportClient struct {
 
 	connectURL string
 	caCert     *x509.Certificate
+	clientCert *tls.Certificate
 	clientID   string
 
 	// encoding and decoding of RRN messages
@@ -145,7 +147,7 @@ func (cl *GrpcTransportClient) ConnectWithToken(clientID string, token string) (
 	cl.bearerToken = token
 
 	cl.grpcClient = grpclib.NewGrpcServiceClient(
-		cl.connectURL, cl.caCert, cl.timeout,
+		cl.connectURL, cl.clientCert, cl.caCert, cl.timeout,
 		grpctransport.GrpcTransportServiceName, cl._onClientMessage)
 
 	err = cl.grpcClient.ConnectWithToken(clientID, token)
@@ -355,13 +357,15 @@ func (cl *GrpcTransportClient) Stop() {
 //
 // Users must use ConnectWithToken to authenticate and start.
 func NewGrpcTransportClient(
-	connectURL string, caCert *x509.Certificate, ch transports.ConnectionHandler) *GrpcTransportClient {
+	connectURL string, clientCert *tls.Certificate, caCert *x509.Certificate,
+	ch transports.ConnectionHandler) *GrpcTransportClient {
 
 	// gRPC does not support tcp scheme, but we want to allow users to specify it for consistency with the server.
 	connectURL = strings.TrimPrefix(connectURL, "tcp://")
 
 	cl := &GrpcTransportClient{
 		caCert:               caCert,
+		clientCert:           clientCert,
 		connectHandler:       ch,
 		connectURL:           connectURL,
 		encoder:              transports.NewRRNJsonEncoder(),

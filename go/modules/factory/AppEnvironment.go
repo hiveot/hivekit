@@ -45,7 +45,11 @@ type AppEnvironment struct {
 	// Intended for clients to validate the connection with the server.
 	CaCert *x509.Certificate `yaml:"-"` // default cert if loaded
 
-	// the server certification for transport modules if applicable
+	// the client certification for transport client modules if applicable
+	// Intended for clients that authenticate using a certificate.
+	ClientCert *tls.Certificate `yaml:"-"`
+
+	// the server certification for transport server modules if applicable
 	// Intended for gateways or hub that runs a server.
 	// Also usable for devices that run a server.
 	ServerCert *tls.Certificate `yaml:"-"`
@@ -83,17 +87,52 @@ func (env *AppEnvironment) GetCA() (caCert *x509.Certificate, err error) {
 	return env.CaCert, err
 }
 
+// Get the client TLS cert when needed.
+// This will load the certificate on first use.
+// This returns nil if the certificate cannot be loaded.
+func (env *AppEnvironment) GetClientCert() (cert *tls.Certificate, err error) {
+	if env.ClientCert != nil {
+		return env.ClientCert, nil
+	}
+	certPath := filepath.Join(env.CertsDir, certsapi.DefaultClientCertFile)
+	keyPath := filepath.Join(env.CertsDir, certsapi.DefaultClientKeyFile)
+	env.ClientCert, err = certutils.LoadTLSCertFromPEM(certPath, keyPath)
+	return env.ClientCert, err
+}
+
+// Return the configured clientID
+// This defaults to the appID, unless a different ID was provided via the commandline
+func (env *AppEnvironment) GetClientID() string {
+	return env.AppID
+}
+
+// Return the authentication token in {clientID}.token
+// This returns an empty string if the token file doesn't exist.
+func (env *AppEnvironment) GetAuthToken() string {
+	token, err := os.ReadFile(env.TokenFile)
+	_ = err
+	return string(token)
+}
+
 // Get the server TLS cert when needed.
 // This will load the certificate on first use.
-// This returns nil if the server certificate cannot be loaded.
+// This returns nil if the certificate cannot be loaded.
 func (env *AppEnvironment) GetServerCert() (cert *tls.Certificate, err error) {
 	if env.ServerCert != nil {
 		return env.ServerCert, nil
 	}
-	serverCertPath := filepath.Join(env.CertsDir, certsapi.DefaultServerCertFile)
-	serverKeyPath := filepath.Join(env.CertsDir, certsapi.DefaultServerKeyFile)
-	env.ServerCert, err = certutils.LoadTLSCertFromPEM(serverCertPath, serverKeyPath)
+	certPath := filepath.Join(env.CertsDir, certsapi.DefaultServerCertFile)
+	keyPath := filepath.Join(env.CertsDir, certsapi.DefaultServerKeyFile)
+	env.ServerCert, err = certutils.LoadTLSCertFromPEM(certPath, keyPath)
 	return env.ServerCert, err
+}
+
+// Get the server URL when needed - intended for starting clients when using the factory.
+// This returns the preconfigured or commandline provided URL.
+//
+// This URL can also be set using the discovery client module configured for a specific protocol.
+func (env *AppEnvironment) GetServerURL() string {
+	return env.ServerURL
 }
 
 // Return the directory where a module stores its data.

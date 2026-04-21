@@ -1,6 +1,7 @@
 package clients
 
 import (
+	"crypto/tls"
 	"crypto/x509"
 	"errors"
 	"sync"
@@ -355,6 +356,7 @@ func NewConsumerFactory(f factory.IModuleFactory) modules.IHiveModule {
 
 // NewConsumerConnection creates a client connection and returns a new instance of
 // a WoT consumer and its connection.
+// TODO: should this be deprecated?
 //
 // This provides the API for common WoT operations such as invoking actions and
 // supports RPC calls by waiting for a response.
@@ -373,10 +375,10 @@ func NewConsumerFactory(f factory.IModuleFactory) modules.IHiveModule {
 // The caller must call client connection Stop or Close when done. The consumer cant do it.
 func NewConsumerConnection(
 	appID string, protocolType string, serverURL string,
-	caCert *x509.Certificate, rpcTimeout time.Duration) (
+	clientCert *tls.Certificate, caCert *x509.Certificate, rpcTimeout time.Duration) (
 	*Consumer, transports.ITransportClient, error) {
 
-	cc, err := NewTransportClient(protocolType, serverURL, caCert, nil)
+	cc, err := NewTransportClient(protocolType, serverURL, clientCert, caCert, nil)
 	cc.SetTimeout(rpcTimeout)
 	if err != nil {
 		return nil, nil, err

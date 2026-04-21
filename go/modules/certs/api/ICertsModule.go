@@ -17,6 +17,10 @@ const DefaultCertsServiceThingID = "certs"
 const DefaultCaCertFile = "caCert.pem"
 const DefaultCaKeyFile = "caKey.pem"
 
+const DefaultClientName = "client"
+const DefaultClientCertFile = DefaultClientName + "Cert.pem"
+const DefaultClientKeyFile = DefaultClientName + "Key.pem"
+
 // DefaultServerName is the name of the shared default server cert
 const DefaultServerName = "server"
 const DefaultServerCertFile = DefaultServerName + "Cert.pem"

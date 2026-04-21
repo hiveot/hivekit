@@ -422,17 +422,17 @@ func NewHttpClient(hostPort string,
 		//--- verify the client certificate against the CA
 		// if a client cert is given then test if it is valid for our CA.
 		// this detects problems with certs that can be hard to track down
-		opts := x509.VerifyOptions{
-			Roots:     caCertPool,
-			KeyUsages: []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth},
-		}
 		x509Cert, err := x509.ParseCertificate(clientCert.Certificate[0])
 		if err == nil {
-			// FIXME: TestCertAuth: certificate specifies incompatible key usage
-			// why? Is the certpool invalid? Yet the test succeeds
-			_, err = x509Cert.Verify(opts)
 			// cert subject is clientID
 			clientID = x509Cert.Subject.String()
+			// verify the validity of this certificate against the CA
+			// without this one can spend a long time figuring out why the connection fails.
+			opts := x509.VerifyOptions{
+				Roots:     caCertPool,
+				KeyUsages: []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth},
+			}
+			_, err = x509Cert.Verify(opts)
 		}
 		if err != nil {
 			err = fmt.Errorf("NewTLSClient: certificate verfication failed: %w. Continuing for now.", err)

@@ -1,6 +1,7 @@
 package grpctransportpkg
 
 import (
+	"crypto/tls"
 	"crypto/x509"
 
 	"github.com/hiveot/hivekit/go/modules/transports"
@@ -18,7 +19,7 @@ import (
 // Use SetRequestSink to set the handler for requests send by consumers
 // Use SetNotificationSink to set the handler for notifications send by agents.
 func NewHiveotGrpcClient(
-	addr string, caCert *x509.Certificate, ch transports.ConnectionHandler) transports.ITransportClient {
+	addr string, clientCert *tls.Certificate, caCert *x509.Certificate, ch transports.ConnectionHandler) transports.ITransportClient {
 
-	return grpcclient.NewGrpcTransportClient(addr, caCert, ch)
+	return grpcclient.NewGrpcTransportClient(addr, clientCert, caCert, ch)
 }

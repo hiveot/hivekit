@@ -11,7 +11,7 @@ var TestDeviceServerChain = []string{
 	clients.AgentModuleType,
 }
 
-// module types of a device client chain
+// module types of a client chain
 var TestDeviceClientChain = []string{
 	clients.ConsumerModuleType,
 	wss.WotWebsocketClientModuleType,

@@ -2,6 +2,7 @@ package client
 
 import (
 	"context"
+	"crypto/tls"
 	"crypto/x509"
 	"fmt"
 	"log/slog"
@@ -526,7 +527,7 @@ func (cl *HiveotSseClient) Stop() {
 //	sseURL full connection URL of Hiveot SSE server and path
 //	caCert is the CA certificate to validate the server certificate
 //	ch is the connect/disconnect callback
-func NewHiveotSseClient(sseURL string, caCert *x509.Certificate,
+func NewHiveotSseClient(sseURL string, clientCert *tls.Certificate, caCert *x509.Certificate,
 	ch transports.ConnectionHandler) *HiveotSseClient {
 
 	urlParts, err := url.Parse(sseURL)
@@ -538,7 +539,7 @@ func NewHiveotSseClient(sseURL string, caCert *x509.Certificate,
 	ssePath := urlParts.Path
 	// use SetTimeout to change the default
 	timeout := msg.DefaultRnRTimeout
-	tlsClient := httpclient.NewHttpClient(hostPort, nil, caCert, timeout)
+	tlsClient := httpclient.NewHttpClient(hostPort, clientCert, caCert, timeout)
 
 	cl := &HiveotSseClient{
 		connectHandler: ch,

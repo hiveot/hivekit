@@ -38,7 +38,7 @@ func TestConnect(t *testing.T) {
 	err = m.Start()
 	require.NoError(t, err)
 
-	cl := httpbasicpkg.NewHttpBasicClient(baseURL, caCert, nil,
+	cl := httpbasicpkg.NewHttpBasicClient(baseURL, nil, caCert, nil,
 		func(connected bool, cl2 transports.IConnection, err2 error) {
 			isConnected = connected
 		})

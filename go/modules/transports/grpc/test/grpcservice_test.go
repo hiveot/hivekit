@@ -90,7 +90,7 @@ func TestConnectPing(t *testing.T) {
 	// connect a client
 	handleClientMessage := func(raw []byte) {}
 	cl := grpclib.NewGrpcServiceClient(
-		clientURL, certBundle.CaCert, time.Minute, grpcServiceName, handleClientMessage)
+		clientURL, nil, certBundle.CaCert, time.Minute, grpcServiceName, handleClientMessage)
 
 	err = cl.ConnectWithToken(clientID, token)
 	require.NoError(t, err)
@@ -176,7 +176,7 @@ func TestStreamMessages(t *testing.T) {
 		assert.Equal(t, serverSendMsg, rxMsg)
 	}
 	cl := grpclib.NewGrpcServiceClient(
-		clientURL, certBundle.CaCert, time.Minute, serviceName, onClientMessage)
+		clientURL, nil, certBundle.CaCert, time.Minute, serviceName, onClientMessage)
 
 	err = cl.ConnectWithToken(clientID, authToken)
 	assert.NoError(t, err) // (dont use require as svc.Stop is not a defer)

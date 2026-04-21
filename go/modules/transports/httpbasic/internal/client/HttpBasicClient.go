@@ -2,6 +2,7 @@ package client
 
 import (
 	"context"
+	"crypto/tls"
 	"crypto/x509"
 	"errors"
 	"fmt"
@@ -392,7 +393,7 @@ func (cl *HttpBasicClient) Stop() {
 //	getForm is the handler for return a form for invoking an operation. nil for default
 //	ch optional callback with connection status changes
 func NewHttpBasicClient(
-	baseURL string, caCert *x509.Certificate,
+	baseURL string, clientCert *tls.Certificate, caCert *x509.Certificate,
 	getForm transports.GetFormHandler,
 	ch transports.ConnectionHandler) *HttpBasicClient {
 
@@ -404,7 +405,7 @@ func NewHttpBasicClient(
 	}
 	hostPort := urlParts.Host
 
-	tlsClient := httpclient.NewHttpClient(hostPort, nil, caCert, timeout)
+	tlsClient := httpclient.NewHttpClient(hostPort, clientCert, caCert, timeout)
 	cl := NewHttpBasicTLSClient(tlsClient, getForm, ch)
 
 	return cl

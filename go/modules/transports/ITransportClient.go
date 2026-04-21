@@ -39,14 +39,19 @@ type ITransportClient interface {
 	// ConnectWithToken connects to the transport server using a clientID and
 	// corresponding authentication token.
 	//
-	// This method can be used if it is known that bearer token basic authentication is supported
-	// by the server.
+	// This method can be used if it is known that bearer token authentication is
+	// supported by the server. While most transport servers support token authentication,
+	// the method of obtaining a token depends on the application environment. The authn
+	// module can be used for token authentication using LoginWithPassword.
 	//
-	// While most hiveot transport servers support token authentication, the method
-	// of obtaining a token depends on the environment. The authn module is intended for this.
+	// If the transport client is started by the module factory, credentials can be
+	// provided through the included AppEnvironment using client certificate or token,
+	// and used when Start() is called to establish a connection. If the AppEnvironment
+	// does not contain credentials then ConnectWithToken must be used on the client
+	// module obtained using factoryInstance.GetModule(TransportClientType) to estsablish
+	// the connection before the chain can be used.
 	//
 	// If a connection is already established on this client then it will be closed first.
-	//
 	// This connection method must be supported by all client implementations.
 	//
 	//	clientID is the ID to authenticate as, it must match the token

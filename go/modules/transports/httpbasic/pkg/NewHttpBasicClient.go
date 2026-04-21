@@ -1,6 +1,7 @@
 package httpbasicpkg
 
 import (
+	"crypto/tls"
 	"crypto/x509"
 
 	"github.com/hiveot/hivekit/go/modules/transports"
@@ -20,11 +21,11 @@ import (
 //	getForm is the handler for return a form for invoking an operation. nil for default
 //	ch optional callback with connection status changes
 func NewHttpBasicClient(
-	baseURL string, caCert *x509.Certificate,
+	baseURL string, clientCert *tls.Certificate, caCert *x509.Certificate,
 	getForm transports.GetFormHandler,
 	ch transports.ConnectionHandler) transports.ITransportClient {
 
-	return client.NewHttpBasicClient(baseURL, caCert, getForm, ch)
+	return client.NewHttpBasicClient(baseURL, clientCert, caCert, getForm, ch)
 }
 
 // NewHttpBasicTlsClient creates a new instance of the WoT compatible http-basic

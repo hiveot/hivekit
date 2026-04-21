@@ -2,6 +2,7 @@ package client
 
 import (
 	"context"
+	"crypto/tls"
 	"crypto/x509"
 	"errors"
 	"fmt"
@@ -428,8 +429,16 @@ func (cl *WssTransportClient) SetTimeout(timeout time.Duration) {
 	cl.timeout = timeout
 }
 
-// Start the module. Use ConnectWithToken instead
+// Start the module and attempt to connect to the server if not already connected.
+//
+// Intended for use by the factory as the factory provides a clientID/token or client
+// certificate.
+//
+// Most users will use ConnectWithToken instead.
 func (cl *WssTransportClient) Start() error {
+	if !cl.isConnected.Load() {
+		cl.ConnectWithToken(cl.GetClientID(), cl.bearerToken)
+	}
 	return nil
 }
 
@@ -444,10 +453,11 @@ func (cl *WssTransportClient) Stop() {
 // Users must use ConnectWithToken to authenticate and connect.
 //
 //	wssURL is the full websocket connection URL including path
+//	clientCert is an optional client certificate used to authenticate
 //	caCert is the server CA for TLS connection validation
 //	ch is the connect/disconnect callback. nil to ignore
 func NewHiveotWssClient(
-	wssURL string, caCert *x509.Certificate,
+	wssURL string, clientCert *tls.Certificate, caCert *x509.Certificate,
 	ch transports.ConnectionHandler) *WssTransportClient {
 
 	// ensure the URL has port as 443 is not valid for this
@@ -459,7 +469,7 @@ func NewHiveotWssClient(
 	timeout := msg.DefaultRnRTimeout
 	hostPort := urlParts.Host
 	wssPath := urlParts.Path
-	tlsClient := httpclient.NewHttpClient(hostPort, nil, caCert, timeout)
+	tlsClient := httpclient.NewHttpClient(hostPort, clientCert, caCert, timeout)
 
 	cl := WssTransportClient{
 		caCert:               caCert,
@@ -486,13 +496,14 @@ func NewHiveotWssClient(
 //	timeout is the maximum connection wait time. 0 for default.
 //	ch is the connection callback handler, nil to ignore
 func NewWotWssClient(
-	wssURL string, caCert *x509.Certificate, ch transports.ConnectionHandler) *WssTransportClient {
+	wssURL string, clientCert *tls.Certificate, caCert *x509.Certificate,
+	ch transports.ConnectionHandler) *WssTransportClient {
 
 	timeout := msg.DefaultRnRTimeout
 	urlParts, _ := url.Parse(wssURL)
 	hostPort := urlParts.Host
 	wssPath := urlParts.Path
-	tlsClient := httpclient.NewHttpClient(hostPort, nil, caCert, timeout)
+	tlsClient := httpclient.NewHttpClient(hostPort, clientCert, caCert, timeout)
 
 	cl := &WssTransportClient{
 		caCert:               caCert,

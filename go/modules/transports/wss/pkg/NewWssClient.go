@@ -1,6 +1,7 @@
 package wsspkg
 
 import (
+	"crypto/tls"
 	"crypto/x509"
 
 	"github.com/hiveot/hivekit/go/modules"
@@ -16,16 +17,33 @@ import (
 //	wssURL is the full websocket connection URL including path
 //	caCert is the server CA for TLS connection validation
 //	ch is the connect/disconnect callback. nil to ignore
-func NewHiveotWssClient(wssURL string, caCert *x509.Certificate,
+func NewHiveotWssClient(wssURL string, clientCert *tls.Certificate, caCert *x509.Certificate,
 	ch transports.ConnectionHandler) transports.ITransportClient {
-	return client.NewHiveotWssClient(wssURL, caCert, ch)
+
+	return client.NewHiveotWssClient(wssURL, clientCert, caCert, ch)
 }
 
 // Create a websocket client for the given factory environment
+// Intended for devices that use reverse connections or consumer applications that
+// use the factory. If the environment is setup with credentials then these are
+// used to provision the client connection.
 func NewHiveotWssClientFactory(f factory.IModuleFactory) modules.IHiveModule {
 	env := f.GetEnvironment()
-	wssURL := "" // todo: how to determine the server URL?
-	return NewHiveotWssClient(wssURL, env.CaCert, nil)
+
+	clientCert, _ := env.GetClientCert()
+	wssURL := env.GetServerURL()
+	m := NewHiveotWssClient(wssURL, clientCert, env.CaCert, nil)
+	// if client certificate not available attempt auth token
+	if clientCert == nil {
+		// must use token auth
+		clientID := env.GetClientID()
+		authToken := env.GetAuthToken()
+
+		if clientID != "" && authToken != "" {
+			m.ConnectWithToken(clientID, authToken)
+		}
+	}
+	return m
 }
 
 // NewWotWssClient creates a new instance of the WoT compatible websocket client.
@@ -40,13 +58,31 @@ func NewHiveotWssClientFactory(f factory.IModuleFactory) modules.IHiveModule {
 //	caCert is the server CA for TLS connection validation
 //	timeout is the maximum connection wait time. 0 for default.
 //	ch is the connection callback handler, nil to ignore
-func NewWotWssClient(wssURL string, caCert *x509.Certificate,
+func NewWotWssClient(wssURL string, clientCert *tls.Certificate, caCert *x509.Certificate,
 	ch transports.ConnectionHandler) transports.ITransportClient {
-	return client.NewWotWssClient(wssURL, caCert, ch)
+	return client.NewWotWssClient(wssURL, clientCert, caCert, ch)
 }
 
-// Create a websocket client for the given factory environment
+// Create a websocket client for the given factory environment.
+// This attempts to obtain server URL and authentication credentials if available.
+//
+// Intended for devices that use reverse connections or consumer applications that
+// use the factory. If the environment is setup with credentials then these are
+// used to provision the client connection.
 func NewWotWssClientFactory(f factory.IModuleFactory) modules.IHiveModule {
 	env := f.GetEnvironment()
-	return NewWotWssClient(env.ServerURL, env.CaCert, nil)
+	clientCert, _ := env.GetClientCert()
+	serverURL := env.GetServerURL()
+	m := NewWotWssClient(serverURL, clientCert, env.CaCert, nil)
+	// if client certificate not available attempt auth token
+	if clientCert == nil {
+		// must use token auth
+		clientID := env.GetClientID()
+		authToken := env.GetAuthToken()
+
+		if clientID != "" && authToken != "" {
+			m.ConnectWithToken(clientID, authToken)
+		}
+	}
+	return m
 }
