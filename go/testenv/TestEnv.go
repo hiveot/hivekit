@@ -35,10 +35,11 @@ var TestUDSURL = transports.UriSchemeHiveotGrpc + "://" + TestUDSPath
 // var TestUDSPath = ":8899"
 // var TestUDSURL = "tcp://" + TestUDSPath
 
-var DefaultProtocol = transports.ProtocolTypeHiveotGrpc
+// var DefaultProtocol = transports.ProtocolTypeHiveotGrpc
 
 // var DefaultProtocol = transports.ProtocolTypeHiveotSsesc
-// var DefaultProtocol = transports.ProtocolTypeHiveotWebsocket
+var DefaultProtocol = transports.ProtocolTypeHiveotWebsocket
+
 // var DefaultProtocol = transports.ProtocolTypeWotWebsocket
 // var DefaultProtocol = transports.ProtocolTypeWotHttpBasic
 

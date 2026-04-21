@@ -14,7 +14,6 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/hiveot/hivekit/go/modules/transports"
 	"github.com/hiveot/hivekit/go/utils"
-	"github.com/teris-io/shortid"
 )
 
 // ConnectWSS establishes a websocket session with the server
@@ -23,6 +22,7 @@ func ConnectWSS(
 	clientID string,
 	hostPort string,
 	wssPath string,
+	cid string,
 	bearerToken string,
 	clientCert *tls.Certificate,
 	caCert *x509.Certificate,
@@ -38,7 +38,6 @@ func ConnectWSS(
 		slog.String("clientID", clientID))
 
 	// each connection a unique cid
-	connectionID := "wss-" + shortid.MustGenerate()
 	connectURL := "wss://" + hostPort + wssPath
 	serverName := strings.Split(hostPort, ":")[0]
 
@@ -63,7 +62,7 @@ func ConnectWSS(
 
 	wssHeader := http.Header{}
 	wssHeader.Add("Authorization", "bearer "+bearerToken)
-	wssHeader.Add(transports.ConnectionIDHeader, connectionID)
+	wssHeader.Add(transports.ConnectionIDHeader, cid)
 	//parts, _ := url.Parse(hostPort)
 	//origin := fmt.Sprintf("%s://%s", parts.Scheme, parts.Host)
 	//opts.HTTPHeader.Add("Origin", origin)

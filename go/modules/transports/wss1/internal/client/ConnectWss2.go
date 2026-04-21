@@ -13,8 +13,8 @@ import (
 	"github.com/hiveot/hivekit/go/utils"
 )
 
-// ConnectWSS establishes a websocket session with the server using the given TLS client
-// NOTE: As of Jan 2026 this does not work because gorilla websockets dont support http/2.
+// ConnectWSS2 establishes a websocket session with the server using the given http/2 TLS client
+// NOTE: As of Jan 2026 this does not work because gorilla websockets doesnt support http/2.
 // consider using https://github.com/coder/websocket instead as it has experimental support.
 func ConnectWSS2(
 	tlsClient transports.ITLSClient,

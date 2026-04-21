@@ -13,6 +13,7 @@ import (
 	"net/http"
 	"net/http/cookiejar"
 	"net/url"
+	"strings"
 	"time"
 
 	"github.com/hiveot/hivekit/go/modules/transports"
@@ -438,10 +439,12 @@ func NewHttpClient(hostPort string, caCert *x509.Certificate, timeout time.Durat
 			slog.String("destination", hostPort))
 	}
 
+	serverName := strings.Split(hostPort, ":")[0]
+
 	tlsConfig := &tls.Config{
 		// see also ConnectWithClientCert
-		Certificates: nil,
-		// why is ServerName not required?
+		Certificates:       nil,
+		ServerName:         serverName,
 		InsecureSkipVerify: caCert == nil,
 		RootCAs:            nil,
 	}
