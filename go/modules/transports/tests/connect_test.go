@@ -13,6 +13,7 @@ import (
 	"github.com/hiveot/hivekit/go/api/msg"
 	"github.com/hiveot/hivekit/go/api/td"
 	"github.com/hiveot/hivekit/go/modules/authn"
+	"github.com/hiveot/hivekit/go/modules/clients"
 	"github.com/hiveot/hivekit/go/modules/transports"
 	"github.com/hiveot/hivekit/go/testenv"
 	"github.com/hiveot/hivekit/go/utils"
@@ -69,6 +70,7 @@ func TestStartStop(t *testing.T) {
 	t.Log("---ending---")
 }
 
+// Run a ping test to verify a client-server connection using the test protocol
 func TestPing(t *testing.T) {
 	t.Logf("---%s %s---\n", t.Name(), testProtocol)
 
@@ -80,11 +82,40 @@ func TestPing(t *testing.T) {
 
 	err := co1.Ping()
 	require.NoError(t, err)
+}
 
-	// var output any
-	// err = co1.Rpc(td.HTOpPing, "", "", nil, &output)
-	// assert.Equal(t, "pong", output)
-	// assert.NoError(t, err)
+// Run a ping test with client cert auth for the given test protocol
+func TestPingClientCert(t *testing.T) {
+	t.Logf("---%s %s---\n", t.Name(), testProtocol)
+
+	testEnv, cancelFn := testenv.StartTestEnv(testProtocol)
+	defer cancelFn()
+
+	// ensure the test client account exists
+	err := testEnv.TestAuthn.AddClient(testClientID1, "test", authn.ClientRoleViewer)
+
+	// NewConsumerClient creates a client
+	// create a connection to the test server
+	cl, err := clients.NewTransportClient(
+		testEnv.ServerProtocol, testEnv.ServerURL,
+		testEnv.CertBundle.CaCert, nil)
+	require.NoError(t, err)
+	err = cl.ConnectWithClientCert(testEnv.CertBundle.ClientCert)
+	require.NoError(t, err)
+
+	cl.SetTimeout(time.Minute)
+	defer cl.Close()
+
+	// all hiveot transport handle a ping message
+	req := msg.NewRequestMessage(td.HTOpPing, "", "", nil, "")
+	err = cl.HandleRequest(req, func(resp *msg.ResponseMessage) error {
+		slog.Info("Received response")
+		return nil
+	})
+	require.NoError(t, err)
+
+	isConnected := cl.IsConnected()
+	assert.True(t, isConnected)
 }
 
 // Auto-reconnect using hub client and server

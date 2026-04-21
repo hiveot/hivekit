@@ -178,7 +178,7 @@ func TestGetDirectoryTD(t *testing.T) {
 	// token, _, err := testEnv.CreateToken(userID, time.Minute)
 	// require.NoError(t, err)
 
-	httpClient := httpclient.NewHttpClient(hostPort, nil, testEnv.CertBundle.CaCert, time.Minute)
+	httpClient := httpclient.NewHttpClient(hostPort, testEnv.CertBundle.CaCert, time.Minute)
 	err := httpClient.ConnectWithToken(userID, token)
 	require.NoError(t, err)
 	defer httpClient.Close()

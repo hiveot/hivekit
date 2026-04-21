@@ -1,7 +1,6 @@
 package grpctransportpkg
 
 import (
-	"crypto/tls"
 	"crypto/x509"
 
 	"github.com/hiveot/hivekit/go/modules"
@@ -21,9 +20,9 @@ import (
 // Use SetRequestSink to set the handler for requests send by consumers
 // Use SetNotificationSink to set the handler for notifications send by agents.
 func NewHiveotGrpcClient(
-	addr string, clientCert *tls.Certificate, caCert *x509.Certificate, ch transports.ConnectionHandler) transports.ITransportClient {
+	addr string, caCert *x509.Certificate, ch transports.ConnectionHandler) transports.ITransportClient {
 
-	return grpcclient.NewGrpcTransportClient(addr, clientCert, caCert, ch)
+	return grpcclient.NewGrpcTransportClient(addr, caCert, ch)
 }
 
 // Create a gRPC client using the factory
@@ -32,7 +31,7 @@ func NewHiveotGrpcClientFactory(f factory.IModuleFactory) modules.IHiveModule {
 	clientCert, _ := env.GetClientCert()
 	serverURL := env.GetServerURL()
 
-	m := grpcclient.NewGrpcTransportClient(serverURL, clientCert, env.CaCert, nil)
+	m := grpcclient.NewGrpcTransportClient(serverURL, env.CaCert, nil)
 	m.SetTimeout(env.RpcTimeout)
 
 	// if client certificate not available attempt auth token

@@ -1,7 +1,6 @@
 package authnpkg
 
 import (
-	"crypto/tls"
 	"crypto/x509"
 	"log/slog"
 	"net/http"
@@ -117,15 +116,14 @@ func (cl *AuthnUserHttpClient) RefreshToken(oldToken string) (newToken string, e
 //
 //	serverURL is the host:port of the http server
 //	caCert is the server CA
-//	clientCert is optional. Use nil to use ConnectWithToken instead.
-func NewUserAuthnHttpClient(serverURL string, clientCert *tls.Certificate, caCert *x509.Certificate) *AuthnUserHttpClient {
+func NewUserAuthnHttpClient(serverURL string, caCert *x509.Certificate) *AuthnUserHttpClient {
 	parts, err := url.Parse(serverURL)
 	if err != nil {
 		slog.Error("NewAuthnClient: invalid server URL", "err", err.Error())
 		return nil
 	}
 
-	tlsClient := httpclient.NewHttpClient(parts.Host, clientCert, caCert, 0)
+	tlsClient := httpclient.NewHttpClient(parts.Host, caCert, 0)
 	return &AuthnUserHttpClient{
 		tlsClient: tlsClient,
 	}

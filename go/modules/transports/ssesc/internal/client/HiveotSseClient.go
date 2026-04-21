@@ -127,6 +127,11 @@ func (cl *HiveotSseClient) ConnectSSE(token string) (err error) {
 	return err
 }
 
+// Connect authenticating using a client certificate
+func (cl *HiveotSseClient) ConnectWithClientCert(clientCert *tls.Certificate) (err error) {
+	return cl.tlsClient.ConnectWithClientCert(clientCert)
+}
+
 // ConnectWithToken sets the clientID and bearer token to use with requests and
 //
 //	establishes an SSE connection.
@@ -527,7 +532,7 @@ func (cl *HiveotSseClient) Stop() {
 //	sseURL full connection URL of Hiveot SSE server and path
 //	caCert is the CA certificate to validate the server certificate
 //	ch is the connect/disconnect callback
-func NewHiveotSseClient(sseURL string, clientCert *tls.Certificate, caCert *x509.Certificate,
+func NewHiveotSseClient(sseURL string, caCert *x509.Certificate,
 	ch transports.ConnectionHandler) *HiveotSseClient {
 
 	urlParts, err := url.Parse(sseURL)
@@ -539,7 +544,7 @@ func NewHiveotSseClient(sseURL string, clientCert *tls.Certificate, caCert *x509
 	ssePath := urlParts.Path
 	// use SetTimeout to change the default
 	timeout := msg.DefaultRnRTimeout
-	tlsClient := httpclient.NewHttpClient(hostPort, clientCert, caCert, timeout)
+	tlsClient := httpclient.NewHttpClient(hostPort, caCert, timeout)
 
 	cl := &HiveotSseClient{
 		connectHandler: ch,
@@ -549,7 +554,7 @@ func NewHiveotSseClient(sseURL string, clientCert *tls.Certificate, caCert *x509
 		tlsClient:      tlsClient,
 		timeout:        timeout,
 	}
-	var _ transports.IConnection = cl // interface check
-	var _ modules.IHiveModule = cl    // interface check
+	var _ modules.IHiveModule = cl         // interface check
+	var _ transports.ITransportClient = cl // interface check
 	return cl
 }

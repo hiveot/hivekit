@@ -170,7 +170,7 @@ func NewDirectoryHttpClient(serverURL string, caCert *x509.Certificate) *Directo
 		return nil
 	}
 
-	tlsClient := httpclient.NewHttpClient(parts.Host, nil, caCert, 0)
+	tlsClient := httpclient.NewHttpClient(parts.Host, caCert, 0)
 
 	cl := &DirectoryHttpClient{
 		timeout:   msg.DefaultRnRTimeout,

@@ -2,6 +2,7 @@ package transports
 
 import (
 	"context"
+	"crypto/tls"
 	"net/http"
 	"time"
 
@@ -26,6 +27,11 @@ type ITLSClient interface {
 
 	// Close the connection and release resources
 	Close()
+
+	// Connect using a client certificate
+	// This does not make any calls yet, just sets the client certificate.
+	// This returns an error if no CA is set
+	ConnectWithClientCert(clientCert *tls.Certificate) (err error)
 
 	// Connect the client to a server with the clientID and token.
 	//

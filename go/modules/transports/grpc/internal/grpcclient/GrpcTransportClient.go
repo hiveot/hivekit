@@ -134,27 +134,8 @@ func (cl *GrpcTransportClient) Close() {
 	}
 }
 
-// ConnectWithToken attempts to establish a UDS connection
-// clientID and token are not used.
-func (cl *GrpcTransportClient) ConnectWithToken(clientID string, token string) (err error) {
-
-	// ensure disconnected (note that this resets retryOnDisconnect)
-	if cl.IsConnected() {
-		cl.Close()
-	}
-
-	cl.clientID = clientID
-	cl.bearerToken = token
-
-	cl.grpcClient = grpclib.NewGrpcServiceClient(
-		cl.connectURL, cl.clientCert, cl.caCert, cl.timeout,
-		grpctransport.GrpcTransportServiceName, cl._onClientMessage)
-
-	err = cl.grpcClient.ConnectWithToken(clientID, token)
-	if err != nil {
-		slog.Error("Grpc connection failed", "addr", cl.connectURL, "err", err.Error())
-		return err
-	}
+// connect attempts to establish the streams using the created grpc client
+func (cl *GrpcTransportClient) connect() (err error) {
 
 	// use ping as 'connect' might not detect a failed connection
 	_, err = cl.grpcClient.Ping("")
@@ -194,6 +175,60 @@ func (cl *GrpcTransportClient) ConnectWithToken(clientID string, token string) (
 	// allow background tasks to complete
 	time.Sleep(time.Millisecond)
 
+	return err
+}
+
+// ConnectWithClientCert attempts to establish a UDS connection using a client certificate for auth
+func (cl *GrpcTransportClient) ConnectWithClientCert(clientCert *tls.Certificate) (err error) {
+	cl.clientCert = clientCert
+
+	// verify the validity of this certificate against the CA
+	// without this one can spend a long time figuring out why the connection fails.
+	x509Cert, err := x509.ParseCertificate(clientCert.Certificate[0])
+	if err == nil {
+		// cert subject is clientID
+		cl.clientID = x509Cert.Subject.CommonName
+		caCertPool := x509.NewCertPool()
+		caCertPool.AddCert(cl.caCert)
+		opts := x509.VerifyOptions{
+			Roots:     caCertPool,
+			KeyUsages: []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth},
+		}
+		_, err = x509Cert.Verify(opts)
+	}
+	if err != nil {
+		slog.Error("ConnectWithClientCert failed: " + err.Error())
+		return err
+	}
+	cl.grpcClient = grpclib.NewGrpcServiceClient(
+		cl.connectURL, clientCert, cl.caCert, cl.timeout,
+		grpctransport.GrpcTransportServiceName, cl._onClientMessage)
+
+	err = cl.connect()
+	return err
+}
+
+// ConnectWithToken attempts to establish a UDS connection
+func (cl *GrpcTransportClient) ConnectWithToken(clientID string, token string) (err error) {
+
+	// ensure disconnected (note that this resets retryOnDisconnect)
+	if cl.IsConnected() {
+		cl.Close()
+	}
+
+	cl.clientID = clientID
+	cl.bearerToken = token
+
+	cl.grpcClient = grpclib.NewGrpcServiceClient(
+		cl.connectURL, cl.clientCert, cl.caCert, cl.timeout,
+		grpctransport.GrpcTransportServiceName, cl._onClientMessage)
+
+	err = cl.grpcClient.ConnectWithToken(clientID, token)
+	if err != nil {
+		slog.Error("Grpc connection failed", "addr", cl.connectURL, "err", err.Error())
+		return err
+	}
+	err = cl.connect()
 	return err
 }
 
@@ -365,7 +400,7 @@ func (cl *GrpcTransportClient) Stop() {
 //
 // Users must use ConnectWithToken to authenticate and start.
 func NewGrpcTransportClient(
-	connectURL string, clientCert *tls.Certificate, caCert *x509.Certificate,
+	connectURL string, caCert *x509.Certificate,
 	ch transports.ConnectionHandler) *GrpcTransportClient {
 
 	// gRPC does not support tcp scheme, but we want to allow users to specify it for consistency with the server.
@@ -373,7 +408,7 @@ func NewGrpcTransportClient(
 
 	cl := &GrpcTransportClient{
 		caCert:               caCert,
-		clientCert:           clientCert,
+		clientCert:           nil,
 		connectHandler:       ch,
 		connectURL:           connectURL,
 		encoder:              transports.NewRRNJsonEncoder(),

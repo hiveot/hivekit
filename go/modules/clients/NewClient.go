@@ -1,7 +1,6 @@
 package clients
 
 import (
-	"crypto/tls"
 	"crypto/x509"
 	"fmt"
 	"net/url"
@@ -90,12 +89,11 @@ func GetProtocolType(tdoc *td.TD) (protocolType string, href string) {
 //
 //	protocolType provides direct control of the client to create regardless of the URL.
 //	 If omitted, then it is derived from the serverURL scheme.
-//	clientCert is optional to use certificate authentication, when supported.
 //
 // # Use SetTimeout for increasing the default communication timeout for testing
 //
 // This is intended to be used as a sink for application modules.
-func NewTransportClient(protocolType string, serverURL string, clientCert *tls.Certificate, caCert *x509.Certificate,
+func NewTransportClient(protocolType string, serverURL string, caCert *x509.Certificate,
 	ch transports.ConnectionHandler) (cl transports.ITransportClient, err error) {
 
 	parts, err := url.Parse(serverURL)
@@ -125,20 +123,20 @@ func NewTransportClient(protocolType string, serverURL string, clientCert *tls.C
 		// if strings.HasPrefix(serverURL, "unix") {
 		// 	caCert = nil
 		// }
-		cl = grpctransportpkg.NewHiveotGrpcClient(serverURL, clientCert, caCert, ch)
+		cl = grpctransportpkg.NewHiveotGrpcClient(serverURL, caCert, ch)
 
 	case transports.ProtocolTypeHiveotSsesc:
-		cl = ssescpkg.NewSseScClient(serverURL, clientCert, caCert, ch)
+		cl = ssescpkg.NewSseScClient(serverURL, caCert, ch)
 
 	case transports.ProtocolTypeHiveotWebsocket:
-		cl = wsspkg.NewHiveotWssClient(serverURL, clientCert, caCert, ch)
+		cl = wsspkg.NewHiveotWssClient(serverURL, caCert, ch)
 
 	case transports.ProtocolTypeWotWebsocket:
-		cl = wsspkg.NewWotWssClient(serverURL, clientCert, caCert, ch)
+		cl = wsspkg.NewWotWssClient(serverURL, caCert, ch)
 
 	case transports.ProtocolTypeWotHttpBasic:
 		caCert := caCert
-		cl = httpbasicpkg.NewHttpBasicClient(serverURL, clientCert, caCert, nil, ch)
+		cl = httpbasicpkg.NewHttpBasicClient(serverURL, caCert, nil, ch)
 
 	//case transports.ProtocolTypeWotMQTTWSS:
 	//	fullURL = testServerMqttWssURL

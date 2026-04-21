@@ -32,7 +32,7 @@ type TLSClient struct {
 	caCert *x509.Certificate
 
 	// client certificate mutual authentication
-	clientCert *tls.Certificate
+	// clientCert *tls.Certificate
 
 	// The client this identifies as
 	clientID string
@@ -49,7 +49,7 @@ type TLSClient struct {
 	// the native http client
 	httpClient *http.Client
 	// http2 transport
-	tlsTransport *http2.Transport
+	http2Transport *http2.Transport
 
 	timeout time.Duration
 }
@@ -64,21 +64,47 @@ func (cl *TLSClient) Close() {
 	}
 }
 
-// ConnectWithClientCert creates a connection with the server using a client certificate for mutual authentication.
+// ConnectWithClientCert obtains the clientID from the certificate CommonName and
+// updates the TLS connection to use the client certificate.
 // The provided certificate must be signed by the server's CA.
 //
-//	kp is the key-pair used to the certificate validation
 //	clientCert client tls certificate containing x509 cert and private key
 //
-// Returns nil if successful, or an error if connection failed
-//
-//	func (cl *TLSClient) ConnectWithClientCert(kp keys.IHiveKey, clientCert *tls.Certificate) (err error) {
-//		cl.mux.RLock()
-//		defer cl.mux.RUnlock()
-//		_ = kp
-//		cl.tlsClient = tlsclient.NewTLSClient(cl.hostPort, clientCert, cl.caCert, cl.timeout)
-//		return err
-//	}
+// Returns nil if successful, or an error if no CA is set or cert invalid
+func (cl *TLSClient) ConnectWithClientCert(clientCert *tls.Certificate) (err error) {
+
+	// update the existing TLS configuration created during instantiation
+	tlsConfig := cl.http2Transport.TLSClientConfig
+
+	if tlsConfig.RootCAs == nil {
+		slog.Error("ConnectWithClientCert: a CA is required")
+		return fmt.Errorf("ConnectWithClientCert: No CA has been set")
+	}
+
+	// cl.clientCert = clientCert
+	tlsConfig.Certificates = []tls.Certificate{*clientCert}
+
+	//--- verify the client certificate against the CA and extract the clientID
+	// if a client cert is given then test if it is valid for our CA.
+	// this detects problems with certs that can be hard to track down
+	x509Cert, err := x509.ParseCertificate(clientCert.Certificate[0])
+	if err == nil {
+		// cert subject is clientID
+		cl.clientID = x509Cert.Subject.CommonName
+		// verify the validity of this certificate against the CA
+		// without this one can spend a long time figuring out why the connection fails.
+		opts := x509.VerifyOptions{
+			Roots:     tlsConfig.RootCAs,
+			KeyUsages: []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth},
+		}
+		_, err = x509Cert.Verify(opts)
+	}
+	if err != nil {
+		err = fmt.Errorf("ConnectWithClientCert: certificate not valid: %w.", err)
+		slog.Error(err.Error())
+	}
+	return err
+}
 
 // Connect the client to a server with the given clientID and token.
 //
@@ -183,7 +209,10 @@ func (cl *TLSClient) Get(path string) (resp []byte, httpStatus int, err error) {
 }
 
 func (cl *TLSClient) GetClientCertificate() *tls.Certificate {
-	return cl.clientCert
+	if len(cl.http2Transport.TLSClientConfig.Certificates) == 0 {
+		return nil
+	}
+	return &cl.http2Transport.TLSClientConfig.Certificates[0]
 }
 
 func (cl *TLSClient) GetClientID() string {
@@ -203,7 +232,7 @@ func (cl *TLSClient) GetHttpClient() *http.Client {
 
 // GetHttpClient returns the native HTTP client
 func (cl *TLSClient) GetTlsTransport() *http2.Transport {
-	return cl.tlsTransport
+	return cl.http2Transport
 }
 
 // HttpConnect - send a http connect request (for proxies)
@@ -393,13 +422,11 @@ func (cl *TLSClient) Trace(path string) (statusCode int, err error) {
 // Use setup/Remove to open and close connections
 //
 //	hostPort is the server address in host:port format
-//	clientCert is an optional client certificate used to authenticate. cert Subject is used as clientID
 //	caCert with the x509 CA certificate, nil if not available
 //	timeout duration for use with Delete,Get,Patch,Post,Put, 0 for DefaultClientTimeout
 //
 // returns TLS client for submitting requests
-func NewHttpClient(hostPort string,
-	clientCert *tls.Certificate, caCert *x509.Certificate, timeout time.Duration) *TLSClient {
+func NewHttpClient(hostPort string, caCert *x509.Certificate, timeout time.Duration) *TLSClient {
 
 	var clientID string
 	if timeout == 0 {
@@ -411,44 +438,21 @@ func NewHttpClient(hostPort string,
 			slog.String("destination", hostPort))
 	}
 
-	var clientCertList []tls.Certificate
-	caCertPool := x509.NewCertPool()
-	if caCert != nil {
-		caCertPool.AddCert(caCert)
-	}
-	if clientCert != nil {
-		clientCertList = []tls.Certificate{*clientCert}
-
-		//--- verify the client certificate against the CA
-		// if a client cert is given then test if it is valid for our CA.
-		// this detects problems with certs that can be hard to track down
-		x509Cert, err := x509.ParseCertificate(clientCert.Certificate[0])
-		if err == nil {
-			// cert subject is clientID
-			clientID = x509Cert.Subject.CommonName
-			// verify the validity of this certificate against the CA
-			// without this one can spend a long time figuring out why the connection fails.
-			opts := x509.VerifyOptions{
-				Roots:     caCertPool,
-				KeyUsages: []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth},
-			}
-			_, err = x509Cert.Verify(opts)
-		}
-		if err != nil {
-			err = fmt.Errorf("NewTLSClient: certificate verfication failed: %w. Continuing for now.", err)
-			slog.Error(err.Error())
-		}
-		//--- end verify
-	}
 	tlsConfig := &tls.Config{
-		RootCAs: caCertPool,
+		// see also ConnectWithClientCert
+		Certificates: nil,
 		// why is ServerName not required?
 		InsecureSkipVerify: caCert == nil,
-		Certificates:       clientCertList,
+		RootCAs:            nil,
+	}
+	if caCert != nil {
+		caCertPool := x509.NewCertPool()
+		caCertPool.AddCert(caCert)
+		tlsConfig.RootCAs = caCertPool
 	}
 
-	// create the http/2 transport
-	tlsTransport := &http2.Transport{
+	// create the http/2 transport for use with http.Client
+	http2Transport := &http2.Transport{
 		AllowHTTP: true, // false to disable http/2 over cleartext TCP
 		DialTLSContext: func(ctx context.Context, network, addr string, cfg *tls.Config) (net.Conn, error) {
 			c, err := tls.Dial(network, addr, cfg)
@@ -467,20 +471,19 @@ func NewHttpClient(hostPort string,
 		slog.Error(err.Error())
 		err = nil
 	}
-	// Dont set a timeout here as it will end the connection
 	httpClient := &http.Client{
-		Transport: tlsTransport,
+		Transport: http2Transport,
 		Jar:       cjar,
+		// Dont set a timeout here as it will end the connection
 	}
-
 	cl := &TLSClient{
-		clientID:      clientID, // only set through client certificate
-		hostPort:      hostPort,
-		httpClient:    httpClient,
-		timeout:       timeout,
-		clientCert:    clientCert,
-		caCert:        caCert,
-		customHeaders: make(map[string]string),
+		clientID:       clientID, // only set through client certificate
+		hostPort:       hostPort,
+		httpClient:     httpClient,
+		http2Transport: http2Transport,
+		timeout:        timeout,
+		caCert:         caCert,
+		customHeaders:  make(map[string]string),
 	}
 
 	// interface check

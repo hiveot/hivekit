@@ -1,8 +1,6 @@
 package clients
 
 import (
-	"crypto/tls"
-	"crypto/x509"
 	"errors"
 	"sync"
 	"time"
@@ -11,7 +9,6 @@ import (
 	"github.com/hiveot/hivekit/go/api/td"
 	"github.com/hiveot/hivekit/go/modules"
 	factory "github.com/hiveot/hivekit/go/modules/factory"
-	"github.com/hiveot/hivekit/go/modules/transports"
 	"github.com/teris-io/shortid"
 )
 
@@ -373,19 +370,19 @@ func NewConsumerFactory(f factory.IModuleFactory) modules.IHiveModule {
 // This returns the consumer and the client connection.
 // The caller still needs to call one of the ConnectWith... methods to provide the credentials.
 // The caller must call client connection Stop or Close when done. The consumer cant do it.
-func NewConsumerConnection(
-	appID string, protocolType string, serverURL string,
-	clientCert *tls.Certificate, caCert *x509.Certificate, rpcTimeout time.Duration) (
-	*Consumer, transports.ITransportClient, error) {
+// func NewConsumerConnection(
+// 	appID string, protocolType string, serverURL string,
+// 	clientCert *tls.Certificate, caCert *x509.Certificate, rpcTimeout time.Duration) (
+// 	*Consumer, transports.ITransportClient, error) {
 
-	cc, err := NewTransportClient(protocolType, serverURL, clientCert, caCert, nil)
-	cc.SetTimeout(rpcTimeout)
-	if err != nil {
-		return nil, nil, err
-	}
-	// set the connection as the sink that handles requests and publishes notifications
-	consumer := NewConsumer(appID)
-	consumer.SetRequestSink(cc.HandleRequest)
-	cc.SetNotificationSink(consumer.HandleNotification)
-	return consumer, cc, nil
-}
+// 	cc, err := NewTransportClient(protocolType, serverURL, clientCert, caCert, nil)
+// 	cc.SetTimeout(rpcTimeout)
+// 	if err != nil {
+// 		return nil, nil, err
+// 	}
+// 	// set the connection as the sink that handles requests and publishes notifications
+// 	consumer := NewConsumer(appID)
+// 	consumer.SetRequestSink(cc.HandleRequest)
+// 	cc.SetNotificationSink(consumer.HandleNotification)
+// 	return consumer, cc, nil
+// }

@@ -81,7 +81,7 @@ func (m *RouterService) GetClientConnection(tdi *td.TD) (
 		// TODO: how to determine the CA for this server?
 		// TODO: support use of client cert for this server?
 		// connect and store the connection if successful
-		c, err = clients.NewTransportClient(protocolType, href, nil, m.caCert, nil)
+		c, err = clients.NewTransportClient(protocolType, href, m.caCert, nil)
 		c.SetTimeout(m.timeout)
 		if err == nil {
 			err = c.Authenticate(tdi, m.credStore.GetCredentials)

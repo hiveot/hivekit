@@ -154,7 +154,7 @@ func (testEnv *TestEnv) NewConnectedClient(
 	}
 	// create a connection to the test server
 	cl, err = clients.NewTransportClient(
-		testEnv.ServerProtocol, testEnv.ServerURL, nil, testEnv.CertBundle.CaCert, ch)
+		testEnv.ServerProtocol, testEnv.ServerURL, testEnv.CertBundle.CaCert, ch)
 	if err == nil {
 		cl.SetTimeout(TestTimeout)
 		err = cl.ConnectWithToken(clientID, token)

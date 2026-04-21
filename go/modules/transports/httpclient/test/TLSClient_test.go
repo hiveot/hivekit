@@ -97,9 +97,10 @@ func TestNoCA(t *testing.T) {
 	})
 	assert.NoError(t, err)
 
-	// certificate authentication but no CA
-	cl := httpclient.NewHttpClient(testAddress, authBundle.ClientCert, nil, 0)
-	assert.NoError(t, err)
+	// certificate authentication but no CA should fail
+	cl := httpclient.NewHttpClient(testAddress, nil, 0)
+	err = cl.ConnectWithClientCert(authBundle.ClientCert)
+	assert.Error(t, err)
 
 	_, _, err = cl.Get(path1)
 	assert.NoError(t, err)
@@ -107,7 +108,7 @@ func TestNoCA(t *testing.T) {
 	cl.Close()
 
 	// No authentication
-	cl = httpclient.NewHttpClient(testAddress, nil, nil, 0)
+	cl = httpclient.NewHttpClient(testAddress, nil, 0)
 
 	_, _, err = cl.Get(path1)
 	assert.NoError(t, err)
@@ -127,30 +128,33 @@ func TestAuthClientCert(t *testing.T) {
 	srv, err := startTestServer(mux)
 	assert.NoError(t, err)
 	//
-	mux.HandleFunc(path1, func(http.ResponseWriter, *http.Request) {
+	mux.HandleFunc(path1, func(w http.ResponseWriter, r *http.Request) {
+		clcerts := r.TLS.PeerCertificates
+		assert.NotEmpty(t, clcerts, "no client cert provided")
 		slog.Info("TestAuthClientCert: path1 hit")
 		path1Hit++
 	})
 	//
-	cl := internal.NewHttpClient(testAddress, authBundle.ClientCert, authBundle.CaCert, 0)
+	cl := internal.NewHttpClient(testAddress, authBundle.CaCert, 0)
+	cl.ConnectWithClientCert(authBundle.ClientCert)
 	assert.NoError(t, err)
 
 	clientCert := cl.GetClientCertificate()
-	assert.NotNil(t, clientCert)
+	if assert.NotNil(t, clientCert) {
 
-	// verify service certificate against CA
-	caCertPool := x509.NewCertPool()
-	caCertPool.AddCert(authBundle.CaCert)
-	opts := x509.VerifyOptions{
-		Roots:     caCertPool,
-		KeyUsages: []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth},
+		// verify service certificate against CA
+		caCertPool := x509.NewCertPool()
+		caCertPool.AddCert(authBundle.CaCert)
+		opts := x509.VerifyOptions{
+			Roots:     caCertPool,
+			KeyUsages: []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth},
+		}
+		cert, err := x509.ParseCertificate(clientCert.Certificate[0])
+		if err == nil {
+			_, err = cert.Verify(opts)
+		}
+		assert.NoError(t, err)
 	}
-	cert, err := x509.ParseCertificate(clientCert.Certificate[0])
-	if err == nil {
-		_, err = cert.Verify(opts)
-	}
-	assert.NoError(t, err)
-
 	//
 	_, _, err = cl.Get(path1)
 	assert.NoError(t, err)
@@ -169,13 +173,13 @@ func TestAuthClientCert(t *testing.T) {
 }
 
 func TestNotStarted(t *testing.T) {
-	cl := httpclient.NewHttpClient(testAddress, nil, authBundle.CaCert, 0)
+	cl := httpclient.NewHttpClient(testAddress, authBundle.CaCert, 0)
 	_, _, err := cl.Get("/notstarted")
 	assert.Error(t, err)
 	cl.Close()
 }
 func TestNoClientCert(t *testing.T) {
-	cl := httpclient.NewHttpClient(testAddress, nil, authBundle.CaCert, 0)
+	cl := httpclient.NewHttpClient(testAddress, authBundle.CaCert, 0)
 	cl.Close()
 }
 
@@ -183,17 +187,19 @@ func TestBadClientCert(t *testing.T) {
 	// use cert from a different CA
 	bundle2 := certstest.CreateTestCertBundle(TestKeyType)
 
-	cl := httpclient.NewHttpClient(testAddress, bundle2.ServerCert, authBundle.CaCert, 0)
-	// this should produce an error in the log
-	//assert.Error(t, err)
+	cl := httpclient.NewHttpClient(testAddress, authBundle.CaCert, 0)
+	err := cl.ConnectWithClientCert(bundle2.ServerCert)
+	assert.Error(t, err)
 	cl.Close()
 }
 
 func TestNoServer(t *testing.T) {
 	// setup server and client environm
 	//
-	cl := httpclient.NewHttpClient(testAddress, authBundle.ClientCert, authBundle.CaCert, 0)
-	_, _, err := cl.Get("/noserver")
+	cl := httpclient.NewHttpClient(testAddress, authBundle.CaCert, 0)
+	err := cl.ConnectWithClientCert(authBundle.ClientCert)
+	assert.NoError(t, err)
+	_, _, err = cl.Get("/noserver")
 	assert.Error(t, err)
 	cl.Close()
 }
@@ -202,10 +208,13 @@ func TestCert404(t *testing.T) {
 	srv, err := startTestServer(mux)
 	assert.NoError(t, err)
 
-	cl := httpclient.NewHttpClient(testAddress, authBundle.ClientCert, authBundle.CaCert, 0)
+	cl := httpclient.NewHttpClient(testAddress, authBundle.CaCert, 0)
+	err = cl.ConnectWithClientCert(authBundle.ClientCert)
+	assert.NoError(t, err)
 
-	_, _, err = cl.Get("/pathnotfound")
+	_, status, err := cl.Get("/pathnotfound")
 	assert.Error(t, err)
+	assert.Equal(t, 404, status)
 
 	cl.Close()
 	_ = srv.Close()
@@ -235,7 +244,7 @@ func TestTokenAuth(t *testing.T) {
 	assert.NoError(t, err)
 
 	// connect using the given token
-	cl := httpclient.NewHttpClient(testAddress, authBundle.ClientCert, authBundle.CaCert, 0)
+	cl := httpclient.NewHttpClient(testAddress, authBundle.CaCert, 0)
 	err = cl.ConnectWithToken(user1, authToken)
 	require.NoError(t, err)
 
@@ -265,7 +274,7 @@ func TestTokenFail(t *testing.T) {
 		resp.WriteHeader(http.StatusUnauthorized)
 	})
 	//
-	cl := httpclient.NewHttpClient(testAddress, nil, authBundle.CaCert, 0)
+	cl := httpclient.NewHttpClient(testAddress, authBundle.CaCert, 0)
 	cl.ConnectWithToken(clientID, "badtoken")
 	resp, _, err := cl.Post(pathHello1, []byte("test"))
 	assert.Empty(t, resp)

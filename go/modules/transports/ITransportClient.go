@@ -1,6 +1,8 @@
 package transports
 
 import (
+	"crypto/tls"
+
 	"github.com/hiveot/hivekit/go/api/td"
 	"github.com/hiveot/hivekit/go/modules"
 )
@@ -35,6 +37,11 @@ type ITransportClient interface {
 	//
 	// Alternatively, use ConnectWithToken if it is known that token authentication is supported.
 	Authenticate(tdi *td.TD, getCredentials GetCredentials) error
+
+	// Connect authenticating using a client certificate
+	// The client certificate common name is the client ID and must be signed by the
+	// same CA as the server.
+	ConnectWithClientCert(clientCert *tls.Certificate) (err error)
 
 	// ConnectWithToken connects to the transport server using a clientID and
 	// corresponding authentication token.

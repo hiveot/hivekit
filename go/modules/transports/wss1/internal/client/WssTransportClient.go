@@ -74,13 +74,8 @@ type WssTransportClient struct {
 	// send/receive timeout to use
 	timeout time.Duration
 
-	// Destination for incoming requests?
-	// FIXME: do clients have sinks?
-	// server -> client -> ?
-	// app module [request] -> client -> server -> [request] -> module
-	//              [notif] <- client <- server <- [notif] <- module
-
 	// http2 client for posting messages
+	// FIXME: remove this as gorilla websocket doesnt handle http2
 	tlsClient transports.ITLSClient
 
 	// underlying websocket connection
@@ -223,6 +218,37 @@ func (cl *WssTransportClient) Close() {
 	}
 }
 
+// Establish a websocket connection using the previously setup credentials
+func (cl *WssTransportClient) Connect() error {
+
+	hostPort := cl.tlsClient.GetHostPort()
+	wssCancelFn, wssConn, err := ConnectWSS(
+		cl.GetClientID(), hostPort, cl.wssPath, cl.bearerToken, cl.clientCert, cl.caCert,
+		cl._onConnectionChanged, cl._onWssMessage)
+
+	cl.mux.Lock()
+	cl.wssCancelFn = wssCancelFn
+	cl.wssConn = wssConn
+	cl.mux.Unlock()
+
+	// even if connection failed right now, enable retry
+	cl.retryOnDisconnect.Store(true)
+
+	return err
+}
+
+// Connect authenticating using a client certificate
+func (cl *WssTransportClient) ConnectWithClientCert(clientCert *tls.Certificate) (err error) {
+	// tell the client to use the certificate
+	cl.clientCert = clientCert
+	err = cl.tlsClient.ConnectWithClientCert(clientCert)
+	if err != nil {
+		return err
+	}
+	err = cl.Connect()
+	return err
+}
+
 // ConnectWithToken attempts to establish a websocket connection using a valid auth token
 // If a connection exists it is closed first.
 // If a client certificate is available then no token is needed.
@@ -241,19 +267,7 @@ func (cl *WssTransportClient) ConnectWithToken(clientID string, token string) er
 		slog.Error("ConnectWithToken connection failed", "addr", cl.wssURL, "err", err.Error())
 		return err
 	}
-	hostPort := cl.tlsClient.GetHostPort()
-	wssCancelFn, wssConn, err := ConnectWSS(
-		clientID, hostPort, cl.wssPath, cl.bearerToken, cl.clientCert, cl.caCert,
-		cl._onConnectionChanged, cl._onWssMessage)
-
-	cl.mux.Lock()
-	cl.wssCancelFn = wssCancelFn
-	cl.wssConn = wssConn
-	cl.mux.Unlock()
-
-	// even if connection failed right now, enable retry
-	cl.retryOnDisconnect.Store(true)
-
+	err = cl.Connect()
 	return err
 }
 
@@ -457,11 +471,10 @@ func (cl *WssTransportClient) Stop() {
 // Users must use ConnectWithToken to authenticate and connect.
 //
 //	wssURL is the full websocket connection URL including path
-//	clientCert is an optional client certificate used to authenticate
 //	caCert is the server CA for TLS connection validation
 //	ch is the connect/disconnect callback. nil to ignore
 func NewHiveotWssClient(
-	wssURL string, clientCert *tls.Certificate, caCert *x509.Certificate,
+	wssURL string, caCert *x509.Certificate,
 	ch transports.ConnectionHandler) *WssTransportClient {
 
 	// ensure the URL has port as 443 is not valid for this
@@ -473,7 +486,7 @@ func NewHiveotWssClient(
 	timeout := msg.DefaultRnRTimeout
 	hostPort := urlParts.Host
 	wssPath := urlParts.Path
-	tlsClient := httpclient.NewHttpClient(hostPort, clientCert, caCert, timeout)
+	tlsClient := httpclient.NewHttpClient(hostPort, caCert, timeout)
 
 	cl := WssTransportClient{
 		caCert:               caCert,
@@ -499,18 +512,17 @@ func NewHiveotWssClient(
 //	timeout is the maximum connection wait time. 0 for default.
 //	ch is the connection callback handler, nil to ignore
 func NewWotWssClient(
-	wssURL string, clientCert *tls.Certificate, caCert *x509.Certificate,
+	wssURL string, caCert *x509.Certificate,
 	ch transports.ConnectionHandler) *WssTransportClient {
 
 	timeout := msg.DefaultRnRTimeout
 	urlParts, _ := url.Parse(wssURL)
 	hostPort := urlParts.Host
 	wssPath := urlParts.Path
-	tlsClient := httpclient.NewHttpClient(hostPort, clientCert, caCert, timeout)
+	tlsClient := httpclient.NewHttpClient(hostPort, caCert, timeout)
 
 	cl := &WssTransportClient{
 		caCert:               caCert,
-		clientCert:           clientCert,
 		connectHandler:       ch,
 		encoder:              wssencoder.NewWotWssMsgEncoder(),
 		maxReconnectAttempts: 0,
