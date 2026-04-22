@@ -2,7 +2,9 @@
 
 The module factory creates module instances for the configured environment. Use of the factory is optional. It does make life easier though so give it a spin.
 
-The factory is a module itself that passes requests to the chain of loaded modules and returns notifications.
+The factory is a module itself that passes requests to the chain of loaded modules and returns notifications. The factory supports the ability to create a chain from a recipe that defines the modules to be included and the order they are linked.
+
+![chaining](../../../docs/module-chain.png)
 
 ## Status
 
@@ -18,40 +20,46 @@ Each module is registered using a module-type. The module type identifies the im
 
 Applications can generate the module instances using 'GetModule(moduleType)'. The module uses the factory provided environment to obtain directory locations, certificates as needed. In case of clients the environment offers the server URL which can be set manually or by the discovery module.
 
-## Usage
+## Application Example
 
 The easiest method to build an application is to use one of the predefined recipes and add the application specific module.
 
 ```go (tenative)
 func main(){
-    // 1. start with one of the factory templates and add the application
-    recipe := recipe.StandardServerTemplate()
-    // 2. optionally register the application logic as a module or modify the recipe
+    // collect the modules to include. Templates define modules for common use-cases.
+    modules := DeviceServerTemplate
+    // determine the chaining sequence
+    chain := []string{moduleType1, moduleType2}
+    // create the recipe handler
+    recipe := NewFactoryRecipe(modules, chain)
+    // optionally register the application logic as a module or modify the recipe
     recipe.AddModule(MyAppModuleType, NewAppModuleFn)
-    // 3. create the application environment. This handles commandline options.
+    // create the application environment. This supports commandline options.
     env := factory.NewAppEnvironment("", true)
-    // 4. instantiate the factory and run the recipe
+    // instantiate the factory and run the recipe
     f := factory.NewModuleFactory(env, nil)
     recipe.Start(f)
-    // 5. wait for Control-C or other signal to end the application
+
+    // wait for Control-C or other signal to end the application
     f.WaitForSignal(context.Background())
-    // 6. Graceful shutdown
+    // Graceful shutdown
     f.StopAll()
 }
 ```
 
-The factory includes predefined recipes for building client and server applications. The user can use one of these to generate a template and add to it.
+The factory includes predefined recipes for building client and server applications. The user can use one of these to create a new template and add to it.
 
 ## Recipe Creation
 
 Recipes are the quickest way to build a client or server application or plugin. They specify wich modules are used and how they are chained.
-Each recipe contains a map of module factory functions by their module type, and a list of modules in the order they are linked.
 
-Use of recipes is optional as a user can also load modules and link them manually.
+A recipe contains a map of module factory functions by their module type, and a list of modules in the order they are linked. An application is instantiated by invoking recipe.Start(factoryInstance).
 
-Alternatively, a chain created from a recipe can be expanded with a custom module by calling app.Append(factory).
+Use of recipes is optional as a user can also just load modules with the factory using factoryInstance.GetModule(moduleType) and link them manually using SetRequestHandler and SetResponseHandler.
 
-3rd party modules can be embedded if they are written in golang. For 3rd party modules written in different languages it is better to define them as plugins. A javascript and python implementation of the factory is planned to simplify writing IoT applications and plugins in those languages.
+A recipe can be expanded with a custom module by calling recipe.AddModule(moduleType, moduleDef).
+
+3rd party modules can be included if they are written in golang. For 3rd party modules written in different languages it is better to define them as plugins. A javascript and python implementation of the factory is planned to simplify writing IoT applications and plugins in those languages.
 
 ## Application Environment
 

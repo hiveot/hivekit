@@ -1,19 +1,17 @@
 # HiveKit - HiveOT Development Kit
 
-HiveKit provides modules for building lightweight IoT applications that can interact with the Web of Things. Most modules are implemented in golang. Javascript and Python integration is planned. Using transport modules it is easy to link Javascript, Python and golang modules with minimal overhead.
+HiveKit provides modules for building lightweight IoT applications for integration with the Web of Things.
 
-The modules in HiveKit are intended to be used to construct IoT applications. They are not applications themselves. The factory module facilitates building applications using modules defined in a recipe, including custom application modules.
+The core concept is that an application is build by combining modules that each provide needed capabilities. Interactive modules define their capabilities using a W3C Thing Description (TD) document. Modules are linked in a chain. Each module watches for request messages with operations directed at their thingID. Modules emit notifications for events and property updates.
 
-Modules included are WoT transport protocols, authentication, authorization, message routing, thing discovery, thing directory, data storage, history storage, digital twin, and more.
-
-HiveKit modules interact using _RRN_ Request-Response and publish-subscribe Notification messages. HiveKit combines the strengths of these two messaging patterns into a simple and easy to use messaging framework for connecting modules. RRN messages define an envelope that describes a WoT operation, the Thing to address, the name of the message, and its payload, as described in the [W3C WoT standard](https://www.w3.org/TR/wot-thing-description11/).
-
-HiveKit modules were originally part of the HiveOT Hub and have been extracted to facilitate reuse in different applications.
+The standard module has an extremely simple interface: A handler for request messages with a replyTo callback, and a handler for notification messages. Modules are linked by setting a request sink to the request handler of the next module in the chain. Similarly a notification sink is set to the notification handler from the upstream module.
+[![module](docs/hivekit-module.png)](#hivekit-modules)
 
 ## Project Status
 
 (updated april 2026)
 
+Many modules are implemented in golang. Javascript and Python integration is planned. Using transport modules it is easy to link Javascript, Python and golang modules with minimal overhead.
 Modules with a checkmark are functional but breaking changes can still be expected for those marked as alpha or beta.
 
 Core Service modules:
@@ -34,7 +32,7 @@ Core Service modules:
 |   ⬛   | jsscript    | Javascript based automation       | todo  |
 |   ⬛   | rules       | Rule based automation             | todo  |
 
-Transport modules:
+[Transport modules](docs/transports.md):
 
 | status | module               | description                           | stage |
 | :----: | -------------------- | ------------------------------------- | ----- |
@@ -58,6 +56,32 @@ Integration Binding Modules:
 |   ⬛   | lorawan  | LoRaWan gateway binding         | todo  |
 |   ⬛   | canbus   | Canbus gateway binding          | todo  |
 |   ⬛   | ...      | and many more...                | todo  |
+
+## HiveKit Modules
+
+HiveKit modules are 'Things' and offer their capabilities by exposing a WoT TD (Thing Description) document that describes its properties, events and actions. Interaction takes place by creating a RequestMessage with optional input and passing it to the module.
+
+A [HiveKit module](hivekit-module.png) MUST implement the IHiveModule interface. This interface governs the interaction with the module and enables the ability to add their functionality to a chain of modules.
+
+The IHiveModule interface describes how to link a module to the next module in the chain. The link consists of a request handler to pass request messages down the chain and respond with a response message, and a notification handler to pass notification messages up the chain. Applications can use the hooks to intercept requests and notifications. A 'HiveModuleBase' helper is available that implements this interface and supports linking of modules. HiveModuleBase is used by most HiveKit modules.
+
+HiveKit modules interact using _RRN_ Request-Response and publish-subscribe Notification messages. HiveKit combines the strengths of these two messaging patterns into a simple and easy to use messaging framework for connecting modules. RRN messages define an envelope that describes a WoT operation, the Thing to address, the name of the message, and its payload, as described in the [W3C WoT Thing Description](https://www.w3.org/TR/wot-thing-description11/).
+
+### Module Types
+
+The following types of modules can be distinguished:
+
+1. Service modules offer a service, such as authentication, logging and routing. Service modules can be configured through properties and queried using actions.
+
+2. Transport modules come in two flavors, a transport client and a transport server module. The client module passes requests to the server and the server module passes requests and notifications to the client. Client-Server module pairs are available for multiple protocols such as http-basic, websockets and others.
+
+### Module Factory
+
+Modules in HiveKit are not applications themselves but intended to construct an application. The [factory module](go/modules/factory/README.md) facilitates building applications by chaining modules defined in a recipe. This chaining aggregates functionality provided by each module. Application capabilies can be modified by changing the modules in the chain.
+
+Application specific logic can easily be incorporated using module hooks, or by providing application logic as a module itself and adding this module to the recipe.
+
+![module](docs/module-chain.png)
 
 ## About HiveOT
 
@@ -103,6 +127,6 @@ To debug with vscode delve must be installed. To get the latest (on linux):
 
 ### Use
 
-The easiest way to get started is to use the factory module with one of the example recipes. There are recipes for constructing stand-alone IoT devices, a WoT compatible gateway, a digital twin hub, and client applications.
+The easiest way to get started is to use the factory module with one of the example recipes. There are recipes for constructing stand-alone IoT devices, a WoT compatible gateway, a digital twin hub, and client applications. [see factory for details](go/modules/factory/README.md)
 
 ... this section is under development...
