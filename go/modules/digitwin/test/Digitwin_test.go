@@ -47,7 +47,7 @@ func TestMain(m *testing.M) {
 // This sets-up a module chain with a server, directory, digitwin, vcache, and router
 func startService() (
 	testEnv *testenv.TestEnv,
-	dir directory.IDirectoryServer,
+	dir directory.IDirectoryService,
 	dtw digitwin.IDigitwinService,
 	stopFn func()) {
 
@@ -62,7 +62,10 @@ func startService() (
 	// the directory server that will contain digitwin Things
 	// digiDir := filepath.Join(storageDir, "digiDir.json")
 	dirThingID := directory.DefaultDirectoryThingID
-	dir = directorypkg.NewDirectoryService(dirThingID, storageDir, testEnv.HttpServer)
+	servers := []transports.ITransportServer{testEnv.Server}
+	httpAPI := directorypkg.NewDirectoryHttpHandler(testEnv.HttpServer)
+	dir = directorypkg.NewDirectoryService(
+		dirThingID, storageDir, httpAPI, servers)
 	err := dir.Start()
 	if err != nil {
 		panic("Failed to start directory server")
@@ -75,8 +78,11 @@ func startService() (
 	}
 	// the router module uses the digitwin Thing Directory
 	// getDeviceTD := dtw.GetDeviceDirectory().GetTD
-	rtr := routerpkg.NewRouterService(storageDir,
-		dtw.GetDeviceTD, []transports.ITransportServer{appServer}, testEnv.CertBundle.CaCert)
+	rtr := routerpkg.NewRouterService(
+		storageDir,
+		dtw.GetDeviceTD,
+		[]transports.ITransportServer{appServer},
+		testEnv.CertBundle.CaCert)
 	rtr.SetTimeout(rpcTimout)
 	err = rtr.Start()
 	if err != nil {

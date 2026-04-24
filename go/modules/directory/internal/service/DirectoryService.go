@@ -1,4 +1,4 @@
-package internal
+package directoryservice
 
 import (
 	"log/slog"
@@ -37,16 +37,15 @@ type DirectoryService struct {
 	tdBucketName string
 	bucketStore  bucketstore.IBucketStorage
 
-	// http server serving the REST API
-	httpServer transports.IHttpServer
 	// the RRN messaging API for the directory itself
 	msgAPI *DirectoryMsgHandler
 	// the API servers if enabled
-	restAPI *DirectoryRestHandler
+
 	// data storage directory
 	storageLoc string
 
 	// cache of used TDs and the mutex to access it
+	tddJson    string
 	tdCache    map[string]*td.TD
 	tdCacheMux sync.RWMutex
 
@@ -114,9 +113,12 @@ func (m *DirectoryService) Start() (err error) {
 	if err == nil {
 		m.msgAPI = NewDirectoryMsgHandler(m.directoryThingID, m)
 	}
-	if err == nil && m.httpServer != nil {
-		m.restAPI = StartDirectoryRestHandler(m, m.httpServer)
-	}
+
+	// create the TDD
+	// FIXME: how/when to add forms?
+	// needed transports
+	// option 1: caller provides transports to use <- this
+
 	return err
 }
 
@@ -134,27 +136,49 @@ func (m *DirectoryService) Stop() {
 // On start this opens or creates a directory store in root/moduleID.
 // Directory entries are stored in the 'directory' bucket.
 //
-// If a http server is provided this registers the HTTP API with the router and serves
-// its TD on the .well-known/wot endpoint as per discovery specification.
+// The directory publishes a TD that describes how it can be reached. This TD needs
+// to include the security details and forms, which are transport specific.
 //
-// location is the location where the module stores its data. Use "" for testing with an in-memory store.
-// router is the html server router to register the html API handlers with. nil to ignore.
-func NewDirectoryService(thingID string, location string, httpServer transports.IHttpServer) *DirectoryService {
+// To expose the http API create the DirectoryHttpHandler module provide it here.
+// Optionally include the list of other transports.
+//
+//	thingID is the instance ID of the directory server.
+//	location is the location where the module stores its data. Use "" for testing with an in-memory store.
+//	httpAPI provides the security scheme and forms for the directory http endpoints. nil to not include these.
+//	transports is a list of transports that should be included in the TDD security and forms. nil to not include these.
+func NewDirectoryService(
+	thingID string, location string, httpAPI directory.IDirectoryHttpServer,
+	transports []transports.ITransportServer) *DirectoryService {
 
 	if thingID == "" {
 		thingID = directory.DefaultDirectoryThingID
 	}
+
+	// Use the transports to generate a tdd from the tm
+	// option 2: use transport of sender
+	tm := string(directory.DirectoryTMJson)
+	tddDoc, _ := td.UnmarshalTD(tm)
+	tddDoc.ID = thingID
+	if httpAPI != nil {
+		httpAPI.AddTDSecForms(tddDoc, false)
+		tddDoc.Base = httpAPI.GetBaseURL()
+	}
+	// add the forms for additional endpoints
+	if len(transports) > 0 {
+		for _, tp := range transports {
+			tp.AddTDSecForms(tddDoc, false) // tbd
+		}
+	}
+	tddJson, _ := td.MarshalTD(tddDoc)
 	m := &DirectoryService{
 		HiveModuleBase:   modules.HiveModuleBase{},
 		directoryThingID: thingID,
 		storageLoc:       location,
-		httpServer:       httpServer,
+		tddJson:          tddJson,
 		tdCache:          make(map[string]*td.TD),
 	}
-	if httpServer == nil {
-		slog.Warn("NewDirectoryModule: no httpServer provided. HTTP interface not active.")
-	}
-	var _ directory.IDirectoryServer = m // interface check
+
+	var _ directory.IDirectoryService = m // interface check
 
 	return m
 }

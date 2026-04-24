@@ -316,7 +316,7 @@ func (co *Consumer) WriteProperty(thingID string, name string, input any, wait b
 	if wait {
 		err = co.Rpc(co.clientID, td.OpWriteProperty, thingID, name, input, correlationID)
 	} else {
-		req := msg.NewRequestMessage(td.OpWriteProperty, thingID, name, input, correlationID)
+		req := msg.NewRequestMessage(co.clientID, td.OpWriteProperty, thingID, name, input, correlationID)
 		err = co.ForwardRequest(req, func(resp *msg.ResponseMessage) error {
 			// just ignore the result
 			return nil

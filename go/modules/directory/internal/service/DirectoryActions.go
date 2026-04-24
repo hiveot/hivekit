@@ -1,5 +1,5 @@
 // Package internal with service methods
-package internal
+package directoryservice
 
 import (
 	"fmt"
@@ -66,13 +66,6 @@ func (m *DirectoryService) GetTD(thingID string) *td.TD {
 //	return nil, fmt.Errorf("Not yet implemented")
 //}
 
-// RetrieveThing returns a JSON encoded TD document
-func (m *DirectoryService) RetrieveThing(thingID string) (tdJSON string, err error) {
-	tdBytes, err := m.tdBucket.Get(thingID)
-	tdJSON = string(tdBytes)
-	return tdJSON, err
-}
-
 // RetrieveAllThings returns a batch of TD documents
 // This returns a list of JSON encoded digital twin TD documents
 func (m *DirectoryService) RetrieveAllThings(offset int, limit int) (tdList []string, err error) {
@@ -105,6 +98,18 @@ func (m *DirectoryService) RetrieveAllThings(offset int, limit int) (tdList []st
 	return tdList, err
 }
 
+// Read the directory TDD itself
+func (cl *DirectoryService) RetrieveTDD() (tdJSON string) {
+	return cl.tddJson
+}
+
+// RetrieveThing returns a JSON encoded TD document
+func (m *DirectoryService) RetrieveThing(thingID string) (tdJSON string, err error) {
+	tdBytes, err := m.tdBucket.Get(thingID)
+	tdJSON = string(tdBytes)
+	return tdJSON, err
+}
+
 // Stop the service and close the storage bucket
 // The bucketStore itself is not closed on Stop.
 // func (svc *DirectoryModule) Stop() error {
@@ -121,7 +126,7 @@ func (m *DirectoryService) UpdateThing(agentID string, tdJson string) error {
 	// validate the TD
 	tdi, err := td.UnmarshalTD(tdJson)
 	if err != nil {
-		slog.Info("UpdateThing. Error unmarshalling TD",
+		slog.Error("UpdateThing. Error unmarshalling TD",
 			slog.String("agentID", agentID), "err", err.Error())
 		return err
 	}

@@ -68,9 +68,13 @@ type IModuleFactory interface {
 	// confuring modules.
 	GetEnvironment() *AppEnvironment
 
+	// Return the http module if it was instantiated.
 	// Used for modules that need to serve http endpoints, e.g. http basic authn, directory, etc.
-	// This requires that an httpserver module is registered.
-	GetHttpServer() transports.IHttpServer
+	//
+	//  instantiate true to create the server module instance if it hasn't been created yet
+	//
+	// This returns nil if no httpserver module is registered.
+	GetHttpServer(instantiate bool) transports.IHttpServer
 
 	// Return the list of available transport servers
 	GetTransportServers() []transports.ITransportServer
@@ -80,11 +84,13 @@ type IModuleFactory interface {
 	// If the module is defined as a singleton, the existing module is returned.
 	// If no module instance exist or it isn't a singleton then create a new instance.
 	//
-	//  moduleType identifies the type of the module to create.
+	//  moduleType identifies the type of the module to get.
+	//	instantiate set to true to create an instance if one isn't already loaded
 	//
-	// This returns an error if no module with the given type is registered, or when
+	// This returns an error if no module with the given type is registered, when
 	// starting the module fails.
-	GetModule(moduleType string) (modules.IHiveModule, error)
+	// This returns nil on error or when instantiate is false and the module is not yet loaded
+	GetModule(moduleType string, instantiate bool) (modules.IHiveModule, error)
 
 	// RegisterModule a module to the factory, making it available for creation.
 	//

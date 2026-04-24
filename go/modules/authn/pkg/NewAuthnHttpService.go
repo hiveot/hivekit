@@ -2,7 +2,7 @@ package authnpkg
 
 import (
 	"github.com/hiveot/hivekit/go/modules"
-	"github.com/hiveot/hivekit/go/modules/authn/internal/httpauthn"
+	"github.com/hiveot/hivekit/go/modules/authn/internal/httpapi"
 	"github.com/hiveot/hivekit/go/modules/transports"
 )
 
@@ -13,6 +13,6 @@ import (
 // requests received over http. The authn module must be installed downstream to handle
 // these requests.
 func NewAuthnUserHttpService(httpServer transports.IHttpServer) modules.IHiveModule {
-	m := httpauthn.NewAuthnUserHttpService(httpServer)
+	m := httpapi.NewAuthnUserHttpService(httpServer)
 	return m
 }

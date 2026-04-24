@@ -54,8 +54,7 @@ func TestHasPermission(t *testing.T) {
 	defer m.Stop()
 
 	// check missing clientID
-	req := msg.NewRequestMessage(td.OpReadProperty, thingID, key, nil, correlationID)
-	req.SenderID = ""
+	req := msg.NewRequestMessage("", td.OpReadProperty, thingID, key, nil, correlationID)
 	hasPerm := m.HasPermission(req)
 	assert.False(t, hasPerm)
 

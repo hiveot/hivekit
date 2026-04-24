@@ -251,6 +251,9 @@ func (tdoc *TD) AddPropertyAsInt(
 
 // AddSecurityScheme adds a security scheme to the TD
 func (tdoc *TD) AddSecurityScheme(name string, scheme SecurityScheme) {
+	if tdoc.SecurityDefinitions == nil {
+		tdoc.SecurityDefinitions = make(map[string]SecurityScheme)
+	}
 	tdoc.SecurityDefinitions[name] = scheme
 	// TD defines security as string or array
 	if tdoc.Security == nil {

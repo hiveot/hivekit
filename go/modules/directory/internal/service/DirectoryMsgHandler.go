@@ -1,4 +1,4 @@
-package internal
+package directoryservice
 
 import (
 	_ "embed"
@@ -10,22 +10,11 @@ import (
 	"github.com/hiveot/hivekit/go/utils"
 )
 
-// Embed the directory TM
-//
-//go:embed "directory-tm.json"
-var DirectoryTMJson []byte
-
 // DirectoryMsgHandler maps RRN messages to the native directory interface
 type DirectoryMsgHandler struct {
 	// the directory instance ThingID that must match the requests
 	thingID string
-	service directory.IDirectoryServer
-}
-
-// GetTm returns the TN of the directory RRN messaging API
-func (handler *DirectoryMsgHandler) GetTM() string {
-	tm := string(DirectoryTMJson)
-	return tm
+	service directory.IDirectoryService
 }
 
 // HandleRequest for module.
@@ -53,6 +42,8 @@ func (handler *DirectoryMsgHandler) HandleRequest(req *msg.RequestMessage, reply
 			resp = handler.RetrieveThing(req)
 		case directory.ActionRetrieveAllThings:
 			resp = handler.RetrieveAllThings(req)
+		case directory.ActionRetrieveTDD:
+			resp = handler.RetrieveTDD(req)
 		case directory.ActionUpdateThing:
 			resp = handler.UpdateThing(req)
 		default:
@@ -97,8 +88,17 @@ func (handler *DirectoryMsgHandler) RetrieveAllThings(req *msg.RequestMessage) (
 	return resp
 }
 
+// Read the directory TDD itself
+// Output: tddJSON
+func (handler *DirectoryMsgHandler) RetrieveTDD(req *msg.RequestMessage) (resp *msg.ResponseMessage) {
+	tddJSON := handler.service.RetrieveTDD()
+	resp = req.CreateResponse(tddJSON, nil)
+	return resp
+}
+
 // RetrieveThing gets the TD JSON for the given thingID from the directory store.
 func (handler *DirectoryMsgHandler) RetrieveThing(req *msg.RequestMessage) (resp *msg.ResponseMessage) {
+
 	var thingID string
 	var tdJSON string
 	err := utils.Decode(req.Input, &thingID)
@@ -126,7 +126,7 @@ func (handler *DirectoryMsgHandler) UpdateThing(req *msg.RequestMessage) (resp *
 
 // Create a new directory message handler. On start this creates the server and store.
 // bucketStore is the store to use for this module chain.
-func NewDirectoryMsgHandler(thingID string, store directory.IDirectoryServer) *DirectoryMsgHandler {
+func NewDirectoryMsgHandler(thingID string, store directory.IDirectoryService) *DirectoryMsgHandler {
 
 	handler := &DirectoryMsgHandler{
 		thingID: thingID,

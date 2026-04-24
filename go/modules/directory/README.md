@@ -4,17 +4,17 @@ This directory module provides the means to store and retrieve TD (Thing Descrip
 
 The primary objective is to let consumers discover what Things are available and obtain the information on how to access them.
 
-This directly follows the WoT discovery specification https://w3c.github.io/wot-discovery/#exploration-directory and a subset of the TM described at https://w3c.github.io/wot-discovery/#directory-api-spec.
+This module follows the WoT discovery specification https://w3c.github.io/wot-discovery/#exploration-directory and a subset of the TM described at https://w3c.github.io/wot-discovery/#directory-api-spec.
 
-This module is not a full blow stand-alone application but simply offers the directory capabilities applications or services that want to include a directory. It must be linked to a server module to receive the requests.
+This module is not a full blow stand-alone application but simply offers the directory capabilities to applications or services that want to include a directory. It must be linked to a server transport module to receive the requests.
 
 ## Status
 
 This module is in alpha. It is functional but breaking changes might still happen.
 
 There are two notable issues for which there is no standardization:
-1: For security reasons, a TD should only be writable by the owning agent. How to determine who this agent is?
-2: How to prevent thingID collisions? There is no mechanism to guarantee uniquenes between devices.
+1: For security reasons, a device TD should only be updatable by the owning agent of a device. How to determine who this agent is?
+2: How to prevent thingID collisions? There is no mechanism to guarantee uniquenes between devices. One option is to use UUIDs. Another is to use namespaces in the ID.
 
 Current solution: HiveOT uses the convention that thingIDs contain the agentID prefix separated by a colon. The format for thingID is: "{agentID}:{deviceID}", where {deviceID} is the ID of the device unique within the scope of the agent publishing the TD.
 
@@ -24,7 +24,7 @@ If the TD is to be published in an internet based directory, the agentID must be
 
 The WoT discovery specification defines the directory service API for storing and retrieving TD information. This module exports a TM that matches the description provided in the specification.
 
-The directory package contains a server and a client sub-module. Both can be used as any other module, and operate client side or server side. The directory server module can be linked to a transport module to receive requests and publish notifications. Similarly the directory client module can be used by applications to query the TDs of the available Things.
+The directory package contains these modules: the directory service, its http API server, a messaging client, and an HTTP client. These can be used as any other module, and operate client side or server side. Typically, the directory server is linked to a transport server to receive requests and publish notifications. Similarly the directory client module can be used by applications to query the TDs of the available Things.
 
 The directory should be updated by IoT devices or their agent. In HiveOT, the convention is that Thing agents update the directory with one or more TD's of the Things it manages.
 
@@ -40,17 +40,39 @@ TBD: maybe use a filesystem based backend where TDs are stored? It would make im
 
 ## Usage
 
-There are two ways to create an instance of the directory.
+### Creating a Directory
 
-1. Use the hivekit module factory. This factory provides the application environment and automatically creates instances of the neccesary modules.
+Examples of creating an instance of the directory.
 
-2. Manually
-   1. If the HTTP API is enabled, create an instance of the http server module. Most likely there already is one for use with one of the transport protocols.
+1. Use the HiveKit module factory. This factory provides the application environment and automatically creates instances of the neccesary modules.
 
-   2. Create an instance of the module using NewDirectoryModule() and provide it with the storage location of the embedded database, and the directory router.
+2. Manually without the HTTP API: **[server]->[directory]**
+   1. Create an instance of the module using directorypkg.NewDirectoryService() and provide it with the storage location of the embedded database.
 
-   3. Call Start(). This will initialize or create the store and register the HTTP endpoints with the HTTP server module.
+   2. Call Start on the service. This will initialize and create the store.
 
-   4. To use the RRN message API, link it as a sink of a server module. Any directory requests will be handled by the module. Modules can be chained and it doesn't matter where in the chain the directory module reside.
+   3. Link it as a sink of a server module chain. Any directory requests will be handled by the module. Modules can be chained and it doesn't matter where in the chain the directory module reside.
 
-   5. Before shutdown call Stop() to ensure the datastore is properly closed.
+   4. Before shutdown call Stop() to ensure the datastore is properly closed.
+
+3. Manually with the HTTP API: **[server]->[http-api]->[directory]**
+   1. Create an instance of the directory http API server using directorypkg.NewDirectoryHttpHandler()
+
+   2. Set the HTTP API module as the sink of the server module chain.
+
+   3. Create an instance of the directory service using directorypkg.NewDirectoryService() and provide it with the storage location of the embedded database, and the http api. The http api is used to set the base URL, security and forms of the directory TD.
+
+   4. Set the service module as the sink of the http api module. Request received via the directory http API is now handled by the server.
+
+   5. Call Start on both the http api and the service(). This will initialize or create the store and register the HTTP endpoints with the HTTP server module.
+
+   6. Before shutdown call Stop() to ensure the datastore is properly closed.
+
+### Updating the directory
+
+There are several use-cases for updating the directory with TD from Things. At this moment it isn't clear if there is a preferred way. HiveOT is leaning towards option 3 and 4 as HiveOT devices do not run servers.
+
+1. Stand-alone devices can use discovery to publish their TD or TDD in case there are multiple. Someone need to get the TD and add it to the directory. Who?
+2. A stand-alone device discovers a directory and write its TD to it.
+3. Devices with reverse connection to a hub or gateway can write the TDs they manage to the its directory.
+4. An administrator can manually upload TDs to the directory import location. This is not yet supported (but seems like a good idea)

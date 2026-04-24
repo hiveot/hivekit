@@ -1,8 +1,20 @@
 package authn
 
 import (
+	_ "embed"
+
 	"github.com/hiveot/hivekit/go/modules"
 )
+
+// Embed admin service TM
+//
+//go:embed "authn-admin-tm.json"
+var AuthnAdminTM []byte
+
+// Embed user service TM
+//
+//go:embed "authn-user-tm.json"
+var AuthnUserTM []byte
 
 // This module exposes two services, one admin service and one user oriented service.
 // Currently only a single instance of the authn service module is supported.

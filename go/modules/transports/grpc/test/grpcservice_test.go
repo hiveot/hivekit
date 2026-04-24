@@ -116,8 +116,9 @@ func TestStreamMessages(t *testing.T) {
 
 	// bulk message testing
 	// some brute force testing on Intel i5-4570S, 2.9GHz:
-	// UDS: 100byte->540K msg/sec; 300byte->490K msg/sec; 1K->340K msg/sec; 100K->8.9K msg/sec
-	// TCP: 100byte->520K msg/sec; 300byte->460K msg/sec; 1K->310K msg/sec; 100K->6.0K msg/sec
+	// UDS-i5: 100byte->540K msg/sec; 300byte->490K msg/sec; 1K->340K msg/sec; 100K->8.9K msg/sec
+	//    pi3: 100byte-> 93K msg/sec; 300byte-> 42K msg/sec; 1K->5.9K msg/sec; 100K->680  msg/sec
+	// TCP-i5: 100byte->520K msg/sec; 300byte->460K msg/sec; 1K->310K msg/sec; 100K->6.0K msg/sec
 	var msgSize = 100000
 	// var rxDelay = time.Millisecond * 0
 	const serviceName = "service1"

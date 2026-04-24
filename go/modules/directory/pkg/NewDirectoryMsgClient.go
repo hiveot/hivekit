@@ -1,8 +1,6 @@
 package directorypkg
 
 import (
-	"errors"
-
 	"github.com/hiveot/hivekit/go/api/msg"
 	"github.com/hiveot/hivekit/go/api/td"
 	"github.com/hiveot/hivekit/go/modules"
@@ -15,31 +13,31 @@ import (
 type DirectoryMsgClient struct {
 	modules.HiveModuleBase
 
-	// DirectoryMsgClient is the RRN client for the directory service.
-
-	// directoryThingID ThingID of the directory service. This defaults to the directory ThingID
+	// directoryThingID ThingID of the directory service instance.
 	directoryThingID string
 }
 
 func (cl *DirectoryMsgClient) DeleteThing(thingID string) error {
 
-	req := msg.NewRequestMessage(
-		td.OpInvokeAction, cl.directoryThingID, directory.ActionDeleteThing, thingID, "")
-	_, err := cl.ForwardRequestWait(req)
+	// the senderID is added by the transport server
+	err := cl.Rpc("", td.OpInvokeAction,
+		cl.directoryThingID, directory.ActionDeleteThing, thingID, nil)
 	return err
 }
 
-func (cl *DirectoryMsgClient) RetrieveThing(thingID string) (tdJSON string, err error) {
-	req := msg.NewRequestMessage(
-		td.OpInvokeAction, cl.directoryThingID, directory.ActionRetrieveThing, thingID, "")
-	resp, err := cl.ForwardRequestWait(req)
-	if resp == nil {
-		return "", errors.New("nil response")
-	}
-	if err = resp.AsError(); err == nil {
-		err = resp.Decode(&tdJSON)
-	}
-	return tdJSON, err
+// request the directory TD itself
+func (cl *DirectoryMsgClient) RetrieveTDD() (tdJson string, err error) {
+
+	err = cl.Rpc("", td.OpInvokeAction,
+		cl.directoryThingID, directory.ActionRetrieveTDD, nil, &tdJson)
+	return tdJson, err
+}
+
+func (cl *DirectoryMsgClient) RetrieveThing(thingID string) (tdJson string, err error) {
+
+	err = cl.Rpc("", td.OpInvokeAction,
+		cl.directoryThingID, directory.ActionRetrieveThing, thingID, &tdJson)
+	return tdJson, err
 }
 
 func (cl *DirectoryMsgClient) RetrieveAllThings(offset int, limit int) (tdList []string, err error) {
@@ -47,12 +45,8 @@ func (cl *DirectoryMsgClient) RetrieveAllThings(offset int, limit int) (tdList [
 		Offset: offset,
 		Limit:  limit,
 	}
-	req := msg.NewRequestMessage(
-		td.OpInvokeAction, cl.directoryThingID, directory.ActionRetrieveAllThings, args, "")
-	resp, err := cl.ForwardRequestWait(req)
-	if err == nil {
-		err = resp.Decode(&tdList)
-	}
+	err = cl.Rpc("", td.OpInvokeAction,
+		cl.directoryThingID, directory.ActionRetrieveAllThings, args, &tdList)
 	return tdList, err
 }
 
@@ -109,8 +103,9 @@ func UpdateTD(directoryThingID string, tdJson string, reqHandler msg.RequestHand
 	if directoryThingID == "" {
 		directoryThingID = directory.DirectoryModuleType
 	}
-	req := msg.NewRequestMessage(
+	req := msg.NewRequestMessage("",
 		td.OpInvokeAction, directoryThingID, directory.ActionUpdateThing, tdJson, "")
+
 	_, err := msg.ForwardRequestWait(req, reqHandler, msg.DefaultRnRTimeout)
 
 	return err

@@ -83,7 +83,8 @@ func TestInvokeActionFromConsumerToServer(t *testing.T) {
 	// 3. invoke the action without waiting for a result
 	// the response handler above will receive the result
 	// testOutput can be updated as an immediate result or via the callback message handler
-	req := msg.NewRequestMessage(td.OpInvokeAction, thingID, actionName, testMsg1, shortid.MustGenerate())
+	req := msg.NewRequestMessage(
+		co1.GetClientID(), td.OpInvokeAction, thingID, actionName, testMsg1, shortid.MustGenerate())
 	err := co1.ForwardRequest(req, responseHandler)
 
 	require.NoError(t, err)
@@ -178,8 +179,8 @@ func TestInvokeActionFromServerToAgent(t *testing.T) {
 	// ag1Server := srv.GetConnectionByClientID(testAgentID1)
 	// require.NotNil(t, ag1Server)
 
-	req := msg.NewRequestMessage(td.OpInvokeAction, thingID, actionKey, testMsg1, corrID)
-	req.SenderID = testClientID1
+	req := msg.NewRequestMessage(testClientID1, td.OpInvokeAction,
+		thingID, actionKey, testMsg1, corrID)
 	req.CorrelationID = "rpc-TestInvokeActionFromServerToAgent"
 	// err := ag1Server.SendRequest(req)
 	err := testEnv.Server.SendRequest(testAgentID1, req, responseHandler)

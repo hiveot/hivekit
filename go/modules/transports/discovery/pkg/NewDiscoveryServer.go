@@ -27,7 +27,7 @@ func NewDiscoveryServer(
 // This loads the http server.
 // This creates a list of endpoints for each loaded transport server
 func NewDiscoveryServerFactory(f factory.IModuleFactory) modules.IHiveModule {
-	httpServer := f.GetHttpServer()
+	httpServer := f.GetHttpServer(true)
 	endpoints := make(map[string]string)
 	tps := f.GetTransportServers()
 	for _, tp := range tps {

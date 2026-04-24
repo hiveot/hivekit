@@ -69,8 +69,7 @@ type RequestMessage struct {
 
 	// SenderID is the authenticated ID of the client sending the request.
 	// The protocol server MUST set this to the authenticated client.
-	// Intended for services that link requests to the client, such as the state storage service.
-	// This is specific to the Hub as it proxies requests on behalf of clients.
+	// Intended for services that need the clientID such as authentication.
 	SenderID string `json:"senderID,omitempty"`
 
 	// ThingID of the thing this request is for.
@@ -80,7 +79,7 @@ type RequestMessage struct {
 	ThingID string `json:"thingID"`
 
 	// Timestamp the request was created in UTC.
-	// This MUST be set by the protocol server if not provided.
+	// This MUST be set by the transport server when received, if not provided.
 	Timestamp string `json:"created"`
 }
 
@@ -131,13 +130,19 @@ func (req *RequestMessage) Decode(input any) error {
 
 // NewRequestMessage creates a new RequestMessage instance.
 //
+// note that senderID is filled by the server side transport module. When no transport
+// is used, this must be filled with the authenticated client's ID, otherwise the services
+// can reject the request.
+//
+//	senderID is the authentication ID of the originator of the request
 //	operation is the request operation td.OpInvokeAction, td.OpReadProperty,...
 //	thingID is the thing the value applies to (destination of action or source of event)
 //	name is the name of the property, event or action affordance as described in the thing TD
 //	input is the request input as defined in the corresponding affordance dataschema.
 //	correlationID unique ID of the request or empty when no response is expected
-func NewRequestMessage(operation string, thingID, name string, input any, correlationID string) *RequestMessage {
+func NewRequestMessage(senderID string, operation string, thingID, name string, input any, correlationID string) *RequestMessage {
 	return &RequestMessage{
+		SenderID:      senderID,
 		MessageType:   MessageTypeRequest,
 		Operation:     operation,
 		ThingID:       thingID,

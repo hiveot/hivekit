@@ -12,7 +12,6 @@ import (
 	"github.com/hiveot/hivekit/go/api/td"
 	"github.com/hiveot/hivekit/go/modules/authn"
 	"github.com/hiveot/hivekit/go/modules/directory"
-	"github.com/hiveot/hivekit/go/modules/directory/internal"
 	directorypkg "github.com/hiveot/hivekit/go/modules/directory/pkg"
 	"github.com/hiveot/hivekit/go/modules/transports"
 	"github.com/hiveot/hivekit/go/modules/transports/httpclient"
@@ -43,20 +42,33 @@ func TestMain(m *testing.M) {
 }
 
 // Start a test environment with a directory module connected to the server
-func StartDirectoryServer() (
-	testEnv *testenv.TestEnv, m directory.IDirectoryServer, cancelFn func()) {
+func StartDirectoryServer(withHttp bool) (
+	testEnv *testenv.TestEnv, m directory.IDirectoryService, cancelFn func()) {
 
 	testEnv, cancelTestEnv := testenv.StartTestEnv(defaultProtocol)
 	// use in-memory storage
-	m = directorypkg.NewDirectoryService("", storageDir, testEnv.HttpServer)
+	var httpAPI directory.IDirectoryHttpServer
+	if withHttp {
+		httpAPI = directorypkg.NewDirectoryHttpHandler(testEnv.HttpServer)
+		httpAPI.Start()
+	}
+	m = directorypkg.NewDirectoryService("", storageDir, httpAPI, nil)
 	err := m.Start()
 	if err != nil {
 		panic("StartDirectoryServer: failed to start the directory " + err.Error())
+	}
+	if httpAPI != nil {
+		// http messages are handled by the service. For testing this is a direct link
+		// but in an application auth and other modules might be in the middle.
+		httpAPI.SetRequestSink(m.HandleRequest)
 	}
 	// link the directory module to the server
 	testEnv.Server.SetRequestSink(m.HandleRequest)
 	m.SetNotificationSink(testEnv.Server.HandleNotification)
 	return testEnv, m, func() {
+		if httpAPI != nil {
+			httpAPI.Stop()
+		}
 		m.Stop()
 		cancelTestEnv()
 	}
@@ -66,13 +78,13 @@ func StartDirectoryServer() (
 func TestStartStop(t *testing.T) {
 	t.Logf("---%s---\n", t.Name())
 
-	m := directorypkg.NewDirectoryService("", storageDir, nil)
+	m := directorypkg.NewDirectoryService("", storageDir, nil, nil)
 	err := m.Start()
 	require.NoError(t, err)
 	defer m.Stop()
 
 	// add a thing
-	tdJson := internal.DirectoryTMJson
+	tdJson := directory.DirectoryTMJson
 	m.UpdateThing(defaultAgentID, string(tdJson))
 
 	// read all things
@@ -84,13 +96,13 @@ func TestStartStop(t *testing.T) {
 func TestCreateTD(t *testing.T) {
 	thingID := "thing1"
 
-	m := directorypkg.NewDirectoryService("", storageDir, nil)
+	m := directorypkg.NewDirectoryService("", storageDir, nil, nil)
 	err := m.Start()
 	require.NoError(t, err)
 	defer m.Stop()
 
 	// add the directory itself
-	tdJson := internal.DirectoryTMJson
+	tdJson := directory.DirectoryTMJson
 	m.UpdateThing(defaultAgentID, string(tdJson))
 
 	// read all things, expect 1
@@ -121,7 +133,7 @@ func TestCRUDUsingMsgAPI(t *testing.T) {
 	t.Logf("---%s---\n", t.Name())
 	const clientID = "user1"
 
-	testEnv, m, cancelFn := StartDirectoryServer()
+	testEnv, m, cancelFn := StartDirectoryServer(false)
 	_ = testEnv
 	defer cancelFn()
 
@@ -162,7 +174,7 @@ func TestGetDirectoryTD(t *testing.T) {
 	const userID = "user1"
 	var dirTD *td.TD
 
-	testEnv, m, cancelFn := StartDirectoryServer()
+	testEnv, m, cancelFn := StartDirectoryServer(true)
 	defer cancelFn()
 	assert.NotEmpty(t, m)
 
@@ -200,7 +212,7 @@ func TestCRUDUsingRestAPI(t *testing.T) {
 	const clientID = "agent1"
 	thing1ID := "agent1:thing1"
 
-	testEnv, m, cancelFn := StartDirectoryServer()
+	testEnv, m, cancelFn := StartDirectoryServer(true)
 	defer cancelFn()
 	assert.NotEmpty(t, m)
 

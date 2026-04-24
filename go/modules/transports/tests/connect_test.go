@@ -107,7 +107,7 @@ func TestPingClientCert(t *testing.T) {
 	defer cl.Close()
 
 	// all hiveot transport handle a ping message
-	req := msg.NewRequestMessage(td.HTOpPing, "", "", nil, "")
+	req := msg.NewRequestMessage(cl.GetClientID(), td.HTOpPing, "", "", nil, "")
 	err = cl.HandleRequest(req, func(resp *msg.ResponseMessage) error {
 		slog.Info("Received response")
 		return nil

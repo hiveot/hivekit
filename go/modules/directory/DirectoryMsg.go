@@ -7,6 +7,7 @@ const (
 	EventThingDeleted       = "thingDeleted"
 	ActionCreateThing       = "createThing"
 	ActionDeleteThing       = "deleteThing"
+	ActionRetrieveTDD       = "retrieveTDD"
 	ActionRetrieveThing     = "retrieveThing"
 	ActionRetrieveAllThings = "retrieveAllThings"
 	ActionUpdateThing       = "updateThing"

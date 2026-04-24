@@ -1,4 +1,4 @@
-package httpauthn
+package httpapi
 
 import (
 	"io"

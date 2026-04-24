@@ -50,7 +50,7 @@ type DigitwinService struct {
 	// the Thing directory with digital twin TDs
 	// this also contains TDs of non-digital twin devices and services, as consumers
 	// should be able to use these as well.
-	directory directory.IDirectoryServer
+	directory directory.IDirectoryService
 
 	// The digitwin service instance thing-ID for handling requests
 	digitwinThingID string
@@ -270,10 +270,10 @@ func (m *DigitwinService) Stop() {
 //	storageDir is the location where the module stores its device TDs, "" for in-memory testing
 //	thingDir is the directory module that holds Thing TDs.
 //	addForms is a handler from a transport server for injecting forms in digital twin TDs
-//	that describe how to interact via the server's protocols. Each transport server
+//	that describe how to interact via the server protocols. Each transport server
 //	provides a compatible handler.
 func NewDigitwinService(storageDir string,
-	thingDir directory.IDirectoryServer,
+	thingDir directory.IDirectoryService,
 	addforms func(tdoc *td.TD, includeAffordances bool)) *DigitwinService {
 
 	m := &DigitwinService{

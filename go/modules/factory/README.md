@@ -61,6 +61,10 @@ A recipe can be expanded with a custom module by calling recipe.AddModule(module
 
 3rd party modules can be included if they are written in golang. For 3rd party modules written in different languages it is better to define them as plugins. A javascript and python implementation of the factory is planned to simplify writing IoT applications and plugins in those languages.
 
+### Which Modules Should Be Used?
+
+todo
+
 ## Application Environment
 
 Since many modules operate in an environment that uses files, credentials or network access, it helps to centralize the configuration of this environment and instantiate module instances using this environment.

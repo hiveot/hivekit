@@ -73,7 +73,7 @@ The following types of modules can be distinguished:
 
 1. Service modules offer a service, such as authentication, logging and routing. Service modules can be configured through properties and queried using actions.
 
-2. Transport modules come in two flavors, a transport client and a transport server module. The client module passes requests to the server and the server module passes requests and notifications to the client. Client-Server module pairs are available for multiple protocols such as http-basic, websockets and others.
+2. Transport modules come in two flavors, a transport client and a transport server module. The client module passes requests to the server and the server module passes requests and notifications to the client. Client-Server module pairs are available for multiple protocols such as http-basic, websockets and others. Subscriptions are handled by server side connections.
 
 ### Module Factory
 

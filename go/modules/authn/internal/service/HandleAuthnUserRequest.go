@@ -9,11 +9,6 @@ import (
 	"github.com/hiveot/hivekit/go/utils"
 )
 
-// Embed the user service TM
-//
-//go:embed "authn-user-tm.json"
-var AuthnUserTMJson []byte
-
 // HandleAuthnUserRequest returns the RRN handler for the auth user requests.
 func HandleAuthnUserRequest(m authn.IAuthnService, req *msg.RequestMessage, replyTo msg.ResponseHandler) error {
 	var output any

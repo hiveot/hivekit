@@ -1,7 +1,6 @@
 package bucketstorepkg
 
 import (
-	"github.com/hiveot/hivekit/go/api/msg"
 	"github.com/hiveot/hivekit/go/api/td"
 	"github.com/hiveot/hivekit/go/modules"
 	"github.com/hiveot/hivekit/go/modules/bucketstore"
@@ -13,8 +12,8 @@ import (
 // to the provided sink, typically a messaging protocol client.
 type BucketMsgClient struct {
 	modules.HiveModuleBase
-	// thingID ID of the storage service instance
-	thingID string // bucket store service instance ID
+	// storeThingID ID of the storage service instance
+	storeThingID string // bucket store service instance ID
 }
 
 // Close ends the use of this client and frees its resources
@@ -24,33 +23,21 @@ func (cl *BucketMsgClient) Close() error {
 
 // Delete removes the record with the given key.
 func (cl *BucketMsgClient) Delete(key string) error {
-	req := msg.NewRequestMessage(
-		td.OpInvokeAction, cl.thingID, bucketstore.ActionDelete, key, "")
-	_, err := cl.ForwardRequestWait(req)
+	err := cl.Rpc("", td.OpInvokeAction, cl.storeThingID, bucketstore.ActionDelete, key, nil)
 	return err
 }
 
 // Get reads the record with the given key.
 // If the key doesn't exist this returns an error.
 func (cl *BucketMsgClient) Get(key string) (doc string, err error) {
-
-	req := msg.NewRequestMessage(td.OpInvokeAction, cl.thingID, bucketstore.ActionGet, key, "")
-	resp, err := cl.ForwardRequestWait(req)
-
-	err = resp.Decode(&doc)
-	if err != nil {
-		return "", err
-	}
+	err = cl.Rpc("", td.OpInvokeAction, cl.storeThingID, bucketstore.ActionGet, key, &doc)
 	return doc, err
 }
 
 // GetMultiple reads multiple serialized records with the given keys.
 func (cl *BucketMsgClient) GetMultiple(keys []string) (values map[string]string, err error) {
-
-	req := msg.NewRequestMessage(
-		td.OpInvokeAction, cl.thingID, bucketstore.ActionGetMultiple, keys, "")
-	resp, err := cl.ForwardRequestWait(req)
-	err = resp.Decode(&values)
+	err = cl.Rpc("", td.OpInvokeAction,
+		cl.storeThingID, bucketstore.ActionGetMultiple, keys, &values)
 	return values, err
 }
 
@@ -60,9 +47,8 @@ func (cl *BucketMsgClient) Set(key string, doc string) error {
 		Key: key,
 		Doc: doc,
 	}
-	req := msg.NewRequestMessage(
-		td.OpInvokeAction, cl.thingID, bucketstore.ActionSet, args, "")
-	_, err := cl.ForwardRequestWait(req)
+	err := cl.Rpc("", td.OpInvokeAction,
+		cl.storeThingID, bucketstore.ActionSet, args, nil)
 	return err
 }
 
@@ -72,9 +58,8 @@ func (cl *BucketMsgClient) SetMultiple(kv map[string]string) error {
 	for k, v := range kv {
 		args[k] = v
 	}
-	req := msg.NewRequestMessage(
-		td.OpInvokeAction, cl.thingID, bucketstore.ActionSetMultiple, args, "")
-	_, err := cl.ForwardRequestWait(req)
+	err := cl.Rpc("", td.OpInvokeAction,
+		cl.storeThingID, bucketstore.ActionSetMultiple, args, nil)
 	return err
 }
 
@@ -85,7 +70,7 @@ func (cl *BucketMsgClient) SetMultiple(kv map[string]string) error {
 //	sink is the handler that forwards messages to the module. Typically a messaging client.
 func NewBucketStoreMsgClient(thingID string, sink modules.IHiveModule) *BucketMsgClient {
 	cl := &BucketMsgClient{
-		thingID: thingID,
+		storeThingID: thingID,
 	}
 	cl.SetRequestSink(sink.HandleRequest)
 	sink.SetNotificationSink(cl.HandleNotification)

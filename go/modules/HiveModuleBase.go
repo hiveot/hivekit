@@ -198,8 +198,7 @@ func (m *HiveModuleBase) Rpc(
 	correlationID := shortid.MustGenerate()
 
 	var resp *msg.ResponseMessage
-	req := msg.NewRequestMessage(operation, thingID, name, input, correlationID)
-	req.SenderID = senderID
+	req := msg.NewRequestMessage(senderID, operation, thingID, name, input, correlationID)
 
 	resp, err := m.ForwardRequestWait(req)
 

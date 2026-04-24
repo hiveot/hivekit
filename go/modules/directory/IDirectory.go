@@ -1,12 +1,22 @@
 package directory
 
 import (
+	_ "embed"
+
 	"github.com/hiveot/hivekit/go/api/td"
 	"github.com/hiveot/hivekit/go/modules"
 )
 
+// Embed the directory TM
+//
+//go:embed "directory-tm.json"
+var DirectoryTMJson []byte
+
 // DirectoryModuleType identifies the directory module implementation
 const DirectoryModuleType = "directory"
+
+// DirectoryHttpModuleType identifies the http API module for the directory service
+const DirectoryHttpModuleType = "directory-http"
 
 // The thingID this directory identifies as for messaging. Must match the TD ID.
 const DefaultDirectoryThingID = "thingDirectory"
@@ -35,8 +45,22 @@ type AgentInfo struct {
 	ThingIDs []string
 }
 
-// IDirectoryServer defines the interface to the directory module server
-type IDirectoryServer interface {
+// Directory service http API module
+type IDirectoryHttpServer interface {
+	modules.IHiveModule
+
+	// AddTDSecForms updates the given Thing Description with security and forms for this
+	// transport module.
+	// The security scheme in the TD is set by the authenticator used by the server.
+	AddTDSecForms(tdoc *td.TD, includeAffordances bool)
+
+	// Obain the base URL of the directory http endpoint
+	// Used to include this in the directory TDD
+	GetBaseURL() (uri string)
+}
+
+// IDirectoryService defines the interface to the directory service module
+type IDirectoryService interface {
 	modules.IHiveModule
 
 	// CreateThing creates or updates the TD in the directory.
@@ -53,8 +77,8 @@ type IDirectoryServer interface {
 	// These TD's are cached so successive requests do not parse the json each time.
 	GetTD(thingID string) *td.TD
 
-	// GetAgentInfo provides information on Things registered by an agent
-	// GetAgentInfo(agentID string) (info AgentInfo, found bool)
+	// Retrieve the directory TD
+	RetrieveTDD() string
 
 	// RetrieveThing returns a JSON encoded TD document
 	RetrieveThing(thingID string) (tdJSON string, err error)

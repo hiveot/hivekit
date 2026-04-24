@@ -86,8 +86,7 @@ func (m *HttpBasicServer) onHttpAffordanceOperation(w http.ResponseWriter, r *ht
 	// Use the authenticated clientID as the sender
 	var input any
 	err = jsoniter.Unmarshal(rp.Payload, &input)
-	req := msg.NewRequestMessage(rp.Op, rp.ThingID, rp.Name, input, "")
-	req.SenderID = rp.ClientID
+	req := msg.NewRequestMessage(rp.ClientID, rp.Op, rp.ThingID, rp.Name, input, "")
 	req.CorrelationID = rp.CorrelationID
 
 	// filter on allowed operations

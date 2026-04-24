@@ -85,13 +85,13 @@ func TestAuthentication(t *testing.T) {
 	authenticator := f.GetAuthenticator()
 	assert.NotNil(t, authenticator)
 
-	httpServer := f.GetHttpServer()
+	httpServer := f.GetHttpServer(true)
 	assert.NotNil(t, httpServer)
 	httpAuth := httpServer.GetAuthenticator()
 	assert.NotNil(t, httpAuth)
 
 	// loading the authn module switches the factory to use it as authenticator
-	m, err := f.GetModule(authn.AuthnModuleType)
+	m, err := f.GetModule(authn.AuthnModuleType, true)
 	require.NotNil(t, m)
 	assert.NoError(t, err)
 
@@ -128,7 +128,7 @@ func TestDigitwin(t *testing.T) {
 
 	// load the digitwin module
 	// this should start the directory and http server
-	m, err := f.GetModule(digitwin.DigitwinModuleType)
+	m, err := f.GetModule(digitwin.DigitwinModuleType, true)
 	require.NotNil(t, m)
 	assert.NoError(t, err)
 }
@@ -150,7 +150,7 @@ func TestClientServerRecipe(t *testing.T) {
 	env.ServerURL = serverFactory.GetConnectURL()
 
 	// the server agent handles the server requests
-	ag, _ := serverFactory.GetModule(clients.AgentModuleType)
+	ag, _ := serverFactory.GetModule(clients.AgentModuleType, true)
 	ag.SetAppRequestHook(func(req *msg.RequestMessage, replyTo msg.ResponseHandler) error {
 		if req.ThingID == thingID {
 			slog.Info("Received request", "name", req.Name)
@@ -167,7 +167,7 @@ func TestClientServerRecipe(t *testing.T) {
 	require.NoError(t, err)
 	defer clientFactory.StopAll()
 
-	m2, err := clientFactory.GetModule(clients.ConsumerModuleType)
+	m2, err := clientFactory.GetModule(clients.ConsumerModuleType, true)
 	assert.NoError(t, err)
 	co := m2.(*clients.Consumer)
 	var propValue string

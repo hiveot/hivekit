@@ -11,7 +11,7 @@ import (
 
 const AgentModuleType = "agent"
 
-// Agent is a helper module providing a Golang API for IoT device WoT operations using the
+// Agent is a module providing a Golang API for IoT device WoT operations using the
 // standard RRN (request-response-notification) messages. The RRN interface is compatible
 // with all HiveKit modules.
 //

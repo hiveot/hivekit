@@ -39,7 +39,7 @@ func (r *FactoryRecipe) Start(f factory.IModuleFactory) error {
 	var prevModule modules.IHiveModule
 	for _, modType := range r.ModuleChain {
 		// getmodule starts it if needed
-		m, err := r.f.GetModule(modType)
+		m, err := r.f.GetModule(modType, true)
 		modList = append(modList, m)
 		if err == nil {
 			// Link the module to the previous module in the list

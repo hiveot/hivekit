@@ -9,11 +9,6 @@ import (
 	"github.com/hiveot/hivekit/go/utils"
 )
 
-// Embed the admin service TM
-//
-//go:embed "authn-admin-tm.json"
-var AuthnAdminTMJson []byte
-
 // Handle the admin RRN request
 func HandleAuthnAdminRequest(m authn.IAuthnService, req *msg.RequestMessage, replyTo msg.ResponseHandler) error {
 	var output any

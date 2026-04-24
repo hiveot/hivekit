@@ -20,7 +20,7 @@ import (
 //	storageDir is the directory where the module stores its data
 //	dirModule is the directory service to hook into to intercept writes, or "" for in-memory testing
 //	addForms is the handler to invoke to add forms to a TD
-func NewDigitwinService(storageDir string, dirModule directory.IDirectoryServer,
+func NewDigitwinService(storageDir string, dirModule directory.IDirectoryService,
 	addForms func(tdi *td.TD, includeAffordances bool)) digitwin.IDigitwinService {
 
 	m := internal.NewDigitwinService(storageDir, dirModule, addForms)
@@ -36,11 +36,11 @@ func NewDigitwinServiceFactory(f factory.IModuleFactory) modules.IHiveModule {
 	storageDir := filepath.Join(env.StoresDir, digitwin.DigitwinModuleType)
 
 	// the directory module used to intercept directory writes to create digital twins of
-	m, err := f.GetModule(directory.DirectoryModuleType)
+	m, err := f.GetModule(directory.DirectoryModuleType, true)
 	if err != nil {
 		return nil
 	}
-	dirModule, ok := m.(directory.IDirectoryServer)
+	dirModule, ok := m.(directory.IDirectoryService)
 	_ = ok
 	m = NewDigitwinService(storageDir, dirModule, f.AddTDSecForms)
 	return m

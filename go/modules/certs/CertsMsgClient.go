@@ -3,7 +3,6 @@ package certs
 import (
 	"crypto/x509"
 
-	"github.com/hiveot/hivekit/go/api/msg"
 	"github.com/hiveot/hivekit/go/api/td"
 	"github.com/hiveot/hivekit/go/modules"
 	certsapi "github.com/hiveot/hivekit/go/modules/certs/api"
@@ -24,13 +23,8 @@ type CertsMsgClient struct {
 // GetCACert returns the x509 CA certificate.
 func (cl *CertsMsgClient) GetCACert() (cert *x509.Certificate, err error) {
 	var certPem string
-	req := msg.NewRequestMessage(
-		td.OpInvokeAction, certsapi.DefaultCertsServiceThingID, certsapi.ActionGetCACert, nil, "")
 
-	resp, err := cl.ForwardRequestWait(req)
-	if err == nil {
-		err = resp.Decode(&certPem)
-	}
+	err = cl.Rpc("", td.OpInvokeAction, cl.certServiceID, certsapi.ActionGetCACert, nil, &certPem)
 	if err == nil {
 		cert, err = certutils.X509CertFromPEM(certPem)
 	}

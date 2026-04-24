@@ -100,7 +100,11 @@ func (f *ModuleFactory) GetFirstModule() modules.IHiveModule {
 }
 
 // Used for various modules that need to serve http endpoints, e.g. http basic authn, directory, etc.
-func (f *ModuleFactory) GetHttpServer() transports.IHttpServer {
+//
+//	instantiate indicates if the http server instance should be created if it doesnt exist.
+//
+// This returns nil if no http server module is registered
+func (f *ModuleFactory) GetHttpServer(instantiate bool) transports.IHttpServer {
 	f.mux.RLock()
 	httpServer := f.httpServer
 	f.mux.RUnlock()
@@ -108,8 +112,10 @@ func (f *ModuleFactory) GetHttpServer() transports.IHttpServer {
 	if httpServer != nil {
 		return httpServer
 	}
-
-	m, err := f.GetModule(transports.HttpServerModuleType)
+	if !instantiate {
+		return nil
+	}
+	m, err := f.GetModule(transports.HttpServerModuleType, instantiate)
 	if err != nil {
 		slog.Warn("GetHttpServer: no http server module is registered")
 		return nil
@@ -136,7 +142,17 @@ func (f *ModuleFactory) GetLastModule() modules.IHiveModule {
 
 // GetModule loads and starts an instance of a module by its type.
 // If the module is a singleton then the same instance is returned for multiple calls with the same type.
-func (f *ModuleFactory) GetModule(moduleType string) (modules.IHiveModule, error) {
+func (f *ModuleFactory) GetModule(moduleType string, instantiate bool) (modules.IHiveModule, error) {
+	f.mux.RLock()
+	m, ok := f.singletonModules[moduleType]
+	f.mux.RUnlock()
+
+	if m != nil && ok {
+		return m, nil
+	} else if !instantiate {
+		return nil, fmt.Errorf("Module '%s' not yet loaded", moduleType)
+	}
+
 	m, isNew, err := f.LoadModule(moduleType)
 	if err != nil {
 		return nil, err

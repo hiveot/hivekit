@@ -41,9 +41,9 @@ func NewRouterServiceFactory(f factory.IModuleFactory) modules.IHiveModule {
 	// option 1: provide a method to retrieve them when needed
 	tps := f.GetTransportServers()
 
-	m, err := f.GetModule(directory.DirectoryModuleType)
+	m, err := f.GetModule(directory.DirectoryModuleType, true)
 	if err == nil {
-		if dirMod, ok := m.(directory.IDirectoryServer); ok {
+		if dirMod, ok := m.(directory.IDirectoryService); ok {
 			getTD = dirMod.GetTD
 		}
 	}
