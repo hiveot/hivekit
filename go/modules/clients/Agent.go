@@ -1,9 +1,12 @@
 package clients
 
 import (
+	"fmt"
 	"log/slog"
+	"maps"
 
 	"github.com/hiveot/hivekit/go/api/msg"
+	"github.com/hiveot/hivekit/go/api/td"
 	"github.com/hiveot/hivekit/go/modules"
 	"github.com/hiveot/hivekit/go/modules/factory"
 	"github.com/hiveot/hivekit/go/utils"
@@ -24,12 +27,6 @@ const AgentModuleType = "agent"
 //  2. Set this agent notification sink to the transport connection so it can publish notifications
 //  3. Set this agent request sink to other modules that handle server side requests.
 //
-// Alternatively when there is usage as a consumer:
-//  3. Set the agent request sink to the transport connection to allow sending requests to
-//     remote services, but only do so if the app request handler is set to handle all
-//     requests. Failure to do so can cause looping of requests.
-//  4. Set the agent as the notification sink of other agent modules
-//
 // Therefore if no appRequestHandler is set, then do not set the request sink to
 // the connection for use to send requests.
 //
@@ -37,47 +34,105 @@ const AgentModuleType = "agent"
 type Agent struct {
 	*Consumer
 
-	// the application's request handler set with SetRequestHandler
-	// intended for sub-protocols that can receive requests. (agents)
-	// appRequestHandlerPtr atomic.Pointer[msg.RequestHandler]
+	// Map of the Things managed by the agent
+	tstates map[string]*ThingState
 }
 
-// HandleRequest passes a request to the application request handler or forwards
-// the request to the request sink.
-//
-// Normally agents receive requests from consumers for processing by the application
-// handler set during creation.
-//
-// This request flows from:
-// A: server connection to agent if the agent runs on the server, or
-// B: from client connection to agent, if the agent app uses reverse connections.
-//
-// The agent request sink (used in ForwardRequest) can also be set to the server
-// to allow the agent to write a TD to the directory for example.
-//
-// If an application request handler is set, it is the handler's responsibility
-// to forward the request if it cannot handle it.
-// HiveModuleBase now handles this
-// func (ag *Agent) HandleRequest(
-// 	req *msg.RequestMessage, replyTo msg.ResponseHandler) (err error) {
-// 	// handle requests if any
-// 	hPtr := ag.appRequestHandlerPtr.Load()
-// 	if hPtr != nil {
-// 		err = (*hPtr)(req, replyTo)
-// 	} else {
-// 		// this agent does not have an application request handler set, so it
-// 		// is assumed that the request handler sink forwards it to the actual handler
-// 		// and does not forward it to the connection it was received on.
-// 		err = ag.ForwardRequest(req, replyTo)
-// 	}
-// 	return
-// }
+// Return the state of a thing managed by the agent
+// If no entry for thingID yet exists, one is created.
+func (ag *Agent) GetState(thingID string) *ThingState {
+	ag.mux.RLock()
+	state, ok := ag.tstates[thingID]
+	ag.mux.RUnlock()
+	if !ok {
+		ag.mux.Lock()
+		state := NewThingState(thingID)
+		ag.tstates[thingID] = state
+		defer ag.mux.Unlock()
+	}
+	return state
+}
+
+// HandleReadRequests handles reading of actions, events, and properties for a thing
+// managed by this agent.
+// This returns nil if the request was handled or an error if this is not a valid read request
+// or the thingID is unknown.
+func (ag *Agent) HandleReadRequests(req *msg.RequestMessage, replyTo msg.ResponseHandler) (err error) {
+	var found bool
+	var output any
+
+	ag.mux.RLock()
+	defer ag.mux.RUnlock()
+	state, ok := ag.tstates[req.ThingID]
+	if !ok {
+		// not handled
+		err = fmt.Errorf("Unknown thingID '%s' for agent '%s'", req.ThingID, ag.clientID)
+		return err
+	}
+
+	switch req.Operation {
+
+	case td.HTOpReadAllEvents:
+		output = maps.Clone(state.events)
+
+	case td.OpReadAllProperties:
+		output = maps.Clone(state.properties)
+
+	case td.HTOpReadEvent:
+		var key string
+		err = req.Decode(&key)
+		if err != nil {
+			break
+		}
+		output, found = state.events[key]
+		if !found {
+			err = fmt.Errorf("Unknown event '%s'", key)
+		}
+
+	case td.OpReadProperty:
+		var key string
+		err = req.Decode(&key)
+		if err != nil {
+			break
+		}
+		output, found = state.properties[key]
+		if !found {
+			err = fmt.Errorf("Unknown property '%s'", key)
+		}
+
+	case td.OpReadMultipleProperties:
+		var keys []string
+		err = req.Decode(&keys)
+		if err != nil {
+			err = fmt.Errorf("Invalid input: %w", err)
+			break
+		}
+		props := make(map[string]any)
+		for _, k := range keys {
+			v, ok := state.properties[k]
+			if ok {
+				props[k] = v
+			} else {
+				// fail or ignore invalid key? -> graceful degradation
+			}
+		}
+		output = props
+
+	default:
+		// not handled
+		err = fmt.Errorf("Unhandled operation '%s'", req.Operation)
+		return err
+	}
+	resp := req.CreateResponse(output, err)
+	err = replyTo(resp)
+	return err
+}
 
 // PubActionProgress helper for agents to send a 'running' ActionStatus notification
 //
-// This sends an ActionStatus message with status of running.
+// This sends an ResponseMessage message with status of running.
 func (ag *Agent) PubActionProgress(req msg.RequestMessage, value any) {
-	status := msg.ResponseMessage{
+	status := &msg.ResponseMessage{
 		//AgentID:   ag.GetClientID(),
 		// Input:     req.Input,
 		Name:      req.Name,
@@ -90,6 +145,9 @@ func (ag *Agent) PubActionProgress(req msg.RequestMessage, value any) {
 
 	resp := msg.NewNotificationMessage(
 		ag.GetClientID(), msg.AffordanceTypeAction, req.ThingID, req.Name, status)
+
+	ag.GetState(req.ThingID).SetActionResponse(req.Name, status)
+
 	ag.ForwardNotification(resp)
 }
 
@@ -108,11 +166,13 @@ func (ag *Agent) PubEvent(thingID string, name string, value any) {
 		"name", name,
 		"value", notif.ToString(50),
 	)
+	ag.GetState(thingID).SetEvent(name, notif)
 
 	ag.ForwardNotification(notif)
 }
 
 // PubProperty publishes a property change notification to observers.
+// This updates the latest value for the property.
 //
 // The underlying transport protocol binding handles the subscription mechanism.
 func (ag *Agent) PubProperty(thingID string, name string, value any) {
@@ -125,10 +185,13 @@ func (ag *Agent) PubProperty(thingID string, name string, value any) {
 		"name", notif.Name,
 		"value", notif.ToString(50),
 	)
+	ag.GetState(thingID).SetProperty(name, notif)
+
 	ag.ForwardNotification(notif)
 }
 
 // PubProperties publishes a map of property changes to observers
+// This updates the latest values for the properties.
 //
 // The underlying transport protocol binding handles the subscription mechanism.
 func (ag *Agent) PubProperties(thingID string, propMap map[string]any) {
@@ -137,10 +200,14 @@ func (ag *Agent) PubProperties(thingID string, propMap map[string]any) {
 		"thingID", thingID,
 		"nrProps", len(propMap),
 	)
+	tstate := ag.GetState(thingID)
 
 	for propName, propVal := range propMap {
+
 		notif := msg.NewNotificationMessage(
 			ag.GetClientID(), msg.AffordanceTypeProperty, thingID, propName, propVal)
+
+		tstate.SetProperty(propName, notif)
 
 		ag.ForwardNotification(notif)
 	}
@@ -171,7 +238,9 @@ func (ag *Agent) PubProperties(thingID string, propMap map[string]any) {
 // consumers should set this as the sink that handles requests and return notifications
 func NewAgent(agentID string, appReqHandler msg.RequestHandler) *Agent {
 
-	agent := &Agent{}
+	agent := &Agent{
+		tstates: make(map[string]*ThingState),
+	}
 	agent.Consumer = NewConsumer(agentID)
 
 	if appReqHandler != nil {
