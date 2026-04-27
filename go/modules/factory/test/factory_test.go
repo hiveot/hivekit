@@ -11,11 +11,10 @@ import (
 	"github.com/hiveot/hivekit/go/api/msg"
 	"github.com/hiveot/hivekit/go/modules/authn"
 	certstest "github.com/hiveot/hivekit/go/modules/certs/test"
-	"github.com/hiveot/hivekit/go/modules/clients"
+	clientspkg "github.com/hiveot/hivekit/go/modules/clients/pkg"
 	"github.com/hiveot/hivekit/go/modules/digitwin"
 	factory "github.com/hiveot/hivekit/go/modules/factory"
 	factorypkg "github.com/hiveot/hivekit/go/modules/factory/pkg"
-	factoryrecipe "github.com/hiveot/hivekit/go/modules/factory/recipe"
 	"github.com/hiveot/hivekit/go/utils"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -143,14 +142,14 @@ func TestClientServerRecipe(t *testing.T) {
 	env.ServerCert = testCerts.ServerCert
 
 	serverFactory := factorypkg.NewModuleFactory(env, RecipeModules)
-	serverChain := factoryrecipe.NewFactoryRecipe(RecipeModules, TestDeviceServerChain)
+	serverChain := factorypkg.NewFactoryRecipe(RecipeModules, TestDeviceServerChain)
 	err := serverChain.Start(serverFactory)
 	require.NoError(t, err)
 	defer serverFactory.StopAll()
 	env.ServerURL = serverFactory.GetConnectURL()
 
 	// the server agent handles the server requests
-	ag, _ := serverFactory.GetModule(clients.AgentModuleType, true)
+	ag, _ := serverFactory.GetModule(clientspkg.AgentModuleType, true)
 	ag.SetAppRequestHook(func(req *msg.RequestMessage, replyTo msg.ResponseHandler) error {
 		if req.ThingID == thingID {
 			slog.Info("Received request", "name", req.Name)
@@ -162,14 +161,14 @@ func TestClientServerRecipe(t *testing.T) {
 
 	// the client sends requests and receives responses
 	clientFactory := factorypkg.NewModuleFactory(env, RecipeModules)
-	clientChain := factoryrecipe.NewFactoryRecipe(RecipeModules, TestDeviceClientChain)
+	clientChain := factorypkg.NewFactoryRecipe(RecipeModules, TestDeviceClientChain)
 	err = clientChain.Start(clientFactory)
 	require.NoError(t, err)
 	defer clientFactory.StopAll()
 
-	m2, err := clientFactory.GetModule(clients.ConsumerModuleType, true)
+	m2, err := clientFactory.GetModule(clientspkg.ConsumerModuleType, true)
 	assert.NoError(t, err)
-	co := m2.(*clients.Consumer)
+	co := m2.(*clientspkg.Consumer)
 	var propValue string
 	err = co.ReadProperty(thingID, "fortytwo", &propValue)
 	assert.NoError(t, err)

@@ -7,7 +7,7 @@ import (
 	"github.com/hiveot/hivekit/go/modules/factory"
 	"github.com/hiveot/hivekit/go/modules/transports"
 	"github.com/hiveot/hivekit/go/modules/transports/discovery"
-	"github.com/hiveot/hivekit/go/modules/transports/discovery/internal"
+	internalserver "github.com/hiveot/hivekit/go/modules/transports/discovery/internal/server"
 )
 
 // NewDiscoveryServer creates a new discovery server module instance.
@@ -19,7 +19,7 @@ import (
 func NewDiscoveryServer(
 	httpServer transports.IHttpServer, endpoints map[string]string, serviceID string) discovery.IDiscoveryServer {
 
-	srv := internal.NewDiscoveryServer(httpServer, endpoints, serviceID)
+	srv := internalserver.NewDiscoveryServer(httpServer, endpoints, serviceID)
 	return srv
 }
 

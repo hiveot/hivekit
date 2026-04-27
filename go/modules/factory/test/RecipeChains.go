@@ -1,18 +1,18 @@
 package factory_test
 
 import (
-	"github.com/hiveot/hivekit/go/modules/clients"
-	"github.com/hiveot/hivekit/go/modules/transports/wss1"
+	clientspkg "github.com/hiveot/hivekit/go/modules/clients/pkg"
+	wss "github.com/hiveot/hivekit/go/modules/transports/wss"
 )
 
 // module types of a device server agent chain
 var TestDeviceServerChain = []string{
 	wss.WotWebsocketServerModuleType,
-	clients.AgentModuleType,
+	clientspkg.AgentModuleType,
 }
 
 // module types of a client chain
 var TestDeviceClientChain = []string{
-	clients.ConsumerModuleType,
+	clientspkg.ConsumerModuleType,
 	wss.WotWebsocketClientModuleType,
 }

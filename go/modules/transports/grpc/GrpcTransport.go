@@ -8,7 +8,7 @@ import (
 
 const (
 	// Hiveot gRPC module ID
-	HiveotGrpcModuleType = "hiveot-grpc"
+	HiveotGrpcServerModuleType = "hiveot-grpc"
 
 	// there is no WoT gRPC specification
 

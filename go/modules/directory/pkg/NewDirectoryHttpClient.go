@@ -12,7 +12,7 @@ import (
 	"github.com/hiveot/hivekit/go/modules"
 	"github.com/hiveot/hivekit/go/modules/directory"
 	"github.com/hiveot/hivekit/go/modules/transports"
-	"github.com/hiveot/hivekit/go/modules/transports/httpclient"
+	httptransportpkg "github.com/hiveot/hivekit/go/modules/transports/httptransport/pkg"
 	"github.com/hiveot/hivekit/go/utils"
 )
 
@@ -170,7 +170,7 @@ func NewDirectoryHttpClient(serverURL string, caCert *x509.Certificate) *Directo
 		return nil
 	}
 
-	tlsClient := httpclient.NewHttpClient(parts.Host, caCert, 0)
+	tlsClient := httptransportpkg.NewHttpTransportClient(parts.Host, caCert, 0)
 
 	cl := &DirectoryHttpClient{
 		timeout:   msg.DefaultRnRTimeout,

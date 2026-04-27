@@ -3,13 +3,13 @@ package testenv
 import (
 	"github.com/hiveot/hivekit/go/api/td"
 	"github.com/hiveot/hivekit/go/modules"
-	"github.com/hiveot/hivekit/go/modules/clients"
+	clientspkg "github.com/hiveot/hivekit/go/modules/clients/pkg"
 	"github.com/hiveot/hivekit/go/modules/transports"
 	httpbasicpkg "github.com/hiveot/hivekit/go/modules/transports/httpbasic/pkg"
-	"github.com/hiveot/hivekit/go/modules/transports/httpserver"
-	httpserverconfig "github.com/hiveot/hivekit/go/modules/transports/httpserver/config"
+	"github.com/hiveot/hivekit/go/modules/transports/httptransport"
+	httptransportpkg "github.com/hiveot/hivekit/go/modules/transports/httptransport/pkg"
 	ssescpkg "github.com/hiveot/hivekit/go/modules/transports/ssesc/pkg"
-	wsspkg "github.com/hiveot/hivekit/go/modules/transports/wss1/pkg"
+	wsspkg "github.com/hiveot/hivekit/go/modules/transports/wss/pkg"
 )
 
 // TestDevice contains a server and agent for testing and simulation
@@ -17,10 +17,10 @@ type TestDevice struct {
 	modules.HiveModuleBase
 
 	agentID         string
-	cfg             *httpserverconfig.Config
+	cfg             *httptransport.Config
 	HttpServer      transports.IHttpServer
 	TransportServer transports.ITransportServer
-	Agent           *clients.Agent
+	Agent           *clientspkg.Agent
 	// the server protocol to use, eg ProtocolTypeWotWSS, ...
 	protocolType string
 
@@ -39,7 +39,7 @@ func (device *TestDevice) Start() error {
 
 	// setup the server, transport and link the device to the transport
 	// cfg := httpserverapi.NewConfig(addr, port, serverCert, caCert, validateToken)
-	device.HttpServer = httpserver.NewHttpServerModule(device.cfg)
+	device.HttpServer = httptransportpkg.NewHttpTransportServer(device.cfg)
 	err := device.HttpServer.Start()
 	if err != nil {
 		device.HttpServer = nil
@@ -65,7 +65,7 @@ func (device *TestDevice) Start() error {
 	// populate the security and forms in the TD
 	device.TransportServer.AddTDSecForms(device.td, true)
 	// create the agent and link it to the transport to serve requests
-	device.Agent = clients.NewAgent(device.agentID, nil)
+	device.Agent = clientspkg.NewAgent(device.agentID, nil)
 	device.TransportServer.SetRequestSink(device.Agent.HandleRequest)
 	device.Agent.SetNotificationSink(device.TransportServer.SendNotification)
 	// this device envelope handles requests received via the agent
@@ -96,7 +96,7 @@ func (device *TestDevice) Stop() {
 // agentID is the service that manages the device
 // tm is the TM of the thing to manage
 // protocolType sets the type of server to use
-func NewTestDevice(cfg *httpserverconfig.Config, agentID string, tm *td.TD,
+func NewTestDevice(cfg *httptransport.Config, agentID string, tm *td.TD,
 	protocolType string) *TestDevice {
 	v := &TestDevice{
 		protocolType: protocolType,

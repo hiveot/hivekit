@@ -9,7 +9,7 @@ import (
 	bucketstorepkg "github.com/hiveot/hivekit/go/modules/bucketstore/pkg"
 	"github.com/hiveot/hivekit/go/modules/certs"
 	certsapi "github.com/hiveot/hivekit/go/modules/certs/api"
-	"github.com/hiveot/hivekit/go/modules/clients"
+	clientspkg "github.com/hiveot/hivekit/go/modules/clients/pkg"
 	"github.com/hiveot/hivekit/go/modules/digitwin"
 	digitwinpkg "github.com/hiveot/hivekit/go/modules/digitwin/pkg"
 	"github.com/hiveot/hivekit/go/modules/directory"
@@ -25,14 +25,15 @@ import (
 	"github.com/hiveot/hivekit/go/modules/transports/discovery"
 	discoverypkg "github.com/hiveot/hivekit/go/modules/transports/discovery/pkg"
 	grpctransport "github.com/hiveot/hivekit/go/modules/transports/grpc"
-	grpctransportpkg "github.com/hiveot/hivekit/go/modules/transports/grpc/pkg"
+	grpcpkg "github.com/hiveot/hivekit/go/modules/transports/grpc/pkg"
 	"github.com/hiveot/hivekit/go/modules/transports/httpbasic"
 	httpbasicpkg "github.com/hiveot/hivekit/go/modules/transports/httpbasic/pkg"
-	"github.com/hiveot/hivekit/go/modules/transports/httpserver"
+	httptransportpkg "github.com/hiveot/hivekit/go/modules/transports/httptransport/pkg"
 	"github.com/hiveot/hivekit/go/modules/transports/ssesc"
 	ssescpkg "github.com/hiveot/hivekit/go/modules/transports/ssesc/pkg"
-	"github.com/hiveot/hivekit/go/modules/transports/wss1"
-	wsspkg "github.com/hiveot/hivekit/go/modules/transports/wss1/pkg"
+	wss "github.com/hiveot/hivekit/go/modules/transports/wss"
+	wsspkg "github.com/hiveot/hivekit/go/modules/transports/wss/pkg"
+
 	"github.com/hiveot/hivekit/go/modules/vcache"
 	vcacheapi "github.com/hiveot/hivekit/go/modules/vcache/api"
 )
@@ -47,12 +48,12 @@ var RecipeModules = map[string]factory.ModuleDefinition{
 		Constructor: discoverypkg.NewDiscoveryServerFactory,
 	},
 	// gRPC transport server
-	grpctransport.HiveotGrpcModuleType: {
-		Constructor: grpctransportpkg.NewHiveotGrpcServerFactory,
+	grpctransport.HiveotGrpcServerModuleType: {
+		Constructor: grpcpkg.NewGrpcServerFactory,
 	},
 	// http server provider
 	transports.HttpServerModuleType: {
-		Constructor: httpserver.NewHttpServerFactory,
+		Constructor: httptransportpkg.NewHttpTransportServerFactory,
 	},
 	// http-basic transport server
 	httpbasic.HttpBasicServerModuleType: {
@@ -107,7 +108,7 @@ var RecipeModules = map[string]factory.ModuleDefinition{
 	},
 	// directory service provider
 	directory.DirectoryModuleType: {
-		Constructor: directorypkg.NewDirectoryServiceFactory,
+		Constructor: directorypkg.NewDirectoryMsgServerFactory,
 	},
 	// history service provider
 	history.HistoryModuleType: {
@@ -127,11 +128,11 @@ var RecipeModules = map[string]factory.ModuleDefinition{
 	},
 
 	// clients
-	clients.AgentModuleType: {
-		Constructor: clients.NewAgentFactory,
+	clientspkg.AgentModuleType: {
+		Constructor: clientspkg.NewAgentFactory,
 	},
-	clients.ConsumerModuleType: {
-		Constructor: clients.NewConsumerFactory,
+	clientspkg.ConsumerModuleType: {
+		Constructor: clientspkg.NewConsumerFactory,
 	},
 	history.ReadHistoryClientModuleType: {
 		Constructor: historypkg.NewReadHistoryClientFactory,

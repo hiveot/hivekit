@@ -1,4 +1,4 @@
-package client
+package internalclient
 
 import (
 	"context"
@@ -18,7 +18,7 @@ import (
 	"github.com/hiveot/hivekit/go/modules"
 	"github.com/hiveot/hivekit/go/modules/transports"
 	"github.com/hiveot/hivekit/go/modules/transports/httpbasic"
-	"github.com/hiveot/hivekit/go/modules/transports/httpclient"
+	httptransportpkg "github.com/hiveot/hivekit/go/modules/transports/httptransport/pkg"
 	"github.com/hiveot/hivekit/go/utils"
 	jsoniter "github.com/json-iterator/go"
 )
@@ -409,7 +409,7 @@ func NewHttpBasicClient(
 	}
 	hostPort := urlParts.Host
 
-	tlsClient := httpclient.NewHttpClient(hostPort, caCert, timeout)
+	tlsClient := httptransportpkg.NewHttpTransportClient(hostPort, caCert, timeout)
 	cl := NewHttpBasicTLSClient(tlsClient, getForm, ch)
 
 	return cl

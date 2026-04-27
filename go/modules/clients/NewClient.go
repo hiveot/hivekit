@@ -1,3 +1,5 @@
+// Package clients containing all clients.
+// Only use this if you wish to include all protocol clients, which adds around 10MB
 package clients
 
 import (
@@ -8,10 +10,10 @@ import (
 
 	"github.com/hiveot/hivekit/go/api/td"
 	"github.com/hiveot/hivekit/go/modules/transports"
-	grpctransportpkg "github.com/hiveot/hivekit/go/modules/transports/grpc/pkg"
+	grpcpkg "github.com/hiveot/hivekit/go/modules/transports/grpc/pkg"
 	httpbasicpkg "github.com/hiveot/hivekit/go/modules/transports/httpbasic/pkg"
 	ssescpkg "github.com/hiveot/hivekit/go/modules/transports/ssesc/pkg"
-	wsspkg "github.com/hiveot/hivekit/go/modules/transports/wss1/pkg"
+	wsspkg "github.com/hiveot/hivekit/go/modules/transports/wss/pkg"
 )
 
 // GetProtocolType returns the protocol used for connecting to this device.
@@ -123,7 +125,7 @@ func NewTransportClient(protocolType string, serverURL string, caCert *x509.Cert
 		// if strings.HasPrefix(serverURL, "unix") {
 		// 	caCert = nil
 		// }
-		cl = grpctransportpkg.NewHiveotGrpcClient(serverURL, caCert, ch)
+		cl = grpcpkg.NewHiveotGrpcClient(serverURL, caCert, ch)
 
 	case transports.ProtocolTypeHiveotSsesc:
 		cl = ssescpkg.NewSseScClient(serverURL, caCert, ch)

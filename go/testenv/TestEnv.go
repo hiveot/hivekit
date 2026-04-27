@@ -14,13 +14,14 @@ import (
 	"github.com/hiveot/hivekit/go/modules/authn"
 	certstest "github.com/hiveot/hivekit/go/modules/certs/test"
 	"github.com/hiveot/hivekit/go/modules/clients"
+	clientspkg "github.com/hiveot/hivekit/go/modules/clients/pkg"
 	"github.com/hiveot/hivekit/go/modules/transports"
-	grpctransportpkg "github.com/hiveot/hivekit/go/modules/transports/grpc/pkg"
+	grpcpkg "github.com/hiveot/hivekit/go/modules/transports/grpc/pkg"
 	httpbasicpkg "github.com/hiveot/hivekit/go/modules/transports/httpbasic/pkg"
-	"github.com/hiveot/hivekit/go/modules/transports/httpserver"
-	httpserverconfig "github.com/hiveot/hivekit/go/modules/transports/httpserver/config"
+	"github.com/hiveot/hivekit/go/modules/transports/httptransport"
+	httptransportpkg "github.com/hiveot/hivekit/go/modules/transports/httptransport/pkg"
 	ssescpkg "github.com/hiveot/hivekit/go/modules/transports/ssesc/pkg"
-	wsspkg "github.com/hiveot/hivekit/go/modules/transports/wss1/pkg"
+	wsspkg "github.com/hiveot/hivekit/go/modules/transports/wss/pkg"
 	"github.com/hiveot/hivekit/go/utils"
 )
 
@@ -173,10 +174,10 @@ func (testEnv *TestEnv) NewConnectedClient(
 // server.
 //
 // This panics if the agent cannot be created.
-func (testEnv *TestEnv) NewServerAgent(agentID string) *clients.Agent {
+func (testEnv *TestEnv) NewServerAgent(agentID string) *clientspkg.Agent {
 
 	// Simple server side agent. No account needed
-	agent := clients.NewAgent(agentID, nil)
+	agent := clientspkg.NewAgent(agentID, nil)
 
 	// the agent is the sink for the transport server
 	testEnv.Server.SetRequestSink(agent.HandleRequest)
@@ -199,14 +200,14 @@ func (testEnv *TestEnv) NewServerAgent(agentID string) *clients.Agent {
 // This returns the agent module, its client connection and the auth token.
 // This panics if a client cannot be created
 func (testEnv *TestEnv) NewRCAgent(clientID string, appReqHandler msg.RequestHandler) (
-	ag *clients.Agent, cc transports.IConnection, authToken string) {
+	ag *clientspkg.Agent, cc transports.IConnection, authToken string) {
 
 	// cc is the client connection for the agent that receives requests from the
 	// server for the agent and sends notifications to the server.
 	cl, authToken := testEnv.NewConnectedClient(clientID, authn.ClientRoleAgent, nil)
 
 	// simple agent, no application request handler yet
-	agent := clients.NewAgent(clientID+"-agent", appReqHandler)
+	agent := clientspkg.NewAgent(clientID+"-agent", appReqHandler)
 
 	// the client delivers requests to the agent and receives notifications from it
 	cl.SetRequestSink(agent.HandleRequest)
@@ -231,11 +232,11 @@ func (testEnv *TestEnv) NewRCAgent(clientID string, appReqHandler msg.RequestHan
 //	optional connection change callback
 func (testEnv *TestEnv) NewConsumerClient(
 	clientID string, role string, ch transports.ConnectionHandler) (
-	co *clients.Consumer, cc transports.ITransportClient, token string) {
+	co *clientspkg.Consumer, cc transports.ITransportClient, token string) {
 
 	cc, token = testEnv.NewConnectedClient(clientID, role, ch)
 
-	co = clients.NewConsumer(clientID + "-consumer")
+	co = clientspkg.NewConsumer(clientID + "-consumer")
 	co.SetRequestSink(cc.HandleRequest)
 	co.SetTimeout(TestTimeout)
 	// notifications received by the client are passed to the consumer
@@ -264,7 +265,7 @@ func (testEnv *TestEnv) StartTestServer(protocol string) (srv transports.ITransp
 	switch protocol {
 	case transports.ProtocolTypeHiveotGrpc:
 		serverCert := testEnv.CertBundle.ServerCert
-		srv = grpctransportpkg.NewHiveotGrpcServer(
+		srv = grpcpkg.NewHiveotGrpcServer(
 			TestUDSURL, serverCert, testEnv.TestAuthn, TestTimeout)
 		err = srv.Start()
 
@@ -308,7 +309,7 @@ func (testEnv *TestEnv) StartTestServer(protocol string) (srv transports.ITransp
 func (testEnv *TestEnv) StartHttpServer(logging bool) {
 
 	// cert uses localhost
-	cfg := httpserverconfig.NewConfig(
+	cfg := httptransport.NewConfig(
 		testEnv.CertBundle.ServerAddr, TestServerHttpPort,
 		testEnv.CertBundle.ServerCert,
 		testEnv.CertBundle.CaCert,
@@ -316,7 +317,7 @@ func (testEnv *TestEnv) StartHttpServer(logging bool) {
 
 	// cfg.Address = fmt.Sprintf("%s:%d", certBundle.ServerAddr, testServerHttpPort)
 
-	testEnv.HttpServer = httpserver.NewHttpServerModule(cfg)
+	testEnv.HttpServer = httptransportpkg.NewHttpTransportServer(cfg)
 	err := testEnv.HttpServer.Start()
 	if err != nil {
 		panic("unable to start TLS server: " + err.Error())

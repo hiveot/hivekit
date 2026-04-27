@@ -11,8 +11,8 @@ import (
 	authnpkg "github.com/hiveot/hivekit/go/modules/authn/pkg"
 	certstest "github.com/hiveot/hivekit/go/modules/certs/test"
 	"github.com/hiveot/hivekit/go/modules/transports"
-	"github.com/hiveot/hivekit/go/modules/transports/httpserver"
-	httpserverconfig "github.com/hiveot/hivekit/go/modules/transports/httpserver/config"
+	"github.com/hiveot/hivekit/go/modules/transports/httptransport"
+	httptransportpkg "github.com/hiveot/hivekit/go/modules/transports/httptransport/pkg"
 	"github.com/hiveot/hivekit/go/utils"
 	"github.com/stretchr/testify/require"
 )
@@ -47,7 +47,7 @@ func TestMain(m *testing.M) {
 // This uses the clientID as password
 // This panics if a client cannot be created
 // func NewTestConsumer(m *service.AuthnService, protocolType, serverURL, clientID string) (
-// 	*clients.Consumer, transports.ITransportClient, string) {
+// 	*clientspkg.Consumer, transports.ITransportClient, string) {
 
 // 	// ensure the client exists
 // 	_ = m.AddClient(clientID, "client 1", authn.ClientRoleViewer)
@@ -89,10 +89,10 @@ func startTestAuthnModule(encryption string) (tp transports.IHttpServer, authnSv
 
 	// create the http api handler for authn user requests over http
 	testCerts = certstest.CreateTestCertBundle(TestKeyType)
-	cfg := httpserverconfig.NewConfig(
+	cfg := httptransport.NewConfig(
 		"localhost", serverPort,
 		testCerts.ServerCert, testCerts.CaCert, nil, true)
-	httpServer := httpserver.NewHttpServerModule(cfg)
+	httpServer := httptransportpkg.NewHttpTransportServer(cfg)
 	err = httpServer.Start()
 	if err != nil {
 		panic("Unable to start http server: " + err.Error())

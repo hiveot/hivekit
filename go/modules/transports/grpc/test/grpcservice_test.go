@@ -11,7 +11,8 @@ import (
 	"time"
 
 	certstest "github.com/hiveot/hivekit/go/modules/certs/test"
-	grpclib "github.com/hiveot/hivekit/go/modules/transports/grpc/lib"
+	"github.com/hiveot/hivekit/go/modules/transports/grpc/internal"
+	grpclib "github.com/hiveot/hivekit/go/modules/transports/grpc/internal"
 	"github.com/hiveot/hivekit/go/testenv"
 	"github.com/hiveot/hivekit/go/utils"
 	"github.com/stretchr/testify/assert"
@@ -176,7 +177,7 @@ func TestStreamMessages(t *testing.T) {
 		// rxMsg := string(raw)
 		assert.Equal(t, serverSendMsg, rxMsg)
 	}
-	cl := grpclib.NewGrpcServiceClient(
+	cl := internal.NewGrpcServiceClient(
 		clientURL, nil, certBundle.CaCert, time.Minute, serviceName, onClientMessage)
 
 	err = cl.ConnectWithToken(clientID, authToken)

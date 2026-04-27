@@ -1,4 +1,4 @@
-package server
+package internal
 
 import (
 	"fmt"
@@ -73,7 +73,7 @@ func (m *SseScServer) Stop() {
 //
 // Use SetRequestSink to set the handler for requests send by consumers
 // Use SetNotificationSink to set the handler for notifications send by agents.
-func NewHiveotSseServer(httpServer transports.IHttpServer, respTimeout time.Duration) *SseScServer {
+func NewSseScServer(httpServer transports.IHttpServer, respTimeout time.Duration) *SseScServer {
 
 	ssePath := ssesc.SseScPath
 

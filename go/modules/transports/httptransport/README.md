@@ -1,0 +1,66 @@
+# HTTP Transport
+
+The HTTP Transport module is intended for use by http based transport protocols. This module includes support for common middleware such as cors, logging, recovery, compression. authentication and file server and provides callback hooks for logging and authentication interaction.
+
+The server provides two convenient routers for adding endpoints, a secured router which requires authentication and an unsecured router.
+
+## Configuration
+
+To operate a TLS server this requires:
+
+- CA public certificate
+- TLS certificate (x509 certificate + private key) signed by a CA
+
+CORS configuration is only needed when serving web browsers. If enabled:
+
+- CORS requests from 127.0.0.1 or localhost are always allowed. Intended for testing.
+- CORS requests from https://{server-addr}/ same origin is allowed
+- CORS requests from configured origins are allowed. Anything else is blocked.
+- Default headers: "Origin", "Accept", "Content-Type", "Authorization", "Headers"
+- Default methods: GET, PUT, POST, PATCH, DELETE, OPTIONS
+
+Callback hooks:
+
+- config.Authenticate is a function to authenticate incoming requests for the protected routes. This is disabled by default so it must be set by the application in order to protect this route.
+- config.Logger is the handler for logging http requests. Default is the chi middleware.Logger.
+
+Other configuration:
+
+- Address: default "" (any)
+- Port: default 8444
+- Logger: defaults to chi's logger
+- Recovery: enabled
+- Compression: 5, gzip, ... or brotli
+- StripSlashes: disabled
+
+## Usage
+
+There are two ways to create a HttpsBase module instance: using the pipeline factory or manually.
+
+### Factory
+
+This module is intended for use with http based transport protocols such as WoT HTTP-Basic, Websocket, the HiveOT SSE subprotocols and the authentication service for handling login and token refresh.
+
+When using the pipeline factory, the server is automatically instantiated when a http based message transport is needed.
+
+### Manual Setup
+
+Manual HTTPS Server creation requires configuration with a listening port, server TLS certificate, CA certificate, and authenticator.
+
+The certificates can be loaded manually or obtained from the certs module.
+The authenticator can be supplied manually or obtained from the authn module.
+
+See NewHttpsBaseOptions for defaults.
+
+```go
+ config := NewHttpsBaseOptions()
+ config.CaCert = certsModule.GetCACert(),
+ config.ServerCert = certsModule.GetDefaultServerCert(),
+ config.Authenticator = authnModule.GetAuthenticator()
+ module := NewHttpServerModule(config)
+ err := module.Start()
+ prouter := module.GetPublicRouter()
+ srouter := module.GetSecuredRouter()
+```
+
+The public and secured routers are for use by transport and other modules to register their http endpoints.

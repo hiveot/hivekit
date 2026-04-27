@@ -1,5 +1,7 @@
 package directory
 
+// directory messaging api
+
 // Property, Event and Action affordance names as used in the TM and messaging API
 const (
 	PropThings              = "things"

@@ -14,7 +14,7 @@ import (
 	"github.com/hiveot/hivekit/go/modules/directory"
 	directorypkg "github.com/hiveot/hivekit/go/modules/directory/pkg"
 	"github.com/hiveot/hivekit/go/modules/transports"
-	"github.com/hiveot/hivekit/go/modules/transports/httpclient"
+	httptransportpkg "github.com/hiveot/hivekit/go/modules/transports/httptransport/pkg"
 	"github.com/hiveot/hivekit/go/testenv"
 	"github.com/hiveot/hivekit/go/utils"
 	jsoniter "github.com/json-iterator/go"
@@ -49,10 +49,10 @@ func StartDirectoryServer(withHttp bool) (
 	// use in-memory storage
 	var httpAPI directory.IDirectoryHttpServer
 	if withHttp {
-		httpAPI = directorypkg.NewDirectoryHttpHandler(testEnv.HttpServer)
+		httpAPI = directorypkg.NewDirectoryHttpServer(testEnv.HttpServer)
 		httpAPI.Start()
 	}
-	m = directorypkg.NewDirectoryService("", storageDir, httpAPI, nil)
+	m = directorypkg.NewDirectoryMsgServer("", storageDir, httpAPI, nil)
 	err := m.Start()
 	if err != nil {
 		panic("StartDirectoryServer: failed to start the directory " + err.Error())
@@ -78,7 +78,7 @@ func StartDirectoryServer(withHttp bool) (
 func TestStartStop(t *testing.T) {
 	t.Logf("---%s---\n", t.Name())
 
-	m := directorypkg.NewDirectoryService("", storageDir, nil, nil)
+	m := directorypkg.NewDirectoryMsgServer("", storageDir, nil, nil)
 	err := m.Start()
 	require.NoError(t, err)
 	defer m.Stop()
@@ -96,7 +96,7 @@ func TestStartStop(t *testing.T) {
 func TestCreateTD(t *testing.T) {
 	thingID := "thing1"
 
-	m := directorypkg.NewDirectoryService("", storageDir, nil, nil)
+	m := directorypkg.NewDirectoryMsgServer("", storageDir, nil, nil)
 	err := m.Start()
 	require.NoError(t, err)
 	defer m.Stop()
@@ -190,7 +190,7 @@ func TestGetDirectoryTD(t *testing.T) {
 	// token, _, err := testEnv.CreateToken(userID, time.Minute)
 	// require.NoError(t, err)
 
-	httpClient := httpclient.NewHttpClient(hostPort, testEnv.CertBundle.CaCert, time.Minute)
+	httpClient := httptransportpkg.NewHttpTransportClient(hostPort, testEnv.CertBundle.CaCert, time.Minute)
 	err := httpClient.ConnectWithToken(userID, token)
 	require.NoError(t, err)
 	defer httpClient.Close()

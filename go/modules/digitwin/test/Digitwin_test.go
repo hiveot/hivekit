@@ -63,8 +63,8 @@ func startService() (
 	// digiDir := filepath.Join(storageDir, "digiDir.json")
 	dirThingID := directory.DefaultDirectoryThingID
 	servers := []transports.ITransportServer{testEnv.Server}
-	httpAPI := directorypkg.NewDirectoryHttpHandler(testEnv.HttpServer)
-	dir = directorypkg.NewDirectoryService(
+	httpAPI := directorypkg.NewDirectoryHttpServer(testEnv.HttpServer)
+	dir = directorypkg.NewDirectoryMsgServer(
 		dirThingID, storageDir, httpAPI, servers)
 	err := dir.Start()
 	if err != nil {

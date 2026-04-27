@@ -13,13 +13,13 @@ import (
 	"github.com/hiveot/hivekit/go/api/vocab"
 	"github.com/hiveot/hivekit/go/modules/authn"
 	certstest "github.com/hiveot/hivekit/go/modules/certs/test"
-	"github.com/hiveot/hivekit/go/modules/clients"
+	clientspkg "github.com/hiveot/hivekit/go/modules/clients/pkg"
 	"github.com/hiveot/hivekit/go/modules/directory"
 	directorypkg "github.com/hiveot/hivekit/go/modules/directory/pkg"
 	"github.com/hiveot/hivekit/go/modules/router"
 	routerpkg "github.com/hiveot/hivekit/go/modules/router/pkg"
 	"github.com/hiveot/hivekit/go/modules/transports"
-	httpserverconfig "github.com/hiveot/hivekit/go/modules/transports/httpserver/config"
+	"github.com/hiveot/hivekit/go/modules/transports/httptransport"
 	"github.com/hiveot/hivekit/go/testenv"
 	"github.com/hiveot/hivekit/go/utils"
 	"github.com/stretchr/testify/assert"
@@ -52,7 +52,7 @@ func startTestDevice(agentID string, thingID string) (testDevice *testenv.TestDe
 	testAuthn.AddClient(testRouterID, "", authn.ClientRoleManager)
 
 	// create a test device with server
-	cfg := httpserverconfig.NewConfig(
+	cfg := httptransport.NewConfig(
 		certsBundle.ServerAddr, testDevicePort,
 		certsBundle.ServerCert, certsBundle.CaCert, testAuthn, true)
 
@@ -72,11 +72,11 @@ func startTestDevice(agentID string, thingID string) (testDevice *testenv.TestDe
 func SetupConsumerWithRouter() (
 	routerMod router.IRouterService,
 	dirMod directory.IDirectoryService,
-	co *clients.Consumer) {
+	co *clientspkg.Consumer) {
 
 	// setup the consumer side: directory, router and consumer
 	// register the device TD in the directory for use by the router
-	dirMod = directorypkg.NewDirectoryService("", storageDir, nil, nil)
+	dirMod = directorypkg.NewDirectoryMsgServer("", storageDir, nil, nil)
 	err := dirMod.Start()
 	if err != nil {
 		panic("SetupConsumerWithRouter: Directory.Start: " + err.Error())
@@ -103,7 +103,7 @@ func SetupConsumerWithRouter() (
 
 	// a consumer links to the router and subscribes to the device
 	// note for the purpose of this test the router can run on the client
-	consumer := clients.NewConsumer("")
+	consumer := clientspkg.NewConsumer("")
 	consumer.SetRequestSink(routerMod.HandleRequest)
 	routerMod.SetNotificationSink(consumer.HandleNotification)
 	err = consumer.Start()
@@ -130,7 +130,7 @@ func TestMain(m *testing.M) {
 func TestStartStop(t *testing.T) {
 	t.Logf("---%s---\n", t.Name())
 
-	var testDirMod = directorypkg.NewDirectoryService("", "", nil, nil)
+	var testDirMod = directorypkg.NewDirectoryMsgServer("", "", nil, nil)
 	err := testDirMod.Start()
 	require.NoError(t, err)
 	// test no cred store
@@ -209,7 +209,7 @@ func TestSubscribeToDevice(t *testing.T) {
 
 	// setup the consumer side: directory, router and consumer
 	// register the device TD in the directory for use by the router
-	var testDirMod = directorypkg.NewDirectoryService("", "", nil, nil)
+	var testDirMod = directorypkg.NewDirectoryMsgServer("", "", nil, nil)
 	err := testDirMod.Start()
 	require.NoError(t, err)
 	defer testDirMod.Stop()
@@ -231,7 +231,7 @@ func TestSubscribeToDevice(t *testing.T) {
 
 	// a consumer links to the router and subscribes to the device
 	// note for the purpose of this test the router can run on the client
-	consumer := clients.NewConsumer("")
+	consumer := clientspkg.NewConsumer("")
 	consumer.SetRequestSink(routerMod.HandleRequest)
 	routerMod.SetNotificationSink(consumer.HandleNotification)
 	err = consumer.Start()

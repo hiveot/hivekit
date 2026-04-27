@@ -8,7 +8,7 @@ import (
 
 	"github.com/hiveot/hivekit/go/modules/authn"
 	"github.com/hiveot/hivekit/go/modules/transports"
-	"github.com/hiveot/hivekit/go/modules/transports/httpclient"
+	httptransportpkg "github.com/hiveot/hivekit/go/modules/transports/httptransport/pkg"
 	jsoniter "github.com/json-iterator/go"
 )
 
@@ -123,7 +123,7 @@ func NewUserAuthnHttpClient(serverURL string, caCert *x509.Certificate) *AuthnUs
 		return nil
 	}
 
-	tlsClient := httpclient.NewHttpClient(parts.Host, caCert, 0)
+	tlsClient := httptransportpkg.NewHttpTransportClient(parts.Host, caCert, 0)
 	return &AuthnUserHttpClient{
 		tlsClient: tlsClient,
 	}

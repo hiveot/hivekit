@@ -15,7 +15,7 @@ import (
 	"github.com/hiveot/hivekit/go/api/vocab"
 	"github.com/hiveot/hivekit/go/modules/authn"
 	"github.com/hiveot/hivekit/go/modules/bucketstore"
-	"github.com/hiveot/hivekit/go/modules/clients"
+	clientspkg "github.com/hiveot/hivekit/go/modules/clients/pkg"
 	"github.com/hiveot/hivekit/go/modules/history"
 	"github.com/hiveot/hivekit/go/modules/history/internal"
 	historypkg "github.com/hiveot/hivekit/go/modules/history/pkg"
@@ -693,7 +693,7 @@ func TestPubEvents(t *testing.T) {
 	_ = names
 
 	// attach another agent after the history service so its events are recorded
-	ag1 := clients.NewAgent(agent1ID, nil)
+	ag1 := clientspkg.NewAgent(agent1ID, nil)
 	m.SetRequestSink(ag1.HandleRequest)
 	ag1.SetNotificationSink(m.HandleNotification)
 	defer ag1.Start()
