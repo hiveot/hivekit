@@ -66,7 +66,7 @@ func TestStartStop(t *testing.T) {
 	f := factorypkg.NewModuleFactory(env, nil)
 	require.NotNil(t, f)
 	// f.Start(recipe)
-	f.StopAll()
+	f.Stop()
 }
 
 // test with the server module table
@@ -78,7 +78,7 @@ func TestAuthentication(t *testing.T) {
 
 	f := factorypkg.NewModuleFactory(env, RecipeModules)
 	assert.NotNil(t, f)
-	defer f.StopAll()
+	defer f.Stop()
 
 	// a server typically needs a http server and authenticator
 	authenticator := f.GetAuthenticator()
@@ -120,7 +120,7 @@ func TestDigitwin(t *testing.T) {
 	env.ServerCert = testCerts.ServerCert
 
 	f := factorypkg.NewModuleFactory(env, RecipeModules)
-	defer f.StopAll()
+	defer f.Stop()
 
 	// clientRecipe := factoryrecipe.NewFactoryRecipe(AvailableModules, chain)
 	// clientRecipe.ModuleChain = []string{}
@@ -145,7 +145,7 @@ func TestClientServerRecipe(t *testing.T) {
 	serverChain := factorypkg.NewFactoryRecipe(RecipeModules, TestDeviceServerChain)
 	err := serverChain.Start(serverFactory)
 	require.NoError(t, err)
-	defer serverFactory.StopAll()
+	defer serverFactory.Stop()
 	env.ServerURL = serverFactory.GetConnectURL()
 
 	// the server agent handles the server requests
@@ -164,7 +164,7 @@ func TestClientServerRecipe(t *testing.T) {
 	clientChain := factorypkg.NewFactoryRecipe(RecipeModules, TestDeviceClientChain)
 	err = clientChain.Start(clientFactory)
 	require.NoError(t, err)
-	defer clientFactory.StopAll()
+	defer clientFactory.Stop()
 
 	m2, err := clientFactory.GetModule(clientspkg.ConsumerModuleType, true)
 	assert.NoError(t, err)

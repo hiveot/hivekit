@@ -8,7 +8,7 @@ import (
 	"github.com/hiveot/hivekit/go/modules/bucketstore"
 	bucketstorepkg "github.com/hiveot/hivekit/go/modules/bucketstore/pkg"
 	"github.com/hiveot/hivekit/go/modules/certs"
-	certsapi "github.com/hiveot/hivekit/go/modules/certs/api"
+	certspkg "github.com/hiveot/hivekit/go/modules/certs/pkg"
 	clientspkg "github.com/hiveot/hivekit/go/modules/clients/pkg"
 	"github.com/hiveot/hivekit/go/modules/digitwin"
 	digitwinpkg "github.com/hiveot/hivekit/go/modules/digitwin/pkg"
@@ -99,8 +99,8 @@ var RecipeModules = map[string]factory.ModuleDefinition{
 		Constructor: bucketstorepkg.NewBucketStoreServiceFactory,
 	},
 	// certs service provider
-	certsapi.CertsModuleType: {
-		Constructor: certs.NewCertsServiceFactory,
+	certs.CertsServerModuleType: {
+		Constructor: certspkg.NewCertsServiceFactory,
 	},
 	// digitwin provider
 	digitwin.DigitwinModuleType: {

@@ -17,6 +17,19 @@ import (
 func CreateSelfSignedCA(country, province, locality, orgName, cn string, validityDays int, keyType utils.KeyType) (
 	cert *x509.Certificate, caPrivKey crypto.PrivateKey, caPubKey crypto.PublicKey, err error) {
 
+	// Create the CA private key.
+	caPrivKey, caPubKey = utils.NewKey(keyType)
+	caCert, err := CreateCAFromKey(country, province, locality, orgName, cn, validityDays, caPrivKey, caPubKey)
+	return caCert, caPrivKey, caPubKey, err
+}
+
+// CreateCAFromKey creates a CA certificate from a given private key for self-signed server certificates.
+// Source: https://shaneutt.com/blog/golang-ca-and-signed-cert-go/
+func CreateCAFromKey(country, province, locality, orgName, cn string, validityDays int,
+	caPrivKey crypto.PrivateKey, caPubKey crypto.PublicKey) (
+
+	cert *x509.Certificate, err error) {
+
 	// set up our CA certificate
 	// see also: https://superuser.com/questions/738612/openssl-ca-keyusage-extension
 	// firefox complains if serial is the same as that of the CA. So generate a unique one based on timestamp.
@@ -50,9 +63,6 @@ func CreateSelfSignedCA(country, province, locality, orgName, cn string, validit
 		MaxPathLenZero:        true,
 	}
 
-	// Create the CA private key.
-	caPrivKey, caPubKey = utils.NewKey(keyType)
-
 	// create the self-signed CA certificate
 	caCertDer, err := x509.CreateCertificate(
 		rand.Reader, rootTemplate, rootTemplate, caPubKey, caPrivKey)
@@ -61,5 +71,5 @@ func CreateSelfSignedCA(country, province, locality, orgName, cn string, validit
 		slog.Error("unable to create CA cert", "err", err)
 	}
 	caCert, err := x509.ParseCertificate(caCertDer)
-	return caCert, caPrivKey, caPubKey, err
+	return caCert, err
 }

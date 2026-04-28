@@ -8,7 +8,7 @@ import (
 	"os"
 	"path"
 
-	certsapi "github.com/hiveot/hivekit/go/modules/certs/api"
+	"github.com/hiveot/hivekit/go/modules/certs"
 	"github.com/hiveot/hivekit/go/modules/certs/certutils"
 	"github.com/hiveot/hivekit/go/modules/certs/internal/providers/selfsigned"
 	"github.com/hiveot/hivekit/go/utils"
@@ -45,8 +45,8 @@ func (m *CertsService) CreateCACert() (
 
 	if m.certsDir != "" {
 		// save the CA, but only if it won't overwrite an existing certificate
-		caCertPath := path.Join(m.certsDir, certsapi.DefaultCaCertFile)
-		caKeyPath := path.Join(m.certsDir, certsapi.DefaultCaKeyFile)
+		caCertPath := path.Join(m.certsDir, certs.DefaultCaCertFile)
+		caKeyPath := path.Join(m.certsDir, certs.DefaultCaKeyFile)
 
 		if _, err := os.Stat(caCertPath); err == nil {
 			err = fmt.Errorf("the CA certificate exists at %s", caCertPath)

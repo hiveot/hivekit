@@ -142,6 +142,8 @@ func (f *ModuleFactory) GetLastModule() modules.IHiveModule {
 
 // GetModule loads and starts an instance of a module by its type.
 // If the module is a singleton then the same instance is returned for multiple calls with the same type.
+// This can return nil without error if the module is a 'one-shot' module that works
+// on the factory environment.
 func (f *ModuleFactory) GetModule(moduleType string, instantiate bool) (modules.IHiveModule, error) {
 	f.mux.RLock()
 	m, ok := f.singletonModules[moduleType]
@@ -203,6 +205,11 @@ func (f *ModuleFactory) LoadModule(moduleType string) (m modules.IHiveModule, is
 	constructor := def.Constructor
 	mod := constructor(f)
 
+	// if nil is returned then nothing to do
+	if mod == nil {
+		return mod, false, nil
+	}
+
 	// store the singleton on successful start
 
 	f.mux.Lock()
@@ -233,7 +240,7 @@ func (f *ModuleFactory) SetAuthenticator(impl transports.IAuthenticator) {
 }
 
 // Stop all modules in reverse order
-func (f *ModuleFactory) StopAll() {
+func (f *ModuleFactory) Stop() {
 	n := len(f.loadedModules)
 	slog.Info("StopAll: stopping all loaded modules", "count", n)
 	for i := n - 1; i >= 0; i-- {

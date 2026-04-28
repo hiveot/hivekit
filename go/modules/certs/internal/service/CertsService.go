@@ -10,7 +10,7 @@ import (
 	"path"
 
 	"github.com/hiveot/hivekit/go/modules"
-	certsapi "github.com/hiveot/hivekit/go/modules/certs/api"
+	"github.com/hiveot/hivekit/go/modules/certs"
 	"github.com/hiveot/hivekit/go/modules/certs/certutils"
 )
 
@@ -58,14 +58,14 @@ func (m *CertsService) GetTM() string {
 func (m *CertsService) Start() (err error) {
 	slog.Info("Start: Starting certs module")
 
-	caCertPath := path.Join(m.certsDir, certsapi.DefaultCaCertFile)
-	caKeyPath := path.Join(m.certsDir, certsapi.DefaultCaKeyFile)
+	caCertPath := path.Join(m.certsDir, certs.DefaultCaCertFile)
+	caKeyPath := path.Join(m.certsDir, certs.DefaultCaKeyFile)
 	if m.certsDir != "" {
 		m.caCert, m.caPrivKey, err = certutils.LoadCA(caCertPath, caKeyPath)
 
 		// Load a saved default certificate
 		if m.defaultServerTlsCert == nil {
-			m.defaultServerTlsCert, err = m.LoadServerCert(certsapi.DefaultServerName)
+			m.defaultServerTlsCert, err = m.LoadServerCert(certs.DefaultServerName)
 		}
 	}
 	// create missing CA key and cert
@@ -79,7 +79,7 @@ func (m *CertsService) Start() (err error) {
 	// FIXME: validate the certificate is expired
 	if m.defaultServerTlsCert == nil {
 		m.defaultServerTlsCert, err = m.CreateServerCert(
-			certsapi.DefaultServerName, "", nil, nil)
+			certs.DefaultServerName, "", nil, nil)
 	}
 
 	m.msgHandler = NewCertsMsgHandler(m.certServiceThingID, m)
@@ -98,9 +98,9 @@ func (m *CertsService) Stop() {
 func NewCertsService(certsDir string) *CertsService {
 	m := &CertsService{
 		certsDir:           certsDir,
-		certServiceThingID: certsapi.DefaultCertsServiceThingID,
+		certServiceThingID: certs.DefaultCertsServiceThingID,
 	}
-	var _ modules.IHiveModule = m    // interface check
-	var _ certsapi.ICertsService = m // interface check
+	var _ modules.IHiveModule = m // interface check
+	var _ certs.ICertsService = m // interface check
 	return m
 }

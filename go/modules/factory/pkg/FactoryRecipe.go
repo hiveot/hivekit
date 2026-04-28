@@ -38,20 +38,20 @@ func (r *FactoryRecipe) Start(f factory.IModuleFactory) error {
 	modList := make([]modules.IHiveModule, 0, len(r.ModuleChain))
 	var prevModule modules.IHiveModule
 	for _, modType := range r.ModuleChain {
-		// getmodule starts it if needed
 		m, err := r.f.GetModule(modType, true)
-		modList = append(modList, m)
-		if err == nil {
+		// if module is a 'one-shot' then it returns nil without error
+		if err == nil && m != nil {
+			modList = append(modList, m)
 			// Link the module to the previous module in the list
 			if prevModule != nil {
 				prevModule.SetRequestSink(m.HandleRequest)
 				m.SetNotificationSink(prevModule.HandleNotification)
 			}
 		}
-		// oops
+		// module cant be started
 		if err != nil {
 			slog.Error("StartRecipe: starting module failed. Shutting down", "moduleType", modType)
-			f.StopAll()
+			f.Stop()
 			return err
 		}
 		prevModule = m

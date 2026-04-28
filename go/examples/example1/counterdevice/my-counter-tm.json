@@ -1,0 +1,41 @@
+{
+   "@context": [
+    "https://www.w3.org/2022/wot/td/v1.1",
+    { "hiveot": "https://www.hiveot.net/vocab/v0.1" }
+  ],
+  "@type": "Service",
+  "id": "myCounterID",
+  "title": "A simple counter",
+  "description": "HiveKit test device that exposes a counter",
+  "version": {
+    "instance": "0.1.0"
+  },
+  "created": "2026-04-25T17:00:00.000Z",
+  "modified": "2024-04-25T17:00:00.000Z",
+  "support": "https://www.github.com/hiveot/hivekit",
+  "properties": {
+    "counter": {
+        "title": "Current counter value",
+        "type": "integer",
+        "readonly": false
+    }
+  },
+  "events": {
+    "counterUpdated": {
+        "title": "Counter changed",
+        "description": "Event with the new counter value",
+        "data": {
+            "title": "New counter value",
+             "type": "integer"
+        }
+    }
+  },
+  "actions": {
+    "decrement": {
+        "title": "Decrement the counter"
+    },
+    "increment": {
+        "title": "Increment the counter"
+    }
+  }
+}

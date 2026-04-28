@@ -81,15 +81,15 @@ type IModuleFactory interface {
 
 	// GetModule creates and starts an instance of a module by its type.
 	//
-	// If the module is defined as a singleton, the existing module is returned.
-	// If no module instance exist or it isn't a singleton then create a new instance.
+	// If the module is already loaded the existing module is returned.
 	//
 	//  moduleType identifies the type of the module to get.
 	//	instantiate set to true to create an instance if one isn't already loaded
 	//
-	// This returns an error if no module with the given type is registered, when
+	// This returns an error if no module with the given type is registered, or when
 	// starting the module fails.
-	// This returns nil on error or when instantiate is false and the module is not yet loaded
+	// This returns nil with no error if the module factory is a 'one-shot'
+	// initialization function.
 	GetModule(moduleType string, instantiate bool) (modules.IHiveModule, error)
 
 	// RegisterModule a module to the factory, making it available for creation.
@@ -118,7 +118,7 @@ type IModuleFactory interface {
 
 	// Stop all loaded modules in reverse order of loading.
 	// Intended for graceful shutdown.
-	StopAll()
+	Stop()
 
 	// WaitForSignal waits until an OS SigTerm signal is received or context is cancelled.
 	// Call StopAll() afters this returns for proper cleanup.

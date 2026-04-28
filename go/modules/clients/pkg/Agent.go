@@ -172,7 +172,7 @@ func (ag *Agent) PubEvent(thingID string, name string, value any) {
 }
 
 // PubProperty publishes a property change notification to observers.
-// This updates the latest value for the property.
+// This updates the latest value for the property in the state store.
 //
 // The underlying transport protocol binding handles the subscription mechanism.
 func (ag *Agent) PubProperty(thingID string, name string, value any) {

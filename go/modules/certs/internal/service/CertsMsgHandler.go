@@ -6,7 +6,7 @@ import (
 
 	"github.com/hiveot/hivekit/go/api/msg"
 	"github.com/hiveot/hivekit/go/api/td"
-	certsapi "github.com/hiveot/hivekit/go/modules/certs/api"
+	"github.com/hiveot/hivekit/go/modules/certs"
 	"github.com/hiveot/hivekit/go/modules/certs/certutils"
 )
 
@@ -19,7 +19,7 @@ var CertsTMJson []byte
 type CertsMsgHandler struct {
 	// the certificate manager instance ThingID that must match the requests
 	thingID string
-	service certsapi.ICertsService
+	service certs.ICertsService
 }
 
 // HandleRequest for properties or actions
@@ -37,9 +37,9 @@ func (handler *CertsMsgHandler) HandleRequest(
 	} else if req.Operation == td.OpInvokeAction {
 		// certificate specific operations
 		switch req.Name {
-		case certsapi.ActionGetCACert:
+		case certs.ActionGetCACert:
 			resp, err = handler.GetCaCert(req)
-		case certsapi.ActionGetServerCert:
+		case certs.ActionGetServerCert:
 			resp, err = handler.GetDefaultServerCert(req)
 		default:
 			err = fmt.Errorf("Unknown request name '%s' for thingID '%s'", req.Name, req.ThingID)
@@ -81,7 +81,7 @@ func (handler *CertsMsgHandler) GetDefaultServerCert(req *msg.RequestMessage) (r
 
 // Create a new directory message handler. On start this creates the server and store.
 // bucketStore is the store to use for this module chain.
-func NewCertsMsgHandler(thingID string, service certsapi.ICertsService) *CertsMsgHandler {
+func NewCertsMsgHandler(thingID string, service certs.ICertsService) *CertsMsgHandler {
 
 	handler := &CertsMsgHandler{
 		thingID: thingID,

@@ -7,8 +7,8 @@ import (
 	"testing"
 
 	"github.com/hiveot/hivekit/go/modules/certs"
-	certsapi "github.com/hiveot/hivekit/go/modules/certs/api"
 	"github.com/hiveot/hivekit/go/modules/certs/certutils"
+	certspkg "github.com/hiveot/hivekit/go/modules/certs/pkg"
 	certstest "github.com/hiveot/hivekit/go/modules/certs/test"
 	"github.com/hiveot/hivekit/go/testenv"
 	"github.com/hiveot/hivekit/go/utils"
@@ -21,12 +21,12 @@ var storageDir = filepath.Join(os.TempDir(), "hivekit", "certs-test")
 // private key type used in test
 const TestKeyType = utils.KeyTypeECDSA
 
-func startModule(t *testing.T) (certsapi.ICertsService, func(), error) {
+func startModule(t *testing.T) (certs.ICertsService, func(), error) {
 
 	// clear start
 	_ = os.RemoveAll(storageDir)
 
-	m := certs.NewCertsService(storageDir)
+	m := certspkg.NewCertsService(storageDir)
 	err := m.Start()
 	require.NoError(t, err)
 	return m, func() {
@@ -132,7 +132,7 @@ func TestService(t *testing.T) {
 	require.NoError(t, err)
 	require.NotEmpty(t, serverKey)
 
-	err = m.VerifyCert(certsapi.DefaultServerName, serverCert)
+	err = m.VerifyCert(certs.DefaultServerName, serverCert)
 	require.NoError(t, err)
 }
 
@@ -144,7 +144,7 @@ func TestMsgClient(t *testing.T) {
 
 	// use a direct transport instead of running a client-server
 	tp := testenv.NewTestTransport("testclient", m)
-	cl := certs.NewCertsMsgClient(certsapi.DefaultCertsServiceThingID, tp)
+	cl := certspkg.NewCertsMsgClient(certs.DefaultCertsServiceThingID, tp)
 	caCert, err := cl.GetCACert()
 	require.NoError(t, err)
 	require.NotEmpty(t, caCert)
@@ -174,7 +174,7 @@ func TestCreateCerts(t *testing.T) {
 	require.NotNil(t, serverTlsCert)
 
 	// this needs completion
-	cl := certs.NewCertsMsgClient(certsapi.DefaultCertsServiceThingID, nil)
+	cl := certspkg.NewCertsMsgClient(certs.DefaultCertsServiceThingID, nil)
 	// var _ certs.ICertsService = cl // interface check
 	_ = cl
 }

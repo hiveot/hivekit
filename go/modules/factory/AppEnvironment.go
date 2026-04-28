@@ -13,7 +13,7 @@ import (
 	"strings"
 	"time"
 
-	certsapi "github.com/hiveot/hivekit/go/modules/certs/api"
+	"github.com/hiveot/hivekit/go/modules/certs"
 	"github.com/hiveot/hivekit/go/modules/certs/certutils"
 	"gopkg.in/yaml.v3"
 )
@@ -82,7 +82,7 @@ func (env *AppEnvironment) GetCA() (caCert *x509.Certificate, err error) {
 	if env.CaCert != nil {
 		return env.CaCert, nil
 	}
-	caCertPath := filepath.Join(env.CertsDir, certsapi.DefaultCaCertFile)
+	caCertPath := filepath.Join(env.CertsDir, certs.DefaultCaCertFile)
 	env.CaCert, err = certutils.LoadX509CertFromPEM(caCertPath)
 	return env.CaCert, err
 }
@@ -94,8 +94,8 @@ func (env *AppEnvironment) GetClientCert() (cert *tls.Certificate, err error) {
 	if env.ClientCert != nil {
 		return env.ClientCert, nil
 	}
-	certPath := filepath.Join(env.CertsDir, certsapi.DefaultClientCertFile)
-	keyPath := filepath.Join(env.CertsDir, certsapi.DefaultClientKeyFile)
+	certPath := filepath.Join(env.CertsDir, certs.DefaultClientCertFile)
+	keyPath := filepath.Join(env.CertsDir, certs.DefaultClientKeyFile)
 	env.ClientCert, err = certutils.LoadTLSCertFromPEM(certPath, keyPath)
 	return env.ClientCert, err
 }
@@ -121,8 +121,8 @@ func (env *AppEnvironment) GetServerCert() (cert *tls.Certificate, err error) {
 	if env.ServerCert != nil {
 		return env.ServerCert, nil
 	}
-	certPath := filepath.Join(env.CertsDir, certsapi.DefaultServerCertFile)
-	keyPath := filepath.Join(env.CertsDir, certsapi.DefaultServerKeyFile)
+	certPath := filepath.Join(env.CertsDir, certs.DefaultServerCertFile)
+	keyPath := filepath.Join(env.CertsDir, certs.DefaultServerKeyFile)
 	env.ServerCert, err = certutils.LoadTLSCertFromPEM(certPath, keyPath)
 	return env.ServerCert, err
 }
@@ -296,7 +296,7 @@ func NewAppEnvironment(homeDir string, withFlags bool) *AppEnvironment {
 		configFile = path.Join(configDir, appID+".yaml")
 	}
 	// load the CA cert if found
-	caCertFile := path.Join(certsDir, certsapi.DefaultCaCertFile)
+	caCertFile := path.Join(certsDir, certs.DefaultCaCertFile)
 	caCert, _ := certutils.LoadX509CertFromPEM(caCertFile)
 
 	// determine the expected location of the service auth key and token

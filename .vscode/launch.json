@@ -5,13 +5,13 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "Code",
+            "name": "Debug current file",
             "type": "go",
             "request": "launch",
             "mode": "debug",
-            "port": 2345,
-            "host": "127.0.0.1",
-            "program": "${workspaceRoot}",
+            // "port": 2345,
+            // "host": "127.0.0.1",
+            "program": "${file}",
             "env": {},
             "args": [],
             "showLog": true,
@@ -21,13 +21,13 @@
             "type": "go",
             "request": "launch",
             "mode": "test",
-            "port": 2345,
-            "host": "127.0.0.1",
+            // "port": 2345,
+            // "host": "127.0.0.1",
             "program": "${file}",
             "env": {},
             "args": [],
             "showLog": true,
             "console": "internalConsole"
-        }
+        },
     ]
 }
