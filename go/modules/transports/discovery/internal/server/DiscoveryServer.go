@@ -1,4 +1,4 @@
-package internalserver
+package internal
 
 import (
 	"fmt"
@@ -14,10 +14,9 @@ import (
 	"github.com/hiveot/hivekit/go/modules/transports/discovery"
 )
 
-// DiscoveryModule is a module for serving a directory endpoint and discovering
-// network devices. It serves two roles: one to publish a directory endpoint using
-// mDNS, and two, to discovery devices on the network.
-
+// DiscoveryServer is a module for serving a TD over http and publishing a corresponding
+// DNS-SD service record.
+// Use DiscoveryClient for discovering devices on the network.
 type DiscoveryServer struct {
 	modules.HiveModuleBase
 
@@ -38,11 +37,16 @@ type DiscoveryServer struct {
 	httpServer transports.IHttpServer
 }
 
-// ServeDirectoryTDD registers the given directory TD with the http server
+// ServeDirectoryTD registers the given directory TD with the http server
 // and publishes its endpoint using DNS-SD discovery.
 //
+// If a list of transports is avaialble this updates the TD security scheme,
+// base URL and forms.
+//
 // This fails if the http server isn't provided.
-func (m *DiscoveryServer) ServeDirectoryTDD(dirTDJSON string) (err error) {
+func (m *DiscoveryServer) ServeDirectoryTD(dirTDJSON string) (err error) {
+	// map of endpoints by scheme (wss, sse, ...)
+
 	if m.dnssdServer != nil {
 		return fmt.Errorf("ServeDirectoryTDD: a TD is already served")
 	}
@@ -92,13 +96,8 @@ func (m *DiscoveryServer) ServeThingTD(thingTDJSON string) (err error) {
 	return nil
 }
 
-// Start starts the http
-
-//  1. serves the directory TD on the .well-known/wot http endpoint.
-//  2. publishes a DNS-SD record of the directory TD with the service name "_directory._sub._wot._tcp".
-//     containing a TXT record for 'td', 'type', 'scheme' as described in
-//     https://w3c.github.io/wot-discovery/#introduction-dns-sd-sec
-//  3. start listening for devices and publish notifications on discovered devices
+// Start starts the discovery module.
+// This does nothing until ServeThingTD or ServeDirectoryTDD is called.
 func (m *DiscoveryServer) Start() (err error) {
 
 	slog.Info("Start: Starting discovery transport server")
@@ -118,12 +117,13 @@ func (m *DiscoveryServer) Stop() {
 
 // NewDiscoveryServer creates a new discovery server module instance.
 //
+// The serviceID is optional and defaults to DefaultDiscoveryThingID.
+//
+//	serviceID is the thingID of this server itself. Used as the serviceID in DNS-SD records
 //	httpServer is the server that serves the TD on the well-known endpoint.
-//	endpoints are optional additional URLS to include in the DNS-SD discovery record
-//	 where key is the schema "http", "wss", "sse-sc" and value the URL.
-//	thingID is the service
-func NewDiscoveryServer(
-	httpServer transports.IHttpServer, endpoints map[string]string, serviceID string) *DiscoveryServer {
+//	transports for TD security scheme, base URL and forms. Optional.
+func NewDiscoveryServer(serviceID string,
+	httpServer transports.IHttpServer, endpoints map[string]string) *DiscoveryServer {
 
 	if serviceID == "" {
 		serviceID = discovery.DefaultDiscoveryThingID

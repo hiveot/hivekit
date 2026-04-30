@@ -15,11 +15,10 @@ import (
 
 	"github.com/hiveot/hivekit/go/modules/certs"
 	"github.com/hiveot/hivekit/go/modules/certs/certutils"
-	"gopkg.in/yaml.v3"
 )
 
 // DirectoryURL_Arg is the optional commandline argument name with the URL of the directory TD
-const DirectoryURL_Arg = "directoryURL"
+// const DirectoryURL_Arg = "directoryURL"
 
 // ServerURL_Arg is the optional commandline argument name with the connection URL of the digitwin server
 const ServerURL_Arg = "serverURL"
@@ -29,11 +28,11 @@ const ServerURL_Arg = "serverURL"
 // This contains folder locations, CA certificate and application clientID
 type AppEnvironment struct {
 	// Directories
-	BinDir       string `yaml:"binDir,omitempty"`       // Application binary folder, e.g. launcher, cli, ...
-	PluginsDir   string `yaml:"pluginsDir,omitempty"`   // Plugin folder
-	HomeDir      string `yaml:"homeDir,omitempty"`      // Home folder, default this is the parent of bin, config, certs and logs
-	ConfigDir    string `yaml:"configDir,omitempty"`    // config folder with application and configuration files
-	ConfigFile   string `yaml:"configFile,omitempty"`   // Application configuration file. Default is clientID.yaml
+	BinDir string `yaml:"binDir,omitempty"` // Application binary folder, e.g. launcher, cli, ...
+	// PluginsDir string `yaml:"pluginsDir,omitempty"` // Plugin folder
+	HomeDir   string `yaml:"homeDir,omitempty"`   // Home folder, default this is the parent of bin, config, certs and logs
+	ConfigDir string `yaml:"configDir,omitempty"` // config folder with application and configuration files
+	// ConfigFile   string `yaml:"configFile,omitempty"`   // Application configuration file. Default is clientID.yaml
 	CertsDir     string `yaml:"certsDir,omitempty"`     // Certificates and keys location
 	LogsDir      string `yaml:"logsDir,omitempty"`      // Logging output
 	LogLevel     string `yaml:"logLevel,omitempty"`     // logging level: error, warning, info, debug
@@ -146,26 +145,26 @@ func (env *AppEnvironment) GetStorageDir(moduleType string) string {
 //
 // This returns an error if loading or parsing the config file fails.
 // Returns nil if the config file doesn't exist or is loaded successfully.
-func (env *AppEnvironment) LoadConfig(cfg interface{}) error {
-	configFile := env.ConfigFile
-	if !path.IsAbs(configFile) {
-		configFile = path.Join(env.CertsDir, configFile)
-	}
-	if _, err := os.Stat(configFile); err != nil {
-		slog.Info("Configuration file not found. Ignored.", "configFile", configFile)
-		return nil
-	}
+// func (env *AppEnvironment) LoadConfig(cfg interface{}) error {
+// 	configFile := env.ConfigFile
+// 	if !path.IsAbs(configFile) {
+// 		configFile = path.Join(env.CertsDir, configFile)
+// 	}
+// 	if _, err := os.Stat(configFile); err != nil {
+// 		slog.Info("Configuration file not found. Ignored.", "configFile", configFile)
+// 		return nil
+// 	}
 
-	cfgData, err := os.ReadFile(configFile)
-	if err != nil {
-		err = fmt.Errorf("loading config failed: %w", err)
-		return err
-	} else {
-		slog.Info("Loaded configuration file", "configFile", configFile)
-		err = yaml.Unmarshal(cfgData, cfg)
-	}
-	return err
-}
+// 	cfgData, err := os.ReadFile(configFile)
+// 	if err != nil {
+// 		err = fmt.Errorf("loading config failed: %w", err)
+// 		return err
+// 	} else {
+// 		slog.Info("Loaded configuration file", "configFile", configFile)
+// 		err = yaml.Unmarshal(cfgData, cfg)
+// 	}
+// 	return err
+// }
 
 // NewAppEnvironment returns an application environment including folders for use by modules.
 //
@@ -174,10 +173,8 @@ func (env *AppEnvironment) LoadConfig(cfg interface{}) error {
 //	-home  		alternative home directory. Default is the parent folder of the app binary
 //	-clientID  	alternative clientID. Default is the application binary name.
 //	-config     alternative config directory. Default is home/certs
-//	-configFile alternative application config file. Default is {clientID}.yaml
 //	-loglevel   debug, info, warning (default), error
 //	-server     optional server URL or "" for auto-detect
-//	-core       optional server core or "" for auto-detect
 //
 // The default 'user based' structure is:
 //
@@ -212,11 +209,11 @@ func NewAppEnvironment(homeDir string, withFlags bool) *AppEnvironment {
 	var configFile string
 	var configDir string
 	var binDir string
-	var pluginsDir string
+	// var pluginsDir string
 	var certsDir string
 	var logsDir string
 	var storesDir string
-	var directoryURL string
+	// var directoryURL string
 	var serverURL string
 
 	// The default appID is the binary name. This allows for multiple instances
@@ -239,14 +236,16 @@ func NewAppEnvironment(homeDir string, withFlags bool) *AppEnvironment {
 		}
 		homeDir = filepath.Join(binDir, "..")
 	}
+
 	if withFlags {
 		// handle commandline options
 		flag.StringVar(&homeDir, "home", homeDir, "Application home directory")
+		flag.StringVar(&certsDir, "certs", certsDir, "Certificate and keys directory")
 		flag.StringVar(&configDir, "config", configDir, "Configuration directory")
 		flag.StringVar(&configFile, "configFile", configFile, "Configuration file")
 		flag.StringVar(&appID, "clientID", appID, "Application clientID to authenticate with")
 		flag.StringVar(&logLevel, "logLevel", logLevel, "logging level: debug, warning, info, error")
-		flag.StringVar(&directoryURL, DirectoryURL_Arg, directoryURL, "url of directory TD")
+		// flag.StringVar(&directoryURL, DirectoryURL_Arg, directoryURL, "url of directory TD")
 		flag.StringVar(&serverURL, ServerURL_Arg, serverURL, "connection url for server")
 		if flag.Usage == nil {
 			flag.Usage = func() {
@@ -275,26 +274,43 @@ func NewAppEnvironment(homeDir string, withFlags bool) *AppEnvironment {
 
 	if useSystem {
 		homeDir = filepath.Join("/var", "lib", "hiveot")
-		binDir = filepath.Join("/opt", "hiveot")
-		pluginsDir = filepath.Join(binDir, "plugins")
-		configDir = filepath.Join("/etc", "hiveot", "conf.d")
-		certsDir = filepath.Join("/etc", "hiveot", "certs")
-		logsDir = filepath.Join("/var", "log", "hiveot")
-		storesDir = filepath.Join("/var", "lib", "hiveot")
+		if binDir == "" {
+			binDir = filepath.Join("/opt", "hiveot")
+		}
+		// pluginsDir = filepath.Join(binDir, "plugins")
+		if configDir == "" {
+			configDir = filepath.Join("/etc", "hiveot", "conf.d")
+		}
+		if certsDir == "" {
+			certsDir = filepath.Join("/etc", "hiveot", "certs")
+		}
+		if logsDir == "" {
+			logsDir = filepath.Join("/var", "log", "hiveot")
+		}
+		if storesDir == "" {
+			storesDir = filepath.Join("/var", "lib", "hiveot")
+		}
 	} else { // use application user dir under ~/bin/hiveot
-		binDir = filepath.Join(homeDir, "bin")
-		pluginsDir = filepath.Join(homeDir, "plugins")
-		certsDir = filepath.Join(homeDir, "certs")
-		logsDir = filepath.Join(homeDir, "logs")
-		storesDir = filepath.Join(homeDir, "stores")
-
+		if binDir == "" {
+			binDir = filepath.Join(homeDir, "bin")
+		}
+		// pluginsDir = filepath.Join(homeDir, "plugins")
+		if certsDir == "" {
+			certsDir = filepath.Join(homeDir, "certs")
+		}
+		if logsDir == "" {
+			logsDir = filepath.Join(homeDir, "logs")
+		}
+		if storesDir == "" {
+			storesDir = filepath.Join(homeDir, "stores")
+		}
 		if configDir == "" {
 			configDir = filepath.Join(homeDir, "config")
 		}
 	}
-	if configFile == "" {
-		configFile = path.Join(configDir, appID+".yaml")
-	}
+	// if configFile == "" {
+	// 	configFile = path.Join(configDir, appID+".yaml")
+	// }
 	// load the CA cert if found
 	caCertFile := path.Join(certsDir, certs.DefaultCaCertFile)
 	caCert, _ := certutils.LoadX509CertFromPEM(caCertFile)
@@ -303,21 +319,28 @@ func NewAppEnvironment(homeDir string, withFlags bool) *AppEnvironment {
 	tokenFile := path.Join(certsDir, appID+".token")
 	keyFile := path.Join(certsDir, appID+".key")
 
+	slog.Info("NewAppEnvironment",
+		slog.String("appID", appID),
+		slog.String("home", homeDir),
+		slog.String("certsDir", certsDir),
+		slog.String("configDir", configDir),
+		slog.String("serverURL", serverURL),
+	)
+
 	return &AppEnvironment{
-		BinDir:       binDir,
-		CaCert:       caCert,
-		AppID:        appID,
-		ConfigDir:    configDir,
-		ConfigFile:   configFile,
-		CertsDir:     certsDir,
-		DirectoryURL: directoryURL,
-		HomeDir:      homeDir,
-		KeyFile:      keyFile,
-		LogsDir:      logsDir,
-		LogLevel:     logLevel,
-		PluginsDir:   pluginsDir,
-		ServerURL:    serverURL,
-		StoresDir:    storesDir,
-		TokenFile:    tokenFile,
+		BinDir:    binDir,
+		CaCert:    caCert,
+		AppID:     appID,
+		ConfigDir: configDir,
+		// ConfigFile: configFile,
+		CertsDir: certsDir,
+		HomeDir:  homeDir,
+		KeyFile:  keyFile,
+		LogsDir:  logsDir,
+		LogLevel: logLevel,
+		// PluginsDir: pluginsDir,
+		ServerURL: serverURL,
+		StoresDir: storesDir,
+		TokenFile: tokenFile,
 	}
 }

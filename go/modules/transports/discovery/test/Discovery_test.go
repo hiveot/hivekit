@@ -28,12 +28,12 @@ func TestDiscoverDirectory(t *testing.T) {
 	testEnv.StartHttpServer(true)
 	defer testEnv.HttpServer.Stop()
 
-	m := discoverypkg.NewDiscoveryServer(testEnv.HttpServer, endpoints, testServiceID)
+	m := discoverypkg.NewDiscoveryServer(testServiceID, testEnv.HttpServer, endpoints)
 	err := m.Start()
 	require.NoError(t, err)
 	defer m.Stop()
 
-	err = m.ServeDirectoryTDD(dirTdd)
+	err = m.ServeDirectoryTD(dirTdd)
 	require.NoError(t, err)
 
 	// Test if it is discovered
@@ -59,7 +59,7 @@ func TestDiscoverThings(t *testing.T) {
 	testEnv.StartHttpServer(true)
 	defer testEnv.HttpServer.Stop()
 
-	m := discoverypkg.NewDiscoveryServer(testEnv.HttpServer, nil, testServiceID)
+	m := discoverypkg.NewDiscoveryServer(testServiceID, testEnv.HttpServer, nil)
 	err := m.Start()
 	require.NoError(t, err)
 	defer m.Stop()
@@ -84,11 +84,11 @@ func TestDiscoverGetDirectoryTD(t *testing.T) {
 	testEnv := testenv.NewTestEnv()
 	testEnv.StartHttpServer(true)
 	defer testEnv.HttpServer.Stop()
-	m := discoverypkg.NewDiscoveryServer(testEnv.HttpServer, nil, testServiceID)
+	m := discoverypkg.NewDiscoveryServer(testServiceID, testEnv.HttpServer, nil)
 	err := m.Start()
 	require.NoError(t, err)
 	defer m.Stop()
-	err = m.ServeDirectoryTDD(dirTDJson)
+	err = m.ServeDirectoryTD(dirTDJson)
 	require.NoError(t, err)
 
 	// discover the server
@@ -109,7 +109,7 @@ func TestDiscoverGetThingTD(t *testing.T) {
 	testEnv := testenv.NewTestEnv()
 	testEnv.StartHttpServer(true)
 	defer testEnv.HttpServer.Stop()
-	m := discoverypkg.NewDiscoveryServer(testEnv.HttpServer, nil, testServiceID)
+	m := discoverypkg.NewDiscoveryServer(testServiceID, testEnv.HttpServer, nil)
 	err := m.Start()
 	require.NoError(t, err)
 	defer m.Stop()

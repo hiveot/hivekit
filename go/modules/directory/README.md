@@ -30,7 +30,7 @@ The directory should be updated by IoT devices or their agent. In HiveOT, the co
 
 Alternatively, an administrator can update the directory manually with a JSON document using the provided CLI. The CLI is a simple example commandline interface that uses the directory client to read and write the directory.
 
-To write their TD to the directory storage, IoT device agents need to discover the location of the directory and invoke the createThing action, providing the TD JSON document as the payload.
+To write their TD to the directory storage, IoT devices need to discover the location of the directory and invoke the createThing or updateThing action, providing the TD JSON document as the payload.
 
 ## Backends
 

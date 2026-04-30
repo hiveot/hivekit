@@ -12,9 +12,9 @@ import (
 //		endpoints are optional additional URLS to include in the DNS-SD discovery record
 //		 where key is the schema "http", "wss", "sse-sc" and value the URL.
 //	 serviceID to publish as. This is the module thingID
-func NewDiscoveryServer(
-	httpServer transports.IHttpServer, endpoints map[string]string, serviceID string) discovery.IDiscoveryServer {
+func NewDiscoveryServer(serviceID string,
+	httpServer transports.IHttpServer, endpoints map[string]string) discovery.IDiscoveryServer {
 
-	srv := internalserver.NewDiscoveryServer(httpServer, endpoints, serviceID)
+	srv := internalserver.NewDiscoveryServer(serviceID, httpServer, endpoints)
 	return srv
 }

@@ -1,5 +1,5 @@
 // Package internal to publish Hub services for discovery
-package internalserver
+package internal
 
 import (
 	"fmt"
@@ -49,7 +49,7 @@ func ServeWotDiscovery(
 	}
 	tdPath := parts.Path
 	if tdPath == "" {
-		tdPath = discovery.DefaultHttpGetDirectoryTDPath
+		tdPath = discovery.WellKnownHttpPath
 	}
 	portString := parts.Port()
 	portNr, err := strconv.Atoi(portString)
@@ -70,7 +70,10 @@ func ServeWotDiscovery(
 	params := map[string]string{
 		"td":     tdPath,
 		"scheme": scheme,
-		"type":   "Directory",
+		"type":   "Thing",
+	}
+	if serviceType == discovery.WOT_DIRECTORY_SERVICE_TYPE {
+		params["type"] = "Directory"
 	}
 	// add connection endpoints as parameters
 	for ep, epURL := range endpoints {

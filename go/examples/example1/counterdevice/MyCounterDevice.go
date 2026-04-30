@@ -29,9 +29,11 @@ const (
 	IncrementActionName = "increment"
 )
 
-// The device is build on top of an agent.
-// the agent is a thing itself.
-// Agents facilitate storing and querying properties so you dont have to
+// Simple IoT device that tracks a counter.
+// The device uses Agent as a base. Agents facilitate storing and querying properties so you dont have to.
+//
+// This implements the properties, events and actions listed in the device TM.
+// This does not expose the TM because .. this is a simple example.
 type MyCounterDevice struct {
 	clientspkg.Agent
 
@@ -98,6 +100,11 @@ func (m *MyCounterDevice) HandleWriteProperty(req *msg.RequestMessage, replyTo m
 		m.PubEvent(req.ThingID, CounterUpdatedEvent, m.counter.Load())
 	}
 	return err
+}
+
+// Start the device module.
+func (m *MyCounterDevice) Start() error {
+	return nil
 }
 
 func NewCounterDevice(agentID string) modules.IHiveModule {

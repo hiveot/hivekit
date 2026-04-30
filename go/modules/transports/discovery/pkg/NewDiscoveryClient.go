@@ -96,7 +96,7 @@ func (cl *DiscoveryClient) DiscoverDirectories(
 //
 //	instanceName is optional and intended to search for a particular instance by name, such as 'hub'.
 //	duration is the time to search for.
-//	cb is the callback to invoke when a match is found.
+//	cb is the callback to invoke when a match is found. Returns true to stop.
 //
 // This returns a list of all discoveries
 func (cl *DiscoveryClient) DiscoverThings(
@@ -183,10 +183,9 @@ func (cl *DiscoveryClient) ParseZeroconfServiceEntry(rec *zeroconf.ServiceEntry)
 	}
 
 	// https://w3c.github.io/wot-discovery/#introduction-dns-sd-sec
-	if rec.ServiceName() == discovery.WOT_DIRECTORY_SERVICE_TYPE {
+	if rec.Service == discovery.WOT_DIRECTORY_SERVICE_TYPE {
 		discoResult.IsDirectory = true
-	} else if rec.ServiceName() == discovery.WOT_THING_SERVICE_TYPE {
-		//this is a thing
+	} else if rec.Service == discovery.WOT_THING_SERVICE_TYPE {
 		discoResult.IsThing = true
 	} else {
 		// not sure what this is

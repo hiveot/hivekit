@@ -15,11 +15,12 @@ func NewDiscoveryServerFactory(f factory.IModuleFactory) modules.IHiveModule {
 	httpServer := f.GetHttpServer(true)
 	endpoints := make(map[string]string)
 	tps := f.GetTransportServers()
+	instanceID := discovery.DefaultDiscoveryThingID
 	for _, tp := range tps {
 		connectURL := tp.GetConnectURL()
 		parts := strings.Split(connectURL, ":")
 		scheme := parts[0]
 		endpoints[scheme] = connectURL
 	}
-	return NewDiscoveryServer(httpServer, endpoints, discovery.DefaultDiscoveryThingID)
+	return NewDiscoveryServer(instanceID, httpServer, endpoints)
 }

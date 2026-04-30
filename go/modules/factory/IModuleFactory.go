@@ -84,7 +84,7 @@ type IModuleFactory interface {
 	// If the module is already loaded the existing module is returned.
 	//
 	//  moduleType identifies the type of the module to get.
-	//	instantiate set to true to create an instance if one isn't already loaded
+	//	instantiate set to true to create an instance if one isnt loaded
 	//
 	// This returns an error if no module with the given type is registered, or when
 	// starting the module fails.

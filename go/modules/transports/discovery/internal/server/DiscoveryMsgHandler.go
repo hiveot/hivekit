@@ -1,3 +1,3 @@
-package internalserver
+package internal
 
-// todo: remote status and control of the discovery server
+// todo: handle request for remote status and control of the discovery server

@@ -22,24 +22,38 @@ const AuthEndpoint = "login"
 const WSSEndpoint = "wss"
 const SSEEndpoint = "sse"
 
-// DefaultHttpGetDirectoryTDPath contains the path to the digital twin directory
+// WellKnownHttpPath contains the path to the digital twin directory
 // TD document uses the 'well-known' path
-const DefaultHttpGetDirectoryTDPath = "/.well-known/wot"
+const WellKnownHttpPath = "/.well-known/wot"
 
 // IDiscoveryServer is the interface of a discovery server.
-// This is a module that can be managed and controlled through request and notification messages.
+// This is a module that for publishing the presence of the Thing or a Thing Directory.
 type IDiscoveryServer interface {
 	modules.IHiveModule
 
-	// ServeDirectoryTDD registers the given directory TD with the http server and publishes
-	// its endpoint using DNS-SD discovery.
+	// ServeDirectoryTD serves the given directory TD on http at the well-known endpoint, and
+	// publishes this using DNS-SD discovery.
+	//
+	// The TDD DNSSD service record is:
+	//   _directory._sub._wot._tcp TXT td=/.well-known/wot; type=Directory;scheme=http
 	//
 	// This fails if the http server isn't provided.
-	ServeDirectoryTDD(dirTDJSON string) (err error)
+	ServeDirectoryTD(dirTDJSON string) (err error)
 
-	// ServeThingTD registers the given thing TD with the http server and publishes its
-	// endpoint using DNS-SD discovery.
+	// ServeThingTD serves the given thing TD on http at the well-known endpoint, and publishes
+	// this using DNS-SD discovery.
 	//
-	// Indended for use by things that run servers. (not recommended or needed when using a gateway)
+	// The TD DNSSD service record is:
+	//   _wot._tcp TXT td=/.well-known/wot; type=Thing;scheme=http
+	//
+	// This server also intercepts a directory updateTD request and publishes the TD
+	// using this ServeThingTD handler, acting as a single-TD directory.
+	//
+	// Indended for use by things that run servers.
 	ServeThingTD(thingTDJSON string) (err error)
+}
+
+// IDiscoveryClient is the interface of discovery client.
+// This module is for discovering Thing TD's or Directory TDD's on the local network.
+type IDiscoveryClient interface {
 }

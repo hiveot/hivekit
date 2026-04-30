@@ -24,6 +24,8 @@ func (r *FactoryRecipe) AddModule(moduleType string, moduleDef factory.ModuleDef
 }
 
 // Start the modules in this recipe using the given factory
+//
+// TODO: use a initialization module to setup the environment including system vs home directories
 func (r *FactoryRecipe) Start(f factory.IModuleFactory) error {
 	r.f = f
 

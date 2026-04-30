@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"log/slog"
 
 	"github.com/hiveot/hivekit/go/examples/example1/counterdevice"
 	"github.com/hiveot/hivekit/go/modules/certs"
@@ -10,6 +11,8 @@ import (
 	"github.com/hiveot/hivekit/go/modules/factory"
 	factorypkg "github.com/hiveot/hivekit/go/modules/factory/pkg"
 	"github.com/hiveot/hivekit/go/modules/transports"
+	"github.com/hiveot/hivekit/go/modules/transports/discovery"
+	discoverypkg "github.com/hiveot/hivekit/go/modules/transports/discovery/pkg"
 	httptransportpkg "github.com/hiveot/hivekit/go/modules/transports/httptransport/pkg"
 	"github.com/hiveot/hivekit/go/modules/transports/wss"
 	wsspkg "github.com/hiveot/hivekit/go/modules/transports/wss/pkg"
@@ -23,15 +26,19 @@ var recipe = factorypkg.FactoryRecipe{
 		certs.InitFactoryCertsModuleType: {
 			Constructor: certspkg.NewInitFactoryCerts,
 		},
+		// discovery server for publishing the counter TD
+		discovery.DiscoveryServerModuleType: {
+			Constructor: discoverypkg.NewDiscoveryServerFactory,
+		},
+		// http server module is used by websockets
 		transports.HttpServerModuleType: {
 			Constructor: httptransportpkg.NewHttpTransportServerFactory,
 		},
+		// websockets is the main communication transport
 		wss.HiveotWebsocketServerModuleType: {
 			Constructor: wsspkg.NewHiveotWssServerFactory,
 		},
-		wss.HiveotWebsocketClientModuleType: {
-			Constructor: wsspkg.NewHiveotWssClientFactory,
-		},
+		// counter is the application module
 		counterdevice.CounterDeviceModuleType: {
 			Constructor: counterdevice.MyCounterModuleFactory,
 		},
@@ -42,6 +49,7 @@ var recipe = factorypkg.FactoryRecipe{
 		certs.InitFactoryCertsModuleType,
 		wss.HiveotWebsocketServerModuleType,
 		counterdevice.CounterDeviceModuleType,
+		discovery.DiscoveryServerModuleType,
 	},
 }
 
@@ -51,12 +59,22 @@ func main() {
 	env := factory.NewAppEnvironment("~/bin/hiveot", true)
 	f := factorypkg.NewModuleFactory(env, nil)
 	err := f.Start()
-	if err == nil {
-		// run it with the recipe
-		r := factorypkg.NewFactoryRecipe(recipe.ModuleDefs, recipe.ModuleChain)
-		_ = r
-		r.Start(f)
+	if err != nil {
+		slog.Error("Startup failed")
+		return
 	}
+
+	// run it with the recipe
+	r := factorypkg.NewFactoryRecipe(recipe.ModuleDefs, recipe.ModuleChain)
+	r.Start(f)
+
+	// make device discoverable
+	// FIXME: who adds the forms?
+	// option 1: all TDs added server side use the discovery provided server endpoints
+	discoMod, err := f.GetModule(discovery.DiscoveryServerModuleType, false)
+	discoSrv := discoMod.(discovery.IDiscoveryServer)
+	discoSrv.ServeThingTD(string(counterdevice.CounterDeviceTM))
+
 	fmt.Printf("Counter is running and listening on '%s'\n", f.GetConnectURL())
 	fmt.Printf("Use the cli from example 2 to read its status\n")
 	f.WaitForSignal(context.Background())
