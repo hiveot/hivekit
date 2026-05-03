@@ -5,6 +5,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/hiveot/hivekit/go/api/msg"
+	"github.com/hiveot/hivekit/go/api/td"
+	"github.com/hiveot/hivekit/go/modules/directory"
 	discoverypkg "github.com/hiveot/hivekit/go/modules/transports/discovery/pkg"
 	"github.com/hiveot/hivekit/go/testenv"
 	"github.com/hiveot/hivekit/go/utils"
@@ -103,17 +106,24 @@ func TestDiscoverGetDirectoryTD(t *testing.T) {
 }
 
 func TestDiscoverGetThingTD(t *testing.T) {
-	thingTD := "{this is the test thing TD}"
 
 	// run the server
 	testEnv := testenv.NewTestEnv()
 	testEnv.StartHttpServer(true)
 	defer testEnv.HttpServer.Stop()
+	thingTD := testEnv.CreateTestTD(12)
+
 	m := discoverypkg.NewDiscoveryServer(testServiceID, testEnv.HttpServer, nil)
 	err := m.Start()
 	require.NoError(t, err)
 	defer m.Stop()
-	err = m.ServeThingTD(thingTD)
+
+	// publish a TD in the module chain
+	// err = m.ServeThingTD(thingTD)
+	tdJson1, _ := td.MarshalTD(thingTD)
+	req := msg.NewRequestMessage("", td.OpInvokeAction,
+		directory.DefaultDirectoryThingID, directory.ActionCreateThing, tdJson1, "")
+	err = m.HandleRequest(req, nil)
 	require.NoError(t, err)
 
 	// discover the server
@@ -121,8 +131,8 @@ func TestDiscoverGetThingTD(t *testing.T) {
 	records, err := cl.DiscoverThings(testServiceID, time.Second, nil)
 	require.NoError(t, err)
 	require.NotZero(t, len(records), "no things discovered")
-	tdJSON, err := cl.DownloadTDD(records[0].AsURL(), nil)
+	tdJson2, err := cl.DownloadTDD(records[0].AsURL(), nil)
 	assert.NoError(t, err)
-	assert.True(t, records[0].IsDirectory)
-	assert.Equal(t, thingTD, tdJSON)
+	assert.True(t, records[0].IsThing)
+	assert.Equal(t, tdJson1, tdJson2)
 }

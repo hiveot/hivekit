@@ -4,6 +4,7 @@
     { "hiveot": "https://www.hiveot.net/vocab/v0.1" }
   ],
   "@type": "Service",
+  "base": "to be set by server",
   "id": "myCounterID",
   "title": "A simple counter",
   "description": "HiveKit test device that exposes a counter",

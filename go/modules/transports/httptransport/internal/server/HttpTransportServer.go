@@ -31,7 +31,7 @@ type HttpTransportServer struct {
 	modules.HiveModuleBase
 
 	// authenticator to validate incoming conncetions
-	// authenticator transports.IAuthenticator
+	authenticator transports.IAuthenticator
 
 	// HTTP authentication handler.
 	authRequestHandler func(req *http.Request) (clientID string, err error)
@@ -73,8 +73,7 @@ func (m *HttpTransportServer) DefaultAuthRequest(req *http.Request) (clientID st
 			return clientID, nil
 		}
 	}
-	authenticator := m.config.Authenticator
-	if authenticator == nil {
+	if m.authenticator == nil {
 		err := fmt.Errorf("DefaultAuthenticate: Missing ValidateToken handler in configuration")
 		return "", err
 	}
@@ -83,7 +82,7 @@ func (m *HttpTransportServer) DefaultAuthRequest(req *http.Request) (clientID st
 		return "", err
 	}
 	//check if the token is properly signed and still valid
-	clientID, issuedAt, validUntil, err := authenticator.ValidateToken(bearerToken)
+	clientID, issuedAt, validUntil, err := m.authenticator.ValidateToken(bearerToken)
 	if err != nil {
 		return "", err
 	}
@@ -94,7 +93,7 @@ func (m *HttpTransportServer) DefaultAuthRequest(req *http.Request) (clientID st
 
 // GetAuthenticator returns the authenticator used to authenticate incoming connections
 func (m *HttpTransportServer) GetAuthenticator() transports.IAuthenticator {
-	return m.config.Authenticator
+	return m.authenticator
 }
 
 // Provide the HTTP base URL to connect to the server. Eg "https://addr:port/""
@@ -105,7 +104,7 @@ func (m *HttpTransportServer) GetConnectURL() string {
 // Set the handler that validates tokens.
 // This will enable the protected routes.
 func (m *HttpTransportServer) SetAuthenticator(authenticator transports.IAuthenticator) {
-	m.config.Authenticator = authenticator
+	m.authenticator = authenticator
 }
 
 // Start readies the module for use.
@@ -159,7 +158,7 @@ func (m *HttpTransportServer) Start() (err error) {
 	}
 	lisn, err := net.Listen("tcp", m.httpServer.Addr)
 	if err != nil {
-		slog.Info("Start - Listen return an error", "err", err.Error())
+		slog.Error("Start - Listen return an error", "err", err.Error())
 		return err
 	}
 
@@ -208,16 +207,18 @@ func (m *HttpTransportServer) Stop() {
 //
 // config MUST have been configured with a CA and server certificate unless
 // NoTLS is set.
-func NewHttpTransportServer(config *httptransport.Config) *HttpTransportServer {
+// authenticator for http requests. nil for refusing all protected routes
+func NewHttpTransportServer(config *httptransport.Config, authenticator transports.IAuthenticator) *HttpTransportServer {
 
 	// if config.ModuleID == "" {
 	// 	config.ModuleID = transports.DefaultHttpServerModuleID
 	// }
 
 	m := &HttpTransportServer{
-		config: config,
+		config:        config,
+		authenticator: authenticator,
 	}
-	m.authRequestHandler = config.AuthRequestHandler
+	// m.authRequestHandler = config.AuthRequestHandler
 	if m.authRequestHandler == nil {
 		m.authRequestHandler = m.DefaultAuthRequest
 	}

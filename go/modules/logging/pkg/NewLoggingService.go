@@ -17,11 +17,11 @@ func NewLoggingService(config logging.LoggingConfig) logging.ILoggingService {
 }
 
 // NewLoggingServiceFactory creates a new instance of the logging module using the factory environment.
-func NewLoggingServiceFactory(f factory.IModuleFactory) modules.IHiveModule {
+func NewLoggingServiceFactory(f factory.IModuleFactory) (modules.IHiveModule, error) {
 
 	// use the application binary as the logfile name
 	var logfilename = path.Join(f.GetEnvironment().LogsDir, f.GetEnvironment().AppID)
 
 	config := logging.NewLoggingConfig(logfilename, "")
-	return internal.NewLoggingService(config)
+	return NewLoggingService(config), nil
 }

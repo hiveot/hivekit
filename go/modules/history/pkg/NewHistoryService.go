@@ -16,10 +16,10 @@ func NewHistoryService(config history.HistoryConfig) history.IHistoryService {
 }
 
 // Create the history service module using the factory environment
-func NewHistoryServiceFactory(f factory.IModuleFactory) modules.IHiveModule {
+func NewHistoryServiceFactory(f factory.IModuleFactory) (modules.IHiveModule, error) {
 	env := f.GetEnvironment()
 	storageDir := env.GetStorageDir(history.HistoryModuleType)
 	config := history.NewHistoryConfig(storageDir, "")
 	m := NewHistoryService(config)
-	return m
+	return m, nil
 }

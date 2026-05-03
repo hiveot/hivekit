@@ -23,12 +23,12 @@ type DiscoveryServer struct {
 	// this instance thingID
 	discoveryThingID string
 
+	// the directory thingID the intercept for discovery of TD
+	directoryThingID string
+
 	// optional additional endpoints to publish in the discovery record in addition to
 	// the well-known exploration URL.
 	endpoints map[string]string
-
-	// The directory TD document in JSON for serving on the well-known exploration path.
-	// dirTDJSON string
 
 	// service discovery using mDNS
 	dnssdServer *zeroconf.Server
@@ -40,8 +40,12 @@ type DiscoveryServer struct {
 // ServeDirectoryTD registers the given directory TD with the http server
 // and publishes its endpoint using DNS-SD discovery.
 //
-// If a list of transports is avaialble this updates the TD security scheme,
+// dirTDJSON must be provided by a directory that implements the affordances.
+//
+// If a list of transports is available this updates the TD security scheme,
 // base URL and forms.
+//
+// This aims to be compliant with https://w3c.github.io/wot-discovery/#exploration-server
 //
 // This fails if the http server isn't provided.
 func (m *DiscoveryServer) ServeDirectoryTD(dirTDJSON string) (err error) {
@@ -53,13 +57,17 @@ func (m *DiscoveryServer) ServeDirectoryTD(dirTDJSON string) (err error) {
 	publicRoute := m.httpServer.GetPublicRoute()
 	// TBD: support for base path?
 	wellKnownPath := directory.WellKnownWoTPath
+
 	publicRoute.Get(wellKnownPath, func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Add("Content-Type", "application/td+json")
 		_, _ = w.Write([]byte(dirTDJSON))
 	})
 	instanceName := m.discoveryThingID
 	tddURL, err := url.JoinPath(m.httpServer.GetConnectURL(), wellKnownPath)
+
 	m.dnssdServer, err = ServeWotDiscovery(
 		instanceName, tddURL, discovery.WOT_DIRECTORY_SERVICE_TYPE, m.endpoints)
+
 	if err != nil {
 		slog.Error("Failed starting introduction server for DNS-SD",
 			"TDD URL", tddURL,
@@ -73,6 +81,8 @@ func (m *DiscoveryServer) ServeDirectoryTD(dirTDJSON string) (err error) {
 // and publishes its endpoint using DNS-SD discovery.
 // Indended for use by things that run servers. (not recommended)
 func (m *DiscoveryServer) ServeThingTD(thingTDJSON string) (err error) {
+
+	slog.Info("DiscoveryServer. Serving Thing TD")
 
 	if m.dnssdServer != nil {
 		return fmt.Errorf("ServiceThingTD: a TD is already served")
@@ -129,6 +139,7 @@ func NewDiscoveryServer(serviceID string,
 		serviceID = discovery.DefaultDiscoveryThingID
 	}
 	m := &DiscoveryServer{
+		directoryThingID: directory.DefaultDirectoryThingID,
 		discoveryThingID: serviceID,
 		endpoints:        endpoints,
 		httpServer:       httpServer,

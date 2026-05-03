@@ -152,7 +152,7 @@ func (f *ModuleFactory) GetModule(moduleType string, instantiate bool) (modules.
 	if m != nil && ok {
 		return m, nil
 	} else if !instantiate {
-		return nil, fmt.Errorf("Module '%s' not yet loaded", moduleType)
+		return nil, fmt.Errorf("Module '%s' not yet loaded nad instantiate is false", moduleType)
 	}
 
 	m, isNew, err := f.LoadModule(moduleType)
@@ -161,6 +161,10 @@ func (f *ModuleFactory) GetModule(moduleType string, instantiate bool) (modules.
 	}
 	if isNew {
 		err = m.Start()
+		if err != nil {
+			slog.Error("GetModule. Module loaded successfully but failed to start",
+				"moduleType", moduleType, "err", err.Error())
+		}
 	}
 	return m, err
 }
@@ -202,10 +206,13 @@ func (f *ModuleFactory) LoadModule(moduleType string) (m modules.IHiveModule, is
 		return nil, false, err
 	}
 	slog.Info("LoadModule loaded new module instance", "moduleType", moduleType)
-	constructor := def.Constructor
-	mod := constructor(f)
+	mod, err := def.Constructor(f)
 
+	if err != nil {
+		return nil, false, err
+	}
 	// if nil is returned then nothing to do
+	// this can be valid for initialization modules
 	if mod == nil {
 		return mod, false, nil
 	}

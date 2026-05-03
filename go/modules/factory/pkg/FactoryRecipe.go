@@ -52,7 +52,7 @@ func (r *FactoryRecipe) Start(f factory.IModuleFactory) error {
 		}
 		// module cant be started
 		if err != nil {
-			slog.Error("StartRecipe: starting module failed. Shutting down", "moduleType", modType)
+			slog.Error("StartRecipe: starting module failed. Shutting down", "moduleType", modType, "err", err.Error())
 			f.Stop()
 			return err
 		}

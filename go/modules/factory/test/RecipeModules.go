@@ -22,6 +22,8 @@ import (
 	"github.com/hiveot/hivekit/go/modules/router"
 	routerpkg "github.com/hiveot/hivekit/go/modules/router/pkg"
 	"github.com/hiveot/hivekit/go/modules/transports"
+	"github.com/hiveot/hivekit/go/modules/transports/addforms"
+	addformspkg "github.com/hiveot/hivekit/go/modules/transports/addforms/pkg"
 	"github.com/hiveot/hivekit/go/modules/transports/discovery"
 	discoverypkg "github.com/hiveot/hivekit/go/modules/transports/discovery/pkg"
 	grpctransport "github.com/hiveot/hivekit/go/modules/transports/grpc"
@@ -86,6 +88,11 @@ var RecipeModules = map[string]factory.ModuleDefinition{
 
 	//--- services servers ---
 
+	// add forms to createTD or updateTD requests
+	addforms.AddFormsModuleType: {
+		Constructor: addformspkg.NewAddFormsServiceFactory,
+	},
+
 	// client and session management provider
 	authnapi.AuthnModuleType: {
 		Constructor: authnpkg.NewAuthnServiceFactory,
@@ -101,6 +108,10 @@ var RecipeModules = map[string]factory.ModuleDefinition{
 	// certs service provider
 	certs.CertsServerModuleType: {
 		Constructor: certspkg.NewCertsServiceFactory,
+	},
+	// InitFactoryCerts ensure the factory has certificates needed to run.
+	certs.InitFactoryCertsModuleType: {
+		Constructor: certspkg.NewInitFactoryCerts,
 	},
 	// digitwin provider
 	digitwin.DigitwinModuleType: {

@@ -1,6 +1,10 @@
 package httpbasicpkg
 
 import (
+	"fmt"
+
+	"github.com/hiveot/hivekit/go/modules"
+	"github.com/hiveot/hivekit/go/modules/factory"
 	"github.com/hiveot/hivekit/go/modules/transports"
 	"github.com/hiveot/hivekit/go/modules/transports/httpbasic"
 	internalserver "github.com/hiveot/hivekit/go/modules/transports/httpbasic/internal/server"
@@ -10,4 +14,14 @@ import (
 func NewHttpBasicServer(httpServer transports.IHttpServer) httpbasic.IHttpBasicServer {
 	srv := internalserver.NewHttpBasicServer(httpServer)
 	return srv
+}
+
+// Create a new instance of the HTTP-Basic server using the factory environment
+// This loads the httpserver module
+func NewHttpBasicServerFactory(f factory.IModuleFactory) (modules.IHiveModule, error) {
+	httpServer := f.GetHttpServer(true)
+	if httpServer == nil {
+		return nil, fmt.Errorf("NewHttpBasicServerFactory: Missing Http server")
+	}
+	return NewHttpBasicServer(httpServer), nil
 }

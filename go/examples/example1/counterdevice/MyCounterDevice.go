@@ -4,11 +4,13 @@ import (
 	_ "embed"
 	"fmt"
 	"sync/atomic"
+	"time"
 
 	"github.com/hiveot/hivekit/go/api/msg"
 	"github.com/hiveot/hivekit/go/api/td"
 	"github.com/hiveot/hivekit/go/modules"
 	clientspkg "github.com/hiveot/hivekit/go/modules/clients/pkg"
+	"github.com/hiveot/hivekit/go/modules/directory"
 	"github.com/hiveot/hivekit/go/modules/factory"
 )
 
@@ -104,6 +106,25 @@ func (m *MyCounterDevice) HandleWriteProperty(req *msg.RequestMessage, replyTo m
 
 // Start the device module.
 func (m *MyCounterDevice) Start() error {
+	// publish the device TD
+
+	// FIXME: no use publishing a TD at start as the chain isnt complete yet
+	// when should a module publish its TD?
+	// a: on start - problem: module chain not ready
+	// b: external call 'get td' - doesnt work for agents
+	// c: when discovered, but not on start - when then?
+	// d: when directory/discovery goes online? - how to know?
+	// e: add a running state: init-started-running? publish on running - PITA
+	// f: push a callback - how does this differ from a, can still come too early
+	// g: on start but after a delay - ugly
+	// h: wait for a retrieveThing request - from whom? disco?
+	go func() {
+		// option g
+		time.Sleep(time.Millisecond)
+		err := m.InvokeAction(directory.DefaultDirectoryThingID,
+			directory.ActionCreateThing, CounterDeviceTM, nil)
+		_ = err
+	}()
 	return nil
 }
 
@@ -114,10 +135,10 @@ func NewCounterDevice(agentID string) modules.IHiveModule {
 	return m
 }
 
-func MyCounterModuleFactory(f factory.IModuleFactory) modules.IHiveModule {
+func MyCounterModuleFactory(f factory.IModuleFactory) (modules.IHiveModule, error) {
 	agentID := DefaultCounterDeviceThingID
 	m := NewCounterDevice(agentID)
-	return m
+	return m, nil
 }
 
 //

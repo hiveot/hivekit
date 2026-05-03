@@ -115,11 +115,11 @@ func (m *HttpTransportServer) addMiddleware(cfg *httptransport.Config) {
 				var clientID string
 				var err error
 
-				if cfg.AuthRequestHandler != nil {
-					clientID, err = cfg.AuthRequestHandler(r)
-				} else {
-					clientID, err = m.DefaultAuthRequest(r)
-				}
+				// if cfg.AuthRequestHandler != nil {
+				// clientID, err = cfg.AuthRequestHandler(r)
+				// } else {
+				clientID, err = m.DefaultAuthRequest(r)
+				// }
 				if err != nil {
 					// see https://w3c.github.io/wot-discovery/#exploration-secboot
 					// response with unauthorized and point to using the bearer token method

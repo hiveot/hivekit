@@ -11,6 +11,8 @@ import (
 	"github.com/hiveot/hivekit/go/modules/factory"
 	factorypkg "github.com/hiveot/hivekit/go/modules/factory/pkg"
 	"github.com/hiveot/hivekit/go/modules/transports"
+	"github.com/hiveot/hivekit/go/modules/transports/addforms"
+	addformspkg "github.com/hiveot/hivekit/go/modules/transports/addforms/pkg"
 	"github.com/hiveot/hivekit/go/modules/transports/discovery"
 	discoverypkg "github.com/hiveot/hivekit/go/modules/transports/discovery/pkg"
 	httptransportpkg "github.com/hiveot/hivekit/go/modules/transports/httptransport/pkg"
@@ -22,6 +24,10 @@ import (
 // Recipe for a simple device that provides a standalone server for a counter module.
 var recipe = factorypkg.FactoryRecipe{
 	ModuleDefs: map[string]factory.ModuleDefinition{
+		// add forms to published TDs
+		addforms.AddFormsModuleType: {
+			Constructor: addformspkg.NewAddFormsServiceFactory,
+		},
 		// create a self-signed CA and server cert if none exist
 		certs.InitFactoryCertsModuleType: {
 			Constructor: certspkg.NewInitFactoryCerts,
@@ -46,9 +52,15 @@ var recipe = factorypkg.FactoryRecipe{
 
 	// This chain defines the complete application
 	ModuleChain: []string{
+		// initialize the environment with certificates
 		certs.InitFactoryCertsModuleType,
+		// run a websocket server (this loads the http transport)
 		wss.HiveotWebsocketServerModuleType,
+		// run the counter service
 		counterdevice.CounterDeviceModuleType,
+		// add forms to the counter TD
+		addforms.AddFormsModuleType,
+		// run discovery server to publish the counter TD
 		discovery.DiscoveryServerModuleType,
 	},
 }
@@ -67,13 +79,6 @@ func main() {
 	// run it with the recipe
 	r := factorypkg.NewFactoryRecipe(recipe.ModuleDefs, recipe.ModuleChain)
 	r.Start(f)
-
-	// make device discoverable
-	// FIXME: who adds the forms?
-	// option 1: all TDs added server side use the discovery provided server endpoints
-	discoMod, err := f.GetModule(discovery.DiscoveryServerModuleType, false)
-	discoSrv := discoMod.(discovery.IDiscoveryServer)
-	discoSrv.ServeThingTD(string(counterdevice.CounterDeviceTM))
 
 	fmt.Printf("Counter is running and listening on '%s'\n", f.GetConnectURL())
 	fmt.Printf("Use the cli from example 2 to read its status\n")

@@ -3,6 +3,8 @@ package grpcpkg
 import (
 	"crypto/x509"
 
+	"github.com/hiveot/hivekit/go/modules"
+	"github.com/hiveot/hivekit/go/modules/factory"
 	"github.com/hiveot/hivekit/go/modules/transports"
 	internalclient "github.com/hiveot/hivekit/go/modules/transports/grpc/internal/client"
 )
@@ -21,4 +23,26 @@ func NewHiveotGrpcClient(
 	addr string, caCert *x509.Certificate, ch transports.ConnectionHandler) transports.ITransportClient {
 
 	return internalclient.NewGrpcClient(addr, caCert, ch)
+}
+
+// Create a hiveot gRPC client using the factory
+func NewHiveotGrpcClientFactory(f factory.IModuleFactory) modules.IHiveModule {
+	env := f.GetEnvironment()
+	clientCert, _ := env.GetClientCert()
+	serverURL := env.GetServerURL()
+
+	m := NewHiveotGrpcClient(serverURL, env.CaCert, nil)
+	m.SetTimeout(env.RpcTimeout)
+
+	// if client certificate not available attempt auth token
+	if clientCert == nil {
+		// must use token auth
+		clientID := env.GetClientID()
+		authToken := env.GetAuthToken()
+
+		if clientID != "" && authToken != "" {
+			m.ConnectWithToken(clientID, authToken)
+		}
+	}
+	return m
 }

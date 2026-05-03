@@ -1,8 +1,11 @@
 package wsspkg
 
 import (
+	"fmt"
 	"time"
 
+	"github.com/hiveot/hivekit/go/modules"
+	"github.com/hiveot/hivekit/go/modules/factory"
 	"github.com/hiveot/hivekit/go/modules/transports"
 	"github.com/hiveot/hivekit/go/modules/transports/wss"
 	internal "github.com/hiveot/hivekit/go/modules/transports/wss/internal/server"
@@ -24,12 +27,23 @@ func NewHiveotWssServer(
 	return wssTransport
 }
 
+// Load the HiveOT websocket server using the factory environment
+// This loads the http server
+func NewHiveotWssServerFactory(f factory.IModuleFactory) (modules.IHiveModule, error) {
+	httpServer := f.GetHttpServer(true)
+	if httpServer == nil {
+		return nil, fmt.Errorf("NewHiveotWssServerFactory: missing http server")
+	}
+	timeout := f.GetEnvironment().RpcTimeout
+	return NewHiveotWssServer(httpServer, timeout), nil
+}
+
 // NewWotServer creates a websocket module using WoT Websocket messaging format.
 //
 // This uses the WoT websocket protocol message converter to convert between
 // the standard RRN messages and the WoT websocket message format.
 //
-// httpServer is the http server the websocket is using
+// httpServer is the http server the websocket is using (required)
 // respTimeout is the time the server waits for a response when receiving requests. defaults to 3sec
 //
 // Use SetRequestSink to set the handler for requests send by consumers
@@ -39,4 +53,16 @@ func NewWotWssServer(
 
 	wssTransport := internal.NewWotWssServer(httpServer, respTimeout)
 	return wssTransport
+}
+
+// Load the Wot websocket server using the factory environment
+// This loads the http server.
+// This returns nil if the http server could not be loaded.
+func NewWotWssServerFactory(f factory.IModuleFactory) (modules.IHiveModule, error) {
+	httpServer := f.GetHttpServer(true)
+	if httpServer == nil {
+		return nil, fmt.Errorf("NewWotWssServerFactory: missing http server")
+	}
+	timeout := f.GetEnvironment().RpcTimeout
+	return NewWotWssServer(httpServer, timeout), nil
 }

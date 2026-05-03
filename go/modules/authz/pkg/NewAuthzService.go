@@ -19,15 +19,15 @@ func NewAuthzService(getRoleHandler func(clientID string) (role string, err erro
 
 // factory function for creating authz module instance.
 // This loads the authn module to use GetProfile to obtain the role.
-func NewAuthzServiceFactory(f factory.IModuleFactory) modules.IHiveModule {
+func NewAuthzServiceFactory(f factory.IModuleFactory) (modules.IHiveModule, error) {
 	m1, err := f.GetModule(authn.AuthnModuleType, true)
 	if err != nil {
-		return nil
+		return nil, err
 	}
 	authn, ok := m1.(authn.IAuthnService)
 	if !ok {
 		slog.Error("Authz factory: cannot get authn service for obtaining roles")
-		return nil
+		return nil, err
 	}
 	// getrole uses the authn module to get the client profile
 	m := internal.NewAuthzService(func(clientID string) (string, error) {
@@ -37,5 +37,5 @@ func NewAuthzServiceFactory(f factory.IModuleFactory) modules.IHiveModule {
 		}
 		return p.Role, nil
 	})
-	return m
+	return m, nil
 }

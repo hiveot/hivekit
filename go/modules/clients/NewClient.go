@@ -147,3 +147,15 @@ func NewTransportClient(protocolType string, serverURL string, caCert *x509.Cert
 	}
 	return cl, err
 }
+
+// NewTransportClientFromTD returns a new client module instance ready to connect to a
+// thing.
+//
+// This uses the TD base to determine the connection protocol.
+func NewTransportClientFromTD(tdoc *td.TD, caCert *x509.Certificate,
+	ch transports.ConnectionHandler) (cl transports.ITransportClient, err error) {
+
+	protocolType, href := GetProtocolType(tdoc)
+	cl, err = NewTransportClient(protocolType, href, caCert, ch)
+	return cl, err
+}

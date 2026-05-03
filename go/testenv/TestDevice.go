@@ -17,6 +17,7 @@ type TestDevice struct {
 	modules.HiveModuleBase
 
 	agentID         string
+	authenticator   transports.IAuthenticator
 	cfg             *httptransport.Config
 	HttpServer      transports.IHttpServer
 	TransportServer transports.ITransportServer
@@ -39,7 +40,7 @@ func (device *TestDevice) Start() error {
 
 	// setup the server, transport and link the device to the transport
 	// cfg := httpserverapi.NewConfig(addr, port, serverCert, caCert, validateToken)
-	device.HttpServer = httptransportpkg.NewHttpTransportServer(device.cfg)
+	device.HttpServer = httptransportpkg.NewHttpTransportServer(device.cfg, device.authenticator)
 	err := device.HttpServer.Start()
 	if err != nil {
 		device.HttpServer = nil
@@ -96,13 +97,14 @@ func (device *TestDevice) Stop() {
 // agentID is the service that manages the device
 // tm is the TM of the thing to manage
 // protocolType sets the type of server to use
-func NewTestDevice(cfg *httptransport.Config, agentID string, tm *td.TD,
+func NewTestDevice(cfg *httptransport.Config, agentID string, authenticator transports.IAuthenticator, tm *td.TD,
 	protocolType string) *TestDevice {
 	v := &TestDevice{
-		protocolType: protocolType,
-		agentID:      agentID,
-		cfg:          cfg,
-		td:           tm,
+		authenticator: authenticator,
+		protocolType:  protocolType,
+		agentID:       agentID,
+		cfg:           cfg,
+		td:            tm,
 	}
 	return v
 }

@@ -2,6 +2,7 @@ package routerpkg
 
 import (
 	"crypto/x509"
+	"fmt"
 
 	"github.com/hiveot/hivekit/go/api/td"
 	"github.com/hiveot/hivekit/go/modules"
@@ -32,7 +33,7 @@ func NewRouterService(
 
 // Create a router service instance using the factory environment
 // This loads the directory module to lookup a Thing TD
-func NewRouterServiceFactory(f factory.IModuleFactory) modules.IHiveModule {
+func NewRouterServiceFactory(f factory.IModuleFactory) (modules.IHiveModule, error) {
 	var getTD func(string) *td.TD
 	env := f.GetEnvironment()
 	storageDir := env.GetStorageDir(router.RouterModuleType)
@@ -42,10 +43,11 @@ func NewRouterServiceFactory(f factory.IModuleFactory) modules.IHiveModule {
 	tps := f.GetTransportServers()
 
 	m, err := f.GetModule(directory.DirectoryModuleType, true)
-	if err == nil {
-		if dirMod, ok := m.(directory.IDirectoryService); ok {
-			getTD = dirMod.GetTD
-		}
+	if err != nil {
+		return nil, fmt.Errorf("NewRouterServiceFactory. Missing TD directory: %w", err)
 	}
-	return NewRouterService(storageDir, getTD, tps, env.CaCert)
+	if dirMod, ok := m.(directory.IDirectoryService); ok {
+		getTD = dirMod.GetTD
+	}
+	return NewRouterService(storageDir, getTD, tps, env.CaCert), nil
 }

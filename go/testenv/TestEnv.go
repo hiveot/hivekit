@@ -313,11 +313,11 @@ func (testEnv *TestEnv) StartHttpServer(logging bool) {
 		testEnv.CertBundle.ServerAddr, TestServerHttpPort,
 		testEnv.CertBundle.ServerCert,
 		testEnv.CertBundle.CaCert,
-		testEnv.TestAuthn, logging)
+		logging)
 
 	// cfg.Address = fmt.Sprintf("%s:%d", certBundle.ServerAddr, testServerHttpPort)
 
-	testEnv.HttpServer = httptransportpkg.NewHttpTransportServer(cfg)
+	testEnv.HttpServer = httptransportpkg.NewHttpTransportServer(cfg, testEnv.TestAuthn)
 	err := testEnv.HttpServer.Start()
 	if err != nil {
 		panic("unable to start TLS server: " + err.Error())

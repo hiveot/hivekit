@@ -22,6 +22,7 @@ import (
 
 var testDir = path.Join(os.TempDir(), "hivekit", "factory-test")
 var testCerts = certstest.CreateTestCertBundle(utils.KeyTypeED25519)
+var testPort = 12345
 
 // TestMain creates a test environment
 // Used for all test cases in this package
@@ -75,6 +76,7 @@ func TestAuthentication(t *testing.T) {
 	env := factory.NewAppEnvironment(testDir, false)
 	env.CaCert = testCerts.CaCert
 	env.ServerCert = testCerts.ServerCert
+	env.HttpsPort = testPort
 
 	f := factorypkg.NewModuleFactory(env, RecipeModules)
 	assert.NotNil(t, f)
@@ -85,7 +87,7 @@ func TestAuthentication(t *testing.T) {
 	assert.NotNil(t, authenticator)
 
 	httpServer := f.GetHttpServer(true)
-	assert.NotNil(t, httpServer)
+	require.NotNil(t, httpServer)
 	httpAuth := httpServer.GetAuthenticator()
 	assert.NotNil(t, httpAuth)
 
@@ -118,6 +120,7 @@ func TestDigitwin(t *testing.T) {
 	env := factory.NewAppEnvironment(testDir, false)
 	env.CaCert = testCerts.CaCert
 	env.ServerCert = testCerts.ServerCert
+	env.HttpsPort = testPort
 
 	f := factorypkg.NewModuleFactory(env, RecipeModules)
 	defer f.Stop()
@@ -128,8 +131,8 @@ func TestDigitwin(t *testing.T) {
 	// load the digitwin module
 	// this should start the directory and http server
 	m, err := f.GetModule(digitwin.DigitwinModuleType, true)
+	require.NoError(t, err)
 	require.NotNil(t, m)
-	assert.NoError(t, err)
 }
 
 // test creating a client app and server app using the recipe
@@ -140,6 +143,7 @@ func TestClientServerRecipe(t *testing.T) {
 	env.CaCert = testCerts.CaCert
 	env.ClientCert = testCerts.ClientCert
 	env.ServerCert = testCerts.ServerCert
+	env.HttpsPort = testPort
 
 	serverFactory := factorypkg.NewModuleFactory(env, RecipeModules)
 	serverChain := factorypkg.NewFactoryRecipe(RecipeModules, TestDeviceServerChain)

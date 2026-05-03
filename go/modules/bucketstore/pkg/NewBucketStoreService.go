@@ -21,12 +21,12 @@ func NewBucketStoreService(
 
 // NewBucketStoreServiceFactory returns a new bucket store service using the factory environment
 // This defaults to the kvbtree store which is a balance between speed and capacity.
-func NewBucketStoreServiceFactory(f factory.IModuleFactory) modules.IHiveModule {
+func NewBucketStoreServiceFactory(f factory.IModuleFactory) (modules.IHiveModule, error) {
 
 	location := f.GetEnvironment().GetStorageDir(bucketstore.BucketStoreModuleType)
 	// TODO: support configuration of storage type (default is pebble)
 	m := NewBucketStoreService(location, bucketstore.BackendKVBTree)
-	return m
+	return m, nil
 }
 
 // CursorCache manages a set of cursors that can be addressed remotely by key.

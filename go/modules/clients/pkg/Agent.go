@@ -250,8 +250,8 @@ func NewAgent(agentID string, appReqHandler msg.RequestHandler) *Agent {
 }
 
 // Factory for creating an agent module using the factory environment
-func NewAgentFactory(f factory.IModuleFactory) modules.IHiveModule {
+func NewAgentFactory(f factory.IModuleFactory) (modules.IHiveModule, error) {
 	appID := f.GetEnvironment().AppID
 	c := NewAgent(appID, nil)
-	return c
+	return c, nil
 }

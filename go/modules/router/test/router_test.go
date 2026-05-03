@@ -54,12 +54,12 @@ func startTestDevice(agentID string, thingID string) (testDevice *testenv.TestDe
 	// create a test device with server
 	cfg := httptransport.NewConfig(
 		certsBundle.ServerAddr, testDevicePort,
-		certsBundle.ServerCert, certsBundle.CaCert, testAuthn, true)
+		certsBundle.ServerCert, certsBundle.CaCert, true)
 
 	var testTM *td.TD = td.NewTD(thingID, "test device", vocab.Device)
 	testTM.AddPropertyAsString("property-1", "Property 1", "New and improved")
 
-	testDevice = testenv.NewTestDevice(cfg, agentID, testTM, serverType)
+	testDevice = testenv.NewTestDevice(cfg, agentID, testAuthn, testTM, serverType)
 	err := testDevice.Start()
 	if err != nil {
 		panic("failed starting test device")

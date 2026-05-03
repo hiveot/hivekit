@@ -14,7 +14,7 @@ func NewVCacheService() vcacheapi.IVCacheService {
 }
 
 // Create a new instance of the value cache server module using the module factory environment.
-func NewVCacheServiceFactory(f factory.IModuleFactory) modules.IHiveModule {
+func NewVCacheServiceFactory(f factory.IModuleFactory) (modules.IHiveModule, error) {
 	m := NewVCacheService()
-	return m
+	return m, nil
 }

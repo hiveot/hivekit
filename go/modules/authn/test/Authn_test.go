@@ -86,25 +86,25 @@ func startTestAuthnModule(encryption string) (tp transports.IHttpServer, authnSv
 	if err != nil {
 		panic("Error starting authn admin service:" + err.Error())
 	}
+	// the session manager is a type of authenticator that also checks for
+	// sessions started with login.
+	authenticator := authnSvc.GetSessionManager()
 
 	// create the http api handler for authn user requests over http
 	testCerts = certstest.CreateTestCertBundle(TestKeyType)
 	cfg := httptransport.NewConfig(
 		"localhost", serverPort,
-		testCerts.ServerCert, testCerts.CaCert, nil, true)
-	httpServer := httptransportpkg.NewHttpTransportServer(cfg)
+		testCerts.ServerCert, testCerts.CaCert, true)
+
+	httpServer := httptransportpkg.NewHttpTransportServer(cfg, authenticator)
 	err = httpServer.Start()
+
 	if err != nil {
 		panic("Unable to start http server: " + err.Error())
 	}
 	authnHttpMod := authnpkg.NewAuthnUserHttpService(httpServer)
 	_ = authnHttpMod.Start()
 	authnHttpMod.SetRequestSink(authnSvc.HandleRequest)
-
-	// last, link the http server and validator to enable the protected routes and enable the
-	// authn http endpoint.
-	var authenticator transports.IAuthenticator = authnSvc.GetSessionManager()
-	httpServer.SetAuthenticator(authenticator)
 
 	return httpServer, authnSvc, func() {
 		authnSvc.Stop()

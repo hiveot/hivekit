@@ -345,10 +345,10 @@ func NewConsumer(appID string) *Consumer {
 }
 
 // Factory for creating a consumer module using the factory environment
-func NewConsumerFactory(f factory.IModuleFactory) modules.IHiveModule {
+func NewConsumerFactory(f factory.IModuleFactory) (modules.IHiveModule, error) {
 	appID := f.GetEnvironment().AppID
 	c := NewConsumer(appID)
-	return c
+	return c, nil
 }
 
 // NewConsumerConnection creates a client connection and returns a new instance of

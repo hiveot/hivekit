@@ -169,6 +169,9 @@ func NewHiveotWssServer(httpServer transports.IHttpServer, respTimeout time.Dura
 // Use SetRequestSink to set the handler for requests send by consumers
 // Use SetNotificationSink to set the handler for notifications send by agents.
 func NewWotWssServer(httpServer transports.IHttpServer, respTimeout time.Duration) *WssServer {
+	if httpServer == nil {
+		panic("NewWotWssModule: Http server is nil")
+	}
 	httpURL := httpServer.GetConnectURL()
 	urlParts, err := url.Parse(httpURL)
 	if err != nil {

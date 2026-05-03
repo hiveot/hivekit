@@ -1,6 +1,7 @@
 package digitwinpkg
 
 import (
+	"fmt"
 	"path/filepath"
 
 	"github.com/hiveot/hivekit/go/api/td"
@@ -29,7 +30,7 @@ func NewDigitwinService(storageDir string, dirModule directory.IDirectoryService
 
 // Create a new digitwin service using the module factory
 // This loads the directory module and hooks itself into it to intercept directory writes.
-func NewDigitwinServiceFactory(f factory.IModuleFactory) modules.IHiveModule {
+func NewDigitwinServiceFactory(f factory.IModuleFactory) (modules.IHiveModule, error) {
 	env := f.GetEnvironment()
 
 	// data is stored in a module subdir
@@ -38,10 +39,12 @@ func NewDigitwinServiceFactory(f factory.IModuleFactory) modules.IHiveModule {
 	// the directory module used to intercept directory writes to create digital twins of
 	m, err := f.GetModule(directory.DirectoryModuleType, true)
 	if err != nil {
-		return nil
+		return nil, err
 	}
 	dirModule, ok := m.(directory.IDirectoryService)
-	_ = ok
+	if !ok {
+		return nil, fmt.Errorf("NewDigitwinServiceFactory: directory module is wrong type")
+	}
 	m = NewDigitwinService(storageDir, dirModule, f.AddTDSecForms)
-	return m
+	return m, nil
 }

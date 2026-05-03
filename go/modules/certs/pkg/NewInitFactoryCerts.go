@@ -24,7 +24,7 @@ import (
 //
 // This returns nil so it won't be added to the module chain, just does some setup
 // at startup.
-func NewInitFactoryCerts(f factory.IModuleFactory) modules.IHiveModule {
+func NewInitFactoryCerts(f factory.IModuleFactory) (modules.IHiveModule, error) {
 	var err error
 	var caPrivKey crypto.PrivateKey
 	var caPubKey crypto.PublicKey
@@ -34,7 +34,7 @@ func NewInitFactoryCerts(f factory.IModuleFactory) modules.IHiveModule {
 	// if certs are in place there is nothing to do
 	if env.CaCert != nil && env.ServerCert != nil {
 		// return nil is not an error are this module's work is done
-		return nil
+		return nil, nil
 	}
 
 	// to ensure a CA and server cert can be created, a CA private key is required
@@ -68,5 +68,5 @@ func NewInitFactoryCerts(f factory.IModuleFactory) modules.IHiveModule {
 	env.ServerCert = certutils.X509CertToTLS(serverX509, serverPrivKey)
 
 	// the job here is done. No need to return a module
-	return nil
+	return nil, nil
 }

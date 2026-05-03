@@ -12,3 +12,5 @@ example2: .FORCE
 example3: .FORCE
 	go build -o $(DIST_FOLDER)/$@ $@/main.go
 
+
+all: example1 example2 example3

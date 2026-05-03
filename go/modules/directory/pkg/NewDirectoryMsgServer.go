@@ -1,8 +1,12 @@
 package directorypkg
 
 import (
+	"log/slog"
+
+	"github.com/hiveot/hivekit/go/modules"
 	"github.com/hiveot/hivekit/go/modules/directory"
 	internal "github.com/hiveot/hivekit/go/modules/directory/internal/msgserver"
+	"github.com/hiveot/hivekit/go/modules/factory"
 	"github.com/hiveot/hivekit/go/modules/transports"
 )
 
@@ -24,4 +28,24 @@ func NewDirectoryMsgServer(
 	m := internal.NewDirectoryServer(
 		serviceID, storageDir, httpAPI, transports)
 	return m
+}
+
+// Create the directory service module using the factory environment
+// The director http-service is optional. This will continue without http if the
+// module is not yet loaded.
+func NewDirectoryMsgServerFactory(f factory.IModuleFactory) (modules.IHiveModule, error) {
+	env := f.GetEnvironment()
+	storageDir := env.GetStorageDir(directory.DirectoryModuleType)
+
+	// provide the directory http module instance for inclusing as the TDD base
+	// this is optional. instantiate is false
+	httpMod, _ := f.GetModule(directory.DirectoryHttpModuleType, false)
+	httpAPI, ok := httpMod.(directory.IDirectoryHttpServer)
+	if !ok {
+		slog.Info("NewDirectoryMsgServerFactory: No http so running directory without http api")
+	}
+	transports := f.GetTransportServers()
+
+	m := NewDirectoryMsgServer("", storageDir, httpAPI, transports)
+	return m, nil
 }

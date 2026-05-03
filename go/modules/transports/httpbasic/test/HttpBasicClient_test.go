@@ -29,8 +29,8 @@ func TestConnect(t *testing.T) {
 
 	// dummyAuthenticator := authnapi.NewDummyAuthenticator()
 	cfg := httptransport.NewConfig(
-		"localhost", serverPort, testCerts.ServerCert, testCerts.CaCert, nil, true)
-	srv := httptransportpkg.NewHttpTransportServer(cfg)
+		"localhost", serverPort, testCerts.ServerCert, testCerts.CaCert, true)
+	srv := httptransportpkg.NewHttpTransportServer(cfg, nil)
 	err := srv.Start()
 	require.NoError(t, err)
 	m := httpbasicpkg.NewHttpBasicServer(srv)

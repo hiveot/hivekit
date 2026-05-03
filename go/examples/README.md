@@ -8,23 +8,33 @@ To build run "make examples". Binaries are created in the ./dist directory.
 
 These first few examples are kept simple on purpose. They use a single protocol and lacks authentication, authorization and offers no history.
 
-### Example 1: Standalone Device
+### Example 1: Run a Standalone Counter Device
 
-The standalone device creates a standalone IoT device that runs a simple counter. It has a property with the current value, sends an event when it changes and has actions for increment and decrement.
+Example 1 creates a standalone IoT device that runs a simple counter. It has a property with the current value, sends an event when it changes and has actions for increment and decrement.
 
-This uses a factory recipe to create a server and link it to the counter module.
-The counter can be queried with the CLI from example 2.
-This publishes the counter module TD for discovery.
+- This uses a factory recipe to create a server and link it to the counter module.
+- This publishes an event each time the counter value changes.
+- This offers actions for incrementing and decrementing the counter.
+- This serves Thing discovery of the module TD and can be discovered with example 2.
+
+usage: go run example1/main.go
 
 ### Example 2. Discovery
 
 A simple commandline utility to discover Things and Directories on the network and optionally show their TD. Use -h to view available filter and display options.
 
-run: go run main.go [-h]
+usage: go run example2/main.go [-h] [-td] [-txt] [-type=Thing|Directory] [-addr=192.168.x.y]
 
 ### Example 3. CLI
 
 The commandline interface interacts with discovered devices. Show properties, latest event and invoke actions (only those with a single input).
+
+usage: go run example3/main.go
+
+This displays a menu with options. Commands:
+
+- discover devices
+- read directory
 
 ### Example 4. Gateway
 

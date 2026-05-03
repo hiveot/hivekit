@@ -58,8 +58,8 @@ func TestMain(m *testing.M) {
 func TestStartStop(t *testing.T) {
 	t.Logf("---%s---\n", t.Name())
 	cfg := httptransport.NewConfig(
-		serverAddress, serverPort, testCerts.ServerCert, testCerts.CaCert, nil, true)
-	srv := httptransportpkg.NewHttpTransportServer(cfg)
+		serverAddress, serverPort, testCerts.ServerCert, testCerts.CaCert, true)
+	srv := httptransportpkg.NewHttpTransportServer(cfg, nil)
 	err := srv.Start()
 	assert.NoError(t, err)
 	srv.Stop()
@@ -68,9 +68,9 @@ func TestStartStop(t *testing.T) {
 func TestNoServerCert(t *testing.T) {
 	t.Logf("---%s---\n", t.Name())
 	cfg := httptransport.NewConfig(
-		serverAddress, serverPort, nil, testCerts.CaCert, nil, true)
+		serverAddress, serverPort, nil, testCerts.CaCert, true)
 
-	srv := httptransportpkg.NewHttpTransportServer(cfg)
+	srv := httptransportpkg.NewHttpTransportServer(cfg, nil)
 	err := srv.Start()
 	require.Error(t, err)
 	srv.Stop()
@@ -83,9 +83,9 @@ func TestNoAuth(t *testing.T) {
 	path1Hit := 0
 
 	cfg := httptransport.NewConfig(
-		serverAddress, serverPort, testCerts.ServerCert, testCerts.CaCert, nil, true)
+		serverAddress, serverPort, testCerts.ServerCert, testCerts.CaCert, true)
 
-	srv := httptransportpkg.NewHttpTransportServer(cfg)
+	srv := httptransportpkg.NewHttpTransportServer(cfg, nil)
 
 	err := srv.Start()
 	require.NoError(t, err)
@@ -124,9 +124,9 @@ func TestTokenAuth(t *testing.T) {
 
 	// setup server and client environment
 	cfg := httptransport.NewConfig(
-		serverAddress, serverPort, testCerts.ServerCert, testCerts.CaCert, testAuth, true)
+		serverAddress, serverPort, testCerts.ServerCert, testCerts.CaCert, true)
 
-	srv := httptransportpkg.NewHttpTransportServer(cfg)
+	srv := httptransportpkg.NewHttpTransportServer(cfg, testAuth)
 	err := srv.Start()
 	require.NoError(t, err)
 	defer srv.Stop()
@@ -178,8 +178,8 @@ func TestClientCert(t *testing.T) {
 	// 	testCerts.ServerCert, testCerts.CaCert)
 
 	cfg := httptransport.NewConfig(
-		serverAddress, serverPort, testCerts.ServerCert, testCerts.CaCert, nil, true)
-	srv := httptransportpkg.NewHttpTransportServer(cfg)
+		serverAddress, serverPort, testCerts.ServerCert, testCerts.CaCert, true)
+	srv := httptransportpkg.NewHttpTransportServer(cfg, nil)
 
 	err := srv.Start()
 	assert.NoError(t, err)
@@ -263,8 +263,8 @@ func TestWriteResponse(t *testing.T) {
 	path2Hit := 0
 
 	cfg := httptransport.NewConfig(
-		serverAddress, serverPort, testCerts.ServerCert, testCerts.CaCert, nil, true)
-	srv := httptransportpkg.NewHttpTransportServer(cfg)
+		serverAddress, serverPort, testCerts.ServerCert, testCerts.CaCert, true)
+	srv := httptransportpkg.NewHttpTransportServer(cfg, nil)
 
 	err := srv.Start()
 	assert.NoError(t, err)
@@ -295,13 +295,13 @@ func TestBadPort(t *testing.T) {
 	t.Logf("---%s---\n", t.Name())
 
 	cfg := httptransport.NewConfig(
-		serverAddress, serverPort, testCerts.ServerCert, testCerts.CaCert, nil, true)
+		serverAddress, serverPort, testCerts.ServerCert, testCerts.CaCert, true)
 
 	cfg.Address = serverAddress
 	cfg.Port = 1 // bad port
 	cfg.CaCert = testCerts.CaCert
 	cfg.ServerCert = testCerts.ServerCert
-	srv := httptransportpkg.NewHttpTransportServer(cfg)
+	srv := httptransportpkg.NewHttpTransportServer(cfg, nil)
 
 	err := srv.Start()
 	defer srv.Stop()

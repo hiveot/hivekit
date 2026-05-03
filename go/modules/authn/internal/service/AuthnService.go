@@ -75,15 +75,6 @@ func (m *AuthnService) RemoveClient(clientID string) error {
 	return m.authnStore.Remove(clientID)
 }
 
-// Set the http server to open up the http endpoints
-// If an http server is already set then this panics.
-// func (m *AuthnServer) SetHttpServer(httpServer transports.IHttpServer) {
-// 	if m.httpServer != nil {
-// 		panic("An HTTP server is already set")
-// 	}
-// 	m.userHttpHandler = NewUserHttpHandler(m, m.httpServer)
-// }
-
 // Change the password of a client
 func (m *AuthnService) SetPassword(clientID string, password string) error {
 	return m.authnStore.SetPassword(clientID, password)
@@ -94,14 +85,9 @@ func (m *AuthnService) SetRole(clientID string, role string) error {
 	return m.authnStore.SetRole(clientID, role)
 }
 
-// Start the authentication module and listen for login and token refresh requests.
+// Start the authentication module and handle for login and token refresh requests.
 //
 // Opens the password store and starts the session manager instance.
-//
-// If an http server is provided this registers the http auth endpoint,
-// and set this authn module as the auth validation handler.
-//
-// yamlConfig with module startup configuration (todo)
 func (m *AuthnService) Start() (err error) {
 
 	slog.Info("Start: Starting authn")
@@ -114,47 +100,8 @@ func (m *AuthnService) Start() (err error) {
 		return err
 	}
 
-	// clientID := "authn"
-	// signingPrivKey, _, err := utils.LoadCreateKeyPair(
-	// 	clientID, m.config.KeysDir, utils.KeyTypeED25519)
-	// if err != nil {
-	// 	return err
-	// }
-
-	// if an http server is provided then register the endpoints
-	// if m.httpServer != nil {
-	// 	// m.httpServer.SetAuthenticator(m)
-	// 	m.userHttpHandler = NewAuthnUserHttpHandler(m, m.httpServer)
-	// }
 	return err
 }
-
-// // RefreshToken requests a new token based on the old token
-// // This requires that the existing session is still valid
-// func (m *AuthnService) RefreshToken(senderID string, oldToken string) (
-// 	newToken string, validUntil time.Time, err error) {
-
-// 	// validation only succeeds if there is an active session
-// 	tokenClientID, _, err := m.ValidateToken(oldToken)
-// 	if err != nil || senderID != tokenClientID {
-// 		return newToken, validUntil, fmt.Errorf("Invalid token or senderID mismatch")
-// 	}
-// 	// must still be a valid client
-// 	prof, err := m.authnStore.GetProfile(senderID)
-// 	_ = prof
-// 	if err != nil || prof.Disabled {
-// 		return newToken, validUntil, fmt.Errorf("Profile for '%s' is disabled", senderID)
-// 	}
-// 	validityDays := m.config.ConsumerTokenValidityDays
-// 	if prof.Role == authnapi.ClientRoleAgent {
-// 		validityDays = m.config.AgentTokenValidityDays
-// 	} else if prof.Role == authnapi.ClientRoleService {
-// 		validityDays = m.config.ServiceTokenValidityDays
-// 	}
-// 	validity := time.Duration(validityDays) * 24 * time.Hour
-// 	newToken, validUntil, err = m.authenticator.CreateToken(senderID, validity)
-// 	return newToken, validUntil, err
-// }
 
 // Stop closes the client store and releases resources
 func (m *AuthnService) Stop() {
@@ -186,32 +133,6 @@ func (m *AuthnService) UpdateProfile(senderID string, newProfile authn.ClientPro
 	}
 	return m.authnStore.UpdateProfile(newProfile)
 }
-
-// // ValidateToken verifies the token and client are valid.
-// func (m *AuthnService) ValidateToken(token string) (
-// 	clientID string, validUntil time.Time, err error) {
-
-// 	clientID, issuedAt, validUntil, err := m.authenticator.ValidateToken(token)
-// 	if err != nil {
-// 		return
-// 	}
-
-// 	// check the token is of an active client
-// 	// this is set during CreateToken and Login
-// 	sessionStart, found := m.sessionStart[clientID]
-// 	if !found {
-// 		slog.Warn("ValidateToken. No valid session found for client", "clientID", clientID)
-// 		return clientID, validUntil, fmt.Errorf("Session is no longer valid")
-// 	}
-// 	// the session must have started before the token was issued
-// 	// this allows a session restart to invalidate all old tokens
-// 	if issuedAt.Before(sessionStart) {
-// 		slog.Warn("ValidateToken. The token session is no longer valid", "clientID", clientID)
-// 		return clientID, validUntil, fmt.Errorf("Session is no longer valid")
-// 	}
-
-// 	return clientID, validUntil, err
-// }
 
 // Create a new authentication service.
 //

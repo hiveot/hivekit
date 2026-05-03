@@ -15,6 +15,8 @@ import (
 
 	"github.com/hiveot/hivekit/go/modules/certs"
 	"github.com/hiveot/hivekit/go/modules/certs/certutils"
+	"github.com/hiveot/hivekit/go/modules/transports"
+	grpctransport "github.com/hiveot/hivekit/go/modules/transports/grpc"
 )
 
 // DirectoryURL_Arg is the optional commandline argument name with the URL of the directory TD
@@ -48,6 +50,13 @@ type AppEnvironment struct {
 	// Intended for clients that authenticate using a certificate.
 	ClientCert *tls.Certificate `yaml:"-"`
 
+	// The grpc URL used for the grpc server instantiation
+	// eg: "unix:///path/to/sock"  (yes triple slash)
+	GrpcURL string `yaml:"grpcURL"`
+
+	// The http port used for the http server instantiation
+	HttpsPort int `yaml:"httpsPort"`
+
 	// the server certification for transport server modules if applicable
 	// Intended for gateways or hub that runs a server.
 	// Also usable for devices that run a server.
@@ -69,7 +78,7 @@ type AppEnvironment struct {
 	KeyFile string `yaml:"keyFile"` // app's key pair file location
 
 	// TokenFile holds the authentication token of the application.
-	// Intended for device authentication when using reverse connections.
+	// Intended for client or device authentication when using reverse connections.
 	// This is derived from the AppID: {certsDir}/{AppID}.token
 	TokenFile string `yaml:"tokenFile"` // app's auth token file location
 }
@@ -333,11 +342,13 @@ func NewAppEnvironment(homeDir string, withFlags bool) *AppEnvironment {
 		AppID:     appID,
 		ConfigDir: configDir,
 		// ConfigFile: configFile,
-		CertsDir: certsDir,
-		HomeDir:  homeDir,
-		KeyFile:  keyFile,
-		LogsDir:  logsDir,
-		LogLevel: logLevel,
+		CertsDir:  certsDir,
+		GrpcURL:   grpctransport.DefaultGrpcURL,
+		HttpsPort: transports.DefaultHttpsPort,
+		HomeDir:   homeDir,
+		KeyFile:   keyFile,
+		LogsDir:   logsDir,
+		LogLevel:  logLevel,
 		// PluginsDir: pluginsDir,
 		ServerURL: serverURL,
 		StoresDir: storesDir,

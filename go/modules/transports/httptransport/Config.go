@@ -20,15 +20,6 @@ type Config struct {
 	// NoTLS disables the use of TLS. For testing obviously
 	NoTLS bool `yaml:"noTLS,omitempty"`
 
-	// Authenticator for protected routes.
-	// The authenticator token validator MUST check for a valid clientID and token validity.
-	//
-	// This defaults to blocking all requests.
-	//
-	// Set to a custom function to perform actual token authentication.
-	// any transports.IAuthenticator implementation can provide a ValidateToken function.
-	Authenticator transports.IAuthenticator
-
 	// AuthRequestHandler authenticate requests on the protected route.
 	//
 	// This is optional for using a custom authentication mechanism.
@@ -39,7 +30,7 @@ type Config struct {
 	//
 	// Other authentication schemes can be implemented by providing your own
 	// function here.
-	AuthRequestHandler func(req *http.Request) (clientID string, err error) `yaml:"-"`
+	// AuthRequestHandler func(req *http.Request) (clientID string, err error) `yaml:"-"`
 
 	// CorsEnabled enables the use of net/http CORS and adds the relevant CORS
 	// headers to allow browser cross-domain calls in scripts.
@@ -94,20 +85,20 @@ type Config struct {
 // NewConfig creates options with defaults
 //
 //	addr is optional address, default is outbound address
-//	port is optional listening port, 0 for default 8444
+//	port is optional listening port, 0 for transports.DefaultHttpsPort
 //	serverCert TLS certificate signed by the CA
 //	caCert x509 CA certificate
 //	validateToken is the required handler for authenticating protected routes
 //	logging enable middleware logging
 func NewConfig(
 	addr string, port int, serverCert *tls.Certificate, caCert *x509.Certificate,
-	authenticator transports.IAuthenticator, logging bool) *Config {
+	logging bool) *Config {
 
 	if addr == "" {
 		addr = utils.GetOutboundIP("").String()
 	}
 	if port == 0 {
-		port = 8444
+		port = transports.DefaultHttpsPort
 	}
 
 	o := &Config{
@@ -116,8 +107,7 @@ func NewConfig(
 		ServerCert: serverCert,
 		CaCert:     caCert,
 		//
-		Authenticator:      authenticator,
-		AuthRequestHandler: nil, // use default handler provided by server
+		// AuthRequestHandler: nil, // use default handler provided by server
 		CorsEnabled:        false,
 		CorsAllowedOrigins: []string{"*"}, // replace this when enabling cors
 

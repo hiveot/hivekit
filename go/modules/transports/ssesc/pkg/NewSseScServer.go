@@ -1,8 +1,11 @@
 package ssescpkg
 
 import (
+	"fmt"
 	"time"
 
+	"github.com/hiveot/hivekit/go/modules"
+	factory "github.com/hiveot/hivekit/go/modules/factory"
 	"github.com/hiveot/hivekit/go/modules/transports"
 	"github.com/hiveot/hivekit/go/modules/transports/ssesc"
 	internal "github.com/hiveot/hivekit/go/modules/transports/ssesc/internal/server"
@@ -20,4 +23,15 @@ import (
 func NewSseScServer(httpServer transports.IHttpServer, respTimeout time.Duration) ssesc.ISseScTransportServer {
 	transport := internal.NewSseScServer(httpServer, respTimeout)
 	return transport
+}
+
+// Create a new instance of the Hiveot SSE-SC server using the factory environment
+// This loads the httpserver module
+func NewSseScServerFactory(f factory.IModuleFactory) (modules.IHiveModule, error) {
+	httpServer := f.GetHttpServer(true)
+	if httpServer == nil {
+		return nil, fmt.Errorf("NewSseScServerFactory: missing http server")
+	}
+	timeout := f.GetEnvironment().RpcTimeout
+	return NewSseScServer(httpServer, timeout), nil
 }

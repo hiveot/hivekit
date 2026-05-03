@@ -92,7 +92,7 @@ type IHttpServer interface {
 	// This enables the protected routes.
 	//
 	// Note that the authn module can provide this capability
-	SetAuthenticator(authenticator IAuthenticator)
+	// SetAuthenticator(authenticator IAuthenticator)
 
 	// Start the server and open the listening port
 	Start() error

@@ -27,7 +27,9 @@ type ModuleDefinition struct {
 	Type string
 
 	// the constructor function to create an instance of the module
-	Constructor func(f IModuleFactory) modules.IHiveModule
+	// This returns an error if the module cannot be created.
+	// This returns nil with no error for modules that are used for initialization.
+	Constructor func(f IModuleFactory) (modules.IHiveModule, error)
 }
 
 // IModuleFactory is the interface for the module factory, used to create and manage
@@ -102,11 +104,6 @@ type IModuleFactory interface {
 	// Note that GetAuthenticator returns a proxy to the actual authenticator.
 	// Intended for use by the module that offers authentication capabilities,
 	// such as the authn module. Other authentication modules can be used instead.
-	//
-	// NOTE: This should be deprecated. It is only here because the authentication module
-	// cannot be loaded first as it exposes a http api and needs the http server.
-	// TODO split this in 2 modules, one for authentication and another for
-	// serving the http API.
 	SetAuthenticator(a transports.IAuthenticator)
 
 	// StartRecipe registers all modules in a recipe, start and link them in the prescribed order

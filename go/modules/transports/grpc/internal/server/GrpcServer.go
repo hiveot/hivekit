@@ -138,13 +138,18 @@ func (m *GrpcServer) Stop() {
 // The address part of the URL is the full path to the socket, eg /run/myapp.sock, or
 // in case of TCP sockets, the host and port, eg localhost:50051 or simply :50051.
 //
-// connectURL is the URL to listen on, e.g. scheme://address used in creating a net.listener
-// tlsCert is the TLS certificate to use for secure connections, or nil for insecure
-// authn is the authenticator for verifying the client token
-// respTimeout is the time the server waits for a response when sending requests. defaults to 3sec
+//	connectURL is the URL to listen on, e.g. scheme://address used in creating a net.listener
+//	 use "" for default
+//	tlsCert is the TLS certificate to use for secure connections, or nil for insecure
+//	authn is the authenticator for verifying the client token
+//	respTimeout is the time the server waits for a response when sending requests. defaults to 3sec
 func NewGrpcServer(
 	connectURL string, tlsCert *tls.Certificate,
 	authn transports.IAuthenticator, respTimeout time.Duration) *GrpcServer {
+
+	if connectURL == "" {
+		connectURL = grpctransport.DefaultGrpcURL
+	}
 
 	srv := &GrpcServer{
 		authn:       authn,
