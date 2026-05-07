@@ -242,6 +242,9 @@ func (f *ModuleFactory) RegisterModule(moduleType string, moduleDef factory.Modu
 	f.moduleTable[moduleType] = moduleDef
 }
 
+// Set the authenticator to use with the module.
+// Intended to be set by a service like authn that performs actual authentication.
+// If nil is provided then disable authentication
 func (f *ModuleFactory) SetAuthenticator(impl transports.IAuthenticator) {
 	f.authProxy.SetAuthenticator(impl)
 }

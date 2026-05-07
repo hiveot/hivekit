@@ -481,6 +481,7 @@ func NewTlsClient(hostPort string, caCert *x509.Certificate, timeout time.Durati
 	}
 	cl := &TLSClient{
 		clientID:       clientID, // only set through client certificate
+		bearerToken:    "no-token-set",
 		hostPort:       hostPort,
 		httpClient:     httpClient,
 		http2Transport: http2Transport,

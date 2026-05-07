@@ -107,24 +107,21 @@ func (m *MyCounterDevice) HandleWriteProperty(req *msg.RequestMessage, replyTo m
 // Start the device module.
 func (m *MyCounterDevice) Start() error {
 	// publish the device TD
-
-	// FIXME: no use publishing a TD at start as the chain isnt complete yet
-	// when should a module publish its TD?
-	// a: on start - problem: module chain not ready
-	// b: external call 'get td' - doesnt work for agents
-	// c: when discovered, but not on start - when then?
-	// d: when directory/discovery goes online? - how to know?
-	// e: add a running state: init-started-running? publish on running - PITA
-	// f: push a callback - how does this differ from a, can still come too early
-	// g: on start but after a delay - ugly
-	// h: wait for a retrieveThing request - from whom? disco?
+	// wait until the chain is complete before publishing the TD for discovery.
 	go func() {
-		// option g
 		time.Sleep(time.Millisecond)
+		// write TD to the directory or discovery
 		err := m.InvokeAction(directory.DefaultDirectoryThingID,
 			directory.ActionCreateThing, CounterDeviceTM, nil)
 		_ = err
 	}()
+	// publish the latest property values
+	props := map[string]any{
+		CounterPropName: m.counter.Load(),
+	}
+	m.PubProperties(m.GetClientID(), props)
+	m.PubEvent(m.GetClientID(), CounterUpdatedEvent, m.counter.Load())
+
 	return nil
 }
 
@@ -132,11 +129,12 @@ func NewCounterDevice(agentID string) modules.IHiveModule {
 	m := &MyCounterDevice{
 		Agent: *clientspkg.NewAgent(agentID, nil),
 	}
+	m.counter.Store(42)
 	return m
 }
 
 func MyCounterModuleFactory(f factory.IModuleFactory) (modules.IHiveModule, error) {
-	agentID := DefaultCounterDeviceThingID
+	agentID := DefaultCounterDeviceThingID // must match the TD ID
 	m := NewCounterDevice(agentID)
 	return m, nil
 }

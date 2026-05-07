@@ -104,6 +104,9 @@ type IModuleFactory interface {
 	// Note that GetAuthenticator returns a proxy to the actual authenticator.
 	// Intended for use by the module that offers authentication capabilities,
 	// such as the authn module. Other authentication modules can be used instead.
+	//
+	// By default the authenticator proxy blocks all authentication.
+	// Setting a nil authenticator disables authentication.
 	SetAuthenticator(a transports.IAuthenticator)
 
 	// StartRecipe registers all modules in a recipe, start and link them in the prescribed order

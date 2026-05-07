@@ -25,16 +25,19 @@ A simple commandline utility to discover Things and Directories on the network a
 
 usage: go run example2/main.go [-h] [-td] [-txt] [-type=Thing|Directory] [-addr=192.168.x.y]
 
-### Example 3. CLI
+### Example 3. TUI
 
-The commandline interface interacts with discovered devices. Show properties, latest event and invoke actions (only those with a single input).
+Example 3 is a text UI shows discovered devices and their TD.
 
 usage: go run example3/main.go
 
 This displays a menu with options. Commands:
 
 - discover devices
-- read directory
+- list TDs
+- show selected TD (todo)
+- view properties and events on the selected TD (todo)
+- invoke actions on the selected TD (todo)
 
 ### Example 4. Gateway
 

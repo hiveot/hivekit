@@ -74,7 +74,7 @@ func (m *HttpTransportServer) DefaultAuthRequest(req *http.Request) (clientID st
 		}
 	}
 	if m.authenticator == nil {
-		err := fmt.Errorf("DefaultAuthenticate: Missing ValidateToken handler in configuration")
+		err := fmt.Errorf("DefaultAuthRequest: No authenticator set. Request denied")
 		return "", err
 	}
 	bearerToken, err := utils.GetBearerToken(req)

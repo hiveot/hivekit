@@ -76,7 +76,11 @@ func (ag *Agent) HandleReadRequests(req *msg.RequestMessage, replyTo msg.Respons
 		output = maps.Clone(state.events)
 
 	case td.OpReadAllProperties:
-		output = maps.Clone(state.properties)
+		props := make(map[string]any)
+		for k, notif := range state.properties {
+			props[k] = notif.ToString(0)
+		}
+		output = props
 
 	case td.HTOpReadEvent:
 		var key string
@@ -117,7 +121,14 @@ func (ag *Agent) HandleReadRequests(req *msg.RequestMessage, replyTo msg.Respons
 			}
 		}
 		output = props
-
+	case td.OpQueryAction:
+		actionResp, ok := state.actionResponse[req.Name]
+		if ok {
+			err = fmt.Errorf("Unknown action: %s", req.Name)
+		}
+		output = actionResp
+	case td.OpQueryAllActions:
+		output = maps.Clone(state.actionResponse)
 	default:
 		// not handled
 		err = fmt.Errorf("Unhandled operation '%s'", req.Operation)

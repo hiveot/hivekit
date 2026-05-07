@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"time"
 
 	"github.com/hiveot/hivekit/go/examples/example1/counterdevice"
 	"github.com/hiveot/hivekit/go/modules/certs"
@@ -69,7 +70,10 @@ func main() {
 	utils.SetLogging("info", "")
 	// start the factory using the default installation home directory
 	env := factory.NewAppEnvironment("~/bin/hiveot", true)
+	env.RpcTimeout = time.Minute
+
 	f := factorypkg.NewModuleFactory(env, nil)
+	f.SetAuthenticator(nil) // disable auth
 	err := f.Start()
 	if err != nil {
 		slog.Error("Startup failed")
