@@ -6,113 +6,181 @@ import (
 	"github.com/rivo/tview"
 )
 
+const (
+	PageLanding   = "landing"
+	PageThings    = "things"
+	PageDiscovery = "discovery"
+)
+
 // The main application view with panels for header, menu main view and footer
 // - header shows the current status
 // - menu shows quick actions for discovery and viewing TDs
 // - main shows details
 // - footer shows last action
-type AppView struct {
+type TuiApp struct {
 	model *wotmodel.WotModel
 
-	App    *tview.Application
+	View *tview.Application
+
+	pages *tview.Pages
+
+	landingPage *LandingPage
+	discoPage   *DiscoPage
+	thingsPage  *ThingsPage
+
 	grid   *tview.Grid
 	header *AppHeader
-	menu   *AppMenu
-	main   *AppMain
-	footer *AppFooter
 }
 
-func (appView *AppView) handleMenuEvent(ev string) {
+func (tui *TuiApp) handleEvent(ev string) {
 	switch ev {
 	case MenuEvDiscover:
-		appView.StartDiscovery()
+		tui.StartDiscovery()
 
 	case MenuEvListTDs:
-		appView.main.ShowThings()
+		tui.thingsPage.Refresh()
+		tui.pages.SwitchToPage(PageThings)
 
 	case MenuEvReadTD:
 	case MenuEvQuit:
-		appView.App.Stop()
+		tui.View.Stop()
 	}
 }
 
-// Start a discovery and refresh the header and main view.
-func (appView *AppView) StartDiscovery() {
+// Show the loaded things in the main view
+func (tui *TuiApp) ShowThings() {
+	tui.thingsPage.Refresh()
+	tui.pages.SwitchToPage(PageThings)
+}
 
-	mainView := appView.main.View
-	mainView.SetTitle(" Discovery of Directories and Things ")
-	mainView.SetText("Starting discovery...\n")
+// Show the discovery records
+func (tui *TuiApp) ShowDiscovery() {
+	tui.discoPage.Refresh()
+	tui.pages.SwitchToPage(PageDiscovery)
+}
+
+// Start a discovery and refresh the header and main view.
+func (tui *TuiApp) StartDiscovery() {
+
+	tui.landingPage.SetTitle(" Discovery of Directories and Things ")
+	tui.landingPage.SetText("\nStarting discovery...")
+	tui.pages.SwitchToPage(PageLanding)
+
 	go func() {
 		// TODO use a callback to update UI as results come in
-		appView.model.Discover()
-		appView.main.ShowDiscoRecords()
+		tui.model.Discover()
+		tui.ShowDiscovery()
 
 		// refresh
-		appView.App.QueueUpdateDraw(func() {
-			appView.header.Refresh()
-			appView.main.ShowDiscoRecords()
+		tui.View.QueueUpdateDraw(func() {
+			tui.header.Refresh()
+			tui.discoPage.Refresh()
 		})
 
 	}()
 }
 
-func (appView *AppView) Run() {
+func (tui *TuiApp) NextPage() {
+	var name string
+	var pageNr int
+	var pageNames = []string{PageLanding, PageDiscovery, PageThings}
 
-	if err := appView.App.SetRoot(appView.grid, true).
-		SetFocus(appView.menu.View).
-		// EnableMouse(true).
-		Run(); err != nil {
-		panic(err)
+	// determine the next page to show
+	currentPageName, _ := tui.pages.GetFrontPage()
+	// pageNames := tui.pages.GetPageNames(false)
+	for pageNr, name = range pageNames {
+		if name == currentPageName {
+			break
+		}
 	}
-
+	pageNr++
+	if pageNr >= len(pageNames) {
+		pageNr = 1 // do not show the landing page when rotating through pages
+	}
+	pageName := pageNames[pageNr]
+	tui.pages.SwitchToPage(pageName)
 }
 
-// Create a new instance of the application view
-func NewAppView(model *wotmodel.WotModel) *AppView {
+func (tui *TuiApp) Run() {
 
-	app := tview.NewApplication()
-	header := NewAppHeader(model)
-	menu := NewAppMenu(model)
-	main := NewAppMain(model)
-	footer := NewAppFooter(model)
-
-	grid := tview.NewGrid().
-		SetRows(3, 0, 3).
-		SetColumns(20, 0).
-		SetBorders(false).
-		AddItem(header.View, 0, 0, 1, 2, 0, 0, false).
-		AddItem(footer.View, 2, 0, 1, 2, 0, 0, false).
-		AddItem(menu.View, 1, 0, 1, 1, 0, 0, true).
-		AddItem(main.View, 1, 1, 1, 1, 0, 0, false)
-
-	appView := &AppView{
-		model:  model,
-		App:    app,
-		grid:   grid,
-		header: header,
-		main:   main,
-		menu:   menu,
-		footer: footer,
-	}
+	// tui.menu.SetHandler(tui.handleMenuEvent)
+	tui.header.SetHandler(tui.handleEvent)
 
 	// capture global key events
-	app.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
-		switch event.Key() {
+	tui.View.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+		switch event.Rune() {
 		case 'd':
-			app.SetFocus(menu.View)
+			tui.StartDiscovery()
+		case 't':
+			tui.ShowThings()
 		case 'q':
-			app.Stop()
+			tui.View.Stop()
+		}
+		switch event.Key() {
+		// tab-key rotates through pages
 		case tcell.KeyTab:
-			if menu.View.HasFocus() {
-				app.SetFocus(main.View)
-			} else {
-				app.SetFocus(menu.View)
-			}
+			tui.NextPage()
+			// if tui.menu.View.HasFocus() {
+			// 	tui.View.SetFocus(tui.main.View)
+			// } else {
+			// 	tui.View.SetFocus(tui.menu.View)
+			// }
 		}
 		return event
 	})
+	tui.pages.SwitchToPage(PageLanding)
+	tui.landingPage.Refresh()
+	// tui.View.SetFocus(tui.menu.View)
 
-	menu.SetHandler(appView.handleMenuEvent)
+	if err := tui.View.Run(); err != nil {
+		panic(err)
+	}
+}
 
-	return appView
+// Create a new instance of the application view
+func NewAppView(model *wotmodel.WotModel) *TuiApp {
+
+	appView := tview.NewApplication()
+	header := NewAppHeader(model)
+	header.View.SetBorderColor(tcell.ColorDarkGray)
+
+	pages := tview.NewPages()
+	LandingPage := NewLandingPage(model)
+	pages.AddPage(PageLanding, LandingPage, true, true)
+	discoPage := NewDiscoPage(model)
+	pages.AddPage(PageDiscovery, discoPage, true, false)
+	thingsPage := NewThingsPage(model)
+	pages.AddPage(PageThings, thingsPage, true, false)
+
+	// footer := NewAppFooter(model)
+	// footer.View.SetBorderColor(tcell.ColorDarkGray)
+
+	grid := tview.NewGrid().
+		SetRows(3, 0).
+		SetColumns(0).
+		// SetBorders(true).
+		AddItem(header.View, 0, 0, 1, 1, 0, 0, false).
+		AddItem(pages, 1, 0, 1, 1, 0, 0, true)
+
+	// grid := tview.NewFlex().SetDirection(tview.FlexRow).
+	// 	AddItem(header.View, 3, 0, false).
+	// 	AddItem(pages, 0, 1, true)
+
+	appView.SetRoot(grid, true).EnableMouse(true)
+
+	tuiApp := &TuiApp{
+		model:       model,
+		View:        appView,
+		grid:        grid,
+		header:      header,
+		pages:       pages,
+		landingPage: LandingPage,
+		discoPage:   discoPage,
+		thingsPage:  thingsPage,
+		// main:   main,
+		// menu:   menu,
+		// footer: footer,
+	}
+
+	return tuiApp
 }

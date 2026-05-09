@@ -46,10 +46,10 @@ func NewAppMenu(model *wotmodel.WotModel) *AppMenu {
 		menu.submit(MenuEvListTDs)
 		// StartDiscovery(app, cli, main)
 	})
-	view.AddItem("Read TD", "", 'r', func() {
-		menu.submit(MenuEvReadTD)
-		// StartDiscovery(app, cli, main)
-	})
+	// view.AddItem("[gray]View TD", "[red]select TD first", 'r', func() {
+	// 	menu.submit(MenuEvReadTD)
+	// 	// StartDiscovery(app, cli, main)
+	// })
 	view.AddItem("Quit", "", 'q', func() {
 		menu.submit(MenuEvQuit)
 	})

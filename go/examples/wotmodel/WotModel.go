@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/hiveot/hivekit/go/api/msg"
 	"github.com/hiveot/hivekit/go/api/td"
 	"github.com/hiveot/hivekit/go/modules"
 	"github.com/hiveot/hivekit/go/modules/clients"
@@ -79,6 +80,11 @@ func (model *WotModel) Discover() (err error) {
 			fmt.Printf(" Error reading TD: %s\n", err.Error())
 		}
 
+		// notify event listeners of the newly discovered record
+		// TODO: formalize this with a TD
+		notif := msg.NewNotificationMessage(model.GetClientID(),
+			msg.AffordanceTypeEvent, r.Instance, "discovery", r)
+		model.ForwardNotification(notif)
 		return false
 	})
 	return err
