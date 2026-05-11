@@ -15,6 +15,8 @@ import (
 const WoTTDContext = "https://www.w3.org/2022/wot/td/v1.1"
 const HiveOTContext = "https://www.hiveot.net/vocab/v0.1"
 
+const AtTypeDirectory = "ThingDirectory"
+
 type ErrInvalidTD struct{ error }
 
 // TD contains the Thing Description document
@@ -49,6 +51,7 @@ type TD struct {
 	// JSON-LD keyword to label the object with semantic tags (or types).
 	// in HiveOT this contains the device type defined in the vocabulary.
 	// Intended for grouping and querying similar devices, and standardized presentation such as icons
+	// Directory TD's have the "Directory" type, but they can also have a more specific type such as "LightDirectory"
 	AtType any `json:"@type,omitempty"`
 
 	// Base: The base URI that is used for all relative URI references throughout a TD document.
@@ -498,6 +501,24 @@ func (tdoc *TD) GetSecurityScheme() (scheme SecurityScheme, err error) {
 		return scheme, nil
 	}
 	return scheme, fmt.Errorf("unsupported security scheme in this TD")
+}
+
+// IsDirectory returns true if the TD represents a directory
+// Directories are identified by the @type "ThingDirectory" keyword.
+func (tdoc *TD) IsDirectory() bool {
+	if tdoc.AtType != nil {
+		switch tdoc.AtType.(type) {
+		case string:
+			return tdoc.AtType == AtTypeDirectory
+		case []string:
+			for _, t := range tdoc.AtType.([]string) {
+				if t == AtTypeDirectory {
+					return true
+				}
+			}
+		}
+	}
+	return false
 }
 
 // LoadFromJSON loads this TD from the given JSON encoded string

@@ -7,9 +7,25 @@ import (
 )
 
 const (
-	PageLanding   = "landing"
-	PageThings    = "things"
-	PageDiscovery = "discovery"
+	PageLanding     = "landing"
+	PageThings      = "things"
+	PageDirectories = "directories"
+	PageDiscovery   = "discovery"
+	PageModal       = "modal"
+)
+
+// menu events
+const (
+	MenuEvClose           = "close"
+	MenuEvDiscover        = "discover"
+	MenuEvListTDs         = "listTDs"
+	MenuEvNextPage        = "nextPage"
+	MenuEvShowDiscovered  = "showDiscovered"
+	MenuEvShowDirectory   = "showDirectory"
+	MenuEvShowDirectories = "showDirectories"
+	MenuEvShowTD          = "showTD"
+	MenuEvShowThings      = "showThings"
+	MenuEvQuit            = "quit"
 )
 
 // The main application view with panels for header, menu main view and footer
@@ -18,66 +34,68 @@ const (
 // - main shows details
 // - footer shows last action
 type TuiApp struct {
+	tview.Application
+
 	model *wotmodel.WotModel
 
-	View *tview.Application
+	menu *TreeMenu
 
 	pages *tview.Pages
 
-	landingPage *LandingPage
-	discoPage   *DiscoPage
-	thingsPage  *ThingsPage
+	directoriesPage *DirectoriesPage
+	discoPage       *DiscoPage
+	landingPage     *LandingPage
+	tdPage          *TDPage
+	thingsPage      *ThingsPage
 
 	grid   *tview.Grid
 	header *AppHeader
+	footer *AppFooter
 }
 
-func (tui *TuiApp) handleEvent(ev string) {
+func (tui *TuiApp) handleEvent(args ...string) {
+
+	ev := args[0]
+
 	switch ev {
+	case MenuEvClose:
+		tui.pages.HidePage(PageModal)
+
 	case MenuEvDiscover:
 		tui.StartDiscovery()
 
 	case MenuEvListTDs:
-		tui.thingsPage.Refresh()
-		tui.pages.SwitchToPage(PageThings)
+		if len(tui.model.GetThings()) > 0 {
+			tui.thingsPage.Refresh()
+			tui.pages.SwitchToPage(PageThings)
+		}
 
-	case MenuEvReadTD:
-	case MenuEvQuit:
-		tui.View.Stop()
-	}
-}
+	case MenuEvNextPage:
+		if len(tui.model.GetThings()) > 0 {
+			tui.NextPage()
+			tui.SetFocus(tui.pages)
+		}
 
-// Show the loaded things in the main view
-func (tui *TuiApp) ShowThings() {
-	tui.thingsPage.Refresh()
-	tui.pages.SwitchToPage(PageThings)
-}
-
-// Show the discovery records
-func (tui *TuiApp) ShowDiscovery() {
-	tui.discoPage.Refresh()
-	tui.pages.SwitchToPage(PageDiscovery)
-}
-
-// Start a discovery and refresh the header and main view.
-func (tui *TuiApp) StartDiscovery() {
-
-	tui.landingPage.SetTitle(" Discovery of Directories and Things ")
-	tui.landingPage.SetText("\nStarting discovery...")
-	tui.pages.SwitchToPage(PageLanding)
-
-	go func() {
-		// TODO use a callback to update UI as results come in
-		tui.model.Discover()
+	case MenuEvShowDiscovered:
 		tui.ShowDiscovery()
 
-		// refresh
-		tui.View.QueueUpdateDraw(func() {
-			tui.header.Refresh()
-			tui.discoPage.Refresh()
-		})
+	case MenuEvShowDirectories:
+		tui.ShowDirectories()
 
-	}()
+	case MenuEvShowThings:
+		tui.ShowThings()
+
+	case MenuEvShowTD:
+		if len(args) > 1 {
+			thingID := args[1]
+			tui.ShowThingModal(thingID)
+		} else {
+			tui.ShowThings()
+		}
+
+	case MenuEvQuit:
+		tui.Stop()
+	}
 }
 
 func (tui *TuiApp) NextPage() {
@@ -101,38 +119,90 @@ func (tui *TuiApp) NextPage() {
 	tui.pages.SwitchToPage(pageName)
 }
 
+func (tui *TuiApp) ShowDirectories() {
+	tui.directoriesPage.Refresh()
+	tui.pages.SwitchToPage(PageDirectories)
+}
+
+// Show the discovery records
+func (tui *TuiApp) ShowDiscovery() {
+	tui.discoPage.Refresh()
+	tui.pages.SwitchToPage(PageDiscovery)
+}
+
+func (tui *TuiApp) ShowThingModal(thingID string) {
+	tui.tdPage.Refresh(thingID)
+	// tui.pages.SwitchToPage(PageModal)
+	// do not switch to the modal page, but just show it on top of the current page
+	tui.pages.ShowPage(PageModal)
+}
+
+// Show the loaded things in the main view
+func (tui *TuiApp) ShowThings() {
+	tui.thingsPage.Refresh()
+	tui.pages.SwitchToPage(PageThings)
+}
+
+// Start a discovery and refresh the header and main view.
+func (tui *TuiApp) StartDiscovery() {
+
+	tui.landingPage.SetTitle(" Discovery of Directories and Things ")
+	tui.landingPage.SetText("\nStarting discovery...")
+	tui.pages.SwitchToPage(PageLanding)
+
+	go func() {
+		// TODO use a callback to update UI as results come in
+		tui.model.Discover()
+		tui.ShowDiscovery()
+
+		// refresh
+		tui.QueueUpdateDraw(func() {
+			tui.header.Refresh()
+			tui.footer.Refresh()
+			tui.menu.Refresh()
+			tui.discoPage.Refresh()
+		})
+
+	}()
+}
+
+// Start the application
 func (tui *TuiApp) Run() {
 
-	// tui.menu.SetHandler(tui.handleMenuEvent)
-	tui.header.SetHandler(tui.handleEvent)
+	tui.footer.SetHandler(tui.handleEvent)
+	tui.tdPage.SetHandler(tui.handleEvent)
+	tui.thingsPage.SetHandler(tui.handleEvent)
+	tui.menu.SetHandler(tui.handleEvent)
 
 	// capture global key events
-	tui.View.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+	tui.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		switch event.Rune() {
 		case 'd':
-			tui.StartDiscovery()
-		case 't':
-			tui.ShowThings()
+			tui.handleEvent(MenuEvDiscover)
+		case 'l':
+			tui.handleEvent(MenuEvListTDs)
 		case 'q':
-			tui.View.Stop()
+			tui.handleEvent(MenuEvQuit)
 		}
 		switch event.Key() {
-		// tab-key rotates through pages
+		// tab-key switches between menu and pages
 		case tcell.KeyTab:
-			tui.NextPage()
-			// if tui.menu.View.HasFocus() {
-			// 	tui.View.SetFocus(tui.main.View)
-			// } else {
-			// 	tui.View.SetFocus(tui.menu.View)
-			// }
+			if tui.menu.HasFocus() {
+				tui.SetFocus(tui.pages)
+			} else {
+				tui.SetFocus(tui.menu)
+			}
 		}
 		return event
 	})
 	tui.pages.SwitchToPage(PageLanding)
 	tui.landingPage.Refresh()
-	// tui.View.SetFocus(tui.menu.View)
+	tui.menu.Refresh()
 
-	if err := tui.View.Run(); err != nil {
+	// start discovery in the background, this will update the UI when results come in
+	go tui.StartDiscovery()
+
+	if err := tui.Application.Run(); err != nil {
 		panic(err)
 	}
 }
@@ -140,47 +210,58 @@ func (tui *TuiApp) Run() {
 // Create a new instance of the application view
 func NewAppView(model *wotmodel.WotModel) *TuiApp {
 
-	appView := tview.NewApplication()
 	header := NewAppHeader(model)
 	header.View.SetBorderColor(tcell.ColorDarkGray)
 
 	pages := tview.NewPages()
-	LandingPage := NewLandingPage(model)
-	pages.AddPage(PageLanding, LandingPage, true, true)
+
+	menu := NewTreeMenu(model)
+
+	directoriesPage := NewDirectoriesPage(model)
+	pages.AddPage(PageDirectories, directoriesPage, true, false)
+
 	discoPage := NewDiscoPage(model)
 	pages.AddPage(PageDiscovery, discoPage, true, false)
+
+	landingPage := NewLandingPage(model)
+	pages.AddPage(PageLanding, landingPage, true, false)
+
 	thingsPage := NewThingsPage(model)
 	pages.AddPage(PageThings, thingsPage, true, false)
 
-	// footer := NewAppFooter(model)
-	// footer.View.SetBorderColor(tcell.ColorDarkGray)
+	footer := NewAppFooter(model)
+	footer.View.SetBorderColor(tcell.ColorDarkGray)
+
+	tdPage := NewTDPage(model)
+	pages.AddPage(PageModal, tdPage, true, false)
 
 	grid := tview.NewGrid().
-		SetRows(3, 0).
-		SetColumns(0).
-		// SetBorders(true).
-		AddItem(header.View, 0, 0, 1, 1, 0, 0, false).
-		AddItem(pages, 1, 0, 1, 1, 0, 0, true)
-
-	// grid := tview.NewFlex().SetDirection(tview.FlexRow).
-	// 	AddItem(header.View, 3, 0, false).
-	// 	AddItem(pages, 0, 1, true)
-
-	appView.SetRoot(grid, true).EnableMouse(true)
+		SetRows(3, 0, 1).
+		SetColumns(30, 0).
+		AddItem(header.View, 0, 0, 1, 2, 0, 0, false).
+		AddItem(menu, 1, 0, 1, 1, 0, 0, true).
+		AddItem(pages, 1, 1, 1, 1, 0, 0, true).
+		AddItem(footer.View, 2, 0, 1, 2, 0, 0, false)
 
 	tuiApp := &TuiApp{
+		Application: *tview.NewApplication(),
 		model:       model,
-		View:        appView,
-		grid:        grid,
-		header:      header,
-		pages:       pages,
-		landingPage: LandingPage,
-		discoPage:   discoPage,
-		thingsPage:  thingsPage,
-		// main:   main,
-		// menu:   menu,
-		// footer: footer,
+
+		// grid layout
+		grid:   grid,
+		header: header,
+		menu:   menu,
+		pages:  pages,
+		footer: footer,
+
+		// pages
+		directoriesPage: directoriesPage,
+		discoPage:       discoPage,
+		landingPage:     landingPage,
+		tdPage:          tdPage,
+		thingsPage:      thingsPage,
 	}
+	tuiApp.SetRoot(grid, true).EnableMouse(true)
 
 	return tuiApp
 }

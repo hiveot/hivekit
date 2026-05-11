@@ -20,12 +20,12 @@ func (v *DiscoPage) addTitle(title string, row int, col int) int {
 	v.SetCell(row, col,
 		tview.NewTableCell(title).
 			SetTextColor(v.titleColor).SetSelectable(false))
-	return col+1
+	return col + 1
 }
 func (v *DiscoPage) addData(content string, row int, col int) int {
 	v.SetCell(row, col,
 		tview.NewTableCell(content).SetSelectable(true))
-	return col+1
+	return col + 1
 }
 
 // Show the discovered records in the main view

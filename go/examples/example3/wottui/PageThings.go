@@ -12,72 +12,14 @@ import (
 	"github.com/rivo/tview"
 )
 
-// // Show the loaded things in the main view
-// // this rotates through different tables
-// func (appMain *AppMain) ShowThings() {
-
-// 	viewNr := appMain.thingViewNr
-// 	appMain.thingViewNr++
-// 	if appMain.thingViewNr > 2 {
-// 		appMain.thingViewNr = 0
-// 	}
-// 	appMain.View.SetTitle(fmt.Sprintf(" Discovered Things - page %d ", viewNr))
-
-// 	tdList := appMain.model.GetThings()
-// 	lines := []string{}
-
-// 	// todo: use selectable columns
-// 	switch viewNr {
-// 	case 0:
-// 		lines = append(lines, "Thing ID                     Title                         Security       Base URL")
-// 		lines = append(lines, "---------------------------  ----------------------------  ----------")
-// 		for thingID, tdoc := range tdList {
-// 			propNames := []string{}
-// 			for name := range tdoc.Properties {
-// 				propNames = append(propNames, name)
-// 			}
-// 			lines = append(lines,
-// 				fmt.Sprintf("%-28s %-28.28s  %s",
-// 					thingID, tdoc.Title, tdoc.Base))
-
-// 		}
-// 	case 1:
-// 		lines = append(lines, "Thing ID                     Title                         #Props #Events #Actions  Modified (local)")
-// 		lines = append(lines, "---------------------------  ----------------------------  ------ ------- --------  ----------------")
-// 		for thingID, tdoc := range tdList {
-// 			modified := dateparse.MustParse(tdoc.Modified).Local()
-
-// 			lines = append(lines,
-// 				fmt.Sprintf("%-28s %-28.28s %6d %7d %8d   %-16s",
-// 					thingID, tdoc.Title, len(tdoc.Properties), len(tdoc.Events), len(tdoc.Actions),
-// 					modified.Format("2006-01-02 15:04")))
-
-// 		}
-// 	case 2:
-// 		lines = append(lines, "Thing ID                     Title                         Actions")
-// 		lines = append(lines, "---------------------------  ----------------------------  ----------")
-// 		for thingID, tdoc := range tdList {
-// 			names := []string{}
-// 			for name := range tdoc.Actions {
-// 				names = append(names, name)
-// 			}
-// 			lines = append(lines,
-// 				fmt.Sprintf("%-28s %-28.28s  %s",
-// 					thingID, tdoc.Title, strings.Join(names, ", ")))
-
-// 		}
-// 	}
-// 	lines = append(lines, "")
-// 	lines = append(lines, fmt.Sprintf("%d things found", len(tdList)))
-// 	content := strings.Join(lines, "\n")
-// 	appMain.View.SetText(content)
-// }
-
+// Show the loaded things in the main view
+// this rotates through different tabl
 type ThingsPage struct {
 	tview.Table
 	model       *wotmodel.WotModel
 	thingViewNr int
 	titleColor  tcell.Color
+	evHandler   func(ev ...string)
 }
 
 // add a cell to the table and return the increased column number
@@ -91,6 +33,15 @@ func (v *ThingsPage) addData(content string, row int, col int) int {
 	v.SetCell(row, col,
 		tview.NewTableCell(content).SetSelectable(true))
 	return col + 1
+}
+
+// Return the thingID of the selected row, or empty string if not found
+func (v *ThingsPage) GetThingID(row int) string {
+	cell := v.GetCell(row, 0)
+	if cell == nil {
+		return ""
+	}
+	return cell.Text
 }
 
 // Show the loaded things in the main view
@@ -109,6 +60,7 @@ func (v *ThingsPage) Refresh() {
 
 	tdList := v.model.GetThings()
 	lines := []string{}
+	// start with an empty table
 	v.Clear()
 	v.titleColor = tview.Styles.TertiaryTextColor
 	col := v.addTitle("ThingID", 0, 0)
@@ -157,6 +109,17 @@ func (v *ThingsPage) Refresh() {
 	lines = append(lines, fmt.Sprintf("%d things found", len(tdList)))
 }
 
+func (footer *ThingsPage) SetHandler(h func(ev ...string)) {
+	footer.evHandler = h
+}
+
+// send event when a thing is selected
+func (v *ThingsPage) submitEvent(ev string, thingID string) {
+	if v.evHandler != nil {
+		v.evHandler(ev, thingID)
+	}
+}
+
 // Return a new page with a table of known thing TDs
 func NewThingsPage(model *wotmodel.WotModel) *ThingsPage {
 
@@ -165,8 +128,12 @@ func NewThingsPage(model *wotmodel.WotModel) *ThingsPage {
 		model:       model,
 		thingViewNr: 0,
 	}
-	thingsPage.SetBorder(true)
 	thingsPage.Refresh()
+	thingsPage.SetBorder(true)
+	thingsPage.Table.SetSelectedFunc(func(row int, column int) {
+		thingID := thingsPage.GetThingID(row)
+		thingsPage.submitEvent(MenuEvShowTD, thingID)
+	})
 
 	return thingsPage
 }

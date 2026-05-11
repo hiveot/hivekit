@@ -34,6 +34,9 @@ type WotModel struct {
 	// todo right now this is a placeholder
 	caCert *x509.Certificate
 
+	// discovered directories by directoryID
+	directories map[string]*td.TD
+
 	// the connection this module links to
 	// connection transports.ITransportClient
 
@@ -44,12 +47,18 @@ type WotModel struct {
 	things map[string]*td.TD
 }
 
+// Return a list of discovered directories
+func (model *WotModel) GetDirectories() map[string]*td.TD {
+	return model.directories
+}
+
+// Return a list of discovered things
 func (model *WotModel) GetThings() map[string]*td.TD {
 	return model.things
 }
 
 // Load the TD from the discovery record URL
-// This adds the TD to the known things and returns the TD, or an error
+// This adds the TD to the known things or directories and returns the TD, or an error
 func (model *WotModel) LoadDiscoveredTD(r *discoverypkg.DiscoveryResult) (tdoc *td.TD, err error) {
 
 	tdURL := r.AsURL()
@@ -58,7 +67,12 @@ func (model *WotModel) LoadDiscoveredTD(r *discoverypkg.DiscoveryResult) (tdoc *
 		raw, _ := io.ReadAll(resp.Body)
 		tdoc, err = td.UnmarshalTD(string(raw))
 	}
-	if err == nil {
+	if err != nil {
+		return nil, err
+	}
+	if r.IsDirectory {
+		model.directories[tdoc.ID] = tdoc
+	} else {
 		model.things[tdoc.ID] = tdoc
 	}
 	return tdoc, err
@@ -77,7 +91,7 @@ func (model *WotModel) Discover() (err error) {
 		_, err := model.LoadDiscoveredTD(r)
 
 		if err != nil {
-			fmt.Printf(" Error reading TD: %s\n", err.Error())
+			slog.Error("Error reading TD", "err", err.Error())
 		}
 
 		// notify event listeners of the newly discovered record
@@ -102,19 +116,21 @@ func (model *WotModel) ReadDirTDs(dirTD *td.TD, limit int) {
 	slog.Info("ReadDirTDs completed", "count", n)
 }
 
-// ReadThing reads the properties of the Thing and display a list of values
+// ReadThing reads the properties of the Thing and returns a text document
+// containing a list of values.
 // Note that without credentials this can fails
-func (model *WotModel) ReadThing(thingID string) {
+func (model *WotModel) ReadThing(thingID string) []string {
+	lines := []string{}
 	tdoc, found := model.things[thingID]
 	if !found {
-		fmt.Println("No TD for thing: " + thingID)
-		return
+		slog.Warn("No TD for thing: " + thingID)
+		return nil
 	}
-	fmt.Printf("")
-	fmt.Printf("ThingID:     %s\n", tdoc.ID)
-	fmt.Printf("Title:       %s\n", tdoc.Title)
-	fmt.Printf("Type:        %s\n", tdoc.AtType)
-	fmt.Printf("Description: %s\n", tdoc.Description)
+	lines = append(lines, fmt.Sprintf("Thing ID: %s", thingID))
+	lines = append(lines, fmt.Sprintf("ThingID:     %s\n", tdoc.ID))
+	lines = append(lines, fmt.Sprintf("Title:       %s\n", tdoc.Title))
+	lines = append(lines, fmt.Sprintf("Type:        %s\n", tdoc.AtType))
+	lines = append(lines, fmt.Sprintf("Description: %s\n", tdoc.Description))
 
 	c, err := clients.NewTransportClientFromTD(tdoc, model.caCert, nil)
 	if err == nil {
@@ -128,51 +144,52 @@ func (model *WotModel) ReadThing(thingID string) {
 		slog.Warn("ReadThing: failed", "err", err.Error())
 	}
 
-	fmt.Printf("Properties: (%d)\n", len(tdoc.Properties))
+	lines = append(lines, fmt.Sprintf("Properties: (%d)\n", len(tdoc.Properties)))
 	propValues, err := model.ReadAllProperties(thingID)
 	if err != nil {
-		fmt.Printf("   ERROR: %s\n", err.Error())
+		slog.Error("ReadAllProperties Failed", "err", err.Error())
 	} else {
 		for name := range tdoc.Properties {
 			propVal, found := propValues[name]
 			if found {
-				fmt.Printf("   %s: %v\n", name, propVal)
+				lines = append(lines, fmt.Sprintf("   %s: %v\n", name, propVal))
 			} else {
-				fmt.Printf("   %s: %s\n", name, propValues[name])
+				lines = append(lines, fmt.Sprintf("   %s: %s\n", name, propValues[name]))
 			}
 		}
 	}
 
-	fmt.Printf("Events: (%d)\n", len(tdoc.Events))
+	lines = append(lines, fmt.Sprintf("Events: (%d)\n", len(tdoc.Events)))
 	eventValues, err := model.ReadAllEvents(thingID)
 	if err != nil {
-		fmt.Printf("   ERROR: %s\n", err.Error())
+		slog.Error("ReadAllEvents Failed", "err", err.Error())
 	} else {
 		// list events defined in the TD with their value
 		for name := range tdoc.Events {
 			evVal, found := eventValues[name]
 			if found {
-				fmt.Printf("   %s: %s at %s\n", name, evVal.ToString(0), evVal.Timestamp)
+				lines = append(lines, fmt.Sprintf("   %s: %s at %s\n", name, evVal.ToString(0), evVal.Timestamp))
 			} else {
-				fmt.Printf("   %s: %s\n", name, "n/a")
+				lines = append(lines, fmt.Sprintf("   %s: %s\n", name, "n/a"))
 			}
 		}
 	}
 
-	fmt.Printf("Actions: (%d)\n", len(tdoc.Actions))
+	lines = append(lines, fmt.Sprintf("Actions: (%d)\n", len(tdoc.Actions)))
 	actionValues, err := model.QueryAllActions(thingID)
 	if err != nil {
-		fmt.Printf("   ERROR: %s\n", err.Error())
+		slog.Error("QueryAllActions Failed", "err", err.Error())
 	} else {
 		for name := range tdoc.Actions {
 			av, found := actionValues[name]
 			if found {
-				fmt.Printf("   %s: %s\n", name, av.Status)
+				lines = append(lines, fmt.Sprintf("   %s: %s\n", name, av.Status))
 			} else {
-				fmt.Printf("   %s\n", name)
+				lines = append(lines, fmt.Sprintf("   %s\n", name))
 			}
 		}
 	}
+	return lines
 }
 
 // ShowSummary shows a summary of discovery and things
@@ -183,10 +200,11 @@ func (model *WotModel) ReadThing(thingID string) {
 
 func NewWotModel() *WotModel {
 	cl := &WotModel{
-		records:   make([]*discoverypkg.DiscoveryResult, 0),
-		things:    make(map[string]*td.TD),
-		Consumer:  *clientspkg.NewConsumer(""),
-		authToken: "no-token",
+		records:     make([]*discoverypkg.DiscoveryResult, 0),
+		directories: make(map[string]*td.TD),
+		things:      make(map[string]*td.TD),
+		Consumer:    *clientspkg.NewConsumer(""),
+		authToken:   "no-token",
 	}
 	return cl
 }
