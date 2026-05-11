@@ -1,6 +1,9 @@
 package wottui
 
 import (
+	"fmt"
+	"strings"
+
 	"github.com/hiveot/hivekit/go/examples/wotmodel"
 	"github.com/rivo/tview"
 )
@@ -17,27 +20,51 @@ func (page *TDPage) Refresh(thingID string) {
 	tdList := page.model.GetThings()
 	tdoc, found := tdList[thingID]
 	if !found {
+		tdList := page.model.GetDirectories()
+		tdoc, found = tdList[thingID]
+	}
+	if !found {
 		page.SetText("Thing not found: " + thingID)
 		return
 	}
+	secScheme, _ := tdoc.GetSecurityScheme()
+	lines := []string{}
+	lines = append(lines, fmt.Sprintf("Thing ID: %s", thingID))
+	lines = append(lines, fmt.Sprintf("Title: %s", tdoc.Title))
+	lines = append(lines, fmt.Sprintf("Base URL: %s", tdoc.Base))
+	lines = append(lines, fmt.Sprintf("Modified: %s", tdoc.Modified))
+	lines = append(lines, fmt.Sprintf("Security: %s (%s)", secScheme.Scheme, secScheme.Description))
 
-	text := "Thing ID: " + thingID + "\n"
-	text += "Title: " + tdoc.Title + "\n"
-	text += "Base URL: " + tdoc.Base + "\n"
-	// text += "Security: " + tdoc.Security[0].Scheme + "\n"
-	text += "Properties:\n"
+	lines = append(lines, "Properties:")
 	for name, aff := range tdoc.Properties {
-		text += "  - " + name + ": " + aff.Type + "\n"
+		lines = append(lines, fmt.Sprintf("  %s: %s (%s)", name, aff.Title, aff.Type))
 	}
-	text += "Events:\n"
+	lines = append(lines, "Events:")
 	for name, aff := range tdoc.Events {
-		text += "  - " + name + ": " + aff.Data.Type + "\n"
+		lines = append(lines, fmt.Sprintf("  %s: %s (%s)", name, aff.Title, aff.Data.Type))
 	}
-	text += "Actions:\n"
+	lines = append(lines, "Actions:")
 	for name, aff := range tdoc.Actions {
-		text += "  - " + name + ": " + aff.Title + "\n"
+		lines = append(lines, fmt.Sprintf("  %s: %s ", name, aff.Title))
+		if aff.Input != nil {
+			lines = append(lines, fmt.Sprintf("     Input: %s (%s)", aff.Input.Title, aff.Input.Type))
+		}
+		if aff.Output != nil {
+			lines = append(lines, fmt.Sprintf("     Output: %s (%s)", aff.Output.Title, aff.Output.Type))
+		}
 	}
-	page.SetText(text)
+	if len(tdoc.Forms) > 0 {
+		lines = append(lines, "Forms:")
+		for _, form := range tdoc.Forms {
+			subProto, hasSubProto := form.GetSubprotocol()
+			_ = hasSubProto
+			href := form.GetHRef()
+			lines = append(lines,
+				fmt.Sprintf("  %v: %s href=%s", form.GetOperations(), subProto, href))
+		}
+
+	}
+	page.SetText(strings.Join(lines, "\n"))
 }
 
 func (page *TDPage) SetHandler(h func(ev ...string)) {
@@ -56,6 +83,7 @@ func NewTDPage(model *wotmodel.WotModel) *TDPage {
 		TextView: *tview.NewTextView(),
 		model:    model,
 	}
+	page.SetTitle(" TD ")
 	page.SetBorder(true)
 
 	return page

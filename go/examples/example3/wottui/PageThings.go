@@ -131,8 +131,9 @@ func NewThingsPage(model *wotmodel.WotModel) *ThingsPage {
 	thingsPage.Refresh()
 	thingsPage.SetBorder(true)
 	thingsPage.Table.SetSelectedFunc(func(row int, column int) {
+		// Select a Thing from the list and show its details
 		thingID := thingsPage.GetThingID(row)
-		thingsPage.submitEvent(MenuEvShowTD, thingID)
+		thingsPage.submitEvent(MenuEvSelectTD, thingID)
 	})
 
 	return thingsPage

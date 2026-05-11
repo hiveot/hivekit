@@ -45,7 +45,7 @@ func (v *DirectoriesPage) GetDirectoryID(row int) string {
 func (v *DirectoriesPage) Refresh() {
 	v.titleColor = tview.Styles.TertiaryTextColor
 
-	v.SetTitle(fmt.Sprintf(" Discovered Directories"))
+	v.SetTitle(" Discovered Directories ")
 	v.SetBorders(false)
 	v.SetSelectable(true, false)
 

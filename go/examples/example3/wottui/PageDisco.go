@@ -31,11 +31,13 @@ func (v *DiscoPage) addData(content string, row int, col int) int {
 // Show the discovered records in the main view
 func (v *DiscoPage) Refresh() {
 
-	v.SetTitle(" Discovery Records ")
 	v.SetBorders(false)
 	v.SetSelectable(true, false)
 
 	records := v.model.GetRecords()
+	if len(records) > 0 {
+		v.SetTitle(" Discovered Records ")
+	}
 	v.titleColor = tview.Styles.TertiaryTextColor
 
 	col := v.addTitle("Type", 0, 0)
@@ -59,13 +61,15 @@ func (v *DiscoPage) Refresh() {
 // Create a new discovery table page
 func NewDiscoPage(model *wotmodel.WotModel) *DiscoPage {
 
-	recordsView := &DiscoPage{
+	discoPage := &DiscoPage{
 		Table: *tview.NewTable(),
 		model: model,
 	}
-	recordsView.SetBorder(true)
-	recordsView.SetFixed(1, 1)
-	recordsView.Refresh()
+	discoPage.SetBorder(true)
+	discoPage.SetFixed(1, 1)
+	discoPage.SetTitle(" Discovery ")
 
-	return recordsView
+	discoPage.Refresh()
+
+	return discoPage
 }

@@ -22,7 +22,7 @@ func (m *TreeMenu) HandleSelection(node *tview.TreeNode) {
 	} else if node == m.things {
 		m.submitEvent(MenuEvShowThings, "")
 	} else if ref == nil {
-		// root node has not reference, show discovered things
+		// root node has no reference, show discovered things
 		m.submitEvent(MenuEvShowDiscovered, "")
 	} else {
 		thingID := node.GetReference().(string)
@@ -36,16 +36,29 @@ func (m *TreeMenu) HandleSelection(node *tview.TreeNode) {
 // Refresh the menu with the latest discovered things and directories
 func (m *TreeMenu) Refresh() {
 
-	things := m.model.GetThings()
 	m.dirs.ClearChildren()
+	dirs := m.model.GetDirectories()
+	for dirID, td := range dirs {
+		treeNode := tview.NewTreeNode(td.Title)
+		treeNode.SetReference(dirID)
+		m.dirs.AddChild(treeNode)
+	}
+
+	things := m.model.GetThings()
 	m.things.ClearChildren()
 	for thingID, td := range things {
-		recNode := tview.NewTreeNode(td.Title)
-		recNode.SetReference(thingID)
-		if td.IsDirectory() {
-			m.dirs.AddChild(recNode)
-		} else {
-			m.things.AddChild(recNode)
+		treeNode := tview.NewTreeNode(td.Title)
+		treeNode.SetReference(thingID)
+		m.things.AddChild(treeNode)
+	}
+}
+
+// Select the Thing in the tree view
+func (m *TreeMenu) SelectThing(thingID string) {
+	for _, node := range m.things.GetChildren() {
+		if node.GetReference() == thingID {
+			m.SetCurrentNode(node)
+			return
 		}
 	}
 }
@@ -70,7 +83,9 @@ func NewTreeMenu(model *wotmodel.WotModel) *TreeMenu {
 	menu.SetRoot(menu.root)
 	menu.root.SetSelectable(true)
 	menu.SetCurrentNode(menu.root)
-	menu.SetChangedFunc(menu.HandleSelection)
+	menu.SetChangedFunc(func(node *tview.TreeNode) {
+		menu.HandleSelection(node)
+	})
 	// menu.SetSelectedFunc(menu.HandleSelection)
 	menu.dirs = tview.NewTreeNode("Directories")
 	menu.things = tview.NewTreeNode("Things")

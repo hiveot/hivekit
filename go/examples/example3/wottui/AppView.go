@@ -7,11 +7,11 @@ import (
 )
 
 const (
-	PageLanding     = "landing"
+	// PageLanding     = "landing"
 	PageThings      = "things"
 	PageDirectories = "directories"
 	PageDiscovery   = "discovery"
-	PageModal       = "modal"
+	PageTD          = "td"
 )
 
 // menu events
@@ -20,6 +20,7 @@ const (
 	MenuEvDiscover        = "discover"
 	MenuEvListTDs         = "listTDs"
 	MenuEvNextPage        = "nextPage"
+	MenuEvSelectTD        = "selectTD"
 	MenuEvShowDiscovered  = "showDiscovered"
 	MenuEvShowDirectory   = "showDirectory"
 	MenuEvShowDirectories = "showDirectories"
@@ -44,64 +45,67 @@ type TuiApp struct {
 
 	directoriesPage *DirectoriesPage
 	discoPage       *DiscoPage
-	landingPage     *LandingPage
-	tdPage          *TDPage
-	thingsPage      *ThingsPage
+	// landingPage     *LandingPage
+	tdPage     *TDPage
+	thingsPage *ThingsPage
 
 	grid   *tview.Grid
 	header *AppHeader
 	footer *AppFooter
 }
 
+// handle event in the background
 func (tui *TuiApp) handleEvent(args ...string) {
 
 	ev := args[0]
+	go func() {
+		switch ev {
 
-	switch ev {
-	case MenuEvClose:
-		tui.pages.HidePage(PageModal)
+		case MenuEvDiscover:
+			tui.StartDiscovery()
 
-	case MenuEvDiscover:
-		tui.StartDiscovery()
+		case MenuEvListTDs:
+			if len(tui.model.GetThings()) > 0 {
+				tui.thingsPage.Refresh()
+				tui.pages.SwitchToPage(PageThings)
+			}
 
-	case MenuEvListTDs:
-		if len(tui.model.GetThings()) > 0 {
-			tui.thingsPage.Refresh()
-			tui.pages.SwitchToPage(PageThings)
-		}
+		case MenuEvNextPage:
+			if len(tui.model.GetThings()) > 0 {
+				tui.NextPage()
+				tui.SetFocus(tui.pages)
+			}
 
-	case MenuEvNextPage:
-		if len(tui.model.GetThings()) > 0 {
-			tui.NextPage()
-			tui.SetFocus(tui.pages)
-		}
+		case MenuEvShowDiscovered:
+			tui.ShowDiscovery()
 
-	case MenuEvShowDiscovered:
-		tui.ShowDiscovery()
+		case MenuEvShowDirectories:
+			tui.ShowDirectories()
 
-	case MenuEvShowDirectories:
-		tui.ShowDirectories()
+		case MenuEvSelectTD:
+			tui.SelectTD(args[1])
 
-	case MenuEvShowThings:
-		tui.ShowThings()
-
-	case MenuEvShowTD:
-		if len(args) > 1 {
-			thingID := args[1]
-			tui.ShowThingModal(thingID)
-		} else {
+		case MenuEvShowThings:
 			tui.ShowThings()
-		}
 
-	case MenuEvQuit:
-		tui.Stop()
-	}
+		case MenuEvShowTD:
+			if len(args) > 1 {
+				thingID := args[1]
+				tui.ShowTD(thingID)
+			} else {
+				tui.ShowThings()
+			}
+
+		case MenuEvQuit:
+			tui.Stop()
+		}
+	}()
 }
 
 func (tui *TuiApp) NextPage() {
 	var name string
 	var pageNr int
-	var pageNames = []string{PageLanding, PageDiscovery, PageThings}
+	var pageNames = []string{PageDiscovery, PageThings}
 
 	// determine the next page to show
 	currentPageName, _ := tui.pages.GetFrontPage()
@@ -119,6 +123,14 @@ func (tui *TuiApp) NextPage() {
 	tui.pages.SwitchToPage(pageName)
 }
 
+// Select a TD in the menu. This is called by the ThingList to select a thing in the menu
+// which in turn updates the TD view.
+func (tui *TuiApp) SelectTD(thingID string) {
+	// tui.QueueUpdate(func() {
+	tui.menu.SelectThing(thingID)
+	// })
+}
+
 func (tui *TuiApp) ShowDirectories() {
 	tui.directoriesPage.Refresh()
 	tui.pages.SwitchToPage(PageDirectories)
@@ -130,11 +142,11 @@ func (tui *TuiApp) ShowDiscovery() {
 	tui.pages.SwitchToPage(PageDiscovery)
 }
 
-func (tui *TuiApp) ShowThingModal(thingID string) {
+// Show the TD page with the thingID details
+func (tui *TuiApp) ShowTD(thingID string) {
+	tui.pages.SwitchToPage(PageTD)
 	tui.tdPage.Refresh(thingID)
-	// tui.pages.SwitchToPage(PageModal)
-	// do not switch to the modal page, but just show it on top of the current page
-	tui.pages.ShowPage(PageModal)
+	tui.Draw()
 }
 
 // Show the loaded things in the main view
@@ -146,9 +158,8 @@ func (tui *TuiApp) ShowThings() {
 // Start a discovery and refresh the header and main view.
 func (tui *TuiApp) StartDiscovery() {
 
-	tui.landingPage.SetTitle(" Discovery of Directories and Things ")
-	tui.landingPage.SetText("\nStarting discovery...")
-	tui.pages.SwitchToPage(PageLanding)
+	tui.discoPage.SetTitle(" Starting discovery... ")
+	tui.pages.SwitchToPage(PageDiscovery)
 
 	go func() {
 		// TODO use a callback to update UI as results come in
@@ -160,6 +171,8 @@ func (tui *TuiApp) StartDiscovery() {
 			tui.header.Refresh()
 			tui.footer.Refresh()
 			tui.menu.Refresh()
+			tui.thingsPage.Refresh()
+			tui.directoriesPage.Refresh()
 			tui.discoPage.Refresh()
 		})
 
@@ -195,8 +208,6 @@ func (tui *TuiApp) Run() {
 		}
 		return event
 	})
-	tui.pages.SwitchToPage(PageLanding)
-	tui.landingPage.Refresh()
 	tui.menu.Refresh()
 
 	// start discovery in the background, this will update the UI when results come in
@@ -223,8 +234,8 @@ func NewAppView(model *wotmodel.WotModel) *TuiApp {
 	discoPage := NewDiscoPage(model)
 	pages.AddPage(PageDiscovery, discoPage, true, false)
 
-	landingPage := NewLandingPage(model)
-	pages.AddPage(PageLanding, landingPage, true, false)
+	// landingPage := NewLandingPage(model)
+	// pages.AddPage(PageLanding, landingPage, true, false)
 
 	thingsPage := NewThingsPage(model)
 	pages.AddPage(PageThings, thingsPage, true, false)
@@ -233,7 +244,7 @@ func NewAppView(model *wotmodel.WotModel) *TuiApp {
 	footer.View.SetBorderColor(tcell.ColorDarkGray)
 
 	tdPage := NewTDPage(model)
-	pages.AddPage(PageModal, tdPage, true, false)
+	pages.AddPage(PageTD, tdPage, true, false)
 
 	grid := tview.NewGrid().
 		SetRows(3, 0, 1).
@@ -257,9 +268,9 @@ func NewAppView(model *wotmodel.WotModel) *TuiApp {
 		// pages
 		directoriesPage: directoriesPage,
 		discoPage:       discoPage,
-		landingPage:     landingPage,
-		tdPage:          tdPage,
-		thingsPage:      thingsPage,
+		// landingPage:     landingPage,
+		tdPage:     tdPage,
+		thingsPage: thingsPage,
 	}
 	tuiApp.SetRoot(grid, true).EnableMouse(true)
 
