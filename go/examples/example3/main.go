@@ -11,7 +11,9 @@ import (
 )
 
 func main() {
-	utils.SetLogging("warn", "")
+	// utils.SetLogging("warn", "")
+	// log to file to avoid messing up the tui
+	utils.SetLogging("info", "/tmp/example3.log")
 
 	// Ignore the certificate check just for this example. Dont do this at home.
 	http.DefaultTransport.(*http.Transport).TLSClientConfig = &tls.Config{InsecureSkipVerify: true}

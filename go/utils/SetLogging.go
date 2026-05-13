@@ -54,8 +54,9 @@ func SetLogging(levelName string, logFilename string) *slog.Logger {
 	if logFilename != "" {
 		logFile, err := os.OpenFile(logFilename, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0644)
 		if err == nil {
-			// log to both stdout and to file
-			logWriter = io.MultiWriter(os.Stdout, logFile)
+			logWriter = logFile
+			// 	// log to both stdout and to file
+			// 	logWriter = io.MultiWriter(os.Stdout, logFile)
 		}
 	}
 	handler := tint.NewHandler(logWriter, opts)

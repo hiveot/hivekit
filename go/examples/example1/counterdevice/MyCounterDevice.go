@@ -72,16 +72,22 @@ func (m *MyCounterDevice) HandleRequest(req *msg.RequestMessage, replyTo msg.Res
 func (m *MyCounterDevice) HandleDecrement(req *msg.RequestMessage, replyTo msg.ResponseHandler) (err error) {
 	m.counter.Add(-1)
 	resp := req.CreateResponse(nil, nil)
-	err = replyTo(resp)
+	if replyTo != nil {
+		err = replyTo(resp)
+	}
 	// PubEvent makes the last event available via HandleReadRequests
+	m.PubProperty(req.ThingID, CounterPropName, m.counter.Load())
 	m.PubEvent(req.ThingID, CounterUpdatedEvent, m.counter.Load())
 	return err
 }
 func (m *MyCounterDevice) HandleIncrement(req *msg.RequestMessage, replyTo msg.ResponseHandler) (err error) {
 	m.counter.Add(1)
 	resp := req.CreateResponse(nil, nil)
-	err = replyTo(resp)
-	// PubEvent makes the last event available via HandleReadRequests
+	if replyTo != nil {
+		err = replyTo(resp)
+	}
+	// Send both a property update and event notification
+	m.PubProperty(req.ThingID, CounterPropName, m.counter.Load())
 	m.PubEvent(req.ThingID, CounterUpdatedEvent, m.counter.Load())
 	return err
 }
@@ -95,8 +101,9 @@ func (m *MyCounterDevice) HandleWriteProperty(req *msg.RequestMessage, replyTo m
 		m.PubProperty(req.ThingID, req.Name, newValue)
 	}
 	resp := req.CreateResponse(nil, err)
-	err = replyTo(resp)
-
+	if replyTo != nil {
+		err = replyTo(resp)
+	}
 	if err == nil {
 		// PubEvent makes the last event available via HandleReadRequests
 		m.PubEvent(req.ThingID, CounterUpdatedEvent, m.counter.Load())

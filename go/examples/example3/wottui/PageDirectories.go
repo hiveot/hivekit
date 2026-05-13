@@ -1,10 +1,7 @@
 package wottui
 
 import (
-	"fmt"
-
 	"github.com/araddon/dateparse"
-	"github.com/gdamore/tcell/v2"
 	"github.com/hiveot/hivekit/go/examples/wotmodel"
 	"github.com/hiveot/hivekit/go/utils"
 	"github.com/rivo/tview"
@@ -12,24 +9,23 @@ import (
 
 // Show the loaded directories in the main view
 type DirectoriesPage struct {
-	tview.Table
-	model      *wotmodel.WotModel
-	titleColor tcell.Color
-	evHandler  func(ev ...string)
+	TuiTable
+	model     *wotmodel.WotModel
+	evHandler func(ev ...string)
 }
 
-// add a cell to the table and return the increased column number
-func (v *DirectoriesPage) addTitle(title string, row int, col int) int {
-	v.SetCell(row, col,
-		tview.NewTableCell(title).
-			SetTextColor(v.titleColor).SetSelectable(false))
-	return col + 1
-}
-func (v *DirectoriesPage) addData(content string, row int, col int) int {
-	v.SetCell(row, col,
-		tview.NewTableCell(content).SetSelectable(true))
-	return col + 1
-}
+// // add a cell to the table and return the increased column number
+// func (v *DirectoriesPage) addTitle(title string, row int, col int) int {
+// 	v.SetCell(row, col,
+// 		tview.NewTableCell(title).
+// 			SetTextColor(v.titleColor).SetSelectable(false))
+// 	return col + 1
+// }
+// func (v *DirectoriesPage) addData(content string, row int, col int) int {
+// 	v.SetCell(row, col,
+// 		tview.NewTableCell(content).SetSelectable(true))
+// 	return col + 1
+// }
 
 // Return the directoryID of the selected row, or empty string if not found
 func (v *DirectoriesPage) GetDirectoryID(row int) string {
@@ -50,30 +46,19 @@ func (v *DirectoriesPage) Refresh() {
 	v.SetSelectable(true, false)
 
 	tdList := v.model.GetDirectories()
-	lines := []string{}
+
 	// start with an empty table
 	v.Clear()
-	v.titleColor = tview.Styles.TertiaryTextColor
-	col := v.addTitle("DirectoryID", 0, 0)
-	col = v.addTitle("Title", 0, col)
-	col = v.addTitle("Security", 0, col)
-	col = v.addTitle("Base URL", 0, col)
-	col = v.addTitle("Modified", 0, col)
-
+	v.SetTitleRow(0, "DirectoryID", "Title", "Security", "Base URL", "Modified")
 	row := 0
 	for thingID, tdoc := range tdList {
 		row++
 		sec := utils.DecodeAsString(tdoc.Security, 20)
 		modified := dateparse.MustParse(tdoc.Modified).Local()
+		modString := modified.Format("2006-01-02 15:04")
 
-		col := v.addData(thingID, row, 0)
-		col = v.addData(tdoc.Title, row, col)
-		col = v.addData(sec, row, col)
-		col = v.addData(tdoc.Base, row, col)
-		col = v.addData(modified.Format("2006-01-02 15:04"), row, col)
+		v.SetDataRow(row, thingID, tdoc.Title, sec, tdoc.Base, modString)
 	}
-	lines = append(lines, "")
-	lines = append(lines, fmt.Sprintf("%d directories found", len(tdList)))
 }
 
 func (footer *DirectoriesPage) SetHandler(h func(ev ...string)) {
@@ -91,8 +76,8 @@ func (v *DirectoriesPage) submitEvent(ev string, thingID string) {
 func NewDirectoriesPage(model *wotmodel.WotModel) *DirectoriesPage {
 
 	directoriesPage := &DirectoriesPage{
-		Table: *tview.NewTable(),
-		model: model,
+		TuiTable: *NewTuiTable(tview.Styles.TertiaryTextColor),
+		model:    model,
 	}
 	directoriesPage.SetBorder(true)
 	directoriesPage.Refresh()

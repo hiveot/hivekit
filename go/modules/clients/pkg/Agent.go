@@ -83,28 +83,22 @@ func (ag *Agent) HandleReadRequests(req *msg.RequestMessage, replyTo msg.Respons
 		output = props
 
 	case td.HTOpReadEvent:
-		var key string
-		err = req.Decode(&key)
-		if err != nil {
-			break
-		}
-		output, found = state.events[key]
+		output, found = state.events[req.Name]
 		if !found {
-			err = fmt.Errorf("Unknown event '%s'", key)
+			err = fmt.Errorf("Unknown event '%s'", req.Name)
 		}
 
 	case td.OpReadProperty:
-		var key string
-		err = req.Decode(&key)
-		if err != nil {
-			break
-		}
-		output, found = state.properties[key]
+		notif, found := state.properties[req.Name]
+		// not this returns the last known value so no info on when it changed.
+		// TODO: internally hiveot should always work with the full notification
+		output = notif.Data
 		if !found {
-			err = fmt.Errorf("Unknown property '%s'", key)
+			err = fmt.Errorf("Unknown property '%s'", req.Name)
 		}
 
 	case td.OpReadMultipleProperties:
+
 		var keys []string
 		err = req.Decode(&keys)
 		if err != nil {

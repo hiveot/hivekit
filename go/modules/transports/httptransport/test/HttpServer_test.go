@@ -95,8 +95,9 @@ func TestNoAuth(t *testing.T) {
 	router.Get(path1, func(w http.ResponseWriter, req *http.Request) {
 		// expect no bearer token
 		bearerToken, err := utils.GetBearerToken(req)
-		assert.Error(t, err)
-		assert.Empty(t, bearerToken)
+		assert.NoError(t, err)
+		// the client below sets a default token
+		assert.Equal(t, "no-token-set", bearerToken)
 		slog.Info("TestNoAuth: path1 hit")
 		path1Hit++
 	})

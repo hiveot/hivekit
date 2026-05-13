@@ -9,6 +9,7 @@ import (
 	"sync"
 	"syscall"
 
+	"github.com/hiveot/hivekit/go/api/msg"
 	"github.com/hiveot/hivekit/go/api/td"
 	"github.com/hiveot/hivekit/go/modules"
 	"github.com/hiveot/hivekit/go/modules/factory"
@@ -185,6 +186,15 @@ func (f *ModuleFactory) GetTransportServers() []transports.ITransportServer {
 	copy(tpList, f.transportModules)
 	f.mux.RUnlock()
 	return tpList
+}
+
+// Pass request to the first loaded module in the factory
+func (f *ModuleFactory) HandleRequest(req *msg.RequestMessage, replyTo msg.ResponseHandler) error {
+	m := f.GetFirstModule()
+	if m == nil {
+		return fmt.Errorf("No modules in the factory chain")
+	}
+	return m.HandleRequest(req, replyTo)
 }
 
 // LoadModule loads an instance of a module without starting it.

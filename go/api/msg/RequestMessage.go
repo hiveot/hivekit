@@ -61,6 +61,14 @@ type RequestMessage struct {
 
 	// Name of the event, action or property affordance the request is for.
 	// This field is optional and only required for specific operations.
+	//
+	// FIXME: it is inconsistent that read property passes it in Name while
+	// readMultiple expects an input parameter. options?
+	// 1. make Name any
+	// 2. add a second property []Names
+	// 3. remove it and always use input
+	// Note that the result is always in response Output. why would input for a few ops
+	// warrant a separate property?
 	Name string `json:"name,omitempty"`
 
 	// The operation for this message as defined in TD-1.1 (WotOp...)

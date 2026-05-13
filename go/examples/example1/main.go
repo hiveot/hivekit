@@ -6,6 +6,8 @@ import (
 	"log/slog"
 	"time"
 
+	"github.com/hiveot/hivekit/go/api/msg"
+	"github.com/hiveot/hivekit/go/api/td"
 	"github.com/hiveot/hivekit/go/examples/example1/counterdevice"
 	"github.com/hiveot/hivekit/go/modules/certs"
 	certspkg "github.com/hiveot/hivekit/go/modules/certs/pkg"
@@ -83,6 +85,12 @@ func main() {
 	// run it with the recipe
 	r := factorypkg.NewFactoryRecipe(recipe.ModuleDefs, recipe.ModuleChain)
 	r.Start(f)
+
+	// increment the counter to generate an event
+	m, err := f.GetModule(counterdevice.CounterDeviceModuleType, false)
+	req := msg.NewRequestMessage("", td.OpInvokeAction,
+		counterdevice.DefaultCounterDeviceThingID, counterdevice.IncrementActionName, nil, "")
+	_ = m.HandleRequest(req, nil)
 
 	fmt.Printf("Counter is running and listening on '%s'\n", f.GetConnectURL())
 	fmt.Printf("Use the cli from example 2 to read its status\n")

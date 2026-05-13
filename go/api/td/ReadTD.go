@@ -3,6 +3,7 @@ package td
 import (
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"os"
 	"path"
 	"path/filepath"
@@ -19,7 +20,8 @@ func ForEachTD(tdDir string, handler func(sourceFile string, tdi *TD)) {
 		// 1: load the TD
 		tdi, err := ReadTDFromFile(sourceFile)
 		if err != nil {
-			fmt.Printf("file '%s' is not a valid TD JSON file: %s", sourceFile, err)
+			err := fmt.Errorf("file '%s' is not a valid TD JSON file: %s", sourceFile, err)
+			slog.Warn(err.Error())
 		} else {
 			// Invoke the handler
 			handler(sourceFile, tdi)
@@ -45,7 +47,6 @@ func GetSourceFilesInDir(sourceDir string) ([]string, error) {
 		if strings.ToLower(ext) != ".json" {
 			continue
 		} else {
-			//fmt.Printf("Adding %s\n", name)
 			fullPath := filepath.Join(sourceDir, entry.Name())
 			sourceFiles = append(sourceFiles, fullPath)
 		}

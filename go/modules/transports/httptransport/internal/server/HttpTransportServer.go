@@ -77,10 +77,12 @@ func (m *HttpTransportServer) DefaultAuthRequest(req *http.Request) (clientID st
 		err := fmt.Errorf("DefaultAuthRequest: No authenticator set. Request denied")
 		return "", err
 	}
+
 	bearerToken, err := utils.GetBearerToken(req)
-	if err != nil {
-		return "", err
-	}
+	// accept missing bearer token if authentication doesn't require one
+	// if err != nil {
+	// 	return "", err
+	// }
 	//check if the token is properly signed and still valid
 	clientID, issuedAt, validUntil, err := m.authenticator.ValidateToken(bearerToken)
 	if err != nil {

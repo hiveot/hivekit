@@ -7,6 +7,7 @@ require (
 	github.com/alexedwards/argon2id v1.0.0
 	github.com/araddon/dateparse v0.0.0-20210429162001-6b43995a97de
 	github.com/cockroachdb/pebble v1.1.5
+	github.com/cstockton/go-conv v1.0.0
 	github.com/fsnotify/fsnotify v1.9.0
 	github.com/gdamore/tcell/v2 v2.8.1
 	github.com/go-chi/chi/v5 v5.2.5

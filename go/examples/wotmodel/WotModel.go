@@ -6,6 +6,7 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
+	"sync"
 	"time"
 
 	"github.com/hiveot/hivekit/go/api/msg"
@@ -14,6 +15,7 @@ import (
 	"github.com/hiveot/hivekit/go/modules/clients"
 	clientspkg "github.com/hiveot/hivekit/go/modules/clients/pkg"
 	"github.com/hiveot/hivekit/go/modules/factory"
+	"github.com/hiveot/hivekit/go/modules/transports"
 	discoverypkg "github.com/hiveot/hivekit/go/modules/transports/discovery/pkg"
 )
 
@@ -34,6 +36,9 @@ type WotModel struct {
 	// todo right now this is a placeholder
 	caCert *x509.Certificate
 
+	// existing connections by thingID
+	clients map[string]transports.ITransportClient
+
 	// discovered directories by directoryID
 	directories map[string]*td.TD
 
@@ -45,37 +50,30 @@ type WotModel struct {
 
 	// discovered things by thingID
 	things map[string]*td.TD
+
+	mux sync.RWMutex
 }
 
-// Return a list of discovered directories
-func (model *WotModel) GetDirectories() map[string]*td.TD {
-	return model.directories
-}
-
-// Return a list of discovered things
-func (model *WotModel) GetThings() map[string]*td.TD {
-	return model.things
-}
-
-// Load the TD from the discovery record URL
-// This adds the TD to the known things or directories and returns the TD, or an error
-func (model *WotModel) LoadDiscoveredTD(r *discoverypkg.DiscoveryResult) (tdoc *td.TD, err error) {
-
-	tdURL := r.AsURL()
-	resp, err := http.Get(tdURL)
+// Create a Thing connection using the TD of the thingID
+func (model *WotModel) Connect(thingID string) (transports.ITransportClient, error) {
+	model.mux.Lock()
+	defer model.mux.Unlock()
+	c, found := model.clients[thingID]
+	if found {
+		return c, nil
+	}
+	tdoc, found := model.things[thingID]
+	if !found {
+		return nil, fmt.Errorf("No TD for thing %s", thingID)
+	}
+	c, err := clients.NewTransportClientFromTD(tdoc, model.caCert, nil)
 	if err == nil {
-		raw, _ := io.ReadAll(resp.Body)
-		tdoc, err = td.UnmarshalTD(string(raw))
+		err = fmt.Errorf("n/c")
+		// FIXME: determine clientID and token
+		err = c.ConnectWithToken("", "")
+		model.clients[thingID] = c
 	}
-	if err != nil {
-		return nil, err
-	}
-	if r.IsDirectory {
-		model.directories[tdoc.ID] = tdoc
-	} else {
-		model.things[tdoc.ID] = tdoc
-	}
-	return tdoc, err
+	return c, err
 }
 
 // Discover all published things and directories
@@ -104,8 +102,67 @@ func (model *WotModel) Discover() (err error) {
 	return err
 }
 
+// Return a list of discovered directories
+func (model *WotModel) GetDirectories() map[string]*td.TD {
+	return model.directories
+}
+
+// Return a list of discovered things
+func (model *WotModel) GetThings() map[string]*td.TD {
+	return model.things
+}
+
+func (model *WotModel) GetConnection(thingID string) (c transports.ITransportClient, found bool) {
+	model.mux.RLock()
+	defer model.mux.RUnlock()
+
+	c, found = model.clients[thingID]
+	return c, found
+}
+
 func (model *WotModel) GetRecords() []*discoverypkg.DiscoveryResult {
 	return model.records
+}
+
+// return the property value as a string
+// This establishes a connection if it doesn't yet exist
+func (model *WotModel) GetPropValue(thingID string, name string) string {
+	var err error
+	c, found := model.GetConnection(thingID)
+	if !found {
+		// c, err = model.Connect(thingID)
+		return ""
+	}
+	if err != nil {
+		return err.Error()
+	}
+	req := msg.NewRequestMessage("", td.OpReadProperty, thingID, name, nil, "")
+	resp, err := msg.ForwardRequestWait(req, c.HandleRequest, msg.DefaultRnRTimeout)
+	if err != nil {
+		return err.Error()
+	}
+	return resp.ToString(0)
+}
+
+// Load the TD from the discovery record URL
+// This adds the TD to the known things or directories and returns the TD, or an error
+func (model *WotModel) LoadDiscoveredTD(r *discoverypkg.DiscoveryResult) (tdoc *td.TD, err error) {
+
+	tdURL := r.AsURL()
+	resp, err := http.Get(tdURL)
+	if err == nil {
+		raw, _ := io.ReadAll(resp.Body)
+		tdoc, err = td.UnmarshalTD(string(raw))
+	}
+	if err != nil {
+		return nil, err
+	}
+	if r.IsDirectory {
+		model.directories[tdoc.ID] = tdoc
+	} else {
+		model.things[tdoc.ID] = tdoc
+	}
+	return tdoc, err
 }
 
 // ReadDirectory reads all the TD in the discovered directory, up to the given limit
@@ -200,11 +257,12 @@ func (model *WotModel) ReadThing(thingID string) []string {
 
 func NewWotModel() *WotModel {
 	cl := &WotModel{
+		authToken:   "no-token",
 		records:     make([]*discoverypkg.DiscoveryResult, 0),
+		clients:     make(map[string]transports.ITransportClient),
+		Consumer:    *clientspkg.NewConsumer(""),
 		directories: make(map[string]*td.TD),
 		things:      make(map[string]*td.TD),
-		Consumer:    *clientspkg.NewConsumer(""),
-		authToken:   "no-token",
 	}
 	return cl
 }

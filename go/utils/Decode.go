@@ -1,11 +1,9 @@
 package utils
 
 import (
-	"fmt"
 	"log/slog"
-	"strconv"
-	"strings"
 
+	"github.com/cstockton/go-conv"
 	jsoniter "github.com/json-iterator/go"
 )
 
@@ -13,35 +11,68 @@ import (
 // If the output type is a native type then also consider using one of the DecodeAs...
 // methods as these are likely more performant.
 // This returns an error if conversion fails.
-func Decode(value any, arg interface{}) error {
+func Decode(value any, arg any) (err error) {
+
 	if value == nil || arg == nil {
 		arg = nil
 		return nil
 	}
-	// the ugly workaround is to marshal/unmarshal using json.
-	// TODO: more efficient method to convert the any type to the given type.
-	jsonData, _ := jsoniter.MarshalToString(value)
-	return jsoniter.UnmarshalFromString(jsonData, arg)
+	switch a := arg.(type) {
+	case *bool:
+		*a, err = conv.Bool(value)
+	case *[]byte:
+		s, err2 := conv.String(value)
+		err = err2
+		*a = []byte(s)
+	case *string:
+		*a, err = conv.String(value)
+	case *int:
+		*a, err = conv.Int(value)
+	case *int16:
+		*a, err = conv.Int16(value)
+	case *int32:
+		*a, err = conv.Int32(value)
+	case *uint:
+		*a, err = conv.Uint(value)
+	case *uint32:
+		*a, err = conv.Uint32(value)
+	case *uint64:
+		*a, err = conv.Uint64(value)
+	case *float32:
+		*a, err = conv.Float32(value)
+	case *float64:
+		*a, err = conv.Float64(value)
+	default:
+		// the ugly workaround is to marshal/unmarshal using json.
+		// TODO: more efficient method to convert the any type to the given type.
+		jsonData, _ := jsoniter.MarshalToString(value)
+		err = jsoniter.UnmarshalFromString(jsonData, arg)
+	}
+	return err
 }
 
 // DecodeAsString converts the value to a string
 // if value is already a string then it is returned as-is
 // if maxlen is provided then limit the resulting length and add ... if exceeded. Use 0 for all.
 func DecodeAsString(value any, maxlen int) string {
+	asString, err := conv.String(value)
+	if err != nil {
+		return ""
+	}
 	if value == nil {
 		return ""
 	}
-	asString := ""
-	switch value.(type) {
-	case []byte:
-		asString = string(value.([]byte))
-	case string:
-		asString = value.(string)
-	case *string:
-		asString = *value.(*string)
-	default:
-		asString = fmt.Sprintf("%v", value)
-	}
+	// asString := ""
+	// switch v2 := value.(type) {
+	// case []byte:
+	// 	asString = string(v2)
+	// case string:
+	// 	asString = v2
+	// case *string:
+	// 	asString = *v2
+	// default:
+	// 	asString = fmt.Sprintf("%v", value)
+	// }
 	if maxlen <= 0 || len(asString) <= maxlen {
 		return asString
 	}
@@ -51,23 +82,11 @@ func DecodeAsString(value any, maxlen int) string {
 // DecodeAsBool converts the value to a boolean.
 // If value is already a boolean then it is returned as-is.
 func DecodeAsBool(value any) bool {
-	b := false
-	if value == nil {
-		return false
-	}
-	switch value.(type) {
-	case bool:
-		b = value.(bool)
-	case *bool:
-		b = *value.(*bool)
-	case string:
-		b = strings.ToLower(value.(string)) == "true" || value.(string) == "1" || value.(string) == "on"
-	case int:
-		b = value.(int) != 0
-	default:
+	asBool, err := conv.Bool(value)
+	if err != nil {
 		slog.Warn("Can't convert value to a boolean", "value", value)
 	}
-	return b
+	return asBool
 }
 
 // DecodeAsInt converts the value to an integer.
@@ -75,52 +94,33 @@ func DecodeAsBool(value any) bool {
 // If value is already an integer then it is returned as-is.
 // If value > int (eg int64) then the result is unpredicable
 func DecodeAsInt(value any) int {
-	var i int = 0
-	switch value.(type) {
-	case bool:
-		if value.(bool) {
-			i = 1
-		}
-	case string:
-		i64, _ := strconv.ParseInt(value.(string), 10, 64)
-		i = int(i64)
-	case *int:
-		i = *value.(*int)
-	case int:
-		i = value.(int)
-	case int64:
-		i = int(value.(int64))
-	case uint:
-		i = int(value.(uint))
-	case float32:
-		i = int(value.(float32))
-	case float64:
-		i = int(value.(float64))
-	default:
+	asInt, err := conv.Int(value)
+	if err != nil {
 		slog.Warn("Can't convert value to a integer", "value", value)
 	}
-	return i
+	return asInt
+}
+
+// DecodeAsUInt converts the value to an unsigned integer.
+// This accepts uint, uint64, *uint, bool, uint, float32/64
+// If value is already an integer then it is returned as-is.
+// If value > int (eg int64) then the result is unpredicable
+func DecodeAsUint(value any) uint {
+	asUint, err := conv.Uint(value)
+	if err != nil {
+		slog.Warn("Can't convert value to a integer", "value", value)
+	}
+	return asUint
 }
 
 // DecodeAsNumber converts the value to a float32 number.
 // If value is already a float32 then it is returned as-is.
 func DecodeAsNumber(value any) float32 {
-	f := float32(0)
-
-	switch value.(type) {
-	case float32:
-		f = value.(float32)
-	case *float32:
-		f = *value.(*float32)
-	case float64:
-		f = float32(value.(float64))
-	case *float64:
-		f = float32(*value.(*float64))
-	case string:
-		f32, _ := strconv.ParseFloat(value.(string), 32)
-		f = float32(f32)
+	asFloat32, err := conv.Float32(value)
+	if err != nil {
+		slog.Warn("Can't convert value to a float", "value", value)
 	}
-	return f
+	return asFloat32
 }
 
 // DecodeAsObject converts the value to an object.

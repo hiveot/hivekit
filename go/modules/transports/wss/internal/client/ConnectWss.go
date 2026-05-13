@@ -61,7 +61,9 @@ func ConnectWSS(
 	}
 
 	wssHeader := http.Header{}
-	wssHeader.Add("Authorization", "bearer "+bearerToken)
+	if bearerToken != "" {
+		wssHeader.Add("Authorization", "bearer "+bearerToken)
+	}
 	wssHeader.Add(transports.ConnectionIDHeader, cid)
 	//parts, _ := url.Parse(hostPort)
 	//origin := fmt.Sprintf("%s://%s", parts.Scheme, parts.Host)
