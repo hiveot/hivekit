@@ -3,7 +3,7 @@ package wottui
 import (
 	"fmt"
 
-	"github.com/hiveot/hivekit/go/examples/wotmodel"
+	"github.com/hiveot/hivekit/go/examples/wotco"
 	"github.com/rivo/tview"
 )
 
@@ -11,7 +11,7 @@ import (
 type AppHeader struct {
 	View  *tview.Flex
 	text  *tview.TextView
-	model *wotmodel.WotModel
+	model *wotco.WotConsumer
 }
 
 // Reload the text being shown using updated values
@@ -23,7 +23,7 @@ func (header *AppHeader) Refresh() {
 }
 
 // Create a new instance of the application view
-func NewAppHeader(model *wotmodel.WotModel) *AppHeader {
+func NewAppHeader(model *wotco.WotConsumer) *AppHeader {
 	view := tview.NewFlex().SetDirection(tview.FlexColumn)
 	text := tview.NewTextView().SetTextAlign(tview.AlignLeft).
 		SetText("Start 'Discover' to find devices on the network")

@@ -7,7 +7,7 @@ import (
 
 	"github.com/araddon/dateparse"
 	"github.com/gdamore/tcell/v2"
-	"github.com/hiveot/hivekit/go/examples/wotmodel"
+	"github.com/hiveot/hivekit/go/examples/wotco"
 	"github.com/hiveot/hivekit/go/utils"
 	"github.com/rivo/tview"
 )
@@ -16,7 +16,7 @@ import (
 // this rotates through different tabl
 type ThingsPage struct {
 	tview.Table
-	model       *wotmodel.WotModel
+	model       *wotco.WotConsumer
 	thingViewNr int
 	titleColor  tcell.Color
 	evHandler   func(ev ...string)
@@ -121,7 +121,7 @@ func (v *ThingsPage) submitEvent(ev string, thingID string) {
 }
 
 // Return a new page with a table of known thing TDs
-func NewThingsPage(model *wotmodel.WotModel) *ThingsPage {
+func NewThingsPage(model *wotco.WotConsumer) *ThingsPage {
 
 	thingsPage := &ThingsPage{
 		Table:       *tview.NewTable(),

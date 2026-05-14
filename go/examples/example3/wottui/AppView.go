@@ -2,7 +2,7 @@ package wottui
 
 import (
 	"github.com/gdamore/tcell/v2"
-	"github.com/hiveot/hivekit/go/examples/wotmodel"
+	"github.com/hiveot/hivekit/go/examples/wotco"
 	"github.com/rivo/tview"
 )
 
@@ -37,7 +37,7 @@ const (
 type TuiApp struct {
 	tview.Application
 
-	model *wotmodel.WotModel
+	co *wotco.WotConsumer
 
 	menu *TreeMenu
 
@@ -65,13 +65,13 @@ func (tui *TuiApp) handleEvent(args ...string) {
 			tui.StartDiscovery()
 
 		case MenuEvListTDs:
-			if len(tui.model.GetThings()) > 0 {
+			if len(tui.co.GetThings()) > 0 {
 				tui.thingsPage.Refresh()
 				tui.pages.SwitchToPage(PageThings)
 			}
 
 		case MenuEvNextPage:
-			if len(tui.model.GetThings()) > 0 {
+			if len(tui.co.GetThings()) > 0 {
 				tui.NextPage()
 				tui.SetFocus(tui.pages)
 			}
@@ -163,7 +163,7 @@ func (tui *TuiApp) StartDiscovery() {
 
 	go func() {
 		// TODO use a callback to update UI as results come in
-		tui.model.Discover()
+		tui.co.Discover(nil)
 		tui.ShowDiscovery()
 
 		// refresh
@@ -218,32 +218,32 @@ func (tui *TuiApp) Run() {
 	}
 }
 
-// Create a new instance of the application view
-func NewAppView(model *wotmodel.WotModel) *TuiApp {
+// Create a new instance of the tui app
+func NewTuiApp(co *wotco.WotConsumer) *TuiApp {
 
-	header := NewAppHeader(model)
+	header := NewAppHeader(co)
 	header.View.SetBorderColor(tcell.ColorDarkGray)
 
 	pages := tview.NewPages()
 
-	menu := NewTreeMenu(model)
+	menu := NewTreeMenu(co)
 
-	directoriesPage := NewDirectoriesPage(model)
+	directoriesPage := NewDirectoriesPage(co)
 	pages.AddPage(PageDirectories, directoriesPage, true, false)
 
-	discoPage := NewDiscoPage(model)
+	discoPage := NewDiscoPage(co)
 	pages.AddPage(PageDiscovery, discoPage, true, false)
 
 	// landingPage := NewLandingPage(model)
 	// pages.AddPage(PageLanding, landingPage, true, false)
 
-	thingsPage := NewThingsPage(model)
+	thingsPage := NewThingsPage(co)
 	pages.AddPage(PageThings, thingsPage, true, false)
 
-	footer := NewAppFooter(model)
+	footer := NewAppFooter(co)
 	footer.View.SetBorderColor(tcell.ColorDarkGray)
 
-	tdPage := NewTDPage(model)
+	tdPage := NewTDPage(co)
 	pages.AddPage(PageTD, tdPage, true, false)
 
 	grid := tview.NewGrid().
@@ -256,7 +256,7 @@ func NewAppView(model *wotmodel.WotModel) *TuiApp {
 
 	tuiApp := &TuiApp{
 		Application: *tview.NewApplication(),
-		model:       model,
+		co:          co,
 
 		// grid layout
 		grid:   grid,

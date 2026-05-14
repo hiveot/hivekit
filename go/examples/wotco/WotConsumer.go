@@ -1,4 +1,4 @@
-package wotmodel
+package wotco
 
 import (
 	"crypto/x509"
@@ -16,16 +16,17 @@ import (
 	clientspkg "github.com/hiveot/hivekit/go/modules/clients/pkg"
 	"github.com/hiveot/hivekit/go/modules/factory"
 	"github.com/hiveot/hivekit/go/modules/transports"
+	"github.com/hiveot/hivekit/go/modules/transports/discovery"
 	discoverypkg "github.com/hiveot/hivekit/go/modules/transports/discovery/pkg"
 )
 
-// WotModel contains the client side data model for discovering and loading Things
+// WotConsumer contains the consumer of WoT devices for discovery and loading of Things.
 // This is used in the examples to show how to use the discovery and client modules,
 // and to keep the state of discovered things and their TDs.
 //
-// This model is implemented as a HiveModule, so it can be used in the TUI example,
+// This consumer is a HiveModule, so it can be used as a sink in the TUI example,
 // but it can also be used in a CLI or other application.
-type WotModel struct {
+type WotConsumer struct {
 	clientspkg.Consumer
 
 	// The token for authentication
@@ -55,80 +56,80 @@ type WotModel struct {
 }
 
 // Create a Thing connection using the TD of the thingID
-func (model *WotModel) Connect(thingID string) (transports.ITransportClient, error) {
-	model.mux.Lock()
-	defer model.mux.Unlock()
-	c, found := model.clients[thingID]
+func (co *WotConsumer) Connect(thingID string) (transports.ITransportClient, error) {
+	co.mux.Lock()
+	defer co.mux.Unlock()
+	c, found := co.clients[thingID]
 	if found {
 		return c, nil
 	}
-	tdoc, found := model.things[thingID]
+	tdoc, found := co.things[thingID]
 	if !found {
 		return nil, fmt.Errorf("No TD for thing %s", thingID)
 	}
-	c, err := clients.NewTransportClientFromTD(tdoc, model.caCert, nil)
+	c, err := clients.NewTransportClientFromTD(tdoc, co.caCert, nil)
 	if err == nil {
 		err = fmt.Errorf("n/c")
 		// FIXME: determine clientID and token
 		err = c.ConnectWithToken("", "")
-		model.clients[thingID] = c
+
+		co.clients[thingID] = c
 	}
 	return c, err
 }
 
-// Discover all published things and directories
-func (model *WotModel) Discover() (err error) {
+// Discover all published things and directories.
+// cb is an optional callback to invoke with ongoing results. Return true to cancel.
+func (co *WotConsumer) Discover(cb func(r *discoverypkg.DiscoveryResult) bool) (err error) {
 	// fmt.Print("Discover started ")
 
 	disco := discoverypkg.NewDiscoveryClient()
 	waitDuration := time.Second * 1
 
-	model.records, err = disco.DiscoverThings("", waitDuration, func(r *discoverypkg.DiscoveryResult) bool {
+	co.records, err = disco.DiscoverThings("", waitDuration, func(r *discoverypkg.DiscoveryResult) bool {
 
 		// load the TD to present nr of affordances
-		_, err := model.LoadDiscoveredTD(r)
+		_, err := co.LoadDiscoveredTD(r)
 
 		if err != nil {
 			slog.Error("Error reading TD", "err", err.Error())
 		}
 
+		if cb != nil {
+			cancel := cb(r)
+			if cancel {
+				return true
+			}
+		}
+
 		// notify event listeners of the newly discovered record
 		// TODO: formalize this with a TD
-		notif := msg.NewNotificationMessage(model.GetClientID(),
-			msg.AffordanceTypeEvent, r.Instance, "discovery", r)
-		model.ForwardNotification(notif)
+		notif := msg.NewNotificationMessage(co.GetClientID(),
+			msg.AffordanceTypeEvent, discovery.DefaultDiscoveryThingID, "discovery", r)
+		co.ForwardNotification(notif)
 		return false
 	})
 	return err
 }
 
-// Return a list of discovered directories
-func (model *WotModel) GetDirectories() map[string]*td.TD {
-	return model.directories
-}
+func (co *WotConsumer) GetConnection(thingID string) (c transports.ITransportClient, found bool) {
+	co.mux.RLock()
+	defer co.mux.RUnlock()
 
-// Return a list of discovered things
-func (model *WotModel) GetThings() map[string]*td.TD {
-	return model.things
-}
-
-func (model *WotModel) GetConnection(thingID string) (c transports.ITransportClient, found bool) {
-	model.mux.RLock()
-	defer model.mux.RUnlock()
-
-	c, found = model.clients[thingID]
+	c, found = co.clients[thingID]
 	return c, found
 }
 
-func (model *WotModel) GetRecords() []*discoverypkg.DiscoveryResult {
-	return model.records
+// Return a list of discovered directories
+func (co *WotConsumer) GetDirectories() map[string]*td.TD {
+	return co.directories
 }
 
 // return the property value as a string
 // This establishes a connection if it doesn't yet exist
-func (model *WotModel) GetPropValue(thingID string, name string) string {
+func (co *WotConsumer) GetPropValue(thingID string, name string) string {
 	var err error
-	c, found := model.GetConnection(thingID)
+	c, found := co.GetConnection(thingID)
 	if !found {
 		// c, err = model.Connect(thingID)
 		return ""
@@ -144,9 +145,25 @@ func (model *WotModel) GetPropValue(thingID string, name string) string {
 	return resp.ToString(0)
 }
 
+func (co *WotConsumer) GetRecords() []*discoverypkg.DiscoveryResult {
+	return co.records
+}
+
+// Return the TD of a discovered thing
+// Intended for the router module to connect to a device.
+func (co *WotConsumer) GetTD(thingID string) *td.TD {
+	td := co.things[thingID]
+	return td
+}
+
+// Return a list of discovered things
+func (co *WotConsumer) GetThings() map[string]*td.TD {
+	return co.things
+}
+
 // Load the TD from the discovery record URL
 // This adds the TD to the known things or directories and returns the TD, or an error
-func (model *WotModel) LoadDiscoveredTD(r *discoverypkg.DiscoveryResult) (tdoc *td.TD, err error) {
+func (co *WotConsumer) LoadDiscoveredTD(r *discoverypkg.DiscoveryResult) (tdoc *td.TD, err error) {
 
 	tdURL := r.AsURL()
 	resp, err := http.Get(tdURL)
@@ -158,27 +175,28 @@ func (model *WotModel) LoadDiscoveredTD(r *discoverypkg.DiscoveryResult) (tdoc *
 		return nil, err
 	}
 	if r.IsDirectory {
-		model.directories[tdoc.ID] = tdoc
+		co.directories[tdoc.ID] = tdoc
 	} else {
-		model.things[tdoc.ID] = tdoc
+		co.things[tdoc.ID] = tdoc
 	}
 	return tdoc, err
 }
 
 // ReadDirectory reads all the TD in the discovered directory, up to the given limit
 // Note that without credentials this can fails
-func (model *WotModel) ReadDirTDs(dirTD *td.TD, limit int) {
+func (co *WotConsumer) ReadDirTDs(dirTD *td.TD, limit int) {
 	var n = 0
 	slog.Info("ReadDirTDs started")
+	// TODO
 	slog.Info("ReadDirTDs completed", "count", n)
 }
 
 // ReadThing reads the properties of the Thing and returns a text document
 // containing a list of values.
 // Note that without credentials this can fails
-func (model *WotModel) ReadThing(thingID string) []string {
+func (co *WotConsumer) ReadThing(thingID string) []string {
 	lines := []string{}
-	tdoc, found := model.things[thingID]
+	tdoc, found := co.things[thingID]
 	if !found {
 		slog.Warn("No TD for thing: " + thingID)
 		return nil
@@ -189,20 +207,20 @@ func (model *WotModel) ReadThing(thingID string) []string {
 	lines = append(lines, fmt.Sprintf("Type:        %s\n", tdoc.AtType))
 	lines = append(lines, fmt.Sprintf("Description: %s\n", tdoc.Description))
 
-	c, err := clients.NewTransportClientFromTD(tdoc, model.caCert, nil)
+	c, err := clients.NewTransportClientFromTD(tdoc, co.caCert, nil)
 	if err == nil {
 		defer c.Close()
 		c.SetTimeout(time.Minute) // for testing
-		err = c.ConnectWithToken(model.GetClientID(), model.authToken)
+		err = c.ConnectWithToken(co.GetClientID(), co.authToken)
 	}
 	if err == nil {
-		model.SetRequestSink(c.HandleRequest)
+		co.SetRequestSink(c.HandleRequest)
 	} else {
 		slog.Warn("ReadThing: failed", "err", err.Error())
 	}
 
 	lines = append(lines, fmt.Sprintf("Properties: (%d)\n", len(tdoc.Properties)))
-	propValues, err := model.ReadAllProperties(thingID)
+	propValues, err := co.ReadAllProperties(thingID)
 	if err != nil {
 		slog.Error("ReadAllProperties Failed", "err", err.Error())
 	} else {
@@ -217,7 +235,7 @@ func (model *WotModel) ReadThing(thingID string) []string {
 	}
 
 	lines = append(lines, fmt.Sprintf("Events: (%d)\n", len(tdoc.Events)))
-	eventValues, err := model.ReadAllEvents(thingID)
+	eventValues, err := co.ReadAllEvents(thingID)
 	if err != nil {
 		slog.Error("ReadAllEvents Failed", "err", err.Error())
 	} else {
@@ -233,7 +251,7 @@ func (model *WotModel) ReadThing(thingID string) []string {
 	}
 
 	lines = append(lines, fmt.Sprintf("Actions: (%d)\n", len(tdoc.Actions)))
-	actionValues, err := model.QueryAllActions(thingID)
+	actionValues, err := co.QueryAllActions(thingID)
 	if err != nil {
 		slog.Error("QueryAllActions Failed", "err", err.Error())
 	} else {
@@ -255,8 +273,19 @@ func (model *WotModel) ReadThing(thingID string) []string {
 // 	return fmt.Sprintf("\n%d Things loaded", len(cli.things))
 // }
 
-func NewWotModel() *WotModel {
-	cl := &WotModel{
+// Create a new instance of the WotConsumer.
+// This consumer is intended for use by an CLI ro TUI to discover things and show their state.
+//
+// Use this with the router module as sink to connect to discovered clients and provide
+// the router with the callback to get a Thing TD:
+//
+//	wotConsumer := wotco.NewWotConsumer()
+//	r := routerpkg.NewRouterService("", wotConsumer.GetTD, nil, certsBundle.CaCert)
+//	wotConsumer.SetRequestSink(r.HandleRequest)
+//	r.SetNotificationSink(wotConsumer.HandleNotification)
+
+func NewWotConsumer() *WotConsumer {
+	cl := &WotConsumer{
 		authToken:   "no-token",
 		records:     make([]*discoverypkg.DiscoveryResult, 0),
 		clients:     make(map[string]transports.ITransportClient),
@@ -267,7 +296,8 @@ func NewWotModel() *WotModel {
 	return cl
 }
 
-func NewWotModelFactory(f factory.IModuleFactory) modules.IHiveModule {
-	cl := NewWotModel()
+// This module can be used in a factory recipe.
+func NewWotConsumerFactory(f factory.IModuleFactory) modules.IHiveModule {
+	cl := NewWotConsumer()
 	return cl
 }

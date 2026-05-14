@@ -4,8 +4,7 @@ import (
 	"fmt"
 	"log/slog"
 
-	"github.com/hiveot/hivekit/go/examples/wotmodel"
-	clientspkg "github.com/hiveot/hivekit/go/modules/clients/pkg"
+	"github.com/hiveot/hivekit/go/examples/wotco"
 	"github.com/rivo/tview"
 )
 
@@ -18,11 +17,11 @@ type TDPage struct {
 	affordances *TuiTable
 	evHandler   func(ev ...string)
 
-	model *wotmodel.WotModel
+	model *wotco.WotConsumer
 }
 
 func (page *TDPage) Refresh(thingID string) {
-	var consumer *clientspkg.Consumer
+	// var consumer *clientspkg.Consumer
 
 	tdList := page.model.GetThings()
 	tdoc, found := tdList[thingID]
@@ -38,11 +37,6 @@ func (page *TDPage) Refresh(thingID string) {
 	// connect to the thing to read its props
 	cl, err := page.model.Connect(thingID)
 	_ = cl
-	if err == nil {
-		consumer = clientspkg.NewConsumer("")
-		consumer.SetRequestSink(cl.HandleRequest)
-		cl.SetNotificationSink(consumer.HandleNotification)
-	}
 
 	// Header
 	titleColor := tview.Styles.TertiaryTextColor
@@ -67,20 +61,19 @@ func (page *TDPage) Refresh(thingID string) {
 	// Properties table
 	tbl := page.affordances
 	tbl.Clear()
+	tbl.SetSelectable(true, true)
 	row := 0
 	tbl.SetTitleRow(row, fmt.Sprintf("Properties (%d)", len(tdoc.Properties)))
 	row++
 	tbl.SetTitleRow(row, "Name", "Title", "DataType", "Latest Value")
 	row++
 	for name, aff := range tdoc.Properties {
-		// latestValue := page.model.GetPropValue(thingID, name)
 		var latestValue string
-		if consumer != nil {
-			err = consumer.ReadPropertyAs(thingID, name, &latestValue)
-			if err != nil {
-				slog.Error("Refresh error", "err", err.Error())
-			}
+		err = page.model.ReadPropertyAs(thingID, name, &latestValue)
+		if err != nil {
+			slog.Error("Refresh error", "err", err.Error())
 		}
+		// }
 		tbl.SetDataRow(row, name, aff.Title, aff.Type, latestValue)
 		row++
 	}
@@ -94,12 +87,10 @@ func (page *TDPage) Refresh(thingID string) {
 	for name, aff := range tdoc.Events {
 		var latestValue string
 		var updated string
-		if consumer != nil {
-			ev, err := consumer.ReadEvent(thingID, name)
-			if err == nil {
-				ev.Decode(&latestValue)
-				updated = ev.Timestamp
-			}
+		ev, err := page.model.ReadEvent(thingID, name)
+		if err == nil {
+			ev.Decode(&latestValue)
+			updated = ev.Timestamp
 		}
 		tbl.SetDataRow(row, name, aff.Title, aff.Data.Type, latestValue, updated)
 
@@ -118,6 +109,13 @@ func (page *TDPage) Refresh(thingID string) {
 		if aff.Input != nil {
 			tbl.SetCell(row, 2,
 				tview.NewTableCell("Input: "+aff.Input.Type).SetSelectable(false))
+		} else {
+			tbl.SetCell(row, 2,
+				tview.NewTableCell("[red]run").SetSelectable(true).SetClickedFunc(func() bool {
+					page.model.InvokeAction(thingID, name, nil, nil)
+					return true
+				}))
+
 		}
 		if aff.Output != nil {
 			tbl.SetCell(row, 3,
@@ -138,7 +136,7 @@ func (page *TDPage) submitEvent(ev string, thingID string) {
 		page.evHandler(ev, thingID)
 	}
 }
-func NewTDPage(model *wotmodel.WotModel) *TDPage {
+func NewTDPage(model *wotco.WotConsumer) *TDPage {
 	header := NewTuiTable(tview.Styles.TertiaryTextColor)
 	affordances := NewTuiTable(tview.Styles.TertiaryTextColor)
 	page := &TDPage{

@@ -1,7 +1,7 @@
 package wottui
 
 import (
-	"github.com/hiveot/hivekit/go/examples/wotmodel"
+	"github.com/hiveot/hivekit/go/examples/wotco"
 	"github.com/rivo/tview"
 )
 
@@ -11,7 +11,7 @@ type TreeMenu struct {
 	dirs   *tview.TreeNode
 	things *tview.TreeNode
 
-	model     *wotmodel.WotModel
+	model     *wotco.WotConsumer
 	evHandler func(ev ...string)
 }
 
@@ -73,7 +73,7 @@ func (m *TreeMenu) submitEvent(ev string, thingID string) {
 	}
 }
 
-func NewTreeMenu(model *wotmodel.WotModel) *TreeMenu {
+func NewTreeMenu(model *wotco.WotConsumer) *TreeMenu {
 	menu := &TreeMenu{
 		TreeView: *tview.NewTreeView(),
 		model:    model,

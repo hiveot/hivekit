@@ -2,14 +2,14 @@ package wottui
 
 import (
 	"github.com/gdamore/tcell/v2"
-	"github.com/hiveot/hivekit/go/examples/wotmodel"
+	"github.com/hiveot/hivekit/go/examples/wotco"
 	"github.com/rivo/tview"
 )
 
 // The application footer are that shows the current activity and ?
 type AppFooter struct {
 	View          *tview.Flex
-	model         *wotmodel.WotModel
+	model         *wotco.WotConsumer
 	listThingsBtn *tview.Button
 	nextPageBtn   *tview.Button
 	handler       func(ev ...string)
@@ -35,7 +35,7 @@ func (footer *AppFooter) submit(ev string) {
 }
 
 // Create a new instance of the application view
-func NewAppFooter(model *wotmodel.WotModel) *AppFooter {
+func NewAppFooter(model *wotco.WotConsumer) *AppFooter {
 
 	view := tview.NewFlex().SetDirection(tview.FlexColumn)
 

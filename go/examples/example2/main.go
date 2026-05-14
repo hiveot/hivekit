@@ -3,31 +3,87 @@ package main
 import (
 	"crypto/tls"
 	"flag"
+	"fmt"
 	"net/http"
+	"os"
+	"time"
 
-	"github.com/hiveot/hivekit/go/examples/example2/discover"
+	"github.com/hiveot/hivekit/go/examples/example2/wotcli"
+	"github.com/hiveot/hivekit/go/examples/wotco"
+	"github.com/hiveot/hivekit/go/modules/factory"
+	routerpkg "github.com/hiveot/hivekit/go/modules/router/pkg"
 	"github.com/hiveot/hivekit/go/utils"
 )
 
-func main() {
-	utils.SetLogging("warn", "")
-	var showAff bool
-	var showTD bool
-	var showTXT bool
-	var filterAddr string
-	var waitTime int = 3
-	var filterType string
+// commands:
+//	wotcli  [-txt] discover           discover devices on the network
+//	wotcli  td  <thingID>             show the TD of a thing
+//	wotcli  status  <thingID>         show the current status of a thing
+//	wotcli  subscribe  <thingID>      subscribe to updates of a thing
 
-	flag.StringVar(&filterAddr, "addr", filterAddr, "Filter on a specific address")
-	flag.StringVar(&filterType, "type", filterType, "Filter on type 'directory' or 'thing'")
-	flag.BoolVar(&showAff, "aff", showAff, "Show the TD affordances")
-	flag.BoolVar(&showTD, "td", showTD, "Show the discovered TD")
-	flag.BoolVar(&showTXT, "txt", showTXT, "Show the DNS-SD TXT record entries")
-	flag.IntVar(&waitTime, "wait", waitTime, "Nr of seconds to wait for the result")
-	flag.Parse()
+const (
+	CmdDiscover   = "discover"
+	CmdShowTD     = "td"
+	CmdShowStatus = "status"
+	CmdSubscribe  = "subscribe"
+)
+
+func main() {
+	var subscribe bool
+	var verbose bool
+	utils.SetLogging("warn", "")
+
+	// environment defaults
+	flag.BoolVar(&subscribe, "subscribe", subscribe, "Subscribe to events or property changes")
+	flag.BoolVar(&verbose, "v", verbose, "Show more detailed output")
+
+	env := factory.NewAppEnvironment("", true)
+	_ = env
+	args := flag.Args()
+	if len(args) == 0 {
+		fmt.Printf("wotcli [options] command  \n\n")
+		fmt.Println("Where command is one of:")
+		fmt.Printf(" %-10s           Discover WoT devices and directories\n", CmdDiscover)
+		fmt.Printf(" %-10s thingID   Show the TD of a Thing\n", CmdShowTD)
+		fmt.Printf(" %-10s thingID   Show the current status of a Thing\n", CmdShowStatus)
+		fmt.Printf(" %-10s thingID   Subscribe to Thing events and property updates\n", CmdSubscribe)
+		fmt.Println("\nOptions:")
+		// flag.Usage()
+		flag.PrintDefaults()
+		return
+	}
+	cmd := args[0]
+
+	getArgs := func() string {
+		if len(args) > 1 {
+			return args[1]
+		}
+		fmt.Println("\nMissing thingID argument")
+		os.Exit(1)
+		return ""
+	}
 
 	// Ignore the certificate check just for this example. Dont do this.
 	http.DefaultTransport.(*http.Transport).TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
 
-	discover.Discover(filterType, filterAddr, showAff, showTXT, showTD, waitTime)
+	co := wotco.NewWotConsumer()
+	co.SetTimeout(time.Minute)
+	// run the router without CA. Don't try this at home.
+	r := routerpkg.NewRouterService("", co.GetTD, nil, nil)
+	co.SetRequestSink(r.HandleRequest)
+	r.SetNotificationSink(co.HandleNotification)
+
+	// discover.Discover(filterType, filterAddr, showAff, showTXT, showTD, waitTime)
+	switch cmd {
+	case CmdDiscover:
+		wotcli.ShowDiscovery(co, verbose)
+	case CmdShowTD:
+		thingID := getArgs()
+		wotcli.ShowTD(co, thingID)
+	case CmdShowStatus:
+		thingID := getArgs()
+		wotcli.ShowStatus(co, thingID, subscribe)
+	default:
+		fmt.Printf("\nUnknown command: %s\n", cmd)
+	}
 }

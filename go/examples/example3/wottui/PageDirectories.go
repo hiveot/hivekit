@@ -2,7 +2,7 @@ package wottui
 
 import (
 	"github.com/araddon/dateparse"
-	"github.com/hiveot/hivekit/go/examples/wotmodel"
+	"github.com/hiveot/hivekit/go/examples/wotco"
 	"github.com/hiveot/hivekit/go/utils"
 	"github.com/rivo/tview"
 )
@@ -10,7 +10,7 @@ import (
 // Show the loaded directories in the main view
 type DirectoriesPage struct {
 	TuiTable
-	model     *wotmodel.WotModel
+	model     *wotco.WotConsumer
 	evHandler func(ev ...string)
 }
 
@@ -73,7 +73,7 @@ func (v *DirectoriesPage) submitEvent(ev string, thingID string) {
 }
 
 // Return a new page with a table of known thing TDs
-func NewDirectoriesPage(model *wotmodel.WotModel) *DirectoriesPage {
+func NewDirectoriesPage(model *wotco.WotConsumer) *DirectoriesPage {
 
 	directoriesPage := &DirectoriesPage{
 		TuiTable: *NewTuiTable(tview.Styles.TertiaryTextColor),

@@ -4,14 +4,14 @@ import (
 	"fmt"
 
 	"github.com/gdamore/tcell/v2"
-	"github.com/hiveot/hivekit/go/examples/wotmodel"
+	"github.com/hiveot/hivekit/go/examples/wotco"
 	"github.com/rivo/tview"
 )
 
 // Page with discovery records
 type DiscoPage struct {
 	tview.Table
-	model      *wotmodel.WotModel
+	model      *wotco.WotConsumer
 	titleColor tcell.Color
 }
 
@@ -59,7 +59,7 @@ func (v *DiscoPage) Refresh() {
 }
 
 // Create a new discovery table page
-func NewDiscoPage(model *wotmodel.WotModel) *DiscoPage {
+func NewDiscoPage(model *wotco.WotConsumer) *DiscoPage {
 
 	discoPage := &DiscoPage{
 		Table: *tview.NewTable(),
