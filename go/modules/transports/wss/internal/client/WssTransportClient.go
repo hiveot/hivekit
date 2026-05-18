@@ -188,7 +188,9 @@ func (cl *WssTransportClient) Authenticate(tdDoc *td.TD,
 	clientID, secret, schemeName, err := getCredentials(tdDoc.ID)
 	secScheme, err := tdDoc.GetSecurityScheme()
 
-	if schemeName != secScheme.Scheme && schemeName != "" && schemeName != td.SecSchemeAuto {
+	if secScheme.Scheme == td.SecSchemeNoSec {
+		err = cl.ConnectWithToken(clientID, "")
+	} else if schemeName != secScheme.Scheme && schemeName != "" && schemeName != td.SecSchemeAuto {
 		err = fmt.Errorf("Security scheme doesn't match credentials TD scheme='%s', credentials scheme='%s'", secScheme.Scheme, schemeName)
 	} else if secScheme.Scheme == td.SecSchemeDigest {
 		// err = cl.ConnectWithDigest(clientID, secret)

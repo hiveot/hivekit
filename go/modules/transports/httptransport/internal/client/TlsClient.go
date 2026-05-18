@@ -127,7 +127,7 @@ func (cl *TLSClient) ConnectWithToken(clientID string, token string) error {
 //
 //	ctx optional context or nil for background.
 //	method is the http GET/POST/... for request
-//	path is the request path
+//	fullURL to invoke
 //	qParams are optional query parameters
 //	body is the optional request payload
 //	contentType of the payload, default is application/json
@@ -135,7 +135,7 @@ func (cl *TLSClient) ConnectWithToken(clientID string, token string) error {
 // This returns the request, ready to be submitted, a cancel function or an error
 func (cl *TLSClient) CreateRequest(
 	ctx context.Context,
-	method string, path string, qParams map[string]string,
+	method string, fullURL string, qParams map[string]string,
 	body []byte, contentType string,
 ) (req *http.Request) {
 
@@ -146,8 +146,6 @@ func (cl *TLSClient) CreateRequest(
 	if ctx == nil {
 		ctx = context.Background()
 	}
-	// Caution! a double // in the path causes a 301 and changes post to get
-	fullURL := fmt.Sprintf("https://%s%s", cl.hostPort, path)
 
 	bodyReader := bytes.NewReader(body)
 	r, err := http.NewRequestWithContext(ctx, method, fullURL, bodyReader)
@@ -157,7 +155,8 @@ func (cl *TLSClient) CreateRequest(
 	}
 
 	// Step 2: add headers for origin, authorization, content-Type
-	origin := "https://" + cl.hostPort
+	parts, _ := url.Parse(fullURL)
+	origin := fmt.Sprintf("%s://%s", parts.Scheme, parts.Host)
 	r.Header.Set("Origin", origin)
 
 	r.Header.Set("Content-Type", contentType)
@@ -343,7 +342,7 @@ func (cl *TLSClient) Put(path string, body []byte) (
 // If msg is not a string then it will be json encoded.
 //
 //	method: GET, PUT, POST, ...
-//	path: path of URL
+//	urlPath: path of URL or full url with path
 //	body contains the serialized request body
 //	contentType: default is "application/json"
 //	qParams: optional map with query parameters
@@ -351,25 +350,33 @@ func (cl *TLSClient) Put(path string, body []byte) (
 // This returns the serialized response data, a response message ID, return status code or an error
 func (cl *TLSClient) Send(
 	ctx context.Context,
-	method string, path string, qParams map[string]string, body []byte, contentType string) (
+	method string, urlPath string, qParams map[string]string, body []byte, contentType string) (
 	resp []byte, httpStatus int, headers http.Header, err error) {
 
 	if cl == nil || cl.httpClient == nil {
-		err = fmt.Errorf("send: %s %s. Client is not started", method, path)
+		err = fmt.Errorf("send: %s %s. Client is not started", method, urlPath)
 		return nil, http.StatusInternalServerError, nil, err
 	}
 	// ctx, cancelFn := context.WithTimeout(context.Background(), cl.timeout)
-	httpRequest := cl.CreateRequest(ctx, method, path, qParams, body, contentType)
+	fullURL := urlPath
+	urlParts, _ := url.Parse(urlPath)
+	if urlParts.Scheme == "" {
+		urlParts.Scheme = "https"
+		urlParts.Host = cl.hostPort
+		fullURL = urlParts.String()
+		// fullURL = fmt.Sprintf("https://%s%s", cl.hostPort, urlPath)
+	}
+	httpRequest := cl.CreateRequest(ctx, method, fullURL, qParams, body, contentType)
 	// _ = cancelFn
 
 	httpResp, err := cl.httpClient.Do(httpRequest)
 	if err != nil {
-		err = fmt.Errorf("Send: %s %s: %w", method, path, err)
+		err = fmt.Errorf("Send: %s %s: %w", method, urlPath, err)
 		slog.Error(err.Error())
 		return nil, 500, nil, err
 	} else if httpResp.StatusCode >= 300 {
 		err = fmt.Errorf("Send: %s %s: failed with (%d) %s",
-			method, path, httpResp.StatusCode, httpResp.Status)
+			method, urlPath, httpResp.StatusCode, httpResp.Status)
 		slog.Error(err.Error())
 		return nil, httpResp.StatusCode, nil, err
 	}

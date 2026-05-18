@@ -46,7 +46,8 @@ func ConnectSSE(
 
 	// replace the sse:// schema with https:// required for the request itself
 
-	r := tlsClient.CreateRequest(sseCtx, method, ssePath, nil, body, contentType)
+	fullURL := fmt.Sprintf("https://%s%s", tlsClient.GetHostPort(), ssePath)
+	r := tlsClient.CreateRequest(sseCtx, method, fullURL, nil, body, contentType)
 	sseClient := &gosse.Client{
 		HTTPClient: tlsClient.GetHttpClient(),
 		OnRetry: func(err error, backoff time.Duration) {

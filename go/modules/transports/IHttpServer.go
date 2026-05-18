@@ -36,12 +36,6 @@ const (
 	// CorrelationIDHeader is the header to be able to link requests to out of band responses
 	// tentative as it isn't part of the wot spec
 	CorrelationIDHeader = "correlationID"
-
-	// URI variables for use in paths. These are read in GetRequestParameters
-	// usage is for convenience.
-	OperationURIVar = "operation"
-	ThingIDURIVar   = "thingID"
-	NameURIVar      = "name"
 )
 
 // RequestParams contains the parameters read from the HTTP request

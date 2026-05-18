@@ -16,6 +16,16 @@ import (
 	wsspkg "github.com/hiveot/hivekit/go/modules/transports/wss/pkg"
 )
 
+// list of supported client protocols
+var SupportedClientProtocols = []string{
+	transports.ProtocolSchemeHiveotGrpc,
+	transports.ProtocolSchemeHiveotSseSc,
+	transports.SubprotocolHiveotWebsocket,
+	transports.SubprotocolWotWebsocket,
+	transports.ProtocolSchemeWotHttpBasic,
+	// transports.ProtocolSchemeWotMqtt,
+}
+
 // GetProtocolType returns the protocol used for connecting to this device.
 // This returns the protocol type and connection href, if available.
 //
@@ -66,21 +76,21 @@ func GetProtocolType(tdoc *td.TD) (protocolType string, href string) {
 	if href == "" {
 		href = tdoc.Base
 	}
-	if strings.HasPrefix(href, transports.UriSchemeWotHttpBasic) {
+	if strings.HasPrefix(href, transports.ProtocolSchemeWotHttpBasic) {
 		return transports.ProtocolTypeWotHttpBasic, href
 	}
 	// a normal TD device should have a subprotocol so not sure what is going on here.
 	// just some fallback options
-	if strings.HasPrefix(href, transports.UriSchemeWotWebsocket) {
+	if strings.HasPrefix(href, transports.ProtocolSchemeWotWebsocket) {
 		return transports.ProtocolTypeWotWebsocket, href
 	}
-	if strings.HasPrefix(href, transports.UriSchemeWotMqtt) {
+	if strings.HasPrefix(href, transports.ProtocolSchemeWotMqtt) {
 		return transports.ProtocolTypeWotMqtt, href
 	}
-	if strings.HasPrefix(href, transports.UriSchemeWotSse) {
+	if strings.HasPrefix(href, transports.ProtocolSchemeWotSse) {
 		return transports.ProtocolTypeWotSse, href
 	}
-	if strings.HasPrefix(href, transports.UriSchemeHiveotGrpc) {
+	if strings.HasPrefix(href, transports.ProtocolSchemeHiveotGrpc) {
 		return transports.ProtocolTypeHiveotGrpc, href
 	}
 	return "", href
@@ -104,17 +114,17 @@ func NewTransportClient(protocolType string, serverURL string, caCert *x509.Cert
 
 	// use the URL to determine the protocol
 	if protocolType == "" {
-		if strings.HasPrefix(serverURL, transports.UriSchemeHiveotGrpc) {
+		if strings.HasPrefix(serverURL, transports.ProtocolSchemeHiveotGrpc) {
 			protocolType = transports.ProtocolTypeHiveotGrpc
-		} else if strings.HasPrefix(serverURL, transports.UriSchemeWotWebsocket) {
+		} else if strings.HasPrefix(serverURL, transports.ProtocolSchemeWotWebsocket) {
 			protocolType = transports.ProtocolTypeWotWebsocket
-		} else if strings.HasPrefix(serverURL, transports.UriSchemeWotSse) {
+		} else if strings.HasPrefix(serverURL, transports.ProtocolSchemeWotSse) {
 			protocolType = transports.ProtocolTypeWotSse
-		} else if strings.HasPrefix(serverURL, transports.UriSchemeWotMqtt) {
+		} else if strings.HasPrefix(serverURL, transports.ProtocolSchemeWotMqtt) {
 			protocolType = transports.ProtocolTypeWotMqtt
-		} else if strings.HasPrefix(serverURL, transports.UriSchemeWotHttpBasic) {
+		} else if strings.HasPrefix(serverURL, transports.ProtocolSchemeWotHttpBasic) {
 			protocolType = transports.ProtocolTypeWotHttpBasic
-		} else if strings.HasPrefix(serverURL, transports.UriSchemeHiveotSseSc) {
+		} else if strings.HasPrefix(serverURL, transports.ProtocolSchemeHiveotSseSc) {
 			protocolType = transports.ProtocolTypeHiveotSsesc
 		}
 	}

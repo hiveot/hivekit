@@ -106,11 +106,3 @@ func NewForm(operation string, href string, args ...string) Form {
 	}
 	return f
 }
-
-//Href        string `json:"href"`
-//ContentType string `json:"contentType"`
-//
-//// operations types of a form as per https://www.w3.org/TR/wot-thing-description11/#form
-//// readproperty, writeproperty, ...
-//Op string `json:"op"`
-//}

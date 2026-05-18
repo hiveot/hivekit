@@ -18,7 +18,7 @@ const (
 )
 
 // HttpBasicServer is a transport module for serving the wot http-basic protocol.
-// This implements the ITransportModule and IHiveModule interfaces.
+// This implements the ITransportModule and IHttpServer interfaces.
 //
 // This WoT defined protocol is build on top of HTTP and is uni-directional.
 // It is only intended for consumers and not for agents using connection reversal.
@@ -31,6 +31,10 @@ type HttpBasicServer struct {
 
 	// reqHandler handles the requests received from the remote consumer
 	// requestHandler msg.RequestHandler
+}
+
+func (m *HttpBasicServer) GetHttpServer() transports.IHttpServer {
+	return m.httpServer
 }
 
 // Handle a notification this module (or downstream in the chain) subscribed to.

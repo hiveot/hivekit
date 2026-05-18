@@ -2,6 +2,7 @@ package internal
 
 import (
 	"log/slog"
+	"net/http"
 	"path/filepath"
 	"sync"
 
@@ -39,7 +40,9 @@ type DirectoryServer struct {
 
 	// the RRN messaging API for the directory itself
 	msgAPI *DirectoryMsgHandler
-	// the API servers if enabled
+
+	// the http server to expose the TDD on the .well-known/wot path. nil to ignore
+	httpServer transports.IHttpServer
 
 	// data storage directory
 	storageLoc string
@@ -79,6 +82,12 @@ func (m *DirectoryServer) HandleRequest(req *msg.RequestMessage, replyTo msg.Res
 	return err
 }
 
+// Serve reading the directory TDD over http on the well-known path
+func (m *DirectoryServer) serveReadTDD(w http.ResponseWriter, r *http.Request) {
+	_, _ = w.Write([]byte(m.tddJson))
+	// utils.WriteReply(w, true, m.tddJson, nil)
+}
+
 // SetTDHooks set the callbacks that are invoked before writing and deleting the TD
 // to the directory store.
 func (m *DirectoryServer) SetTDHooks(
@@ -114,10 +123,10 @@ func (m *DirectoryServer) Start() (err error) {
 		m.msgAPI = NewDirectoryMsgHandler(m.directoryThingID, m)
 	}
 
-	// create the TDD
-	// FIXME: how/when to add forms?
-	// needed transports
-	// option 1: caller provides transports to use <- this
+	if m.httpServer != nil {
+		protRoute := m.httpServer.GetProtectedRoute()
+		protRoute.Get(directory.WellKnownWoTPath, m.serveReadTDD)
+	}
 
 	return err
 }
@@ -144,10 +153,10 @@ func (m *DirectoryServer) Stop() {
 //
 //	thingID is the instance ID of the directory server.
 //	location is the location where the module stores its data. Use "" for testing with an in-memory store.
-//	httpAPI provides the security scheme and forms for the directory http endpoints. nil to not include these.
+//	httpServer is used to expose the directory TDD on the well-known path.
 //	transports is a list of transports that should be included in the TDD security and forms. nil to not include these.
 func NewDirectoryServer(
-	thingID string, location string, httpAPI directory.IDirectoryHttpServer,
+	thingID string, location string, httpServer transports.IHttpServer,
 	transports []transports.ITransportServer) *DirectoryServer {
 
 	if thingID == "" {
@@ -159,10 +168,6 @@ func NewDirectoryServer(
 	tm := string(directory.DirectoryTMJson)
 	tddDoc, _ := td.UnmarshalTD(tm)
 	tddDoc.ID = thingID
-	if httpAPI != nil {
-		httpAPI.AddTDSecForms(tddDoc, false)
-		tddDoc.Base = httpAPI.GetBaseURL()
-	}
 	// add the forms for additional endpoints
 	if len(transports) > 0 {
 		for _, tp := range transports {
@@ -173,6 +178,7 @@ func NewDirectoryServer(
 	m := &DirectoryServer{
 		HiveModuleBase:   modules.HiveModuleBase{},
 		directoryThingID: thingID,
+		httpServer:       httpServer,
 		storageLoc:       location,
 		tddJson:          tddJson,
 		tdCache:          make(map[string]*td.TD),

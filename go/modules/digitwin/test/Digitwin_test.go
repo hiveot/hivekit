@@ -56,6 +56,7 @@ func startService() (
 	testEnv = testenv.NewTestEnv()
 	// http server needed for all communications
 	testEnv.StartHttpServer(true)
+
 	// a websocket server for RRN messaging
 	appServer := testEnv.StartTestServer("")
 
@@ -63,9 +64,10 @@ func startService() (
 	// digiDir := filepath.Join(storageDir, "digiDir.json")
 	dirThingID := directory.DefaultDirectoryThingID
 	servers := []transports.ITransportServer{testEnv.Server}
-	httpAPI := directorypkg.NewDirectoryHttpServer(testEnv.HttpServer)
+	// httpAPI := directorypkg.NewDirectoryHttpServer(testEnv.HttpServer)
+
 	dir = directorypkg.NewDirectoryMsgServer(
-		dirThingID, storageDir, httpAPI, servers)
+		dirThingID, storageDir, testEnv.HttpServer, servers)
 	err := dir.Start()
 	if err != nil {
 		panic("Failed to start directory server")

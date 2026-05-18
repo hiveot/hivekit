@@ -62,6 +62,7 @@ func (store *CredentialsStore) DeleteCredentials(thingID string) {
 }
 
 // Obtain the connection credentials for connection to the GetCredentials
+// If no credentials are found this returns an error
 func (store *CredentialsStore) GetCredentials(thingID string) (
 	clientID string, token string, credType string, err error) {
 

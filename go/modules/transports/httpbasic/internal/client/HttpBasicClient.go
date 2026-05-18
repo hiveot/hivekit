@@ -144,16 +144,17 @@ func (cl *HttpBasicClient) GetConnectionID() string {
 
 // GetDefaultForm return the default http form for the operation
 // This simply returns nil for anything else than login, logout, ping or refresh.
-func (cl *HttpBasicClient) GetDefaultForm(op, thingID, name string) (f *td.Form) {
+func (cl *HttpBasicClient) GetDefaultForm(op, thingID, name string) (f *td.Form, href string) {
 	// login has its own URL as it is unauthenticated
 	if op == td.HTOpPing {
-		href := transports.DefaultPingPath
+		base := cl.tlsClient.GetHostPort()
+		href = fmt.Sprintf("https://%s%s", base, transports.DefaultPingPath)
 		nf := td.NewForm(op, href)
 		nf.SetMethodName(http.MethodGet)
 		f = &nf
 	}
 	// everything else has no default form, so falls back to hiveot protocol endpoints
-	return f
+	return f, href
 }
 
 // Return the TLS client used by this connection
@@ -228,10 +229,9 @@ func (cl *HttpBasicClient) SendRequest(
 	// use the hiveot fallback if not available
 	// If a form is provided and it doesn't use the hiveot subprotocol then fall
 	// back to invoking using http basic using the form href.
-	f := cl.getForm(req.Operation, req.ThingID, req.Name)
+	f, href := cl.getForm(req.Operation, req.ThingID, req.Name)
 	if f != nil {
 		method, _ = f.GetMethodName()
-		href = f.GetHRef()
 	}
 
 	if f == nil {
@@ -239,6 +239,13 @@ func (cl *HttpBasicClient) SendRequest(
 		// eg: /things/{operation}/{thingID}/{name} or /hiveot/request
 		method = http.MethodPost
 		href = httpbasic.HttpBasicAffordanceOperationPath
+		// substitute URI variables in the path, if any.
+		// intended for use with http-basic forms.
+		vars := map[string]string{
+			td.UriVarThingID:   thingID,
+			td.UriVarName:      name,
+			td.UriVarOperation: req.Operation}
+		href = utils.Substitute(href, vars)
 		inputJSON, _ = jsoniter.MarshalToString(req.Input)
 	}
 
@@ -253,19 +260,12 @@ func (cl *HttpBasicClient) SendRequest(
 	if name == "" {
 		name = "+"
 	}
-	// substitute URI variables in the path, if any.
-	// intended for use with http-basic forms.
-	vars := map[string]string{
-		transports.ThingIDURIVar:   thingID,
-		transports.NameURIVar:      name,
-		transports.OperationURIVar: req.Operation}
-	reqPath := utils.Substitute(href, vars)
 	contentType := "application/JSON"
 
 	// send the request
 	ctx, cancelFn := context.WithTimeout(context.Background(), cl.timeout)
 	outputRaw, code, _, err := cl.tlsClient.Send(ctx,
-		method, reqPath, nil, []byte(inputJSON), contentType)
+		method, href, nil, []byte(inputJSON), contentType)
 	cancelFn()
 
 	// 1. error response

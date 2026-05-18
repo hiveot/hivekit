@@ -30,6 +30,18 @@
             "console": "internalConsole"
         },
         {
+            "name": "Debug CLI",
+            "type": "go",
+            "request": "launch",
+            "mode": "auto",
+            "program": "${workspaceFolder}/go/examples/example2/main.go",
+            "showLog": false,
+            "env": {},
+            "args": ["td", "dtw:digitwin:ThingDirectory"],
+            "logOutput": "dap",
+            "console": "integratedTerminal",
+        },
+        {
             "name": "Test TUI",
             "type": "go",
             "request": "launch",

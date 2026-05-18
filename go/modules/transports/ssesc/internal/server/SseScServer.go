@@ -80,7 +80,7 @@ func NewSseScServer(httpServer transports.IHttpServer, respTimeout time.Duration
 	httpAddr := httpServer.GetConnectURL()
 	urlParts, _ := url.Parse(httpAddr)
 
-	connectURL := fmt.Sprintf("%s://%s%s", transports.UriSchemeHiveotSseSc, urlParts.Host, ssePath)
+	connectURL := fmt.Sprintf("%s://%s%s", transports.ProtocolSchemeHiveotSseSc, urlParts.Host, ssePath)
 
 	// use the RRN message format. Simple passthrough.
 	encoder := transports.NewRRNJsonEncoder()

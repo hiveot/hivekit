@@ -9,7 +9,7 @@ import (
 
 // DirectoryMsgClient is a client for the Directory service using RRN messages.
 // This implements the IDirectory interface and accepts a messaging protocol sink.
-// Intended to use a client transport module as sink, that forwards the messages.
+// Intended to be used with a client transport module as sink, that forwards the messages.
 type DirectoryMsgClient struct {
 	modules.HiveModuleBase
 

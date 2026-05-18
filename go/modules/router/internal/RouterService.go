@@ -170,21 +170,23 @@ func (m *RouterService) LastSeen(thingID string) string {
 //     an existing connection from the pool.
 func (m *RouterService) RouteRequest(req *msg.RequestMessage, replyTo msg.ResponseHandler) (err error) {
 	var href string
-	tdi := m.getTD(req.ThingID)
-	if tdi == nil {
+	var f *td.Form
+
+	tdDoc := m.getTD(req.ThingID)
+	if tdDoc == nil {
 		return m.ForwardRequest(req, replyTo)
 	}
 	// c := clients.ConnectToThing(tdi, m.getCredentials)
 
-	agentID := tdi.GetAgentID()
-	forms := tdi.GetForms(req.Operation, req.Name)
-	if len(forms) > 0 {
-		// TBD right now just use the first form.
-		href, err = tdi.GetFormHRef(forms[0], nil)
-	}
+	agentID := tdDoc.GetAgentID()
+	// limit choice to the protocols that are supported
+	clientProtocols := clients.SupportedClientProtocols
+	f, href, err = tdDoc.GetFormHRef(req.Operation, req.Name, clientProtocols, nil)
+	_ = f
+
 	// if no form was found then simply use the Base attribute
 	if href == "" {
-		href = tdi.Base
+		href = tdDoc.Base
 	}
 	// without href attempt looking up a reverse connection
 	if href == "" && agentID == "" {
@@ -197,7 +199,7 @@ func (m *RouterService) RouteRequest(req *msg.RequestMessage, replyTo msg.Respon
 			err = c.SendRequest(req, replyTo)
 		}
 	} else {
-		c, err2 := m.GetClientConnection(tdi)
+		c, err2 := m.GetClientConnection(tdDoc)
 		if c == nil {
 			err = fmt.Errorf("Unable to establish a connection to client '%s': %w", agentID, err2)
 		} else {

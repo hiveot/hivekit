@@ -1,6 +1,7 @@
 package directorypkg
 
 import (
+	"context"
 	"crypto/x509"
 	"fmt"
 	"log/slog"
@@ -32,10 +33,10 @@ type DirectoryHttpClient struct {
 	modules.HiveModuleBase // clients can be used as modules
 
 	// The TD of the directory itself containing the base URL
-	// directoryTD *td.TD
+	dirTD *td.TD
 
 	// the base path as published by the directory
-	directoryBasePath string
+	// directoryBasePath string
 
 	// Connection to the directory for reading or update
 	tlsClient transports.ITLSClient
@@ -55,22 +56,23 @@ func (cl *DirectoryHttpClient) Close() error {
 func (cl *DirectoryHttpClient) ConnectWithToken(clientID string, token string) error {
 
 	// 1: connect to the directory and read its TD
+
 	cl.tlsClient.ConnectWithToken(clientID, token)
 
 	// 2: read its TD
-	GetTDPath := directory.WellKnownWoTPath
-	resp, status, err := cl.tlsClient.Get(GetTDPath)
-	_ = status
-	if err != nil {
-		return err
-	}
-	tdi, err := td.UnmarshalTD(string(resp))
-	if err != nil {
-		cl.tlsClient.Close()
-		return err
-	}
+	// GetTDPath := directory.WellKnownWoTPath
+	// resp, status, err := cl.tlsClient.Get(GetTDPath)
+	// _ = status
+	// if err != nil {
+	// 	return err
+	// }
+	// tdi, err := td.UnmarshalTD(string(resp))
+	// if err != nil {
+	// 	cl.tlsClient.Close()
+	// 	return err
+	// }
 	// don't need a base if its the same as the directory client path
-	_ = tdi.Base
+	// _ = tdi.Base
 	// cl.directoryBasePath = tdi.Base
 	return nil
 }
@@ -79,15 +81,22 @@ func (cl *DirectoryHttpClient) ConnectWithToken(clientID string, token string) e
 func (cl *DirectoryHttpClient) CreateThing(tdJson string) error {
 
 	// validate the TD and determine the thingID needed in the path
-	tdi, err := td.UnmarshalTD(tdJson)
-	if err != nil {
-		return err
-	}
+	// tdoc, err := td.UnmarshalTD(tdJson)
+	// if err != nil {
+	// 	return err
+	// }
 
-	// Must match the href and method in the directory TD.
-	basePath := cl.directoryBasePath
-	updatePath := fmt.Sprintf("%s/things/%s", basePath, tdi.ID)
-	data, status, err := cl.tlsClient.Put(updatePath, []byte(tdJson))
+	f, href, err := cl.dirTD.GetFormHRef(
+		td.OpInvokeAction, directory.ActionCreateThing,
+		[]string{transports.ProtocolSchemeWotHttpBasic}, nil)
+
+	if err != nil {
+		return fmt.Errorf("CreateThing: operation %s.%s has no matching form for http protocol in the td",
+			td.OpInvokeAction, directory.ActionCreateThing)
+	}
+	ctx := context.Background()
+	methodName, _ := f.GetMethodName()
+	data, status, _, err := cl.tlsClient.Send(ctx, methodName, href, nil, []byte(tdJson), "")
 	_ = status
 	_ = data
 	return err
@@ -95,7 +104,7 @@ func (cl *DirectoryHttpClient) CreateThing(tdJson string) error {
 
 // DeleteThing removes a TD document from the remote directory.
 func (cl *DirectoryHttpClient) DeleteThing(thingID string) error {
-	basePath := cl.directoryBasePath
+	basePath := cl.dirTD.Base
 	deletePath := fmt.Sprintf("%s/things/%s", basePath, thingID)
 	_, err := cl.tlsClient.Delete(deletePath)
 	return err
@@ -106,7 +115,7 @@ func (cl *DirectoryHttpClient) DeleteThing(thingID string) error {
 // which requires the http get at /things?limit=...
 func (cl *DirectoryHttpClient) RetrieveAllThings(offset int, limit int) ([]string, error) {
 
-	basePath := cl.directoryBasePath
+	basePath := cl.dirTD.Base
 	listPath := fmt.Sprintf("%s/things?offset=%d&limit=%d", basePath, offset, limit)
 	raw, stat, err := cl.tlsClient.Get(listPath)
 	_ = stat
@@ -120,10 +129,10 @@ func (cl *DirectoryHttpClient) RetrieveAllThings(offset int, limit int) ([]strin
 
 // RetrieveThing refreshes the cached TD from the directory
 // This follows: https://w3c.github.io/wot-discovery/#exploration-directory-api
-// which requires the http get at /things/{id}
+// which requires the http get at /things/{thingID}
 func (cl *DirectoryHttpClient) RetrieveThing(thingID string) (string, error) {
 
-	basePath := cl.directoryBasePath
+	basePath := cl.dirTD.Base
 	retrievePath := fmt.Sprintf("%s/things/%s", basePath, thingID)
 	tdJson, stat, err := cl.tlsClient.Get(retrievePath)
 	_ = stat
@@ -148,7 +157,7 @@ func (cl *DirectoryHttpClient) UpdateThing(tdJson string) error {
 	}
 
 	// Must match the href and method in the directory TD.
-	basePath := cl.directoryBasePath
+	basePath := cl.dirTD.Base
 	updatePath := fmt.Sprintf("%s/things/%s", basePath, tdi.ID)
 	data, status, err := cl.tlsClient.Put(updatePath, []byte(tdJson))
 	_ = status
@@ -160,19 +169,27 @@ func (cl *DirectoryHttpClient) UpdateThing(tdJson string) error {
 //
 // Call Connect() to connect to the directory service and Close() to release resources.
 //
-//	thingID is the unique ID of the certificate service instance
-//	sink is the handler that passes requests to the service and receives notifications.
-func NewDirectoryHttpClient(serverURL string, caCert *x509.Certificate) *DirectoryHttpClient {
+//	dirTD is the discovered TD of the directory; This must contain a base URL
+//	caCert is the directory CA to match or nil to ignore this safety check for testing
+func NewDirectoryHttpClient(dirTD *td.TD, caCert *x509.Certificate) *DirectoryHttpClient {
 
-	parts, err := url.Parse(serverURL)
-	if err != nil {
-		slog.Error("NewAuthnClient: invalid server URL", "err", err.Error())
+	if dirTD == nil {
+		slog.Error("NewDirectoryHttpClient: no TD provided")
+		return nil
+	} else if dirTD.Base == "" {
+		slog.Error("NewDirectoryHttpClient: TD has no Base URL")
 		return nil
 	}
 
+	parts, err := url.Parse(dirTD.Base)
+	if err != nil {
+		slog.Error("NewDirectoryHttpClient: TD has no invalid Base URL: " + err.Error())
+		return nil
+	}
 	tlsClient := httptransportpkg.NewHttpTransportClient(parts.Host, caCert, 0)
 
 	cl := &DirectoryHttpClient{
+		dirTD:     dirTD,
 		timeout:   msg.DefaultRnRTimeout,
 		tlsClient: tlsClient,
 	}

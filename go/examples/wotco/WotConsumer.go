@@ -14,6 +14,7 @@ import (
 	"github.com/hiveot/hivekit/go/modules"
 	"github.com/hiveot/hivekit/go/modules/clients"
 	clientspkg "github.com/hiveot/hivekit/go/modules/clients/pkg"
+	directorypkg "github.com/hiveot/hivekit/go/modules/directory/pkg"
 	"github.com/hiveot/hivekit/go/modules/factory"
 	"github.com/hiveot/hivekit/go/modules/transports"
 	"github.com/hiveot/hivekit/go/modules/transports/discovery"
@@ -176,6 +177,7 @@ func (co *WotConsumer) LoadDiscoveredTD(r *discoverypkg.DiscoveryResult) (tdoc *
 	}
 	if r.IsDirectory {
 		co.directories[tdoc.ID] = tdoc
+		co.things[tdoc.ID] = tdoc // both a dir and thing
 	} else {
 		co.things[tdoc.ID] = tdoc
 	}
@@ -184,11 +186,24 @@ func (co *WotConsumer) LoadDiscoveredTD(r *discoverypkg.DiscoveryResult) (tdoc *
 
 // ReadDirectory reads all the TD in the discovered directory, up to the given limit
 // Note that without credentials this can fails
-func (co *WotConsumer) ReadDirTDs(dirTD *td.TD, limit int) {
-	var n = 0
-	slog.Info("ReadDirTDs started")
-	// TODO
-	slog.Info("ReadDirTDs completed", "count", n)
+//
+// dirTD is the TD of the directory to read
+func (co *WotConsumer) ReadDirectory(dirTD *td.TD, limit int) (tdList []*td.TD, err error) {
+	tdList = make([]*td.TD, 0)
+
+	// use the http client API
+	//  err := clients.NewTransportClientFromTD(tdoc, co.caCert, nil)
+	dirCl := directorypkg.NewDirectoryHttpClient(dirTD, co.caCert)
+	tdJsonList, err := dirCl.RetrieveAllThings(0, limit)
+	if err == nil {
+		tdList, err = td.UnmarshalTDList(tdJsonList)
+		for _, tdoc := range tdList {
+			co.things[tdoc.ID] = tdoc
+		}
+	}
+
+	slog.Info("ReadDirTDs completed", "count", len(tdList))
+	return
 }
 
 // ReadThing reads the properties of the Thing and returns a text document

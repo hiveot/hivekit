@@ -62,8 +62,10 @@ type HttpErrorResponse struct {
 }
 
 // Interface of the HttpBasic transport module
+// The http-basic is a transport that adds http to forms
 type IHttpBasicServer interface {
 	transports.ITransportServer
 
-	// todo: future API  for managing the module
+	// Return the underlying http server
+	GetHttpServer() transports.IHttpServer
 }

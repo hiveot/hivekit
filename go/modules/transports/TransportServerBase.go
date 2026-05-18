@@ -150,7 +150,7 @@ func (srv *TransportServerBase) AddTDSecForms(tdoc *td.TD, includeAffordances bo
 		srv.authenticator.AddSecurityScheme(tdoc)
 	}
 
-	// 3. add top level form for thing level  operations
+	// 3. add top level form for thing level operations
 	// the href is empty because it is the same as base for all forms in this protocol
 	form := td.NewForm("", "", srv.subprotocol)
 	form["op"] = []string{
@@ -170,7 +170,7 @@ func (srv *TransportServerBase) AddTDSecForms(tdoc *td.TD, includeAffordances bo
 	}
 }
 
-// AddAffordanceForms adds forms to affordances for interacting using the websocket protocol binding
+// AddAffordanceForms adds forms to affordances for interacting using the sub-protocol binding
 func (srv *TransportServerBase) AddAffordanceForms(tdoc *td.TD) {
 	// websocket have no additional href
 	href := ""

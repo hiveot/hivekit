@@ -22,44 +22,44 @@ const (
 
 const (
 	// HiveOT SSE uses a single SSE connection as return channel; payload are RRN messages.
-	ProtocolTypeHiveotSsesc = "hiveot-ssesc"
-	SubprotocolHiveotSsesc  = "sse-sc"
-	UriSchemeHiveotSseSc    = "sse"
+	ProtocolTypeHiveotSsesc   = "hiveot-ssesc"
+	ProtocolSchemeHiveotSseSc = "sse"
+	SubprotocolHiveotSsesc    = "sse-sc"
 
 	// HiveOT gRPC is intended for local inter-process communication using UDS,
 	// and uses the HiveOT RRN messages as the payload.
 	// TODO: also support the tcp variant
-	ProtocolTypeHiveotGrpc = "hiveot-grpc"
-	SubprotocolHiveotGrpc  = "" // not a subprotocol
-	UriSchemeHiveotGrpc    = "unix"
+	ProtocolTypeHiveotGrpc   = "hiveot-grpc"
+	ProtocolSchemeHiveotGrpc = "unix"
+	SubprotocolHiveotGrpc    = "" // not a subprotocol
 
 	// HiveOT websocket uses RRN messages as the envelope.
-	ProtocolTypeHiveotWebsocket = "hiveot-websocket"
-	SubprotocolHiveotWebsocket  = "hiveot:websocket"
-	UriSchemeHiveotWebsocket    = "wss"
+	ProtocolTypeHiveotWebsocket   = "hiveot-websocket"
+	ProtocolSchemeHiveotWebsocket = "wss"
+	SubprotocolHiveotWebsocket    = "hiveot:websocket"
 
 	// Http-basic follows the WoT specification
-	ProtocolTypeWotHttpBasic = "http-basic"
-	SubprotocolWotHttpBasic  = ""
-	UriSchemeWotHttpBasic    = "https"
+	ProtocolTypeWotHttpBasic   = "http-basic"
+	ProtocolSchemeWotHttpBasic = "https"
+	SubprotocolWotHttpBasic    = ""
 
 	// Http long poll is not implemented
-	ProtocolTypeWotHttpLongPoll = "http-longpoll"
-	SubprotocolWotHttpLongPoll  = "longpoll"
-	UriSchemeWotHttpLongPoll    = "https"
+	ProtocolTypeWotHttpLongPoll   = "http-longpoll"
+	ProtocolSchemeWotHttpLongPoll = "https"
+	SubprotocolWotHttpLongPoll    = "longpoll"
 
 	// WoT MQTT is not yet implemented
-	ProtocolTypeWotMqtt = "wot-mqtt"
-	UriSchemeWotMqtt    = "mqtts"
+	ProtocolTypeWotMqtt   = "wot-mqtt"
+	ProtocolSchemeWotMqtt = "mqtts"
 
 	// WoT SSE is not implemented
-	ProtocolTypeWotSse = "wot-sse"
-	UriSchemeWotSse    = "sse"
+	ProtocolTypeWotSse   = "wot-sse"
+	ProtocolSchemeWotSse = "sse"
 
 	// WoT websocket follows the WoT specification
-	ProtocolTypeWotWebsocket = "wot-websocket"
-	SubprotocolWotWebsocket  = "websocket"
-	UriSchemeWotWebsocket    = "wss"
+	ProtocolTypeWotWebsocket   = "wot-websocket"
+	ProtocolSchemeWotWebsocket = "wss"
+	SubprotocolWotWebsocket    = "websocket"
 )
 
 // payload of connection events

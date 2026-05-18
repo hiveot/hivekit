@@ -43,7 +43,7 @@ type ITLSClient interface {
 	// Create a new http request with all the headers including authorization.
 	// The request can be cancelled using the provided context.
 	CreateRequest(ctx context.Context,
-		method string, path string, qParams map[string]string,
+		method string, fullURL string, qParams map[string]string,
 		body []byte, contentType string,
 	) *http.Request
 
@@ -98,7 +98,7 @@ type ITLSClient interface {
 	//
 	//	context for cancel function or timeout
 	// 	method is one of HTTP's GET|POST|PUT|DELETE|PATCH|...
-	//	path is the URL path
+	//	urlPath is the relative path or full URL with path
 	//	qParams are optional query parameters. Use nil to ignore.
 	//	body is the optional body to include. Use nil to ignore.
 	//	contentType is the optional content-type. Default is "application/json".

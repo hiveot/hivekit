@@ -42,28 +42,32 @@ func TestMain(m *testing.M) {
 }
 
 // Start a test environment with a directory module connected to the server
+// withHttp means that http-basic is used for serving TDD and directory requests.
 func StartDirectoryServer(withHttp bool) (
 	testEnv *testenv.TestEnv, m directory.IDirectoryService, cancelFn func()) {
 
-	testEnv, cancelTestEnv := testenv.StartTestEnv(defaultProtocol)
-	// use in-memory storage
-	var httpAPI directory.IDirectoryHttpServer
+	var httpAPI transports.IHttpServer
+	proto := defaultProtocol
 	if withHttp {
-		httpAPI = directorypkg.NewDirectoryHttpServer(testEnv.HttpServer)
-		httpAPI.Start()
+		proto = transports.ProtocolTypeWotHttpBasic
 	}
-	m = directorypkg.NewDirectoryMsgServer("", storageDir, httpAPI, nil)
+	testEnv, cancelTestEnv := testenv.StartTestEnv(proto)
+	if withHttp {
+		httpAPI = testEnv.HttpServer
+	}
+	transports := []transports.ITransportServer{testEnv.Server}
+	m = directorypkg.NewDirectoryMsgServer("", storageDir, httpAPI, transports)
 	err := m.Start()
 	if err != nil {
 		panic("StartDirectoryServer: failed to start the directory " + err.Error())
 	}
-	if httpAPI != nil {
-		// http messages are handled by the service. For testing this is a direct link
-		// but in an application auth and other modules might be in the middle.
-		httpAPI.SetRequestSink(m.HandleRequest)
-	}
-	// link the directory module to the server
+	// http requests are passed as RRN messages to the directory server
+	// if httpAPI != nil {
+	// httpAPI.SetRequestSink(m.HandleRequest)
+	// }
+	// RRN requests from the server are passed as RRN to the directory server
 	testEnv.Server.SetRequestSink(m.HandleRequest)
+	// the server receives the notifications
 	m.SetNotificationSink(testEnv.Server.HandleNotification)
 	return testEnv, m, func() {
 		if httpAPI != nil {
@@ -217,7 +221,8 @@ func TestCRUDUsingRestAPI(t *testing.T) {
 	assert.NotEmpty(t, m)
 
 	// normally discovery provides the address
-	tddUrl := testEnv.HttpServer.GetConnectURL()
+	dirTD, err := td.UnmarshalTD(m.RetrieveTDD())
+	require.NoError(t, err)
 
 	// create the client and connect to the http server that serves the directory TD
 	cl, authToken := testEnv.NewConnectedClient(clientID, authn.ClientRoleManager, nil)
@@ -225,9 +230,10 @@ func TestCRUDUsingRestAPI(t *testing.T) {
 	// authToken, _, err := testEnv.CreateToken(clientID, time.Minute)
 	// require.NoError(t, err)
 
-	dirClient := directorypkg.NewDirectoryHttpClient(tddUrl, testEnv.CertBundle.CaCert)
+	dirClient := directorypkg.NewDirectoryHttpClient(dirTD, testEnv.CertBundle.CaCert)
+
 	// connect should read the directory TD
-	err := dirClient.ConnectWithToken(clientID, authToken)
+	err = dirClient.ConnectWithToken(clientID, authToken)
 	require.NoError(t, err)
 
 	// test create a TD

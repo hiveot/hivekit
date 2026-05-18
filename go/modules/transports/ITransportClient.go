@@ -21,8 +21,9 @@ import (
 type GetCredentials func(thingID string) (clientID string, cred string, credType string, err error)
 
 // GetFormHandler is the handler that provides the client with the form needed to invoke an operation
-// This returns nil if no form is found for the operation.
-type GetFormHandler func(op string, thingID string, name string) *td.Form
+// This returns the form and a full href for the operation. Relative href's are converted
+// to full hrefs.
+type GetFormHandler func(op string, thingID string, name string) (f *td.Form, href string)
 
 // ITransportClient defines the interface of a transport client connection.
 // This implements IHiveModule and IConnection.

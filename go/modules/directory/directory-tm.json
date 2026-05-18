@@ -18,6 +18,11 @@
   "support": "https://www.github.com/hiveot/hivekit",
   "base": "{{SERVER_BASE_URL}}",
   "deny": ["none"],
+  "forms": [{
+    "op": "readallproperties",
+    "href": "/things/properties?offset={offset}&limit={limit}",
+    "htv:methodName": "GET"
+  }],
 
   "properties": {
     "things": {
@@ -107,7 +112,7 @@
       },
       "forms": [
         {
-          "href": "/things/{id}",
+          "href": "/things/{thingID}",
           "htv:methodName": "PUT",
           "response": {
             "description": "Success response",
@@ -143,7 +148,7 @@
       },
       "forms": [
         {
-          "href": "/things/{id}",
+          "href": "/things/{thingID}",
           "htv:methodName": "DELETE",
           "response": {
             "description": "Success response",
@@ -230,7 +235,7 @@
       },
       "forms": [
         {
-          "href": "/things/{id}",
+          "href": "/things/{thingID}",
           "htv:methodName": "GET",
           "comments": [
             "Additional http endpoint as per spec to read a TD.",
@@ -261,7 +266,7 @@
       },
       "forms": [
         {
-          "href": "/things/{id}",
+          "href": "/things/{thingID}",
           "htv:methodName": "PUT",
           "contentType": "application/td+json",
           "response": {

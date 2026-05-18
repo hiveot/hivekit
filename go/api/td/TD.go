@@ -17,6 +17,13 @@ const HiveOTContext = "https://www.hiveot.net/vocab/v0.1"
 
 const AtTypeDirectory = "ThingDirectory"
 
+// URI variables for use in TD
+const (
+	UriVarName      = "name"
+	UriVarThingID   = "thingID"
+	UriVarOperation = "op"
+)
+
 type ErrInvalidTD struct{ error }
 
 // TD contains the Thing Description document
@@ -352,42 +359,97 @@ func (tdoc *TD) GetEvent(eventName string) *EventAffordance {
 	return eventAffordance
 }
 
+// GetForm returns the form for the requested operation for the given protocol.
+//
+// This matches the protocol with the subprotocol name. If no match is found it matches
+// the scheme in the href.
+//
+// This first checks for forms in the requested operation by affordance name,
+// and appends the global forms.
+//
+//	operation is the operation as defined in TD forms
+//	name is the name of property, event or action whose form to get or "" for the TD level operations
+//	protocol is the transport (sub)protocol scheme or subprotocol, use "" for any
+//
+// This returns the form or nil if no match is found
+func (tdoc *TD) GetForm(operation string, name string, protocol string) *Form {
+	forms := tdoc.GetForms(operation, name)
+
+	if protocol == "" {
+		if len(forms) == 0 {
+			return nil
+		}
+		return &forms[0]
+	}
+
+	// first search subprotocol
+	for _, form := range forms {
+		subp, _ := form.GetSubprotocol()
+		if subp == protocol {
+			return &form
+		}
+	}
+	// next match href scheme
+	for _, form := range forms {
+		href := form.GetHRef()
+		hrefParts, err := url.Parse(href)
+		if err == nil {
+			// match the protocol with the form href
+			// if href is relative then use the scheme of the base
+			switch hrefParts.Scheme {
+			case "":
+				if strings.HasPrefix(tdoc.Base, protocol+":") {
+					return &form
+				}
+			case protocol:
+				return &form
+			}
+		}
+	}
+	return nil
+}
+
 // GetForms returns the forms for the requested operation.
 // The caller still has to find the matching protocol based on url and subprotocol field.
 //
 // This first checks for forms in the requested operation by affordance name,
 // and appends the global forms.
 //
-// FIXME: make this wot compatible. The top level forms seem to play a different
-// role than the one in the affordances. The other problem is that the sheer
-// amount of forms would bloat the TD so I have trouble accepting this approach.
-//
 //	operation is the operation as defined in TD forms
 //	name is the name of property, event or action whose form to get or "" for the TD level operations
 func (tdoc *TD) GetForms(operation string, name string) []Form {
+	var thingLevelOperations = []string{
+		OpQueryAllActions,
+		OpObserveAllProperties,
+		OpReadAllProperties,
+		OpUnobserveAllProperties,
+		OpSubscribeAllEvents,
+		OpUnsubscribeAllEvents}
+
 	var availableForms []Form
 	var opForms []Form = make([]Form, 0)
 
-	if name != "" {
-		// get the form from the affordance if a name is given
+	// operation is a top level operation without expecting an affordance name
+	if slices.Index(thingLevelOperations, operation) >= 0 {
+		availableForms = tdoc.Forms
+	} else if name == "" {
+		return nil
+	} else {
 
+		// get the form from the affordance if a name is given
 		switch operation {
 		case
 			OpInvokeAction,
 			OpCancelAction,
-			OpQueryAction,
-			OpQueryAllActions:
+			OpQueryAction:
 			aff := tdoc.Actions[name]
 			if aff != nil {
 				availableForms = aff.Forms
 			}
 
 		case
-			OpObserveAllProperties,
 			OpObserveProperty,
-			OpReadAllProperties,
 			OpReadProperty,
-			OpUnobserveAllProperties,
 			OpUnobserveProperty,
 			OpWriteProperty,
 			OpWriteMultipleProperties:
@@ -397,53 +459,80 @@ func (tdoc *TD) GetForms(operation string, name string) []Form {
 			}
 
 		case
-			OpSubscribeAllEvents,
 			OpSubscribeEvent,
-			OpUnsubscribeAllEvents,
 			OpUnsubscribeEvent:
 			aff := tdoc.Events[name]
 			if aff != nil {
 				availableForms = aff.Forms
 			}
 		}
-
-		// find the form for this operation that has the currently used transport type
-		for _, form := range availableForms {
-			opList := form.GetOperations()
-			if slices.Index(opList, operation) >= 0 {
-				opForms = append(opForms, form)
-			}
-		}
 	}
-	// still not found? okay check the top level form
-	for _, form := range tdoc.Forms {
+
+	// If no affordance level forms are found try the top level form
+	if availableForms == nil {
+		availableForms = tdoc.Forms
+	}
+
+	// find the forms for the operation
+	// include forms that do not no contain any operations
+	for _, form := range availableForms {
 		opList := form.GetOperations()
-		if slices.Index(opList, operation) >= 0 {
+		if len(opList) == 0 {
+			opForms = append(opForms, form)
+		} else if slices.Index(opList, operation) >= 0 {
 			opForms = append(opForms, form)
 		}
 	}
 	return opForms
 }
 
-// GetFormHRef returns the URL of the form and injects the URI variables if provided.
-// If the form uses a relative href then prepend it with the base defined
-// in the TD.
-func (tdoc *TD) GetFormHRef(form Form, uriVars map[string]string) (href string, err error) {
-	href = form.GetHRef()
-	// if href == "" {
-	// return "", fmt.Errorf("form has no valid href field")
-	// }
+// GetFormHRef returns the form and URL for the given operation and protocol.
+//
+// If no schema or protocol is provided then return the first match for operation and name.
+//
+// This uses the td base if a form uses a relative href.
+// This injects uriVars if defined.
+func (tdoc *TD) GetFormHRef(
+	op, name string, schemeOrProtocol []string, uriVars map[string]string) (
+	f *Form, href string, err error) {
+
+	if uriVars == nil {
+		uriVars = map[string]string{
+			UriVarName:      name,
+			UriVarThingID:   tdoc.ID,
+			UriVarOperation: op,
+		}
+	}
+
+	if len(schemeOrProtocol) == 0 {
+		f = tdoc.GetForm(op, name, "")
+	} else {
+		// search for one of the requested protocols
+		for _, p := range schemeOrProtocol {
+			f = tdoc.GetForm(op, name, p)
+			if f != nil {
+				break
+			}
+		}
+	}
+
+	if f == nil {
+		return nil, "", fmt.Errorf("No form found for the requested operation")
+	}
+
+	href = f.GetHRef()
 	uri, err := url.Parse(href)
 	if err != nil {
-		return "", err
+		return f, "", err
 	}
 	if !uri.IsAbs() {
-		href, err = url.JoinPath(tdoc.Base, uri.Path)
+		// JoinPath will mangle uri variable so substitute first
+		path := tdoc.Substitute(uri.Path, uriVars)
+		href, err = url.JoinPath(tdoc.Base, path)
+	} else {
+		href, err = url.JoinPath(tdoc.Base, href)
 	}
-	if uriVars != nil {
-		href = tdoc.Substitute(href, uriVars)
-	}
-	return href, err
+	return f, href, err
 }
 
 // GetProperty returns the Schema and value for the property or nil if its key is not found.
