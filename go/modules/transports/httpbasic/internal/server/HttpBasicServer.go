@@ -59,8 +59,8 @@ func (m *HttpBasicServer) HandleRequest(
 //
 // Configurable:
 // - add public routes for ping
-// - add protected route for thing requests {operation}/{thing}/{name}
-// - add protected route for affordance requests {operation}/{thing}/{affordance}/{name}
+// - add protected route for thing requests {op}/{thing}/{name}
+// - add protected route for affordance requests {op}/{thing}/{affordance}/{name}
 //
 // Incoming requests are converted to the standard message format and passed to
 // the registered sinks.
@@ -103,11 +103,7 @@ func NewHttpBasicServer(httpServer transports.IHttpServer) *HttpBasicServer {
 
 	connectURL := httpServer.GetConnectURL()
 	authenticator := httpServer.GetAuthenticator()
-	m.Init(
-		httpbasic.HttpBasicServerModuleType,
-		transports.ProtocolTypeWotHttpBasic,
-		transports.SubprotocolWotHttpBasic,
-		connectURL, authenticator)
+	m.Init(httpbasic.HttpBasicServerModuleType, connectURL, authenticator)
 
 	// TODO: properties must match the module TM
 	// m.UpdateProperty(transports.PropName_NrConnections, 0)

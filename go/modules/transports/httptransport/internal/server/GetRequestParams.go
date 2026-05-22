@@ -33,11 +33,11 @@ func GetClientIdFromContext(r *http.Request) (clientID string, err error) {
 // common name (cn) the clientID.
 // If the clientID is not available then this returns an error.
 //
-// This determines {thingID}, {name} and {op} from the path.
+// This determines {id}, {name} and {op} from the path.
 // It unmarshals the request body into 'data', if given.
 //
-//	{operation} is the operation
-//	{thingID} is the agent or digital twin thing ID
+//	{op} is the operation
+//	{id} is the agent or digital twin thing ID
 //	{name} is the property, event or action name. '+' means 'all'
 func GetRequestParams(r *http.Request) (reqParam transports.RequestParams, err error) {
 	// determine the clientID, either from context or client cert

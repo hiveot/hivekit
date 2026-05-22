@@ -20,7 +20,10 @@ import (
 // This includes the unprotected routes for ping (for now)
 // Everything else should be added by the sub-protocols.
 //
-// Routes are added by (sub)protocols such as http-basic, sse and wss.
+// The http-basic routes include generic routes for affordances using URI variables for
+// handling a single endpoint for all operations. See HttpBasicThingOperationPath and
+// HttpBasicAffordanceOperationPath for the generic paths.
+// The paths are included in the thing level forms when invoking AddTDSecForms.
 func (m *HttpBasicServer) createRoutes() {
 
 	//--- public routes do not require an authenticated session
@@ -71,7 +74,7 @@ func (m *HttpBasicServer) EnableStatic(base string, staticRoot string) error {
 
 // onHttpAffordanceOperation converts the http request to a request message and pass it to the
 // registered request handler.
-// This read request params for {operation}, {thingID} and {name}
+// This read request params for {op}, {id} and {name}
 func (m *HttpBasicServer) onHttpAffordanceOperation(w http.ResponseWriter, r *http.Request) {
 	var output any
 	var handled bool
@@ -90,7 +93,9 @@ func (m *HttpBasicServer) onHttpAffordanceOperation(w http.ResponseWriter, r *ht
 	req.CorrelationID = rp.CorrelationID
 
 	// filter on allowed operations
-	if !slices.Contains(HttpKnownOperations, req.Operation) {
+	if slices.Contains(thingLevelOperations, req.Operation) {
+	} else if slices.Contains(affordanceOperations, req.Operation) {
+	} else {
 		slog.Warn("Unsupported operation for http-basic",
 			"method", r.Method, "URL", r.URL.String(),
 			"operation", req.Operation, "thingID", req.ThingID, "name", req.Name, "clientID", req.SenderID)

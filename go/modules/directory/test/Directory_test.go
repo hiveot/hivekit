@@ -41,26 +41,33 @@ func TestMain(m *testing.M) {
 	os.Exit(result)
 }
 
-// Start a test environment with a directory module connected to the server
-// withHttp means that http-basic is used for serving TDD and directory requests.
+// Start a test environment with a directory module connected to the server.
+// withHttp means that directory service API is used for serving TDD and directory requests.
 func StartDirectoryServer(withHttp bool) (
 	testEnv *testenv.TestEnv, m directory.IDirectoryService, cancelFn func()) {
 
 	var httpAPI transports.IHttpServer
+	var dirHttpServer directory.IDirectoryHttpServer
+
 	proto := defaultProtocol
-	if withHttp {
-		proto = transports.ProtocolTypeWotHttpBasic
-	}
 	testEnv, cancelTestEnv := testenv.StartTestEnv(proto)
-	if withHttp {
-		httpAPI = testEnv.HttpServer
-	}
 	transports := []transports.ITransportServer{testEnv.Server}
+
+	if withHttp {
+		// add directory endpoints to the http server
+		dirHttpServer = directorypkg.NewDirectoryHttpServer(testEnv.HttpServer)
+		transports = append(transports, dirHttpServer)
+	}
+	// the transports are used to update the TDD forms and security
 	m = directorypkg.NewDirectoryMsgServer("", storageDir, httpAPI, transports)
 	err := m.Start()
 	if err != nil {
 		panic("StartDirectoryServer: failed to start the directory " + err.Error())
 	}
+	if withHttp {
+		dirHttpServer.SetRequestSink(m.HandleRequest)
+	}
+
 	// http requests are passed as RRN messages to the directory server
 	// if httpAPI != nil {
 	// httpAPI.SetRequestSink(m.HandleRequest)
@@ -255,7 +262,7 @@ func TestCRUDUsingRestAPI(t *testing.T) {
 	require.NoError(t, err)
 
 	// read should fail
-	slog.Warn("---expect an error below---")
+	slog.Error("---expect an error below---")
 	_, err = dirClient.RetrieveThing(thing1ID)
 	require.Error(t, err)
 }

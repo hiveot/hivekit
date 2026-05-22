@@ -5,6 +5,7 @@ import (
 
 	"github.com/hiveot/hivekit/go/api/td"
 	"github.com/hiveot/hivekit/go/modules"
+	"github.com/hiveot/hivekit/go/modules/transports"
 )
 
 // Embed the directory TM
@@ -45,18 +46,11 @@ type AgentInfo struct {
 	ThingIDs []string
 }
 
-// Directory service http API module
+// Directory http server as per https://w3c.github.io/wot-discovery/#exploration-directory-api
+// This acts as a simple http transport server and should be placed ahead of
+// the DirectoryService module chain.
 type IDirectoryHttpServer interface {
-	modules.IHiveModule
-
-	// AddTDSecForms updates the given Thing Description with security and forms for this
-	// transport module.
-	// The security scheme in the TD is set by the authenticator used by the server.
-	AddTDSecForms(tdoc *td.TD, includeAffordances bool)
-
-	// Obain the base URL of the directory http endpoint
-	// Used to include this in the directory TDD
-	GetBaseURL() (uri string)
+	transports.ITransportServer
 }
 
 // IDirectoryService defines the interface to the directory service module

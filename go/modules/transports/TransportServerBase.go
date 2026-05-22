@@ -8,7 +8,6 @@ import (
 	"sync"
 
 	"github.com/hiveot/hivekit/go/api/msg"
-	"github.com/hiveot/hivekit/go/api/td"
 )
 
 // Module properties that can be exposed in a TM
@@ -48,9 +47,6 @@ type TransportServerBase struct {
 	// Sink for forwarding notifications
 	notificationSink msg.NotificationHandler
 
-	// The protocol type of this server
-	protocolType string
-
 	// Sink for forwarding requests
 	requestSink msg.RequestHandler
 
@@ -59,9 +55,6 @@ type TransportServerBase struct {
 	// will result in a response over the other. RnRChan will pass the response from
 	// one channel to the requester.
 	RnrChan *msg.RnRChan
-
-	// The subprotocol to include in forms. Empty to ignore
-	subprotocol string
 
 	// the server module thingID used for sending connect/disconnect notifications
 	thingID string
@@ -134,75 +127,81 @@ func (srv *TransportServerBase) AddConnection(c IConnection) error {
 	return nil
 }
 
-// AddTDSecForms updates the TD with base URI, security scheme and forms for use of
-// this protocol to the given TD.
+// AddThingSecForms updates the TD with base URI, security scheme and thing level forms for use
+// with this protocol. Use AddAffordanceForms to add forms to individual affordances.
+//
+// Intended to be used by the protocol implementations that do not use hrefs per operation,
+// such as websockets, sse-sc, mqtt. If each operation uses a different href then don't
+// use this method.
 //
 // Since the contentType is the default application/json it is omitted
 //
+//	tdoc is the TD to update
+//	base is the base URL
+//
 // 'includeAffordances' adds forms to all affordances to be compliant with the specifications.
 // Btw, this is a waste of space in the TD as it required but not needed with some protocols.
-func (srv *TransportServerBase) AddTDSecForms(tdoc *td.TD, includeAffordances bool) {
-	// 1. Add the base connection endpoint
-	tdoc.Base = srv.connectURL
+// func (srv *TransportServerBase) AddThingSecForms(tdoc *td.TD, base string) {
+// 	// 1. Add the base connection endpoint
+// 	tdoc.Base = base
 
-	// 2. Set the security scheme used by the authenticator.
-	if srv.authenticator != nil {
-		srv.authenticator.AddSecurityScheme(tdoc)
-	}
+// 	// 2. Set the security scheme used by the authenticator.
+// 	if srv.authenticator != nil {
+// 		srv.authenticator.AddSecurityScheme(tdoc)
+// 	}
 
-	// 3. add top level form for thing level operations
-	// the href is empty because it is the same as base for all forms in this protocol
-	form := td.NewForm("", "", srv.subprotocol)
-	form["op"] = []string{
-		td.OpQueryAllActions,
-		td.OpObserveAllProperties, td.OpUnobserveAllProperties,
-		td.OpReadAllProperties,
-		td.HTOpReadAllEvents, // hiveot supports reading latest events
-		td.OpSubscribeAllEvents, td.OpUnsubscribeAllEvents,
-	}
-	//form["contentType"] = "application/json"
-	tdoc.Forms = append(tdoc.Forms, form)
+// 	// 3. add top level form for thing level operations
+// 	// the href is empty because it is the same as base for all forms in this protocol
+// 	form := td.NewForm("", "", srv.subprotocol)
+// 	form["op"] = []string{
+// 		td.OpQueryAllActions,
+// 		td.OpObserveAllProperties, td.OpUnobserveAllProperties,
+// 		td.OpReadAllProperties,
+// 		td.HTOpReadAllEvents, // hiveot supports reading latest events
+// 		td.OpSubscribeAllEvents, td.OpUnsubscribeAllEvents,
+// 	}
+// 	//form["contentType"] = "application/json"
+// 	// tdoc.Forms = append(tdoc.Forms, form)
 
-	// Add forms to all affordances to be compliant with the specifications.
-	// This is a massive waste of space in the TD.
-	if includeAffordances {
-		srv.AddAffordanceForms(tdoc)
-	}
-}
+// 	// Add forms to all affordances to be compliant with the specifications.
+// 	// This is a massive waste of space in the TD.
+// 	// if includeAffordances {
+// 	// srv.AddAffordanceForms(tdoc)
+// 	// }
+// }
 
 // AddAffordanceForms adds forms to affordances for interacting using the sub-protocol binding
-func (srv *TransportServerBase) AddAffordanceForms(tdoc *td.TD) {
-	// websocket have no additional href
-	href := ""
-	for name, aff := range tdoc.Actions {
-		_ = name
-		form := td.NewForm("", href, srv.subprotocol)
-		form["op"] = []string{td.OpInvokeAction, td.OpQueryAction}
-		aff.AddForm(form)
-		// cancel action is currently not supported
-	}
-	for name, aff := range tdoc.Events {
-		_ = name
-		form := td.NewForm("", href, srv.subprotocol)
-		form["op"] = []string{td.HTOpReadEvent, td.OpSubscribeEvent, td.OpUnsubscribeEvent}
-		aff.AddForm(form)
-	}
-	for name, aff := range tdoc.Properties {
-		_ = name
-		form := td.NewForm("", href, srv.subprotocol)
-		ops := []string{}
-		if !aff.WriteOnly {
-			ops = append(ops, td.OpReadProperty, td.OpObserveProperty, td.OpUnobserveProperty)
-		}
-		if !aff.ReadOnly {
-			ops = append(ops, td.OpWriteProperty)
-		}
+// This does adds empty hrefs to the forms for protocols that don't use them such as websockets.
+// func (srv *TransportServerBase) AddAffordanceForms(tdoc *td.TD, subprotocol string) {
+// 	// websocket have no additional href
+// 	href := ""
+// 	for _, aff := range tdoc.Actions {
+// 		ops := []string{td.OpInvokeAction, td.OpQueryAction}
+// 		aff.AddForm(ops, subprotocol, href, "", nil)
+// 		// cancel action is currently not supported
+// 	}
+// 	for name, aff := range tdoc.Events {
+// 		_ = name
+// 		form := td.NewForm("", href, srv.subprotocol)
+// 		ops := []string{td.HTOpReadEvent, td.OpSubscribeEvent, td.OpUnsubscribeEvent}
+// 		aff.AddForm(form)
+// 	}
+// 	for name, aff := range tdoc.Properties {
+// 		_ = name
+// 		form := td.NewForm("", href, srv.subprotocol)
+// 		ops := []string{}
+// 		if !aff.WriteOnly {
+// 			ops = append(ops, td.OpReadProperty, td.OpObserveProperty, td.OpUnobserveProperty)
+// 		}
+// 		if !aff.ReadOnly {
+// 			ops = append(ops, td.OpWriteProperty)
+// 		}
 
-		form["op"] = ops
-		aff.AddForm(form)
+// 		form["op"] = ops
+// 		aff.AddForm(form)
 
-	}
-}
+// 	}
+// }
 
 // CloseAllClientConnections closes all connections of the given client.
 func (srv *TransportServerBase) CloseAllClientConnections(clientID string) {
@@ -291,7 +290,7 @@ func (srv *TransportServerBase) ForEachConnection(handler func(c IConnection)) {
 	}
 }
 
-// ForwardNotification passes notifications received by a server to the linked notification sink.
+// ForwardNotification passes received notifications to the linked notification sink.
 // These notifications are typically sent by remote agents that use RC, or by this server
 // module itself to notify of connect/disconnects.  They are intended for services
 // running on the server, or to be forwarded to clients that subscribed to them.
@@ -311,10 +310,11 @@ func (srv *TransportServerBase) ForwardNotification(notif *msg.NotificationMessa
 	srv.notificationSink(notif)
 }
 
-// ForwardRequest passes a request from a client (agent) to the server request sink.
-// HandleRequest method.
+// ForwardRequest passes a request to the configured request sink.
 //
-// This is used as the request handler of requests from incoming connections.
+// This is used as the request handler of requests from incoming connections
+// or for requests passed down as part of the module chain.
+//
 // If no sink os configured this returns an error
 func (srv *TransportServerBase) ForwardRequest(req *msg.RequestMessage, replyTo msg.ResponseHandler) (err error) {
 	if srv.requestSink == nil {
@@ -372,11 +372,6 @@ func (srv *TransportServerBase) GetConnectionByClientID(clientID string) (c ICon
 			"clientID", clientID, "nr alleged connections", len(cList))
 	}
 	return c
-}
-
-// GetProtocolType returns type identifier of the server protocol as defined by its module
-func (m *TransportServerBase) GetProtocolType() (string, string) {
-	return m.protocolType, m.subprotocol
 }
 
 // Handle a notification this module (or downstream in the chain) subscribed to.
@@ -570,12 +565,10 @@ func (srv *TransportServerBase) SetRequestSink(sink msg.RequestHandler) {
 //	connectURL is the URL this module can be reached at. Used to set TD.Base
 //	authenticator used to include the security in TDs
 func (srv *TransportServerBase) Init(
-	thingID, protocolType, subprotocol string, connectURL string, authenticator IAuthenticator) {
+	thingID, connectURL string, authenticator IAuthenticator) {
 
 	srv.thingID = thingID
 	srv.authenticator = authenticator
-	srv.protocolType = protocolType
-	srv.subprotocol = subprotocol
 	srv.connectURL = connectURL
 	srv.RnrChan = msg.NewRnRChan()
 }

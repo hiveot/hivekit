@@ -26,7 +26,7 @@ const DefaultUDSModuleID = "hiveot-uds"
 type GrpcServer struct {
 	transports.TransportServerBase
 	// Authenticate
-	authn transports.IAuthenticator
+	authenticator transports.IAuthenticator
 
 	tlsCert *tls.Certificate
 
@@ -102,7 +102,7 @@ func (m *GrpcServer) Start() (err error) {
 	if err != nil {
 		return err
 	}
-	grpcAuthn := grpclib.NewGrpcAuthenticator(m.authn)
+	grpcAuthn := grpclib.NewGrpcAuthenticator(m.authenticator)
 	m.grpcService = grpclib.NewGrpcServiceServer(
 		lis, m.tlsCert, m.serviceName, grpcAuthn, time.Minute)
 
@@ -111,9 +111,7 @@ func (m *GrpcServer) Start() (err error) {
 
 	m.Init(
 		grpctransport.HiveotGrpcServerModuleType,
-		transports.ProtocolTypeHiveotGrpc,
-		transports.SubprotocolHiveotGrpc,
-		m.connectURL, m.authn)
+		m.connectURL, m.authenticator)
 
 	err = m.grpcService.Start()
 	if err != nil {
@@ -152,11 +150,11 @@ func NewGrpcServer(
 	}
 
 	srv := &GrpcServer{
-		authn:       authn,
-		connectURL:  connectURL,
-		tlsCert:     tlsCert,
-		respTimeout: respTimeout,
-		serviceName: grpctransport.GrpcTransportServiceName,
+		authenticator: authn,
+		connectURL:    connectURL,
+		tlsCert:       tlsCert,
+		respTimeout:   respTimeout,
+		serviceName:   grpctransport.GrpcTransportServiceName,
 	}
 	return srv
 }

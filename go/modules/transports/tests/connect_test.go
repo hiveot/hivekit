@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"log/slog"
-	"net/url"
 	"os"
 	"sync/atomic"
 	"testing"
@@ -223,9 +222,5 @@ func TestServerURL(t *testing.T) {
 	testEnv, cancelFn := testenv.StartTestEnv(testProtocol)
 	defer cancelFn()
 	serverURL := testEnv.Server.GetConnectURL()
-	protocolType, subProtocol := testEnv.Server.GetProtocolType()
-	_ = subProtocol
-	_, err := url.Parse(serverURL)
-	require.NoError(t, err)
-	require.Equal(t, testProtocol, protocolType)
+	assert.NotEmpty(t, serverURL)
 }

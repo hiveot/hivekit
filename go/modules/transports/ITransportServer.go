@@ -94,9 +94,6 @@ type ITransportServer interface {
 	// GetConnectURL returns connection URL of the server
 	GetConnectURL() (uri string)
 
-	// GetProtocolType returns type identifier of the server protocol type and form sub-protocol
-	GetProtocolType() (protocolType string, subProtocol string)
-
 	// SendNotification [agent] sends a notification over the connections to
 	// remote subscribed consumers.
 	SendNotification(notif *msg.NotificationMessage)

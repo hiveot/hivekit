@@ -49,10 +49,13 @@ func WriteReply(
 		}
 	} else if handled {
 		if payloadJSON != "" {
-			_, _ = w.Write([]byte(payloadJSON))
+			_, _ = w.Write([]byte(payloadJSON)) // 200 with content
+			// Code 200: https://w3c.github.io/wot-profile/#example-17
+			w.WriteHeader(http.StatusOK)
+		} else {
+			// 204 success no content
+			w.WriteHeader(http.StatusNoContent)
 		}
-		// Code 200: https://w3c.github.io/wot-profile/#example-17
-		w.WriteHeader(http.StatusOK)
 	} else {
 		// not handled no error. response will be async
 		// Code 201: https://w3c.github.io/wot-profile/#sec-http-sse-profile

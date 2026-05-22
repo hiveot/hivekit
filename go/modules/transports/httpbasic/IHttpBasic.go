@@ -13,8 +13,8 @@ const (
 	// The generic path for thing operations over http
 	// See http server for definition of the URI variables
 	HttpBaseFormOp                   = "/things"
-	HttpBasicAffordanceOperationPath = "/things/{operation}/{thingID}/{name}"
-	HttpBasicThingOperationPath      = "/things/{operation}/{thingID}"
+	HttpBasicAffordanceOperationPath = "/things/{op}/{id}/{name}"
+	HttpBasicThingOperationPath      = "/things/{op}/{id}"
 )
 
 // message types defined in the http basic profile

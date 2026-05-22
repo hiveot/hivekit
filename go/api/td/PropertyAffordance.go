@@ -1,6 +1,8 @@
 // Package things with API interface definitions for the ExposedThing and ConsumedThing classes
 package td
 
+import "github.com/hiveot/hivekit/go/utils"
+
 // PropertyAffordance metadata that defines Thing properties
 // This is a Subclass of the InteractionAffordance Class and the DataSchema Class.
 // Note: https://github.com/w3c/wot-thing-description/issues/1390
@@ -38,9 +40,20 @@ type PropertyAffordance struct {
 }
 
 // AddForm adds an interaction form to the property affordance
+// Use SetSubprotocol if the form is for an http sub-protocol.
 // this is not thread-safe.
-func (aff *PropertyAffordance) AddForm(form Form) {
+func (aff *PropertyAffordance) AddForm(
+	op string, href string, method string, vars map[string]string) Form {
+
+	if vars != nil {
+		href = utils.Substitute(href, vars)
+	}
+	form := NewForm(op, href)
+	if method != "" {
+		form.SetMethodName(method)
+	}
 	aff.Forms = append(aff.Forms, form)
+	return form
 }
 
 // SetAtType sets the property @type field from the HT vocabulary

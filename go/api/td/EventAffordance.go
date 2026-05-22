@@ -1,6 +1,8 @@
 // Package things with API interface definitions for the ExposedThing and ConsumedThing classes
 package td
 
+import "github.com/hiveot/hivekit/go/utils"
+
 // EventAffordance with metadata that describes an event source
 type EventAffordance struct {
 	//--- InteractionAffordance starts ---
@@ -38,9 +40,20 @@ type EventAffordance struct {
 }
 
 // AddForm adds an interaction form to the event affordance
+// Use SetSubprotocol if the affordance is a websocket, sse or other http subprotocol
 // this is not thread-safe.
-func (aff *EventAffordance) AddForm(form Form) {
+func (aff *EventAffordance) AddForm(
+	op string, href string, method string, vars map[string]string) Form {
+
+	if vars != nil {
+		href = utils.Substitute(href, vars)
+	}
+	form := NewForm(op, href)
+	if method != "" {
+		form.SetMethodName(method)
+	}
 	aff.Forms = append(aff.Forms, form)
+	return form
 }
 
 // GetAtTypeString returns the @type field from the affordance as a single string.

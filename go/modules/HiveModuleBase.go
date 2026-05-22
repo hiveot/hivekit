@@ -63,29 +63,25 @@ type HiveModuleBase struct {
 	// senderID string
 }
 
-// ForwardNotification (output) passes notifications to a registered hook and
-// send it to the a registered sink.
+// ForwardNotification (output) passes received notifications to a registered hook
+// and send it to the a registered sink.
+//
+// Note that only handleNotification passes it to the appNotificationHook.
 //
 // If none is registered this does nothing.
 // note that the handler is not the downstream sink but the upstream consumer.
 func (m *HiveModuleBase) ForwardNotification(notif *msg.NotificationMessage) {
-	// why would this be here instead in HandleNotification?
-	// if m.appNotificationHook != nil {
-	// 	go m.appNotificationHook(notif)
-	// }
 
 	if m.notificationSink == nil {
 		// End of the line. If the notification isn't handled then warn about it
 		// A downstream module could have subscribed.
-		if m.appNotificationHook == nil {
-			// keep this warning for now.
-			slog.Info("ForwardNotification: end of the line, no more notification sink.",
-				"module", fmt.Sprintf("%T", m),
-				"affordance", notif.AffordanceType,
-				"thingID", notif.ThingID,
-				"name", notif.Name,
-			)
-		}
+		// // keep this warning for now.
+		// slog.Info("ForwardNotification: end of the line, no more notification sink.",
+		// 	"module", fmt.Sprintf("%T", m),
+		// 	"affordance", notif.AffordanceType,
+		// 	"thingID", notif.ThingID,
+		// 	"name", notif.Name,
+		// )
 		return
 	}
 	m.notificationSink(notif)

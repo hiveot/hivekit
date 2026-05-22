@@ -179,10 +179,14 @@ func (m *RouterService) RouteRequest(req *msg.RequestMessage, replyTo msg.Respon
 	// c := clients.ConnectToThing(tdi, m.getCredentials)
 
 	agentID := tdDoc.GetAgentID()
-	// limit choice to the protocols that are supported
-	clientProtocols := clients.SupportedClientProtocols
-	f, href, err = tdDoc.GetFormHRef(req.Operation, req.Name, clientProtocols, nil)
-	_ = f
+	// determine the first supported protocol that matches
+	for _, clientProtocol := range clients.SupportedClientProtocols {
+		f, href, err = tdDoc.GetFormHRef(req.Operation, req.Name, clientProtocol, nil)
+		if href != "" {
+			break
+		}
+		_ = f
+	}
 
 	// if no form was found then simply use the Base attribute
 	if href == "" {
@@ -199,6 +203,7 @@ func (m *RouterService) RouteRequest(req *msg.RequestMessage, replyTo msg.Respon
 			err = c.SendRequest(req, replyTo)
 		}
 	} else {
+		// FIXME: use form or protocol ? href?
 		c, err2 := m.GetClientConnection(tdDoc)
 		if c == nil {
 			err = fmt.Errorf("Unable to establish a connection to client '%s': %w", agentID, err2)

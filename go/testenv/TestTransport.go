@@ -91,7 +91,7 @@ func NewTestTransport(
 	t := &TestTransport{
 		senderID: senderID,
 	}
-	t.Init(senderID, "", "", "", nil)
+	t.Init(senderID, "", nil)
 	producer.SetNotificationSink(t.HandleNotification)
 	t.SetRequestSink(producer.HandleRequest)
 	var _ transports.ITransportServer = t // interface check

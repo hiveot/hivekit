@@ -5,6 +5,7 @@ import (
 	"crypto/x509"
 	"fmt"
 	"log/slog"
+	"net/http"
 	"net/url"
 	"time"
 
@@ -77,36 +78,56 @@ func (cl *DirectoryHttpClient) ConnectWithToken(clientID string, token string) e
 	return nil
 }
 
+// A little helper to return the href and method for the requested action.
+// This first tries using the directory forms and falls back to the default path
+// and method provided.
+func (cl *DirectoryHttpClient) _send(
+	actionName string, defaultPath string, defaultMethod string, thingID string, payload []byte) (
+	reply []byte, err error) {
+
+	uriVars := map[string]string{
+		td.UriVarName:      actionName,
+		td.UriVarThingID:   thingID,
+		td.UriVarOperation: td.OpInvokeAction,
+	}
+
+	// Use the form from the directory TD if available
+	var method string
+	f, href, err := cl.dirTD.GetFormHRef(td.OpInvokeAction, actionName, "https", uriVars)
+	if err == nil {
+		// use the form href and method
+		method, _ = f.GetMethodName()
+	} else {
+		// no matching form, fallback to the hard-coded path from the spec using base-url
+		href = fmt.Sprintf("%s%s", cl.dirTD.Base, defaultPath)
+		method = defaultMethod
+	}
+	ctx := context.Background()
+	reply, _, _, err = cl.tlsClient.Send(ctx, method, href, nil, payload, "")
+	return reply, err
+}
+
 // CreateThing creates a new TD document in the remote directory.
 func (cl *DirectoryHttpClient) CreateThing(tdJson string) error {
 
 	// validate the TD and determine the thingID needed in the path
-	// tdoc, err := td.UnmarshalTD(tdJson)
-	// if err != nil {
-	// 	return err
-	// }
-
-	f, href, err := cl.dirTD.GetFormHRef(
-		td.OpInvokeAction, directory.ActionCreateThing,
-		[]string{transports.ProtocolSchemeWotHttpBasic}, nil)
-
+	tdi, err := td.UnmarshalTD(tdJson)
 	if err != nil {
-		return fmt.Errorf("CreateThing: operation %s.%s has no matching form for http protocol in the td",
-			td.OpInvokeAction, directory.ActionCreateThing)
+		return err
 	}
-	ctx := context.Background()
-	methodName, _ := f.GetMethodName()
-	data, status, _, err := cl.tlsClient.Send(ctx, methodName, href, nil, []byte(tdJson), "")
-	_ = status
-	_ = data
+
+	defaultPath := fmt.Sprintf("/things/%s", tdi.ID)
+	_, err = cl._send(
+		directory.ActionCreateThing, defaultPath, http.MethodPost, tdi.ID, []byte(tdJson))
+
 	return err
 }
 
 // DeleteThing removes a TD document from the remote directory.
 func (cl *DirectoryHttpClient) DeleteThing(thingID string) error {
-	basePath := cl.dirTD.Base
-	deletePath := fmt.Sprintf("%s/things/%s", basePath, thingID)
-	_, err := cl.tlsClient.Delete(deletePath)
+	defaultPath := fmt.Sprintf("/things/%s", thingID)
+	_, err := cl._send(
+		directory.ActionDeleteThing, defaultPath, http.MethodDelete, thingID, nil)
 	return err
 }
 
@@ -115,10 +136,10 @@ func (cl *DirectoryHttpClient) DeleteThing(thingID string) error {
 // which requires the http get at /things?limit=...
 func (cl *DirectoryHttpClient) RetrieveAllThings(offset int, limit int) ([]string, error) {
 
-	basePath := cl.dirTD.Base
-	listPath := fmt.Sprintf("%s/things?offset=%d&limit=%d", basePath, offset, limit)
-	raw, stat, err := cl.tlsClient.Get(listPath)
-	_ = stat
+	defaultPath := fmt.Sprintf("/things?offset=%d&limit=%d", offset, limit)
+	raw, err := cl._send(
+		directory.ActionRetrieveAllThings, defaultPath, http.MethodGet, "", nil)
+
 	if err != nil {
 		return nil, err
 	}
@@ -129,17 +150,13 @@ func (cl *DirectoryHttpClient) RetrieveAllThings(offset int, limit int) ([]strin
 
 // RetrieveThing refreshes the cached TD from the directory
 // This follows: https://w3c.github.io/wot-discovery/#exploration-directory-api
-// which requires the http get at /things/{thingID}
+// which requires the http get at /things/{id}
 func (cl *DirectoryHttpClient) RetrieveThing(thingID string) (string, error) {
+	defaultPath := fmt.Sprintf("/things/%s", thingID)
+	raw, err := cl._send(
+		directory.ActionRetrieveThing, defaultPath, http.MethodGet, thingID, nil)
 
-	basePath := cl.dirTD.Base
-	retrievePath := fmt.Sprintf("%s/things/%s", basePath, thingID)
-	tdJson, stat, err := cl.tlsClient.Get(retrievePath)
-	_ = stat
-	if err != nil {
-		return "", err
-	}
-	return string(tdJson), err
+	return string(raw), err
 }
 
 // UpdateThing updates the TD document in the remote directory.
@@ -157,11 +174,10 @@ func (cl *DirectoryHttpClient) UpdateThing(tdJson string) error {
 	}
 
 	// Must match the href and method in the directory TD.
-	basePath := cl.dirTD.Base
-	updatePath := fmt.Sprintf("%s/things/%s", basePath, tdi.ID)
-	data, status, err := cl.tlsClient.Put(updatePath, []byte(tdJson))
-	_ = status
-	_ = data
+
+	defaultPath := fmt.Sprintf("/things/%s", tdi.ID)
+	_, err = cl._send(
+		directory.ActionCreateThing, defaultPath, http.MethodPut, tdi.ID, []byte(tdJson))
 	return err
 }
 

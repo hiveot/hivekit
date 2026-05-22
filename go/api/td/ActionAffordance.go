@@ -1,6 +1,10 @@
 // Package td with API interface definitions for the ExposedThing and ConsumedThing classes
 package td
 
+import (
+	"github.com/hiveot/hivekit/go/utils"
+)
+
 // ActionAffordance metadata that defines how to invoke a function of a Thing to manipulate
 // its state, eg toggle lamp on/off or trigger a process
 type ActionAffordance struct {
@@ -62,9 +66,21 @@ type ActionAffordance struct {
 }
 
 // AddForm adds an interaction form to the action affordance
+// Use SetSubprotocol in case the form is a sub-protocol.
+// This modifies vars to include the operation.
 // this is not thread-safe.
-func (aff *ActionAffordance) AddForm(form Form) {
+func (aff *ActionAffordance) AddForm(
+	op string, href string, method string, vars map[string]string) Form {
+	if vars != nil {
+		vars[UriVarOperation] = op
+		href = utils.Substitute(href, vars)
+	}
+	form := NewForm(op, href)
+	if method != "" {
+		form.SetMethodName(method)
+	}
 	aff.Forms = append(aff.Forms, form)
+	return form
 }
 
 // GetAtTypeString returns the @type field from the affordance as a single string.

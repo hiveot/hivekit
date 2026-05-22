@@ -1,8 +1,11 @@
 package internal
 
 import (
+	"net/http"
+
 	"github.com/hiveot/hivekit/go/api/td"
 	"github.com/hiveot/hivekit/go/modules/transports"
+	"github.com/hiveot/hivekit/go/modules/transports/ssesc"
 )
 
 // AddTDSecForms updates the TD with base URI, security scheme and forms for use of
@@ -12,22 +15,27 @@ import (
 //
 // 'includeAffordances' adds forms to all affordances to be compliant with the specifications.
 // Btw, this is a waste of space in the TD as it required but not needed with some protocols.
-func (srv *WssServer) AddTDSecForms(tdoc *td.TD, includeAffordances bool) {
+func (srv *SseScServer) AddTDSecForms(tdoc *td.TD, includeAffordances bool) {
 	// 1. Add the base connection endpoint
 	// TODO: if this Thing supports multiple protocols it might conflict with
 	// the base. In that case base cannot be used and all hrefs must be absolute?
 	href := srv.GetConnectURL()
 	tdoc.Base = href
-	subprotocol := transports.SubprotocolWotWebsocket
+	vars := map[string]string{
+		td.UriVarThingID: tdoc.ID,
+	}
+	// protocolType := transports.ProtocolTypeHiveotSsesc
+	subprotocol := transports.SubprotocolHiveotSsesc
 
 	// 2. Set the security scheme used by the authenticator.
 	// TODO: risk of duplicates?
 	authr := srv.httpServer.GetAuthenticator()
 	authr.AddSecurityScheme(tdoc)
 
-	// 3. add top level form for thing level  operations
-	// the href is the connection URL because it is the same as base for all forms in this protocol
-	form := td.NewForm("", srv.GetConnectURL())
+	// 3. add thing level form for thing level operations
+	// since the payload is a request message, one href for all operations (pub request)
+	href2 := ssesc.PostSseScRequestPath
+	form := td.NewForm("", href2)
 	form.SetSubprotocol(subprotocol)
 	form["op"] = []string{
 		td.OpQueryAllActions,
@@ -36,7 +44,6 @@ func (srv *WssServer) AddTDSecForms(tdoc *td.TD, includeAffordances bool) {
 		td.HTOpReadAllEvents, // hiveot supports reading latest events
 		td.OpSubscribeAllEvents, td.OpUnsubscribeAllEvents,
 	}
-	//form["contentType"] = "application/json"
 	tdoc.Forms = append(tdoc.Forms, form)
 
 	// 4. Add forms to all affordances to be compliant with the specifications.
@@ -44,17 +51,19 @@ func (srv *WssServer) AddTDSecForms(tdoc *td.TD, includeAffordances bool) {
 	if includeAffordances {
 
 		for _, aff := range tdoc.Actions {
-			form := aff.AddForm("", href, "", nil)
+			form := aff.AddForm("", href2, http.MethodPost, vars)
 			form.SetSubprotocol(subprotocol)
 			form["op"] = []string{td.OpInvokeAction, td.OpQueryAction}
 		}
 		for _, aff := range tdoc.Events {
-			form := aff.AddForm("", href, "", nil)
+			// todo subscribe to events by connecting to endpoint
+			form := aff.AddForm("", href2, "", nil)
 			form.SetSubprotocol(subprotocol)
 			form["op"] = []string{td.HTOpReadEvent, td.OpSubscribeEvent, td.OpUnsubscribeEvent}
 		}
 		for _, aff := range tdoc.Properties {
-			form := aff.AddForm("", href, "", nil)
+			// todo subscribe to props by connecting to endpoint
+			form := aff.AddForm("", href2, "", nil)
 			form.SetSubprotocol(subprotocol)
 			if !aff.WriteOnly {
 				form["op"] = []string{td.OpReadProperty, td.OpObserveProperty, td.OpUnobserveProperty}

@@ -42,7 +42,7 @@ type DirectoryServer struct {
 	msgAPI *DirectoryMsgHandler
 
 	// the http server to expose the TDD on the .well-known/wot path. nil to ignore
-	httpServer transports.IHttpServer
+	tddServer transports.IHttpServer
 
 	// data storage directory
 	storageLoc string
@@ -123,8 +123,8 @@ func (m *DirectoryServer) Start() (err error) {
 		m.msgAPI = NewDirectoryMsgHandler(m.directoryThingID, m)
 	}
 
-	if m.httpServer != nil {
-		protRoute := m.httpServer.GetProtectedRoute()
+	if m.tddServer != nil {
+		protRoute := m.tddServer.GetProtectedRoute()
 		protRoute.Get(directory.WellKnownWoTPath, m.serveReadTDD)
 	}
 
@@ -153,10 +153,10 @@ func (m *DirectoryServer) Stop() {
 //
 //	thingID is the instance ID of the directory server.
 //	location is the location where the module stores its data. Use "" for testing with an in-memory store.
-//	httpServer is used to expose the directory TDD on the well-known path.
+//	tddServer is used to expose the directory TDD on the well-known path.
 //	transports is a list of transports that should be included in the TDD security and forms. nil to not include these.
 func NewDirectoryServer(
-	thingID string, location string, httpServer transports.IHttpServer,
+	thingID string, location string, tddServer transports.IHttpServer,
 	transports []transports.ITransportServer) *DirectoryServer {
 
 	if thingID == "" {
@@ -171,14 +171,14 @@ func NewDirectoryServer(
 	// add the forms for additional endpoints
 	if len(transports) > 0 {
 		for _, tp := range transports {
-			tp.AddTDSecForms(tddDoc, false) // tbd
+			tp.AddTDSecForms(tddDoc, true)
 		}
 	}
 	tddJson, _ := td.MarshalTD(tddDoc)
 	m := &DirectoryServer{
 		HiveModuleBase:   modules.HiveModuleBase{},
 		directoryThingID: thingID,
-		httpServer:       httpServer,
+		tddServer:        tddServer,
 		storageLoc:       location,
 		tddJson:          tddJson,
 		tdCache:          make(map[string]*td.TD),

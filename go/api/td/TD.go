@@ -20,7 +20,7 @@ const AtTypeDirectory = "ThingDirectory"
 // URI variables for use in TD
 const (
 	UriVarName      = "name"
-	UriVarThingID   = "thingID"
+	UriVarThingID   = "id"
 	UriVarOperation = "op"
 )
 
@@ -491,31 +491,12 @@ func (tdoc *TD) GetForms(operation string, name string) []Form {
 // If no schema or protocol is provided then return the first match for operation and name.
 //
 // This uses the td base if a form uses a relative href.
-// This injects uriVars if defined.
+// This injects href uriVars if defined.
 func (tdoc *TD) GetFormHRef(
-	op, name string, schemeOrProtocol []string, uriVars map[string]string) (
+	op, name string, schemeOrProtocol string, uriVars map[string]string) (
 	f *Form, href string, err error) {
 
-	if uriVars == nil {
-		uriVars = map[string]string{
-			UriVarName:      name,
-			UriVarThingID:   tdoc.ID,
-			UriVarOperation: op,
-		}
-	}
-
-	if len(schemeOrProtocol) == 0 {
-		f = tdoc.GetForm(op, name, "")
-	} else {
-		// search for one of the requested protocols
-		for _, p := range schemeOrProtocol {
-			f = tdoc.GetForm(op, name, p)
-			if f != nil {
-				break
-			}
-		}
-	}
-
+	f = tdoc.GetForm(op, name, schemeOrProtocol)
 	if f == nil {
 		return nil, "", fmt.Errorf("No form found for the requested operation")
 	}
@@ -525,12 +506,12 @@ func (tdoc *TD) GetFormHRef(
 	if err != nil {
 		return f, "", err
 	}
-	if !uri.IsAbs() {
+	if uri.IsAbs() {
+		href = tdoc.Substitute(href, uriVars)
+	} else {
 		// JoinPath will mangle uri variable so substitute first
 		path := tdoc.Substitute(uri.Path, uriVars)
 		href, err = url.JoinPath(tdoc.Base, path)
-	} else {
-		href, err = url.JoinPath(tdoc.Base, href)
 	}
 	return f, href, err
 }

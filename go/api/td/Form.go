@@ -94,15 +94,10 @@ func (f Form) SetSubprotocol(subp string) Form {
 //
 //	operation is required
 //	href can be a relative path is base is set.
-//
-// args is an optional sub-protocol as the third parameter
-func NewForm(operation string, href string, args ...string) Form {
+func NewForm(operation string, href string) Form {
 	f := Form{
 		"op":   operation,
 		"href": href,
-	}
-	if len(args) > 0 {
-		f["subprotocol"] = args[0]
 	}
 	return f
 }

@@ -46,7 +46,7 @@ type RequestParams struct {
 	Payload       []byte // the raw request payload (body)
 
 	// optional URI parameters
-	ThingID string // the thing ID if defined in the URL as {thingID}
+	ThingID string // the thing ID if defined in the URL as {id}
 	Name    string // the affordance name if defined in the URL as {name}
 	Op      string // the operation if defined in the URL as {op}
 }

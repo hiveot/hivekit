@@ -94,11 +94,7 @@ func NewSseScServer(httpServer transports.IHttpServer, respTimeout time.Duration
 		encoder:     encoder,
 		respTimeout: respTimeout,
 	}
-	m.Init(
-		ssesc.SseScServerModuleType,
-		transports.ProtocolTypeHiveotSsesc,
-		transports.SubprotocolHiveotSsesc,
-		connectURL, httpServer.GetAuthenticator())
+	m.Init(ssesc.SseScServerModuleType, connectURL, httpServer.GetAuthenticator())
 
 	var _ modules.IHiveModule = m         // interface check
 	var _ transports.ITransportServer = m // interface check

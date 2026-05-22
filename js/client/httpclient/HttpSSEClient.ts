@@ -49,7 +49,7 @@ const ThingDirectoryUpdateThingMethod = "updateThing";
 const HttpPostLoginPath = "/authn/login";
 const HttpPostLogoutPath = "/authn/logout";
 const HttpPostRefreshPath = "/authn/refresh";
-const HttpGetDigitwinPath = "/digitwin/{operation}/{thingID}/{name}";
+const HttpGetDigitwinPath = "/digitwin/{op}/{id}/{name}";
 
 // Generic form href that maps to all operations for the http client, using URI variables
 // Generic HiveOT HTTP urls when Forms are not available. The payload is a
@@ -434,7 +434,7 @@ export default class HttpSSEClient implements IAgentConnection {
     });
     return this.sendRequest(req);
     //
-    // let actionPath = PostInvokeActionPath.replace("{thingID}", thingID)
+    // let actionPath = PostInvokeActionPath.replace("{id}", thingID)
     // actionPath = actionPath.replace("{name}", name)
     //
     // let resp = await this.pubMessage("POST",actionPath, correlationID, payload)
@@ -462,7 +462,7 @@ export default class HttpSSEClient implements IAgentConnection {
     const msg = new NotificationMessage(OpSubscribeEvent, thingID, name, data);
     this.sendNotification(msg);
 
-    // let eventPath = PostAgentPublishEventPath.replace("{thingID}", thingID)
+    // let eventPath = PostAgentPublishEventPath.replace("{id}", thingID)
     // eventPath = eventPath.replace("{name}", name)
     //
     // this.pubMessage("POST",eventPath, "", payload)
@@ -528,7 +528,7 @@ export default class HttpSSEClient implements IAgentConnection {
 
   // obtain a new token
   async refreshToken(): Promise<string> {
-    let refreshPath = HttpPostRefreshPath.replace("{thingID}", "authn");
+    let refreshPath = HttpPostRefreshPath.replace("{id}", "authn");
     refreshPath = refreshPath.replace("{name}", "refreshMethod");
     // TODO use generated API
     const args = {

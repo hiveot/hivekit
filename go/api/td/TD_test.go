@@ -185,8 +185,8 @@ func TestForms(t *testing.T) {
 	f3 := tdoc.GetForms(td.OpSubscribeEvent, event1Name)
 	require.NotNil(t, f3)
 
-	f1b, href, err := tdoc.GetFormHRef(td.OpWriteProperty, prop1Name,
-		[]string{transports.ProtocolSchemeWotHttpBasic}, nil)
+	f1b, href, err := tdoc.GetFormHRef(
+		td.OpWriteProperty, prop1Name, transports.ProtocolSchemeWotHttpBasic, nil)
 	assert.NoError(t, err)
 	assert.NotEmpty(t, f1b)
 	assert.NotEmpty(t, href)

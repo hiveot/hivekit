@@ -236,7 +236,7 @@ func (cl *HttpBasicClient) SendRequest(
 
 	if f == nil {
 		// fall back to the 'well known' hiveot request URL using uri variables
-		// eg: /things/{operation}/{thingID}/{name} or /hiveot/request
+		// eg: /things/{op}/{id}/{name} or /hiveot/request
 		method = http.MethodPost
 		href = httpbasic.HttpBasicAffordanceOperationPath
 		// substitute URI variables in the path, if any.

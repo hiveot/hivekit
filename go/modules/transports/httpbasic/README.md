@@ -38,15 +38,15 @@ See the test cases for example on how to use this module in the code.
 
 ### Sending A Request
 
-> POST /things/{operation}/{thingID}/{name}
-> Where: {operation} is one of:
+> POST /things/{op}/{id}/{name}
+> Where: {op} is one of:
 
     "cancelaction" | "invokeaction" | "queryaction" |
     "readproperty" | "readmultipleproperties" | "readallproperties" |
     "writeproperty"| "writemultipleproperties" |
 
-For example, to invoke an action: POST /things/invokeaction/{thingID}/{name}
-For example, to read a property value: GET /things/readproperty/{thingID}/{name}
+For example, to invoke an action: POST /things/invokeaction/{id}/{name}
+For example, to read a property value: GET /things/readproperty/{id}/{name}
 
 This mapping enables all regular Thing interaction.
 

@@ -153,8 +153,6 @@ func NewHiveotWssServer(httpServer transports.IHttpServer, respTimeout time.Dura
 	connectURL := fmt.Sprintf("%s://%s%s", transports.ProtocolSchemeHiveotWebsocket, urlParts.Host, m.wssPath)
 	m.Init(
 		wss.HiveotWebsocketServerModuleType,
-		transports.ProtocolTypeHiveotWebsocket,
-		transports.SubprotocolHiveotWebsocket,
 		connectURL, httpServer.GetAuthenticator())
 	return m
 }
@@ -190,8 +188,6 @@ func NewWotWssServer(httpServer transports.IHttpServer, respTimeout time.Duratio
 	connectURL := fmt.Sprintf("%s://%s%s", transports.ProtocolSchemeWotWebsocket, urlParts.Host, m.wssPath)
 	m.Init(
 		wss.HiveotWebsocketServerThingID,
-		transports.ProtocolTypeWotWebsocket,
-		transports.SubprotocolWotWebsocket,
 		connectURL, httpServer.GetAuthenticator())
 	// m.UpdateProperty(transports.PropName_NrConnections, 0)
 

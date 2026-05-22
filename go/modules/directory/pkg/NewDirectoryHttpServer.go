@@ -13,8 +13,9 @@ func NewDirectoryHttpServer(httpServer transports.IHttpServer) directory.IDirect
 	return m
 }
 
+// Deprecated: use http-basic interface for http interaction with the directory.
 // factory for the directory http interface module
-func NewDirectoryHttpServerFactory(f factory.IModuleFactory) modules.IHiveModule {
+func NewDirectoryHttpServerFactoryDeprecated(f factory.IModuleFactory) modules.IHiveModule {
 
 	httpServer := f.GetHttpServer(true)
 	m := NewDirectoryHttpServer(httpServer)

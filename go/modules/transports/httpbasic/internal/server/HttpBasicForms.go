@@ -1,78 +1,83 @@
 package internalserver
 
 import (
-	"fmt"
 	"net/http"
 
 	"github.com/hiveot/hivekit/go/api/td"
 	httpbasictransport "github.com/hiveot/hivekit/go/modules/transports/httpbasic"
 )
 
-var HttpKnownOperations = []string{
-	td.OpQueryAllActions, td.OpReadAllProperties, td.OpWriteMultipleProperties,
-	td.OpReadProperty, td.OpWriteProperty, td.OpInvokeAction, td.OpQueryAction}
+// list of supported thing level operations
+var thingLevelOperations = []string{
+	td.OpQueryAllActions, td.OpReadAllProperties, td.HTOpReadAllEvents}
+
+// list of supported affordance operations
+var affordanceOperations = []string{
+	td.HTOpReadEvent,
+	td.OpReadProperty, td.OpReadMultipleProperties,
+	td.OpWriteProperty, td.OpWriteMultipleProperties,
+	td.OpInvokeAction, td.OpQueryAction,
+}
 
 // AddTDForms sets the forms for use of http-basic to the given TD.
 //
-// This sets the base to the http connect URL and uses relative hrefs for the forms.
-// The href MUST match the route defined in: HttpBasicRoutes.HttpBasicAffordanceOperationPath
-// e.g.: "https://host:port/things/{op}/{thingID}/{name}"
+// This:
+//  1. Set TD base to the https connection address and port
+//  2. Set the supported security scheme
+//  3. Set Thing level forms for general operations such as readallproperties, queryallactions, ...
+//     The href used is "https://host:port/things/{op}/{id}
+//     Where {op} and {id} are replaced with the operation and thingID
+//  4. Set affordance level forms for property, event and actions if includeAffordance is true
+//     The href used is "https://host:port/things/{op}/{id}/{name}"
+//     Where {op} and {id} are replaced with the operation, thingID and affordance name
 //
-// As content-Type is the default application/json it is omitted.
-//
-// If the method names for get operations is default GET then it is omitted from the form.
-//
-// includeAffordances adds forms for all affordances to be compliant with the specifications.
-// func (srv *HttpBasicTransport) AddTDSecForms(tdoc *td.TD, includeAffordances bool) {
-// 	// defaults to https://host:port/
-// 	connectURL, _ := srv.GetConnectURL()
-// 	tdoc.Base = fmt.Sprintf("%s", connectURL)
+// Since content-Type is the default 'application/json' it is omitted as per spec.
+func (srv *HttpBasicServer) AddTDSecForms(tdoc *td.TD, includeAffordances bool) {
 
-// 	// 2. Set the security scheme used by the authenticator.
-// 	authr := srv.httpServer.GetAuthenticator()
-// 	authr.AddSecurityScheme(tdoc)
+	base := srv.GetConnectURL()
+	vars := map[string]string{
+		td.UriVarThingID: tdoc.ID,
+	}
+	// 1. Add the base connection endpoint
+	// TODO: if this Thing supports multiple protocols it might conflict with
+	// the base. In that case base cannot be used and all hrefs must be absolute?
+	tdoc.Base = base
 
-// 	// 3. add thing level forms that apply to all things. http-basic only supports read/write
-// 	tdoc.Forms = append(tdoc.Forms,
-// 		srv.createThingLevelForm(td.OpQueryAllActions, http.MethodGet, tdoc.ID),
-// 		srv.createThingLevelForm(td.HTOpReadAllEvents, http.MethodGet, tdoc.ID),
-// 		srv.createThingLevelForm(td.OpReadAllProperties, http.MethodGet, tdoc.ID),
-// 		srv.createThingLevelForm(td.OpWriteMultipleProperties, http.MethodPost, tdoc.ID),
-// 	)
-// 	if includeAffordances {
-// 		srv.AddAffordanceForms(tdoc)
-// 	}
-// }
+	// 2. Set the security scheme used by the authenticator.
+	// TODO: risk of duplicates?
+	authr := srv.httpServer.GetAuthenticator()
+	authr.AddSecurityScheme(tdoc)
 
-// // AddAffordanceForms adds forms to affordances for interacting using the websocket protocol binding
-// // http-basic only supports read-write
-// func (srv *HttpBasicTransport) AddAffordanceForms(tdoc *td.TD) {
-// 	for name, aff := range tdoc.Actions {
-// 		f := srv.createAffordanceForm(td.OpInvokeAction, http.MethodPost, tdoc.ID, name)
-// 		aff.AddForm(f)
-// 		f = srv.createAffordanceForm(td.OpQueryAction, http.MethodGet, tdoc.ID, name)
-// 		aff.AddForm(f)
-// 	}
-// 	for name, aff := range tdoc.Events {
-// 		f := srv.createAffordanceForm(td.HTOpReadEvent, http.MethodGet, tdoc.ID, name)
-// 		aff.AddForm(f)
-// 	}
-// 	for name, aff := range tdoc.Properties {
-// 		if !aff.WriteOnly {
-// 			// http-basic doesn't support observe/unobserve
-// 			//f := srv.createAffordanceForm(td.OpObserveProperty, http.MethodGet, tdoc.ID, name)
-// 			//aff.AddForm(f)
-// 			//f = srv.createAffordanceForm(td.OpUnobserveProperty, http.MethodGet, tdoc.ID, name)
-// 			//aff.AddForm(f)
-// 			f := srv.createAffordanceForm(td.OpReadProperty, http.MethodGet, tdoc.ID, name)
-// 			aff.AddForm(f)
-// 		}
-// 		if !aff.ReadOnly {
-// 			f := srv.createAffordanceForm(td.OpWriteProperty, http.MethodPut, tdoc.ID, name)
-// 			aff.AddForm(f)
-// 		}
-// 	}
-// }
+	// 3. add thing level form for thing level operations
+	// http-basic uses a different href for each operation :(
+	for _, op := range thingLevelOperations {
+		vars[td.UriVarOperation] = op
+		href := tdoc.Substitute(httpbasictransport.HttpBasicThingOperationPath, vars)
+		form := td.NewForm(op, href)
+		form.SetMethodName(http.MethodGet)
+		tdoc.Forms = append(tdoc.Forms, form)
+	}
+
+	// 4. add forms for each affordance
+	if includeAffordances {
+		affHref := httpbasictransport.HttpBasicAffordanceOperationPath
+		for name, aff := range tdoc.Actions {
+			vars[td.UriVarName] = name
+			aff.AddForm(td.OpInvokeAction, affHref, http.MethodPost, vars)
+			aff.AddForm(td.OpQueryAction, affHref, http.MethodGet, vars)
+		}
+		for name, aff := range tdoc.Events {
+			vars[td.UriVarName] = name
+			aff.AddForm(td.HTOpReadEvent, affHref, http.MethodGet, vars)
+		}
+		for name, aff := range tdoc.Properties {
+			vars[td.UriVarName] = name
+			aff.AddForm(td.OpReadProperty, affHref, http.MethodGet, vars)
+			aff.AddForm(td.OpReadMultipleProperties, affHref, http.MethodGet, vars)
+			aff.AddForm(td.OpWriteProperty, affHref, http.MethodPut, vars)
+		}
+	}
+}
 
 // GetForm returns a form for the given operation
 // // Intended for updating TD's with forms to invoke a request
@@ -81,33 +86,33 @@ var HttpKnownOperations = []string{
 // 	return nil
 // }
 
-// createAffordanceForm returns a form for a thing action/event/property affordance operation
-// the href in the form has the format "{base}/{op}/{thingID}/{name}
-// where {base} is https://
-// Note: in theory these can be replaced with thing level forms using URI variables, except
-// for the issue that WoT doesn't support this.
-//
-// The baseURL is the URL
-func (srv *HttpBasicServer) createAffordanceForm(op string, httpMethod string,
-	thingID string, name string) td.Form {
+// // createAffordanceForm returns a form for a thing action/event/property affordance operation
+// // the href in the form has the format "{base}/{op}/{id}/{name}
+// // where {base} is https://
+// // Note: in theory these can be replaced with thing level forms using URI variables, except
+// // for the issue that WoT doesn't support this.
+// //
+// // The baseURL is the URL
+// func (srv *HttpBasicServer) createAffordanceForm(op string, httpMethod string,
+// 	thingID string, name string) td.Form {
 
-	href := fmt.Sprintf("%s/%s/%s/%s", httpbasictransport.HttpBaseFormOp, op, thingID, name)
-	form := td.NewForm(op, href)
-	if httpMethod != "" && httpMethod != http.MethodGet {
-		form.SetMethodName(httpMethod)
-	}
-	// contentType has a default of application/json
-	//form["contentType"] = "application/json"
-	return form
-}
+// 	href := fmt.Sprintf("%s/%s/%s/%s", httpbasictransport.HttpBaseFormOp, op, thingID, name)
+// 	form := td.NewForm(op, href)
+// 	if httpMethod != "" && httpMethod != http.MethodGet {
+// 		form.SetMethodName(httpMethod)
+// 	}
+// 	// contentType has a default of application/json
+// 	//form["contentType"] = "application/json"
+// 	return form
+// }
 
-// createThingLevelForm returns a form for a thing level http operation
-// the href in the form has the format "https://host:port/things/{op}/{thingID}
-func (srv *HttpBasicServer) createThingLevelForm(op string, httpMethod string, thingID string) td.Form {
-	// href is relative to base
-	href := fmt.Sprintf("%s/%s/%s", httpbasictransport.HttpBaseFormOp, op, thingID)
-	form := td.NewForm(op, href)
-	form.SetMethodName(httpMethod)
-	//form["contentType"] = "application/json"
-	return form
-}
+// // createThingLevelForm returns a form for a thing level http operation
+// // the href in the form has the format "https://host:port/things/{op}/{id}
+// func (srv *HttpBasicServer) createThingLevelForm(op string, httpMethod string, thingID string) td.Form {
+// 	// href is relative to base
+// 	href := fmt.Sprintf("%s/%s/%s", httpbasictransport.HttpBaseFormOp, op, thingID)
+// 	form := td.NewForm(op, href)
+// 	form.SetMethodName(httpMethod)
+// 	//form["contentType"] = "application/json"
+// 	return form
+// }
