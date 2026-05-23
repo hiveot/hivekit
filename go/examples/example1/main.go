@@ -89,7 +89,8 @@ func main() {
 	// increment the counter to generate an event
 	m, err := f.GetModule(counterdevice.CounterDeviceModuleType, false)
 	req := msg.NewRequestMessage("", td.OpInvokeAction,
-		counterdevice.DefaultCounterDeviceThingID, counterdevice.IncrementActionName, nil, "")
+		counterdevice.DefaultCounterDeviceThingID,
+		counterdevice.IncrementActionName, nil, "")
 	_ = m.HandleRequest(req, nil)
 
 	fmt.Printf("Counter is running and listening on '%s'\n", f.GetConnectURL())

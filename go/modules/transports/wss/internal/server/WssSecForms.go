@@ -2,7 +2,6 @@ package internal
 
 import (
 	"github.com/hiveot/hivekit/go/api/td"
-	"github.com/hiveot/hivekit/go/modules/transports"
 )
 
 // AddTDSecForms updates the TD with base URI, security scheme and forms for use of
@@ -18,7 +17,7 @@ func (srv *WssServer) AddTDSecForms(tdoc *td.TD, includeAffordances bool) {
 	// the base. In that case base cannot be used and all hrefs must be absolute?
 	href := srv.GetConnectURL()
 	tdoc.Base = href
-	subprotocol := transports.SubprotocolWotWebsocket
+	subprotocol := srv.subprotocol
 
 	// 2. Set the security scheme used by the authenticator.
 	// TODO: risk of duplicates?

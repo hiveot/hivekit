@@ -10,6 +10,7 @@ import (
 
 	"github.com/hiveot/hivekit/go/api/msg"
 	"github.com/hiveot/hivekit/go/api/td"
+	jsoniter "github.com/json-iterator/go"
 	"github.com/teris-io/shortid"
 )
 
@@ -331,6 +332,9 @@ func (sc *ServerConnectionBase) SendResponse(resp *msg.ResponseMessage) (err err
 
 	raw, _ := sc.messageEncoder.EncodeResponse(resp)
 	err = sc.sendRaw(msg.MessageTypeResponse, raw)
+
+	var tmp msg.ResponseMessage
+	err = jsoniter.Unmarshal(raw, &tmp)
 	return err
 }
 

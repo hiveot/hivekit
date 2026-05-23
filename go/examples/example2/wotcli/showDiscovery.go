@@ -31,33 +31,29 @@ func ShowDiscovery(co *wotco.WotConsumer, verbose bool) {
 	nrFound := 0
 
 	fmt.Println("Discovered Things and Directories on the local network")
-	fmt.Printf("Type       Address    Port   Instance             Schema    nrProps   nrEvents  nrActions   TD URL   \n")
-	fmt.Printf("---------- ---------- -----  -------------------  -------   -------   --------  ---------   -------  \n")
+	fmt.Printf("Type       Address    Port   Instance Name        Schema   ThingID                           TD URL   \n")
+	fmt.Printf("---------- ---------- -----  -------------------  -------  --------------------------------  -------  \n")
 
 	co.Discover(func(r *discoverypkg.DiscoveryResult) bool {
-		var nrProps = 0
-		var nrEvents = 0
-		var nrActions = 0
-
 		// load the TD to present nr of affordances
 		tdURL := r.AsURL()
 		var tdoc *td.TD
+		var thingID string = "n/a"
 		if tdURL != "" {
 			resp, err := http.Get(tdURL)
 			if err == nil {
 				raw, _ := io.ReadAll(resp.Body)
-				tdoc, _ = td.UnmarshalTD(string(raw))
-				nrProps = len(tdoc.Properties)
-				nrEvents = len(tdoc.Events)
-				nrActions = len(tdoc.Actions)
+				tdoc, err = td.UnmarshalTD(string(raw))
 			}
 			if err != nil {
 				fmt.Printf(" Error reading TD: %s\n", err.Error())
+			} else {
+				thingID = tdoc.ID
 			}
 		}
 		// show the discovery record and the nr of affordances in the TD
-		fmt.Printf("%-10s %-10s %-5d  %-20s %-8s      %3d        %3d        %3d   %s \n",
-			r.Type, r.Addr, r.Port, r.Instance, r.Schema, nrProps, nrEvents, nrActions, tdURL)
+		fmt.Printf("%-10s %-10s %-5d  %-20s %-8s %-33s %s \n",
+			r.Type, r.Addr, r.Port, r.Instance, r.Schema, thingID, tdURL)
 
 		if verbose {
 			fmt.Printf("Thing ID: %s\n", tdoc.ID)

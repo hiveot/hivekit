@@ -75,6 +75,7 @@ func main() {
 	// the WotConsumer has a list of collected TDs for use by the router
 	r := routerpkg.NewRouterService("", co.GetTD, nil, nil)
 	err := r.Start()
+	r.SetTimeout(time.Minute)
 	if err != nil {
 		slog.Error(err.Error())
 	}

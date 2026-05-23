@@ -20,6 +20,7 @@ import (
 	"github.com/hiveot/hivekit/go/modules/transports"
 	"github.com/hiveot/hivekit/go/modules/transports/wss/internal"
 	"github.com/hiveot/hivekit/go/utils"
+	jsoniter "github.com/json-iterator/go"
 
 	"github.com/teris-io/shortid"
 )
@@ -108,6 +109,10 @@ func (cl *WssTransportClient) _onWssMessage(raw []byte) {
 	var resp *msg.ResponseMessage
 	clientID := cl.clientID
 
+	var tmp any
+	jsoniter.Unmarshal(raw, &tmp)
+	_ = tmp
+
 	// try to decode as notification first, then response, then request as websockets
 	// do not carry metadata per request.
 	notif, err := cl.encoder.DecodeNotification(raw)
@@ -150,7 +155,7 @@ func (cl *WssTransportClient) _onWssMessage(raw []byte) {
 			)
 		}
 	} else {
-		slog.Warn("_onWssMessage: Message is not a valid notification, request or response",
+		slog.Warn("_onWssMessage: Message is not a valid request, response or notification, request or response",
 			"raw", string(raw))
 		return
 	}

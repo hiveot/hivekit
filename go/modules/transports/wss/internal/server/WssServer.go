@@ -31,7 +31,7 @@ type WssServer struct {
 	respTimeout time.Duration
 
 	// WoT or Hiveot subprotocol
-	// subprotocol string
+	subprotocol string
 
 	// listening path for incoming connections
 	wssPath string
@@ -143,10 +143,11 @@ func NewHiveotWssServer(httpServer transports.IHttpServer, respTimeout time.Dura
 		respTimeout = msg.DefaultRnRTimeout
 	}
 	m := &WssServer{
-		httpServer: httpServer,
 		encoder:    transports.NewRRNJsonEncoder(),
+		httpServer: httpServer,
 		// connectHandler: nil,
 		respTimeout: respTimeout,
+		subprotocol: transports.SubprotocolHiveotWebsocket,
 		wssPath:     wss.HiveotWebsocketPath,
 	}
 	// set the base parameters
@@ -183,6 +184,7 @@ func NewWotWssServer(httpServer transports.IHttpServer, respTimeout time.Duratio
 		encoder:     internal.NewWotWssMsgEncoder(),
 		respTimeout: respTimeout,
 		wssPath:     wss.WotWebsocketPath,
+		subprotocol: transports.SubprotocolWotWebsocket,
 	}
 
 	connectURL := fmt.Sprintf("%s://%s%s", transports.ProtocolSchemeWotWebsocket, urlParts.Host, m.wssPath)

@@ -21,7 +21,7 @@ var CounterDeviceTM []byte
 const CounterDeviceModuleType = "counter-device"
 
 // thingID requests are directed to
-const DefaultCounterDeviceThingID = "counterThingID"
+const DefaultCounterDeviceThingID = "counter1"
 
 // Affordance IDs
 const (

@@ -7,7 +7,7 @@
   ],
   "@type": "Service",
   "base": "to be set by server",
-  "id": "counterThingID",
+  "id": "counter1",
   "title": "A simple counter",
   "description": "HiveKit test device that exposes a counter",
   "version": {

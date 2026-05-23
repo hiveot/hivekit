@@ -37,7 +37,7 @@
             "program": "${workspaceFolder}/go/examples/example2/main.go",
             "showLog": false,
             "env": {},
-            "args": ["td", "dtw:digitwin:ThingDirectory"],
+            "args": ["status", "counter1"],
             "logOutput": "dap",
             "console": "integratedTerminal",
         },
