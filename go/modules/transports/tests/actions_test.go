@@ -17,7 +17,6 @@ import (
 	"github.com/hiveot/hivekit/go/utils"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/teris-io/shortid"
 )
 
 func TestAllActionsProtocols(t *testing.T) {
@@ -83,8 +82,7 @@ func TestInvokeActionFromConsumerToServer(t *testing.T) {
 	// 3. invoke the action without waiting for a result
 	// the response handler above will receive the result
 	// testOutput can be updated as an immediate result or via the callback message handler
-	req := msg.NewRequestMessage(
-		co1.GetClientID(), td.OpInvokeAction, thingID, actionName, testMsg1, shortid.MustGenerate())
+	req := msg.NewRequestMessage(td.OpInvokeAction, thingID, actionName, testMsg1)
 	err := co1.ForwardRequest(req, responseHandler)
 
 	require.NoError(t, err)
@@ -140,6 +138,7 @@ func TestInvokeActionFromServerToAgent(t *testing.T) {
 		)
 		err := resp.Decode(&responseData)
 		assert.NoError(t, err)
+		assert.Equal(t, corrID, resp.CorrelationID)
 
 		replyVal.Store(responseData)
 		cancelFn1()
@@ -179,9 +178,9 @@ func TestInvokeActionFromServerToAgent(t *testing.T) {
 	// ag1Server := srv.GetConnectionByClientID(testAgentID1)
 	// require.NotNil(t, ag1Server)
 
-	req := msg.NewRequestMessage(testClientID1, td.OpInvokeAction,
-		thingID, actionKey, testMsg1, corrID)
-	req.CorrelationID = "rpc-TestInvokeActionFromServerToAgent"
+	req := msg.NewRequestMessage(td.OpInvokeAction, thingID, actionKey, testMsg1)
+	req.CorrelationID = corrID
+	req.SenderID = testClientID1
 	// err := ag1Server.SendRequest(req)
 	err := testEnv.Server.SendRequest(testAgentID1, req, responseHandler)
 	require.NoError(t, err)

@@ -23,20 +23,20 @@ func (cl *BucketMsgClient) Close() error {
 
 // Delete removes the record with the given key.
 func (cl *BucketMsgClient) Delete(key string) error {
-	err := cl.Rpc("", td.OpInvokeAction, cl.storeThingID, bucketstore.ActionDelete, key, nil)
+	err := cl.Rpc(td.OpInvokeAction, cl.storeThingID, bucketstore.ActionDelete, key, nil)
 	return err
 }
 
 // Get reads the record with the given key.
 // If the key doesn't exist this returns an error.
 func (cl *BucketMsgClient) Get(key string) (doc string, err error) {
-	err = cl.Rpc("", td.OpInvokeAction, cl.storeThingID, bucketstore.ActionGet, key, &doc)
+	err = cl.Rpc(td.OpInvokeAction, cl.storeThingID, bucketstore.ActionGet, key, &doc)
 	return doc, err
 }
 
 // GetMultiple reads multiple serialized records with the given keys.
 func (cl *BucketMsgClient) GetMultiple(keys []string) (values map[string]string, err error) {
-	err = cl.Rpc("", td.OpInvokeAction,
+	err = cl.Rpc(td.OpInvokeAction,
 		cl.storeThingID, bucketstore.ActionGetMultiple, keys, &values)
 	return values, err
 }
@@ -47,7 +47,7 @@ func (cl *BucketMsgClient) Set(key string, doc string) error {
 		Key: key,
 		Doc: doc,
 	}
-	err := cl.Rpc("", td.OpInvokeAction,
+	err := cl.Rpc(td.OpInvokeAction,
 		cl.storeThingID, bucketstore.ActionSet, args, nil)
 	return err
 }
@@ -58,7 +58,7 @@ func (cl *BucketMsgClient) SetMultiple(kv map[string]string) error {
 	for k, v := range kv {
 		args[k] = v
 	}
-	err := cl.Rpc("", td.OpInvokeAction,
+	err := cl.Rpc(td.OpInvokeAction,
 		cl.storeThingID, bucketstore.ActionSetMultiple, args, nil)
 	return err
 }

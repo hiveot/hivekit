@@ -25,7 +25,7 @@ type CertsMsgClient struct {
 func (cl *CertsMsgClient) GetCACert() (cert *x509.Certificate, err error) {
 	var certPem string
 
-	err = cl.Rpc("", td.OpInvokeAction, cl.certServiceID, certs.ActionGetCACert, nil, &certPem)
+	err = cl.Rpc(td.OpInvokeAction, cl.certServiceID, certs.ActionGetCACert, nil, &certPem)
 	if err == nil {
 		cert, err = certutils.X509CertFromPEM(certPem)
 	}

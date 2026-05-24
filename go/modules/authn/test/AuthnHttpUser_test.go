@@ -1,6 +1,7 @@
 package authn_test
 
 import (
+	"log/slog"
 	"testing"
 	"time"
 
@@ -64,7 +65,7 @@ func TestLogoutHttp(t *testing.T) {
 	err = authnClient.Logout(token2)
 	assert.NoError(t, err)
 
-	t.Log(">>> Logged out, an unauthorized error is expected next.")
+	slog.Error(">>> Logged out, an unauthorized error is expected next.")
 
 	// This causes Refresh to fail
 	token3, err := authnClient.RefreshToken(token1)

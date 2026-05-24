@@ -32,7 +32,7 @@ var testDevicePort = 9993
 var certsBundle = certstest.CreateTestCertBundle(utils.KeyTypeED25519)
 var testAuthn = testenv.NewTestAuthenticator()
 
-const rpcTimeout = time.Minute * 3
+const rpcTimeout = time.Minute * 3 // allow for debugging breakpoints
 const testRouterID = "router1"
 
 // const serverType = transports.HiveotWebsocketProtocolType
@@ -88,8 +88,8 @@ func SetupConsumerWithRouter() (
 	// the router uses the TD to connect to the device.
 	// this doesn't actually need a directory. GetTD could also simply return the device TD.
 	routerMod = routerpkg.NewRouterService(
-		storageDir, dirMod.GetTD, nil, certsBundle.CaCert)
-	routerMod.SetTimeout(rpcTimeout)
+		storageDir, dirMod.GetTD, nil, certsBundle.CaCert, rpcTimeout)
+
 	err = routerMod.Start()
 	if err != nil {
 		panic("SetupConsumerWithRouter: Router.Start: " + err.Error())
@@ -103,7 +103,7 @@ func SetupConsumerWithRouter() (
 
 	// a consumer links to the router and subscribes to the device
 	// note for the purpose of this test the router can run on the client
-	consumer := clientspkg.NewConsumer("")
+	consumer := clientspkg.NewConsumer(rpcTimeout)
 	consumer.SetRequestSink(routerMod.HandleRequest)
 	routerMod.SetNotificationSink(consumer.HandleNotification)
 	err = consumer.Start()
@@ -134,8 +134,7 @@ func TestStartStop(t *testing.T) {
 	err := testDirMod.Start()
 	require.NoError(t, err)
 	// test no cred store
-	m := routerpkg.NewRouterService("", testDirMod.GetTD, nil, certsBundle.CaCert)
-	m.SetTimeout(rpcTimeout)
+	m := routerpkg.NewRouterService("", testDirMod.GetTD, nil, certsBundle.CaCert, rpcTimeout)
 	err = m.Start()
 	require.NoError(t, err)
 	defer m.Stop()
@@ -181,7 +180,7 @@ func TestReadDeviceProperties(t *testing.T) {
 	require.NoError(t, err)
 
 	// to connect to the device, credentials are needed
-	token, _, _ := testAuthn.CreateToken(testRouterID, time.Minute)
+	token, _, _ := testAuthn.CreateToken(testRouterID, rpcTimeout)
 	routerMod.AddThingCredential(thingID1, clientID, token, td.SecSchemeBearer)
 
 	// this should cause the router to connect to the device
@@ -219,19 +218,18 @@ func TestSubscribeToDevice(t *testing.T) {
 
 	// the router uses the TD to connect to the device.
 	// this doesn't actually need a directory. GetTD could also simply return the device TD.
-	routerMod := routerpkg.NewRouterService(storageDir, testDirMod.GetTD, nil, certsBundle.CaCert)
-	routerMod.SetTimeout(rpcTimeout)
+	routerMod := routerpkg.NewRouterService(storageDir, testDirMod.GetTD, nil, certsBundle.CaCert, rpcTimeout)
 	err = routerMod.Start()
 	require.NoError(t, err)
 	defer routerMod.Stop()
 	// to connect to the device, credentials are needed
 	// FIXME: testAuthn does not properly test credentials. Use authn
-	token, _, _ := testAuthn.CreateToken(testRouterID, time.Minute)
+	token, _, _ := testAuthn.CreateToken(testRouterID, rpcTimeout)
 	routerMod.AddThingCredential(thingID1, clientID, token, td.SecSchemeBearer)
 
 	// a consumer links to the router and subscribes to the device
 	// note for the purpose of this test the router can run on the client
-	consumer := clientspkg.NewConsumer("")
+	consumer := clientspkg.NewConsumer(rpcTimeout)
 	consumer.SetRequestSink(routerMod.HandleRequest)
 	routerMod.SetNotificationSink(consumer.HandleNotification)
 	err = consumer.Start()
@@ -240,7 +238,7 @@ func TestSubscribeToDevice(t *testing.T) {
 	err = consumer.Subscribe(thingID1, "")
 	assert.NoError(t, err)
 
-	ctx, cancelFn := context.WithTimeout(context.Background(), time.Second*60)
+	ctx, cancelFn := context.WithTimeout(context.Background(), rpcTimeout)
 	consumer.SetAppNotificationHook(func(notif *msg.NotificationMessage) {
 		assert.Equal(t, event1Name, notif.Name)
 		err = notif.Decode(&rxValue)
@@ -267,8 +265,7 @@ func TestCredStore(t *testing.T) {
 
 	// the router uses the TD to connect to the device.
 	// this doesn't actually need a directory. GetTD could also simply return the device TD.
-	routerMod := routerpkg.NewRouterService(storageDir, nil, nil, nil)
-	routerMod.SetTimeout(rpcTimeout)
+	routerMod := routerpkg.NewRouterService(storageDir, nil, nil, nil, rpcTimeout)
 	err := routerMod.Start()
 	require.NoError(t, err)
 

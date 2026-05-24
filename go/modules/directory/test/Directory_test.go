@@ -27,6 +27,7 @@ var storageDir = filepath.Join(os.TempDir(), "hivekit", "directory-test")
 const defaultAgentID = "agent-smith"
 const defaultProtocol = transports.ProtocolTypeWotWebsocket
 const TestKeyType = utils.KeyTypeED25519
+const rpcTimeout = time.Minute // for testing/debugging
 
 // TestMain setsup logging
 func TestMain(m *testing.M) {
@@ -55,7 +56,7 @@ func StartDirectoryServer(withHttp bool) (
 
 	if withHttp {
 		// add directory endpoints to the http server
-		dirHttpServer = directorypkg.NewDirectoryHttpServer(testEnv.HttpServer)
+		dirHttpServer = directorypkg.NewDirectoryHttpServer(testEnv.HttpServer, rpcTimeout)
 		transports = append(transports, dirHttpServer)
 	}
 	// the transports are used to update the TDD forms and security
@@ -101,7 +102,7 @@ func TestStartStop(t *testing.T) {
 	// read all things
 	tdList, err := m.RetrieveAllThings(0, 10)
 	assert.NoError(t, err)
-	assert.GreaterOrEqual(t, 1, len(tdList))
+	assert.GreaterOrEqual(t, len(tdList), 1)
 }
 
 func TestCreateTD(t *testing.T) {
@@ -212,8 +213,7 @@ func TestGetDirectoryTD(t *testing.T) {
 
 	err = jsoniter.Unmarshal(respBody, &dirTD)
 	require.NoError(t, err)
-
-	// assert.Equal(t, dirTM.ID, dirTD.ID)
+	assert.Equal(t, directory.DefaultDirectoryThingID, dirTD.ID)
 }
 
 // Read the directory using the http api

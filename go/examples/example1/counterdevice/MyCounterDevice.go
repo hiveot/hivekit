@@ -126,8 +126,9 @@ func (m *MyCounterDevice) Start() error {
 	props := map[string]any{
 		CounterPropName: m.counter.Load(),
 	}
-	m.PubProperties(m.GetClientID(), props)
-	m.PubEvent(m.GetClientID(), CounterUpdatedEvent, m.counter.Load())
+	thingID := m.GetModuleID()
+	m.PubProperties(thingID, props)
+	m.PubEvent(thingID, CounterUpdatedEvent, m.counter.Load())
 
 	return nil
 }

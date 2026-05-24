@@ -17,12 +17,14 @@ import (
 // The thingID must contain the agent as the prefix to ensure unique namespace,
 // so the stored ThingID will be agentID:thingID.
 func (srv *DirectoryHttpServer) handleCreateThing(w http.ResponseWriter, r *http.Request) {
-	var tdJson string
+
 	rp, err := srv.httpServer.GetRequestParams(r)
 	if err == nil {
-		tdJson = string(rp.Payload)
-		err = srv.Rpc(rp.ClientID, td.OpInvokeAction,
-			srv.directoryThingID, directory.ActionCreateThing, tdJson, nil)
+		tdJson := string(rp.Payload) // ensure correct serialization of payload
+		req := msg.NewRequestMessage(
+			td.OpInvokeAction, srv.directoryThingID, directory.ActionCreateThing, tdJson)
+		req.SenderID = rp.ClientID
+		_, err = srv.ForwardRequestWait(req)
 	}
 	utils.WriteReply(w, true, nil, err) // 201
 }
@@ -32,8 +34,9 @@ func (srv *DirectoryHttpServer) handleDeleteThing(w http.ResponseWriter, r *http
 	rp, err := srv.httpServer.GetRequestParams(r)
 	thingID := chi.URLParam(r, ThingIDURIVar)
 
-	req := msg.NewRequestMessage(rp.ClientID,
-		td.OpInvokeAction, srv.directoryThingID, directory.ActionDeleteThing, thingID, "")
+	req := msg.NewRequestMessage(
+		td.OpInvokeAction, srv.directoryThingID, directory.ActionDeleteThing, thingID)
+	req.SenderID = rp.ClientID
 	_, err = srv.ForwardRequestWait(req)
 
 	utils.WriteReply(w, true, nil, err) // 204
@@ -41,44 +44,51 @@ func (srv *DirectoryHttpServer) handleDeleteThing(w http.ResponseWriter, r *http
 
 // Read the directory service TD itself
 func (srv *DirectoryHttpServer) handleReadDirectoryTD(w http.ResponseWriter, r *http.Request) {
-	var tddJson string
+	var resp *msg.ResponseMessage
 
 	rp, err := srv.httpServer.GetRequestParams(r)
 	if err == nil {
-		err = srv.Rpc(rp.ClientID, td.OpInvokeAction,
-			srv.directoryThingID, directory.ActionRetrieveTDD, nil, &tddJson)
+		req := msg.NewRequestMessage(
+			td.OpInvokeAction, srv.directoryThingID, directory.ActionRetrieveTDD, nil)
+		req.SenderID = rp.ClientID
+		resp, err = srv.ForwardRequestWait(req)
 	}
+
 	if err != nil {
 		utils.WriteError(w, err, 0)
 		return
 	}
-	// set the http server as the base URL.
-	// FIXME: where are security and forms added?
-	tm := string(tddJson)
-	tdi, err := td.UnmarshalTD(tm)
-	_ = err
-	tdi.Base = srv.httpServer.GetConnectURL()
-	utils.WriteReply(w, true, tdi, nil) // 200
+	var tdocJson string
+	err = resp.Decode(&tdocJson)
+	if err != nil {
+		utils.WriteError(w, err, http.StatusInternalServerError)
+	} else {
+		w.Write([]byte(tdocJson)) // 200
+	}
 }
 
 func (srv *DirectoryHttpServer) handleRetrieveThing(w http.ResponseWriter, r *http.Request) {
-	var tdJson string
+	var resp *msg.ResponseMessage
 	// A thingID is provided otherwise this handler would not have been called
 	thingID := chi.URLParam(r, ThingIDURIVar)
 	rp, err := srv.httpServer.GetRequestParams(r)
 	if err == nil {
-		err = srv.Rpc(rp.ClientID, td.OpInvokeAction,
-			srv.directoryThingID, directory.ActionRetrieveThing, thingID, &tdJson)
+		req := msg.NewRequestMessage(
+			td.OpInvokeAction, srv.directoryThingID, directory.ActionRetrieveThing, thingID)
+		req.SenderID = rp.ClientID
+		resp, err = srv.ForwardRequestWait(req)
 	}
 	if err != nil {
 		utils.WriteError(w, err, 0)
 		return
 	}
-	w.Write([]byte(tdJson)) // 200
+	var tdocJson string
+	err = resp.Decode(&tdocJson)
+	w.Write([]byte(tdocJson)) // 200
 }
 
 func (srv *DirectoryHttpServer) handleRetrieveAllThings(w http.ResponseWriter, r *http.Request) {
-	var tdList []string
+	var resp *msg.ResponseMessage
 	rp, err := srv.httpServer.GetRequestParams(r)
 	if err == nil {
 		qp := r.URL.Query()
@@ -90,10 +100,12 @@ func (srv *DirectoryHttpServer) handleRetrieveAllThings(w http.ResponseWriter, r
 			Offset: int(offset),
 			Limit:  int(limit),
 		}
-		err = srv.Rpc(rp.ClientID, td.OpInvokeAction,
-			srv.directoryThingID, directory.ActionRetrieveAllThings, args, &tdList)
+		req := msg.NewRequestMessage(
+			td.OpInvokeAction, srv.directoryThingID, directory.ActionRetrieveAllThings, args)
+		req.SenderID = rp.ClientID
+		resp, err = srv.ForwardRequestWait(req)
 	}
-	utils.WriteReply(w, true, tdList, err) // 200
+	utils.WriteReply(w, true, resp.Output, err) // 200
 }
 
 // handleUpdateThing handle http request to update a Thing's TD
@@ -102,12 +114,15 @@ func (srv *DirectoryHttpServer) handleRetrieveAllThings(w http.ResponseWriter, r
 // The thingID must contain the agent as the prefix to ensure unique namespace,
 // so the stored ThingID will be agentID:thingID.
 func (srv *DirectoryHttpServer) handleUpdateThing(w http.ResponseWriter, r *http.Request) {
-	var tdJson string
+	var resp *msg.ResponseMessage
 	rp, err := srv.httpServer.GetRequestParams(r)
 	if err == nil {
-		tdJson = string(rp.Payload)
-		err = srv.Rpc(rp.ClientID, td.OpInvokeAction,
-			srv.directoryThingID, directory.ActionUpdateThing, tdJson, nil)
+		tdJson := string(rp.Payload) // ensure correct serialization of payload
+		req := msg.NewRequestMessage(
+			td.OpInvokeAction, srv.directoryThingID, directory.ActionUpdateThing, tdJson)
+		req.SenderID = rp.ClientID
+		resp, err = srv.ForwardRequestWait(req)
+		_ = resp
 	}
 	utils.WriteReply(w, true, nil, err) // 201
 }

@@ -236,7 +236,7 @@ func (testEnv *TestEnv) NewConsumerClient(
 
 	cc, token = testEnv.NewConnectedClient(clientID, role, ch)
 
-	co = clientspkg.NewConsumer(clientID + "-consumer")
+	co = clientspkg.NewConsumer(TestTimeout)
 	co.SetRequestSink(cc.HandleRequest)
 	co.SetTimeout(TestTimeout)
 	// notifications received by the client are passed to the consumer

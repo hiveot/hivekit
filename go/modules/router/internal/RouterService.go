@@ -92,7 +92,7 @@ func (m *RouterService) GetClientConnection(tdi *td.TD) (
 			c.SetNotificationSink(m.HandleNotification)
 		} else {
 			c = nil // auth failed
-			err = fmt.Errorf("Router:GetClientConnection. Connection failed: %w", err)
+			err = fmt.Errorf("RouterService.GetClientConnection. Connection failed: %w", err)
 		}
 	}
 	return c, err
@@ -131,7 +131,7 @@ func (m *RouterService) HandleRequest(req *msg.RequestMessage, replyTo msg.Respo
 	// 	resp, err = m.ReadAllProperties(req)
 	// directory specific operations could be handled here
 	default:
-		err := fmt.Errorf("Unhandled request: thingID='%s', op='%s', name='%s", req.ThingID, req.Operation, req.Name)
+		err := fmt.Errorf("RouterService.HandleRequest: Unhandled request: thingID='%s', op='%s', name='%s", req.ThingID, req.Operation, req.Name)
 		slog.Warn(err.Error())
 	}
 	if resp != nil {
@@ -174,7 +174,11 @@ func (m *RouterService) RouteRequest(req *msg.RequestMessage, replyTo msg.Respon
 
 	tdDoc := m.getTD(req.ThingID)
 	if tdDoc == nil {
-		return m.ForwardRequest(req, replyTo)
+		err = m.ForwardRequest(req, replyTo)
+		if err != nil {
+			err = fmt.Errorf("RouteRequest: No TD document found for thing '%s' and forwarding failed: %w", req.ThingID, err)
+			slog.Warn("RouteRequest", "err", err.Error())
+		}
 	}
 	// c := clients.ConnectToThing(tdi, m.getCredentials)
 
@@ -194,11 +198,11 @@ func (m *RouterService) RouteRequest(req *msg.RequestMessage, replyTo msg.Respon
 	}
 	// without href attempt looking up a reverse connection
 	if href == "" && agentID == "" {
-		err = fmt.Errorf("No connection information in TD for Thing '%s'", req.ThingID)
+		err = fmt.Errorf("RouteRequest: No connection information in TD for Thing '%s'", req.ThingID)
 	} else if href == "" {
 		c := m.GetRCConnection(agentID)
 		if c == nil {
-			err = fmt.Errorf("Unable to connection with agent '%s'", agentID)
+			err = fmt.Errorf("RouteRequest: Unable to connection with agent '%s'", agentID)
 		} else {
 			err = c.SendRequest(req, replyTo)
 		}
@@ -206,7 +210,7 @@ func (m *RouterService) RouteRequest(req *msg.RequestMessage, replyTo msg.Respon
 		// FIXME: use form or protocol ? href?
 		c, err2 := m.GetClientConnection(tdDoc)
 		if c == nil {
-			err = fmt.Errorf("Unable to establish a connection to client '%s': %w", agentID, err2)
+			err = fmt.Errorf("RouteRequest: Unable to establish a connection to client '%s': %w", agentID, err2)
 		} else {
 			err = c.SendRequest(req, replyTo)
 		}
@@ -253,11 +257,12 @@ func (m *RouterService) Stop() {
 //	transports is a list of transport servers that can contain reverse agent connections.
 //	caCert is the CA used to verify device connections
 //	timeout is the maximum communication timeout with connect clients
-func NewRouterService(storageDir string,
-	getTD func(thingID string) *td.TD,
-	tpServers []transports.ITransportServer,
-	caCert *x509.Certificate,
+func NewRouterService(storageDir string, getTD func(thingID string) *td.TD,
+	tpServers []transports.ITransportServer, caCert *x509.Certificate, timeout time.Duration,
 ) *RouterService {
+	if timeout == 0 {
+		timeout = msg.DefaultRnRTimeout
+	}
 
 	m := &RouterService{
 		caCert:            caCert,
@@ -266,7 +271,7 @@ func NewRouterService(storageDir string,
 		tpServers:         tpServers,
 		deviceConnections: make(map[string]transports.ITransportClient),
 		routerThingID:     router.DefaultRouterThingID,
-		timeout:           msg.DefaultRnRTimeout,
+		timeout:           timeout,
 	}
 
 	var _ router.IRouterService = m // interface check

@@ -19,10 +19,10 @@ func main() {
 	// Ignore the certificate check just for this example. Dont do this at home.
 	http.DefaultTransport.(*http.Transport).TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
 
-	co := wotco.NewWotConsumer()
+	co := wotco.NewWotConsumer(time.Minute)
 	co.SetTimeout(time.Minute)
 	// run the router without CA. Don't try this at home.
-	r := routerpkg.NewRouterService("", co.GetTD, nil, nil)
+	r := routerpkg.NewRouterService("", co.GetTD, nil, nil, time.Minute)
 	co.SetRequestSink(r.HandleRequest)
 	r.SetNotificationSink(co.HandleNotification)
 

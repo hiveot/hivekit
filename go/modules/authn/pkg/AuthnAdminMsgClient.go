@@ -27,7 +27,7 @@ func (m *AuthnAdminMsgClient) AddClient(clientID string, displayName string, rol
 		Role:        role,
 	}
 	thingID := authnapi.DefaultAdminServiceID
-	err = m.Rpc("", td.OpInvokeAction, thingID, authnapi.AdminActionAddClient, &args, &token)
+	err = m.Rpc(td.OpInvokeAction, thingID, authnapi.AdminActionAddClient, &args, &token)
 	return
 }
 
@@ -37,7 +37,7 @@ func (m *AuthnAdminMsgClient) AdminGetClientProfile(co *clientspkg.Consumer, cli
 	profile authnapi.ClientProfile, err error) {
 
 	thingID := authnapi.DefaultAdminServiceID
-	err = m.Rpc("", td.OpInvokeAction, thingID,
+	err = m.Rpc(td.OpInvokeAction, thingID,
 		authnapi.AdminActionGetProfile, &clientID, &profile)
 	return
 }
@@ -47,7 +47,7 @@ func (m *AuthnAdminMsgClient) AdminGetClientProfile(co *clientspkg.Consumer, cli
 func (m *AuthnAdminMsgClient) AdminGetProfiles(co *clientspkg.Consumer) (clientProfiles []authnapi.ClientProfile, err error) {
 
 	thingID := authnapi.DefaultAdminServiceID
-	err = m.Rpc("", td.OpInvokeAction, thingID,
+	err = m.Rpc(td.OpInvokeAction, thingID,
 		authnapi.AdminActionGetProfiles, nil, &clientProfiles)
 	return
 }
@@ -57,7 +57,7 @@ func (m *AuthnAdminMsgClient) AdminGetProfiles(co *clientspkg.Consumer) (clientP
 func (m *AuthnAdminMsgClient) AdminRemoveClient(hc *clientspkg.Consumer, clientID string) (err error) {
 
 	thingID := authnapi.DefaultAdminServiceID
-	err = m.Rpc("", td.OpInvokeAction, thingID,
+	err = m.Rpc(td.OpInvokeAction, thingID,
 		authnapi.AdminActionRemoveClient, &clientID, nil)
 	return
 }
@@ -69,7 +69,7 @@ func (m *AuthnAdminMsgClient) AdminSetClientPassword(hc *clientspkg.Consumer, us
 		UserName: userName, Password: password}
 
 	thingID := authnapi.DefaultAdminServiceID
-	err = m.Rpc("", td.OpInvokeAction, thingID,
+	err = m.Rpc(td.OpInvokeAction, thingID,
 		authnapi.AdminActionSetPassword, &args, nil)
 	return
 }
@@ -79,7 +79,7 @@ func (m *AuthnAdminMsgClient) AdminSetClientPassword(hc *clientspkg.Consumer, us
 func (m *AuthnAdminMsgClient) AdminUpdateClientProfile(clientProfile authnapi.ClientProfile) (err error) {
 
 	thingID := authnapi.DefaultAdminServiceID
-	err = m.Rpc("", td.OpInvokeAction,
+	err = m.Rpc(td.OpInvokeAction,
 		authnapi.AuthnAdminServiceID, thingID, &clientProfile, nil)
 	return
 }

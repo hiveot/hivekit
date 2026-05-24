@@ -18,10 +18,8 @@ type AuthnUserMsgClient struct {
 
 // UserGetProfile client method - Get Client Profile.
 func (m *AuthnUserMsgClient) GetProfile() (resp authn.ClientProfile, err error) {
-	err = m.Rpc("", // the transport will include the sender in the request
-		td.OpInvokeAction,
-		authn.AuthnUserServiceID,
-		authn.UserActionGetProfile, nil, &resp)
+	err = m.Rpc(td.OpInvokeAction,
+		authn.AuthnUserServiceID, authn.UserActionGetProfile, nil, &resp)
 	return
 }
 
@@ -36,30 +34,24 @@ func (m *AuthnUserMsgClient) GetProfile() (resp authn.ClientProfile, err error) 
 // Logout from all devices
 func (m *AuthnUserMsgClient) Logout() (err error) {
 
-	err = m.Rpc("",
-		td.OpInvokeAction,
-		authn.AuthnUserServiceID,
-		authn.UserActionLogout, nil, nil)
+	err = m.Rpc(td.OpInvokeAction,
+		authn.AuthnUserServiceID, authn.UserActionLogout, nil, nil)
 	return
 }
 
 // UserRefreshToken client method - Request a new auth token for the current client.
 func (m *AuthnUserMsgClient) RefreshToken(hc *clientspkg.Consumer, oldToken string) (newToken string, err error) {
 
-	err = m.Rpc("",
-		td.OpInvokeAction,
-		authn.AuthnUserServiceID,
-		authn.UserActionRefreshToken, &oldToken, &newToken)
+	err = m.Rpc(td.OpInvokeAction,
+		authn.AuthnUserServiceID, authn.UserActionRefreshToken, &oldToken, &newToken)
 	return
 }
 
 // UserUpdatePassword client method - Update Password.
 // Request changing the password of the current client
 func (m *AuthnUserMsgClient) UpdateProfile(hc *clientspkg.Consumer, password string) (err error) {
-	err = m.Rpc("",
-		td.OpInvokeAction,
-		authn.AuthnUserServiceID,
-		authn.UserActionSetPassword, &password, nil)
+	err = m.Rpc(td.OpInvokeAction,
+		authn.AuthnUserServiceID, authn.UserActionSetPassword, &password, nil)
 	return
 }
 

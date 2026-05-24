@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/url"
 
+	"github.com/hiveot/hivekit/go/api/msg"
 	"github.com/hiveot/hivekit/go/api/td"
 	"github.com/hiveot/hivekit/go/modules"
 	"github.com/hiveot/hivekit/go/modules/authn"
@@ -49,18 +50,19 @@ func (m *AuthnUserHttpService) GetConnectURL() (uri string, protocolType string)
 
 // onHttpGetProfile returns the client's profile
 func (m *AuthnUserHttpService) onHttpGetProfile(w http.ResponseWriter, r *http.Request) {
-	var profile authn.ClientProfile
+	var resp *msg.ResponseMessage
 	rp, err := m.httpServer.GetRequestParams(r)
 
 	if err == nil {
-		err = m.Rpc(
-			rp.ClientID, td.OpInvokeAction, authn.AuthnUserServiceID,
-			authn.UserActionGetProfile, nil, &profile)
+		req := msg.NewRequestMessage(
+			td.OpInvokeAction, authn.AuthnUserServiceID, authn.UserActionGetProfile, nil)
+		req.SenderID = rp.ClientID
+		resp, err = m.ForwardRequestWait(req)
 	}
 	if err != nil {
 		slog.Warn("onHttpGetProfile failed", "clientID", rp.ClientID, "err", err.Error())
 	}
-	utils.WriteReply(w, true, profile, err)
+	utils.WriteReply(w, true, resp.Output, err)
 }
 
 // onHttpLogin handles a login request and returns an auth token.
@@ -69,7 +71,7 @@ func (m *AuthnUserHttpService) onHttpGetProfile(w http.ResponseWriter, r *http.R
 // This is the only unprotected route supported.
 // This uses the configured session authenticator.
 func (m *AuthnUserHttpService) onHttpLogin(w http.ResponseWriter, r *http.Request) {
-	var newToken string
+	var resp *msg.ResponseMessage
 	var args authn.UserLoginArgs
 
 	payload, err := io.ReadAll(r.Body)
@@ -79,9 +81,10 @@ func (m *AuthnUserHttpService) onHttpLogin(w http.ResponseWriter, r *http.Reques
 	if err == nil {
 		// the login is handled in-house and has an immediate return
 
-		err = m.Rpc(args.UserName,
-			td.OpInvokeAction, authn.AuthnUserServiceID, authn.UserActionLogin,
-			&args, &newToken)
+		req := msg.NewRequestMessage(
+			td.OpInvokeAction, authn.AuthnUserServiceID, authn.UserActionLogin, &args)
+		req.SenderID = args.UserName
+		resp, err = m.ForwardRequestWait(req)
 
 		slog.Info("onHttpLogin", "clientID", args.UserName)
 	}
@@ -91,19 +94,24 @@ func (m *AuthnUserHttpService) onHttpLogin(w http.ResponseWriter, r *http.Reques
 		return
 	}
 	// TBD: set client session cookie for browser clients
+	newToken := resp.Output
 	utils.WriteReply(w, true, newToken, nil)
 }
 
 // onHttpLogout ends the session and closes all client connections
 func (m *AuthnUserHttpService) onHttpLogout(w http.ResponseWriter, r *http.Request) {
+	var resp *msg.ResponseMessage
 	// use the authenticator
 	rp, err := m.httpServer.GetRequestParams(r)
-
-	slog.Info("onHttpLogout", slog.String("clientID", rp.ClientID))
-	err = m.Rpc(rp.ClientID,
-		td.OpInvokeAction,
-		authn.AuthnUserServiceID,
-		authn.UserActionLogout, nil, nil)
+	if err == nil {
+		slog.Info("onHttpLogout", slog.String("clientID", rp.ClientID))
+		req := msg.NewRequestMessage(
+			td.OpInvokeAction, authn.AuthnUserServiceID, authn.UserActionLogout, nil)
+		req.SenderID = rp.ClientID
+		resp, err = m.ForwardRequestWait(req)
+		_ = resp
+	} else {
+	}
 
 	utils.WriteReply(w, true, nil, err)
 }
@@ -112,7 +120,7 @@ func (m *AuthnUserHttpService) onHttpLogout(w http.ResponseWriter, r *http.Reque
 // The session authenticator is that of the authn service. This allows testing with a dummy
 // authenticator without having to run the authn service.
 func (m *AuthnUserHttpService) onHttpTokenRefresh(w http.ResponseWriter, r *http.Request) {
-	var newToken string
+	var resp *msg.ResponseMessage
 	var oldToken string
 	rp, err := m.httpServer.GetRequestParams(r)
 
@@ -120,15 +128,17 @@ func (m *AuthnUserHttpService) onHttpTokenRefresh(w http.ResponseWriter, r *http
 		jsoniter.Unmarshal(rp.Payload, &oldToken)
 		slog.Info("onHttpTokenRefresh", "clientID", rp.ClientID)
 
-		err = m.Rpc(rp.ClientID, td.OpInvokeAction,
-			authn.AuthnUserServiceID,
-			authn.UserActionRefreshToken, &oldToken, &newToken)
+		req := msg.NewRequestMessage(
+			td.OpInvokeAction, authn.AuthnUserServiceID, authn.UserActionRefreshToken, oldToken)
+		req.SenderID = rp.ClientID
+		resp, err = m.ForwardRequestWait(req)
 	}
 	if err != nil {
 		slog.Warn("onHttpTokenRefresh failed:", "err", err.Error())
 		utils.WriteError(w, err, 0)
 		return
 	}
+	newToken := resp.Output
 	utils.WriteReply(w, true, newToken, nil)
 }
 

@@ -142,21 +142,19 @@ func (req *RequestMessage) Decode(input any) error {
 // is used, this must be filled with the authenticated client's ID, otherwise the services
 // can reject the request.
 //
-//	senderID is the authentication ID of the originator of the request
 //	operation is the request operation td.OpInvokeAction, td.OpReadProperty,...
 //	thingID is the thing the value applies to (destination of action or source of event)
 //	name is the name of the property, event or action affordance as described in the thing TD
 //	input is the request input as defined in the corresponding affordance dataschema.
-//	correlationID unique ID of the request or empty when no response is expected
-func NewRequestMessage(senderID string, operation string, thingID, name string, input any, correlationID string) *RequestMessage {
+func NewRequestMessage(operation string, thingID, name string, input any) *RequestMessage {
 	return &RequestMessage{
-		SenderID:      senderID,
+		// SenderID:      senderID,   // to be filled in by servers when receiving authenticated requests
 		MessageType:   MessageTypeRequest,
 		Operation:     operation,
 		ThingID:       thingID,
 		Name:          name,
 		Input:         input,
-		CorrelationID: correlationID,
+		CorrelationID: shortid.MustGenerate(),
 		Timestamp:     utils.FormatUTCMilli(time.Now()),
 		MessageID:     shortid.MustGenerate(),
 	}

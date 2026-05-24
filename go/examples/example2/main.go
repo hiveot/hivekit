@@ -69,11 +69,11 @@ func main() {
 	// Ignore the certificate check just for this example. Dont do this.
 	http.DefaultTransport.(*http.Transport).TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
 
-	co := wotco.NewWotConsumer()
+	co := wotco.NewWotConsumer(time.Minute)
 	co.SetTimeout(time.Minute)
 	// run the router without CA. Don't try this at home.
 	// the WotConsumer has a list of collected TDs for use by the router
-	r := routerpkg.NewRouterService("", co.GetTD, nil, nil)
+	r := routerpkg.NewRouterService("", co.GetTD, nil, nil, time.Minute)
 	err := r.Start()
 	r.SetTimeout(time.Minute)
 	if err != nil {
@@ -94,6 +94,10 @@ func main() {
 	case CmdShowStatus:
 		thingID := getArgs()
 		wotcli.ShowStatus(co, thingID, subscribe)
+	case CmdSubscribe:
+		thingID := getArgs()
+		wotcli.Subscribe(co, thingID)
+
 	default:
 		fmt.Printf("\nUnknown command: %s\n", cmd)
 	}

@@ -63,7 +63,7 @@ type ResponseMessage struct {
 
 	// Error contains the short error description when status is failed.
 	// Matches RFC9457 https://www.rfc-editor.org/rfc/rfc9457
-	Error *ErrorValue `json:"error"`
+	Error *ErrorValue `json:"error,omitempty"`
 
 	// The input to the request. This is included for historical purposes.
 	// This only populated when the response is sent by supporting devices. The
@@ -79,7 +79,7 @@ type ResponseMessage struct {
 	MessageType string `json:"messageType"`
 
 	// Name of the action or property affordance this is a response from.
-	Name string `json:"name"`
+	Name string `json:"name,omitempty"`
 
 	// The operation this is a response to. This MUST be the operation provided in the request.
 	Operation string `json:"operation"`
@@ -145,7 +145,7 @@ func (resp *ResponseMessage) ToString(maxlen int) (valueStr string) {
 	return utils.DecodeAsString(resp.Output, maxlen)
 }
 
-// Decode the value in the response
+// Convert the value in the response to the given output type.
 // If the response contains an error, then this error is returned.
 func (resp *ResponseMessage) Decode(output any) error {
 	if resp != nil && resp.Error != nil {

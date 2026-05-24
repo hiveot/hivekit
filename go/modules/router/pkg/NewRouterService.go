@@ -3,6 +3,7 @@ package routerpkg
 import (
 	"crypto/x509"
 	"fmt"
+	"time"
 
 	"github.com/hiveot/hivekit/go/api/td"
 	"github.com/hiveot/hivekit/go/modules"
@@ -20,14 +21,12 @@ import (
 //	getTD is the handler to lookup a TD for a thingID from a directory
 //	transports is a list of transport servers that can contain reverse agent connections.
 //	caCert is the CA certificate used to verify device connections
-func NewRouterService(
-	storageDir string,
-	getTD func(thingID string) *td.TD,
-	tps []transports.ITransportServer,
-	caCert *x509.Certificate,
+//	timeout is the maximum wait time for sending requests to clients.
+func NewRouterService(storageDir string, getTD func(thingID string) *td.TD,
+	tps []transports.ITransportServer, caCert *x509.Certificate, timeout time.Duration,
 ) router.IRouterService {
 
-	m := internal.NewRouterService(storageDir, getTD, tps, caCert)
+	m := internal.NewRouterService(storageDir, getTD, tps, caCert, timeout)
 	return m
 }
 
@@ -49,5 +48,6 @@ func NewRouterServiceFactory(f factory.IModuleFactory) (modules.IHiveModule, err
 	if dirMod, ok := m.(directory.IDirectoryService); ok {
 		getTD = dirMod.GetTD
 	}
-	return NewRouterService(storageDir, getTD, tps, env.CaCert), nil
+	svc := NewRouterService(storageDir, getTD, tps, env.CaCert, f.GetEnvironment().RpcTimeout)
+	return svc, nil
 }

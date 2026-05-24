@@ -17,6 +17,7 @@ var DirectoryTMJson []byte
 const DirectoryModuleType = "directory"
 
 // DirectoryHttpModuleType identifies the http API module for the directory service
+// Place this module before any middleware so that requests are logged and authorized.
 const DirectoryHttpModuleType = "directory-http"
 
 // The thingID this directory identifies as for messaging. Must match the TD ID.

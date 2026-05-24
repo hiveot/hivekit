@@ -1,6 +1,8 @@
 package directorypkg
 
 import (
+	"time"
+
 	"github.com/hiveot/hivekit/go/modules"
 	"github.com/hiveot/hivekit/go/modules/directory"
 	internal "github.com/hiveot/hivekit/go/modules/directory/internal/httpserver"
@@ -8,16 +10,18 @@ import (
 	"github.com/hiveot/hivekit/go/modules/transports"
 )
 
-func NewDirectoryHttpServer(httpServer transports.IHttpServer) directory.IDirectoryHttpServer {
-	m := internal.StartDirectoryHttpServer(httpServer)
+// Create a new instance
+func NewDirectoryHttpServer(httpServer transports.IHttpServer, respTimeout time.Duration) directory.IDirectoryHttpServer {
+	m := internal.StartDirectoryHttpServer(httpServer, respTimeout)
 	return m
 }
 
-// Deprecated: use http-basic interface for http interaction with the directory.
-// factory for the directory http interface module
-func NewDirectoryHttpServerFactoryDeprecated(f factory.IModuleFactory) modules.IHiveModule {
+// Factory for the directory http interface module
+// Place this before the directory server module in the chain and before middleware modules that log and
+// authorize requests.
+func NewDirectoryHttpServerFactory(f factory.IModuleFactory) modules.IHiveModule {
 
 	httpServer := f.GetHttpServer(true)
-	m := NewDirectoryHttpServer(httpServer)
+	m := internal.StartDirectoryHttpServer(httpServer, f.GetEnvironment().RpcTimeout)
 	return m
 }

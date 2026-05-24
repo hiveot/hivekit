@@ -20,7 +20,7 @@ type DirectoryMsgClient struct {
 func (cl *DirectoryMsgClient) DeleteThing(thingID string) error {
 
 	// the senderID is added by the transport server
-	err := cl.Rpc("", td.OpInvokeAction,
+	err := cl.Rpc(td.OpInvokeAction,
 		cl.directoryThingID, directory.ActionDeleteThing, thingID, nil)
 	return err
 }
@@ -28,14 +28,14 @@ func (cl *DirectoryMsgClient) DeleteThing(thingID string) error {
 // request the directory TD itself
 func (cl *DirectoryMsgClient) RetrieveTDD() (tdJson string, err error) {
 
-	err = cl.Rpc("", td.OpInvokeAction,
+	err = cl.Rpc(td.OpInvokeAction,
 		cl.directoryThingID, directory.ActionRetrieveTDD, nil, &tdJson)
 	return tdJson, err
 }
 
 func (cl *DirectoryMsgClient) RetrieveThing(thingID string) (tdJson string, err error) {
 
-	err = cl.Rpc("", td.OpInvokeAction,
+	err = cl.Rpc(td.OpInvokeAction,
 		cl.directoryThingID, directory.ActionRetrieveThing, thingID, &tdJson)
 	return tdJson, err
 }
@@ -45,7 +45,7 @@ func (cl *DirectoryMsgClient) RetrieveAllThings(offset int, limit int) (tdList [
 		Offset: offset,
 		Limit:  limit,
 	}
-	err = cl.Rpc("", td.OpInvokeAction,
+	err = cl.Rpc(td.OpInvokeAction,
 		cl.directoryThingID, directory.ActionRetrieveAllThings, args, &tdList)
 	return tdList, err
 }
@@ -103,8 +103,8 @@ func UpdateTD(directoryThingID string, tdJson string, reqHandler msg.RequestHand
 	if directoryThingID == "" {
 		directoryThingID = directory.DirectoryModuleType
 	}
-	req := msg.NewRequestMessage("",
-		td.OpInvokeAction, directoryThingID, directory.ActionUpdateThing, tdJson, "")
+	req := msg.NewRequestMessage(
+		td.OpInvokeAction, directoryThingID, directory.ActionUpdateThing, tdJson)
 
 	_, err := msg.ForwardRequestWait(req, reqHandler, msg.DefaultRnRTimeout)
 

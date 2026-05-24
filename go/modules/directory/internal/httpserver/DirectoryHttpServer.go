@@ -3,6 +3,7 @@ package internal
 import (
 	"fmt"
 	"net/http"
+	"time"
 
 	"github.com/hiveot/hivekit/go/api/msg"
 	"github.com/hiveot/hivekit/go/api/td"
@@ -148,8 +149,12 @@ func (srv *DirectoryHttpServer) SendResponse(
 //
 // This registers the HTTP API with the router and serves its TD on the
 // .well-known/wot endpoint as per discovery specification.
-func StartDirectoryHttpServer(httpServer transports.IHttpServer) *DirectoryHttpServer {
+//
+//	respTimeout is the maximum time the server waits for a response when forwarding directory requests
+//	 to the directory server.
+func StartDirectoryHttpServer(httpServer transports.IHttpServer, respTimeout time.Duration) *DirectoryHttpServer {
 	srv := &DirectoryHttpServer{
+		HiveModuleBase:   modules.NewHiveModuleBase("DirectoryHttpServer", respTimeout),
 		httpServer:       httpServer,
 		directoryThingID: directory.DefaultDirectoryThingID,
 	}

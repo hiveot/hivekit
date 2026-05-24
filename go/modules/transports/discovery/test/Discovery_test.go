@@ -121,8 +121,8 @@ func TestDiscoverGetThingTD(t *testing.T) {
 	// publish a TD in the module chain
 	// err = m.ServeThingTD(thingTD)
 	tdJson1, _ := td.MarshalTD(thingTD)
-	req := msg.NewRequestMessage("", td.OpInvokeAction,
-		directory.DefaultDirectoryThingID, directory.ActionCreateThing, tdJson1, "")
+	req := msg.NewRequestMessage(td.OpInvokeAction,
+		directory.DefaultDirectoryThingID, directory.ActionCreateThing, tdJson1)
 	err = m.HandleRequest(req, nil)
 	require.NoError(t, err)
 

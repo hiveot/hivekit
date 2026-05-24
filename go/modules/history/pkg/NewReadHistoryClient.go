@@ -29,7 +29,7 @@ type ReadHistoryClient struct {
 
 // invoke action on the history service
 func (cl *ReadHistoryClient) call(name string, input any, output any) error {
-	return cl.Rpc("ReadHistoryClient", td.OpInvokeAction, cl.histThingID, name, input, output)
+	return cl.Rpc(td.OpInvokeAction, cl.histThingID, name, input, output)
 }
 
 // GetCursor obtains a cursor key to iterate using the iteration functions.

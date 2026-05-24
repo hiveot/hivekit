@@ -38,9 +38,8 @@ type HiveModuleBase struct {
 	// this module (moduleID != request.ThingID) to requestSink.
 	appRequestHook msg.RequestHandler
 
-	// Map of changed properties intended for sending property change notifications
-	// This map is empty until changes are made using UpdateProperty
-	// changedProperties map[string]any
+	// ID of this module. Intended for logging.
+	moduleID string
 
 	// notificationSink is the sink for forwarding notification messages
 	// This is the upstream consumer.
@@ -96,10 +95,10 @@ func (m *HiveModuleBase) ForwardRequest(req *msg.RequestMessage, replyTo msg.Res
 	}
 	if m.requestSink == nil {
 		return fmt.Errorf("ForwardRequest: end of the line at '%s' for request '%s/%s' to thingID '%s'",
-			fmt.Sprintf("%T", m), req.Operation, req.Name, req.ThingID)
+			m.moduleID, req.Operation, req.Name, req.ThingID)
 	}
 	if replyTo == nil {
-		slog.Info("ForwardRequest: no replyTo handler provided")
+		slog.Info("ForwardRequest: no replyTo handler provided", "moduleID", m.moduleID)
 	}
 	err = m.requestSink(req, replyTo)
 	return err
@@ -132,6 +131,11 @@ func (m *HiveModuleBase) ForwardRequestWait(
 		err = resp.AsError()
 	}
 	return resp, err
+}
+
+// GetSink returns the module's ID
+func (m *HiveModuleBase) GetModuleID() string {
+	return m.moduleID
 }
 
 // GetSink returns the module's request sink
@@ -182,19 +186,16 @@ func (m *HiveModuleBase) HandleRequest(req *msg.RequestMessage, replyTo msg.Resp
 // senderID can be empty on the client side as the transport connection sets it to
 // the authenticated clientID.
 //
-//	senderID is the ID authenticated sender (used server side)
 //	operation is the WoT operation to send
 //	thingID is the Thing to address
 //	name is the operation name as defined in the TD
 //	input are optional input parameters or nil if none
 //	output is a pointer to the  struct where the result will be decoded
 func (m *HiveModuleBase) Rpc(
-	senderID string, operation, thingID, name string, input any, output any) error {
-
-	correlationID := shortid.MustGenerate()
+	operation, thingID, name string, input any, output any) error {
 
 	var resp *msg.ResponseMessage
-	req := msg.NewRequestMessage(senderID, operation, thingID, name, input, correlationID)
+	req := msg.NewRequestMessage(operation, thingID, name, input)
 
 	resp, err := m.ForwardRequestWait(req)
 
@@ -212,7 +213,8 @@ func (m *HiveModuleBase) SetAppNotificationHook(hook msg.NotificationHandler) {
 // Set the handler that will receive notifications emitted by this module
 func (m *HiveModuleBase) SetNotificationSink(consumer msg.NotificationHandler) {
 	if m.notificationSink != nil {
-		slog.Warn("SetNotificationSink: A notification sink already exists. It will be overwritten.")
+		slog.Warn("SetNotificationSink: A notification sink already exists. It will be overwritten.",
+			"moduleID", m.moduleID)
 	}
 	m.notificationSink = consumer
 }
@@ -238,21 +240,28 @@ func (m *HiveModuleBase) SetRequestSink(sink msg.RequestHandler) {
 	m.requestSink = sink
 }
 
-// Start the module. This must be defined in the actual module
-// func (m *HiveModuleBase) Start() error {
-// 	return nil
-// }
-
-// Stop the module. This must be defined in the actual module
-// func (m *HiveModuleBase) Stop() {}
-
-// SetTimeout sets the timeout when waiting for result.
+// // SetTimeout changes the timeout when waiting for result.
 func (m *HiveModuleBase) SetTimeout(rpcTimeout time.Duration) {
 	m.rpcTimeout = rpcTimeout
 }
 
-// Start the consumer module .. subclasses must implement this
+// Start the consumer module .. owning struct must implement this
 func (co *HiveModuleBase) Start() error { return nil }
 
-// Stop the consumer module .. subclasses must implement this
+// Stop the consumer module .. owning struct must implement this
 func (co *HiveModuleBase) Stop() {}
+
+// Create a new module
+//
+//	moduleID identifies the parent module
+//	rpcTimeout for forwarding request and waiting for the result
+func NewHiveModuleBase(moduleID string, timeout time.Duration) HiveModuleBase {
+	if timeout == 0 {
+		timeout = msg.DefaultRnRTimeout
+	}
+	m := HiveModuleBase{
+		moduleID:   moduleID,
+		rpcTimeout: timeout,
+	}
+	return m
+}

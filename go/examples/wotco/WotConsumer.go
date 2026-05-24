@@ -30,9 +30,10 @@ import (
 type WotConsumer struct {
 	clientspkg.Consumer
 
-	// The token for authentication
+	// The token and client ID for authentication
 	// todo. right now this is a placeholder
 	authToken string
+	clientID  string
 
 	// The CA for connecting
 	// todo right now this is a placeholder
@@ -105,7 +106,7 @@ func (co *WotConsumer) Discover(cb func(r *discoverypkg.DiscoveryResult) bool) (
 
 		// notify event listeners of the newly discovered record
 		// TODO: formalize this with a TD
-		notif := msg.NewNotificationMessage(co.GetClientID(),
+		notif := msg.NewNotificationMessage(co.GetModuleID(),
 			msg.AffordanceTypeEvent, discovery.DefaultDiscoveryThingID, "discovery", r)
 		co.ForwardNotification(notif)
 		return false
@@ -138,7 +139,7 @@ func (co *WotConsumer) GetPropValue(thingID string, name string) string {
 	if err != nil {
 		return err.Error()
 	}
-	req := msg.NewRequestMessage("", td.OpReadProperty, thingID, name, nil, "")
+	req := msg.NewRequestMessage(td.OpReadProperty, thingID, name, nil)
 	resp, err := msg.ForwardRequestWait(req, c.HandleRequest, msg.DefaultRnRTimeout)
 	if err != nil {
 		return err.Error()
@@ -226,7 +227,7 @@ func (co *WotConsumer) ReadThing(thingID string) []string {
 	if err == nil {
 		defer c.Close()
 		c.SetTimeout(time.Minute) // for testing
-		err = c.ConnectWithToken(co.GetClientID(), co.authToken)
+		err = c.ConnectWithToken(co.clientID, co.authToken)
 	}
 	if err == nil {
 		co.SetRequestSink(c.HandleRequest)
@@ -294,17 +295,19 @@ func (co *WotConsumer) ReadThing(thingID string) []string {
 // Use this with the router module as sink to connect to discovered clients and provide
 // the router with the callback to get a Thing TD:
 //
-//	wotConsumer := wotco.NewWotConsumer()
+//	wotConsumer := wotco.NewWotConsumer(0)
 //	r := routerpkg.NewRouterService("", wotConsumer.GetTD, nil, certsBundle.CaCert)
 //	wotConsumer.SetRequestSink(r.HandleRequest)
 //	r.SetNotificationSink(wotConsumer.HandleNotification)
 
-func NewWotConsumer() *WotConsumer {
+func NewWotConsumer(timeout time.Duration) *WotConsumer {
+
 	cl := &WotConsumer{
+		clientID:    "client1",
 		authToken:   "no-token",
 		records:     make([]*discoverypkg.DiscoveryResult, 0),
 		clients:     make(map[string]transports.ITransportClient),
-		Consumer:    *clientspkg.NewConsumer(""),
+		Consumer:    *clientspkg.NewConsumer(timeout),
 		directories: make(map[string]*td.TD),
 		things:      make(map[string]*td.TD),
 	}
@@ -313,6 +316,6 @@ func NewWotConsumer() *WotConsumer {
 
 // This module can be used in a factory recipe.
 func NewWotConsumerFactory(f factory.IModuleFactory) modules.IHiveModule {
-	cl := NewWotConsumer()
+	cl := NewWotConsumer(f.GetEnvironment().RpcTimeout)
 	return cl
 }
