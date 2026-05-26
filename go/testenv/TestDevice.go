@@ -3,13 +3,13 @@ package testenv
 import (
 	"github.com/hiveot/hivekit/go/api/td"
 	"github.com/hiveot/hivekit/go/modules"
-	clientspkg "github.com/hiveot/hivekit/go/modules/clients/pkg"
-	"github.com/hiveot/hivekit/go/modules/transports"
-	httpbasicpkg "github.com/hiveot/hivekit/go/modules/transports/httpbasic/pkg"
-	"github.com/hiveot/hivekit/go/modules/transports/httptransport"
-	httptransportpkg "github.com/hiveot/hivekit/go/modules/transports/httptransport/pkg"
-	ssescpkg "github.com/hiveot/hivekit/go/modules/transports/ssesc/pkg"
-	wsspkg "github.com/hiveot/hivekit/go/modules/transports/wss/pkg"
+	"github.com/hiveot/hivekit/go/modules/transport"
+	clientspkg "github.com/hiveot/hivekit/go/modules/transport/clients/pkg"
+	httpbasicpkg "github.com/hiveot/hivekit/go/modules/transport/httpbasic/pkg"
+	"github.com/hiveot/hivekit/go/modules/transport/httptransport"
+	httptransportpkg "github.com/hiveot/hivekit/go/modules/transport/httptransport/pkg"
+	ssescpkg "github.com/hiveot/hivekit/go/modules/transport/ssesc/pkg"
+	wsspkg "github.com/hiveot/hivekit/go/modules/transport/wss/pkg"
 )
 
 // TestDevice contains a server and agent for testing and simulation
@@ -17,10 +17,10 @@ type TestDevice struct {
 	modules.HiveModuleBase
 
 	agentID         string
-	authenticator   transports.IAuthenticator
+	authenticator   transport.IAuthenticator
 	cfg             *httptransport.Config
-	HttpServer      transports.IHttpServer
-	TransportServer transports.ITransportServer
+	HttpServer      transport.IHttpServer
+	TransportServer transport.ITransportServer
 	Agent           *clientspkg.Agent
 	// the server protocol to use, eg ProtocolTypeWotWSS, ...
 	protocolType string
@@ -47,13 +47,13 @@ func (device *TestDevice) Start() error {
 		return err
 	}
 	switch device.protocolType {
-	case transports.ProtocolTypeWotHttpBasic:
+	case transport.ProtocolTypeWotHttpBasic:
 		device.TransportServer = httpbasicpkg.NewHttpBasicServer(device.HttpServer)
-	case transports.ProtocolTypeHiveotSsesc:
+	case transport.ProtocolTypeHiveotSsesc:
 		device.TransportServer = ssescpkg.NewSseScServer(device.HttpServer, 0)
-	case transports.ProtocolTypeWotWebsocket:
+	case transport.ProtocolTypeWotWebsocket:
 		device.TransportServer = wsspkg.NewWotWssServer(device.HttpServer, 0)
-	case transports.ProtocolTypeHiveotWebsocket:
+	case transport.ProtocolTypeHiveotWebsocket:
 		device.TransportServer = wsspkg.NewHiveotWssServer(device.HttpServer, 0)
 	}
 	err = device.TransportServer.Start()
@@ -97,7 +97,7 @@ func (device *TestDevice) Stop() {
 // agentID is the service that manages the device
 // tm is the TM of the thing to manage
 // protocolType sets the type of server to use
-func NewTestDevice(cfg *httptransport.Config, agentID string, authenticator transports.IAuthenticator, tm *td.TD,
+func NewTestDevice(cfg *httptransport.Config, agentID string, authenticator transport.IAuthenticator, tm *td.TD,
 	protocolType string) *TestDevice {
 	v := &TestDevice{
 		authenticator: authenticator,

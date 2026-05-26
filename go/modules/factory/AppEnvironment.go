@@ -15,8 +15,8 @@ import (
 
 	"github.com/hiveot/hivekit/go/modules/certs"
 	"github.com/hiveot/hivekit/go/modules/certs/certutils"
-	"github.com/hiveot/hivekit/go/modules/transports"
-	grpctransport "github.com/hiveot/hivekit/go/modules/transports/grpc"
+	"github.com/hiveot/hivekit/go/modules/transport"
+	grpctransport "github.com/hiveot/hivekit/go/modules/transport/grpc"
 )
 
 // DirectoryURL_Arg is the optional commandline argument name with the URL of the directory TD
@@ -344,7 +344,7 @@ func NewAppEnvironment(homeDir string, withFlags bool) *AppEnvironment {
 		// ConfigFile: configFile,
 		CertsDir:  certsDir,
 		GrpcURL:   grpctransport.DefaultGrpcURL,
-		HttpsPort: transports.DefaultHttpsPort,
+		HttpsPort: transport.DefaultHttpsPort,
 		HomeDir:   homeDir,
 		KeyFile:   keyFile,
 		LogsDir:   logsDir,

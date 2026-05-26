@@ -9,7 +9,6 @@ import (
 	bucketstorepkg "github.com/hiveot/hivekit/go/modules/bucketstore/pkg"
 	"github.com/hiveot/hivekit/go/modules/certs"
 	certspkg "github.com/hiveot/hivekit/go/modules/certs/pkg"
-	clientspkg "github.com/hiveot/hivekit/go/modules/clients/pkg"
 	"github.com/hiveot/hivekit/go/modules/digitwin"
 	digitwinpkg "github.com/hiveot/hivekit/go/modules/digitwin/pkg"
 	"github.com/hiveot/hivekit/go/modules/directory"
@@ -21,20 +20,21 @@ import (
 	loggingpkg "github.com/hiveot/hivekit/go/modules/logging/pkg"
 	"github.com/hiveot/hivekit/go/modules/router"
 	routerpkg "github.com/hiveot/hivekit/go/modules/router/pkg"
-	"github.com/hiveot/hivekit/go/modules/transports"
-	"github.com/hiveot/hivekit/go/modules/transports/addforms"
-	addformspkg "github.com/hiveot/hivekit/go/modules/transports/addforms/pkg"
-	"github.com/hiveot/hivekit/go/modules/transports/discovery"
-	discoverypkg "github.com/hiveot/hivekit/go/modules/transports/discovery/pkg"
-	grpctransport "github.com/hiveot/hivekit/go/modules/transports/grpc"
-	grpcpkg "github.com/hiveot/hivekit/go/modules/transports/grpc/pkg"
-	"github.com/hiveot/hivekit/go/modules/transports/httpbasic"
-	httpbasicpkg "github.com/hiveot/hivekit/go/modules/transports/httpbasic/pkg"
-	httptransportpkg "github.com/hiveot/hivekit/go/modules/transports/httptransport/pkg"
-	"github.com/hiveot/hivekit/go/modules/transports/ssesc"
-	ssescpkg "github.com/hiveot/hivekit/go/modules/transports/ssesc/pkg"
-	wss "github.com/hiveot/hivekit/go/modules/transports/wss"
-	wsspkg "github.com/hiveot/hivekit/go/modules/transports/wss/pkg"
+	"github.com/hiveot/hivekit/go/modules/transport"
+	"github.com/hiveot/hivekit/go/modules/transport/addforms"
+	addformspkg "github.com/hiveot/hivekit/go/modules/transport/addforms/pkg"
+	clientspkg "github.com/hiveot/hivekit/go/modules/transport/clients/pkg"
+	"github.com/hiveot/hivekit/go/modules/transport/discovery"
+	discoverypkg "github.com/hiveot/hivekit/go/modules/transport/discovery/pkg"
+	grpctransport "github.com/hiveot/hivekit/go/modules/transport/grpc"
+	grpcpkg "github.com/hiveot/hivekit/go/modules/transport/grpc/pkg"
+	"github.com/hiveot/hivekit/go/modules/transport/httpbasic"
+	httpbasicpkg "github.com/hiveot/hivekit/go/modules/transport/httpbasic/pkg"
+	httptransportpkg "github.com/hiveot/hivekit/go/modules/transport/httptransport/pkg"
+	"github.com/hiveot/hivekit/go/modules/transport/ssesc"
+	ssescpkg "github.com/hiveot/hivekit/go/modules/transport/ssesc/pkg"
+	wss "github.com/hiveot/hivekit/go/modules/transport/wss"
+	wsspkg "github.com/hiveot/hivekit/go/modules/transport/wss/pkg"
 
 	"github.com/hiveot/hivekit/go/modules/vcache"
 	vcacheapi "github.com/hiveot/hivekit/go/modules/vcache/api"
@@ -54,7 +54,7 @@ var RecipeModules = map[string]factory.ModuleDefinition{
 		Constructor: grpcpkg.NewGrpcServerFactory,
 	},
 	// http server provider
-	transports.HttpServerModuleType: {
+	transport.HttpServerModuleType: {
 		Constructor: httptransportpkg.NewHttpTransportServerFactory,
 	},
 	// http-basic transport server
@@ -84,6 +84,20 @@ var RecipeModules = map[string]factory.ModuleDefinition{
 	// wss transport server for WoT websocket messaging
 	wss.WotWebsocketServerModuleType: {
 		Constructor: wsspkg.NewWotWssServerFactory,
+	},
+
+	// clients
+	clientspkg.AgentModuleType: {
+		Constructor: clientspkg.NewAgentFactory,
+	},
+	clientspkg.ConsumerModuleType: {
+		Constructor: clientspkg.NewConsumerFactory,
+	},
+	clientspkg.ReconnectModuleType: {
+		Constructor: clientspkg.NewReconnectFactory,
+	},
+	history.ReadHistoryClientModuleType: {
+		Constructor: historypkg.NewReadHistoryClientFactory,
 	},
 
 	//--- services servers ---
@@ -136,16 +150,5 @@ var RecipeModules = map[string]factory.ModuleDefinition{
 	// vcache server provider
 	vcacheapi.VCacheModuleType: {
 		Constructor: vcache.NewVCacheServiceFactory,
-	},
-
-	// clients
-	clientspkg.AgentModuleType: {
-		Constructor: clientspkg.NewAgentFactory,
-	},
-	clientspkg.ConsumerModuleType: {
-		Constructor: clientspkg.NewConsumerFactory,
-	},
-	history.ReadHistoryClientModuleType: {
-		Constructor: historypkg.NewReadHistoryClientFactory,
 	},
 }

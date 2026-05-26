@@ -5,11 +5,11 @@ import (
 	"time"
 
 	"github.com/hiveot/hivekit/go/api/td"
-	"github.com/hiveot/hivekit/go/modules/transports"
+	"github.com/hiveot/hivekit/go/modules/transport"
 )
 
 type AuthenticatorProxy struct {
-	impl   transports.IAuthenticator
+	impl   transport.IAuthenticator
 	noAuth bool
 }
 
@@ -28,7 +28,7 @@ func (ap *AuthenticatorProxy) AddSecurityScheme(tdoc *td.TD) {
 
 // Set the authenticator implementation
 // If nil is provided then disable authentication
-func (ap *AuthenticatorProxy) SetAuthenticator(actual transports.IAuthenticator) {
+func (ap *AuthenticatorProxy) SetAuthenticator(actual transport.IAuthenticator) {
 	ap.impl = actual
 	ap.noAuth = actual == nil
 }

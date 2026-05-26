@@ -15,11 +15,11 @@ import (
 	"github.com/hiveot/hivekit/go/api/vocab"
 	"github.com/hiveot/hivekit/go/modules/authn"
 	"github.com/hiveot/hivekit/go/modules/bucketstore"
-	clientspkg "github.com/hiveot/hivekit/go/modules/clients/pkg"
 	"github.com/hiveot/hivekit/go/modules/history"
 	"github.com/hiveot/hivekit/go/modules/history/internal"
 	historypkg "github.com/hiveot/hivekit/go/modules/history/pkg"
-	"github.com/hiveot/hivekit/go/modules/transports"
+	"github.com/hiveot/hivekit/go/modules/transport"
+	clientspkg "github.com/hiveot/hivekit/go/modules/transport/clients/pkg"
 	"github.com/hiveot/hivekit/go/testenv"
 	"github.com/hiveot/hivekit/go/utils"
 
@@ -29,7 +29,7 @@ import (
 
 const thingIDPrefix = "things-"
 
-const defaultProtocol = transports.ProtocolTypeWotWebsocket
+const defaultProtocol = transport.ProtocolTypeWotWebsocket
 
 // recommended store for history is Pebble
 const historyStoreBackend = bucketstore.BackendPebble
@@ -329,7 +329,7 @@ func TestAddProperties(t *testing.T) {
 		Name:           "", // missing name
 	}
 	// dThing1ID identifies the publisher so not an error
-	//badEvent2 := &transports.IConsumer{
+	//badEvent2 := &transport.IConsumer{
 	//	SenderID:  "", // missing publisher
 	//	ThingID:   dThing1ID,
 	//	Name:      "name",

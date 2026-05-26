@@ -13,8 +13,8 @@ import (
 	"github.com/hiveot/hivekit/go/modules/authn"
 	"github.com/hiveot/hivekit/go/modules/directory"
 	directorypkg "github.com/hiveot/hivekit/go/modules/directory/pkg"
-	"github.com/hiveot/hivekit/go/modules/transports"
-	httptransportpkg "github.com/hiveot/hivekit/go/modules/transports/httptransport/pkg"
+	"github.com/hiveot/hivekit/go/modules/transport"
+	httptransportpkg "github.com/hiveot/hivekit/go/modules/transport/httptransport/pkg"
 	"github.com/hiveot/hivekit/go/testenv"
 	"github.com/hiveot/hivekit/go/utils"
 	jsoniter "github.com/json-iterator/go"
@@ -25,7 +25,7 @@ import (
 var storageDir = filepath.Join(os.TempDir(), "hivekit", "directory-test")
 
 const defaultAgentID = "agent-smith"
-const defaultProtocol = transports.ProtocolTypeWotWebsocket
+const defaultProtocol = transport.ProtocolTypeWotWebsocket
 const TestKeyType = utils.KeyTypeED25519
 const rpcTimeout = time.Minute // for testing/debugging
 
@@ -47,12 +47,12 @@ func TestMain(m *testing.M) {
 func StartDirectoryServer(withHttp bool) (
 	testEnv *testenv.TestEnv, m directory.IDirectoryService, cancelFn func()) {
 
-	var httpAPI transports.IHttpServer
+	var httpAPI transport.IHttpServer
 	var dirHttpServer directory.IDirectoryHttpServer
 
 	proto := defaultProtocol
 	testEnv, cancelTestEnv := testenv.StartTestEnv(proto)
-	transports := []transports.ITransportServer{testEnv.Server}
+	transports := []transport.ITransportServer{testEnv.Server}
 
 	if withHttp {
 		// add directory endpoints to the http server

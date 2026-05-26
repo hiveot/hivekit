@@ -5,7 +5,7 @@ import (
 
 	"github.com/hiveot/hivekit/go/api/td"
 	"github.com/hiveot/hivekit/go/modules"
-	"github.com/hiveot/hivekit/go/modules/transports"
+	"github.com/hiveot/hivekit/go/modules/transport"
 )
 
 // the constructor function to create an instance of the module using the given environment
@@ -59,7 +59,7 @@ type IModuleFactory interface {
 	// If no authenticator is set the this proxy fails all authentication attempts.
 	//
 	// SetAuthenticator is called by the authn module when it is created.
-	GetAuthenticator() transports.IAuthenticator
+	GetAuthenticator() transport.IAuthenticator
 
 	// Get the connection URL of the first loaded server module or "" if none.
 	// Primarily intended for testing. It is recommended to use a discovery module in the
@@ -76,10 +76,10 @@ type IModuleFactory interface {
 	//  instantiate true to create the server module instance if it hasn't been created yet
 	//
 	// This returns nil if no httpserver module is registered.
-	GetHttpServer(instantiate bool) transports.IHttpServer
+	GetHttpServer(instantiate bool) transport.IHttpServer
 
 	// Return the list of available transport servers
-	GetTransportServers() []transports.ITransportServer
+	GetTransportServers() []transport.ITransportServer
 
 	// GetModule creates and starts an instance of a module by its type.
 	//
@@ -107,7 +107,7 @@ type IModuleFactory interface {
 	//
 	// By default the authenticator proxy blocks all authentication.
 	// Setting a nil authenticator disables authentication.
-	SetAuthenticator(a transports.IAuthenticator)
+	SetAuthenticator(a transport.IAuthenticator)
 
 	// StartRecipe registers all modules in a recipe, start and link them in the prescribed order
 	//

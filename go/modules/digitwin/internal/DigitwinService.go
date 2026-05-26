@@ -14,7 +14,7 @@ import (
 	bucketstorepkg "github.com/hiveot/hivekit/go/modules/bucketstore/pkg"
 	"github.com/hiveot/hivekit/go/modules/digitwin"
 	"github.com/hiveot/hivekit/go/modules/directory"
-	"github.com/hiveot/hivekit/go/modules/transports"
+	"github.com/hiveot/hivekit/go/modules/transport"
 	"github.com/hiveot/hivekit/go/modules/vcache"
 	vcacheapi "github.com/hiveot/hivekit/go/modules/vcache/api"
 )
@@ -24,13 +24,38 @@ const DefaultDigitwinServiceID = "digitwin"
 
 // DigitwinService implements the digital twin service module.
 //
-// This module serves a Digital Twin for eligible devices. It hooks into the provided
-// thing directory to replace the device TD with a digital twin.
-// It subscribes to notifications from registered devices and handles read and write requests for the
-// digital twin. Where neccesary it forwards requests to the actual device if reachable.
+// This handles both RC (reverse connected) and client (router connected) agents. RC agents
+// connect to a server module
 //
-// This tracks the TDs of the original devices in a separate device directory for use
+// This tracks the TDs of the original devices in an internal hidden device directory for use
 // by modules like the router.
+//
+// This module serves a Digital Twin for eligible devices. It hooks into the provided
+// thing directory to replace the device TD with a digital twin. The digital twin TD is
+// updated with forms for connecting to the digital twin instead of the actual device.
+//
+// This:
+//  1. Intercepts writing of TDs to the directory and injects the equivalent digital twin TD
+//  2. Handles requests directed at the digital twin.
+//     a. Handles read requests from the latest cached value
+//     b. Forwards action and property write requests to the actual device
+//  3. On startup subscribes to property/event notifications from regular devices
+//     the 'native' device directory contains the TDs of agents that need connecting to.
+//     the downstream router module manages these connections and sends notifications
+//     from the devices and when these devices are connected/disconnected. This is used
+//  4. When RC agents connect, the server publishes a connection notification which is used
+//     to update the agent connection status.
+//     RC agents send notifications to the server, which are used to update the digital twin
+//     device status.
+//
+// For this to work the request and notification sinks must be setup as follows:
+//  1. Server modules pass agent notifications to the notification chain that includes the digitwin module
+//     the digitwin module updates the state of thing in the notification
+//  2. Server modules pass consumer requests to the request chain that includes the digitwin module.
+//     the digitwin module handles requests directed to digital twins
+//  3. the digitwin module request sink is set to a router that can create connections to devices
+//     requests from digital twin are sent to the device through RC or new connection
+//  4. the digitwin notifications sink is set to the chain ending up at the server for forwarding to subscribers
 type DigitwinService struct {
 	modules.HiveModuleBase
 
@@ -40,7 +65,7 @@ type DigitwinService struct {
 	// hook to server to add secforms to a TD for interacting with affordances
 	addForms func(tdoc *td.TD, includeAffordances bool)
 
-	// internal storage with the original device TDs
+	// internal storage with the original hidden device TDs
 	deviceTDBucket bucketstore.IBucket
 	deviceTDStore  bucketstore.IBucketStorage
 
@@ -107,15 +132,20 @@ func (m *DigitwinService) GetDeviceTD(thingID string) *td.TD {
 }
 
 // HandleNotification stores the latest notification things for retrieval as a digital twin value
-// These notifications are received from (RC) agents connected to the server and from standalone devices.
+// These notifications are passed from upstream, eg the router that connects to agents, or from
+// downstream when the server that receives client connections pushes out an event.
+//
+// This requires that the digitwin service is set as the notification sink from both the
+// router and the servers, as both can receive events from remote agents.
+//
 // This also includes connection events from the server, which are used to update agent online status.
 func (m *DigitwinService) HandleNotification(notif *msg.NotificationMessage) {
 
 	// track online status of agents - this needs tracking of agents
 	// agentInfo := m.deviceDirectory.GetAgent(notif.SenderID)
-	if notif.Name == transports.ConnectedEventName {
-		// if this is an agent then its things are no longer online
-		cinfo := transports.ConnectionInfo{}
+	if notif.Name == transport.ServerConnectEvent {
+		// if this is an agent then its things are now online
+		cinfo := transport.ConnectionInfo{}
 		err := notif.Decode(&cinfo)
 		if err == nil {
 			m.SetAgentStatus(cinfo.ClientID, true)
@@ -123,9 +153,9 @@ func (m *DigitwinService) HandleNotification(notif *msg.NotificationMessage) {
 		// send notifications upstream to potential consumers
 		m.ForwardNotification(notif)
 		return
-	} else if notif.Name == transports.DisconnectedEventName {
+	} else if notif.Name == transport.ServerDisconnectEvent {
 		// if this is an agent then its things are no longer online
-		cinfo := transports.ConnectionInfo{}
+		cinfo := transport.ConnectionInfo{}
 		err := notif.Decode(&cinfo)
 		if err == nil {
 			m.SetAgentStatus(cinfo.ClientID, false)
@@ -204,7 +234,7 @@ func (m *DigitwinService) HandleRequest(req *msg.RequestMessage, replyTo msg.Res
 }
 
 // Set the connected status of an agent
-// TODO: This updates the online status of all its digitwin devices
+// TODO: update the online status of all its digitwin devices
 func (m *DigitwinService) SetAgentStatus(agentID string, connected bool) {
 	// if this is an agent then its things are no longer online
 	m.agentStatus.Store(agentID, connected)
@@ -267,11 +297,13 @@ func (m *DigitwinService) Stop() {
 
 // NewDigitwinService creates a new digital twin module instance.
 //
-//	storageDir is the location where the module stores its device TDs, "" for in-memory testing
-//	thingDir is the directory module that holds Thing TDs.
+// This modules uses a directory to store the digital twin TD's and has an internal store
+// for hidden non-digitwin TDs used to pass requests to the actual devices.
+//
+//	storageDir is the location where the module stores original TDs, "" for in-memory testing.
+//	thingDir is the directory module that holds exposed Thing TDs.
 //	addForms is a handler from a transport server for injecting forms in digital twin TDs
-//	that describe how to interact via the server protocols. Each transport server
-//	provides a compatible handler.
+//	that describe how to interact via the server protocols.
 func NewDigitwinService(storageDir string,
 	thingDir directory.IDirectoryService,
 	addforms func(tdoc *td.TD, includeAffordances bool)) *DigitwinService {

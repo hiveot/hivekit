@@ -33,11 +33,13 @@ const (
 func main() {
 	var subscribe bool
 	var verbose bool
+	var nd bool
 	utils.SetLogging("warn", "")
 
 	// environment defaults
 	flag.BoolVar(&subscribe, "subscribe", subscribe, "Subscribe to events or property changes until ^C")
 	flag.BoolVar(&verbose, "v", verbose, "Show more detailed output")
+	flag.BoolVar(&nd, "nd", nd, "Do not start with discovery")
 
 	env := factory.NewAppEnvironment("", true)
 	_ = env
@@ -71,6 +73,7 @@ func main() {
 
 	co := wotco.NewWotConsumer(time.Minute)
 	co.SetTimeout(time.Minute)
+
 	// run the router without CA. Don't try this at home.
 	// the WotConsumer has a list of collected TDs for use by the router
 	r := routerpkg.NewRouterService("", co.GetTD, nil, nil, time.Minute)

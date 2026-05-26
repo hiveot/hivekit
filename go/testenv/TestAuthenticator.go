@@ -158,6 +158,6 @@ func NewTestAuthenticator() *TestAuthenticator {
 		passwords: make(map[string]string),
 		inSession: make(map[string]string),
 	}
-	// var _ transports.IAuthValidator = d // interface check
+	// var _ transport.IAuthValidator = d // interface check
 	return d
 }

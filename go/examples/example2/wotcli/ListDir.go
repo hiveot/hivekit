@@ -7,7 +7,7 @@ import (
 
 	"github.com/hiveot/hivekit/go/api/td"
 	"github.com/hiveot/hivekit/go/examples/wotco"
-	discoverypkg "github.com/hiveot/hivekit/go/modules/transports/discovery/pkg"
+	discoverypkg "github.com/hiveot/hivekit/go/modules/transport/discovery/pkg"
 )
 
 func ListDir(co *wotco.WotConsumer) {

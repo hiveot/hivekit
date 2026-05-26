@@ -21,7 +21,8 @@ Core Service modules:
 |   ✔️   | authn       | Client authentication             | alpha |
 |   ✔️   | authz       | Role based authorization          | alpha |
 |   ✔️   | bucketstore | Key-value data storage            | alpha |
-|   ✔️   | certs       | Certificate management            | alpha |
+|   ✔️   | certs       | Certificate management                | alpha |
+|   ✔️   | clients     | Consumer and Agent for building apps  | alpha |
 |   ✔️   | digitwin    | Digital twin                      | alpha |
 |   ✔️   | directory   | Thing directory                   | alpha |
 |   ✔️   | factory     | Module factory                    | alpha |
@@ -30,9 +31,10 @@ Core Service modules:
 |   ✔️   | router      | Message routing to remote devices | alpha |
 |   ✔️   | vcache      | Value cache                       | alpha |
 |   ⬛   | jsscript    | Javascript based automation       | todo  |
-|   ⬛   | rules       | Rule based automation             | todo  |
+|   ⬛   | rules       | Rule based automation              | todo  |
 
-[Transport modules](docs/transports.md):
+
+[Transport modules](docs/transport.md):
 
 | status | module               | description                           | stage |
 | :----: | -------------------- | ------------------------------------- | ----- |

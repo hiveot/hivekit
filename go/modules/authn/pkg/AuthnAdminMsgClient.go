@@ -5,7 +5,7 @@ import (
 	"github.com/hiveot/hivekit/go/api/td"
 	"github.com/hiveot/hivekit/go/modules"
 	authnapi "github.com/hiveot/hivekit/go/modules/authn"
-	clientspkg "github.com/hiveot/hivekit/go/modules/clients/pkg"
+	clientspkg "github.com/hiveot/hivekit/go/modules/transport/clients/pkg"
 )
 
 // AuthnAdminMsgClient is a client module for authentication management using RRN messages.

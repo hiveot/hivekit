@@ -12,9 +12,9 @@ import (
 	"github.com/hiveot/hivekit/go/api/msg"
 	"github.com/hiveot/hivekit/go/api/td"
 	"github.com/hiveot/hivekit/go/modules"
-	"github.com/hiveot/hivekit/go/modules/clients"
 	"github.com/hiveot/hivekit/go/modules/router"
-	"github.com/hiveot/hivekit/go/modules/transports"
+	"github.com/hiveot/hivekit/go/modules/transport"
+	"github.com/hiveot/hivekit/go/modules/transport/clients"
 )
 
 type RouterService struct {
@@ -31,7 +31,7 @@ type RouterService struct {
 
 	// established device connections
 	cmux              sync.RWMutex
-	deviceConnections map[string]transports.ITransportClient
+	deviceConnections map[string]transport.ITransportClient
 
 	// the thingID of this service for messaging
 	routerThingID string
@@ -45,7 +45,7 @@ type RouterService struct {
 	timeout time.Duration
 
 	// transport servers
-	tpServers []transports.ITransportServer
+	tpServers []transport.ITransportServer
 }
 
 // Add the secret to access a Thing.
@@ -66,7 +66,7 @@ func (m *RouterService) DeleteThingCredential(thingID string) {
 //
 // This returns an error if no connection can be established.
 func (m *RouterService) GetClientConnection(tdi *td.TD) (
-	c transports.ITransportClient, err error) {
+	c transport.ITransportClient, err error) {
 
 	// use URI scheme to determine the protocol, except for the hiveot WSS, which also
 	// has a wss scheme. Instead look at the base path which is fixed.
@@ -100,7 +100,7 @@ func (m *RouterService) GetClientConnection(tdi *td.TD) (
 
 // Return the reverse-client connection to an agent, if it exists.
 // This returns nil if the clientID does not have an existing connection.
-func (m *RouterService) GetRCConnection(clientID string) (c transports.IConnection) {
+func (m *RouterService) GetRCConnection(clientID string) (c transport.IConnection) {
 	if m.tpServers == nil {
 		return nil
 	}
@@ -179,6 +179,7 @@ func (m *RouterService) RouteRequest(req *msg.RequestMessage, replyTo msg.Respon
 			err = fmt.Errorf("RouteRequest: No TD document found for thing '%s' and forwarding failed: %w", req.ThingID, err)
 			slog.Warn("RouteRequest", "err", err.Error())
 		}
+		return err
 	}
 	// c := clients.ConnectToThing(tdi, m.getCredentials)
 
@@ -258,7 +259,7 @@ func (m *RouterService) Stop() {
 //	caCert is the CA used to verify device connections
 //	timeout is the maximum communication timeout with connect clients
 func NewRouterService(storageDir string, getTD func(thingID string) *td.TD,
-	tpServers []transports.ITransportServer, caCert *x509.Certificate, timeout time.Duration,
+	tpServers []transport.ITransportServer, caCert *x509.Certificate, timeout time.Duration,
 ) *RouterService {
 	if timeout == 0 {
 		timeout = msg.DefaultRnRTimeout
@@ -269,7 +270,7 @@ func NewRouterService(storageDir string, getTD func(thingID string) *td.TD,
 		getTD:             getTD,
 		storageDir:        storageDir,
 		tpServers:         tpServers,
-		deviceConnections: make(map[string]transports.ITransportClient),
+		deviceConnections: make(map[string]transport.ITransportClient),
 		routerThingID:     router.DefaultRouterThingID,
 		timeout:           timeout,
 	}

@@ -13,15 +13,15 @@ import (
 	"github.com/hiveot/hivekit/go/api/vocab"
 	"github.com/hiveot/hivekit/go/modules/authn"
 	certstest "github.com/hiveot/hivekit/go/modules/certs/test"
-	"github.com/hiveot/hivekit/go/modules/clients"
-	clientspkg "github.com/hiveot/hivekit/go/modules/clients/pkg"
-	"github.com/hiveot/hivekit/go/modules/transports"
-	grpcpkg "github.com/hiveot/hivekit/go/modules/transports/grpc/pkg"
-	httpbasicpkg "github.com/hiveot/hivekit/go/modules/transports/httpbasic/pkg"
-	"github.com/hiveot/hivekit/go/modules/transports/httptransport"
-	httptransportpkg "github.com/hiveot/hivekit/go/modules/transports/httptransport/pkg"
-	ssescpkg "github.com/hiveot/hivekit/go/modules/transports/ssesc/pkg"
-	wsspkg "github.com/hiveot/hivekit/go/modules/transports/wss/pkg"
+	"github.com/hiveot/hivekit/go/modules/transport"
+	"github.com/hiveot/hivekit/go/modules/transport/clients"
+	clientspkg "github.com/hiveot/hivekit/go/modules/transport/clients/pkg"
+	grpcpkg "github.com/hiveot/hivekit/go/modules/transport/grpc/pkg"
+	httpbasicpkg "github.com/hiveot/hivekit/go/modules/transport/httpbasic/pkg"
+	"github.com/hiveot/hivekit/go/modules/transport/httptransport"
+	httptransportpkg "github.com/hiveot/hivekit/go/modules/transport/httptransport/pkg"
+	ssescpkg "github.com/hiveot/hivekit/go/modules/transport/ssesc/pkg"
+	wsspkg "github.com/hiveot/hivekit/go/modules/transport/wss/pkg"
 	"github.com/hiveot/hivekit/go/utils"
 )
 
@@ -31,18 +31,18 @@ const (
 )
 
 var TestUDSPath = "/tmp/hivekit/testenv.socket"
-var TestUDSURL = transports.ProtocolSchemeHiveotGrpc + "://" + TestUDSPath
+var TestUDSURL = transport.ProtocolSchemeHiveotGrpc + "://" + TestUDSPath
 
 // var TestUDSPath = ":8899"
 // var TestUDSURL = "tcp://" + TestUDSPath
 
-// var DefaultProtocol = transports.ProtocolTypeHiveotGrpc
+// var DefaultProtocol = transport.ProtocolTypeHiveotGrpc
 
-// var DefaultProtocol = transports.ProtocolTypeHiveotSsesc
-var DefaultProtocol = transports.ProtocolTypeHiveotWebsocket
+// var DefaultProtocol = transport.ProtocolTypeHiveotSsesc
+var DefaultProtocol = transport.ProtocolTypeHiveotWebsocket
 
-// var DefaultProtocol = transports.ProtocolTypeWotWebsocket
-// var DefaultProtocol = transports.ProtocolTypeWotHttpBasic
+// var DefaultProtocol = transport.ProtocolTypeWotWebsocket
+// var DefaultProtocol = transport.ProtocolTypeWotHttpBasic
 
 // testTDs are a bunch of TD's for generating test data. The first 5 are predefined and always the same.
 // A higher number generates at random.
@@ -81,11 +81,11 @@ type TestEnv struct {
 	// certificate bundle to use for this test environment
 	CertBundle certstest.TestCertBundle
 	// base http server
-	HttpServer transports.IHttpServer
+	HttpServer transport.IHttpServer
 	// The transport server connection URL
 	ServerURL string
 	// the transport to use for this test environment
-	Server         transports.ITransportServer
+	Server         transport.ITransportServer
 	ServerProtocol string
 	// the storage root directory to use by modules. Module add their moduleID to the path.
 	StorageRoot string
@@ -145,8 +145,8 @@ func (testEnv *TestEnv) CreateToken(clientID string, validity time.Duration) (to
 //
 // This panics if a client cannot be created or cannot connect.
 func (testEnv *TestEnv) NewConnectedClient(
-	clientID string, role string, ch transports.ConnectionHandler) (
-	cl transports.ITransportClient, token string) {
+	clientID string, role string, ch transport.ConnectionHandler) (
+	cl transport.ITransportClient, token string) {
 
 	// ensure the test client account exists
 	err := testEnv.TestAuthn.AddClient(clientID, clientID, role)
@@ -200,7 +200,7 @@ func (testEnv *TestEnv) NewServerAgent(agentID string) *clientspkg.Agent {
 // This returns the agent module, its client connection and the auth token.
 // This panics if a client cannot be created
 func (testEnv *TestEnv) NewRCAgent(clientID string, appReqHandler msg.RequestHandler) (
-	ag *clientspkg.Agent, cc transports.IConnection, authToken string) {
+	ag *clientspkg.Agent, cc transport.IConnection, authToken string) {
 
 	// cc is the client connection for the agent that receives requests from the
 	// server for the agent and sends notifications to the server.
@@ -231,8 +231,8 @@ func (testEnv *TestEnv) NewRCAgent(clientID string, appReqHandler msg.RequestHan
 //	role of the client
 //	optional connection change callback
 func (testEnv *TestEnv) NewConsumerClient(
-	clientID string, role string, ch transports.ConnectionHandler) (
-	co *clientspkg.Consumer, cc transports.ITransportClient, token string) {
+	clientID string, role string, ch transport.ConnectionHandler) (
+	co *clientspkg.Consumer, cc transport.ITransportClient, token string) {
 
 	cc, token = testEnv.NewConnectedClient(clientID, role, ch)
 
@@ -251,11 +251,11 @@ func (testEnv *TestEnv) NewConsumerClient(
 //
 // protocols is one of a list of the server protocols to support. nil for all
 // protocols:
-// * transports.ProtocolTypeHTTPBasic
+// * transport.ProtocolTypeHTTPBasic
 // * ProtocolTypeWotWSS
 // * ProtocolTypeHiveotSSE
 // * and more
-func (testEnv *TestEnv) StartTestServer(protocol string) (srv transports.ITransportServer) {
+func (testEnv *TestEnv) StartTestServer(protocol string) (srv transport.ITransportServer) {
 
 	var err error
 	if protocol == "" {
@@ -263,26 +263,26 @@ func (testEnv *TestEnv) StartTestServer(protocol string) (srv transports.ITransp
 	}
 
 	switch protocol {
-	case transports.ProtocolTypeHiveotGrpc:
+	case transport.ProtocolTypeHiveotGrpc:
 		serverCert := testEnv.CertBundle.ServerCert
 		srv = grpcpkg.NewHiveotGrpcServer(
 			TestUDSURL, serverCert, testEnv.TestAuthn, TestTimeout)
 		err = srv.Start()
 
-	case transports.ProtocolTypeHiveotSsesc:
+	case transport.ProtocolTypeHiveotSsesc:
 		srv = ssescpkg.NewSseScServer(testEnv.HttpServer, TestTimeout)
 		err = srv.Start()
 
-	case transports.ProtocolTypeHiveotWebsocket:
+	case transport.ProtocolTypeHiveotWebsocket:
 		srv = wsspkg.NewHiveotWssServer(testEnv.HttpServer, TestTimeout)
 		err = srv.Start()
 
-	case transports.ProtocolTypeWotHttpBasic:
+	case transport.ProtocolTypeWotHttpBasic:
 		srv = httpbasicpkg.NewHttpBasicServer(testEnv.HttpServer)
 		err = srv.Start()
 		// http only, no subprotocol bindings
 
-	case transports.ProtocolTypeWotWebsocket:
+	case transport.ProtocolTypeWotWebsocket:
 		srv = wsspkg.NewWotWssServer(testEnv.HttpServer, TestTimeout)
 		err = srv.Start()
 

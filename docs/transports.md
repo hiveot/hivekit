@@ -62,6 +62,7 @@ The main 'burden' is on the IoT device side that instead of listening for incomi
 
 Note that not all WoT protocols, such as WoT HTTP-Basic/SSE, support connection reversal as they need to describe both the consumer side and device side of the interaction. The websocket protocol on the other hand defines both consumer and device message payloads and is a suitable option for connection reversal. Any protocol that can be converted into RRN request, response and notification messages are suitable to be used with connection reversal.
 
+
 ## Transport API
 
 The server side module of a transport must implement the ITransportServer interface. The client side must implement the IHiveModule and IConnection interfaces.
@@ -76,3 +77,11 @@ In HiveKit subscriptions are the responsibility of the transport server module. 
 3. The classic use-case where the IoT device runs a server works out of the box when using the HiveKit server module. There is no need for it to manage subscriptions as the server module takes care of it.
 4. It is the most efficient for the gateway use-case. When using a gateway IoT devices can serve many consumers via the gateway. Handling subscriptions at the gateway server avoids having to send notifications multiple times, one for each subscriber, from the IoT device to the gateway.
 5. Middleware modules such as logging, history storage and other types of transformations often need access to the full data stream. Therefore the IoT device ends up sending all (notification) messages anyways.
+
+
+## Client Auto-Reconnect
+
+In HiveOT the server side of a connection tracks subscriptions to events and property changes. When the client connection is interrupted, these subscriptions are lost.
+
+When the client reconnects, the subscriptions need to be restored. This is the role of the client Reconnect module. This keeps the transport clients themselves simple as no reconnection logic is needed. 
+

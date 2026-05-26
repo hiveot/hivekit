@@ -8,7 +8,7 @@ import (
 	"github.com/araddon/dateparse"
 	"github.com/hiveot/hivekit/go/api/td"
 	"github.com/hiveot/hivekit/go/examples/wotco"
-	discoverypkg "github.com/hiveot/hivekit/go/modules/transports/discovery/pkg"
+	discoverypkg "github.com/hiveot/hivekit/go/modules/transport/discovery/pkg"
 )
 
 // Show a list of Thing TDs

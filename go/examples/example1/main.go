@@ -13,14 +13,14 @@ import (
 	certspkg "github.com/hiveot/hivekit/go/modules/certs/pkg"
 	"github.com/hiveot/hivekit/go/modules/factory"
 	factorypkg "github.com/hiveot/hivekit/go/modules/factory/pkg"
-	"github.com/hiveot/hivekit/go/modules/transports"
-	"github.com/hiveot/hivekit/go/modules/transports/addforms"
-	addformspkg "github.com/hiveot/hivekit/go/modules/transports/addforms/pkg"
-	"github.com/hiveot/hivekit/go/modules/transports/discovery"
-	discoverypkg "github.com/hiveot/hivekit/go/modules/transports/discovery/pkg"
-	httptransportpkg "github.com/hiveot/hivekit/go/modules/transports/httptransport/pkg"
-	"github.com/hiveot/hivekit/go/modules/transports/wss"
-	wsspkg "github.com/hiveot/hivekit/go/modules/transports/wss/pkg"
+	"github.com/hiveot/hivekit/go/modules/transport"
+	"github.com/hiveot/hivekit/go/modules/transport/addforms"
+	addformspkg "github.com/hiveot/hivekit/go/modules/transport/addforms/pkg"
+	"github.com/hiveot/hivekit/go/modules/transport/discovery"
+	discoverypkg "github.com/hiveot/hivekit/go/modules/transport/discovery/pkg"
+	httptransportpkg "github.com/hiveot/hivekit/go/modules/transport/httptransport/pkg"
+	"github.com/hiveot/hivekit/go/modules/transport/wss"
+	wsspkg "github.com/hiveot/hivekit/go/modules/transport/wss/pkg"
 	"github.com/hiveot/hivekit/go/utils"
 )
 
@@ -40,7 +40,7 @@ var recipe = factorypkg.FactoryRecipe{
 			Constructor: discoverypkg.NewDiscoveryServerFactory,
 		},
 		// http server module is used by websockets
-		transports.HttpServerModuleType: {
+		transport.HttpServerModuleType: {
 			Constructor: httptransportpkg.NewHttpTransportServerFactory,
 		},
 		// websockets is the main communication transport

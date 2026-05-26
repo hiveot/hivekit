@@ -20,7 +20,7 @@ func WriteError(w http.ResponseWriter, err error, code int) {
 		http.Error(w, err.Error(), code)
 	} else {
 		//replyHeader := w.Header()
-		//replyHeader.Set(StatusHeader, transports.StatusCompleted)
+		//replyHeader.Set(StatusHeader, transport.StatusCompleted)
 		w.WriteHeader(code)
 	}
 }

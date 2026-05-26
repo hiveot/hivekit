@@ -12,7 +12,7 @@ import (
 	"github.com/hiveot/hivekit/go/modules/bucketstore"
 	bucketstorepkg "github.com/hiveot/hivekit/go/modules/bucketstore/pkg"
 	"github.com/hiveot/hivekit/go/modules/directory"
-	"github.com/hiveot/hivekit/go/modules/transports"
+	"github.com/hiveot/hivekit/go/modules/transport"
 )
 
 // DirectoryServer is a module for serving a WoT Thing directory.
@@ -42,7 +42,7 @@ type DirectoryServer struct {
 	msgAPI *DirectoryMsgHandler
 
 	// the http server to expose the TDD on the .well-known/wot path. nil to ignore
-	tddServer transports.IHttpServer
+	tddServer transport.IHttpServer
 
 	// data storage directory
 	storageLoc string
@@ -149,15 +149,15 @@ func (m *DirectoryServer) Stop() {
 // to include the security details and forms, which are transport specific.
 //
 // To expose the http API create the DirectoryHttpHandler module provide it here.
-// Optionally include the list of other transports.
+// Optionally include the list of other transport.
 //
 //	thingID is the instance ID of the directory server.
 //	location is the location where the module stores its data. Use "" for testing with an in-memory store.
 //	tddServer is used to expose the directory TDD on the well-known path.
 //	transports is a list of transports that should be included in the TDD security and forms. nil to not include these.
 func NewDirectoryServer(
-	thingID string, location string, tddServer transports.IHttpServer,
-	transports []transports.ITransportServer) *DirectoryServer {
+	thingID string, location string, tddServer transport.IHttpServer,
+	transports []transport.ITransportServer) *DirectoryServer {
 
 	if thingID == "" {
 		thingID = directory.DefaultDirectoryThingID

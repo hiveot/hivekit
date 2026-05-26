@@ -133,7 +133,7 @@ If they don't exist during initialization a set of self-signed CA and server cer
 ```
 - caCert.pem     - the CA certificate.
 - caKey.pem      - the generated CA key for self-signed certificate.
-- serverCert.pem - the server x509 certificate in PEM format used by the transports.
+- serverCert.pem - the server x509 certificate in PEM format used by the transport.
 - serverKey.pem  - the server private key in PEM format.
 ```
 

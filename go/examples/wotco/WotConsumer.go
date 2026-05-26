@@ -12,13 +12,13 @@ import (
 	"github.com/hiveot/hivekit/go/api/msg"
 	"github.com/hiveot/hivekit/go/api/td"
 	"github.com/hiveot/hivekit/go/modules"
-	"github.com/hiveot/hivekit/go/modules/clients"
-	clientspkg "github.com/hiveot/hivekit/go/modules/clients/pkg"
 	directorypkg "github.com/hiveot/hivekit/go/modules/directory/pkg"
 	"github.com/hiveot/hivekit/go/modules/factory"
-	"github.com/hiveot/hivekit/go/modules/transports"
-	"github.com/hiveot/hivekit/go/modules/transports/discovery"
-	discoverypkg "github.com/hiveot/hivekit/go/modules/transports/discovery/pkg"
+	"github.com/hiveot/hivekit/go/modules/transport"
+	"github.com/hiveot/hivekit/go/modules/transport/clients"
+	clientspkg "github.com/hiveot/hivekit/go/modules/transport/clients/pkg"
+	"github.com/hiveot/hivekit/go/modules/transport/discovery"
+	discoverypkg "github.com/hiveot/hivekit/go/modules/transport/discovery/pkg"
 )
 
 // WotConsumer contains the consumer of WoT devices for discovery and loading of Things.
@@ -40,13 +40,13 @@ type WotConsumer struct {
 	caCert *x509.Certificate
 
 	// existing connections by thingID
-	clients map[string]transports.ITransportClient
+	clients map[string]transport.ITransportClient
 
 	// discovered directories by directoryID
 	directories map[string]*td.TD
 
 	// the connection this module links to
-	// connection transports.ITransportClient
+	// connection transport.ITransportClient
 
 	// discovery records found after Discover()
 	records []*discoverypkg.DiscoveryResult
@@ -58,7 +58,7 @@ type WotConsumer struct {
 }
 
 // Create a Thing connection using the TD of the thingID
-func (co *WotConsumer) Connect(thingID string) (transports.ITransportClient, error) {
+func (co *WotConsumer) Connect(thingID string) (transport.ITransportClient, error) {
 	co.mux.Lock()
 	defer co.mux.Unlock()
 	c, found := co.clients[thingID]
@@ -114,7 +114,7 @@ func (co *WotConsumer) Discover(cb func(r *discoverypkg.DiscoveryResult) bool) (
 	return err
 }
 
-func (co *WotConsumer) GetConnection(thingID string) (c transports.ITransportClient, found bool) {
+func (co *WotConsumer) GetConnection(thingID string) (c transport.ITransportClient, found bool) {
 	co.mux.RLock()
 	defer co.mux.RUnlock()
 
@@ -306,7 +306,7 @@ func NewWotConsumer(timeout time.Duration) *WotConsumer {
 		clientID:    "client1",
 		authToken:   "no-token",
 		records:     make([]*discoverypkg.DiscoveryResult, 0),
-		clients:     make(map[string]transports.ITransportClient),
+		clients:     make(map[string]transport.ITransportClient),
 		Consumer:    *clientspkg.NewConsumer(timeout),
 		directories: make(map[string]*td.TD),
 		things:      make(map[string]*td.TD),

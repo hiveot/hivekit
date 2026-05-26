@@ -11,10 +11,10 @@ import (
 	"github.com/araddon/dateparse"
 	"github.com/hiveot/hivekit/go/api/td"
 	"github.com/hiveot/hivekit/go/modules"
-	"github.com/hiveot/hivekit/go/modules/clients"
-	clientspkg "github.com/hiveot/hivekit/go/modules/clients/pkg"
+	"github.com/hiveot/hivekit/go/modules/transport/clients"
+	clientspkg "github.com/hiveot/hivekit/go/modules/transport/clients/pkg"
 	"github.com/hiveot/hivekit/go/modules/factory"
-	discoverypkg "github.com/hiveot/hivekit/go/modules/transports/discovery/pkg"
+	discoverypkg "github.com/hiveot/hivekit/go/modules/transport/discovery/pkg"
 )
 
 const WotCLIModuleType = "wotcli"
@@ -32,7 +32,7 @@ type WotCLI struct {
 	caCert *x509.Certificate
 
 	// the connection this module links to
-	// connection transports.ITransportClient
+	// connection transport.ITransportClient
 
 	// discovery records found after Discover()
 	records []*discoverypkg.DiscoveryResult

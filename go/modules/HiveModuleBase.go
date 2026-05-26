@@ -183,9 +183,6 @@ func (m *HiveModuleBase) HandleRequest(req *msg.RequestMessage, replyTo msg.Resp
 // Rpc is a convenience function to create and send a request message and decode the a response.
 // This returns an error if the request fails or if the response contains an error
 //
-// senderID can be empty on the client side as the transport connection sets it to
-// the authenticated clientID.
-//
 //	operation is the WoT operation to send
 //	thingID is the Thing to address
 //	name is the operation name as defined in the TD

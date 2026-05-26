@@ -7,11 +7,11 @@ import (
 	"github.com/hiveot/hivekit/go/modules/directory"
 	internal "github.com/hiveot/hivekit/go/modules/directory/internal/httpserver"
 	"github.com/hiveot/hivekit/go/modules/factory"
-	"github.com/hiveot/hivekit/go/modules/transports"
+	"github.com/hiveot/hivekit/go/modules/transport"
 )
 
 // Create a new instance
-func NewDirectoryHttpServer(httpServer transports.IHttpServer, respTimeout time.Duration) directory.IDirectoryHttpServer {
+func NewDirectoryHttpServer(httpServer transport.IHttpServer, respTimeout time.Duration) directory.IDirectoryHttpServer {
 	m := internal.StartDirectoryHttpServer(httpServer, respTimeout)
 	return m
 }

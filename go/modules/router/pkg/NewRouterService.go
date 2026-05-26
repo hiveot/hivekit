@@ -11,7 +11,7 @@ import (
 	"github.com/hiveot/hivekit/go/modules/factory"
 	"github.com/hiveot/hivekit/go/modules/router"
 	"github.com/hiveot/hivekit/go/modules/router/internal"
-	"github.com/hiveot/hivekit/go/modules/transports"
+	"github.com/hiveot/hivekit/go/modules/transport"
 )
 
 // NewRouterService creates a new instance of the router service module with the default module ID.
@@ -23,7 +23,7 @@ import (
 //	caCert is the CA certificate used to verify device connections
 //	timeout is the maximum wait time for sending requests to clients.
 func NewRouterService(storageDir string, getTD func(thingID string) *td.TD,
-	tps []transports.ITransportServer, caCert *x509.Certificate, timeout time.Duration,
+	tps []transport.ITransportServer, caCert *x509.Certificate, timeout time.Duration,
 ) router.IRouterService {
 
 	m := internal.NewRouterService(storageDir, getTD, tps, caCert, timeout)

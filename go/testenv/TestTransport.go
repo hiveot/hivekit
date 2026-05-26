@@ -4,7 +4,7 @@ import (
 	"github.com/hiveot/hivekit/go/api/msg"
 	"github.com/hiveot/hivekit/go/api/td"
 	"github.com/hiveot/hivekit/go/modules"
-	"github.com/hiveot/hivekit/go/modules/transports"
+	"github.com/hiveot/hivekit/go/modules/transport"
 )
 
 // TestTransport is a direct transport module to connect consumer and
@@ -15,7 +15,7 @@ import (
 //
 // This implements the IHiveTransport interface
 type TestTransport struct {
-	transports.TransportServerBase
+	transport.TransportServerBase
 
 	// The senderID this transport represents (simulate a single connection)
 	senderID string
@@ -66,12 +66,12 @@ func (m *TestTransport) SendRequest(
 // }
 
 // assign the authenticator of incoming connections
-func (m *TestTransport) SetAuthenticationHandler(h transports.ValidateTokenHandler) {
+func (m *TestTransport) SetAuthenticationHandler(h transport.ValidateTokenHandler) {
 	_ = h
 }
 
 // assign the handler of new incoming connections
-// func (m *DirectClientTransport) SetConnectionHandler(h transports.ConnectionHandler) {
+// func (m *DirectClientTransport) SetConnectionHandler(h transport.ConnectionHandler) {
 // 	_ = h
 // }
 
@@ -94,7 +94,7 @@ func NewTestTransport(
 	t.Init(senderID, "", nil)
 	producer.SetNotificationSink(t.HandleNotification)
 	t.SetRequestSink(producer.HandleRequest)
-	var _ transports.ITransportServer = t // interface check
-	var _ modules.IHiveModule = t         // interface check
+	var _ transport.ITransportServer = t // interface check
+	var _ modules.IHiveModule = t        // interface check
 	return t
 }

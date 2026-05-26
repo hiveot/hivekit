@@ -5,7 +5,7 @@ import (
 	"github.com/hiveot/hivekit/go/api/td"
 	"github.com/hiveot/hivekit/go/modules"
 	"github.com/hiveot/hivekit/go/modules/authn"
-	clientspkg "github.com/hiveot/hivekit/go/modules/clients/pkg"
+	clientspkg "github.com/hiveot/hivekit/go/modules/transport/clients/pkg"
 )
 
 // AuthnUserMsgClient is a client module for authentication operations using RRN messages.

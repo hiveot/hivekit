@@ -15,7 +15,7 @@
             ],
             "runtimeExecutable": "${workspaceFolder}/node_modules/.bin/tsx",
             "runtimeArgs": [
-                "${workspaceFolder}/src/hubclient/transports/transports.test.ts"
+                "${workspaceFolder}/src/hubclient/transports/transport.test.ts"
             ],
             "console": "integratedTerminal", // fixes EACCESS error writing to console
             "cwd": "${workspaceFolder}",

@@ -19,7 +19,7 @@ import (
 	"github.com/hiveot/hivekit/go/modules/directory"
 	directorypkg "github.com/hiveot/hivekit/go/modules/directory/pkg"
 	routerpkg "github.com/hiveot/hivekit/go/modules/router/pkg"
-	"github.com/hiveot/hivekit/go/modules/transports"
+	"github.com/hiveot/hivekit/go/modules/transport"
 	"github.com/hiveot/hivekit/go/testenv"
 	"github.com/hiveot/hivekit/go/utils"
 	"github.com/stretchr/testify/assert"
@@ -52,7 +52,7 @@ func startService() (
 	stopFn func()) {
 
 	os.RemoveAll(storageDir)
-	// testEnv,cancelFn = tptests.StartTestEnv(transports.ProtocolSchemeWotWSS)
+	// testEnv,cancelFn = tptests.StartTestEnv(transport.ProtocolSchemeWotWSS)
 	testEnv = testenv.NewTestEnv()
 	// http server needed for all communications
 	testEnv.StartHttpServer(true)
@@ -63,7 +63,7 @@ func startService() (
 	// the directory server that will contain digitwin Things
 	// digiDir := filepath.Join(storageDir, "digiDir.json")
 	dirThingID := directory.DefaultDirectoryThingID
-	servers := []transports.ITransportServer{testEnv.Server}
+	servers := []transport.ITransportServer{testEnv.Server}
 	// httpAPI := directorypkg.NewDirectoryHttpServer(testEnv.HttpServer)
 
 	dir = directorypkg.NewDirectoryMsgServer(
@@ -83,7 +83,7 @@ func startService() (
 	rtr := routerpkg.NewRouterService(
 		storageDir,
 		dtw.GetDeviceTD,
-		[]transports.ITransportServer{appServer},
+		[]transport.ITransportServer{appServer},
 		testEnv.CertBundle.CaCert, rpcTimout)
 	err = rtr.Start()
 	if err != nil {
@@ -272,7 +272,7 @@ func TestWriteDigitwinProperty(t *testing.T) {
 	require.NoError(t, err)
 	defer cc1.Stop()
 
-	// 2. create an agent that receives the write request
+	// 2. create a reverse-connected agent that receives the write request
 	ag, cc2, _ := testEnv.NewRCAgent(agentID, nil)
 	defer cc2.Close()
 	ag.SetAppRequestHook(func(req *msg.RequestMessage, replyTo msg.ResponseHandler) error {
@@ -335,7 +335,7 @@ func TestWriteDigitwinProperty(t *testing.T) {
 	assert.Equal(t, prop1Value, rxPropValue)
 }
 
-// Write a property via the digital twin
+// Invoke an action via the digital twin
 func TestInvokeDigitwinAction(t *testing.T) {
 	t.Logf("---%s---\n", t.Name())
 	const agentID = "agent1"

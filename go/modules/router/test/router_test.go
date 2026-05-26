@@ -13,13 +13,13 @@ import (
 	"github.com/hiveot/hivekit/go/api/vocab"
 	"github.com/hiveot/hivekit/go/modules/authn"
 	certstest "github.com/hiveot/hivekit/go/modules/certs/test"
-	clientspkg "github.com/hiveot/hivekit/go/modules/clients/pkg"
 	"github.com/hiveot/hivekit/go/modules/directory"
 	directorypkg "github.com/hiveot/hivekit/go/modules/directory/pkg"
 	"github.com/hiveot/hivekit/go/modules/router"
 	routerpkg "github.com/hiveot/hivekit/go/modules/router/pkg"
-	"github.com/hiveot/hivekit/go/modules/transports"
-	"github.com/hiveot/hivekit/go/modules/transports/httptransport"
+	"github.com/hiveot/hivekit/go/modules/transport"
+	clientspkg "github.com/hiveot/hivekit/go/modules/transport/clients/pkg"
+	"github.com/hiveot/hivekit/go/modules/transport/httptransport"
 	"github.com/hiveot/hivekit/go/testenv"
 	"github.com/hiveot/hivekit/go/utils"
 	"github.com/stretchr/testify/assert"
@@ -35,13 +35,13 @@ var testAuthn = testenv.NewTestAuthenticator()
 const rpcTimeout = time.Minute * 3 // allow for debugging breakpoints
 const testRouterID = "router1"
 
-// const serverType = transports.HiveotWebsocketProtocolType
+// const serverType = transport.HiveotWebsocketProtocolType
 
-// const serverType = transports.HiveotSseScProtocolType
+// const serverType = transport.HiveotSseScProtocolType
 
-// const serverType = transports.WotHttpBasicProtocolType
+// const serverType = transport.WotHttpBasicProtocolType
 
-const serverType = transports.ProtocolTypeWotWebsocket
+const serverType = transport.ProtocolTypeWotWebsocket
 
 // the test directory that holds this td. http server is not needed
 

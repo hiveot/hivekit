@@ -5,7 +5,7 @@ import (
 
 	"github.com/hiveot/hivekit/go/api/td"
 	"github.com/hiveot/hivekit/go/modules"
-	"github.com/hiveot/hivekit/go/modules/transports"
+	"github.com/hiveot/hivekit/go/modules/transport"
 )
 
 // Embed the directory TM
@@ -51,7 +51,7 @@ type AgentInfo struct {
 // This acts as a simple http transport server and should be placed ahead of
 // the DirectoryService module chain.
 type IDirectoryHttpServer interface {
-	transports.ITransportServer
+	transport.ITransportServer
 }
 
 // IDirectoryService defines the interface to the directory service module

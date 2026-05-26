@@ -1,8 +1,8 @@
 package factory_test
 
 import (
-	clientspkg "github.com/hiveot/hivekit/go/modules/clients/pkg"
-	wss "github.com/hiveot/hivekit/go/modules/transports/wss"
+	clientspkg "github.com/hiveot/hivekit/go/modules/transport/clients/pkg"
+	wss "github.com/hiveot/hivekit/go/modules/transport/wss"
 )
 
 // module types of a device server agent chain

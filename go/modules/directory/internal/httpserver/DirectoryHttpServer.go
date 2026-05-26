@@ -9,7 +9,7 @@ import (
 	"github.com/hiveot/hivekit/go/api/td"
 	"github.com/hiveot/hivekit/go/modules"
 	"github.com/hiveot/hivekit/go/modules/directory"
-	"github.com/hiveot/hivekit/go/modules/transports"
+	"github.com/hiveot/hivekit/go/modules/transport"
 )
 
 const ThingIDURIVar = "thingID"
@@ -21,9 +21,9 @@ const ThingIDURIVar = "thingID"
 // The http server endpoints follow the specification in:
 // https://w3c.github.io/wot-discovery/#exploration-directory-api
 type DirectoryHttpServer struct {
-	// transports.TransportServerBase
+	// transport.TransportServerBase
 	modules.HiveModuleBase
-	httpServer       transports.IHttpServer
+	httpServer       transport.IHttpServer
 	directoryThingID string
 }
 
@@ -120,12 +120,12 @@ func (srv *DirectoryHttpServer) GetConnectURL() string {
 }
 
 // ITransportServer stub - not supported in uni-directional transports
-func (srv *DirectoryHttpServer) GetConnectionByConnectionID(clientID, connectionID string) (c transports.IConnection) {
+func (srv *DirectoryHttpServer) GetConnectionByConnectionID(clientID, connectionID string) (c transport.IConnection) {
 	return nil
 }
 
 // ITransportServer stub - not supported in uni-directional transports
-func (srv *DirectoryHttpServer) GetConnectionByClientID(clientID string) (c transports.IConnection) {
+func (srv *DirectoryHttpServer) GetConnectionByClientID(clientID string) (c transport.IConnection) {
 	return nil
 }
 
@@ -152,7 +152,7 @@ func (srv *DirectoryHttpServer) SendResponse(
 //
 //	respTimeout is the maximum time the server waits for a response when forwarding directory requests
 //	 to the directory server.
-func StartDirectoryHttpServer(httpServer transports.IHttpServer, respTimeout time.Duration) *DirectoryHttpServer {
+func StartDirectoryHttpServer(httpServer transport.IHttpServer, respTimeout time.Duration) *DirectoryHttpServer {
 	srv := &DirectoryHttpServer{
 		HiveModuleBase:   modules.NewHiveModuleBase("DirectoryHttpServer", respTimeout),
 		httpServer:       httpServer,

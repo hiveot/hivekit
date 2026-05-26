@@ -85,7 +85,7 @@ func TestHasPermission(t *testing.T) {
 	assert.True(t, hasPerm)
 
 	// operators cannot respond with events updates
-	//resp := transports.NewResponseMessage(td.OpSubscribeEvent, thingID, key, "eventValue", nil, correlationID)
+	//resp := transport.NewResponseMessage(td.OpSubscribeEvent, thingID, key, "eventValue", nil, correlationID)
 	//resp.SenderID = operatorID
 	//// haspermission only validates requests and event/property notificates are now subscription responses
 	//hasPerm = svc.HasPermission(msg.SenderID, msg.Operation, msg.ThingID)
