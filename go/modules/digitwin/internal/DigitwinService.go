@@ -24,38 +24,67 @@ const DefaultDigitwinServiceID = "digitwin"
 
 // DigitwinService implements the digital twin service module.
 //
-// This handles both RC (reverse connected) and client (router connected) agents. RC agents
-// connect to a server module
-//
-// This tracks the TDs of the original devices in an internal hidden device directory for use
-// by modules like the router.
-//
-// This module serves a Digital Twin for eligible devices. It hooks into the provided
-// thing directory to replace the device TD with a digital twin. The digital twin TD is
-// updated with forms for connecting to the digital twin instead of the actual device.
+// This module serves a Digital Twin for eligible devices. It hooks into the provided thing directory
+// to replace the device TD with a digital twin.
 //
 // This:
-//  1. Intercepts writing of TDs to the directory and injects the equivalent digital twin TD
+//  1. Intercepts writing of TDs to the directory and injects the digital twin TD instead.
+//     The original the device TD is stored in an internal hidden directory for use to forward requests.
 //  2. Handles requests directed at the digital twin.
-//     a. Handles read requests from the latest cached value
-//     b. Forwards action and property write requests to the actual device
-//  3. On startup subscribes to property/event notifications from regular devices
-//     the 'native' device directory contains the TDs of agents that need connecting to.
-//     the downstream router module manages these connections and sends notifications
-//     from the devices and when these devices are connected/disconnected. This is used
-//  4. When RC agents connect, the server publishes a connection notification which is used
-//     to update the agent connection status.
-//     RC agents send notifications to the server, which are used to update the digital twin
-//     device status.
+//     a. Handles read requests from the latest cached value.
+//     b. Forwards action and property write requests to the device.
+//  3. Auto-connect to the original device when a request for a digital twin is received.
+//     the downstream router module manages these connections.
+//     This supports connections to network devices and from agents that use RC (reverse connections)
 //
-// For this to work the request and notification sinks must be setup as follows:
-//  1. Server modules pass agent notifications to the notification chain that includes the digitwin module
-//     the digitwin module updates the state of thing in the notification
-//  2. Server modules pass consumer requests to the request chain that includes the digitwin module.
-//     the digitwin module handles requests directed to digital twins
-//  3. the digitwin module request sink is set to a router that can create connections to devices
-//     requests from digital twin are sent to the device through RC or new connection
-//  4. the digitwin notifications sink is set to the chain ending up at the server for forwarding to subscribers
+// For this to work the request and notification chains must be setup as follows:
+//
+// request chain:
+//  1. consumer -> server -> ... -> digitwin ->
+//     2A. router -> device clients -> device
+//     2B. router -> server (RC agent)
+//
+// notification chain:
+//  3. device -> device clients -> router -> digitwin
+//  4. rc agent -> server -> router -> digitwin
+//  5. digitwin -> ... -> server -> consumer
+//
+// Both the digitwin test package and the digitwin example in the examples section shows a how to establish
+// this chain.
+//
+// Explanation:
+//
+//  1. Consumers connect to the digitwin server instead of the IoT device, because the TD of the
+//     IoT device is modified to point to the digitwin server.
+//     The server module passes requests from consumers via middleware to the digital twin module.
+//     the digital twin module handles the request depending on the request type:
+//     * property read requests are answered from the value cache if the property is observable.
+//     * event read requests (a hiveot extension) are also answered from the value cache.
+//     * action query requests are also answered from the value cache.
+//     * all other requests are modified to use the original device ThingID and passed to the router (2).
+//     * if the TD is not a digital twin TD, then the request is also forwarded to the router.
+//
+//  2. The router looks-up the Thing connection information from the provided thing directory.
+//     This uses the internal directory where the digital twin stored the original Thing TD.
+//
+//     2A. If the Thing is a network device then the router connects if needed and forwards the request
+//     to the device. Device connections are cached by the router module.
+//
+//     2B. If the Thing is handled by a RC agent then the request is forwarded to the server module
+//     which locates the agent connection using the agentID and forwards the request.
+//     TDs provided by agents all include the agentID in the TD instead of forms.
+//     WoT doesn't support/specify RC agents so this is the HiveOT specific solution.
+//
+//  3. Notifications received from devices are send down the device connection that was established
+//     by the router module. The router module passes it upstream to the digitwin module.
+//
+//  4. Notifications received from RC agents arrive at the server which pass it to the router
+//     which forwards it to the digitwin module.
+//
+//  5. The digitwin receives the notifications from the router.
+//     If the ThingID has a digital twin then the value cache of the digital twin is updated.
+//     Updating the digital twin value cache results in a new notification to be forwarded upstream.
+//     this new notification is forwarded to the server which passes it to subscribers.
 type DigitwinService struct {
 	modules.HiveModuleBase
 
@@ -72,8 +101,8 @@ type DigitwinService struct {
 	// the device directory holding TD's of the native devices/agents
 	// deviceDirectory directory.IDirectoryServer
 
-	// the Thing directory with digital twin TDs
-	// this also contains TDs of non-digital twin devices and services, as consumers
+	// The application Thing directory where digital twin TDs are stored.
+	// This also contains TDs of non-digital twin devices and services, as consumers
 	// should be able to use these as well.
 	directory directory.IDirectoryService
 
@@ -142,9 +171,10 @@ func (m *DigitwinService) GetDeviceTD(thingID string) *td.TD {
 func (m *DigitwinService) HandleNotification(notif *msg.NotificationMessage) {
 
 	// track online status of agents - this needs tracking of agents
-	// agentInfo := m.deviceDirectory.GetAgent(notif.SenderID)
+	// FIXME: how to know if senderID is an agent?
 	if notif.Name == transport.ServerConnectEvent {
-		// if this is an agent then its things are now online
+
+		// if the sender is an agent instead of a consumer then its things are now online
 		cinfo := transport.ConnectionInfo{}
 		err := notif.Decode(&cinfo)
 		if err == nil {
@@ -164,6 +194,7 @@ func (m *DigitwinService) HandleNotification(notif *msg.NotificationMessage) {
 		m.ForwardNotification(notif)
 		return
 	}
+
 	// if the thingID is a digital twin then store its value in the vcache
 	dtwThingID := MakeDigitwinID(notif.SenderID, notif.ThingID)
 	_, err := m.directory.RetrieveThing(dtwThingID)
@@ -277,8 +308,8 @@ func (m *DigitwinService) Start() (err error) {
 	// how to support wildcard device subscriptions? flatten the list of agents?
 	// digitalTwins, err := m.directory.RetrieveAllThings(0, 0)
 
-	// FIXME: agents are subscribed to when they (re)connect,
-	// so subscribe to server 'connect' notifications instead
+	// FIXME: RC agents are subscribed to when they (re)connect,
+	// so subscribe to server 'connect' notifications.
 
 	return nil
 }

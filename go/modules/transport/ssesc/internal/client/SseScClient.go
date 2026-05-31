@@ -9,7 +9,6 @@ import (
 	"net/http"
 	"net/url"
 	"sync"
-	"sync/atomic"
 	"time"
 
 	"github.com/hiveot/hivekit/go/api/msg"
@@ -39,24 +38,16 @@ import (
 type SseScClient struct {
 	modules.HiveModuleBase
 
-	connectHandler transport.ConnectionHandler
+	// auth token when connecting with token
+	bearerToken string
 
-	isConnected atomic.Bool
-
-	lastError atomic.Pointer[error]
+	connectStatus transport.ConnectionStatus
 
 	// encode/decode the request/response to the SSE messaging protocol used
 	encoder transport.IMessageEncoder
 
 	// sse variables access
 	mux sync.RWMutex
-
-	// notificationSink is the sink for forwarding notification messages to
-	// this is the upstream consumer.
-	notificationSink msg.NotificationHandler
-
-	// requestSink is the sink for forwarding requests messages to
-	requestSink msg.RequestHandler
 
 	// the request & response channel handler to match requests and responses.
 	// This is used in SendRequest to wait for the response received via SSE and pass it
@@ -66,14 +57,8 @@ type SseScClient struct {
 	// the sse path for the connection
 	ssePath string
 
-	sseRetryOnDisconnect atomic.Bool
-
 	// handler for closing the sse connection
 	sseCancelFn context.CancelFunc
-
-	// Destination for request/responses received from the server.
-	// notifications received from the sink are sent to the server.
-	// sink modules.IHiveModule
 
 	// Timeout for http requests and SSE connect
 	timeout time.Duration
@@ -82,12 +67,47 @@ type SseScClient struct {
 	tlsClient transport.ITLSClient
 }
 
-// Authenticate the client connection with the server
+// update the connection status and publish an notification if it differs from the last status
+// a 'lost' status is ignored if the current status is set to closed as it was intentional.
+func (cl *SseScClient) _setConnectionStatus(
+	newStatus transport.ConnectionStatus, err error) {
+
+	cl.mux.RLock()
+	oldStatus := cl.connectStatus
+	cl.mux.RUnlock()
+
+	if newStatus == oldStatus {
+		return
+	} else if oldStatus == transport.StatusClosed && newStatus == transport.StatusLost {
+		return
+	}
+	cl.mux.Lock()
+	cl.connectStatus = newStatus
+	cl.mux.Unlock()
+
+	// notify upstream of connect, disconnect or lost
+	moduleID := cl.GetModuleID()
+	evName := transport.ClientConnectionStatusEvent
+	notif := msg.NewNotificationMessage(
+		moduleID, msg.AffordanceTypeEvent, moduleID, evName, newStatus)
+	cl.ForwardNotification(notif)
+}
+
+// Connect authenticating using a client certificate
+func (cl *SseScClient) AuthenticateWithClientCert(clientCert *tls.Certificate) (err error) {
+	if cl.IsRunning() {
+		return fmt.Errorf("AuthenticateWithClientCert: Client is still active.")
+	}
+	err = cl.tlsClient.AuthenticateWithClientCert(clientCert)
+	return err
+}
+
+// Authenticate the client connection with the server using TD forms.
 // This determine which auth schema the TD describes, obtains the credentials
 // and injects the authentication credentials according to the TDI schema.
 // This returns an error if the schema isn't supported or is not compatible.
-func (cl *SseScClient) Authenticate(tdDoc *td.TD,
-	getCredentials transport.GetCredentials) error {
+func (cl *SseScClient) AuthenticateWithForm(
+	tdDoc *td.TD, getCredentials transport.GetCredentials) error {
 
 	// HiveOT SSE-SC only uses bearer token
 	clientID, secret, schemeName, err := getCredentials(tdDoc.ID)
@@ -99,82 +119,65 @@ func (cl *SseScClient) Authenticate(tdDoc *td.TD,
 		// err = cl.ConnectWithDigest(clientID, secret)
 		err = fmt.Errorf("Digest authentication is not yet supported. Use bearer token instead")
 	} else if secScheme.Scheme == td.SecSchemeBearer || secScheme.Scheme == td.SecSchemeAuto {
-		err = cl.ConnectWithToken(clientID, secret)
+		err = cl.AuthenticateWithToken(clientID, secret)
 	} else {
 		err = fmt.Errorf("Unexpected security scheme '%s'", secScheme.Scheme)
 	}
 	return err
 }
 
-// ConnectSSE establishes the sse connection using the given bearer token
-// cl.handleSseEvent will set 'connected' status when the first ping event is
-// received from the server. (go-sse doesn't have a connected callback)
-func (cl *SseScClient) ConnectSSE(token string) (err error) {
+// AuthenticateWithToken sets the clientID and bearer token to use with requests and
+// establishes an SSE connection.
+func (cl *SseScClient) AuthenticateWithToken(clientID, token string) error {
+
+	if cl.IsRunning() {
+		return fmt.Errorf("AuthenticateWithToken: Client is still active.")
+	}
+	cl.bearerToken = token
+
+	err := cl.tlsClient.AuthenticateWithToken(clientID, token)
+	return err
+}
+
+// Close the connection with the server and set the connection status to Closed
+func (cl *SseScClient) Close() {
+	// set status to closed and notify subscribers
+	cl._setConnectionStatus(transport.StatusClosed, nil)
+
+	cl.mux.Lock()
+	cancelFn := cl.sseCancelFn
+	cl.sseCancelFn = nil
+	cl.tlsClient.Close()
+	cl.mux.Unlock()
+
+	if cancelFn != nil {
+		cancelFn()
+	}
+}
+
+// Connect establishes the sse connection using the previously set credentials.
+// the connection status of this client is based on the sse connection.
+//
+// cl._setConnectionStatus will invoked when the first ping event is received from the server.
+// (go-sse doesn't have a connected callback)
+func (cl *SseScClient) Connect() (err error) {
+	if cl.IsRunning() {
+		return fmt.Errorf("Connect: Client is still active.")
+	}
+
 	if cl.ssePath == "" {
 		return fmt.Errorf("connectSSE: Missing SSE path")
 	}
-	// establish the SSE connection for the return channel
-	//sseURL := fmt.Sprintf("https://%s%s", cc.hostPort, cc.ssePath)
 
+	// the credentials are already set in the tlsClient
 	cl.sseCancelFn, err = ConnectSSE(
-		// use the same http client for both http requests and sse connection
 		cl.tlsClient,
 		cl.ssePath,
-		cl.handleSSEConnect,
+		cl._setConnectionStatus,
 		cl.handleSseEvent,
 		cl.timeout)
 
 	return err
-}
-
-// Connect authenticating using a client certificate
-func (cl *SseScClient) ConnectWithClientCert(clientCert *tls.Certificate) (err error) {
-	return cl.tlsClient.ConnectWithClientCert(clientCert)
-}
-
-// ConnectWithToken sets the clientID and bearer token to use with requests and
-//
-//	establishes an SSE connection.
-//
-// If a connection exists it is closed first.
-func (cl *SseScClient) ConnectWithToken(clientID, token string) error {
-
-	// ensure disconnected (note that this resets retryOnDisconnect)
-	cl.Close()
-
-	err := cl.tlsClient.ConnectWithToken(clientID, token)
-	if err != nil {
-		return err
-	}
-	// connectSSE will set 'isConnected' on success
-	err = cl.ConnectSSE(token)
-	if err != nil {
-		cl.SetConnected(false)
-		return err
-	}
-	return err
-}
-
-// Close the connection with the server
-func (cl *SseScClient) Close() {
-	slog.Debug("HiveotSseClient.Disconnect",
-		slog.String("clientID", cl.tlsClient.GetClientID()),
-	)
-	cl.mux.Lock()
-	cb := cl.sseCancelFn
-	cl.sseCancelFn = nil
-	cl.mux.Unlock()
-
-	// the connection status will update, if changed, through the sse callback
-	if cb != nil {
-		cb()
-	}
-
-	cl.mux.Lock()
-	defer cl.mux.Unlock()
-	if cl.IsConnected() {
-		cl.tlsClient.Close()
-	}
 }
 
 func (cl *SseScClient) GetClientID() string {
@@ -184,6 +187,14 @@ func (cl *SseScClient) GetClientID() string {
 // GetConnectionInfo returns the client's connection details
 func (cl *SseScClient) GetConnectionID() string {
 	return cl.tlsClient.GetConnectionID()
+}
+
+// GetConnectionStatus returns the current connection status
+func (cl *SseScClient) GetConnectionStatus() transport.ConnectionStatus {
+	cl.mux.RLock()
+	defer cl.mux.RUnlock()
+	stat := cl.connectStatus
+	return stat
 }
 
 // Provide the native http client used by this client
@@ -197,55 +208,29 @@ func (cl *SseScClient) GetTM() string {
 	return ""
 }
 
-// HandleNotification receives an incoming notification from a producer
-// and sends it to the server.
+// HandleNotification receives an incoming notification and sends it to the server.
+// Set this to an agent module notification sink. Do not use for consumers.
 func (m *SseScClient) HandleNotification(notif *msg.NotificationMessage) {
 
 	m.SendNotification(notif)
 }
 
-// clients send requests to the server
+// Clients receives a request
+// - reconnect actions are handled here
+// - other requests (like subscribe) are send to the server
 func (cl *SseScClient) HandleRequest(request *msg.RequestMessage, replyTo msg.ResponseHandler) error {
+	if request.ThingID == cl.GetModuleID() {
+		if request.Operation == td.OpInvokeAction && request.Name == transport.ClientConnectAction {
+			err := cl.Connect()
+			resp := request.CreateResponse(nil, err)
+			return replyTo(resp)
+		} else {
+			return fmt.Errorf("HandleRequest: invalid request op='%s', name='%s'",
+				request.Operation, request.Name)
+		}
+	}
 	err := cl.SendRequest(request, replyTo)
 	return err
-}
-
-// handler when the SSE connection is established or fails.
-// This invokes the connectHandler callback if provided.
-func (cl *SseScClient) handleSSEConnect(connected bool, err error) {
-	errMsg := ""
-	clientID := cl.GetClientID()
-	cid := cl.tlsClient.GetConnectionID()
-
-	// if the context is cancelled this is not an error
-	if err != nil {
-		errMsg = err.Error()
-	}
-	slog.Info("handleSSEConnect",
-		slog.String("clientID", clientID),
-		slog.String("connectionID", cid),
-		slog.Bool("connected", connected),
-		slog.String("err", errMsg))
-
-	var connectionChanged bool = false
-	if cl.IsConnected() != connected {
-		connectionChanged = true
-	}
-	cl.SetConnected(connected)
-	if err != nil {
-		cl.mux.Lock()
-		cl.lastError.Store(&err)
-		cl.mux.Unlock()
-	}
-
-	// Note: this callback can send notifications to the client,
-	// so prevent deadlock by running in the background.
-	// (caught by readhistory failing for unknown reason)
-	if connectionChanged && cl.connectHandler != nil {
-		go func() {
-			cl.connectHandler(connected, cl, err)
-		}()
-	}
 }
 
 // handleSSEEvent processes the push-event received from the server.
@@ -268,45 +253,20 @@ func (cl *SseScClient) handleSseEvent(event gosse.Event) {
 		if err != nil {
 			return
 		}
-		// if cl.requestSink == nil {
-		// 	slog.Error("HandleSseEvent: no sink set. Notification is dropped.",
-		// 		"clientID", clientID,
-		// 		"operation", notif.Operation,
-		// 		"name", notif.Name,
-		// 	)
-		// } else
-		if cl.notificationSink != nil {
-			// notifications received from the server are passed to the registered handler
-			go func() {
-				cl.notificationSink(notif)
-			}()
-		} else {
-			// notifications are only received when subscribed so someone forgot to
-			// set a handler.
-			slog.Error("handleSseEvent: Received notification but no handler is set")
-		}
+		go cl.ForwardNotification(notif)
 	case msg.MessageTypeRequest:
 		var err error
 		req, err := cl.encoder.DecodeRequest([]byte(event.Data))
 		if err != nil {
 			return
 		}
-		if cl.requestSink == nil {
-			err = fmt.Errorf("handleSseEvent: no requestSink set. Request is dropped.")
-			slog.Error("handleSseEvent: no sink set. Request is dropped.",
-				"clientID", clientID,
-				"operation", req.Operation,
-				"name", req.Name,
-				"senderID", req.SenderID,
-			)
-		} else {
-			err = cl.requestSink(req, func(resp *msg.ResponseMessage) error {
-				// return the response to the caller
-				err2 := cl.SendResponse(resp)
-				return err2
-			})
-			// an error means the request could not be handled
-		}
+
+		err = cl.ForwardRequest(req, func(resp *msg.ResponseMessage) error {
+			// return the response to the caller
+			err2 := cl.SendResponse(resp)
+			return err2
+		})
+
 		// responses are optional
 		if err != nil {
 			resp := req.CreateErrorResponse(err)
@@ -337,12 +297,6 @@ func (cl *SseScClient) handleSseEvent(event gosse.Event) {
 			// "op", resp.Operation, "correlationID", resp.CorrelationID)
 		}
 	default:
-		// TBD: maybe this should just always fail?
-		if cl.notificationSink == nil {
-			slog.Error("handleSseEvent, received unexpected message",
-				"messageType", event.Type)
-			return
-		}
 
 		// all other events are intended for other use-cases such as the UI,
 		// and can have a formats of event/{dThingID}/{name}
@@ -352,15 +306,21 @@ func (cl *SseScClient) handleSseEvent(event gosse.Event) {
 			senderID, msg.AffordanceType(event.Type), "", "", event.Data)
 
 		// don't block the receiver flow
-		go func() {
-			cl.notificationSink(notif)
-		}()
+		go cl.ForwardNotification(notif)
 	}
 }
 
-// IsConnected return whether the return channel is connection, eg can receive data
-func (cl *SseScClient) IsConnected() bool {
-	return cl.isConnected.Load()
+// Return wheter the client is still active. Status connecting or connected.
+// If so, authentication and connect are not allowed. Call Close first()
+func (cl *SseScClient) IsRunning() bool {
+	cl.mux.RLock()
+	defer cl.mux.RUnlock()
+
+	if cl.connectStatus == transport.StatusConnected ||
+		cl.connectStatus == transport.StatusConnecting {
+		return true
+	}
+	return false
 }
 
 // SendNotification Agent posts a notification using the hiveot http/sse protocol.
@@ -479,34 +439,6 @@ func (cl *SseScClient) SendResponse(resp *msg.ResponseMessage) error {
 	return err
 }
 
-// SetBearerToken sets the authentication bearer token to authenticate http requests.
-// func (cl *HiveotSseClient) SetBearerToken(token string) error {
-// 	cl.mux.Lock()
-// 	cl.bearerToken = token
-// 	cl.mux.Unlock()
-// 	return nil
-// }
-
-// SetConnected sets the sub-protocol connection status
-func (cl *SseScClient) SetConnected(isConnected bool) {
-	cl.isConnected.Store(isConnected)
-}
-
-// SetNotificationSink sets the consumer handler for the notifications received
-// from the server.
-func (cl *SseScClient) SetNotificationSink(sink msg.NotificationHandler) {
-	cl.mux.Lock()
-	cl.notificationSink = sink
-	cl.mux.Unlock()
-}
-
-// SetRequestSink sets the agent module that handles requests received from the server.
-func (cl *SseScClient) SetRequestSink(sink msg.RequestHandler) {
-	cl.mux.Lock()
-	cl.requestSink = sink
-	cl.mux.Unlock()
-}
-
 // SetTimeout sets the messaging timeout
 func (cl *SseScClient) SetTimeout(timeout time.Duration) {
 	cl.timeout = timeout
@@ -532,8 +464,7 @@ func (cl *SseScClient) Stop() {
 //	sseURL full connection URL of Hiveot SSE server and path
 //	caCert is the CA certificate to validate the server certificate
 //	ch is the connect/disconnect callback
-func NewSseScClient(sseURL string, caCert *x509.Certificate,
-	ch transport.ConnectionHandler) *SseScClient {
+func NewSseScClient(sseURL string, caCert *x509.Certificate) *SseScClient {
 
 	urlParts, err := url.Parse(sseURL)
 	if err != nil {
@@ -547,7 +478,7 @@ func NewSseScClient(sseURL string, caCert *x509.Certificate,
 	tlsClient := httptransportpkg.NewHttpTransportClient(hostPort, caCert, timeout)
 
 	cl := &SseScClient{
-		connectHandler: ch,
+		HiveModuleBase: modules.NewHiveModuleBase(ssesc.SseScClientModuleType, timeout),
 		encoder:        transport.NewRRNJsonEncoder(),
 		rnrChan:        msg.NewRnRChan(),
 		ssePath:        ssePath,

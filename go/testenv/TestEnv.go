@@ -145,8 +145,7 @@ func (testEnv *TestEnv) CreateToken(clientID string, validity time.Duration) (to
 //
 // This panics if a client cannot be created or cannot connect.
 func (testEnv *TestEnv) NewConnectedClient(
-	clientID string, role string, ch transport.ConnectionHandler) (
-	cl transport.ITransportClient, token string) {
+	clientID string, role string) (cl transport.ITransportClient, token string) {
 
 	// ensure the test client account exists
 	err := testEnv.TestAuthn.AddClient(clientID, clientID, role)
@@ -156,10 +155,13 @@ func (testEnv *TestEnv) NewConnectedClient(
 	}
 	// create a connection to the test server
 	cl, err = clients.NewTransportClient(
-		testEnv.ServerProtocol, testEnv.ServerURL, testEnv.CertBundle.CaCert, ch)
+		testEnv.ServerProtocol, testEnv.ServerURL, testEnv.CertBundle.CaCert)
 	if err == nil {
 		cl.SetTimeout(TestTimeout)
-		err = cl.ConnectWithToken(clientID, token)
+		err = cl.AuthenticateWithToken(clientID, token)
+	}
+	if err == nil {
+		err = cl.Connect()
 	}
 	if err != nil {
 		panic("NewConnectedClient failed to connect:" + err.Error())
@@ -204,7 +206,7 @@ func (testEnv *TestEnv) NewRCAgent(clientID string, appReqHandler msg.RequestHan
 
 	// cc is the client connection for the agent that receives requests from the
 	// server for the agent and sends notifications to the server.
-	cl, authToken := testEnv.NewConnectedClient(clientID, authn.ClientRoleAgent, nil)
+	cl, authToken := testEnv.NewConnectedClient(clientID, authn.ClientRoleAgent)
 
 	// simple agent, no application request handler yet
 	agent := clientspkg.NewAgent(clientID+"-agent", appReqHandler)
@@ -221,7 +223,7 @@ func (testEnv *TestEnv) NewRCAgent(clientID string, appReqHandler msg.RequestHan
 	return agent, cl, authToken
 }
 
-// NewConsumerClient creates a new connected consumer.
+// NewConnectedConsumer creates a new connected consumer.
 // The transport server must be started first.
 //
 // This uses the clientID as password
@@ -229,18 +231,24 @@ func (testEnv *TestEnv) NewRCAgent(clientID string, appReqHandler msg.RequestHan
 //
 //	clientID to use
 //	role of the client
-//	optional connection change callback
-func (testEnv *TestEnv) NewConsumerClient(
-	clientID string, role string, ch transport.ConnectionHandler) (
+//	reconnect flag to include the reconnect module
+func (testEnv *TestEnv) NewConnectedConsumer(
+	clientID string, role string, reconnect bool) (
 	co *clientspkg.Consumer, cc transport.ITransportClient, token string) {
 
-	cc, token = testEnv.NewConnectedClient(clientID, role, ch)
-
+	cc, token = testEnv.NewConnectedClient(clientID, role)
 	co = clientspkg.NewConsumer(TestTimeout)
-	co.SetRequestSink(cc.HandleRequest)
-	co.SetTimeout(TestTimeout)
-	// notifications received by the client are passed to the consumer
-	cc.SetNotificationSink(co.HandleNotification)
+	if reconnect {
+		// insert the reconnect module between consumer and client connection
+		rc := clientspkg.NewReconnect(TestTimeout)
+		rc.SetRequestSink(cc.HandleRequest)
+		co.SetRequestSink(rc.HandleRequest)
+		cc.SetNotificationSink(rc.HandleNotification)
+		rc.SetNotificationSink(co.HandleNotification)
+	} else {
+		co.SetRequestSink(cc.HandleRequest)
+		cc.SetNotificationSink(co.HandleNotification)
+	}
 	return co, cc, token
 }
 
@@ -265,8 +273,9 @@ func (testEnv *TestEnv) StartTestServer(protocol string) (srv transport.ITranspo
 	switch protocol {
 	case transport.ProtocolTypeHiveotGrpc:
 		serverCert := testEnv.CertBundle.ServerCert
+		caCert := testEnv.CertBundle.CaCert
 		srv = grpcpkg.NewHiveotGrpcServer(
-			TestUDSURL, serverCert, testEnv.TestAuthn, TestTimeout)
+			TestUDSURL, serverCert, caCert, testEnv.TestAuthn, TestTimeout)
 		err = srv.Start()
 
 	case transport.ProtocolTypeHiveotSsesc:

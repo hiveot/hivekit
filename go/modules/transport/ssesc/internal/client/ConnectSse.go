@@ -22,16 +22,12 @@ const maxSSEMessageSize = 1024 * 1024 * 10
 // ConnectSSE establishes a new sse connection using the given http client.
 // This provides the input channel for notifications, requests, and responses.
 //
-// If the connection is interrupted, the sse connection retries with backoff period.
-// If an authentication error occurs then the onDisconnect handler is invoked with an error.
-// If the connection is cancelled then the onDisconnect is invoked without error
-//
-// This invokes onConnect when the connection is lost. The caller must handle the
-// connection established when the first ping is received after successful connection.
+// If the connection is interrupted this invokes the onConnect callback.
+// Retry is disabled since subscriptions are lost.
 func ConnectSSE(
 	tlsClient transport.ITLSClient, // TLS client with bearer token
 	ssePath string,
-	onConnect func(bool, error),
+	onConnect func(status transport.ConnectionStatus, err error),
 	onMessage func(event gosse.Event),
 	timeout time.Duration,
 ) (cancelFn func(), err error) {
@@ -50,14 +46,16 @@ func ConnectSSE(
 	r := tlsClient.CreateRequest(sseCtx, method, fullURL, nil, body, contentType)
 	sseClient := &gosse.Client{
 		HTTPClient: tlsClient.GetHttpClient(),
-		OnRetry: func(err error, backoff time.Duration) {
-			slog.Warn("SSE Connection retry",
-				"err", err, "sse path", ssePath,
-				"backoff", backoff)
-			// TODO: how to be notified if the connection is restored?
-			//  workaround: in handleSSEEvent, update the connection status
-			onConnect(false, err)
-		},
+		// OnRetry: func(err error, backoff time.Duration) {
+		// 	slog.Warn("SSE Connection retry",
+		// 		"err", err, "sse path", ssePath,
+		// 		"backoff", backoff)
+		// 	// TODO: how to be notified if the connection is restored?
+		// 	//  workaround: in handleSSEEvent, update the connection status
+		// 	onConnect(false, err)
+		// },
+		// do not retry
+		Backoff: gosse.Backoff{MaxRetries: -1},
 	}
 	conn := sseClient.NewConnection(r)
 
@@ -76,7 +74,7 @@ func ConnectSSE(
 		// As soon as a connection is established the server could send a 'ping' event.
 		// success!
 		slog.Info("handleSSEEvent: connection (re)established; setting connected to true")
-		onConnect(true, nil)
+		onConnect(transport.StatusConnected, nil)
 		waitConnectCancelFn()
 	})
 	var sseConnErr atomic.Pointer[gosse.ConnectionError]
@@ -86,6 +84,7 @@ func ConnectSSE(
 		// onConnect will be called on receiving the first (ping) message
 		//onConnect(true, nil)
 		err := conn.Connect()
+		var status transport.ConnectionStatus
 
 		if connError, ok := err.(*gosse.ConnectionError); ok {
 			if strings.Contains(connError.Error(), "401") {
@@ -93,20 +92,22 @@ func ConnectSSE(
 				slog.Error("SSE authentication failed",
 					"clientID", clientID,
 					"err", err.Error())
+				status = transport.StatusRefused
 			} else {
-				// since sse retries, this is likely an authentication error
 				slog.Error("SSE connection failed (server shutdown or connection interrupted)",
 					"clientID", clientID,
 					"err", err.Error())
+				status = transport.StatusLost
 			}
 			sseConnErr.Store(connError)
 			//err = fmt.Errorf("connect Failed: %w", connError.Err) //connError.Err
 			waitConnectCancelFn()
 		} else if errors.Is(err, context.Canceled) {
-			// context was cancelled. no error
+			// context was closed. no error
 			err = nil
+			status = transport.StatusClosed
 		}
-		onConnect(false, err)
+		onConnect(status, err)
 		_ = remover
 	}()
 

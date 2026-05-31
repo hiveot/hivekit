@@ -6,12 +6,36 @@ import (
 	"github.com/hiveot/hivekit/go/api/msg"
 )
 
+// Connection status values
+type ConnectionStatus string
+
+// connection state machine:
+//
+//	1: new|lost|closed -> connecting -> connected -> closed
+//	2: connecting -> connected -> lost
+//	3: connecting -> refused
+const (
+	// no connection attempt has been made
+	StatusNew ConnectionStatus = ""
+	// the connection is being established
+	StatusConnecting ConnectionStatus = "connecting"
+	// the connection was successfully estasblished
+	// this is the only status that counts as is-connected.
+	StatusConnected ConnectionStatus = "connected"
+	// the connection was been closed by the user
+	StatusClosed ConnectionStatus = "closed"
+	// the connection was dropped or server not reachable
+	StatusLost ConnectionStatus = "lost"
+	// the connection was refused due to incorrect authentication.
+	// reauthentication is required.
+	StatusRefused ConnectionStatus = "refused"
+)
+
 // ConnectionHandler handles a change in connection status
 //
-//	connected is true when connected without errors
+//	status of the connection
 //	c is the connection instance being established or disconnected
-//	err details why connection failed
-type ConnectionHandler func(connected bool, c IConnection, err error)
+type ConnectionHandler func(status ConnectionStatus, c IConnection)
 
 // IConnection defines the interfaces of a HiveOT server and client connection.
 // Intended for exchanging messages between client and server.
@@ -30,12 +54,13 @@ type IConnection interface {
 	// GetClientID returns the clientID used with authentication
 	GetClientID() string
 
+	// Deprecated: this is an artifact slated for deprecation
 	// GetConnectionID returns the unique connection ID for this client
 	// ConnectionIDs on the server use the clientID to differentiate. Eg clclid.
 	GetConnectionID() string
 
-	// IsConnected returns the current connection status
-	IsConnected() bool
+	// Return the client's connecting status
+	GetConnectionStatus() ConnectionStatus
 
 	// SendNotification [agent] sends a notification over the connection to a remote consumer.
 	// The connection can decide not to deliver the notification depending on subscriptions or
@@ -58,10 +83,6 @@ type IConnection interface {
 	// SendResponse [agent] sends an asynchronous response over the connection to a consumer.
 	// This returns an error if the response could not be delivered.
 	SendResponse(response *msg.ResponseMessage) error
-
-	// SetConnectHandler sets the callback for connection status changes
-	// This replaces any previously set handler.
-	// SetConnectHandler(handler ConnectionHandler)
 
 	// Change the default timeout for sending messages
 	SetTimeout(timeout time.Duration)

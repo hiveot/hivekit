@@ -3,6 +3,7 @@ package modules
 import (
 	"fmt"
 	"log/slog"
+	"sync"
 	"time"
 
 	"github.com/hiveot/hivekit/go/api/msg"
@@ -38,7 +39,8 @@ type HiveModuleBase struct {
 	// this module (moduleID != request.ThingID) to requestSink.
 	appRequestHook msg.RequestHandler
 
-	// ID of this module. Intended for logging.
+	// ID of this module. Used as the senderID in notifications and in logging.
+	// By default this is the module type name.
 	moduleID string
 
 	// notificationSink is the sink for forwarding notification messages
@@ -49,8 +51,8 @@ type HiveModuleBase struct {
 	// use UpdateProperty to modify a value and flag it for change
 	// properties map[string]any
 
-	// RW mutex to access properties
-	// propMux sync.RWMutex
+	// mutex to access properties
+	mux sync.RWMutex
 
 	// requestSink is the sink for forwarding requests messages to
 	requestSink msg.RequestHandler
@@ -70,8 +72,10 @@ type HiveModuleBase struct {
 // If none is registered this does nothing.
 // note that the handler is not the downstream sink but the upstream consumer.
 func (m *HiveModuleBase) ForwardNotification(notif *msg.NotificationMessage) {
-
-	if m.notificationSink == nil {
+	m.mux.RLock()
+	handler := m.notificationSink
+	m.mux.RUnlock()
+	if handler == nil {
 		// End of the line. If the notification isn't handled then warn about it
 		// A downstream module could have subscribed.
 		// // keep this warning for now.
@@ -83,7 +87,7 @@ func (m *HiveModuleBase) ForwardNotification(notif *msg.NotificationMessage) {
 		// )
 		return
 	}
-	m.notificationSink(notif)
+	handler(notif)
 }
 
 // ForwardRequest passes the request to the sink's HandleRequest method.
@@ -93,14 +97,17 @@ func (m *HiveModuleBase) ForwardRequest(req *msg.RequestMessage, replyTo msg.Res
 	if req.CorrelationID == "" {
 		req.CorrelationID = shortid.MustGenerate()
 	}
-	if m.requestSink == nil {
+	m.mux.RLock()
+	handler := m.requestSink
+	m.mux.RUnlock()
+	if handler == nil {
 		return fmt.Errorf("ForwardRequest: end of the line at '%s' for request '%s/%s' to thingID '%s'",
 			m.moduleID, req.Operation, req.Name, req.ThingID)
 	}
 	if replyTo == nil {
 		slog.Info("ForwardRequest: no replyTo handler provided", "moduleID", m.moduleID)
 	}
-	err = m.requestSink(req, replyTo)
+	err = handler(req, replyTo)
 	return err
 }
 
@@ -138,10 +145,12 @@ func (m *HiveModuleBase) GetModuleID() string {
 	return m.moduleID
 }
 
-// GetSink returns the module's request sink
-func (m *HiveModuleBase) GetSink() msg.RequestHandler {
-	return m.requestSink
-}
+// // GetSink returns the module's request sink
+// func (m *HiveModuleBase) GetSink() msg.RequestHandler {
+// 	m.mux.RLock()
+// 	defer m.mux.RUnlock()
+// 	return m.requestSink
+// }
 
 // HandleNotification receives an incoming notification from a producer.
 //
@@ -151,8 +160,12 @@ func (m *HiveModuleBase) GetSink() msg.RequestHandler {
 // Applications that consume notifications should use SetNotificationHook to register
 // its handler as it leaves the chain intact..
 func (m *HiveModuleBase) HandleNotification(notif *msg.NotificationMessage) {
-	if m.appNotificationHook != nil {
-		m.appNotificationHook(notif)
+	m.mux.RLock()
+	handler := m.appNotificationHook
+	m.mux.RUnlock()
+
+	if handler != nil {
+		handler(notif)
 	}
 	// the reason for the extra indirection is to ensure we're receiving the notification
 	// independently from when someone sets a custome notification handler.
@@ -169,11 +182,13 @@ func (m *HiveModuleBase) HandleNotification(notif *msg.NotificationMessage) {
 // only hand it over to this base method when there is nothing for them to do. This method
 // simply forwards the request if no request handler hook is set.
 func (m *HiveModuleBase) HandleRequest(req *msg.RequestMessage, replyTo msg.ResponseHandler) (err error) {
-
+	m.mux.RLock()
+	handler := m.appRequestHook
+	m.mux.RUnlock()
 	// Note, there is no thingID. So if the parent passes the request down and a request hook is set
 	// then assume the handler will take care of forwarding the request as needed.
-	if m.appRequestHook != nil {
-		err = m.appRequestHook(req, replyTo)
+	if handler != nil {
+		err = handler(req, replyTo)
 		return err
 	}
 
@@ -204,11 +219,15 @@ func (m *HiveModuleBase) Rpc(
 
 // Set the hook to invoke with received notifications
 func (m *HiveModuleBase) SetAppNotificationHook(hook msg.NotificationHandler) {
+	m.mux.Lock()
+	defer m.mux.Unlock()
 	m.appNotificationHook = hook
 }
 
 // Set the handler that will receive notifications emitted by this module
 func (m *HiveModuleBase) SetNotificationSink(consumer msg.NotificationHandler) {
+	m.mux.Lock()
+	defer m.mux.Unlock()
 	if m.notificationSink != nil {
 		slog.Warn("SetNotificationSink: A notification sink already exists. It will be overwritten.",
 			"moduleID", m.moduleID)
@@ -226,6 +245,8 @@ func (m *HiveModuleBase) SetNotificationSink(consumer msg.NotificationHandler) {
 // Failure to forward it without calling replyTo, or returning an error, results in
 // the request being lost and the caller waiting for a response until timeout.
 func (m *HiveModuleBase) SetAppRequestHook(hook msg.RequestHandler) {
+	m.mux.Lock()
+	defer m.mux.Unlock()
 	m.appRequestHook = hook
 }
 
@@ -234,11 +255,15 @@ func (m *HiveModuleBase) SetAppRequestHook(hook msg.RequestHandler) {
 //
 //	producer is the sink that will handle requests and send notifications
 func (m *HiveModuleBase) SetRequestSink(sink msg.RequestHandler) {
+	m.mux.Lock()
+	defer m.mux.Unlock()
 	m.requestSink = sink
 }
 
 // // SetTimeout changes the timeout when waiting for result.
 func (m *HiveModuleBase) SetTimeout(rpcTimeout time.Duration) {
+	m.mux.Lock()
+	defer m.mux.Unlock()
 	m.rpcTimeout = rpcTimeout
 }
 

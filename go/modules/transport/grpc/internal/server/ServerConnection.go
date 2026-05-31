@@ -26,11 +26,6 @@ type GrpcServerConnection struct {
 	reqHandler msg.RequestHandler
 
 	encoder transport.IMessageEncoder
-	// request-response channel used to server request replyTo callbacks
-	// rnrChan *msg.RnRChan
-
-	// how long to wait for a response after sending a request
-	// respTimeout time.Duration
 }
 
 // _onMessage handles an incoming message
@@ -72,6 +67,14 @@ func (sc *GrpcServerConnection) IsConnected() bool {
 	return sc.bstrm.IsConnected()
 }
 
+// // GetConnectionStatus returns the current connection status
+func (sc *GrpcServerConnection) GetConnectionStatus() transport.ConnectionStatus {
+	if sc.bstrm.IsConnected() {
+		return transport.StatusConnected
+	}
+	return transport.StatusLost
+}
+
 func (sc *GrpcServerConnection) sendRaw(msgType string, raw []byte) error {
 	return sc.bstrm.Send(raw)
 }
@@ -96,12 +99,11 @@ func StartGrpcTransportConnection(
 	// respTimeout time.Duration,
 ) *GrpcServerConnection {
 
+	slog.Info("StartGrpcTransportConnection", slog.String("clientID", clientID))
 	c := &GrpcServerConnection{
 		reqHandler:   reqHandler,
 		notifHandler: notifHandler,
 		encoder:      transport.NewRRNJsonEncoder(),
-		// respTimeout:  respTimeout,
-		// rnrChan:      msg.NewRnRChan(),
 	}
 	// determine the client ID and connection ID from the grpc stream context
 	peerInfo, ok := peer.FromContext(grpcStream.Context())
@@ -111,7 +113,7 @@ func StartGrpcTransportConnection(
 	}
 	c.Init(clientID, remoteAddr, connectionID, nil, c.sendRaw)
 
-	// // use the same buffered stream as the client uses for sending and receiving messages
+	// use the same buffered stream as the client uses for sending and receiving messages
 	c.bstrm = grpclib.NewBufferedStream(grpcStream, nil, c._onServerMessage, time.Minute)
 
 	var _ transport.IConnection = c // interface check

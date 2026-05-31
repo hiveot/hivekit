@@ -63,7 +63,7 @@ func TestInvokeActionFromConsumerToServer(t *testing.T) {
 	testEnv.Server.SetRequestSink(handleRequest)
 
 	// 2. connect a client
-	co1, cc1, token := testEnv.NewConsumerClient(testClientID1, authn.ClientRoleViewer, nil)
+	co1, cc1, token := testEnv.NewConnectedConsumer(testClientID1, authn.ClientRoleViewer, false)
 	defer cc1.Close()
 	require.NotEmpty(t, token)
 	ctx1, release1 := context.WithTimeout(context.Background(), time.Minute)
@@ -199,7 +199,7 @@ func TestInvokeActionFromServerToAgent(t *testing.T) {
 func TestQueryActions(t *testing.T) {
 	t.Logf("---%s---\n", t.Name())
 	var testMsg1 = "hello world 1"
-	var thingID = "dtw:thing1"
+	var thingID = "thing1"
 	var actionKey = "action1"
 
 	// 1. start the server. register a request handler for receiving a request
@@ -267,7 +267,7 @@ func TestQueryActions(t *testing.T) {
 	testEnv.Server.SetRequestSink(requestHandler)
 
 	// 2. connect as a consumer
-	co1, cc1, _ := testEnv.NewConsumerClient(testClientID1, authn.ClientRoleViewer, nil)
+	co1, cc1, _ := testEnv.NewConnectedConsumer(testClientID1, authn.ClientRoleViewer, false)
 	defer cc1.Close()
 
 	// 3. Query action status

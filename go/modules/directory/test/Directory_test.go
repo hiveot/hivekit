@@ -197,13 +197,13 @@ func TestGetDirectoryTD(t *testing.T) {
 	hostPort := parts.Host
 	// Create a client account with token but don't use the client itself. This
 	// tests is specifically for using a basic http client to bootstrap discovery.
-	cl, token := testEnv.NewConnectedClient(userID, authn.ClientRoleViewer, nil)
+	cl, token := testEnv.NewConnectedClient(userID, authn.ClientRoleViewer)
 	cl.Close()
 	// token, _, err := testEnv.CreateToken(userID, time.Minute)
 	// require.NoError(t, err)
 
 	httpClient := httptransportpkg.NewHttpTransportClient(hostPort, testEnv.CertBundle.CaCert, time.Minute)
-	err := httpClient.ConnectWithToken(userID, token)
+	err := httpClient.AuthenticateWithToken(userID, token)
 	require.NoError(t, err)
 	defer httpClient.Close()
 
@@ -232,7 +232,7 @@ func TestCRUDUsingRestAPI(t *testing.T) {
 	require.NoError(t, err)
 
 	// create the client and connect to the http server that serves the directory TD
-	cl, authToken := testEnv.NewConnectedClient(clientID, authn.ClientRoleManager, nil)
+	cl, authToken := testEnv.NewConnectedClient(clientID, authn.ClientRoleManager)
 	cl.Close()
 	// authToken, _, err := testEnv.CreateToken(clientID, time.Minute)
 	// require.NoError(t, err)
@@ -240,7 +240,7 @@ func TestCRUDUsingRestAPI(t *testing.T) {
 	dirClient := directorypkg.NewDirectoryHttpClient(dirTD, testEnv.CertBundle.CaCert)
 
 	// connect should read the directory TD
-	err = dirClient.ConnectWithToken(clientID, authToken)
+	err = dirClient.AuthenticateWithToken(clientID, authToken)
 	require.NoError(t, err)
 
 	// test create a TD

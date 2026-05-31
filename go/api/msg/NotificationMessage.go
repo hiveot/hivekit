@@ -55,6 +55,8 @@ type NotificationMessage struct {
 
 	// Authenticated ID of the agent sending the notification, set by the server.
 	// The protocol server MUST set this to the authenticated sender.
+	// Only available server side as WoT protocols do not carry this in the payload.
+	// HiveOT protocols do include this field.
 	SenderID string `json:"senderID"`
 
 	// ThingID of the thing this is a notification from.

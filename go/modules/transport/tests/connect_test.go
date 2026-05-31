@@ -23,7 +23,7 @@ import (
 const testAgentID1 = "agent1"
 const testClientID1 = "client1"
 
-var testProtocol = transport.ProtocolTypeWotWebsocket
+var testProtocol = transport.ProtocolTypeHiveotGrpc
 
 var testProtocols = []string{
 	transport.ProtocolTypeHiveotSsesc,
@@ -43,6 +43,7 @@ func TestConnectAllProtocols(t *testing.T) {
 	for _, testProtocol = range testProtocols {
 		t.Run("TestStartStop", TestStartStop)
 		t.Run(testProtocol, TestPing)
+		t.Run(testProtocol, TestPingClientCert)
 		t.Run(testProtocol, TestReconnect)
 		t.Run(testProtocol, TestServerURL)
 	}
@@ -56,12 +57,12 @@ func TestStartStop(t *testing.T) {
 	testEnv, cancelFn := testenv.StartTestEnv(testProtocol)
 
 	defer cancelFn()
-	co1, cc1, _ := testEnv.NewConsumerClient(testClientID1, authn.ClientRoleViewer, nil)
+	co1, cc1, _ := testEnv.NewConnectedConsumer(testClientID1, authn.ClientRoleViewer, false)
 	defer cc1.Close()
 	assert.NotNil(t, co1)
 
-	isConnected := cc1.IsConnected()
-	assert.True(t, isConnected)
+	status := cc1.GetConnectionStatus()
+	assert.Equal(t, transport.StatusConnected, status)
 
 	// time.Sleep(time.Millisecond)
 	// cc1.Close()
@@ -76,7 +77,7 @@ func TestPing(t *testing.T) {
 	testEnv, cancelFn := testenv.StartTestEnv(testProtocol)
 	defer cancelFn()
 	// NewConsumerClient creates a client
-	co1, cc1, _ := testEnv.NewConsumerClient(testClientID1, authn.ClientRoleViewer, nil)
+	co1, cc1, _ := testEnv.NewConnectedConsumer(testClientID1, authn.ClientRoleViewer, false)
 	defer cc1.Close()
 
 	err := co1.Ping()
@@ -96,10 +97,12 @@ func TestPingClientCert(t *testing.T) {
 	// NewConsumerClient creates a client
 	// create a connection to the test server
 	cl, err := clients.NewTransportClient(
-		testEnv.ServerProtocol, testEnv.ServerURL,
-		testEnv.CertBundle.CaCert, nil)
+		testEnv.ServerProtocol, testEnv.ServerURL, testEnv.CertBundle.CaCert)
 	require.NoError(t, err)
-	err = cl.ConnectWithClientCert(testEnv.CertBundle.ClientCert)
+	cl.SetTimeout(time.Minute)
+	err = cl.AuthenticateWithClientCert(testEnv.CertBundle.ClientCert)
+	require.NoError(t, err)
+	err = cl.Connect()
 	require.NoError(t, err)
 
 	cl.SetTimeout(time.Minute)
@@ -113,8 +116,8 @@ func TestPingClientCert(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	isConnected := cl.IsConnected()
-	assert.True(t, isConnected)
+	status := cl.GetConnectionStatus()
+	assert.Equal(t, transport.StatusConnected, status)
 }
 
 // Auto-reconnect using hub client and server
@@ -125,7 +128,6 @@ func TestReconnect(t *testing.T) {
 	const actionKey = "action1"
 	const agentID = "agent1"
 	var connectEvents atomic.Int32
-	var reconnectedCallback atomic.Bool
 
 	// this test handler receives an action and returns a 'pending status',
 	// it is intended to prove reconnect works.
@@ -171,16 +173,7 @@ func TestReconnect(t *testing.T) {
 	// connect as consumer and give client a second to reconnect
 	ctx1, cancelFn1 := context.WithTimeout(context.Background(), time.Second)
 	defer cancelFn1()
-	connectHandler := func(connected bool, c transport.IConnection, err error) {
-		if connected {
-			slog.Info("reconnected")
-			cancelFn1()
-			reconnectedCallback.Store(true)
-		} else {
-			slog.Info("disconnect")
-		}
-	}
-	co1, cc1, _ := testEnv.NewConsumerClient(testClientID1, authn.ClientRoleViewer, connectHandler)
+	co1, cc1, _ := testEnv.NewConnectedConsumer(testClientID1, authn.ClientRoleViewer, true)
 	defer cc1.Close()
 
 	//  wait until the connection is established
@@ -201,8 +194,6 @@ func TestReconnect(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, rpcArgs, rpcResp)
 	assert.GreaterOrEqual(t, 4, int(connectEvents.Load()))
-	// expect the re-connected callback to be invoked
-	assert.True(t, reconnectedCallback.Load())
 }
 
 // Test getting form for unknown operation

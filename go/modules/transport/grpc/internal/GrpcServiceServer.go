@@ -3,6 +3,7 @@ package internal
 import (
 	"context"
 	"crypto/tls"
+	"crypto/x509"
 	"fmt"
 	"log/slog"
 	"net"
@@ -47,8 +48,11 @@ type GrpcServiceServer struct {
 	// service description for methods and streams
 	serviceDesc grpc.ServiceDesc
 
-	// optional TLS certificate when using TCP instead of UDS
+	// optional TLS server certificate when using TCP instead of UDS
 	tlsCert *tls.Certificate
+
+	// caCert for validating client certificates
+	caCert *x509.Certificate
 }
 
 // authenticate a new stream connection
@@ -86,8 +90,8 @@ func (srv *GrpcServiceServer) _unaryInterceptor(
 // Create a new stream to listen on
 // Note that the handler is called with the raw grpc stream, which is not concurrent safe.
 //
-// Use NewBufferedStream(grpcStream) to create a buffered concurrently safe
-// connection for this stream. This buffered stream has send and receive methods.
+// Use NewBufferedStream(grpcStream) to create a buffered concurrently safe connection
+// for this stream.
 func (srv *GrpcServiceServer) CreateStream(
 	name string, handler func(clientID, cid string, grpcStream grpc.ServerStream) error) error {
 
@@ -142,10 +146,23 @@ func (srv *GrpcServiceServer) Start() error {
 	var grpcServer *grpc.Server
 	var opts = make([]grpc.ServerOption, 0)
 
-	// Create the TLS credentials
+	// Create the TLS/CA credentials for verifying client certs
 	// creds, err := credentials.NewServerTLSFromFile(certFile, keyFile)
 	if srv.tlsCert != nil {
-		creds := credentials.NewServerTLSFromCert(srv.tlsCert)
+		if srv.caCert == nil {
+			return fmt.Errorf("Start: Provided a TLS cert but no CA")
+		}
+		// creds := credentials.NewServerTLSFromCert(srv.tlsCert)
+		certPool := x509.NewCertPool()
+		certPool.AddCert(srv.caCert)
+		creds := credentials.NewTLS(
+			&tls.Config{
+				Certificates: []tls.Certificate{*srv.tlsCert},
+				// ClientAuth:   tls.RequireAndVerifyClientCert,
+				ClientAuth: tls.VerifyClientCertIfGiven,
+				ClientCAs:  certPool,
+			})
+
 		opts = append(opts, grpc.Creds(creds))
 	}
 
@@ -201,6 +218,7 @@ func (srv *GrpcServiceServer) Stop() {
 func NewGrpcServiceServer(
 	lis net.Listener,
 	tlsCert *tls.Certificate,
+	caCert *x509.Certificate,
 	serviceName string,
 	grpcAuthn *GrpcAuthenticator,
 	respTimeout time.Duration,
@@ -212,6 +230,7 @@ func NewGrpcServiceServer(
 		respTimeout: respTimeout,
 		// serveNotifStream: serveHandler,
 		tlsCert: tlsCert,
+		caCert:  caCert,
 	}
 
 	// This codec handles byte array and strings without conversion and uses JSON for anything else.

@@ -211,20 +211,21 @@ func TestReadDigitwinProperty(t *testing.T) {
 	})
 
 	// 1: create a consumer that subscribes to notifications
-	co, cc1, _ := testEnv.NewConsumerClient(userID, authn.ClientRoleViewer, nil)
+	co, cc1, _ := testEnv.NewConnectedConsumer(userID, authn.ClientRoleViewer, false)
 	err := co.ObserveProperty("", prop1Name)
 	require.NoError(t, err)
 	defer cc1.Stop()
 	// expect a digital twin notification from changing the device property
 	dtwThingID := internal.MakeDigitwinID(agentID, deviceTD1.ID)
 	co.SetAppNotificationHook(func(notif *msg.NotificationMessage) {
-		// rxPropValue = notif.ToString(0)
-		rxPropValue.Store(notif.ToString(0))
-		require.NotEmpty(t, rxPropValue)
-		assert.Equal(t, dtwThingID, notif.ThingID)
-		assert.Equal(t, prop1Name, notif.Name)
-		slog.Info("*** Received notification",
-			"type", notif.AffordanceType, "thingID", notif.ThingID, "name", notif.Name)
+		if notif.Name == prop1Name {
+			// rxPropValue = notif.ToString(0)
+			rxPropValue.Store(notif.ToString(0))
+			require.NotEmpty(t, rxPropValue)
+			assert.Equal(t, dtwThingID, notif.ThingID)
+			slog.Info("*** Received notification",
+				"type", notif.AffordanceType, "thingID", notif.ThingID, "name", notif.Name)
+		}
 	})
 
 	// 2. pretent to be an agent that writes a TD to the directory
@@ -267,7 +268,7 @@ func TestWriteDigitwinProperty(t *testing.T) {
 	defer stopFn()
 
 	// 1: create a consumer that writes a property
-	co, cc1, _ := testEnv.NewConsumerClient(userID, authn.ClientRoleViewer, nil)
+	co, cc1, _ := testEnv.NewConnectedConsumer(userID, authn.ClientRoleViewer, false)
 	err := co.ObserveProperty("", prop1Name)
 	require.NoError(t, err)
 	defer cc1.Stop()
@@ -351,7 +352,7 @@ func TestInvokeDigitwinAction(t *testing.T) {
 	defer stopFn()
 
 	// 1: create a consumer
-	co, cc1, _ := testEnv.NewConsumerClient(userID, authn.ClientRoleViewer, nil)
+	co, cc1, _ := testEnv.NewConnectedConsumer(userID, authn.ClientRoleViewer, false)
 	// the action will submit an event
 	err := co.Subscribe(dtwThing1ID, actionName)
 	require.NoError(t, err)

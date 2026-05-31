@@ -65,21 +65,21 @@ func (cl *TLSClient) Close() {
 	}
 }
 
-// ConnectWithClientCert obtains the clientID from the certificate CommonName and
+// AuthenticateWithClientCert obtains the clientID from the certificate CommonName and
 // updates the TLS connection to use the client certificate.
 // The provided certificate must be signed by the server's CA.
 //
 //	clientCert client tls certificate containing x509 cert and private key
 //
 // Returns nil if successful, or an error if no CA is set or cert invalid
-func (cl *TLSClient) ConnectWithClientCert(clientCert *tls.Certificate) (err error) {
+func (cl *TLSClient) AuthenticateWithClientCert(clientCert *tls.Certificate) (err error) {
 
 	// update the existing TLS configuration created during instantiation
 	tlsConfig := cl.http2Transport.TLSClientConfig
 
 	if tlsConfig.RootCAs == nil {
-		slog.Error("ConnectWithClientCert: a CA is required")
-		return fmt.Errorf("ConnectWithClientCert: No CA has been set")
+		slog.Error("AuthenticateWithClientCert: a CA is required")
+		return fmt.Errorf("AuthenticateWithClientCert: No CA has been set")
 	}
 
 	// cl.clientCert = clientCert
@@ -92,6 +92,7 @@ func (cl *TLSClient) ConnectWithClientCert(clientCert *tls.Certificate) (err err
 	if err == nil {
 		// cert subject is clientID
 		cl.clientID = x509Cert.Subject.CommonName
+		cl.cid = shortid.MustGenerate()
 		// verify the validity of this certificate against the CA
 		// without this one can spend a long time figuring out why the connection fails.
 		opts := x509.VerifyOptions{
@@ -101,7 +102,7 @@ func (cl *TLSClient) ConnectWithClientCert(clientCert *tls.Certificate) (err err
 		_, err = x509Cert.Verify(opts)
 	}
 	if err != nil {
-		err = fmt.Errorf("ConnectWithClientCert: certificate not valid: %w.", err)
+		err = fmt.Errorf("AuthenticateWithClientCert: certificate not valid: %w.", err)
 		slog.Error(err.Error())
 	}
 	return err
@@ -114,8 +115,8 @@ func (cl *TLSClient) ConnectWithClientCert(clientCert *tls.Certificate) (err err
 //
 // This creates a unique connectionID for the header and places the token in
 // the authorization hedaer.
-func (cl *TLSClient) ConnectWithToken(clientID string, token string) error {
-	// ensure disconnected (note that this resets retryOnDisconnect)
+func (cl *TLSClient) AuthenticateWithToken(clientID string, token string) error {
+	// ensure disconnected
 	cl.bearerToken = token
 	cl.clientID = clientID
 	cl.cid = shortid.MustGenerate()
@@ -449,7 +450,7 @@ func NewTlsClient(hostPort string, caCert *x509.Certificate, timeout time.Durati
 	serverName := strings.Split(hostPort, ":")[0]
 
 	tlsConfig := &tls.Config{
-		// see also ConnectWithClientCert
+		// see also AuthenticateWithClientCert
 		Certificates:       nil,
 		ServerName:         serverName,
 		InsecureSkipVerify: caCert == nil,

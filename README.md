@@ -5,59 +5,59 @@ HiveKit provides modules for building lightweight IoT applications for integrati
 The core concept is that an application is build by combining modules that each provide needed capabilities. Interactive modules define their capabilities using a W3C Thing Description (TD) document. Modules are linked in a chain. Each module watches for request messages with operations directed at their thingID. Modules emit notifications for events and property updates.
 
 The standard module has an extremely simple interface: A handler for request messages with a replyTo callback, and a handler for notification messages. Modules are linked by setting a request sink to the request handler of the next module in the chain. Similarly a notification sink is set to the notification handler from the upstream module.
+
 [![module](docs/hivekit-module.png)](#hivekit-modules)
 
 ## Project Status
 
 (updated april 2026)
 
-Many modules are implemented in golang. Javascript and Python integration is planned. Using transport modules it is easy to link Javascript, Python and golang modules with minimal overhead.
+Most modules are implemented in golang. Javascript and Python integration is planned. Using transport modules it is easy to link Javascript, Python and golang modules with minimal overhead.
 Modules with a checkmark are functional but breaking changes can still be expected for those marked as alpha or beta.
 
 Core Service modules:
 
 | status | module      | description                       | stage |
 | :----: | ----------- | --------------------------------- | ----- |
-|   ✔️   | authn       | Client authentication             | alpha |
-|   ✔️   | authz       | Role based authorization          | alpha |
-|   ✔️   | bucketstore | Key-value data storage            | alpha |
-|   ✔️   | certs       | Certificate management                | alpha |
-|   ✔️   | clients     | Consumer and Agent for building apps  | alpha |
-|   ✔️   | digitwin    | Digital twin                      | alpha |
-|   ✔️   | directory   | Thing directory                   | alpha |
-|   ✔️   | factory     | Module factory                    | alpha |
-|   ✔️   | history     | Message history recorder          | alpha |
-|   ✔️   | logging     | Basic messaging logging           | alpha |
-|   ✔️   | router      | Message routing to remote devices | alpha |
-|   ✔️   | vcache      | Value cache                       | alpha |
-|   ⬛   | jsscript    | Javascript based automation       | todo  |
-|   ⬛   | rules       | Rule based automation              | todo  |
-
+|   ✔️    | authn       | Client authentication             | alpha |
+|   ✔️    | authz       | Role based authorization          | alpha |
+|   ✔️    | bucketstore | Key-value data storage            | alpha |
+|   ✔️    | certs       | Certificate management            | alpha |
+|   ✔️    | digitwin    | Digital twin                      | alpha |
+|   ✔️    | directory   | Thing directory                   | alpha |
+|   ✔️    | factory     | Module factory                    | alpha |
+|   ✔️    | history     | Message history recorder          | alpha |
+|   ✔️    | logging     | Basic      messaging logging      | alpha |
+|   ✔️    | router      | Message routing to remote devices | alpha |
+|   ✔️    | vcache      | Value cache                       | alpha |
+|   ⬛    | jsscript    | Javascript based automation       | todo  |
+|   ⬛    | rules       | Rule based automation             | todo  |
 
 [Transport modules](docs/transport.md):
 
 | status | module               | description                           | stage |
 | :----: | -------------------- | ------------------------------------- | ----- |
-|   ✔️   | transport/discovery  | WoT mDNS device discovery             | alpha |
-|   ✔️   | transport/grpc       | HiveOT gRPC fast message streaming    | alpha |
-|   ✔️   | transport/httpbasic  | WoT HTTP basic messaging protocol     | alpha |
-|   ✔️   | transport/httpserver | HTTP server for sub-protocols         | alpha |
-|   ✔️   | transport/ssesc      | HiveOT HTTP/SSE-SC messaging protocol | alpha |
-|   ✔️   | transport/wss        | WoT Websocket messaging protocol      | alpha |
-|   ⬛   | transport/mqtt       | WoT MQTT messaging protocol           | n/a   |
+|   ✔️    | transport/clients    | Consumer and Agent for building apps  | alpha |
+|   ✔️    | transport/discovery  | WoT mDNS device discovery             | alpha |
+|   ✔️    | transport/grpc       | HiveOT gRPC fast message streaming    | alpha |
+|   ✔️    | transport/httpbasic  | WoT HTTP basic messaging protocol     | alpha |
+|   ✔️    | transport/httpserver | HTTP server for sub-protocols         | alpha |
+|   ✔️    | transport/ssesc      | HiveOT HTTP/SSE-SC messaging protocol | alpha |
+|   ✔️    | transport/wss        | WoT Websocket messaging protocol      | alpha |
+|   ⬛    | transport/mqtt       | WoT MQTT messaging protocol           | n/a   |
 
 Integration Binding Modules:
 
 | status | module   | description                     | stage |
 | :----: | -------- | ------------------------------- | ----- |
-|   ⬛   | ipnet    | IP Network monitor              | todo  |
-|   ⬛   | isy99x   | ISY 99 gateway binding          | todo  |
-|   ⬛   | owserver | 1-wire owserver gateway binding | todo  |
-|   ⬛   | zwavejs  | ZWave binding using zwave-js    | todo  |
-|   ⬛   | weather  | Weather service bindings        | todo  |
-|   ⬛   | lorawan  | LoRaWan gateway binding         | todo  |
-|   ⬛   | canbus   | Canbus gateway binding          | todo  |
-|   ⬛   | ...      | and many more...                | todo  |
+|   ⬛    | ipnet    | IP Network monitor              | todo  |
+|   ⬛    | isy99x   | ISY 99 gateway binding          | todo  |
+|   ⬛    | owserver | 1-wire owserver gateway binding | todo  |
+|   ⬛    | zwavejs  | ZWave binding using zwave-js    | todo  |
+|   ⬛    | weather  | Weather service bindings        | todo  |
+|   ⬛    | lorawan  | LoRaWan gateway binding         | todo  |
+|   ⬛    | canbus   | Canbus gateway binding          | todo  |
+|   ⬛    | ...      | and many more...                | todo  |
 
 ## HiveKit Modules
 

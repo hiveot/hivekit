@@ -10,7 +10,6 @@ import (
 	"net/http"
 	"net/url"
 	"sync"
-	"sync/atomic"
 	"time"
 
 	"github.com/hiveot/hivekit/go/api/msg"
@@ -37,18 +36,15 @@ import (
 type HttpBasicClient struct {
 	modules.HiveModuleBase
 
-	// handler for requests send by clients
-	connectHandler transport.ConnectionHandler
+	// auth token when connecting with token
+	bearerToken string
 
-	//clientID string
-	// Connection information such as clientID, cid, address, protocol etc
-	// cinfo transport.ConnectionInfo
+	// current connection status
+	connectStatus transport.ConnectionStatus
 
 	// getForm obtains the form for sending a request or notification
 	// if nil, then the hiveot protocol envelope and URL are used as fallback
 	getForm transport.GetFormHandler
-
-	isConnected atomic.Bool
 
 	// protected operations
 	mux sync.RWMutex
@@ -64,12 +60,43 @@ type HttpBasicClient struct {
 	tlsClient transport.ITLSClient
 }
 
+// update the connection status and publish an notification if it differs from the last status
+// a 'lost' status is ignored if the current status is set to closed as it was intentional.
+func (cl *HttpBasicClient) _setConnectionStatus(
+	newStatus transport.ConnectionStatus, err error) {
+
+	cl.mux.RLock()
+	oldStatus := cl.connectStatus
+	cl.mux.RUnlock()
+
+	if newStatus == oldStatus {
+		return
+	} else if oldStatus == transport.StatusClosed && newStatus == transport.StatusLost {
+		return
+	}
+	cl.mux.Lock()
+	cl.connectStatus = newStatus
+	cl.mux.Unlock()
+
+	// notify upstream of status change
+	moduleID := cl.GetModuleID()
+	evName := transport.ClientConnectionStatusEvent
+	notif := msg.NewNotificationMessage(
+		moduleID, msg.AffordanceTypeEvent, moduleID, evName, newStatus)
+	cl.ForwardNotification(notif)
+}
+
+// Connect authenticating using a client certificate
+func (cl *HttpBasicClient) AuthenticateWithClientCert(clientCert *tls.Certificate) (err error) {
+	return cl.tlsClient.AuthenticateWithClientCert(clientCert)
+}
+
 // Authenticate the client connection with the server
 // This determine which auth schema the TD describes, obtains the credentials
 // and injects the authentication credentials according to the TDI schema.
 // This returns an error if the schema isn't supported or is not compatible.
-func (cl *HttpBasicClient) Authenticate(tdDoc *td.TD,
-	getCredentials transport.GetCredentials) error {
+func (cl *HttpBasicClient) AuthenticateWithForm(
+	tdDoc *td.TD, getCredentials transport.GetCredentials) error {
 
 	clientID, secret, schemeName, err := getCredentials(tdDoc.ID)
 	secScheme, err := tdDoc.GetSecurityScheme()
@@ -80,66 +107,63 @@ func (cl *HttpBasicClient) Authenticate(tdDoc *td.TD,
 		// err = cl.ConnectWithDigest(clientID, secret)
 		err = fmt.Errorf("Digest authentication is not yet supported. Use bearer token instead")
 	} else if secScheme.Scheme == td.SecSchemeBearer || secScheme.Scheme == td.SecSchemeAuto {
-		err = cl.ConnectWithToken(clientID, secret)
+		err = cl.AuthenticateWithToken(clientID, secret)
 	} else {
 		err = fmt.Errorf("Unexpected security scheme '%s'", secScheme.Scheme)
 	}
 	return err
 }
 
-// Connect authenticating using a client certificate
-func (cl *HttpBasicClient) ConnectWithClientCert(clientCert *tls.Certificate) (err error) {
-	return cl.tlsClient.ConnectWithClientCert(clientCert)
-}
-
 // Set the clientID and authentication bearer token.
-// This performs a standard /ping health check that the hiveot http server supports.
-func (cl *HttpBasicClient) ConnectWithToken(
+func (cl *HttpBasicClient) AuthenticateWithToken(
 	clientID string, token string) error {
 
-	err := cl.tlsClient.ConnectWithToken(clientID, token)
-	if err == nil {
-		var status int
-		// TBD: should ping always work?
-		status, err = cl.tlsClient.Ping()
-		if status == http.StatusOK {
-			cl.isConnected.Store(true)
-		} else {
-			cl.isConnected.Store(false)
-		}
-		// notify if interested
-		if cl.connectHandler != nil {
-			cl.connectHandler(cl.isConnected.Load(), cl, nil)
-		}
-	}
+	cl.bearerToken = token
+	err := cl.tlsClient.AuthenticateWithToken(clientID, token)
 	return err
 }
 
 // Close disconnects from the server
 func (cl *HttpBasicClient) Close() {
 
+	// set status to closed first to avoid a reconnect
+	cl._setConnectionStatus(transport.StatusClosed, nil)
+
 	cl.mux.Lock()
 	defer cl.mux.Unlock()
-	if cl.isConnected.Load() {
+	if cl.tlsClient != nil {
 		cl.tlsClient.Close()
-		cl.isConnected.Store(false)
-		if cl.connectHandler != nil {
-			cl.connectHandler(false, cl, nil)
-		}
 	}
 }
 
-// GetAppConnectHandler returns the application handler for connection status updates
-// func (cl *HttpBasicClient) GetAppConnectHandler() transport.ConnectionHandler {
-// 	hPtr := cl.appConnectHandlerPtr.Load()
-// 	return *hPtr
-// }
+// This performs a standard /ping health check that the hiveot http server supports.
+func (cl *HttpBasicClient) Connect() error {
+
+	cl._setConnectionStatus(transport.StatusConnecting, nil)
+	statusCode, err := cl.tlsClient.Ping()
+	if statusCode == http.StatusOK {
+		cl._setConnectionStatus(transport.StatusConnected, err)
+	} else if statusCode == http.StatusUnauthorized {
+		cl._setConnectionStatus(transport.StatusRefused, err)
+	} else {
+		cl._setConnectionStatus(transport.StatusLost, err)
+	}
+	return err
+}
 
 func (cl *HttpBasicClient) GetClientID() string {
 	return cl.tlsClient.GetClientID()
 }
 func (cl *HttpBasicClient) GetConnectionID() string {
 	return cl.tlsClient.GetConnectionID()
+}
+
+// // GetConnectionStatus returns the current connection status
+func (cl *HttpBasicClient) GetConnectionStatus() transport.ConnectionStatus {
+	cl.mux.RLock()
+	defer cl.mux.RUnlock()
+	stat := cl.connectStatus
+	return stat
 }
 
 // GetDefaultForm return the default http form for the operation
@@ -179,11 +203,6 @@ func (m *HttpBasicClient) HandleNotification(notif *msg.NotificationMessage) {
 func (cl *HttpBasicClient) HandleRequest(request *msg.RequestMessage, replyTo msg.ResponseHandler) error {
 	err := cl.SendRequest(request, replyTo)
 	return err
-}
-
-// IsConnected return whether the return channel is connection, eg can receive data
-func (cl *HttpBasicClient) IsConnected() bool {
-	return cl.isConnected.Load()
 }
 
 // SendNotification is not supported in http-basic
@@ -388,7 +407,7 @@ func (cl *HttpBasicClient) Stop() {
 // NewHttpBasicClient creates a new instance of the WoT compatible http-basic
 // protocol binding client.
 //
-// Users must use ConnectWithToken to authenticate and connect.
+// Users must use AuthenticateWithToken to authenticate and connect.
 //
 // This uses TD forms to perform an operation.
 //
@@ -397,9 +416,7 @@ func (cl *HttpBasicClient) Stop() {
 //	getForm is the handler for return a form for invoking an operation. nil for default
 //	ch optional callback with connection status changes
 func NewHttpBasicClient(
-	baseURL string, caCert *x509.Certificate,
-	getForm transport.GetFormHandler,
-	ch transport.ConnectionHandler) *HttpBasicClient {
+	baseURL string, caCert *x509.Certificate, getForm transport.GetFormHandler) *HttpBasicClient {
 
 	timeout := transport.DefaultClientTimeout
 	urlParts, err := url.Parse(baseURL)
@@ -410,7 +427,7 @@ func NewHttpBasicClient(
 	hostPort := urlParts.Host
 
 	tlsClient := httptransportpkg.NewHttpTransportClient(hostPort, caCert, timeout)
-	cl := NewHttpBasicTLSClient(tlsClient, getForm, ch)
+	cl := NewHttpBasicTLSClient(tlsClient, getForm)
 
 	return cl
 }
@@ -421,14 +438,12 @@ func NewHttpBasicClient(
 //	tlsClient used for the server connection
 //	getForm is the handler for return a form for invoking an operation. nil for default
 func NewHttpBasicTLSClient(
-	tlsClient transport.ITLSClient, getForm transport.GetFormHandler,
-	ch transport.ConnectionHandler) *HttpBasicClient {
+	tlsClient transport.ITLSClient, getForm transport.GetFormHandler) *HttpBasicClient {
 
 	cl := &HttpBasicClient{
-		connectHandler: ch,
-		getForm:        getForm,
-		timeout:        transport.DefaultClientTimeout,
-		tlsClient:      tlsClient,
+		getForm:   getForm,
+		timeout:   transport.DefaultClientTimeout,
+		tlsClient: tlsClient,
 	}
 	if cl.getForm == nil {
 		cl.getForm = cl.GetDefaultForm

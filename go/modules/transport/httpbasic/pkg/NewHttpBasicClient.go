@@ -12,7 +12,7 @@ import (
 // NewHttpBasicClient creates a new instance of the WoT compatible http-basic
 // protocol binding client.
 //
-// Users must use ConnectWithToken to authenticate and connect.
+// Users must use AuthenticateWithToken to authenticate and Connect to connect.
 //
 // This uses TD forms to perform an operation.
 //
@@ -22,20 +22,19 @@ import (
 //	ch optional callback with connection status changes
 func NewHttpBasicClient(
 	baseURL string, caCert *x509.Certificate,
-	getForm transport.GetFormHandler,
-	ch transport.ConnectionHandler) transport.ITransportClient {
+	getForm transport.GetFormHandler) transport.ITransportClient {
 
-	return internalclient.NewHttpBasicClient(baseURL, caCert, getForm, ch)
+	return internalclient.NewHttpBasicClient(baseURL, caCert, getForm)
 }
 
 // Create an HTTP-Basic client using the application environment from the provided factory
 func NewHttpBasicClientFactory(f factory.IModuleFactory) modules.IHiveModule {
 
 	env := f.GetEnvironment()
-	m := NewHttpBasicClient(env.ServerURL, env.CaCert, nil, nil)
+	m := NewHttpBasicClient(env.ServerURL, env.CaCert, nil)
 	clientCert, _ := env.GetClientCert()
 	if clientCert != nil {
-		m.ConnectWithClientCert(clientCert)
+		m.AuthenticateWithClientCert(clientCert)
 	}
 	m.SetTimeout(env.RpcTimeout)
 	return m

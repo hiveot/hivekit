@@ -15,10 +15,9 @@ import (
 //	sseURL is the full websocket connection URL including path
 //	caCert is the server CA for TLS connection validation
 //	ch is the connect/disconnect callback. nil to ignore
-func NewSseScClient(sseURL string, caCert *x509.Certificate,
-	ch transport.ConnectionHandler) transport.ITransportClient {
+func NewSseScClient(sseURL string, caCert *x509.Certificate) transport.ITransportClient {
 
-	return internal.NewSseScClient(sseURL, caCert, ch)
+	return internal.NewSseScClient(sseURL, caCert)
 }
 
 // Create an HTTP/SSE-SC client using the application environment from the provided factory
@@ -28,9 +27,9 @@ func NewSseScClientFactory(f factory.IModuleFactory) (modules.IHiveModule, error
 	// do clients use onconnectionchanged? -> yes, show connection status
 	// how do they get informed? -> client submits an event
 	clientCert, _ := env.GetClientCert()
-	m := NewSseScClient(env.ServerURL, env.CaCert, nil)
+	m := NewSseScClient(env.ServerURL, env.CaCert)
 	if clientCert != nil {
-		err := m.ConnectWithClientCert(clientCert)
+		err := m.AuthenticateWithClientCert(clientCert)
 		if err != nil {
 			slog.Error("NewSseScClientFactory. Failed: " + err.Error())
 		}

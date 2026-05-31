@@ -240,10 +240,11 @@ func TestSubscribeToDevice(t *testing.T) {
 
 	ctx, cancelFn := context.WithTimeout(context.Background(), rpcTimeout)
 	consumer.SetAppNotificationHook(func(notif *msg.NotificationMessage) {
-		assert.Equal(t, event1Name, notif.Name)
-		err = notif.Decode(&rxValue)
-		assert.NoError(t, err)
-		cancelFn()
+		if notif.Name == event1Name {
+			err = notif.Decode(&rxValue)
+			assert.NoError(t, err)
+			cancelFn()
+		}
 	})
 
 	// the device publishes an event

@@ -135,7 +135,7 @@ func (cli *WotCLI) ReadThing(thingID string) {
 	if err == nil {
 		defer c.Close()
 		c.SetTimeout(time.Minute) // for testing
-		err = c.ConnectWithToken(cli.GetClientID(), cli.authToken)
+		err = c.AuthenticateWithToken(cli.GetClientID(), cli.authToken)
 	}
 	if err == nil {
 		cli.SetRequestSink(c.HandleRequest)

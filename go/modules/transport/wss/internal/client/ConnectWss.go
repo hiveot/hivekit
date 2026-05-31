@@ -13,7 +13,6 @@ import (
 
 	"github.com/gorilla/websocket"
 	"github.com/hiveot/hivekit/go/modules/transport"
-	"github.com/hiveot/hivekit/go/utils"
 )
 
 // ConnectWSS establishes a websocket session with the server
@@ -26,9 +25,9 @@ func ConnectWSS(
 	bearerToken string,
 	clientCert *tls.Certificate,
 	caCert *x509.Certificate,
-	onConnect func(bool, error),
+	onConnect func(transport.ConnectionStatus, error),
 	onMessage func(raw []byte),
-) (cancelFn func(), conn *websocket.Conn, err error) {
+) (cancelFn func(), conn *websocket.Conn, status transport.ConnectionStatus, err error) {
 
 	var clientCertList []tls.Certificate
 
@@ -96,14 +95,15 @@ func ConnectWSS(
 	// websockets do not support http/2 so stick to http 1.1.
 	wssConn, r, err := wssdialer.Dial(connectURL, wssHeader)
 	if err != nil {
-		// FIXME: when unauthorized, don't retry. A new token is needed. (session ended).
+		status := transport.StatusLost
 		if r != nil && r.StatusCode == http.StatusUnauthorized {
-			err = fmt.Errorf("%w: Connection as '%s' to '%s' failed: %s",
-				utils.UnauthorizedError, clientID, connectURL, err.Error())
+			err = fmt.Errorf("ConnectWSS: Connection as '%s' to '%s' failed: %s",
+				clientID, connectURL, err.Error())
 			slog.Warn(err.Error())
+			status = transport.StatusRefused
 		}
 		wssCancelFn()
-		return nil, nil, err
+		return nil, nil, status, err
 	}
 
 	closeWSSFn := func() {
@@ -113,18 +113,16 @@ func ConnectWSS(
 		wssCancelFn()
 	}
 	// notify the world we're connected
-	if onConnect != nil {
-		onConnect(true, nil)
-	}
+	onConnect(transport.StatusConnected, nil)
+
 	// last, start handling incoming messages
 	go func() {
 		WSSReadLoop(wssCtx, wssConn, onMessage)
-		if onConnect != nil {
-			onConnect(false, nil)
-		}
+		// end of read loop
+		onConnect(transport.StatusLost, nil)
 	}()
 
-	return closeWSSFn, wssConn, nil
+	return closeWSSFn, wssConn, transport.StatusConnected, nil
 }
 
 // WSSReadLoop reads incoming websocket messages in a loop, until connection closes or context is cancelled

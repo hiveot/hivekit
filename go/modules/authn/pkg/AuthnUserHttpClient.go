@@ -24,9 +24,9 @@ func (cl *AuthnUserHttpClient) Close() {
 }
 
 // set the clientID and authn token this client uses
-func (cl *AuthnUserHttpClient) ConnectWithToken(clientID string, token string) (err error) {
+func (cl *AuthnUserHttpClient) AuthenticateWithToken(clientID string, token string) (err error) {
 
-	cl.tlsClient.ConnectWithToken(clientID, token)
+	cl.tlsClient.AuthenticateWithToken(clientID, token)
 	return nil
 }
 
@@ -51,7 +51,7 @@ func (cl *AuthnUserHttpClient) GetTlsClient() transport.ITLSClient {
 func (cl *AuthnUserHttpClient) LoginWithPassword(clientID string, password string) (newToken string, err error) {
 
 	// LoginWithPassword posts a login request to the TLS server using a login ID and
-	// password and obtain an auth token for use with ConnectWithToken.
+	// password and obtain an auth token for use with AuthenticateWithToken.
 	// This uses the http-basic login endpoint.
 	//
 	// TBD: is there a WoT standardized auth method?
@@ -70,7 +70,7 @@ func (cl *AuthnUserHttpClient) LoginWithPassword(clientID string, password strin
 	if err == nil && status == http.StatusOK {
 		err = jsoniter.Unmarshal(outputRaw, &newToken)
 		// apply the new token in this client
-		cl.tlsClient.ConnectWithToken(clientID, newToken)
+		cl.tlsClient.AuthenticateWithToken(clientID, newToken)
 	}
 	if err != nil {
 		slog.Warn("LoginWithPassword failed: " + err.Error())
@@ -94,7 +94,7 @@ func (cl *AuthnUserHttpClient) RefreshToken(oldToken string) (newToken string, e
 	refreshPath := authn.HttpPostRefreshPath
 	dataJSON, _ := jsoniter.Marshal(oldToken)
 	// first initialize the client with the old token
-	cl.tlsClient.ConnectWithToken(clientID, oldToken)
+	cl.tlsClient.AuthenticateWithToken(clientID, oldToken)
 	// post a request and expect an instance response
 	outputRaw, status, err := cl.tlsClient.Post(refreshPath, dataJSON)
 
@@ -106,7 +106,7 @@ func (cl *AuthnUserHttpClient) RefreshToken(oldToken string) (newToken string, e
 		slog.Warn("RefreshToken failed: " + err.Error())
 	} else {
 		// apply the token to the connection
-		err = cl.tlsClient.ConnectWithToken(clientID, oldToken)
+		err = cl.tlsClient.AuthenticateWithToken(clientID, oldToken)
 	}
 	return newToken, err
 }

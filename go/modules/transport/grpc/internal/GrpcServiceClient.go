@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"log/slog"
 	"sync"
-	"sync/atomic"
 	"time"
 
 	"github.com/hiveot/hivekit/go/modules/transport"
@@ -38,7 +37,7 @@ type GrpcServiceClient struct {
 	// pass auth token to GetRequestMetadata
 	authToken string
 
-	// clientID and connectionID to include in the grpc metadata.
+	// clientID and connectionID to include in the grpc metadata sent to the server.
 	clientID     string
 	connectionID string
 
@@ -63,8 +62,6 @@ type GrpcServiceClient struct {
 
 	respTimeout time.Duration
 
-	retryOnDisconnect atomic.Bool
-
 	// The GRPC server service description
 	serviceDesc grpc.ServiceDesc
 
@@ -73,6 +70,15 @@ type GrpcServiceClient struct {
 
 	// If a certificate was provided then this contains the caCert and optionally the clientCert
 	tlsConfig *tls.Config
+}
+
+// Set the token to use with authentication but do not connect yet.
+func (cl *GrpcServiceClient) AuthenticateWithToken(clientID string, authToken string) (err error) {
+	cl.mux.Lock()
+	defer cl.mux.Unlock()
+	cl.clientID = clientID
+	cl.authToken = authToken
+	return nil
 }
 
 // Close disconnects
@@ -93,11 +99,7 @@ func (cl *GrpcServiceClient) Close() {
 
 // Initiate a connection to the grpc server.
 // The owner must open the streams it wasnt to use using 'ConnectStream'.
-func (cl *GrpcServiceClient) ConnectWithToken(clientID string, authToken string) (err error) {
-	cl.mux.Lock()
-	defer cl.mux.Unlock()
-	cl.clientID = clientID
-
+func (cl *GrpcServiceClient) Connect() (err error) {
 	// fail if a connection already exists
 	if cl.grpcConn != nil {
 		return fmt.Errorf("Connect: A connection already exists. Close first.")
@@ -119,7 +121,6 @@ func (cl *GrpcServiceClient) ConnectWithToken(clientID string, authToken string)
 
 	// this client implements the PerRPCCredentials interface
 	// see: GetRequestMetadata and RequireTransportSecurity
-	cl.authToken = authToken
 	rpcCredOpt := grpc.WithPerRPCCredentials(cl)
 	dialOpts = append(dialOpts, rpcCredOpt)
 
@@ -139,8 +140,7 @@ func (cl *GrpcServiceClient) ConnectWithToken(clientID string, authToken string)
 		slog.Error("Connect: NewClient failed", "err", err.Error())
 		return err
 	}
-
-	return err
+	return nil
 }
 
 // ConnectStream connects to a server stream
@@ -184,9 +184,14 @@ func (cl *GrpcServiceClient) ConnectStream(name string) (*BufferedStream, error)
 	return bufferedStream, nil
 }
 
-// // GetConnectionID returns the client's connection details
-func (cl *GrpcServiceClient) GetConnectionID() string {
-	return cl.connectionID
+// PerRPCCredentials:GetRequestMetadata
+func (cl *GrpcServiceClient) GetRequestMetadata(ctx context.Context, uri ...string) (map[string]string, error) {
+	// bearer authentication
+	return map[string]string{
+		"authorization":              "bearer " + cl.authToken,
+		transport.ClientIDContextID:  cl.clientID,
+		transport.ClientCIDContextID: cl.connectionID,
+	}, nil
 }
 
 // GetStream returns the stream with the given name or an error if not found
@@ -228,16 +233,6 @@ func (cl *GrpcServiceClient) Ping(input string) (reply string, err error) {
 	return reply, nil
 }
 
-// PerRPCCredentials:GetRequestMetadata
-func (cl *GrpcServiceClient) GetRequestMetadata(ctx context.Context, uri ...string) (map[string]string, error) {
-	// bearer authentication
-	return map[string]string{
-		"authorization":              "bearer " + cl.authToken,
-		transport.ClientIDContextID:  cl.clientID,
-		transport.ClientCIDContextID: cl.connectionID,
-	}, nil
-}
-
 // PerRPCCredentials:RequireTransportSecurity
 // FIXME: support for TLS certificate only when using tcp connections, not when using UDS
 func (cl *GrpcServiceClient) RequireTransportSecurity() bool { return false }
@@ -272,13 +267,17 @@ func (cl *GrpcServiceClient) WaitUntilDisconnect(name string) error {
 // or
 // > cl := NewGrpcServiceClient("127.0.0.1:8899", caCert, time.Minute, "service1", onClientMessage)
 // >
-// > cl.ConnectWithToken(clientID,authToken)
+// > cl.AuthenticateWithToken(clientID,authToken)
+// > cl.Connect()
 // > cl.ConnectStream(streamName) to connect to individual server streams.
 //
-// The serviceName is provided by the application and must match the server.
-// Use ConnectStream(name) to connect to individual server streams.
+// connectURI is the full connection
+// cid is the unique connection instance ID, identifying it with the server application
 // clientCert is optional for use with tcp sockets
 // caCert is optional for use with tcp sockets
+// respTimeout is used when creating the buffered stream
+// serviceName is provided by the application and must match the server.
+// msgHandler is the callback with received messages
 func NewGrpcServiceClient(
 	connectURI string,
 	clientCert *tls.Certificate, caCert *x509.Certificate,

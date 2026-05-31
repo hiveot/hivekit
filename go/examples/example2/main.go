@@ -13,6 +13,7 @@ import (
 	"github.com/hiveot/hivekit/go/examples/wotco"
 	"github.com/hiveot/hivekit/go/modules/factory"
 	routerpkg "github.com/hiveot/hivekit/go/modules/router/pkg"
+	clientspkg "github.com/hiveot/hivekit/go/modules/transport/clients/pkg"
 	"github.com/hiveot/hivekit/go/utils"
 )
 
@@ -71,19 +72,30 @@ func main() {
 	// Ignore the certificate check just for this example. Dont do this.
 	http.DefaultTransport.(*http.Transport).TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
 
+	// build the chain: consumer -> reconnect -> router => client[s]
 	co := wotco.NewWotConsumer(time.Minute)
-	co.SetTimeout(time.Minute)
+	err := co.Start()
 
-	// run the router without CA. Don't try this at home.
-	// the WotConsumer has a list of collected TDs for use by the router
-	r := routerpkg.NewRouterService("", co.GetTD, nil, nil, time.Minute)
-	err := r.Start()
-	r.SetTimeout(time.Minute)
+	// 2 reconnect
+	rc := clientspkg.NewReconnect(time.Minute)
+	rc.SetNotificationSink(co.HandleNotification)
+	co.SetRequestSink(rc.HandleRequest)
+	err = rc.Start()
 	if err != nil {
 		slog.Error(err.Error())
 	}
-	co.SetRequestSink(r.HandleRequest)
-	r.SetNotificationSink(co.HandleNotification)
+
+	// 3 router (which creates clients based on forms)
+	// run the router without CA. Don't try this at home.
+	// the WotConsumer has a list of collected TDs for use by the router
+	rtr := routerpkg.NewRouterService("", co.GetTD, nil, nil, time.Minute)
+	rtr.SetNotificationSink(rc.HandleNotification)
+	rc.SetRequestSink(rtr.HandleRequest)
+
+	err = rtr.Start()
+	if err != nil {
+		slog.Error(err.Error())
+	}
 
 	// discover.Discover(filterType, filterAddr, showAff, showTXT, showTD, waitTime)
 	switch cmd {

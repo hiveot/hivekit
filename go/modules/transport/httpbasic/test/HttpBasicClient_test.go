@@ -25,7 +25,6 @@ func TestConnect(t *testing.T) {
 	clientID := "testclient"
 	var caCert *x509.Certificate
 	var token = ""
-	var isConnected = false
 
 	// dummyAuthenticator := authnapi.NewDummyAuthenticator()
 	cfg := httptransport.NewConfig(
@@ -38,17 +37,15 @@ func TestConnect(t *testing.T) {
 	err = m.Start()
 	require.NoError(t, err)
 
-	cl := httpbasicpkg.NewHttpBasicClient(baseURL, caCert, nil,
-		func(connected bool, cl2 transport.IConnection, err2 error) {
-			isConnected = connected
-		})
+	cl := httpbasicpkg.NewHttpBasicClient(baseURL, caCert, nil)
 	cl.SetTimeout(rpcTimeout)
-	err = cl.ConnectWithToken(clientID, token)
+	err = cl.AuthenticateWithToken(clientID, token)
 	require.NoError(t, err)
-	time.Sleep(time.Millisecond)
-	assert.True(t, isConnected)
+	err = cl.Connect()
+	require.NoError(t, err)
+	assert.Equal(t, transport.StatusConnected, cl.GetConnectionStatus())
 
 	cl.Close()
 	time.Sleep(time.Millisecond)
-	assert.False(t, isConnected)
+	assert.Equal(t, transport.StatusClosed, cl.GetConnectionStatus())
 }

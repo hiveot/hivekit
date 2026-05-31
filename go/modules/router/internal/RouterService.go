@@ -77,14 +77,54 @@ func (m *RouterService) GetClientConnection(tdi *td.TD) (
 	}
 	connID := fmt.Sprintf("%s://%s", parts.Scheme, parts.Host)
 	c, found := m.deviceConnections[connID]
-	if !found || !c.IsConnected() {
+	if !found || c.GetConnectionStatus() != transport.StatusConnected {
 		// TODO: how to determine the CA for this server?
 		// TODO: support use of client cert for this server?
 		// connect and store the connection if successful
-		c, err = clients.NewTransportClient(protocolType, href, m.caCert, nil)
+		c, err = clients.NewTransportClient(protocolType, href, m.caCert)
 		c.SetTimeout(m.timeout)
+
+		// TODO: do clients emit notifications? yes connect/disconnect
+		// do clients accept requests? yes connect action, status props
+		// how are clients modules identified (thingID)? client type, uuid, both, clientID, cid?
+		//  not clientID as the same ID can be used to connect to different devices
+		//  not client type as these are the same for all instances
+		//  uuid is possible but is harder in testing/debugging
+		//  both appended could work
+		//  cid (shortid) is used in identifying the client instance to the server (clientid-cid)
+		//     careful for hidden dependencies
+		//     can the same TLS client (cid) be used by multiple transports like on the server?
+		//       eg use same TLS client for SSE and WSS connection?
+		//         in theory yes, in practise a new instance is more l
+		//  {protocolType}-{clientID}-{shortid}
+		//
+		// how to reconnect? use the thingID from the notification in the connect request
+		// can reconnect be placed before the router? yes
+		//
+		// does the router remove connections when they drop?  no, only on close.
+		//
+		// should router reconnect?
+		//  A: yes, it knows what need to be done and manages subscriptions
+		//  B: no, use the reconnect module which resubscribes
+		//
+		// does each client have a unique thingID?
+		//  a. no, thingID not used/needed?
+		//  b. yes, thingID used in notifications
+		//      needed because router can connect using multiple clients
+		//
+		// can connections be managed remotely? use-case?
+		//
+		// should client modules deal with connect notifications?
+		//  a. yes, allows reconnect module to work
+		//     yes, supports retrieving stats on reconnection attempts
+		//     yes, making clients addressable allows for remote configuration
+		//  b. no, bit of a hassle, could implement reconnect with resubscribe itself
+		//
 		if err == nil {
-			err = c.Authenticate(tdi, m.credStore.GetCredentials)
+			err = c.AuthenticateWithForm(tdi, m.credStore.GetCredentials)
+		}
+		if err == nil {
+			err = c.Connect()
 		}
 		if err == nil {
 			m.deviceConnections[connID] = c

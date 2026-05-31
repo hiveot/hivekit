@@ -21,12 +21,6 @@ type WSSMessage map[string]any
 type WssServerConnection struct {
 	transport.ServerConnectionBase
 
-	// connection ID
-	//connectionID string
-
-	// clientID is the account ID of the connected client
-	// clientID string
-
 	// connection request remote address
 	httpReq *http.Request
 

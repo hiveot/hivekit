@@ -59,7 +59,7 @@ func TestMain(m *testing.M) {
 // 	if err != nil {
 // 		panic("Failed creating consumer connection: " + err.Error())
 // 	}
-// 	cc.ConnectWithToken(clientID, token)
+// 	cc.AuthenticateWithToken(clientID, token)
 
 // 	return co, cc, token
 // }
@@ -142,7 +142,7 @@ func TestStartStop(t *testing.T) {
 // 	// logout
 // 	serverURL := srv.GetConnectURL()
 // 	authnClient := authnclient.NewAuthnHttpClient(serverURL, certBundle.CaCert)
-// 	authnClient.ConnectWithToken(testClientID1, token1)
+// 	authnClient.AuthenticateWithToken(testClientID1, token1)
 // 	err := authnClient.Logout(token1)
 // 	assert.NoError(t, err)
 
@@ -203,16 +203,16 @@ func TestStartStop(t *testing.T) {
 
 // 	// set the token
 // 	t.Log("Expecting SetBearerToken('bad-token') to fail")
-// 	err := cc1.ConnectWithToken(testClientID1, "bad-token")
+// 	err := cc1.AuthenticateWithToken(testClientID1, "bad-token")
 // 	require.Error(t, err)
 
 // 	// reconnect with a valid token and connect with a bad client-id
-// 	err = cc1.ConnectWithToken(testClientID1, token1)
+// 	err = cc1.AuthenticateWithToken(testClientID1, token1)
 // 	assert.NoError(t, err)
 
 // 	serverURL := srv.GetConnectURL()
 // 	authCl := authnclient.NewAuthnHttpClient(serverURL, certBundle.CaCert)
-// 	authCl.ConnectWithToken(testClientID1, token1)
+// 	authCl.AuthenticateWithToken(testClientID1, token1)
 // 	validToken, err := authCl.RefreshToken(token1)
 // 	//validToken, err := co1.RefreshToken(token1)
 // 	assert.NoError(t, err)

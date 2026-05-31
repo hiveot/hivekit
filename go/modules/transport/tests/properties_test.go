@@ -21,10 +21,10 @@ func TestAllPropsProtocols(t *testing.T) {
 	}
 }
 func TestAllProps(t *testing.T) {
-	t.Run("TestObservePropertyByConsumer", TestObservePropertyByConsumer)
-	t.Run("TestPublishPropertyByAgent", TestPublishPropertyByAgent)
-	t.Run("TestReadProperty", TestReadProperty)
-	t.Run("TestReadAllProperties", TestReadAllProperties)
+	t.Run("TestObservePropertyByConsumer_"+testProtocol, TestObservePropertyByConsumer)
+	t.Run("TestPublishPropertyByAgent_"+testProtocol, TestPublishPropertyByAgent)
+	t.Run("TestReadProperty_"+testProtocol, TestReadProperty)
+	t.Run("TestReadAllProperties_"+testProtocol, TestReadAllProperties)
 }
 
 // test property messages between agent, server and client
@@ -32,10 +32,10 @@ func TestAllProps(t *testing.T) {
 
 // Test observing and receiving all properties by consumer
 func TestObservePropertyByConsumer(t *testing.T) {
-	t.Logf("---%s---\n", t.Name())
+	t.Logf("---%s--- (%s)\n", t.Name(), testProtocol)
 	var rxVal1 atomic.Value
 	var rxVal2 atomic.Value
-	var thingID = "dtw:thing1"
+	var thingID = "thing1"
 	var propertyKey1 = "property1"
 	var propertyKey2 = "property2"
 	var propValue1 = "value1"
@@ -46,17 +46,24 @@ func TestObservePropertyByConsumer(t *testing.T) {
 	defer cancelFn()
 
 	// 2. connect with two consumers
-	co1, cc1, _ := testEnv.NewConsumerClient(testClientID1, authn.ClientRoleViewer, nil)
+	co1, cc1, _ := testEnv.NewConnectedConsumer(testClientID1, authn.ClientRoleViewer, false)
 	defer cc1.Close()
-	co2, cc2, _ := testEnv.NewConsumerClient(testClientID1, authn.ClientRoleViewer, nil)
+	co2, cc2, _ := testEnv.NewConnectedConsumer(testClientID1, authn.ClientRoleViewer, false)
 	defer cc2.Close()
 
 	// set the handler for property updates and subscribe
 	co1.SetAppNotificationHook(func(ev *msg.NotificationMessage) {
-		rxVal1.Store(ev.Data)
+		// server->client does not retain the sender in WoT
+		// assert.NotEmpty(t, ev.SenderID)
+		if ev.ThingID == thingID {
+			rxVal1.Store(ev.Data)
+		}
 	})
+	// co2 receive all events
 	co2.SetAppNotificationHook(func(ev *msg.NotificationMessage) {
-		rxVal2.Store(ev.Data)
+		if ev.ThingID == thingID {
+			rxVal2.Store(ev.Data)
+		}
 	})
 
 	// Client1 subscribes to one, client 2 to all property updates
@@ -143,7 +150,7 @@ func TestPublishPropertyByAgent(t *testing.T) {
 // Consumer reads property from agent
 func TestReadProperty(t *testing.T) {
 	t.Logf("---%s---\n", t.Name())
-	var thingID = "dtw:thing1"
+	var thingID = "thing1"
 	var propKey = "propKey1"
 	var propValue = "value11"
 	var timestamp = "mytime"
@@ -165,7 +172,7 @@ func TestReadProperty(t *testing.T) {
 	defer cancelFn()
 
 	// 2. connect as a consumer
-	co1, cc1, _ := testEnv.NewConsumerClient(testClientID1, authn.ClientRoleViewer, nil)
+	co1, cc1, _ := testEnv.NewConnectedConsumer(testClientID1, authn.ClientRoleViewer, false)
 	defer cc1.Close()
 
 	var rxVal string
@@ -202,7 +209,7 @@ func TestReadAllProperties(t *testing.T) {
 	defer cancelFn()
 
 	// 2. connect as a consumer
-	co1, cc1, _ := testEnv.NewConsumerClient(testClientID1, authn.ClientRoleViewer, nil)
+	co1, cc1, _ := testEnv.NewConnectedConsumer(testClientID1, authn.ClientRoleViewer, false)
 	defer cc1.Close()
 
 	propMap, err := co1.ReadAllProperties(thingID)

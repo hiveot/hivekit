@@ -68,7 +68,7 @@ func startServer() (*grpclib.GrpcServiceServer, *testenv.TestAuthenticator, erro
 	authn := testenv.NewTestAuthenticator()
 	grpcAuthn := grpclib.NewGrpcAuthenticator(authn)
 	srv := grpclib.NewGrpcServiceServer(
-		lis, certBundle.ServerCert, grpcServiceName, grpcAuthn, time.Minute)
+		lis, certBundle.ServerCert, certBundle.CaCert, grpcServiceName, grpcAuthn, time.Minute)
 	err = srv.Start()
 
 	return srv, authn, err
@@ -79,6 +79,7 @@ func TestConnectPing(t *testing.T) {
 	// test connect/disconnect with ping
 	t.Logf("---%s---\n", t.Name())
 	var clientID = "client1"
+	var cl *grpclib.GrpcServiceClient
 
 	srv, authn, err := startServer()
 	require.NoError(t, err)
@@ -90,10 +91,51 @@ func TestConnectPing(t *testing.T) {
 
 	// connect a client
 	handleClientMessage := func(raw []byte) {}
-	cl := grpclib.NewGrpcServiceClient(
+	cl = grpclib.NewGrpcServiceClient(
 		clientURL, nil, certBundle.CaCert, time.Minute, grpcServiceName, handleClientMessage)
+	err = cl.AuthenticateWithToken(clientID, token)
+	require.NoError(t, err)
 
-	err = cl.ConnectWithToken(clientID, token)
+	err = cl.Connect()
+	require.NoError(t, err)
+
+	// test ping
+	t0 := time.Now()
+	reply, err := cl.Ping("hello world")
+	assert.NoError(t, err)
+	assert.Equal(t, "hello world", reply)
+	d0 := (time.Since(t0) / 10000) * 10000 // rounding to usec
+	slog.Info(fmt.Sprintf("Ping performed in %s", d0.String()))
+	cl.Close()
+
+	// check closing twice not causing a panic
+	assert.NotPanics(t, func() {
+		cl.Close()
+	})
+}
+
+// TestConnectPingClientCert tests creating a UDS or TCP connection
+// with TLS and cert authentication.
+func TestConnectPingClientCert(t *testing.T) {
+	// test connect/disconnect with ping
+	t.Logf("---%s---\n", t.Name())
+	var clientID = "client1"
+	var cl *grpclib.GrpcServiceClient
+
+	srv, authn, err := startServer()
+	require.NoError(t, err)
+	defer srv.Stop()
+
+	// add a client to connect as
+	_ = authn.AddClient(clientID, "client 1", "myrole")
+
+	// connect a client
+	handleClientMessage := func(raw []byte) {}
+	cl = grpclib.NewGrpcServiceClient(
+		clientURL, certBundle.ClientCert, certBundle.CaCert,
+		time.Minute, grpcServiceName, handleClientMessage)
+
+	err = cl.Connect()
 	require.NoError(t, err)
 
 	// test ping
@@ -120,7 +162,7 @@ func TestStreamMessages(t *testing.T) {
 	// UDS-i5: 100byte->540K msg/sec; 300byte->490K msg/sec; 1K->340K msg/sec; 100K->8.9K msg/sec
 	//    pi3: 100byte-> 93K msg/sec; 300byte-> 42K msg/sec; 1K->5.9K msg/sec; 100K->680  msg/sec
 	// TCP-i5: 100byte->520K msg/sec; 300byte->460K msg/sec; 1K->310K msg/sec; 100K->6.0K msg/sec
-	var msgSize = 100000
+	var msgSize = 1000
 	// var rxDelay = time.Millisecond * 0
 	const serviceName = "service1"
 	const streamName = "stream1"
@@ -162,7 +204,8 @@ func TestStreamMessages(t *testing.T) {
 	// certBundle.ServerCert = nil
 	// certBundle.CaCert = nil
 
-	srv := grpclib.NewGrpcServiceServer(lis, certBundle.ServerCert, serviceName, nil, time.Minute)
+	srv := grpclib.NewGrpcServiceServer(
+		lis, certBundle.ServerCert, certBundle.CaCert, serviceName, nil, time.Minute)
 	srv.CreateStream(streamName, serveStream2)
 
 	err = srv.Start()
@@ -180,8 +223,10 @@ func TestStreamMessages(t *testing.T) {
 	cl := internal.NewGrpcServiceClient(
 		clientURL, nil, certBundle.CaCert, time.Minute, serviceName, onClientMessage)
 
-	err = cl.ConnectWithToken(clientID, authToken)
+	err = cl.AuthenticateWithToken(clientID, authToken)
 	assert.NoError(t, err) // (dont use require as svc.Stop is not a defer)
+	err = cl.Connect()
+	assert.NoError(t, err)
 
 	_, err = cl.ConnectStream(streamName)
 	require.NoError(t, err) // (dont use require as svc.Stop is not a defer)

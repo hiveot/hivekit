@@ -69,11 +69,14 @@ func (co *WotConsumer) Connect(thingID string) (transport.ITransportClient, erro
 	if !found {
 		return nil, fmt.Errorf("No TD for thing %s", thingID)
 	}
-	c, err := clients.NewTransportClientFromTD(tdoc, co.caCert, nil)
+	c, err := clients.NewTransportClientFromTD(tdoc, co.caCert)
 	if err == nil {
 		err = fmt.Errorf("n/c")
 		// FIXME: determine clientID and token
-		err = c.ConnectWithToken("", "")
+		err = c.AuthenticateWithToken("", "")
+		if err == nil {
+			err = c.Connect()
+		}
 
 		co.clients[thingID] = c
 	}
@@ -223,11 +226,14 @@ func (co *WotConsumer) ReadThing(thingID string) []string {
 	lines = append(lines, fmt.Sprintf("Type:        %s\n", tdoc.AtType))
 	lines = append(lines, fmt.Sprintf("Description: %s\n", tdoc.Description))
 
-	c, err := clients.NewTransportClientFromTD(tdoc, co.caCert, nil)
+	c, err := clients.NewTransportClientFromTD(tdoc, co.caCert)
 	if err == nil {
 		defer c.Close()
 		c.SetTimeout(time.Minute) // for testing
-		err = c.ConnectWithToken(co.clientID, co.authToken)
+		err = c.AuthenticateWithToken(co.clientID, co.authToken)
+		if err == nil {
+			err = c.Connect()
+		}
 	}
 	if err == nil {
 		co.SetRequestSink(c.HandleRequest)

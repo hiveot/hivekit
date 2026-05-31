@@ -20,9 +20,9 @@ import (
 // Use SetRequestSink to set the handler for requests send by consumers
 // Use SetNotificationSink to set the handler for notifications send by agents.
 func NewHiveotGrpcClient(
-	addr string, caCert *x509.Certificate, ch transport.ConnectionHandler) transport.ITransportClient {
+	addr string, caCert *x509.Certificate) transport.ITransportClient {
 
-	return internalclient.NewGrpcClient(addr, caCert, ch)
+	return internalclient.NewGrpcClient(addr, caCert)
 }
 
 // Create a hiveot gRPC client using the factory
@@ -31,7 +31,7 @@ func NewHiveotGrpcClientFactory(f factory.IModuleFactory) modules.IHiveModule {
 	clientCert, _ := env.GetClientCert()
 	serverURL := env.GetServerURL()
 
-	m := NewHiveotGrpcClient(serverURL, env.CaCert, nil)
+	m := NewHiveotGrpcClient(serverURL, env.CaCert)
 	m.SetTimeout(env.RpcTimeout)
 
 	// if client certificate not available attempt auth token
@@ -41,7 +41,7 @@ func NewHiveotGrpcClientFactory(f factory.IModuleFactory) modules.IHiveModule {
 		authToken := env.GetAuthToken()
 
 		if clientID != "" && authToken != "" {
-			m.ConnectWithToken(clientID, authToken)
+			m.AuthenticateWithToken(clientID, authToken)
 		}
 	}
 	return m

@@ -155,7 +155,7 @@ func TestTokenAuth(t *testing.T) {
 	cl := httptransportpkg.NewHttpTransportClient(clientHostPort, testCerts.CaCert, 0)
 	require.NoError(t, err)
 	defer cl.Close()
-	cl.ConnectWithToken(loginID1, token1)
+	cl.AuthenticateWithToken(loginID1, token1)
 
 	// test the auth with a GET request
 	_, _, err = cl.Get(path1)
@@ -165,7 +165,7 @@ func TestTokenAuth(t *testing.T) {
 	// test a failed login
 	t.Log("--- test unauthorized token login ---")
 	cl.Close()
-	cl.ConnectWithToken(loginID1, badToken)
+	cl.AuthenticateWithToken(loginID1, badToken)
 	_, _, err = cl.Get(path1)
 	assert.Error(t, err)
 	assert.Equal(t, 2, path1Hit) // should not increase
@@ -207,7 +207,7 @@ func TestClientCert(t *testing.T) {
 	})
 
 	cl := httptransportpkg.NewHttpTransportClient(clientHostPort, testCerts.CaCert, 0)
-	cl.ConnectWithClientCert(testCerts.ClientCert)
+	cl.AuthenticateWithClientCert(testCerts.ClientCert)
 	_, status, err := cl.Get(path1)
 	assert.NoError(t, err)
 	assert.Equal(t, http.StatusOK, status)
@@ -246,7 +246,7 @@ func TestClientCert(t *testing.T) {
 //
 //	cl := httpapi.NewTLSClient(clientHostPort, testCerts.CaCert)
 //	require.NoError(t, err)
-//	err = cl.ConnectWithClientCert(testCerts.ClientCert)
+//	err = cl.AuthenticateWithClientCert(testCerts.ClientCert)
 //	assert.NoError(t, err)
 //
 //	_, err = cl.Get(fmt.Sprintf("%s?query1=bob&query2=3&multi=a&multi=b", path2))

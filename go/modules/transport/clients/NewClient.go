@@ -105,8 +105,9 @@ func GetProtocolType(tdoc *td.TD) (protocolType string, href string) {
 // # Use SetTimeout for increasing the default communication timeout for testing
 //
 // This is intended to be used as a sink for application modules.
-func NewTransportClient(protocolType string, serverURL string, caCert *x509.Certificate,
-	ch transport.ConnectionHandler) (cl transport.ITransportClient, err error) {
+func NewTransportClient(
+	protocolType string, serverURL string, caCert *x509.Certificate) (
+	cl transport.ITransportClient, err error) {
 
 	parts, err := url.Parse(serverURL)
 	scheme := strings.ToLower(parts.Scheme)
@@ -135,20 +136,20 @@ func NewTransportClient(protocolType string, serverURL string, caCert *x509.Cert
 		// if strings.HasPrefix(serverURL, "unix") {
 		// 	caCert = nil
 		// }
-		cl = grpcpkg.NewHiveotGrpcClient(serverURL, caCert, ch)
+		cl = grpcpkg.NewHiveotGrpcClient(serverURL, caCert)
 
 	case transport.ProtocolTypeHiveotSsesc:
-		cl = ssescpkg.NewSseScClient(serverURL, caCert, ch)
+		cl = ssescpkg.NewSseScClient(serverURL, caCert)
 
 	case transport.ProtocolTypeHiveotWebsocket:
-		cl = wsspkg.NewHiveotWssClient(serverURL, caCert, ch)
+		cl = wsspkg.NewHiveotWssClient(serverURL, caCert)
 
 	case transport.ProtocolTypeWotWebsocket:
-		cl = wsspkg.NewWotWssClient(serverURL, caCert, ch)
+		cl = wsspkg.NewWotWssClient(serverURL, caCert)
 
 	case transport.ProtocolTypeWotHttpBasic:
 		caCert := caCert
-		cl = httpbasicpkg.NewHttpBasicClient(serverURL, caCert, nil, ch)
+		cl = httpbasicpkg.NewHttpBasicClient(serverURL, caCert, nil)
 
 	//case transport.ProtocolTypeWotMQTTWSS:
 	//	fullURL = testServerMqttWssURL
@@ -162,10 +163,10 @@ func NewTransportClient(protocolType string, serverURL string, caCert *x509.Cert
 // thing.
 //
 // This uses the TD base to determine the connection protocol.
-func NewTransportClientFromTD(tdoc *td.TD, caCert *x509.Certificate,
-	ch transport.ConnectionHandler) (cl transport.ITransportClient, err error) {
+func NewTransportClientFromTD(
+	tdoc *td.TD, caCert *x509.Certificate) (cl transport.ITransportClient, err error) {
 
 	protocolType, href := GetProtocolType(tdoc)
-	cl, err = NewTransportClient(protocolType, href, caCert, ch)
+	cl, err = NewTransportClient(protocolType, href, caCert)
 	return cl, err
 }

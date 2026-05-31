@@ -2,6 +2,7 @@ package internalserver
 
 import (
 	"crypto/tls"
+	"crypto/x509"
 	"fmt"
 	"log/slog"
 	"net"
@@ -29,6 +30,8 @@ type GrpcServer struct {
 	authenticator transport.IAuthenticator
 
 	tlsCert *tls.Certificate
+
+	caCert *x509.Certificate
 
 	grpcService *grpclib.GrpcServiceServer
 
@@ -104,7 +107,7 @@ func (m *GrpcServer) Start() (err error) {
 	}
 	grpcAuthn := grpclib.NewGrpcAuthenticator(m.authenticator)
 	m.grpcService = grpclib.NewGrpcServiceServer(
-		lis, m.tlsCert, m.serviceName, grpcAuthn, time.Minute)
+		lis, m.tlsCert, m.caCert, m.serviceName, grpcAuthn, time.Minute)
 
 	m.grpcService.CreateStream(grpctransport.StreamNameNotification, m.ServeStreamConnection)
 	// m.grpcService.AddStream(grpcapi.StreamNameRequestResponse, m.ServeStreamConnection)
@@ -138,11 +141,12 @@ func (m *GrpcServer) Stop() {
 //
 //	connectURL is the URL to listen on, e.g. scheme://address used in creating a net.listener
 //	 use "" for default
-//	tlsCert is the TLS certificate to use for secure connections, or nil for insecure
+//	tlsCert is the server TLS certificate to use for secure connections, or nil for insecure
+//	caCert *x509.Certificate is the CA certificate to validate client auth. nil to ignore
 //	authn is the authenticator for verifying the client token
 //	respTimeout is the time the server waits for a response when sending requests. defaults to 3sec
 func NewGrpcServer(
-	connectURL string, tlsCert *tls.Certificate,
+	connectURL string, tlsCert *tls.Certificate, caCert *x509.Certificate,
 	authn transport.IAuthenticator, respTimeout time.Duration) *GrpcServer {
 
 	if connectURL == "" {
@@ -151,6 +155,7 @@ func NewGrpcServer(
 
 	srv := &GrpcServer{
 		authenticator: authn,
+		caCert:        caCert,
 		connectURL:    connectURL,
 		tlsCert:       tlsCert,
 		respTimeout:   respTimeout,

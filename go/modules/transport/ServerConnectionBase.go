@@ -1,7 +1,6 @@
 package transport
 
 import (
-	"errors"
 	"fmt"
 	"log/slog"
 	"sync"
@@ -70,11 +69,6 @@ type ServerConnectionBase struct {
 	Mux sync.RWMutex
 }
 
-// ConnectWithToken is defined in IConnection and does not apply to server side connections.
-func (scb *ServerConnectionBase) ConnectWithToken(_, _ string, _ ConnectionHandler) error {
-	return errors.New("Not for server connections")
-}
-
 func (scb *ServerConnectionBase) Disconnect() {
 	scb.isConnected.Store(false)
 }
@@ -85,6 +79,14 @@ func (scb *ServerConnectionBase) GetClientID() string {
 
 func (scb *ServerConnectionBase) GetConnectionID() string {
 	return scb.ConnectionID
+}
+
+// // GetConnectionStatus returns the current connection status
+func (sc *ServerConnectionBase) GetConnectionStatus() ConnectionStatus {
+	if sc.isConnected.Load() {
+		return StatusConnected
+	}
+	return StatusLost
 }
 
 // HasSubscription returns true if this connection has subscribed to the given

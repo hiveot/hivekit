@@ -17,10 +17,9 @@ import (
 //	wssURL is the full websocket connection URL including path
 //	caCert is the server CA for TLS connection validation
 //	ch is the connect/disconnect callback. nil to ignore
-func NewHiveotWssClient(wssURL string, caCert *x509.Certificate,
-	ch transport.ConnectionHandler) transport.ITransportClient {
+func NewHiveotWssClient(wssURL string, caCert *x509.Certificate) transport.ITransportClient {
 
-	return internal.NewHiveotWssClient(wssURL, caCert, ch)
+	return internal.NewHiveotWssClient(wssURL, caCert)
 }
 
 // Create a websocket client for the given factory environment
@@ -35,17 +34,17 @@ func NewHiveotWssClientFactory(f factory.IModuleFactory) (modules.IHiveModule, e
 	env := f.GetEnvironment()
 	clientCert, _ := env.GetClientCert()
 	wssURL := env.GetServerURL()
-	m := NewHiveotWssClient(wssURL, env.CaCert, nil)
+	m := NewHiveotWssClient(wssURL, env.CaCert)
 	m.SetTimeout(env.RpcTimeout)
 	if clientCert != nil {
-		err = m.ConnectWithClientCert(clientCert)
+		err = m.AuthenticateWithClientCert(clientCert)
 	} else {
 		// if client certificate not available attempt auth token
 		clientID := env.GetClientID()
 		authToken := env.GetAuthToken()
 
 		if clientID != "" && authToken != "" {
-			err = m.ConnectWithToken(clientID, authToken)
+			err = m.AuthenticateWithToken(clientID, authToken)
 		}
 	}
 	if err != nil {
@@ -60,15 +59,15 @@ func NewHiveotWssClientFactory(f factory.IModuleFactory) (modules.IHiveModule, e
 // can be mapped to a RequestMessage and ResponseMessage. It is used to support
 // both hiveot and WoT websocket message formats.
 //
-// Users must use ConnectWithToken to authenticate and connect.
+// Users must use AuthenticateWithToken to authenticate and connect.
 //
 //	wssURL is the full websocket connection URL
 //	caCert is the server CA for TLS connection validation
 //	timeout is the maximum connection wait time. 0 for default.
 //	ch is the connection callback handler, nil to ignore
-func NewWotWssClient(wssURL string, caCert *x509.Certificate,
-	ch transport.ConnectionHandler) transport.ITransportClient {
-	return internal.NewWotWssClient(wssURL, caCert, ch)
+func NewWotWssClient(
+	wssURL string, caCert *x509.Certificate) transport.ITransportClient {
+	return internal.NewWotWssClient(wssURL, caCert)
 }
 
 // Create a websocket client for the given factory environment.
@@ -85,18 +84,18 @@ func NewWotWssClientFactory(f factory.IModuleFactory) (modules.IHiveModule, erro
 	clientCert, _ := env.GetClientCert()
 	serverURL := env.GetServerURL()
 
-	m := NewWotWssClient(serverURL, env.CaCert, nil)
+	m := NewWotWssClient(serverURL, env.CaCert)
 	m.SetTimeout(env.RpcTimeout)
 	// if client certificate not available attempt auth token
 	if clientCert != nil {
-		err = m.ConnectWithClientCert(clientCert)
+		err = m.AuthenticateWithClientCert(clientCert)
 	} else {
 		// must use token auth
 		clientID := env.GetClientID()
 		authToken := env.GetAuthToken()
 
 		if clientID != "" && authToken != "" {
-			err = m.ConnectWithToken(clientID, authToken)
+			err = m.AuthenticateWithToken(clientID, authToken)
 		}
 	}
 	if err != nil {

@@ -31,14 +31,14 @@ type ITLSClient interface {
 	// Connect using a client certificate
 	// This does not make any calls yet, just sets the client certificate.
 	// This returns an error if no CA is set
-	ConnectWithClientCert(clientCert *tls.Certificate) (err error)
+	AuthenticateWithClientCert(clientCert *tls.Certificate) (err error)
 
 	// Connect the client to a server with the clientID and token.
 	//
 	// If subprotocols require a connection then this will establish that connection.
 	// This creates a unque connectionID for the header and places the token in
 	// the authorization hedaer.
-	ConnectWithToken(clientID string, token string) error
+	AuthenticateWithToken(clientID string, token string) error
 
 	// Create a new http request with all the headers including authorization.
 	// The request can be cancelled using the provided context.

@@ -189,7 +189,7 @@ func TestAddGetEvent(t *testing.T) {
 	// do not defer cancel as it will be closed and reopened in the test
 
 	// create an end user client for testing
-	co1, _, _ := testEnv.NewConsumerClient(testClientID, authn.ClientRoleOperator, nil)
+	co1, _, _ := testEnv.NewConnectedConsumer(testClientID, authn.ClientRoleOperator, false)
 	histCl := historypkg.NewReadHistoryClient()
 	histCl.SetRequestSink(co1.HandleRequest)
 
@@ -280,7 +280,7 @@ func TestAddGetEvent(t *testing.T) {
 	// PHASE 2: after closing and reopening the svc the event should still be there
 	m, stopFn = startHistoryService(false)
 	defer stopFn()
-	co1, _, _ = testEnv.NewConsumerClient(testClientID, authn.ClientRoleOperator, nil)
+	co1, _, _ = testEnv.NewConnectedConsumer(testClientID, authn.ClientRoleOperator, false)
 	histCl = historypkg.NewReadHistoryClient()
 	histCl.SetRequestSink(co1.HandleRequest)
 
@@ -396,7 +396,7 @@ func TestAddProperties(t *testing.T) {
 	assert.Error(t, err)
 
 	// create an end user client for testing
-	co1, _, _ := testEnv.NewConsumerClient(testClientID, authn.ClientRoleOperator, nil)
+	co1, _, _ := testEnv.NewConnectedConsumer(testClientID, authn.ClientRoleOperator, false)
 	histCl := historypkg.NewReadHistoryClient()
 	histCl.SetRequestSink(co1.HandleRequest)
 
@@ -463,7 +463,7 @@ func TestPrevNext(t *testing.T) {
 
 	// create an end user client for testing
 	histCl := historypkg.NewReadHistoryClient()
-	co1, _, _ := testEnv.NewConsumerClient(testClientID, authn.ClientRoleOperator, nil)
+	co1, _, _ := testEnv.NewConnectedConsumer(testClientID, authn.ClientRoleOperator, false)
 	histCl.SetRequestSink(co1.HandleRequest)
 
 	cursorKey, releaseFn, err := histCl.GetCursor(thing0ID, "")
@@ -528,7 +528,7 @@ func TestPrevNextFiltered(t *testing.T) {
 
 	// A cursor with a filter on propName should only return results of propName
 	histCl := historypkg.NewReadHistoryClient()
-	co1, _, _ := testEnv.NewConsumerClient(testClientID, authn.ClientRoleOperator, nil)
+	co1, _, _ := testEnv.NewConnectedConsumer(testClientID, authn.ClientRoleOperator, false)
 	histCl.SetRequestSink(co1.HandleRequest)
 
 	defer co1.Stop()
@@ -596,7 +596,7 @@ func TestNextPrevUntil(t *testing.T) {
 	// 1 sensor -> 1000/24 hours is approx 41/hour
 	_ = addBulkHistory(store, agentID, count, 1, 3600*24)
 
-	co1, _, _ := testEnv.NewConsumerClient(testClientID, authn.ClientRoleOperator, nil)
+	co1, _, _ := testEnv.NewConnectedConsumer(testClientID, authn.ClientRoleOperator, false)
 	readHist := historypkg.NewReadHistoryClient()
 	readHist.SetRequestSink(co1.HandleRequest)
 	defer co1.Stop()
@@ -635,7 +635,7 @@ func TestReadHistory(t *testing.T) {
 	store, closeFn := startHistoryService(true)
 	defer closeFn()
 	//
-	co1, _, _ := testEnv.NewConsumerClient(testClientID, authn.ClientRoleOperator, nil)
+	co1, _, _ := testEnv.NewConnectedConsumer(testClientID, authn.ClientRoleOperator, false)
 	readHist := historypkg.NewReadHistoryClient()
 	readHist.SetRequestSink(co1.HandleRequest)
 	defer co1.Stop()
@@ -672,7 +672,7 @@ func TestPubEvents(t *testing.T) {
 	m, stopFn := startHistoryService(true)
 	_ = m
 	defer stopFn()
-	co1, _, _ := testEnv.NewConsumerClient(testClientID, authn.ClientRoleOperator, nil)
+	co1, _, _ := testEnv.NewConnectedConsumer(testClientID, authn.ClientRoleOperator, false)
 	readHist := historypkg.NewReadHistoryClient()
 	readHist.SetRequestSink(co1.HandleRequest)
 	defer co1.Stop()

@@ -4,13 +4,10 @@ import (
 	"context"
 	"crypto/tls"
 	"crypto/x509"
-	"errors"
 	"fmt"
 	"log/slog"
-	"math/rand/v2"
 	"net/url"
 	"sync"
-	"sync/atomic"
 	"time"
 
 	"github.com/gorilla/websocket"
@@ -18,8 +15,8 @@ import (
 	"github.com/hiveot/hivekit/go/api/td"
 	"github.com/hiveot/hivekit/go/modules"
 	"github.com/hiveot/hivekit/go/modules/transport"
+	"github.com/hiveot/hivekit/go/modules/transport/wss"
 	"github.com/hiveot/hivekit/go/modules/transport/wss/internal"
-	"github.com/hiveot/hivekit/go/utils"
 	jsoniter "github.com/json-iterator/go"
 
 	"github.com/teris-io/shortid"
@@ -58,19 +55,13 @@ type WssTransportClient struct {
 	clientID string
 
 	// handler for sending connection notifications
-	connectHandler transport.ConnectionHandler
-
-	isConnected atomic.Bool
-
-	maxReconnectAttempts int // 0 for indefinite
+	connectStatus transport.ConnectionStatus
 
 	// convert the request/response to the wss messaging protocol used
 	encoder transport.IMessageEncoder
 
 	// mutex for controlling writing and closing
 	mux sync.RWMutex
-
-	retryOnDisconnect atomic.Bool
 
 	// the request & response channel handler
 	// all responses are passed here to support response callbacks
@@ -85,19 +76,6 @@ type WssTransportClient struct {
 
 	wssURL string
 	// wssPath string
-}
-
-// websocket connection status handler
-func (cl *WssTransportClient) _onConnectionChanged(connected bool, err error) {
-
-	cl.isConnected.Store(connected)
-	if cl.connectHandler != nil {
-		cl.connectHandler(connected, cl, err)
-	}
-	// if retrying is enabled then try on disconnect
-	if !connected && cl.retryOnDisconnect.Load() {
-		cl.Reconnect()
-	}
 }
 
 // _onWssMessage processes the websocket message received from the server.
@@ -163,8 +141,7 @@ func (cl *WssTransportClient) _onWssMessage(raw []byte) {
 
 // _send publishes a message over websockets
 func (cl *WssTransportClient) _send(wssMsg []byte) (err error) {
-	if !cl.isConnected.Load() {
-		// note, it might be trying to reconnect in the background
+	if cl.wssConn == nil {
 		err := fmt.Errorf("_send: Can't send. Not connected")
 		return err
 	}
@@ -179,82 +156,37 @@ func (cl *WssTransportClient) _send(wssMsg []byte) (err error) {
 	return err
 }
 
-// Authenticate the client connection with the server
-//
-// This currently only supports bearer token authentication.
-//
-// This determine which auth schema the TD describes, obtains the credentials
-// and injects the authentication credentials according to the TDI schema.
-// This returns an error if the schema isn't supported or is not compatible.
-func (cl *WssTransportClient) Authenticate(tdDoc *td.TD,
-	getCredentials transport.GetCredentials) error {
+// websocket connection status handler - this uses mux lock for critical section
+func (cl *WssTransportClient) _setConnectionStatus(
+	newStatus transport.ConnectionStatus, err error) {
 
-	// for now just assume its bearer token, just to get it working
-	clientID, secret, schemeName, err := getCredentials(tdDoc.ID)
-	secScheme, err := tdDoc.GetSecurityScheme()
+	cl.mux.RLock()
+	oldStatus := cl.connectStatus
+	cl.mux.RUnlock()
 
-	if secScheme.Scheme == td.SecSchemeNoSec {
-		err = cl.ConnectWithToken(clientID, "")
-	} else if schemeName != secScheme.Scheme && schemeName != "" && schemeName != td.SecSchemeAuto {
-		err = fmt.Errorf("Security scheme doesn't match credentials TD scheme='%s', credentials scheme='%s'", secScheme.Scheme, schemeName)
-	} else if secScheme.Scheme == td.SecSchemeDigest {
-		// err = cl.ConnectWithDigest(clientID, secret)
-		err = fmt.Errorf("Digest authentication is not yet supported. Use bearer token instead")
-	} else if secScheme.Scheme == td.SecSchemeBearer || secScheme.Scheme == td.SecSchemeAuto {
-		err = cl.ConnectWithToken(clientID, secret)
-	} else {
-		err = fmt.Errorf("Unexpected security scheme '%s'", secScheme.Scheme)
+	if newStatus == oldStatus {
+		return
+	} else if oldStatus == transport.StatusClosed && newStatus == transport.StatusLost {
+		return
 	}
-	return err
-}
-
-// Disconnect from the server
-func (cl *WssTransportClient) Close() {
-	slog.Info("Close",
-		slog.String("clientID", cl.clientID),
-		slog.String("ConnectionID", cl.cid),
-	)
-	// dont try to reconnect
-	cl.retryOnDisconnect.Store(false)
-
 	cl.mux.Lock()
-	defer cl.mux.Unlock()
-	if cl.wssCancelFn != nil {
-		cl.wssCancelFn()
-		cl.wssCancelFn = nil
-	}
-}
-
-// Establish a websocket connection using the previously setup credentials
-func (cl *WssTransportClient) Connect() error {
-
-	// differentiate connections from the same client
-	if cl.cid == "" {
-		cl.cid = "wss-" + shortid.MustGenerate()
-	}
-
-	urlParts, err := url.Parse(cl.wssURL)
-	if err != nil {
-		return err
-	}
-	hostPort := urlParts.Host
-	wssCancelFn, wssConn, err := ConnectWSS(
-		cl.clientID, hostPort, urlParts.Path, cl.cid, cl.bearerToken, cl.clientCert, cl.caCert,
-		cl._onConnectionChanged, cl._onWssMessage)
-
-	cl.mux.Lock()
-	cl.wssCancelFn = wssCancelFn
-	cl.wssConn = wssConn
+	cl.connectStatus = newStatus
 	cl.mux.Unlock()
 
-	// even if connection failed right now, enable retry
-	cl.retryOnDisconnect.Store(true)
-
-	return err
+	// notify upstream of connect, disconnect or lost
+	moduleID := cl.GetModuleID()
+	evName := transport.ClientConnectionStatusEvent
+	notif := msg.NewNotificationMessage(
+		moduleID, msg.AffordanceTypeEvent, moduleID, evName, newStatus)
+	cl.ForwardNotification(notif)
 }
 
-// Connect authenticating using a client certificate
-func (cl *WssTransportClient) ConnectWithClientCert(clientCert *tls.Certificate) (err error) {
+// AuthenticateWithClientCert sets the authentication credentials to the client certificate.
+func (cl *WssTransportClient) AuthenticateWithClientCert(clientCert *tls.Certificate) (err error) {
+	status := cl.GetConnectionStatus()
+	if status == transport.StatusConnected || status == transport.StatusConnecting {
+		return fmt.Errorf("AuthenticateWithClientCert: Connection in progress.")
+	}
 	// tell the client to use the certificate
 	cl.clientCert = clientCert
 
@@ -278,26 +210,103 @@ func (cl *WssTransportClient) ConnectWithClientCert(clientCert *tls.Certificate)
 		_, err = x509Cert.Verify(opts)
 	}
 
-	// err = cl.tlsClient.ConnectWithClientCert(clientCert)
-	if err != nil {
-		return err
-	}
-	err = cl.Connect()
+	// err = cl.tlsClient.AuthenticateWithClientCert(clientCert)
+	// if err != nil {
+	// return err
+	// }
+	// err = cl.Connect()
 	return err
 }
 
-// ConnectWithToken attempts to establish a websocket connection using a valid auth token
-// If a connection exists it is closed first.
-// If a client certificate is available then no token is needed.
-func (cl *WssTransportClient) ConnectWithToken(clientID string, token string) error {
+// AuthenticateWithForm authenticates the client using the method described in the form.
+//
+// This currently only supports bearer token authentication.
+//
+// This determine which auth schema the TD describes, obtains the credentials
+// and injects the authentication credentials according to the TDI schema.
+// This returns an error if the schema isn't supported or is not compatible.
+func (cl *WssTransportClient) AuthenticateWithForm(tdDoc *td.TD,
+	getCredentials transport.GetCredentials) error {
 
-	// ensure disconnected (note that this resets retryOnDisconnect)
-	if cl.isConnected.Load() {
-		cl.Close()
+	// for now just assume its bearer token, just to get it working
+	clientID, secret, schemeName, err := getCredentials(tdDoc.ID)
+	secScheme, err := tdDoc.GetSecurityScheme()
+
+	if secScheme.Scheme == td.SecSchemeNoSec {
+		err = cl.AuthenticateWithToken(clientID, "")
+	} else if schemeName != secScheme.Scheme && schemeName != "" && schemeName != td.SecSchemeAuto {
+		err = fmt.Errorf("Security scheme doesn't match credentials TD scheme='%s', credentials scheme='%s'", secScheme.Scheme, schemeName)
+	} else if secScheme.Scheme == td.SecSchemeDigest {
+		// err = cl.ConnectWithDigest(clientID, secret)
+		err = fmt.Errorf("Digest authentication is not yet supported. Use bearer token instead")
+	} else if secScheme.Scheme == td.SecSchemeBearer || secScheme.Scheme == td.SecSchemeAuto {
+		err = cl.AuthenticateWithToken(clientID, secret)
+	} else {
+		err = fmt.Errorf("Unexpected security scheme '%s'", secScheme.Scheme)
+	}
+	return err
+}
+
+// AuthenticateWithToken sets the token credentials to use in Connect
+func (cl *WssTransportClient) AuthenticateWithToken(clientID string, token string) error {
+
+	status := cl.GetConnectionStatus()
+	if status == transport.StatusConnected || status == transport.StatusConnecting {
+		return fmt.Errorf("AuthenticateWithToken: Connection in progress.")
 	}
 	cl.clientID = clientID
 	cl.bearerToken = token
-	err := cl.Connect()
+	return nil
+}
+
+// Disconnect from the server
+func (cl *WssTransportClient) Close() {
+
+	// set status to closed first to avoid a reconnect
+	cl._setConnectionStatus(transport.StatusClosed, nil)
+
+	cl.mux.Lock()
+	defer cl.mux.Unlock()
+	if cl.wssCancelFn != nil {
+		cl.wssCancelFn()
+		cl.wssCancelFn = nil
+	}
+}
+
+// Establish a websocket connection using the previously setup credentials
+// If a connection attempt is in progress then wait.
+func (cl *WssTransportClient) Connect() error {
+	status := cl.GetConnectionStatus()
+
+	if status == transport.StatusConnected {
+		return fmt.Errorf("Already connected")
+	} else if status == transport.StatusConnecting {
+		return fmt.Errorf("Already connecting")
+	}
+
+	// differentiate connections from the same client
+	if cl.cid == "" {
+		cl.cid = "wss-" + shortid.MustGenerate()
+	}
+
+	urlParts, err := url.Parse(cl.wssURL)
+	if err != nil {
+		return err
+	}
+	hostPort := urlParts.Host
+	wssCancelFn, wssConn, status, err := ConnectWSS(
+		cl.clientID, hostPort, urlParts.Path, cl.cid,
+		cl.bearerToken, cl.clientCert, cl.caCert,
+		cl._setConnectionStatus,
+		cl._onWssMessage)
+
+	cl.mux.Lock()
+	cl.wssCancelFn = wssCancelFn
+	cl.wssConn = wssConn
+	cl.mux.Unlock()
+
+	cl._setConnectionStatus(status, err)
+
 	return err
 }
 
@@ -311,57 +320,38 @@ func (cl *WssTransportClient) GetConnectionID() string {
 	return cl.cid
 }
 
+// // GetConnectionStatus returns the current connection status
+func (cl *WssTransportClient) GetConnectionStatus() transport.ConnectionStatus {
+	cl.mux.RLock()
+	defer cl.mux.RUnlock()
+	stat := cl.connectStatus
+	return stat
+}
+
 // HandleNotification receives an incoming notification from a producer
 // and sends it to the server.
 func (m *WssTransportClient) HandleNotification(notif *msg.NotificationMessage) {
 	// Can't use HiveModuleBase.HandleNotification as it forwards the notification
-	// to the registered notification sink.
+	// to the registered notification sink. Instead it should go to the server.
 	m.SendNotification(notif)
 }
 
-// clients send requests to the server
+// Clients receives a request
+// - reconnect actions are handled here
+// - other requests (like subscribe) are send to the server
 func (cl *WssTransportClient) HandleRequest(request *msg.RequestMessage, replyTo msg.ResponseHandler) error {
+	if request.ThingID == cl.GetModuleID() {
+		if request.Operation == td.OpInvokeAction && request.Name == transport.ClientConnectAction {
+			err := cl.Connect()
+			resp := request.CreateResponse(nil, err)
+			return replyTo(resp)
+		} else {
+			return fmt.Errorf("HandleRequest: invalid request op='%s', name='%s'",
+				request.Operation, request.Name)
+		}
+	}
 	err := cl.SendRequest(request, replyTo)
 	return err
-}
-
-// IsConnected return whether the return channel is connection, eg can receive data
-func (cl *WssTransportClient) IsConnected() bool {
-	return cl.isConnected.Load()
-}
-
-// Reconnect attempts to re-establish a dropped connection using the last token
-// This uses an increasing backoff period up to 15 seconds, starting random between 0-2 seconds
-func (cl *WssTransportClient) Reconnect() {
-	var err error
-	var backoffDuration time.Duration = time.Duration(rand.Uint64N(uint64(time.Second * 2)))
-
-	for i := 0; cl.maxReconnectAttempts == 0 || i < cl.maxReconnectAttempts; i++ {
-		// retry until max repeat is reached, disconnect is called or authorization failed
-		if !cl.retryOnDisconnect.Load() {
-			break
-		}
-		slog.Warn("Websocket reconnecting attempt",
-			slog.String("clientID", cl.clientID),
-			slog.Int("i", i))
-		err = cl.ConnectWithToken(cl.clientID, cl.bearerToken)
-		if err == nil {
-			break
-		}
-		if errors.Is(err, utils.UnauthorizedError) {
-			break
-		}
-		// the connection timeout doesn't seem to work for some reason
-		//
-		time.Sleep(backoffDuration)
-		// slowly wait longer until 15 sec.
-		if backoffDuration < time.Second*15 {
-			backoffDuration += time.Second
-		}
-	}
-	if err != nil {
-		slog.Warn("Reconnect failed: ", "err", err.Error())
-	}
 }
 
 // SendNotification Agent posts a notification over to the server
@@ -471,12 +461,10 @@ func (cl *WssTransportClient) SetTimeout(timeout time.Duration) {
 // Intended for use by the factory as the factory provides a clientID/token or client
 // certificate.
 //
-// Most users will use ConnectWithToken() instead.
+// Most users will use AuthenticateWithToken() followed by Connect() instead.
 func (cl *WssTransportClient) Start() error {
-	if !cl.isConnected.Load() {
-		cl.ConnectWithToken(cl.GetClientID(), cl.bearerToken)
-	}
-	return nil
+	err := cl.Connect()
+	return err
 }
 
 // Module stop
@@ -487,21 +475,19 @@ func (cl *WssTransportClient) Stop() {
 // NewHiveotWssTransportClient creates a new instance of the hiveot websocket client.
 //
 // This uses the Hiveot passthrough message converter.
-// Users must use ConnectWithToken to authenticate and connect.
+// Users must use AuthenticateWithToken to authenticate and connect.
 //
 //	wssURL is the full websocket connection URL including path
 //	caCert is the server CA for TLS connection validation
-//	ch is the connect/disconnect callback. nil to ignore
 func NewHiveotWssClient(
-	wssURL string, caCert *x509.Certificate,
-	ch transport.ConnectionHandler) *WssTransportClient {
+	wssURL string, caCert *x509.Certificate) *WssTransportClient {
 
 	timeout := msg.DefaultRnRTimeout
+	moduleID := wss.HiveotWebsocketClientModuleType
 
 	cl := WssTransportClient{
-		caCert:               caCert,
-		connectHandler:       ch,
-		maxReconnectAttempts: 0,
+		HiveModuleBase: modules.NewHiveModuleBase(moduleID, timeout),
+		caCert:         caCert,
 		// hiveot uses its own standardized RRN messages
 		encoder: transport.NewRRNJsonEncoder(),
 		rnrChan: msg.NewRnRChan(),
@@ -513,26 +499,25 @@ func NewHiveotWssClient(
 
 // NewWotWssTransportClient creates a new instance of the WoT compatible websocket client.
 //
-// Users must use ConnectWithToken to authenticate and connect.
+// Users must use AuthenticateWithToken to authenticate and connect.
 //
 //	wssURL is the full websocket connection URL
 //	caCert is the server CA for TLS connection validation
 //	timeout is the maximum connection wait time. 0 for default.
 //	ch is the connection callback handler, nil to ignore
 func NewWotWssClient(
-	wssURL string, caCert *x509.Certificate,
-	ch transport.ConnectionHandler) *WssTransportClient {
+	wssURL string, caCert *x509.Certificate) *WssTransportClient {
 
 	timeout := msg.DefaultRnRTimeout
+	moduleID := wss.WotWebsocketClientModuleType
 
 	cl := &WssTransportClient{
-		caCert:               caCert,
-		connectHandler:       ch,
-		encoder:              internal.NewWotWssMsgEncoder(),
-		maxReconnectAttempts: 0,
-		rnrChan:              msg.NewRnRChan(),
-		timeout:              timeout,
-		wssURL:               wssURL,
+		HiveModuleBase: modules.NewHiveModuleBase(moduleID, timeout),
+		caCert:         caCert,
+		encoder:        internal.NewWotWssMsgEncoder(),
+		rnrChan:        msg.NewRnRChan(),
+		timeout:        timeout,
+		wssURL:         wssURL,
 	}
 	var _ transport.ITransportClient = cl // interface check
 	return cl

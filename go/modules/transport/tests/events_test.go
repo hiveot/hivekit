@@ -11,6 +11,7 @@ import (
 	"github.com/hiveot/hivekit/go/api/msg"
 	"github.com/hiveot/hivekit/go/api/td"
 	"github.com/hiveot/hivekit/go/modules/authn"
+	"github.com/hiveot/hivekit/go/modules/transport"
 	"github.com/hiveot/hivekit/go/testenv"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -29,7 +30,6 @@ func TestAllEvents(t *testing.T) {
 
 // test event messages between agent, server and client
 // this uses the client and server helpers defined in connect_test.go
-
 // Test subscribing and receiving all events by consumer
 func TestSubscribeAll(t *testing.T) {
 	t.Logf("---%s---\n", t.Name())
@@ -37,7 +37,7 @@ func TestSubscribeAll(t *testing.T) {
 	var testMsg1 = "hello world 1"
 	var testMsg2 = "hello world 2"
 	var agentID = "agent1"
-	var thingID = "dtw:thing1"
+	var thingID = "thing1"
 	var eventKey = "event11"
 	var agentRxEvent atomic.Bool
 
@@ -46,14 +46,13 @@ func TestSubscribeAll(t *testing.T) {
 	defer cancelFn()
 
 	// 2. connect as consumers
-	co1, cc1, _ := testEnv.NewConsumerClient(testClientID1, authn.ClientRoleViewer, nil)
+	co1, cc1, _ := testEnv.NewConnectedConsumer(testClientID1, authn.ClientRoleViewer, false)
 	defer cc1.Close()
 
-	co2, cc2, _ := testEnv.NewConsumerClient(testClientID1, authn.ClientRoleViewer, nil)
+	co2, cc2, _ := testEnv.NewConnectedConsumer(testClientID1, authn.ClientRoleViewer, false)
 	defer cc2.Close()
 
-	// test agents are wired to be usable as a consumer
-	// Note that those agents should have an apprequest handler set to avoid looping.
+	// connect a test agent agent
 	agent1, agConn1, _ := testEnv.NewRCAgent(agentID, nil)
 	defer agConn1.Close()
 
@@ -63,9 +62,10 @@ func TestSubscribeAll(t *testing.T) {
 
 	co1.SetNotificationSink(func(ev *msg.NotificationMessage) {
 		slog.Info("client 1 receives event")
-		// receive event
-		rxVal.Store(ev.Data)
-		//cancelFn()
+		if ev.ThingID == thingID {
+			// receive event, expect data from agent
+			rxVal.Store(ev.Data)
+		}
 	})
 	co2.SetNotificationSink(func(ev *msg.NotificationMessage) {
 		slog.Info("client 2 receives event")
@@ -117,8 +117,72 @@ func TestSubscribeAll(t *testing.T) {
 	// update not received
 	assert.Equal(t, testMsg1, rxVal.Load(), "Unsubscribe didnt work")
 	assert.False(t, agentRxEvent.Load())
+}
 
-	//
+// test if subscriptions are retained after a reconnect
+func TestSubscribeReconnect(t *testing.T) {
+	t.Logf("---%s---\n", t.Name())
+	const agentID = "agent1"
+	var thingID = "thing1"
+	var eventKey = "event11"
+	var testMsg1 = "hello world 1"
+	var notifEvent atomic.Int32
+	var connectedCh = make(chan bool, 1)
+
+	// 1. start the servers
+	testEnv, cancelFn := testenv.StartTestEnv(testProtocol)
+	defer cancelFn()
+
+	// 2. connect a consumer with reconnect capability
+	co1, cc1, _ := testEnv.NewConnectedConsumer(testClientID1, authn.ClientRoleViewer, true)
+	defer cc1.Close()
+
+	// Consumer subscribes to events.
+	err := co1.Subscribe("", "")
+	assert.NoError(t, err)
+	co1.SetAppNotificationHook(func(notif *msg.NotificationMessage) {
+		// receive event, tests whether agents work as a consumer
+		slog.Info("consumer receives event",
+			"name", notif.Name, "data", notif.ToString(0))
+		notifEvent.Add(1)
+		if notif.Name == transport.ClientConnectionStatusEvent &&
+			notif.Data.(transport.ConnectionStatus) == transport.StatusConnected {
+			connectedCh <- true
+		}
+	})
+	// 3. Server sends event to consumers
+	time.Sleep(time.Millisecond * 10)
+	notif1 := msg.NewNotificationMessage(
+		agentID, msg.AffordanceTypeEvent, thingID, eventKey, testMsg1)
+	testEnv.Server.SendNotification(notif1)
+
+	time.Sleep(time.Millisecond)
+
+	// 4. Client should have received the event
+	require.Equal(t, 1, int(notifEvent.Load()))
+
+	// 5. close client connections and wait for reconnect
+	slog.Warn("--- 1. disconnecting all clients---")
+	notifEvent.Store(0)
+	testEnv.Server.CloseAll()
+	slog.Info("--- 2. Closed. start reconnecting")
+
+	<-connectedCh
+	slog.Info("--- 3. Reconnected, start resubscribing")
+
+	// time to resubscribe
+	time.Sleep(time.Millisecond * 10)
+
+	// 6. send a new event and expect the consumer to receive it
+	slog.Info("--- 4. sending notification", "name", notif1.Name)
+	testEnv.Server.SendNotification(notif1)
+	time.Sleep(time.Millisecond * 10)
+
+	slog.Info("--- 5. check result", "nr notifications", notifEvent.Load())
+
+	// 7. Client should have received the lost, connected and notif1 events
+	assert.Equal(t, 3, int(notifEvent.Load()))
+
 }
 
 // Agent sends events to server
@@ -185,7 +249,7 @@ func TestReadEvent(t *testing.T) {
 	defer cancelFn()
 
 	// 2. connect as a consumer
-	co1, cc1, _ := testEnv.NewConsumerClient(testClientID1, authn.ClientRoleViewer, nil)
+	co1, cc1, _ := testEnv.NewConnectedConsumer(testClientID1, authn.ClientRoleViewer, false)
 	defer cc1.Close()
 
 	evNotif, err := co1.ReadEvent(thingID, eventKey)

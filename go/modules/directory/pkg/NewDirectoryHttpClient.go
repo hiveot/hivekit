@@ -53,12 +53,12 @@ func (cl *DirectoryHttpClient) Close() error {
 	return nil
 }
 
-// ConnectWithToken creates a TLS client, connects to the directory, reads the directory's TD.
-func (cl *DirectoryHttpClient) ConnectWithToken(clientID string, token string) error {
+// AuthenticateWithToken creates a TLS client, connects to the directory, reads the directory's TD.
+func (cl *DirectoryHttpClient) AuthenticateWithToken(clientID string, token string) error {
 
 	// 1: connect to the directory and read its TD
 
-	cl.tlsClient.ConnectWithToken(clientID, token)
+	cl.tlsClient.AuthenticateWithToken(clientID, token)
 
 	// 2: read its TD
 	// GetTDPath := directory.WellKnownWoTPath

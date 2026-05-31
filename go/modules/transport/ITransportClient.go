@@ -7,17 +7,19 @@ import (
 	"github.com/hiveot/hivekit/go/modules"
 )
 
-// Notifications submitted by all client connection-based modules.
+// Actions implemented in transport clients
 const (
-	// When a client successfully establishes a connection submit this event.
-	// The payload is the client connection-ID.
-	// The thingID of the sender is that the client module-id.
-	ClientConnectedEvent = "clientconnected"
-	// When an existing client connection is broken then client modules submit thig event.
-	// The payload is the connection-ID.
-	// The thingID of the sender is that the client module-id.
-	ClientDisconnectedEvent = "clientdisconnected"
+	// Ask the client module to connect with previously set credentials.
+	// the action responds with the completed or failed result.
+	// If Connect is not supported the request should return with an error.
+	ClientConnectAction = "connect"
 )
+
+// notification that the client connect status has changed.
+// the payload is the new connection status.
+// The notification thingID is the client's module-id.
+// Note that connection status events are never transmitted to and from the server.
+const ClientConnectionStatusEvent = "connectionStatus"
 
 // GetCredentials is the handler that provides the credentials for connecting
 // to a transport server.
@@ -38,45 +40,64 @@ type GetCredentials func(thingID string) (clientID string, cred string, credType
 type GetFormHandler func(op string, thingID string, name string) (f *td.Form, href string)
 
 // ITransportClient defines the interface of a transport client connection.
-// This implements IHiveModule and IConnection.
+// This implements IHiveModule and IConnection interfaces.
+//
+// Note that transport clients do not retain subscription status. If a connection drops
+// then event subscriptions and property observations have to be re-issued by the application.
+// See the 'Reconnect' module that manages automatic reconnection and restoring of subscriptions.
+//
+// Transport clients issue ClientConnectionStatusEvent notifications when the connection
+// status changes.
 type ITransportClient interface {
 	modules.IHiveModule
 	IConnection
 
-	// Authenticate the client connection with the server.
-	// This determine which auth schema the TD describes, obtains the credentials
-	// and injects the authentication credentials according to the TDI schema.
-	// This returns an error if the schema isn't supported or is not compatible.
+	// AuthenticateWithClientCert sets the authentication credentials to the client certificate.
 	//
-	// Alternatively, use ConnectWithToken if it is known that token authentication is supported.
-	Authenticate(tdi *td.TD, getCredentials GetCredentials) error
-
-	// Connect authenticating using a client certificate
 	// The client certificate common name is the client ID and must be signed by the
 	// same CA as the server.
-	ConnectWithClientCert(clientCert *tls.Certificate) (err error)
-
-	// ConnectWithToken connects to the transport server using a clientID and
-	// corresponding authentication token.
 	//
-	// This method can be used if it is known that bearer token authentication is
-	// supported by the server. While most transport servers support token authentication,
-	// the method of obtaining a token depends on the application environment. The authn
-	// module can be used for token authentication using LoginWithPassword.
+	// This returns an error if the certificate is invalid for the current CA, if
+	// certificate authentication is not supported or if an existing connection is not closed.
+	AuthenticateWithClientCert(clientCert *tls.Certificate) error
+
+	// AuthenticateWithForm determines authentication credentials using forms and the given
+	// getCredentials handler.
+	//
+	// This determines which auth schema the TD describes, obtains the credentials
+	// and injects the authentication credentials according to the TDI schema.
+	//
+	// Use Connect() to establish a connection.
+	//
+	// This returns an error if credentials cannot be determined or obtained or if an
+	// existing connection is not closed.
+	AuthenticateWithForm(tdi *td.TD, getCredentials GetCredentials) error
+
+	// AuthenticateWithToken sets the authentication credentials to the given clientID and
+	// token.
+	//
+	// Use Connect() to establish a connection.
+	//
+	// This method can be used if it is known that token authentication is supported by
+	// the server. The method of obtaining a token depends on the application environment.
+	// The authn module can be used for token authentication using LoginWithPassword.
 	//
 	// If the transport client is started by the module factory, credentials can be
 	// provided through the included AppEnvironment using client certificate or token,
 	// and used when Start() is called to establish a connection. If the AppEnvironment
-	// does not contain credentials then ConnectWithToken must be used on the client
-	// module obtained using factoryInstance.GetModule(TransportClientType) to estsablish
+	// does not contain credentials then AuthenticateWithToken must be used on the client
+	// module obtained using factoryInstance.GetModule(TransportClientType) to establish
 	// the connection before the chain can be used.
-	//
-	// If a connection is already established on this client then it will be closed first.
-	// This connection method must be supported by all client implementations.
 	//
 	//	clientID is the ID to authenticate as, it must match the token
 	//	token is the authentication token obtained on login
 	//
-	// This returns an error if the token is not valid
-	ConnectWithToken(clientID, token string) (err error)
+	// This returns an error if token authentication is not supported or if an existing
+	// connection is not closed.
+	AuthenticateWithToken(clientID, token string) error
+
+	// Connect using the previously set connection credentials.
+	//
+	// This returns nil on success or an error if failed.
+	Connect() (err error)
 }

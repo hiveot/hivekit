@@ -3,12 +3,10 @@ package internalclient
 import (
 	"crypto/tls"
 	"crypto/x509"
-	"errors"
 	"fmt"
 	"log/slog"
-	"math/rand/v2"
 	"strings"
-	"sync/atomic"
+	"sync"
 	"time"
 
 	"github.com/hiveot/hivekit/go/api/msg"
@@ -17,7 +15,6 @@ import (
 	"github.com/hiveot/hivekit/go/modules/transport"
 	grpctransport "github.com/hiveot/hivekit/go/modules/transport/grpc"
 	"github.com/hiveot/hivekit/go/modules/transport/grpc/internal"
-	"github.com/hiveot/hivekit/go/utils"
 	"github.com/teris-io/shortid"
 )
 
@@ -28,8 +25,10 @@ type GrpcClient struct {
 
 	bearerToken string
 
-	// handler for sending connection notifications
-	connectHandler transport.ConnectionHandler
+	// status of current connection
+	connectStatus transport.ConnectionStatus
+	// instance ID used to identify the client and its connection
+	connectionID string
 
 	connectURL string
 	caCert     *x509.Certificate
@@ -39,11 +38,14 @@ type GrpcClient struct {
 	// encoding and decoding of RRN messages
 	encoder transport.IMessageEncoder
 
-	grpcClient *internal.GrpcServiceClient
+	// Close is called so a disconnect is expected
+	// isClosed atomic.Bool
 
-	maxReconnectAttempts int // 0 for indefinite
+	// the underlying grpc client. Set on authenticate. nil when closed
+	grpcSvcClient *internal.GrpcServiceClient
 
-	retryOnDisconnect atomic.Bool
+	// variables access
+	mux sync.RWMutex
 
 	// the request & response channel handler
 	// all responses are passed here to support response callbacks
@@ -53,15 +55,18 @@ type GrpcClient struct {
 	timeout time.Duration
 }
 
-// socket connection status handler
-func (cl *GrpcClient) _onConnectionChanged(connected bool, err error) {
+// // socket connection status handler
+// // This emits a notification if the connection is established, lost or disconnected.
+// func (cl *GrpcClient) _onConnectionChanged(newStatus transport.ConnectionStatus, err error) {
 
-	if cl.connectHandler != nil {
-		cl.connectHandler(connected, cl, err)
-	}
-}
+// 	// 1. update the connection status
+// 	cl.mux.Lock()
+// 	cl.connectStatus = newStatus
+// 	cl.mux.Unlock()
+// 	cl._setConnectionStatus(newStatus, err)
+// }
 
-// onMessage processes the incoming message received from the server.
+// _onClientMessage processes the incoming message received from the server.
 // This decodes the message into a request or response message and passes
 // it to the application handler.
 func (cl *GrpcClient) _onClientMessage(raw []byte) {
@@ -118,69 +123,38 @@ func (cl *GrpcClient) _onClientMessage(raw []byte) {
 	slog.Error("_onClientMessage: Failed to unmarshal message", "err", err.Error())
 }
 
-// Authenticate and connect
-func (cl *GrpcClient) Authenticate(tdDoc *td.TD,
-	getCredentials transport.GetCredentials) error {
-	return fmt.Errorf("not yet implemented")
+// update the connection status and publish an notification if it differs from the last status
+// a 'lost' status is ignored if the current status is set to closed as it was intentional.
+func (cl *GrpcClient) _setConnectionStatus(
+	newStatus transport.ConnectionStatus, err error) {
+
+	cl.mux.RLock()
+	oldStatus := cl.connectStatus
+	cl.mux.RUnlock()
+
+	if newStatus == oldStatus {
+		return
+	} else if oldStatus == transport.StatusClosed && newStatus == transport.StatusLost {
+		return
+	}
+	cl.mux.Lock()
+	cl.connectStatus = newStatus
+	cl.mux.Unlock()
+
+	// notify upstream of status change. the cid is the client instance thingID
+	cid := cl.GetConnectionID()
+	evName := transport.ClientConnectionStatusEvent
+	notif := msg.NewNotificationMessage(
+		cid, msg.AffordanceTypeEvent, cid, evName, newStatus)
+	cl.ForwardNotification(notif)
 }
 
-// Close disconnects
-func (cl *GrpcClient) Close() {
-	// dont try to reconnect after close
-	cl.retryOnDisconnect.Store(false)
-
-	if cl.grpcClient != nil {
-		cl.grpcClient.Close()
+// AuthenticateWithClientCert sets the authentication credentials to the client certificate.
+func (cl *GrpcClient) AuthenticateWithClientCert(clientCert *tls.Certificate) (err error) {
+	status := cl.GetConnectionStatus()
+	if status == transport.StatusConnected || status == transport.StatusConnecting {
+		return fmt.Errorf("AuthenticateWithClientCert: Connection in progress.")
 	}
-}
-
-// connect attempts to establish the streams using the created grpc client
-func (cl *GrpcClient) connect() (err error) {
-
-	// use ping as 'connect' might not detect a failed connection
-	_, err = cl.grpcClient.Ping("")
-	if err != nil {
-		slog.Error(err.Error(), "url", cl.connectURL)
-		return err
-	}
-
-	// connect the streams want serve
-	_, err = cl.grpcClient.ConnectStream(grpctransport.StreamNameNotification)
-	if err == nil {
-		// FIXME: make dual stream work
-		// _, err = cl.grpcClient.ConnectStream(grpcapi.StreamNameRequestResponse)
-	}
-
-	go func() {
-		// for now assume that the notification stream drives the connectivity.
-		// the req/resp stream should follow like a good doggie
-		name := grpctransport.StreamNameNotification
-		if cl.grpcClient.IsConnected(name) {
-			cl._onConnectionChanged(cl.grpcClient.IsConnected(name), nil)
-			cl.grpcClient.WaitUntilDisconnect(name)
-			cl._onConnectionChanged(cl.grpcClient.IsConnected(name), nil)
-
-			// if retrying is enabled then try on disconnect
-			if cl.retryOnDisconnect.Load() {
-				go cl.Reconnect()
-			}
-		} else {
-			slog.Error("ConnectWithToken: connection unexpectedly dropped")
-		}
-	}()
-
-	// even if connection failed right now, enable retry
-	cl.retryOnDisconnect.Store(true)
-
-	// allow background tasks to complete
-	time.Sleep(time.Millisecond)
-
-	return err
-}
-
-// ConnectWithClientCert attempts to establish a UDS connection using a client certificate for auth
-func (cl *GrpcClient) ConnectWithClientCert(clientCert *tls.Certificate) (err error) {
-	cl.clientCert = clientCert
 
 	// verify the validity of this certificate against the CA
 	// without this one can spend a long time figuring out why the connection fails.
@@ -197,39 +171,115 @@ func (cl *GrpcClient) ConnectWithClientCert(clientCert *tls.Certificate) (err er
 		_, err = x509Cert.Verify(opts)
 	}
 	if err != nil {
-		slog.Error("ConnectWithClientCert failed: " + err.Error())
+		slog.Error("AuthenticateWithClientCert failed: " + err.Error())
 		return err
 	}
-	cl.grpcClient = internal.NewGrpcServiceClient(
+	cl.clientCert = clientCert
+
+	// create the grpc client to use but do not connect yet
+	cl.grpcSvcClient = internal.NewGrpcServiceClient(
 		cl.connectURL, clientCert, cl.caCert, cl.timeout,
 		grpctransport.GrpcTransportServiceName, cl._onClientMessage)
 
-	err = cl.connect()
 	return err
 }
 
-// ConnectWithToken attempts to establish a UDS connection
-func (cl *GrpcClient) ConnectWithToken(clientID string, token string) (err error) {
+// Authenticate and connect
+func (cl *GrpcClient) AuthenticateWithForm(
+	tdDoc *td.TD, getCredentials transport.GetCredentials) error {
 
-	// ensure disconnected (note that this resets retryOnDisconnect)
-	if cl.IsConnected() {
-		cl.Close()
+	status := cl.GetConnectionStatus()
+	if status == transport.StatusConnected || status == transport.StatusConnecting {
+		return fmt.Errorf("AuthenticateWithForm: Connection in progress.")
+	}
+	return fmt.Errorf("not yet implemented")
+}
+
+// AuthenticateWithToken sets the token credentials to use in Connect
+// and create the underlying grpc service client with the credentials to use.
+func (cl *GrpcClient) AuthenticateWithToken(clientID string, token string) (err error) {
+
+	status := cl.GetConnectionStatus()
+	if status == transport.StatusConnected || status == transport.StatusConnecting {
+		return fmt.Errorf("AuthenticateWithToken: Connection in progress.")
 	}
 
 	cl.clientID = clientID
 	cl.bearerToken = token
 
-	cl.grpcClient = internal.NewGrpcServiceClient(
+	// create the grpc client to use but do not connect yet
+	cl.grpcSvcClient = internal.NewGrpcServiceClient(
 		cl.connectURL, cl.clientCert, cl.caCert, cl.timeout,
 		grpctransport.GrpcTransportServiceName, cl._onClientMessage)
 
-	err = cl.grpcClient.ConnectWithToken(clientID, token)
+	err = cl.grpcSvcClient.AuthenticateWithToken(clientID, token)
+	return err
+}
+
+// Close disconnects the current connection and publish a closed notification
+func (cl *GrpcClient) Close() {
+
+	// set status to closed first to avoid a reconnect
+	cl._setConnectionStatus(transport.StatusClosed, nil)
+
+	cl.mux.Lock()
+	defer cl.mux.Unlock()
+	if cl.grpcSvcClient != nil {
+		cl.grpcSvcClient.Close()
+		cl.grpcSvcClient = nil
+	}
+}
+
+// Connect attempts to establish the streams using the previously set authentication method
+func (cl *GrpcClient) Connect() (err error) {
+	status := cl.GetConnectionStatus()
+
+	if cl.grpcSvcClient == nil {
+		return fmt.Errorf("Auth credentials not set")
+	} else if status == transport.StatusConnected {
+		return fmt.Errorf("Already connected")
+	} else if status == transport.StatusConnecting {
+		return fmt.Errorf("Already connecting")
+	}
+
+	// new connect attempt
+	cl._setConnectionStatus(transport.StatusConnecting, nil)
+	err = cl.grpcSvcClient.Connect()
+
+	// use ping as 'connect' might not detect a failed connection
+	_, err = cl.grpcSvcClient.Ping("")
 	if err != nil {
-		slog.Error("Grpc connection failed", "addr", cl.connectURL, "err", err.Error())
+		slog.Error(err.Error(), "url", cl.connectURL)
+		cl._setConnectionStatus(transport.StatusLost, err)
 		return err
 	}
-	err = cl.connect()
-	return err
+
+	// connect the streams want serve
+	_, err = cl.grpcSvcClient.ConnectStream(grpctransport.StreamNameNotification)
+	if err == nil {
+		// FIXME: make dual stream work
+		// _, err = cl.grpcClient.ConnectStream(grpcapi.StreamNameRequestResponse)
+	}
+
+	go func() {
+		// for now assume that the notification stream drives the connectivity.
+		// the req/resp stream should follow like a good doggie
+		name := grpctransport.StreamNameNotification
+		if cl.grpcSvcClient.IsConnected(name) {
+			cl._setConnectionStatus(transport.StatusConnected, nil)
+
+			cl.grpcSvcClient.WaitUntilDisconnect(name)
+			cl._setConnectionStatus(transport.StatusLost, nil)
+
+		} else {
+			slog.Error("AuthenticateWithToken: connection unexpectedly dropped")
+		}
+	}()
+
+	// allow background tasks to complete
+	time.Sleep(time.Millisecond)
+
+	return nil
 }
 
 // GetClientID returns the client's connection details
@@ -237,9 +287,18 @@ func (cl *GrpcClient) GetClientID() string {
 	return cl.clientID
 }
 
-// // GetConnectionID returns the client's connection details
+// GetConnectionID returns the client's instance-ID
+// the connectionID is also used as the client's ThingID
 func (cl *GrpcClient) GetConnectionID() string {
-	return "todo need metadata"
+	return cl.connectionID
+}
+
+// // GetConnectionStatus returns the current connection status
+func (cl *GrpcClient) GetConnectionStatus() transport.ConnectionStatus {
+	cl.mux.RLock()
+	defer cl.mux.RUnlock()
+	stat := cl.connectStatus
+	return stat
 }
 
 // HandleNotification forwards notifications to the server instead of forwarding to their sink.
@@ -248,53 +307,35 @@ func (cl *GrpcClient) HandleNotification(notif *msg.NotificationMessage) {
 	cl.SendNotification(notif)
 }
 
-// HandleRequest forwards requests to the server
+// Clients receives a request
+// - reconnect actions are handled here
+// - other requests (like subscribe) are send to the server
 func (cl *GrpcClient) HandleRequest(request *msg.RequestMessage, replyTo msg.ResponseHandler) error {
+	if request.ThingID == cl.GetConnectionID() {
+		if request.Operation == td.OpInvokeAction && request.Name == transport.ClientConnectAction {
+			err := cl.Connect()
+			resp := request.CreateResponse(cl.GetConnectionStatus(), err)
+			return replyTo(resp)
+		} else {
+			return fmt.Errorf("HandleRequest: invalid request op='%s', name='%s'",
+				request.Operation, request.Name)
+		}
+	}
 	err := cl.SendRequest(request, replyTo)
 	return err
 }
 
-// IsConnected return whether the notification stream is established
-func (cl *GrpcClient) IsConnected() bool {
-	return cl.grpcClient != nil && cl.grpcClient.IsConnected(grpctransport.StreamNameNotification)
-}
-
-// Reconnect attempts to re-establish a dropped connection using the last token
-// This uses an increasing backoff period up to 15 seconds, starting random between 0-2 seconds
-func (cl *GrpcClient) Reconnect() {
-	var err error
-	var backoffDuration time.Duration = time.Duration(rand.Uint64N(uint64(time.Second * 2)))
-
-	for i := 0; cl.maxReconnectAttempts == 0 || i < cl.maxReconnectAttempts; i++ {
-		// retry until max repeat is reached, disconnect is called or authorization failed
-		if !cl.retryOnDisconnect.Load() {
-			break
-		}
-		slog.Warn("gRPC Reconnecting attempt",
-			slog.String("clientID", cl.clientID),
-			slog.Int("i", i))
-		err = cl.ConnectWithToken(cl.clientID, cl.bearerToken)
-		if err == nil {
-			break
-		}
-		if errors.Is(err, utils.UnauthorizedError) {
-			break
-		}
-		// the connection timeout doesn't seem to work for some reason
-		//
-		time.Sleep(backoffDuration)
-		// slowly wait longer until 15 sec.
-		if backoffDuration < time.Second*15 {
-			backoffDuration += time.Second
-		}
-	}
-	if err != nil {
-		slog.Warn("Reconnect failed: ", "err", err.Error())
-	}
-}
+// // IsConnected return whether the notification stream is established
+// func (cl *GrpcClient) IsConnected() bool {
+// 	return cl.grpcSvcClient != nil && cl.grpcSvcClient.IsConnected(grpctransport.StreamNameNotification)
+// }
 
 // SendNotification Agent posts a notification to the server
 func (cl *GrpcClient) SendNotification(notif *msg.NotificationMessage) {
+	if cl.GetConnectionStatus() != transport.StatusConnected {
+		slog.Error("SendNotification: Not connected")
+	}
+
 	clientID := cl.clientID
 	slog.Info("SendNotification",
 		slog.String("clientID", clientID),
@@ -305,13 +346,17 @@ func (cl *GrpcClient) SendNotification(notif *msg.NotificationMessage) {
 	)
 	raw, err := cl.encoder.EncodeNotification(notif)
 	if err == nil {
-		err = cl.grpcClient.Send(grpctransport.StreamNameNotification, raw)
+		err = cl.grpcSvcClient.Send(grpctransport.StreamNameNotification, raw)
 	}
 }
 
 // SendRequest send a request message the server
 func (cl *GrpcClient) SendRequest(
 	req *msg.RequestMessage, replyTo msg.ResponseHandler) error {
+
+	if cl.GetConnectionStatus() != transport.StatusConnected {
+		return fmt.Errorf("SendRequest: Not connected")
+	}
 
 	if req.CorrelationID == "" {
 		req.CorrelationID = shortid.MustGenerate()
@@ -323,7 +368,7 @@ func (cl *GrpcClient) SendRequest(
 	}
 	if replyTo == nil {
 		// responses are received asynchronously
-		err := cl.grpcClient.Send(grpctransport.StreamNameNotification, raw)
+		err := cl.grpcSvcClient.Send(grpctransport.StreamNameNotification, raw)
 		// FIXME: make dual stream work
 		// err := cl.grpcClient.Send(grpcapi.StreamNameRequestResponse, raw)
 		return err
@@ -331,7 +376,7 @@ func (cl *GrpcClient) SendRequest(
 
 	// a response handler is provided, callback when the response is received
 	cl.rnrChan.Open(req.CorrelationID)
-	err = cl.grpcClient.Send(grpctransport.StreamNameNotification, raw)
+	err = cl.grpcSvcClient.Send(grpctransport.StreamNameNotification, raw)
 	// FIXME: make dual stream work
 	// err = cl.grpcClient.Send(grpcapi.StreamNameRequestResponse, raw)
 
@@ -354,10 +399,14 @@ func (cl *GrpcClient) SendRequest(
 // SendResponse send a response message to the server
 func (cl *GrpcClient) SendResponse(resp *msg.ResponseMessage) error {
 
+	if cl.GetConnectionStatus() != transport.StatusConnected {
+		return fmt.Errorf("SendResponse: Not connected")
+	}
+
 	raw, err := cl.encoder.EncodeResponse(resp)
 	if err == nil {
 		// FIXME: make dual stream work
-		err = cl.grpcClient.Send(grpctransport.StreamNameNotification, raw)
+		err = cl.grpcSvcClient.Send(grpctransport.StreamNameNotification, raw)
 		// err = cl.grpcClient.Send(grpcapi.StreamNameRequestResponse, raw)
 	}
 	return err
@@ -372,12 +421,10 @@ func (cl *GrpcClient) SetTimeout(timeout time.Duration) {
 // Intended for use by the factory as the factory provides a clientID/token or client
 // certificate.
 //
-// Most users will use ConnectWithToken() instead.
+// Most users will use AuthenticateWithToken() followed by Connect() instead.
 func (cl *GrpcClient) Start() error {
-	if !cl.IsConnected() {
-		cl.ConnectWithToken(cl.GetClientID(), cl.bearerToken)
-	}
-	return nil
+	err := cl.Connect()
+	return err
 }
 
 // Module stop
@@ -385,7 +432,7 @@ func (cl *GrpcClient) Stop() {
 	cl.Close()
 }
 
-// NewGrpcClient creates a new instance of the Hiveot gRPC client
+// NewGrpcClient creates a new instance of the Hiveot gRPC client.
 //
 // Note that go-gRPC uses the 'dns' scheme and does not support 'tcp'. In order
 // to remain consistent with the server, this client maps the 'tcp' scheme to 'dns'
@@ -398,23 +445,23 @@ func (cl *GrpcClient) Stop() {
 // caCert is the CA certificate to validate the server connection, or nil for UDS or insecure connections.
 // ch is the connect/disconnect callback
 //
-// Users must use ConnectWithToken to authenticate and start.
+// Users must use AuthenticateWithToken to authenticate and start.
 func NewGrpcClient(
-	connectURL string, caCert *x509.Certificate,
-	ch transport.ConnectionHandler) *GrpcClient {
+	connectURL string, caCert *x509.Certificate) *GrpcClient {
 
 	// gRPC does not support tcp scheme, but we want to allow users to specify it for consistency with the server.
 	connectURL = strings.TrimPrefix(connectURL, "tcp://")
 
 	cl := &GrpcClient{
-		caCert:               caCert,
-		clientCert:           nil,
-		connectHandler:       ch,
-		connectURL:           connectURL,
-		encoder:              transport.NewRRNJsonEncoder(),
-		maxReconnectAttempts: 0,
-		rnrChan:              msg.NewRnRChan(),
-		timeout:              msg.DefaultRnRTimeout,
+		HiveModuleBase: modules.NewHiveModuleBase(
+			grpctransport.HiveotGrpcClientModuleType, msg.DefaultRnRTimeout),
+		caCert:       caCert,
+		clientCert:   nil,
+		connectionID: shortid.MustGenerate(),
+		connectURL:   connectURL,
+		encoder:      transport.NewRRNJsonEncoder(),
+		rnrChan:      msg.NewRnRChan(),
+		timeout:      msg.DefaultRnRTimeout,
 	}
 
 	var _ transport.ITransportClient = cl // check interface implementation

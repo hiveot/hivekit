@@ -12,29 +12,22 @@ This approach provides the following benefits:
 
 ## Status
 
-This module is in early alpha. It supports managing digital twins of devices provided by RC (reverse connection) agents. Managing digital twins for standalone devices is under development. Breaking changes can be expected.
+This module is in alpha. Breaking changes can still be expected.
 
-Managing digital twins for stand-alone devices is only partly supported as it requires as it requires credentials for each device and a way to handle certificate validation for TLS connections.
+Managing digital twins from RC agents is functional. The online status of these agents is currently not tracked.
 
-TODOs for reverse connecting agents:
-
-1. track online status of agent connected devices
+Managing digital twins for stand-alone devices is only partly supported as it needs credentials for each device and a way to handle certificate validation for TLS connections.
 
 TODOs for connecting to standalone WoT devices
 
-1. add routing to standalone WoT devices (connect on demand)
-1. test write property to standalone WoT devices
-1. test invoke action to standalone WoT devices
 1. track online status of standalone WoT devices
-1. connect and subscribe to standalone WoT devices on startup
-1. connect and subscribe to standalone WoT devices when they are newly discovered
-1. test OOB (out of band) provisioning by admin of standalone WoT devices through upload of device TDs
+1. connect and subscribe to standalone WoT devices on demand
+2. manage device authentication credentials and CA certificate.
+3. test OOB (out of band) provisioning by admin of standalone WoT devices through upload of device TDs
 
 ## Summary
 
-Using HiveKit in an application involves an interplay of a few hivekit modules in order to serve a digital twin directory, read cached values, and write properties and invoke actions. This is described in more detail below:
-
-These modules are linked in a pipeline:
+This module is intended to be used in a module chain together with the server, directory and router modules as follows:
 
 ```
  [1:http server]  ─────────┐
@@ -88,9 +81,9 @@ Not all devices have a digital twin. Application services, including the discove
 
 The digital twin module will receive requests for reading properties and events, writing properties, and invoking actions. Reading properties is handled by the vcache module described below.
 
-When requests to write properties and invoke actions are received they must be passed to the actual device. A copy of the request is modified to contain the actual device Thing ID and forwarded to the router. The response will be passed on to the caller, after the Thing ID of the response is converted to the digital twin ID. In case of Invoke action, the action status is stored in the vcache module so it can serve action status queries.
+When requests to write properties and invoke actions are received by the digital twin they must be passed to the actual device. A copy of the request is modified to contain the actual device Thing ID and forwarded to the router. When the response is received it is converted to a digital twin response and passed to the replyTo of the original request. In case of Invoke action, the action status is stored in the vcache module so it can serve action status queries.
 
-A future improvement can be to support a request validity period during which the request can be held untile the device is reachable. The response to such requests should have the status set to pending delivery.
+A future improvement can be to support a request validity period during which the request can be held until the device is reachable. The response to such requests should have the status set to pending delivery.
 
 See also the router module described below which handles delivery of requests to the actual device.
 
