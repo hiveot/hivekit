@@ -12,11 +12,11 @@ import (
 	"github.com/hiveot/hivekit/go/api/msg"
 	"github.com/hiveot/hivekit/go/api/td"
 	"github.com/hiveot/hivekit/go/modules"
+	"github.com/hiveot/hivekit/go/modules/consumer"
 	directorypkg "github.com/hiveot/hivekit/go/modules/directory/pkg"
 	"github.com/hiveot/hivekit/go/modules/factory"
 	"github.com/hiveot/hivekit/go/modules/transport"
 	"github.com/hiveot/hivekit/go/modules/transport/clients"
-	clientspkg "github.com/hiveot/hivekit/go/modules/transport/clients/pkg"
 	"github.com/hiveot/hivekit/go/modules/transport/discovery"
 	discoverypkg "github.com/hiveot/hivekit/go/modules/transport/discovery/pkg"
 )
@@ -28,7 +28,7 @@ import (
 // This consumer is a HiveModule, so it can be used as a sink in the TUI example,
 // but it can also be used in a CLI or other application.
 type WotConsumer struct {
-	clientspkg.Consumer
+	consumer.Consumer
 
 	// The token and client ID for authentication
 	// todo. right now this is a placeholder
@@ -313,7 +313,7 @@ func NewWotConsumer(timeout time.Duration) *WotConsumer {
 		authToken:   "no-token",
 		records:     make([]*discoverypkg.DiscoveryResult, 0),
 		clients:     make(map[string]transport.ITransportClient),
-		Consumer:    *clientspkg.NewConsumer(timeout),
+		Consumer:    *consumer.NewConsumer(timeout),
 		directories: make(map[string]*td.TD),
 		things:      make(map[string]*td.TD),
 	}

@@ -1,6 +1,7 @@
 package factory_test
 
 import (
+	"github.com/hiveot/hivekit/go/modules/agent"
 	authnapi "github.com/hiveot/hivekit/go/modules/authn"
 	authnpkg "github.com/hiveot/hivekit/go/modules/authn/pkg"
 	"github.com/hiveot/hivekit/go/modules/authz"
@@ -9,6 +10,7 @@ import (
 	bucketstorepkg "github.com/hiveot/hivekit/go/modules/bucketstore/pkg"
 	"github.com/hiveot/hivekit/go/modules/certs"
 	certspkg "github.com/hiveot/hivekit/go/modules/certs/pkg"
+	"github.com/hiveot/hivekit/go/modules/consumer"
 	"github.com/hiveot/hivekit/go/modules/digitwin"
 	digitwinpkg "github.com/hiveot/hivekit/go/modules/digitwin/pkg"
 	"github.com/hiveot/hivekit/go/modules/directory"
@@ -18,12 +20,12 @@ import (
 	historypkg "github.com/hiveot/hivekit/go/modules/history/pkg"
 	"github.com/hiveot/hivekit/go/modules/logging"
 	loggingpkg "github.com/hiveot/hivekit/go/modules/logging/pkg"
+	"github.com/hiveot/hivekit/go/modules/reconnect"
 	"github.com/hiveot/hivekit/go/modules/router"
 	routerpkg "github.com/hiveot/hivekit/go/modules/router/pkg"
 	"github.com/hiveot/hivekit/go/modules/transport"
 	"github.com/hiveot/hivekit/go/modules/transport/addforms"
 	addformspkg "github.com/hiveot/hivekit/go/modules/transport/addforms/pkg"
-	clientspkg "github.com/hiveot/hivekit/go/modules/transport/clients/pkg"
 	"github.com/hiveot/hivekit/go/modules/transport/discovery"
 	discoverypkg "github.com/hiveot/hivekit/go/modules/transport/discovery/pkg"
 	grpctransport "github.com/hiveot/hivekit/go/modules/transport/grpc"
@@ -87,14 +89,14 @@ var RecipeModules = map[string]factory.ModuleDefinition{
 	},
 
 	// clients
-	clientspkg.AgentModuleType: {
-		Constructor: clientspkg.NewAgentFactory,
+	agent.AgentModuleType: {
+		Constructor: agent.NewAgentFactory,
 	},
-	clientspkg.ConsumerModuleType: {
-		Constructor: clientspkg.NewConsumerFactory,
+	consumer.ConsumerModuleType: {
+		Constructor: consumer.NewConsumerFactory,
 	},
-	clientspkg.ReconnectModuleType: {
-		Constructor: clientspkg.NewReconnectFactory,
+	reconnect.ReconnectModuleType: {
+		Constructor: reconnect.NewReconnectFactory,
 	},
 	history.ReadHistoryClientModuleType: {
 		Constructor: historypkg.NewReadHistoryClientFactory,

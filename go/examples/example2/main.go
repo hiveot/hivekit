@@ -12,8 +12,8 @@ import (
 	"github.com/hiveot/hivekit/go/examples/example2/wotcli"
 	"github.com/hiveot/hivekit/go/examples/wotco"
 	"github.com/hiveot/hivekit/go/modules/factory"
+	"github.com/hiveot/hivekit/go/modules/reconnect"
 	routerpkg "github.com/hiveot/hivekit/go/modules/router/pkg"
-	clientspkg "github.com/hiveot/hivekit/go/modules/transport/clients/pkg"
 	"github.com/hiveot/hivekit/go/utils"
 )
 
@@ -77,7 +77,7 @@ func main() {
 	err := co.Start()
 
 	// 2 reconnect
-	rc := clientspkg.NewReconnect(time.Minute)
+	rc := reconnect.NewReconnect(time.Minute)
 	rc.SetNotificationSink(co.HandleNotification)
 	co.SetRequestSink(rc.HandleRequest)
 	err = rc.Start()

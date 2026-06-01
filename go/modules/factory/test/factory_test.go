@@ -9,12 +9,13 @@ import (
 	"time"
 
 	"github.com/hiveot/hivekit/go/api/msg"
+	"github.com/hiveot/hivekit/go/modules/agent"
 	"github.com/hiveot/hivekit/go/modules/authn"
 	certstest "github.com/hiveot/hivekit/go/modules/certs/test"
+	"github.com/hiveot/hivekit/go/modules/consumer"
 	"github.com/hiveot/hivekit/go/modules/digitwin"
 	factory "github.com/hiveot/hivekit/go/modules/factory"
 	factorypkg "github.com/hiveot/hivekit/go/modules/factory/pkg"
-	clientspkg "github.com/hiveot/hivekit/go/modules/transport/clients/pkg"
 	"github.com/hiveot/hivekit/go/utils"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -153,7 +154,8 @@ func TestClientServerRecipe(t *testing.T) {
 	env.ServerURL = serverFactory.GetConnectURL()
 
 	// the server agent handles the server requests
-	ag, _ := serverFactory.GetModule(clientspkg.AgentModuleType, true)
+	mod, _ := serverFactory.GetModule(agent.AgentModuleType, true)
+	ag := mod.(*agent.Agent)
 	ag.SetAppRequestHook(func(req *msg.RequestMessage, replyTo msg.ResponseHandler) error {
 		if req.ThingID == thingID {
 			slog.Info("Received request", "name", req.Name)
@@ -170,9 +172,9 @@ func TestClientServerRecipe(t *testing.T) {
 	require.NoError(t, err)
 	defer clientFactory.Stop()
 
-	m2, err := clientFactory.GetModule(clientspkg.ConsumerModuleType, true)
+	m2, err := clientFactory.GetModule(consumer.ConsumerModuleType, true)
 	assert.NoError(t, err)
-	co := m2.(*clientspkg.Consumer)
+	co := m2.(*consumer.Consumer)
 	var propValue string
 	err = co.ReadProperty(thingID, "fortytwo", &propValue)
 	assert.NoError(t, err)

@@ -5,7 +5,7 @@ import (
 	"github.com/hiveot/hivekit/go/api/td"
 	"github.com/hiveot/hivekit/go/modules"
 	"github.com/hiveot/hivekit/go/modules/authn"
-	clientspkg "github.com/hiveot/hivekit/go/modules/transport/clients/pkg"
+	"github.com/hiveot/hivekit/go/modules/consumer"
 )
 
 // AuthnUserMsgClient is a client module for authentication operations using RRN messages.
@@ -40,7 +40,7 @@ func (m *AuthnUserMsgClient) Logout() (err error) {
 }
 
 // UserRefreshToken client method - Request a new auth token for the current client.
-func (m *AuthnUserMsgClient) RefreshToken(hc *clientspkg.Consumer, oldToken string) (newToken string, err error) {
+func (m *AuthnUserMsgClient) RefreshToken(hc *consumer.Consumer, oldToken string) (newToken string, err error) {
 
 	err = m.Rpc(td.OpInvokeAction,
 		authn.AuthnUserServiceID, authn.UserActionRefreshToken, &oldToken, &newToken)
@@ -49,7 +49,7 @@ func (m *AuthnUserMsgClient) RefreshToken(hc *clientspkg.Consumer, oldToken stri
 
 // UserUpdatePassword client method - Update Password.
 // Request changing the password of the current client
-func (m *AuthnUserMsgClient) UpdateProfile(hc *clientspkg.Consumer, password string) (err error) {
+func (m *AuthnUserMsgClient) UpdateProfile(hc *consumer.Consumer, password string) (err error) {
 	err = m.Rpc(td.OpInvokeAction,
 		authn.AuthnUserServiceID, authn.UserActionSetPassword, &password, nil)
 	return

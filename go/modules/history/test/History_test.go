@@ -13,13 +13,13 @@ import (
 	"github.com/araddon/dateparse"
 	"github.com/hiveot/hivekit/go/api/msg"
 	"github.com/hiveot/hivekit/go/api/vocab"
+	"github.com/hiveot/hivekit/go/modules/agent"
 	"github.com/hiveot/hivekit/go/modules/authn"
 	"github.com/hiveot/hivekit/go/modules/bucketstore"
 	"github.com/hiveot/hivekit/go/modules/history"
 	"github.com/hiveot/hivekit/go/modules/history/internal"
 	historypkg "github.com/hiveot/hivekit/go/modules/history/pkg"
 	"github.com/hiveot/hivekit/go/modules/transport"
-	clientspkg "github.com/hiveot/hivekit/go/modules/transport/clients/pkg"
 	"github.com/hiveot/hivekit/go/testenv"
 	"github.com/hiveot/hivekit/go/utils"
 
@@ -693,7 +693,7 @@ func TestPubEvents(t *testing.T) {
 	_ = names
 
 	// attach another agent after the history service so its events are recorded
-	ag1 := clientspkg.NewAgent(agent1ID, nil)
+	ag1 := agent.NewAgent(agent1ID, nil)
 	m.SetRequestSink(ag1.HandleRequest)
 	ag1.SetNotificationSink(m.HandleNotification)
 	defer ag1.Start()

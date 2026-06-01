@@ -1,4 +1,4 @@
-package clientspkg
+package agent
 
 import (
 	"sync"
@@ -6,7 +6,7 @@ import (
 	"github.com/hiveot/hivekit/go/api/msg"
 )
 
-// ThingState holds the state values of a thing managed by the agent.
+// ThingState holds the state values of Things managed by the agent.
 // Intended to support querying property and event values.
 type ThingState struct {
 

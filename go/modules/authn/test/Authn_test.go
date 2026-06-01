@@ -47,7 +47,7 @@ func TestMain(m *testing.M) {
 // This uses the clientID as password
 // This panics if a client cannot be created
 // func NewTestConsumer(m *service.AuthnService, protocolType, serverURL, clientID string) (
-// 	*clientspkg.Consumer, transport.ITransportClient, string) {
+// 	*consumer.Consumer, transport.ITransportClient, string) {
 
 // 	// ensure the client exists
 // 	_ = m.AddClient(clientID, "client 1", authn.ClientRoleViewer)

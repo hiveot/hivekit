@@ -1,10 +1,10 @@
 package testenv
 
 import (
+	"github.com/hiveot/hivekit/go/api/msg"
 	"github.com/hiveot/hivekit/go/api/td"
-	"github.com/hiveot/hivekit/go/modules"
+	"github.com/hiveot/hivekit/go/modules/agent"
 	"github.com/hiveot/hivekit/go/modules/transport"
-	clientspkg "github.com/hiveot/hivekit/go/modules/transport/clients/pkg"
 	httpbasicpkg "github.com/hiveot/hivekit/go/modules/transport/httpbasic/pkg"
 	"github.com/hiveot/hivekit/go/modules/transport/httptransport"
 	httptransportpkg "github.com/hiveot/hivekit/go/modules/transport/httptransport/pkg"
@@ -14,14 +14,12 @@ import (
 
 // TestDevice contains a server and agent for testing and simulation
 type TestDevice struct {
-	modules.HiveModuleBase
-
 	agentID         string
 	authenticator   transport.IAuthenticator
 	cfg             *httptransport.Config
 	HttpServer      transport.IHttpServer
 	TransportServer transport.ITransportServer
-	Agent           *clientspkg.Agent
+	Agent           *agent.Agent
 	// the server protocol to use, eg ProtocolTypeWotWSS, ...
 	protocolType string
 
@@ -31,6 +29,11 @@ type TestDevice struct {
 // return the TD of the test device
 func (device *TestDevice) GetTD() *td.TD {
 	return device.td
+}
+
+// set the TD of the test device
+func (device *TestDevice) SetRequestSink(handler msg.RequestHandler) {
+	device.Agent.SetRequestSink(handler)
 }
 
 // Start the test device
@@ -66,11 +69,11 @@ func (device *TestDevice) Start() error {
 	// populate the security and forms in the TD
 	device.TransportServer.AddTDSecForms(device.td, true)
 	// create the agent and link it to the transport to serve requests
-	device.Agent = clientspkg.NewAgent(device.agentID, nil)
+	device.Agent = agent.NewAgent(device.agentID, nil)
 	device.TransportServer.SetRequestSink(device.Agent.HandleRequest)
 	device.Agent.SetNotificationSink(device.TransportServer.SendNotification)
 	// this device envelope handles requests received via the agent
-	device.Agent.SetRequestSink(device.HandleRequest)
+	// device.Agent.SetRequestSink(device.HandleRequest)
 	return nil
 }
 

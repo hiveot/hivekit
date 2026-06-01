@@ -29,16 +29,6 @@ type ModuleEnv struct {
 // Call Init(moduleID,sink) after construction
 type HiveModuleBase struct {
 
-	// notificationHandler is the application handler of notifications
-	// notifications will also be forwarded upstream to the upstream handler.
-	appNotificationHook msg.NotificationHandler
-
-	// appRequestHook is the application handler of requests addressed to this module.
-	//
-	// HandleRequest will invoke this callback or forward requests not destined for
-	// this module (moduleID != request.ThingID) to requestSink.
-	appRequestHook msg.RequestHandler
-
 	// ID of this module. Used as the senderID in notifications and in logging.
 	// By default this is the module type name.
 	moduleID string
@@ -154,19 +144,8 @@ func (m *HiveModuleBase) GetModuleID() string {
 
 // HandleNotification receives an incoming notification from a producer.
 //
-// The default behavior is to passes the notification to the registered hook and
-// send it upstream to the registered notification handler, if set.
-//
-// Applications that consume notifications should use SetNotificationHook to register
-// its handler as it leaves the chain intact..
+// The default behavior is to passes the notification upstream to the notification sink, if set.
 func (m *HiveModuleBase) HandleNotification(notif *msg.NotificationMessage) {
-	m.mux.RLock()
-	handler := m.appNotificationHook
-	m.mux.RUnlock()
-
-	if handler != nil {
-		handler(notif)
-	}
 	// the reason for the extra indirection is to ensure we're receiving the notification
 	// independently from when someone sets a custome notification handler.
 	// ForwardNotification will invoke the hook.
@@ -175,23 +154,8 @@ func (m *HiveModuleBase) HandleNotification(notif *msg.NotificationMessage) {
 
 // HandleRequest handles request for this module.
 //
-// This is just the default implementation. Applications can either set an appRequestHandler
-// or a module can override HandleRequest to do its own thing.
-//
-// Modules that override HandleRequest should first handle the request itself and
-// only hand it over to this base method when there is nothing for them to do. This method
-// simply forwards the request if no request handler hook is set.
+// This is just the default implementation that forwards the request downstream.
 func (m *HiveModuleBase) HandleRequest(req *msg.RequestMessage, replyTo msg.ResponseHandler) (err error) {
-	m.mux.RLock()
-	handler := m.appRequestHook
-	m.mux.RUnlock()
-	// Note, there is no thingID. So if the parent passes the request down and a request hook is set
-	// then assume the handler will take care of forwarding the request as needed.
-	if handler != nil {
-		err = handler(req, replyTo)
-		return err
-	}
-
 	return m.ForwardRequest(req, replyTo)
 }
 
@@ -217,12 +181,12 @@ func (m *HiveModuleBase) Rpc(
 	return err
 }
 
-// Set the hook to invoke with received notifications
-func (m *HiveModuleBase) SetAppNotificationHook(hook msg.NotificationHandler) {
-	m.mux.Lock()
-	defer m.mux.Unlock()
-	m.appNotificationHook = hook
-}
+// // Set the hook to invoke with received notifications
+// func (m *HiveModuleBase) SetAppNotificationHook(hook msg.NotificationHandler) {
+// 	m.mux.Lock()
+// 	defer m.mux.Unlock()
+// 	m.appNotificationHook = hook
+// }
 
 // Set the handler that will receive notifications emitted by this module
 func (m *HiveModuleBase) SetNotificationSink(consumer msg.NotificationHandler) {
@@ -233,21 +197,6 @@ func (m *HiveModuleBase) SetNotificationSink(consumer msg.NotificationHandler) {
 			"moduleID", m.moduleID)
 	}
 	m.notificationSink = consumer
-}
-
-// Set the hook to invoke when requests are received by this module.
-// The handler must either handle the request or forward it down the chain.
-//
-// This hook is intended to customize behavior without having to replace the module.
-// This comes in handy to handle requests by a simple agent without having to implement
-// a separate module. Another use-case is to trace requests for logging or other monitoring tasks.
-//
-// Failure to forward it without calling replyTo, or returning an error, results in
-// the request being lost and the caller waiting for a response until timeout.
-func (m *HiveModuleBase) SetAppRequestHook(hook msg.RequestHandler) {
-	m.mux.Lock()
-	defer m.mux.Unlock()
-	m.appRequestHook = hook
 }
 
 // SetRequestSink sets the producer that will handle requests for this consumer and register this

@@ -1,4 +1,4 @@
-package clientspkg
+package consumer
 
 import (
 	"errors"
@@ -16,10 +16,8 @@ const ConsumerModuleType = "consumer"
 
 // Consumer is a module representing a WoT consumer.
 //
-// This implements the IHiveModule interface and a number of convenience functions to
-// construct requests for subscribing to events and properties, reading properties, etc.
-//
-// Use of this is optional as clients also just use HiveModuleBase and use the Rpc() method.
+// This provides functions to read, write and observe properties, read and subscribe to
+// events, and invoke and query actions.
 //
 // Usage:
 //
@@ -29,11 +27,8 @@ const ConsumerModuleType = "consumer"
 //	To use this consumer it needs to be linked to a transport client module in order to deliver requests
 //	and receive notifications using one of the available transport protocols.
 //
-//	SetRequestSink(transportclient.Handlerequest) to set the transport for delivering requests.
-//	SetNotificationSink(consumer.HandleNotification) to receive notifications from the client
-//
-// This implements the IHiveModule interface so it can be used as a sink for transports
-// or other modules.
+//	Linking can be done manually using SetRequestSink and SetNotificationSink, or
+//	by including it as the first module in a recipe of the factory module.
 type Consumer struct {
 	// This consumer is a sink for the connection
 	modules.HiveModuleBase
@@ -41,7 +36,32 @@ type Consumer struct {
 	// The sink that will forward the requests and respond with notifications.
 	// sink modules.IHiveModule
 
+	// notificationHandler is the application handler of notifications
+	// notifications will also be forwarded upstream to the upstream handler.
+	appNotificationHook msg.NotificationHandler
+
 	mux sync.RWMutex
+}
+
+// HandleNotification receives an notifications from a downstream module.
+//
+// If a appNotification handler is set then pass this to the handler and forward
+// the notification to the upstream linked notification handler.
+//
+// See also SetNotificationHook to allow applications to register a handler that receives
+// notifications passing through the chain.
+func (m *Consumer) HandleNotification(notif *msg.NotificationMessage) {
+	m.mux.RLock()
+	handler := m.appNotificationHook
+	m.mux.RUnlock()
+
+	if handler != nil {
+		handler(notif)
+	}
+	// the reason for the extra indirection is to ensure we're receiving the notification
+	// independently from when someone sets a custome notification handler.
+	// ForwardNotification will invoke the hook.
+	m.ForwardNotification(notif)
 }
 
 // InvokeAction invokes an action on a thing and wait for the response
@@ -143,14 +163,6 @@ func (co *Consumer) ReadAllProperties(thingID string) (
 	return values, err
 }
 
-// ReadAllTDs sends a request to read all TDs from an agent
-// This returns an array of TDs in JSON format
-// This is not a WoT operation (but maybe it should be)
-//func (co *WotClient) ReadAllTDs() (tdJSONs []string, err error) {
-//	err = co.Rpc(td.HTOpReadAllTDs, "", "", nil, &tdJSONs)
-//	return tdJSONs, err
-//}
-
 // ReadEvent sends a request to read the last event message sent by a Thing.
 //
 // This returns the NotificationMessage that was last sent, containing the timestamp
@@ -179,84 +191,14 @@ func (co *Consumer) ReadPropertyAs(thingID, name string, prop any) (err error) {
 	return err
 }
 
-// RetrieveThing sends a request to read the latest Thing TD
-// This returns the TD in JSON format.
-// This is not a WoT operation (but maybe it should be)
-//func (co *WotClient) RetrieveThing(thingID string) (tdJSON string, err error) {
-//	err = co.Rpc(td.HTOpReadTD, thingID, "", nil, &tdJSON)
-//	return tdJSON, err
-//}
-
-// // Rpc sends a request message and waits for a response.
-// // This returns an error if the request fails or if the response contains an error
-// func (co *Consumer) Rpc(operation, thingID, name string, input any, output any) error {
-// 	correlationID := shortid.MustGenerate()
-
-// 	var resp *msg.ResponseMessage
-// 	req := msg.NewRequestMessage(operation, thingID, name, input, correlationID)
-
-// 	resp, err := co.ForwardRequestWait(req)
-
-// 	// ar := utils.NewAsyncReceiver[*msg.ResponseMessage]()
-// 	// err := co.ForwardRequest(req, func(resp *msg.ResponseMessage) error {
-// 	// 	slog.Info("Consumer RPC. Received response", "op", operation)
-// 	// 	ar.SetResponse(resp)
-// 	// 	return nil
-// 	// })
-// 	// if err == nil {
-// 	// resp, err = ar.WaitForResponse(co.rpcTimeout)
-// 	// }
-// 	if err == nil && resp != nil {
-// 		err = resp.Decode(output)
-// 	}
-// 	return err
-// }
-
-// ForwardRequest sends an operation request and passes the response to the replyTo handler.
+// Set the hook to invoke with received notifications
 //
-// If replyTo is nil then responses are ignored.
-//
-// // If the request has no correlation ID, one will be generated.
-// func (co *Consumer) SendRequest(req *msg.RequestMessage, replyTo msg.ResponseHandler) (err error) {
-
-// 	t0 := time.Now()
-// 	slog.Info("SendRequest: ->",
-// 		slog.String("op", req.Operation),
-// 		slog.String("dThingID", req.ThingID),
-// 		slog.String("name", req.Name),
-// 		slog.String("correlationID", req.CorrelationID),
-// 		slog.String("input", req.ToString(30)),
-// 	)
-// 	// if req.CorrelationID == "" {
-// 	// req.CorrelationID = shortid.MustGenerate()
-// 	// }
-// 	// if not waiting then return asap and pass the response to the async handler
-// 	err = co.ForwardRequest(req, func(resp *msg.ResponseMessage) error {
-// 		var err2 error
-// 		// intercept the response for logging and timing.
-// 		t1 := time.Now()
-// 		duration := t1.Sub(t0)
-
-// 		errMsg := ""
-// 		if resp.Error != nil {
-// 			errMsg = resp.Error.String()
-// 		}
-// 		slog.Info("SendRequest: <-",
-// 			slog.String("op", req.Operation),
-// 			slog.Float64("duration-msec", float64(duration.Microseconds())/1000),
-// 			slog.String("correlationID", req.CorrelationID),
-// 			slog.String("err", errMsg),
-// 			slog.String("output", resp.ToString(30)),
-// 		)
-// 		if replyTo != nil {
-// 			err2 = replyTo(resp)
-// 		} else {
-// 			slog.Info("SendRequest: no response handler provided")
-// 		}
-// 		return err2
-// 	})
-// 	return err
-// }
+// This lets applications receive notifications while leaving the notification chain intact.
+func (m *Consumer) SetAppNotificationHook(hook msg.NotificationHandler) {
+	m.mux.Lock()
+	defer m.mux.Unlock()
+	m.appNotificationHook = hook
+}
 
 // Subscribe to one or all events of a thing.
 // name is the event to subscribe to or "" for all events

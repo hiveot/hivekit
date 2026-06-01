@@ -31,14 +31,8 @@ type CertsService struct {
 	// ca key-pair
 	caPrivKey crypto.PrivateKey
 
-	// the ThingID of the service
-	certServiceThingID string
-
 	// the default server certificate as shared between modules
 	defaultServerTlsCert *tls.Certificate
-
-	// the RRN messaging API
-	msgHandler *CertsMsgHandler
 
 	// directory where certificates are stored
 	certsDir string
@@ -46,7 +40,7 @@ type CertsService struct {
 
 // GetTM returns the module TM document
 // It includes forms for messaging access through the WoT.
-func (m *CertsService) GetTM() string {
+func (svc *CertsService) GetTM() string {
 	tmJson := CertsTMJson
 	return string(tmJson)
 }
@@ -55,40 +49,37 @@ func (m *CertsService) GetTM() string {
 //
 // This loads the stored CA or creates a self-signed if none is found
 // This loads the default TLS certificate for use by servers or create a new if one isnt found
-func (m *CertsService) Start() (err error) {
+func (svc *CertsService) Start() (err error) {
 	slog.Info("Start: Starting certs module")
 
-	caCertPath := path.Join(m.certsDir, certs.DefaultCaCertFile)
-	caKeyPath := path.Join(m.certsDir, certs.DefaultCaKeyFile)
-	if m.certsDir != "" {
-		m.caCert, m.caPrivKey, err = certutils.LoadCA(caCertPath, caKeyPath)
+	caCertPath := path.Join(svc.certsDir, certs.DefaultCaCertFile)
+	caKeyPath := path.Join(svc.certsDir, certs.DefaultCaKeyFile)
+	if svc.certsDir != "" {
+		svc.caCert, svc.caPrivKey, err = certutils.LoadCA(caCertPath, caKeyPath)
 
 		// Load a saved default certificate
-		if m.defaultServerTlsCert == nil {
-			m.defaultServerTlsCert, err = m.LoadServerCert(certs.DefaultServerName)
+		if svc.defaultServerTlsCert == nil {
+			svc.defaultServerTlsCert, err = svc.LoadServerCert(certs.DefaultServerName)
 		}
 	}
 	// create missing CA key and cert
-	if m.caCert == nil || m.caPrivKey == nil {
+	if svc.caCert == nil || svc.caPrivKey == nil {
 		// Make a clean start with cert and key.
 		_ = os.Remove(caCertPath)
 		_ = os.Remove(caKeyPath)
-		m.caCert, m.caPrivKey, err = m.CreateCACert()
+		svc.caCert, svc.caPrivKey, err = svc.CreateCACert()
 	}
 	// create missing default server certificate
 	// FIXME: validate the certificate is expired
-	if m.defaultServerTlsCert == nil {
-		m.defaultServerTlsCert, err = m.CreateServerCert(
+	if svc.defaultServerTlsCert == nil {
+		svc.defaultServerTlsCert, err = svc.CreateServerCert(
 			certs.DefaultServerName, "", nil, nil)
 	}
-
-	m.msgHandler = NewCertsMsgHandler(m.certServiceThingID, m)
-	m.SetAppRequestHook(m.msgHandler.HandleRequest)
 	return err
 }
 
 // Stop any running actions
-func (m *CertsService) Stop() {
+func (svc *CertsService) Stop() {
 	slog.Info("Stop: Stopping certs module")
 	// m.service.Stop()
 }
@@ -96,9 +87,10 @@ func (m *CertsService) Stop() {
 // Create a new certificate service module
 // certsDir is the storage directory to read or create keys and certificates.
 func NewCertsService(certsDir string) *CertsService {
+	moduleID := certs.DefaultCertsServiceThingID
 	m := &CertsService{
-		certsDir:           certsDir,
-		certServiceThingID: certs.DefaultCertsServiceThingID,
+		HiveModuleBase: modules.NewHiveModuleBase(moduleID, 0),
+		certsDir:       certsDir,
 	}
 	var _ modules.IHiveModule = m // interface check
 	var _ certs.ICertsService = m // interface check

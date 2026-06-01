@@ -13,12 +13,12 @@ import (
 	"github.com/hiveot/hivekit/go/api/vocab"
 	"github.com/hiveot/hivekit/go/modules/authn"
 	certstest "github.com/hiveot/hivekit/go/modules/certs/test"
+	"github.com/hiveot/hivekit/go/modules/consumer"
 	"github.com/hiveot/hivekit/go/modules/directory"
 	directorypkg "github.com/hiveot/hivekit/go/modules/directory/pkg"
 	"github.com/hiveot/hivekit/go/modules/router"
 	routerpkg "github.com/hiveot/hivekit/go/modules/router/pkg"
 	"github.com/hiveot/hivekit/go/modules/transport"
-	clientspkg "github.com/hiveot/hivekit/go/modules/transport/clients/pkg"
 	"github.com/hiveot/hivekit/go/modules/transport/httptransport"
 	"github.com/hiveot/hivekit/go/testenv"
 	"github.com/hiveot/hivekit/go/utils"
@@ -72,7 +72,7 @@ func startTestDevice(agentID string, thingID string) (testDevice *testenv.TestDe
 func SetupConsumerWithRouter() (
 	routerMod router.IRouterService,
 	dirMod directory.IDirectoryService,
-	co *clientspkg.Consumer) {
+	co *consumer.Consumer) {
 
 	// setup the consumer side: directory, router and consumer
 	// register the device TD in the directory for use by the router
@@ -103,7 +103,7 @@ func SetupConsumerWithRouter() (
 
 	// a consumer links to the router and subscribes to the device
 	// note for the purpose of this test the router can run on the client
-	consumer := clientspkg.NewConsumer(rpcTimeout)
+	consumer := consumer.NewConsumer(rpcTimeout)
 	consumer.SetRequestSink(routerMod.HandleRequest)
 	routerMod.SetNotificationSink(consumer.HandleNotification)
 	err = consumer.Start()
@@ -150,11 +150,11 @@ func TestReadDeviceProperties(t *testing.T) {
 	const clientID = "client1"
 
 	// Setup the test device with server and a TD
-	// The test device runs a server. The router will have to match its security as
+	// The test device is a runs a server that passes requests to its agent. The router will have to match its security as
 	// included in its TD
 	testDevice := startTestDevice(agentID, thingID1)
 	defer testDevice.Stop()
-	testDevice.SetAppRequestHook(func(req *msg.RequestMessage, replyTo msg.ResponseHandler) (err error) {
+	testDevice.Agent.SetAppRequestHook(func(req *msg.RequestMessage, replyTo msg.ResponseHandler) (err error) {
 		testTD := testDevice.GetTD()
 		if req.Operation == td.OpReadAllProperties {
 			props := make(map[string]any)
@@ -229,7 +229,7 @@ func TestSubscribeToDevice(t *testing.T) {
 
 	// a consumer links to the router and subscribes to the device
 	// note for the purpose of this test the router can run on the client
-	consumer := clientspkg.NewConsumer(rpcTimeout)
+	consumer := consumer.NewConsumer(rpcTimeout)
 	consumer.SetRequestSink(routerMod.HandleRequest)
 	routerMod.SetNotificationSink(consumer.HandleNotification)
 	err = consumer.Start()

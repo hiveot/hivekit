@@ -355,11 +355,7 @@ func (cl *WssTransportClient) HandleRequest(request *msg.RequestMessage, replyTo
 }
 
 // SendNotification Agent posts a notification over to the server
-// This passes the notification as-is as a payload.
-//
-// This posts the JSON-encoded NotificationMessage on the well-known hiveot notification href.
-// In WoT Agents are typically a server, not a client, so this is intended for
-// agents that use connection-reversal.
+// This serializes the notification and sends it to the server.
 func (cl *WssTransportClient) SendNotification(notif *msg.NotificationMessage) {
 	slog.Info("SendNotification",
 		slog.String("clientID", cl.clientID),

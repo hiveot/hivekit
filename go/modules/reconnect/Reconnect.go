@@ -1,4 +1,4 @@
-package clientspkg
+package reconnect
 
 import (
 	"context"
@@ -20,18 +20,9 @@ import (
 const ReconnectModuleType = "reconnect"
 const DefaultMaxReconnectAttempts = 999999
 
-// Reconnect is a module that automatically re-applies event subscriptions and property
-// observations after a connection is restored.
-//
-// # Place this module before the connection client module in the chain
-//
-// For this to work the following rules must be enforced to client modules:
-//   - client modules must submit disconnect and connect notifications
-//   - consumers must subscribe using the standard TD operations for subscriptions.
-//
-// Future consideration:
-//   - have client modules connect/disconnect using RRN messaging instead of direct API
-//     and implement the reconnect attempt in this module.
+// Reconnect is a module that automatically re-applies request a reconnect after a
+// client loses its connection and applies event subscriptions and property observations
+// after a connection is restored.
 type Reconnect struct {
 	modules.HiveModuleBase
 

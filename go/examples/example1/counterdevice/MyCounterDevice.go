@@ -11,9 +11,8 @@ import (
 	"github.com/hiveot/hivekit/go/api/msg"
 	"github.com/hiveot/hivekit/go/api/td"
 	"github.com/hiveot/hivekit/go/modules"
-	"github.com/hiveot/hivekit/go/modules/directory"
+	"github.com/hiveot/hivekit/go/modules/agent"
 	"github.com/hiveot/hivekit/go/modules/factory"
-	clientspkg "github.com/hiveot/hivekit/go/modules/transport/clients/pkg"
 )
 
 //go:embed "my-counter-tm.json"
@@ -42,7 +41,7 @@ const (
 // This implements the properties, events and actions listed in the device TM.
 // This does not expose the TM because .. this is a simple example.
 type MyCounterDevice struct {
-	clientspkg.Agent
+	agent.Agent
 
 	counter          atomic.Int32
 	backgroundCtx    context.Context
@@ -133,8 +132,7 @@ func (m *MyCounterDevice) Start() error {
 	go func() {
 		time.Sleep(time.Millisecond)
 		// write TD to the directory or discovery
-		err := m.InvokeAction(directory.DefaultDirectoryThingID,
-			directory.ActionCreateThing, CounterDeviceTM, nil)
+		err := m.PubTD(string(CounterDeviceTM))
 		_ = err
 	}()
 	// publish the latest property values
@@ -167,7 +165,7 @@ func (m *MyCounterDevice) Update(newValue int) {
 
 func NewCounterDevice(agentID string) modules.IHiveModule {
 	m := &MyCounterDevice{
-		Agent: *clientspkg.NewAgent(agentID, nil),
+		Agent: *agent.NewAgent(agentID, nil),
 	}
 	m.counter.Store(42)
 	return m

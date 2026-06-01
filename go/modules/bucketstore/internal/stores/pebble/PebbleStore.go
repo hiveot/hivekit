@@ -59,7 +59,6 @@ func (store *PebbleStore) Close() error {
 	}
 	err := store.db.Close()
 	store.db = nil
-	store.db = nil
 	return err
 }
 

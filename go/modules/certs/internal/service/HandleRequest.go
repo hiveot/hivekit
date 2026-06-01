@@ -15,32 +15,27 @@ import (
 //go:embed "certs-tm.json"
 var CertsTMJson []byte
 
-// CertsMsgHandler maps RRN messages to the native service interface
-type CertsMsgHandler struct {
-	// the certificate manager instance ThingID that must match the requests
-	thingID string
-	service certs.ICertsService
-}
-
 // HandleRequest for properties or actions
 // If the request is not recognized nil is returned.
 // If the request is missing the sender, an error is returned
-func (handler *CertsMsgHandler) HandleRequest(
+func (svc *CertsService) HandleRequest(
 	req *msg.RequestMessage, replyTo msg.ResponseHandler) (err error) {
 
+	if req.ThingID != svc.GetModuleID() {
+		return svc.ForwardRequest(req, replyTo)
+	}
+
 	var resp *msg.ResponseMessage
-	if req.ThingID != handler.thingID {
-		return nil
-	} else if req.SenderID == "" {
+	if req.SenderID == "" {
 		// todo: is this really needed?
 		err = fmt.Errorf("missing senderID in request")
 	} else if req.Operation == td.OpInvokeAction {
 		// certificate specific operations
 		switch req.Name {
 		case certs.ActionGetCACert:
-			resp, err = handler.GetCaCert(req)
+			resp, err = svc._handleGetCACert(req)
 		case certs.ActionGetServerCert:
-			resp, err = handler.GetDefaultServerCert(req)
+			resp, err = svc._handleGetServerCert(req)
 		default:
 			err = fmt.Errorf("Unknown request name '%s' for thingID '%s'", req.Name, req.ThingID)
 		}
@@ -54,9 +49,9 @@ func (handler *CertsMsgHandler) HandleRequest(
 }
 
 // Invoke the GetCACert method
-func (handler *CertsMsgHandler) GetCaCert(req *msg.RequestMessage) (resp *msg.ResponseMessage, err error) {
+func (svc *CertsService) _handleGetCACert(req *msg.RequestMessage) (resp *msg.ResponseMessage, err error) {
 	// no args
-	cert, err := handler.service.GetCACert()
+	cert, err := svc.GetCACert()
 	if err != nil {
 		return nil, err
 	}
@@ -67,9 +62,9 @@ func (handler *CertsMsgHandler) GetCaCert(req *msg.RequestMessage) (resp *msg.Re
 }
 
 // Decode the Get Server cert method
-func (handler *CertsMsgHandler) GetDefaultServerCert(req *msg.RequestMessage) (resp *msg.ResponseMessage, err error) {
+func (svc *CertsService) _handleGetServerCert(req *msg.RequestMessage) (resp *msg.ResponseMessage, err error) {
 	// no args
-	cert, err := handler.service.GetDefaultServerCert()
+	cert, err := svc.GetDefaultServerCert()
 	if err != nil {
 		return nil, err
 	}
@@ -77,15 +72,4 @@ func (handler *CertsMsgHandler) GetDefaultServerCert(req *msg.RequestMessage) (r
 	certPEM := certutils.X509CertToPEM(cert)
 	resp = req.CreateResponse(certPEM, err)
 	return resp, nil
-}
-
-// Create a new directory message handler. On start this creates the server and store.
-// bucketStore is the store to use for this module chain.
-func NewCertsMsgHandler(thingID string, service certs.ICertsService) *CertsMsgHandler {
-
-	handler := &CertsMsgHandler{
-		thingID: thingID,
-		service: service,
-	}
-	return handler
 }

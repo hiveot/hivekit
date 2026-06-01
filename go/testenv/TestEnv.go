@@ -11,11 +11,13 @@ import (
 	"github.com/hiveot/hivekit/go/api/msg"
 	"github.com/hiveot/hivekit/go/api/td"
 	"github.com/hiveot/hivekit/go/api/vocab"
+	"github.com/hiveot/hivekit/go/modules/agent"
 	"github.com/hiveot/hivekit/go/modules/authn"
 	certstest "github.com/hiveot/hivekit/go/modules/certs/test"
+	"github.com/hiveot/hivekit/go/modules/consumer"
+	"github.com/hiveot/hivekit/go/modules/reconnect"
 	"github.com/hiveot/hivekit/go/modules/transport"
 	"github.com/hiveot/hivekit/go/modules/transport/clients"
-	clientspkg "github.com/hiveot/hivekit/go/modules/transport/clients/pkg"
 	grpcpkg "github.com/hiveot/hivekit/go/modules/transport/grpc/pkg"
 	httpbasicpkg "github.com/hiveot/hivekit/go/modules/transport/httpbasic/pkg"
 	"github.com/hiveot/hivekit/go/modules/transport/httptransport"
@@ -176,10 +178,10 @@ func (testEnv *TestEnv) NewConnectedClient(
 // server.
 //
 // This panics if the agent cannot be created.
-func (testEnv *TestEnv) NewServerAgent(agentID string) *clientspkg.Agent {
+func (testEnv *TestEnv) NewServerAgent(agentID string) *agent.Agent {
 
 	// Simple server side agent. No account needed
-	agent := clientspkg.NewAgent(agentID, nil)
+	agent := agent.NewAgent(agentID, nil)
 
 	// the agent is the sink for the transport server
 	testEnv.Server.SetRequestSink(agent.HandleRequest)
@@ -202,14 +204,14 @@ func (testEnv *TestEnv) NewServerAgent(agentID string) *clientspkg.Agent {
 // This returns the agent module, its client connection and the auth token.
 // This panics if a client cannot be created
 func (testEnv *TestEnv) NewRCAgent(clientID string, appReqHandler msg.RequestHandler) (
-	ag *clientspkg.Agent, cc transport.IConnection, authToken string) {
+	ag *agent.Agent, cc transport.IConnection, authToken string) {
 
 	// cc is the client connection for the agent that receives requests from the
 	// server for the agent and sends notifications to the server.
 	cl, authToken := testEnv.NewConnectedClient(clientID, authn.ClientRoleAgent)
 
 	// simple agent, no application request handler yet
-	agent := clientspkg.NewAgent(clientID+"-agent", appReqHandler)
+	agent := agent.NewAgent(clientID+"-agent", appReqHandler)
 
 	// the client delivers requests to the agent and receives notifications from it
 	cl.SetRequestSink(agent.HandleRequest)
@@ -233,14 +235,14 @@ func (testEnv *TestEnv) NewRCAgent(clientID string, appReqHandler msg.RequestHan
 //	role of the client
 //	reconnect flag to include the reconnect module
 func (testEnv *TestEnv) NewConnectedConsumer(
-	clientID string, role string, reconnect bool) (
-	co *clientspkg.Consumer, cc transport.ITransportClient, token string) {
+	clientID string, role string, useReconnect bool) (
+	co *consumer.Consumer, cc transport.ITransportClient, token string) {
 
 	cc, token = testEnv.NewConnectedClient(clientID, role)
-	co = clientspkg.NewConsumer(TestTimeout)
-	if reconnect {
+	co = consumer.NewConsumer(TestTimeout)
+	if useReconnect {
 		// insert the reconnect module between consumer and client connection
-		rc := clientspkg.NewReconnect(TestTimeout)
+		rc := reconnect.NewReconnect(TestTimeout)
 		rc.SetRequestSink(cc.HandleRequest)
 		co.SetRequestSink(rc.HandleRequest)
 		cc.SetNotificationSink(rc.HandleNotification)

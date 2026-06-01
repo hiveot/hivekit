@@ -5,7 +5,7 @@ import (
 	"github.com/hiveot/hivekit/go/api/td"
 	"github.com/hiveot/hivekit/go/modules"
 	authnapi "github.com/hiveot/hivekit/go/modules/authn"
-	clientspkg "github.com/hiveot/hivekit/go/modules/transport/clients/pkg"
+	"github.com/hiveot/hivekit/go/modules/consumer"
 )
 
 // AuthnAdminMsgClient is a client module for authentication management using RRN messages.
@@ -33,7 +33,7 @@ func (m *AuthnAdminMsgClient) AddClient(clientID string, displayName string, rol
 
 // AdminGetClientProfile client method - Get Client Profile.
 // Get the profile information describing a client
-func (m *AuthnAdminMsgClient) AdminGetClientProfile(co *clientspkg.Consumer, clientID string) (
+func (m *AuthnAdminMsgClient) AdminGetClientProfile(co *consumer.Consumer, clientID string) (
 	profile authnapi.ClientProfile, err error) {
 
 	thingID := authnapi.DefaultAdminServiceID
@@ -44,7 +44,7 @@ func (m *AuthnAdminMsgClient) AdminGetClientProfile(co *clientspkg.Consumer, cli
 
 // AdminGetProfiles client method - Get Profiles.
 // Get a list of all client profiles
-func (m *AuthnAdminMsgClient) AdminGetProfiles(co *clientspkg.Consumer) (clientProfiles []authnapi.ClientProfile, err error) {
+func (m *AuthnAdminMsgClient) AdminGetProfiles(co *consumer.Consumer) (clientProfiles []authnapi.ClientProfile, err error) {
 
 	thingID := authnapi.DefaultAdminServiceID
 	err = m.Rpc(td.OpInvokeAction, thingID,
@@ -54,7 +54,7 @@ func (m *AuthnAdminMsgClient) AdminGetProfiles(co *clientspkg.Consumer) (clientP
 
 // AdminRemoveClient client method - Remove Client.
 // Remove a client account
-func (m *AuthnAdminMsgClient) AdminRemoveClient(hc *clientspkg.Consumer, clientID string) (err error) {
+func (m *AuthnAdminMsgClient) AdminRemoveClient(hc *consumer.Consumer, clientID string) (err error) {
 
 	thingID := authnapi.DefaultAdminServiceID
 	err = m.Rpc(td.OpInvokeAction, thingID,
@@ -64,7 +64,7 @@ func (m *AuthnAdminMsgClient) AdminRemoveClient(hc *clientspkg.Consumer, clientI
 
 // AdminSetClientPassword client method - Set Client Password.
 // Update the password of a consumer
-func (m *AuthnAdminMsgClient) AdminSetClientPassword(hc *clientspkg.Consumer, userName string, password string) (err error) {
+func (m *AuthnAdminMsgClient) AdminSetClientPassword(hc *consumer.Consumer, userName string, password string) (err error) {
 	var args = authnapi.AdminSetPasswordArgs{
 		UserName: userName, Password: password}
 

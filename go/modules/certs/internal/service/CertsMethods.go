@@ -31,7 +31,7 @@ const DefaultCA_Validity = 365*20 + 5
 //
 // validityDays is the CA's validity in days
 // This returns the CA, key or an error
-func (m *CertsService) CreateCACert() (
+func (svc *CertsService) CreateCACert() (
 	caCert *x509.Certificate, privKey crypto.PrivateKey, err error) {
 
 	caCert, privKey, _, err = selfsigned.CreateSelfSignedCA(
@@ -43,10 +43,10 @@ func (m *CertsService) CreateCACert() (
 		DefaultCA_Validity,
 		utils.KeyTypeED25519)
 
-	if m.certsDir != "" {
+	if svc.certsDir != "" {
 		// save the CA, but only if it won't overwrite an existing certificate
-		caCertPath := path.Join(m.certsDir, certs.DefaultCaCertFile)
-		caKeyPath := path.Join(m.certsDir, certs.DefaultCaKeyFile)
+		caCertPath := path.Join(svc.certsDir, certs.DefaultCaCertFile)
+		caKeyPath := path.Join(svc.certsDir, certs.DefaultCaKeyFile)
 
 		if _, err := os.Stat(caCertPath); err == nil {
 			err = fmt.Errorf("the CA certificate exists at %s", caCertPath)
@@ -76,7 +76,7 @@ func (m *CertsService) CreateCACert() (
 //
 // The certificate will be signed by the CA on file, if present.
 // If LetsEncrypt is configured then an internet connection is required. (a future feature)
-func (m *CertsService) CreateServerCert(
+func (svc *CertsService) CreateServerCert(
 	moduleID string, hostname string,
 	serverPrivKey crypto.PrivateKey, serverPubKey crypto.PublicKey) (
 	tlsCert *tls.Certificate, err error) {
@@ -95,64 +95,64 @@ func (m *CertsService) CreateServerCert(
 	// use self-signed CA until letsencrypt is supported
 	serverCert, err := selfsigned.CreateSelfSignedServerCert(
 		moduleID, DefaultCA_Org, 365,
-		serverPubKey, names, m.caCert, m.caPrivKey)
+		serverPubKey, names, svc.caCert, svc.caPrivKey)
 	if err != nil {
 		return tlsCert, err
 	}
 	tlsCert = certutils.X509CertToTLS(serverCert, serverPrivKey)
 
 	// persist the certificate
-	certPath := path.Join(m.certsDir, moduleID+"Cert.pem")
-	keyPath := path.Join(m.certsDir, moduleID+"Key.pem")
+	certPath := path.Join(svc.certsDir, moduleID+"Cert.pem")
+	keyPath := path.Join(svc.certsDir, moduleID+"Key.pem")
 	err = certutils.SaveTLSCertToPEM(tlsCert, certPath, keyPath)
 
 	return tlsCert, err
 }
 
 // Return the configured CA certificate
-func (m *CertsService) GetCACert() (*x509.Certificate, error) {
-	if m.caCert == nil {
+func (svc *CertsService) GetCACert() (*x509.Certificate, error) {
+	if svc.caCert == nil {
 		return nil, fmt.Errorf("service not initialized")
 	}
-	return m.caCert, nil
+	return svc.caCert, nil
 }
 
 // Return the default server certificate
-func (m *CertsService) GetDefaultServerCert() (*x509.Certificate, error) {
-	if m.defaultServerTlsCert == nil {
+func (svc *CertsService) GetDefaultServerCert() (*x509.Certificate, error) {
+	if svc.defaultServerTlsCert == nil {
 		return nil, fmt.Errorf("server cert not initialized")
 	}
-	x509cert, _, err := certutils.TLSCertToX509(m.defaultServerTlsCert)
+	x509cert, _, err := certutils.TLSCertToX509(svc.defaultServerTlsCert)
 	return x509cert, err
 }
 
 // GetServerCert resturn the default shared server certificate.
-func (m *CertsService) GetDefaultServerTlsCert() (cert *tls.Certificate, err error) {
+func (svc *CertsService) GetDefaultServerTlsCert() (cert *tls.Certificate, err error) {
 
-	if m.defaultServerTlsCert == nil {
+	if svc.defaultServerTlsCert == nil {
 		return cert, fmt.Errorf("the default server certificate is not loaded")
 	}
-	return m.defaultServerTlsCert, nil
+	return svc.defaultServerTlsCert, nil
 }
 
 // GetServerCert loads a previously save module server certificate from the
 // certificate directory.
 // The file names used are {moduleID}Cert.pem and {moduleID}Key.pem
-func (m *CertsService) LoadServerCert(moduleID string) (
+func (svc *CertsService) LoadServerCert(moduleID string) (
 	serverCert *tls.Certificate, err error) {
 
-	if m.certsDir == "" {
+	if svc.certsDir == "" {
 		return serverCert, fmt.Errorf("certificate directory is not configured")
 	}
-	serverCertPath := path.Join(m.certsDir, moduleID+"Cert.pem")
-	serverKeyPath := path.Join(m.certsDir, moduleID+"Key.pem")
+	serverCertPath := path.Join(svc.certsDir, moduleID+"Cert.pem")
+	serverKeyPath := path.Join(svc.certsDir, moduleID+"Key.pem")
 	serverCert, err = certutils.LoadTLSCertFromPEM(serverCertPath, serverKeyPath)
 
 	return serverCert, err
 }
 
-func (m *CertsService) VerifyCert(moduleID string, cert *x509.Certificate) (err error) {
-	cn, err := selfsigned.VerifyCert(cert, m.caCert)
+func (svc *CertsService) VerifyCert(moduleID string, cert *x509.Certificate) (err error) {
+	cn, err := selfsigned.VerifyCert(cert, svc.caCert)
 	if err == nil {
 		if cn != moduleID {
 			err = fmt.Errorf("expected cn to be '%s' but it is '%s' instead", moduleID, cn)

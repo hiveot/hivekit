@@ -39,7 +39,6 @@ func TestSubscribeAll(t *testing.T) {
 	var agentID = "agent1"
 	var thingID = "thing1"
 	var eventKey = "event11"
-	var agentRxEvent atomic.Bool
 
 	// 1. start the servers
 	testEnv, cancelFn := testenv.StartTestEnv(testProtocol)
@@ -51,10 +50,6 @@ func TestSubscribeAll(t *testing.T) {
 
 	co2, cc2, _ := testEnv.NewConnectedConsumer(testClientID1, authn.ClientRoleViewer, false)
 	defer cc2.Close()
-
-	// connect a test agent agent
-	agent1, agConn1, _ := testEnv.NewRCAgent(agentID, nil)
-	defer agConn1.Close()
 
 	// set the handler for events and subscribe
 	ctx, cancelFn := context.WithTimeout(context.Background(), time.Minute)
@@ -69,11 +64,6 @@ func TestSubscribeAll(t *testing.T) {
 	})
 	co2.SetNotificationSink(func(ev *msg.NotificationMessage) {
 		slog.Info("client 2 receives event")
-	})
-	agent1.SetAppNotificationHook(func(ev *msg.NotificationMessage) {
-		// receive event, tests whether agents work as a consumer
-		slog.Info("Agent receives event")
-		agentRxEvent.Store(true)
 		cancelFn()
 	})
 
@@ -81,10 +71,6 @@ func TestSubscribeAll(t *testing.T) {
 	err := co1.Subscribe("", "")
 	assert.NoError(t, err)
 	err = co2.Subscribe(thingID, eventKey)
-	assert.NoError(t, err)
-	// agent1 acts as a consumer here, its must have its sink set to a client
-	// so its requests can be forwarded.
-	err = agent1.Subscribe("", "")
 	assert.NoError(t, err)
 
 	// 3. Server sends event to consumers
@@ -97,7 +83,6 @@ func TestSubscribeAll(t *testing.T) {
 	<-ctx.Done()
 	time.Sleep(time.Millisecond * 10)
 	assert.Equal(t, testMsg1, rxVal.Load())
-	assert.True(t, agentRxEvent.Load())
 
 	// Unsubscribe from events
 	err = co1.Unsubscribe("", "")
@@ -105,9 +90,6 @@ func TestSubscribeAll(t *testing.T) {
 	time.Sleep(time.Millisecond * 10) // async take time
 	err = co2.Unsubscribe(thingID, eventKey)
 	assert.NoError(t, err)
-	err = agent1.Unsubscribe("", "")
-	assert.NoError(t, err)
-	agentRxEvent.Store(false)
 
 	// 5. Server sends another event to consumers
 	notif2 := msg.NewNotificationMessage(
@@ -116,7 +98,6 @@ func TestSubscribeAll(t *testing.T) {
 	time.Sleep(time.Millisecond)
 	// update not received
 	assert.Equal(t, testMsg1, rxVal.Load(), "Unsubscribe didnt work")
-	assert.False(t, agentRxEvent.Load())
 }
 
 // test if subscriptions are retained after a reconnect

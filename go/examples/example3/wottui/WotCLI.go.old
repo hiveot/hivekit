@@ -21,7 +21,7 @@ const WotCLIModuleType = "wotcli"
 
 // WoTCLI discovers and loads things
 type WotCLI struct {
-	clientspkg.Consumer
+	consumer.Consumer
 
 	// The token for authentication
 	// todo. right now this is a placeholder
@@ -200,7 +200,7 @@ func NewWotCLI() *WotCLI {
 	cl := &WotCLI{
 		records:   make([]*discoverypkg.DiscoveryResult, 0),
 		things:    make(map[string]*td.TD),
-		Consumer:  *clientspkg.NewConsumer(""),
+		Consumer:  *consumer.NewConsumer(""),
 		authToken: "no-token",
 	}
 	return cl

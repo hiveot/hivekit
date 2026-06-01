@@ -21,7 +21,7 @@ type TDPage struct {
 }
 
 func (page *TDPage) Refresh(thingID string) {
-	// var consumer *clientspkg.Consumer
+	// var consumer *consumer.Consumer
 
 	tdList := page.model.GetThings()
 	tdoc, found := tdList[thingID]

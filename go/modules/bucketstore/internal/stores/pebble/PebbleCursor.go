@@ -49,7 +49,7 @@ func (cursor *PebbleCursor) GetKV() (key string, value []byte, valid bool) {
 		return k, nil, valid
 	}
 	vClone := make([]byte, len(v))
-	copy(v, vClone)
+	copy(vClone, v)
 	return key, vClone, valid
 }
 

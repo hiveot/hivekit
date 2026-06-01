@@ -324,11 +324,6 @@ func (cl *SseScClient) IsRunning() bool {
 }
 
 // SendNotification Agent posts a notification using the hiveot http/sse protocol.
-//
-// This posts the JSON-encoded NotificationMessage on the well-known hiveot notification path.
-// In WoT Agents are typically a server, not a client, so this is intended for
-// agents that use connection-reversal.
-// Forms are not needed.
 func (cl *SseScClient) SendNotification(msg *msg.NotificationMessage) {
 	// Send as text, not binary, to avoid unmarshalling problems
 	outputJSON, _ := jsoniter.MarshalToString(msg)
@@ -425,11 +420,6 @@ func (cl *SseScClient) SendRequest(
 // SendResponse [Agent] posts a response using the hiveot protocol.
 //
 // Use by agent when using reverse connection to a server.
-//
-// This posts the JSON serialized ResponseMessage on the well-known hiveot-sse response href.
-// Forms are not needed.
-// In WoT Agents are typically a server, not a client, so this is intended for
-// agents that use connection-reversal.
 func (cl *SseScClient) SendResponse(resp *msg.ResponseMessage) error {
 
 	// Send as text, not binary, to avoid unmarshalling problems

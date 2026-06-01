@@ -51,11 +51,12 @@ type IHiveModule interface {
 	// The default behavior is to forward it upstream to the handler set with SetNotificationSink.
 	HandleNotification(notif *msg.NotificationMessage)
 
+	// Deprecated: this should move to the agent as agents serve application requests
 	// SetAppRequestHook sets the handler that receives unhandled requests that pass through
 	// this module.
 	// The handler decides if it can handle the request and should forward the request if it
 	// cannot be handled.
-	SetAppRequestHook(hook msg.RequestHandler)
+	// SetAppRequestHook(hook msg.RequestHandler)
 
 	// Set the hook to invoke with received notifications
 	// SetNotificationHook(hook msg.NotificationHandler)

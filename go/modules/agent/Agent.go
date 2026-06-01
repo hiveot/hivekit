@@ -1,13 +1,15 @@
-package clientspkg
+package agent
 
 import (
 	"fmt"
 	"log/slog"
 	"maps"
+	"sync"
 
 	"github.com/hiveot/hivekit/go/api/msg"
 	"github.com/hiveot/hivekit/go/api/td"
 	"github.com/hiveot/hivekit/go/modules"
+	"github.com/hiveot/hivekit/go/modules/directory"
 	"github.com/hiveot/hivekit/go/modules/factory"
 	"github.com/hiveot/hivekit/go/utils"
 )
@@ -32,7 +34,15 @@ const AgentModuleType = "agent"
 //
 // An Agent is also a consumer as they are able to invoke services.
 type Agent struct {
-	*Consumer
+	modules.HiveModuleBase
+
+	// appRequestHook is the application handler of requests addressed to this module.
+	//
+	// HandleRequest will invoke this callback or forward requests not destined for
+	// this module (moduleID != request.ThingID) to requestSink.
+	appRequestHook msg.RequestHandler
+
+	mux sync.RWMutex
 
 	// Map of the Things managed by the agent
 	tstates map[string]*ThingState
@@ -133,6 +143,30 @@ func (ag *Agent) HandleReadRequests(req *msg.RequestMessage, replyTo msg.Respons
 	return err
 }
 
+// HandleRequest handles request with thingID set to this moduleID.
+//
+// If a request hook is set then pass the request to the hook. If the hook does not handle the
+// request then it MUST forward it using ForwardRequest.
+//
+// Applications can also embed this agent and override HandleRequest to handle requests themselves.
+//
+// Modules that override HandleRequest should first handle the request itself and
+// only hand it over to this base method when there is nothing for them to do. This method
+// simply forwards the request if no request handler hook is set.
+func (m *Agent) HandleRequest(req *msg.RequestMessage, replyTo msg.ResponseHandler) (err error) {
+
+	// the request is aimed at this agent
+	m.mux.RLock()
+	handler := m.appRequestHook
+	m.mux.RUnlock()
+
+	if handler != nil {
+		err = handler(req, replyTo)
+		return err
+	}
+	return fmt.Errorf("Unhandled request")
+}
+
 // PubActionProgress helper for agents to send a 'running' ActionStatus notification
 //
 // This sends an ResponseMessage message with status of running.
@@ -218,37 +252,55 @@ func (ag *Agent) PubProperties(thingID string, propMap map[string]any) {
 	}
 }
 
-// SendResponse sends a response for a previous request
-// func (ag *Agent) SendResponse(resp *msg.ResponseMessage) error {
-// 	return ag.GetConnection().SendResponse(resp)
-// }
+// PubTD publish a request downstream to write a TD to a directory or discovery service.
+//
+// This addresses the request to the DefaultDirectoryThingID. The directory service
+// and the discovery service can both handle the request.
+//
+// If the application utilizes a reverse connection to a gateway. The request will
+// be passed to the gateway where it is routed to the default directory. The TD
+// can be a TM as the forms and auth info are not applicable.
+//
+// If the application runs its own server then it should place a discovery server module
+// behind this agent so it can publish the TD. The TD should contain the auth and form
+// info for connecting to the server.
+func (co *Agent) PubTD(tdJson string) error {
 
-// SetAppRequestHandler set the application handler for incoming requests
-// requests that are not handled are forwarded to the sink.
-// func (ag *Agent) SetAppRequestHandler(cb msg.RequestHandler) {
-// 	if cb == nil {
-// 		ag.appRequestHandlerPtr.Store(nil)
-// 	} else {
-// 		ag.appRequestHandlerPtr.Store(&cb)
-// 	}
-// }
+	err := co.Rpc(td.OpInvokeAction,
+		directory.DefaultDirectoryThingID,
+		directory.ActionCreateThing,
+		tdJson, nil)
+
+	return err
+}
+
+// Set the hook to invoke when requests are received by this module.
+//
+// The handler is invoked when requests are received with the ThingID set to
+// this agent's moduleID.
+//
+// This hook is intended to implement agent behavior without having to implement
+// a separate module.
+//
+// The hook MUST either call replyTo with the result or return an error.
+// Failure to do so results in the request being lost and the caller waiting
+// for a response until timeout.
+func (m *Agent) SetAppRequestHook(hook msg.RequestHandler) {
+	m.mux.Lock()
+	defer m.mux.Unlock()
+	m.appRequestHook = hook
+}
 
 // NewAgent creates a new agent (producer) instance for serving requests and sending notifications.
 //
-//	agentID is the moduleID of this agent
+//	agentID is the moduleID/ThingID of this agent.
 //	appReqHandler is the application handler invoked when receiving requests for this agent.
-//
-// Since agents are also consumers, they can also send requests and receive responses.
-//
-// consumers should set this as the sink that handles requests and return notifications
 func NewAgent(agentID string, appReqHandler msg.RequestHandler) *Agent {
 
 	agent := &Agent{
-		tstates: make(map[string]*ThingState),
-	}
-	// agents don't need a timeout
-	agent.Consumer = &Consumer{
+		// agents dont use timeouts
 		HiveModuleBase: modules.NewHiveModuleBase(agentID, 0),
+		tstates:        make(map[string]*ThingState),
 	}
 
 	if appReqHandler != nil {
