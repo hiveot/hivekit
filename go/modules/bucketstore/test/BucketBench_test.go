@@ -15,32 +15,32 @@ import (
 //
 //	Database:                kvbtree-1.7 (us)      pebble-1.1 (us)
 //	--- with 1K records existing in the DB ---
-//	Set 1                       0.4              2.4                       4900
-//	Set Multiple 1              0.5              2.6                       5000
+//	Set 1                       0.4              2.2                       4900
+//	Set Multiple 1              0.5              2.4                       5000
 //	Get 1                       0.3              0.7                          1.1
-//	Get Multiple 1              0.8              1.9                          1.5
-//	Seek 1                      0.4             16                            1.6
-//	Next 1                      0.6            590 (163-450)                  1.7
-//	Set 1000x                 280             2600 (2100-2300)          5200000  (5 sec!)
-//	Set Multiple 1000         290             2200                        10000
-//	Get 1000x                 140              910 ( 710-1000)             1180
+//	Get Multiple 1              0.8              1.7                          1.5
+//	Seek 1                      0.4             12                            1.6
+//	Next 1                      0.6             16 (163-450)                  1.7
+//	Set 1000x                 280             2400 (2100-2500)          5200000  (5 sec!)
+//	Set Multiple 1000         290             2100                        10000
+//	Get 1000x                 140              930 ( 710-1000)             1180
 //	Get Multiple 1000         270             1300 (1200-1400)              740
-//	Seek 1000x                150             6700 (1540-2500)              280
-//	Next 1000x                110             1500 ( 420-1310)              190
+//	Seek 1000x                150             6300 (1600-10000)             280
+//	Next 1000x                110             1500 ( 420-1800)              190
 //
 //	--- with 100K existing records in DB ---
-//	Set 1                       0.5              2.5                      11000
-//	Set Multiple 1              0.6              2.7                      11700
+//	Set 1                       0.5              2.2                      11000
+//	Set Multiple 1              0.6              2.4                      11700
 //	Get 1                       0.3              0.7                          1.2
 //	Get Multiple 1              0.8              1.8                          1.4
-//	Seek 1                      0.5              6.2                           1.7
-//	Next 1                      0.8            500 (3.5-1300?)                1.7
+//	Seek 1                      0.5              6.1                           1.7
+//	Next 1                      0.8           1400 (3.5-1400?)                1.7
 //	Set 1000x                 340             2800 (2700-2900)         12000000   (12sec!???)
-//	Set Multiple 1000         380             2800                        14300
-//	Get 1000x                 180              800 ( 690-1600)             1238
+//	Set Multiple 1000         380             2700                        14300
+//	Get 1000x                 180              900 ( 690-1600)             1238
 //	Get Multiple 1000         320             1200                          800
-//	Seek 1000x                190             9200 (1000-2600)              340
-//	Next 1000x                130              990 ( 370-1400)              210
+//	Seek 1000x                190             9000 (1000-10000)             340
+//	Next 1000x                130             1500 ( 370-1400)              210
 //
 // Observations:
 //   - kvbtree, an in-memory btree, is the overall winner, although this is far from a complete picture

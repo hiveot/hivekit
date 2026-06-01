@@ -72,8 +72,11 @@ func TestMain(m *testing.M) {
 
 // Create the bucket store in the given directory using the backend
 func openNewStore(storeDir string) (store bucketstore.IBucketStorage, err error) {
-	_ = os.RemoveAll(storeDir)
-	_ = os.MkdirAll(storageLocation, 0700)
+	err = os.RemoveAll(storeDir)
+	err = os.MkdirAll(storageLocation, 0700)
+	if err != nil {
+		return nil, err
+	}
 
 	store, err = bucketstorepkg.NewBucketStore(storeDir, testBackendType)
 	if err == nil {
@@ -150,7 +153,7 @@ func addDocs(store bucketstore.IBucketStorage, bucketID string, count int) error
 	docs := make(map[string][]byte)
 	for i := count; i > 2; i-- {
 		rn := rand.Intn(count * 33) // enough spread to avoid duplicates
-		id := fmt.Sprintf("addDocs-%6d", rn)
+		id := fmt.Sprintf("addDocs-%06d", rn)
 		td := createTD(id)
 		_ = td
 		// jsonDoc := []byte("hello world")
@@ -207,15 +210,15 @@ func TestAllBackends(t *testing.T) {
 	for _, backend := range backends {
 		testBackendType = backend
 		// Generic directory store testcases
-		t.Run("TestStartStop", TestStartStop)
-		t.Run("TestCreateStoreBadFolder", TestCreateStoreBadFolder)
-		t.Run("TestCreateStoreReadOnlyFolder", TestCreateStoreReadOnlyFolder)
-		t.Run("TestCreateStoreCantReadFile", TestCreateStoreCantReadFile)
-		t.Run("TestWriteRead", TestWriteRead)
-		t.Run("TestWriteBadData", TestWriteBadData)
-		t.Run("TestWriteReadMultiple", TestWriteReadMultiple)
-		t.Run("TestSeek", TestSeek)
-		t.Run("TestPrevNextN", TestPrevNextN)
+		t.Run("TestStartStop-"+backend, TestStartStop)
+		t.Run("TestCreateStoreBadFolder-"+backend, TestCreateStoreBadFolder)
+		t.Run("TestCreateStoreReadOnlyFolder-"+backend, TestCreateStoreReadOnlyFolder)
+		t.Run("TestCreateStoreCantReadFile-"+backend, TestCreateStoreCantReadFile)
+		t.Run("TestWriteRead-"+backend, TestWriteRead)
+		t.Run("TestWriteBadData-"+backend, TestWriteBadData)
+		t.Run("TestWriteReadMultiple-"+backend, TestWriteReadMultiple)
+		t.Run("TestSeek-"+backend, TestSeek)
+		t.Run("TestPrevNextN-"+backend, TestPrevNextN)
 	}
 }
 
@@ -394,16 +397,17 @@ func TestSeek(t *testing.T) {
 
 	store, err := openNewStore(storageLocation)
 	require.NoError(t, err)
+	defer store.Close()
+
 	err = addDocs(store, testBucketID, docsCount)
 	require.NoError(t, err)
 
+	// give this some time to settle so there isn't a modification during iteration
+	time.Sleep(time.Millisecond * 1)
+
 	bucket := store.GetBucket(testBucketID)
 	require.NotNil(t, bucket)
-	defer store.Close()
 	defer bucket.Close()
-
-	// give this some time to settle so there isn't a modification during iteration
-	time.Sleep(time.Millisecond * 100)
 
 	// set cursor 'base' records forward
 	cursor, err := bucket.Cursor()
@@ -416,20 +420,27 @@ func TestSeek(t *testing.T) {
 	//assert.True(t, valid)
 
 	k1, v1, valid := cursor.First()
+	slog.Info("cursor.First", "key", k1)
+	require.True(t, valid)
+
 	assert.True(t, valid)
 	for i := 0; i < base; i++ {
 		k1, v1, valid = cursor.Next()
 		assert.True(t, valid)
-		assert.NotEmpty(t, k1)
-		assert.NotEmpty(t, v1)
+
+		// seek should yield the same result
+		k2, v2, valid2 := cursor.Seek(k1)
+		assert.True(t, valid2)
+		assert.Equal(t, k1, k2, "keys mismatch")
+		require.Equal(t, v1, v2, "values mismatch. Using backend: "+testBackendType)
 	}
 	// k1 now holds the key at the base Nth record
 
 	// seek of the current key should bring us back here, at the base Nth record
 	k2, v2, valid2 := cursor.Seek(k1)
-	assert.True(t, valid2)
-	assert.Equal(t, k1, k2)
-	assert.Equal(t, string(v1), string(v2), "using backend: "+testBackendType)
+	require.True(t, valid2)
+	require.Equal(t, k1, k2)
+	require.Equal(t, v1, v2, "v1 != v2; using backend: "+testBackendType)
 
 	// test that keys increment
 	for i := 0; i < seekCount; i++ {

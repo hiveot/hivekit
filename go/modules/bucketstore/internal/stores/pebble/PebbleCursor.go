@@ -26,12 +26,15 @@ func (cursor *PebbleCursor) First() (key string, value []byte, valid bool) {
 	if !valid {
 		return
 	}
-	return cursor.getKV()
+	return cursor.GetKV()
 }
 
-// Return the iterator current key and value
+// Return the iterator current key and a copy of the value
 // This removes the bucket prefix
-func (cursor *PebbleCursor) getKV() (key string, value []byte, valid bool) {
+func (cursor *PebbleCursor) GetKV() (key string, value []byte, valid bool) {
+	if cursor.iterator.Error() != nil {
+		return "", nil, false
+	}
 	k := string(cursor.iterator.Key())
 	v, err := cursor.iterator.ValueAndErr()
 	if strings.HasPrefix(k, cursor.bucketPrefix) {
@@ -41,19 +44,22 @@ func (cursor *PebbleCursor) getKV() (key string, value []byte, valid bool) {
 		err = fmt.Errorf("bucket key '%s' has no prefix '%s'", k, cursor.bucketPrefix)
 		valid = false
 	}
-
-	// what to do in case of error?
 	_ = err
-	return key, v, valid
+	if !valid {
+		return k, nil, valid
+	}
+	vClone := make([]byte, len(v))
+	copy(v, vClone)
+	return key, vClone, valid
 }
 
-// Last moves the cursor to the last item
+// Last moves the cursor to the last item.
 func (cursor *PebbleCursor) Last() (key string, value []byte, valid bool) {
 	valid = cursor.iterator.Last()
 	if !valid {
 		return
 	}
-	return cursor.getKV()
+	return cursor.GetKV()
 }
 
 // Next iterates to the next key from the current cursor
@@ -62,7 +68,7 @@ func (cursor *PebbleCursor) Next() (key string, value []byte, valid bool) {
 	if !valid {
 		return
 	}
-	return cursor.getKV()
+	return cursor.GetKV()
 }
 
 // NextN increases the cursor position N times and return the encountered key-value pairs
@@ -73,7 +79,7 @@ func (cursor *PebbleCursor) NextN(steps uint) (docs map[string][]byte, itemsRema
 		if !itemsRemaining {
 			break
 		}
-		key, value, _ := cursor.getKV()
+		key, value, _ := cursor.GetKV()
 		docs[key] = value
 	}
 	return
@@ -85,10 +91,11 @@ func (cursor *PebbleCursor) Prev() (key string, value []byte, valid bool) {
 	if !valid {
 		return
 	}
-	return cursor.getKV()
+	return cursor.GetKV()
 }
 
-// PrevN decreases the cursor position N times and return the encountered key-value pairs
+// PrevN decreases the cursor position N times and return a copy of the
+// encountered key-value pairs.
 func (cursor *PebbleCursor) PrevN(steps uint) (docs map[string][]byte, itemsRemaining bool) {
 	docs = make(map[string][]byte)
 	for i := uint(0); i < steps; i++ {
@@ -96,7 +103,7 @@ func (cursor *PebbleCursor) PrevN(steps uint) (docs map[string][]byte, itemsRema
 		if !itemsRemaining {
 			break
 		}
-		key, value, _ := cursor.getKV()
+		key, value, _ := cursor.GetKV()
 		docs[key] = value
 	}
 	return
@@ -117,7 +124,7 @@ func (cursor *PebbleCursor) Seek(searchKey string) (key string, value []byte, va
 	if !valid {
 		return
 	}
-	return cursor.getKV()
+	return cursor.GetKV()
 }
 
 // Skip the cursor forward or backwards. Intended for skipping to an offset when caller
