@@ -11,7 +11,7 @@ import (
 // AuthnUserMsgClient is a client module for authentication operations using RRN messages.
 // This should be linked to a transport client module for message delivery.
 type AuthnUserMsgClient struct {
-	modules.HiveModuleBase
+	*modules.HiveModuleBase
 	// The ThingID of the authentication service that handles the request.
 	authnServiceID string
 }
@@ -59,6 +59,8 @@ func (m *AuthnUserMsgClient) UpdateProfile(hc *consumer.Consumer, password strin
 // This only creates the messages
 // This must be linked with a transport client to reach the server
 func NewAuthnUserMsgClient() *AuthnUserMsgClient {
-	cl := &AuthnUserMsgClient{}
+	cl := &AuthnUserMsgClient{
+		HiveModuleBase: modules.NewHiveModuleBase("", 0),
+	}
 	return cl
 }

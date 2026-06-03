@@ -3,12 +3,11 @@ package httpbasic
 import "github.com/hiveot/hivekit/go/modules/transport"
 
 const (
-	HttpBasicServerModuleType = "http-basic"
-	// HttpBasicModuleID is the default thingID of the http basic transport module.
-	HttpBasicModuleID        = "http-basic"
-	WotHttpBasicProtocolType = "http-basic"
-	WotHttpBasicSubprotocol  = ""
-	WotHttpBasicUrlScheme    = "https"
+	HttpBasicClientModuleType = "http-basic-client"
+	HttpBasicServerModuleType = "http-basic-server"
+	WotHttpBasicProtocolType  = "http-basic"
+	WotHttpBasicSubprotocol   = ""
+	WotHttpBasicUrlScheme     = "https"
 
 	// The generic path for thing operations over http
 	// See http server for definition of the URI variables

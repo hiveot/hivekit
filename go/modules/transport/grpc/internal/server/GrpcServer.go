@@ -15,6 +15,7 @@ import (
 	grpctransport "github.com/hiveot/hivekit/go/modules/transport/grpc"
 	grpclib "github.com/hiveot/hivekit/go/modules/transport/grpc/internal"
 	"github.com/hiveot/hivekit/go/utils"
+	"github.com/teris-io/shortid"
 	"google.golang.org/grpc"
 )
 
@@ -25,7 +26,7 @@ const DefaultUDSModuleID = "hiveot-uds"
 // This implements both ITransportServer and IHiveModule interfaces.
 // The embedded TransportServerBase is used for managing connections and forwarding messages to sinks.
 type GrpcServer struct {
-	transport.TransportServerBase
+	*transport.TransportServerBase
 	// Authenticate
 	authenticator transport.IAuthenticator
 
@@ -34,9 +35,6 @@ type GrpcServer struct {
 	caCert *x509.Certificate
 
 	grpcService *grpclib.GrpcServiceServer
-
-	connectURL string
-	// grpcServer *grpc.Server
 
 	respTimeout time.Duration
 
@@ -68,9 +66,10 @@ func (m *GrpcServer) ServeStreamConnection(
 // and update the connectURL to match the scheme used for listening.
 func (m *GrpcServer) Start() (err error) {
 
-	slog.Info("Start: Starting grpc transport server", slog.String("address", m.connectURL))
+	slog.Info("Start: Starting grpc transport server",
+		slog.String("connectURL", m.GetConnectURL()))
 
-	address := m.connectURL
+	address := m.GetConnectURL()
 	network := "tcp"
 	// start listening on unix sockets. Make sure the directory exists and the socket file doesn't.
 	if strings.HasPrefix(address, "unix") {
@@ -80,25 +79,12 @@ func (m *GrpcServer) Start() (err error) {
 		socketDir := filepath.Dir(address)
 		err = os.Remove(address)
 		err = os.MkdirAll(socketDir, 0700)
-	} else if strings.HasPrefix(address, "dns") {
-		// m.connectURL is the same for the client
-		address = strings.TrimPrefix(address, "dns:///") // dns scheme use triple slashes
-		network = "tcp"
-	} else if strings.HasPrefix(address, "tcp") {
+
+	} else {
+		// address is a tcp network tcp://ip:port
 		// gRPC clients do not support tcp scheme. remove it and use the server IP
 		address = strings.TrimPrefix(address, "tcp://")
 		network = "tcp"
-	} else {
-		// some unknown or missing scheme. Use the tcp scheme instead.
-		network = "tcp"
-	}
-	if strings.HasPrefix(address, ":") {
-		port := address
-		outboundIP := utils.GetOutboundIP("")
-		m.connectURL = fmt.Sprintf("tcp://%s%s", outboundIP.String(), port)
-	} else {
-		// full address to connect
-		m.connectURL = fmt.Sprintf("%s://%s", network, address)
 	}
 
 	lis, err := net.Listen(network, address)
@@ -111,10 +97,6 @@ func (m *GrpcServer) Start() (err error) {
 
 	m.grpcService.CreateStream(grpctransport.StreamNameNotification, m.ServeStreamConnection)
 	// m.grpcService.AddStream(grpcapi.StreamNameRequestResponse, m.ServeStreamConnection)
-
-	m.Init(
-		grpctransport.HiveotGrpcServerModuleType,
-		m.connectURL, m.authenticator)
 
 	err = m.grpcService.Start()
 	if err != nil {
@@ -139,27 +121,61 @@ func (m *GrpcServer) Stop() {
 // The address part of the URL is the full path to the socket, eg /run/myapp.sock, or
 // in case of TCP sockets, the host and port, eg localhost:50051 or simply :50051.
 //
-//	connectURL is the URL to listen on, e.g. scheme://address used in creating a net.listener
-//	 use "" for default
+//	address is the URL to listen on, e.g. scheme://address used in creating a net.listener
+//	 use "" for default unix socket path
 //	tlsCert is the server TLS certificate to use for secure connections, or nil for insecure
 //	caCert *x509.Certificate is the CA certificate to validate client auth. nil to ignore
 //	authn is the authenticator for verifying the client token
 //	respTimeout is the time the server waits for a response when sending requests. defaults to 3sec
 func NewGrpcServer(
-	connectURL string, tlsCert *tls.Certificate, caCert *x509.Certificate,
+	address string, tlsCert *tls.Certificate, caCert *x509.Certificate,
 	authn transport.IAuthenticator, respTimeout time.Duration) *GrpcServer {
 
-	if connectURL == "" {
-		connectURL = grpctransport.DefaultGrpcURL
-	}
+	// cleanup the connect URL into one of these:
+	// UDS: unix://path/to/sock
+	// TCP: tcp://address:port
 
+	// connectURL is the client endpoint to connect to
+	connectURL := address
+
+	if address == "" {
+		connectURL = grpctransport.DefaultGrpcURL
+	} else if strings.HasPrefix(address, "unix") {
+		// no change
+	} else {
+		// the dns scheme allows including of a DNS server. This is not supported.
+		if strings.HasPrefix(address, "dns") {
+			// dns scheme use triple slashes
+			address = strings.TrimPrefix(address, "dns:///")
+
+		} else if strings.HasPrefix(address, "tcp") {
+			// gRPC *clients* do not support tcp scheme. remove it and use the server IP
+			address = strings.TrimPrefix(address, "tcp://")
+		} else {
+			// some unknown or missing scheme.
+			// remove the prefix if any and just use the address with tcp
+			parts := strings.Split(address, "://")
+			address = parts[len(parts)-1]
+		}
+		// if address is just a port then include the outbound IP for connecting to
+		if strings.HasPrefix(address, ":") {
+			// :port -> tcp://outboundIP:port
+			connectURL = fmt.Sprintf("tcp://%s%s", utils.GetOutboundIP("").String(), address)
+		} else {
+			// full address to connect;
+			// tcp:   tcp://host:port
+			// unix:  unix://path/to/sock
+			connectURL = fmt.Sprintf("tcp://%s", address)
+		}
+	}
+	thingID := grpctransport.HiveotGrpcServerModuleType + "-" + shortid.MustGenerate()
 	srv := &GrpcServer{
-		authenticator: authn,
-		caCert:        caCert,
-		connectURL:    connectURL,
-		tlsCert:       tlsCert,
-		respTimeout:   respTimeout,
-		serviceName:   grpctransport.GrpcTransportServiceName,
+		TransportServerBase: transport.NewTransportServerBase(thingID, connectURL, authn),
+		authenticator:       authn,
+		caCert:              caCert,
+		tlsCert:             tlsCert,
+		respTimeout:         respTimeout,
+		serviceName:         grpctransport.GrpcTransportServiceName,
 	}
 	return srv
 }

@@ -15,7 +15,7 @@ import (
 // This implements IHiveModule and IAuthnModule interfaces and is facade for the
 // account store and authenticator.
 type AuthnService struct {
-	modules.HiveModuleBase
+	*modules.HiveModuleBase
 
 	config authn.AuthnConfig
 
@@ -145,7 +145,10 @@ func NewAuthnService(authnConfig authn.AuthnConfig) *AuthnService {
 	authnStore := authnstore.NewAuthnFileStore(passwordFile, encryption)
 	sessionManager := NewSessionManager(authnStore, authnConfig.KeysDir)
 
+	// this module is a singleton that exposes multiple service things
+	thingID := authn.AuthnModuleType
 	m := &AuthnService{
+		HiveModuleBase: modules.NewHiveModuleBase(thingID, 0),
 		config:         authnConfig,
 		authnStore:     authnStore,
 		sessionManager: sessionManager,

@@ -86,7 +86,7 @@ const DefaultDigitwinServiceID = "digitwin"
 //     Updating the digital twin value cache results in a new notification to be forwarded upstream.
 //     this new notification is forwarded to the server which passes it to subscribers.
 type DigitwinService struct {
-	modules.HiveModuleBase
+	*modules.HiveModuleBase
 
 	// track the connections of agents
 	agentStatus sync.Map
@@ -107,7 +107,7 @@ type DigitwinService struct {
 	directory directory.IDirectoryService
 
 	// The digitwin service instance thing-ID for handling requests
-	digitwinThingID string
+	// digitwinThingID string
 
 	// the store that holds the digital twin TDs and value
 	digitwinStore bucketstore.IBucketStorage
@@ -255,7 +255,7 @@ func (m *DigitwinService) HandleRequest(req *msg.RequestMessage, replyTo msg.Res
 	}
 
 	// Handle requests for this module
-	if req.ThingID != m.digitwinThingID {
+	if req.ThingID != m.GetThingID() {
 		return nil
 	} else if req.SenderID == "" {
 		err := fmt.Errorf("missing senderID in request")
@@ -294,7 +294,8 @@ func (m *DigitwinService) Start() (err error) {
 
 	err = m.deviceTDStore.Open()
 	if err == nil {
-		m.deviceTDBucket = m.deviceTDStore.GetBucket(m.digitwinThingID)
+		thingID := m.GetThingID()
+		m.deviceTDBucket = m.deviceTDStore.GetBucket(thingID)
 	}
 	// handling of messages for this module itself
 	if err == nil {
@@ -339,9 +340,10 @@ func NewDigitwinService(storageDir string,
 	thingDir directory.IDirectoryService,
 	addforms func(tdoc *td.TD, includeAffordances bool)) *DigitwinService {
 
+	thingID := digitwin.DefaultDigitwinThingID
 	m := &DigitwinService{
+		HiveModuleBase:         modules.NewHiveModuleBase(thingID, 0),
 		addForms:               addforms,
-		digitwinThingID:        digitwin.DefaultDigitwinThingID,
 		directory:              thingDir,
 		storageDir:             storageDir,
 		includeAffordanceForms: true,

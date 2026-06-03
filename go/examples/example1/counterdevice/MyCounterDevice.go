@@ -139,7 +139,7 @@ func (m *MyCounterDevice) Start() error {
 	props := map[string]any{
 		CounterPropName: m.counter.Load(),
 	}
-	thingID := m.GetModuleID()
+	thingID := m.GetThingID()
 	m.PubProperties(thingID, props)
 	m.PubEvent(thingID, CounterUpdatedEvent, m.counter.Load())
 
@@ -157,7 +157,7 @@ func (m *MyCounterDevice) Stop() {
 // Update the counter and send a notification
 func (m *MyCounterDevice) Update(newValue int) {
 	m.counter.Store(int32(newValue))
-	thingID := m.GetModuleID()
+	thingID := m.GetThingID()
 	// Send both a property update and event notification
 	m.PubProperty(thingID, CounterPropName, m.counter.Load())
 	m.PubEvent(thingID, CounterUpdatedEvent, m.counter.Load())

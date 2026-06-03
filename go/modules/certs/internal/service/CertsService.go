@@ -24,7 +24,7 @@ import (
 // # See certs-tm.json for the WoT TM definition of the module.
 type CertsService struct {
 	// base forwards unhandled requests and notifications
-	modules.HiveModuleBase
+	*modules.HiveModuleBase
 
 	// ca certificate or nil if none found
 	caCert *x509.Certificate
@@ -87,9 +87,10 @@ func (svc *CertsService) Stop() {
 // Create a new certificate service module
 // certsDir is the storage directory to read or create keys and certificates.
 func NewCertsService(certsDir string) *CertsService {
-	moduleID := certs.DefaultCertsServiceThingID
+	// certificate service is a singleton
+	thingID := certs.DefaultCertsServiceThingID
 	m := &CertsService{
-		HiveModuleBase: modules.NewHiveModuleBase(moduleID, 0),
+		HiveModuleBase: modules.NewHiveModuleBase(thingID, 0),
 		certsDir:       certsDir,
 	}
 	var _ modules.IHiveModule = m // interface check

@@ -34,7 +34,7 @@ const AgentModuleType = "agent"
 //
 // An Agent is also a consumer as they are able to invoke services.
 type Agent struct {
-	modules.HiveModuleBase
+	*modules.HiveModuleBase
 
 	// appRequestHook is the application handler of requests addressed to this module.
 	//
@@ -76,7 +76,7 @@ func (ag *Agent) HandleReadRequests(req *msg.RequestMessage, replyTo msg.Respons
 	state, ok := ag.tstates[req.ThingID]
 	if !ok {
 		// not handled
-		err = fmt.Errorf("Unknown thingID '%s' for agent '%s'", req.ThingID, ag.GetModuleID())
+		err = fmt.Errorf("Unknown thingID '%s' for agent '%s'", req.ThingID, ag.GetThingID())
 		return err
 	}
 
@@ -176,14 +176,14 @@ func (ag *Agent) PubActionProgress(req msg.RequestMessage, value any) {
 		// Input:     req.Input,
 		Name:      req.Name,
 		Output:    value,
-		SenderID:  ag.GetModuleID(),
+		SenderID:  ag.GetThingID(),
 		Status:    msg.StatusRunning,
 		ThingID:   req.ThingID,
 		Timestamp: utils.FormatNowUTCMilli(),
 	}
 
 	resp := msg.NewNotificationMessage(
-		ag.GetModuleID(), msg.AffordanceTypeAction, req.ThingID, req.Name, status)
+		ag.GetThingID(), msg.AffordanceTypeAction, req.ThingID, req.Name, status)
 
 	ag.GetState(req.ThingID).SetActionResponse(req.Name, status)
 
@@ -199,7 +199,7 @@ func (ag *Agent) PubEvent(thingID string, name string, value any) {
 	// This is a response to subscription request.
 	// for now assume this is a hub connection and the hub wants all events
 	notif := msg.NewNotificationMessage(
-		ag.GetModuleID(), msg.AffordanceTypeEvent, thingID, name, value)
+		ag.GetThingID(), msg.AffordanceTypeEvent, thingID, name, value)
 	slog.Info("PubEvent",
 		"thingID", thingID,
 		"name", name,
@@ -218,7 +218,7 @@ func (ag *Agent) PubProperty(thingID string, name string, value any) {
 	// This is a response to an observation request.
 	// send the property update as a response to the observe request
 	notif := msg.NewNotificationMessage(
-		ag.GetModuleID(), msg.AffordanceTypeProperty, thingID, name, value)
+		ag.GetThingID(), msg.AffordanceTypeProperty, thingID, name, value)
 	slog.Info("PubProperty",
 		"thingID", thingID,
 		"name", notif.Name,
@@ -244,7 +244,7 @@ func (ag *Agent) PubProperties(thingID string, propMap map[string]any) {
 	for propName, propVal := range propMap {
 
 		notif := msg.NewNotificationMessage(
-			ag.GetModuleID(), msg.AffordanceTypeProperty, thingID, propName, propVal)
+			ag.GetThingID(), msg.AffordanceTypeProperty, thingID, propName, propVal)
 
 		tstate.SetProperty(propName, notif)
 
@@ -293,7 +293,7 @@ func (m *Agent) SetAppRequestHook(hook msg.RequestHandler) {
 
 // NewAgent creates a new agent (producer) instance for serving requests and sending notifications.
 //
-//	agentID is the moduleID/ThingID of this agent.
+//	agentID is the ThingID of this agent.
 //	appReqHandler is the application handler invoked when receiving requests for this agent.
 func NewAgent(agentID string, appReqHandler msg.RequestHandler) *Agent {
 

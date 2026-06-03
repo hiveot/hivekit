@@ -23,10 +23,7 @@ import (
 // Each Thing has a bucket with events and actions.
 // This implements the IHistoryService and IHiveModule interface
 type HistoryService struct {
-	modules.HiveModuleBase
-
-	// The thingID of the history service for messaging
-	historyThingID string
+	*modules.HiveModuleBase
 
 	// The underlying bucketstore instance
 	bucketStore bucketstore.IBucketStorage
@@ -59,7 +56,7 @@ func (m *HistoryService) HandleNotification(notif *msg.NotificationMessage) {
 // the filters and forward the request to the registered sink.
 func (m *HistoryService) HandleRequest(req *msg.RequestMessage, replyTo msg.ResponseHandler) error {
 
-	if req.ThingID == m.historyThingID {
+	if req.ThingID == m.GetThingID() {
 		// handle requests for the history service itself
 		err := m.readHistoryMsgHandler.HandleRequest(req, replyTo)
 		return err
@@ -124,8 +121,9 @@ func (m *HistoryService) StoreRequest(req *msg.RequestMessage) error {
 // A configuration can be created using: config.NewHistoryConfig(storeDirectory, backend)
 func NewHistoryService(config history.HistoryConfig) *HistoryService {
 
+	thingID := history.DefaultHistoryThingID
 	m := &HistoryService{
-		historyThingID: history.DefaultHistoryThingID,
+		HiveModuleBase: modules.NewHiveModuleBase(thingID, 0),
 		cursorLifespan: time.Minute,
 		cursorCache:    bucketstorepkg.NewCursorCache(),
 		config:         config,

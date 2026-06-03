@@ -97,7 +97,13 @@ type ITransportClient interface {
 	AuthenticateWithToken(clientID, token string) error
 
 	// Connect using the previously set connection credentials.
+	// This can be called after a disconnect event to re-connect using the same credentials.
 	//
 	// This returns nil on success or an error if failed.
 	Connect() (err error)
+
+	// SetConnectHandler sets the callback handler that is invoked when the connection
+	// status changes.
+	// Intended for applications to handle reconnect and resubscription.
+	SetConnectHandler(h func(oldStatus, newStatus ConnectionStatus, c ITransportClient))
 }

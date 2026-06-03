@@ -15,7 +15,7 @@ import (
 // LoggingService is a module for writing request, response and notification messages to a log output.
 // The module is configured using yaml.
 type LoggingService struct {
-	modules.HiveModuleBase
+	*modules.HiveModuleBase
 
 	// configuration. Allow manual configuration
 	Config logging.LoggingConfig
@@ -159,7 +159,9 @@ func (m *LoggingService) Stop() {
 // config is the default module configuration.
 func NewLoggingService(config logging.LoggingConfig) *LoggingService {
 
-	m := &LoggingService{}
+	m := &LoggingService{
+		HiveModuleBase: modules.NewHiveModuleBase(config.ModuleID, 0),
+	}
 	m.Config = config
 
 	return m

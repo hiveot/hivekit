@@ -6,6 +6,7 @@ import (
 
 	"github.com/hiveot/hivekit/go/api/msg"
 	"github.com/hiveot/hivekit/go/modules"
+	"github.com/hiveot/hivekit/go/modules/authz"
 )
 
 // AuthzService is a module for role based authorization of requests.
@@ -14,7 +15,7 @@ import (
 // authorization store. This uses the authenticator provided client role as the role
 // for RBAC.
 type AuthzService struct {
-	modules.HiveModuleBase
+	*modules.HiveModuleBase
 
 	// config authz.AuthzConfig
 
@@ -56,7 +57,10 @@ func (m *AuthzService) Stop() {
 // Create a new instance of the authorization server module.
 // The getRole handler is used to determine a client's role for RBAC
 func NewAuthzService(getRoleHandler func(clientID string) (role string, err error)) *AuthzService {
+	// this module is a singleton that exposes multiple service things
+	thingID := authz.AuthzModuleType
 	m := &AuthzService{
+		HiveModuleBase: modules.NewHiveModuleBase(thingID, 0),
 		getRoleHandler: getRoleHandler,
 	}
 	var _ modules.IHiveModule = m // check interface

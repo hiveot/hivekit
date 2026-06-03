@@ -10,6 +10,7 @@ import (
 	"github.com/hiveot/hivekit/go/modules"
 	"github.com/hiveot/hivekit/go/modules/transport"
 	"github.com/hiveot/hivekit/go/modules/transport/ssesc"
+	"github.com/teris-io/shortid"
 )
 
 // SseScServer is a transport module for serving the HiveOT SSE-SC transport protocol.
@@ -19,7 +20,7 @@ import (
 // It supports subscribing to events or observing properties.
 type SseScServer struct {
 	// Transport base includes the RnR channel for matching request-response messages.
-	transport.TransportServerBase
+	*transport.TransportServerBase
 
 	// SSE-Sc protocol message encoder
 	encoder transport.IMessageEncoder
@@ -88,13 +89,15 @@ func NewSseScServer(httpServer transport.IHttpServer, respTimeout time.Duration)
 		respTimeout = msg.DefaultRnRTimeout
 	}
 
+	thingID := ssesc.SseScServerModuleType + "-" + shortid.MustGenerate()
+	authenticator := httpServer.GetAuthenticator()
 	m := &SseScServer{
-		httpServer:  httpServer,
-		ssePath:     ssePath,
-		encoder:     encoder,
-		respTimeout: respTimeout,
+		TransportServerBase: transport.NewTransportServerBase(thingID, connectURL, authenticator),
+		httpServer:          httpServer,
+		ssePath:             ssePath,
+		encoder:             encoder,
+		respTimeout:         respTimeout,
 	}
-	m.Init(ssesc.SseScServerModuleType, connectURL, httpServer.GetAuthenticator())
 
 	var _ modules.IHiveModule = m        // interface check
 	var _ transport.ITransportServer = m // interface check

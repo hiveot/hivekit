@@ -29,9 +29,7 @@ import (
 //
 // This uses the fast and lightweight kvbtree bucket store to persist TD documents.
 type DirectoryServer struct {
-	modules.HiveModuleBase
-	// The thingID this service identifies as
-	directoryThingID string
+	*modules.HiveModuleBase
 
 	// tdBucket store with TD's by thingID
 	tdBucket     bucketstore.IBucket
@@ -74,7 +72,7 @@ func (m *DirectoryServer) GetAgentInfo(agentID string) (
 
 // HandleRequest passes the module request messages to the API handler.
 func (m *DirectoryServer) HandleRequest(req *msg.RequestMessage, replyTo msg.ResponseHandler) (err error) {
-	if req.ThingID == m.directoryThingID {
+	if req.ThingID == m.GetThingID() {
 		err = m.msgAPI.HandleRequest(req, replyTo)
 	} else {
 		err = m.HiveModuleBase.HandleRequest(req, replyTo)
@@ -106,21 +104,22 @@ func (m *DirectoryServer) SetTDHooks(
 func (m *DirectoryServer) Start() (err error) {
 
 	storagePath := m.storageLoc
+	thingID := m.GetThingID()
 	slog.Info("Start: Starting directory module")
 
 	// if no storageLoc is set, use the in-memory store
 	if m.storageLoc != "" {
-		storagePath = filepath.Join(m.storageLoc, m.directoryThingID+".kvbtree")
+		storagePath = filepath.Join(m.storageLoc, thingID+".kvbtree")
 	}
 	m.bucketStore, err = bucketstorepkg.NewBucketStore(storagePath, bucketstore.BackendKVBTree)
 
 	err = m.bucketStore.Open()
 	if err == nil {
-		m.tdBucketName = m.directoryThingID
+		m.tdBucketName = thingID
 		m.tdBucket = m.bucketStore.GetBucket(m.tdBucketName)
 	}
 	if err == nil {
-		m.msgAPI = NewDirectoryMsgHandler(m.directoryThingID, m)
+		m.msgAPI = NewDirectoryMsgHandler(thingID, m)
 	}
 
 	if m.tddServer != nil {
@@ -176,12 +175,11 @@ func NewDirectoryServer(
 	}
 	tddJson, _ := td.MarshalTD(tddDoc)
 	m := &DirectoryServer{
-		HiveModuleBase:   modules.HiveModuleBase{},
-		directoryThingID: thingID,
-		tddServer:        tddServer,
-		storageLoc:       location,
-		tddJson:          tddJson,
-		tdCache:          make(map[string]*td.TD),
+		HiveModuleBase: modules.NewHiveModuleBase(thingID, 0),
+		tddServer:      tddServer,
+		storageLoc:     location,
+		tddJson:        tddJson,
+		tdCache:        make(map[string]*td.TD),
 	}
 
 	var _ directory.IDirectoryService = m // interface check

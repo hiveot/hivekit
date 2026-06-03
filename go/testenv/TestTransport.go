@@ -8,32 +8,32 @@ import (
 )
 
 // TestTransport is a direct transport module to connect consumer and
-// producer modules as if they were connected via a network transport,
+// producer modules as if they were connected via a network client and server transport,
 // but without the overhead of setting up a transport server and client.
+//
+// The thingID of this transport module is used as the senderID of requests. This
+// simulates server modules that set the clientID of the connection as the sender.
 //
 // Intended for testing the messaging between client and server side of a module.
 //
 // This implements the IHiveTransport interface
 type TestTransport struct {
-	transport.TransportServerBase
-
-	// The senderID this transport represents (simulate a single connection)
-	senderID string
+	*transport.TransportServerBase
 }
 
 // AddTDSecForms does nothing for a direct connection
 func (srv *TestTransport) AddTDSecForms(tdi *td.TD, includeAffordances bool) {
 }
 
-// Receive a notification from the sink and pass it on to the notification sink (the consumer)
+// Receive a notification from the sink and sends it to the client.
 func (m *TestTransport) HandleNotification(notif *msg.NotificationMessage) {
-	m.ForwardNotification(notif)
+	m.SendNotification(notif)
 }
 
 // Receive a request and forward it on to the sinks.
 func (m *TestTransport) HandleRequest(
 	req *msg.RequestMessage, replyTo msg.ResponseHandler) (err error) {
-	req.SenderID = m.senderID
+	req.SenderID = m.GetThingID()
 	return m.ForwardRequest(req, replyTo)
 }
 
@@ -84,14 +84,13 @@ func (m *TestTransport) Stop() {
 }
 
 // NewTestTransport returns a transport module that passes messages from a consumer to a producer
-// This sets the producer as the destination for requests and this module as
-// the destination for producer notifications.
+// This sets the producer as the request sink for requests and this module as
+// the notification sink of the producer.
 func NewTestTransport(
-	senderID string, producer modules.IHiveModule) modules.IHiveModule {
+	thingID string, producer modules.IHiveModule) modules.IHiveModule {
 	t := &TestTransport{
-		senderID: senderID,
+		TransportServerBase: transport.NewTransportServerBase(thingID, "", nil),
 	}
-	t.Init(senderID, "", nil)
 	producer.SetNotificationSink(t.HandleNotification)
 	t.SetRequestSink(producer.HandleRequest)
 	var _ transport.ITransportServer = t // interface check

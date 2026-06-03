@@ -23,7 +23,7 @@ import (
 const testAgentID1 = "agent1"
 const testClientID1 = "client1"
 
-var testProtocol = transport.ProtocolTypeHiveotGrpc
+var testProtocol = transport.ProtocolTypeWotWebsocket
 
 var testProtocols = []string{
 	transport.ProtocolTypeHiveotSsesc,
@@ -127,9 +127,16 @@ func TestReconnect(t *testing.T) {
 	const thingID = "thing1"
 	const actionKey = "action1"
 	const agentID = "agent1"
-	var connectEvents atomic.Int32
+	var serverConnectEvents atomic.Int32
+	var clientConnectEvents atomic.Int32
 
-	// this test handler receives an action and returns a 'pending status',
+	// check if the expected callback is received
+	handleConnect := func(old, new transport.ConnectionStatus, c transport.ITransportClient) {
+		slog.Info("Received client connect callback", "old", old, "new", new)
+		clientConnectEvents.Add(1)
+	}
+
+	// this test handler receives an action and returns the input
 	// it is intended to prove reconnect works.
 	handleRequest := func(req *msg.RequestMessage, replyTo msg.ResponseHandler) error {
 		slog.Info("Received request", "op", req.Operation)
@@ -143,7 +150,6 @@ func TestReconnect(t *testing.T) {
 
 				resp := req.CreateResponse(output, nil)
 				resp.SenderID = agentID
-				// err = c.SendResponse(resp)
 				err = replyTo(resp)
 				assert.NoError(t, err)
 			}()
@@ -161,8 +167,8 @@ func TestReconnect(t *testing.T) {
 	testEnv.Server.SetRequestSink(handleRequest)
 	testEnv.Server.SetNotificationSink(func(notif *msg.NotificationMessage) {
 		// expect a connect-disconnect event
-		connectEvents.Add(1)
-		slog.Info("Notification by Server",
+		serverConnectEvents.Add(1)
+		slog.Info("Connection notification by Server",
 			slog.String("type", string(notif.AffordanceType)),
 			slog.String("thingID", notif.ThingID),
 			slog.String("name", notif.Name),
@@ -174,6 +180,7 @@ func TestReconnect(t *testing.T) {
 	ctx1, cancelFn1 := context.WithTimeout(context.Background(), time.Second)
 	defer cancelFn1()
 	co1, cc1, _ := testEnv.NewConnectedConsumer(testClientID1, authn.ClientRoleViewer, true)
+	cc1.SetConnectHandler(handleConnect)
 	defer cc1.Close()
 
 	//  wait until the connection is established
@@ -193,7 +200,10 @@ func TestReconnect(t *testing.T) {
 	err := co1.InvokeAction(thingID, actionKey, &rpcArgs, &rpcResp)
 	require.NoError(t, err)
 	assert.Equal(t, rpcArgs, rpcResp)
-	assert.GreaterOrEqual(t, 4, int(connectEvents.Load()))
+	// expect connect, disconnect, connect = 3
+	assert.GreaterOrEqual(t, int(serverConnectEvents.Load()), 3, "missing server connection callbacks")
+	// lost, connecting, connected = 3
+	assert.GreaterOrEqual(t, int(clientConnectEvents.Load()), 3, "missing client connection callbacks")
 }
 
 // Test getting form for unknown operation

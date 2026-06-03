@@ -14,12 +14,13 @@ import (
 	"github.com/hiveot/hivekit/go/modules/transport/wss"
 	"github.com/hiveot/hivekit/go/modules/transport/wss/internal"
 	"github.com/hiveot/hivekit/go/utils"
+	"github.com/teris-io/shortid"
 )
 
 // WssServer is a transport module that serves Websocket connections over http.
 // This implements both ITransportServer and IHiveModule interfaces.
 type WssServer struct {
-	transport.TransportServerBase
+	*transport.TransportServerBase
 
 	// actual server exposing routes including websocket endpoint
 	httpServer transport.IHttpServer
@@ -142,7 +143,13 @@ func NewHiveotWssServer(httpServer transport.IHttpServer, respTimeout time.Durat
 	if respTimeout == 0 {
 		respTimeout = msg.DefaultRnRTimeout
 	}
+	thingID := wss.HiveotWebsocketServerModuleType + "-" + shortid.MustGenerate()
+	connectURL := fmt.Sprintf("%s://%s%s",
+		transport.ProtocolSchemeHiveotWebsocket, urlParts.Host, wss.HiveotWebsocketPath)
+	authenticator := httpServer.GetAuthenticator()
 	m := &WssServer{
+		TransportServerBase: transport.NewTransportServerBase(thingID, connectURL, authenticator),
+
 		encoder:    transport.NewRRNJsonEncoder(),
 		httpServer: httpServer,
 		// connectHandler: nil,
@@ -150,11 +157,6 @@ func NewHiveotWssServer(httpServer transport.IHttpServer, respTimeout time.Durat
 		subprotocol: transport.SubprotocolHiveotWebsocket,
 		wssPath:     wss.HiveotWebsocketPath,
 	}
-	// set the base parameters
-	connectURL := fmt.Sprintf("%s://%s%s", transport.ProtocolSchemeHiveotWebsocket, urlParts.Host, m.wssPath)
-	m.Init(
-		wss.HiveotWebsocketServerModuleType,
-		connectURL, httpServer.GetAuthenticator())
 	return m
 }
 
@@ -179,19 +181,18 @@ func NewWotWssServer(httpServer transport.IHttpServer, respTimeout time.Duration
 	if respTimeout == 0 {
 		respTimeout = msg.DefaultRnRTimeout
 	}
+	thingID := wss.WotWebsocketServerModuleType + "-" + shortid.MustGenerate()
+	connectURL := fmt.Sprintf("%s://%s%s", transport.ProtocolSchemeWotWebsocket, urlParts.Host, wss.WotWebsocketPath)
+	authenticator := httpServer.GetAuthenticator()
 	m := &WssServer{
+		TransportServerBase: transport.NewTransportServerBase(thingID, connectURL, authenticator),
+
 		httpServer:  httpServer,
 		encoder:     internal.NewWotWssMsgEncoder(),
 		respTimeout: respTimeout,
 		wssPath:     wss.WotWebsocketPath,
 		subprotocol: transport.SubprotocolWotWebsocket,
 	}
-
-	connectURL := fmt.Sprintf("%s://%s%s", transport.ProtocolSchemeWotWebsocket, urlParts.Host, m.wssPath)
-	m.Init(
-		wss.HiveotWebsocketServerThingID,
-		connectURL, httpServer.GetAuthenticator())
-	// m.UpdateProperty(transport.PropName_NrConnections, 0)
 
 	var _ modules.IHiveModule = m        // interface check
 	var _ transport.ITransportServer = m // interface check

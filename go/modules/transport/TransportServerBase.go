@@ -291,6 +291,11 @@ func (srv *TransportServerBase) GetConnectionByClientID(clientID string) (c ICon
 	return c
 }
 
+// Return the module instance ID
+func (m *TransportServerBase) GetThingID() string {
+	return m.thingID
+}
+
 // Handle a notification this module (or downstream in the chain) subscribed to.
 // Notifications are forwarded to their upstream sink, which for a server is the
 // client.
@@ -476,17 +481,20 @@ func (srv *TransportServerBase) SetRequestSink(sink msg.RequestHandler) {
 	srv.requestSink = sink
 }
 
-// Initialize the module base with a moduleID and a messaging sink
+// NewTransportServerBase initializes a server module intended for embedding.
 //
-//	thingID is the transport instance ID for connect/disconnect notifications
+//	thingID is the transport module instance ID for connect/disconnect notifications
 //	subprotocol optional name for including in form operations
 //	connectURL is the URL this module can be reached at. Used to set TD.Base
 //	authenticator used to include the security in TDs
-func (srv *TransportServerBase) Init(
-	thingID, connectURL string, authenticator IAuthenticator) {
+func NewTransportServerBase(
+	thingID, connectURL string, authenticator IAuthenticator) *TransportServerBase {
 
-	srv.thingID = thingID
-	srv.authenticator = authenticator
-	srv.connectURL = connectURL
-	srv.RnrChan = msg.NewRnRChan()
+	base := &TransportServerBase{
+		thingID:       thingID,
+		authenticator: authenticator,
+		connectURL:    connectURL,
+		RnrChan:       msg.NewRnRChan(),
+	}
+	return base
 }

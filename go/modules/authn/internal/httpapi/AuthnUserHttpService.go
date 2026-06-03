@@ -28,7 +28,7 @@ const (
 //
 // This converts http to RRN requests that are handled downstream
 type AuthnUserHttpService struct {
-	modules.HiveModuleBase
+	*modules.HiveModuleBase
 	httpServer transport.IHttpServer
 }
 
@@ -166,7 +166,8 @@ func NewAuthnUserHttpService(httpServer transport.IHttpServer) *AuthnUserHttpSer
 		panic("NewAuthnUserHttpHandler: missing http server")
 	}
 	handler := &AuthnUserHttpService{
-		httpServer: httpServer,
+		HiveModuleBase: modules.NewHiveModuleBase("", 0),
+		httpServer:     httpServer,
 	}
 	return handler
 }

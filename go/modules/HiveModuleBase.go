@@ -29,9 +29,9 @@ type ModuleEnv struct {
 // Call Init(moduleID,sink) after construction
 type HiveModuleBase struct {
 
-	// ID of this module. Used as the senderID in notifications and in logging.
-	// By default this is the module type name.
-	moduleID string
+	// thingID is the instance ID of this module. Used as the senderID in notifications
+	// and in logging.
+	thingID string
 
 	// notificationSink is the sink for forwarding notification messages
 	// This is the upstream consumer.
@@ -92,10 +92,10 @@ func (m *HiveModuleBase) ForwardRequest(req *msg.RequestMessage, replyTo msg.Res
 	m.mux.RUnlock()
 	if handler == nil {
 		return fmt.Errorf("ForwardRequest: end of the line at '%s' for request '%s/%s' to thingID '%s'",
-			m.moduleID, req.Operation, req.Name, req.ThingID)
+			m.thingID, req.Operation, req.Name, req.ThingID)
 	}
 	if replyTo == nil {
-		slog.Info("ForwardRequest: no replyTo handler provided", "moduleID", m.moduleID)
+		slog.Info("ForwardRequest: no replyTo handler provided", "moduleID", m.thingID)
 	}
 	err = handler(req, replyTo)
 	return err
@@ -130,9 +130,14 @@ func (m *HiveModuleBase) ForwardRequestWait(
 	return resp, err
 }
 
-// GetSink returns the module's ID
-func (m *HiveModuleBase) GetModuleID() string {
-	return m.moduleID
+// GetThingID returns the module's thingID
+func (m *HiveModuleBase) GetThingID() string {
+	return m.thingID
+}
+
+// GetTimeout returns the module's rpc timeout
+func (m *HiveModuleBase) GetTimeout() time.Duration {
+	return m.rpcTimeout
 }
 
 // // GetSink returns the module's request sink
@@ -194,7 +199,7 @@ func (m *HiveModuleBase) SetNotificationSink(consumer msg.NotificationHandler) {
 	defer m.mux.Unlock()
 	if m.notificationSink != nil {
 		slog.Warn("SetNotificationSink: A notification sink already exists. It will be overwritten.",
-			"moduleID", m.moduleID)
+			"moduleID", m.thingID)
 	}
 	m.notificationSink = consumer
 }
@@ -224,15 +229,21 @@ func (co *HiveModuleBase) Stop() {}
 
 // Create a new module
 //
-//	moduleID identifies the parent module
-//	rpcTimeout for forwarding request and waiting for the result
-func NewHiveModuleBase(moduleID string, timeout time.Duration) HiveModuleBase {
-	if timeout == 0 {
-		timeout = msg.DefaultRnRTimeout
+// the thingID is required when this module implements HandleRequest.
+//
+//	thingID is the instance ID of the module. "" to auto generate.
+//	timeout for forwarding request and waiting for the result
+func NewHiveModuleBase(thingID string, rpcTimeout time.Duration) *HiveModuleBase {
+	if rpcTimeout == 0 {
+		rpcTimeout = msg.DefaultRnRTimeout
 	}
-	m := HiveModuleBase{
-		moduleID:   moduleID,
-		rpcTimeout: timeout,
+	if thingID == "" {
+		thingID = "thing-" + shortid.MustGenerate()
+	}
+	m := &HiveModuleBase{
+		mux:        sync.RWMutex{},
+		thingID:    thingID,
+		rpcTimeout: rpcTimeout,
 	}
 	return m
 }

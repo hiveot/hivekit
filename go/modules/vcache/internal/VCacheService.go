@@ -4,12 +4,13 @@ import (
 	"github.com/hiveot/hivekit/go/api/msg"
 	"github.com/hiveot/hivekit/go/modules"
 	vcacheapi "github.com/hiveot/hivekit/go/modules/vcache/api"
+	"github.com/teris-io/shortid"
 )
 
 // VCacheServer is the value-cache server module implementation
 // this implements the IVCache and IHiveModule interface
 type VCacheServer struct {
-	modules.HiveModuleBase
+	*modules.HiveModuleBase
 
 	msgAPI *VCacheMsgHandler
 
@@ -104,9 +105,10 @@ func (m *VCacheServer) WriteProperty(notif *msg.NotificationMessage) {
 // Create a new instance of the value cache module.
 func NewVCacheService() *VCacheServer {
 
+	thingID := vcacheapi.VCacheModuleType + "-" + shortid.MustGenerate()
 	m := &VCacheServer{
-		store: *NewVCacheStore(),
-		// vcacheThingID: vcacheapi.DefaultVCacheThingID,
+		HiveModuleBase: modules.NewHiveModuleBase(thingID, 0),
+		store:          *NewVCacheStore(),
 	}
 	var _ vcacheapi.IVCacheService = m // interface check
 	return m

@@ -683,7 +683,7 @@ func TestPrevNextN(t *testing.T) {
 func TestGetSetMsgAPI(t *testing.T) {
 	t.Logf("---%s---\n", t.Name())
 	clientID := "client1"
-	storeThingID := service.DefaultBucketStoreThingID
+	storeThingID := bucketstore.DefaultBucketStoreThingID
 	key1 := "key1"
 	key2 := "key2"
 	key3 := "key3"

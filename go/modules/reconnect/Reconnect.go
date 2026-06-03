@@ -24,7 +24,7 @@ const DefaultMaxReconnectAttempts = 999999
 // client loses its connection and applies event subscriptions and property observations
 // after a connection is restored.
 type Reconnect struct {
-	modules.HiveModuleBase
+	*modules.HiveModuleBase
 
 	// cancel any reconnect attempts.
 	cancelFn func()

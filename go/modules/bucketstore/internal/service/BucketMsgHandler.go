@@ -31,37 +31,42 @@ type BucketMsgHandler struct {
 // HandleRequest handles action requests for the service
 // This returns nil if thingID, operation or request name is not recognized.
 // If the request is missing a senderID then an error is returned.
-func (handler *BucketMsgHandler) HandleRequest(req *msg.RequestMessage) *msg.ResponseMessage {
-	// TODO: should this verify the destination this instance with an instance thingID?
-	if req.ThingID != handler.thingID {
-		return nil
-	} else if req.SenderID == "" {
-		err := fmt.Errorf("missing senderID in request")
-		return req.CreateErrorResponse(err)
+func (svc *BucketStoreService) handleBucketStoreRequest(
+	req *msg.RequestMessage, replyTo msg.ResponseHandler) error {
+
+	var resp *msg.ResponseMessage
+	// the senderID is required to select the bucket
+	if req.SenderID == "" {
+		return fmt.Errorf("missing senderID in request")
 	}
 	if req.Operation == td.OpInvokeAction {
 		switch req.Name {
 		case bucketstore.ActionDelete:
-			return handler.Delete(req)
+			resp = svc.Delete(req)
 		case bucketstore.ActionGet:
-			return handler.Get(req)
+			resp = svc.Get(req)
 		case bucketstore.ActionGetMultiple:
-			return handler.GetMultiple(req)
+			resp = svc.GetMultiple(req)
 		case bucketstore.ActionSet:
-			return handler.Set(req)
+			resp = svc.Set(req)
 		case bucketstore.ActionSetMultiple:
-			return handler.SetMultiple(req)
+			resp = svc.SetMultiple(req)
+
+		default:
+			return fmt.Errorf("unknown action '%s' for service '%s'", req.Name, req.ThingID)
 		}
 	}
-	err := fmt.Errorf("unknown action '%s' for service '%s'", req.Name, req.ThingID)
-	resp := req.CreateResponse(nil, err)
-	return resp
+	if resp == nil {
+		return fmt.Errorf("handleBucketStoreRequest: Unexpected request: op=%s, name=%s",
+			req.Operation, req.Name)
+	}
+	return replyTo(resp)
 }
 
 // Cursor returns an iterator for objects.
 // The cursor expires one minute after it is last used.
 // This returns a cursor ID that can be used in the first,last,next,prev methods
-func (handler *BucketMsgHandler) Cursor(req *msg.RequestMessage) *msg.ResponseMessage {
+func (svc *BucketStoreService) Cursor(req *msg.RequestMessage) *msg.ResponseMessage {
 	var err error
 	lifespan := time.Minute
 	if req.ThingID == "" {
@@ -69,21 +74,21 @@ func (handler *BucketMsgHandler) Cursor(req *msg.RequestMessage) *msg.ResponseMe
 		return req.CreateErrorResponse(err)
 	}
 	slog.Info("GetCursor for bucket: ", "senderID", req.SenderID)
-	bucket := handler.service.GetBucket(req.SenderID)
+	bucket := svc.store.GetBucket(req.SenderID)
 	cursor, err := bucket.Cursor()
 	//
 	if err != nil {
 		return req.CreateErrorResponse(err)
 	}
-	cursorKey := handler.cursorCache.Add(req.SenderID, cursor, bucket, "", lifespan)
+	cursorKey := svc.cursorCache.Add(req.SenderID, cursor, bucket, "", lifespan)
 	resp := req.CreateResponse(cursorKey, nil)
 	return resp
 }
 
-func (handler *BucketMsgHandler) Delete(req *msg.RequestMessage) *msg.ResponseMessage {
+func (svc *BucketStoreService) Delete(req *msg.RequestMessage) *msg.ResponseMessage {
 	var objectKey string
 	// use the bucket of the authenticated sender
-	bucket := handler.service.GetBucket(req.SenderID)
+	bucket := svc.store.GetBucket(req.SenderID)
 	err := utils.Decode(req.Input, &objectKey)
 	if err == nil {
 		err = bucket.Delete(objectKey)
@@ -91,10 +96,10 @@ func (handler *BucketMsgHandler) Delete(req *msg.RequestMessage) *msg.ResponseMe
 	return req.CreateResponse(nil, err)
 }
 
-func (handler *BucketMsgHandler) Get(req *msg.RequestMessage) *msg.ResponseMessage {
+func (svc *BucketStoreService) Get(req *msg.RequestMessage) *msg.ResponseMessage {
 	var objectKey string
 	var raw []byte
-	bucket := handler.service.GetBucket(req.SenderID)
+	bucket := svc.store.GetBucket(req.SenderID)
 	err := utils.Decode(req.Input, &objectKey)
 	if err == nil {
 		raw, err = bucket.Get(objectKey)
@@ -105,12 +110,12 @@ func (handler *BucketMsgHandler) Get(req *msg.RequestMessage) *msg.ResponseMessa
 	return req.CreateResponse(string(raw), nil)
 }
 
-func (handler *BucketMsgHandler) GetMultiple(req *msg.RequestMessage) *msg.ResponseMessage {
+func (svc *BucketStoreService) GetMultiple(req *msg.RequestMessage) *msg.ResponseMessage {
 	var docKeys []string
 	var raw map[string][]byte = nil
 	result := make(map[string]string)
 
-	bucket := handler.service.GetBucket(req.SenderID)
+	bucket := svc.store.GetBucket(req.SenderID)
 	err := utils.Decode(req.Input, &docKeys)
 	if err == nil {
 		raw, err = bucket.GetMultiple(docKeys)
@@ -123,8 +128,8 @@ func (handler *BucketMsgHandler) GetMultiple(req *msg.RequestMessage) *msg.Respo
 	return req.CreateResponse(result, err)
 }
 
-func (handler *BucketMsgHandler) Set(req *msg.RequestMessage) *msg.ResponseMessage {
-	bucket := handler.service.GetBucket(req.SenderID)
+func (svc *BucketStoreService) Set(req *msg.RequestMessage) *msg.ResponseMessage {
+	bucket := svc.store.GetBucket(req.SenderID)
 	input := bucketstore.SetArgs{}
 	err := utils.Decode(req.Input, &input)
 	if err == nil {
@@ -133,8 +138,8 @@ func (handler *BucketMsgHandler) Set(req *msg.RequestMessage) *msg.ResponseMessa
 	return req.CreateResponse(nil, err)
 }
 
-func (handler *BucketMsgHandler) SetMultiple(req *msg.RequestMessage) *msg.ResponseMessage {
-	bucket := handler.service.GetBucket(req.SenderID)
+func (svc *BucketStoreService) SetMultiple(req *msg.RequestMessage) *msg.ResponseMessage {
+	bucket := svc.store.GetBucket(req.SenderID)
 	var input map[string]string
 	raw := make(map[string][]byte)
 	err := utils.Decode(req.Input, &input)
@@ -145,15 +150,4 @@ func (handler *BucketMsgHandler) SetMultiple(req *msg.RequestMessage) *msg.Respo
 		err = bucket.SetMultiple(raw)
 	}
 	return req.CreateResponse(nil, err)
-}
-
-// NewBucketMsgHandler returns a new instance of the messaging handler for
-// serving bucket requests.
-func NewBucketMsgHandler(thingID string, service bucketstore.IBucketStorage) *BucketMsgHandler {
-	agent := BucketMsgHandler{
-		thingID:     thingID,
-		service:     service,
-		cursorCache: NewCursorCache(),
-	}
-	return &agent
 }

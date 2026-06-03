@@ -21,7 +21,7 @@ var CertsTMJson []byte
 func (svc *CertsService) HandleRequest(
 	req *msg.RequestMessage, replyTo msg.ResponseHandler) (err error) {
 
-	if req.ThingID != svc.GetModuleID() {
+	if req.ThingID != svc.GetThingID() {
 		return svc.ForwardRequest(req, replyTo)
 	}
 

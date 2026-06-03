@@ -11,7 +11,7 @@ import (
 // The BucketMsgClient converts the bucketstore API to RRN messages and passes them
 // to the provided sink, typically a messaging protocol client.
 type BucketMsgClient struct {
-	modules.HiveModuleBase
+	*modules.HiveModuleBase
 	// storeThingID ID of the storage service instance
 	storeThingID string // bucket store service instance ID
 }
@@ -70,7 +70,8 @@ func (cl *BucketMsgClient) SetMultiple(kv map[string]string) error {
 //	sink is the handler that forwards messages to the module. Typically a messaging client.
 func NewBucketStoreMsgClient(thingID string, sink modules.IHiveModule) *BucketMsgClient {
 	cl := &BucketMsgClient{
-		storeThingID: thingID,
+		storeThingID:   thingID,
+		HiveModuleBase: modules.NewHiveModuleBase("", 0),
 	}
 	cl.SetRequestSink(sink.HandleRequest)
 	sink.SetNotificationSink(cl.HandleNotification)

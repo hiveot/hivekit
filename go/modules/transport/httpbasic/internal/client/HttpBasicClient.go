@@ -20,6 +20,7 @@ import (
 	httptransportpkg "github.com/hiveot/hivekit/go/modules/transport/httptransport/pkg"
 	"github.com/hiveot/hivekit/go/utils"
 	jsoniter "github.com/json-iterator/go"
+	"github.com/teris-io/shortid"
 )
 
 // HttpBasicClient is the RRN messaging client for connecting a WoT client to a WoT server
@@ -34,13 +35,15 @@ import (
 // hiveot RequestMessage and ResponseMessage endpoints. If no form is available
 // then use the default hiveot endpoints that are defined with this protocol binding.
 type HttpBasicClient struct {
-	modules.HiveModuleBase
+	*modules.HiveModuleBase
 
 	// auth token when connecting with token
 	bearerToken string
 
 	// current connection status
 	connectStatus transport.ConnectionStatus
+	// callback when connection changes
+	connectHandler func(oldStatus, newStatus transport.ConnectionStatus, c transport.ITransportClient)
 
 	// getForm obtains the form for sending a request or notification
 	// if nil, then the hiveot protocol envelope and URL are used as fallback
@@ -78,8 +81,11 @@ func (cl *HttpBasicClient) _setConnectionStatus(
 	cl.connectStatus = newStatus
 	cl.mux.Unlock()
 
+	if cl.connectHandler != nil {
+		cl.connectHandler(oldStatus, newStatus, cl)
+	}
 	// notify upstream of status change
-	moduleID := cl.GetModuleID()
+	moduleID := cl.GetThingID()
 	evName := transport.ClientConnectionStatusEvent
 	notif := msg.NewNotificationMessage(
 		moduleID, msg.AffordanceTypeEvent, moduleID, evName, newStatus)
@@ -388,6 +394,14 @@ func (cl *HttpBasicClient) SetRequestSink(sink msg.RequestHandler) {
 	slog.Warn("SetRequestSink. HttpBasicClient cannot be a request sink.")
 }
 
+// SetConnectHandler sets the callback to invoke when the connection status changes
+func (cl *HttpBasicClient) SetConnectHandler(
+	h func(oldStatus, newStatus transport.ConnectionStatus, c transport.ITransportClient)) {
+	cl.mux.Lock()
+	defer cl.mux.Unlock()
+	cl.connectHandler = h
+}
+
 func (cl *HttpBasicClient) SetTimeout(timeout time.Duration) {
 	cl.timeout = timeout
 	cl.tlsClient.SetTimeout(timeout)
@@ -440,10 +454,12 @@ func NewHttpBasicClient(
 func NewHttpBasicTLSClient(
 	tlsClient transport.ITLSClient, getForm transport.GetFormHandler) *HttpBasicClient {
 
+	thingID := httpbasic.HttpBasicClientModuleType + shortid.MustGenerate()
 	cl := &HttpBasicClient{
-		getForm:   getForm,
-		timeout:   transport.DefaultClientTimeout,
-		tlsClient: tlsClient,
+		HiveModuleBase: modules.NewHiveModuleBase(thingID, 0),
+		getForm:        getForm,
+		timeout:        transport.DefaultClientTimeout,
+		tlsClient:      tlsClient,
 	}
 	if cl.getForm == nil {
 		cl.getForm = cl.GetDefaultForm

@@ -8,6 +8,7 @@ import (
 	"github.com/hiveot/hivekit/go/modules"
 	"github.com/hiveot/hivekit/go/modules/transport"
 	"github.com/hiveot/hivekit/go/modules/transport/httpbasic"
+	"github.com/teris-io/shortid"
 )
 
 // HTTP-basic profile constants
@@ -24,7 +25,7 @@ const (
 // It is only intended for consumers and not for agents using connection reversal.
 // It does not support subscribing to events or observing properties.
 type HttpBasicServer struct {
-	transport.TransportServerBase
+	*transport.TransportServerBase
 
 	// actual httpServer exposing routes
 	httpServer transport.IHttpServer
@@ -97,13 +98,13 @@ func (m *HttpBasicServer) Stop() {
 //	sink is the optional receiver of request, response and notification messages, nil to set later
 func NewHttpBasicServer(httpServer transport.IHttpServer) *HttpBasicServer {
 
-	m := &HttpBasicServer{
-		httpServer: httpServer,
-	}
-
+	thingID := httpbasic.HttpBasicServerModuleType + "-" + shortid.MustGenerate()
 	connectURL := httpServer.GetConnectURL()
 	authenticator := httpServer.GetAuthenticator()
-	m.Init(httpbasic.HttpBasicServerModuleType, connectURL, authenticator)
+	m := &HttpBasicServer{
+		TransportServerBase: transport.NewTransportServerBase(thingID, connectURL, authenticator),
+		httpServer:          httpServer,
+	}
 
 	// TODO: properties must match the module TM
 	// m.UpdateProperty(transport.PropName_NrConnections, 0)

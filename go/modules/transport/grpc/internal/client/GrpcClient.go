@@ -21,12 +21,15 @@ import (
 // gRPC transport client for hiveot
 // This implements the ITransportClient interface
 type GrpcClient struct {
-	modules.HiveModuleBase
+	*modules.HiveModuleBase
 
 	bearerToken string
 
 	// status of current connection
 	connectStatus transport.ConnectionStatus
+	// callback when connection changes
+	connectHandler func(oldStatus, newStatus transport.ConnectionStatus, c transport.ITransportClient)
+
 	// instance ID used to identify the client and its connection
 	connectionID string
 
@@ -50,9 +53,6 @@ type GrpcClient struct {
 	// the request & response channel handler
 	// all responses are passed here to support response callbacks
 	rnrChan *msg.RnRChan
-
-	// send/receive timeout to use
-	timeout time.Duration
 }
 
 // // socket connection status handler
@@ -107,7 +107,7 @@ func (cl *GrpcClient) _onClientMessage(raw []byte) {
 		// client consumer receives a response
 		go func() {
 			// pass it on to the waiting consumer
-			handled := cl.rnrChan.HandleResponse(resp, cl.timeout)
+			handled := cl.rnrChan.HandleResponse(resp, cl.GetTimeout())
 			if !handled {
 				slog.Error("HandleWssMessage: received response but no matching request",
 					"correlationID", resp.CorrelationID,
@@ -140,6 +140,10 @@ func (cl *GrpcClient) _setConnectionStatus(
 	cl.mux.Lock()
 	cl.connectStatus = newStatus
 	cl.mux.Unlock()
+
+	if cl.connectHandler != nil {
+		cl.connectHandler(oldStatus, newStatus, cl)
+	}
 
 	// notify upstream of status change. the cid is the client instance thingID
 	cid := cl.GetConnectionID()
@@ -178,7 +182,7 @@ func (cl *GrpcClient) AuthenticateWithClientCert(clientCert *tls.Certificate) (e
 
 	// create the grpc client to use but do not connect yet
 	cl.grpcSvcClient = internal.NewGrpcServiceClient(
-		cl.connectURL, clientCert, cl.caCert, cl.timeout,
+		cl.connectURL, clientCert, cl.caCert, cl.GetTimeout(),
 		grpctransport.GrpcTransportServiceName, cl._onClientMessage)
 
 	return err
@@ -209,7 +213,7 @@ func (cl *GrpcClient) AuthenticateWithToken(clientID string, token string) (err 
 
 	// create the grpc client to use but do not connect yet
 	cl.grpcSvcClient = internal.NewGrpcServiceClient(
-		cl.connectURL, cl.clientCert, cl.caCert, cl.timeout,
+		cl.connectURL, cl.clientCert, cl.caCert, cl.GetTimeout(),
 		grpctransport.GrpcTransportServiceName, cl._onClientMessage)
 
 	err = cl.grpcSvcClient.AuthenticateWithToken(clientID, token)
@@ -389,7 +393,7 @@ func (cl *GrpcClient) SendRequest(
 			"err", err.Error())
 		return err
 	}
-	hasResponse, resp := cl.rnrChan.WaitForResponse(req.CorrelationID, cl.timeout)
+	hasResponse, resp := cl.rnrChan.WaitForResponse(req.CorrelationID, cl.GetTimeout())
 	if hasResponse {
 		err = replyTo(resp)
 	}
@@ -412,8 +416,12 @@ func (cl *GrpcClient) SendResponse(resp *msg.ResponseMessage) error {
 	return err
 }
 
-func (cl *GrpcClient) SetTimeout(timeout time.Duration) {
-	cl.timeout = timeout
+// SetConnectHandler sets the callback to invoke when the connection status changes
+func (cl *GrpcClient) SetConnectHandler(
+	h func(oldStatus, newStatus transport.ConnectionStatus, c transport.ITransportClient)) {
+	cl.mux.Lock()
+	defer cl.mux.Unlock()
+	cl.connectHandler = h
 }
 
 // Start the module and attempt to connect to the server if not already connected.
@@ -451,17 +459,16 @@ func NewGrpcClient(
 
 	// gRPC does not support tcp scheme, but we want to allow users to specify it for consistency with the server.
 	connectURL = strings.TrimPrefix(connectURL, "tcp://")
+	thingID := "grpc-client-" + shortid.MustGenerate()
 
 	cl := &GrpcClient{
-		HiveModuleBase: modules.NewHiveModuleBase(
-			grpctransport.HiveotGrpcClientModuleType, msg.DefaultRnRTimeout),
-		caCert:       caCert,
-		clientCert:   nil,
-		connectionID: shortid.MustGenerate(),
-		connectURL:   connectURL,
-		encoder:      transport.NewRRNJsonEncoder(),
-		rnrChan:      msg.NewRnRChan(),
-		timeout:      msg.DefaultRnRTimeout,
+		HiveModuleBase: modules.NewHiveModuleBase(thingID, msg.DefaultRnRTimeout),
+		caCert:         caCert,
+		clientCert:     nil,
+		connectionID:   shortid.MustGenerate(),
+		connectURL:     connectURL,
+		encoder:        transport.NewRRNJsonEncoder(),
+		rnrChan:        msg.NewRnRChan(),
 	}
 
 	var _ transport.ITransportClient = cl // check interface implementation

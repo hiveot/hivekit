@@ -109,7 +109,7 @@ func (co *WotConsumer) Discover(cb func(r *discoverypkg.DiscoveryResult) bool) (
 
 		// notify event listeners of the newly discovered record
 		// TODO: formalize this with a TD
-		notif := msg.NewNotificationMessage(co.GetModuleID(),
+		notif := msg.NewNotificationMessage(co.GetThingID(),
 			msg.AffordanceTypeEvent, discovery.DefaultDiscoveryThingID, "discovery", r)
 		co.ForwardNotification(notif)
 		return false

@@ -36,12 +36,14 @@ import (
 // hiveot RequestMessage and ResponseMessage endpoints. If no form is available
 // then use the default hiveot endpoints that are defined with this protocol binding.
 type SseScClient struct {
-	modules.HiveModuleBase
+	*modules.HiveModuleBase
 
 	// auth token when connecting with token
 	bearerToken string
 
 	connectStatus transport.ConnectionStatus
+	// callback when connection changes
+	connectHandler func(oldStatus, newStatus transport.ConnectionStatus, c transport.ITransportClient)
 
 	// encode/decode the request/response to the SSE messaging protocol used
 	encoder transport.IMessageEncoder
@@ -59,9 +61,6 @@ type SseScClient struct {
 
 	// handler for closing the sse connection
 	sseCancelFn context.CancelFunc
-
-	// Timeout for http requests and SSE connect
-	timeout time.Duration
 
 	// http2 client for posting messages
 	tlsClient transport.ITLSClient
@@ -85,8 +84,11 @@ func (cl *SseScClient) _setConnectionStatus(
 	cl.connectStatus = newStatus
 	cl.mux.Unlock()
 
+	if cl.connectHandler != nil {
+		cl.connectHandler(oldStatus, newStatus, cl)
+	}
 	// notify upstream of connect, disconnect or lost
-	moduleID := cl.GetModuleID()
+	moduleID := cl.GetThingID()
 	evName := transport.ClientConnectionStatusEvent
 	notif := msg.NewNotificationMessage(
 		moduleID, msg.AffordanceTypeEvent, moduleID, evName, newStatus)
@@ -175,7 +177,7 @@ func (cl *SseScClient) Connect() (err error) {
 		cl.ssePath,
 		cl._setConnectionStatus,
 		cl.handleSseEvent,
-		cl.timeout)
+		cl.GetTimeout())
 
 	return err
 }
@@ -219,7 +221,7 @@ func (m *SseScClient) HandleNotification(notif *msg.NotificationMessage) {
 // - reconnect actions are handled here
 // - other requests (like subscribe) are send to the server
 func (cl *SseScClient) HandleRequest(request *msg.RequestMessage, replyTo msg.ResponseHandler) error {
-	if request.ThingID == cl.GetModuleID() {
+	if request.ThingID == cl.GetThingID() {
 		if request.Operation == td.OpInvokeAction && request.Name == transport.ClientConnectAction {
 			err := cl.Connect()
 			resp := request.CreateResponse(nil, err)
@@ -282,7 +284,7 @@ func (cl *SseScClient) handleSseEvent(event gosse.Event) {
 
 		// consumer receives a response
 		// this will be 'handled' if it was waiting on its rnr channel
-		handled := cl.rnrChan.HandleResponse(resp, cl.timeout)
+		handled := cl.rnrChan.HandleResponse(resp, cl.GetTimeout())
 
 		if !handled {
 			slog.Warn("handleSseEvent: No response handler for request, response is lost",
@@ -388,7 +390,7 @@ func (cl *SseScClient) SendRequest(
 		// While code 200 could in theory include the response message in the http
 		// response, hiveot chooses to always pass the response via SSE.
 		// the reply from the RNR channel is sent directly to the given replyTo handler.
-		cl.rnrChan.WaitWithCallback(req.CorrelationID, cl.timeout, replyTo)
+		cl.rnrChan.WaitWithCallback(req.CorrelationID, cl.GetTimeout(), replyTo)
 	} else {
 		// something went wrong and no response is expected, close the channel
 		cl.rnrChan.Close(req.CorrelationID)
@@ -429,9 +431,17 @@ func (cl *SseScClient) SendResponse(resp *msg.ResponseMessage) error {
 	return err
 }
 
+// SetConnectHandler sets the callback to invoke when the connection status changes
+func (cl *SseScClient) SetConnectHandler(
+	h func(oldStatus, newStatus transport.ConnectionStatus, c transport.ITransportClient)) {
+	cl.mux.Lock()
+	defer cl.mux.Unlock()
+	cl.connectHandler = h
+}
+
 // SetTimeout sets the messaging timeout
 func (cl *SseScClient) SetTimeout(timeout time.Duration) {
-	cl.timeout = timeout
+	cl.HiveModuleBase.SetTimeout(timeout)
 	cl.tlsClient.SetTimeout(timeout)
 }
 
@@ -467,13 +477,13 @@ func NewSseScClient(sseURL string, caCert *x509.Certificate) *SseScClient {
 	timeout := msg.DefaultRnRTimeout
 	tlsClient := httptransportpkg.NewHttpTransportClient(hostPort, caCert, timeout)
 
+	thingID := ssesc.SseScClientModuleType + shortid.MustGenerate()
 	cl := &SseScClient{
-		HiveModuleBase: modules.NewHiveModuleBase(ssesc.SseScClientModuleType, timeout),
+		HiveModuleBase: modules.NewHiveModuleBase(thingID, timeout),
 		encoder:        transport.NewRRNJsonEncoder(),
 		rnrChan:        msg.NewRnRChan(),
 		ssePath:        ssePath,
 		tlsClient:      tlsClient,
-		timeout:        timeout,
 	}
 	var _ modules.IHiveModule = cl        // interface check
 	var _ transport.ITransportClient = cl // interface check

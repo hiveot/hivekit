@@ -161,8 +161,8 @@ func TestSubscribeReconnect(t *testing.T) {
 
 	slog.Info("--- 5. check result", "nr notifications", notifEvent.Load())
 
-	// 7. Client should have received the lost, connected and notif1 events
-	assert.Equal(t, 3, int(notifEvent.Load()))
+	// 7. Client should have received the lost,connecting,  connected and notif1 events
+	assert.Equal(t, 4, int(notifEvent.Load()))
 
 }
 

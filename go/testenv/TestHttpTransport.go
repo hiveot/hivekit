@@ -14,7 +14,7 @@ import (
 // A dummy transport for testing
 // This implements IHttpServer and ITransportServer interfaces
 type TestHttpTransport struct {
-	modules.HiveModuleBase
+	*modules.HiveModuleBase
 
 	url       string
 	protRoute chi.Router
@@ -57,9 +57,10 @@ func NewDummyServer(url string) transport.IHttpServer {
 	rootRouter := chi.NewRouter()
 	rootRouter.Use(middleware.Heartbeat(transport.DefaultPingPath))
 	d := &TestHttpTransport{
-		url:       url,
-		protRoute: rootRouter.With(),
-		pubRoute:  rootRouter.With(),
+		HiveModuleBase: modules.NewHiveModuleBase("", 0),
+		url:            url,
+		protRoute:      rootRouter.With(),
+		pubRoute:       rootRouter.With(),
 	}
 	return d
 }

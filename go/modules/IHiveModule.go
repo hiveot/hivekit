@@ -13,6 +13,10 @@ type IHiveModule interface {
 	// This is not the instance ID.
 	// GetModuleType() string
 
+	// GetThingID returns the module's instance ID.
+	// This is used as the sender ThingID when sending notifications.
+	GetThingID() string
+
 	// HandleRequest - invoked by consumer to this producer.
 	//  [producer] processes or forwards a request downstream to other producers.
 	//

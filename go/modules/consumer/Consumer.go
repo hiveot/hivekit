@@ -31,7 +31,7 @@ const ConsumerModuleType = "consumer"
 //	by including it as the first module in a recipe of the factory module.
 type Consumer struct {
 	// This consumer is a sink for the connection
-	modules.HiveModuleBase
+	*modules.HiveModuleBase
 
 	// The sink that will forward the requests and respond with notifications.
 	// sink modules.IHiveModule
@@ -258,8 +258,9 @@ func (co *Consumer) WriteProperty(thingID string, name string, input any, wait b
 //
 //	timeout is the timeout of waiting for responses to requests. Use 0 for default.
 func NewConsumer(timeout time.Duration) *Consumer {
+	thingID := ConsumerModuleType + "-" + shortid.MustGenerate()
 	consumer := &Consumer{
-		HiveModuleBase: modules.NewHiveModuleBase("Consumer", timeout),
+		HiveModuleBase: modules.NewHiveModuleBase(thingID, timeout),
 	}
 
 	return consumer

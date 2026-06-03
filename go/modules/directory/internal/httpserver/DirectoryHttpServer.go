@@ -22,7 +22,7 @@ const ThingIDURIVar = "thingID"
 // https://w3c.github.io/wot-discovery/#exploration-directory-api
 type DirectoryHttpServer struct {
 	// transport.TransportServerBase
-	modules.HiveModuleBase
+	*modules.HiveModuleBase
 	httpServer       transport.IHttpServer
 	directoryThingID string
 }

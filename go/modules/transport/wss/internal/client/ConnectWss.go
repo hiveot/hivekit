@@ -42,6 +42,7 @@ func ConnectWSS(
 
 	// use context to disconnect the client
 	wssCtx, wssCancelFn := context.WithCancel(context.Background())
+	onConnect(transport.StatusConnecting, nil)
 
 	caCertPool := x509.NewCertPool()
 	if caCert != nil {

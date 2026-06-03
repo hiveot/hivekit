@@ -19,6 +19,7 @@ import (
 	"github.com/hiveot/hivekit/go/modules/transport/httptransport"
 	"github.com/hiveot/hivekit/go/utils"
 	"github.com/lmittmann/tint"
+	"github.com/teris-io/shortid"
 )
 
 // HttpTransportServer is a hiveot module providing a TLS HTTPS server.
@@ -28,7 +29,7 @@ import (
 // Note that this does not implement the ITransportModule interface as this module provides the
 // http server for use by transport modules.
 type HttpTransportServer struct {
-	modules.HiveModuleBase
+	*modules.HiveModuleBase
 
 	// authenticator to validate incoming conncetions
 	authenticator transport.IAuthenticator
@@ -215,10 +216,11 @@ func NewHttpTransportServer(config *httptransport.Config, authenticator transpor
 	// if config.ModuleID == "" {
 	// 	config.ModuleID = transport.DefaultHttpServerModuleID
 	// }
-
+	thingID := transport.HttpServerModuleType + "-" + shortid.MustGenerate()
 	m := &HttpTransportServer{
-		config:        config,
-		authenticator: authenticator,
+		HiveModuleBase: modules.NewHiveModuleBase(thingID, 0),
+		config:         config,
+		authenticator:  authenticator,
 	}
 	// m.authRequestHandler = config.AuthRequestHandler
 	if m.authRequestHandler == nil {

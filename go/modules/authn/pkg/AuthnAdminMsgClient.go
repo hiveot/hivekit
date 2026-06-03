@@ -11,7 +11,7 @@ import (
 // AuthnAdminMsgClient is a client module for authentication management using RRN messages.
 // This should be linked to a transport client module for message delivery.
 type AuthnAdminMsgClient struct {
-	modules.HiveModuleBase
+	*modules.HiveModuleBase
 	// The ThingID of the authn service that handles the request.
 	authnServiceID string
 }
@@ -86,6 +86,8 @@ func (m *AuthnAdminMsgClient) AdminUpdateClientProfile(clientProfile authnapi.Cl
 
 // Create a new instance of the authentication administration messaging client
 func NewAuthnAdminMsgClient() *AuthnAdminMsgClient {
-	m := &AuthnAdminMsgClient{}
+	m := &AuthnAdminMsgClient{
+		HiveModuleBase: modules.NewHiveModuleBase("", 0),
+	}
 	return m
 }

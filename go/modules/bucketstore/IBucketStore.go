@@ -5,6 +5,7 @@ package bucketstore
 import "github.com/hiveot/hivekit/go/modules"
 
 const BucketStoreModuleType = "bucketstore"
+const DefaultBucketStoreThingID = "bucketstore"
 
 // Available embedded bucket store implementations with low memory overhead
 const (

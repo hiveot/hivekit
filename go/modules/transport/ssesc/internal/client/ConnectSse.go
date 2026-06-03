@@ -39,9 +39,9 @@ func ConnectSSE(
 	sseCtx, sseCancelFn := context.WithCancel(context.Background())
 
 	clientID := tlsClient.GetClientID()
+	onConnect(transport.StatusConnecting, nil)
 
 	// replace the sse:// schema with https:// required for the request itself
-
 	fullURL := fmt.Sprintf("https://%s%s", tlsClient.GetHostPort(), ssePath)
 	r := tlsClient.CreateRequest(sseCtx, method, fullURL, nil, body, contentType)
 	sseClient := &gosse.Client{

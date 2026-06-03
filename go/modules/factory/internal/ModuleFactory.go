@@ -20,7 +20,7 @@ import (
 //
 // This factory itself is the first module in the chain of modules created by this factory.
 type ModuleFactory struct {
-	modules.HiveModuleBase
+	*modules.HiveModuleBase
 
 	env *factory.AppEnvironment
 
@@ -296,7 +296,9 @@ func NewModuleFactory(
 	if moduleDefs == nil {
 		moduleDefs = make(map[string]factory.ModuleDefinition)
 	}
+	thingID := "factory"
 	f := &ModuleFactory{
+		HiveModuleBase:   modules.NewHiveModuleBase(thingID, env.RpcTimeout),
 		authProxy:        NewAuthenticatorProxy(),
 		env:              env,
 		moduleTable:      moduleDefs,

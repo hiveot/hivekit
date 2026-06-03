@@ -8,7 +8,6 @@ import (
 	"log/slog"
 	"net/url"
 	"sync"
-	"time"
 
 	"github.com/gorilla/websocket"
 	"github.com/hiveot/hivekit/go/api/msg"
@@ -39,7 +38,7 @@ import (
 // converts is a straight passthrough of RequestMessage and ResponseMessage, while
 // the wotwssConverter maps the messages to the WoT websocket specification.
 type WssTransportClient struct {
-	modules.HiveModuleBase
+	*modules.HiveModuleBase
 
 	// authentication token
 	bearerToken string
@@ -56,6 +55,8 @@ type WssTransportClient struct {
 
 	// handler for sending connection notifications
 	connectStatus transport.ConnectionStatus
+	// callback when connection changes
+	connectHandler func(oldStatus, newStatus transport.ConnectionStatus, c transport.ITransportClient)
 
 	// convert the request/response to the wss messaging protocol used
 	encoder transport.IMessageEncoder
@@ -66,9 +67,6 @@ type WssTransportClient struct {
 	// the request & response channel handler
 	// all responses are passed here to support response callbacks
 	rnrChan *msg.RnRChan
-
-	// send/receive timeout to use
-	timeout time.Duration
 
 	// underlying websocket connection
 	wssConn     *websocket.Conn
@@ -123,7 +121,7 @@ func (cl *WssTransportClient) _onWssMessage(raw []byte) {
 	} else if resp != nil {
 		// client receives a response message
 		// pass it on to the waiting consumer
-		handled := cl.rnrChan.HandleResponse(resp, cl.timeout)
+		handled := cl.rnrChan.HandleResponse(resp, cl.GetTimeout())
 		if !handled {
 			slog.Error("_onWssMessage: received response but no matching request",
 				"correlationID", resp.CorrelationID,
@@ -173,8 +171,11 @@ func (cl *WssTransportClient) _setConnectionStatus(
 	cl.connectStatus = newStatus
 	cl.mux.Unlock()
 
+	if cl.connectHandler != nil {
+		cl.connectHandler(oldStatus, newStatus, cl)
+	}
 	// notify upstream of connect, disconnect or lost
-	moduleID := cl.GetModuleID()
+	moduleID := cl.GetThingID()
 	evName := transport.ClientConnectionStatusEvent
 	notif := msg.NewNotificationMessage(
 		moduleID, msg.AffordanceTypeEvent, moduleID, evName, newStatus)
@@ -340,7 +341,7 @@ func (m *WssTransportClient) HandleNotification(notif *msg.NotificationMessage) 
 // - reconnect actions are handled here
 // - other requests (like subscribe) are send to the server
 func (cl *WssTransportClient) HandleRequest(request *msg.RequestMessage, replyTo msg.ResponseHandler) error {
-	if request.ThingID == cl.GetModuleID() {
+	if request.ThingID == cl.GetThingID() {
 		if request.Operation == td.OpInvokeAction && request.Name == transport.ClientConnectAction {
 			err := cl.Connect()
 			resp := request.CreateResponse(nil, err)
@@ -415,7 +416,7 @@ func (cl *WssTransportClient) SendRequest(
 			"err", err.Error())
 		return err
 	}
-	hasResponse, resp := cl.rnrChan.WaitForResponse(req.CorrelationID, cl.timeout)
+	hasResponse, resp := cl.rnrChan.WaitForResponse(req.CorrelationID, cl.GetTimeout())
 	if hasResponse {
 		err = replyTo(resp)
 	}
@@ -446,10 +447,12 @@ func (cl *WssTransportClient) SendResponse(resp *msg.ResponseMessage) error {
 	return err
 }
 
-// Change the default timeout for sending and waiting for messages
-func (cl *WssTransportClient) SetTimeout(timeout time.Duration) {
-	// cl.tlsClient.SetTimeout(timeout)
-	cl.timeout = timeout
+// SetConnectHandler sets the callback to invoke when the connection status changes
+func (cl *WssTransportClient) SetConnectHandler(
+	h func(oldStatus, newStatus transport.ConnectionStatus, c transport.ITransportClient)) {
+	cl.mux.Lock()
+	defer cl.mux.Unlock()
+	cl.connectHandler = h
 }
 
 // Start the module and attempt to connect to the server if not already connected.
@@ -479,15 +482,14 @@ func NewHiveotWssClient(
 	wssURL string, caCert *x509.Certificate) *WssTransportClient {
 
 	timeout := msg.DefaultRnRTimeout
-	moduleID := wss.HiveotWebsocketClientModuleType
+	thingID := wss.HiveotWebsocketClientModuleType + shortid.MustGenerate()
 
 	cl := WssTransportClient{
-		HiveModuleBase: modules.NewHiveModuleBase(moduleID, timeout),
+		HiveModuleBase: modules.NewHiveModuleBase(thingID, timeout),
 		caCert:         caCert,
 		// hiveot uses its own standardized RRN messages
 		encoder: transport.NewRRNJsonEncoder(),
 		rnrChan: msg.NewRnRChan(),
-		timeout: timeout,
 		wssURL:  wssURL,
 	}
 	return &cl
@@ -505,14 +507,13 @@ func NewWotWssClient(
 	wssURL string, caCert *x509.Certificate) *WssTransportClient {
 
 	timeout := msg.DefaultRnRTimeout
-	moduleID := wss.WotWebsocketClientModuleType
+	thingID := wss.HiveotWebsocketClientModuleType + shortid.MustGenerate()
 
 	cl := &WssTransportClient{
-		HiveModuleBase: modules.NewHiveModuleBase(moduleID, timeout),
+		HiveModuleBase: modules.NewHiveModuleBase(thingID, timeout),
 		caCert:         caCert,
 		encoder:        internal.NewWotWssMsgEncoder(),
 		rnrChan:        msg.NewRnRChan(),
-		timeout:        timeout,
 		wssURL:         wssURL,
 	}
 	var _ transport.ITransportClient = cl // interface check
