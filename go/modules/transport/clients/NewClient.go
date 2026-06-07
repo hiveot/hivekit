@@ -29,71 +29,75 @@ var SupportedClientProtocols = []string{
 // GetProtocolType returns the protocol used for connecting to this device.
 // This returns the protocol type and connection href, if available.
 //
+// Not intended to get the href of an operation as a subprotocol can use a different
+// connection protocol for the return channel, eg, SSE.
+//
 // Note that TDs can use multiple protocols for its operations. HiveOT currently assumes
 // that only a single protocol is used for connecting with a device. Steps:
 //
-//  1. lookup the forms of the 'observeallproperties' or 'subscribeallevents' top level operation,
-//     if present take the first form and lookup the subprotocol and href fields.
-//     if no subprotocol field exists, then use the scheme in the href.
+//  1. If a base is present then use that as the href
 //
-//  2. if no form was found then use the scheme of the 'base' field in the td.
-//     wss maps to websocket, subprotocol can be longpoll, sse is hiveot sse-sc, etc.
+//  2. if an operation is provided then lookup the form for that operation
+//     if no base is provided use the href of the operation
 //
-// 3. if all else fails if still no scheme then assume its http basic
-func GetProtocolType(tdoc *td.TD) (protocolType string, href string) {
-	forms := tdoc.GetForms(td.OpObserveAllProperties, "")
-	if len(forms) == 0 {
-		forms = tdoc.GetForms(td.OpSubscribeAllEvents, "")
+//  3. if the operation has a subprotocol then use this as the protocol-type
+//
+//  4. if no subprotocol is provided in the operation then derive it from href
+func GetProtocolType(tdoc *td.TD, op string) (protocolType string, href string) {
+	subprotocol := ""
+	// 1. derive href  from base
+	if tdoc.Base != "" {
+		href = tdoc.Base
 	}
-	if len(forms) == 0 {
-		forms = tdoc.Forms // pick any
-	}
-	if len(forms) > 0 {
-		subprotocol, found := forms[0].GetSubprotocol()
-		href = forms[0].GetHRef()
-		parts, err := url.Parse(href)
-		// if href has no scheme then join with the 'base' field
-		if err == nil && parts.Scheme == "" && tdoc.Base != "" {
-			href, err = url.JoinPath(tdoc.Base, href)
-		}
-		if found {
-			switch subprotocol {
-			case transport.SubprotocolHiveotSsesc:
-				protocolType = transport.ProtocolTypeHiveotSsesc
-			case transport.SubprotocolHiveotWebsocket:
-				protocolType = transport.ProtocolTypeHiveotWebsocket
-			case transport.SubprotocolWotWebsocket:
-				protocolType = transport.ProtocolTypeWotWebsocket
-			case transport.SubprotocolWotHttpLongPoll:
-				protocolType = transport.ProtocolTypeWotHttpLongPoll
+	if op != "" {
+		// 2. if an op is provided determine href and subprotocol from the form
+		forms := tdoc.GetForms(op, "")
+		if len(forms) > 0 {
+			form := forms[0]
+			if href == "" {
+				href = form.GetHRef()
 			}
+			subprotocol, _ = form.GetSubprotocol()
 		}
 	}
+	// 3. determine the protocol type from the subprotocol
+	switch subprotocol {
+	case transport.SubprotocolHiveotSsesc:
+		protocolType = transport.ProtocolTypeHiveotSsesc
+	case transport.SubprotocolHiveotWebsocket:
+		protocolType = transport.ProtocolTypeHiveotWebsocket
+	case transport.SubprotocolWotWebsocket:
+		protocolType = transport.ProtocolTypeWotWebsocket
+	case transport.SubprotocolWotHttpLongPoll:
+		protocolType = transport.ProtocolTypeWotHttpLongPoll
+	}
+
+	// if a subprotocol is found then use it
 	if protocolType != "" {
 		return protocolType, href
 	}
-	// if no subprotocol was found determine it from the href
-	if href == "" {
-		href = tdoc.Base
+
+	// 4. no subprotocol is provided, derive it from the URI Scheme
+	parts, err := url.Parse(href)
+	if err != nil {
+		return "", ""
 	}
-	if strings.HasPrefix(href, transport.ProtocolSchemeWotHttpBasic) {
-		return transport.ProtocolTypeWotHttpBasic, href
+	scheme := strings.ToLower(parts.Scheme)
+	switch scheme {
+	case transport.ProtocolSchemeHiveotGrpc:
+		protocolType = transport.ProtocolTypeHiveotGrpc
+	case transport.ProtocolSchemeWotHttpBasic:
+		protocolType = transport.ProtocolTypeWotHttpBasic
+	case transport.ProtocolSchemeWotWebsocket:
+		protocolType = transport.ProtocolTypeWotWebsocket
+	case transport.ProtocolSchemeWotMqtt:
+		protocolType = transport.ProtocolTypeWotMqtt
+	case transport.ProtocolSchemeWotSse:
+		protocolType = transport.ProtocolTypeWotSse
+	default:
+		protocolType = scheme
 	}
-	// a normal TD device should have a subprotocol so not sure what is going on here.
-	// just some fallback options
-	if strings.HasPrefix(href, transport.ProtocolSchemeWotWebsocket) {
-		return transport.ProtocolTypeWotWebsocket, href
-	}
-	if strings.HasPrefix(href, transport.ProtocolSchemeWotMqtt) {
-		return transport.ProtocolTypeWotMqtt, href
-	}
-	if strings.HasPrefix(href, transport.ProtocolSchemeWotSse) {
-		return transport.ProtocolTypeWotSse, href
-	}
-	if strings.HasPrefix(href, transport.ProtocolSchemeHiveotGrpc) {
-		return transport.ProtocolTypeHiveotGrpc, href
-	}
-	return "", href
+	return protocolType, href
 }
 
 // NewTransportClient returns a new client module instance ready to connect to a transport server
@@ -115,18 +119,20 @@ func NewTransportClient(
 
 	// use the URL to determine the protocol
 	if protocolType == "" {
-		if strings.HasPrefix(serverURL, transport.ProtocolSchemeHiveotGrpc) {
+		scheme := strings.ToLower(parts.Scheme)
+		switch scheme {
+		case transport.ProtocolSchemeHiveotGrpc:
 			protocolType = transport.ProtocolTypeHiveotGrpc
-		} else if strings.HasPrefix(serverURL, transport.ProtocolSchemeWotWebsocket) {
-			protocolType = transport.ProtocolTypeWotWebsocket
-		} else if strings.HasPrefix(serverURL, transport.ProtocolSchemeWotSse) {
-			protocolType = transport.ProtocolTypeWotSse
-		} else if strings.HasPrefix(serverURL, transport.ProtocolSchemeWotMqtt) {
-			protocolType = transport.ProtocolTypeWotMqtt
-		} else if strings.HasPrefix(serverURL, transport.ProtocolSchemeWotHttpBasic) {
+		case transport.ProtocolSchemeWotHttpBasic:
 			protocolType = transport.ProtocolTypeWotHttpBasic
-		} else if strings.HasPrefix(serverURL, transport.ProtocolSchemeHiveotSseSc) {
-			protocolType = transport.ProtocolTypeHiveotSsesc
+		case transport.ProtocolSchemeWotWebsocket:
+			protocolType = transport.ProtocolTypeWotWebsocket
+		case transport.ProtocolSchemeWotMqtt:
+			protocolType = transport.ProtocolTypeWotMqtt
+		case transport.ProtocolSchemeWotSse:
+			protocolType = transport.ProtocolTypeWotSse
+		default:
+			protocolType = scheme
 		}
 	}
 
@@ -166,7 +172,7 @@ func NewTransportClient(
 func NewTransportClientFromTD(
 	tdoc *td.TD, caCert *x509.Certificate) (cl transport.ITransportClient, err error) {
 
-	protocolType, href := GetProtocolType(tdoc)
+	protocolType, href := GetProtocolType(tdoc, "")
 	cl, err = NewTransportClient(protocolType, href, caCert)
 	return cl, err
 }

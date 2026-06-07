@@ -9,14 +9,16 @@ import (
 // AsyncReceiver is a simple helper for waiting on data that will be received
 // asynchronously.
 //
-// This supports passing an error as part of the response and setting a timeout
-// to wait for the response.
-//
 // Usage is simple, call WaitForResponse with a timeout, and if a response is
 // received asynchronously then call SetResponse.
 type AsyncReceiver[T comparable] struct {
 	data  T
 	rChan chan T
+}
+
+// Cancel the channel. Use this instead of SetResponse if no response is avaialble.
+func (arx *AsyncReceiver[T]) Cancel(data T) {
+	close(arx.rChan)
 }
 
 // Write the answer to the channel
@@ -35,9 +37,10 @@ func (arx *AsyncReceiver[T]) SetResponse(data T) {
 //
 // If timeout is 0 or negative, a default of 60 seconds is used.
 //
-// Returns the data and error set by SetResponse, or a timeout error.
+// Returns the data set by SetResponse, or an error on timeout or cancel.
 func (arx *AsyncReceiver[T]) WaitForResponse(timeout time.Duration) (T, error) {
 	var err error
+	var ok bool
 	if timeout <= 0 {
 		timeout = time.Second * 60
 	}
@@ -46,7 +49,10 @@ func (arx *AsyncReceiver[T]) WaitForResponse(timeout time.Duration) (T, error) {
 	defer cancelFunc()
 
 	select {
-	case arx.data = <-arx.rChan:
+	case arx.data, ok = <-arx.rChan:
+		if !ok {
+			err = errors.New("Request was cancelled")
+		}
 		break
 	case <-ctx.Done():
 		err = errors.New("timeout")

@@ -14,19 +14,24 @@ const DefaultRouterThingID = "router"
 type IRouterService interface {
 	modules.IHiveModule
 
-	// Add the secret to access a Thing.
+	// Add the secret to access a Thing on a device.
 	//
 	// If it already exists then it is replaced.
 	// Used in combination with the Thing TD that describes how the secret is used
 	// in establishing the connection or request.
 	//
+	// agentID is the thingID of the device agent. This can be the device thingID or
+	//  a separate ID of the service that manages multiple things, like a gateway. These
+	//  credentials are for connecting to the agent/device.
+	// clientID is the ID the router service used to connect to the device
+	// secret is the auth token used to connect.
 	// secScheme indicates the type of credentials stored: SecSchemeBearer, ...
-	// See also SecSchemeXyz and https://www.w3.org/TR/wot-thing-description11/#securityscheme
+	//  See also SecSchemeXyz and https://www.w3.org/TR/wot-thing-description11/#securityscheme
 	//
 	// When routing a request to a Thing device, this secret is used to authenticate
 	// the connection needed to pass the request. The TD describes the securityDefinitions
 	// available.
-	AddThingCredential(thingID string, clientID, secret string, secScheme string)
+	AddDeviceCredential(agentID string, clientID, secret string, secScheme string)
 
 	// Remove the secret to access a Thing
 	DeleteThingCredential(thingID string)
@@ -42,7 +47,7 @@ type IRouterService interface {
 
 	// Return the ISO timestamp when the Thing was last seen by the router.
 	// This returns an empty string if no known record exists.
-	LastSeen(thingID string) string
+	// LastSeen(thingID string) string
 
 	// Set the communication timeout that is applied to new connections made by this module
 	SetTimeout(time.Duration)

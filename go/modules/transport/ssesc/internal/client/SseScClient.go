@@ -43,7 +43,7 @@ type SseScClient struct {
 
 	connectStatus transport.ConnectionStatus
 	// callback when connection changes
-	connectHandler func(oldStatus, newStatus transport.ConnectionStatus, c transport.ITransportClient)
+	connectHandler func(newStatus transport.ConnectionStatus, c transport.ITransportClient)
 
 	// encode/decode the request/response to the SSE messaging protocol used
 	encoder transport.IMessageEncoder
@@ -78,21 +78,30 @@ func (cl *SseScClient) _setConnectionStatus(
 	if newStatus == oldStatus {
 		return
 	} else if oldStatus == transport.StatusClosed && newStatus == transport.StatusLost {
+		// already closed, don't send status lost
 		return
+	} else if newStatus == transport.StatusLost {
+		slog.Info("_setConnectionStatus SseCl client connection lost", "status", newStatus)
+		// fail all outstanding RnR requests
+		cl.rnrChan.CloseAll()
 	}
 	cl.mux.Lock()
 	cl.connectStatus = newStatus
+	ch := cl.connectHandler
 	cl.mux.Unlock()
 
-	if cl.connectHandler != nil {
-		cl.connectHandler(oldStatus, newStatus, cl)
-	}
 	// notify upstream of connect, disconnect or lost
 	moduleID := cl.GetThingID()
 	evName := transport.ClientConnectionStatusEvent
 	notif := msg.NewNotificationMessage(
 		moduleID, msg.AffordanceTypeEvent, moduleID, evName, newStatus)
 	cl.ForwardNotification(notif)
+
+	// invoke the callback after the notification so that the proper sequence is maintained
+	// if the callback tries to reconnect.
+	if ch != nil {
+		ch(newStatus, cl)
+	}
 }
 
 // Connect authenticating using a client certificate
@@ -163,8 +172,10 @@ func (cl *SseScClient) Close() {
 // cl._setConnectionStatus will invoked when the first ping event is received from the server.
 // (go-sse doesn't have a connected callback)
 func (cl *SseScClient) Connect() (err error) {
-	if cl.IsRunning() {
-		return fmt.Errorf("Connect: Client is still active.")
+	if cl.connectStatus == transport.StatusConnected {
+		return nil
+	} else if cl.connectStatus == transport.StatusConnecting {
+		return fmt.Errorf("Connect: busy connecting.")
 	}
 
 	if cl.ssePath == "" {
@@ -224,7 +235,8 @@ func (cl *SseScClient) HandleRequest(request *msg.RequestMessage, replyTo msg.Re
 	if request.ThingID == cl.GetThingID() {
 		if request.Operation == td.OpInvokeAction && request.Name == transport.ClientConnectAction {
 			err := cl.Connect()
-			resp := request.CreateResponse(nil, err)
+			status := cl.GetConnectionStatus()
+			resp := request.CreateResponse(status, err)
 			return replyTo(resp)
 		} else {
 			return fmt.Errorf("HandleRequest: invalid request op='%s', name='%s'",
@@ -433,7 +445,7 @@ func (cl *SseScClient) SendResponse(resp *msg.ResponseMessage) error {
 
 // SetConnectHandler sets the callback to invoke when the connection status changes
 func (cl *SseScClient) SetConnectHandler(
-	h func(oldStatus, newStatus transport.ConnectionStatus, c transport.ITransportClient)) {
+	h func(newStatus transport.ConnectionStatus, c transport.ITransportClient)) {
 	cl.mux.Lock()
 	defer cl.mux.Unlock()
 	cl.connectHandler = h
@@ -445,10 +457,14 @@ func (cl *SseScClient) SetTimeout(timeout time.Duration) {
 	cl.tlsClient.SetTimeout(timeout)
 }
 
-// start doesn't do anything. Use ConnectWith... to connect.
-// TBD: maybe this should connect using config?
+// Start the module and attempt to connect to the server if not already connected.
+// Intended for use by the factory as the factory provides a clientID/token or client
+// certificate.
+//
+// Most users will use AuthenticateWithToken() followed by Connect() instead.
 func (cl *SseScClient) Start() error {
-	return nil
+	err := cl.Connect()
+	return err
 }
 
 // stop closes the connection

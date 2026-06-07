@@ -5,6 +5,7 @@ import (
 	"github.com/hiveot/hivekit/go/api/td"
 	"github.com/hiveot/hivekit/go/modules/agent"
 	"github.com/hiveot/hivekit/go/modules/transport"
+	grpcpkg "github.com/hiveot/hivekit/go/modules/transport/grpc/pkg"
 	httpbasicpkg "github.com/hiveot/hivekit/go/modules/transport/httpbasic/pkg"
 	"github.com/hiveot/hivekit/go/modules/transport/httptransport"
 	httptransportpkg "github.com/hiveot/hivekit/go/modules/transport/httptransport/pkg"
@@ -31,19 +32,24 @@ func (device *TestDevice) GetTD() *td.TD {
 	return device.td
 }
 
-// set the TD of the test device
+// set the request sink of the test device
 func (device *TestDevice) SetRequestSink(handler msg.RequestHandler) {
 	device.Agent.SetRequestSink(handler)
 }
 
 // Start the test device
-// This starts the http server, the messaging transport (sub-protocol) and
-// creates an agent instance.
+// This:
+// 1. starts the http server
+// 2. creates the protocol transport server
+// 3. add transport forms to the test device
+// 4. create and link an agent that handles requests
 func (device *TestDevice) Start() error {
 
 	// setup the server, transport and link the device to the transport
 	// cfg := httpserverapi.NewConfig(addr, port, serverCert, caCert, validateToken)
-	device.HttpServer = httptransportpkg.NewHttpTransportServer(device.cfg, device.authenticator)
+	device.HttpServer = httptransportpkg.NewHttpTransportServer(
+		device.cfg, device.authenticator)
+
 	err := device.HttpServer.Start()
 	if err != nil {
 		device.HttpServer = nil
@@ -52,6 +58,9 @@ func (device *TestDevice) Start() error {
 	switch device.protocolType {
 	case transport.ProtocolTypeWotHttpBasic:
 		device.TransportServer = httpbasicpkg.NewHttpBasicServer(device.HttpServer)
+	case transport.ProtocolTypeHiveotGrpc:
+		device.TransportServer = grpcpkg.NewHiveotGrpcServer(
+			"", device.cfg.ServerCert, device.cfg.CaCert, device.authenticator, 0)
 	case transport.ProtocolTypeHiveotSsesc:
 		device.TransportServer = ssescpkg.NewSseScServer(device.HttpServer, 0)
 	case transport.ProtocolTypeWotWebsocket:
@@ -71,6 +80,8 @@ func (device *TestDevice) Start() error {
 	// create the agent and link it to the transport to serve requests
 	device.Agent = agent.NewAgent(device.agentID, nil)
 	device.TransportServer.SetRequestSink(device.Agent.HandleRequest)
+	// device does ignores connection notifications
+	device.TransportServer.SetNotificationSink(func(*msg.NotificationMessage) { /*dummy*/ })
 	device.Agent.SetNotificationSink(device.TransportServer.SendNotification)
 	// this device envelope handles requests received via the agent
 	// device.Agent.SetRequestSink(device.HandleRequest)
@@ -87,21 +98,24 @@ func (device *TestDevice) Stop() {
 	}
 }
 
-// NewTestDevice creates a test device containing an agent, device and transport server
-// This itself is a module that can be used as any other module.
+// NewTestDevice creates a test device containing a transport server linked to an agent.
+// The provided authenticator is used to authenticate requests.
+//
 // Use the agent hooks to handle requests and publish notifications.
 //
 // To ignore authentication, set the ValidateTokenHandler in httpserver config to a
 // function that always returns true.
 //
-// # The module ID will be set to the agentID
+// # The device ThingID will be set to the agentID
 //
 // cfg defines the server setup.
-// agentID is the service that manages the device
+// agentID is the device agent/thing
+// authenticator is used by the test device to authenticate requests
 // tm is the TM of the thing to manage
 // protocolType sets the type of server to use
-func NewTestDevice(cfg *httptransport.Config, agentID string, authenticator transport.IAuthenticator, tm *td.TD,
-	protocolType string) *TestDevice {
+func NewTestDevice(cfg *httptransport.Config, agentID string,
+	authenticator transport.IAuthenticator, tm *td.TD, protocolType string) *TestDevice {
+
 	v := &TestDevice{
 		authenticator: authenticator,
 		protocolType:  protocolType,

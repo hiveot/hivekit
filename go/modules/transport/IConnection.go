@@ -6,31 +6,6 @@ import (
 	"github.com/hiveot/hivekit/go/api/msg"
 )
 
-// Connection status values
-type ConnectionStatus string
-
-// connection state machine:
-//
-//	1: new|lost|closed -> connecting -> connected -> closed
-//	2: connecting -> connected -> lost
-//	3: connecting -> refused
-const (
-	// no connection attempt has been made
-	StatusNew ConnectionStatus = ""
-	// the connection is being established
-	StatusConnecting ConnectionStatus = "connecting"
-	// the connection was successfully estasblished
-	// this is the only status that counts as is-connected.
-	StatusConnected ConnectionStatus = "connected"
-	// the connection was been closed by the user
-	StatusClosed ConnectionStatus = "closed"
-	// the connection was dropped or server not reachable
-	StatusLost ConnectionStatus = "lost"
-	// the connection was refused due to incorrect authentication.
-	// reauthentication is required.
-	StatusRefused ConnectionStatus = "refused"
-)
-
 // ConnectionHandler handles a change in connection status
 //
 //	status of the connection
@@ -48,7 +23,7 @@ type ConnectionHandler func(status ConnectionStatus, c IConnection)
 // is received. It is up to the application to handle the connection.
 type IConnection interface {
 
-	// Close disconnects the client.
+	// Close the connection.
 	Close()
 
 	// GetClientID returns the clientID used with authentication
@@ -59,8 +34,8 @@ type IConnection interface {
 	// ConnectionIDs on the server use the clientID to differentiate. Eg clclid.
 	GetConnectionID() string
 
-	// Return the client's connecting status
-	GetConnectionStatus() ConnectionStatus
+	// // Return the connecting status
+	// GetConnectionStatus() ConnectionStatus
 
 	// SendNotification [agent] sends a notification over the connection to a remote consumer.
 	// The connection can decide not to deliver the notification depending on subscriptions or

@@ -4,6 +4,7 @@ import (
 	"crypto/x509"
 	"fmt"
 	"log/slog"
+	"net/url"
 	"path/filepath"
 	"sync"
 	"time"
@@ -11,12 +12,17 @@ import (
 	"github.com/hiveot/hivekit/go/api/msg"
 	"github.com/hiveot/hivekit/go/api/td"
 	"github.com/hiveot/hivekit/go/modules"
+	"github.com/hiveot/hivekit/go/modules/reconnect"
 	"github.com/hiveot/hivekit/go/modules/router"
 	"github.com/hiveot/hivekit/go/modules/transport"
+	"github.com/hiveot/hivekit/go/modules/transport/clients"
 )
 
 type RouterService struct {
 	*modules.HiveModuleBase
+
+	// autoReconnect insert a reconnect client before the transport client
+	autoReconnect bool
 
 	// The CA certificate used to verify device connections
 	caCert *x509.Certificate
@@ -28,8 +34,9 @@ type RouterService struct {
 	credStore *CredentialsStore
 
 	// established device connections by origin (schema://host:port)
-	cmux              sync.RWMutex
-	deviceConnections map[string]transport.ITransportClient
+	cmux sync.RWMutex
+	// deviceConnections map[string]transport.ITransportClient
+	deviceConnections map[string]modules.IHiveModule
 
 	// directory to store device accounts
 	storageDir string
@@ -44,7 +51,7 @@ type RouterService struct {
 }
 
 // Add the secret to access a Thing.
-func (m *RouterService) AddThingCredential(
+func (m *RouterService) AddDeviceCredential(
 	thingID string, clientID string, secret string, secScheme string) {
 	m.credStore.AddCredentials(thingID, clientID, secret, secScheme)
 }
@@ -54,41 +61,85 @@ func (m *RouterService) DeleteThingCredential(thingID string) {
 	m.credStore.DeleteCredentials(thingID)
 }
 
-// Handle client connection notifications from clients.
-// Pass all other notifications upstream.
-// TODO: Decide whether this is the right approach on handling client disconnects
+// GetClientConnection returns a module for sending requests to the server with
+// the given TD. If a connection doesn't exists then create it.
 //
-//		instead of a callback. why not use callbacks?
-//		a. allow use of reconnect module instead of handling it here
-//		    cant use reconnect as it only supports 1 connection for re-subscribing
-//	     no need for reconnect as subscription is always all events/props
-// func (m *RouterService) HandleClientNotification(notif *msg.NotificationMessage) {
-// 	// todo: should the thingID be used?
-// 	if notif.Name == transport.ClientConnectionStatusEvent {
-// 		var status transport.ConnectionStatus
-// 		var c transport.ITransportClient
-// 		var origin string
+// This uses schema://host:port (origin) to identify the connection to use.
+// If a connection to this client already exists then use it, otherwise create it.
+//
+// If the 'reconnect' option is configured then this returns a Reconnect client
+// that automatically reconnects and resubscribes if the connection fails.
+//
+// The caller must check if the connection is established before sending a message.
+func (m *RouterService) GetClientConnection(tdi *td.TD, op string) (cl modules.IHiveModule, err error) {
 
-// 		// need to find the client to update. simple iteration is this is not frequent
-// 		m.cmux.Lock()
-// 		defer m.cmux.Unlock()
-// 		for origin, c = range m.deviceConnections {
-// 			if c.GetThingID() == notif.ThingID {
-// 				_ = notif.Decode(&status)
-// 				_ = origin
-// 				go m.HandleClientStatus(status, c)
-// 				// client connection status updates are not forwarded as they are owned by the router
-// 				return
-// 			}
-// 		}
-// 		// Unexpected this notification is not from a known client
-// 		slog.Error("Received connection status event but client thingID is unknown",
-// 			"thingID", notif.ThingID)
-// 		return
-// 	} else {
-// 		m.HandleNotification(notif)
-// 	}
-// }
+	var c transport.ITransportClient
+
+	// use URI scheme to determine the protocol, except for the hiveot WSS, which also
+	// has a wss scheme. Instead look at the base path which is fixed.
+	protocolType, href := clients.GetProtocolType(tdi, op)
+	parts, err := url.Parse(href)
+	if err != nil {
+		return nil, err
+	}
+	// determine the 'origin' for this connection, which is the protocol and address
+	// of the connection. Multiple Things from the same agent share the same connection.
+	origin := fmt.Sprintf("%s://%s", parts.Scheme, parts.Host)
+	m.cmux.Lock()
+	cl, found := m.deviceConnections[origin]
+	if !found {
+		// TODO: how to determine the CA for this server?
+		// TODO: support use of client cert for this server?
+		c, err = clients.NewTransportClient(protocolType, href, m.caCert)
+		if err != nil {
+			return nil, err
+		}
+		c.SetTimeout(m.timeout)
+		err = c.AuthenticateWithForm(tdi, m.credStore.GetCredentials)
+		if err != nil {
+			return nil, err
+		}
+		if m.autoReconnect {
+			rc := reconnect.NewReconnectClient(c)
+			cl = rc
+		} else {
+			cl = c
+		}
+		m.deviceConnections[origin] = cl
+		// forward notifications to this module and up to its consumer
+		cl.SetNotificationSink(m.HandleNotification)
+		err = cl.Start()
+	}
+	m.cmux.Unlock()
+
+	// if rc.GetConnectionStatus() != transport.StatusConnected {
+	// 	err = rc.AuthenticateWithForm(tdi, m.credStore.GetCredentials)
+	// 	if err == nil {
+	// 		slog.Info("GetClientConnection: (re)Connecting to ", slog.String("href", href))
+	// 		err = rc.Connect()
+	// 	}
+	// 	if err != nil {
+	// 		err = fmt.Errorf("GetClientConnection. Connection to '%s' failed: %w", origin, err)
+	// 		slog.Warn(err.Error())
+	// 	}
+	// }
+	return cl, err
+}
+
+// Return the reverse-client connection to an agent, if it exists.
+// This returns nil if the clientID does not have an existing connection.
+func (m *RouterService) GetRCConnection(clientID string) (c transport.IConnection) {
+	if m.tpServers == nil {
+		return nil
+	}
+	for _, tp := range m.tpServers {
+		c := tp.GetConnectionByClientID(clientID)
+		if c != nil {
+			return c
+		}
+	}
+	return nil
+}
 
 // HandleRequest handles module requests or routes the request to its destination
 func (m *RouterService) HandleRequest(req *msg.RequestMessage, replyTo msg.ResponseHandler) (err error) {
@@ -99,7 +150,7 @@ func (m *RouterService) HandleRequest(req *msg.RequestMessage, replyTo msg.Respo
 	}
 	// handle requests for router module itself
 	switch req.Operation {
-
+	// nothing supported yet, add some properties on nr clients
 	// case td.OpReadProperty:
 	// 	resp, err = m.ReadProperty(req)
 	// case td.OpReadMultipleProperties:
@@ -132,11 +183,11 @@ func (m *RouterService) IsReachable(thingID string) bool {
 
 // Return the ISO timestamp when the Thing was last seen by the router.
 // This returns an empty string if no known record exists.
-func (m *RouterService) LastSeen(thingID string) string {
-	return ""
-}
+// func (m *RouterService) LastSeen(thingID string) string {
+// 	return ""
+// }
 
-// Route the request to its destination:
+// // Route the request to its destination:
 //
 // Lookup the TD of the ThingID and determine its destination:
 //
@@ -148,8 +199,8 @@ func (m *RouterService) LastSeen(thingID string) string {
 func (m *RouterService) RouteRequest(req *msg.RequestMessage, replyTo msg.ResponseHandler) (err error) {
 
 	// the requested thingID must be known
-	tdDoc := m.getTD(req.ThingID)
-	if tdDoc == nil {
+	tdoc := m.getTD(req.ThingID)
+	if tdoc == nil {
 		// thingID not known, only option is to forward the request downstream
 		err = m.ForwardRequest(req, replyTo)
 		if err != nil {
@@ -160,20 +211,20 @@ func (m *RouterService) RouteRequest(req *msg.RequestMessage, replyTo msg.Respon
 	}
 
 	// if the tdoc has an agentID then look for its RC connection
-	agentID := tdDoc.GetAgentID()
+	agentID := tdoc.GetAgentID()
 	if agentID != "" {
 		c := m.GetRCConnection(agentID)
 		if c == nil {
-			err = fmt.Errorf("RouteRequest: Unable to connection with agent '%s'", agentID)
+			err = fmt.Errorf("RouteRequest: agent '%s' isnt connected", agentID)
 		} else {
 			err = c.SendRequest(req, replyTo)
 		}
 	} else {
-		c, err2 := m.GetClientConnection(tdDoc)
+		c, err2 := m.GetClientConnection(tdoc, req.Operation)
 		if c == nil {
 			err = fmt.Errorf("RouteRequest: Unable to establish a connection to client '%s': %w", agentID, err2)
 		} else {
-			err = c.SendRequest(req, replyTo)
+			err = c.HandleRequest(req, replyTo)
 		}
 	}
 
@@ -205,7 +256,7 @@ func (m *RouterService) Stop() {
 	slog.Info("Stop: Stopping router module")
 	for clientID, c := range m.deviceConnections {
 		_ = clientID
-		c.Close()
+		c.Stop()
 	}
 	m.deviceConnections = nil
 	// last close credential store
@@ -229,11 +280,12 @@ func NewRouterService(storageDir string, getTD func(thingID string) *td.TD,
 	thingID := router.DefaultRouterThingID
 	m := &RouterService{
 		HiveModuleBase:    modules.NewHiveModuleBase(thingID, 0),
+		autoReconnect:     true,
 		caCert:            caCert,
 		getTD:             getTD,
 		storageDir:        storageDir,
 		tpServers:         tpServers,
-		deviceConnections: make(map[string]transport.ITransportClient),
+		deviceConnections: make(map[string]modules.IHiveModule),
 		timeout:           timeout,
 	}
 

@@ -16,13 +16,16 @@ import (
 
 const AgentModuleType = "agent"
 
-// Agent is a module providing a Golang API for IoT device WoT operations using the
+// Agent is a module providing a Golang API for IoT device operations using the
 // standard RRN (request-response-notification) messages. The RRN interface is compatible
 // with all HiveKit modules.
 //
-// This Agent is intended to be the request sink of a transport connection and supports
-// features for receiving and responding to requests, publishing events and publishing
-// property updates.
+// This Agent is intended to help building a 'Thing' by:
+//   - track Thing status with SetState and GetState
+//   - methods for publishing property updates, events, action status and TDs
+//     automatic update of property, event and action state when using publish methods
+//   - handle read requests for property, event and action status
+//   - hook for handling requests directed at the Thing
 //
 // Usage:
 //  1. Set this agent as the request sink of a transport connection so it can receive requests
@@ -155,16 +158,22 @@ func (ag *Agent) HandleReadRequests(req *msg.RequestMessage, replyTo msg.Respons
 // simply forwards the request if no request handler hook is set.
 func (m *Agent) HandleRequest(req *msg.RequestMessage, replyTo msg.ResponseHandler) (err error) {
 
-	// the request is aimed at this agent
+	// application can set a hook for handling all requests
 	m.mux.RLock()
 	handler := m.appRequestHook
 	m.mux.RUnlock()
 
+	// invoke registered hook
 	if handler != nil {
 		err = handler(req, replyTo)
 		return err
 	}
-	return fmt.Errorf("Unhandled request")
+	if req.ThingID == m.GetThingID() {
+		err = m.HandleReadRequests(req, replyTo)
+	} else {
+		err = m.ForwardRequest(req, replyTo)
+	}
+	return err
 }
 
 // PubActionProgress helper for agents to send a 'running' ActionStatus notification

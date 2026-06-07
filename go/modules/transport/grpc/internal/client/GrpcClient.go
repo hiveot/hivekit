@@ -28,7 +28,7 @@ type GrpcClient struct {
 	// status of current connection
 	connectStatus transport.ConnectionStatus
 	// callback when connection changes
-	connectHandler func(oldStatus, newStatus transport.ConnectionStatus, c transport.ITransportClient)
+	connectHandler func(newStatus transport.ConnectionStatus, c transport.ITransportClient)
 
 	// instance ID used to identify the client and its connection
 	connectionID string
@@ -136,14 +136,15 @@ func (cl *GrpcClient) _setConnectionStatus(
 		return
 	} else if oldStatus == transport.StatusClosed && newStatus == transport.StatusLost {
 		return
+	} else if newStatus == transport.StatusLost {
+		slog.Info("_setConnectionStatus gRPC client connection lost", "status", newStatus)
+		// fail all outstanding RnR requests
+		cl.rnrChan.CloseAll()
 	}
 	cl.mux.Lock()
 	cl.connectStatus = newStatus
+	ch := cl.connectHandler
 	cl.mux.Unlock()
-
-	if cl.connectHandler != nil {
-		cl.connectHandler(oldStatus, newStatus, cl)
-	}
 
 	// notify upstream of status change. the cid is the client instance thingID
 	cid := cl.GetConnectionID()
@@ -151,6 +152,12 @@ func (cl *GrpcClient) _setConnectionStatus(
 	notif := msg.NewNotificationMessage(
 		cid, msg.AffordanceTypeEvent, cid, evName, newStatus)
 	cl.ForwardNotification(notif)
+
+	// invoke the callback after the notification so that the proper sequence is maintained
+	// if the callback tries to reconnect.
+	if ch != nil {
+		ch(newStatus, cl)
+	}
 }
 
 // AuthenticateWithClientCert sets the authentication credentials to the client certificate.
@@ -236,14 +243,14 @@ func (cl *GrpcClient) Close() {
 
 // Connect attempts to establish the streams using the previously set authentication method
 func (cl *GrpcClient) Connect() (err error) {
-	status := cl.GetConnectionStatus()
 
+	status := cl.GetConnectionStatus()
 	if cl.grpcSvcClient == nil {
 		return fmt.Errorf("Auth credentials not set")
 	} else if status == transport.StatusConnected {
-		return fmt.Errorf("Already connected")
+		return nil
 	} else if status == transport.StatusConnecting {
-		return fmt.Errorf("Already connecting")
+		return fmt.Errorf("Busy connecting")
 	}
 
 	// new connect attempt
@@ -418,7 +425,7 @@ func (cl *GrpcClient) SendResponse(resp *msg.ResponseMessage) error {
 
 // SetConnectHandler sets the callback to invoke when the connection status changes
 func (cl *GrpcClient) SetConnectHandler(
-	h func(oldStatus, newStatus transport.ConnectionStatus, c transport.ITransportClient)) {
+	h func(newStatus transport.ConnectionStatus, c transport.ITransportClient)) {
 	cl.mux.Lock()
 	defer cl.mux.Unlock()
 	cl.connectHandler = h

@@ -43,7 +43,7 @@ type HttpBasicClient struct {
 	// current connection status
 	connectStatus transport.ConnectionStatus
 	// callback when connection changes
-	connectHandler func(oldStatus, newStatus transport.ConnectionStatus, c transport.ITransportClient)
+	connectHandler func(newStatus transport.ConnectionStatus, c transport.ITransportClient)
 
 	// getForm obtains the form for sending a request or notification
 	// if nil, then the hiveot protocol envelope and URL are used as fallback
@@ -79,17 +79,21 @@ func (cl *HttpBasicClient) _setConnectionStatus(
 	}
 	cl.mux.Lock()
 	cl.connectStatus = newStatus
+	ch := cl.connectHandler
 	cl.mux.Unlock()
 
-	if cl.connectHandler != nil {
-		cl.connectHandler(oldStatus, newStatus, cl)
-	}
 	// notify upstream of status change
 	moduleID := cl.GetThingID()
 	evName := transport.ClientConnectionStatusEvent
 	notif := msg.NewNotificationMessage(
 		moduleID, msg.AffordanceTypeEvent, moduleID, evName, newStatus)
 	cl.ForwardNotification(notif)
+
+	// invoke the callback after the notification so that the proper sequence is maintained
+	// if the callback tries to reconnect.
+	if ch != nil {
+		ch(newStatus, cl)
+	}
 }
 
 // Connect authenticating using a client certificate
@@ -396,7 +400,7 @@ func (cl *HttpBasicClient) SetRequestSink(sink msg.RequestHandler) {
 
 // SetConnectHandler sets the callback to invoke when the connection status changes
 func (cl *HttpBasicClient) SetConnectHandler(
-	h func(oldStatus, newStatus transport.ConnectionStatus, c transport.ITransportClient)) {
+	h func(newStatus transport.ConnectionStatus, c transport.ITransportClient)) {
 	cl.mux.Lock()
 	defer cl.mux.Unlock()
 	cl.connectHandler = h

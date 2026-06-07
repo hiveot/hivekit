@@ -89,12 +89,12 @@ func ConnectSSE(
 		if connError, ok := err.(*gosse.ConnectionError); ok {
 			if strings.Contains(connError.Error(), "401") {
 				// this is an authentication error
-				slog.Error("SSE authentication failed",
+				slog.Error("SSE authentication failed. Invalid credentials.",
 					"clientID", clientID,
 					"err", err.Error())
 				status = transport.StatusRefused
 			} else {
-				slog.Error("SSE connection failed (server shutdown or connection interrupted)",
+				slog.Warn("SSE connection failed (server shutdown or connection interrupted)",
 					"clientID", clientID,
 					"err", err.Error())
 				status = transport.StatusLost

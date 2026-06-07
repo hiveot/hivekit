@@ -17,8 +17,8 @@ import (
 	"github.com/hiveot/hivekit/go/utils"
 )
 
-const ReconnectModuleType = "reconnect"
-const DefaultMaxReconnectAttempts = 999999
+// const ReconnectModuleType = "reconnect"
+// const DefaultMaxReconnectAttempts = 999999
 
 // Reconnect is a module that automatically re-applies request a reconnect after a
 // client loses its connection and applies event subscriptions and property observations

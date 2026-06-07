@@ -56,7 +56,7 @@ type WssTransportClient struct {
 	// handler for sending connection notifications
 	connectStatus transport.ConnectionStatus
 	// callback when connection changes
-	connectHandler func(oldStatus, newStatus transport.ConnectionStatus, c transport.ITransportClient)
+	connectHandler func(newStatus transport.ConnectionStatus, c transport.ITransportClient)
 
 	// convert the request/response to the wss messaging protocol used
 	encoder transport.IMessageEncoder
@@ -146,6 +146,14 @@ func (cl *WssTransportClient) _send(wssMsg []byte) (err error) {
 	// websockets do not allow concurrent writes
 	cl.mux.Lock()
 	defer cl.mux.Unlock()
+
+	if cl.connectStatus == transport.StatusConnecting {
+		// TODO: should we wait for a bit while connecting?
+		return fmt.Errorf("_send: Not connected. Connecting.")
+	} else if cl.connectStatus != transport.StatusConnected {
+		return fmt.Errorf("_send: Not connected")
+	}
+
 	// Use WriteMessage because the message is already JSON serialized
 	err = cl.wssConn.WriteMessage(websocket.TextMessage, wssMsg)
 	if err != nil {
@@ -155,31 +163,37 @@ func (cl *WssTransportClient) _send(wssMsg []byte) (err error) {
 }
 
 // websocket connection status handler - this uses mux lock for critical section
-func (cl *WssTransportClient) _setConnectionStatus(
-	newStatus transport.ConnectionStatus, err error) {
+func (cl *WssTransportClient) _setConnectionStatus(newStatus transport.ConnectionStatus, err error) {
 
-	cl.mux.RLock()
+	cl.mux.Lock()
 	oldStatus := cl.connectStatus
-	cl.mux.RUnlock()
+	cl.connectStatus = newStatus
+	ch := cl.connectHandler
+	cl.mux.Unlock()
 
 	if newStatus == oldStatus {
 		return
 	} else if oldStatus == transport.StatusClosed && newStatus == transport.StatusLost {
+		// already closed, don't send status lost
 		return
+	} else if newStatus == transport.StatusLost {
+		slog.Info("_setConnectionStatus WSS client connection lost", "status", newStatus)
+		// fail all outstanding RnR requests
+		cl.rnrChan.CloseAll()
 	}
-	cl.mux.Lock()
-	cl.connectStatus = newStatus
-	cl.mux.Unlock()
 
-	if cl.connectHandler != nil {
-		cl.connectHandler(oldStatus, newStatus, cl)
-	}
 	// notify upstream of connect, disconnect or lost
 	moduleID := cl.GetThingID()
 	evName := transport.ClientConnectionStatusEvent
 	notif := msg.NewNotificationMessage(
 		moduleID, msg.AffordanceTypeEvent, moduleID, evName, newStatus)
 	cl.ForwardNotification(notif)
+
+	// invoke the callback after the notification so that the proper sequence is maintained
+	// if the callback tries to reconnect.
+	if ch != nil {
+		ch(newStatus, cl)
+	}
 }
 
 // AuthenticateWithClientCert sets the authentication credentials to the client certificate.
@@ -280,14 +294,14 @@ func (cl *WssTransportClient) Connect() error {
 	status := cl.GetConnectionStatus()
 
 	if status == transport.StatusConnected {
-		return fmt.Errorf("Already connected")
+		return nil
 	} else if status == transport.StatusConnecting {
-		return fmt.Errorf("Already connecting")
+		return fmt.Errorf("Busy connecting")
 	}
 
 	// differentiate connections from the same client
 	if cl.cid == "" {
-		cl.cid = "wss-" + shortid.MustGenerate()
+		cl.cid = cl.GetThingID()
 	}
 
 	urlParts, err := url.Parse(cl.wssURL)
@@ -295,7 +309,7 @@ func (cl *WssTransportClient) Connect() error {
 		return err
 	}
 	hostPort := urlParts.Host
-	wssCancelFn, wssConn, status, err := ConnectWSS(
+	wssCancelFn, wssConn, err := ConnectWSS(
 		cl.clientID, hostPort, urlParts.Path, cl.cid,
 		cl.bearerToken, cl.clientCert, cl.caCert,
 		cl._setConnectionStatus,
@@ -305,8 +319,6 @@ func (cl *WssTransportClient) Connect() error {
 	cl.wssCancelFn = wssCancelFn
 	cl.wssConn = wssConn
 	cl.mux.Unlock()
-
-	cl._setConnectionStatus(status, err)
 
 	return err
 }
@@ -344,7 +356,7 @@ func (cl *WssTransportClient) HandleRequest(request *msg.RequestMessage, replyTo
 	if request.ThingID == cl.GetThingID() {
 		if request.Operation == td.OpInvokeAction && request.Name == transport.ClientConnectAction {
 			err := cl.Connect()
-			resp := request.CreateResponse(nil, err)
+			resp := request.CreateResponse(cl.GetConnectionStatus(), err)
 			return replyTo(resp)
 		} else {
 			return fmt.Errorf("HandleRequest: invalid request op='%s', name='%s'",
@@ -380,7 +392,7 @@ func (cl *WssTransportClient) SendNotification(notif *msg.NotificationMessage) {
 // This transforms the request to the protocol message and sends it to the server.
 func (cl *WssTransportClient) SendRequest(
 	req *msg.RequestMessage, replyTo msg.ResponseHandler) error {
-	slog.Debug("SendRequest",
+	slog.Info("SendRequest",
 		slog.String("clientID", cl.clientID),
 		slog.String("correlationID", req.CorrelationID),
 		slog.String("operation", req.Operation),
@@ -419,6 +431,8 @@ func (cl *WssTransportClient) SendRequest(
 	hasResponse, resp := cl.rnrChan.WaitForResponse(req.CorrelationID, cl.GetTimeout())
 	if hasResponse {
 		err = replyTo(resp)
+	} else {
+		err = fmt.Errorf("No response received")
 	}
 	return err
 }
@@ -449,13 +463,13 @@ func (cl *WssTransportClient) SendResponse(resp *msg.ResponseMessage) error {
 
 // SetConnectHandler sets the callback to invoke when the connection status changes
 func (cl *WssTransportClient) SetConnectHandler(
-	h func(oldStatus, newStatus transport.ConnectionStatus, c transport.ITransportClient)) {
+	h func(newStatus transport.ConnectionStatus, c transport.ITransportClient)) {
 	cl.mux.Lock()
 	defer cl.mux.Unlock()
 	cl.connectHandler = h
 }
 
-// Start the module and attempt to connect to the server if not already connected.
+// Start the module but do not yet connect.
 //
 // Intended for use by the factory as the factory provides a clientID/token or client
 // certificate.

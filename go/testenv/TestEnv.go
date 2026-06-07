@@ -242,10 +242,8 @@ func (testEnv *TestEnv) NewConnectedConsumer(
 	co = consumer.NewConsumer(TestTimeout)
 	if useReconnect {
 		// insert the reconnect module between consumer and client connection
-		rc := reconnect.NewReconnect(TestTimeout)
-		rc.SetRequestSink(cc.HandleRequest)
+		rc := reconnect.NewReconnectClient(cc)
 		co.SetRequestSink(rc.HandleRequest)
-		cc.SetNotificationSink(rc.HandleNotification)
 		rc.SetNotificationSink(co.HandleNotification)
 	} else {
 		co.SetRequestSink(cc.HandleRequest)
@@ -300,6 +298,8 @@ func (testEnv *TestEnv) StartTestServer(protocol string) (srv transport.ITranspo
 	default:
 		err = errors.New("unknown protocol name: " + protocol)
 	}
+	// avoid unnecesary notification warnings as notifications created by the server can be ignored.
+	srv.SetNotificationSink(func(*msg.NotificationMessage) { /*dummy*/ })
 
 	if err != nil {
 		panic("Unable to create transport server module: " + err.Error())

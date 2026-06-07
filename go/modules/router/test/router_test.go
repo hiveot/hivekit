@@ -2,9 +2,10 @@ package router_test
 
 import (
 	"context"
-	"fmt"
+	"log/slog"
 	"os"
 	"path"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -35,19 +36,19 @@ var testAuthn = testenv.NewTestAuthenticator()
 const rpcTimeout = time.Minute * 3 // allow for debugging breakpoints
 const testRouterID = "router1"
 
-// const serverType = transport.HiveotWebsocketProtocolType
+// const serverType = transport.ProtocolTypeHiveotWebsocket
 
-// const serverType = transport.HiveotSseScProtocolType
+const serverType = transport.ProtocolTypeHiveotSsesc
 
-// const serverType = transport.WotHttpBasicProtocolType
+// const serverType = transport.ProtocolTypeWotHttpBasic
 
-const serverType = transport.ProtocolTypeWotWebsocket
+// const serverType = transport.ProtocolTypeWotWebsocket
 
 // the test directory that holds this td. http server is not needed
 
-// create a virtual test device
-// this handles readallproperties requests
-func startTestDevice(agentID string, thingID string) (testDevice *testenv.TestDevice) {
+// create a virtual test device with the test environment.
+// this device handles read requests using its agent.
+func startTestDevice(agentID string) (testDevice *testenv.TestDevice) {
 
 	testAuthn.AddClient(testRouterID, "", authn.ClientRoleManager)
 
@@ -56,7 +57,7 @@ func startTestDevice(agentID string, thingID string) (testDevice *testenv.TestDe
 		certsBundle.ServerAddr, testDevicePort,
 		certsBundle.ServerCert, certsBundle.CaCert, true)
 
-	var testTM *td.TD = td.NewTD(thingID, "test device", vocab.Device)
+	var testTM *td.TD = td.NewTD(agentID, "test device", vocab.Device)
 	testTM.AddPropertyAsString("property-1", "Property 1", "New and improved")
 
 	testDevice = testenv.NewTestDevice(cfg, agentID, testAuthn, testTM, serverType)
@@ -70,9 +71,10 @@ func startTestDevice(agentID string, thingID string) (testDevice *testenv.TestDe
 
 // Setup a consumer that uses the router to connect to devices
 func SetupConsumerWithRouter() (
+	co *consumer.Consumer,
 	routerMod router.IRouterService,
 	dirMod directory.IDirectoryService,
-	co *consumer.Consumer) {
+) {
 
 	// setup the consumer side: directory, router and consumer
 	// register the device TD in the directory for use by the router
@@ -81,9 +83,6 @@ func SetupConsumerWithRouter() (
 	if err != nil {
 		panic("SetupConsumerWithRouter: Directory.Start: " + err.Error())
 	}
-	// defer testDirMod.Stop()
-	// err = testDirMod.CreateThing(agentID, deviceTDJson)
-	// require.NoError(t, err)
 
 	// the router uses the TD to connect to the device.
 	// this doesn't actually need a directory. GetTD could also simply return the device TD.
@@ -95,12 +94,6 @@ func SetupConsumerWithRouter() (
 		panic("SetupConsumerWithRouter: Router.Start: " + err.Error())
 	}
 
-	// defer routerMod.Stop()
-	// to connect to the device, credentials are needed
-	// FIXME: testAuthn does not properly test credentials. Use authn
-	// token, _, _ := testAuthn.CreateToken(testRouterID, time.Minute)
-	// routerMod.AddThingCredential(thingID1, clientID, token)
-
 	// a consumer links to the router and subscribes to the device
 	// note for the purpose of this test the router can run on the client
 	consumer := consumer.NewConsumer(rpcTimeout)
@@ -110,7 +103,7 @@ func SetupConsumerWithRouter() (
 	if err != nil {
 		panic("SetupConsumerWithRouter: Consumer.Start: " + err.Error())
 	}
-	return routerMod, dirMod, consumer
+	return consumer, routerMod, dirMod
 }
 
 // TestMain create a test folder for certificates and private key
@@ -140,37 +133,59 @@ func TestStartStop(t *testing.T) {
 	defer m.Stop()
 }
 
+func TestCredStore(t *testing.T) {
+	t.Logf("---%s---\n", t.Name())
+	const thingID1 = "thing-1"
+	const clientID = "client1"
+	const clientCred = "secret"
+	const thingScheme = td.SecSchemeBearer
+
+	os.RemoveAll(storageDir)
+
+	// the router uses the TD to connect to the device.
+	// this doesn't actually need a directory. GetTD could also simply return the device TD.
+	routerMod := routerpkg.NewRouterService(storageDir, nil, nil, nil, rpcTimeout)
+	err := routerMod.Start()
+	require.NoError(t, err)
+
+	hasCred := routerMod.HasThingCredentials(thingID1)
+	assert.False(t, hasCred)
+
+	routerMod.AddDeviceCredential(thingID1, clientID, clientCred, thingScheme)
+
+	hasCred = routerMod.HasThingCredentials(thingID1)
+	assert.True(t, hasCred)
+
+	routerMod.Stop()
+
+	// restarting the router module should retain the credentials
+	err = routerMod.Start()
+	require.NoError(t, err)
+
+	hasCred = routerMod.HasThingCredentials(thingID1)
+	assert.True(t, hasCred)
+	routerMod.Stop()
+}
+
 // connect to a test device and subscribe to events
 // in this setup the device runs a server and the router lives on the client.
 func TestReadDeviceProperties(t *testing.T) {
 	t.Logf("---%s---\n", t.Name())
-	const thingID1 = "thing-1"
 	const agentID = "agent-1"
-	const event1Name = "event1"
-	const clientID = "client1"
+	const clientID = "router1"
+	const prop1Name = "prop1"
+	const prop1Value = "value1"
 
 	// Setup the test device with server and a TD
-	// The test device is a runs a server that passes requests to its agent. The router will have to match its security as
-	// included in its TD
-	testDevice := startTestDevice(agentID, thingID1)
+	// The test device is a runs a server that passes requests to its agent.
+	// The router will have to match its security as described in its TD
+	// The agent of the test device handles read requests
+	testDevice := startTestDevice(agentID)
 	defer testDevice.Stop()
-	testDevice.Agent.SetAppRequestHook(func(req *msg.RequestMessage, replyTo msg.ResponseHandler) (err error) {
-		testTD := testDevice.GetTD()
-		if req.Operation == td.OpReadAllProperties {
-			props := make(map[string]any)
-			for name, aff := range testTD.Properties {
-				props[name] = aff.Title
-			}
-			resp := req.CreateResponse(props, nil)
-			return replyTo(resp)
-		} else {
-			resp := req.CreateResponse(nil, fmt.Errorf("unsupported op '%s'", req.Operation))
-			return replyTo(resp)
-		}
-	})
+	testDevice.Agent.PubProperty(agentID, prop1Name, prop1Value)
 
 	// setup the consumer with the router module
-	routerMod, dirMod, co := SetupConsumerWithRouter()
+	co, routerMod, dirMod := SetupConsumerWithRouter()
 	defer dirMod.Stop()
 	defer routerMod.Stop()
 
@@ -181,29 +196,32 @@ func TestReadDeviceProperties(t *testing.T) {
 
 	// to connect to the device, credentials are needed
 	token, _, _ := testAuthn.CreateToken(testRouterID, rpcTimeout)
-	routerMod.AddThingCredential(thingID1, clientID, token, td.SecSchemeBearer)
+	routerMod.AddDeviceCredential(agentID, clientID, token, td.SecSchemeBearer)
 
 	// this should cause the router to connect to the device
-	values, err := co.ReadAllProperties(thingID1)
+	values, err := co.ReadAllProperties(agentID)
 	assert.NoError(t, err)
 	assert.NotEmpty(t, values)
 }
 
 // connect to a test device and subscribe to events
 // in this setup the device runs a server and the router lives on the client.
-func TestSubscribeToDevice(t *testing.T) {
+func TestSubscribeReconnectToDevice(t *testing.T) {
 	t.Logf("---%s---\n", t.Name())
-	const thingID1 = "thing-1"
 	const agentID = "agent-1"
-	const event1Name = "event1"
-	const clientID = "client1"
-	var event1Value string = "value1"
-	var rxValue string
+	const clientID = "router1"
+	event1Name := "event1"
+	event1Value := "value1"
+	event2Value := "value2"
+	prop1Name := "prop1"
+	prop1Value1 := "prop1value1"
+	prop1Value2 := "prop1value2"
+	var rxValue = new(atomic.Value)
 
 	// Setup the test device with server and a TD
 	// The test device runs a server. The router will have to match its security as
 	// included in its TD
-	testDevice := startTestDevice(agentID, thingID1)
+	testDevice := startTestDevice(agentID)
 	defer testDevice.Stop()
 
 	// setup the consumer side: directory, router and consumer
@@ -225,67 +243,61 @@ func TestSubscribeToDevice(t *testing.T) {
 	// to connect to the device, credentials are needed
 	// FIXME: testAuthn does not properly test credentials. Use authn
 	token, _, _ := testAuthn.CreateToken(testRouterID, rpcTimeout)
-	routerMod.AddThingCredential(thingID1, clientID, token, td.SecSchemeBearer)
+	routerMod.AddDeviceCredential(agentID, clientID, token, td.SecSchemeBearer)
 
-	// a consumer links to the router and subscribes to the device
-	// note for the purpose of this test the router can run on the client
-	consumer := consumer.NewConsumer(rpcTimeout)
-	consumer.SetRequestSink(routerMod.HandleRequest)
-	routerMod.SetNotificationSink(consumer.HandleNotification)
-	err = consumer.Start()
+	// a consumer links to the router which connects to the device
+	co := consumer.NewConsumer(rpcTimeout)
+	co.SetRequestSink(routerMod.HandleRequest)
+	routerMod.SetNotificationSink(co.HandleNotification)
+	err = co.Start()
 	assert.NoError(t, err)
-	// this should cause the router to connect to the device
-	err = consumer.Subscribe(thingID1, "")
+	// this should cause the router to connect to the device using the device TD
+	err = co.Subscribe(agentID, "")
 	assert.NoError(t, err)
 
 	ctx, cancelFn := context.WithTimeout(context.Background(), rpcTimeout)
-	consumer.SetAppNotificationHook(func(notif *msg.NotificationMessage) {
+	co.SetAppNotificationHook(func(notif *msg.NotificationMessage) {
 		if notif.Name == event1Name {
-			err = notif.Decode(&rxValue)
+			var v1 string
+			err = notif.Decode(&v1)
+			rxValue.Store(v1)
 			assert.NoError(t, err)
 			cancelFn()
 		}
 	})
 
-	// the device publishes an event
-	testDevice.Agent.PubEvent(thingID1, event1Name, event1Value)
+	// the device updates a property and event
+	testDevice.Agent.PubProperty(agentID, prop1Name, prop1Value1)
+	testDevice.Agent.PubEvent(agentID, event1Name, event1Value)
 	<-ctx.Done()
-	cancelFn()
-	assert.Equal(t, event1Value, rxValue)
+	assert.Equal(t, event1Value, rxValue.Load())
 
-}
+	//--- phase 2 test subscription after auto reconnect
 
-func TestCredStore(t *testing.T) {
-	t.Logf("---%s---\n", t.Name())
-	const thingID1 = "thing-1"
-	const clientID = "client1"
-	const clientCred = "secret"
-	const thingScheme = td.SecSchemeBearer
+	// drop client connections
+	slog.Info("--- breaking connections, expect a warning ---")
+	testDevice.TransportServer.CloseAll()
 
-	os.RemoveAll(storageDir)
+	// reading properties should fail while auto-reconnect is ongoing
+	slog.Info("---ReadAllProperties---")
+	values, err := co.ReadAllProperties(agentID)
+	assert.Error(t, err)
 
-	// the router uses the TD to connect to the device.
-	// this doesn't actually need a directory. GetTD could also simply return the device TD.
-	routerMod := routerpkg.NewRouterService(storageDir, nil, nil, nil, rpcTimeout)
-	err := routerMod.Start()
-	require.NoError(t, err)
+	// lets sleep to allow for reconnect
+	time.Sleep(time.Second)
 
-	hasCred := routerMod.HasThingCredentials(thingID1)
-	assert.False(t, hasCred)
+	// publish a property should now succeed
+	testDevice.Agent.PubProperty(agentID, prop1Name, prop1Value2)
 
-	routerMod.AddThingCredential(thingID1, clientID, clientCred, thingScheme)
+	values, err = co.ReadAllProperties(agentID)
+	assert.NoError(t, err)
 
-	hasCred = routerMod.HasThingCredentials(thingID1)
-	assert.True(t, hasCred)
+	time.Sleep(time.Millisecond) // time to receive
+	assert.Equal(t, prop1Value2, values[prop1Name])
 
-	routerMod.Stop()
-
-	// restarting the router module should retain the credentials
-	err = routerMod.Start()
-	require.NoError(t, err)
-
-	hasCred = routerMod.HasThingCredentials(thingID1)
-	assert.True(t, hasCred)
-	routerMod.Stop()
+	// on reconnect, subscription should remain intact and event should be received
+	testDevice.Agent.PubEvent(agentID, event1Name, event2Value)
+	time.Sleep(time.Millisecond) // time to receive
+	assert.Equal(t, event2Value, rxValue.Load())
 
 }

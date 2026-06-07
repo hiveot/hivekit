@@ -126,6 +126,11 @@ func (m *HiveModuleBase) ForwardRequestWait(
 	resp, err = ar.WaitForResponse(timeout)
 	if err == nil {
 		err = resp.AsError()
+	} else {
+		slog.Error("ForwardRequestWait failed", "me", m.GetThingID(),
+			"op", req.Operation,
+			"thingID", req.ThingID,
+			"name", req.Name, "err", err.Error())
 	}
 	return resp, err
 }
@@ -140,12 +145,12 @@ func (m *HiveModuleBase) GetTimeout() time.Duration {
 	return m.rpcTimeout
 }
 
-// // GetSink returns the module's request sink
-// func (m *HiveModuleBase) GetSink() msg.RequestHandler {
-// 	m.mux.RLock()
-// 	defer m.mux.RUnlock()
-// 	return m.requestSink
-// }
+// GetSink returns the module's request sink
+func (m *HiveModuleBase) GetRequestSink() msg.RequestHandler {
+	m.mux.RLock()
+	defer m.mux.RUnlock()
+	return m.requestSink
+}
 
 // HandleNotification receives an incoming notification from a producer.
 //

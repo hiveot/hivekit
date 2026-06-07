@@ -1,11 +1,8 @@
 package transporttests
 
 import (
-	"context"
-	"errors"
 	"log/slog"
 	"os"
-	"sync/atomic"
 	"testing"
 	"time"
 
@@ -23,7 +20,7 @@ import (
 const testAgentID1 = "agent1"
 const testClientID1 = "client1"
 
-var testProtocol = transport.ProtocolTypeWotWebsocket
+var testProtocol = transport.ProtocolTypeHiveotGrpc
 
 var testProtocols = []string{
 	transport.ProtocolTypeHiveotSsesc,
@@ -44,7 +41,6 @@ func TestConnectAllProtocols(t *testing.T) {
 		t.Run("TestStartStop", TestStartStop)
 		t.Run(testProtocol, TestPing)
 		t.Run(testProtocol, TestPingClientCert)
-		t.Run(testProtocol, TestReconnect)
 		t.Run(testProtocol, TestServerURL)
 	}
 }
@@ -104,6 +100,8 @@ func TestPingClientCert(t *testing.T) {
 	require.NoError(t, err)
 	err = cl.Connect()
 	require.NoError(t, err)
+	status := cl.GetConnectionStatus()
+	require.Equal(t, transport.StatusConnected, status)
 
 	cl.SetTimeout(time.Minute)
 	defer cl.Close()
@@ -116,94 +114,8 @@ func TestPingClientCert(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	status := cl.GetConnectionStatus()
+	status = cl.GetConnectionStatus()
 	assert.Equal(t, transport.StatusConnected, status)
-}
-
-// Auto-reconnect using hub client and server
-func TestReconnect(t *testing.T) {
-	t.Logf("---%s %s---\n", t.Name(), testProtocol)
-
-	const thingID = "thing1"
-	const actionKey = "action1"
-	const agentID = "agent1"
-	var serverConnectEvents atomic.Int32
-	var clientConnectEvents atomic.Int32
-
-	// check if the expected callback is received
-	handleConnect := func(old, new transport.ConnectionStatus, c transport.ITransportClient) {
-		slog.Info("Received client connect callback", "old", old, "new", new)
-		clientConnectEvents.Add(1)
-	}
-
-	// this test handler receives an action and returns the input
-	// it is intended to prove reconnect works.
-	handleRequest := func(req *msg.RequestMessage, replyTo msg.ResponseHandler) error {
-		slog.Info("Received request", "op", req.Operation)
-		var err error
-		// prove that the return channel is connected
-		if req.Operation == td.OpInvokeAction {
-			go func() {
-				// send an asynchronous result after a short time
-				time.Sleep(time.Millisecond * 10)
-				output := req.Input
-
-				resp := req.CreateResponse(output, nil)
-				resp.SenderID = agentID
-				err = replyTo(resp)
-				assert.NoError(t, err)
-			}()
-			// nothing to return yet
-			return nil
-		}
-		err = errors.New("unexpected request")
-		resp := req.CreateResponse("", err)
-		// err = c.SendResponse(resp)
-		err = replyTo(resp)
-		return err
-	}
-	// start the servers and handle a request
-	testEnv, cancelFn := testenv.StartTestEnv(testProtocol)
-	testEnv.Server.SetRequestSink(handleRequest)
-	testEnv.Server.SetNotificationSink(func(notif *msg.NotificationMessage) {
-		// expect a connect-disconnect event
-		serverConnectEvents.Add(1)
-		slog.Info("Connection notification by Server",
-			slog.String("type", string(notif.AffordanceType)),
-			slog.String("thingID", notif.ThingID),
-			slog.String("name", notif.Name),
-		)
-	})
-	defer cancelFn()
-
-	// connect as consumer and give client a second to reconnect
-	ctx1, cancelFn1 := context.WithTimeout(context.Background(), time.Second)
-	defer cancelFn1()
-	co1, cc1, _ := testEnv.NewConnectedConsumer(testClientID1, authn.ClientRoleViewer, true)
-	cc1.SetConnectHandler(handleConnect)
-	defer cc1.Close()
-
-	//  wait until the connection is established
-
-	// 3. close connection server side but keep the session.
-	// This should trigger auto-reconnect on the client.
-	t.Log("--- force disconnecting all clients. This can log a warning ---")
-	testEnv.Server.CloseAll()
-
-	<-ctx1.Done()
-
-	// 4. invoke an action which should return a value
-	// An RPC call is the ultimate test
-	var rpcArgs = "rpc test"
-	var rpcResp string
-	time.Sleep(time.Millisecond * 3000)
-	err := co1.InvokeAction(thingID, actionKey, &rpcArgs, &rpcResp)
-	require.NoError(t, err)
-	assert.Equal(t, rpcArgs, rpcResp)
-	// expect connect, disconnect, connect = 3
-	assert.GreaterOrEqual(t, int(serverConnectEvents.Load()), 3, "missing server connection callbacks")
-	// lost, connecting, connected = 3
-	assert.GreaterOrEqual(t, int(clientConnectEvents.Load()), 3, "missing client connection callbacks")
 }
 
 // Test getting form for unknown operation

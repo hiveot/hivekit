@@ -97,7 +97,8 @@ func (rnr *RnRChan) HandleResponse(resp *ResponseMessage, timeout time.Duration)
 		}
 		cancelFn()
 	} else {
-		slog.Debug("HandleResponse: not an RnR call (subscription).",
+		// detect a lost
+		slog.Info("HandleResponse: response without a RnR request.",
 			slog.String("correlationID", resp.CorrelationID))
 	}
 	return isRPC
@@ -159,9 +160,7 @@ func (rnr *RnRChan) WaitForResponse(
 	// good, a channel was previously opened
 	ctx, cancelFunc := context.WithTimeout(context.Background(), timeout)
 	select {
-	case rData := <-replyChan:
-		resp = rData
-		hasResponse = true
+	case resp, hasResponse = <-replyChan:
 		break
 	case <-ctx.Done(): // timeout
 		hasResponse = false

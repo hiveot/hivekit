@@ -51,7 +51,7 @@ func (m *SseScServer) GetProtocolType() (string, string) {
 // yamlConfig todo configure ssepath
 func (m *SseScServer) Start() (err error) {
 
-	slog.Info("Start: Starting ssesc transport server")
+	slog.Info("Start: Starting ssesc transport server", "ssePath", m.ssePath)
 
 	// Add the routes used in SSE connection and subscription requests
 	m.CreateRoutes(m.ssePath, m.httpServer.GetProtectedRoute())

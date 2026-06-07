@@ -27,7 +27,7 @@ func ConnectWSS(
 	caCert *x509.Certificate,
 	onConnect func(transport.ConnectionStatus, error),
 	onMessage func(raw []byte),
-) (cancelFn func(), conn *websocket.Conn, status transport.ConnectionStatus, err error) {
+) (cancelFn func(), conn *websocket.Conn, err error) {
 
 	var clientCertList []tls.Certificate
 
@@ -96,15 +96,16 @@ func ConnectWSS(
 	// websockets do not support http/2 so stick to http 1.1.
 	wssConn, r, err := wssdialer.Dial(connectURL, wssHeader)
 	if err != nil {
-		status := transport.StatusLost
 		if r != nil && r.StatusCode == http.StatusUnauthorized {
-			err = fmt.Errorf("ConnectWSS: Connection as '%s' to '%s' failed: %s",
-				clientID, connectURL, err.Error())
+			err = fmt.Errorf("ConnectWSS: Unauthorized connection as '%s' to '%s': %w",
+				clientID, connectURL, err)
 			slog.Warn(err.Error())
-			status = transport.StatusRefused
+			onConnect(transport.StatusRefused, err)
+		} else {
+			onConnect(transport.StatusLost, err)
 		}
 		wssCancelFn()
-		return nil, nil, status, err
+		return nil, nil, err
 	}
 
 	closeWSSFn := func() {
@@ -119,11 +120,12 @@ func ConnectWSS(
 	// last, start handling incoming messages
 	go func() {
 		WSSReadLoop(wssCtx, wssConn, onMessage)
+
 		// end of read loop
 		onConnect(transport.StatusLost, nil)
 	}()
 
-	return closeWSSFn, wssConn, transport.StatusConnected, nil
+	return closeWSSFn, wssConn, nil
 }
 
 // WSSReadLoop reads incoming websocket messages in a loop, until connection closes or context is cancelled
@@ -151,6 +153,7 @@ func WSSReadLoop(ctx context.Context,
 		if err != nil {
 			// avoid further writes
 			readLoop.Store(false)
+			slog.Info("ConnectWss (client) read loop closed")
 			// ending the read loop and returning will close the connection
 			break
 		}
