@@ -7,6 +7,7 @@ import (
 
 	"github.com/hiveot/hivekit/go/api/msg"
 	"github.com/hiveot/hivekit/go/api/td"
+	"github.com/hiveot/hivekit/go/modules/consumer"
 	"github.com/hiveot/hivekit/go/modules/vcache"
 	"github.com/hiveot/hivekit/go/utils"
 	"github.com/stretchr/testify/assert"
@@ -51,9 +52,10 @@ func TestPropertyNotifications(t *testing.T) {
 	err := m.Start()
 	require.NoError(t, err)
 	defer m.Stop()
-	m.SetNotificationSink(func(n *msg.NotificationMessage) {
+	co := consumer.NewConsumer(func(n *msg.NotificationMessage) {
 		slog.Info("received the notification")
 	})
+	m.SetNotificationSink(co)
 
 	// Emit notification. A warning is logged as the module cannot forward the notification.
 	n1 := msg.NewNotificationMessage(sender1ID, msg.AffordanceTypeProperty, thing1ID, prop1Name, prop1Value)
@@ -115,9 +117,10 @@ func TestEventNotifications(t *testing.T) {
 	err := m.Start()
 	require.NoError(t, err)
 	defer m.Stop()
-	m.SetNotificationSink(func(n *msg.NotificationMessage) {
+	co := consumer.NewConsumer(func(n *msg.NotificationMessage) {
 		slog.Info("received the notification")
 	})
+	m.SetNotificationSink(co)
 
 	// Emit notification. A warning is logged as the module cannot forward the notification.
 	n1 := msg.NewNotificationMessage(sender1ID, msg.AffordanceTypeEvent, thing1ID, ev1Name, ev1Value)

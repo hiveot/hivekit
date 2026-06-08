@@ -13,7 +13,7 @@ type DigitwinMsgHandler struct {
 	digitwinModule digitwin.IDigitwinService
 }
 
-// HandleRequest handles requests aimed at the digital twin module
+// HandleRequest handles requests aimed at the digital twin module itself
 func (handler *DigitwinMsgHandler) HandleRequest(req *msg.RequestMessage, replyTo msg.ResponseHandler) (err error) {
 	var resp *msg.ResponseMessage
 

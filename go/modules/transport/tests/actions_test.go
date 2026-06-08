@@ -12,6 +12,7 @@ import (
 
 	"github.com/hiveot/hivekit/go/api/msg"
 	"github.com/hiveot/hivekit/go/api/td"
+	"github.com/hiveot/hivekit/go/modules/agent"
 	"github.com/hiveot/hivekit/go/modules/authn"
 	"github.com/hiveot/hivekit/go/testenv"
 	"github.com/hiveot/hivekit/go/utils"
@@ -44,8 +45,8 @@ func TestInvokeActionFromConsumerToServer(t *testing.T) {
 	var thingID = "thing1"
 	var actionName = "action1"
 
-	// the server will receive the action request and return an immediate result
-	handleRequest := func(req *msg.RequestMessage, replyTo msg.ResponseHandler) error {
+	// the agent will receive the action request and return an immediate result
+	ag := agent.NewAgent("", func(req *msg.RequestMessage, replyTo msg.ResponseHandler) error {
 		var resp *msg.ResponseMessage
 		if req.Operation == td.OpInvokeAction {
 			inputVal.Store(req.Input)
@@ -56,11 +57,11 @@ func TestInvokeActionFromConsumerToServer(t *testing.T) {
 			resp = req.CreateResponse(nil, fmt.Errorf("Unexpected request operation '%s'", req.Operation))
 		}
 		return replyTo(resp)
-	}
+	})
 	// 1. start the servers
 	testEnv, cancelFn := testenv.StartTestEnv(testProtocol)
 	defer cancelFn()
-	testEnv.Server.SetRequestSink(handleRequest)
+	testEnv.Server.SetRequestSink(ag)
 
 	// 2. connect a client
 	co1, cc1, token := testEnv.NewConnectedConsumer(testClientID1, authn.ClientRoleViewer, false)
@@ -202,10 +203,9 @@ func TestQueryActions(t *testing.T) {
 	var thingID = "thing1"
 	var actionKey = "action1"
 
-	// 1. start the server. register a request handler for receiving a request
-	// from the agent after the server sends an invoke action.
+	// 1. start the server. register an agent for receiving a request.
 	// Note that WoT doesn't cover this use-case so this uses hiveot vocabulary operation.
-	requestHandler := func(req *msg.RequestMessage, replyTo msg.ResponseHandler) error {
+	ag := agent.NewAgent("", func(req *msg.RequestMessage, replyTo msg.ResponseHandler) error {
 		var resp *msg.ResponseMessage
 		assert.NotNil(t, replyTo)
 		assert.NotNil(t, req.CorrelationID)
@@ -259,12 +259,12 @@ func TestQueryActions(t *testing.T) {
 			resp = req.CreateResponse(nil, errors.New("unexpected response "+req.Operation))
 		}
 		return replyTo(resp)
-	}
+	})
 
-	// 1. start the servers
+	// 1. start the servers and link it to the agent that handles requests
 	testEnv, cancelFn := testenv.StartTestEnv(testProtocol)
 	defer cancelFn()
-	testEnv.Server.SetRequestSink(requestHandler)
+	testEnv.Server.SetRequestSink(ag)
 
 	// 2. connect as a consumer
 	co1, cc1, _ := testEnv.NewConnectedConsumer(testClientID1, authn.ClientRoleViewer, false)

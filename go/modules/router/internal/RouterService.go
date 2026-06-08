@@ -107,7 +107,7 @@ func (m *RouterService) GetClientConnection(tdi *td.TD, op string) (cl modules.I
 		}
 		m.deviceConnections[origin] = cl
 		// forward notifications to this module and up to its consumer
-		cl.SetNotificationSink(m.HandleNotification)
+		cl.SetNotificationSink(m)
 		err = cl.Start()
 	}
 	m.cmux.Unlock()

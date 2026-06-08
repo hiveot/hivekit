@@ -71,8 +71,8 @@ func startHistoryService(clean bool) (
 	// instance.
 	cfg := history.NewHistoryConfig(dataDir, historyStoreBackend)
 	histModule = internal.NewHistoryService(cfg)
-	testEnv.Server.SetRequestSink(histModule.HandleRequest)
-	histModule.SetNotificationSink(testEnv.Server.HandleNotification)
+	testEnv.Server.SetRequestSink(histModule)
+	histModule.SetNotificationSink(testEnv.Server)
 
 	err := histModule.Start()
 	if err != nil {
@@ -191,7 +191,7 @@ func TestAddGetEvent(t *testing.T) {
 	// create an end user client for testing
 	co1, _, _ := testEnv.NewConnectedConsumer(testClientID, authn.ClientRoleOperator, false)
 	histCl := historypkg.NewReadHistoryClient()
-	histCl.SetRequestSink(co1.HandleRequest)
+	histCl.SetRequestSink(co1)
 
 	fivemago := time.Now().Add(-time.Minute * 5)
 	fiftyfivemago := time.Now().Add(-time.Minute * 55)
@@ -282,7 +282,7 @@ func TestAddGetEvent(t *testing.T) {
 	defer stopFn()
 	co1, _, _ = testEnv.NewConnectedConsumer(testClientID, authn.ClientRoleOperator, false)
 	histCl = historypkg.NewReadHistoryClient()
-	histCl.SetRequestSink(co1.HandleRequest)
+	histCl.SetRequestSink(co1)
 
 	// Test 3: get first temperature of things 2 - expect 1 result
 	time.Sleep(time.Second)
@@ -398,7 +398,7 @@ func TestAddProperties(t *testing.T) {
 	// create an end user client for testing
 	co1, _, _ := testEnv.NewConnectedConsumer(testClientID, authn.ClientRoleOperator, false)
 	histCl := historypkg.NewReadHistoryClient()
-	histCl.SetRequestSink(co1.HandleRequest)
+	histCl.SetRequestSink(co1)
 
 	cursorKey, releaseFn, err := histCl.GetCursor(thing1ID, "")
 	defer releaseFn()
@@ -464,7 +464,7 @@ func TestPrevNext(t *testing.T) {
 	// create an end user client for testing
 	histCl := historypkg.NewReadHistoryClient()
 	co1, _, _ := testEnv.NewConnectedConsumer(testClientID, authn.ClientRoleOperator, false)
-	histCl.SetRequestSink(co1.HandleRequest)
+	histCl.SetRequestSink(co1)
 
 	cursorKey, releaseFn, err := histCl.GetCursor(thing0ID, "")
 	require.NoError(t, err)
@@ -529,7 +529,7 @@ func TestPrevNextFiltered(t *testing.T) {
 	// A cursor with a filter on propName should only return results of propName
 	histCl := historypkg.NewReadHistoryClient()
 	co1, _, _ := testEnv.NewConnectedConsumer(testClientID, authn.ClientRoleOperator, false)
-	histCl.SetRequestSink(co1.HandleRequest)
+	histCl.SetRequestSink(co1)
 
 	defer co1.Stop()
 	cursorKey, releaseFn, err := histCl.GetCursor(thing0ID, propName)
@@ -598,7 +598,7 @@ func TestNextPrevUntil(t *testing.T) {
 
 	co1, _, _ := testEnv.NewConnectedConsumer(testClientID, authn.ClientRoleOperator, false)
 	readHist := historypkg.NewReadHistoryClient()
-	readHist.SetRequestSink(co1.HandleRequest)
+	readHist.SetRequestSink(co1)
 	defer co1.Stop()
 	cursorKey, releaseFn, err := readHist.GetCursor(thing0ID, "")
 	defer releaseFn()
@@ -637,7 +637,7 @@ func TestReadHistory(t *testing.T) {
 	//
 	co1, _, _ := testEnv.NewConnectedConsumer(testClientID, authn.ClientRoleOperator, false)
 	readHist := historypkg.NewReadHistoryClient()
-	readHist.SetRequestSink(co1.HandleRequest)
+	readHist.SetRequestSink(co1)
 	defer co1.Stop()
 
 	// 1 sensors -> 1000/24 hours is approx 41/hour
@@ -674,7 +674,7 @@ func TestPubEvents(t *testing.T) {
 	defer stopFn()
 	co1, _, _ := testEnv.NewConnectedConsumer(testClientID, authn.ClientRoleOperator, false)
 	readHist := historypkg.NewReadHistoryClient()
-	readHist.SetRequestSink(co1.HandleRequest)
+	readHist.SetRequestSink(co1)
 	defer co1.Stop()
 
 	// Add the thing who is publishing events
@@ -694,8 +694,8 @@ func TestPubEvents(t *testing.T) {
 
 	// attach another agent after the history service so its events are recorded
 	ag1 := agent.NewAgent(agent1ID, nil)
-	m.SetRequestSink(ag1.HandleRequest)
-	ag1.SetNotificationSink(m.HandleNotification)
+	m.SetRequestSink(ag1)
+	ag1.SetNotificationSink(m)
 	defer ag1.Start()
 	defer ag1.Stop()
 

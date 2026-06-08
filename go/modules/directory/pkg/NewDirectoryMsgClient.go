@@ -72,7 +72,7 @@ func (cl *DirectoryMsgClient) RetrieveAllThings(offset int, limit int) (tdList [
 // with the intent to receive directory updates.
 //
 //	serviceID is the thing ID of the directory service instance. This defaults to the directory module's type.
-//	reqSink is the handler for requests send by the directory client and emitter of notifications
+//	reqSink forwards requests from the directory client to the directory server and returns notifications
 func NewDirectoryMsgClient(directoryThingID string, reqSink modules.IHiveModule) *DirectoryMsgClient {
 	if directoryThingID == "" {
 		directoryThingID = directory.DefaultDirectoryThingID
@@ -81,9 +81,9 @@ func NewDirectoryMsgClient(directoryThingID string, reqSink modules.IHiveModule)
 		directoryThingID: directoryThingID,
 	}
 	if reqSink != nil {
-		cl.SetRequestSink(reqSink.HandleRequest)
+		cl.SetRequestSink(reqSink)
 		// notifications returned are passed to this client (if any subscriptions are made)
-		reqSink.SetNotificationSink(cl.HandleNotification)
+		reqSink.SetNotificationSink(cl)
 	}
 	return cl
 }

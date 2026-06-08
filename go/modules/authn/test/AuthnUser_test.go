@@ -61,7 +61,7 @@ func TestUpdatePassword(t *testing.T) {
 
 	// add user to test with
 	authCl := authnpkg.NewAuthnUserMsgClient()
-	authCl.SetRequestSink(tp.HandleRequest)
+	authCl.SetRequestSink(tp)
 
 	err := svc.AddClient(user1ID, tu1Name, authn.ClientRoleViewer)
 	svc.SetPassword(user1ID, "oldpass")

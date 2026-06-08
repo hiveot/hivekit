@@ -104,7 +104,7 @@ func startTestAuthnModule(encryption string) (tp transport.IHttpServer, authnSvc
 	}
 	authnHttpMod := authnpkg.NewAuthnUserHttpService(httpServer)
 	_ = authnHttpMod.Start()
-	authnHttpMod.SetRequestSink(authnSvc.HandleRequest)
+	authnHttpMod.SetRequestSink(authnSvc)
 
 	return httpServer, authnSvc, func() {
 		authnSvc.Stop()

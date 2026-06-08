@@ -242,7 +242,11 @@ func (m *DigitwinService) HandleRequest(req *msg.RequestMessage, replyTo msg.Res
 			td.OpReadProperty, // this returns the property value
 			td.HTOpReadEvent,  // this returns the event notification (not just the value)
 			td.HTOpReadAllEvents:
-			return m.vcache.HandleRequest(req, replyTo)
+			err = m.vcache.HandleRequest(req, replyTo)
+			if err != nil {
+				// vcache didn't handle the request, so forward it
+				return m.ForwardDigitwinRequestToDevice(req, replyTo)
+			}
 
 		// write requests are forwarded to the actual device after mapping
 		// the thingID back to that of the device
@@ -287,7 +291,8 @@ func (m *DigitwinService) Start() (err error) {
 	// note that the thingID is the digital twin ID, which needs to be converted
 	// back to the device thingID
 	m.vcache = vcache.NewVCacheService()
-	m.vcache.SetRequestSink(m.ForwardDigitwinRequestToDevice)
+	// don't set a sink
+	// m.vcache.SetRequestSink(m.ForwardDigitwinRequestToDevice)
 	m.vcache.Start()
 	storageFile := filepath.Join(m.storageDir, "deviceTD.kvbtree")
 	m.deviceTDStore, err = bucketstorepkg.NewBucketStore(storageFile, bucketstore.BackendKVBTree)

@@ -184,8 +184,8 @@ func (testEnv *TestEnv) NewServerAgent(agentID string) *agent.Agent {
 	agent := agent.NewAgent(agentID, nil)
 
 	// the agent is the sink for the transport server
-	testEnv.Server.SetRequestSink(agent.HandleRequest)
-	agent.SetNotificationSink(testEnv.Server.SendNotification)
+	testEnv.Server.SetRequestSink(agent)
+	agent.SetNotificationSink(testEnv.Server)
 	return agent
 }
 
@@ -214,13 +214,13 @@ func (testEnv *TestEnv) NewRCAgent(clientID string, appReqHandler msg.RequestHan
 	agent := agent.NewAgent(clientID+"-agent", appReqHandler)
 
 	// the client delivers requests to the agent and receives notifications from it
-	cl.SetRequestSink(agent.HandleRequest)
-	agent.SetNotificationSink(cl.SendNotification)
+	cl.SetRequestSink(agent)
+	agent.SetNotificationSink(cl)
 
 	// When acting in a dual role as agent and consumer, the agent uses the client as
 	// the sink for requests and receives notifications passed to the client from the server.
-	agent.SetRequestSink(cl.HandleRequest)
-	cl.SetNotificationSink(agent.HandleNotification)
+	agent.SetRequestSink(cl)
+	cl.SetNotificationSink(agent)
 
 	return agent, cl, authToken
 }
@@ -239,15 +239,16 @@ func (testEnv *TestEnv) NewConnectedConsumer(
 	co *consumer.Consumer, cc transport.ITransportClient, token string) {
 
 	cc, token = testEnv.NewConnectedClient(clientID, role)
-	co = consumer.NewConsumer(TestTimeout)
+	co = consumer.NewConsumer(nil)
+	co.SetTimeout(TestTimeout)
 	if useReconnect {
 		// insert the reconnect module between consumer and client connection
 		rc := reconnect.NewReconnectClient(cc)
-		co.SetRequestSink(rc.HandleRequest)
-		rc.SetNotificationSink(co.HandleNotification)
+		co.SetRequestSink(rc)
+		rc.SetNotificationSink(co)
 	} else {
-		co.SetRequestSink(cc.HandleRequest)
-		cc.SetNotificationSink(co.HandleNotification)
+		co.SetRequestSink(cc)
+		cc.SetNotificationSink(co)
 	}
 	return co, cc, token
 }
@@ -299,7 +300,7 @@ func (testEnv *TestEnv) StartTestServer(protocol string) (srv transport.ITranspo
 		err = errors.New("unknown protocol name: " + protocol)
 	}
 	// avoid unnecesary notification warnings as notifications created by the server can be ignored.
-	srv.SetNotificationSink(func(*msg.NotificationMessage) { /*dummy*/ })
+	// srv.SetNotificationSink(func(*msg.NotificationMessage) { /*dummy*/ })
 
 	if err != nil {
 		panic("Unable to create transport server module: " + err.Error())

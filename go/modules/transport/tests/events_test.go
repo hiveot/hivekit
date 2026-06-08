@@ -10,7 +10,9 @@ import (
 
 	"github.com/hiveot/hivekit/go/api/msg"
 	"github.com/hiveot/hivekit/go/api/td"
+	"github.com/hiveot/hivekit/go/modules/agent"
 	"github.com/hiveot/hivekit/go/modules/authn"
+	"github.com/hiveot/hivekit/go/modules/consumer"
 	"github.com/hiveot/hivekit/go/modules/transport"
 	"github.com/hiveot/hivekit/go/testenv"
 	"github.com/stretchr/testify/assert"
@@ -24,7 +26,7 @@ func TestAllEventsProtocols(t *testing.T) {
 }
 func TestAllEvents(t *testing.T) {
 	t.Run("TestSubscribeAll", TestSubscribeAll)
-	t.Run("TestPublishEventsByAgent", TestPublishEventsByAgent)
+	t.Run("TestPublishEventsByAgent", TestPublishEventsByRCAgent)
 	t.Run("TestReadEvent", TestReadEvent)
 }
 
@@ -55,14 +57,14 @@ func TestSubscribeAll(t *testing.T) {
 	ctx, cancelFn := context.WithTimeout(context.Background(), time.Minute)
 	defer cancelFn()
 
-	co1.SetNotificationSink(func(ev *msg.NotificationMessage) {
+	co1.SetNotificationHook(func(ev *msg.NotificationMessage) {
 		slog.Info("client 1 receives event")
 		if ev.ThingID == thingID {
 			// receive event, expect data from agent
 			rxVal.Store(ev.Data)
 		}
 	})
-	co2.SetNotificationSink(func(ev *msg.NotificationMessage) {
+	co2.SetNotificationHook(func(ev *msg.NotificationMessage) {
 		slog.Info("client 2 receives event")
 		cancelFn()
 	})
@@ -121,7 +123,7 @@ func TestSubscribeReconnect(t *testing.T) {
 	// Consumer subscribes to events.
 	err := co1.Subscribe("", "")
 	assert.NoError(t, err)
-	co1.SetAppNotificationHook(func(notif *msg.NotificationMessage) {
+	co1.SetNotificationHook(func(notif *msg.NotificationMessage) {
 		// receive event, tests whether agents work as a consumer
 		slog.Info("consumer receives event",
 			"name", notif.Name, "data", notif.ToString(0))
@@ -166,9 +168,8 @@ func TestSubscribeReconnect(t *testing.T) {
 
 }
 
-// Agent sends events to server
-// This is the normal setup if the Thing agent is connected via a client using connection reversal
-func TestPublishEventsByAgent(t *testing.T) {
+// Agent sends events to server using reverse connection.
+func TestPublishEventsByRCAgent(t *testing.T) {
 	t.Logf("---%s---\n", t.Name())
 	var evVal atomic.Value
 	var testMsg = "hello world"
@@ -176,15 +177,15 @@ func TestPublishEventsByAgent(t *testing.T) {
 	var eventKey = "event11"
 
 	// 1. start the transport
-	// handler of event notification on the server
-	notificationHandler := func(msg *msg.NotificationMessage) {
+	// handler of notifications received on the server
+	co := consumer.NewConsumer(func(msg *msg.NotificationMessage) {
 		// the server handler receives all notifications
 		if msg.ThingID == thingID {
 			evVal.Store(msg.Data)
 		}
-	}
+	})
 	testEnv, cancelFn := testenv.StartTestEnv(testProtocol)
-	testEnv.Server.SetNotificationSink(notificationHandler)
+	testEnv.Server.SetNotificationSink(co)
 	defer cancelFn()
 
 	// 2. connect an agent to the server - eg connection reversal
@@ -212,7 +213,7 @@ func TestReadEvent(t *testing.T) {
 
 	// 1. start the agent transport with the request handler
 	// in this case the consumer connects to the agent (unlike when using a hub)
-	agentReqHandler := func(req *msg.RequestMessage, replyTo msg.ResponseHandler) error {
+	ag := agent.NewAgent("", func(req *msg.RequestMessage, replyTo msg.ResponseHandler) error {
 		if req.Operation == td.HTOpReadEvent && req.ThingID == thingID && req.Name == eventKey {
 			evNotif := msg.NewNotificationMessage("agent1", msg.AffordanceTypeEvent, thingID, req.Name, eventValue)
 			evNotif.Timestamp = timestamp
@@ -223,10 +224,10 @@ func TestReadEvent(t *testing.T) {
 		}
 		resp := req.CreateResponse(nil, errors.New("unexpected request"))
 		return replyTo(resp)
-	}
+	})
 
 	testEnv, cancelFn := testenv.StartTestEnv(testProtocol)
-	testEnv.Server.SetRequestSink(agentReqHandler)
+	testEnv.Server.SetRequestSink(ag)
 	defer cancelFn()
 
 	// 2. connect as a consumer

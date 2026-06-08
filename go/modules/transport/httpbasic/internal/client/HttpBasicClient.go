@@ -386,7 +386,7 @@ func (cl *HttpBasicClient) SendResponse(resp *msg.ResponseMessage) error {
 }
 
 // Does reports an error as http clients dont receive notifications
-func (cl *HttpBasicClient) SetNotificationSink(cb msg.NotificationHandler) {
+func (cl *HttpBasicClient) SetNotificationSink(sink modules.IHiveModule) {
 	slog.Warn("SetNotificationSink: HttpBasicClients dont handle notifications",
 		"clientID", cl.GetClientID())
 }
@@ -394,7 +394,7 @@ func (cl *HttpBasicClient) SetNotificationSink(cb msg.NotificationHandler) {
 // SetRequestSink set sink that handles requests
 // Since http-basic is a uni-directional transport client, requests are send to the server
 // instead of passing it to this sink. Therefore this logs an error.
-func (cl *HttpBasicClient) SetRequestSink(sink msg.RequestHandler) {
+func (cl *HttpBasicClient) SetRequestSink(sink modules.IHiveModule) {
 	slog.Warn("SetRequestSink. HttpBasicClient cannot be a request sink.")
 }
 

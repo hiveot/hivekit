@@ -35,7 +35,7 @@ type HiveModuleBase struct {
 
 	// notificationSink is the sink for forwarding notification messages
 	// This is the upstream consumer.
-	notificationSink msg.NotificationHandler
+	notificationSink IHiveModule
 
 	// module properties and their value, nil if not used
 	// use UpdateProperty to modify a value and flag it for change
@@ -45,7 +45,7 @@ type HiveModuleBase struct {
 	mux sync.RWMutex
 
 	// requestSink is the sink for forwarding requests messages to
-	requestSink msg.RequestHandler
+	requestSink IHiveModule
 
 	rpcTimeout time.Duration
 
@@ -63,9 +63,9 @@ type HiveModuleBase struct {
 // note that the handler is not the downstream sink but the upstream consumer.
 func (m *HiveModuleBase) ForwardNotification(notif *msg.NotificationMessage) {
 	m.mux.RLock()
-	handler := m.notificationSink
+	sink := m.notificationSink
 	m.mux.RUnlock()
-	if handler == nil {
+	if sink == nil {
 		// End of the line. If the notification isn't handled then warn about it
 		// A downstream module could have subscribed.
 		// // keep this warning for now.
@@ -77,7 +77,7 @@ func (m *HiveModuleBase) ForwardNotification(notif *msg.NotificationMessage) {
 		// )
 		return
 	}
-	handler(notif)
+	sink.HandleNotification(notif)
 }
 
 // ForwardRequest passes the request to the sink's HandleRequest method.
@@ -88,16 +88,16 @@ func (m *HiveModuleBase) ForwardRequest(req *msg.RequestMessage, replyTo msg.Res
 		req.CorrelationID = shortid.MustGenerate()
 	}
 	m.mux.RLock()
-	handler := m.requestSink
+	sink := m.requestSink
 	m.mux.RUnlock()
-	if handler == nil {
+	if sink == nil {
 		return fmt.Errorf("ForwardRequest: end of the line at '%s' for request '%s/%s' to thingID '%s'",
 			m.thingID, req.Operation, req.Name, req.ThingID)
 	}
 	if replyTo == nil {
 		slog.Info("ForwardRequest: no replyTo handler provided", "moduleID", m.thingID)
 	}
-	err = handler(req, replyTo)
+	err = sink.HandleRequest(req, replyTo)
 	return err
 }
 
@@ -145,12 +145,12 @@ func (m *HiveModuleBase) GetTimeout() time.Duration {
 	return m.rpcTimeout
 }
 
-// GetSink returns the module's request sink
-func (m *HiveModuleBase) GetRequestSink() msg.RequestHandler {
-	m.mux.RLock()
-	defer m.mux.RUnlock()
-	return m.requestSink
-}
+// // GetSink returns the module's request sink
+// func (m *HiveModuleBase) GetRequestSink() msg.RequestHandler {
+// 	m.mux.RLock()
+// 	defer m.mux.RUnlock()
+// 	return m.requestSink
+// }
 
 // HandleNotification receives an incoming notification from a producer.
 //
@@ -199,7 +199,7 @@ func (m *HiveModuleBase) Rpc(
 // }
 
 // Set the handler that will receive notifications emitted by this module
-func (m *HiveModuleBase) SetNotificationSink(consumer msg.NotificationHandler) {
+func (m *HiveModuleBase) SetNotificationSink(consumer IHiveModule) {
 	m.mux.Lock()
 	defer m.mux.Unlock()
 	if m.notificationSink != nil {
@@ -212,11 +212,11 @@ func (m *HiveModuleBase) SetNotificationSink(consumer msg.NotificationHandler) {
 // SetRequestSink sets the producer that will handle requests for this consumer and register this
 // module as the receive of notifications from the module.
 //
-//	producer is the sink that will handle requests and send notifications
-func (m *HiveModuleBase) SetRequestSink(sink msg.RequestHandler) {
+//	requestSink is the sink that will handle requests and send notifications
+func (m *HiveModuleBase) SetRequestSink(requestSink IHiveModule) {
 	m.mux.Lock()
 	defer m.mux.Unlock()
-	m.requestSink = sink
+	m.requestSink = requestSink
 }
 
 // // SetTimeout changes the timeout when waiting for result.

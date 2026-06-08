@@ -236,7 +236,7 @@ func (co *WotConsumer) ReadThing(thingID string) []string {
 		}
 	}
 	if err == nil {
-		co.SetRequestSink(c.HandleRequest)
+		co.SetRequestSink(c)
 	} else {
 		slog.Warn("ReadThing: failed", "err", err.Error())
 	}
@@ -313,10 +313,11 @@ func NewWotConsumer(timeout time.Duration) *WotConsumer {
 		authToken:   "no-token",
 		records:     make([]*discoverypkg.DiscoveryResult, 0),
 		clients:     make(map[string]transport.ITransportClient),
-		Consumer:    *consumer.NewConsumer(timeout),
+		Consumer:    *consumer.NewConsumer(nil),
 		directories: make(map[string]*td.TD),
 		things:      make(map[string]*td.TD),
 	}
+	cl.Consumer.SetTimeout(timeout)
 	return cl
 }
 

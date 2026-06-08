@@ -76,8 +76,8 @@ func main() {
 	err := co.Start()
 
 	rtr := routerpkg.NewRouterService("", co.GetTD, nil, nil, time.Minute)
-	rtr.SetNotificationSink(co.HandleNotification)
-	co.SetRequestSink(rtr.HandleRequest)
+	rtr.SetNotificationSink(co)
+	co.SetRequestSink(rtr)
 
 	err = rtr.Start()
 	if err != nil {

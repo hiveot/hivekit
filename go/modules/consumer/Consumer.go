@@ -3,7 +3,6 @@ package consumer
 import (
 	"errors"
 	"sync"
-	"time"
 
 	"github.com/hiveot/hivekit/go/api/msg"
 	"github.com/hiveot/hivekit/go/api/td"
@@ -194,7 +193,7 @@ func (co *Consumer) ReadPropertyAs(thingID, name string, prop any) (err error) {
 // Set the hook to invoke with received notifications
 //
 // This lets applications receive notifications while leaving the notification chain intact.
-func (m *Consumer) SetAppNotificationHook(hook msg.NotificationHandler) {
+func (m *Consumer) SetNotificationHook(hook msg.NotificationHandler) {
 	m.mux.Lock()
 	defer m.mux.Unlock()
 	m.appNotificationHook = hook
@@ -248,19 +247,18 @@ func (co *Consumer) WriteProperty(thingID string, name string, input any, wait b
 	return err
 }
 
-// NewConsumer returns a new instance of the WoT consumer for use with the given
-// connection.
+// NewConsumer returns a new instance of the WoT consumer.
 //
 // This provides the API for common WoT operations such as invoking actions and
 // supports RPC calls by waiting for a response.
 //
-// Use SetSink to set the module that will handle requests and return notifications.
-//
-//	timeout is the timeout of waiting for responses to requests. Use 0 for default.
-func NewConsumer(timeout time.Duration) *Consumer {
+// A notification handler can be provided or set with SetNotificationHook
+// Use SetTimeout to modify the default RPC timeout
+func NewConsumer(notificationHook msg.NotificationHandler) *Consumer {
 	thingID := ConsumerModuleType + "-" + shortid.MustGenerate()
 	consumer := &Consumer{
-		HiveModuleBase: modules.NewHiveModuleBase(thingID, timeout),
+		HiveModuleBase:      modules.NewHiveModuleBase(thingID, msg.DefaultRnRTimeout),
+		appNotificationHook: notificationHook,
 	}
 
 	return consumer
@@ -268,6 +266,7 @@ func NewConsumer(timeout time.Duration) *Consumer {
 
 // Factory for creating a consumer module using the factory environment
 func NewConsumerFactory(f factory.IModuleFactory) (modules.IHiveModule, error) {
-	c := NewConsumer(f.GetEnvironment().RpcTimeout)
+	c := NewConsumer(nil)
+	c.SetTimeout(f.GetEnvironment().RpcTimeout)
 	return c, nil
 }

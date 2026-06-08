@@ -69,13 +69,13 @@ type IHiveModule interface {
 	// Intended to create a chain of notifications from producer to consumer.
 	//
 	// This can be invoked before or after Start()
-	SetNotificationSink(consumer msg.NotificationHandler)
+	SetNotificationSink(consumer IHiveModule)
 
 	// SetRequestSink sets the handler of requests emitted by this module.
 	//
 	// This can be invoked before or after Start() to allow for live rewiring of the
 	// module chain.
-	SetRequestSink(sink msg.RequestHandler)
+	SetRequestSink(sink IHiveModule)
 
 	// Start readies the module for use.
 	// Intended for modulues to initialize resources

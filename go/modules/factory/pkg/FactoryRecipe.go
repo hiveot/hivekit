@@ -46,8 +46,8 @@ func (r *FactoryRecipe) Start(f factory.IModuleFactory) error {
 			modList = append(modList, m)
 			// Link the module to the previous module in the list
 			if prevModule != nil {
-				prevModule.SetRequestSink(m.HandleRequest)
-				m.SetNotificationSink(prevModule.HandleNotification)
+				prevModule.SetRequestSink(m)
+				m.SetNotificationSink(prevModule)
 			}
 		}
 		// module cant be started

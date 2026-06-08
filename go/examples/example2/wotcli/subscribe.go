@@ -27,7 +27,7 @@ func Subscribe(co *wotco.WotConsumer, thingID string) {
 		println("Error reading properties: " + err.Error())
 		return
 	}
-	co.SetAppNotificationHook(func(notif *msg.NotificationMessage) {
+	co.SetNotificationHook(func(notif *msg.NotificationMessage) {
 		ts := time.Now().Local().Format(time.TimeOnly)
 		fmt.Printf("%s: Received notification '%s %s': %s\n", ts, notif.AffordanceType, notif.Name, notif.ToString(20))
 	})

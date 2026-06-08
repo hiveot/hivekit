@@ -67,14 +67,14 @@ func (cl *BucketMsgClient) SetMultiple(kv map[string]string) error {
 // Use the sink to attach a module connected to a transport.
 //
 //	thingID is the instance ID of the bucket store module
-//	sink is the handler that forwards messages to the module. Typically a messaging client.
+//	sink is the module that forwards messages. Typically a messaging client.
 func NewBucketStoreMsgClient(thingID string, sink modules.IHiveModule) *BucketMsgClient {
 	cl := &BucketMsgClient{
 		storeThingID:   thingID,
 		HiveModuleBase: modules.NewHiveModuleBase("", 0),
 	}
-	cl.SetRequestSink(sink.HandleRequest)
-	sink.SetNotificationSink(cl.HandleNotification)
+	cl.SetRequestSink(sink)
+	sink.SetNotificationSink(cl)
 
 	return cl
 }

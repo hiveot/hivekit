@@ -9,7 +9,9 @@ import (
 
 	"github.com/hiveot/hivekit/go/api/msg"
 	"github.com/hiveot/hivekit/go/api/td"
+	"github.com/hiveot/hivekit/go/modules/agent"
 	"github.com/hiveot/hivekit/go/modules/authn"
+	"github.com/hiveot/hivekit/go/modules/consumer"
 	"github.com/hiveot/hivekit/go/testenv"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -52,7 +54,7 @@ func TestObservePropertyByConsumer(t *testing.T) {
 	defer cc2.Close()
 
 	// set the handler for property updates and subscribe
-	co1.SetAppNotificationHook(func(ev *msg.NotificationMessage) {
+	co1.SetNotificationHook(func(ev *msg.NotificationMessage) {
 		// server->client does not retain the sender in WoT
 		// assert.NotEmpty(t, ev.SenderID)
 		if ev.ThingID == thingID {
@@ -60,7 +62,7 @@ func TestObservePropertyByConsumer(t *testing.T) {
 		}
 	})
 	// co2 receive all events
-	co2.SetAppNotificationHook(func(ev *msg.NotificationMessage) {
+	co2.SetNotificationHook(func(ev *msg.NotificationMessage) {
 		if ev.ThingID == thingID {
 			rxVal2.Store(ev.Data)
 		}
@@ -121,16 +123,16 @@ func TestPublishPropertyByAgent(t *testing.T) {
 	var propValue1 = "value1"
 
 	// handler of property updates on the server
-	notificationHandler := func(msg *msg.NotificationMessage) {
+	co := consumer.NewConsumer(func(msg *msg.NotificationMessage) {
 		// the server receives all notifications, we only want matching thingID
 		if msg.ThingID == thingID {
 			evVal.Store(msg.Data.(string))
 		}
-	}
+	})
 
 	// 1. start the transport
 	testEnv, cancelFn := testenv.StartTestEnv(testProtocol)
-	testEnv.Server.SetNotificationSink(notificationHandler)
+	testEnv.Server.SetNotificationSink(co)
 	defer cancelFn()
 
 	// 2. connect as an agent
@@ -157,7 +159,7 @@ func TestReadProperty(t *testing.T) {
 
 	// 1. start the agent transport with the request handler
 	// in this case the consumer connects to the agent (unlike when using a hub)
-	appReqHandler := func(req *msg.RequestMessage, replyTo msg.ResponseHandler) error {
+	ag := agent.NewAgent("", func(req *msg.RequestMessage, replyTo msg.ResponseHandler) error {
 		var resp *msg.ResponseMessage
 		if req.Operation == td.OpReadProperty && req.ThingID == thingID && req.Name == propKey {
 			resp = req.CreateResponse(propValue, nil)
@@ -166,9 +168,9 @@ func TestReadProperty(t *testing.T) {
 			resp = req.CreateResponse(nil, errors.New("unexpected request"))
 		}
 		return replyTo(resp)
-	}
+	})
 	testEnv, cancelFn := testenv.StartTestEnv(testProtocol)
-	testEnv.Server.SetRequestSink(appReqHandler)
+	testEnv.Server.SetRequestSink(ag)
 	defer cancelFn()
 
 	// 2. connect as a consumer
@@ -192,7 +194,7 @@ func TestReadAllProperties(t *testing.T) {
 
 	// 1. start the agent transport with the request handler
 	// in this case the consumer connects to the agent (unlike when using a hub)
-	appReqHandler := func(req *msg.RequestMessage, replyTo msg.ResponseHandler) error {
+	ag := agent.NewAgent("", func(req *msg.RequestMessage, replyTo msg.ResponseHandler) error {
 		var resp *msg.ResponseMessage
 		if req.Operation == td.OpReadAllProperties {
 			output := make(map[string]any)
@@ -203,9 +205,9 @@ func TestReadAllProperties(t *testing.T) {
 			resp = req.CreateResponse(nil, errors.New("unexpected request"))
 		}
 		return replyTo(resp)
-	}
+	})
 	testEnv, cancelFn := testenv.StartTestEnv(testProtocol)
-	testEnv.Server.SetRequestSink(appReqHandler)
+	testEnv.Server.SetRequestSink(ag)
 	defer cancelFn()
 
 	// 2. connect as a consumer

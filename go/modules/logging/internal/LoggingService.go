@@ -126,14 +126,14 @@ func (m *LoggingService) NewLogger(cfg *logging.LoggingConfig) (
 
 // SetSource is a convenience function to set the source module of requests and destination of notifications
 func (m *LoggingService) SetSource(source modules.IHiveModule) {
-	source.SetRequestSink(m.HandleRequest)
-	m.SetNotificationSink(source.HandleNotification)
+	source.SetRequestSink(m)
+	m.SetNotificationSink(source)
 }
 
 // SetSink is a convenience function to set the downstream module of requests and source of notifications
 func (m *LoggingService) SetSink(sink modules.IHiveModule) {
-	m.SetRequestSink(sink.HandleRequest)
-	sink.SetNotificationSink(m.HandleNotification)
+	m.SetRequestSink(sink)
+	sink.SetNotificationSink(m)
 }
 
 // Start opens the logging destination.

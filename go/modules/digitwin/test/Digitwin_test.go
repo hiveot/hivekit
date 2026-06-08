@@ -12,6 +12,7 @@ import (
 
 	"github.com/hiveot/hivekit/go/api/msg"
 	"github.com/hiveot/hivekit/go/api/td"
+	"github.com/hiveot/hivekit/go/modules/agent"
 	"github.com/hiveot/hivekit/go/modules/authn"
 	"github.com/hiveot/hivekit/go/modules/digitwin"
 	"github.com/hiveot/hivekit/go/modules/digitwin/internal"
@@ -89,17 +90,17 @@ func startService() (
 	if err != nil {
 		panic("unable to start the router service")
 	}
-	// create a request pipeline server->directory->digitwin->router->server
-	appServer.SetRequestSink(dir.HandleRequest)
-	dir.SetRequestSink(dtw.HandleRequest)
-	dtw.SetRequestSink(rtr.HandleRequest)
-	rtr.SetRequestSink(appServer.HandleRequest)
+	// create a request chain server->directory->digitwin->router->server
+	appServer.SetRequestSink(dir)
+	dir.SetRequestSink(dtw)
+	dtw.SetRequestSink(rtr)
+	rtr.SetRequestSink(appServer)
 
-	// create a notification pipeline server->router->digitwin->directory->server
-	appServer.SetNotificationSink(rtr.HandleNotification)
-	rtr.SetNotificationSink(dtw.HandleNotification)
-	dtw.SetNotificationSink(dir.HandleNotification)
-	dir.SetNotificationSink(appServer.HandleNotification)
+	// create a reverse notification chain server->router->digitwin->directory->server
+	appServer.SetNotificationSink(rtr)
+	rtr.SetNotificationSink(dtw)
+	dtw.SetNotificationSink(dir)
+	dir.SetNotificationSink(appServer)
 
 	slog.Info("--- digitwin test environment started ---")
 
@@ -197,9 +198,9 @@ func TestReadDigitwinProperty(t *testing.T) {
 
 	deviceTD1 := testEnv.CreateTestTD(0)
 
-	// the digital twin will receive the request to read property.
-	// this tests if the dtw would forward it downstream as property is unknown.
-	dtw.SetRequestSink(func(req *msg.RequestMessage, replyTo msg.ResponseHandler) error {
+	// the digital twin will receive the readproperty request.
+	// the digitwin service should forward the read property downstream to the actual device, as the property is unknown.
+	downstream := agent.NewAgent("", func(req *msg.RequestMessage, replyTo msg.ResponseHandler) error {
 		if req.Operation == td.OpReadProperty {
 			if req.ThingID == deviceTD1.ID && req.Name == prop1Name {
 				resp := req.CreateResponse(prop1Value, nil)
@@ -209,6 +210,7 @@ func TestReadDigitwinProperty(t *testing.T) {
 		}
 		return fmt.Errorf("unknown request ")
 	})
+	dtw.SetRequestSink(downstream)
 
 	// 1: create a consumer that subscribes to notifications
 	co, cc1, _ := testEnv.NewConnectedConsumer(userID, authn.ClientRoleViewer, false)
@@ -217,7 +219,7 @@ func TestReadDigitwinProperty(t *testing.T) {
 	defer cc1.Stop()
 	// expect a digital twin notification from changing the device property
 	dtwThingID := internal.MakeDigitwinID(agentID, deviceTD1.ID)
-	co.SetAppNotificationHook(func(notif *msg.NotificationMessage) {
+	co.SetNotificationHook(func(notif *msg.NotificationMessage) {
 		if notif.Name == prop1Name {
 			// rxPropValue = notif.ToString(0)
 			rxPropValue.Store(notif.ToString(0))

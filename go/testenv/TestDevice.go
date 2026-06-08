@@ -1,8 +1,8 @@
 package testenv
 
 import (
-	"github.com/hiveot/hivekit/go/api/msg"
 	"github.com/hiveot/hivekit/go/api/td"
+	"github.com/hiveot/hivekit/go/modules"
 	"github.com/hiveot/hivekit/go/modules/agent"
 	"github.com/hiveot/hivekit/go/modules/transport"
 	grpcpkg "github.com/hiveot/hivekit/go/modules/transport/grpc/pkg"
@@ -33,8 +33,8 @@ func (device *TestDevice) GetTD() *td.TD {
 }
 
 // set the request sink of the test device
-func (device *TestDevice) SetRequestSink(handler msg.RequestHandler) {
-	device.Agent.SetRequestSink(handler)
+func (device *TestDevice) SetRequestSink(sink modules.IHiveModule) {
+	device.Agent.SetRequestSink(sink)
 }
 
 // Start the test device
@@ -79,10 +79,10 @@ func (device *TestDevice) Start() error {
 	device.TransportServer.AddTDSecForms(device.td, true)
 	// create the agent and link it to the transport to serve requests
 	device.Agent = agent.NewAgent(device.agentID, nil)
-	device.TransportServer.SetRequestSink(device.Agent.HandleRequest)
+	device.TransportServer.SetRequestSink(device.Agent)
 	// device does ignores connection notifications
-	device.TransportServer.SetNotificationSink(func(*msg.NotificationMessage) { /*dummy*/ })
-	device.Agent.SetNotificationSink(device.TransportServer.SendNotification)
+	// device.TransportServer.SetNotificationSink(func(*msg.NotificationMessage) { /*dummy*/ })
+	device.Agent.SetNotificationSink(device.TransportServer)
 	// this device envelope handles requests received via the agent
 	// device.Agent.SetRequestSink(device.HandleRequest)
 	return nil

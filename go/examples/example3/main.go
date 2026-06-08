@@ -23,8 +23,8 @@ func main() {
 	co.SetTimeout(time.Minute)
 	// run the router without CA. Don't try this at home.
 	r := routerpkg.NewRouterService("", co.GetTD, nil, nil, time.Minute)
-	co.SetRequestSink(r.HandleRequest)
-	r.SetNotificationSink(co.HandleNotification)
+	co.SetRequestSink(r)
+	r.SetNotificationSink(co)
 
 	app := wottui.NewTuiApp(co)
 	app.Run()

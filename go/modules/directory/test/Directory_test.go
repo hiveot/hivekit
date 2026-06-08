@@ -66,7 +66,7 @@ func StartDirectoryServer(withHttp bool) (
 		panic("StartDirectoryServer: failed to start the directory " + err.Error())
 	}
 	if withHttp {
-		dirHttpServer.SetRequestSink(m.HandleRequest)
+		dirHttpServer.SetRequestSink(m)
 	}
 
 	// http requests are passed as RRN messages to the directory server
@@ -74,9 +74,9 @@ func StartDirectoryServer(withHttp bool) (
 	// httpAPI.SetRequestSink(m.HandleRequest)
 	// }
 	// RRN requests from the server are passed as RRN to the directory server
-	testEnv.Server.SetRequestSink(m.HandleRequest)
-	// the server receives the notifications
-	m.SetNotificationSink(testEnv.Server.HandleNotification)
+	testEnv.Server.SetRequestSink(m)
+	// the server receives the notification and sends them to remote clients
+	m.SetNotificationSink(testEnv.Server)
 	return testEnv, m, func() {
 		if httpAPI != nil {
 			httpAPI.Stop()

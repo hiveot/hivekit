@@ -8,6 +8,7 @@ import (
 	"sync"
 
 	"github.com/hiveot/hivekit/go/api/msg"
+	"github.com/hiveot/hivekit/go/modules"
 )
 
 // Module properties that can be exposed in a TM
@@ -45,10 +46,10 @@ type TransportServerBase struct {
 	cmux sync.RWMutex
 
 	// Sink for forwarding notifications
-	notificationSink msg.NotificationHandler
+	notificationSink modules.IHiveModule
 
 	// Sink for forwarding requests
-	requestSink msg.RequestHandler
+	requestSink modules.IHiveModule
 
 	// Request and Response channel helper.
 	// Since some transports use unidirectional channels, a request to one channel
@@ -224,7 +225,7 @@ func (srv *TransportServerBase) ForwardNotification(notif *msg.NotificationMessa
 		)
 		return
 	}
-	srv.notificationSink(notif)
+	srv.notificationSink.HandleNotification(notif)
 }
 
 // ForwardRequest passes a request to the configured request sink.
@@ -240,7 +241,7 @@ func (srv *TransportServerBase) ForwardRequest(req *msg.RequestMessage, replyTo 
 		return fmt.Errorf("ForwardRequest: no sink for request '%s/%s' to thingID '%s'",
 			req.Operation, req.Name, req.ThingID)
 	}
-	err = srv.requestSink(req, replyTo)
+	err = srv.requestSink.HandleRequest(req, replyTo)
 	return err
 }
 
@@ -461,7 +462,7 @@ func (srv *TransportServerBase) SendResponse(
 }
 
 // Set the handler that will receive notifications received from the remote agent
-func (srv *TransportServerBase) SetNotificationSink(consumer msg.NotificationHandler) {
+func (srv *TransportServerBase) SetNotificationSink(consumer modules.IHiveModule) {
 	srv.notificationSink = consumer
 }
 
@@ -472,7 +473,7 @@ func (m *TransportServerBase) SetAppRequestHook(hook msg.RequestHandler) {
 }
 
 // Set the handler that will receive requests received from the client
-func (srv *TransportServerBase) SetRequestSink(sink msg.RequestHandler) {
+func (srv *TransportServerBase) SetRequestSink(sink modules.IHiveModule) {
 	// to be determined if there is a use-case for replacing the sink
 	if srv.requestSink != nil {
 		slog.Warn("SetRequestSink: Overriding existing request sink",

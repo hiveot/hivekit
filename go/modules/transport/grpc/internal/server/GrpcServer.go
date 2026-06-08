@@ -50,7 +50,8 @@ func (m *GrpcServer) ServeStreamConnection(
 	// authentication???
 
 	// Create a hiveot transport connection for this stream.
-	c := StartGrpcTransportConnection(clientID, cid, grpcStream, m.ForwardRequest, m.ForwardNotification)
+	c := StartGrpcTransportConnection(
+		clientID, cid, grpcStream, m.ForwardRequest, m.ForwardNotification)
 	c.SetTimeout(m.respTimeout)
 
 	m.AddConnection(c)

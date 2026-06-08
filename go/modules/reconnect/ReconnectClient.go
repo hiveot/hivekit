@@ -45,7 +45,7 @@ type ReconnectClient struct {
 	// mutex to block subscription updates
 	mux sync.RWMutex
 
-	// record of subscriptions by key="{thingID}-{name}"
+	// record of subscriptions by key="{op}-{thingID}-{name}"
 	subscriptions map[string]*msg.RequestMessage
 }
 
@@ -178,15 +178,14 @@ func (m *ReconnectClient) HandleRequest(req *msg.RequestMessage, replyTo msg.Res
 		td.OpObserveAllProperties, td.OpObserveMultipleProperties, td.OpObserveProperty:
 
 		// TBD: this doesn't differentiate between event/property affordance or single or multiple
-		// TODO: how to handle subscription to multiple properties?
-		key := fmt.Sprintf("%s-%s", req.ThingID, req.Name)
+		key := fmt.Sprintf("%s-%s-%s", req.Operation, req.ThingID, req.Name)
 		m.subscriptions[key] = req
 
 	case td.OpUnobserveAllProperties, td.OpUnobserveMultipleProperties, td.OpUnobserveProperty,
 		td.OpUnsubscribeAllEvents, td.OpUnsubscribeEvent:
 		// remove the recorded subscription request
-		// TODO: remove all on a disconnect request
-		key := fmt.Sprintf("%s-%s", req.ThingID, req.Name)
+		// FIXME: map the unsubscribe/unobserve to the stored operation
+		key := fmt.Sprintf("%s-%s-%s", req.Operation, req.ThingID, req.Name)
 		delete(m.subscriptions, key)
 	}
 	// forward
@@ -234,8 +233,8 @@ func NewReconnectClient(cl transport.ITransportClient) (m *ReconnectClient) {
 	// enable the reconnect using the callback
 	cl.SetConnectHandler(m.handleConnectChange)
 	// link between client and this module
-	m.SetRequestSink(m.conn.HandleRequest)
-	cl.SetNotificationSink(m.HandleNotification)
+	m.SetRequestSink(m.conn)
+	cl.SetNotificationSink(m)
 
 	return m
 }

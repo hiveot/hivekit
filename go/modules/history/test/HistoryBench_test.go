@@ -110,7 +110,7 @@ func BenchmarkAddEvents(b *testing.B) {
 			testClientID, authn.ClientRoleOperator, false)
 
 		readHist := historypkg.NewReadHistoryClient()
-		readHist.SetRequestSink(co1.HandleRequest)
+		readHist.SetRequestSink(co1)
 		defer co1.Stop()
 
 		time.Sleep(time.Millisecond * 300) // let the add settle

@@ -10,7 +10,9 @@ import (
 
 	"github.com/hiveot/hivekit/go/api/msg"
 	"github.com/hiveot/hivekit/go/api/td"
+	"github.com/hiveot/hivekit/go/modules/agent"
 	"github.com/hiveot/hivekit/go/modules/authn"
+	"github.com/hiveot/hivekit/go/modules/consumer"
 	"github.com/hiveot/hivekit/go/modules/transport"
 	"github.com/hiveot/hivekit/go/testenv"
 	"github.com/stretchr/testify/assert"
@@ -56,9 +58,9 @@ func TestReconnect(t *testing.T) {
 		}
 	}
 
-	// this test handler receives an action and returns the input
+	// this test agent receives an action and returns the input
 	// it is intended to prove reconnect works.
-	handleRequest := func(req *msg.RequestMessage, replyTo msg.ResponseHandler) error {
+	ag := agent.NewAgent("", func(req *msg.RequestMessage, replyTo msg.ResponseHandler) error {
 		slog.Info("Received request", "op", req.Operation)
 		var err error
 		// prove that the return channel is connected
@@ -81,11 +83,12 @@ func TestReconnect(t *testing.T) {
 		// err = c.SendResponse(resp)
 		err = replyTo(resp)
 		return err
-	}
+	})
 	// start the servers and handle a request
 	testEnv, cancelFn := testenv.StartTestEnv(testProtocol)
-	testEnv.Server.SetRequestSink(handleRequest)
-	testEnv.Server.SetNotificationSink(func(notif *msg.NotificationMessage) {
+	testEnv.Server.SetRequestSink(ag)
+	// server emits server side notification when a new connection is received
+	notifHandler := consumer.NewConsumer(func(notif *msg.NotificationMessage) {
 		if notif.Name == transport.ServerConnectEvent {
 			// expect a connect-disconnect event
 			serverConnectEvents.Add(1)
@@ -96,6 +99,7 @@ func TestReconnect(t *testing.T) {
 			)
 		}
 	})
+	testEnv.Server.SetNotificationSink(notifHandler)
 	defer cancelFn()
 
 	// connect as consumer and give client a second to reconnect
@@ -105,7 +109,7 @@ func TestReconnect(t *testing.T) {
 	co1, cc1, _ := testEnv.NewConnectedConsumer(
 		testClientID1, authn.ClientRoleViewer, true)
 	// cc1.SetConnectHandler(handleConnect)
-	co1.SetAppNotificationHook(notificationHook)
+	co1.SetNotificationHook(notificationHook)
 	defer cc1.Close()
 
 	//  wait until the connection is established

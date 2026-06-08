@@ -91,8 +91,8 @@ func NewTestTransport(
 	t := &TestTransport{
 		TransportServerBase: transport.NewTransportServerBase(thingID, "", nil),
 	}
-	producer.SetNotificationSink(t.HandleNotification)
-	t.SetRequestSink(producer.HandleRequest)
+	producer.SetNotificationSink(t)
+	t.SetRequestSink(producer)
 	var _ transport.ITransportServer = t // interface check
 	var _ modules.IHiveModule = t        // interface check
 	return t

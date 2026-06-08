@@ -96,14 +96,15 @@ func SetupConsumerWithRouter() (
 
 	// a consumer links to the router and subscribes to the device
 	// note for the purpose of this test the router can run on the client
-	consumer := consumer.NewConsumer(rpcTimeout)
-	consumer.SetRequestSink(routerMod.HandleRequest)
-	routerMod.SetNotificationSink(consumer.HandleNotification)
-	err = consumer.Start()
+	co = consumer.NewConsumer(nil)
+	co.SetTimeout(rpcTimeout)
+	co.SetRequestSink(routerMod)
+	routerMod.SetNotificationSink(co)
+	err = co.Start()
 	if err != nil {
 		panic("SetupConsumerWithRouter: Consumer.Start: " + err.Error())
 	}
-	return consumer, routerMod, dirMod
+	return co, routerMod, dirMod
 }
 
 // TestMain create a test folder for certificates and private key
@@ -217,6 +218,7 @@ func TestSubscribeReconnectToDevice(t *testing.T) {
 	prop1Value1 := "prop1value1"
 	prop1Value2 := "prop1value2"
 	var rxValue = new(atomic.Value)
+	// rxChan := make(chan *msg.NotificationMessage, 1)
 
 	// Setup the test device with server and a TD
 	// The test device runs a server. The router will have to match its security as
@@ -240,31 +242,34 @@ func TestSubscribeReconnectToDevice(t *testing.T) {
 	err = routerMod.Start()
 	require.NoError(t, err)
 	defer routerMod.Stop()
+
 	// to connect to the device, credentials are needed
 	// FIXME: testAuthn does not properly test credentials. Use authn
 	token, _, _ := testAuthn.CreateToken(testRouterID, rpcTimeout)
 	routerMod.AddDeviceCredential(agentID, clientID, token, td.SecSchemeBearer)
 
-	// a consumer links to the router which connects to the device
-	co := consumer.NewConsumer(rpcTimeout)
-	co.SetRequestSink(routerMod.HandleRequest)
-	routerMod.SetNotificationSink(co.HandleNotification)
-	err = co.Start()
-	assert.NoError(t, err)
-	// this should cause the router to connect to the device using the device TD
-	err = co.Subscribe(agentID, "")
-	assert.NoError(t, err)
-
 	ctx, cancelFn := context.WithTimeout(context.Background(), rpcTimeout)
-	co.SetAppNotificationHook(func(notif *msg.NotificationMessage) {
+
+	// a consumer links to the router which connects to devices using device TDs
+	co := consumer.NewConsumer(func(notif *msg.NotificationMessage) {
 		if notif.Name == event1Name {
 			var v1 string
 			err = notif.Decode(&v1)
 			rxValue.Store(v1)
 			assert.NoError(t, err)
 			cancelFn()
+			// rxChan <- notif
 		}
 	})
+	co.SetTimeout(rpcTimeout)
+	co.SetRequestSink(routerMod)
+	// notifications received are passed back to the consumer
+	routerMod.SetNotificationSink(co)
+	err = co.Start()
+	assert.NoError(t, err)
+	// this should cause the router to connect to the device using the device TD
+	err = co.Subscribe(agentID, "")
+	assert.NoError(t, err)
 
 	// the device updates a property and event
 	testDevice.Agent.PubProperty(agentID, prop1Name, prop1Value1)

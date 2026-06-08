@@ -94,6 +94,12 @@ type ITransportServer interface {
 	// GetConnectURL returns connection URL of the server
 	GetConnectURL() (uri string)
 
+	// HandleNotification sends the notification to subscribed clients using SendNotification.
+	// The remote clients are the notification sink from the server perspective.
+	//
+	// Notifications received by the server are forwarded to the notification sink
+	HandleNotification(notif *msg.NotificationMessage)
+
 	// SendNotification [agent] sends a notification over the connections to
 	// remote subscribed consumers.
 	SendNotification(notif *msg.NotificationMessage)
