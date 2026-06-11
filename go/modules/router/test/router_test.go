@@ -20,7 +20,7 @@ import (
 	"github.com/hiveot/hivekit/go/modules/router"
 	routerpkg "github.com/hiveot/hivekit/go/modules/router/pkg"
 	"github.com/hiveot/hivekit/go/modules/transport"
-	"github.com/hiveot/hivekit/go/modules/transport/httptransport"
+	"github.com/hiveot/hivekit/go/modules/transport/tlsserver"
 	"github.com/hiveot/hivekit/go/testenv"
 	"github.com/hiveot/hivekit/go/utils"
 	"github.com/stretchr/testify/assert"
@@ -53,7 +53,7 @@ func startTestDevice(agentID string) (testDevice *testenv.TestDevice) {
 	testAuthn.AddClient(testRouterID, "", authn.ClientRoleManager)
 
 	// create a test device with server
-	cfg := httptransport.NewConfig(
+	cfg := tlsserver.NewTLSServerConfig(
 		certsBundle.ServerAddr, testDevicePort,
 		certsBundle.ServerCert, certsBundle.CaCert, true)
 
@@ -78,7 +78,7 @@ func SetupConsumerWithRouter() (
 
 	// setup the consumer side: directory, router and consumer
 	// register the device TD in the directory for use by the router
-	dirMod = directorypkg.NewDirectoryMsgServer("", storageDir, nil, nil)
+	dirMod = directorypkg.NewDirectoryService("", storageDir, nil, nil)
 	err := dirMod.Start()
 	if err != nil {
 		panic("SetupConsumerWithRouter: Directory.Start: " + err.Error())
@@ -124,7 +124,7 @@ func TestMain(m *testing.M) {
 func TestStartStop(t *testing.T) {
 	t.Logf("---%s---\n", t.Name())
 
-	var testDirMod = directorypkg.NewDirectoryMsgServer("", "", nil, nil)
+	var testDirMod = directorypkg.NewDirectoryService("", "", nil, nil)
 	err := testDirMod.Start()
 	require.NoError(t, err)
 	// test no cred store
@@ -183,7 +183,7 @@ func TestReadDeviceProperties(t *testing.T) {
 	// The agent of the test device handles read requests
 	testDevice := startTestDevice(agentID)
 	defer testDevice.Stop()
-	testDevice.Agent.PubProperty(agentID, prop1Name, prop1Value)
+	testDevice.Agent.PubProperty(agentID, prop1Name, prop1Value, false)
 
 	// setup the consumer with the router module
 	co, routerMod, dirMod := SetupConsumerWithRouter()
@@ -228,7 +228,7 @@ func TestSubscribeReconnectToDevice(t *testing.T) {
 
 	// setup the consumer side: directory, router and consumer
 	// register the device TD in the directory for use by the router
-	var testDirMod = directorypkg.NewDirectoryMsgServer("", "", nil, nil)
+	var testDirMod = directorypkg.NewDirectoryService("", "", nil, nil)
 	err := testDirMod.Start()
 	require.NoError(t, err)
 	defer testDirMod.Stop()
@@ -272,7 +272,7 @@ func TestSubscribeReconnectToDevice(t *testing.T) {
 	assert.NoError(t, err)
 
 	// the device updates a property and event
-	testDevice.Agent.PubProperty(agentID, prop1Name, prop1Value1)
+	testDevice.Agent.PubProperty(agentID, prop1Name, prop1Value1, false)
 	testDevice.Agent.PubEvent(agentID, event1Name, event1Value)
 	<-ctx.Done()
 	assert.Equal(t, event1Value, rxValue.Load())
@@ -292,7 +292,7 @@ func TestSubscribeReconnectToDevice(t *testing.T) {
 	time.Sleep(time.Second)
 
 	// publish a property should now succeed
-	testDevice.Agent.PubProperty(agentID, prop1Name, prop1Value2)
+	testDevice.Agent.PubProperty(agentID, prop1Name, prop1Value2, false)
 
 	values, err = co.ReadAllProperties(agentID)
 	assert.NoError(t, err)

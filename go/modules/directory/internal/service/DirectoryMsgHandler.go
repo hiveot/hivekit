@@ -34,17 +34,17 @@ func (handler *DirectoryMsgHandler) HandleRequest(req *msg.RequestMessage, reply
 	if req.Operation == td.OpInvokeAction {
 		// directory specific operations
 		switch req.Name {
-		case directory.ActionCreateThing:
+		case directory.CreateThingAction:
 			resp = handler.UpdateThing(req)
-		case directory.ActionDeleteThing:
+		case directory.DeleteThingAction:
 			resp = handler.DeleteThing(req)
-		case directory.ActionRetrieveThing:
+		case directory.RetrieveThingAction:
 			resp = handler.RetrieveThing(req)
-		case directory.ActionRetrieveAllThings:
+		case directory.RetrieveAllThingsAction:
 			resp = handler.RetrieveAllThings(req)
-		case directory.ActionRetrieveTDD:
+		case directory.RetrieveTDDAction:
 			resp = handler.RetrieveTDD(req)
-		case directory.ActionUpdateThing:
+		case directory.UpdateThingAction:
 			resp = handler.UpdateThing(req)
 		default:
 			err = fmt.Errorf("Unknown request name '%s' for thingID '%s'", req.Name, req.ThingID)

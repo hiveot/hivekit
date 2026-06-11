@@ -13,12 +13,15 @@ import (
 //go:embed "directory-tm.json"
 var DirectoryTMJson []byte
 
-// DirectoryModuleType identifies the directory module implementation
-const DirectoryModuleType = "directory"
+// two modules, the service and optional http server
+const (
+	// DirectoryModuleType identifies the directory module implementation
+	DirectoryModuleType = "directory"
 
-// DirectoryHttpModuleType identifies the http API module for the directory service
-// Place this module before any middleware so that requests are logged and authorized.
-const DirectoryHttpModuleType = "directory-http"
+	// DirectoryHttpModuleType identifies the http API module for the directory service
+	// Place this module before any middleware so that requests are logged and authorized.
+	DirectoryHttpModuleType = "directory-http"
+)
 
 // The thingID this directory identifies as for messaging. Must match the TD ID.
 const DefaultDirectoryThingID = "thingDirectory"
@@ -29,6 +32,20 @@ const WellKnownWoTPath = "/.well-known/wot"
 
 // Default limit in retrieving things
 const DefaultLimit = 300
+
+// events, properties and actions
+// these names must match the TD
+const (
+	ThingsProp              = "things"
+	ThingUpdatedEvent       = "thingUpdated"
+	ThingDeletedEvent       = "thingDeleted"
+	CreateThingAction       = "createThing"
+	DeleteThingAction       = "deleteThing"
+	RetrieveTDDAction       = "retrieveTDD"
+	RetrieveThingAction     = "retrieveThing"
+	RetrieveAllThingsAction = "retrieveAllThings"
+	UpdateThingAction       = "updateThing"
+)
 
 // The handler of TD write requests
 // This returns the original or a modified TD
@@ -46,6 +63,24 @@ type AgentInfo struct {
 	// ThingIDs of the devices it has registered
 	ThingIDs []string
 }
+
+// RetrieveAllThingsArgs defines the arguments of the retrieveAllThings action
+// Read all TDs - Read a batch of TD documents
+type RetrieveAllThingsArgs struct {
+
+	// Limit with Limit
+	//
+	// Maximum number of documents to return
+	Limit int `json:"limit,omitempty"`
+
+	// Offset with Offset
+	//
+	// Start index in the list of TD documents
+	Offset int `json:"offset,omitempty"`
+}
+
+// RetrieveAllThingsOutput output of the retrieveAllThings action
+type RetrieveAllThingsOutput []string
 
 // Directory http server as per https://w3c.github.io/wot-discovery/#exploration-directory-api
 // This acts as a simple http transport server and should be placed ahead of

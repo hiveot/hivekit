@@ -30,13 +30,13 @@ type BucketStoreService struct {
 	location string
 
 	// The storage bucket store itself, kvbtree, pebble or the default, the pipeline store.
-	store  bucketstore.IBucketStorage
+	store  bucketstore.IBucketStore
 	bucket bucketstore.IBucket
 	// serving cursor requests
 	cursorCache *CursorCache
 }
 
-func (svc *BucketStoreService) GetService() bucketstore.IBucketStorage {
+func (svc *BucketStoreService) GetService() bucketstore.IBucketStore {
 	return svc.store
 }
 
@@ -59,7 +59,7 @@ func (svc *BucketStoreService) Start() (err error) {
 	// if a storage directory is provided then open a store
 	// otherwise create an in-memory store.
 	if svc.location != "" {
-		svc.store, err = stores.NewBucketStorage(svc.location, svc.StoreType)
+		svc.store, err = stores.NewBucketStore(svc.location, svc.StoreType)
 	} else {
 		// no persistence. Use an in-memory store
 		svc.store = kvbtree.NewKVStore("")
@@ -102,8 +102,8 @@ func NewBucketStoreService(location string, storeType string) *BucketStoreServic
 		// bucketStore: bucketStore,
 	}
 
-	var _ modules.IHiveModule = m              // interface check
-	var _ bucketstore.IBucketStorage = m.store // interface check
+	var _ modules.IHiveModule = m            // interface check
+	var _ bucketstore.IBucketStore = m.store // interface check
 
 	return m
 }

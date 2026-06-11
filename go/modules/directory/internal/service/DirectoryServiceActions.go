@@ -5,20 +5,21 @@ import (
 	"fmt"
 	"log/slog"
 
+	"github.com/hiveot/hivekit/go/api/msg"
 	"github.com/hiveot/hivekit/go/api/td"
 	"github.com/hiveot/hivekit/go/modules/directory"
 )
 
 // CreateThing adds or replaces the TD in the store.
-func (m *DirectoryServer) CreateThing(agentID string, tdJson string) error {
+func (m *DirectoryService) CreateThing(agentID string, tdJson string) error {
 
 	// TODO: link the TD to the agent that created it
 
 	return m.UpdateThing(agentID, tdJson)
 }
 
-// DeleteThing removes a Thing TD document from the store.
-func (m *DirectoryServer) DeleteThing(agentID string, thingID string) (err error) {
+// DeleteThing removes a Thing TD document from the store and send a notification
+func (m *DirectoryService) DeleteThing(agentID string, thingID string) (err error) {
 
 	// TODO: check that the agentID is linked to this TD, or an administrator.
 
@@ -34,13 +35,17 @@ func (m *DirectoryServer) DeleteThing(agentID string, thingID string) (err error
 		m.tdCacheMux.Lock()
 		delete(m.tdCache, thingID)
 		m.tdCacheMux.Unlock()
+
+		notif := msg.NewNotificationMessage(m.GetThingID(), msg.AffordanceTypeEvent,
+			m.GetThingID(), directory.ThingDeletedEvent, thingID)
+		m.ForwardNotification(notif)
 	}
 	return err
 }
 
 // Return an instance of the thing TD if avaialable.
 // These instances are cached so successive requests are efficient.
-func (m *DirectoryServer) GetTD(thingID string) *td.TD {
+func (m *DirectoryService) GetTD(thingID string) *td.TD {
 	m.tdCacheMux.RLock()
 	tdi, found := m.tdCache[thingID]
 	if found {
@@ -68,7 +73,7 @@ func (m *DirectoryServer) GetTD(thingID string) *td.TD {
 
 // RetrieveAllThings returns a batch of TD documents
 // This returns a list of JSON encoded digital twin TD documents
-func (m *DirectoryServer) RetrieveAllThings(offset int, limit int) (tdList []string, err error) {
+func (m *DirectoryService) RetrieveAllThings(offset int, limit int) (tdList []string, err error) {
 	tdList = make([]string, 0)
 
 	cursor, err := m.tdBucket.Cursor()
@@ -99,12 +104,12 @@ func (m *DirectoryServer) RetrieveAllThings(offset int, limit int) (tdList []str
 }
 
 // Read the directory TDD itself
-func (cl *DirectoryServer) RetrieveTDD() (tdJSON string) {
+func (cl *DirectoryService) RetrieveTDD() (tdJSON string) {
 	return cl.tddJson
 }
 
 // RetrieveThing returns a JSON encoded TD document
-func (m *DirectoryServer) RetrieveThing(thingID string) (tdJSON string, err error) {
+func (m *DirectoryService) RetrieveThing(thingID string) (tdJSON string, err error) {
 	tdBytes, err := m.tdBucket.Get(thingID)
 	tdJSON = string(tdBytes)
 	return tdJSON, err
@@ -119,7 +124,7 @@ func (m *DirectoryServer) RetrieveThing(thingID string) (tdJSON string, err erro
 
 // UpdateThing replaces the TD in the store.
 // If the thing doesn't exist in the store it is added.
-func (m *DirectoryServer) UpdateThing(agentID string, tdJson string) error {
+func (m *DirectoryService) UpdateThing(agentID string, tdJson string) error {
 
 	// TODO: verify that the TD is the agent that created it.
 
@@ -146,6 +151,7 @@ func (m *DirectoryServer) UpdateThing(agentID string, tdJson string) error {
 			slog.Error("UpdateThing. writeTDHook returns a nil TD", "thingID", tdi.ID)
 			return fmt.Errorf("UpdateThing: Internal error, the writeTDHook returns a nil TD")
 		}
+		// replace the TD with the one provided by the hook
 		tdJson, _ = td.MarshalTD(tdi2)
 	}
 
@@ -154,6 +160,10 @@ func (m *DirectoryServer) UpdateThing(agentID string, tdJson string) error {
 	m.tdCacheMux.Lock()
 	delete(m.tdCache, tdi.ID)
 	m.tdCacheMux.Unlock()
+
+	notif := msg.NewNotificationMessage(m.GetThingID(), msg.AffordanceTypeEvent,
+		m.GetThingID(), directory.ThingUpdatedEvent, tdJson)
+	m.ForwardNotification(notif)
 
 	return err
 

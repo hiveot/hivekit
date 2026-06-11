@@ -5,8 +5,6 @@ import (
 	"time"
 
 	"github.com/hiveot/hivekit/go/modules/authn"
-	authnpkg "github.com/hiveot/hivekit/go/modules/authn/pkg"
-	"github.com/hiveot/hivekit/go/testenv"
 	"github.com/hiveot/hivekit/go/utils"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -57,11 +55,11 @@ func TestUpdatePassword(t *testing.T) {
 	_ = httpServer
 	defer cancelFn()
 
-	tp := testenv.NewTestTransport(user1ID, svc)
+	// tp := testenv.NewTestTransport(user1ID, svc)
 
 	// add user to test with
-	authCl := authnpkg.NewAuthnUserMsgClient()
-	authCl.SetRequestSink(tp)
+	// authCl := authnpkg.NewAuthnUserMsgClient()
+	// authCl.SetRequestSink(tp.HandleRequest)
 
 	err := svc.AddClient(user1ID, tu1Name, authn.ClientRoleViewer)
 	svc.SetPassword(user1ID, "oldpass")

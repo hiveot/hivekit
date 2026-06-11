@@ -98,10 +98,13 @@ type ITransportServer interface {
 	// The remote clients are the notification sink from the server perspective.
 	//
 	// Notifications received by the server are forwarded to the notification sink
+	// This returns an error if the notification is not handled or nil if at least one
+	// client subscribes.
 	HandleNotification(notif *msg.NotificationMessage)
 
 	// SendNotification [agent] sends a notification over the connections to
 	// remote subscribed consumers.
+	// This returns an error if the notification has no subscribers.
 	SendNotification(notif *msg.NotificationMessage)
 
 	// SendRequest [consumer] sends a request to a connected agent.

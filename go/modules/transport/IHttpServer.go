@@ -11,7 +11,7 @@ import (
 // These are used by GetRequestParams but usage is optional.
 const (
 	// The http server module type that can be used to retrieve the server instance from the factor.
-	HttpServerModuleType = "httpserver"
+	TLSServerModuleType = "httpserver"
 
 	// The default http server module instance ID
 	DefaultHttpServerModuleID = "httpserver"

@@ -1,6 +1,6 @@
-# HTTP Transport
+# TLS Server
 
-The HTTP Transport module is intended for use by http based transport protocols. This module includes support for common middleware such as cors, logging, recovery, compression. authentication and file server and provides callback hooks for logging and authentication interaction.
+The HiveKit TLS Server module is intended for use by http based transport protocols. This module includes support for common middleware such as cors, logging, recovery, compression. authentication and file server and provides callback hooks for logging and authentication interaction.
 
 The server provides two convenient routers for adding endpoints, a secured router which requires authentication and an unsecured router.
 
@@ -35,7 +35,7 @@ Other configuration:
 
 ## Usage
 
-There are two ways to create a HttpsBase module instance: using the pipeline factory or manually.
+There are two ways to create a TLSServer module instance: using the pipeline factory or manually.
 
 ### Factory
 
@@ -45,22 +45,22 @@ When using the pipeline factory, the server is automatically instantiated when a
 
 ### Manual Setup
 
-Manual HTTPS Server creation requires configuration with a listening port, server TLS certificate, CA certificate, and authenticator.
+Manual TLS Server creation requires configuration with a listening port, server TLS certificate, CA certificate, and authenticator.
 
 The certificates can be loaded manually or obtained from the certs module.
 The authenticator can be supplied manually or obtained from the authn module.
 
-See NewHttpsBaseOptions for defaults.
+See NewTLSServerConfig for defaults.
 
 ```go
- config := NewHttpsBaseOptions()
+ config := tls.NewTLSServerConfig()
  config.CaCert = certsModule.GetCACert(),
  config.ServerCert = certsModule.GetDefaultServerCert(),
  config.Authenticator = authnModule.GetAuthenticator()
- module := NewHttpServerModule(config)
+ module := tlspkg.NewTLSServer(config)
  err := module.Start()
  prouter := module.GetPublicRouter()
- srouter := module.GetSecuredRouter()
+ srouter := module.GetProtectedRouter()
 ```
 
 The public and secured routers are for use by transport and other modules to register their http endpoints.

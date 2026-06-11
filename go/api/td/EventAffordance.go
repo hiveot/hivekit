@@ -1,4 +1,4 @@
-// Package things with API interface definitions for the ExposedThing and ConsumedThing classes
+// Package things with API interface definitions
 package td
 
 import "github.com/hiveot/hivekit/go/utils"

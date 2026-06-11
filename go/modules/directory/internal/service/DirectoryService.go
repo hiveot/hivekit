@@ -15,7 +15,7 @@ import (
 	"github.com/hiveot/hivekit/go/modules/transport"
 )
 
-// DirectoryServer is a module for serving a WoT Thing directory.
+// DirectoryService is a module for serving a WoT Thing directory.
 // This implements the IHiveModule and IDirectoryService interfaces.
 //
 // The directory can be accessed:
@@ -28,13 +28,13 @@ import (
 // The module is configured using yaml.
 //
 // This uses the fast and lightweight kvbtree bucket store to persist TD documents.
-type DirectoryServer struct {
+type DirectoryService struct {
 	*modules.HiveModuleBase
 
 	// tdBucket store with TD's by thingID
 	tdBucket     bucketstore.IBucket
 	tdBucketName string
-	bucketStore  bucketstore.IBucketStorage
+	bucketStore  bucketstore.IBucketStore
 
 	// the RRN messaging API for the directory itself
 	msgAPI *DirectoryMsgHandler
@@ -57,7 +57,7 @@ type DirectoryServer struct {
 }
 
 // GetAgentInfo provides information on Things registered by an agent
-func (m *DirectoryServer) GetAgentInfo(agentID string) (
+func (m *DirectoryService) GetAgentInfo(agentID string) (
 	info directory.AgentInfo, found bool) {
 
 	// how are agents tracked?
@@ -71,7 +71,7 @@ func (m *DirectoryServer) GetAgentInfo(agentID string) (
 }
 
 // HandleRequest passes the module request messages to the API handler.
-func (m *DirectoryServer) HandleRequest(req *msg.RequestMessage, replyTo msg.ResponseHandler) (err error) {
+func (m *DirectoryService) HandleRequest(req *msg.RequestMessage, replyTo msg.ResponseHandler) (err error) {
 	if req.ThingID == m.GetThingID() {
 		err = m.msgAPI.HandleRequest(req, replyTo)
 	} else {
@@ -81,14 +81,14 @@ func (m *DirectoryServer) HandleRequest(req *msg.RequestMessage, replyTo msg.Res
 }
 
 // Serve reading the directory TDD over http on the well-known path
-func (m *DirectoryServer) serveReadTDD(w http.ResponseWriter, r *http.Request) {
+func (m *DirectoryService) serveReadTDD(w http.ResponseWriter, r *http.Request) {
 	_, _ = w.Write([]byte(m.tddJson))
 	// utils.WriteReply(w, true, m.tddJson, nil)
 }
 
 // SetTDHooks set the callbacks that are invoked before writing and deleting the TD
 // to the directory store.
-func (m *DirectoryServer) SetTDHooks(
+func (m *DirectoryService) SetTDHooks(
 	writeHandler directory.WriteTDHook, deleteHandler directory.DeleteTDHook) {
 	m.deleteTDHook = deleteHandler
 	m.writeTDHook = writeHandler
@@ -101,7 +101,7 @@ func (m *DirectoryServer) SetTDHooks(
 // - enable the messaging request handler
 // - enable the http request handler using the given router
 // - updates this service TD in the store
-func (m *DirectoryServer) Start() (err error) {
+func (m *DirectoryService) Start() (err error) {
 
 	storagePath := m.storageLoc
 	thingID := m.GetThingID()
@@ -131,7 +131,7 @@ func (m *DirectoryServer) Start() (err error) {
 }
 
 // Stop any running actions
-func (m *DirectoryServer) Stop() {
+func (m *DirectoryService) Stop() {
 	slog.Info("Stop: Stopping directory module")
 	err := m.tdBucket.Close()
 	if err != nil {
@@ -140,7 +140,7 @@ func (m *DirectoryServer) Stop() {
 	m.bucketStore.Close()
 }
 
-// Start a new thing directory server module.
+// Start a new thing directory service module.
 // On start this opens or creates a directory store in root/moduleID.
 // Directory entries are stored in the 'directory' bucket.
 //
@@ -154,9 +154,9 @@ func (m *DirectoryServer) Stop() {
 //	location is the location where the module stores its data. Use "" for testing with an in-memory store.
 //	tddServer is used to expose the directory TDD on the well-known path.
 //	transports is a list of transports that should be included in the TDD security and forms. nil to not include these.
-func NewDirectoryServer(
+func NewDirectoryService(
 	thingID string, location string, tddServer transport.IHttpServer,
-	transports []transport.ITransportServer) *DirectoryServer {
+	transports []transport.ITransportServer) *DirectoryService {
 
 	if thingID == "" {
 		thingID = directory.DefaultDirectoryThingID
@@ -174,7 +174,7 @@ func NewDirectoryServer(
 		}
 	}
 	tddJson, _ := td.MarshalTD(tddDoc)
-	m := &DirectoryServer{
+	m := &DirectoryService{
 		HiveModuleBase: modules.NewHiveModuleBase(thingID, 0),
 		tddServer:      tddServer,
 		storageLoc:     location,

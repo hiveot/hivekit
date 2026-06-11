@@ -41,7 +41,7 @@ const (
 // This implements the properties, events and actions listed in the device TM.
 // This does not expose the TM because .. this is a simple example.
 type MyCounterDevice struct {
-	agent.Agent
+	*agent.Agent
 
 	counter          atomic.Int32
 	backgroundCtx    context.Context
@@ -110,7 +110,7 @@ func (m *MyCounterDevice) HandleWriteProperty(req *msg.RequestMessage, replyTo m
 	if err == nil {
 		m.counter.Store(int32(newValue))
 		// PubProperty makes the last value available via HandleReadRequests
-		m.PubProperty(req.ThingID, req.Name, newValue)
+		m.PubProperty(req.ThingID, req.Name, newValue, true)
 	}
 	resp := req.CreateResponse(nil, err)
 	if replyTo != nil {
@@ -132,7 +132,7 @@ func (m *MyCounterDevice) Start() error {
 	go func() {
 		time.Sleep(time.Millisecond)
 		// write TD to the directory or discovery
-		err := m.PubTD(string(CounterDeviceTM))
+		err := m.WriteTD(string(CounterDeviceTM))
 		_ = err
 	}()
 	// publish the latest property values
@@ -140,7 +140,7 @@ func (m *MyCounterDevice) Start() error {
 		CounterPropName: m.counter.Load(),
 	}
 	thingID := m.GetThingID()
-	m.PubProperties(thingID, props)
+	m.PubProperties(thingID, props, true)
 	m.PubEvent(thingID, CounterUpdatedEvent, m.counter.Load())
 
 	go m.Background()
@@ -159,13 +159,13 @@ func (m *MyCounterDevice) Update(newValue int) {
 	m.counter.Store(int32(newValue))
 	thingID := m.GetThingID()
 	// Send both a property update and event notification
-	m.PubProperty(thingID, CounterPropName, m.counter.Load())
+	m.PubProperty(thingID, CounterPropName, m.counter.Load(), true)
 	m.PubEvent(thingID, CounterUpdatedEvent, m.counter.Load())
 }
 
 func NewCounterDevice(agentID string) modules.IHiveModule {
 	m := &MyCounterDevice{
-		Agent: *agent.NewAgent(agentID, nil),
+		Agent: agent.NewAgent(agentID, nil),
 	}
 	m.counter.Store(42)
 	return m

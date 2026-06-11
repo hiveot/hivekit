@@ -1,5 +1,5 @@
-// Package td with Schema type definitions for the ExposedThing and ConsumedThing classes
-// as described here: https://www.w3.org/TR/wot-thing-description/#sec-data-schema-vocabulary-definition
+// Package td with Schema type definitions as described here:
+// https://www.w3.org/TR/wot-thing-description/#sec-data-schema-vocabulary-definition
 package td
 
 // NoSchema is a read-only schema to use when schema is unknown.

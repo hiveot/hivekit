@@ -18,7 +18,7 @@ import (
 	addformspkg "github.com/hiveot/hivekit/go/modules/transport/addforms/pkg"
 	"github.com/hiveot/hivekit/go/modules/transport/discovery"
 	discoverypkg "github.com/hiveot/hivekit/go/modules/transport/discovery/pkg"
-	httptransportpkg "github.com/hiveot/hivekit/go/modules/transport/httptransport/pkg"
+	tlsserverpkg "github.com/hiveot/hivekit/go/modules/transport/tlsserver/pkg"
 	"github.com/hiveot/hivekit/go/modules/transport/wss"
 	wsspkg "github.com/hiveot/hivekit/go/modules/transport/wss/pkg"
 	"github.com/hiveot/hivekit/go/utils"
@@ -40,8 +40,8 @@ var recipe = factorypkg.FactoryRecipe{
 			Constructor: discoverypkg.NewDiscoveryServerFactory,
 		},
 		// http server module is used by websockets
-		transport.HttpServerModuleType: {
-			Constructor: httptransportpkg.NewHttpTransportServerFactory,
+		transport.TLSServerModuleType: {
+			Constructor: tlsserverpkg.NewTLSServerFactory,
 		},
 		// websockets is the main communication transport
 		wss.HiveotWebsocketServerModuleType: {

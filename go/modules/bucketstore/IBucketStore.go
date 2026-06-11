@@ -54,7 +54,7 @@ type BucketStoreInfo struct {
 	NrRecords int64
 }
 
-// IBucketStorage defines the interface to a simple key-value embedded bucket store.
+// IBucketStore defines the interface to a simple key-value embedded bucket store.
 //   - organizes data into buckets
 //   - open/close buckets as a transaction, if transactions are available
 //   - get/set single or multiple key/value pairs
@@ -64,7 +64,7 @@ type BucketStoreInfo struct {
 //     Various implementations are available to the services to use.
 //
 // TODO: add refcount for multiple consumers of the store so it can be closed when done.
-type IBucketStorage interface {
+type IBucketStore interface {
 	// Close the store and release its resources
 	Close() error
 

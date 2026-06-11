@@ -5,7 +5,6 @@ import (
 	"github.com/hiveot/hivekit/go/api/td"
 	"github.com/hiveot/hivekit/go/modules"
 	authnapi "github.com/hiveot/hivekit/go/modules/authn"
-	"github.com/hiveot/hivekit/go/modules/consumer"
 )
 
 // AuthnAdminMsgClient is a client module for authentication management using RRN messages.
@@ -31,9 +30,9 @@ func (m *AuthnAdminMsgClient) AddClient(clientID string, displayName string, rol
 	return
 }
 
-// AdminGetClientProfile client method - Get Client Profile.
+// GetClientProfile client method - Get Client Profile.
 // Get the profile information describing a client
-func (m *AuthnAdminMsgClient) AdminGetClientProfile(co *consumer.Consumer, clientID string) (
+func (m *AuthnAdminMsgClient) GetClientProfile(clientID string) (
 	profile authnapi.ClientProfile, err error) {
 
 	thingID := authnapi.DefaultAdminServiceID
@@ -42,9 +41,9 @@ func (m *AuthnAdminMsgClient) AdminGetClientProfile(co *consumer.Consumer, clien
 	return
 }
 
-// AdminGetProfiles client method - Get Profiles.
+// GetProfiles client method - Get Profiles.
 // Get a list of all client profiles
-func (m *AuthnAdminMsgClient) AdminGetProfiles(co *consumer.Consumer) (clientProfiles []authnapi.ClientProfile, err error) {
+func (m *AuthnAdminMsgClient) GetProfiles() (clientProfiles []authnapi.ClientProfile, err error) {
 
 	thingID := authnapi.DefaultAdminServiceID
 	err = m.Rpc(td.OpInvokeAction, thingID,
@@ -52,9 +51,9 @@ func (m *AuthnAdminMsgClient) AdminGetProfiles(co *consumer.Consumer) (clientPro
 	return
 }
 
-// AdminRemoveClient client method - Remove Client.
+// RemoveClient client method - Remove Client.
 // Remove a client account
-func (m *AuthnAdminMsgClient) AdminRemoveClient(hc *consumer.Consumer, clientID string) (err error) {
+func (m *AuthnAdminMsgClient) RemoveClient(clientID string) (err error) {
 
 	thingID := authnapi.DefaultAdminServiceID
 	err = m.Rpc(td.OpInvokeAction, thingID,
@@ -62,9 +61,10 @@ func (m *AuthnAdminMsgClient) AdminRemoveClient(hc *consumer.Consumer, clientID 
 	return
 }
 
-// AdminSetClientPassword client method - Set Client Password.
+// SetClientPassword client method - Set Client Password.
 // Update the password of a consumer
-func (m *AuthnAdminMsgClient) AdminSetClientPassword(hc *consumer.Consumer, userName string, password string) (err error) {
+func (m *AuthnAdminMsgClient) SetClientPassword(userName string, password string) (err error) {
+
 	var args = authnapi.AdminSetPasswordArgs{
 		UserName: userName, Password: password}
 
@@ -74,9 +74,9 @@ func (m *AuthnAdminMsgClient) AdminSetClientPassword(hc *consumer.Consumer, user
 	return
 }
 
-// AdminUpdateClientProfile client method - Update Client Profile.
+// UpdateClientProfile client method - Update Client Profile.
 // Update the details of a client
-func (m *AuthnAdminMsgClient) AdminUpdateClientProfile(clientProfile authnapi.ClientProfile) (err error) {
+func (m *AuthnAdminMsgClient) UpdateClientProfile(clientProfile authnapi.ClientProfile) (err error) {
 
 	thingID := authnapi.DefaultAdminServiceID
 	err = m.Rpc(td.OpInvokeAction,
@@ -85,9 +85,14 @@ func (m *AuthnAdminMsgClient) AdminUpdateClientProfile(clientProfile authnapi.Cl
 }
 
 // Create a new instance of the authentication administration messaging client
-func NewAuthnAdminMsgClient() *AuthnAdminMsgClient {
+// sink is the request handler this will link to. nil to ignore.
+func NewAuthnAdminClient(sink modules.IHiveModule) *AuthnAdminMsgClient {
 	m := &AuthnAdminMsgClient{
 		HiveModuleBase: modules.NewHiveModuleBase("", 0),
+	}
+	if sink != nil {
+		m.SetRequestSink(sink)
+		sink.SetNotificationSink(m)
 	}
 	return m
 }

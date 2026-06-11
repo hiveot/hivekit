@@ -8,6 +8,7 @@ import (
 	"github.com/hiveot/hivekit/go/modules/transport"
 )
 
+// AddFormsService modifies TD's sent with directory update and create commands with base, security, and form information from the configured transports.
 type AddFormsService struct {
 	modules.HiveModuleBase
 
@@ -22,11 +23,12 @@ type AddFormsService struct {
 	tpServers []transport.ITransportServer
 }
 
+// convert TDs provided with CreateThing and UpdateThing directory actions
 func (m *AddFormsService) HandleRequest(req *msg.RequestMessage, replyTo msg.ResponseHandler) error {
 	if req.Operation != td.OpInvokeAction {
 		return m.ForwardRequest(req, replyTo)
 	}
-	if req.Name != directory.ActionCreateThing && req.Name != directory.ActionUpdateThing {
+	if req.Name != directory.CreateThingAction && req.Name != directory.UpdateThingAction {
 		return m.ForwardRequest(req, replyTo)
 	}
 	// if a serviceID is provides it must match that of the request

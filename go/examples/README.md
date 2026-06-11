@@ -60,12 +60,12 @@ A different home directory can be passed using -home=/path/to/my/home.
 
 If no CA or server certificate exists, a self-signed certificate will be created. This is kept in-memory only so in order to have the client and server of these examples recognize the same certificate.
 
-To create a self-signed CA certificate in the certs directory run:
+To create a self-signed CA certificate in the certs directory run: (todo)
 
-> dist/example2 createca
+> dist/example3 createca
 
 To create a server certificate:
 
-> dist/example2 createservercert
+> dist/example3 createservercert
 
 Support for lets-encrypt is planned for the future.

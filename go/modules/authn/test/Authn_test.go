@@ -11,8 +11,8 @@ import (
 	authnpkg "github.com/hiveot/hivekit/go/modules/authn/pkg"
 	certstest "github.com/hiveot/hivekit/go/modules/certs/test"
 	"github.com/hiveot/hivekit/go/modules/transport"
-	"github.com/hiveot/hivekit/go/modules/transport/httptransport"
-	httptransportpkg "github.com/hiveot/hivekit/go/modules/transport/httptransport/pkg"
+	"github.com/hiveot/hivekit/go/modules/transport/tlsserver"
+	tlsserverpkg "github.com/hiveot/hivekit/go/modules/transport/tlsserver/pkg"
 	"github.com/hiveot/hivekit/go/utils"
 	"github.com/stretchr/testify/require"
 )
@@ -92,11 +92,11 @@ func startTestAuthnModule(encryption string) (tp transport.IHttpServer, authnSvc
 
 	// create the http api handler for authn user requests over http
 	testCerts = certstest.CreateTestCertBundle(TestKeyType)
-	cfg := httptransport.NewConfig(
+	cfg := tlsserver.NewTLSServerConfig(
 		"localhost", serverPort,
 		testCerts.ServerCert, testCerts.CaCert, true)
 
-	httpServer := httptransportpkg.NewHttpTransportServer(cfg, authenticator)
+	httpServer := tlsserverpkg.NewTLSServer(cfg, authenticator)
 	err = httpServer.Start()
 
 	if err != nil {

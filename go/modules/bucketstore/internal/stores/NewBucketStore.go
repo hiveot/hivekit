@@ -8,7 +8,7 @@ import (
 	"github.com/hiveot/hivekit/go/modules/bucketstore/internal/stores/pebble"
 )
 
-// NewBucketStorage is the factory function that creates a new, unopened, instance of a bucketstore
+// NewBucketStore is the factory function that creates a new, unopened, instance of a bucketstore
 // for the given location and type. Open must be called before use. (or use OpenBucketStore)
 //
 // Intended for use by the bucketstore service and for modules that need internal storage.
@@ -24,8 +24,8 @@ import (
 //	for backend sqlite this is the sqlite DB name
 //
 // backend, one of the supported backends (BackendKVBTree, BackendPebble)
-func NewBucketStorage(location string, backend string) (
-	store bucketstore.IBucketStorage, err error) {
+func NewBucketStore(location string, backend string) (
+	store bucketstore.IBucketStore, err error) {
 
 	if location == "" {
 		backend = bucketstore.BackendKVBTree

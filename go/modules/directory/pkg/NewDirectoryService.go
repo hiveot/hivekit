@@ -3,12 +3,12 @@ package directorypkg
 import (
 	"github.com/hiveot/hivekit/go/modules"
 	"github.com/hiveot/hivekit/go/modules/directory"
-	internal "github.com/hiveot/hivekit/go/modules/directory/internal/msgserver"
+	internal "github.com/hiveot/hivekit/go/modules/directory/internal/service"
 	"github.com/hiveot/hivekit/go/modules/factory"
 	"github.com/hiveot/hivekit/go/modules/transport"
 )
 
-// NewDirectoryServer creates a new Thing directory server module instance.
+// NewDirectoryService creates a new Thing directory server module instance.
 // On start this opens or creates a directory in the provided storage directory.
 //
 // To expose the http API create the DirectoryHttpHandler module and include it
@@ -19,11 +19,11 @@ import (
 //	location is the location where the module stores its data. Use "" for testing with an in-memory store.
 //	httpServer is used to expose the directory TDD on the well-known path.
 //	transports is a list of transports that should be included in the TDD security and forms
-func NewDirectoryMsgServer(
+func NewDirectoryService(
 	serviceID string, storageDir string, httpServer transport.IHttpServer,
 	transports []transport.ITransportServer) directory.IDirectoryService {
 
-	m := internal.NewDirectoryServer(
+	m := internal.NewDirectoryService(
 		serviceID, storageDir, httpServer, transports)
 	return m
 }
@@ -31,7 +31,7 @@ func NewDirectoryMsgServer(
 // Create the directory service module using the factory environment
 // The director http-service is optional. This will continue without http if the
 // module is not yet loaded.
-func NewDirectoryMsgServerFactory(f factory.IModuleFactory) (modules.IHiveModule, error) {
+func NewDirectoryServiceFactory(f factory.IModuleFactory) (modules.IHiveModule, error) {
 	env := f.GetEnvironment()
 	storageDir := env.GetStorageDir(directory.DirectoryModuleType)
 
@@ -42,6 +42,6 @@ func NewDirectoryMsgServerFactory(f factory.IModuleFactory) (modules.IHiveModule
 	// }
 	transports := f.GetTransportServers()
 
-	m := NewDirectoryMsgServer("", storageDir, f.GetHttpServer(false), transports)
+	m := NewDirectoryService("", storageDir, f.GetHttpServer(false), transports)
 	return m, nil
 }

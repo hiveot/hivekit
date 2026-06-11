@@ -122,7 +122,7 @@ func TestDiscoverGetThingTD(t *testing.T) {
 	// err = m.ServeThingTD(thingTD)
 	tdJson1, _ := td.MarshalTD(thingTD)
 	req := msg.NewRequestMessage(td.OpInvokeAction,
-		directory.DefaultDirectoryThingID, directory.ActionCreateThing, tdJson1)
+		directory.DefaultDirectoryThingID, directory.CreateThingAction, tdJson1)
 	err = m.HandleRequest(req, nil)
 	require.NoError(t, err)
 

@@ -26,7 +26,7 @@ type HistoryService struct {
 	*modules.HiveModuleBase
 
 	// The underlying bucketstore instance
-	bucketStore bucketstore.IBucketStorage
+	bucketStore bucketstore.IBucketStore
 
 	config history.HistoryConfig
 

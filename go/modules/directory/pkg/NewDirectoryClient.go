@@ -7,46 +7,46 @@ import (
 	"github.com/hiveot/hivekit/go/modules/directory"
 )
 
-// DirectoryMsgClient is a client for the Directory service using RRN messages.
+// DirectoryClient is a client for the Directory service using RRN messages.
 // This implements the IDirectory interface and accepts a messaging protocol sink.
 // Intended to be used with a client transport module as sink, that forwards the messages.
-type DirectoryMsgClient struct {
+type DirectoryClient struct {
 	modules.HiveModuleBase
 
 	// directoryThingID ThingID of the directory service instance.
 	directoryThingID string
 }
 
-func (cl *DirectoryMsgClient) DeleteThing(thingID string) error {
+func (cl *DirectoryClient) DeleteThing(thingID string) error {
 
 	// the senderID is added by the transport server
 	err := cl.Rpc(td.OpInvokeAction,
-		cl.directoryThingID, directory.ActionDeleteThing, thingID, nil)
+		cl.directoryThingID, directory.DeleteThingAction, thingID, nil)
 	return err
 }
 
 // request the directory TD itself
-func (cl *DirectoryMsgClient) RetrieveTDD() (tdJson string, err error) {
+func (cl *DirectoryClient) RetrieveTDD() (tdJson string, err error) {
 
 	err = cl.Rpc(td.OpInvokeAction,
-		cl.directoryThingID, directory.ActionRetrieveTDD, nil, &tdJson)
+		cl.directoryThingID, directory.RetrieveTDDAction, nil, &tdJson)
 	return tdJson, err
 }
 
-func (cl *DirectoryMsgClient) RetrieveThing(thingID string) (tdJson string, err error) {
+func (cl *DirectoryClient) RetrieveThing(thingID string) (tdJson string, err error) {
 
 	err = cl.Rpc(td.OpInvokeAction,
-		cl.directoryThingID, directory.ActionRetrieveThing, thingID, &tdJson)
+		cl.directoryThingID, directory.RetrieveThingAction, thingID, &tdJson)
 	return tdJson, err
 }
 
-func (cl *DirectoryMsgClient) RetrieveAllThings(offset int, limit int) (tdList []string, err error) {
+func (cl *DirectoryClient) RetrieveAllThings(offset int, limit int) (tdList []string, err error) {
 	args := directory.RetrieveAllThingsArgs{
 		Offset: offset,
 		Limit:  limit,
 	}
 	err = cl.Rpc(td.OpInvokeAction,
-		cl.directoryThingID, directory.ActionRetrieveAllThings, args, &tdList)
+		cl.directoryThingID, directory.RetrieveAllThingsAction, args, &tdList)
 	return tdList, err
 }
 
@@ -61,7 +61,7 @@ func (cl *DirectoryMsgClient) RetrieveAllThings(offset int, limit int) (tdList [
 // 	return err
 // }
 
-// NewDirectoryMsgClient creates a new DirectoryMsgClient instance for consumers.
+// NewDirectoryClient creates a new DirectoryMsgClient instance for consumers.
 // Use the sink to attach a transport module.
 //
 // Do not use this client with agents as it registers itself as the receiver of notifications.
@@ -71,19 +71,19 @@ func (cl *DirectoryMsgClient) RetrieveAllThings(offset int, limit int) (tdList [
 // This registers the directory client as the sink for notifications from the request handler.
 // with the intent to receive directory updates.
 //
-//	serviceID is the thing ID of the directory service instance. This defaults to the directory module's type.
-//	reqSink forwards requests from the directory client to the directory server and returns notifications
-func NewDirectoryMsgClient(directoryThingID string, reqSink modules.IHiveModule) *DirectoryMsgClient {
-	if directoryThingID == "" {
-		directoryThingID = directory.DefaultDirectoryThingID
+//	dirThingID is the thing ID of the directory service instance. Use "" for DefaultDirectoryThingID.
+//	sink forwards requests from the directory client to the directory server and returns notifications. nil to ignore
+func NewDirectoryClient(dirThingID string, sink modules.IHiveModule) *DirectoryClient {
+	if dirThingID == "" {
+		dirThingID = directory.DefaultDirectoryThingID
 	}
-	cl := &DirectoryMsgClient{
-		directoryThingID: directoryThingID,
+	cl := &DirectoryClient{
+		directoryThingID: dirThingID,
 	}
-	if reqSink != nil {
-		cl.SetRequestSink(reqSink)
+	if sink != nil {
+		cl.SetRequestSink(sink)
 		// notifications returned are passed to this client (if any subscriptions are made)
-		reqSink.SetNotificationSink(cl)
+		sink.SetNotificationSink(cl)
 	}
 	return cl
 }
@@ -104,7 +104,7 @@ func UpdateTD(directoryThingID string, tdJson string, reqHandler msg.RequestHand
 		directoryThingID = directory.DirectoryModuleType
 	}
 	req := msg.NewRequestMessage(
-		td.OpInvokeAction, directoryThingID, directory.ActionUpdateThing, tdJson)
+		td.OpInvokeAction, directoryThingID, directory.UpdateThingAction, tdJson)
 
 	_, err := msg.ForwardRequestWait(req, reqHandler, msg.DefaultRnRTimeout)
 

@@ -109,8 +109,7 @@ func BenchmarkAddEvents(b *testing.B) {
 		co1, _, _ := testEnv.NewConnectedConsumer(
 			testClientID, authn.ClientRoleOperator, false)
 
-		readHist := historypkg.NewReadHistoryClient()
-		readHist.SetRequestSink(co1)
+		readHist := historypkg.NewReadHistoryClient(co1)
 		defer co1.Stop()
 
 		time.Sleep(time.Millisecond * 300) // let the add settle

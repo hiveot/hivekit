@@ -109,12 +109,13 @@ func PemToDer(pemString string) ([]byte, error) {
 	return derBytes, nil
 }
 
-// LoadCreateKeyPair loads a public/private key pair from file or create it if it doesn't exist
+// LoadCreateKeyPair loads a public/private key pair from file.
 // This will load or create a file <clientID>.key and <clientID>.pub from the keysDir.
+// If the key doesn't exist a new key is created using the given keyType.
 //
 //	clientID is the client to create the keys for
 //	keysDir is the location of the key file
-//	keyType is the type of key to create
+//	keyType is the type of key when creating a new key
 func LoadCreateKeyPair(clientID string, keysDir string, keyType KeyType) (
 	privKey crypto.PrivateKey, pubKey crypto.PublicKey, err error) {
 
@@ -126,14 +127,9 @@ func LoadCreateKeyPair(clientID string, keysDir string, keyType KeyType) (
 	pubFile := path.Join(keysDir, clientID+PubKeyFileExt)
 
 	// load key from file
-	actualKeyType, privKey, pubKey, err := LoadPrivateKey(keyFile)
+	privKey, pubKey, err = LoadPrivateKey(keyFile)
 
-	if err == nil {
-		if actualKeyType != keyType {
-			err = fmt.Errorf("Key requested in file '%s' of type '%s' but is of type '%s'",
-				keyFile, keyType, actualKeyType)
-		}
-	} else {
+	if err != nil {
 		// no keyfile, create the key
 		privKey, pubKey = NewKey(keyType)
 
@@ -152,18 +148,18 @@ func LoadCreateKeyPair(clientID string, keysDir string, keyType KeyType) (
 //
 //	keyPath is the path to the file containing the key
 func LoadPrivateKey(keyPath string) (
-	keyType KeyType, privKey crypto.PrivateKey, pubKey crypto.PublicKey, err error) {
+	privKey crypto.PrivateKey, pubKey crypto.PublicKey, err error) {
 
 	privPEM, err := os.ReadFile(keyPath)
 	if err != nil {
-		return KeyTypeUnknown, nil, nil, err
+		return nil, nil, err
 	}
-	keyType, privKey, pubKey, err = PrivateKeyFromPem(string(privPEM))
+	privKey, pubKey, err = PrivateKeyFromPem(string(privPEM))
 	_ = pubKey
 	if err != nil {
-		return keyType, nil, pubKey, err
+		return nil, pubKey, err
 	}
-	return keyType, privKey, pubKey, err
+	return privKey, pubKey, err
 }
 
 // LoadPublicKey loads a public key from file.
@@ -232,11 +228,10 @@ func NewKey(keyType KeyType) (crypto.PrivateKey, crypto.PublicKey) {
 	}
 }
 
-// PrivateKeyFromPem reads the key-pair from the PEM private key
-// and determines its key type.
+// PrivateKeyFromPem reads the key-pair from the PEM private key.
 // This returns an error if the PEM is not a valid key.
 func PrivateKeyFromPem(privatePEM string) (
-	keyType KeyType, privKey crypto.PrivateKey, pubKey crypto.PublicKey, err error) {
+	privKey crypto.PrivateKey, pubKey crypto.PublicKey, err error) {
 
 	var rawPrivateKey crypto.PrivateKey
 	derBytes, err := PemToDer(privatePEM)
@@ -245,21 +240,24 @@ func PrivateKeyFromPem(privatePEM string) (
 		rawPrivateKey, err = x509.ParsePKCS8PrivateKey(derBytes)
 	}
 	if err != nil {
-		return KeyTypeUnknown, nil, nil, err
+		// unknown key type
+		return nil, nil, err
 	}
 
 	// for rsa, ecdsa, ecdha this is a ptr, ed25519 a non-pointer key
 	ecdsaPrivKey, valid := rawPrivateKey.(*ecdsa.PrivateKey)
 	if valid {
+		// ECDSA key type
 		ecdsaPubKey := &ecdsaPrivKey.PublicKey
-		return KeyTypeECDSA, ecdsaPrivKey, ecdsaPubKey, nil
+		return ecdsaPrivKey, ecdsaPubKey, nil
 	}
 
 	// try ed25519
 	ed25519PrivKey, valid := rawPrivateKey.(ed25519.PrivateKey)
 	if valid {
+		// ED25519 key type
 		ed25519Pub := ed25519PrivKey.Public()
-		return KeyTypeED25519, ed25519PrivKey, ed25519Pub, nil
+		return ed25519PrivKey, ed25519Pub, nil
 	}
 
 	// if len(derBytes) == ed25519.SeedSize {
@@ -271,13 +269,14 @@ func PrivateKeyFromPem(privatePEM string) (
 	// try RSA
 	rsaPrivKey, valid := rawPrivateKey.(*rsa.PrivateKey)
 	if valid {
+		// RSA key type
 		pubKey := &rsaPrivKey.PublicKey
-		return KeyTypeRSA, rsaPrivKey, pubKey, nil
+		return rsaPrivKey, pubKey, nil
 	}
 
 	keyTypeName := reflect.TypeOf(pubKey)
 	err = fmt.Errorf("not an ECDSA, ED25519 or RSA private key. It looks to be a '%s'", keyTypeName)
-	return KeyTypeUnknown, nil, nil, err
+	return nil, nil, err
 }
 
 // PrivateKeyToPem returns the PEM encoded private key

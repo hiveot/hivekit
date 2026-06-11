@@ -1,4 +1,3 @@
-// Package td with API interface definitions for the ExposedThing and ConsumedThing classes
 package td
 
 import (

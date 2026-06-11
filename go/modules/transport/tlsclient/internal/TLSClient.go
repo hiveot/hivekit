@@ -427,7 +427,7 @@ func (cl *TLSClient) Trace(path string) (statusCode int, err error) {
 	return statusCode, err
 }
 
-// NewTlsClient creates a new TLS Client instance.
+// NewTLSClient creates a new TLS Client instance.
 // Use setup/Remove to open and close connections
 //
 //	hostPort is the server address in host:port format
@@ -435,7 +435,7 @@ func (cl *TLSClient) Trace(path string) (statusCode int, err error) {
 //	timeout duration for use with Delete,Get,Patch,Post,Put, 0 for DefaultClientTimeout
 //
 // returns TLS client for submitting requests
-func NewTlsClient(hostPort string, caCert *x509.Certificate, timeout time.Duration) *TLSClient {
+func NewTLSClient(hostPort string, caCert *x509.Certificate, timeout time.Duration) *TLSClient {
 
 	var clientID string
 	if timeout == 0 {

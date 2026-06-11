@@ -7,9 +7,9 @@ import (
 	"github.com/hiveot/hivekit/go/modules/transport"
 	grpcpkg "github.com/hiveot/hivekit/go/modules/transport/grpc/pkg"
 	httpbasicpkg "github.com/hiveot/hivekit/go/modules/transport/httpbasic/pkg"
-	"github.com/hiveot/hivekit/go/modules/transport/httptransport"
-	httptransportpkg "github.com/hiveot/hivekit/go/modules/transport/httptransport/pkg"
 	ssescpkg "github.com/hiveot/hivekit/go/modules/transport/ssesc/pkg"
+	"github.com/hiveot/hivekit/go/modules/transport/tlsserver"
+	tlsserverpkg "github.com/hiveot/hivekit/go/modules/transport/tlsserver/pkg"
 	wsspkg "github.com/hiveot/hivekit/go/modules/transport/wss/pkg"
 )
 
@@ -17,7 +17,7 @@ import (
 type TestDevice struct {
 	agentID         string
 	authenticator   transport.IAuthenticator
-	cfg             *httptransport.Config
+	cfg             *tlsserver.TLSServerConfig
 	HttpServer      transport.IHttpServer
 	TransportServer transport.ITransportServer
 	Agent           *agent.Agent
@@ -47,7 +47,7 @@ func (device *TestDevice) Start() error {
 
 	// setup the server, transport and link the device to the transport
 	// cfg := httpserverapi.NewConfig(addr, port, serverCert, caCert, validateToken)
-	device.HttpServer = httptransportpkg.NewHttpTransportServer(
+	device.HttpServer = tlsserverpkg.NewTLSServer(
 		device.cfg, device.authenticator)
 
 	err := device.HttpServer.Start()
@@ -113,7 +113,7 @@ func (device *TestDevice) Stop() {
 // authenticator is used by the test device to authenticate requests
 // tm is the TM of the thing to manage
 // protocolType sets the type of server to use
-func NewTestDevice(cfg *httptransport.Config, agentID string,
+func NewTestDevice(cfg *tlsserver.TLSServerConfig, agentID string,
 	authenticator transport.IAuthenticator, tm *td.TD, protocolType string) *TestDevice {
 
 	v := &TestDevice{

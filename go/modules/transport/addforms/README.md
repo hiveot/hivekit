@@ -1,6 +1,8 @@
 # AddForms
 
-The AddForms module updates TD's with base, security, and form information from the configured transport.
+AddFormsService intercepts directory updates and create actions and modifies the TD payload with base, security, and form information from all configured transports.
+
+This is intended for use in a gateway or hub where Things are reachable through the gateway, and should therefore contain forms for gateway.
 
 ## Status
 

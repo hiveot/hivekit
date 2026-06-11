@@ -1,4 +1,4 @@
-package httptransport
+package tlsserver
 
 import (
 	"crypto/tls"
@@ -10,8 +10,8 @@ import (
 	"github.com/hiveot/hivekit/go/utils"
 )
 
-// Configuration options for the https transport server
-type Config struct {
+// Configuration options for the TLS transport server
+type TLSServerConfig struct {
 	Address    string            `yaml:"address,omitempty"`
 	Port       int               `yaml:"port,omitempty"`
 	CaCert     *x509.Certificate `yaml:"-"`
@@ -82,7 +82,7 @@ type Config struct {
 	StripSlashesEnabled bool `yaml:"stripSlashesEnabled,omitempty"`
 }
 
-// NewConfig creates options with defaults
+// NewServerConfig creates options with defaults
 //
 //	addr is optional address, default is outbound address
 //	port is optional listening port, 0 for transport.DefaultHttpsPort
@@ -90,9 +90,9 @@ type Config struct {
 //	caCert x509 CA certificate
 //	validateToken is the required handler for authenticating protected routes
 //	logging enable middleware logging
-func NewConfig(
+func NewTLSServerConfig(
 	addr string, port int, serverCert *tls.Certificate, caCert *x509.Certificate,
-	logging bool) *Config {
+	logging bool) *TLSServerConfig {
 
 	if addr == "" {
 		addr = utils.GetOutboundIP("").String()
@@ -101,7 +101,7 @@ func NewConfig(
 		port = transport.DefaultHttpsPort
 	}
 
-	o := &Config{
+	o := &TLSServerConfig{
 		Address:    addr,
 		Port:       port,
 		ServerCert: serverCert,

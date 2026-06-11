@@ -52,8 +52,14 @@ type Agent struct {
 }
 
 // Return the state of a thing managed by the agent
+//
+// thingID is the Thing managed by the agent or "" for the agent Thing itself
+//
 // If no entry for thingID yet exists, one is created.
 func (ag *Agent) GetState(thingID string) *ThingState {
+	if thingID == "" {
+		thingID = ag.GetThingID()
+	}
 	ag.mux.RLock()
 	state, ok := ag.tstates[thingID]
 	ag.mux.RUnlock()
@@ -86,14 +92,10 @@ func (ag *Agent) HandleReadRequests(req *msg.RequestMessage, replyTo msg.Respons
 	switch req.Operation {
 
 	case td.HTOpReadAllEvents:
-		output = maps.Clone(state.events)
+		output = state.GetAllEvents()
 
 	case td.OpReadAllProperties:
-		props := make(map[string]any)
-		for k, notif := range state.properties {
-			props[k] = notif.ToString(0)
-		}
-		output = props
+		output = state.GetAllProperties()
 
 	case td.HTOpReadEvent:
 		output, found = state.events[req.Name]
@@ -102,10 +104,8 @@ func (ag *Agent) HandleReadRequests(req *msg.RequestMessage, replyTo msg.Respons
 		}
 
 	case td.OpReadProperty:
-		notif, found := state.properties[req.Name]
-		// not this returns the last known value so no info on when it changed.
-		// TODO: internally hiveot should always work with the full notification
-		output = notif.Data
+		val, found := state.properties[req.Name]
+		output = val
 		if !found {
 			err = fmt.Errorf("Unknown property '%s'", req.Name)
 		}
@@ -156,22 +156,22 @@ func (ag *Agent) HandleReadRequests(req *msg.RequestMessage, replyTo msg.Respons
 // Modules that override HandleRequest should first handle the request itself and
 // only hand it over to this base method when there is nothing for them to do. This method
 // simply forwards the request if no request handler hook is set.
-func (m *Agent) HandleRequest(req *msg.RequestMessage, replyTo msg.ResponseHandler) (err error) {
+func (ag *Agent) HandleRequest(req *msg.RequestMessage, replyTo msg.ResponseHandler) (err error) {
 
 	// application can set a hook for handling all requests
-	m.mux.RLock()
-	handler := m.appRequestHook
-	m.mux.RUnlock()
+	ag.mux.RLock()
+	handler := ag.appRequestHook
+	ag.mux.RUnlock()
 
 	// invoke registered hook
 	if handler != nil {
 		err = handler(req, replyTo)
 		return err
 	}
-	if req.ThingID == m.GetThingID() {
-		err = m.HandleReadRequests(req, replyTo)
+	if req.ThingID == ag.GetThingID() {
+		err = ag.HandleReadRequests(req, replyTo)
 	} else {
-		err = m.ForwardRequest(req, replyTo)
+		err = ag.ForwardRequest(req, replyTo)
 	}
 	return err
 }
@@ -199,11 +199,16 @@ func (ag *Agent) PubActionProgress(req msg.RequestMessage, value any) {
 	ag.ForwardNotification(resp)
 }
 
-// PubEvent helper for agents to send an event to subscribers.
+// PubEvent helper for agents to publish an event to the server.
 //
-// The underlying transport protocol handles the subscription mechanism.
-// The agent itself doesn't track subscriptions.
+//	thingID is the thing for which the agent publishes the properties or "" for the agent itself
+//	name is the name of the event to publish.
+//	value is the value of the event to publish, if any
 func (ag *Agent) PubEvent(thingID string, name string, value any) {
+
+	if thingID == "" {
+		thingID = ag.GetThingID()
+	}
 
 	// This is a response to subscription request.
 	// for now assume this is a hub connection and the hub wants all events
@@ -219,68 +224,61 @@ func (ag *Agent) PubEvent(thingID string, name string, value any) {
 	ag.ForwardNotification(notif)
 }
 
-// PubProperty publishes a property change notification to observers.
-// This updates the latest value for the property in the state store.
+// PubProperty publishes a property change notification to observers,
+// and store the notification in the state store.
 //
-// The underlying transport protocol binding handles the subscription mechanism.
-func (ag *Agent) PubProperty(thingID string, name string, value any) {
-	// This is a response to an observation request.
-	// send the property update as a response to the observe request
-	notif := msg.NewNotificationMessage(
-		ag.GetThingID(), msg.AffordanceTypeProperty, thingID, name, value)
-	slog.Info("PubProperty",
-		"thingID", thingID,
-		"name", notif.Name,
-		"value", notif.ToString(50),
-	)
-	ag.GetState(thingID).SetProperty(name, notif)
-
-	ag.ForwardNotification(notif)
-}
-
-// PubProperties publishes a map of property changes to observers
-// This updates the latest values for the properties.
+// Storing the notification allows handling property read requests by the agent.
 //
-// The underlying transport protocol binding handles the subscription mechanism.
-func (ag *Agent) PubProperties(thingID string, propMap map[string]any) {
+// Do not publish non-observable properties like date/time and counters, unless intentional.
+//
+//	thingID is the thing for which the agent publishes the properties or "" for the agent itself
+//	propName is the name of the property to publish.
+//	propValue is the value of the property to publish.
+//	onlyChanges flag only publish changed values.
+func (ag *Agent) PubProperty(thingID string, propName string, propVal any, onlyChanges bool) {
 
-	slog.Info("PubProperties",
-		"thingID", thingID,
-		"nrProps", len(propMap),
-	)
+	if thingID == "" {
+		thingID = ag.GetThingID()
+	}
 	tstate := ag.GetState(thingID)
-
-	for propName, propVal := range propMap {
-
+	hasChanged := true
+	if onlyChanges {
+		// since most values are native types a simple compare should suffice
+		old, found := tstate.GetProperty(propName)
+		if found && old == propVal {
+			// if old != nil && reflect.DeepEqual(old, propVal) {
+			hasChanged = false
+		}
+	}
+	if hasChanged {
+		// This is a response to an observation request.
+		// send the property update as a response to the observe request
 		notif := msg.NewNotificationMessage(
 			ag.GetThingID(), msg.AffordanceTypeProperty, thingID, propName, propVal)
-
+		slog.Info("PubProperty",
+			"thingID", thingID,
+			"name", notif.Name,
+			"value", notif.ToString(50),
+		)
 		tstate.SetProperty(propName, notif)
 
 		ag.ForwardNotification(notif)
 	}
 }
 
-// PubTD publish a request downstream to write a TD to a directory or discovery service.
+// PubProperties publishes multiple property changes to observers
+// This updates the Thing state map with the property values
 //
-// This addresses the request to the DefaultDirectoryThingID. The directory service
-// and the discovery service can both handle the request.
-//
-// If the application utilizes a reverse connection to a gateway. The request will
-// be passed to the gateway where it is routed to the default directory. The TD
-// can be a TM as the forms and auth info are not applicable.
-//
-// If the application runs its own server then it should place a discovery server module
-// behind this agent so it can publish the TD. The TD should contain the auth and form
-// info for connecting to the server.
-func (co *Agent) PubTD(tdJson string) error {
-
-	err := co.Rpc(td.OpInvokeAction,
-		directory.DefaultDirectoryThingID,
-		directory.ActionCreateThing,
-		tdJson, nil)
-
-	return err
+//	thingID is the thing for which the agent publishes the properties, or "" for the agent itself
+//	propMap is the map of properties to handle
+//	onlyChanges flag only publish changed values
+func (ag *Agent) PubProperties(thingID string, propMap map[string]any, onlyChanges bool) {
+	if thingID == "" {
+		thingID = ag.GetThingID()
+	}
+	for propName, propVal := range propMap {
+		ag.PubProperty(thingID, propName, propVal, onlyChanges)
+	}
 }
 
 // Set the hook to invoke when requests are received by this module.
@@ -294,10 +292,32 @@ func (co *Agent) PubTD(tdJson string) error {
 // The hook MUST either call replyTo with the result or return an error.
 // Failure to do so results in the request being lost and the caller waiting
 // for a response until timeout.
-func (m *Agent) SetAppRequestHook(hook msg.RequestHandler) {
-	m.mux.Lock()
-	defer m.mux.Unlock()
-	m.appRequestHook = hook
+func (ag *Agent) SetAppRequestHook(hook msg.RequestHandler) {
+	ag.mux.Lock()
+	defer ag.mux.Unlock()
+	ag.appRequestHook = hook
+}
+
+// WriteTD publish a request downstream to write a TD to a directory or discovery service.
+//
+// This addresses the request to the DefaultDirectoryThingID. The directory service
+// and the discovery service can both handle the request.
+//
+// If the application utilizes a reverse connection to a gateway. The request will
+// be passed to the gateway where it is routed to the default directory. The TD
+// can be a TM as the forms and auth info are not applicable.
+//
+// If the application runs its own server then it should place a discovery server module
+// behind this agent so it can publish the TD. The TD should contain the auth and form
+// info for connecting to the server.
+func (ag *Agent) WriteTD(tdJson string) error {
+
+	err := ag.Rpc(td.OpInvokeAction,
+		directory.DefaultDirectoryThingID,
+		directory.CreateThingAction,
+		tdJson, nil)
+
+	return err
 }
 
 // NewAgent creates a new agent (producer) instance for serving requests and sending notifications.

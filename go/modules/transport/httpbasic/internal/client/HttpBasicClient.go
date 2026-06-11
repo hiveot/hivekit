@@ -17,7 +17,7 @@ import (
 	"github.com/hiveot/hivekit/go/modules"
 	"github.com/hiveot/hivekit/go/modules/transport"
 	"github.com/hiveot/hivekit/go/modules/transport/httpbasic"
-	httptransportpkg "github.com/hiveot/hivekit/go/modules/transport/httptransport/pkg"
+	tlsclientpkg "github.com/hiveot/hivekit/go/modules/transport/tlsclient/pkg"
 	"github.com/hiveot/hivekit/go/utils"
 	jsoniter "github.com/json-iterator/go"
 	"github.com/teris-io/shortid"
@@ -444,7 +444,7 @@ func NewHttpBasicClient(
 	}
 	hostPort := urlParts.Host
 
-	tlsClient := httptransportpkg.NewHttpTransportClient(hostPort, caCert, timeout)
+	tlsClient := tlsclientpkg.NewTLSClient(hostPort, caCert, timeout)
 	cl := NewHttpBasicTLSClient(tlsClient, getForm)
 
 	return cl

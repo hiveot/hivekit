@@ -32,9 +32,9 @@ import (
 	grpcpkg "github.com/hiveot/hivekit/go/modules/transport/grpc/pkg"
 	"github.com/hiveot/hivekit/go/modules/transport/httpbasic"
 	httpbasicpkg "github.com/hiveot/hivekit/go/modules/transport/httpbasic/pkg"
-	httptransportpkg "github.com/hiveot/hivekit/go/modules/transport/httptransport/pkg"
 	"github.com/hiveot/hivekit/go/modules/transport/ssesc"
 	ssescpkg "github.com/hiveot/hivekit/go/modules/transport/ssesc/pkg"
+	tlsserverpkg "github.com/hiveot/hivekit/go/modules/transport/tlsserver/pkg"
 	wss "github.com/hiveot/hivekit/go/modules/transport/wss"
 	wsspkg "github.com/hiveot/hivekit/go/modules/transport/wss/pkg"
 
@@ -56,8 +56,8 @@ var RecipeModules = map[string]factory.ModuleDefinition{
 		Constructor: grpcpkg.NewGrpcServerFactory,
 	},
 	// http server provider
-	transport.HttpServerModuleType: {
-		Constructor: httptransportpkg.NewHttpTransportServerFactory,
+	transport.TLSServerModuleType: {
+		Constructor: tlsserverpkg.NewTLSServerFactory,
 	},
 	// http-basic transport server
 	httpbasic.HttpBasicServerModuleType: {
@@ -135,7 +135,7 @@ var RecipeModules = map[string]factory.ModuleDefinition{
 	},
 	// directory service provider
 	directory.DirectoryModuleType: {
-		Constructor: directorypkg.NewDirectoryMsgServerFactory,
+		Constructor: directorypkg.NewDirectoryServiceFactory,
 	},
 	// history service provider
 	history.HistoryModuleType: {

@@ -42,15 +42,16 @@ Core Service modules:
 
 Transport modules come with a server and a client module.
 
-| status | module                  | description                           | stage |
-| :----: | ----------------------- | ------------------------------------- | ----- |
-|   ✔️    | transport/discovery     | WoT mDNS device discovery             | alpha |
-|   ✔️    | transport/grpc          | HiveOT gRPC fast message streaming    | alpha |
-|   ✔️    | transport/httpbasic     | WoT HTTP basic messaging protocol     | alpha |
-|   ✔️    | transport/httptransport | HTTP server for sub-protocols         | alpha |
-|   ✔️    | transport/ssesc         | HiveOT HTTP/SSE-SC messaging protocol | alpha |
-|   ✔️    | transport/wss           | WoT Websocket messaging protocol      | alpha |
-|   ⬛    | transport/mqtt          | WoT MQTT messaging protocol           | n/a   |
+| status | module              | description                           | stage |
+| :----: | ------------------- | ------------------------------------- | ----- |
+|   ✔️    | transport/discovery | WoT mDNS device discovery             | alpha |
+|   ✔️    | transport/grpc      | HiveOT gRPC fast message streaming    | alpha |
+|   ✔️    | transport/httpbasic | WoT HTTP basic messaging protocol     | alpha |
+|   ✔️    | transport/tlsclient | HTTP client for sub-protocols         | alpha |
+|   ✔️    | transport/tlsserver | HTTP server for sub-protocols         | alpha |
+|   ✔️    | transport/ssesc     | HiveOT HTTP/SSE-SC messaging protocol | alpha |
+|   ✔️    | transport/wss       | WoT Websocket messaging protocol      | alpha |
+|   ⬛    | transport/mqtt      | WoT MQTT messaging protocol           | n/a   |
 
 Integration Binding Modules:
 

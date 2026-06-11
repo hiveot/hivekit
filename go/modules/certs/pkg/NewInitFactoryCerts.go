@@ -39,7 +39,7 @@ func NewInitFactoryCerts(f factory.IModuleFactory) (modules.IHiveModule, error) 
 
 	// to ensure a CA and server cert can be created, a CA private key is required
 	caKeyPath := path.Join(env.CertsDir, certs.DefaultCaKeyFile)
-	_, caPrivKey, caPubKey, err = utils.LoadPrivateKey(caKeyPath)
+	caPrivKey, caPubKey, err = utils.LoadPrivateKey(caKeyPath)
 	if err != nil {
 		// no luck, need a new set of keys, all certs need to be created
 		caPrivKey, caPubKey = utils.NewKey(utils.KeyTypeECDSA)

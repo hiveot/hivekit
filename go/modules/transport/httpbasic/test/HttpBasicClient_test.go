@@ -9,8 +9,8 @@ import (
 	certstest "github.com/hiveot/hivekit/go/modules/certs/test"
 	"github.com/hiveot/hivekit/go/modules/transport"
 	httpbasicpkg "github.com/hiveot/hivekit/go/modules/transport/httpbasic/pkg"
-	"github.com/hiveot/hivekit/go/modules/transport/httptransport"
-	httptransportpkg "github.com/hiveot/hivekit/go/modules/transport/httptransport/pkg"
+	"github.com/hiveot/hivekit/go/modules/transport/tlsserver"
+	tlsserverpkg "github.com/hiveot/hivekit/go/modules/transport/tlsserver/pkg"
 	"github.com/hiveot/hivekit/go/utils"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -27,9 +27,9 @@ func TestConnect(t *testing.T) {
 	var token = ""
 
 	// dummyAuthenticator := authnapi.NewDummyAuthenticator()
-	cfg := httptransport.NewConfig(
+	cfg := tlsserver.NewTLSServerConfig(
 		"localhost", serverPort, testCerts.ServerCert, testCerts.CaCert, true)
-	srv := httptransportpkg.NewHttpTransportServer(cfg, nil)
+	srv := tlsserverpkg.NewTLSServer(cfg, nil)
 	err := srv.Start()
 	require.NoError(t, err)
 	m := httpbasicpkg.NewHttpBasicServer(srv)

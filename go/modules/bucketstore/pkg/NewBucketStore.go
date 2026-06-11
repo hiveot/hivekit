@@ -22,9 +22,9 @@ import (
 //
 // backend, one of the supported backends (BackendKVBTree, BackendPebble)
 func NewBucketStore(location string, backend string) (
-	store bucketstore.IBucketStorage, err error) {
+	store bucketstore.IBucketStore, err error) {
 
-	return stores.NewBucketStorage(location, backend)
+	return stores.NewBucketStore(location, backend)
 }
 
 // Convenience function that creates and opens a store
@@ -45,7 +45,7 @@ func NewBucketStore(location string, backend string) (
 //
 // backend, one of the supported backends (BackendKVBTree, BackendPebble)
 func OpenBucketStore(location string, backend string) (
-	store bucketstore.IBucketStorage, err error) {
+	store bucketstore.IBucketStore, err error) {
 
 	store, err = NewBucketStore(location, backend)
 	if err == nil {

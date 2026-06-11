@@ -67,7 +67,7 @@ func startService() (
 	servers := []transport.ITransportServer{testEnv.Server}
 	// httpAPI := directorypkg.NewDirectoryHttpServer(testEnv.HttpServer)
 
-	dir = directorypkg.NewDirectoryMsgServer(
+	dir = directorypkg.NewDirectoryService(
 		dirThingID, storageDir, testEnv.HttpServer, servers)
 	err := dir.Start()
 	if err != nil {
@@ -240,7 +240,7 @@ func TestReadDigitwinProperty(t *testing.T) {
 	ag, cc2, _ := testEnv.NewRCAgent(agentID, nil)
 	defer cc2.Close()
 
-	ag.PubProperty(deviceTD1.ID, prop1Name, prop1Value)
+	ag.PubProperty(deviceTD1.ID, prop1Name, prop1Value, false)
 	// let the communication proceed
 	time.Sleep(time.Millisecond * 10)
 
@@ -285,7 +285,7 @@ func TestWriteDigitwinProperty(t *testing.T) {
 
 			// write property sends a notification that is passed to the server
 			// and updates the digital twin.
-			go ag.PubProperty(req.ThingID, req.Name, txPropValue)
+			go ag.PubProperty(req.ThingID, req.Name, txPropValue, false)
 
 			return replyTo(resp)
 		} else if req.ThingID == directory.DefaultDirectoryThingID {
@@ -317,7 +317,7 @@ func TestWriteDigitwinProperty(t *testing.T) {
 	assert.Equal(t, agentID, tdi2.AgentID)
 
 	// 4. Consumer reads the TD with its own directory client
-	dirCoCl := directorypkg.NewDirectoryMsgClient("", co)
+	dirCoCl := directorypkg.NewDirectoryClient("", co)
 	td3Json, err := dirCoCl.RetrieveThing(dtwThing1ID)
 	require.NoError(t, err)
 	td3, err := td.UnmarshalTD(td3Json)

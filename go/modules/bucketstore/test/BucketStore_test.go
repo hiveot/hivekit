@@ -71,7 +71,7 @@ func TestMain(m *testing.M) {
 }
 
 // Create the bucket store in the given directory using the backend
-func openNewStore(storeDir string) (store bucketstore.IBucketStorage, err error) {
+func openNewStore(storeDir string) (store bucketstore.IBucketStore, err error) {
 	err = os.RemoveAll(storeDir)
 	err = os.MkdirAll(storageLocation, 0700)
 	if err != nil {
@@ -132,7 +132,7 @@ func createTD(id string) *td.TD {
 }
 
 // AddDocs adds documents doc1, doc2 and given nr additional docs
-func addDocs(store bucketstore.IBucketStorage, bucketID string, count int) error {
+func addDocs(store bucketstore.IBucketStore, bucketID string, count int) error {
 	slog.Info(fmt.Sprintf("Adding %d documents", count))
 	const batchSize = 50000
 	bucket := store.GetBucket(bucketID)
@@ -695,7 +695,7 @@ func TestGetSetMsgAPI(t *testing.T) {
 	require.NoError(t, err)
 	defer stopFn()
 	tp := testenv.NewTestTransport(clientID, m)
-	cl := bucketstorepkg.NewBucketStoreMsgClient(storeThingID, tp)
+	cl := bucketstorepkg.NewBucketStoreMsgClient(tp, storeThingID)
 	err = cl.Set(key1, val1)
 	require.NoError(t, err)
 

@@ -14,7 +14,7 @@ import (
 	"github.com/hiveot/hivekit/go/modules/directory"
 	directorypkg "github.com/hiveot/hivekit/go/modules/directory/pkg"
 	"github.com/hiveot/hivekit/go/modules/transport"
-	httptransportpkg "github.com/hiveot/hivekit/go/modules/transport/httptransport/pkg"
+	tlsclientpkg "github.com/hiveot/hivekit/go/modules/transport/tlsclient/pkg"
 	"github.com/hiveot/hivekit/go/testenv"
 	"github.com/hiveot/hivekit/go/utils"
 	jsoniter "github.com/json-iterator/go"
@@ -60,7 +60,7 @@ func StartDirectoryServer(withHttp bool) (
 		transports = append(transports, dirHttpServer)
 	}
 	// the transports are used to update the TDD forms and security
-	m = directorypkg.NewDirectoryMsgServer("", storageDir, httpAPI, transports)
+	m = directorypkg.NewDirectoryService("", storageDir, httpAPI, transports)
 	err := m.Start()
 	if err != nil {
 		panic("StartDirectoryServer: failed to start the directory " + err.Error())
@@ -90,7 +90,7 @@ func StartDirectoryServer(withHttp bool) (
 func TestStartStop(t *testing.T) {
 	t.Logf("---%s---\n", t.Name())
 
-	m := directorypkg.NewDirectoryMsgServer("", storageDir, nil, nil)
+	m := directorypkg.NewDirectoryService("", storageDir, nil, nil)
 	err := m.Start()
 	require.NoError(t, err)
 	defer m.Stop()
@@ -108,7 +108,7 @@ func TestStartStop(t *testing.T) {
 func TestCreateTD(t *testing.T) {
 	thingID := "thing1"
 
-	m := directorypkg.NewDirectoryMsgServer("", storageDir, nil, nil)
+	m := directorypkg.NewDirectoryService("", storageDir, nil, nil)
 	err := m.Start()
 	require.NoError(t, err)
 	defer m.Stop()
@@ -164,7 +164,7 @@ func TestCRUDUsingMsgAPI(t *testing.T) {
 	require.NoError(t, err)
 
 	// read the new TD
-	dirClient := directorypkg.NewDirectoryMsgClient(directoryID, tp)
+	dirClient := directorypkg.NewDirectoryClient(directoryID, tp)
 	tdi2Json, err := dirClient.RetrieveThing(thing1ID)
 	require.NoError(t, err)
 	tdi2, err := td.UnmarshalTD(tdi2Json)
@@ -202,7 +202,7 @@ func TestGetDirectoryTD(t *testing.T) {
 	// token, _, err := testEnv.CreateToken(userID, time.Minute)
 	// require.NoError(t, err)
 
-	httpClient := httptransportpkg.NewHttpTransportClient(hostPort, testEnv.CertBundle.CaCert, time.Minute)
+	httpClient := tlsclientpkg.NewTLSClient(hostPort, testEnv.CertBundle.CaCert, time.Minute)
 	err := httpClient.AuthenticateWithToken(userID, token)
 	require.NoError(t, err)
 	defer httpClient.Close()

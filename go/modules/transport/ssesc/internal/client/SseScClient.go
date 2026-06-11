@@ -15,8 +15,8 @@ import (
 	"github.com/hiveot/hivekit/go/api/td"
 	"github.com/hiveot/hivekit/go/modules"
 	"github.com/hiveot/hivekit/go/modules/transport"
-	httptransportpkg "github.com/hiveot/hivekit/go/modules/transport/httptransport/pkg"
 	"github.com/hiveot/hivekit/go/modules/transport/ssesc"
+	tlsclientpkg "github.com/hiveot/hivekit/go/modules/transport/tlsclient/pkg"
 	jsoniter "github.com/json-iterator/go"
 	"github.com/teris-io/shortid"
 	gosse "github.com/tmaxmax/go-sse"
@@ -491,7 +491,7 @@ func NewSseScClient(sseURL string, caCert *x509.Certificate) *SseScClient {
 	ssePath := urlParts.Path
 	// use SetTimeout to change the default
 	timeout := msg.DefaultRnRTimeout
-	tlsClient := httptransportpkg.NewHttpTransportClient(hostPort, caCert, timeout)
+	tlsClient := tlsclientpkg.NewTLSClient(hostPort, caCert, timeout)
 
 	thingID := ssesc.SseScClientModuleType + shortid.MustGenerate()
 	cl := &SseScClient{

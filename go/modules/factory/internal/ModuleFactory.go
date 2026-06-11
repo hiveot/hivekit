@@ -116,7 +116,7 @@ func (f *ModuleFactory) GetHttpServer(instantiate bool) transport.IHttpServer {
 	if !instantiate {
 		return nil
 	}
-	m, err := f.GetModule(transport.HttpServerModuleType, instantiate)
+	m, err := f.GetModule(transport.TLSServerModuleType, instantiate)
 	if err != nil {
 		slog.Warn("GetHttpServer: no http server module is registered")
 		return nil

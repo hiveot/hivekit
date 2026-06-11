@@ -5,19 +5,18 @@ import (
 	"github.com/hiveot/hivekit/go/api/td"
 	"github.com/hiveot/hivekit/go/modules"
 	"github.com/hiveot/hivekit/go/modules/authn"
-	"github.com/hiveot/hivekit/go/modules/consumer"
 )
 
-// AuthnUserMsgClient is a client module for authentication operations using RRN messages.
+// AuthnUserClient is a client module for authentication operations using RRN messages.
 // This should be linked to a transport client module for message delivery.
-type AuthnUserMsgClient struct {
+type AuthnUserClient struct {
 	*modules.HiveModuleBase
 	// The ThingID of the authentication service that handles the request.
 	authnServiceID string
 }
 
 // UserGetProfile client method - Get Client Profile.
-func (m *AuthnUserMsgClient) GetProfile() (resp authn.ClientProfile, err error) {
+func (m *AuthnUserClient) GetProfile() (resp authn.ClientProfile, err error) {
 	err = m.Rpc(td.OpInvokeAction,
 		authn.AuthnUserServiceID, authn.UserActionGetProfile, nil, &resp)
 	return
@@ -32,7 +31,7 @@ func (m *AuthnUserMsgClient) GetProfile() (resp authn.ClientProfile, err error) 
 
 // Logout client method - Logout.
 // Logout from all devices
-func (m *AuthnUserMsgClient) Logout() (err error) {
+func (m *AuthnUserClient) Logout() (err error) {
 
 	err = m.Rpc(td.OpInvokeAction,
 		authn.AuthnUserServiceID, authn.UserActionLogout, nil, nil)
@@ -40,7 +39,7 @@ func (m *AuthnUserMsgClient) Logout() (err error) {
 }
 
 // UserRefreshToken client method - Request a new auth token for the current client.
-func (m *AuthnUserMsgClient) RefreshToken(hc *consumer.Consumer, oldToken string) (newToken string, err error) {
+func (m *AuthnUserClient) RefreshToken(oldToken string) (newToken string, err error) {
 
 	err = m.Rpc(td.OpInvokeAction,
 		authn.AuthnUserServiceID, authn.UserActionRefreshToken, &oldToken, &newToken)
@@ -49,18 +48,22 @@ func (m *AuthnUserMsgClient) RefreshToken(hc *consumer.Consumer, oldToken string
 
 // UserUpdatePassword client method - Update Password.
 // Request changing the password of the current client
-func (m *AuthnUserMsgClient) UpdateProfile(hc *consumer.Consumer, password string) (err error) {
+func (m *AuthnUserClient) UpdateProfile(password string) (err error) {
 	err = m.Rpc(td.OpInvokeAction,
 		authn.AuthnUserServiceID, authn.UserActionSetPassword, &password, nil)
 	return
 }
 
-// Create a new instance of the authn messaging consumer client
-// This only creates the messages
-// This must be linked with a transport client to reach the server
-func NewAuthnUserMsgClient() *AuthnUserMsgClient {
-	cl := &AuthnUserMsgClient{
+// Create a new instance of the authn user client
+//
+// sink is the chain containing the user's transport client
+func NewAuthnUserClient(sink modules.IHiveModule) *AuthnUserClient {
+	cl := &AuthnUserClient{
 		HiveModuleBase: modules.NewHiveModuleBase("", 0),
+	}
+	if sink != nil {
+		cl.SetRequestSink(sink)
+		sink.SetNotificationSink(cl)
 	}
 	return cl
 }

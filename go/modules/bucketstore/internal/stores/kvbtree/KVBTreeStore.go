@@ -377,6 +377,6 @@ func NewKVStore(storePath string) (store *KVBTreeStore) {
 		writeDelay:           writeDelay,
 		//jsonCache:            make(map[string]interface{}),
 	}
-	var _ bucketstore.IBucketStorage = store // type check
+	var _ bucketstore.IBucketStore = store // type check
 	return store
 }

@@ -16,19 +16,19 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/hiveot/hivekit/go/modules"
 	"github.com/hiveot/hivekit/go/modules/transport"
-	"github.com/hiveot/hivekit/go/modules/transport/httptransport"
+	"github.com/hiveot/hivekit/go/modules/transport/tlsserver"
 	"github.com/hiveot/hivekit/go/utils"
 	"github.com/lmittmann/tint"
 	"github.com/teris-io/shortid"
 )
 
-// HttpTransportServer is a hiveot module providing a TLS HTTPS server.
+// TLSServer is a hiveot module providing a TLS HTTPS server.
 // Intended for use by HTTP based application protocols.
 // This implements IHttpServer and IHiveModule interfaces.
 //
 // Note that this does not implement the ITransportModule interface as this module provides the
 // http server for use by transport modules.
-type HttpTransportServer struct {
+type TLSServer struct {
 	*modules.HiveModuleBase
 
 	// authenticator to validate incoming conncetions
@@ -37,7 +37,7 @@ type HttpTransportServer struct {
 	// HTTP authentication handler.
 	authRequestHandler func(req *http.Request) (clientID string, err error)
 
-	config     *httptransport.Config
+	config     *tlsserver.TLSServerConfig
 	connectURL string
 
 	// the actual golang HTTP/TLS server
@@ -63,7 +63,7 @@ type HttpTransportServer struct {
 
 // The default authentication handler extracts the bearer token from the authorization header
 // and passes it to the configured token validator.
-func (m *HttpTransportServer) DefaultAuthRequest(req *http.Request) (clientID string, err error) {
+func (m *TLSServer) DefaultAuthRequest(req *http.Request) (clientID string, err error) {
 
 	// first check client certificate
 	if len(req.TLS.PeerCertificates) > 0 {
@@ -95,18 +95,18 @@ func (m *HttpTransportServer) DefaultAuthRequest(req *http.Request) (clientID st
 }
 
 // GetAuthenticator returns the authenticator used to authenticate incoming connections
-func (m *HttpTransportServer) GetAuthenticator() transport.IAuthenticator {
+func (m *TLSServer) GetAuthenticator() transport.IAuthenticator {
 	return m.authenticator
 }
 
 // Provide the HTTP base URL to connect to the server. Eg "https://addr:port/""
-func (m *HttpTransportServer) GetConnectURL() string {
+func (m *TLSServer) GetConnectURL() string {
 	return m.connectURL
 }
 
 // Set the handler that validates tokens.
 // This will enable the protected routes.
-func (m *HttpTransportServer) SetAuthenticator(authenticator transport.IAuthenticator) {
+func (m *TLSServer) SetAuthenticator(authenticator transport.IAuthenticator) {
 	m.authenticator = authenticator
 }
 
@@ -114,7 +114,7 @@ func (m *HttpTransportServer) SetAuthenticator(authenticator transport.IAuthenti
 // This starts a http server instance and sets-up a public and protected route.
 //
 // Starts a HTTPS TLS service
-func (m *HttpTransportServer) Start() (err error) {
+func (m *TLSServer) Start() (err error) {
 	var tlsConf *tls.Config
 	cfg := m.config
 	m.connectURL = fmt.Sprintf("https://%s:%d", cfg.Address, cfg.Port)
@@ -168,7 +168,6 @@ func (m *HttpTransportServer) Start() (err error) {
 	// finally run the server in the background
 	go func() {
 		// serverTLSConf contains certificate and key
-		// slog.Debug("TLSServer - Listening", "addr", lisn.Addr().String())
 		err2 := m.httpServer.ServeTLS(lisn, "", "")
 		//err2 := srv.httpServer.ListenAndServeTLS("", "")
 		if err2 != nil && !errors.Is(err2, http.ErrServerClosed) {
@@ -185,9 +184,9 @@ func (m *HttpTransportServer) Start() (err error) {
 // Stop the TLS server and close all connections.
 // this waits until for up to 3 seconds for connections are closed. After that
 // continue.
-func (m *HttpTransportServer) Stop() {
+func (m *TLSServer) Stop() {
 
-	slog.Info("Stop: Stopping httpserver transport server")
+	slog.Info("Stop: Stopping TLSServer")
 
 	if m.httpServer != nil {
 		// note that this does not (cannot?) close existing client connections
@@ -198,26 +197,26 @@ func (m *HttpTransportServer) Stop() {
 			_ = m.httpServer.Close()
 		}
 		cancelFn()
-		// slog.Info("Stopped HttpTransportModule")
+		// slog.Info("Stopped TLSServer")
 	} else {
-		slog.Info("Stop HttpTransportModule - not running")
+		slog.Info("Stop TLSServer - not running")
 	}
 	// give some time to complete the shutdown
 	time.Sleep(time.Millisecond)
 }
 
-// Create a new HTTP base server module instance.
+// Create a new TLS server module instance.
 //
 // config MUST have been configured with a CA and server certificate unless
 // NoTLS is set.
 // authenticator for http requests. nil for refusing all protected routes
-func NewHttpTransportServer(config *httptransport.Config, authenticator transport.IAuthenticator) *HttpTransportServer {
+func NewTLSServer(config *tlsserver.TLSServerConfig, authenticator transport.IAuthenticator) *TLSServer {
 
 	// if config.ModuleID == "" {
 	// 	config.ModuleID = transport.DefaultHttpServerModuleID
 	// }
-	thingID := transport.HttpServerModuleType + "-" + shortid.MustGenerate()
-	m := &HttpTransportServer{
+	thingID := transport.TLSServerModuleType + "-" + shortid.MustGenerate()
+	m := &TLSServer{
 		HiveModuleBase: modules.NewHiveModuleBase(thingID, 0),
 		config:         config,
 		authenticator:  authenticator,
@@ -227,5 +226,6 @@ func NewHttpTransportServer(config *httptransport.Config, authenticator transpor
 		m.authRequestHandler = m.DefaultAuthRequest
 	}
 	var _ transport.IHttpServer = m // interface check
+	var _ modules.IHiveModule = m
 	return m
 }

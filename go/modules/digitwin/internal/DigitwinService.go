@@ -96,7 +96,7 @@ type DigitwinService struct {
 
 	// internal storage with the original hidden device TDs
 	deviceTDBucket bucketstore.IBucket
-	deviceTDStore  bucketstore.IBucketStorage
+	deviceTDStore  bucketstore.IBucketStore
 
 	// the device directory holding TD's of the native devices/agents
 	// deviceDirectory directory.IDirectoryServer
@@ -110,7 +110,7 @@ type DigitwinService struct {
 	// digitwinThingID string
 
 	// the store that holds the digital twin TDs and value
-	digitwinStore bucketstore.IBucketStorage
+	digitwinStore bucketstore.IBucketStore
 
 	// configuration to add forms to all the affordances of a TD
 	includeAffordanceForms bool

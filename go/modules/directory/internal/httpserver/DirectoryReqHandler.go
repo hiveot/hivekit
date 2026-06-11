@@ -22,7 +22,7 @@ func (srv *DirectoryHttpServer) handleCreateThing(w http.ResponseWriter, r *http
 	if err == nil {
 		tdJson := string(rp.Payload) // ensure correct serialization of payload
 		req := msg.NewRequestMessage(
-			td.OpInvokeAction, srv.directoryThingID, directory.ActionCreateThing, tdJson)
+			td.OpInvokeAction, srv.directoryThingID, directory.CreateThingAction, tdJson)
 		req.SenderID = rp.ClientID
 		_, err = srv.ForwardRequestWait(req)
 	}
@@ -35,7 +35,7 @@ func (srv *DirectoryHttpServer) handleDeleteThing(w http.ResponseWriter, r *http
 	thingID := chi.URLParam(r, ThingIDURIVar)
 
 	req := msg.NewRequestMessage(
-		td.OpInvokeAction, srv.directoryThingID, directory.ActionDeleteThing, thingID)
+		td.OpInvokeAction, srv.directoryThingID, directory.DeleteThingAction, thingID)
 	req.SenderID = rp.ClientID
 	_, err = srv.ForwardRequestWait(req)
 
@@ -49,7 +49,7 @@ func (srv *DirectoryHttpServer) handleReadDirectoryTD(w http.ResponseWriter, r *
 	rp, err := srv.httpServer.GetRequestParams(r)
 	if err == nil {
 		req := msg.NewRequestMessage(
-			td.OpInvokeAction, srv.directoryThingID, directory.ActionRetrieveTDD, nil)
+			td.OpInvokeAction, srv.directoryThingID, directory.RetrieveTDDAction, nil)
 		req.SenderID = rp.ClientID
 		resp, err = srv.ForwardRequestWait(req)
 	}
@@ -74,7 +74,7 @@ func (srv *DirectoryHttpServer) handleRetrieveThing(w http.ResponseWriter, r *ht
 	rp, err := srv.httpServer.GetRequestParams(r)
 	if err == nil {
 		req := msg.NewRequestMessage(
-			td.OpInvokeAction, srv.directoryThingID, directory.ActionRetrieveThing, thingID)
+			td.OpInvokeAction, srv.directoryThingID, directory.RetrieveThingAction, thingID)
 		req.SenderID = rp.ClientID
 		resp, err = srv.ForwardRequestWait(req)
 	}
@@ -101,7 +101,7 @@ func (srv *DirectoryHttpServer) handleRetrieveAllThings(w http.ResponseWriter, r
 			Limit:  int(limit),
 		}
 		req := msg.NewRequestMessage(
-			td.OpInvokeAction, srv.directoryThingID, directory.ActionRetrieveAllThings, args)
+			td.OpInvokeAction, srv.directoryThingID, directory.RetrieveAllThingsAction, args)
 		req.SenderID = rp.ClientID
 		resp, err = srv.ForwardRequestWait(req)
 	}
@@ -119,7 +119,7 @@ func (srv *DirectoryHttpServer) handleUpdateThing(w http.ResponseWriter, r *http
 	if err == nil {
 		tdJson := string(rp.Payload) // ensure correct serialization of payload
 		req := msg.NewRequestMessage(
-			td.OpInvokeAction, srv.directoryThingID, directory.ActionUpdateThing, tdJson)
+			td.OpInvokeAction, srv.directoryThingID, directory.UpdateThingAction, tdJson)
 		req.SenderID = rp.ClientID
 		resp, err = srv.ForwardRequestWait(req)
 		_ = resp

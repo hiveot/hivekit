@@ -14,7 +14,7 @@ import (
 	"github.com/hiveot/hivekit/go/modules"
 	"github.com/hiveot/hivekit/go/modules/directory"
 	"github.com/hiveot/hivekit/go/modules/transport"
-	httptransportpkg "github.com/hiveot/hivekit/go/modules/transport/httptransport/pkg"
+	tlsclientpkg "github.com/hiveot/hivekit/go/modules/transport/tlsclient/pkg"
 	"github.com/hiveot/hivekit/go/utils"
 )
 
@@ -118,7 +118,7 @@ func (cl *DirectoryHttpClient) CreateThing(tdJson string) error {
 
 	defaultPath := fmt.Sprintf("/things/%s", tdi.ID)
 	_, err = cl._send(
-		directory.ActionCreateThing, defaultPath, http.MethodPost, tdi.ID, []byte(tdJson))
+		directory.CreateThingAction, defaultPath, http.MethodPost, tdi.ID, []byte(tdJson))
 
 	return err
 }
@@ -127,7 +127,7 @@ func (cl *DirectoryHttpClient) CreateThing(tdJson string) error {
 func (cl *DirectoryHttpClient) DeleteThing(thingID string) error {
 	defaultPath := fmt.Sprintf("/things/%s", thingID)
 	_, err := cl._send(
-		directory.ActionDeleteThing, defaultPath, http.MethodDelete, thingID, nil)
+		directory.DeleteThingAction, defaultPath, http.MethodDelete, thingID, nil)
 	return err
 }
 
@@ -138,7 +138,7 @@ func (cl *DirectoryHttpClient) RetrieveAllThings(offset int, limit int) ([]strin
 
 	defaultPath := fmt.Sprintf("/things?offset=%d&limit=%d", offset, limit)
 	raw, err := cl._send(
-		directory.ActionRetrieveAllThings, defaultPath, http.MethodGet, "", nil)
+		directory.RetrieveAllThingsAction, defaultPath, http.MethodGet, "", nil)
 
 	if err != nil {
 		return nil, err
@@ -154,7 +154,7 @@ func (cl *DirectoryHttpClient) RetrieveAllThings(offset int, limit int) ([]strin
 func (cl *DirectoryHttpClient) RetrieveThing(thingID string) (string, error) {
 	defaultPath := fmt.Sprintf("/things/%s", thingID)
 	raw, err := cl._send(
-		directory.ActionRetrieveThing, defaultPath, http.MethodGet, thingID, nil)
+		directory.RetrieveThingAction, defaultPath, http.MethodGet, thingID, nil)
 
 	return string(raw), err
 }
@@ -177,7 +177,7 @@ func (cl *DirectoryHttpClient) UpdateThing(tdJson string) error {
 
 	defaultPath := fmt.Sprintf("/things/%s", tdi.ID)
 	_, err = cl._send(
-		directory.ActionCreateThing, defaultPath, http.MethodPut, tdi.ID, []byte(tdJson))
+		directory.CreateThingAction, defaultPath, http.MethodPut, tdi.ID, []byte(tdJson))
 	return err
 }
 
@@ -202,7 +202,7 @@ func NewDirectoryHttpClient(dirTD *td.TD, caCert *x509.Certificate) *DirectoryHt
 		slog.Error("NewDirectoryHttpClient: TD has no invalid Base URL: " + err.Error())
 		return nil
 	}
-	tlsClient := httptransportpkg.NewHttpTransportClient(parts.Host, caCert, 0)
+	tlsClient := tlsclientpkg.NewTLSClient(parts.Host, caCert, 0)
 
 	cl := &DirectoryHttpClient{
 		dirTD:     dirTD,

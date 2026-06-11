@@ -140,7 +140,7 @@ func TestPublishPropertyByAgent(t *testing.T) {
 	defer agConn1.Close()
 
 	// 3. agent publishes a property update to subscribers
-	ag1.PubProperty(thingID, propKey1, propValue1)
+	ag1.PubProperty(thingID, propKey1, propValue1, false)
 	time.Sleep(time.Millisecond) // time to take effect
 
 	// property received by server

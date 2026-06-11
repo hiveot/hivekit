@@ -24,14 +24,14 @@ import (
 const grpcServiceName = "service1"
 
 // The simplest and fastest is to use UDS sockets
-const serverAddress = "/tmp/hivekit/grpc-test.sock"    // host[:port]
-const serverNetwork = "unix"                           // unix, tcp, tcp4, tcp6
-const clientURL = "unix:///tmp/hivekit/grpc-test.sock" // gRPC doesn't support ipv4, ipv6 schems  (used in client connection URL)
+// const serverAddress = "/tmp/hivekit/grpc-test.sock"    // host[:port]
+// const serverNetwork = "unix"                           // unix, tcp, tcp4, tcp6
+// const clientURL = "unix:///tmp/hivekit/grpc-test.sock" // gRPC doesn't support ipv4, ipv6 schems  (used in client connection URL)
 
 // Using DNS scheme with localhost to avoid gRPC issues with UDS on some platforms (e.g. Windows) and to test the more common TCP use case.
-// var serverAddress = "localhost:9988"    // /host[:port]
-// var serverNetwork = "tcp"               // unix, tcp, tcp4, tcp6  (used in net.Listen)
-// var clientURL = "dns:///localhost:9988" // gRPC doesn't support ipv4, ipv6 schems  (used in client connection URL)
+var serverAddress = "localhost:9988"    // /host[:port]
+var serverNetwork = "tcp"               // unix, tcp, tcp4, tcp6  (used in net.Listen)
+var clientURL = "dns:///localhost:9988" // gRPC doesn't support ipv4, ipv6 schems  (used in client connection URL)
 
 // plain IP address, gRPC doesn't support schemes for ipv4 and ipv6, so simply omit the scheme
 // var serverAddress = "127.0.0.1:9988" // /host[:port]

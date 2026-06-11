@@ -267,8 +267,9 @@ func NewGrpcServiceServer(
 					}
 
 					info := &grpc.UnaryServerInfo{
-						Server:     srv,
-						FullMethod: serviceName + "/" + PingMethodName,
+						Server: srv,
+						// since grpc-1.79.3 a leading slash is required
+						FullMethod: "/" + serviceName + "/" + PingMethodName,
 					}
 					handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 						return srv.Ping(ctx, input)

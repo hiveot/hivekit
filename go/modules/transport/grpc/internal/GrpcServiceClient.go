@@ -165,7 +165,8 @@ func (cl *GrpcServiceClient) ConnectStream(name string) (*BufferedStream, error)
 	// Note, two issues here:
 	// 1. the stream name in streaemDesc isn't used by grpc
 	// 2. the stream name must be prefixed with the service name: full name=service/stream
-	serviceStreamName := cl.serviceDesc.ServiceName + "/" + name
+	// since grpc-1.79.3
+	serviceStreamName := "/" + cl.serviceDesc.ServiceName + "/" + name
 	stream, err := cl.grpcConn.NewStream(ctx,
 		streamDesc, serviceStreamName, opts...)
 
@@ -220,7 +221,7 @@ func (cl *GrpcServiceClient) Ping(input string) (reply string, err error) {
 	ctx, cancelFn := context.WithTimeout(context.Background(), cl.respTimeout)
 	defer cancelFn()
 	opts := []grpc.CallOption{}
-	serviceMethodName := cl.serviceDesc.ServiceName + "/ping"
+	serviceMethodName := "/" + cl.serviceDesc.ServiceName + "/ping"
 	err = cl.grpcConn.Invoke(ctx, serviceMethodName, input, &reply, opts...)
 	if err != nil {
 		if cl.tlsConfig != nil {

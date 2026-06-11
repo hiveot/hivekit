@@ -171,13 +171,17 @@ func (cl *ReadHistoryClient) Seek(cursorKey string, timestamp time.Time) (
 // (multiple clients can be chained this way)
 //
 //	invokeAction is the TD invokeAction for the invoke-action operation of the history service
-func NewReadHistoryClient() *ReadHistoryClient {
+func NewReadHistoryClient(sink modules.IHiveModule) *ReadHistoryClient {
 	// how to determine the thingID of the history service?
 	// For now we use the well-known IDs. In future this needs discovery
-	histCl := ReadHistoryClient{
+	histCl := &ReadHistoryClient{
 		histThingID: history.HistoryModuleType,
 	}
-	return &histCl
+	if sink != nil {
+		histCl.SetRequestSink(sink)
+		sink.SetNotificationSink(histCl)
+	}
+	return histCl
 }
 
 // NewReadHistoryClientFactory returns an instance of the read history client
@@ -188,5 +192,5 @@ func NewReadHistoryClient() *ReadHistoryClient {
 //
 //	invokeAction is the TD invokeAction for the invoke-action operation of the history service
 func NewReadHistoryClientFactory(f factory.IModuleFactory) (modules.IHiveModule, error) {
-	return NewReadHistoryClient(), nil
+	return NewReadHistoryClient(nil), nil
 }

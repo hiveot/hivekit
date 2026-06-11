@@ -1,4 +1,4 @@
-# directory - Things Directory Module
+# directory - Things Directory Service
 
 This directory module provides the means to store and retrieve TD (Thing Description) documents.
 

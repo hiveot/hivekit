@@ -23,7 +23,7 @@ type BucketMsgHandler struct {
 	// thingID of this instance
 	thingID string
 	// the underlying bucket store to access
-	service bucketstore.IBucketStorage
+	service bucketstore.IBucketStore
 	// serving cursor requests
 	cursorCache *CursorCache
 }

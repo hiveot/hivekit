@@ -47,7 +47,7 @@ func LoadCA(caCertPath, caKeyPath string) (*x509.Certificate, crypto.PrivateKey,
 		// On first start there might not be a CA. Not a fatal error.
 		slog.Warn("no valid CA certificate found", "path", caCertPath, "err", err.Error())
 	} else {
-		_, caPrivateKey, _, err := utils.LoadPrivateKey(caKeyPath)
+		caPrivateKey, _, err := utils.LoadPrivateKey(caKeyPath)
 		if err != nil {
 			slog.Warn("No valid CA key-pair found", "path", caCertPath, "err", err.Error())
 		} else {

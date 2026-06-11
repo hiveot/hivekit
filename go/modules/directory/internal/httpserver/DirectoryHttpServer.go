@@ -53,7 +53,7 @@ func (srv *DirectoryHttpServer) AddTDSecForms(tdoc *td.TD, includeAffordances bo
 		}}
 
 	// action: createThing
-	aff := tdoc.GetAction(directory.ActionCreateThing)
+	aff := tdoc.GetAction(directory.CreateThingAction)
 	href := fmt.Sprintf("%s/things/{id}", base)
 	f := aff.AddForm(td.OpInvokeAction, href, http.MethodPost, nil)
 	f["response"] = map[string]any{
@@ -63,7 +63,7 @@ func (srv *DirectoryHttpServer) AddTDSecForms(tdoc *td.TD, includeAffordances bo
 	aff.UriVariables = uriVars
 
 	// action: deleteThing
-	aff = tdoc.GetAction(directory.ActionDeleteThing)
+	aff = tdoc.GetAction(directory.DeleteThingAction)
 	aff.UriVariables = uriVars
 	href = fmt.Sprintf("%s/things/{id}", base)
 	f = aff.AddForm(td.OpInvokeAction, href, http.MethodDelete, nil)
@@ -74,7 +74,7 @@ func (srv *DirectoryHttpServer) AddTDSecForms(tdoc *td.TD, includeAffordances bo
 	}
 
 	// action: retrieveAllThings
-	aff = tdoc.GetAction(directory.ActionRetrieveAllThings)
+	aff = tdoc.GetAction(directory.RetrieveAllThingsAction)
 	href = fmt.Sprintf("%s/things", base)
 	f = aff.AddForm(td.OpInvokeAction, href, http.MethodGet, nil)
 	f["response"] = map[string]any{
@@ -84,7 +84,7 @@ func (srv *DirectoryHttpServer) AddTDSecForms(tdoc *td.TD, includeAffordances bo
 	}
 
 	// action: retrieveThing
-	aff = tdoc.GetAction(directory.ActionRetrieveThing)
+	aff = tdoc.GetAction(directory.RetrieveThingAction)
 	aff.UriVariables = uriVars
 	href = fmt.Sprintf("%s/things/{id}", base)
 	f = aff.AddForm(td.OpInvokeAction, href, http.MethodGet, nil)
@@ -95,7 +95,7 @@ func (srv *DirectoryHttpServer) AddTDSecForms(tdoc *td.TD, includeAffordances bo
 	}
 
 	// action: updateThing
-	aff = tdoc.GetAction(directory.ActionUpdateThing)
+	aff = tdoc.GetAction(directory.UpdateThingAction)
 	aff.UriVariables = uriVars
 	href = fmt.Sprintf("%s/things/{id}", base)
 	f = aff.AddForm(td.OpInvokeAction, href, http.MethodPut, nil)

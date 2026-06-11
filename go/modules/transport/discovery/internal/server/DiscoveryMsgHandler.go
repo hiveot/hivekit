@@ -11,7 +11,7 @@ import (
 func (m *DiscoveryServer) HandleRequest(req *msg.RequestMessage, replyTo msg.ResponseHandler) (err error) {
 	// intercept a directory update to publish a TD
 	if req.Operation == td.OpInvokeAction && req.ThingID == m.directoryThingID &&
-		(req.Name == directory.ActionCreateThing || req.Name == directory.ActionUpdateThing) {
+		(req.Name == directory.CreateThingAction || req.Name == directory.UpdateThingAction) {
 
 		tdJson := req.ToString(0)
 		m.ServeThingTD(tdJson)

@@ -144,7 +144,7 @@ func TestMsgClient(t *testing.T) {
 
 	// use a direct transport instead of running a client-server
 	tp := testenv.NewTestTransport("testclient", m)
-	cl := certspkg.NewCertsMsgClient(certs.DefaultCertsServiceThingID, tp)
+	cl := certspkg.NewCertsMsgClient(tp, "")
 	caCert, err := cl.GetCACert()
 	require.NoError(t, err)
 	require.NotEmpty(t, caCert)
@@ -174,7 +174,7 @@ func TestCreateCerts(t *testing.T) {
 	require.NotNil(t, serverTlsCert)
 
 	// this needs completion
-	cl := certspkg.NewCertsMsgClient(certs.DefaultCertsServiceThingID, nil)
+	cl := certspkg.NewCertsMsgClient(nil, "")
 	// var _ certs.ICertsService = cl // interface check
 	_ = cl
 }
