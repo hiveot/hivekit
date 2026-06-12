@@ -55,21 +55,17 @@ type IHiveModule interface {
 	// The default behavior is to forward it upstream to the handler set with SetNotificationSink.
 	HandleNotification(notif *msg.NotificationMessage)
 
-	// Deprecated: this should move to the agent as agents serve application requests
-	// SetAppRequestHook sets the handler that receives unhandled requests that pass through
-	// this module.
-	// The handler decides if it can handle the request and should forward the request if it
-	// cannot be handled.
-	// SetAppRequestHook(hook msg.RequestHandler)
-
-	// Set the hook to invoke with received notifications
-	// SetNotificationHook(hook msg.NotificationHandler)
-
-	// Set the consumer of notifications emitted by this module (acting as a producer)
+	// Set the handler of notifications emitted by this module.
 	// Intended to create a chain of notifications from producer to consumer.
 	//
+	// Optionally set additional notification handlers for specific ThingIDs.
+	// If a handler for a thingID already exists a warning will be logged and the existing
+	// handler will be replaced.
+	//
+	// thingIDs are the things to handle the notifications for, or empty for all things
+	//
 	// This can be invoked before or after Start()
-	SetNotificationSink(consumer IHiveModule)
+	SetNotificationSink(consumer IHiveModule, thingIDs ...string)
 
 	// SetRequestSink sets the handler of requests emitted by this module.
 	//

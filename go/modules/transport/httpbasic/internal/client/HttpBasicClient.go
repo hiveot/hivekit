@@ -386,7 +386,7 @@ func (cl *HttpBasicClient) SendResponse(resp *msg.ResponseMessage) error {
 }
 
 // Does reports an error as http clients dont receive notifications
-func (cl *HttpBasicClient) SetNotificationSink(sink modules.IHiveModule) {
+func (cl *HttpBasicClient) SetNotificationSink(sink modules.IHiveModule, thingID ...string) {
 	slog.Warn("SetNotificationSink: HttpBasicClients dont handle notifications",
 		"clientID", cl.GetClientID())
 }

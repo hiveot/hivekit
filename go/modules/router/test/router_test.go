@@ -284,7 +284,7 @@ func TestSubscribeReconnectToDevice(t *testing.T) {
 	testDevice.TransportServer.CloseAll()
 
 	// reading properties should fail while auto-reconnect is ongoing
-	slog.Info("---ReadAllProperties---")
+	slog.Info("---ReadAllProperties (while reconnecting)---")
 	values, err := co.ReadAllProperties(agentID)
 	assert.Error(t, err)
 

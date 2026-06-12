@@ -260,7 +260,7 @@ func (ag *Agent) PubProperty(thingID string, propName string, propVal any, onlyC
 			"name", notif.Name,
 			"value", notif.ToString(50),
 		)
-		tstate.SetProperty(propName, notif)
+		tstate.SetProperty(propName, notif.Data)
 
 		ag.ForwardNotification(notif)
 	}

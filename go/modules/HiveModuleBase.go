@@ -33,9 +33,10 @@ type HiveModuleBase struct {
 	// and in logging.
 	thingID string
 
-	// notificationSink is the sink for forwarding notification messages
-	// This is the upstream consumer.
-	notificationSink IHiveModule
+	// notificationSink is the sink for forwarding notification messages.
+	// sinks set with an empty thingID receive all notifications.
+	// sinks set with a specific thingID will receive notifications for that thingID only.
+	notificationSinks map[string]IHiveModule
 
 	// module properties and their value, nil if not used
 	// use UpdateProperty to modify a value and flag it for change
@@ -63,21 +64,18 @@ type HiveModuleBase struct {
 // note that the handler is not the downstream sink but the upstream consumer.
 func (m *HiveModuleBase) ForwardNotification(notif *msg.NotificationMessage) {
 	m.mux.RLock()
-	sink := m.notificationSink
+	sink1, _ := m.notificationSinks[notif.ThingID]
+	sink2, _ := m.notificationSinks[""]
 	m.mux.RUnlock()
-	if sink == nil {
-		// End of the line. If the notification isn't handled then warn about it
-		// A downstream module could have subscribed.
-		// // keep this warning for now.
-		// slog.Info("ForwardNotification: end of the line, no more notification sink.",
-		// 	"module", fmt.Sprintf("%T", m),
-		// 	"affordance", notif.AffordanceType,
-		// 	"thingID", notif.ThingID,
-		// 	"name", notif.Name,
-		// )
-		return
+
+	// first notify the thingID specific handler
+	if notif.ThingID != "" && sink1 != nil {
+		sink1.HandleNotification(notif)
 	}
-	sink.HandleNotification(notif)
+	// next the generic sink
+	if sink2 != nil {
+		sink2.HandleNotification(notif)
+	}
 }
 
 // ForwardRequest passes the request to the sink's HandleRequest method.
@@ -91,7 +89,7 @@ func (m *HiveModuleBase) ForwardRequest(req *msg.RequestMessage, replyTo msg.Res
 	sink := m.requestSink
 	m.mux.RUnlock()
 	if sink == nil {
-		return fmt.Errorf("ForwardRequest: end of the line at '%s' for request '%s/%s' to thingID '%s'",
+		return fmt.Errorf("ForwardRequest: no sink for request at '%s' for request '%s/%s' to thingID '%s'",
 			m.thingID, req.Operation, req.Name, req.ThingID)
 	}
 	if replyTo == nil {
@@ -198,24 +196,35 @@ func (m *HiveModuleBase) Rpc(
 // 	m.appNotificationHook = hook
 // }
 
-// Set the handler that will receive notifications emitted by this module
-func (m *HiveModuleBase) SetNotificationSink(consumer IHiveModule) {
+// Set the handler that will receive notifications emitted by this module.
+// Use thingIDs to set an additional handler specific for the specified thingIDs
+func (m *HiveModuleBase) SetNotificationSink(sink IHiveModule, thingIDs ...string) {
 	m.mux.Lock()
 	defer m.mux.Unlock()
-	if m.notificationSink != nil {
-		slog.Warn("SetNotificationSink: A notification sink already exists. It will be overwritten.",
-			"moduleID", m.thingID)
+	if len(thingIDs) == 0 {
+		thingIDs = []string{""}
 	}
-	m.notificationSink = consumer
+	for _, thingID := range thingIDs {
+		if m.notificationSinks[thingID] != nil {
+			slog.Warn("SetNotificationSink: A notification sink already exists. It will be overwritten.",
+				"moduleID", m.thingID,
+				"thingID", thingID)
+		}
+		m.notificationSinks[thingID] = sink
+	}
 }
 
-// SetRequestSink sets the producer that will handle requests for this consumer and register this
-// module as the receive of notifications from the module.
+// SetRequestSink sets the handler for requests send or forwarded by this module.
 //
 //	requestSink is the sink that will handle requests and send notifications
 func (m *HiveModuleBase) SetRequestSink(requestSink IHiveModule) {
 	m.mux.Lock()
 	defer m.mux.Unlock()
+	// to be determined if there is a use-case for replacing the sink
+	if m.requestSink != nil {
+		slog.Warn("SetRequestSink: Overriding existing request sink",
+			"module", m.GetThingID())
+	}
 	m.requestSink = requestSink
 }
 
@@ -246,9 +255,10 @@ func NewHiveModuleBase(thingID string, rpcTimeout time.Duration) *HiveModuleBase
 		thingID = "thing-" + shortid.MustGenerate()
 	}
 	m := &HiveModuleBase{
-		mux:        sync.RWMutex{},
-		thingID:    thingID,
-		rpcTimeout: rpcTimeout,
+		mux:               sync.RWMutex{},
+		thingID:           thingID,
+		rpcTimeout:        rpcTimeout,
+		notificationSinks: make(map[string]IHiveModule),
 	}
 	return m
 }

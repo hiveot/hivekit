@@ -23,6 +23,7 @@ const PropName_NrConnections = "nrConnections"
 //
 // To initialize: call Init(moduleID, sink, connectURL)
 type TransportServerBase struct {
+	*modules.HiveModuleBase
 
 	// appRequestHook is the application handler of requests addressed to this module's thingID.
 	//
@@ -45,20 +46,11 @@ type TransportServerBase struct {
 	// mutex to manage the connections
 	cmux sync.RWMutex
 
-	// Sink for forwarding notifications
-	notificationSink modules.IHiveModule
-
-	// Sink for forwarding requests
-	requestSink modules.IHiveModule
-
 	// Request and Response channel helper.
 	// Since some transports use unidirectional channels, a request to one channel
 	// will result in a response over the other. RnRChan will pass the response from
 	// one channel to the requester.
 	RnrChan *msg.RnRChan
-
-	// the server module thingID used for sending connect/disconnect notifications
-	thingID string
 }
 
 // AddConnection adds a new connection and notifies subscribers with a ServerConnectEvent notification.
@@ -120,8 +112,8 @@ func (srv *TransportServerBase) AddConnection(c IConnection) error {
 		ConnectionID: cid,
 	}
 	// publish a notification for those interested
-	senderID := srv.thingID
-	thingID := srv.thingID
+	senderID := srv.GetThingID()
+	thingID := senderID
 	notif := msg.NewNotificationMessage(senderID, msg.AffordanceTypeEvent, thingID,
 		ServerConnectEvent, connectionInfo)
 	srv.ForwardNotification(notif)
@@ -205,46 +197,6 @@ func (srv *TransportServerBase) ForEachConnection(handler func(c IConnection)) {
 	}
 }
 
-// ForwardNotification passes received notifications to the linked notification sink.
-// These notifications are typically sent by remote agents that use RC, or by this server
-// module itself to notify of connect/disconnects.  They are intended for services
-// running on the server, or to be forwarded to clients that subscribed to them.
-//
-// This behavior differes from HiveModuleBase as the forwarded notifications are received from a remote
-// client (agent) and must be forwarded to the server chain, which in turn passes it to subscribers.
-//
-// This logs a warning if no notification handler is set as the notification will be lost.
-func (srv *TransportServerBase) ForwardNotification(notif *msg.NotificationMessage) {
-	if srv.notificationSink == nil {
-		// Receiving notifications but with no sink set so likely a wiring issue.
-		// This can be intentional in testing.
-		slog.Warn("ForwardNotification: no notification sink set. Server is not fully set up.",
-			"module", srv.thingID,
-			"affordance", notif.AffordanceType,
-			"name", notif.Name,
-		)
-		return
-	}
-	srv.notificationSink.HandleNotification(notif)
-}
-
-// ForwardRequest passes a request to the configured request sink.
-//
-// This is used as the request handler of requests from incoming connections
-// or for requests passed down as part of the module chain.
-//
-// If no sink os configured this returns an error
-func (srv *TransportServerBase) ForwardRequest(req *msg.RequestMessage, replyTo msg.ResponseHandler) (err error) {
-	if srv.requestSink == nil {
-		slog.Error("ForwardRequest. Server has no request sink. Server is not fully set up.",
-			"op", req.Operation, "thingID", req.ThingID, "name", req.Name)
-		return fmt.Errorf("ForwardRequest: no sink for request '%s/%s' to thingID '%s'",
-			req.Operation, req.Name, req.ThingID)
-	}
-	err = srv.requestSink.HandleRequest(req, replyTo)
-	return err
-}
-
 // GetConnectURL returns connection URL of the server
 // This is set with init
 func (m *TransportServerBase) GetConnectURL() string {
@@ -292,11 +244,6 @@ func (srv *TransportServerBase) GetConnectionByClientID(clientID string) (c ICon
 	return c
 }
 
-// Return the module instance ID
-func (m *TransportServerBase) GetThingID() string {
-	return m.thingID
-}
-
 // Handle a notification this module (or downstream in the chain) subscribed to.
 // Notifications are forwarded to their upstream sink, which for a server is the
 // client.
@@ -319,11 +266,12 @@ func (m *TransportServerBase) HandleNotification(notif *msg.NotificationMessage)
 func (m *TransportServerBase) HandleRequest(
 	req *msg.RequestMessage, replyTo msg.ResponseHandler) (err error) {
 
-	if req.ThingID == m.thingID {
+	if req.ThingID == m.GetThingID() {
 		if m.appRequestHook != nil {
 			return m.appRequestHook(req, replyTo)
 		} else {
-			return fmt.Errorf("HandleRequest: no request handler set for this transport server module '%s'", m.thingID)
+			return fmt.Errorf("HandleRequest: no request handler set for this transport server module '%s'",
+				m.GetThingID())
 		}
 	}
 
@@ -406,8 +354,8 @@ func (srv *TransportServerBase) RemoveConnection(c IConnection) {
 		ClientID:     c.GetClientID(),
 		ConnectionID: c.GetConnectionID(),
 	}
-	senderID := srv.thingID
-	thingID := srv.thingID
+	senderID := srv.GetThingID()
+	thingID := senderID
 	notif := msg.NewNotificationMessage(senderID, msg.AffordanceTypeEvent, thingID,
 		ServerDisconnectEvent, connectionInfo)
 	srv.ForwardNotification(notif)
@@ -461,25 +409,10 @@ func (srv *TransportServerBase) SendResponse(
 	return err
 }
 
-// Set the handler that will receive notifications received from the remote agent
-func (srv *TransportServerBase) SetNotificationSink(consumer modules.IHiveModule) {
-	srv.notificationSink = consumer
-}
-
 // Set the hook to invoke with received requests directed at this module
 // Any other requests received by HandleRequest will be forwarded to the sink.
 func (m *TransportServerBase) SetAppRequestHook(hook msg.RequestHandler) {
 	m.appRequestHook = hook
-}
-
-// Set the handler that will receive requests received from the client
-func (srv *TransportServerBase) SetRequestSink(sink modules.IHiveModule) {
-	// to be determined if there is a use-case for replacing the sink
-	if srv.requestSink != nil {
-		slog.Warn("SetRequestSink: Overriding existing request sink",
-			"module", fmt.Sprintf("%T", srv))
-	}
-	srv.requestSink = sink
 }
 
 // NewTransportServerBase initializes a server module intended for embedding.
@@ -492,7 +425,8 @@ func NewTransportServerBase(
 	thingID, connectURL string, authenticator IAuthenticator) *TransportServerBase {
 
 	base := &TransportServerBase{
-		thingID:       thingID,
+		HiveModuleBase: modules.NewHiveModuleBase(thingID, 0),
+
 		authenticator: authenticator,
 		connectURL:    connectURL,
 		RnrChan:       msg.NewRnRChan(),

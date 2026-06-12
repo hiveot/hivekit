@@ -98,7 +98,7 @@ type IHiveModule interface {
 	HandleRequest(request *RequestMessage, replyTo(resp *ResponseMessage)) error
 
 	// Set the handler of notifications emitted by this module
-	SetNotificationSink(consumer IHiveModule)
+	SetNotificationSink(consumer IHiveModule,thingIDs ...string)
 
 	// SetRequestSink sets the handler of requests emitted by this module.
 	SetRequestSink(sink IHiveModule)
