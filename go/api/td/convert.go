@@ -15,9 +15,9 @@ import (
 // Intended for assisting conversion between text and native formats.
 
 // UnmarshalTD unmarshals a JSON encoded TD
-func MarshalTD(tdi *TD) (tdJson string, err error) {
-	tdJsonRaw, err := jsoniter.Marshal(tdi)
-	return string(tdJsonRaw), err
+func MarshalTD(tdi *TD) (tdJson string) {
+	tdJsonRaw, _ := jsoniter.Marshal(tdi)
+	return string(tdJsonRaw)
 }
 
 // UnmarshalTD unmarshals a JSON encoded TD

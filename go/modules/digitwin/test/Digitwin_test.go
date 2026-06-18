@@ -54,9 +54,7 @@ func startService() (
 
 	os.RemoveAll(storageDir)
 	// testEnv,cancelFn = tptests.StartTestEnv(transport.ProtocolSchemeWotWSS)
-	testEnv = testenv.NewTestEnv()
-	// http server needed for all communications
-	testEnv.StartHttpServer(true)
+	testEnv = testenv.NewTestEnv(true)
 
 	// a websocket server for RRN messaging
 	appServer := testEnv.StartTestServer("")
@@ -135,7 +133,7 @@ func TestCreateDigitwinTD(t *testing.T) {
 
 	// pretent to be an agent that writes a TD to the directory
 	td1 := testEnv.CreateTestTD(0)
-	td1Json, _ := td.MarshalTD(td1)
+	td1Json := td.MarshalTD(td1)
 	err := dir.UpdateThing(agentID, td1Json)
 
 	// 1. Retrieve the TD from the directory.
@@ -231,7 +229,7 @@ func TestReadDigitwinProperty(t *testing.T) {
 	})
 
 	// 2. pretent to be an agent that writes a TD to the directory
-	td1Json, _ := td.MarshalTD(deviceTD1)
+	td1Json := td.MarshalTD(deviceTD1)
 	err = dir.UpdateThing(agentID, td1Json)
 	assert.NoError(t, err)
 
@@ -301,7 +299,7 @@ func TestWriteDigitwinProperty(t *testing.T) {
 	// normally the discovery process discovered the directory service service ID,
 	// but most likely it uses the default.
 	td1 := testEnv.CreateTestTD(0)
-	td1Json, _ := td.MarshalTD(td1)
+	td1Json := td.MarshalTD(td1)
 	err = directorypkg.UpdateTD(
 		directory.DefaultDirectoryThingID, td1Json, ag.ForwardRequest)
 	assert.NoError(t, err)
@@ -383,7 +381,7 @@ func TestInvokeDigitwinAction(t *testing.T) {
 	// 3. write a TD with this action
 	td1 := testEnv.CreateTestTD(0)
 	td1.ID = thingID
-	td1Json, _ := td.MarshalTD(td1)
+	td1Json := td.MarshalTD(td1)
 	err = directorypkg.UpdateTD(
 		directory.DefaultDirectoryThingID, td1Json, ag.ForwardRequest)
 	assert.NoError(t, err)

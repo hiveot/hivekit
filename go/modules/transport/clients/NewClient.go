@@ -9,12 +9,17 @@ import (
 	"strings"
 
 	"github.com/hiveot/hivekit/go/api/td"
+	"github.com/hiveot/hivekit/go/modules"
+	"github.com/hiveot/hivekit/go/modules/factory"
 	"github.com/hiveot/hivekit/go/modules/transport"
 	grpcpkg "github.com/hiveot/hivekit/go/modules/transport/grpc/pkg"
 	httpbasicpkg "github.com/hiveot/hivekit/go/modules/transport/httpbasic/pkg"
 	ssescpkg "github.com/hiveot/hivekit/go/modules/transport/ssesc/pkg"
 	wsspkg "github.com/hiveot/hivekit/go/modules/transport/wss/pkg"
 )
+
+// Module type for inclusion in the factory chain
+const TransportClientModuleType = "transport-client"
 
 // list of supported client protocols
 var SupportedClientProtocols = []string{
@@ -106,12 +111,31 @@ func GetProtocolType(tdoc *td.TD, op string) (protocolType string, href string) 
 //	protocolType provides direct control of the client to create regardless of the URL.
 //	 If omitted, then it is derived from the serverURL scheme.
 //
+//	serverURL is the connection endpoint to connect to
+//
+//	caCert is the CA certificate to validate the server certificate.
+//
 // # Use SetTimeout for increasing the default communication timeout for testing
 //
 // This is intended to be used as a sink for application modules.
 func NewTransportClient(
 	protocolType string, serverURL string, caCert *x509.Certificate) (
 	cl transport.ITransportClient, err error) {
+
+	// // 1. determine the connection address
+	// if serverURL == "" {
+	// 	// use the first hiveot instance to connect to
+	// 	discoClient := discoverypkg.NewDiscoveryClient()
+	// 	discoList, err := discoClient.DiscoverThings(discoserver.DefaultServiceName, timeout, nil)
+	// 	if err != nil || len(discoList) == 0 {
+	// 		return nil, fmt.Errorf("no server found")
+	// 	}
+	// 	// match protocolType
+	// 	serverURL = discoList[0].WSSEndpoint
+	// 	if serverURL == "" {
+	// 		serverURL = discoList[0].SSEEndpoint
+	// 	}
+	// }
 
 	parts, err := url.Parse(serverURL)
 	scheme := strings.ToLower(parts.Scheme)
@@ -174,5 +198,18 @@ func NewTransportClientFromTD(
 
 	protocolType, href := GetProtocolType(tdoc, "")
 	cl, err = NewTransportClient(protocolType, href, caCert)
+	return cl, err
+}
+
+// Create a new client instance using the gathered information from the factory
+// This uses the factory serverURL or server TD to determine which protocol to instantiate
+func NewTransportClientFactory(f factory.IModuleFactory) (cl modules.IHiveModule, err error) {
+	serverURL := f.GetEnvironment().ServerURL
+	if serverURL != "" {
+		cl, err = NewTransportClient("", serverURL, f.GetEnvironment().CaCert)
+	} else {
+		// TODO: use discovered server TD
+		err = fmt.Errorf("unknown protocol")
+	}
 	return cl, err
 }

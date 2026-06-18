@@ -24,47 +24,33 @@ import (
 	"github.com/hiveot/hivekit/go/utils"
 )
 
-// Recipe for a simple device that provides a standalone server for a counter module.
-var recipe = factorypkg.FactoryRecipe{
-	ModuleDefs: map[string]factory.ModuleDefinition{
-		// add forms to published TDs
-		addforms.AddFormsModuleType: {
-			Constructor: addformspkg.NewAddFormsServiceFactory,
-		},
-		// create a self-signed CA and server cert if none exist
-		certs.InitFactoryCertsModuleType: {
-			Constructor: certspkg.NewInitFactoryCerts,
-		},
-		// discovery server for publishing the counter TD
-		discovery.DiscoveryServerModuleType: {
-			Constructor: discoverypkg.NewDiscoveryServerFactory,
-		},
-		// http server module is used by websockets
-		transport.TLSServerModuleType: {
-			Constructor: tlsserverpkg.NewTLSServerFactory,
-		},
-		// websockets is the main communication transport
-		wss.HiveotWebsocketServerModuleType: {
-			Constructor: wsspkg.NewHiveotWssServerFactory,
-		},
-		// counter is the application module
-		counterdevice.CounterDeviceModuleType: {
-			Constructor: counterdevice.MyCounterModuleFactory,
-		},
+// Module chain for a device that provides a standalone server for a counter module.
+var moduleChain = []factory.ModuleDefinition{
+	// create a self-signed CA and server cert if none exist
+	{
+		Type:        certs.InitFactoryCertsModuleType,
+		Constructor: certspkg.NewInitFactoryCerts,
 	},
-
-	// This chain defines the complete application
-	ModuleChain: []string{
-		// initialize the environment with certificates
-		certs.InitFactoryCertsModuleType,
-		// run a websocket server (this loads the http transport)
-		wss.HiveotWebsocketServerModuleType,
-		// run the counter service
-		counterdevice.CounterDeviceModuleType,
-		// add forms to the counter TD
-		addforms.AddFormsModuleType,
-		// run discovery server to publish the counter TD
-		discovery.DiscoveryServerModuleType,
+	// http server module is used by websockets
+	{Type: transport.TLSServerModuleType,
+		Constructor: tlsserverpkg.NewTLSServerFactory,
+	},
+	// websockets is the main communication transport
+	{Type: wss.HiveotWebsocketServerModuleType,
+		Constructor: wsspkg.NewHiveotWssServerFactory,
+	},
+	// counter is the application module
+	{Type: counterdevice.CounterDeviceModuleType,
+		Constructor: counterdevice.MyCounterModuleFactory,
+	},
+	// add forms to published TDs
+	{
+		Type:        addforms.AddFormsModuleType,
+		Constructor: addformspkg.NewAddFormsServiceFactory,
+	},
+	// discovery server for publishing the counter TD
+	{Type: discovery.DiscoveryServerModuleType,
+		Constructor: discoverypkg.NewDiscoveryServerFactory,
 	},
 }
 
@@ -83,8 +69,8 @@ func main() {
 	}
 
 	// run it with the recipe
-	r := factorypkg.NewFactoryRecipe(recipe.ModuleDefs, recipe.ModuleChain)
-	r.Start(f)
+	r := factorypkg.NewChainRecipe(f, moduleChain)
+	r.Start()
 
 	// increment the counter to generate an event
 	m, err := f.GetModule(counterdevice.CounterDeviceModuleType, false)

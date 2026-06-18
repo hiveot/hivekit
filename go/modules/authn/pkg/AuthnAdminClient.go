@@ -7,17 +7,18 @@ import (
 	authnapi "github.com/hiveot/hivekit/go/modules/authn"
 )
 
-// AuthnAdminMsgClient is a client module for authentication management using RRN messages.
+// AuthnAdminClient is a client module for authentication management using RRN messages.
+// This is a simple wrapper that generates the request messages.
 // This should be linked to a transport client module for message delivery.
-type AuthnAdminMsgClient struct {
+type AuthnAdminClient struct {
 	*modules.HiveModuleBase
 	// The ThingID of the authn service that handles the request.
-	authnServiceID string
+	serviceID string
 }
 
 // AdminAddAgent client method - Add Agent.
 // Create an account for IoT device agents
-func (m *AuthnAdminMsgClient) AddClient(clientID string, displayName string, role string, pubKey string) (
+func (m *AuthnAdminClient) AddClient(clientID string, displayName string, role string, pubKey string) (
 	token string, err error) {
 
 	var args = authnapi.AdminAddClientArgs{
@@ -25,74 +26,71 @@ func (m *AuthnAdminMsgClient) AddClient(clientID string, displayName string, rol
 		DisplayName: displayName,
 		Role:        role,
 	}
-	thingID := authnapi.DefaultAdminServiceID
-	err = m.Rpc(td.OpInvokeAction, thingID, authnapi.AdminActionAddClient, &args, &token)
+	err = m.Rpc(td.OpInvokeAction, m.serviceID, authnapi.AdminActionAddClient, &args, &token)
 	return
 }
 
 // GetClientProfile client method - Get Client Profile.
 // Get the profile information describing a client
-func (m *AuthnAdminMsgClient) GetClientProfile(clientID string) (
+func (m *AuthnAdminClient) GetClientProfile(clientID string) (
 	profile authnapi.ClientProfile, err error) {
 
-	thingID := authnapi.DefaultAdminServiceID
-	err = m.Rpc(td.OpInvokeAction, thingID,
+	err = m.Rpc(td.OpInvokeAction, m.serviceID,
 		authnapi.AdminActionGetProfile, &clientID, &profile)
 	return
 }
 
 // GetProfiles client method - Get Profiles.
 // Get a list of all client profiles
-func (m *AuthnAdminMsgClient) GetProfiles() (clientProfiles []authnapi.ClientProfile, err error) {
+func (m *AuthnAdminClient) GetProfiles() (clientProfiles []authnapi.ClientProfile, err error) {
 
-	thingID := authnapi.DefaultAdminServiceID
-	err = m.Rpc(td.OpInvokeAction, thingID,
+	err = m.Rpc(td.OpInvokeAction, m.serviceID,
 		authnapi.AdminActionGetProfiles, nil, &clientProfiles)
 	return
 }
 
 // RemoveClient client method - Remove Client.
 // Remove a client account
-func (m *AuthnAdminMsgClient) RemoveClient(clientID string) (err error) {
+func (m *AuthnAdminClient) RemoveClient(clientID string) (err error) {
 
-	thingID := authnapi.DefaultAdminServiceID
-	err = m.Rpc(td.OpInvokeAction, thingID,
+	err = m.Rpc(td.OpInvokeAction, m.serviceID,
 		authnapi.AdminActionRemoveClient, &clientID, nil)
 	return
 }
 
 // SetClientPassword client method - Set Client Password.
 // Update the password of a consumer
-func (m *AuthnAdminMsgClient) SetClientPassword(userName string, password string) (err error) {
+func (m *AuthnAdminClient) SetClientPassword(userName string, password string) (err error) {
 
 	var args = authnapi.AdminSetPasswordArgs{
 		UserName: userName, Password: password}
 
-	thingID := authnapi.DefaultAdminServiceID
-	err = m.Rpc(td.OpInvokeAction, thingID,
+	err = m.Rpc(td.OpInvokeAction, m.serviceID,
 		authnapi.AdminActionSetPassword, &args, nil)
 	return
 }
 
 // UpdateClientProfile client method - Update Client Profile.
 // Update the details of a client
-func (m *AuthnAdminMsgClient) UpdateClientProfile(clientProfile authnapi.ClientProfile) (err error) {
+func (m *AuthnAdminClient) UpdateClientProfile(clientProfile authnapi.ClientProfile) (err error) {
 
-	thingID := authnapi.DefaultAdminServiceID
 	err = m.Rpc(td.OpInvokeAction,
-		authnapi.AuthnAdminServiceID, thingID, &clientProfile, nil)
+		authnapi.AuthnAdminServiceID, m.serviceID, &clientProfile, nil)
 	return
 }
 
 // Create a new instance of the authentication administration messaging client
-// sink is the request handler this will link to. nil to ignore.
-func NewAuthnAdminClient(sink modules.IHiveModule) *AuthnAdminMsgClient {
-	m := &AuthnAdminMsgClient{
+//
+// sink is the request handler this will forward requests to the authn service.
+// This will also set this client as the notification sink for all authn generated notifications.
+func NewAuthnAdminClient(sink modules.IHiveModule) *AuthnAdminClient {
+	m := &AuthnAdminClient{
+		serviceID:      authnapi.DefaultAdminServiceID,
 		HiveModuleBase: modules.NewHiveModuleBase("", 0),
 	}
 	if sink != nil {
 		m.SetRequestSink(sink)
-		sink.SetNotificationSink(m)
+		sink.SetNotificationSink(m, m.serviceID)
 	}
 	return m
 }

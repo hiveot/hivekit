@@ -18,10 +18,7 @@ import (
 // DNS-SD service record.
 // Use DiscoveryClient for discovering devices on the network.
 type DiscoveryServer struct {
-	modules.HiveModuleBase
-
-	// this instance thingID
-	discoveryThingID string
+	*modules.HiveModuleBase
 
 	// the directory thingID the intercept for discovery of TD
 	directoryThingID string
@@ -62,7 +59,7 @@ func (m *DiscoveryServer) ServeDirectoryTD(dirTDJSON string) (err error) {
 		w.Header().Add("Content-Type", "application/td+json")
 		_, _ = w.Write([]byte(dirTDJSON))
 	})
-	instanceName := m.discoveryThingID
+	instanceName := m.GetThingID()
 	tddURL, err := url.JoinPath(m.httpServer.GetConnectURL(), wellKnownPath)
 
 	m.dnssdServer, err = ServeWotDiscovery(
@@ -94,7 +91,7 @@ func (m *DiscoveryServer) ServeThingTD(thingTDJSON string) (err error) {
 	publicRoute.Get(wellKnownPath, func(w http.ResponseWriter, r *http.Request) {
 		_, _ = w.Write([]byte(thingTDJSON))
 	})
-	instanceName := m.discoveryThingID
+	instanceName := m.GetThingID()
 	thingTDURL, err := url.JoinPath(m.httpServer.GetConnectURL(), wellKnownPath)
 	m.dnssdServer, err = ServeWotDiscovery(instanceName, thingTDURL, discovery.WOT_THING_SERVICE_TYPE, nil)
 	if err != nil {
@@ -129,18 +126,19 @@ func (m *DiscoveryServer) Stop() {
 //
 // The serviceID is optional and defaults to DefaultDiscoveryThingID.
 //
-//	serviceID is the thingID of this server itself. Used as the serviceID in DNS-SD records
+//	thingID of this server module. Also used as the serviceID in DNS-SD records
 //	httpServer is the server that serves the TD on the well-known endpoint.
 //	transports for TD security scheme, base URL and forms. Optional.
-func NewDiscoveryServer(serviceID string,
+func NewDiscoveryServer(thingID string,
 	httpServer transport.IHttpServer, endpoints map[string]string) *DiscoveryServer {
 
-	if serviceID == "" {
-		serviceID = discovery.DefaultDiscoveryThingID
+	if thingID == "" {
+		thingID = discovery.DiscoveryServerModuleType
 	}
 	m := &DiscoveryServer{
+		HiveModuleBase: modules.NewHiveModuleBase(thingID, 0),
+
 		directoryThingID: directory.DefaultDirectoryThingID,
-		discoveryThingID: serviceID,
 		endpoints:        endpoints,
 		httpServer:       httpServer,
 	}

@@ -49,7 +49,7 @@ type WotConsumer struct {
 	// connection transport.ITransportClient
 
 	// discovery records found after Discover()
-	records []*discoverypkg.DiscoveryResult
+	records []*discovery.DiscoveryResult
 
 	// discovered things by thingID
 	things map[string]*td.TD
@@ -85,13 +85,13 @@ func (co *WotConsumer) Connect(thingID string) (transport.ITransportClient, erro
 
 // Discover all published things and directories.
 // cb is an optional callback to invoke with ongoing results. Return true to cancel.
-func (co *WotConsumer) Discover(cb func(r *discoverypkg.DiscoveryResult) bool) (err error) {
+func (co *WotConsumer) Discover(cb func(r *discovery.DiscoveryResult) bool) (err error) {
 	// fmt.Print("Discover started ")
 
-	disco := discoverypkg.NewDiscoveryClient()
+	disco := discoverypkg.NewDiscoveryClient(nil)
 	waitDuration := time.Second * 1
 
-	co.records, err = disco.DiscoverThings("", waitDuration, func(r *discoverypkg.DiscoveryResult) bool {
+	co.records, err = disco.DiscoverThings("", waitDuration, func(r *discovery.DiscoveryResult) bool {
 
 		// load the TD to present nr of affordances
 		_, err := co.LoadDiscoveredTD(r)
@@ -109,9 +109,9 @@ func (co *WotConsumer) Discover(cb func(r *discoverypkg.DiscoveryResult) bool) (
 
 		// notify event listeners of the newly discovered record
 		// TODO: formalize this with a TD
-		notif := msg.NewNotificationMessage(co.GetThingID(),
-			msg.AffordanceTypeEvent, discovery.DefaultDiscoveryThingID, "discovery", r)
-		co.ForwardNotification(notif)
+		// notif := msg.NewNotificationMessage(co.GetThingID(),
+		// 	msg.AffordanceTypeEvent, discovery.DiscoveryThingID, "discovery", r)
+		// co.ForwardNotification(notif)
 		return false
 	})
 	return err
@@ -150,7 +150,7 @@ func (co *WotConsumer) GetPropValue(thingID string, name string) string {
 	return resp.ToString(0)
 }
 
-func (co *WotConsumer) GetRecords() []*discoverypkg.DiscoveryResult {
+func (co *WotConsumer) GetRecords() []*discovery.DiscoveryResult {
 	return co.records
 }
 
@@ -168,7 +168,7 @@ func (co *WotConsumer) GetThings() map[string]*td.TD {
 
 // Load the TD from the discovery record URL
 // This adds the TD to the known things or directories and returns the TD, or an error
-func (co *WotConsumer) LoadDiscoveredTD(r *discoverypkg.DiscoveryResult) (tdoc *td.TD, err error) {
+func (co *WotConsumer) LoadDiscoveredTD(r *discovery.DiscoveryResult) (tdoc *td.TD, err error) {
 
 	tdURL := r.AsURL()
 	resp, err := http.Get(tdURL)
@@ -306,14 +306,14 @@ func (co *WotConsumer) ReadThing(thingID string) []string {
 //	wotConsumer.SetRequestSink(r.HandleRequest)
 //	r.SetNotificationSink(wotConsumer.HandleNotification)
 
-func NewWotConsumer(timeout time.Duration) *WotConsumer {
+func NewWotConsumer(sink modules.IHiveModule, timeout time.Duration) *WotConsumer {
 
 	cl := &WotConsumer{
 		clientID:    "client1",
 		authToken:   "no-token",
-		records:     make([]*discoverypkg.DiscoveryResult, 0),
+		records:     make([]*discovery.DiscoveryResult, 0),
 		clients:     make(map[string]transport.ITransportClient),
-		Consumer:    *consumer.NewConsumer(nil),
+		Consumer:    *consumer.NewConsumer(sink, nil),
 		directories: make(map[string]*td.TD),
 		things:      make(map[string]*td.TD),
 	}
@@ -323,6 +323,6 @@ func NewWotConsumer(timeout time.Duration) *WotConsumer {
 
 // This module can be used in a factory recipe.
 func NewWotConsumerFactory(f factory.IModuleFactory) modules.IHiveModule {
-	cl := NewWotConsumer(f.GetEnvironment().RpcTimeout)
+	cl := NewWotConsumer(nil, f.GetEnvironment().RpcTimeout)
 	return cl
 }

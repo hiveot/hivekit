@@ -21,6 +21,7 @@ import (
 	"github.com/hiveot/hivekit/go/modules/logging"
 	loggingpkg "github.com/hiveot/hivekit/go/modules/logging/pkg"
 	"github.com/hiveot/hivekit/go/modules/reconnect"
+	reconnectpkg "github.com/hiveot/hivekit/go/modules/reconnect/pkg"
 	"github.com/hiveot/hivekit/go/modules/router"
 	routerpkg "github.com/hiveot/hivekit/go/modules/router/pkg"
 	"github.com/hiveot/hivekit/go/modules/transport"
@@ -96,7 +97,7 @@ var RecipeModules = map[string]factory.ModuleDefinition{
 		Constructor: consumer.NewConsumerFactory,
 	},
 	reconnect.ReconnectModuleType: {
-		Constructor: reconnect.NewReconnectFactory,
+		Constructor: reconnectpkg.NewReconnectFactory,
 	},
 	history.ReadHistoryClientModuleType: {
 		Constructor: historypkg.NewReadHistoryClientFactory,
@@ -110,7 +111,7 @@ var RecipeModules = map[string]factory.ModuleDefinition{
 	},
 
 	// client and session management provider
-	authnapi.AuthnModuleType: {
+	authnapi.AuthnServiceModuleType: {
 		Constructor: authnpkg.NewAuthnServiceFactory,
 	},
 	// authorization provider

@@ -45,6 +45,10 @@ func TestInvokeActionFromConsumerToServer(t *testing.T) {
 	var thingID = "thing1"
 	var actionName = "action1"
 
+	// 1. start the servers
+	testEnv, cancelFn := testenv.StartTestEnv(testProtocol, true)
+	defer cancelFn()
+
 	// the agent will receive the action request and return an immediate result
 	ag := agent.NewAgent("", func(req *msg.RequestMessage, replyTo msg.ResponseHandler) error {
 		var resp *msg.ResponseMessage
@@ -58,9 +62,6 @@ func TestInvokeActionFromConsumerToServer(t *testing.T) {
 		}
 		return replyTo(resp)
 	})
-	// 1. start the servers
-	testEnv, cancelFn := testenv.StartTestEnv(testProtocol)
-	defer cancelFn()
 	testEnv.Server.SetRequestSink(ag)
 
 	// 2. connect a client
@@ -147,7 +148,7 @@ func TestInvokeActionFromServerToAgent(t *testing.T) {
 	}
 	// tmpSink := &modules.HiveModuleBase{}
 	// tmpSink.SetResponseHandler(responseHandler)
-	testEnv, cancelFn2 := testenv.StartTestEnv(testProtocol)
+	testEnv, cancelFn2 := testenv.StartTestEnv(testProtocol, true)
 	defer cancelFn2()
 
 	// 2a. connect as an agent, app request handler is set separately
@@ -203,7 +204,11 @@ func TestQueryActions(t *testing.T) {
 	var thingID = "thing1"
 	var actionKey = "action1"
 
-	// 1. start the server. register an agent for receiving a request.
+	// 1. start the servers
+	testEnv, cancelFn := testenv.StartTestEnv(testProtocol, true)
+	defer cancelFn()
+
+	// 2. register an agent for receiving a request and link it to the server.
 	// Note that WoT doesn't cover this use-case so this uses hiveot vocabulary operation.
 	ag := agent.NewAgent("", func(req *msg.RequestMessage, replyTo msg.ResponseHandler) error {
 		var resp *msg.ResponseMessage
@@ -260,10 +265,7 @@ func TestQueryActions(t *testing.T) {
 		}
 		return replyTo(resp)
 	})
-
-	// 1. start the servers and link it to the agent that handles requests
-	testEnv, cancelFn := testenv.StartTestEnv(testProtocol)
-	defer cancelFn()
+	// agent handles requests received by the server
 	testEnv.Server.SetRequestSink(ag)
 
 	// 2. connect as a consumer

@@ -45,8 +45,7 @@ var names = []string{"temperature", "humidity", "pressure", "wind", "speed", "sw
 
 func TestMain(m *testing.M) {
 	var cancelFn func()
-	utils.SetLogging("info", "")
-	testEnv, cancelFn = testenv.StartTestEnv(defaultProtocol)
+	testEnv, cancelFn = testenv.StartTestEnv(defaultProtocol, true)
 	defer cancelFn()
 
 	res := m.Run()
@@ -60,7 +59,7 @@ func startHistoryService(clean bool) (
 	histModule *internal.HistoryService, stopFn func()) {
 
 	dataDir := filepath.Join(
-		testEnv.StorageRoot, history.HistoryModuleType)
+		testEnv.AppEnv.StoresDir, history.HistoryModuleType)
 	if clean {
 		os.RemoveAll(dataDir)
 	}

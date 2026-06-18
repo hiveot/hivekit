@@ -44,7 +44,7 @@ func TestObservePropertyByConsumer(t *testing.T) {
 	var propValue2 = "value2"
 
 	// 1. start the server
-	testEnv, cancelFn := testenv.StartTestEnv(testProtocol)
+	testEnv, cancelFn := testenv.StartTestEnv(testProtocol, true)
 	defer cancelFn()
 
 	// 2. connect with two consumers
@@ -123,7 +123,7 @@ func TestPublishPropertyByAgent(t *testing.T) {
 	var propValue1 = "value1"
 
 	// handler of property updates on the server
-	co := consumer.NewConsumer(func(msg *msg.NotificationMessage) {
+	co := consumer.NewConsumer(nil, func(msg *msg.NotificationMessage) {
 		// the server receives all notifications, we only want matching thingID
 		if msg.ThingID == thingID {
 			evVal.Store(msg.Data.(string))
@@ -131,7 +131,7 @@ func TestPublishPropertyByAgent(t *testing.T) {
 	})
 
 	// 1. start the transport
-	testEnv, cancelFn := testenv.StartTestEnv(testProtocol)
+	testEnv, cancelFn := testenv.StartTestEnv(testProtocol, true)
 	testEnv.Server.SetNotificationSink(co)
 	defer cancelFn()
 
@@ -169,7 +169,7 @@ func TestReadProperty(t *testing.T) {
 		}
 		return replyTo(resp)
 	})
-	testEnv, cancelFn := testenv.StartTestEnv(testProtocol)
+	testEnv, cancelFn := testenv.StartTestEnv(testProtocol, true)
 	testEnv.Server.SetRequestSink(ag)
 	defer cancelFn()
 
@@ -206,7 +206,7 @@ func TestReadAllProperties(t *testing.T) {
 		}
 		return replyTo(resp)
 	})
-	testEnv, cancelFn := testenv.StartTestEnv(testProtocol)
+	testEnv, cancelFn := testenv.StartTestEnv(testProtocol, true)
 	testEnv.Server.SetRequestSink(ag)
 	defer cancelFn()
 

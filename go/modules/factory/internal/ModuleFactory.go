@@ -246,10 +246,10 @@ func (f *ModuleFactory) LoadModule(moduleType string) (m modules.IHiveModule, is
 
 // RegisterModule registers a module definition to the factory, making it available for creation.
 // Intended to support 3rd party modules.
-func (f *ModuleFactory) RegisterModule(moduleType string, moduleDef factory.ModuleDefinition) {
+func (f *ModuleFactory) RegisterModule(moduleDef factory.ModuleDefinition) {
 	f.mux.Lock()
 	defer f.mux.Unlock()
-	f.moduleTable[moduleType] = moduleDef
+	f.moduleTable[moduleDef.Type] = moduleDef
 }
 
 // Set the authenticator to use with the module.

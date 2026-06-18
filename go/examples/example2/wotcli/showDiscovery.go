@@ -8,7 +8,7 @@ import (
 	"github.com/araddon/dateparse"
 	"github.com/hiveot/hivekit/go/api/td"
 	"github.com/hiveot/hivekit/go/examples/wotco"
-	discoverypkg "github.com/hiveot/hivekit/go/modules/transport/discovery/pkg"
+	"github.com/hiveot/hivekit/go/modules/transport/discovery"
 )
 
 // Show a list of Thing TDs
@@ -34,7 +34,7 @@ func ShowDiscovery(co *wotco.WotConsumer, verbose bool) {
 	fmt.Printf("Type       Address    Port   Instance Name        Schema   ThingID                           TD URL   \n")
 	fmt.Printf("---------- ---------- -----  -------------------  -------  --------------------------------  -------  \n")
 
-	co.Discover(func(r *discoverypkg.DiscoveryResult) bool {
+	co.Discover(func(r *discovery.DiscoveryResult) bool {
 		// load the TD to present nr of affordances
 		tdURL := r.AsURL()
 		var tdoc *td.TD

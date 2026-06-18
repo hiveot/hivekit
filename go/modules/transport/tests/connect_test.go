@@ -50,7 +50,7 @@ func TestStartStop(t *testing.T) {
 	t.Logf("---%s %s---\n", t.Name(), testProtocol)
 
 	// testenv might still start the httpserver - fixme: use on-demand factory
-	testEnv, cancelFn := testenv.StartTestEnv(testProtocol)
+	testEnv, cancelFn := testenv.StartTestEnv(testProtocol, true)
 
 	defer cancelFn()
 	co1, cc1, _ := testEnv.NewConnectedConsumer(testClientID1, authn.ClientRoleViewer, false)
@@ -70,7 +70,7 @@ func TestStartStop(t *testing.T) {
 func TestPing(t *testing.T) {
 	t.Logf("---%s %s---\n", t.Name(), testProtocol)
 
-	testEnv, cancelFn := testenv.StartTestEnv(testProtocol)
+	testEnv, cancelFn := testenv.StartTestEnv(testProtocol, true)
 	defer cancelFn()
 	// NewConsumerClient creates a client
 	co1, cc1, _ := testEnv.NewConnectedConsumer(testClientID1, authn.ClientRoleViewer, false)
@@ -84,7 +84,7 @@ func TestPing(t *testing.T) {
 func TestPingClientCert(t *testing.T) {
 	t.Logf("---%s %s---\n", t.Name(), testProtocol)
 
-	testEnv, cancelFn := testenv.StartTestEnv(testProtocol)
+	testEnv, cancelFn := testenv.StartTestEnv(testProtocol, true)
 	defer cancelFn()
 
 	// ensure the test client account exists
@@ -133,7 +133,7 @@ func TestPingClientCert(t *testing.T) {
 func TestServerURL(t *testing.T) {
 	t.Logf("---%s %s---\n", t.Name(), testProtocol)
 
-	testEnv, cancelFn := testenv.StartTestEnv(testProtocol)
+	testEnv, cancelFn := testenv.StartTestEnv(testProtocol, true)
 	defer cancelFn()
 	serverURL := testEnv.Server.GetConnectURL()
 	assert.NotEmpty(t, serverURL)

@@ -7,14 +7,14 @@ import (
 
 	"github.com/hiveot/hivekit/go/api/td"
 	"github.com/hiveot/hivekit/go/examples/wotco"
-	discoverypkg "github.com/hiveot/hivekit/go/modules/transport/discovery/pkg"
+	"github.com/hiveot/hivekit/go/modules/transport/discovery"
 )
 
 func ListDir(co *wotco.WotConsumer) {
 	var dirTD string
 	var tdoc *td.TD
 
-	co.Discover(func(r *discoverypkg.DiscoveryResult) bool {
+	co.Discover(func(r *discovery.DiscoveryResult) bool {
 
 		if r.IsDirectory {
 			tdURL := r.AsURL()

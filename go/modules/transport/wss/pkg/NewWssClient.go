@@ -41,7 +41,7 @@ func NewHiveotWssClientFactory(f factory.IModuleFactory) (modules.IHiveModule, e
 	} else {
 		// if client certificate not available attempt auth token
 		clientID := env.GetClientID()
-		authToken := env.GetAppToken()
+		authToken, _ := env.GetClientToken()
 
 		if clientID != "" && authToken != "" {
 			err = m.AuthenticateWithToken(clientID, authToken)
@@ -92,7 +92,7 @@ func NewWotWssClientFactory(f factory.IModuleFactory) (modules.IHiveModule, erro
 	} else {
 		// must use token auth
 		clientID := env.GetClientID()
-		authToken := env.GetAppToken()
+		authToken, _ := env.GetClientToken()
 
 		if clientID != "" && authToken != "" {
 			err = m.AuthenticateWithToken(clientID, authToken)

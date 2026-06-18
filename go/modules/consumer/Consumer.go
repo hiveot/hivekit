@@ -252,13 +252,18 @@ func (co *Consumer) WriteProperty(thingID string, name string, input any, wait b
 // This provides the API for common WoT operations such as invoking actions and
 // supports RPC calls by waiting for a response.
 //
+// Provide a sink for forwarding requests and receiving notifications. Use nil to do this manually.
 // A notification handler can be provided or set with SetNotificationHook
 // Use SetTimeout to modify the default RPC timeout
-func NewConsumer(notificationHook msg.NotificationHandler) *Consumer {
+func NewConsumer(sink modules.IHiveModule, notificationHook msg.NotificationHandler) *Consumer {
 	thingID := ConsumerModuleType + "-" + shortid.MustGenerate()
 	consumer := &Consumer{
 		HiveModuleBase:      modules.NewHiveModuleBase(thingID, msg.DefaultRnRTimeout),
 		appNotificationHook: notificationHook,
+	}
+	if sink != nil {
+		consumer.SetRequestSink(sink)
+		sink.SetNotificationSink(consumer)
 	}
 
 	return consumer
@@ -266,7 +271,7 @@ func NewConsumer(notificationHook msg.NotificationHandler) *Consumer {
 
 // Factory for creating a consumer module using the factory environment
 func NewConsumerFactory(f factory.IModuleFactory) (modules.IHiveModule, error) {
-	c := NewConsumer(nil)
+	c := NewConsumer(nil, nil)
 	c.SetTimeout(f.GetEnvironment().RpcTimeout)
 	return c, nil
 }

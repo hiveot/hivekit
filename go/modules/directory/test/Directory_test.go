@@ -51,7 +51,7 @@ func StartDirectoryServer(withHttp bool) (
 	var dirHttpServer directory.IDirectoryHttpServer
 
 	proto := defaultProtocol
-	testEnv, cancelTestEnv := testenv.StartTestEnv(proto)
+	testEnv, cancelTestEnv := testenv.StartTestEnv(proto, true)
 	transports := []transport.ITransportServer{testEnv.Server}
 
 	if withHttp {

@@ -29,7 +29,7 @@ func NewAuthnService(
 func NewAuthnServiceFactory(f factory.IModuleFactory) (modules.IHiveModule, error) {
 	env := f.GetEnvironment()
 	keysDir := env.CertsDir
-	storageDir := env.GetStorageDir(authn.AuthnModuleType)
+	storageDir := env.GetStorageDir(authn.AuthnServiceModuleType)
 	authnConfig := authn.NewAuthnConfig(keysDir, storageDir)
 	m := NewAuthnService(authnConfig)
 	f.SetAuthenticator(m.GetSessionManager())

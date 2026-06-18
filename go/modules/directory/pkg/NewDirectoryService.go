@@ -25,6 +25,7 @@ func NewDirectoryService(
 
 	m := internal.NewDirectoryService(
 		serviceID, storageDir, httpServer, transports)
+
 	return m
 }
 

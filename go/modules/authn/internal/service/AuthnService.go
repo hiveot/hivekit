@@ -137,7 +137,6 @@ func (m *AuthnService) UpdateProfile(senderID string, newProfile authn.ClientPro
 // Create a new authentication service.
 //
 // authnConfig contains the password storage and token management configuration
-// httpServer to server the http endpoint or nil to not use http.
 func NewAuthnService(authnConfig authn.AuthnConfig) *AuthnService {
 
 	passwordFile := authnConfig.PasswordFile
@@ -146,7 +145,7 @@ func NewAuthnService(authnConfig authn.AuthnConfig) *AuthnService {
 	sessionManager := NewSessionManager(authnStore, authnConfig.KeysDir)
 
 	// this module is a singleton that exposes multiple service things
-	thingID := authn.AuthnModuleType
+	thingID := authn.AuthnServiceModuleType
 	m := &AuthnService{
 		HiveModuleBase: modules.NewHiveModuleBase(thingID, 0),
 		config:         authnConfig,

@@ -30,6 +30,9 @@ type ModuleDefinition struct {
 	// This returns an error if the module cannot be created.
 	// This returns nil with no error for modules that are used for initialization.
 	Constructor func(f IModuleFactory) (modules.IHiveModule, error)
+
+	// todo: pass configuration
+	Config any
 }
 
 // IModuleFactory is the interface for the module factory, used to create and manage
@@ -68,6 +71,8 @@ type IModuleFactory interface {
 
 	// GetEnvironment returns the application environment used by the factory for
 	// confuring modules.
+	// Note that the environment can be updated by the modules to allow factory modules
+	// to update the TDD, location of gateway and other discoverable information.
 	GetEnvironment() *AppEnvironment
 
 	// Return the http module if it was instantiated.
@@ -83,7 +88,10 @@ type IModuleFactory interface {
 
 	// GetModule creates and starts an instance of a module by its type.
 	//
-	// If the module is already loaded the existing module is returned.
+	// If the module is already loaded the existing module instasnce is returned.
+	//
+	// This does not link the module to other modules. Both request handler and notification handler
+	// must be set manually. See also RunRecipe for creating a chain.
 	//
 	//  moduleType identifies the type of the module to get.
 	//	instantiate set to true to create an instance if one isnt loaded
@@ -94,11 +102,11 @@ type IModuleFactory interface {
 	// initialization function.
 	GetModule(moduleType string, instantiate bool) (modules.IHiveModule, error)
 
-	// RegisterModule a module to the factory, making it available for creation.
+	// RegisterModule adds a module to the factory, making it available for instantiation
+	// and for running recipes.
 	//
-	// moduleType identifies the type of the module. (not instance)
 	// moduleDef defines the module attributes and constructor function
-	RegisterModule(moduleType string, moduleDef ModuleDefinition)
+	RegisterModule(moduleDef ModuleDefinition)
 
 	// SetAuthenticator sets the authenticator returned by GetAuthenticator.
 	// Note that GetAuthenticator returns a proxy to the actual authenticator.
@@ -108,13 +116,6 @@ type IModuleFactory interface {
 	// By default the authenticator proxy blocks all authentication.
 	// Setting a nil authenticator disables authentication.
 	SetAuthenticator(a transport.IAuthenticator)
-
-	// StartRecipe registers all modules in a recipe, start and link them in the prescribed order
-	//
-	// This returns a list of modules in the order they are loaded or an error when failed.
-	//
-	// If one module fails then an error is returned and all loaded modules will be stopped.
-	// StartRecipe(recipe *FactoryRecipe) (modList []modules.IHiveModule, err error)
 
 	// Stop all loaded modules in reverse order of loading.
 	// Intended for graceful shutdown.

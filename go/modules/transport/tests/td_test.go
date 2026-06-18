@@ -37,7 +37,7 @@ func TestReadTDFromDevice(t *testing.T) {
 
 	// handler of TDs on the server
 	// 1. start the transport
-	testEnv, cancelFn := testenv.StartTestEnv(testProtocol)
+	testEnv, cancelFn := testenv.StartTestEnv(testProtocol, true)
 	defer cancelFn()
 
 	// 2. create an agent linked to this server
@@ -85,7 +85,7 @@ func TestAddForms(t *testing.T) {
 
 	// handler of TDs on the server
 	// 1. start the transport
-	testEnv, cancelFn := testenv.StartTestEnv(testProtocol)
+	testEnv, cancelFn := testenv.StartTestEnv(testProtocol, true)
 	defer cancelFn()
 
 	// 2. Create a TD

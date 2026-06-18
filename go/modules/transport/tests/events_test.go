@@ -43,7 +43,7 @@ func TestSubscribeAll(t *testing.T) {
 	var eventKey = "event11"
 
 	// 1. start the servers
-	testEnv, cancelFn := testenv.StartTestEnv(testProtocol)
+	testEnv, cancelFn := testenv.StartTestEnv(testProtocol, true)
 	defer cancelFn()
 
 	// 2. connect as consumers
@@ -113,7 +113,7 @@ func TestSubscribeReconnect(t *testing.T) {
 	var connectedCh = make(chan bool, 1)
 
 	// 1. start the servers
-	testEnv, cancelFn := testenv.StartTestEnv(testProtocol)
+	testEnv, cancelFn := testenv.StartTestEnv(testProtocol, true)
 	defer cancelFn()
 
 	// 2. connect a consumer with reconnect capability
@@ -178,13 +178,13 @@ func TestPublishEventsByRCAgent(t *testing.T) {
 
 	// 1. start the transport
 	// handler of notifications received on the server
-	co := consumer.NewConsumer(func(msg *msg.NotificationMessage) {
+	co := consumer.NewConsumer(nil, func(msg *msg.NotificationMessage) {
 		// the server handler receives all notifications
 		if msg.ThingID == thingID {
 			evVal.Store(msg.Data)
 		}
 	})
-	testEnv, cancelFn := testenv.StartTestEnv(testProtocol)
+	testEnv, cancelFn := testenv.StartTestEnv(testProtocol, true)
 	testEnv.Server.SetNotificationSink(co)
 	defer cancelFn()
 
@@ -226,7 +226,7 @@ func TestReadEvent(t *testing.T) {
 		return replyTo(resp)
 	})
 
-	testEnv, cancelFn := testenv.StartTestEnv(testProtocol)
+	testEnv, cancelFn := testenv.StartTestEnv(testProtocol, true)
 	testEnv.Server.SetRequestSink(ag)
 	defer cancelFn()
 

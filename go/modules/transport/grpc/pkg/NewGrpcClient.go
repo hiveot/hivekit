@@ -38,9 +38,9 @@ func NewHiveotGrpcClientFactory(f factory.IModuleFactory) modules.IHiveModule {
 	if clientCert == nil {
 		// must use token auth
 		clientID := env.GetClientID()
-		authToken := env.GetAppToken()
+		authToken, err := env.GetClientToken()
 
-		if clientID != "" && authToken != "" {
+		if err == nil && clientID != "" && authToken != "" {
 			m.AuthenticateWithToken(clientID, authToken)
 		}
 	}

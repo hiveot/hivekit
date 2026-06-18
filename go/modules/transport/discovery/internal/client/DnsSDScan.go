@@ -19,7 +19,7 @@ import (
 //
 //	instanceName to look for, or "" for all possible instances
 //	serviceType to look for in format "_{serviceName}._tcp", or "" to discover all service types (not all services)
-//	waitTime with duration to wait while collecting results. 0 means exit on the first result.
+//	waitTime with duration to wait while collecting results. Default is 3 seconds
 //	cb is the optional callback invoked when a result is found
 func DnsSDScan(instanceName string, serviceType string, waitTime time.Duration,
 	cb func(*zeroconf.ServiceEntry) (stop bool)) (records []*zeroconf.ServiceEntry, err error) {

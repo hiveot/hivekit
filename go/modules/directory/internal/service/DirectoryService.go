@@ -170,10 +170,14 @@ func NewDirectoryService(
 	// add the forms for additional endpoints
 	if len(transports) > 0 {
 		for _, tp := range transports {
-			tp.AddTDSecForms(tddDoc, true)
+			if tp == nil {
+				slog.Error("NewDirectoryService: Transports has a nil transport")
+			} else {
+				tp.AddTDSecForms(tddDoc, true)
+			}
 		}
 	}
-	tddJson, _ := td.MarshalTD(tddDoc)
+	tddJson := td.MarshalTD(tddDoc)
 	m := &DirectoryService{
 		HiveModuleBase: modules.NewHiveModuleBase(thingID, 0),
 		tddServer:      tddServer,

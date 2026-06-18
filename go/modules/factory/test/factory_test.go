@@ -29,6 +29,7 @@ var testPort = 12345
 // Used for all test cases in this package
 func TestMain(m *testing.M) {
 	utils.SetLogging("info", "")
+	_ = os.RemoveAll(testDir)
 	res := m.Run()
 	if res == 0 {
 		_ = os.RemoveAll(testDir)
@@ -57,7 +58,6 @@ func TestAppEnv(t *testing.T) {
 }
 
 func TestStartStop(t *testing.T) {
-	_ = os.RemoveAll(testDir)
 
 	// just test that the environment can be created and loaded
 	env := factory.NewAppEnvironment(testDir, false)
@@ -93,7 +93,7 @@ func TestAuthentication(t *testing.T) {
 	assert.NotNil(t, httpAuth)
 
 	// loading the authn module switches the factory to use it as authenticator
-	m, err := f.GetModule(authn.AuthnModuleType, true)
+	m, err := f.GetModule(authn.AuthnServiceModuleType, true)
 	require.NotNil(t, m)
 	assert.NoError(t, err)
 
@@ -147,8 +147,8 @@ func TestClientServerRecipe(t *testing.T) {
 	env.HttpsPort = testPort
 
 	serverFactory := factorypkg.NewModuleFactory(env, RecipeModules)
-	serverChain := factorypkg.NewFactoryRecipe(RecipeModules, TestDeviceServerChain)
-	err := serverChain.Start(serverFactory)
+	serverChain := factorypkg.NewChainRecipe(serverFactory, TestDeviceServerRecipe)
+	err := serverChain.Start()
 	require.NoError(t, err)
 	defer serverFactory.Stop()
 	env.ServerURL = serverFactory.GetConnectURL()
@@ -167,8 +167,8 @@ func TestClientServerRecipe(t *testing.T) {
 
 	// the client sends requests and receives responses
 	clientFactory := factorypkg.NewModuleFactory(env, RecipeModules)
-	clientChain := factorypkg.NewFactoryRecipe(RecipeModules, TestDeviceClientChain)
-	err = clientChain.Start(clientFactory)
+	clientChain := factorypkg.NewChainRecipe(clientFactory, TestDeviceClientRecipe)
+	err = clientChain.Start()
 	require.NoError(t, err)
 	defer clientFactory.Stop()
 

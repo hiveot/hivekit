@@ -12,7 +12,7 @@ import (
 	"github.com/hiveot/hivekit/go/api/msg"
 	"github.com/hiveot/hivekit/go/api/td"
 	"github.com/hiveot/hivekit/go/modules"
-	"github.com/hiveot/hivekit/go/modules/reconnect"
+	reconnectpkg "github.com/hiveot/hivekit/go/modules/reconnect/pkg"
 	"github.com/hiveot/hivekit/go/modules/router"
 	"github.com/hiveot/hivekit/go/modules/transport"
 	"github.com/hiveot/hivekit/go/modules/transport/clients"
@@ -100,7 +100,7 @@ func (m *RouterService) GetClientConnection(tdi *td.TD, op string) (cl modules.I
 			return nil, err
 		}
 		if m.autoReconnect {
-			rc := reconnect.NewReconnectClient(c)
+			rc := reconnectpkg.NewReconnectClient(c)
 			cl = rc
 		} else {
 			cl = c

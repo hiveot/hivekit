@@ -85,10 +85,10 @@ func TestReconnect(t *testing.T) {
 		return err
 	})
 	// start the servers and handle a request
-	testEnv, cancelFn := testenv.StartTestEnv(testProtocol)
+	testEnv, cancelFn := testenv.StartTestEnv(testProtocol, true)
 	testEnv.Server.SetRequestSink(ag)
-	// server emits server side notification when a new connection is received
-	notifHandler := consumer.NewConsumer(func(notif *msg.NotificationMessage) {
+	// server emits notification when a new connection is received
+	notifHandler := consumer.NewConsumer(nil, func(notif *msg.NotificationMessage) {
 		if notif.Name == transport.ServerConnectEvent {
 			// expect a connect-disconnect event
 			serverConnectEvents.Add(1)

@@ -42,7 +42,7 @@ func (m *AddFormsService) HandleRequest(req *msg.RequestMessage, replyTo msg.Res
 
 	m.AddTDSecForms(tdoc, m.includeAffordances)
 
-	newInput, _ := td.MarshalTD(tdoc)
+	newInput := td.MarshalTD(tdoc)
 	// shallow copy of the request
 	req2 := *req
 	req2.Input = newInput

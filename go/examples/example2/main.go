@@ -72,7 +72,7 @@ func main() {
 	http.DefaultTransport.(*http.Transport).TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
 
 	// build the chain: consumer -> router => client[s]
-	co := wotco.NewWotConsumer(time.Minute)
+	co := wotco.NewWotConsumer(nil, time.Minute)
 	err := co.Start()
 
 	rtr := routerpkg.NewRouterService("", co.GetTD, nil, nil, time.Minute)

@@ -129,7 +129,7 @@ func (cl *GrpcServiceClient) Connect() (err error) {
 	// TODO: for use with http2 see also https://github.com/grpc/grpc/blob/master/doc/PROTOCOL-HTTP2.md#requests
 	// which seems to want base64 encoding. Not a concern right now.
 	codec := JsonCodec{}
-	encoding.RegisterCodec(codec)
+	encoding.RegisterCodec(codec) // FIXME: race condition?
 
 	codecOption := grpc.WithDefaultCallOptions(grpc.CallContentSubtype(codec.Name()))
 	dialOpts = append(dialOpts, codecOption)

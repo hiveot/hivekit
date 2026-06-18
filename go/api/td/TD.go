@@ -148,33 +148,6 @@ func (tdoc *TD) AddAction(name string, title string, description string,
 	return actionAff
 }
 
-// AddDimmerAction is short for adding an action to control a dimmer
-// This includes a data schema for integers
-//
-//	name is the name of the action, unique within the Thing
-//func (tdoc *TD) AddDimmerAction(name string) *ActionAffordance {
-//	act := tdoc.AddAction(name, "", "",
-//		&DataSchema{
-//			Type: DataTypeInteger,
-//		})
-//	act.SetAtType(vocab.ActionDimmer)
-//	return act
-//}
-
-// AddDimmerEvent is short for adding an event for a dimmer change event
-// This includes a data schema for integers
-//
-//	eventID is the instance ID of the event, unique within the Thing
-//func (tdoc *TD) AddDimmerEvent(eventID string) *EventAffordance {
-//	aff := tdoc.AddEvent(eventID, "", "",
-//		&DataSchema{
-//			AtType: vocab.PropSwitchDimmer,
-//			Type:   DataTypeInteger,
-//		})
-//	aff.SetAtType(vocab.PropSwitchDimmer)
-//	return aff
-//}
-
 // AddEvent provides a simple way to add an event to the TD.
 // This returns the event affordance that can be augmented/modified directly.
 // To set a known vocabulary @type, use setVocabType on the result
@@ -342,7 +315,9 @@ func (tdoc *TD) GetAction(actionName string) *ActionAffordance {
 }
 
 // GetAgentID returns the agentID of the thing TD, if set.
-// This returns the agentID field.
+// The agentID is the clientID of the device that published this TD using reverse connection.
+// It is used by a gateway to forward requests for a Thing to the device using its
+// reverse connection. A device agent can be responsible for multiple Things.
 func (tdoc *TD) GetAgentID() string {
 	return tdoc.AgentID
 }

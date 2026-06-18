@@ -19,9 +19,9 @@ var AuthnUserTM []byte
 // This module exposes two services, one admin service and one user oriented service.
 // Currently only a single instance of the authn service module is supported.
 const (
-	AuthnModuleType       = "authn"
-	DefaultAdminServiceID = "authnAdmin"
-	DefaultUserServiceID  = "authnUser"
+	AuthnServiceModuleType = "authn-service"
+	DefaultAdminServiceID  = "authnAdmin"
+	DefaultUserServiceID   = "authnUser"
 )
 
 // Predefined roles of a client

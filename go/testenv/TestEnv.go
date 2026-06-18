@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"math/rand"
 	"os"
-	"path"
+	"path/filepath"
 	"time"
 
 	"github.com/hiveot/hivekit/go/api/msg"
@@ -15,7 +15,8 @@ import (
 	"github.com/hiveot/hivekit/go/modules/authn"
 	certstest "github.com/hiveot/hivekit/go/modules/certs/test"
 	"github.com/hiveot/hivekit/go/modules/consumer"
-	"github.com/hiveot/hivekit/go/modules/reconnect"
+	"github.com/hiveot/hivekit/go/modules/factory"
+	reconnectpkg "github.com/hiveot/hivekit/go/modules/reconnect/pkg"
 	"github.com/hiveot/hivekit/go/modules/transport"
 	"github.com/hiveot/hivekit/go/modules/transport/clients"
 	grpcpkg "github.com/hiveot/hivekit/go/modules/transport/grpc/pkg"
@@ -32,9 +33,11 @@ const (
 	TestTimeout        = time.Minute * 3
 )
 
+var TestHome = filepath.Join(os.TempDir(), "hivekit-test")
 var TestUDSPath = "/tmp/hivekit/testenv.socket"
 var TestUDSURL = transport.ProtocolSchemeHiveotGrpc + "://" + TestUDSPath
 
+// alt UDS using TCP socket
 // var TestUDSPath = ":8899"
 // var TestUDSURL = "tcp://" + TestUDSPath
 
@@ -78,8 +81,8 @@ var ActionTypes = []string{vocab.ActionDimmer, vocab.ActionSwitch,
 
 // Test environment for testing modules
 type TestEnv struct {
-	// Authenticator to use for managing clients
-	TestAuthn *TestAuthenticator
+	// App test environment with directories
+	AppEnv *factory.AppEnvironment
 	// certificate bundle to use for this test environment
 	CertBundle certstest.TestCertBundle
 	// base http server
@@ -89,8 +92,8 @@ type TestEnv struct {
 	// the transport to use for this test environment
 	Server         transport.ITransportServer
 	ServerProtocol string
-	// the storage root directory to use by modules. Module add their moduleID to the path.
-	StorageRoot string
+	// Authenticator to use for managing clients
+	TestAuthn *TestAuthenticator
 }
 
 // CreateTestTD returns a test TD with ID "thing-{i}", and a variable
@@ -239,11 +242,11 @@ func (testEnv *TestEnv) NewConnectedConsumer(
 	co *consumer.Consumer, cc transport.ITransportClient, token string) {
 
 	cc, token = testEnv.NewConnectedClient(clientID, role)
-	co = consumer.NewConsumer(nil)
+	co = consumer.NewConsumer(nil, nil)
 	co.SetTimeout(TestTimeout)
 	if useReconnect {
 		// insert the reconnect module between consumer and client connection
-		rc := reconnect.NewReconnectClient(cc)
+		rc := reconnectpkg.NewReconnectClient(cc)
 		co.SetRequestSink(rc)
 		rc.SetNotificationSink(co)
 	} else {
@@ -280,19 +283,23 @@ func (testEnv *TestEnv) StartTestServer(protocol string) (srv transport.ITranspo
 		err = srv.Start()
 
 	case transport.ProtocolTypeHiveotSsesc:
+		testEnv.StartHttpServer(false)
 		srv = ssescpkg.NewSseScServer(testEnv.HttpServer, TestTimeout)
 		err = srv.Start()
 
 	case transport.ProtocolTypeHiveotWebsocket:
+		testEnv.StartHttpServer(false)
 		srv = wsspkg.NewHiveotWssServer(testEnv.HttpServer, TestTimeout)
 		err = srv.Start()
 
 	case transport.ProtocolTypeWotHttpBasic:
+		testEnv.StartHttpServer(false)
 		srv = httpbasicpkg.NewHttpBasicServer(testEnv.HttpServer)
 		err = srv.Start()
 		// http only, no subprotocol bindings
 
 	case transport.ProtocolTypeWotWebsocket:
+		testEnv.StartHttpServer(false)
 		srv = wsspkg.NewWotWssServer(testEnv.HttpServer, TestTimeout)
 		err = srv.Start()
 
@@ -315,11 +322,17 @@ func (testEnv *TestEnv) StartTestServer(protocol string) (srv transport.ITranspo
 }
 
 // Start a http server module with default port, test certs and dummy authenticator
+//
 // This server is needed for http-basic, websocket, hiveot-sse-sc subprotocols
 // Also used to serve http endpoints for the directory and authn users.
+//
+// If the http server is already running then do nothing.
+// This returns the http server and its URL
 // This panic if the server cannot be started.
-func (testEnv *TestEnv) StartHttpServer(logging bool) {
-
+func (testEnv *TestEnv) StartHttpServer(logging bool) (transport.IHttpServer, string) {
+	if testEnv.HttpServer != nil {
+		return testEnv.HttpServer, testEnv.ServerURL
+	}
 	// cert uses localhost
 	cfg := tlsserver.NewTLSServerConfig(
 		testEnv.CertBundle.ServerAddr, TestServerHttpPort,
@@ -335,18 +348,36 @@ func (testEnv *TestEnv) StartHttpServer(logging bool) {
 		panic("unable to start TLS server: " + err.Error())
 	}
 	testEnv.ServerURL = testEnv.HttpServer.GetConnectURL()
+	return testEnv.HttpServer, testEnv.ServerURL
 }
 
 // NewTestEnv creates a new test environment with certificates and a dummy authenticator.
+//
 // This does not start any servers.
 // Use StartHttpServer,StartTestServer to initialize startup the servers.
 // This creates a HTTP server, protocol server, certificates and a dummy authenticator
 // This sets the storage root directory to {os.TempDir}/hivekit
-func NewTestEnv() *TestEnv {
+//
+// if clean is set then delete the content of the home folder for a clean start.
+func NewTestEnv(clean bool) *TestEnv {
+	if clean {
+		os.RemoveAll(TestHome)
+		os.MkdirAll(TestHome, 0750)
+	}
+	appEnv := factory.NewAppEnvironment(TestHome, false)
+	// ensure the directories exist
+	os.MkdirAll(appEnv.BinDir, 0750)
+	os.MkdirAll(appEnv.CertsDir, 0700)
+	os.MkdirAll(appEnv.ConfigDir, 0750)
+	os.MkdirAll(appEnv.LogsDir, 0750)
+	os.MkdirAll(appEnv.PluginsDir, 0750)
+	os.MkdirAll(appEnv.StoresDir, 0750)
+	certBundle := certstest.CreateTestCertBundle(utils.KeyTypeED25519)
+	appEnv.CaCert = certBundle.CaCert
 	testEnv := &TestEnv{
-		CertBundle:  certstest.CreateTestCertBundle(utils.KeyTypeED25519),
-		TestAuthn:   NewTestAuthenticator(),
-		StorageRoot: path.Join(os.TempDir(), "hivekit"),
+		AppEnv:     appEnv,
+		CertBundle: certBundle,
+		TestAuthn:  NewTestAuthenticator(),
 	}
 	return testEnv
 }
@@ -354,8 +385,9 @@ func NewTestEnv() *TestEnv {
 // StartTestEnv start a new test environment for the given transport protocol type.
 // If no protocol type is provided this uses the default protocol (top of this file.)
 // This starts a HTTP server, protocol server, certificates and a test authenticator
-func StartTestEnv(protocol string) (testEnv *TestEnv, cancelFunc func()) {
-	testEnv = NewTestEnv()
+// if clean is set then delete the content of the home folder for a clean start.
+func StartTestEnv(protocol string, clean bool) (testEnv *TestEnv, cancelFunc func()) {
+	testEnv = NewTestEnv(clean)
 	testEnv.StartHttpServer(true)
 	testEnv.Server = testEnv.StartTestServer(protocol)
 	return testEnv, func() {

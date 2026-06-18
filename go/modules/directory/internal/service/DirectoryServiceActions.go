@@ -152,7 +152,7 @@ func (m *DirectoryService) UpdateThing(agentID string, tdJson string) error {
 			return fmt.Errorf("UpdateThing: Internal error, the writeTDHook returns a nil TD")
 		}
 		// replace the TD with the one provided by the hook
-		tdJson, _ = td.MarshalTD(tdi2)
+		tdJson = td.MarshalTD(tdi2)
 	}
 
 	err = m.tdBucket.Set(tdi.ID, []byte(tdJson))

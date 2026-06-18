@@ -96,10 +96,8 @@ func SetupConsumerWithRouter() (
 
 	// a consumer links to the router and subscribes to the device
 	// note for the purpose of this test the router can run on the client
-	co = consumer.NewConsumer(nil)
+	co = consumer.NewConsumer(routerMod, nil)
 	co.SetTimeout(rpcTimeout)
-	co.SetRequestSink(routerMod)
-	routerMod.SetNotificationSink(co)
 	err = co.Start()
 	if err != nil {
 		panic("SetupConsumerWithRouter: Consumer.Start: " + err.Error())
@@ -191,8 +189,8 @@ func TestReadDeviceProperties(t *testing.T) {
 	defer routerMod.Stop()
 
 	testTD := testDevice.GetTD()
-	deviceTDJson, err := td.MarshalTD(testTD)
-	err = dirMod.CreateThing(agentID, deviceTDJson)
+	deviceTDJson := td.MarshalTD(testTD)
+	err := dirMod.CreateThing(agentID, deviceTDJson)
 	require.NoError(t, err)
 
 	// to connect to the device, credentials are needed
@@ -232,7 +230,7 @@ func TestSubscribeReconnectToDevice(t *testing.T) {
 	err := testDirMod.Start()
 	require.NoError(t, err)
 	defer testDirMod.Stop()
-	deviceTDJson, _ := td.MarshalTD(testDevice.GetTD())
+	deviceTDJson := td.MarshalTD(testDevice.GetTD())
 	err = testDirMod.CreateThing(agentID, deviceTDJson)
 	require.NoError(t, err)
 
@@ -251,7 +249,7 @@ func TestSubscribeReconnectToDevice(t *testing.T) {
 	ctx, cancelFn := context.WithTimeout(context.Background(), rpcTimeout)
 
 	// a consumer links to the router which connects to devices using device TDs
-	co := consumer.NewConsumer(func(notif *msg.NotificationMessage) {
+	co := consumer.NewConsumer(routerMod, func(notif *msg.NotificationMessage) {
 		if notif.Name == event1Name {
 			var v1 string
 			err = notif.Decode(&v1)
@@ -262,9 +260,6 @@ func TestSubscribeReconnectToDevice(t *testing.T) {
 		}
 	})
 	co.SetTimeout(rpcTimeout)
-	co.SetRequestSink(routerMod)
-	// notifications received are passed back to the consumer
-	routerMod.SetNotificationSink(co)
 	err = co.Start()
 	assert.NoError(t, err)
 	// this should cause the router to connect to the device using the device TD

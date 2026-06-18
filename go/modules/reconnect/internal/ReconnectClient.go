@@ -1,4 +1,4 @@
-package reconnect
+package internal
 
 import (
 	"context"
@@ -10,13 +10,9 @@ import (
 	"github.com/hiveot/hivekit/go/api/msg"
 	"github.com/hiveot/hivekit/go/api/td"
 	"github.com/hiveot/hivekit/go/modules"
-	"github.com/hiveot/hivekit/go/modules/factory"
+	"github.com/hiveot/hivekit/go/modules/reconnect"
 	"github.com/hiveot/hivekit/go/modules/transport"
 )
-
-const ReconnectModuleType = "reconnect"
-const DefaultMaxReconnectAttempts = 999999
-const DefaultBackoffLimit = time.Minute * 5
 
 // ReconnectClient is a module that automatically reconnects a transport client when
 // it loses its connection, and restores event and property subscriptions.
@@ -218,16 +214,18 @@ func (m *ReconnectClient) Stop() {
 
 // NewReconnectClient creates a reconnect module for use with the given client.
 //
+// This module uses the ReconnectModuleType as its ID.
+//
 //	cl is the transport client connection instance to use before connecting
 func NewReconnectClient(cl transport.ITransportClient) (m *ReconnectClient) {
 
 	m = &ReconnectClient{
-		HiveModuleBase: modules.NewHiveModuleBase(ReconnectModuleType, 0),
+		HiveModuleBase: modules.NewHiveModuleBase(reconnect.ReconnectModuleType, 0),
 
-		maxBackoffTimeLimit: DefaultBackoffLimit,
+		maxBackoffTimeLimit: reconnect.DefaultBackoffLimit,
 
 		conn:                 cl,
-		maxReconnectAttempts: DefaultMaxReconnectAttempts,
+		maxReconnectAttempts: reconnect.DefaultMaxReconnectAttempts,
 		subscriptions:        make(map[string]*msg.RequestMessage),
 	}
 	// enable the reconnect using the callback
@@ -237,12 +235,4 @@ func NewReconnectClient(cl transport.ITransportClient) (m *ReconnectClient) {
 	cl.SetNotificationSink(m)
 
 	return m
-}
-
-// Factory for creating a consumer module using the factory environment
-func NewReconnectFactory(f factory.IModuleFactory) (modules.IHiveModule, error) {
-	// env := f.GetEnvironment()
-	// TODO: figure out how to include this in a recipe without knowing what client to use
-	c := NewReconnectClient(nil)
-	return c, nil
 }

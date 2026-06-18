@@ -1,21 +1,28 @@
 package discovery
 
-import "github.com/hiveot/hivekit/go/modules"
+import (
+	"github.com/hiveot/hivekit/go/modules"
+)
 
-// The discovery server module type
-const DiscoveryServerModuleType = "discovery"
+// The discovery module types
+const (
+	DiscoveryServerModuleType = "discovery-server"
+)
 
-// The discovery module instance thingID
-const DefaultDiscoveryThingID = "hivekit-discovery"
+// DNS-SD service IDs
+const (
+	// WOT_UDP_DNSSD_TYPE = "_wot._udp"
 
-//const WOT_UDP_DNSSD_TYPE = "_wot._udp"
+	// DNS-SD service types for WoT Thing TD
+	WOT_THING_SERVICE_TYPE = "_wot._tcp"
 
-// DNS-SD service types for WoT Thing TD
-const WOT_THING_SERVICE_TYPE = "_wot._tcp"
+	// DNS-SD service types for WoT Directory TD
+	// See discovery specification: https://w3c.github.io/wot-discovery/#introduction-dns-sd-sec
+	WOT_DIRECTORY_SERVICE_TYPE = "_directory._sub._wot._tcp"
 
-// DNS-SD service types for WoT Directory TD
-// See discovery specification: https://w3c.github.io/wot-discovery/#introduction-dns-sd-sec
-const WOT_DIRECTORY_SERVICE_TYPE = "_directory._sub._wot._tcp"
+	// WoT doesnt define gateways in their discovery spec so use our own.
+	HIVEOT_GATEWAY_SERVICE_TYPE = "_gateway._sub._wot._tcp"
+)
 
 // additional fields in the discovery records
 const AuthEndpoint = "login"
@@ -51,9 +58,4 @@ type IDiscoveryServer interface {
 	//
 	// Indended for use by things that run servers.
 	ServeThingTD(thingTDJSON string) (err error)
-}
-
-// IDiscoveryClient is the interface of discovery client.
-// This module is for discovering Thing TD's or Directory TDD's on the local network.
-type IDiscoveryClient interface {
 }
