@@ -50,10 +50,13 @@ type MyCounterDevice struct {
 
 func (m *MyCounterDevice) Background() {
 	for {
+		if m.backgroundCtx.Err() != nil {
+			return
+		}
 		ctx, cancelFn := context.WithTimeout(m.backgroundCtx, autoIncrementDelay)
 		<-ctx.Done()
 		cancelFn()
-		slog.Info("Incrementing counter")
+		slog.Info("Incrementing counter (in background)", "value", m.counter.Load())
 		go m.Update(int(m.counter.Load() + 1))
 	}
 }
@@ -163,6 +166,7 @@ func (m *MyCounterDevice) Update(newValue int) {
 	m.PubEvent(thingID, CounterUpdatedEvent, m.counter.Load())
 }
 
+// Create a new counter device that starts counting at 42.
 func NewCounterDevice(agentID string) modules.IHiveModule {
 	m := &MyCounterDevice{
 		Agent: agent.NewAgent(agentID, nil),

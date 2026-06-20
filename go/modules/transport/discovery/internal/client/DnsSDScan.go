@@ -1,5 +1,5 @@
 // Package discodiscoclientvery with client for DNS-SD service discovery
-package internalclient
+package internal
 
 import (
 	"context"

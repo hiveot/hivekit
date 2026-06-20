@@ -79,7 +79,7 @@ func TestAuthentication(t *testing.T) {
 	env.ServerCert = testCerts.ServerCert
 	env.HttpsPort = testPort
 
-	f := factorypkg.NewModuleFactory(env, RecipeModules)
+	f := factorypkg.NewModuleFactory(env, HiveKitModules)
 	assert.NotNil(t, f)
 	defer f.Stop()
 
@@ -93,7 +93,7 @@ func TestAuthentication(t *testing.T) {
 	assert.NotNil(t, httpAuth)
 
 	// loading the authn module switches the factory to use it as authenticator
-	m, err := f.GetModule(authn.AuthnServiceModuleType, true)
+	m, err := f.StartModule(authn.AuthnServiceModuleType, true)
 	require.NotNil(t, m)
 	assert.NoError(t, err)
 
@@ -123,7 +123,7 @@ func TestDigitwin(t *testing.T) {
 	env.ServerCert = testCerts.ServerCert
 	env.HttpsPort = testPort
 
-	f := factorypkg.NewModuleFactory(env, RecipeModules)
+	f := factorypkg.NewModuleFactory(env, HiveKitModules)
 	defer f.Stop()
 
 	// clientRecipe := factoryrecipe.NewFactoryRecipe(AvailableModules, chain)
@@ -131,7 +131,7 @@ func TestDigitwin(t *testing.T) {
 
 	// load the digitwin module
 	// this should start the directory and http server
-	m, err := f.GetModule(digitwin.DigitwinModuleType, true)
+	m, err := f.StartModule(digitwin.DigitwinModuleType, true)
 	require.NoError(t, err)
 	require.NotNil(t, m)
 }
@@ -146,7 +146,7 @@ func TestClientServerRecipe(t *testing.T) {
 	env.ServerCert = testCerts.ServerCert
 	env.HttpsPort = testPort
 
-	serverFactory := factorypkg.NewModuleFactory(env, RecipeModules)
+	serverFactory := factorypkg.NewModuleFactory(env, HiveKitModules)
 	serverChain := factorypkg.NewChainRecipe(serverFactory, TestDeviceServerRecipe)
 	err := serverChain.Start()
 	require.NoError(t, err)
@@ -154,7 +154,7 @@ func TestClientServerRecipe(t *testing.T) {
 	env.ServerURL = serverFactory.GetConnectURL()
 
 	// the server agent handles the server requests
-	mod, _ := serverFactory.GetModule(agent.AgentModuleType, true)
+	mod, _ := serverFactory.StartModule(agent.AgentModuleType, true)
 	ag := mod.(*agent.Agent)
 	ag.SetAppRequestHook(func(req *msg.RequestMessage, replyTo msg.ResponseHandler) error {
 		if req.ThingID == thingID {
@@ -166,13 +166,13 @@ func TestClientServerRecipe(t *testing.T) {
 	})
 
 	// the client sends requests and receives responses
-	clientFactory := factorypkg.NewModuleFactory(env, RecipeModules)
+	clientFactory := factorypkg.NewModuleFactory(env, HiveKitModules)
 	clientChain := factorypkg.NewChainRecipe(clientFactory, TestDeviceClientRecipe)
 	err = clientChain.Start()
 	require.NoError(t, err)
 	defer clientFactory.Stop()
 
-	m2, err := clientFactory.GetModule(consumer.ConsumerModuleType, true)
+	m2, err := clientFactory.StartModule(consumer.ConsumerModuleType, true)
 	assert.NoError(t, err)
 	co := m2.(*consumer.Consumer)
 	var propValue string

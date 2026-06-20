@@ -58,7 +58,9 @@ func (m *AddFormsService) AddTDSecForms(tdoc *td.TD, includeAffordances bool) {
 
 // NewAddFormsService creates a new instance of the service
 func NewAddFormsService(tpServers []transport.ITransportServer) *AddFormsService {
+
 	m := &AddFormsService{
+		HiveModuleBase:     *modules.NewHiveModuleBase("", 0),
 		includeAffordances: true,
 		tpServers:          tpServers,
 	}

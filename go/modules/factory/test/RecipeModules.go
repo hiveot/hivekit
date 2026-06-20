@@ -43,115 +43,141 @@ import (
 	vcacheapi "github.com/hiveot/hivekit/go/modules/vcache/api"
 )
 
-// Map of available modules
-var RecipeModules = map[string]factory.ModuleDefinition{
+// List hivekit available modules
+var HiveKitModules = []factory.ModuleDefinition{
 
 	//--- transport servers ---
 
 	// discovery transport server provider
-	discovery.DiscoveryServerModuleType: {
+	{
+		Type:        discovery.DiscoveryServerModuleType,
 		Constructor: discoverypkg.NewDiscoveryServerFactory,
 	},
 	// gRPC transport server
-	grpctransport.HiveotGrpcServerModuleType: {
+	{
+		Type:        grpctransport.HiveotGrpcServerModuleType,
 		Constructor: grpcpkg.NewGrpcServerFactory,
 	},
 	// http server provider
-	transport.TLSServerModuleType: {
+	{
+		Type:        transport.TLSServerModuleType,
 		Constructor: tlsserverpkg.NewTLSServerFactory,
 	},
 	// http-basic transport server
-	httpbasic.HttpBasicServerModuleType: {
+	{
+		Type:        httpbasic.HttpBasicServerModuleType,
 		Constructor: httpbasicpkg.NewHttpBasicServerFactory,
 	},
-	// sse-sc transport client
-	ssesc.SseScClientModuleType: {
-		Constructor: ssescpkg.NewSseScClientFactory,
-	},
 	// sse-sc transport server
-	ssesc.SseScServerModuleType: {
+	{
+		Type:        ssesc.SseScServerModuleType,
 		Constructor: ssescpkg.NewSseScServerFactory,
 	},
-	// wss transport client for hiveot RRN messaging
-	wss.HiveotWebsocketClientModuleType: {
-		Constructor: wsspkg.NewHiveotWssClientFactory,
-	},
 	// wss transport server for hiveot RRN messaging
-	wss.HiveotWebsocketServerModuleType: {
+	{
+		Type:        wss.HiveotWebsocketServerModuleType,
 		Constructor: wsspkg.NewHiveotWssServerFactory,
 	},
-	// wss transport client for WoT websocket messaging
-	wss.WotWebsocketClientModuleType: {
-		Constructor: wsspkg.NewWotWssClientFactory,
-	},
 	// wss transport server for WoT websocket messaging
-	wss.WotWebsocketServerModuleType: {
+	{
+		Type:        wss.WotWebsocketServerModuleType,
 		Constructor: wsspkg.NewWotWssServerFactory,
 	},
 
 	// clients
-	agent.AgentModuleType: {
+	{
+		Type:        agent.AgentModuleType,
 		Constructor: agent.NewAgentFactory,
 	},
-	consumer.ConsumerModuleType: {
+	{
+		Type:        consumer.ConsumerModuleType,
 		Constructor: consumer.NewConsumerFactory,
 	},
-	reconnect.ReconnectModuleType: {
+	{
+		Type:        reconnect.ReconnectModuleType,
 		Constructor: reconnectpkg.NewReconnectFactory,
 	},
-	history.ReadHistoryClientModuleType: {
+	{
+		Type:        history.ReadHistoryClientModuleType,
 		Constructor: historypkg.NewReadHistoryClientFactory,
+	},
+	// sse-sc transport client
+	{
+		Type:        ssesc.SseScClientModuleType,
+		Constructor: ssescpkg.NewSseScClientFactory,
+	},
+	// wss transport client for hiveot RRN messaging
+	{
+		Type:        wss.HiveotWebsocketClientModuleType,
+		Constructor: wsspkg.NewHiveotWssClientFactory,
+	},
+	// wss transport client for WoT websocket messaging
+	{
+		Type:        wss.WotWebsocketClientModuleType,
+		Constructor: wsspkg.NewWotWssClientFactory,
 	},
 
 	//--- services servers ---
 
 	// add forms to createTD or updateTD requests
-	addforms.AddFormsModuleType: {
+	{
+		Type:        addforms.AddFormsModuleType,
 		Constructor: addformspkg.NewAddFormsServiceFactory,
 	},
 
 	// client and session management provider
-	authnapi.AuthnServiceModuleType: {
+	{
+		Type:        authnapi.AuthnServiceModuleType,
 		Constructor: authnpkg.NewAuthnServiceFactory,
 	},
 	// authorization provider
-	authz.AuthzModuleType: {
+	{
+		Type:        authz.AuthzModuleType,
 		Constructor: authzpkg.NewAuthzServiceFactory,
 	},
 	// bucket store as a service
-	bucketstore.BucketStoreModuleType: {
+	{
+		Type:        bucketstore.BucketStoreModuleType,
 		Constructor: bucketstorepkg.NewBucketStoreServiceFactory,
 	},
 	// certs service provider
-	certs.CertsServerModuleType: {
+	{
+		Type:        certs.CertsServerModuleType,
 		Constructor: certspkg.NewCertsServiceFactory,
 	},
 	// InitFactoryCerts ensure the factory has certificates needed to run.
-	certs.InitFactoryCertsModuleType: {
+	{
+		Type:        certs.InitFactoryCertsModuleType,
 		Constructor: certspkg.NewInitFactoryCerts,
 	},
 	// digitwin provider
-	digitwin.DigitwinModuleType: {
+	{
+		Type:        digitwin.DigitwinModuleType,
 		Constructor: digitwinpkg.NewDigitwinServiceFactory,
 	},
 	// directory service provider
-	directory.DirectoryModuleType: {
+	{
+		Type:        directory.DirectoryModuleType,
 		Constructor: directorypkg.NewDirectoryServiceFactory,
 	},
 	// history service provider
-	history.HistoryModuleType: {
+	{
+		Type:        history.HistoryModuleType,
 		Constructor: historypkg.NewHistoryServiceFactory,
 	},
 	// logging service provider
-	logging.LoggingModuleType: {
+	{
+		Type:        logging.LoggingModuleType,
 		Constructor: loggingpkg.NewLoggingServiceFactory,
 	},
 	// router service provider
-	router.RouterModuleType: {
+	{
+		Type:        router.RouterModuleType,
 		Constructor: routerpkg.NewRouterServiceFactory,
 	},
 	// vcache server provider
-	vcacheapi.VCacheModuleType: {
+	{
+		Type:        vcacheapi.VCacheModuleType,
 		Constructor: vcache.NewVCacheServiceFactory,
 	},
 }

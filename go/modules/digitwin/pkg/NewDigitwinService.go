@@ -37,7 +37,7 @@ func NewDigitwinServiceFactory(f factory.IModuleFactory) (modules.IHiveModule, e
 	storageDir := filepath.Join(env.StoresDir, digitwin.DigitwinModuleType)
 
 	// the directory module used to intercept directory writes to create digital twins of
-	m, err := f.GetModule(directory.DirectoryModuleType, true)
+	m, err := f.StartModule(directory.DirectoryModuleType, true)
 	if err != nil {
 		return nil, err
 	}

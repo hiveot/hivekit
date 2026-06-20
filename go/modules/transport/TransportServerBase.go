@@ -226,7 +226,7 @@ func (srv *TransportServerBase) GetConnectionByClientID(clientID string) (c ICon
 	defer srv.cmux.Unlock()
 	if srv.connectionsByClientID == nil {
 		// no incoming connections yet
-		slog.Warn("Requesting connection for client but none have been received", "clientID", clientID)
+		slog.Info("GetConnectionByClientID: server has no connections from client", "clientID", clientID)
 		return nil
 	}
 	cList := srv.connectionsByClientID[clientID]
@@ -369,7 +369,7 @@ func (srv *TransportServerBase) SendNotification(notif *msg.NotificationMessage)
 	})
 }
 
-// SendRequest [consumer] sends a request over the connection to an agent.
+// SendRequest [consumer] sends a request over the reverse-connection to an agent.
 //
 // agentID is the agent's authentication ID that hosts one or more Things.
 // req is the request message envelope to send
@@ -383,7 +383,9 @@ func (srv *TransportServerBase) SendRequest(
 
 	c := srv.GetConnectionByClientID(agentID)
 	if c == nil {
-		return fmt.Errorf("No connection with agent '%s'", agentID)
+		err := fmt.Errorf("SendRequest: Agent '%s' has no reverse connection", agentID)
+		slog.Warn(err.Error())
+		return err
 	}
 	err = c.SendRequest(req, replyTo)
 	return err

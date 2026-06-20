@@ -35,21 +35,32 @@ type ModuleDefinition struct {
 	Config any
 }
 
+// Interface of a module recipe.
+// Recipe constructors are available for a chain and a star formation.
+//
+// The recipes directory contains templates for various application use-cases such as
+// an IoT device running its own server with discover and a IoT device using reverse connections.
+// These templates can be used as-is or be copied and modified as seen fit.
+type IRecipe interface {
+	modules.IHiveModule
+
+	// Place the given module definition into the recipe slot
+	// Originally intended for placing the application module in the right spot in the chain.
+	//
+	// This returns an error if the recipe does not contain a slot with the given ID.
+	SetSlot(slotID string, modDef ModuleDefinition) error
+}
+
 // IModuleFactory is the interface for the module factory, used to create and manage
 // modules by their type.
 //
-// Since clients of services are also modules this can be used to create both the client and
-// server/service modules. These are registered separately.
-//
-// Modules that contain multiple services (like authn admin vs user) can also register
-// as a single module and operate multiple thingID's.
-// This is common for protocol bindings like zwave or other device protocols where the module
-// manages multiple things.
+// The module factory can be used stand-alone or together with the ChainRecipe or StarRecipe.
 type IModuleFactory interface {
-	modules.IHiveModule // the factory is also a module
 
 	// Add security and forms to the TD for all running transport protocols
 	// Intended for devices to add forms before exporting a TD.
+	// This passes the request to all server instances that have been created using
+	// this factory.
 	AddTDSecForms(tdoc *td.TD, includeAffordances bool)
 
 	// FindModule returns the loaded module of the given type
@@ -65,8 +76,8 @@ type IModuleFactory interface {
 	GetAuthenticator() transport.IAuthenticator
 
 	// Get the connection URL of the first loaded server module or "" if none.
-	// Primarily intended for testing. It is recommended to use a discovery module in the
-	// factory server and client chains to facilitate discovery of server by the client.
+	// Primarily intended for testing. It is recommended to use a discovery server/client module
+	// in the factory server/client chains to facilitate discovery of server by the client.
 	GetConnectURL() string
 
 	// GetEnvironment returns the application environment used by the factory for
@@ -86,24 +97,15 @@ type IModuleFactory interface {
 	// Return the list of available transport servers
 	GetTransportServers() []transport.ITransportServer
 
-	// GetModule creates and starts an instance of a module by its type.
-	//
-	// If the module is already loaded the existing module instasnce is returned.
-	//
-	// This does not link the module to other modules. Both request handler and notification handler
-	// must be set manually. See also RunRecipe for creating a chain.
-	//
-	//  moduleType identifies the type of the module to get.
-	//	instantiate set to true to create an instance if one isnt loaded
-	//
-	// This returns an error if no module with the given type is registered, or when
-	// starting the module fails.
-	// This returns nil with no error if the module factory is a 'one-shot'
-	// initialization function.
-	GetModule(moduleType string, instantiate bool) (modules.IHiveModule, error)
-
 	// RegisterModule adds a module to the factory, making it available for instantiation
 	// and for running recipes.
+	//
+	// If a module is already registered it is replaced. If the given definition
+	// doesn't contain a factory constructor but the existing registration does then
+	// only the config from the definition is used and merged with the existing registration.
+	//
+	// Intended to allow pre-registering modules and only include a ordered list of
+	// modules in the chain to instantiate and link.
 	//
 	// moduleDef defines the module attributes and constructor function
 	RegisterModule(moduleDef ModuleDefinition)
@@ -116,6 +118,24 @@ type IModuleFactory interface {
 	// By default the authenticator proxy blocks all authentication.
 	// Setting a nil authenticator disables authentication.
 	SetAuthenticator(a transport.IAuthenticator)
+
+	// StartModule creates and starts an instance of a module by its type.
+	//
+	// If the module is already started, the existing module instance is returned.
+	//
+	// If the module factory function is nil then this is an empty slot which
+	// will be ignored.
+	//
+	// This does not link the module to other modules. See also RunRecipe for creating a chain.
+	//
+	//  moduleType identifies the type of the module to get.
+	//	instantiate set to true to create an instance if one isnt loaded
+	//
+	// This returns an error if no module with the given type is found, or when
+	// starting the module fails.
+	// This returns nil with no error if the module factory is a 'one-shot'
+	// initialization function where its factory handler returns nil.
+	StartModule(moduleType string, instantiate bool) (modules.IHiveModule, error)
 
 	// Stop all loaded modules in reverse order of loading.
 	// Intended for graceful shutdown.

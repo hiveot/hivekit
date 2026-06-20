@@ -1,6 +1,7 @@
-package factorypkg
+package internal
 
 import (
+	"fmt"
 	"log/slog"
 
 	"github.com/hiveot/hivekit/go/api/msg"
@@ -8,7 +9,7 @@ import (
 	"github.com/hiveot/hivekit/go/modules/factory"
 )
 
-// The StarRecipe links its modules in a star formation.
+// The StarRecipe is a module that links its modules in a star formation.
 //
 // Incoming requests are forwarded to the module that matches the request thingID.
 // There is no need for linking individual request handlers.
@@ -39,6 +40,16 @@ func (m *StarRecipe) HandleRequest(req *msg.RequestMessage, replyTo msg.Response
 	return m.HiveModuleBase.HandleRequest(req, replyTo)
 }
 
+func (m *StarRecipe) SetSlot(slotID string, modDef factory.ModuleDefinition) error {
+	for i, md := range m.star {
+		if md.Type == slotID {
+			m.star[i] = modDef
+			return nil
+		}
+	}
+	return fmt.Errorf("SetSlot: slot '%s' not found", slotID)
+}
+
 // Start the recipe
 func (m *StarRecipe) Start() error {
 
@@ -51,7 +62,7 @@ func (m *StarRecipe) Start() error {
 	}
 	// start modules in the defined order and link their notifications
 	for _, moduleDef := range m.star {
-		ray, err := m.f.GetModule(moduleDef.Type, true)
+		ray, err := m.f.StartModule(moduleDef.Type, true)
 		// module cant be started. This is fatal
 		if err != nil {
 			slog.Error("StartRecipe: starting module failed. Shutting down",
@@ -76,7 +87,7 @@ func (m *StarRecipe) Start() error {
 // Create a recipe instance for running modules in a star formation.
 // This returns the star recipe module.
 func NewStarRecipe(
-	f factory.IModuleFactory, star []factory.ModuleDefinition) *StarRecipe {
+	f factory.IModuleFactory, star []factory.ModuleDefinition) factory.IRecipe {
 
 	m := &StarRecipe{
 		HiveModuleBase: modules.NewHiveModuleBase("", 0),

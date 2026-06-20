@@ -35,6 +35,12 @@ const WellKnownHttpPath = "/.well-known/wot"
 
 // IDiscoveryServer is the interface of a discovery server.
 // This is a module that for publishing the presence of the Thing or a Thing Directory.
+//
+// If this is used in a module chain then the action to write a TD:
+//
+//	eg action CreateThingAction("createThing") is used to publish the included TD
+//
+// through discovery instead of forwarding it to a directory service.
 type IDiscoveryServer interface {
 	modules.IHiveModule
 

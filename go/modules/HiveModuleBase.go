@@ -93,7 +93,8 @@ func (m *HiveModuleBase) ForwardRequest(req *msg.RequestMessage, replyTo msg.Res
 			m.thingID, req.Operation, req.Name, req.ThingID)
 	}
 	if replyTo == nil {
-		slog.Info("ForwardRequest: no replyTo handler provided", "moduleID", m.thingID)
+		slog.Warn("ForwardRequest: no replyTo handler provided",
+			"moduleID", m.thingID, "req.Sender", req.SenderID, "req.ThingID", req.ThingID)
 	}
 	err = sink.HandleRequest(req, replyTo)
 	return err
@@ -204,6 +205,11 @@ func (m *HiveModuleBase) SetNotificationSink(sink IHiveModule, thingIDs ...strin
 	if len(thingIDs) == 0 {
 		thingIDs = []string{""}
 	}
+	// report missing initialization instead of a nil error
+	if m.notificationSinks == nil {
+		panic("HiveModuleBase.SetNotificationSink. This module is not initialized")
+	}
+
 	for _, thingID := range thingIDs {
 		if m.notificationSinks[thingID] != nil {
 			slog.Warn("SetNotificationSink: A notification sink already exists. It will be overwritten.",

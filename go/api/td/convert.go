@@ -2,6 +2,7 @@ package td
 
 import (
 	"errors"
+	"fmt"
 	"io"
 	"log/slog"
 	"strconv"
@@ -21,21 +22,28 @@ func MarshalTD(tdi *TD) (tdJson string) {
 }
 
 // UnmarshalTD unmarshals a JSON encoded TD
+//
+// This returns a nil TD if unmarshalling fails
 func UnmarshalTD(tdJSON string) (tdi *TD, err error) {
+	if len(tdJSON) == 0 {
+		return nil, fmt.Errorf("UnmarshalTD: empty JSON")
+	}
 	tdi = &TD{}
 	err = jsoniter.UnmarshalFromString(tdJSON, tdi)
-	return tdi, err
+	if err != nil {
+		return nil, fmt.Errorf("UnmarshalTD: invalid JSON: %w", err)
+	}
+	return tdi, nil
 }
 
 // ReadTD reads and unmarshals a JSON encoded TD from the given reader
+// This returns a nil TD if unmarshalling fails
 func ReadTD(r io.Reader) (tdi *TD, err error) {
 	tdJsonRaw, err := io.ReadAll(r)
 	if err != nil {
 		return nil, err
 	}
-	tdi = &TD{}
-	err = jsoniter.Unmarshal(tdJsonRaw, tdi)
-	return tdi, err
+	return UnmarshalTD(string(tdJsonRaw))
 }
 
 // UnmarshalTDList unmarshals a list of JSON encoded TDs

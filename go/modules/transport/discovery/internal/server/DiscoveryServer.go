@@ -8,6 +8,8 @@ import (
 	"time"
 
 	"github.com/grandcat/zeroconf"
+	"github.com/hiveot/hivekit/go/api/msg"
+	"github.com/hiveot/hivekit/go/api/td"
 	"github.com/hiveot/hivekit/go/modules"
 	"github.com/hiveot/hivekit/go/modules/directory"
 	"github.com/hiveot/hivekit/go/modules/transport"
@@ -34,6 +36,25 @@ type DiscoveryServer struct {
 	httpServer transport.IHttpServer
 }
 
+// When a request to create/update a TD is received then serve it in discovery.
+// Intended for use in a module chain where the device publishes its TD instead
+// of updating a external directory.
+func (m *DiscoveryServer) HandleRequest(req *msg.RequestMessage, replyTo msg.ResponseHandler) (err error) {
+	// intercept a directory update to publish a TD
+	// no need to check the directory thingID, the action name in this chain is sufficient.
+	if req.Operation == td.OpInvokeAction && //req.ThingID == m.directoryThingID &&
+		(req.Name == directory.CreateThingAction || req.Name == directory.UpdateThingAction) {
+
+		tdJson := req.ToString(0)
+		m.ServeThingTD(tdJson)
+		resp := req.CreateResponse(nil, nil)
+		replyTo(resp)
+		return nil
+	} else {
+		return m.HiveModuleBase.HandleRequest(req, replyTo)
+	}
+}
+
 // ServeDirectoryTD registers the given directory TD with the http server
 // and publishes its endpoint using DNS-SD discovery.
 //
@@ -49,7 +70,9 @@ func (m *DiscoveryServer) ServeDirectoryTD(dirTDJSON string) (err error) {
 	// map of endpoints by scheme (wss, sse, ...)
 
 	if m.dnssdServer != nil {
-		return fmt.Errorf("ServeDirectoryTDD: a TD is already served")
+		return fmt.Errorf("ServeDirectoryTD: a TD is already served")
+	} else if m.httpServer == nil {
+		return fmt.Errorf("ServeDirectoryTD: missing http server")
 	}
 	publicRoute := m.httpServer.GetPublicRoute()
 	// TBD: support for base path?

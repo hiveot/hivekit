@@ -70,7 +70,7 @@ type TLSServerConfig struct {
 	// alternative: https://github.com/goware/httplog
 	Logger func(http.Handler) http.Handler `yaml:"-"`
 
-	// Module ID of this server instance. Defaults to DefaultHTTPServerModuleID
+	// Module ID of this server instance. Defaults to TLSServerModuleType
 	// ModuleID string `yaml:"moduleID"`
 
 	// Recover from panics and return 500 error

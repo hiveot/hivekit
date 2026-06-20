@@ -39,8 +39,8 @@ type ModuleFactory struct {
 	// the http server with and modules that serve http endpoints
 	httpServer transport.IHttpServer
 
-	// the module definition table, used for creating module instances by name
-	moduleTable map[string]factory.ModuleDefinition
+	// module definitions used for creating module instances by name
+	moduleMap map[string]factory.ModuleDefinition
 
 	// list of loaded modules in order of instantiation
 	loadedModules []modules.IHiveModule
@@ -116,7 +116,7 @@ func (f *ModuleFactory) GetHttpServer(instantiate bool) transport.IHttpServer {
 	if !instantiate {
 		return nil
 	}
-	m, err := f.GetModule(transport.TLSServerModuleType, instantiate)
+	m, err := f.StartModule(transport.TLSServerModuleType, instantiate)
 	if err != nil {
 		slog.Warn("GetHttpServer: no http server module is registered")
 		return nil
@@ -139,35 +139,6 @@ func (f *ModuleFactory) GetLastModule() modules.IHiveModule {
 		return f.loadedModules[0]
 	}
 	return nil
-}
-
-// GetModule loads and starts an instance of a module by its type.
-// If the module is a singleton then the same instance is returned for multiple calls with the same type.
-// This can return nil without error if the module is a 'one-shot' module that works
-// on the factory environment.
-func (f *ModuleFactory) GetModule(moduleType string, instantiate bool) (modules.IHiveModule, error) {
-	f.mux.RLock()
-	m, ok := f.singletonModules[moduleType]
-	f.mux.RUnlock()
-
-	if m != nil && ok {
-		return m, nil
-	} else if !instantiate {
-		return nil, fmt.Errorf("Module '%s' not yet loaded nad instantiate is false", moduleType)
-	}
-
-	m, isNew, err := f.LoadModule(moduleType)
-	if err != nil {
-		return nil, err
-	}
-	if isNew {
-		err = m.Start()
-		if err != nil {
-			slog.Error("GetModule. Module loaded successfully but failed to start",
-				"moduleType", moduleType, "err", err.Error())
-		}
-	}
-	return m, err
 }
 
 // Return the connectURL of the first server
@@ -209,11 +180,15 @@ func (f *ModuleFactory) LoadModule(moduleType string) (m modules.IHiveModule, is
 		return m, false, nil
 	}
 
-	def, ok := f.moduleTable[moduleType]
+	def, ok := f.moduleMap[moduleType]
 	if !ok {
 		err := fmt.Errorf("LoadModule: module '%s' not found", moduleType)
 		slog.Error(err.Error())
 		return nil, false, err
+	}
+	// ignore empty slots
+	if def.Constructor == nil {
+		return nil, false, nil
 	}
 	slog.Info("LoadModule loaded new module instance", "moduleType", moduleType)
 	mod, err := def.Constructor(f)
@@ -245,11 +220,19 @@ func (f *ModuleFactory) LoadModule(moduleType string) (m modules.IHiveModule, is
 }
 
 // RegisterModule registers a module definition to the factory, making it available for creation.
-// Intended to support 3rd party modules.
+// Used for registring recipe modules and support for 3rd party modules.
+//
+// If the given moduleDef has a no  factory function then only the config is added used.
 func (f *ModuleFactory) RegisterModule(moduleDef factory.ModuleDefinition) {
 	f.mux.Lock()
 	defer f.mux.Unlock()
-	f.moduleTable[moduleDef.Type] = moduleDef
+	// merge the registration if it exists
+	// intended to preregister the modules and only use type definitions in the recipe
+	existing, found := f.moduleMap[moduleDef.Type]
+	if found && moduleDef.Constructor == nil {
+		moduleDef.Constructor = existing.Constructor
+	}
+	f.moduleMap[moduleDef.Type] = moduleDef
 }
 
 // Set the authenticator to use with the module.
@@ -268,6 +251,40 @@ func (f *ModuleFactory) Stop() {
 		m.Stop()
 	}
 	f.loadedModules = make([]modules.IHiveModule, 0)
+}
+
+// StartModule loads and starts an instance of a module by its type.
+// If the module is already started then it is returned as-is.
+//
+// This can return nil without error if the module is a 'one-shot' module whose
+// factory function returns nil. Intended for initializing the factory environment.
+//
+// This returns an error if instantiate is false and the module is not yet loaded.
+func (f *ModuleFactory) StartModule(moduleType string, instantiate bool) (modules.IHiveModule, error) {
+	f.mux.RLock()
+	m, ok := f.singletonModules[moduleType]
+	f.mux.RUnlock()
+
+	// if the module is already loaded, return it
+	// if not loaded and instantiate is false then this is an error
+	if m != nil && ok {
+		return m, nil
+	} else if !instantiate {
+		return nil, fmt.Errorf("Module '%s' not yet loaded and instantiate is false", moduleType)
+	}
+
+	m, isNew, err := f.LoadModule(moduleType)
+	if err != nil {
+		return nil, err
+	}
+	if isNew {
+		err = m.Start()
+		if err != nil {
+			slog.Error("GetModule. Module loaded successfully but failed to start",
+				"moduleType", moduleType, "err", err.Error())
+		}
+	}
+	return m, err
 }
 
 // Wait for an OS signal or until the context is cancelled
@@ -291,17 +308,18 @@ func (f *ModuleFactory) WaitForSignal(ctx context.Context) {
 //	env is the application enviroment created with factory.NewAppEnvironment
 //	moduleDefs are the module definitions available to GetModule(type)
 func NewModuleFactory(
-	env *factory.AppEnvironment, moduleDefs map[string]factory.ModuleDefinition) factory.IModuleFactory {
+	env *factory.AppEnvironment, moduleDefs []factory.ModuleDefinition) factory.IModuleFactory {
 
-	if moduleDefs == nil {
-		moduleDefs = make(map[string]factory.ModuleDefinition)
+	moduleMap := make(map[string]factory.ModuleDefinition)
+	for _, def := range moduleDefs {
+		moduleMap[def.Type] = def
 	}
 	thingID := "factory"
 	f := &ModuleFactory{
 		HiveModuleBase:   modules.NewHiveModuleBase(thingID, env.RpcTimeout),
 		authProxy:        NewAuthenticatorProxy(),
 		env:              env,
-		moduleTable:      moduleDefs,
+		moduleMap:        moduleMap,
 		singletonModules: make(map[string]modules.IHiveModule),
 	}
 	var _ factory.IModuleFactory = f // API check

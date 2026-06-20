@@ -13,9 +13,6 @@ const (
 	// The http server module type that can be used to retrieve the server instance from the factor.
 	TLSServerModuleType = "httpserver"
 
-	// The default http server module instance ID
-	DefaultHttpServerModuleID = "httpserver"
-
 	// The default health check ping path to register
 	DefaultPingPath = "/ping"
 

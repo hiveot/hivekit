@@ -212,9 +212,6 @@ func (m *TLSServer) Stop() {
 // authenticator for http requests. nil for refusing all protected routes
 func NewTLSServer(config *tlsserver.TLSServerConfig, authenticator transport.IAuthenticator) *TLSServer {
 
-	// if config.ModuleID == "" {
-	// 	config.ModuleID = transport.DefaultHttpServerModuleID
-	// }
 	thingID := transport.TLSServerModuleType + "-" + shortid.MustGenerate()
 	m := &TLSServer{
 		HiveModuleBase: modules.NewHiveModuleBase(thingID, 0),

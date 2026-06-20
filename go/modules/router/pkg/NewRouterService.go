@@ -41,7 +41,7 @@ func NewRouterServiceFactory(f factory.IModuleFactory) (modules.IHiveModule, err
 	// option 1: provide a method to retrieve them when needed
 	tps := f.GetTransportServers()
 
-	m, err := f.GetModule(directory.DirectoryModuleType, true)
+	m, err := f.StartModule(directory.DirectoryModuleType, true)
 	if err != nil {
 		return nil, fmt.Errorf("NewRouterServiceFactory. Missing TD directory: %w", err)
 	}

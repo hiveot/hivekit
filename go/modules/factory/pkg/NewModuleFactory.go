@@ -12,7 +12,7 @@ import (
 //	moduleDefs are the module definitions available to GetModule(type)
 func NewModuleFactory(
 	env *factory.AppEnvironment,
-	moduleDefs map[string]factory.ModuleDefinition) factory.IModuleFactory {
+	moduleDefs []factory.ModuleDefinition) factory.IModuleFactory {
 
 	f := internal.NewModuleFactory(env, moduleDefs)
 	return f
