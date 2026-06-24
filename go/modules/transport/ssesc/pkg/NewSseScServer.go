@@ -27,7 +27,7 @@ func NewSseScServer(httpServer transport.IHttpServer, respTimeout time.Duration)
 
 // Create a new instance of the Hiveot SSE-SC server using the factory environment
 // This loads the httpserver module
-func NewSseScServerFactory(f factory.IModuleFactory) (modules.IHiveModule, error) {
+func NewSseScServerFactory(f factory.IModuleFactory, md *factory.ModuleDefinition) (modules.IHiveModule, error) {
 	httpServer := f.GetHttpServer(true)
 	if httpServer == nil {
 		return nil, fmt.Errorf("NewSseScServerFactory: missing http server")

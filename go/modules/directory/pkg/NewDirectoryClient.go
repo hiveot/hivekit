@@ -1,112 +1,85 @@
 package directorypkg
 
 import (
-	"github.com/hiveot/hivekit/go/api/msg"
 	"github.com/hiveot/hivekit/go/api/td"
 	"github.com/hiveot/hivekit/go/modules"
 	"github.com/hiveot/hivekit/go/modules/directory"
+	directoryclient "github.com/hiveot/hivekit/go/modules/directory/internal/client"
+	"github.com/hiveot/hivekit/go/modules/factory"
 )
 
-// DirectoryClient is a client for the Directory service using RRN messages.
-// This implements the IDirectory interface and accepts a messaging protocol sink.
-// Intended to be used with a client transport module as sink, that forwards the messages.
-type DirectoryClient struct {
-	modules.HiveModuleBase
-
-	// directoryThingID ThingID of the directory service instance.
-	directoryThingID string
+// NewDirectoryClient creates a client for the Thing directory service.
+//
+// This client can also be used stand-alone without a directory server. In this case
+// it can be configured to read TD's from the local file system. By copying TD JSON
+// files into this folder the directory client can be 'pre-charged' out-of-band with TDs.
+//
+// The local filesystem can also be used to bootstrap the directory TDD by providing
+// the directory TDD file named "directory.json".
+//
+// An in-memory cache is used to speed up queries. If a TD is in the in-memory cache the
+// requested TD is returned. If no TD is cached and the directory server is available
+// then a query is send to the server. If no server is available the local filesystem
+// is read for a file named {ThingID}.json.
+//
+// If a search for a TD fails then a nil TD is added to the local cache to speed up
+// future queries.
+//
+// If a directory server connection is available using a bi-directional protocol then
+// the client subscribes to updates from the directory server to ensure the TD's remain
+// up to date. If a missing TD is added the notification will ensure that the local
+// cache is updated.
+//
+// If a directory server is unknown or not reachable the local cache can use a file
+// storage for out-of-band configuration of TDs. TDs on the local filesystems are
+// read-only and only intended for oob configuration..
+//
+// This implements the IDirectory and IDirectoryCache interface.
+//
+// # Use with a Factory Recipe:
+//
+// When used in a factory recipe together with discovery the recommended sequence is:
+//
+//	consumer - chain[ discoveryClient - directoryClient - router | client ]
+//
+// If no directory TDD is configured the discovery client automatically initiates
+// a search for the directory server on Start and updates the app environment with
+// the directory server TDD.
+//
+// The directoryClient factory retrieves the server TDD from the app environment.
+// If no TDD is available on start, the directory checks file storage.
+//
+// Once the recipe has been started. the consumer can locate the directory client
+// in the factory and use it to determine available Things.
+//
+// The directory client is essential for bootstrapping the client as it provides the TD's
+// of devices to interact with. This bootstrap process requires a TDD of the directory
+// server. This can be set manually or using discovery.
+//
+// Since its so essential for WoT interaction, the factory has a field that holds the
+// TDD that is used when this client is instantiated through the factory.
+//
+// When not using the factory, the TDD can be obtained using discovery.
+//
+//	dirTDD is the directory TD from external source on start.
+//	See also the discovery client which supports this method.
+//
+// This returns a new instance of the directory client
+func NewDirectoryClient(dirTDD *td.TD, sink modules.IHiveModule) directory.IDirectoryClient {
+	dirClient := directoryclient.NewDirectoryClientImpl(dirTDD, sink)
+	return dirClient
 }
 
-func (cl *DirectoryClient) DeleteThing(thingID string) error {
-
-	// the senderID is added by the transport server
-	err := cl.Rpc(td.OpInvokeAction,
-		cl.directoryThingID, directory.DeleteThingAction, thingID, nil)
-	return err
+// NewDirectoryClientFactory creates the directory client using the TDD from the app environment.
+// If no TDD is available then Start checks for an out-of-band stored TDD file.
+func NewDirectoryClientFactory(f factory.IModuleFactory, modDef *factory.ModuleDefinition) (modules.IHiveModule, error) {
+	appEnv := f.GetEnvironment()
+	dirClient := NewDirectoryClient(appEnv.DirTDD, nil)
+	return dirClient, nil
 }
 
-// request the directory TD itself
-func (cl *DirectoryClient) RetrieveTDD() (tdJson string, err error) {
-
-	err = cl.Rpc(td.OpInvokeAction,
-		cl.directoryThingID, directory.RetrieveTDDAction, nil, &tdJson)
-	return tdJson, err
-}
-
-func (cl *DirectoryClient) RetrieveThing(thingID string) (tdJson string, err error) {
-
-	err = cl.Rpc(td.OpInvokeAction,
-		cl.directoryThingID, directory.RetrieveThingAction, thingID, &tdJson)
-	return tdJson, err
-}
-
-func (cl *DirectoryClient) RetrieveAllThings(offset int, limit int) (tdList []string, err error) {
-	args := directory.RetrieveAllThingsArgs{
-		Offset: offset,
-		Limit:  limit,
-	}
-	err = cl.Rpc(td.OpInvokeAction,
-		cl.directoryThingID, directory.RetrieveAllThingsAction, args, &tdList)
-	return tdList, err
-}
-
-// Update a Thing TD in the directory and wait for confirmation
-// This retuns nil if success or an error if something went wrong.
-// func (cl *DirectoryMsgClient) UpdateTD(tdJson string) error {
-
-// 	req := msg.NewRequestMessage(
-// 		td.OpInvokeAction, cl.directoryID, directory.ActionUpdateThing, tdJson, "")
-// 	_, err := cl.ForwardRequestWait(req)
-
-// 	return err
+// // Create the new directory client for the http protocol as per spec
+// func NewDirectoryHttpClient(dirTD *td.TD, caCert *x509.Certificate) directory.IDirectoryClient {
+// 	dirClient := directoryclient.NewDirectoryHttpClient(dirTD, caCert)
+// 	return dirClient
 // }
-
-// NewDirectoryClient creates a new DirectoryMsgClient instance for consumers.
-// Use the sink to attach a transport module.
-//
-// Do not use this client with agents as it registers itself as the receiver of notifications.
-// This would prevent the agent to send its notifications to the server. Instead, use
-// the 'UpdateThing' method below.
-//
-// This registers the directory client as the sink for notifications from the request handler.
-// with the intent to receive directory updates.
-//
-//	dirThingID is the thing ID of the directory service instance. Use "" for DefaultDirectoryThingID.
-//	sink forwards requests from the directory client to the directory server and returns notifications. nil to ignore
-func NewDirectoryClient(dirThingID string, sink modules.IHiveModule) *DirectoryClient {
-	if dirThingID == "" {
-		dirThingID = directory.DefaultDirectoryThingID
-	}
-	cl := &DirectoryClient{
-		directoryThingID: dirThingID,
-	}
-	if sink != nil {
-		cl.SetRequestSink(sink)
-		// notifications returned are passed to this client (if any subscriptions are made)
-		sink.SetNotificationSink(cl)
-	}
-	return cl
-}
-
-// Update a Thing TD in the directory and wait for confirmation
-// This retuns nil if success or an error if something went wrong.
-//
-// NOTE this is intended for use by agents while the above DirectoryClient methods
-// are intended for use by consumers. Since NewDirectoryMsgClient overwrites the
-// notification sinks, any agent notification would be lost.
-// Instead this method uses the given agent request handler to send the request.
-//
-// directoryServiceID is the thing ID of the directory service instance. Defaults to the module type
-// tdJson is the TD in JSON to update in the directory.
-// reqHandler is the request handler of the agent to send the request through.
-func UpdateTD(directoryThingID string, tdJson string, reqHandler msg.RequestHandler) error {
-	if directoryThingID == "" {
-		directoryThingID = directory.DirectoryModuleType
-	}
-	req := msg.NewRequestMessage(
-		td.OpInvokeAction, directoryThingID, directory.UpdateThingAction, tdJson)
-
-	_, err := msg.ForwardRequestWait(req, reqHandler, msg.DefaultRnRTimeout)
-
-	return err
-}

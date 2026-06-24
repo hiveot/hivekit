@@ -29,7 +29,7 @@ func NewHiveotWssServer(
 
 // Load the HiveOT websocket server using the factory environment
 // This loads the http server
-func NewHiveotWssServerFactory(f factory.IModuleFactory) (modules.IHiveModule, error) {
+func NewHiveotWssServerFactory(f factory.IModuleFactory, md *factory.ModuleDefinition) (modules.IHiveModule, error) {
 	httpServer := f.GetHttpServer(true)
 	if httpServer == nil {
 		return nil, fmt.Errorf("NewHiveotWssServerFactory: missing http server")
@@ -58,7 +58,7 @@ func NewWotWssServer(
 // Load the Wot websocket server using the factory environment
 // This loads the http server.
 // This returns nil if the http server could not be loaded.
-func NewWotWssServerFactory(f factory.IModuleFactory) (modules.IHiveModule, error) {
+func NewWotWssServerFactory(f factory.IModuleFactory, md *factory.ModuleDefinition) (modules.IHiveModule, error) {
 	httpServer := f.GetHttpServer(true)
 	if httpServer == nil {
 		return nil, fmt.Errorf("NewWotWssServerFactory: missing http server")

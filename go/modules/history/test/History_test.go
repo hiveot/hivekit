@@ -56,7 +56,7 @@ func TestMain(m *testing.M) {
 // This starts the protocol server and links it to the history module as sink
 // Use clean to start with an empty history.
 func startHistoryService(clean bool) (
-	histModule *internal.HistoryService, stopFn func()) {
+	histModule *internal.HistoryServiceImpl, stopFn func()) {
 
 	dataDir := filepath.Join(
 		testEnv.AppEnv.StoresDir, history.HistoryModuleType)
@@ -69,7 +69,7 @@ func startHistoryService(clean bool) (
 	// since the history module runs on the server it doesn't need an agent
 	// instance.
 	cfg := history.NewHistoryConfig(dataDir, historyStoreBackend)
-	histModule = internal.NewHistoryService(cfg)
+	histModule = internal.NewHistoryServiceImpl(cfg)
 	testEnv.Server.SetRequestSink(histModule)
 	histModule.SetNotificationSink(testEnv.Server)
 
@@ -138,7 +138,7 @@ func makeValueBatch(agentID string, nrValues, nrThings, timespanSec int) (
 }
 
 // add some history to the store. This bypasses the check for thingID to exist.
-func addBulkHistory(m *internal.HistoryService, agentID string, count int, nrThings int,
+func addBulkHistory(m *internal.HistoryServiceImpl, agentID string, count int, nrThings int,
 	timespanSec int) (highest map[string]msg.NotificationMessage) {
 
 	var batchSize = 1000

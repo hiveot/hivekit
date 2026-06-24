@@ -18,7 +18,7 @@ import (
 	"github.com/hiveot/hivekit/go/modules/transport/clients"
 )
 
-type RouterService struct {
+type RouterServiceImpl struct {
 	*modules.HiveModuleBase
 
 	// autoReconnect insert a reconnect client before the transport client
@@ -51,13 +51,13 @@ type RouterService struct {
 }
 
 // Add the secret to access a Thing.
-func (m *RouterService) AddDeviceCredential(
+func (m *RouterServiceImpl) AddDeviceCredential(
 	thingID string, clientID string, secret string, secScheme string) {
 	m.credStore.AddCredentials(thingID, clientID, secret, secScheme)
 }
 
 // Remove the secret to access a Thing
-func (m *RouterService) DeleteThingCredential(thingID string) {
+func (m *RouterServiceImpl) DeleteThingCredential(thingID string) {
 	m.credStore.DeleteCredentials(thingID)
 }
 
@@ -71,7 +71,7 @@ func (m *RouterService) DeleteThingCredential(thingID string) {
 // that automatically reconnects and resubscribes if the connection fails.
 //
 // The caller must check if the connection is established before sending a message.
-func (m *RouterService) GetClientConnection(tdi *td.TD, op string) (cl modules.IHiveModule, err error) {
+func (m *RouterServiceImpl) GetClientConnection(tdi *td.TD, op string) (cl modules.IHiveModule, err error) {
 
 	var c transport.ITransportClient
 
@@ -128,7 +128,7 @@ func (m *RouterService) GetClientConnection(tdi *td.TD, op string) (cl modules.I
 
 // Return the reverse-client connection to an agent, if it exists.
 // This returns nil if the clientID does not have an existing connection.
-func (m *RouterService) GetRCConnection(clientID string) (c transport.IConnection) {
+func (m *RouterServiceImpl) GetRCConnection(clientID string) (c transport.IConnection) {
 	if m.tpServers == nil {
 		return nil
 	}
@@ -142,7 +142,7 @@ func (m *RouterService) GetRCConnection(clientID string) (c transport.IConnectio
 }
 
 // HandleRequest handles module requests or routes the request to its destination
-func (m *RouterService) HandleRequest(req *msg.RequestMessage, replyTo msg.ResponseHandler) (err error) {
+func (m *RouterServiceImpl) HandleRequest(req *msg.RequestMessage, replyTo msg.ResponseHandler) (err error) {
 	var resp *msg.ResponseMessage
 
 	if req.ThingID != m.GetThingID() {
@@ -169,7 +169,7 @@ func (m *RouterService) HandleRequest(req *msg.RequestMessage, replyTo msg.Respo
 }
 
 // HasDeviceCredentials returns a flag if credentials are set for a Thing
-func (m *RouterService) HasThingCredentials(thingID string) bool {
+func (m *RouterServiceImpl) HasThingCredentials(thingID string) bool {
 	return m.credStore.HasCredentials(thingID)
 }
 
@@ -177,7 +177,7 @@ func (m *RouterService) HasThingCredentials(thingID string) bool {
 //
 // This returns true if a client connection is established by the router, or if
 // a reverse connection exists by the thing agent.
-func (m *RouterService) IsReachable(thingID string) bool {
+func (m *RouterServiceImpl) IsReachable(thingID string) bool {
 	return false
 }
 
@@ -196,7 +196,7 @@ func (m *RouterService) IsReachable(thingID string) bool {
 //     the agent's RC connection to the server and forward the request.
 //  3. If the TD points to a non-agent device then establish a connection or re-use
 //     an existing connection from the pool.
-func (m *RouterService) RouteRequest(req *msg.RequestMessage, replyTo msg.ResponseHandler) (err error) {
+func (m *RouterServiceImpl) RouteRequest(req *msg.RequestMessage, replyTo msg.ResponseHandler) (err error) {
 
 	// the requested thingID must be known
 	tdoc := m.getTD(req.ThingID)
@@ -233,13 +233,13 @@ func (m *RouterService) RouteRequest(req *msg.RequestMessage, replyTo msg.Respon
 
 // SetTimeout changes the default communication timeout applied to new connections
 // Existing connections are not changed.
-func (m *RouterService) SetTimeout(rpcTimeout time.Duration) {
+func (m *RouterServiceImpl) SetTimeout(rpcTimeout time.Duration) {
 	m.timeout = rpcTimeout
 }
 
 // Start the router module.
 // This loads to stored Thing credentials
-func (m *RouterService) Start() (err error) {
+func (m *RouterServiceImpl) Start() (err error) {
 	slog.Info("Start: Starting router module")
 	if m.storageDir != "" {
 		fileName := "deviceCredentials.json"
@@ -252,7 +252,7 @@ func (m *RouterService) Start() (err error) {
 
 // Stop the router module.
 // This closes all established client connections.
-func (m *RouterService) Stop() {
+func (m *RouterServiceImpl) Stop() {
 	slog.Info("Stop: Stopping router module")
 	for clientID, c := range m.deviceConnections {
 		_ = clientID
@@ -263,22 +263,22 @@ func (m *RouterService) Stop() {
 	m.credStore.Close()
 }
 
-// NewRouterService creates a new router module
+// NewRouterServiceImpl creates a new router module
 //
 //	storageDir with the module credentials storage directory, "" for in-memory testing
 //	getTD is the handler to lookup a TD for a thingID from a directory
 //	transports is a list of transport servers that can contain reverse agent connections.
 //	caCert is the CA used to verify device connections
 //	timeout is the maximum communication timeout with connect clients
-func NewRouterService(storageDir string, getTD func(thingID string) *td.TD,
+func NewRouterServiceImpl(storageDir string, getTD func(thingID string) *td.TD,
 	tpServers []transport.ITransportServer, caCert *x509.Certificate, timeout time.Duration,
-) *RouterService {
+) *RouterServiceImpl {
 	if timeout == 0 {
 		timeout = msg.DefaultRnRTimeout
 	}
 
 	thingID := router.DefaultRouterThingID
-	m := &RouterService{
+	m := &RouterServiceImpl{
 		HiveModuleBase:    modules.NewHiveModuleBase(thingID, 0),
 		autoReconnect:     true,
 		caCert:            caCert,

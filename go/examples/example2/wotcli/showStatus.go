@@ -2,27 +2,37 @@ package wotcli
 
 import (
 	"fmt"
-
-	"github.com/hiveot/hivekit/go/examples/wotco"
+	"time"
 )
 
 // Show the status of a Thing
 //
+// The thing must have published its TD using discovery.
+//
 //	thingID whose status to show
 //	subscribe to property updates and events
-func ShowStatus(co *wotco.WotConsumer, thingID string, subscribe bool) {
+func (app *CliApp) ShowStatus(thingID string, subscribe bool) {
+	var maxWaitTime = time.Second * 3
 
-	// first discover the TDs
-	err := co.Discover(nil)
+	// 1. discover the things
+	recs, err := app.discoClient.DiscoverThings("", maxWaitTime, nil)
 	if err != nil {
 		fmt.Println(err.Error())
 		return
-	} else if co.GetTD(thingID) == nil {
-		fmt.Printf("Thing with ID '%s' not discovered\n", thingID)
-		return
 	}
 
-	values, err := co.ReadAllProperties(thingID)
+	// 2. import the TD into the directory client cache
+	for _, rec := range recs {
+		tdURL := rec.AsURL()
+		tdoc, tdJSON, err := app.discoClient.LoadTD(tdURL, app.caCert)
+		_ = tdoc
+		if err == nil {
+			app.dirClient.Cache().ImportTD(tdJSON)
+		}
+	}
+
+	// 3: the router can query the thing using the discovered TD
+	values, err := app.co.ReadAllProperties(thingID)
 	if err != nil {
 		println("Error reading properties: " + err.Error())
 		return
@@ -31,7 +41,7 @@ func ShowStatus(co *wotco.WotConsumer, thingID string, subscribe bool) {
 	for k, v := range values {
 		fmt.Printf(" %s: %v\n", k, v)
 	}
-	notifs, err := co.ReadAllEvents(thingID)
+	notifs, err := app.co.ReadAllEvents(thingID)
 	if err != nil {
 		println("Error reading events: " + err.Error())
 		return

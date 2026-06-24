@@ -42,31 +42,6 @@ func (srv *DirectoryHttpServer) handleDeleteThing(w http.ResponseWriter, r *http
 	utils.WriteReply(w, true, nil, err) // 204
 }
 
-// Read the directory service TD itself
-func (srv *DirectoryHttpServer) handleReadDirectoryTD(w http.ResponseWriter, r *http.Request) {
-	var resp *msg.ResponseMessage
-
-	rp, err := srv.httpServer.GetRequestParams(r)
-	if err == nil {
-		req := msg.NewRequestMessage(
-			td.OpInvokeAction, srv.directoryThingID, directory.RetrieveTDDAction, nil)
-		req.SenderID = rp.ClientID
-		resp, err = srv.ForwardRequestWait(req)
-	}
-
-	if err != nil {
-		utils.WriteError(w, err, 0)
-		return
-	}
-	var tdocJson string
-	err = resp.Decode(&tdocJson)
-	if err != nil {
-		utils.WriteError(w, err, http.StatusInternalServerError)
-	} else {
-		w.Write([]byte(tdocJson)) // 200
-	}
-}
-
 func (srv *DirectoryHttpServer) handleRetrieveThing(w http.ResponseWriter, r *http.Request) {
 	var resp *msg.ResponseMessage
 	// A thingID is provided otherwise this handler would not have been called

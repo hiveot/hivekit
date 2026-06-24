@@ -12,9 +12,9 @@ import (
 	"github.com/hiveot/hivekit/go/utils"
 )
 
-// LoggingService is a module for writing request, response and notification messages to a log output.
+// LoggingServiceImpl is a module for writing request, response and notification messages to a log output.
 // The module is configured using yaml.
-type LoggingService struct {
+type LoggingServiceImpl struct {
 	*modules.HiveModuleBase
 
 	// configuration. Allow manual configuration
@@ -30,7 +30,7 @@ type LoggingService struct {
 }
 
 // log notifications upstream and logs them if they pass the filter
-func (m *LoggingService) HandleNotification(notif *msg.NotificationMessage) {
+func (m *LoggingServiceImpl) HandleNotification(notif *msg.NotificationMessage) {
 	go func() {
 		if m.Config.NotificationFilter.AcceptNotification(notif) {
 			m.LogNotification(notif)
@@ -40,7 +40,7 @@ func (m *LoggingService) HandleNotification(notif *msg.NotificationMessage) {
 }
 
 // HandleRequest forwards requests downstream and logs them if they pass the filter
-func (m *LoggingService) HandleRequest(req *msg.RequestMessage, replyTo msg.ResponseHandler) (err error) {
+func (m *LoggingServiceImpl) HandleRequest(req *msg.RequestMessage, replyTo msg.ResponseHandler) (err error) {
 	go func() {
 		if m.Config.NotificationFilter.AcceptRequest(req) {
 			m.LogRequest(req)
@@ -50,7 +50,7 @@ func (m *LoggingService) HandleRequest(req *msg.RequestMessage, replyTo msg.Resp
 }
 
 // write notifications to the logging backend
-func (m *LoggingService) LogNotification(notif *msg.NotificationMessage) {
+func (m *LoggingServiceImpl) LogNotification(notif *msg.NotificationMessage) {
 	value := utils.DecodeAsString(notif.Data, 32)
 	m.notificationLogger.Info("Notification",
 		slog.String("type", string(notif.AffordanceType)),
@@ -63,7 +63,7 @@ func (m *LoggingService) LogNotification(notif *msg.NotificationMessage) {
 }
 
 // write request to the logging backend
-func (m *LoggingService) LogRequest(req *msg.RequestMessage) {
+func (m *LoggingServiceImpl) LogRequest(req *msg.RequestMessage) {
 	value := utils.DecodeAsString(req.Input, 32)
 	m.requestLogger.Info("Request",
 		slog.String("op", string(req.Operation)),
@@ -78,7 +78,7 @@ func (m *LoggingService) LogRequest(req *msg.RequestMessage) {
 
 // NewLogger returns a new instance of a logger using the given backend along with
 // a function to release resources.
-func (m *LoggingService) NewLogger(cfg *logging.LoggingConfig) (
+func (m *LoggingServiceImpl) NewLogger(cfg *logging.LoggingConfig) (
 	logger *slog.Logger, releaseFn func()) {
 
 	var logFile *os.File
@@ -125,19 +125,19 @@ func (m *LoggingService) NewLogger(cfg *logging.LoggingConfig) (
 }
 
 // SetSource is a convenience function to set the source module of requests and destination of notifications
-func (m *LoggingService) SetSource(source modules.IHiveModule) {
+func (m *LoggingServiceImpl) SetSource(source modules.IHiveModule) {
 	source.SetRequestSink(m)
 	m.SetNotificationSink(source)
 }
 
 // SetSink is a convenience function to set the downstream module of requests and source of notifications
-func (m *LoggingService) SetSink(sink modules.IHiveModule) {
+func (m *LoggingServiceImpl) SetSink(sink modules.IHiveModule) {
 	m.SetRequestSink(sink)
 	sink.SetNotificationSink(m)
 }
 
 // Start opens the logging destination.
-func (m *LoggingService) Start() (err error) {
+func (m *LoggingServiceImpl) Start() (err error) {
 	slog.Info("Start: Starting logging module")
 	// TBD: separate config for  notifications vs requests logs?
 	m.requestLogger, m.releaseFn = m.NewLogger(&m.Config)
@@ -146,7 +146,7 @@ func (m *LoggingService) Start() (err error) {
 }
 
 // Stop closes the logging destination.
-func (m *LoggingService) Stop() {
+func (m *LoggingServiceImpl) Stop() {
 	slog.Info("Stop: Stopping logging module")
 	if m.releaseFn != nil {
 		m.releaseFn()
@@ -154,12 +154,12 @@ func (m *LoggingService) Stop() {
 	}
 }
 
-// NewLoggingService creates a new instance of the logging module.
+// NewLoggingServiceImpl creates a new instance of the logging module.
 //
 // config is the default module configuration.
-func NewLoggingService(config logging.LoggingConfig) *LoggingService {
+func NewLoggingServiceImpl(config logging.LoggingConfig) *LoggingServiceImpl {
 
-	m := &LoggingService{
+	m := &LoggingServiceImpl{
 		HiveModuleBase: modules.NewHiveModuleBase(config.ModuleID, 0),
 	}
 	m.Config = config

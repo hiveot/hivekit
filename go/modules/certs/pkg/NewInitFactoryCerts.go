@@ -24,7 +24,7 @@ import (
 //
 // This returns nil so it won't be added to the module chain, just does some setup
 // at startup.
-func NewInitFactoryCerts(f factory.IModuleFactory) (modules.IHiveModule, error) {
+func NewInitFactoryCerts(f factory.IModuleFactory, md *factory.ModuleDefinition) (modules.IHiveModule, error) {
 	var err error
 	var caPrivKey crypto.PrivateKey
 	var caPubKey crypto.PublicKey

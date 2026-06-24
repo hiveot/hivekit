@@ -11,12 +11,12 @@ import (
 //
 // A configuration can be created using: config.NewHistoryConfig(storeDirectory, backend)
 func NewHistoryService(config history.HistoryConfig) history.IHistoryService {
-	m := internal.NewHistoryService(config)
+	m := internal.NewHistoryServiceImpl(config)
 	return m
 }
 
 // Create the history service module using the factory environment
-func NewHistoryServiceFactory(f factory.IModuleFactory) (modules.IHiveModule, error) {
+func NewHistoryServiceFactory(f factory.IModuleFactory, md *factory.ModuleDefinition) (modules.IHiveModule, error) {
 	env := f.GetEnvironment()
 	storageDir := env.GetStorageDir(history.HistoryModuleType)
 	config := history.NewHistoryConfig(storageDir, "")

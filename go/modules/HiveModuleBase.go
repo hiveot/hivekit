@@ -134,6 +134,22 @@ func (m *HiveModuleBase) ForwardRequestWait(
 	return resp, err
 }
 
+// GetNotificationSink returns the module's default notification sink
+// (the one without thingID)
+func (m *HiveModuleBase) GetNotificationSink() IHiveModule {
+	m.mux.RLock()
+	defer m.mux.RUnlock()
+	sink, _ := m.notificationSinks[""]
+	return sink
+}
+
+// GetRequestSink returns the module's request sink
+func (m *HiveModuleBase) GetRequestSink() IHiveModule {
+	m.mux.RLock()
+	defer m.mux.RUnlock()
+	return m.requestSink
+}
+
 // GetThingID returns the module's thingID
 func (m *HiveModuleBase) GetThingID() string {
 	return m.thingID

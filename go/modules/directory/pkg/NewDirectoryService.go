@@ -3,7 +3,7 @@ package directorypkg
 import (
 	"github.com/hiveot/hivekit/go/modules"
 	"github.com/hiveot/hivekit/go/modules/directory"
-	internal "github.com/hiveot/hivekit/go/modules/directory/internal/service"
+	"github.com/hiveot/hivekit/go/modules/directory/internal/service"
 	"github.com/hiveot/hivekit/go/modules/factory"
 	"github.com/hiveot/hivekit/go/modules/transport"
 )
@@ -20,11 +20,11 @@ import (
 //	httpServer is used to expose the directory TDD on the well-known path.
 //	transports is a list of transports that should be included in the TDD security and forms
 func NewDirectoryService(
-	serviceID string, storageDir string, httpServer transport.IHttpServer,
+	thingID string, storageDir string, httpServer transport.IHttpServer,
 	transports []transport.ITransportServer) directory.IDirectoryService {
 
-	m := internal.NewDirectoryService(
-		serviceID, storageDir, httpServer, transports)
+	m := service.NewDirectoryServiceImpl(
+		thingID, storageDir, httpServer, transports)
 
 	return m
 }
@@ -32,9 +32,9 @@ func NewDirectoryService(
 // Create the directory service module using the factory environment
 // The director http-service is optional. This will continue without http if the
 // module is not yet loaded.
-func NewDirectoryServiceFactory(f factory.IModuleFactory) (modules.IHiveModule, error) {
+func NewDirectoryServiceFactory(f factory.IModuleFactory, md *factory.ModuleDefinition) (modules.IHiveModule, error) {
 	env := f.GetEnvironment()
-	storageDir := env.GetStorageDir(directory.DirectoryModuleType)
+	storageDir := env.GetStorageDir(directory.DirectoryServiceModuleType)
 
 	// httpMod, _ := f.GetModule(directory.DirectoryHttpModuleType, false)
 	// httpAPI, ok := httpMod.(directory.IDirectoryHttpServer)

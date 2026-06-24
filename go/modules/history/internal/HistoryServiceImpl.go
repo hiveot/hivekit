@@ -13,7 +13,7 @@ import (
 	"github.com/hiveot/hivekit/go/modules/history"
 )
 
-// HistoryService provides storage for request and notification history.
+// HistoryServiceImpl provides storage for request and notification history.
 //
 // Requests received are forwarded to the registered sink and stored if they pass the
 // filter. Storage is done using the NotificationMessage envelope.
@@ -22,7 +22,7 @@ import (
 //
 // Each Thing has a bucket with events and actions.
 // This implements the IHistoryService and IHiveModule interface
-type HistoryService struct {
+type HistoryServiceImpl struct {
 	*modules.HiveModuleBase
 
 	// The underlying bucketstore instance
@@ -36,13 +36,10 @@ type HistoryService struct {
 
 	// lifespan of cursor iterator
 	cursorLifespan time.Duration
-
-	// RRN message handler for reading history
-	readHistoryMsgHandler *ReadHistoryMsgHandler
 }
 
 // Forward notifications to the registered sink and record it if they pass the filter.
-func (m *HistoryService) HandleNotification(notif *msg.NotificationMessage) {
+func (m *HistoryServiceImpl) HandleNotification(notif *msg.NotificationMessage) {
 	go func() {
 		if m.config.NotificationFilter.AcceptNotification(notif) {
 			m.StoreNotification(notif)
@@ -51,27 +48,9 @@ func (m *HistoryService) HandleNotification(notif *msg.NotificationMessage) {
 	m.ForwardNotification(notif)
 }
 
-// HandleRequest handles request for this module.
-// If not a module request then record it in the history store if it passes
-// the filters and forward the request to the registered sink.
-func (m *HistoryService) HandleRequest(req *msg.RequestMessage, replyTo msg.ResponseHandler) error {
-
-	if req.ThingID == m.GetThingID() {
-		// handle requests for the history service itself
-		err := m.readHistoryMsgHandler.HandleRequest(req, replyTo)
-		return err
-	}
-	go func() {
-		if m.config.RequestFilter.AcceptRequest(req) {
-			m.StoreRequest(req)
-		}
-	}()
-	return m.ForwardRequest(req, replyTo)
-}
-
 // Start the history module and open the store
 // this loads the filters
-func (m *HistoryService) Start() (err error) {
+func (m *HistoryServiceImpl) Start() (err error) {
 	m.bucketStore, err = bucketstorepkg.OpenBucketStore(m.config.StoreDirectory, m.config.Backend)
 	if err != nil {
 		return err
@@ -79,25 +58,25 @@ func (m *HistoryService) Start() (err error) {
 
 	slog.Info("Start: Starting history module with backend " + m.config.Backend)
 	// Messaging API handler for reading the history
-	m.readHistoryMsgHandler = NewReadHistoryMsgHandler(m)
+	// m.readHistoryMsgHandler = NewReadHistoryMsgHandler(m)
 
 	return err
 }
 
 // Stop using the history service and release resources
-func (m *HistoryService) Stop() {
+func (m *HistoryServiceImpl) Stop() {
 	slog.Info("Stop: Stopping history module")
 	_ = m.bucketStore.Close()
 }
 
 // Store notifications for later retrieval
-func (m *HistoryService) StoreNotification(notif *msg.NotificationMessage) error {
+func (m *HistoryServiceImpl) StoreNotification(notif *msg.NotificationMessage) error {
 	err := m.AddValue(notif)
 	return err
 }
 
 // Store requests for later retrieval
-func (m *HistoryService) StoreRequest(req *msg.RequestMessage) error {
+func (m *HistoryServiceImpl) StoreRequest(req *msg.RequestMessage) error {
 
 	if req.Operation != td.OpInvokeAction {
 		return fmt.Errorf("AddAction: Operation is not invokeaction")
@@ -115,14 +94,14 @@ func (m *HistoryService) StoreRequest(req *msg.RequestMessage) error {
 	return err
 }
 
-// NewHistoryService creates a new instance for the history module using the given
+// NewHistoryServiceImpl creates a new instance for the history module using the given
 // configuration.
 //
 // A configuration can be created using: config.NewHistoryConfig(storeDirectory, backend)
-func NewHistoryService(config history.HistoryConfig) *HistoryService {
+func NewHistoryServiceImpl(config history.HistoryConfig) *HistoryServiceImpl {
 
 	thingID := history.DefaultHistoryThingID
-	m := &HistoryService{
+	m := &HistoryServiceImpl{
 		HiveModuleBase: modules.NewHiveModuleBase(thingID, 0),
 		cursorLifespan: time.Minute,
 		cursorCache:    bucketstorepkg.NewCursorCache(),

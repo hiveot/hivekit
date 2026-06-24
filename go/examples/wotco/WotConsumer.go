@@ -85,35 +85,38 @@ func (co *WotConsumer) Connect(thingID string) (transport.ITransportClient, erro
 
 // Discover all published things and directories.
 // cb is an optional callback to invoke with ongoing results. Return true to cancel.
-func (co *WotConsumer) Discover(cb func(r *discovery.DiscoveryResult) bool) (err error) {
+func (co *WotConsumer) Discover(cb func(*discovery.DiscoveryResult) bool) (err error) {
 	// fmt.Print("Discover started ")
 
-	disco := discoverypkg.NewDiscoveryClient(nil)
+	disco := discoverypkg.NewDiscoveryClient(nil, true)
 	waitDuration := time.Second * 1
 
-	co.records, err = disco.DiscoverThings("", waitDuration, func(r *discovery.DiscoveryResult) bool {
+	co.records, err = disco.DiscoverThings("", waitDuration,
+		func(r *discovery.DiscoveryResult) bool {
 
-		// load the TD to present nr of affordances
-		_, err := co.LoadDiscoveredTD(r)
+			// load the TD to present nr of affordances
+			// _, err := co.LoadDiscoveredTD(r)
+			// tdURL := r.AsURL()
+			// tdoc, _, err := disco.DownloadTD(tdURL, co.caCert)
 
-		if err != nil {
-			slog.Error("Error reading TD", "err", err.Error())
-		}
-
-		if cb != nil {
-			cancel := cb(r)
-			if cancel {
-				return true
+			if err != nil {
+				slog.Error("Error reading TD", "err", err.Error())
 			}
-		}
 
-		// notify event listeners of the newly discovered record
-		// TODO: formalize this with a TD
-		// notif := msg.NewNotificationMessage(co.GetThingID(),
-		// 	msg.AffordanceTypeEvent, discovery.DiscoveryThingID, "discovery", r)
-		// co.ForwardNotification(notif)
-		return false
-	})
+			if cb != nil {
+				cancel := cb(r)
+				if cancel {
+					return true
+				}
+			}
+
+			// notify event listeners of the newly discovered record
+			// TODO: formalize this with a TD
+			// notif := msg.NewNotificationMessage(co.GetThingID(),
+			// 	msg.AffordanceTypeEvent, discovery.DiscoveryThingID, "discovery", r)
+			// co.ForwardNotification(notif)
+			return false
+		})
 	return err
 }
 
@@ -170,6 +173,7 @@ func (co *WotConsumer) GetThings() map[string]*td.TD {
 // This adds the TD to the known things or directories and returns the TD, or an error
 func (co *WotConsumer) LoadDiscoveredTD(r *discovery.DiscoveryResult) (tdoc *td.TD, err error) {
 
+	slog.Info("LoadDiscoveredTD", "url", r.AsURL())
 	tdURL := r.AsURL()
 	resp, err := http.Get(tdURL)
 	if err == nil {
@@ -198,9 +202,8 @@ func (co *WotConsumer) ReadDirectory(dirTD *td.TD, limit int) (tdList []*td.TD, 
 	// use the http client API
 	//  err := clients.NewTransportClientFromTD(tdoc, co.caCert, nil)
 	dirCl := directorypkg.NewDirectoryHttpClient(dirTD, co.caCert)
-	tdJsonList, err := dirCl.RetrieveAllThings(0, limit)
+	tdList, err = dirCl.RetrieveAllThings(0, limit)
 	if err == nil {
-		tdList, err = td.UnmarshalTDList(tdJsonList)
 		for _, tdoc := range tdList {
 			co.things[tdoc.ID] = tdoc
 		}

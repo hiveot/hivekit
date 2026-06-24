@@ -270,7 +270,7 @@ func NewConsumer(sink modules.IHiveModule, notificationHook msg.NotificationHand
 }
 
 // Factory for creating a consumer module using the factory environment
-func NewConsumerFactory(f factory.IModuleFactory) (modules.IHiveModule, error) {
+func NewConsumerFactory(f factory.IModuleFactory, md *factory.ModuleDefinition) (modules.IHiveModule, error) {
 	c := NewConsumer(nil, nil)
 	c.SetTimeout(f.GetEnvironment().RpcTimeout)
 	return c, nil

@@ -191,6 +191,6 @@ func NewReadHistoryClient(sink modules.IHiveModule) *ReadHistoryClient {
 // (multiple clients can be chained this way)
 //
 //	invokeAction is the TD invokeAction for the invoke-action operation of the history service
-func NewReadHistoryClientFactory(f factory.IModuleFactory) (modules.IHiveModule, error) {
+func NewReadHistoryClientFactory(f factory.IModuleFactory, md *factory.ModuleDefinition) (modules.IHiveModule, error) {
 	return NewReadHistoryClient(nil), nil
 }

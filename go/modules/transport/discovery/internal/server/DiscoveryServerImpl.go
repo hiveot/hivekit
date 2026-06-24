@@ -16,10 +16,10 @@ import (
 	"github.com/hiveot/hivekit/go/modules/transport/discovery"
 )
 
-// DiscoveryServer is a module for serving a TD over http and publishing a corresponding
+// DiscoveryServerImpl is a module for serving a TD over http and publishing a corresponding
 // DNS-SD service record.
 // Use DiscoveryClient for discovering devices on the network.
-type DiscoveryServer struct {
+type DiscoveryServerImpl struct {
 	*modules.HiveModuleBase
 
 	// the directory thingID the intercept for discovery of TD
@@ -39,7 +39,7 @@ type DiscoveryServer struct {
 // When a request to create/update a TD is received then serve it in discovery.
 // Intended for use in a module chain where the device publishes its TD instead
 // of updating a external directory.
-func (m *DiscoveryServer) HandleRequest(req *msg.RequestMessage, replyTo msg.ResponseHandler) (err error) {
+func (m *DiscoveryServerImpl) HandleRequest(req *msg.RequestMessage, replyTo msg.ResponseHandler) (err error) {
 	// intercept a directory update to publish a TD
 	// no need to check the directory thingID, the action name in this chain is sufficient.
 	if req.Operation == td.OpInvokeAction && //req.ThingID == m.directoryThingID &&
@@ -48,11 +48,13 @@ func (m *DiscoveryServer) HandleRequest(req *msg.RequestMessage, replyTo msg.Res
 		tdJson := req.ToString(0)
 		m.ServeThingTD(tdJson)
 		resp := req.CreateResponse(nil, nil)
-		replyTo(resp)
-		return nil
-	} else {
-		return m.HiveModuleBase.HandleRequest(req, replyTo)
+		if replyTo == nil {
+			slog.Error("DiscoveryServer.HandleRequest missing replyTo")
+			return nil
+		}
+		return replyTo(resp)
 	}
+	return m.HiveModuleBase.HandleRequest(req, replyTo)
 }
 
 // ServeDirectoryTD registers the given directory TD with the http server
@@ -66,7 +68,7 @@ func (m *DiscoveryServer) HandleRequest(req *msg.RequestMessage, replyTo msg.Res
 // This aims to be compliant with https://w3c.github.io/wot-discovery/#exploration-server
 //
 // This fails if the http server isn't provided.
-func (m *DiscoveryServer) ServeDirectoryTD(dirTDJSON string) (err error) {
+func (m *DiscoveryServerImpl) ServeDirectoryTD(dirTDJSON string) (err error) {
 	// map of endpoints by scheme (wss, sse, ...)
 
 	if m.dnssdServer != nil {
@@ -100,7 +102,7 @@ func (m *DiscoveryServer) ServeDirectoryTD(dirTDJSON string) (err error) {
 // ServeThingTD registers the given thing TD with the http server
 // and publishes its endpoint using DNS-SD discovery.
 // Indended for use by things that run servers. (not recommended)
-func (m *DiscoveryServer) ServeThingTD(thingTDJSON string) (err error) {
+func (m *DiscoveryServerImpl) ServeThingTD(thingTDJSON string) (err error) {
 
 	slog.Info("DiscoveryServer. Serving Thing TD")
 
@@ -128,14 +130,14 @@ func (m *DiscoveryServer) ServeThingTD(thingTDJSON string) (err error) {
 
 // Start starts the discovery module.
 // This does nothing until ServeThingTD or ServeDirectoryTDD is called.
-func (m *DiscoveryServer) Start() (err error) {
+func (m *DiscoveryServerImpl) Start() (err error) {
 
 	slog.Info("Start: Starting discovery transport server")
 	return nil
 }
 
 // Stop any running services and release resources
-func (m *DiscoveryServer) Stop() {
+func (m *DiscoveryServerImpl) Stop() {
 	slog.Info("Stop: Stopping discovery transport server")
 	if m.dnssdServer != nil {
 		m.dnssdServer.Shutdown()
@@ -145,20 +147,20 @@ func (m *DiscoveryServer) Stop() {
 	}
 }
 
-// NewDiscoveryServer creates a new discovery server module instance.
+// NewDiscoveryServerImpl creates a new discovery server module instance.
 //
 // The serviceID is optional and defaults to DefaultDiscoveryThingID.
 //
 //	thingID of this server module. Also used as the serviceID in DNS-SD records
 //	httpServer is the server that serves the TD on the well-known endpoint.
 //	transports for TD security scheme, base URL and forms. Optional.
-func NewDiscoveryServer(thingID string,
-	httpServer transport.IHttpServer, endpoints map[string]string) *DiscoveryServer {
+func NewDiscoveryServerImpl(thingID string,
+	httpServer transport.IHttpServer, endpoints map[string]string) *DiscoveryServerImpl {
 
 	if thingID == "" {
 		thingID = discovery.DiscoveryServerModuleType
 	}
-	m := &DiscoveryServer{
+	m := &DiscoveryServerImpl{
 		HiveModuleBase: modules.NewHiveModuleBase(thingID, 0),
 
 		directoryThingID: directory.DefaultDirectoryThingID,

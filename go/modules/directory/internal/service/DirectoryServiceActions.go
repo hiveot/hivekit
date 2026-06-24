@@ -1,5 +1,5 @@
 // Package internal with service methods
-package internal
+package service
 
 import (
 	"fmt"
@@ -11,15 +11,15 @@ import (
 )
 
 // CreateThing adds or replaces the TD in the store.
-func (m *DirectoryService) CreateThing(agentID string, tdJson string) error {
+func (svc *DirectoryServiceImpl) CreateThing(agentID string, tdJson string) error {
 
 	// TODO: link the TD to the agent that created it
 
-	return m.UpdateThing(agentID, tdJson)
+	return svc.UpdateThing(agentID, tdJson)
 }
 
 // DeleteThing removes a Thing TD document from the store and send a notification
-func (m *DirectoryService) DeleteThing(agentID string, thingID string) (err error) {
+func (svc *DirectoryServiceImpl) DeleteThing(agentID string, thingID string) (err error) {
 
 	// TODO: check that the agentID is linked to this TD, or an administrator.
 
@@ -27,40 +27,40 @@ func (m *DirectoryService) DeleteThing(agentID string, thingID string) (err erro
 		slog.String("agentID", agentID), slog.String("thingID", thingID))
 
 	// The hook can cancel the write
-	if m.deleteTDHook != nil {
-		err = m.deleteTDHook(agentID, thingID)
+	if svc.deleteTDHook != nil {
+		err = svc.deleteTDHook(agentID, thingID)
 	}
 	if err == nil {
-		err = m.tdBucket.Delete(thingID)
-		m.tdCacheMux.Lock()
-		delete(m.tdCache, thingID)
-		m.tdCacheMux.Unlock()
+		err = svc.tdBucket.Delete(thingID)
+		svc.tdCacheMux.Lock()
+		delete(svc.tdCache, thingID)
+		svc.tdCacheMux.Unlock()
 
-		notif := msg.NewNotificationMessage(m.GetThingID(), msg.AffordanceTypeEvent,
-			m.GetThingID(), directory.ThingDeletedEvent, thingID)
-		m.ForwardNotification(notif)
+		notif := msg.NewNotificationMessage(svc.GetThingID(), msg.AffordanceTypeEvent,
+			svc.GetThingID(), directory.ThingDeletedEvent, thingID)
+		svc.ForwardNotification(notif)
 	}
 	return err
 }
 
 // Return an instance of the thing TD if avaialable.
 // These instances are cached so successive requests are efficient.
-func (m *DirectoryService) GetTD(thingID string) *td.TD {
-	m.tdCacheMux.RLock()
-	tdi, found := m.tdCache[thingID]
+func (svc *DirectoryServiceImpl) GetTD(thingID string) *td.TD {
+	svc.tdCacheMux.RLock()
+	tdi, found := svc.tdCache[thingID]
 	if found {
 		return tdi
 	}
-	m.tdCacheMux.RUnlock()
-	tdJSON, err := m.RetrieveThing(thingID)
+	svc.tdCacheMux.RUnlock()
+	tdJSON, err := svc.RetrieveThing(thingID)
 	if err != nil {
 		return nil
 	}
 	tdi, err = td.UnmarshalTD(tdJSON)
 	if err == nil {
-		m.tdCacheMux.Lock()
-		m.tdCache[thingID] = tdi
-		m.tdCacheMux.Unlock()
+		svc.tdCacheMux.Lock()
+		svc.tdCache[thingID] = tdi
+		svc.tdCacheMux.Unlock()
 	}
 	return tdi
 }
@@ -73,10 +73,10 @@ func (m *DirectoryService) GetTD(thingID string) *td.TD {
 
 // RetrieveAllThings returns a batch of TD documents
 // This returns a list of JSON encoded digital twin TD documents
-func (m *DirectoryService) RetrieveAllThings(offset int, limit int) (tdList []string, err error) {
+func (svc *DirectoryServiceImpl) RetrieveAllThings(offset int, limit int) (tdList []string, err error) {
 	tdList = make([]string, 0)
 
-	cursor, err := m.tdBucket.Cursor()
+	cursor, err := svc.tdBucket.Cursor()
 	if err != nil {
 		return nil, err
 	}
@@ -103,14 +103,9 @@ func (m *DirectoryService) RetrieveAllThings(offset int, limit int) (tdList []st
 	return tdList, err
 }
 
-// Read the directory TDD itself
-func (cl *DirectoryService) RetrieveTDD() (tdJSON string) {
-	return cl.tddJson
-}
-
 // RetrieveThing returns a JSON encoded TD document
-func (m *DirectoryService) RetrieveThing(thingID string) (tdJSON string, err error) {
-	tdBytes, err := m.tdBucket.Get(thingID)
+func (svc *DirectoryServiceImpl) RetrieveThing(thingID string) (tdJSON string, err error) {
+	tdBytes, err := svc.tdBucket.Get(thingID)
 	tdJSON = string(tdBytes)
 	return tdJSON, err
 }
@@ -124,7 +119,7 @@ func (m *DirectoryService) RetrieveThing(thingID string) (tdJSON string, err err
 
 // UpdateThing replaces the TD in the store.
 // If the thing doesn't exist in the store it is added.
-func (m *DirectoryService) UpdateThing(agentID string, tdJson string) error {
+func (svc *DirectoryServiceImpl) UpdateThing(agentID string, tdJson string) error {
 
 	// TODO: verify that the TD is the agent that created it.
 
@@ -143,8 +138,8 @@ func (m *DirectoryService) UpdateThing(agentID string, tdJson string) error {
 	// tdi.AgentID = agentID
 
 	// The hook can modify the TD or cancel the write
-	if m.writeTDHook != nil {
-		tdi2, err := m.writeTDHook(agentID, tdi)
+	if svc.writeTDHook != nil {
+		tdi2, err := svc.writeTDHook(agentID, tdi)
 		if err != nil {
 			return err
 		} else if tdi2 == nil {
@@ -155,15 +150,15 @@ func (m *DirectoryService) UpdateThing(agentID string, tdJson string) error {
 		tdJson = td.MarshalTD(tdi2)
 	}
 
-	err = m.tdBucket.Set(tdi.ID, []byte(tdJson))
+	err = svc.tdBucket.Set(tdi.ID, []byte(tdJson))
 	// reload the td instance next time someone asks
-	m.tdCacheMux.Lock()
-	delete(m.tdCache, tdi.ID)
-	m.tdCacheMux.Unlock()
+	svc.tdCacheMux.Lock()
+	delete(svc.tdCache, tdi.ID)
+	svc.tdCacheMux.Unlock()
 
-	notif := msg.NewNotificationMessage(m.GetThingID(), msg.AffordanceTypeEvent,
-		m.GetThingID(), directory.ThingUpdatedEvent, tdJson)
-	m.ForwardNotification(notif)
+	notif := msg.NewNotificationMessage(svc.GetThingID(), msg.AffordanceTypeEvent,
+		svc.GetThingID(), directory.ThingUpdatedEvent, tdJson)
+	svc.ForwardNotification(notif)
 
 	return err
 

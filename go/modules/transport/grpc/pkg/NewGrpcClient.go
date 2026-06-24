@@ -26,7 +26,11 @@ func NewHiveotGrpcClient(
 }
 
 // Create a hiveot gRPC client using the factory
-func NewHiveotGrpcClientFactory(f factory.IModuleFactory) modules.IHiveModule {
+func NewHiveotGrpcClientFactory(
+	f factory.IModuleFactory, md *factory.ModuleDefinition) (modules.IHiveModule, error) {
+
+	var err error
+
 	env := f.GetEnvironment()
 	clientCert, _ := env.GetClientCert()
 	serverURL := env.GetServerURL()
@@ -41,8 +45,8 @@ func NewHiveotGrpcClientFactory(f factory.IModuleFactory) modules.IHiveModule {
 		authToken, err := env.GetClientToken()
 
 		if err == nil && clientID != "" && authToken != "" {
-			m.AuthenticateWithToken(clientID, authToken)
+			err = m.AuthenticateWithToken(clientID, authToken)
 		}
 	}
-	return m
+	return m, err
 }

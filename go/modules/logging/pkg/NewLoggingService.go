@@ -13,11 +13,11 @@ import (
 //
 // config is the default module configuration.
 func NewLoggingService(config logging.LoggingConfig) logging.ILoggingService {
-	return internal.NewLoggingService(config)
+	return internal.NewLoggingServiceImpl(config)
 }
 
 // NewLoggingServiceFactory creates a new instance of the logging module using the factory environment.
-func NewLoggingServiceFactory(f factory.IModuleFactory) (modules.IHiveModule, error) {
+func NewLoggingServiceFactory(f factory.IModuleFactory, md *factory.ModuleDefinition) (modules.IHiveModule, error) {
 
 	// use the application binary as the logfile name
 	var logfilename = path.Join(f.GetEnvironment().LogsDir, f.GetEnvironment().AppID)

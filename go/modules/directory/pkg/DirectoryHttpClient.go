@@ -13,10 +13,15 @@ import (
 	"github.com/hiveot/hivekit/go/api/td"
 	"github.com/hiveot/hivekit/go/modules"
 	"github.com/hiveot/hivekit/go/modules/directory"
+	directoryclient "github.com/hiveot/hivekit/go/modules/directory/internal/client"
 	"github.com/hiveot/hivekit/go/modules/transport"
 	tlsclientpkg "github.com/hiveot/hivekit/go/modules/transport/tlsclient/pkg"
 	"github.com/hiveot/hivekit/go/utils"
 )
+
+// Deprecated: this client should not be needed. TD Forms should contain all the
+// information needed to map requests from the regular directory client to http
+// requests.
 
 // The DirectoryHttpClient is a client module for the Directory service using the REST API.
 // It can be used to connect to a directory service and read its content.
@@ -31,7 +36,8 @@ import (
 //
 // Intended for use by consumers of the directory to read TDs they have access to.
 type DirectoryHttpClient struct {
-	modules.HiveModuleBase // clients can be used as modules
+	*modules.HiveModuleBase // clients can be used as modules
+	cache                   *directoryclient.DirectoryCacheImpl
 
 	// The TD of the directory itself containing the base URL
 	dirTD *td.TD
@@ -43,39 +49,6 @@ type DirectoryHttpClient struct {
 	tlsClient transport.ITLSClient
 
 	timeout time.Duration
-}
-
-// Close the connection with the directory and release resources.
-func (cl *DirectoryHttpClient) Close() error {
-	if cl.tlsClient != nil {
-		cl.tlsClient.Close()
-	}
-	return nil
-}
-
-// AuthenticateWithToken creates a TLS client, connects to the directory, reads the directory's TD.
-func (cl *DirectoryHttpClient) AuthenticateWithToken(clientID string, token string) error {
-
-	// 1: connect to the directory and read its TD
-
-	cl.tlsClient.AuthenticateWithToken(clientID, token)
-
-	// 2: read its TD
-	// GetTDPath := directory.WellKnownWoTPath
-	// resp, status, err := cl.tlsClient.Get(GetTDPath)
-	// _ = status
-	// if err != nil {
-	// 	return err
-	// }
-	// tdi, err := td.UnmarshalTD(string(resp))
-	// if err != nil {
-	// 	cl.tlsClient.Close()
-	// 	return err
-	// }
-	// don't need a base if its the same as the directory client path
-	// _ = tdi.Base
-	// cl.directoryBasePath = tdi.Base
-	return nil
 }
 
 // A little helper to return the href and method for the requested action.
@@ -107,8 +80,48 @@ func (cl *DirectoryHttpClient) _send(
 	return reply, err
 }
 
+// AuthenticateWithToken creates a TLS client, connects to the directory, reads the directory's TD.
+func (cl *DirectoryHttpClient) AuthenticateWithToken(clientID string, token string) error {
+
+	// 1: connect to the directory and read its TD
+
+	cl.tlsClient.AuthenticateWithToken(clientID, token)
+
+	// 2: read its TD
+	// GetTDPath := directory.WellKnownWoTPath
+	// resp, status, err := cl.tlsClient.Get(GetTDPath)
+	// _ = status
+	// if err != nil {
+	// 	return err
+	// }
+	// tdi, err := td.UnmarshalTD(string(resp))
+	// if err != nil {
+	// 	cl.tlsClient.Close()
+	// 	return err
+	// }
+	// don't need a base if its the same as the directory client path
+	// _ = tdi.Base
+	// cl.directoryBasePath = tdi.Base
+	return nil
+}
+
+// Return the local cache of Things
+func (cl *DirectoryHttpClient) Cache() directory.IDirectoryCache {
+	return cl.cache
+}
+
+// Close the connection with the directory and release resources.
+func (cl *DirectoryHttpClient) Close() error {
+	if cl.tlsClient != nil {
+		cl.tlsClient.Close()
+	}
+	return nil
+}
+
 // CreateThing creates a new TD document in the remote directory.
 func (cl *DirectoryHttpClient) CreateThing(tdJson string) error {
+
+	cl.cache.ImportTD(tdJson)
 
 	// validate the TD and determine the thingID needed in the path
 	tdi, err := td.UnmarshalTD(tdJson)
@@ -125,6 +138,8 @@ func (cl *DirectoryHttpClient) CreateThing(tdJson string) error {
 
 // DeleteThing removes a TD document from the remote directory.
 func (cl *DirectoryHttpClient) DeleteThing(thingID string) error {
+	cl.cache.RemoveTD(thingID)
+
 	defaultPath := fmt.Sprintf("/things/%s", thingID)
 	_, err := cl._send(
 		directory.DeleteThingAction, defaultPath, http.MethodDelete, thingID, nil)
@@ -134,7 +149,9 @@ func (cl *DirectoryHttpClient) DeleteThing(thingID string) error {
 // RetrieveAllThings retrieves a list of things to update the local directory
 // This follows: https://w3c.github.io/wot-discovery/#exploration-directory-api-things-listing
 // which requires the http get at /things?limit=...
-func (cl *DirectoryHttpClient) RetrieveAllThings(offset int, limit int) ([]string, error) {
+func (cl *DirectoryHttpClient) RetrieveAllThings(offset int, limit int) ([]*td.TD, error) {
+
+	var tdList []*td.TD
 
 	defaultPath := fmt.Sprintf("/things?offset=%d&limit=%d", offset, limit)
 	raw, err := cl._send(
@@ -145,18 +162,44 @@ func (cl *DirectoryHttpClient) RetrieveAllThings(offset int, limit int) ([]strin
 	}
 	var tdJsonList []string
 	err = utils.DecodeAsObject(raw, &tdJsonList)
-	return tdJsonList, err
+
+	tdList = make([]*td.TD, 0, len(tdJsonList))
+	for _, tdJson := range tdJsonList {
+		tdoc, err := cl.cache.ImportTD(tdJson)
+		if err == nil {
+			tdList = append(tdList, tdoc)
+		}
+	}
+
+	return tdList, err
 }
 
-// RetrieveThing refreshes the cached TD from the directory
+// RetrieveThing loads the TD from the directory.
+// If the TD exists in the local chace it is returned instead.
 // This follows: https://w3c.github.io/wot-discovery/#exploration-directory-api
 // which requires the http get at /things/{id}
-func (cl *DirectoryHttpClient) RetrieveThing(thingID string) (string, error) {
+func (cl *DirectoryHttpClient) RetrieveThing(thingID string) (tdoc *td.TD, err error) {
+
+	// first try the cache
+	tdoc = cl.cache.GetThing(thingID)
+	if tdoc != nil {
+		return tdoc, nil
+	}
+
 	defaultPath := fmt.Sprintf("/things/%s", thingID)
 	raw, err := cl._send(
 		directory.RetrieveThingAction, defaultPath, http.MethodGet, thingID, nil)
+	if err != nil {
+		return nil, err
+	}
 
-	return string(raw), err
+	tdoc, err = cl.cache.ImportTD(string(raw))
+	return tdoc, err
+}
+
+// set the TDD of the directory server
+func (cl *DirectoryHttpClient) SetTDD(tdd *td.TD) {
+	cl.dirTD = tdd
 }
 
 // UpdateThing updates the TD document in the remote directory.
@@ -181,7 +224,11 @@ func (cl *DirectoryHttpClient) UpdateThing(tdJson string) error {
 	return err
 }
 
-// NewDirectoryHttpClient creates a new client for accessing a Thing Directory.
+// Deprecated: this client should not be needed as forms should be able to describe
+// all request messages using the http-basic client.
+//
+// NewDirectoryHttpClient creates a new client for accessing a Thing Directory
+// using the provided directory TDD.
 //
 // Call Connect() to connect to the directory service and Close() to release resources.
 //
@@ -205,9 +252,13 @@ func NewDirectoryHttpClient(dirTD *td.TD, caCert *x509.Certificate) *DirectoryHt
 	tlsClient := tlsclientpkg.NewTLSClient(parts.Host, caCert, 0)
 
 	cl := &DirectoryHttpClient{
+		HiveModuleBase: modules.NewHiveModuleBase("", 0),
+		cache:          directoryclient.NewDirectoryCacheImpl(),
+
 		dirTD:     dirTD,
 		timeout:   msg.DefaultRnRTimeout,
 		tlsClient: tlsClient,
 	}
+	var _ directory.IDirectoryClient = cl // interface check
 	return cl
 }

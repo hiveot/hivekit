@@ -35,7 +35,13 @@ const (
 	IncrementActionName = "increment"
 )
 
-// Simple IoT device that tracks a counter.
+// demonstration of including configuration for the module
+type CounterConfig struct {
+	// reset the count if the auto-increment reaches this value
+	ResetValue int
+}
+
+// Simple example of an IoT device that tracks a counter.
 // The device uses Agent as a base. Agents facilitate storing and querying properties so you dont have to.
 //
 // This implements the properties, events and actions listed in the device TM.
@@ -43,11 +49,13 @@ const (
 type MyCounterDevice struct {
 	*agent.Agent
 
+	config           *CounterConfig
 	counter          atomic.Int32
 	backgroundCtx    context.Context
 	backgroundCancel func()
 }
 
+// Run the counter in the background
 func (m *MyCounterDevice) Background() {
 	for {
 		if m.backgroundCtx.Err() != nil {
@@ -60,6 +68,17 @@ func (m *MyCounterDevice) Background() {
 		go m.Update(int(m.counter.Load() + 1))
 	}
 }
+
+// Increment the counter
+func (m *MyCounterDevice) DoIncrement() {
+	oldValue := m.counter.Load()
+	if oldValue < int32(m.config.ResetValue) {
+		m.counter.Store(oldValue + 1)
+	} else {
+		m.counter.Store(0)
+	}
+}
+
 func (m *MyCounterDevice) HandleRequest(req *msg.RequestMessage, replyTo msg.ResponseHandler) (err error) {
 	if req.ThingID != DefaultCounterDeviceThingID {
 		return m.ForwardRequest(req, replyTo)
@@ -102,7 +121,7 @@ func (m *MyCounterDevice) HandleIncrement(req *msg.RequestMessage, replyTo msg.R
 	if replyTo != nil {
 		err = replyTo(resp)
 	}
-	go m.Update(int(m.counter.Load() + 1))
+	go m.DoIncrement()
 	return err
 }
 
@@ -167,18 +186,20 @@ func (m *MyCounterDevice) Update(newValue int) {
 }
 
 // Create a new counter device that starts counting at 42.
-func NewCounterDevice(agentID string) modules.IHiveModule {
+func NewCounterDevice(agentID string, config *CounterConfig) modules.IHiveModule {
 	m := &MyCounterDevice{
-		Agent: agent.NewAgent(agentID, nil),
+		Agent:  agent.NewAgent(agentID, nil),
+		config: config,
 	}
 	m.counter.Store(42)
 	return m
 }
 
-func MyCounterModuleFactory(f factory.IModuleFactory) (modules.IHiveModule, error) {
+func MyCounterModuleFactory(f factory.IModuleFactory,
+	md *factory.ModuleDefinition) (modules.IHiveModule, error) {
+
 	agentID := DefaultCounterDeviceThingID // must match the TD ID
-	m := NewCounterDevice(agentID)
+	counterConfig, _ := md.Config.(*CounterConfig)
+	m := NewCounterDevice(agentID, counterConfig)
 	return m, nil
 }
-
-//

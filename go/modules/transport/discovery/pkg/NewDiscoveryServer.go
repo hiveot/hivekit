@@ -22,7 +22,7 @@ func NewDiscoveryServer(thingID string,
 	if thingID == "" {
 		thingID = discovery.DiscoveryServerModuleType
 	}
-	srv := internalserver.NewDiscoveryServer(thingID, httpServer, endpoints)
+	srv := internalserver.NewDiscoveryServerImpl(thingID, httpServer, endpoints)
 	return srv
 }
 
@@ -30,7 +30,7 @@ func NewDiscoveryServer(thingID string,
 // The module type is used as the thingID.
 // This loads the http server.
 // This creates a list of endpoints for each loaded transport server
-func NewDiscoveryServerFactory(f factory.IModuleFactory) (modules.IHiveModule, error) {
+func NewDiscoveryServerFactory(f factory.IModuleFactory, md *factory.ModuleDefinition) (modules.IHiveModule, error) {
 	httpServer := f.GetHttpServer(true)
 	endpoints := make(map[string]string)
 	tps := f.GetTransportServers()

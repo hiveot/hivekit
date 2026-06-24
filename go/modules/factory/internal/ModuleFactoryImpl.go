@@ -16,25 +16,13 @@ import (
 	"github.com/hiveot/hivekit/go/modules/transport"
 )
 
-// ModuleFactory for creating instances of modules using the application environment.
+// ModuleFactoryImpl for creating instances of modules using the application environment.
 //
 // This factory itself is the first module in the chain of modules created by this factory.
-type ModuleFactory struct {
+type ModuleFactoryImpl struct {
 	*modules.HiveModuleBase
 
 	env *factory.AppEnvironment
-
-	// when connecting a client interface using NewModuleClient
-	// clientID string
-	// authentication token ...?
-	// authToken string
-	// the root directory of the configuration storage directory
-	// configRoot string
-
-	// the root directory of the application storage area (subdir per module)
-	// storageRoot string
-	// the default timeout for transport modules
-	// timeout time.Duration
 
 	// the http server with and modules that serve http endpoints
 	httpServer transport.IHttpServer
@@ -59,7 +47,7 @@ type ModuleFactory struct {
 
 // Add forms to the TD for all running transport servers
 // This invokes all singletonModules that implement the ITransportServer interface
-func (f *ModuleFactory) AddTDSecForms(tdoc *td.TD, includeAffordances bool) {
+func (f *ModuleFactoryImpl) AddTDSecForms(tdoc *td.TD, includeAffordances bool) {
 	f.mux.RLock()
 	tpList := []transport.ITransportServer{}
 	copy(tpList, f.transportModules)
@@ -71,7 +59,7 @@ func (f *ModuleFactory) AddTDSecForms(tdoc *td.TD, includeAffordances bool) {
 
 // Find the first loaded singleton module instance by its type
 // This returns nil if no instance was loaded or the module isn't a singleton
-func (f *ModuleFactory) FindModule(moduleType string) (m modules.IHiveModule) {
+func (f *ModuleFactoryImpl) FindModule(moduleType string) (m modules.IHiveModule) {
 	f.mux.RLock()
 	defer f.mux.RUnlock()
 	m, ok := f.singletonModules[moduleType]
@@ -80,18 +68,18 @@ func (f *ModuleFactory) FindModule(moduleType string) (m modules.IHiveModule) {
 }
 
 // Return the application environment used by the factory.
-func (f *ModuleFactory) GetEnvironment() *factory.AppEnvironment {
+func (f *ModuleFactoryImpl) GetEnvironment() *factory.AppEnvironment {
 	return f.env
 }
 
 // Used for server modules that need to authenticate incoming connections
 // This returns a proxy to the actual authenticator.
-func (f *ModuleFactory) GetAuthenticator() transport.IAuthenticator {
+func (f *ModuleFactoryImpl) GetAuthenticator() transport.IAuthenticator {
 	return f.authProxy
 }
 
 // Return the first loaded module. This returns nil if no modules are loaded
-func (f *ModuleFactory) GetFirstModule() modules.IHiveModule {
+func (f *ModuleFactoryImpl) GetFirstModule() modules.IHiveModule {
 	f.mux.RLock()
 	defer f.mux.RUnlock()
 	if len(f.loadedModules) > 0 {
@@ -105,7 +93,7 @@ func (f *ModuleFactory) GetFirstModule() modules.IHiveModule {
 //	instantiate indicates if the http server instance should be created if it doesnt exist.
 //
 // This returns nil if no http server module is registered
-func (f *ModuleFactory) GetHttpServer(instantiate bool) transport.IHttpServer {
+func (f *ModuleFactoryImpl) GetHttpServer(instantiate bool) transport.IHttpServer {
 	f.mux.RLock()
 	httpServer := f.httpServer
 	f.mux.RUnlock()
@@ -132,7 +120,7 @@ func (f *ModuleFactory) GetHttpServer(instantiate bool) transport.IHttpServer {
 }
 
 // Return the last loaded module. This returns nil if no modules are loaded
-func (f *ModuleFactory) GetLastModule() modules.IHiveModule {
+func (f *ModuleFactoryImpl) GetLastModule() modules.IHiveModule {
 	f.mux.RLock()
 	defer f.mux.RUnlock()
 	if len(f.loadedModules) > 0 {
@@ -142,7 +130,7 @@ func (f *ModuleFactory) GetLastModule() modules.IHiveModule {
 }
 
 // Return the connectURL of the first server
-func (f *ModuleFactory) GetConnectURL() string {
+func (f *ModuleFactoryImpl) GetConnectURL() string {
 	servers := f.GetTransportServers()
 	if len(servers) == 0 {
 		return ""
@@ -151,7 +139,7 @@ func (f *ModuleFactory) GetConnectURL() string {
 }
 
 // Return a copy of the list with loaded transport servers.
-func (f *ModuleFactory) GetTransportServers() []transport.ITransportServer {
+func (f *ModuleFactoryImpl) GetTransportServers() []transport.ITransportServer {
 	f.mux.RLock()
 	tpList := make([]transport.ITransportServer, len(f.transportModules))
 	copy(tpList, f.transportModules)
@@ -160,7 +148,7 @@ func (f *ModuleFactory) GetTransportServers() []transport.ITransportServer {
 }
 
 // Pass request to the first loaded module in the factory
-func (f *ModuleFactory) HandleRequest(req *msg.RequestMessage, replyTo msg.ResponseHandler) error {
+func (f *ModuleFactoryImpl) HandleRequest(req *msg.RequestMessage, replyTo msg.ResponseHandler) error {
 	m := f.GetFirstModule()
 	if m == nil {
 		return fmt.Errorf("No modules in the factory chain")
@@ -172,7 +160,7 @@ func (f *ModuleFactory) HandleRequest(req *msg.RequestMessage, replyTo msg.Respo
 //
 // If the module implements the ITransportModule interface it is added to the list of available
 // transport. See GetTransportServers() to obtain the collection of all loaded servers.
-func (f *ModuleFactory) LoadModule(moduleType string) (m modules.IHiveModule, isNew bool, err error) {
+func (f *ModuleFactoryImpl) LoadModule(moduleType string) (m modules.IHiveModule, isNew bool, err error) {
 	f.mux.RLock()
 	m, ok := f.singletonModules[moduleType]
 	f.mux.RUnlock()
@@ -191,7 +179,7 @@ func (f *ModuleFactory) LoadModule(moduleType string) (m modules.IHiveModule, is
 		return nil, false, nil
 	}
 	slog.Info("LoadModule loaded new module instance", "moduleType", moduleType)
-	mod, err := def.Constructor(f)
+	mod, err := def.Constructor(f, &def)
 
 	if err != nil {
 		return nil, false, err
@@ -223,7 +211,7 @@ func (f *ModuleFactory) LoadModule(moduleType string) (m modules.IHiveModule, is
 // Used for registring recipe modules and support for 3rd party modules.
 //
 // If the given moduleDef has a no  factory function then only the config is added used.
-func (f *ModuleFactory) RegisterModule(moduleDef factory.ModuleDefinition) {
+func (f *ModuleFactoryImpl) RegisterModule(moduleDef factory.ModuleDefinition) {
 	f.mux.Lock()
 	defer f.mux.Unlock()
 	// merge the registration if it exists
@@ -238,12 +226,12 @@ func (f *ModuleFactory) RegisterModule(moduleDef factory.ModuleDefinition) {
 // Set the authenticator to use with the module.
 // Intended to be set by a service like authn that performs actual authentication.
 // If nil is provided then disable authentication
-func (f *ModuleFactory) SetAuthenticator(impl transport.IAuthenticator) {
+func (f *ModuleFactoryImpl) SetAuthenticator(impl transport.IAuthenticator) {
 	f.authProxy.SetAuthenticator(impl)
 }
 
 // Stop all modules in reverse order
-func (f *ModuleFactory) Stop() {
+func (f *ModuleFactoryImpl) Stop() {
 	n := len(f.loadedModules)
 	slog.Info("StopAll: stopping all loaded modules", "count", n)
 	for i := n - 1; i >= 0; i-- {
@@ -260,7 +248,7 @@ func (f *ModuleFactory) Stop() {
 // factory function returns nil. Intended for initializing the factory environment.
 //
 // This returns an error if instantiate is false and the module is not yet loaded.
-func (f *ModuleFactory) StartModule(moduleType string, instantiate bool) (modules.IHiveModule, error) {
+func (f *ModuleFactoryImpl) StartModule(moduleType string, instantiate bool) (modules.IHiveModule, error) {
 	f.mux.RLock()
 	m, ok := f.singletonModules[moduleType]
 	f.mux.RUnlock()
@@ -288,7 +276,7 @@ func (f *ModuleFactory) StartModule(moduleType string, instantiate bool) (module
 }
 
 // Wait for an OS signal or until the context is cancelled
-func (f *ModuleFactory) WaitForSignal(ctx context.Context) {
+func (f *ModuleFactoryImpl) WaitForSignal(ctx context.Context) {
 
 	// catch all signals since not explicitly listing
 	exitChannel := make(chan os.Signal, 1)
@@ -307,7 +295,7 @@ func (f *ModuleFactory) WaitForSignal(ctx context.Context) {
 //
 //	env is the application enviroment created with factory.NewAppEnvironment
 //	moduleDefs are the module definitions available to GetModule(type)
-func NewModuleFactory(
+func NewModuleFactoryImpl(
 	env *factory.AppEnvironment, moduleDefs []factory.ModuleDefinition) factory.IModuleFactory {
 
 	moduleMap := make(map[string]factory.ModuleDefinition)
@@ -315,7 +303,7 @@ func NewModuleFactory(
 		moduleMap[def.Type] = def
 	}
 	thingID := "factory"
-	f := &ModuleFactory{
+	f := &ModuleFactoryImpl{
 		HiveModuleBase:   modules.NewHiveModuleBase(thingID, env.RpcTimeout),
 		authProxy:        NewAuthenticatorProxy(),
 		env:              env,

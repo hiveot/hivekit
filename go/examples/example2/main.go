@@ -4,15 +4,13 @@ import (
 	"crypto/tls"
 	"flag"
 	"fmt"
-	"log/slog"
 	"net/http"
 	"os"
-	"time"
 
 	"github.com/hiveot/hivekit/go/examples/example2/wotcli"
-	"github.com/hiveot/hivekit/go/examples/wotco"
 	"github.com/hiveot/hivekit/go/modules/factory"
-	routerpkg "github.com/hiveot/hivekit/go/modules/router/pkg"
+	factorypkg "github.com/hiveot/hivekit/go/modules/factory/pkg"
+	"github.com/hiveot/hivekit/go/modules/factory/recipes"
 	"github.com/hiveot/hivekit/go/utils"
 )
 
@@ -30,16 +28,16 @@ const (
 	CmdSubscribe  = "subscribe"
 )
 
+var appConfig wotcli.CliAppConfig
+
 func main() {
-	var subscribe bool
-	var verbose bool
-	var nd bool
+	// var subscribe bool
 	utils.SetLogging("warn", "")
 
 	// environment defaults
-	flag.BoolVar(&subscribe, "subscribe", subscribe, "Subscribe to events or property changes until ^C")
-	flag.BoolVar(&verbose, "v", verbose, "Show more detailed output")
-	flag.BoolVar(&nd, "nd", nd, "Do not start with discovery")
+	flag.BoolVar(&appConfig.Subscribe, "subscribe", appConfig.Subscribe, "Subscribe to events or property changes until ^C")
+	flag.BoolVar(&appConfig.Verbose, "v", appConfig.Verbose, "Show more detailed output")
+	flag.BoolVar(&appConfig.NoDisco, "nd", appConfig.NoDisco, "Do not start with discovery")
 
 	env := factory.NewAppEnvironment("", true)
 	_ = env
@@ -68,37 +66,56 @@ func main() {
 		return ""
 	}
 
-	// Ignore the certificate check just for this example. Dont do this.
+	// Ignore the certificate check just for this example. Dont do this in your app.
 	http.DefaultTransport.(*http.Transport).TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
 
-	// build the chain: consumer -> router => client[s]
-	co := wotco.NewWotConsumer(nil, time.Minute)
-	err := co.Start()
-
-	rtr := routerpkg.NewRouterService("", co.GetTD, nil, nil, time.Minute)
-	rtr.SetNotificationSink(co)
-	co.SetRequestSink(rtr)
-
-	err = rtr.Start()
-	if err != nil {
-		slog.Error(err.Error())
+	// insert the CLI application in the chain and give it the commandline options
+	wotcliApp := &factory.ModuleDefinition{
+		Type:        "CliApp",
+		Constructor: wotcli.NewCliAppFactory,
+		Config:      appConfig,
 	}
+
+	f := factorypkg.NewModuleFactory(env, nil)
+	r := recipes.NewConsumerRecipe(f, wotcliApp)
+
+	err := r.Start()
+	if err != nil {
+		os.Exit(1)
+	}
+	app := f.FindModule("CliApp").(*wotcli.CliApp)
+
+	// co := wotco.NewWotConsumer(nil, time.Minute)
+	// err := co.Start()
+
+	// rtr := routerpkg.NewRouterService("", co.GetTD, nil, nil, time.Minute)
+	// rtr.SetNotificationSink(co)
+	// co.SetRequestSink(rtr)
+
+	// err = rtr.Start()
+	// if err != nil {
+	// slog.Error(err.Error())
+	// }
+
+	// how to inject the app?
+	// A: Single app
+	// B: Multiple apps for each command
 
 	// discover.Discover(filterType, filterAddr, showAff, showTXT, showTD, waitTime)
 	switch cmd {
 	case CmdDiscover:
-		wotcli.ShowDiscovery(co, verbose)
+		app.ShowDiscovery()
 	case CmdListDir:
-		wotcli.ListDir(co)
+		app.ListDir()
 	case CmdShowTD:
 		thingID := getArgs()
-		wotcli.ShowTD(co, thingID)
+		app.ShowTD(thingID)
 	case CmdShowStatus:
 		thingID := getArgs()
-		wotcli.ShowStatus(co, thingID, subscribe)
+		app.ShowStatus(thingID, false)
 	case CmdSubscribe:
 		thingID := getArgs()
-		wotcli.Subscribe(co, thingID)
+		app.Subscribe(thingID)
 
 	default:
 		fmt.Printf("\nUnknown command: %s\n", cmd)

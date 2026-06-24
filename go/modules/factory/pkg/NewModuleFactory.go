@@ -14,6 +14,6 @@ func NewModuleFactory(
 	env *factory.AppEnvironment,
 	moduleDefs []factory.ModuleDefinition) factory.IModuleFactory {
 
-	f := internal.NewModuleFactory(env, moduleDefs)
+	f := internal.NewModuleFactoryImpl(env, moduleDefs)
 	return f
 }

@@ -26,13 +26,13 @@ func NewRouterService(storageDir string, getTD func(thingID string) *td.TD,
 	tps []transport.ITransportServer, caCert *x509.Certificate, timeout time.Duration,
 ) router.IRouterService {
 
-	m := internal.NewRouterService(storageDir, getTD, tps, caCert, timeout)
+	m := internal.NewRouterServiceImpl(storageDir, getTD, tps, caCert, timeout)
 	return m
 }
 
 // Create a router service instance using the factory environment
 // This loads the directory module to lookup a Thing TD
-func NewRouterServiceFactory(f factory.IModuleFactory) (modules.IHiveModule, error) {
+func NewRouterServiceFactory(f factory.IModuleFactory, md *factory.ModuleDefinition) (modules.IHiveModule, error) {
 	var getTD func(string) *td.TD
 	env := f.GetEnvironment()
 	storageDir := env.GetStorageDir(router.RouterModuleType)
@@ -41,7 +41,7 @@ func NewRouterServiceFactory(f factory.IModuleFactory) (modules.IHiveModule, err
 	// option 1: provide a method to retrieve them when needed
 	tps := f.GetTransportServers()
 
-	m, err := f.StartModule(directory.DirectoryModuleType, true)
+	m, err := f.StartModule(directory.DirectoryServiceModuleType, true)
 	if err != nil {
 		return nil, fmt.Errorf("NewRouterServiceFactory. Missing TD directory: %w", err)
 	}

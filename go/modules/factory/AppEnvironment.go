@@ -13,6 +13,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/hiveot/hivekit/go/api/td"
 	"github.com/hiveot/hivekit/go/modules/certs"
 	"github.com/hiveot/hivekit/go/modules/certs/certutils"
 	"github.com/hiveot/hivekit/go/modules/transport"
@@ -73,6 +74,10 @@ type AppEnvironment struct {
 	// The clientID used to authenticate.
 	// By default the clientID is the same as the appID unless changed.
 	ClientID string `yaml:"clientID"`
+
+	// The directory TD for bootstrapping a client.
+	// This can be provided by discovery or set manually.
+	DirTDD *td.TD `yaml:"-"`
 
 	// KeyFile is the file that holds the private/public keys of the application.
 	// Can be used by client applications to authenticate connect to a hub/gateway.

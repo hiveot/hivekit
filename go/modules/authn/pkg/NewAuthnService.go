@@ -26,7 +26,7 @@ func NewAuthnService(
 // Create a new instance of the authentication service using the factory environment.
 // The factory will provide the configuration and http server.
 // This sets the authn session manager as the factory authenticator.
-func NewAuthnServiceFactory(f factory.IModuleFactory) (modules.IHiveModule, error) {
+func NewAuthnServiceFactory(f factory.IModuleFactory, md *factory.ModuleDefinition) (modules.IHiveModule, error) {
 	env := f.GetEnvironment()
 	keysDir := env.CertsDir
 	storageDir := env.GetStorageDir(authn.AuthnServiceModuleType)

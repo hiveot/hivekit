@@ -12,6 +12,10 @@ import (
 // The discovery module types
 const (
 	DiscoveryClientModuleType = "discovery-client"
+
+	// Action request to discover a directory TDD
+	// Output: JSON with directory TD
+	DiscoverDirectoryAction = "discoverDirectory"
 )
 
 type DiscoveryResult struct {
@@ -95,16 +99,16 @@ type IDiscoveryClient interface {
 	//	This returns an error if it wasn't possible to run discovery.
 	DiscoverFirstGateway(instanceName string, searchTime time.Duration) (rec0 *DiscoveryResult, err error)
 
-	// DownloadTD a TD document from a discovered URL.
+	// DownloadTD a TD document from a discovery record.
 	// Intended to obtain the TD of a discovered directory or thing.
 	//
 	// tdURL points to the discovery spec http well-known endpoint address.
 	// caCert is optional CA to verify the server validity. nil skips this validation.
 	//
 	// This returns the TD, its JSON or an error if none is found
-	DownloadTD(tdURL string, caCert *x509.Certificate) (
+	LoadTD(tdURL string, caCert *x509.Certificate) (
 		tdoc *td.TD, tdJSON string, err error)
 
 	// Return the first directory TD that was discovered on startup
-	GetDirectory() (dirTD *td.TD)
+	GetTDD() (dirTD *td.TD)
 }

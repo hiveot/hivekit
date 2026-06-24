@@ -125,15 +125,20 @@ func (req *RequestMessage) CreateResponse(value any, err error) (resp *ResponseM
 // 	return notif
 // }
 
+// Decode is a helper to easily convert the request input to an object
+func (req *RequestMessage) Decode(input any) error {
+	return utils.DecodeAsObject(req.Input, &input)
+}
+
+// NoReply is a stub to use with HandleRequest when no reply is expected.
+func (req *RequestMessage) NoReply(resp *ResponseMessage) error {
+	return nil
+}
+
 // ToString is a helper to easily convert the request input to a string
 // maxlen is the maximum string length or 0 for unlimited
 func (req *RequestMessage) ToString(maxlen int) string {
 	return utils.DecodeAsString(req.Input, maxlen)
-}
-
-// Decode is a helper to easily convert the request input to an object
-func (req *RequestMessage) Decode(input any) error {
-	return utils.DecodeAsObject(req.Input, &input)
 }
 
 // NewRequestMessage creates a new RequestMessage instance.

@@ -49,13 +49,17 @@ func DnsSDScan(instanceName string, serviceType string, waitTime time.Duration,
 		for entry := range results {
 			if instanceName == "" || instanceName == entry.Instance {
 				rec := entry.ServiceRecord
+				// txtRecord := entry.Text
 				slog.Info("DnsSDScan: Found service",
 					"instance", rec.Instance,
 					// "ipv4", entry.AddrIPv4,
 					"service", rec.Service,
+					"serviceType", rec.ServiceTypeName(),
 					"domain", rec.Domain,
 					"ip4", entry.AddrIPv4,
-					slog.Int("port", entry.Port))
+					slog.Int("port", entry.Port),
+					// "scheme", strings.Join(txtRecord, ";"), // if found
+				)
 
 				mu.Lock()
 				records = append(records, entry)

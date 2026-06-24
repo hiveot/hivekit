@@ -8,8 +8,8 @@ import (
 	"github.com/hiveot/hivekit/go/modules/transport"
 )
 
-// AddFormsService modifies TD's sent with directory update and create commands with base, security, and form information from the configured transports.
-type AddFormsService struct {
+// AddFormsServiceImpl modifies TD's sent with directory update and create commands with base, security, and form information from the configured transports.
+type AddFormsServiceImpl struct {
 	modules.HiveModuleBase
 
 	// Optionally specify a service ID of the directory or discovery service this is addressed to
@@ -24,7 +24,7 @@ type AddFormsService struct {
 }
 
 // convert TDs provided with CreateThing and UpdateThing directory actions
-func (m *AddFormsService) HandleRequest(req *msg.RequestMessage, replyTo msg.ResponseHandler) error {
+func (m *AddFormsServiceImpl) HandleRequest(req *msg.RequestMessage, replyTo msg.ResponseHandler) error {
 	if req.Operation != td.OpInvokeAction {
 		return m.ForwardRequest(req, replyTo)
 	}
@@ -50,16 +50,16 @@ func (m *AddFormsService) HandleRequest(req *msg.RequestMessage, replyTo msg.Res
 }
 
 // Update the base-URL, security scheme and forms to the given TD
-func (m *AddFormsService) AddTDSecForms(tdoc *td.TD, includeAffordances bool) {
+func (m *AddFormsServiceImpl) AddTDSecForms(tdoc *td.TD, includeAffordances bool) {
 	for _, srv := range m.tpServers {
 		srv.AddTDSecForms(tdoc, includeAffordances)
 	}
 }
 
-// NewAddFormsService creates a new instance of the service
-func NewAddFormsService(tpServers []transport.ITransportServer) *AddFormsService {
+// NewAddFormsServiceImpl creates a new instance of the service
+func NewAddFormsServiceImpl(tpServers []transport.ITransportServer) *AddFormsServiceImpl {
 
-	m := &AddFormsService{
+	m := &AddFormsServiceImpl{
 		HiveModuleBase:     *modules.NewHiveModuleBase("", 0),
 		includeAffordances: true,
 		tpServers:          tpServers,

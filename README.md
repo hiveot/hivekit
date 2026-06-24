@@ -2,13 +2,13 @@
 
 HiveKit provides modules for building lightweight IoT applications for integration with the Web of Things.
 
-HiveKit is not an application but intended to offer the building blocks to easily construct IoT applications.
-
-The concept is that an application is build by combining modules that each provides a needed capability. Interactive modules define their capabilities using a W3C Thing Description (TD) document. Modules are linked in a chain. Each module handles request messages directed at their thingID. Modules emit notifications for events and property updates.
+Applications are build by combining modules that each provides a needed capability. Interactive modules define their capabilities using a W3C Thing Description (TD) document. Modules are linked in a chain, star or other configuration. Each module handles request messages directed at their thingID and forward requests for other Things. Modules emit notifications for events and property updates which are send to the linked upstream module.
 
 The standard module has a simple interface: A handler for request messages with a replyTo callback, and a handler for notification messages. Modules are linked by setting a request sink to the next module in the chain. Similarly a notification sink is set to the upstream module.
 
 [![module](docs/hivekit-module.png)](#hivekit-modules)
+
+All interaction takes place using RRN (request-response-notification) messages. These contain an operation, Thing-ID, affordance name and optiona input and output payloads.
 
 ## Project Status
 
@@ -28,7 +28,7 @@ Core Service modules:
 |   ✔️    | certs       | Certificate management             | alpha |
 |   ✔️    | consumer    | Consumer of IoT data               | alpha |
 |   ✔️    | digitwin    | Digital twin                       | alpha |
-|   ✔️    | directory   | Thing directory                    | alpha |
+|   ✔️    | directory   | Thing directory server & client    | alpha |
 |   ✔️    | factory     | Module factory                     | alpha |
 |   ✔️    | history     | Message history recorder           | alpha |
 |   ✔️    | logging     | Basic messaging logging            | alpha |
@@ -53,7 +53,7 @@ Transport modules come with a server and a client module.
 |   ✔️    | transport/wss       | WoT Websocket messaging protocol      | alpha |
 |   ⬛    | transport/mqtt      | WoT MQTT messaging protocol           | n/a   |
 
-Integration Binding Modules:
+Integration Binding Modules: (this will mobe to the HiveOT Hub)
 
 | status | module   | description                     | stage |
 | :----: | -------- | ------------------------------- | ----- |

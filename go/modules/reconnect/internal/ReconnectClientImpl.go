@@ -14,7 +14,7 @@ import (
 	"github.com/hiveot/hivekit/go/modules/transport"
 )
 
-// ReconnectClient is a module that automatically reconnects a transport client when
+// ReconnectClientImpl is a module that automatically reconnects a transport client when
 // it loses its connection, and restores event and property subscriptions.
 //
 // If a connection fails repeatedly a backoff time is increased until the set limit.
@@ -23,7 +23,7 @@ import (
 //
 // TBD: instead of providing a transport client can the next module in the request chain
 // be used instead?.  This is a use-case for obtaining a downstream module of a type.
-type ReconnectClient struct {
+type ReconnectClientImpl struct {
 	*modules.HiveModuleBase
 
 	// cancel any reconnect attempts.
@@ -47,7 +47,7 @@ type ReconnectClient struct {
 
 // applySubscription applies recorded subscriptions
 // this will lock subscriptions until complete or error
-func (m *ReconnectClient) applySubscription() (err error) {
+func (m *ReconnectClientImpl) applySubscription() (err error) {
 	m.mux.Lock()
 	defer m.mux.Unlock()
 
@@ -63,13 +63,13 @@ func (m *ReconnectClient) applySubscription() (err error) {
 	return err
 }
 
-func (m *ReconnectClient) AuthenticateWithForm(tdoc *td.TD, getcred transport.GetCredentials) error {
+func (m *ReconnectClientImpl) AuthenticateWithForm(tdoc *td.TD, getcred transport.GetCredentials) error {
 	return m.conn.AuthenticateWithForm(tdoc, getcred)
 }
 
 // Connect periodically tries a reconnect until successful or the context is cancelled
 // This uses an increasing backoff period up to 15 seconds, starting at 1msec.
-func (m *ReconnectClient) Connect(ctx context.Context) error {
+func (m *ReconnectClientImpl) Connect(ctx context.Context) error {
 
 	var backoffDuration time.Duration = time.Millisecond
 
@@ -108,7 +108,7 @@ func (m *ReconnectClient) Connect(ctx context.Context) error {
 
 // Start the reconnect attempt
 // This sets the cancelFn so the Close method can interrupt the reconnect
-func (m *ReconnectClient) DoReconnect() {
+func (m *ReconnectClientImpl) DoReconnect() {
 	ctx, cancelFn := context.WithCancel(context.Background())
 	m.mux.Lock()
 	m.cancelFn = cancelFn
@@ -125,13 +125,13 @@ func (m *ReconnectClient) DoReconnect() {
 
 }
 
-func (m *ReconnectClient) GetConnectionStatus() transport.ConnectionStatus {
+func (m *ReconnectClientImpl) GetConnectionStatus() transport.ConnectionStatus {
 	return m.conn.GetConnectionStatus()
 }
 
 // handleConnectChange handles a disconnection callback
 // if no reconnect is in progress then start it.
-func (m *ReconnectClient) handleConnectChange(
+func (m *ReconnectClientImpl) handleConnectChange(
 	newStatus transport.ConnectionStatus, c transport.ITransportClient) {
 
 	// if connection is lost then initiate the reconnect process.
@@ -150,7 +150,7 @@ func (m *ReconnectClient) handleConnectChange(
 
 // Experimental: If no client is linked then monitor the notification for a disconnect
 // and send a reconnect request.
-func (m *ReconnectClient) HandleNotification(notif *msg.NotificationMessage) {
+func (m *ReconnectClientImpl) HandleNotification(notif *msg.NotificationMessage) {
 
 	if m.conn == nil {
 		if notif.AffordanceType == msg.AffordanceTypeEvent &&
@@ -167,7 +167,7 @@ func (m *ReconnectClient) HandleNotification(notif *msg.NotificationMessage) {
 }
 
 // HandleRequest tracks subscriptions to events and property updates
-func (m *ReconnectClient) HandleRequest(req *msg.RequestMessage, replyTo msg.ResponseHandler) (err error) {
+func (m *ReconnectClientImpl) HandleRequest(req *msg.RequestMessage, replyTo msg.ResponseHandler) (err error) {
 
 	switch req.Operation {
 	case td.OpSubscribeAllEvents, td.OpSubscribeEvent,
@@ -190,7 +190,7 @@ func (m *ReconnectClient) HandleRequest(req *msg.RequestMessage, replyTo msg.Res
 
 // Start the reconnect module
 // If no transport client was provided on startup then see if the request sink is one.
-func (m *ReconnectClient) Start() error {
+func (m *ReconnectClientImpl) Start() error {
 	if m.conn != nil {
 		// A failure to connect is not a failure of this module
 		// TBD - should this run DoReconnect instead?
@@ -202,7 +202,7 @@ func (m *ReconnectClient) Start() error {
 	}
 	return nil
 }
-func (m *ReconnectClient) Stop() {
+func (m *ReconnectClientImpl) Stop() {
 	m.mux.Lock()
 	defer m.mux.Unlock()
 	if m.cancelFn != nil {
@@ -212,14 +212,14 @@ func (m *ReconnectClient) Stop() {
 	m.conn.Stop()
 }
 
-// NewReconnectClient creates a reconnect module for use with the given client.
+// NewReconnectClientImpl creates a reconnect module for use with the given client.
 //
 // This module uses the ReconnectModuleType as its ID.
 //
 //	cl is the transport client connection instance to use before connecting
-func NewReconnectClient(cl transport.ITransportClient) (m *ReconnectClient) {
+func NewReconnectClientImpl(cl transport.ITransportClient) (m *ReconnectClientImpl) {
 
-	m = &ReconnectClient{
+	m = &ReconnectClientImpl{
 		HiveModuleBase: modules.NewHiveModuleBase(reconnect.ReconnectModuleType, 0),
 
 		maxBackoffTimeLimit: reconnect.DefaultBackoffLimit,

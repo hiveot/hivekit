@@ -28,14 +28,14 @@ func NewHttpBasicClient(
 }
 
 // Create an HTTP-Basic client using the application environment from the provided factory
-func NewHttpBasicClientFactory(f factory.IModuleFactory) modules.IHiveModule {
-
+func NewHttpBasicClientFactory(f factory.IModuleFactory, md *factory.ModuleDefinition) (modules.IHiveModule, error) {
+	var err error
 	env := f.GetEnvironment()
 	m := NewHttpBasicClient(env.ServerURL, env.CaCert, nil)
 	clientCert, _ := env.GetClientCert()
 	if clientCert != nil {
-		m.AuthenticateWithClientCert(clientCert)
+		err = m.AuthenticateWithClientCert(clientCert)
 	}
 	m.SetTimeout(env.RpcTimeout)
-	return m
+	return m, err
 }

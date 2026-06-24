@@ -18,7 +18,7 @@ func NewHttpBasicServer(httpServer transport.IHttpServer) httpbasic.IHttpBasicSe
 
 // Create a new instance of the HTTP-Basic server using the factory environment
 // This loads the httpserver module
-func NewHttpBasicServerFactory(f factory.IModuleFactory) (modules.IHiveModule, error) {
+func NewHttpBasicServerFactory(f factory.IModuleFactory, md *factory.ModuleDefinition) (modules.IHiveModule, error) {
 	httpServer := f.GetHttpServer(true)
 	if httpServer == nil {
 		return nil, fmt.Errorf("NewHttpBasicServerFactory: Missing Http server")

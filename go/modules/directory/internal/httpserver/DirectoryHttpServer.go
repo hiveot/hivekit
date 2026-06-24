@@ -160,7 +160,7 @@ func StartDirectoryHttpServer(httpServer transport.IHttpServer, respTimeout time
 	}
 	protRoute := httpServer.GetProtectedRoute()
 	// add secured routes
-	protRoute.Get(directory.WellKnownWoTPath, srv.handleReadDirectoryTD)
+	// protRoute.Get(directory.WellKnownWoTPath, srv.handleRetrieveTDD)
 
 	protRoute.Get("/things", srv.handleRetrieveAllThings)
 	thingPath := fmt.Sprintf("/things/{%s}", ThingIDURIVar)

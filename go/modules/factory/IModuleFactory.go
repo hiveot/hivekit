@@ -26,12 +26,17 @@ type ModuleDefinition struct {
 	// must be unique. Singleton modules use the same ID for module type and moduleID.
 	Type string
 
-	// the constructor function to create an instance of the module
+	// The constructor function to create an instance of the module.
+	// The configuration can be used to pass arguments and other configuration to the module.
+	//
+	// f is the module factory with the app environment and ability to retrieve other modules
+	// modDef is the module definition passed to the constructor.
+	//
 	// This returns an error if the module cannot be created.
 	// This returns nil with no error for modules that are used for initialization.
-	Constructor func(f IModuleFactory) (modules.IHiveModule, error)
+	Constructor func(f IModuleFactory, modDef *ModuleDefinition) (modules.IHiveModule, error)
 
-	// todo: pass configuration
+	// Optional configuration passed to the creation of the module
 	Config any
 }
 
@@ -93,6 +98,10 @@ type IModuleFactory interface {
 	//
 	// This returns nil if no httpserver module is registered.
 	GetHttpServer(instantiate bool) transport.IHttpServer
+
+	// Obtain the directory TD.
+	// Intended for bootstrapping the directory client.
+	// GetTDD() *td.TD
 
 	// Return the list of available transport servers
 	GetTransportServers() []transport.ITransportServer

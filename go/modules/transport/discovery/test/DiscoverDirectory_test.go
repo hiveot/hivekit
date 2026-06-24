@@ -38,8 +38,11 @@ func TestDiscoverDirectory(t *testing.T) {
 	err = m.ServeDirectoryTD(dirTdd)
 	require.NoError(t, err)
 
-	// Test if it is discovered
-	cl := discoverypkg.NewDiscoveryClient(nil)
+	// Test if it is discovered on startup
+	cl := discoverypkg.NewDiscoveryClient(nil, true)
+	err = cl.Start()
+	assert.NoError(t, err)
+
 	// records, err := cl.DiscoverDirectories(testServiceID, time.Second, true, nil)
 	rec0, err := cl.DiscoverFirstDirectory(testDirServiceID, time.Second)
 	require.NoError(t, err)
@@ -67,7 +70,7 @@ func TestDiscoverGetDirectoryTD(t *testing.T) {
 	}
 	dirMod := directorypkg.NewDirectoryService("", "", testHttpServer, tpList)
 	dirMod.Start()
-	dirTDJson := dirMod.RetrieveTDD()
+	_, dirTDJson := dirMod.GetTDD()
 	// dirTD := dirMod.GetTD(dirMod.GetThingID())
 	// dirTDJson := td.MarshalTD(dirTD)
 
@@ -81,13 +84,14 @@ func TestDiscoverGetDirectoryTD(t *testing.T) {
 
 	// discover and read the directory on start
 	appEnv := factory.NewAppEnvironment("", false)
-	cl := discoverypkg.NewDiscoveryClient(appEnv)
+	cl := discoverypkg.NewDiscoveryClient(appEnv, true)
 	err = cl.Start()
 	require.NoError(t, err)
 
-	dirTD2 := cl.GetDirectory()
+	dirTD2 := cl.GetTDD()
 	assert.NotNil(t, dirTD2, "Client failed to discover the directory on start")
 	assert.Equal(t, dirMod.GetThingID(), dirTD2.ID)
+	assert.NotEmpty(t, appEnv.DirectoryURL)
 }
 
 func TestDiscoverNoDirectory(t *testing.T) {
@@ -99,10 +103,10 @@ func TestDiscoverNoDirectory(t *testing.T) {
 	defer testEnv.HttpServer.Stop()
 
 	// start discovery client
-	cl := discoverypkg.NewDiscoveryClient(testEnv.AppEnv)
+	cl := discoverypkg.NewDiscoveryClient(testEnv.AppEnv, true)
 	err := cl.Start()
 	require.NoError(t, err)
-	dirTD2 := cl.GetDirectory()
+	dirTD2 := cl.GetTDD()
 	assert.Nil(t, dirTD2)
 
 	// run the discover server without exposing the directory TDD
@@ -119,6 +123,6 @@ func TestDiscoverNoDirectory(t *testing.T) {
 	require.NoError(t, err)
 
 	// no directory has been found
-	dirTD2 = cl.GetDirectory()
+	dirTD2 = cl.GetTDD()
 	assert.Nil(t, dirTD2)
 }

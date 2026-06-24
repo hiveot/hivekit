@@ -17,7 +17,7 @@ func NewTLSServer(cfg *tlsserver.TLSServerConfig, authenticator transport.IAuthe
 }
 
 // Create a new transport server instance for the provided factory environment
-func NewTLSServerFactory(f factory.IModuleFactory) (modules.IHiveModule, error) {
+func NewTLSServerFactory(f factory.IModuleFactory, md *factory.ModuleDefinition) (modules.IHiveModule, error) {
 
 	env := f.GetEnvironment()
 	caCert, err := env.GetCA()

@@ -129,7 +129,7 @@ func validateValue(value *msg.NotificationMessage) (err error) {
 
 // AddValue adds a Thing value from a sender to the action history
 // The caller must validate the SenderID in the tv.
-func (svc *HistoryService) AddValue(value *msg.NotificationMessage) error {
+func (svc *HistoryServiceImpl) AddValue(value *msg.NotificationMessage) error {
 	//slog.Info("AddValue",
 	//	slog.String("senderID", senderID),
 	//	slog.String("ID", tv.ID),
@@ -160,7 +160,7 @@ func (svc *HistoryService) AddValue(value *msg.NotificationMessage) error {
 //	clientID is the owner that must match iteration requests
 //	thingID is the Thing whose data to iteration
 //	affName of affordance to filter on or "" for any value from the thing
-func (svc *HistoryService) CreateCursor(clientID string, thingID string, affName string) (cursorKey string, err error) {
+func (svc *HistoryServiceImpl) CreateCursor(clientID string, thingID string, affName string) (cursorKey string, err error) {
 
 	lifespan := svc.cursorLifespan
 
@@ -186,7 +186,7 @@ func (svc *HistoryService) CreateCursor(clientID string, thingID string, affName
 //	clientID must match the owner of the cursor
 //	cursorKey is the cursor to iterate.
 //	affName is the optional affordance name to search for, or "" for any
-func (svc *HistoryService) First(clientID string, cursorKey string) (
+func (svc *HistoryServiceImpl) First(clientID string, cursorKey string) (
 	value *msg.NotificationMessage, valid bool, err error) {
 
 	until := time.Now().UTC()
@@ -215,7 +215,7 @@ func (svc *HistoryService) First(clientID string, cursorKey string) (
 // Last positions the cursor at the last key in the ordered list
 // If an affordance name is provided then it rewinds to the first available value
 // for that affordance.
-func (svc *HistoryService) Last(clientID string, cursorKey string) (
+func (svc *HistoryServiceImpl) Last(clientID string, cursorKey string) (
 	value *msg.NotificationMessage, valid bool, err error) {
 
 	// the beginning of time?
@@ -249,7 +249,7 @@ func (svc *HistoryService) Last(clientID string, cursorKey string) (
 //	cursor to iterate
 //	affName is the affordance name to match
 //	until is the time not to exceed in the result. Intended to avoid unnecessary iteration in range queries
-func (svc *HistoryService) next(
+func (svc *HistoryServiceImpl) next(
 	cursor bucketstore.IBucketCursor, affName string, until time.Time) (
 	value *msg.NotificationMessage, found bool) {
 
@@ -289,7 +289,7 @@ func (svc *HistoryService) next(
 }
 
 // Read the next number of items until time or count limit is reached
-func (svc *HistoryService) nextN(
+func (svc *HistoryServiceImpl) nextN(
 	cursor bucketstore.IBucketCursor, affName string, endTime time.Time, limit int) (
 	items []*msg.NotificationMessage, itemsRemaining bool) {
 
@@ -311,7 +311,7 @@ func (svc *HistoryService) nextN(
 // If affName is provided then continue iterating until the affordance name matches.
 // First() or Seek must have been called first.
 // This returns an error if the cursor is not found.
-func (svc *HistoryService) Next(clientID string, cursorKey string) (
+func (svc *HistoryServiceImpl) Next(clientID string, cursorKey string) (
 	value *msg.NotificationMessage, valid bool, err error) {
 
 	cursor, ci, err := svc.cursorCache.Get(clientID, cursorKey, true)
@@ -331,7 +331,7 @@ func (svc *HistoryService) Next(clientID string, cursorKey string) (
 // This returns the list with values and itemsRemaining, which is false if the iterator
 // has reached the end.
 // Intended to speed up with batch iterations over rpc.
-func (svc *HistoryService) NextN(
+func (svc *HistoryServiceImpl) NextN(
 	clientID string, cursorKey string, until time.Time, limit int) (
 	valueList []*msg.NotificationMessage, itemsRemaining bool, err error) {
 
@@ -359,7 +359,7 @@ func (svc *HistoryService) NextN(
 //	affName is the value affordance name (event,prop,action name) to match or "" for any.
 //	until is the limit of the time to read. Intended for time-range queries and
 //	to avoid unnecessary iteration in range queries
-func (svc *HistoryService) prev(
+func (svc *HistoryServiceImpl) prev(
 	cursor bucketstore.IBucketCursor, affName string, until time.Time) (
 	value *msg.NotificationMessage, found bool) {
 
@@ -400,7 +400,7 @@ func (svc *HistoryService) prev(
 }
 
 // prevN reads the previous number of items until time or count limit is reached
-func (svc *HistoryService) prevN(
+func (svc *HistoryServiceImpl) prevN(
 	cursor bucketstore.IBucketCursor, affName string, endTime time.Time, limit int) (
 	items []*msg.NotificationMessage, itemsRemaining bool) {
 
@@ -421,7 +421,7 @@ func (svc *HistoryService) prevN(
 // Prev moves the cursor to the previous key from the current cursor
 // Last() or Seek must have been called first.
 // This returns an error if the cursor is not found.
-func (svc *HistoryService) Prev(clientID string, cursorKey string) (
+func (svc *HistoryServiceImpl) Prev(clientID string, cursorKey string) (
 	value *msg.NotificationMessage, valid bool, err error) {
 
 	cursor, ci, err := svc.cursorCache.Get(clientID, cursorKey, true)
@@ -440,7 +440,7 @@ func (svc *HistoryService) Prev(clientID string, cursorKey string) (
 //
 // itemsRemaining returns false if the iterator has reached the beginning.
 // Intended to speed up with batch iterations over rpc.
-func (svc *HistoryService) PrevN(
+func (svc *HistoryServiceImpl) PrevN(
 	clientID string, cursorKey string, until time.Time, limit int) (
 	valueList []*msg.NotificationMessage, itemsRemaining bool, err error) {
 
@@ -457,7 +457,7 @@ func (svc *HistoryService) PrevN(
 }
 
 // ReadHistory returns the history for the given thingID, name and time range
-func (svc *HistoryService) ReadHistory(
+func (svc *HistoryServiceImpl) ReadHistory(
 	thingID string, affName string, timestamp time.Time, durationSec int, limit int) (
 	values []*msg.NotificationMessage, itemsRemaining bool, err error) {
 
@@ -496,13 +496,13 @@ func (svc *HistoryService) ReadHistory(
 
 // ReleaseCursor frees the cursor resources.
 // This invalidates all values obtained from the cursor
-func (svc *HistoryService) ReleaseCursor(clientID string, cursorKey string) error {
+func (svc *HistoryServiceImpl) ReleaseCursor(clientID string, cursorKey string) error {
 
 	return svc.cursorCache.Release(clientID, cursorKey)
 }
 
 // seek internal function for seeking a time and affordance name
-func (svc *HistoryService) seek(
+func (svc *HistoryServiceImpl) seek(
 	cursor bucketstore.IBucketCursor, ts time.Time, affName string) (
 	value *msg.NotificationMessage, valid bool) {
 
@@ -531,7 +531,7 @@ func (svc *HistoryService) seek(
 // Seek positions the cursor at the given time stamp and affordance name.
 // If the key is not found, the next key is returned.
 // This returns an error if the cursor is not valid.
-func (svc *HistoryService) Seek(
+func (svc *HistoryServiceImpl) Seek(
 	clientID string, cursorKey string, ts time.Time) (
 	value *msg.NotificationMessage, valid bool, err error) {
 

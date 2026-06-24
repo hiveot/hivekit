@@ -33,7 +33,7 @@ func NewHiveotGrpcServer(
 }
 
 // Create a new instance of the hiveot gRPC server using the factory environment
-func NewGrpcServerFactory(f factory.IModuleFactory) (modules.IHiveModule, error) {
+func NewHiveotGrpcServerFactory(f factory.IModuleFactory, md *factory.ModuleDefinition) (modules.IHiveModule, error) {
 	// TODO: determine a good default
 	env := f.GetEnvironment()
 	tlsCert, err := env.GetServerCert()

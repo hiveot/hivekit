@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"os"
 	"time"
 
@@ -28,13 +29,18 @@ func main() {
 	f := factorypkg.NewModuleFactory(env, nil)
 	f.SetAuthenticator(nil) // disable auth
 
-	// run it with the recipe
+	// Create a factory recipe using the counterdevice in the constructor
 	appDef := &factory.ModuleDefinition{
 		Type:        env.AppID,
 		Constructor: counterdevice.MyCounterModuleFactory,
+		Config: &counterdevice.CounterConfig{
+			ResetValue: 60,
+		},
 	}
+	// the device server recipe contains modules for running a server with certs and authn
+	// you can message the recipe as a module or via a client. Here we message directly.
 	r := recipes.NewDeviceServerRecipe(f, appDef)
-	// r := factorypkg.NewChainRecipe(f, moduleChain)
+
 	err := r.Start()
 	if err != nil {
 		fmt.Println("Startup failed: " + err.Error())
@@ -45,10 +51,14 @@ func main() {
 		counterdevice.DefaultCounterDeviceThingID,
 		counterdevice.IncrementActionName, nil)
 	req.SenderID = "main"
-	_ = r.HandleRequest(req, func(*msg.ResponseMessage) error { return nil })
+	err = r.HandleRequest(req, req.NoReply)
+	if err != nil {
+		slog.Error("main: Unable to increment counter: ", "err", err.Error())
+		os.Exit(1)
+	}
 
-	fmt.Printf("Counter is running and listening on '%s'\n", f.GetConnectURL())
-	fmt.Printf("Use the cli from example 2 to read its status\n")
+	fmt.Printf("main: Counter is running and listening on '%s'\n", f.GetConnectURL())
+	fmt.Printf("main: Use the cli from example 2 to read its status\n")
 	f.WaitForSignal(context.Background())
 	f.Stop()
 }

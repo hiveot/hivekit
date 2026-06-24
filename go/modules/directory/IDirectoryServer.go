@@ -15,8 +15,8 @@ var DirectoryTMJson []byte
 
 // two modules, the service and optional http server
 const (
-	// DirectoryModuleType identifies the directory module implementation
-	DirectoryModuleType = "directory"
+	// DirectoryServiceModuleType identifies the directory service module implementation
+	DirectoryServiceModuleType = "DirectoryService"
 
 	// DirectoryHttpModuleType identifies the http API module for the directory service
 	// Place this module before any middleware so that requests are logged and authorized.
@@ -36,11 +36,12 @@ const DefaultLimit = 300
 // events, properties and actions
 // these names must match the TD
 const (
-	ThingsProp              = "things"
-	ThingUpdatedEvent       = "thingUpdated"
-	ThingDeletedEvent       = "thingDeleted"
-	CreateThingAction       = "createThing"
-	DeleteThingAction       = "deleteThing"
+	ThingsProp        = "things"
+	ThingUpdatedEvent = "thingUpdated"
+	ThingDeletedEvent = "thingDeleted"
+	CreateThingAction = "createThing"
+	DeleteThingAction = "deleteThing"
+	// another module in the chain can retrieve the directory TDD using this action
 	RetrieveTDDAction       = "retrieveTDD"
 	RetrieveThingAction     = "retrieveThing"
 	RetrieveAllThingsAction = "retrieveAllThings"
@@ -107,8 +108,8 @@ type IDirectoryService interface {
 	// These TD's are cached so successive requests do not parse the json each time.
 	GetTD(thingID string) *td.TD
 
-	// Retrieve the directory TD
-	RetrieveTDD() string
+	// Return the Directory TD and its json
+	GetTDD() (*td.TD, string)
 
 	// RetrieveThing returns a JSON encoded TD document
 	RetrieveThing(thingID string) (tdJSON string, err error)

@@ -21,7 +21,7 @@ func NewSseScClient(sseURL string, caCert *x509.Certificate) transport.ITranspor
 }
 
 // Create an HTTP/SSE-SC client using the application environment from the provided factory
-func NewSseScClientFactory(f factory.IModuleFactory) (modules.IHiveModule, error) {
+func NewSseScClientFactory(f factory.IModuleFactory, md *factory.ModuleDefinition) (modules.IHiveModule, error) {
 
 	env := f.GetEnvironment()
 	// do clients use onconnectionchanged? -> yes, show connection status

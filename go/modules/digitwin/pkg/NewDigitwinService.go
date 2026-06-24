@@ -30,14 +30,14 @@ func NewDigitwinService(storageDir string, dirModule directory.IDirectoryService
 
 // Create a new digitwin service using the module factory
 // This loads the directory module and hooks itself into it to intercept directory writes.
-func NewDigitwinServiceFactory(f factory.IModuleFactory) (modules.IHiveModule, error) {
+func NewDigitwinServiceFactory(f factory.IModuleFactory, md *factory.ModuleDefinition) (modules.IHiveModule, error) {
 	env := f.GetEnvironment()
 
 	// data is stored in a module subdir
 	storageDir := filepath.Join(env.StoresDir, digitwin.DigitwinModuleType)
 
 	// the directory module used to intercept directory writes to create digital twins of
-	m, err := f.StartModule(directory.DirectoryModuleType, true)
+	m, err := f.StartModule(directory.DirectoryServiceModuleType, true)
 	if err != nil {
 		return nil, err
 	}

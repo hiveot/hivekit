@@ -28,7 +28,7 @@ func NewHiveotWssClient(wssURL string, caCert *x509.Certificate) transport.ITran
 // used to provision the client connection.
 //
 // This returns a module with error if the client certificate cannot be used to authenticate
-func NewHiveotWssClientFactory(f factory.IModuleFactory) (modules.IHiveModule, error) {
+func NewHiveotWssClientFactory(f factory.IModuleFactory, md *factory.ModuleDefinition) (modules.IHiveModule, error) {
 	var err error
 
 	env := f.GetEnvironment()
@@ -76,7 +76,7 @@ func NewWotWssClient(
 // Intended for devices that use reverse connections or consumer applications that
 // use the factory. If the environment is setup with credentials then these are
 // used to provision the client connection.
-func NewWotWssClientFactory(f factory.IModuleFactory) (modules.IHiveModule, error) {
+func NewWotWssClientFactory(f factory.IModuleFactory, md *factory.ModuleDefinition) (modules.IHiveModule, error) {
 
 	var err error
 

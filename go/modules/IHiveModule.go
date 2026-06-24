@@ -17,8 +17,7 @@ type IHiveModule interface {
 	// This is used as the sender ThingID when sending notifications.
 	GetThingID() string
 
-	// HandleRequest - invoked by consumer to this producer.
-	//  [producer] processes or forwards a request downstream to other producers.
+	// HandleRequest processes or forwards the request.
 	//
 	// When the request is for this module then the module processes the request and
 	// invokes replyTo with the response. ReplyTo is invoked asynchronously before
@@ -49,6 +48,9 @@ type IHiveModule interface {
 	// to the original replyTo endpoint.
 	//
 	// This returns an error if the provided replyTo will not be able to receive a response.
+	//
+	//  request is the request to process or forward
+	//  replyTo is the response callback. This MUST be called if the request has been processed.
 	HandleRequest(request *msg.RequestMessage, replyTo msg.ResponseHandler) error
 
 	// Handle the notification received from a producer.

@@ -1,4 +1,4 @@
-package internal
+package service
 
 import (
 	_ "embed"
@@ -10,23 +10,16 @@ import (
 	"github.com/hiveot/hivekit/go/utils"
 )
 
-// DirectoryMsgHandler maps RRN messages to the native directory interface
-type DirectoryMsgHandler struct {
-	// the directory instance ThingID that must match the requests
-	thingID string
-	service directory.IDirectoryService
-}
-
 // HandleRequest for module.
 //
 // This invokes the replyTo response handler with a response.
 //
 // If the request is not for this module then it is forwarded to the next sink.
 // If the request is for this module but invalid, an error is returned
-func (handler *DirectoryMsgHandler) HandleRequest(req *msg.RequestMessage, replyTo msg.ResponseHandler) (err error) {
+func (svc *DirectoryServiceImpl) HandleRequest(req *msg.RequestMessage, replyTo msg.ResponseHandler) (err error) {
 	var resp *msg.ResponseMessage
-	if req.ThingID != handler.thingID {
-		return nil
+	if req.ThingID != svc.GetThingID() {
+		return svc.HiveModuleBase.HandleRequest(req, replyTo)
 	} else if req.SenderID == "" {
 		err := fmt.Errorf("missing senderID in request")
 		return err
@@ -35,17 +28,17 @@ func (handler *DirectoryMsgHandler) HandleRequest(req *msg.RequestMessage, reply
 		// directory specific operations
 		switch req.Name {
 		case directory.CreateThingAction:
-			resp = handler.UpdateThing(req)
+			resp = svc.handleUpdateThing(req)
 		case directory.DeleteThingAction:
-			resp = handler.DeleteThing(req)
-		case directory.RetrieveThingAction:
-			resp = handler.RetrieveThing(req)
-		case directory.RetrieveAllThingsAction:
-			resp = handler.RetrieveAllThings(req)
+			resp = svc.handleDeleteThing(req)
 		case directory.RetrieveTDDAction:
-			resp = handler.RetrieveTDD(req)
+			resp = svc.handleRetrieveTDD(req)
+		case directory.RetrieveThingAction:
+			resp = svc.handleRetrieveThing(req)
+		case directory.RetrieveAllThingsAction:
+			resp = svc.handleRetrieveAllThings(req)
 		case directory.UpdateThingAction:
-			resp = handler.UpdateThing(req)
+			resp = svc.handleUpdateThing(req)
 		default:
 			err = fmt.Errorf("Unknown request name '%s' for thingID '%s'", req.Name, req.ThingID)
 		}
@@ -63,11 +56,11 @@ func (handler *DirectoryMsgHandler) HandleRequest(req *msg.RequestMessage, reply
 
 // DeleteThing removes a thing in the directory
 // req.Input is a string containing the Thing ID
-func (handler *DirectoryMsgHandler) DeleteThing(req *msg.RequestMessage) (resp *msg.ResponseMessage) {
+func (svc *DirectoryServiceImpl) handleDeleteThing(req *msg.RequestMessage) (resp *msg.ResponseMessage) {
 	var thingID string
 	err := utils.Decode(req.Input, &thingID)
 	if err == nil {
-		err = handler.service.DeleteThing(req.SenderID, thingID)
+		err = svc.DeleteThing(req.SenderID, thingID)
 	}
 	resp = req.CreateResponse(nil, err)
 	return resp
@@ -75,35 +68,36 @@ func (handler *DirectoryMsgHandler) DeleteThing(req *msg.RequestMessage) (resp *
 
 // RetrieveAllThings returns a list of things
 // Input: {offset, limit}
-func (handler *DirectoryMsgHandler) RetrieveAllThings(req *msg.RequestMessage) (resp *msg.ResponseMessage) {
+func (svc *DirectoryServiceImpl) handleRetrieveAllThings(req *msg.RequestMessage) (resp *msg.ResponseMessage) {
 	var tdList []string
 	var err error
 	var args directory.RetrieveAllThingsArgs
 
 	err = utils.Decode(req.Input, &args)
 	if err == nil {
-		tdList, err = handler.service.RetrieveAllThings(args.Offset, args.Limit)
+		tdList, err = svc.RetrieveAllThings(args.Offset, args.Limit)
 	}
 	resp = req.CreateResponse(tdList, err)
 	return resp
 }
 
-// Read the directory TDD itself
+// Read the directory TDD itself.
+// Intended for retrieving the TDD using RRN messaging
 // Output: tddJSON
-func (handler *DirectoryMsgHandler) RetrieveTDD(req *msg.RequestMessage) (resp *msg.ResponseMessage) {
-	tddJSON := handler.service.RetrieveTDD()
+func (svc *DirectoryServiceImpl) handleRetrieveTDD(req *msg.RequestMessage) (resp *msg.ResponseMessage) {
+	_, tddJSON := svc.GetTDD()
 	resp = req.CreateResponse(tddJSON, nil)
 	return resp
 }
 
 // RetrieveThing gets the TD JSON for the given thingID from the directory store.
-func (handler *DirectoryMsgHandler) RetrieveThing(req *msg.RequestMessage) (resp *msg.ResponseMessage) {
+func (svc *DirectoryServiceImpl) handleRetrieveThing(req *msg.RequestMessage) (resp *msg.ResponseMessage) {
 
 	var thingID string
 	var tdJSON string
 	err := utils.Decode(req.Input, &thingID)
 	if err == nil {
-		tdJSON, err = handler.service.RetrieveThing(thingID)
+		tdJSON, err = svc.RetrieveThing(thingID)
 	}
 	resp = req.CreateResponse(tdJSON, err)
 	return resp
@@ -113,24 +107,13 @@ func (handler *DirectoryMsgHandler) RetrieveThing(req *msg.RequestMessage) (resp
 // req.Input is a string containing the TD JSON
 //
 // Requirement: for security reasons only the agent that owns the TD is allowed to update it
-func (handler *DirectoryMsgHandler) UpdateThing(req *msg.RequestMessage) (resp *msg.ResponseMessage) {
+func (svc *DirectoryServiceImpl) handleUpdateThing(req *msg.RequestMessage) (resp *msg.ResponseMessage) {
 	var tdJSON string
 
 	err := utils.Decode(req.Input, &tdJSON)
 	if err == nil {
-		err = handler.service.UpdateThing(req.SenderID, tdJSON)
+		err = svc.UpdateThing(req.SenderID, tdJSON)
 	}
 	resp = req.CreateResponse(nil, err)
 	return resp
-}
-
-// Create a new directory message handler. On start this creates the server and store.
-// bucketStore is the store to use for this module chain.
-func NewDirectoryMsgHandler(thingID string, store directory.IDirectoryService) *DirectoryMsgHandler {
-
-	handler := &DirectoryMsgHandler{
-		thingID: thingID,
-		service: store,
-	}
-	return handler
 }

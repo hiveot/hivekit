@@ -4,11 +4,12 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"time"
 
 	"github.com/araddon/dateparse"
 	"github.com/hiveot/hivekit/go/api/td"
-	"github.com/hiveot/hivekit/go/examples/wotco"
 	"github.com/hiveot/hivekit/go/modules/transport/discovery"
+	"github.com/hiveot/hivekit/go/utils"
 )
 
 // Show a list of Thing TDs
@@ -27,14 +28,16 @@ func ListThings(tdList []*td.TD) {
 // discover things and directories on the network
 //
 // if readDir is true then try to read the directory content/hivekit/go/examples/wotco"
-func ShowDiscovery(co *wotco.WotConsumer, verbose bool) {
+func (app *CliApp) ShowDiscovery() {
 	nrFound := 0
+	waitDuration := time.Second
 
+	utils.SetLogging("warning", "")
 	fmt.Println("Discovered Things and Directories on the local network")
 	fmt.Printf("Type       Address    Port   Instance Name        Schema   ThingID                           TD URL   \n")
 	fmt.Printf("---------- ---------- -----  -------------------  -------  --------------------------------  -------  \n")
 
-	co.Discover(func(r *discovery.DiscoveryResult) bool {
+	app.discoClient.DiscoverThings("", waitDuration, func(r *discovery.DiscoveryResult) bool {
 		// load the TD to present nr of affordances
 		tdURL := r.AsURL()
 		var tdoc *td.TD
@@ -55,7 +58,7 @@ func ShowDiscovery(co *wotco.WotConsumer, verbose bool) {
 		fmt.Printf("%-10s %-10s %-5d  %-20s %-8s %-33s %s \n",
 			r.Type, r.Addr, r.Port, r.Instance, r.Schema, thingID, tdURL)
 
-		if verbose {
+		if app.config.Verbose {
 			fmt.Printf("Thing ID: %s\n", tdoc.ID)
 			fmt.Printf("Base: %s\n", tdoc.Base)
 			fmt.Printf("  Affordance   Name                        Title\n")

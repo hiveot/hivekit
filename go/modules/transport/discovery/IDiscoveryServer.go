@@ -6,7 +6,7 @@ import (
 
 // The discovery module types
 const (
-	DiscoveryServerModuleType = "discovery-server"
+	DiscoveryServerModuleType = "discovery"
 )
 
 // DNS-SD service IDs

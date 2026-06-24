@@ -315,12 +315,11 @@ func TestWriteDigitwinProperty(t *testing.T) {
 	assert.Equal(t, agentID, tdi2.AgentID)
 
 	// 4. Consumer reads the TD with its own directory client
-	dirCoCl := directorypkg.NewDirectoryClient("", co)
-	td3Json, err := dirCoCl.RetrieveThing(dtwThing1ID)
+	dirTDD, _ := dir.GetTDD()
+	dirCoCl := directorypkg.NewDirectoryClient(dirTDD, co)
+	tdoc3, err := dirCoCl.RetrieveThing(dtwThing1ID)
 	require.NoError(t, err)
-	td3, err := td.UnmarshalTD(td3Json)
-	require.NoError(t, err)
-	require.NotEmpty(t, td3)
+	require.NotEmpty(t, tdoc3)
 
 	// 5. Consumer writes the property
 	err = co.WriteProperty(dtwThing1ID, prop1Name, prop1Value, true)

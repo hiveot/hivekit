@@ -38,7 +38,7 @@ func TestDiscoverThings(t *testing.T) {
 	// Test if it is discovered
 	serverAddr := testEnv.HttpServer.GetConnectURL()
 	urlParts, _ := url.Parse(serverAddr)
-	cl := discoverypkg.NewDiscoveryClient(nil)
+	cl := discoverypkg.NewDiscoveryClient(nil, false)
 	records, err := cl.DiscoverThings(testThingServiceID, time.Second, nil)
 	require.NoError(t, err)
 	require.Equal(t, len(records), 1, "the test thing record was not discovered")
@@ -65,19 +65,19 @@ func TestDiscoverGetThingTD(t *testing.T) {
 	tdJson1 := td.MarshalTD(thingTD)
 	req := msg.NewRequestMessage(td.OpInvokeAction,
 		directory.DefaultDirectoryThingID, directory.CreateThingAction, tdJson1)
-	err = m.HandleRequest(req, nil)
+	err = m.HandleRequest(req, req.NoReply)
 	require.NoError(t, err)
 
 	// discover the server
 	appEnv := factory.NewAppEnvironment("", false)
-	cl := discoverypkg.NewDiscoveryClient(appEnv)
+	cl := discoverypkg.NewDiscoveryClient(appEnv, false)
 	rec0, err := cl.DiscoverFirstGateway(testThingServiceID, time.Second)
 	// records, err := cl.DiscoverThings(testThingServiceID, time.Second, nil)
 	require.NoError(t, err)
 	assert.True(t, rec0.IsThing)
 
 	// require.NotZero(t, len(records), "no things discovered")
-	td2, tdJson2, err := cl.DownloadTD(rec0.AsURL(), nil)
+	td2, tdJson2, err := cl.LoadTD(rec0.AsURL(), nil)
 	assert.NoError(t, err)
 	assert.Equal(t, tdJson1, tdJson2)
 	assert.Equal(t, thingTD.ID, td2.ID)

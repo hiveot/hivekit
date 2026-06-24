@@ -10,20 +10,21 @@ import (
 // NewDiscoveryClient creates a new instance of a discovery client
 //
 // appEnv is optional. On Start it will be updated with the discovered directory and server.
-func NewDiscoveryClient(appEnv *factory.AppEnvironment) discovery.IDiscoveryClient {
-	cl := internal.NewDiscoveryClient(appEnv)
+// discoOnStart runs a directory discovery on startup.
+func NewDiscoveryClient(appEnv *factory.AppEnvironment, discoOnStart bool) discovery.IDiscoveryClient {
+	cl := internal.NewDiscoveryClientImpl(appEnv, discoOnStart)
 	return cl
 }
 
 // NewDiscoveryClientFactory creates a new instance of a discovery client for
 // use by the factory.
-// On start this updates the factory environment with the directory server URL.
 //
-// Intended to be used by a client side factory recipe to automatically discover the
-// directory TDD and gateway TD.
-func NewDiscoveryClientFactory(f factory.IModuleFactory) (modules.IHiveModule, error) {
+// This automatically runs discovery of things on the network on Start()
+//
+// Intended to be used by a client side factory recipe to automatically discover devices.
+func NewDiscoveryClientFactory(f factory.IModuleFactory, md *factory.ModuleDefinition) (modules.IHiveModule, error) {
 	appEnv := f.GetEnvironment()
-	cl := NewDiscoveryClient(appEnv)
+	cl := NewDiscoveryClient(appEnv, true)
 	// nothing else to do here right now
 
 	return cl, nil
