@@ -103,13 +103,12 @@ func (m *HiveModuleBase) ForwardRequest(req *msg.RequestMessage, replyTo msg.Res
 // ForwardRequestWait is a helper function to pass a request to the sink and wait for a response.
 // If no sink os configured this returns an error.
 // If the response contains an error, that error is also returned.
-func (m *HiveModuleBase) ForwardRequestWait(
-	req *msg.RequestMessage) (resp *msg.ResponseMessage, err error) {
+func (m *HiveModuleBase) ForwardRequestWait(req *msg.RequestMessage) (
+	resp *msg.ResponseMessage, err error) {
 
 	if req.CorrelationID == "" {
 		req.CorrelationID = shortid.MustGenerate()
 	}
-
 	ar := utils.NewAsyncReceiver[*msg.ResponseMessage]()
 	err = m.ForwardRequest(req, func(r *msg.ResponseMessage) error {
 		ar.SetResponse(r)

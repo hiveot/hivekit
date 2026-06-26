@@ -47,22 +47,22 @@ func (svc *DirectoryServiceImpl) DeleteThing(agentID string, thingID string) (er
 // These instances are cached so successive requests are efficient.
 func (svc *DirectoryServiceImpl) GetTD(thingID string) *td.TD {
 	svc.tdCacheMux.RLock()
-	tdi, found := svc.tdCache[thingID]
+	tdoc, found := svc.tdCache[thingID]
 	if found {
-		return tdi
+		return tdoc
 	}
 	svc.tdCacheMux.RUnlock()
 	tdJSON, err := svc.RetrieveThing(thingID)
 	if err != nil {
 		return nil
 	}
-	tdi, err = td.UnmarshalTD(tdJSON)
+	tdoc, err = td.UnmarshalTD(tdJSON)
 	if err == nil {
 		svc.tdCacheMux.Lock()
-		svc.tdCache[thingID] = tdi
+		svc.tdCache[thingID] = tdoc
 		svc.tdCacheMux.Unlock()
 	}
-	return tdi
+	return tdoc
 }
 
 //func (svc *DirectoryService) QueryThings(

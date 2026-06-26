@@ -1,127 +1,275 @@
 package testenv
 
 import (
+	"context"
+	_ "embed"
+	"fmt"
+	"log/slog"
+	"sync/atomic"
+	"time"
+
+	"github.com/hiveot/hivekit/go/api/msg"
 	"github.com/hiveot/hivekit/go/api/td"
 	"github.com/hiveot/hivekit/go/modules"
 	"github.com/hiveot/hivekit/go/modules/agent"
-	"github.com/hiveot/hivekit/go/modules/transport"
-	grpcpkg "github.com/hiveot/hivekit/go/modules/transport/grpc/pkg"
-	httpbasicpkg "github.com/hiveot/hivekit/go/modules/transport/httpbasic/pkg"
-	ssescpkg "github.com/hiveot/hivekit/go/modules/transport/ssesc/pkg"
-	"github.com/hiveot/hivekit/go/modules/transport/tlsserver"
-	tlsserverpkg "github.com/hiveot/hivekit/go/modules/transport/tlsserver/pkg"
-	wsspkg "github.com/hiveot/hivekit/go/modules/transport/wss/pkg"
+	"github.com/hiveot/hivekit/go/modules/factory"
 )
 
-// TestDevice contains a server and agent for testing and simulation
+// TM of the test device
+const counterDeviceTM = `
+{
+  "@context": [
+    "https://www.w3.org/2022/wot/td/v1.1",
+    {
+      "hiveot": "https://www.hiveot.net/vocab/v0.1"
+    }
+  ],
+  "@type": "Service",
+  "base": "to be set by server",
+  "id": "counter1",
+  "title": "A simple counter",
+  "description": "HiveKit test device that exposes a counter",
+  "version": {
+    "instance": "0.1.0"
+  },
+  "created": "2026-04-25T17:00:00.000Z",
+  "modified": "2024-04-25T17:00:00.000Z",
+  "support": "https://www.github.com/hiveot/hivekit",
+  "properties": {
+    "counter": {
+      "title": "Current counter value",
+      "type": "integer",
+      "readonly": false
+    }
+  },
+  "events": {
+    "counterUpdated": {
+      "title": "Counter changed",
+      "description": "Event with the new counter value",
+      "data": {
+        "title": "New counter value",
+        "type": "integer"
+      }
+    }
+  },
+  "actions": {
+    "decrement": {
+      "title": "Decrement the counter"
+    },
+    "increment": {
+      "title": "Increment the counter"
+    }
+  }
+}
+`
+
+// auto-increment the counter
+const autoIncrementDelay = 10 * time.Second
+
+// Module type for use in the recipe
+const CounterDeviceModuleType = "counter-device"
+
+// thingID requests are directed to
+const DefaultCounterDeviceThingID = "counter1"
+
+// Affordance IDs
+const (
+	CounterPropName     = "counter"
+	CounterUpdatedEvent = "counterUpdated"
+	DecrementActionName = "decrement"
+	IncrementActionName = "increment"
+)
+
+type CounterConfig struct {
+	// background counter
+	AutoCount bool
+	// reset the count if the auto-increment reaches this value
+	ResetValue int
+}
+
+// Simple example of an IoT test device that tracks a counter.
+// The device uses Agent as a base. Agents facilitate storing and querying properties so you dont have to.
+//
+// This implements the properties, events and actions listed in the device TM.
+//
+// To use this device it needs to be part of a chain:
+// A. RC hub (no forms):  TestDevice -> transport client (wss,sse,mqtt)
+// B. Standalone: http server -> transport server <-> authn service -> TestDevice -> discovery (TD)
 type TestDevice struct {
-	agentID         string
-	authenticator   transport.IAuthenticator
-	cfg             *tlsserver.TLSServerConfig
-	HttpServer      transport.IHttpServer
-	TransportServer transport.ITransportServer
-	Agent           *agent.Agent
-	// the server protocol to use, eg ProtocolTypeWotWSS, ...
-	protocolType string
+	*agent.Agent
 
-	td *td.TD
+	config           *CounterConfig
+	counter          atomic.Int32
+	backgroundCtx    context.Context
+	backgroundCancel func()
+	tdocJson         string
 }
 
-// return the TD of the test device
-func (device *TestDevice) GetTD() *td.TD {
-	return device.td
+// Run the counter in the background
+func (m *TestDevice) Background() {
+	for {
+		if m.backgroundCtx.Err() != nil {
+			return
+		}
+		ctx, cancelFn := context.WithTimeout(m.backgroundCtx, autoIncrementDelay)
+		<-ctx.Done()
+		cancelFn()
+		slog.Info("Incrementing counter (in background)", "value", m.counter.Load())
+		go m.Update(int(m.counter.Load() + 1))
+	}
 }
 
-// set the request sink of the test device
-func (device *TestDevice) SetRequestSink(sink modules.IHiveModule) {
-	device.Agent.SetRequestSink(sink)
+// Increment the counter
+func (m *TestDevice) DoIncrement() {
+	oldValue := m.counter.Load()
+	if oldValue < int32(m.config.ResetValue) {
+		m.counter.Store(oldValue + 1)
+	} else {
+		m.counter.Store(0)
+	}
 }
 
-// Start the test device
-// This:
-// 1. starts the http server
-// 2. creates the protocol transport server
-// 3. add transport forms to the test device
-// 4. create and link an agent that handles requests
-func (device *TestDevice) Start() error {
+// Return the TD of this device.
+// Forms should be added by the appropriate transport method used.
+// This is also written to the directory on start.
+func (m *TestDevice) GetTD() string {
+	return m.tdocJson
+}
 
-	// setup the server, transport and link the device to the transport
-	// cfg := httpserverapi.NewConfig(addr, port, serverCert, caCert, validateToken)
-	device.HttpServer = tlsserverpkg.NewTLSServer(
-		device.cfg, device.authenticator)
+func (m *TestDevice) HandleRequest(req *msg.RequestMessage, replyTo msg.ResponseHandler) (err error) {
+	if req.ThingID != m.GetThingID() {
+		return m.ForwardRequest(req, replyTo)
+	}
+	// use Agent to handle read properties/events/action requests
+	err = m.HandleReadRequests(req, replyTo)
+	if err == nil {
+		return nil
+	}
 
-	err := device.HttpServer.Start()
-	if err != nil {
-		device.HttpServer = nil
-		return err
+	// request was unhandled
+	switch req.Operation {
+	case td.OpInvokeAction:
+		switch req.Name {
+		case DecrementActionName:
+			return m.HandleDecrement(req, replyTo)
+		case IncrementActionName:
+			return m.HandleIncrement(req, replyTo)
+		}
+	case td.OpWriteProperty:
+		return m.HandleWriteProperty(req, replyTo)
+	default:
+		err = fmt.Errorf("Unhandled operation '%s'", req.Operation)
 	}
-	switch device.protocolType {
-	case transport.ProtocolTypeWotHttpBasic:
-		device.TransportServer = httpbasicpkg.NewHttpBasicServer(device.HttpServer)
-	case transport.ProtocolTypeHiveotGrpc:
-		device.TransportServer = grpcpkg.NewHiveotGrpcServer(
-			"", device.cfg.ServerCert, device.cfg.CaCert, device.authenticator, 0)
-	case transport.ProtocolTypeHiveotSsesc:
-		device.TransportServer = ssescpkg.NewSseScServer(device.HttpServer, 0)
-	case transport.ProtocolTypeWotWebsocket:
-		device.TransportServer = wsspkg.NewWotWssServer(device.HttpServer, 0)
-	case transport.ProtocolTypeHiveotWebsocket:
-		device.TransportServer = wsspkg.NewHiveotWssServer(device.HttpServer, 0)
+	return err
+}
+
+func (m *TestDevice) HandleDecrement(req *msg.RequestMessage, replyTo msg.ResponseHandler) (err error) {
+	resp := req.CreateResponse(nil, nil)
+	if replyTo != nil {
+		err = replyTo(resp)
 	}
-	err = device.TransportServer.Start()
-	if err != nil {
-		device.HttpServer.Stop()
-		device.HttpServer = nil
-		device.TransportServer = nil
-		return err
+	go m.Update(int(m.counter.Load() - 1))
+	return err
+}
+
+func (m *TestDevice) HandleIncrement(req *msg.RequestMessage, replyTo msg.ResponseHandler) (err error) {
+
+	resp := req.CreateResponse(nil, nil)
+	if replyTo != nil {
+		err = replyTo(resp)
 	}
-	// populate the security and forms in the TD
-	device.TransportServer.AddTDSecForms(device.td, true)
-	// create the agent and link it to the transport to serve requests
-	device.Agent = agent.NewAgent(device.agentID, nil)
-	device.TransportServer.SetRequestSink(device.Agent)
-	// device does ignores connection notifications
-	// device.TransportServer.SetNotificationSink(func(*msg.NotificationMessage) { /*dummy*/ })
-	device.Agent.SetNotificationSink(device.TransportServer)
-	// this device envelope handles requests received via the agent
-	// device.Agent.SetRequestSink(device.HandleRequest)
+	go m.DoIncrement()
+	return err
+}
+
+func (m *TestDevice) HandleWriteProperty(req *msg.RequestMessage, replyTo msg.ResponseHandler) (err error) {
+	var newValue int
+
+	err = req.Decode(&newValue)
+	if err == nil {
+		m.counter.Store(int32(newValue))
+		// PubProperty makes the last value available via HandleReadRequests
+		m.PubProperty(req.ThingID, req.Name, newValue, true)
+	}
+	resp := req.CreateResponse(nil, err)
+	if replyTo != nil {
+		err = replyTo(resp)
+	}
+	if err == nil {
+		// PubEvent makes the last event available via HandleReadRequests
+		m.PubEvent(req.ThingID, CounterUpdatedEvent, m.counter.Load())
+	}
+	return err
+}
+
+// Start the device module.
+func (m *TestDevice) Start() error {
+	m.backgroundCtx, m.backgroundCancel = context.WithCancel(context.Background())
+
+	tdoc, _ := td.UnmarshalTD(counterDeviceTM)
+	tdoc.ID = m.GetThingID()
+	m.tdocJson = td.MarshalTD(tdoc)
+
+	// publish the device TD/TM
+	// wait until the chain is complete before publishing the TD for discovery.
+	// the transport will add the neccesary forms
+	go func() {
+		time.Sleep(time.Millisecond)
+		// write TD to the directory or discovery
+		// ignore the error if no directory/discovery exists in the chain
+		err := m.WriteTD(m.tdocJson)
+		_ = err
+	}()
+	// publish the latest property values
+	props := map[string]any{
+		CounterPropName: m.counter.Load(),
+	}
+	thingID := m.GetThingID()
+	m.PubProperties(thingID, props, true)
+	m.PubEvent(thingID, CounterUpdatedEvent, m.counter.Load())
+
+	if m.config.AutoCount {
+		go m.Background()
+	}
 	return nil
 }
 
-// shutdown the server
-func (device *TestDevice) Stop() {
-	if device.TransportServer != nil {
-		device.TransportServer.Stop()
-	}
-	if device.HttpServer != nil {
-		device.HttpServer.Stop()
-	}
+// stop the background process
+func (m *TestDevice) Stop() {
+	slog.Info("Stopping counter")
+	m.backgroundCancel()
 }
 
-// NewTestDevice creates a test device containing a transport server linked to an agent.
-// The provided authenticator is used to authenticate requests.
-//
-// Use the agent hooks to handle requests and publish notifications.
-//
-// To ignore authentication, set the ValidateTokenHandler in httpserver config to a
-// function that always returns true.
-//
-// # The device ThingID will be set to the agentID
-//
-// cfg defines the server setup.
-// agentID is the device agent/thing
-// authenticator is used by the test device to authenticate requests
-// tm is the TM of the thing to manage
-// protocolType sets the type of server to use
-func NewTestDevice(cfg *tlsserver.TLSServerConfig, agentID string,
-	authenticator transport.IAuthenticator, tm *td.TD, protocolType string) *TestDevice {
+// Update the counter and send a notification
+func (m *TestDevice) Update(newValue int) {
+	m.counter.Store(int32(newValue))
+	thingID := m.GetThingID()
+	// Send both a property update and event notification
+	m.PubProperty(thingID, CounterPropName, m.counter.Load(), true)
+	m.PubEvent(thingID, CounterUpdatedEvent, m.counter.Load())
+}
 
-	v := &TestDevice{
-		authenticator: authenticator,
-		protocolType:  protocolType,
-		agentID:       agentID,
-		cfg:           cfg,
-		td:            tm,
+// Create a new counter device that starts counting at 42.
+//
+// the deviceID is the thingID
+func NewTestDevice(deviceID string, config *CounterConfig) *TestDevice {
+	if config == nil {
+		config = &CounterConfig{}
 	}
-	return v
+	m := &TestDevice{
+		Agent:  agent.NewAgent(deviceID, nil),
+		config: config,
+	}
+	m.counter.Store(42)
+	return m
+}
+
+func NewTestDeviceFactory(f factory.IModuleFactory,
+	md *factory.ModuleDefinition) (modules.IHiveModule, error) {
+
+	// todo md can now provide configuration
+	agentID := DefaultCounterDeviceThingID
+	counterConfig, _ := md.Config.(*CounterConfig)
+	m := NewTestDevice(agentID, counterConfig)
+	return m, nil
 }

@@ -11,7 +11,7 @@ import (
 )
 
 // module types of a device server agent chain
-var TestDeviceServerRecipe = []factory.ModuleDefinition{
+var DeviceServerRecipe = []factory.ModuleDefinition{
 	{
 		Type:        transport.TLSServerModuleType,
 		Constructor: tlsserverpkg.NewTLSServerFactory,
@@ -27,7 +27,7 @@ var TestDeviceServerRecipe = []factory.ModuleDefinition{
 }
 
 // module types of a client chain
-var TestDeviceClientRecipe = []factory.ModuleDefinition{
+var DeviceClientRecipe = []factory.ModuleDefinition{
 	{
 		Type:        consumer.ConsumerModuleType,
 		Constructor: consumer.NewConsumerFactory,

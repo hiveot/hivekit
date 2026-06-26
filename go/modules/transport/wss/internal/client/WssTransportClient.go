@@ -428,6 +428,7 @@ func (cl *WssTransportClient) SendRequest(
 			"err", err.Error())
 		return err
 	}
+	// FIXME: should this run async in the background?
 	hasResponse, resp := cl.rnrChan.WaitForResponse(req.CorrelationID, cl.GetTimeout())
 	if hasResponse {
 		err = replyTo(resp)

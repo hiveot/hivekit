@@ -126,6 +126,7 @@ func (m *TLSServer) addMiddleware(cfg *tlsserver.TLSServerConfig) {
 					w.Header().Add("WWW-Authenticate", "Bearer")
 					http.Error(w, "Invalid bearer token", http.StatusUnauthorized)
 					slog.Warn("HttpsServer Authenticate; ",
+						"clientID", clientID,
 						"error", err.Error(),
 						"path", r.RequestURI)
 					return

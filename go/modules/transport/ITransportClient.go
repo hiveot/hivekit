@@ -96,8 +96,8 @@ type ITransportClient interface {
 	// certificate authentication is not supported or if an existing connection is not closed.
 	AuthenticateWithClientCert(clientCert *tls.Certificate) error
 
-	// AuthenticateWithForm determines authentication credentials using forms and the given
-	// getCredentials handler.
+	// AuthenticateWithForm determines authentication credentials using forms
+	// and the given getCredentials handler.
 	//
 	// This determines which auth schema the TD describes, obtains the credentials
 	// and injects the authentication credentials according to the TDI schema.

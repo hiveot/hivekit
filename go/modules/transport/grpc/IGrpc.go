@@ -14,7 +14,7 @@ const (
 	// there is no WoT gRPC specification
 
 	// The default gRPC server listening URL
-	DefaultGrpcURL = "unix:///var/hiveot/hivekit.sock"
+	DefaultGrpcURL = "unix:///tmp/hiveot/grpc-server.sock"
 
 	// The grpc service that identifies the streams
 	GrpcTransportServiceName = "grpcTransport"
