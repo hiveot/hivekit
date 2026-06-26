@@ -125,6 +125,7 @@ func (cl *GrpcClient) _onClientMessage(raw []byte) {
 
 // update the connection status and publish an notification if it differs from the last status
 // a 'lost' status is ignored if the current status is set to closed as it was intentional.
+// a lost status cancels all waiting requests.
 func (cl *GrpcClient) _setConnectionStatus(
 	newStatus transport.ConnectionStatus, err error) {
 
@@ -195,15 +196,27 @@ func (cl *GrpcClient) AuthenticateWithClientCert(clientCert *tls.Certificate) (e
 	return err
 }
 
-// Authenticate and connect
+// Authenticate
 func (cl *GrpcClient) AuthenticateWithForm(
 	tdDoc *td.TD, getCredentials transport.GetCredentials) error {
 
 	status := cl.GetConnectionStatus()
 	if status == transport.StatusConnected || status == transport.StatusConnecting {
-		return fmt.Errorf("AuthenticateWithForm: Connection in progress.")
+		return fmt.Errorf("AuthenticateWithForm: Connection already in progress.")
 	}
-	return fmt.Errorf("not yet implemented")
+	clientID, secret, schemeName, err := getCredentials(tdDoc.ID)
+
+	secScheme, err := tdDoc.GetSecurityScheme()
+	if secScheme.Scheme == td.SecSchemeNoSec {
+		// a unix socket relies on the filesystem permissions
+	} else if schemeName != secScheme.Scheme && schemeName != "" && schemeName != td.SecSchemeAuto {
+		err = fmt.Errorf("AuthenticateWithForm: TD Security scheme doesn't match credentials TD scheme='%s', credentials scheme='%s'", secScheme.Scheme, schemeName)
+	} else if secScheme.Scheme == td.SecSchemeBearer || secScheme.Scheme == td.SecSchemeAuto {
+		err = cl.AuthenticateWithToken(clientID, secret)
+	} else {
+		err = fmt.Errorf("AuthenticateWithForm: Unsupported security scheme '%s'", secScheme.Scheme)
+	}
+	return err
 }
 
 // AuthenticateWithToken sets the token credentials to use in Connect
@@ -400,9 +413,12 @@ func (cl *GrpcClient) SendRequest(
 			"err", err.Error())
 		return err
 	}
+	// FIXME: should this run async in the background?
 	hasResponse, resp := cl.rnrChan.WaitForResponse(req.CorrelationID, cl.GetTimeout())
 	if hasResponse {
 		err = replyTo(resp)
+	} else {
+		err = fmt.Errorf("No response received")
 	}
 	return err
 }

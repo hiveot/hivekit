@@ -78,8 +78,11 @@ func (m *GrpcServer) Start() (err error) {
 		network = "unix"
 		address = strings.TrimPrefix(address, "unix://")
 		socketDir := filepath.Dir(address)
-		err = os.Remove(address)
+		_ = os.Remove(address)
 		err = os.MkdirAll(socketDir, 0700)
+		if err != nil {
+			return err
+		}
 
 	} else {
 		// address is a tcp network tcp://ip:port
