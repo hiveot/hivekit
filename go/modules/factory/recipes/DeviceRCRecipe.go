@@ -12,7 +12,8 @@ import (
 	discoverypkg "github.com/hiveot/hivekit/go/modules/transport/discovery/pkg"
 )
 
-// RCDeviceChain defines the modules for IoT device in the order to instantiate and link.
+// RCDeviceChain defines the module chain for use by IoT devices that use reverse
+// connection to a gateway or hub.
 // The IoT device logic can be added at the end using AppendModule or linking to it.
 var RCDeviceChain = []factory.ModuleDefinition{
 	{
@@ -41,7 +42,7 @@ var RCDeviceChain = []factory.ModuleDefinition{
 	// add and link your application module
 }
 
-// RCDeviceRecipe is a recipe for creating a reverse-connection devices.
+// RCDeviceRecipe is a recipe for creating a reverse-connected devices.
 // Intended for IoT devices that use reverse connection to a gateway or Hub.
 //
 // * support AppEnvironment commandline options
@@ -52,7 +53,7 @@ var RCDeviceChain = []factory.ModuleDefinition{
 // * establish client connection
 //
 // f is the module factory to use to use.
-// appModule is the optional application module to append to the chain
+// appModule is the module definition of the exposed thing to inject in the app slot.
 //
 // This returns the recipe, which can be used like any other module
 func NewRCDeviceRecipe(

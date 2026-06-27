@@ -45,11 +45,6 @@ type TD struct {
 	// All action-based interaction affordances of the things
 	Actions map[string]*ActionAffordance `json:"actions"`
 
-	// AgentID is a hiveot extension containing the clientID of the agent that provided this TD
-	// Intended for supporting reverse connections instead of forms.
-	// FIXME: this field is tentative for use in the digitwin. If possible try to remove this dependency.
-	AgentID string `json:"hiveot:agentID,omitempty"`
-
 	// JSON-LD keyword to define shorthand names called terms that are used throughout a TD document. Required.
 	// in order to add the "hiveot" namespace, the context value can be a string or map
 	// Type: anyURO or Array
@@ -99,6 +94,16 @@ type TD struct {
 	// All properties-based interaction affordances of the things
 	Properties map[string]*PropertyAffordance `json:"properties"`
 
+	// RCID is a hiveot extension containing the reverse-connection client ID of
+	// device that provided this TD.
+	// Intended for supporting reverse connections instead of forms.
+	//
+	// This RCID is used by the router if no forms exist. The router uses this
+	// reverse-connection ID to send requests to.
+	//
+	// FIXME: Should this be stored in the TD? Maybe the directory is a better place?
+	RCID string `json:"hiveot:rcid,omitempty"`
+
 	SchemaDefinitions map[string]DataSchema `json:"schemaDefinitions,omitempty"`
 
 	// Security is a string or array of strings, chosen from those defined in securityDefinitions.
@@ -118,9 +123,6 @@ type TD struct {
 
 	// Provides information about the TD maintainer as URI scheme (e.g., mailto [RFC6068], tel [RFC3966], https [RFC9112]).
 	Support string `json:"support,omitempty"`
-
-	// for use to access writable data, when TD's are updated on the fly by agents.
-	//updateMutex sync.RWMutex
 }
 
 // AddAction provides a simple way to add an action affordance Schema to the TD.
@@ -314,14 +316,6 @@ func (tdoc *TD) GetAction(actionName string) *ActionAffordance {
 	return actionAffordance
 }
 
-// GetAgentID returns the agentID of the thing TD, if set.
-// The agentID is the clientID of the device that published this TD using reverse connection.
-// It is used by a gateway to forward requests for a Thing to the device using its
-// reverse connection. A device agent can be responsible for multiple Things.
-func (tdoc *TD) GetAgentID() string {
-	return tdoc.AgentID
-}
-
 // GetEvent returns the Schema for the event or nil if the event doesn't exist
 func (tdoc *TD) GetEvent(eventName string) *EventAffordance {
 	//tdoc.updateMutex.RLock()
@@ -491,6 +485,11 @@ func (tdoc *TD) GetFormHRef(
 	return f, href, err
 }
 
+// GetID returns the Thing ID of this TD.
+func (tdoc *TD) GetID() string {
+	return tdoc.ID
+}
+
 // GetProperty returns the Schema and value for the property or nil if its key is not found.
 func (tdoc *TD) GetProperty(propName string) *PropertyAffordance {
 	//tdoc.updateMutex.RLock()
@@ -515,9 +514,13 @@ func (tdoc *TD) GetPropertyOfVocabType(vocabType string) (string, *PropertyAffor
 	return "", nil
 }
 
-// GetID returns the ID of the things TD
-func (tdoc *TD) GetID() string {
-	return tdoc.ID
+// GetRCClientID returns the reverse-connection client ID of the publisher of the
+// TD, if set.
+//
+// It is used by a gateway to identify the client that will handle TD requests
+// and is only used when Things are reachable through a reverse connection.
+func (tdoc *TD) GetRCClientID() string {
+	return tdoc.RCID
 }
 
 // Get the security scheme for connecting to this device.
@@ -658,8 +661,8 @@ func (tdoc *TD) UpdateTitleDescription(title string, description string) {
 // NewTD creates a new Thing Description document with properties, events and actions
 //
 // Conventions:
-// 1. Agents should add a property WoTTitle and update the TD title if it is set.
-// 2. Agents should add a property WoTDescription and update the TD description if it is set.
+// 1. Things should add a property WoTTitle and update the TD title if it is set.
+// 2. Things should add a property WoTDescription and update the TD description if it is set.
 // 3. the deviceType comes from the vocabulary and has ID vocab.DeviceType<Xyz>
 //
 // Devices or bindings are not expected to use forms. The form content describes the

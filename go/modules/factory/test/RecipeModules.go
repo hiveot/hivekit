@@ -1,7 +1,6 @@
 package factory_test
 
 import (
-	"github.com/hiveot/hivekit/go/modules/agent"
 	authnapi "github.com/hiveot/hivekit/go/modules/authn"
 	authnpkg "github.com/hiveot/hivekit/go/modules/authn/pkg"
 	"github.com/hiveot/hivekit/go/modules/authz"
@@ -24,6 +23,7 @@ import (
 	reconnectpkg "github.com/hiveot/hivekit/go/modules/reconnect/pkg"
 	"github.com/hiveot/hivekit/go/modules/router"
 	routerpkg "github.com/hiveot/hivekit/go/modules/router/pkg"
+	"github.com/hiveot/hivekit/go/modules/thing"
 	"github.com/hiveot/hivekit/go/modules/transport"
 	"github.com/hiveot/hivekit/go/modules/transport/addforms"
 	addformspkg "github.com/hiveot/hivekit/go/modules/transport/addforms/pkg"
@@ -128,10 +128,10 @@ var HiveKitModules = []factory.ModuleDefinition{
 		Constructor: addformspkg.NewAddFormsServiceFactory,
 	},
 
-	// agent service helper
+	// thing service helper
 	{
-		Type:        agent.AgentModuleType,
-		Constructor: agent.NewAgentFactory,
+		Type:        thing.ExposedThingModuleType,
+		Constructor: thing.NewExposedThingFactory,
 	},
 
 	// client and session management provider

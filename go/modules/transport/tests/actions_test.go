@@ -12,8 +12,8 @@ import (
 
 	"github.com/hiveot/hivekit/go/api/msg"
 	"github.com/hiveot/hivekit/go/api/td"
-	"github.com/hiveot/hivekit/go/modules/agent"
 	"github.com/hiveot/hivekit/go/modules/authn"
+	"github.com/hiveot/hivekit/go/modules/thing"
 	"github.com/hiveot/hivekit/go/testenv"
 	"github.com/hiveot/hivekit/go/utils"
 	"github.com/stretchr/testify/assert"
@@ -27,7 +27,7 @@ func TestAllActionsProtocols(t *testing.T) {
 }
 func TestAllActions(t *testing.T) {
 	t.Run("TestInvokeActionFromConsumerToServer", TestInvokeActionFromConsumerToServer)
-	t.Run("TestInvokeActionFromServerToAgent", TestInvokeActionFromServerToAgent)
+	t.Run("TestInvokeActionFromServerToDevice", TestInvokeActionFromServerToDevice)
 	t.Run("TestQueryActions", TestQueryActions)
 }
 
@@ -49,8 +49,8 @@ func TestInvokeActionFromConsumerToServer(t *testing.T) {
 	testEnv, cancelFn := testenv.StartTestEnv(testProtocol, true)
 	defer cancelFn()
 
-	// the agent will receive the action request and return an immediate result
-	ag := agent.NewAgent("", func(req *msg.RequestMessage, replyTo msg.ResponseHandler) error {
+	// the device will receive the action request and return an immediate result
+	ag := thing.NewExposedThing("", func(req *msg.RequestMessage, replyTo msg.ResponseHandler) error {
 		var resp *msg.ResponseMessage
 		if req.Operation == td.OpInvokeAction {
 			inputVal.Store(req.Input)
@@ -106,11 +106,11 @@ func TestInvokeActionFromConsumerToServer(t *testing.T) {
 }
 
 // Warning: this is a bit of a mind bender if you're used to classic consumer->thing interaction.
-// This test uses a Thing agent as a client (reverse connection) and have it reply to a request
+// This test uses a device as a client (reverse connection) and have it reply to a request
 // from the server.
 // The server in this case passes on a message received from a consumer, which is also a client.
-// This reflects the use-case of agents using connection reversal to gateways.
-func TestInvokeActionFromServerToAgent(t *testing.T) {
+// This reflects the use-case of devices using connection reversal to gateways.
+func TestInvokeActionFromServerToDevice(t *testing.T) {
 	t.Logf("---%s---\n", t.Name())
 	var reqVal atomic.Value
 	var replyVal atomic.Value
@@ -121,20 +121,20 @@ func TestInvokeActionFromServerToAgent(t *testing.T) {
 	var corrID = "correlation-1"
 
 	// 1. start the server. register a message handler for receiving an action status
-	// async reply from the agent after the server sends an invoke action.
+	// async reply from the device after the server sends an invoke action.
 	// Note that WoT doesn't cover this use-case so this uses hiveot vocabulary operation.
 
 	ctx1, cancelFn1 := context.WithTimeout(context.Background(), time.Minute*2)
 	defer cancelFn1()
-	// server receives agent response
+	// server receives device response
 	responseHandler := func(resp *msg.ResponseMessage) error {
 		var responseData string
-		// The server receives a response message from the agent
+		// The server receives a response message from the device
 		// (which normally is forwarded to the remote consumer; but not in this test)
 		assert.NotEmpty(t, resp.CorrelationID)
 		assert.Equal(t, td.OpInvokeAction, resp.Operation)
 
-		slog.Info("Server: received response from agent",
+		slog.Info("Server: received response from device",
 			"op", resp.Operation,
 			"output", resp.Output,
 		)
@@ -151,22 +151,22 @@ func TestInvokeActionFromServerToAgent(t *testing.T) {
 	testEnv, cancelFn2 := testenv.StartTestEnv(testProtocol, true)
 	defer cancelFn2()
 
-	// 2a. connect as an agent, app request handler is set separately
-	ag1client, cc1, token := testEnv.NewRCAgent(testAgentID1, nil)
+	// 2a. connect as an device, app request handler is set separately
+	thingClient, cc1, token := testEnv.NewRCThing(testDeviceID1, nil)
 	require.NotEmpty(t, token)
 	defer cc1.Close()
 
-	// an agent receives requests from the server
-	ag1client.SetAppRequestHook(func(req *msg.RequestMessage, replyTo msg.ResponseHandler) error {
-		// agent receives action request and returns a result
-		slog.Info("Agent receives request", "op", req.Operation)
+	// the Thing receives requests from the server
+	thingClient.SetAppRequestHook(func(req *msg.RequestMessage, replyTo msg.ResponseHandler) error {
+		// device receives action request and returns a result
+		slog.Info("Thing receives request", "op", req.Operation)
 		assert.Equal(t, testClientID1, req.SenderID)
 		reqVal.Store(req.Input)
 		go func() {
 			time.Sleep(time.Millisecond)
 			// separately send a completed response
 			resp := req.CreateResponse(testMsg2, nil)
-			slog.Info("Agent sends response", "op", req.Operation)
+			slog.Info("Thing sends response", "op", req.Operation)
 			err2 := replyTo(resp)
 			assert.NoError(t, err2)
 		}()
@@ -174,24 +174,23 @@ func TestInvokeActionFromServerToAgent(t *testing.T) {
 		return nil
 	})
 
-	// Send the action request from the server to the agent (the agent is connected as a client)
-	// and expect result using the request status message sent by the agent.
+	// Send the action request from the server to the Device Thing (the device is
+	// connected as a client) and expect result using the request status message
+	// sent by the device.
 	time.Sleep(time.Millisecond)
-	// ag1Server := srv.GetConnectionByClientID(testAgentID1)
-	// require.NotNil(t, ag1Server)
 
 	req := msg.NewRequestMessage(td.OpInvokeAction, thingID, actionKey, testMsg1)
 	req.CorrelationID = corrID
 	req.SenderID = testClientID1
 	// err := ag1Server.SendRequest(req)
-	err := testEnv.Server.SendRequest(testAgentID1, req, responseHandler)
+	err := testEnv.Server.SendRequest(testDeviceID1, req, responseHandler)
 	require.NoError(t, err)
 
-	// wait until the agent has sent a reply
+	// wait until the device has sent a reply
 	<-ctx1.Done()
 	time.Sleep(time.Millisecond * 10)
 
-	// if all went well the agent received the request and the server its response
+	// if all went well the device received the request and the server its response
 	assert.Equal(t, testMsg1, reqVal.Load())
 	assert.Equal(t, testMsg2, replyVal.Load())
 }
@@ -208,9 +207,9 @@ func TestQueryActions(t *testing.T) {
 	testEnv, cancelFn := testenv.StartTestEnv(testProtocol, true)
 	defer cancelFn()
 
-	// 2. register an agent for receiving a request and link it to the server.
+	// 2. register a device for receiving a request and link it to the server.
 	// Note that WoT doesn't cover this use-case so this uses hiveot vocabulary operation.
-	ag := agent.NewAgent("", func(req *msg.RequestMessage, replyTo msg.ResponseHandler) error {
+	ag := thing.NewExposedThing("", func(req *msg.RequestMessage, replyTo msg.ResponseHandler) error {
 		var resp *msg.ResponseMessage
 		assert.NotNil(t, replyTo)
 		assert.NotNil(t, req.CorrelationID)
@@ -265,7 +264,7 @@ func TestQueryActions(t *testing.T) {
 		}
 		return replyTo(resp)
 	})
-	// agent handles requests received by the server
+	// Device handles requests received by the server
 	testEnv.Server.SetRequestSink(ag)
 
 	// 2. connect as a consumer

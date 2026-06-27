@@ -20,18 +20,17 @@ type IRouterService interface {
 	// Used in combination with the Thing TD that describes how the secret is used
 	// in establishing the connection or request.
 	//
-	// agentID is the thingID of the device agent. This can be the device thingID or
-	//  a separate ID of the service that manages multiple things, like a gateway. These
-	//  credentials are for connecting to the agent/device.
-	// clientID is the ID the router service used to connect to the device
-	// secret is the auth token used to connect.
+	// deviceID is the ID of the device to connect to. This is the senderID used to write
+	// the device TDs to the directory.
+	// clientID is the ID the router service uses to identify itself as when connecting to the device.
+	// secret is the auth token used to authenticate as the clientID.
 	// secScheme indicates the type of credentials stored: SecSchemeBearer, ...
 	//  See also SecSchemeXyz and https://www.w3.org/TR/wot-thing-description11/#securityscheme
 	//
 	// When routing a request to a Thing device, this secret is used to authenticate
 	// the connection needed to pass the request. The TD describes the securityDefinitions
 	// available.
-	AddDeviceCredential(agentID string, clientID, secret string, secScheme string)
+	AddDeviceCredential(deviceID string, clientID, secret string, secScheme string)
 
 	// Remove the secret to access a Thing
 	DeleteThingCredential(thingID string)
@@ -41,9 +40,12 @@ type IRouterService interface {
 
 	// Determine if the thing is reachable by the router.
 	//
-	// This returns true if a client connection is established by the router, or if
-	// a reverse connection exists by the thing agent.
-	IsReachable(thingID string) bool
+	// This returns true if a device connection is established by the router, or if
+	// a reverse connection exists by the thing's deviceID.
+	//
+	// This determines the deviceID that manages the thing and looks up connections made
+	// to or from the deviceID.
+	// IsReachable(thingID string) bool
 
 	// Return the ISO timestamp when the Thing was last seen by the router.
 	// This returns an empty string if no known record exists.

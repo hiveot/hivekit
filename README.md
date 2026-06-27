@@ -19,24 +19,24 @@ Modules with a checkmark are functional but breaking changes can still be expect
 
 Core Service modules:
 
-| status | module      | description                        | stage |
-| :----: | ----------- | ---------------------------------- | ----- |
-|   ✔️    | agent       | Producer of IoT data               | alpha |
-|   ✔️    | authn       | Client authentication              | alpha |
-|   ✔️    | authz       | Role based authorization           | alpha |
-|   ✔️    | bucketstore | Key-value data storage             | alpha |
-|   ✔️    | certs       | Certificate management             | alpha |
-|   ✔️    | consumer    | Consumer of IoT data               | alpha |
-|   ✔️    | digitwin    | Digital twin                       | alpha |
-|   ✔️    | directory   | Thing directory server & client    | alpha |
-|   ✔️    | factory     | Module factory                     | alpha |
-|   ✔️    | history     | Message history recorder           | alpha |
-|   ✔️    | logging     | Basic messaging logging            | alpha |
-|   ✔️    | reconnect   | Restore dropped client connections | alpha |
-|   ✔️    | router      | Message routing to remote devices  | alpha |
-|   ✔️    | vcache      | Value cache                        | alpha |
-|   ⬛    | jsscript    | Javascript based automation        | todo  |
-|   ⬛    | rules       | Rule based automation              | todo  |
+| status | module       | description                        | stage |
+| :----: | ------------ | ---------------------------------- | ----- |
+|   ✔️    | authn        | Client authentication              | alpha |
+|   ✔️    | authz        | Role based authorization           | alpha |
+|   ✔️    | bucketstore  | Key-value data storage             | alpha |
+|   ✔️    | certs        | Certificate management             | alpha |
+|   ✔️    | consumer     | Consumer of IoT data               | alpha |
+|   ✔️    | digitwin     | Digital twin                       | alpha |
+|   ✔️    | directory    | Thing directory server & client    | alpha |
+|   ✔️    | exposedthing | Thing producing of IoT data        | alpha |
+|   ✔️    | factory      | Module factory                     | alpha |
+|   ✔️    | history      | Message history recorder           | alpha |
+|   ✔️    | logging      | Basic messaging logging            | alpha |
+|   ✔️    | reconnect    | Restore dropped client connections | alpha |
+|   ✔️    | router       | Message routing to remote devices  | alpha |
+|   ✔️    | vcache       | Value cache                        | alpha |
+|   ⬛    | jsscript     | Javascript based automation        | todo  |
+|   ⬛    | rules        | Rule based automation              | todo  |
 
 [Transport modules](docs/transport.md):
 
@@ -118,7 +118,7 @@ The following module categories can be distinguished:
 
 1. Service modules are producers that offer a service, such as authentication, logging and routing. Service modules can be configured through properties and queried using actions.
 
-The 'Agent' module implementation helps writing producers. It provides methods for publishing notifications, tracking state and handle requests to read properties.
+The ExposedThing module helps writing producers. It provides methods for publishing notifications, tracking state and handle requests to read properties.
 
 2. Middleware modules are a class of modules whose purpose is to analyze, filter and route messages. For example, logging, authorizing, routing are middleware tasks. These modules act as producers for consumers and consumers for producers.
 
@@ -138,7 +138,7 @@ Creating a module chain can be done manually by programatically linking modules,
 
 Modules in HiveKit are not applications themselves but intended to construct an application. The [factory module](go/modules/factory/README.md) facilitates building applications by chaining modules defined in a recipe. This chaining aggregates functionality provided by each module. 
 
-Application specific logic can easily be incorporated using the hooks provided by the agent module, or by providing application logic as a module itself and adding this module to the recipe.
+Application specific logic can easily be incorporated using the hooks provided by the exposed-thing module, or by providing application logic as a module itself and adding this module to the recipe.
 
 ![module](docs/module-chain.png)
 

@@ -83,7 +83,7 @@ func (m *RouterServiceImpl) GetClientConnection(tdi *td.TD, op string) (cl modul
 		return nil, err
 	}
 	// determine the 'origin' for this connection, which is the protocol and address
-	// of the connection. Multiple Things from the same agent share the same connection.
+	// of the connection. Multiple Things from the same device share the same connection.
 	origin := fmt.Sprintf("%s://%s", parts.Scheme, parts.Host)
 	m.cmux.Lock()
 	cl, found := m.deviceConnections[origin]
@@ -126,7 +126,7 @@ func (m *RouterServiceImpl) GetClientConnection(tdi *td.TD, op string) (cl modul
 	return cl, err
 }
 
-// Return the reverse-client connection to an agent, if it exists.
+// Return the reverse-client connection to a device, if it exists.
 // This returns nil if the clientID does not have an existing connection.
 func (m *RouterServiceImpl) GetRCConnection(clientID string) (c transport.IConnection) {
 	if m.tpServers == nil {
@@ -176,10 +176,10 @@ func (m *RouterServiceImpl) HasThingCredentials(thingID string) bool {
 // Determine if the thing is reachable by the router.
 //
 // This returns true if a client connection is established by the router, or if
-// a reverse connection exists by the thing agent.
-func (m *RouterServiceImpl) IsReachable(thingID string) bool {
-	return false
-}
+// a reverse connection exists by the thing deviceID.
+// func (m *RouterServiceImpl) IsReachable(thingID string) bool {
+// 	return false
+// }
 
 // Return the ISO timestamp when the Thing was last seen by the router.
 // This returns an empty string if no known record exists.
@@ -192,9 +192,9 @@ func (m *RouterServiceImpl) IsReachable(thingID string) bool {
 // Lookup the TD of the ThingID and determine its destination:
 //
 //  1. If no TD exists then simply forward the request to the request sink
-//  2. If the TD contains an agentID, injected by the digitwin module, then lookup
-//     the agent's RC connection to the server and forward the request.
-//  3. If the TD points to a non-agent device then establish a connection or re-use
+//  2. If the TD contains an RC clientID, injected by the directory module, then lookup
+//     the device's RC connection to the server and forward the request.
+//  3. If the TD points to a non RC device then establish a connection or re-use
 //     an existing connection from the pool.
 func (m *RouterServiceImpl) RouteRequest(req *msg.RequestMessage, replyTo msg.ResponseHandler) (err error) {
 
@@ -210,19 +210,19 @@ func (m *RouterServiceImpl) RouteRequest(req *msg.RequestMessage, replyTo msg.Re
 		return err
 	}
 
-	// if the tdoc has an agentID then look for its RC connection
-	agentID := tdoc.GetAgentID()
-	if agentID != "" {
-		c := m.GetRCConnection(agentID)
+	// if the tdoc has an RC clientID then look for its RC connection
+	rcClientID := tdoc.GetRCClientID()
+	if rcClientID != "" {
+		c := m.GetRCConnection(rcClientID)
 		if c == nil {
-			err = fmt.Errorf("RouteRequest: agent '%s' isnt connected", agentID)
+			err = fmt.Errorf("RouteRequest: device '%s' isnt connected", rcClientID)
 		} else {
 			err = c.SendRequest(req, replyTo)
 		}
 	} else {
 		c, err2 := m.GetClientConnection(tdoc, req.Operation)
 		if c == nil {
-			err = fmt.Errorf("RouteRequest: Unable to establish a connection to client '%s': %w", agentID, err2)
+			err = fmt.Errorf("RouteRequest: Unable to establish a connection to client '%s': %w", rcClientID, err2)
 		} else {
 			err = c.HandleRequest(req, replyTo)
 		}
@@ -267,7 +267,7 @@ func (m *RouterServiceImpl) Stop() {
 //
 //	storageDir with the module credentials storage directory, "" for in-memory testing
 //	getTD is the handler to lookup a TD for a thingID from a directory
-//	transports is a list of transport servers that can contain reverse agent connections.
+//	transports is a list of transport servers that can contain RC devices.
 //	caCert is the CA used to verify device connections
 //	timeout is the maximum communication timeout with connect clients
 func NewRouterServiceImpl(storageDir string, getTD func(thingID string) *td.TD,

@@ -20,9 +20,9 @@ func TestServerRecipe(t *testing.T) {
 	serverFactory := factorypkg.NewModuleFactory(env, nil)
 
 	// use test device factory
-	deviceRecipe := recipes.NewDeviceServerRecipe(serverFactory, &factory.ModuleDefinition{
+	deviceRecipe := recipes.NewServerDeviceRecipe(serverFactory, &factory.ModuleDefinition{
 		Type:        TestDeviceModuleType,
-		Constructor: testenv.NewTestDeviceFactory,
+		Constructor: testenv.NewCounterDeviceFactory,
 	})
 	err := deviceRecipe.Start()
 	require.NoError(t, err)

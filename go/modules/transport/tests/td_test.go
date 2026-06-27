@@ -22,7 +22,7 @@ func TestAllTDProtocols(t *testing.T) {
 func TestAllTD(t *testing.T) {
 	t.Run("TestAddForms", TestAddForms)
 	// t.Run("TestPublishTD", TestPublishTD)
-	t.Run("TestReadTDFromAgent", TestReadTDFromDevice)
+	t.Run("TestReadTDFromDevice", TestReadTDFromDevice)
 }
 
 const DeviceTypeSensor = "hiveot:sensor"
@@ -32,7 +32,7 @@ const DeviceTypeSensor = "hiveot:sensor"
 func TestReadTDFromDevice(t *testing.T) {
 	t.Logf("---%s---\n", t.Name())
 	var thingID = "thing1"
-	var agentID = "agent1"
+	var deviceID = "device1"
 	var consumerID = "consumer1"
 
 	// handler of TDs on the server
@@ -40,16 +40,16 @@ func TestReadTDFromDevice(t *testing.T) {
 	testEnv, cancelFn := testenv.StartTestEnv(testProtocol, true)
 	defer cancelFn()
 
-	// 2. create an agent linked to this server
-	ag1 := testEnv.NewServerAgent(agentID)
+	// 2. create an device linked to this server
+	ag1 := testEnv.NewServerThing(deviceID)
 	defer ag1.Stop()
 
-	// 3. agent creates TD
+	// 3. device creates TD
 	td1 := td.NewTD(thingID, "My gadget", DeviceTypeSensor)
 	td1.AddProperty("td", "Device TD", "", td.DataTypeString)
 
-	// agent request handler to read the device TD from the td property.
-	agentReqHandler := func(req *msg.RequestMessage, replyTo msg.ResponseHandler) error {
+	// device request handler to read the device TD from the td property.
+	deviceReqHandler := func(req *msg.RequestMessage, replyTo msg.ResponseHandler) error {
 		t.Log("Received request: " + req.Operation)
 		if req.Operation == td.OpReadProperty && req.Name == "td" {
 			tdJSON := td1.ToString()
@@ -57,11 +57,11 @@ func TestReadTDFromDevice(t *testing.T) {
 			return replyTo(resp)
 		} else {
 			resp := req.CreateResponse(nil,
-				errors.New("agent receives unknown request: "+req.Operation))
+				errors.New("device receives unknown request: "+req.Operation))
 			return replyTo(resp)
 		}
 	}
-	ag1.SetAppRequestHook(agentReqHandler)
+	ag1.SetAppRequestHook(deviceReqHandler)
 
 	// 4. create a consumer and verify the TD can be read by a client
 	co, cc, _ := testEnv.NewConnectedConsumer(consumerID, "somerole", false)
@@ -109,7 +109,7 @@ func TestAddForms(t *testing.T) {
 
 }
 
-//// Agent Publishes TD to the directory
+//// Device Publishes TD to the directory
 //func TestPublishTD(t *testing.T) {
 //	t.Logf("---%s---\n", t.Name())
 //	var thingID = "thing1"
@@ -140,11 +140,11 @@ func TestAddForms(t *testing.T) {
 //	_ = srv
 //	defer cancelFn()
 //
-//	// 2. Connect as agent
-//	cc1, ag1, _ := NewAgent(testAgentID1)
+//	// 2. Connect as Thing
+//	cc1, ag1, _ := NewThing(testDeviceID1)
 //	defer cc1.Disconnect()
 //
-//	// Agent publishes the TD
+//	Devie publishes the TD
 //	err := ag1.UpdateThing(td1)
 //	require.NoError(t, err)
 //	time.Sleep(time.Millisecond * 10)

@@ -18,7 +18,7 @@ import (
 //
 // Use SetTimeout to change the default response timeout
 // Use SetRequestSink to set the handler for requests send by consumers
-// Use SetNotificationSink to set the handler for notifications send by agents.
+// Use SetNotificationSink to set the handler for notifications send by exposed things.
 func NewHiveotGrpcClient(
 	addr string, caCert *x509.Certificate) transport.ITransportClient {
 

@@ -7,7 +7,7 @@ import (
 	"github.com/teris-io/shortid"
 )
 
-// NotificationHandler handles a notification, send by an agent.
+// NotificationHandler handles a notification, send by an Thing.
 //
 // msg is the notification
 type NotificationHandler func(msg *NotificationMessage)
@@ -53,7 +53,7 @@ type NotificationMessage struct {
 	// This field is required
 	Name string `json:"name"`
 
-	// Authenticated ID of the agent sending the notification, set by the server.
+	// Authenticated ID of the sender of the notification, set by the server.
 	// The protocol server MUST set this to the authenticated sender.
 	// Only available server side as WoT protocols do not carry this in the payload.
 	// HiveOT protocols do include this field.
@@ -83,7 +83,7 @@ func (notif *NotificationMessage) Decode(output any) error {
 
 // NewNotificationMessage creates a new NotificationMessage instance.
 //
-//	senderID is the agent sending the notification
+//	senderID is the clientID of the sender of the notification
 //	affordanceType is the Thing affordance type, eg property or event
 //	thingID is the thing the value applies to (destination of action or source of event)
 //	name is the name of the property, event or action affordance as described in the thing TD

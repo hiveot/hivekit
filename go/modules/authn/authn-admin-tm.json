@@ -6,7 +6,7 @@
   "@type": "Service",
   "id": "authn:admin",
   "title": "Authentication Administration Service",
-  "description": "HiveOT runtime service for administration of consumers, Thing agents and services",
+  "description": "HiveOT runtime service for administration of client IDs of consumers, Exposed Things and services",
   "version": {
     "instance": "0.1.0"
   },
@@ -73,7 +73,7 @@
       },
       "output": {
         "title": "Token",
-        "description": "Agent authentication token",
+        "description": "Client authentication token",
         "type": "string"
       }
     },

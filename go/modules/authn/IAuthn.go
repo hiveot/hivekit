@@ -40,11 +40,11 @@ const (
 	// Viewers cannot invoke actions or change configuration.
 	ClientRoleViewer string = "viewer"
 
-	// ClientRoleAgent for devices and services.
+	// ClientRoleDevice for devices.
 	//
-	// Agents publish device information for the devices/services it manages and
-	// receive request for those devices/services.
-	ClientRoleAgent string = "agent"
+	// Devices publish Thing information for itself and possible nested devices,
+	// and handle request for those devices.
+	ClientRoleDevice string = "device"
 
 	// ClientRoleOperator for users that operate devices and services.
 	//
@@ -64,14 +64,13 @@ const (
 
 	// ClientRoleService for Service role
 	//
-	// Services are equivalent to an admin user and agent for devices/services they
-	// have access to.
+	// Services are equivalent to both an admin user and exposed things.
 	ClientRoleService string = "service"
 )
 
 // ClientProfile defines a Client Profile data schema.
 //
-// This contains client information of device agents, services and consumers
+// This contains client information of devices, services and consumers
 type ClientProfile struct {
 
 	// ClientID with the unique client ID

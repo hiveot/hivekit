@@ -24,14 +24,14 @@
       "description": "identifies the client's category",
       "oneOf": [
         {
-          "const": "agent",
-          "title": "Agent",
-          "description": "Agents represent one or more devices"
+          "const": "device",
+          "title": "Device",
+          "description": "IoT Device that can contain nested devices"
         },
         {
           "const": "service",
           "title": "Service",
-          "description": "Service enrich information"
+          "description": "Services enrich information"
         },
         {
           "const": "consumer",
@@ -42,7 +42,7 @@
     },
     "ClientProfile": {
       "title": "Client Profile",
-      "description": "This contains client information of device agents, services and consumers",
+      "description": "This contains client information of devices, services and consumers",
       "comment": "several actions involve this class, as argument or response",
       "type": "object",
       "properties": {

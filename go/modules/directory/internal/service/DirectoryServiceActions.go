@@ -11,24 +11,22 @@ import (
 )
 
 // CreateThing adds or replaces the TD in the store.
-func (svc *DirectoryServiceImpl) CreateThing(agentID string, tdJson string) error {
+func (svc *DirectoryServiceImpl) CreateThing(senderID string, tdJson string) error {
 
-	// TODO: link the TD to the agent that created it
-
-	return svc.UpdateThing(agentID, tdJson)
+	return svc.UpdateThing(senderID, tdJson)
 }
 
 // DeleteThing removes a Thing TD document from the store and send a notification
-func (svc *DirectoryServiceImpl) DeleteThing(agentID string, thingID string) (err error) {
+func (svc *DirectoryServiceImpl) DeleteThing(senderID string, thingID string) (err error) {
 
-	// TODO: check that the agentID is linked to this TD, or an administrator.
+	// TODO: check that the senderID is linked to this TD, or an administrator.
 
 	slog.Info("Delete Thing",
-		slog.String("agentID", agentID), slog.String("thingID", thingID))
+		slog.String("senderID", senderID), slog.String("thingID", thingID))
 
 	// The hook can cancel the write
 	if svc.deleteTDHook != nil {
-		err = svc.deleteTDHook(agentID, thingID)
+		err = svc.deleteTDHook(senderID, thingID)
 	}
 	if err == nil {
 		err = svc.tdBucket.Delete(thingID)
@@ -119,41 +117,41 @@ func (svc *DirectoryServiceImpl) RetrieveThing(thingID string) (tdJSON string, e
 
 // UpdateThing replaces the TD in the store.
 // If the thing doesn't exist in the store it is added.
-func (svc *DirectoryServiceImpl) UpdateThing(agentID string, tdJson string) error {
+//
+// senderID is the clientID updating the TD
+func (svc *DirectoryServiceImpl) UpdateThing(senderID string, tdJson string) error {
 
-	// TODO: verify that the TD is the agent that created it.
+	// FIXME: verify that the sender owns the TD.
+	// should the thingID have the sender prefix so it can't be hi-jacked by
+	// others?
 
 	// validate the TD
-	tdi, err := td.UnmarshalTD(tdJson)
+	tdoc, err := td.UnmarshalTD(tdJson)
 	if err != nil {
 		slog.Error("UpdateThing. Error unmarshalling TD",
-			slog.String("agentID", agentID), "err", err.Error())
+			slog.String("senderID", senderID), "err", err.Error())
 		return err
 	}
 	slog.Info("UpdateThing",
-		slog.String("agentID", agentID), slog.String("thingID", tdi.ID))
-
-	// the agentID is stored to determine where to route requests to, when using RC agents
-	// RC agents have no 'base' address.
-	// tdi.AgentID = agentID
+		slog.String("senderID", senderID), slog.String("thingID", tdoc.ID))
 
 	// The hook can modify the TD or cancel the write
 	if svc.writeTDHook != nil {
-		tdi2, err := svc.writeTDHook(agentID, tdi)
+		tdi2, err := svc.writeTDHook(senderID, tdoc)
 		if err != nil {
 			return err
 		} else if tdi2 == nil {
-			slog.Error("UpdateThing. writeTDHook returns a nil TD", "thingID", tdi.ID)
+			slog.Error("UpdateThing. writeTDHook returns a nil TD", "thingID", tdoc.ID)
 			return fmt.Errorf("UpdateThing: Internal error, the writeTDHook returns a nil TD")
 		}
 		// replace the TD with the one provided by the hook
 		tdJson = td.MarshalTD(tdi2)
 	}
 
-	err = svc.tdBucket.Set(tdi.ID, []byte(tdJson))
+	err = svc.tdBucket.Set(tdoc.ID, []byte(tdJson))
 	// reload the td instance next time someone asks
 	svc.tdCacheMux.Lock()
-	delete(svc.tdCache, tdi.ID)
+	delete(svc.tdCache, tdoc.ID)
 	svc.tdCacheMux.Unlock()
 
 	notif := msg.NewNotificationMessage(svc.GetThingID(), msg.AffordanceTypeEvent,

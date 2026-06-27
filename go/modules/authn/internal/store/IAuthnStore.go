@@ -11,7 +11,7 @@ type AuthnEntry struct {
 	// PasswordHash password encrypted with argon2id or bcrypt
 	PasswordHash string `yaml:"passwordHash" json:"passwordHash"`
 
-	// Client 'base role'. Authz can add agent/thing specific roles in the future.
+	// Client 'base role'. Authz can add thing specific roles in the future.
 	// This is set when creating a user and updated with SetRole. Authz reads it.
 	// Role string `yaml:"role" json:"role"`
 }

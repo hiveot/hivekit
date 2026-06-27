@@ -11,12 +11,12 @@ import (
 	"github.com/hiveot/hivekit/go/api/msg"
 	"github.com/hiveot/hivekit/go/api/td"
 	"github.com/hiveot/hivekit/go/api/vocab"
-	"github.com/hiveot/hivekit/go/modules/agent"
 	"github.com/hiveot/hivekit/go/modules/authn"
 	certstest "github.com/hiveot/hivekit/go/modules/certs/test"
 	"github.com/hiveot/hivekit/go/modules/consumer"
 	"github.com/hiveot/hivekit/go/modules/factory"
 	reconnectpkg "github.com/hiveot/hivekit/go/modules/reconnect/pkg"
+	"github.com/hiveot/hivekit/go/modules/thing"
 	"github.com/hiveot/hivekit/go/modules/transport"
 	"github.com/hiveot/hivekit/go/modules/transport/clients"
 	grpcpkg "github.com/hiveot/hivekit/go/modules/transport/grpc/pkg"
@@ -174,58 +174,58 @@ func (testEnv *TestEnv) NewConnectedClient(
 	return cl, token
 }
 
-// NewServerAgent creates a new agent that is a direct sink for the test server.
-// Additional agents can be chained by setting them as the sink of the previous agent.
+// NewServerThing creates a new module that is a direct sink for the test server.
+// Additional modules can be chained by setting them as the sink of the previous modules.
 //
-// An account for the agent is created and the agent is set as the request sink for the
+// An account for the thing is created and the thing is set as the request sink for the
 // server.
 //
-// This panics if the agent cannot be created.
-func (testEnv *TestEnv) NewServerAgent(agentID string) *agent.Agent {
+// This panics if the thing cannot be created.
+func (testEnv *TestEnv) NewServerThing(thingID string) *thing.ExposedThing {
 
-	// Simple server side agent. No account needed
-	agent := agent.NewAgent(agentID, nil)
+	// Simple server side Thing. No account needed
+	m := thing.NewExposedThing(thingID, nil)
 
-	// the agent is the sink for the transport server
-	testEnv.Server.SetRequestSink(agent)
-	agent.SetNotificationSink(testEnv.Server)
-	return agent
+	// the device module is the sink for the transport server
+	testEnv.Server.SetRequestSink(m)
+	m.SetNotificationSink(testEnv.Server)
+	return m
 }
 
-// NewRCAgent creates a new reverse-connection agent/consumer with the given ID.
-// This uses connection reversal where the agent connects as a client to the server.
+// NewRCThing creates a new reverse-connection thing with the given ID.
+// This uses connection reversal where the thing connects as a client to the server.
 //
-// The agent is set as the client connection request sink. Requests received via the
-// client are passed to the agent.
-// The client connection is set as the agent notification sink so notifications sent
+// The Thing is set as the client connection request sink. Requests received via the
+// client are passed to the thing.
+// The client connection is set as the thing notification sink so notifications sent
 // to the server.
 //
-// To allow agents to act as a consumer, its request sink is set to the client connection
-// and the agent is set as the notification sink for the connection.
-// Not that the agent should have an appRequest handler set to avoid request looping.
+// To allow Things to act as a consumer, its request sink is set to the client connection
+// and the Thing is set as the notification sink for the connection.
+// Not that the Thing should have an appRequest handler set to avoid request looping.
 //
-// This returns the agent module, its connected client connection and the auth token.
+// This returns the Thing module, its connected client connection and the auth token.
 // This panics if a client cannot be created
-func (testEnv *TestEnv) NewRCAgent(clientID string, appReqHandler msg.RequestHandler) (
-	ag *agent.Agent, cc transport.IConnection, authToken string) {
+func (testEnv *TestEnv) NewRCThing(clientID string, appReqHandler msg.RequestHandler) (
+	ag *thing.ExposedThing, cc transport.IConnection, authToken string) {
 
-	// cc is the client connection for the agent that receives requests from the
-	// server for the agent and sends notifications to the server.
-	cl, authToken := testEnv.NewConnectedClient(clientID, authn.ClientRoleAgent)
+	// cc is the client connection for the Thing that receives requests from the
+	// server and sends notifications to the server.
+	cl, authToken := testEnv.NewConnectedClient(clientID, authn.ClientRoleDevice)
 
-	// simple agent, no application request handler yet
-	agent := agent.NewAgent(clientID+"-agent", appReqHandler)
+	// simple m, no application request handler yet
+	m := thing.NewExposedThing(clientID+"-thing", appReqHandler)
 
-	// the client delivers requests to the agent and receives notifications from it
-	cl.SetRequestSink(agent)
-	agent.SetNotificationSink(cl)
+	// the client delivers requests to the thing and receives notifications from it
+	cl.SetRequestSink(m)
+	m.SetNotificationSink(cl)
 
-	// When acting in a dual role as agent and consumer, the agent uses the client as
+	// When acting in a dual role as thing and consumer, the thing uses the client as
 	// the sink for requests and receives notifications passed to the client from the server.
-	agent.SetRequestSink(cl)
-	cl.SetNotificationSink(agent)
+	m.SetRequestSink(cl)
+	cl.SetNotificationSink(m)
 
-	return agent, cl, authToken
+	return m, cl, authToken
 }
 
 // NewConnectedConsumer creates a new connected consumer.

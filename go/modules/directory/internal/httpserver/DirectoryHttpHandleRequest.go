@@ -13,9 +13,9 @@ import (
 
 // handleCreateThing creates a new TD in the directory
 //
-// Only agents and admin should be allowed to update the TD. This can be handled by authz.
-// The thingID must contain the agent as the prefix to ensure unique namespace,
-// so the stored ThingID will be agentID:thingID.
+// Only devices, services and admin should be allowed to update the TD. This can be handled by authz.
+// The thingID must contain the device ID as the prefix to ensure unique namespace,
+// so the stored ThingID will be deviceID:thingID.
 func (srv *DirectoryHttpServer) handleCreateThing(w http.ResponseWriter, r *http.Request) {
 
 	rp, err := srv.httpServer.GetRequestParams(r)
@@ -85,9 +85,9 @@ func (srv *DirectoryHttpServer) handleRetrieveAllThings(w http.ResponseWriter, r
 
 // handleUpdateThing handle http request to update a Thing's TD
 //
-// Only agents and admin should be allowed to update the TD. This can be handled by authz.
-// The thingID must contain the agent as the prefix to ensure unique namespace,
-// so the stored ThingID will be agentID:thingID.
+// Only device and admin should be allowed to update the TD. This can be handled by authz.
+// The thingID must contain the device accountID as the prefix to ensure unique namespace,
+// so the stored ThingID will be deviceID:thingID.
 func (srv *DirectoryHttpServer) handleUpdateThing(w http.ResponseWriter, r *http.Request) {
 	var resp *msg.ResponseMessage
 	rp, err := srv.httpServer.GetRequestParams(r)

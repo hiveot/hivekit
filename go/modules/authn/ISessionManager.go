@@ -19,7 +19,7 @@ type ISessionManager interface {
 	// The client must be a known client.
 	//
 	// If no session has started, a new one will be created. This is intended for
-	// issuing agent tokens (devices, services) where login is not applicable.
+	// issuing connection tokens (devices, services) where login is not applicable.
 	//
 	// Note that accidentally created tokens can be invalidated by invoking Logout.
 	// The authenticator tracks a sessionStart time and only tokens created

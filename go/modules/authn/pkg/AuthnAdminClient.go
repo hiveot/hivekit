@@ -16,8 +16,7 @@ type AuthnAdminClient struct {
 	serviceID string
 }
 
-// AdminAddAgent client method - Add Agent.
-// Create an account for IoT device agents
+// AddClient adds a new consumer, device or service account.
 func (m *AuthnAdminClient) AddClient(clientID string, displayName string, role string, pubKey string) (
 	token string, err error) {
 

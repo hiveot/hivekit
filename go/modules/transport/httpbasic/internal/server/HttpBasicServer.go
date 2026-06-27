@@ -22,7 +22,7 @@ const (
 // This implements the ITransportModule and IHttpServer interfaces.
 //
 // This WoT defined protocol is build on top of HTTP and is uni-directional.
-// It is only intended for consumers and not for agents using connection reversal.
+// It is only intended for consumers and not for exposed things using connection reversal.
 // It does not support subscribing to events or observing properties.
 type HttpBasicServer struct {
 	*transport.TransportServerBase

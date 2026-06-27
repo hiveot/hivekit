@@ -160,7 +160,7 @@ func (sc *ServerConnection) SendNotification(
 
 }
 
-// SendRequest sends a request message to an agent over SSE.
+// SendRequest sends a request message to device Thing over SSE.
 // If responseHandler is provided then the response is received via http using rnrChan.
 func (sc *ServerConnection) SendRequest(
 	req *msg.RequestMessage, responseHandler msg.ResponseHandler) (err error) {

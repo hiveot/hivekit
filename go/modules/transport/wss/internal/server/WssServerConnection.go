@@ -17,7 +17,7 @@ type WSSMessage map[string]any
 
 // WssServerConnection is  the server side instance of a connection by a client.
 // This implements the IConnection interface for sending messages to
-// agent or consumers.
+// devices, services or consumers.
 type WssServerConnection struct {
 	transport.ServerConnectionBase
 
@@ -140,10 +140,10 @@ func (sc *WssServerConnection) ReadLoop(ctx context.Context, wssConn *websocket.
 }
 
 // NewWSSServerConnection creates a new Websocket connection instance for use by
-// agents and consumers.
+// devices, services and consumers.
 // This implements the IConnection interface.
 //
-// clientID is the consumer or agent authenticated ID
+// clientID is the consumer, device or service authenticated ID
 // r is the request used to establish this connection
 // wssConn is the connection on which to send/receive messages to the client
 // messageConverter maps protocol messages to standard RRN

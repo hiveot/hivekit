@@ -34,7 +34,7 @@ type IDirectoryCache interface {
 // and can load TDs from a individual discovered Things. See also SetDirectory(tdd)
 //
 // Note that CreateThing and UpdateThing are not supported as these are methods
-// intended for agents, not consumers.
+// intended for devices and services, not consumers.
 
 type IDirectoryClient interface {
 	modules.IHiveModule
@@ -42,7 +42,7 @@ type IDirectoryClient interface {
 	// CreateThing creates or updates the TD in the directory.
 	// If the thing doesn't exist in the directory it is added.
 	//
-	// Only agents can create a TD. If the administrator acts as the agent then it
+	// Only devuces and services can create a TD. If the administrator acts as the device then it
 	// is also responsible for updating it if that is ever needed.
 	// CreateThing(tdJson string) error
 

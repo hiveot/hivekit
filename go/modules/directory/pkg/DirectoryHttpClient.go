@@ -204,7 +204,7 @@ func (cl *DirectoryHttpClient) SetTDD(tdd *td.TD) {
 
 // UpdateThing updates the TD document in the remote directory.
 // On success this updates the local directory.
-// Intended for use by Thing agents to publish their TD. Regular consumers
+// Intended for use by devices to publish their TD. Regular consumers
 // are not allowed to do this.
 //
 //	tdjson is the TD document in JSON format

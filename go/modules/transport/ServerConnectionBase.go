@@ -237,7 +237,7 @@ func (sc *ServerConnectionBase) OnResponse(resp *msg.ResponseMessage) {
 	// sender is identified by the server, not the client
 	resp.SenderID = sc.GetClientID()
 
-	slog.Info("OnResponse (from agent)",
+	slog.Info("OnResponse (from Thing)",
 		slog.String("senderID", sc.ClientID),
 		slog.String("op", resp.Operation),
 		slog.String("thingID", resp.ThingID),
@@ -280,13 +280,14 @@ func (sc *ServerConnectionBase) SendNotification(notif *msg.NotificationMessage)
 	}
 }
 
-// SendRequest sends the request to the client (agent).
+// SendRequest sends the request to the client (Thing).
 //
 // This accepts a response handler through which the response is received. If not
 // provided then the response will be forwarded to the module sink.
 //
-// Intended to be used by gateways that forward requests from consumers to agents, where the agent
-// has connected to the gateway using (connection reversal) and the gateway proxies on behalf of the consumer.
+// Intended to be used by gateways that forward requests from consumers to Things,
+// where the Thing has connected to the gateway using (connection reversal) and the
+// gateway forwards on behalf of the consumer.
 //
 // When a response is received it is passed to the replyTo handler.
 //
@@ -328,7 +329,7 @@ func (sc *ServerConnectionBase) SendResponse(resp *msg.ResponseMessage) (err err
 		slog.String("name", resp.Name),
 		slog.String("status", resp.Status),
 		slog.String("type", resp.MessageType),
-		slog.String("agentID", resp.SenderID),
+		slog.String("senderID", resp.SenderID),
 	)
 
 	raw, _ := sc.messageEncoder.EncodeResponse(resp)

@@ -9,13 +9,13 @@ import (
 	"time"
 
 	"github.com/hiveot/hivekit/go/api/msg"
-	"github.com/hiveot/hivekit/go/modules/agent"
 	"github.com/hiveot/hivekit/go/modules/authn"
 	certstest "github.com/hiveot/hivekit/go/modules/certs/test"
 	"github.com/hiveot/hivekit/go/modules/consumer"
 	"github.com/hiveot/hivekit/go/modules/digitwin"
 	factory "github.com/hiveot/hivekit/go/modules/factory"
 	factorypkg "github.com/hiveot/hivekit/go/modules/factory/pkg"
+	"github.com/hiveot/hivekit/go/modules/thing"
 	"github.com/hiveot/hivekit/go/utils"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -153,10 +153,10 @@ func TestClientServerRecipe(t *testing.T) {
 	defer serverFactory.Stop()
 	env.ServerURL = serverFactory.GetConnectURL()
 
-	// the server agent handles the server requests
-	mod, _ := serverFactory.StartModule(agent.AgentModuleType, true)
-	ag := mod.(*agent.Agent)
-	ag.SetAppRequestHook(func(req *msg.RequestMessage, replyTo msg.ResponseHandler) error {
+	// the server exposed thing handles the server requests
+	mod, _ := serverFactory.StartModule(thing.ExposedThingModuleType, true)
+	device := mod.(*thing.ExposedThing)
+	device.SetAppRequestHook(func(req *msg.RequestMessage, replyTo msg.ResponseHandler) error {
 		if req.ThingID == thingID {
 			slog.Info("Received request", "name", req.Name)
 			resp := req.CreateResponse("42", nil)

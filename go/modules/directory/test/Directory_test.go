@@ -24,7 +24,7 @@ import (
 
 var storageDir = filepath.Join(os.TempDir(), "hivekit", "directory-test")
 
-const defaultAgentID = "agent-smith"
+const defaultDeviceID = "device-smith"
 const defaultProtocol = transport.ProtocolTypeWotWebsocket
 const TestKeyType = utils.KeyTypeED25519
 const rpcTimeout = time.Minute // for testing/debugging
@@ -96,7 +96,7 @@ func TestStartStop(t *testing.T) {
 
 	// add a thing
 	tdJson := directory.DirectoryTMJson
-	m.UpdateThing(defaultAgentID, string(tdJson))
+	m.UpdateThing(defaultDeviceID, string(tdJson))
 
 	// read all things
 	tdList, err := m.RetrieveAllThings(0, 10)
@@ -114,7 +114,7 @@ func TestCreateTD(t *testing.T) {
 
 	// add the directory itself
 	tdJson := directory.DirectoryTMJson
-	m.UpdateThing(defaultAgentID, string(tdJson))
+	m.UpdateThing(defaultDeviceID, string(tdJson))
 
 	// read all things, expect 1
 	tdList, err := m.RetrieveAllThings(0, 10)
@@ -124,7 +124,7 @@ func TestCreateTD(t *testing.T) {
 	// add another TD
 	tdi1 := td.NewTD(thingID, "test thing", "test device")
 	td1Json := tdi1.ToString()
-	m.CreateThing(defaultAgentID, td1Json)
+	m.CreateThing(defaultDeviceID, td1Json)
 
 	// retrieve a thing by ID
 	td2Json, err := m.RetrieveThing(thingID)
@@ -135,7 +135,7 @@ func TestCreateTD(t *testing.T) {
 	assert.Equal(t, td1Json, td2Json)
 
 	// delete a thing
-	err = m.DeleteThing(defaultAgentID, thingID)
+	err = m.DeleteThing(defaultDeviceID, thingID)
 	assert.NoError(t, err)
 }
 
@@ -216,8 +216,8 @@ func TestGetDirectoryTD(t *testing.T) {
 func TestCRUDUsingRestAPI(t *testing.T) {
 	t.Logf("---%s---\n", t.Name())
 
-	const clientID = "agent1"
-	thing1ID := "agent1:thing1"
+	const clientID = "device-1"
+	thing1ID := "device-1:thing1"
 
 	testEnv, m, cancelFn := StartDirectoryServer(true)
 	defer cancelFn()

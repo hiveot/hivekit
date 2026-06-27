@@ -28,7 +28,7 @@ import (
 // This implements the IConnection and IHiveModule interfaces so it can be used as
 // a regular client and as a sink for other modules.
 //
-// This can be used by both consumers and agents.
+// This can be used by both consumers and devices.
 // This is intended to be used together with an SSE return channel.
 //
 // The Forms needed to invoke an operations are obtained using the 'getForm'
@@ -222,7 +222,7 @@ func (cl *SseScClient) GetTM() string {
 }
 
 // HandleNotification receives an incoming notification and sends it to the server.
-// Set this to an agent module notification sink. Do not use for consumers.
+// Set this as a sink of a Thing module. Do not use for consumers.
 func (m *SseScClient) HandleNotification(notif *msg.NotificationMessage) {
 
 	m.SendNotification(notif)
@@ -337,7 +337,7 @@ func (cl *SseScClient) IsRunning() bool {
 	return false
 }
 
-// SendNotification Agent posts a notification using the hiveot http/sse protocol.
+// SendNotification Device posts a notification using the hiveot http/sse protocol.
 func (cl *SseScClient) SendNotification(msg *msg.NotificationMessage) {
 	// Send as text, not binary, to avoid unmarshalling problems
 	outputJSON, _ := jsoniter.MarshalToString(msg)
@@ -431,9 +431,9 @@ func (cl *SseScClient) SendRequest(
 	return err
 }
 
-// SendResponse [Agent] posts a response using the hiveot protocol.
+// SendResponse [Device] posts a response using the hiveot protocol.
 //
-// Use by agent when using reverse connection to a server.
+// Used by devices when using reverse connection to a server.
 func (cl *SseScClient) SendResponse(resp *msg.ResponseMessage) error {
 
 	// Send as text, not binary, to avoid unmarshalling problems

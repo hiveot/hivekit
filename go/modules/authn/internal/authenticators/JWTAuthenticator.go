@@ -28,8 +28,8 @@ type JWTAuthenticator struct {
 	//
 	authServerURI string
 	//
-	AgentTokenValidityDays    int
 	ConsumerTokenValidityDays int
+	DeviceTokenValidityDays   int
 	ServiceTokenValidityDays  int
 
 	// track session start, used in validation
@@ -88,7 +88,7 @@ func (srv *JWTAuthenticator) AddSecurityScheme(tdoc *td.TD) {
 // CreateSessionToken creates a new session token for the client
 //
 //	clientID is the account ID of a known client
-//	sessionID for which this token is valid. Use clientID to allow no session (agents)
+//	sessionID for which this token is valid. Use clientID to allow no session (for devices)
 //	validity is the token validity period.
 //
 // This returns the token.
@@ -245,7 +245,7 @@ func NewJWTAuthenticator(
 		clientStore:   authnStore,
 		authServerURI: authServerURI,
 		// validity can be changed by user of this service
-		AgentTokenValidityDays:    authn.DefaultAgentTokenValidityDays,
+		DeviceTokenValidityDays:   authn.DefaultDeviceTokenValidityDays,
 		ConsumerTokenValidityDays: authn.DefaultConsumerTokenValidityDays,
 		ServiceTokenValidityDays:  authn.DefaultServiceTokenValidityDays,
 		signingMethod:             jwt.SigningMethodES256,

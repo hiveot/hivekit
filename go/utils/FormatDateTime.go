@@ -74,7 +74,7 @@ func FormatAge(dateStr string) (age string) {
 // Format:
 //
 //		"" default is the year time format: YYYY-MM-DD, HH:MM:SS TZ
-//		"S" is the shortest possible format depending on agent
+//		"S" is the shortest possible format depending on device
 //		"V" is the verbose format
 //	 "AGE" is the age format like "5m 30s ago"
 //

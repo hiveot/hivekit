@@ -106,7 +106,7 @@ func (svc *DirectoryServiceImpl) handleRetrieveThing(req *msg.RequestMessage) (r
 // UpdateThing updates a new thing in the store
 // req.Input is a string containing the TD JSON
 //
-// Requirement: for security reasons only the agent that owns the TD is allowed to update it
+// Requirement: for security reasons only the client that owns the TD is allowed to update it
 func (svc *DirectoryServiceImpl) handleUpdateThing(req *msg.RequestMessage) (resp *msg.ResponseMessage) {
 	var tdJSON string
 

@@ -45,8 +45,8 @@ type AdminUpdateProfileArgs struct {
 	Profile  ClientProfile `json:"profile"`
 }
 
-// AdminAddClientArgs defines the arguments of the addAgent function
-// Add Agent - Create an account for IoT device agents
+// AdminAddClientArgs defines the arguments of the addClient function
+// Add Client - Create an account for IoT devices, services or consumers
 type AdminAddClientArgs struct {
 
 	// ClientID with Client ID

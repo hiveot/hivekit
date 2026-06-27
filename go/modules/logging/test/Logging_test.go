@@ -42,7 +42,7 @@ func TestLogNotification(t *testing.T) {
 	defer m.Stop()
 
 	//pass events through the module and log them in a file destination
-	ev1 := msg.NewNotificationMessage("agent1", msg.AffordanceTypeEvent, "thing1", "name1", nil)
+	ev1 := msg.NewNotificationMessage("client1", msg.AffordanceTypeEvent, "thing1", "name1", nil)
 	m.HandleNotification(ev1)
 
 	// wait for write to log to complete

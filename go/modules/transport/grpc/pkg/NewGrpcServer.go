@@ -24,7 +24,7 @@ import (
 //	respTimeout is the time the server waits for a response when receiving requests. defaults to 3sec
 //
 // Use SetRequestSink to set the handler for requests send by consumers
-// Use SetNotificationSink to set the handler for notifications send by agents.
+// Use SetNotificationSink to set the handler for notifications send by exposed things.
 func NewHiveotGrpcServer(
 	connectURL string, tlsCert *tls.Certificate, caCert *x509.Certificate,
 	authn transport.IAuthenticator, respTimeout time.Duration) grpctransport.IGrpcTransportServer {

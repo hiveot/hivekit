@@ -9,9 +9,9 @@ import (
 
 	"github.com/hiveot/hivekit/go/api/msg"
 	"github.com/hiveot/hivekit/go/api/td"
-	"github.com/hiveot/hivekit/go/modules/agent"
 	"github.com/hiveot/hivekit/go/modules/authn"
 	"github.com/hiveot/hivekit/go/modules/consumer"
+	"github.com/hiveot/hivekit/go/modules/thing"
 	"github.com/hiveot/hivekit/go/testenv"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -24,12 +24,12 @@ func TestAllPropsProtocols(t *testing.T) {
 }
 func TestAllProps(t *testing.T) {
 	t.Run("TestObservePropertyByConsumer_"+testProtocol, TestObservePropertyByConsumer)
-	t.Run("TestPublishPropertyByAgent_"+testProtocol, TestPublishPropertyByAgent)
+	t.Run("TestPublishPropertyByThing_"+testProtocol, TestPublishPropertyByThing)
 	t.Run("TestReadProperty_"+testProtocol, TestReadProperty)
 	t.Run("TestReadAllProperties_"+testProtocol, TestReadAllProperties)
 }
 
-// test property messages between agent, server and client
+// test property messages between device, server and client
 // this uses the client and server helpers defined in connect_test.go
 
 // Test observing and receiving all properties by consumer
@@ -114,8 +114,8 @@ func TestObservePropertyByConsumer(t *testing.T) {
 
 }
 
-// Agent publishes property updates to subscribers
-func TestPublishPropertyByAgent(t *testing.T) {
+// Thing publishes property updates to subscribers
+func TestPublishPropertyByThing(t *testing.T) {
 	t.Logf("---%s---\n", t.Name())
 	var evVal atomic.Value
 	var thingID = "thing1"
@@ -135,12 +135,12 @@ func TestPublishPropertyByAgent(t *testing.T) {
 	testEnv.Server.SetNotificationSink(co)
 	defer cancelFn()
 
-	// 2. connect as an agent
-	ag1, agConn1, _ := testEnv.NewRCAgent(testAgentID1, nil)
+	// 2. connect as an device
+	device1, agConn1, _ := testEnv.NewRCThing(testDeviceID1, nil)
 	defer agConn1.Close()
 
-	// 3. agent publishes a property update to subscribers
-	ag1.PubProperty(thingID, propKey1, propValue1, false)
+	// 3. device publishes a property update to subscribers
+	device1.PubProperty(thingID, propKey1, propValue1, false)
 	time.Sleep(time.Millisecond) // time to take effect
 
 	// property received by server
@@ -149,7 +149,7 @@ func TestPublishPropertyByAgent(t *testing.T) {
 	assert.Equal(t, propValue1, rxMsg2)
 }
 
-// Consumer reads property from agent
+// Consumer reads property from device
 func TestReadProperty(t *testing.T) {
 	t.Logf("---%s---\n", t.Name())
 	var thingID = "thing1"
@@ -157,9 +157,9 @@ func TestReadProperty(t *testing.T) {
 	var propValue = "value11"
 	var timestamp = "mytime"
 
-	// 1. start the agent transport with the request handler
-	// in this case the consumer connects to the agent (unlike when using a hub)
-	ag := agent.NewAgent("", func(req *msg.RequestMessage, replyTo msg.ResponseHandler) error {
+	// 1. start the device transport with the request handler
+	// in this case the consumer connects to the device (unlike when using a hub)
+	ag := thing.NewExposedThing("", func(req *msg.RequestMessage, replyTo msg.ResponseHandler) error {
 		var resp *msg.ResponseMessage
 		if req.Operation == td.OpReadProperty && req.ThingID == thingID && req.Name == propKey {
 			resp = req.CreateResponse(propValue, nil)
@@ -183,7 +183,7 @@ func TestReadProperty(t *testing.T) {
 	assert.Equal(t, propValue, rxVal)
 }
 
-// Consumer reads events from agent
+// Consumer reads events from device
 func TestReadAllProperties(t *testing.T) {
 	t.Logf("---%s---\n", t.Name())
 	var thingID = "thing1"
@@ -192,9 +192,9 @@ func TestReadAllProperties(t *testing.T) {
 	var value1 = "value1"
 	var value2 = "value2"
 
-	// 1. start the agent transport with the request handler
-	// in this case the consumer connects to the agent (unlike when using a hub)
-	ag := agent.NewAgent("", func(req *msg.RequestMessage, replyTo msg.ResponseHandler) error {
+	// 1. start the device transport with the request handler
+	// in this case the consumer connects to the device (unlike when using a hub)
+	ag := thing.NewExposedThing("", func(req *msg.RequestMessage, replyTo msg.ResponseHandler) error {
 		var resp *msg.ResponseMessage
 		if req.Operation == td.OpReadAllProperties {
 			output := make(map[string]any)

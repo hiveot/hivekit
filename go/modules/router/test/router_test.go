@@ -96,13 +96,13 @@ func startTestServerDevice(deviceID string) (testDevice *testenv.TestDevice,
 		panic("startTestServerDevice: failed to start transport server " + serverType)
 	}
 	slog.Info("startTestServerDevice", "deviceID", deviceID, "serverType", serverType)
-	// var testTM *td.TD = td.NewTD(agentID, "test device", vocab.Device)
+	// var testTM *td.TD = td.NewTD(deviceID, "test device", vocab.Device)
 	// testTM.AddPropertyAsString("property-1", "Property 1", "New and improved")
 
-	// testDevice = testenv.NewTestDevice(cfg, agentID, testAuthn, testTM, serverType)
+	// testDevice = testenv.NewTestDevice(cfg, deviceID, testAuthn, testTM, serverType)
 
 	// 3. Create the test device Thing
-	testDevice = testenv.NewTestDevice(deviceID, nil)
+	testDevice = testenv.NewCounterDevice(deviceID, nil)
 	testDevice.SetNotificationSink(transportServer)
 	transportServer.SetRequestSink(testDevice)
 	err = testDevice.Start()
@@ -230,14 +230,14 @@ func TestReadObserveDeviceProperties(t *testing.T) {
 	var notifCount atomic.Int32
 
 	// Setup the test device with server and a TD
-	// The test device is a runs a server that passes requests to its agent.
+	// The test device is a runs a server that passes requests to its device.
 	// The router will have to match its security as described in the device TD
-	// The agent of the test device handles read requests
+	// The device of the test device handles read requests
 	testDevice, device1TD, _, stopFn := startTestServerDevice(deviceID)
 	defer stopFn()
 
 	// when the device publishes an observable property it becomes available for querying
-	testDevice.Agent.PubProperty(deviceID, prop1Name, prop1Value, false)
+	testDevice.ExposedThing.PubProperty(deviceID, prop1Name, prop1Value, false)
 
 	// setup the consumer with the router module and directory client or service
 	co, routerMod, dirSvc := SetupConsumerWithRouter(testAuthn)
@@ -346,8 +346,8 @@ func TestSubscribeReconnectToDevice(t *testing.T) {
 	assert.NoError(t, err)
 
 	// 3. the device updates a property and event which should be received.
-	testDevice.Agent.PubProperty(deviceID, prop1Name, prop1Value1, false)
-	testDevice.Agent.PubEvent(deviceID, event1Name, event1Value)
+	testDevice.ExposedThing.PubProperty(deviceID, prop1Name, prop1Value1, false)
+	testDevice.ExposedThing.PubEvent(deviceID, event1Name, event1Value)
 	<-ctx.Done()
 	assert.Equal(t, event1Value, rxValue.Load())
 
@@ -367,7 +367,7 @@ func TestSubscribeReconnectToDevice(t *testing.T) {
 	time.Sleep(time.Second)
 
 	// publish a property should now succeed
-	testDevice.Agent.PubProperty(deviceID, prop1Name, prop1Value2, false)
+	testDevice.ExposedThing.PubProperty(deviceID, prop1Name, prop1Value2, false)
 
 	values, err = co.ReadAllProperties(deviceID)
 	assert.NoError(t, err)
@@ -376,7 +376,7 @@ func TestSubscribeReconnectToDevice(t *testing.T) {
 	assert.Equal(t, prop1Value2, values[prop1Name])
 
 	// on reconnect, subscription should remain intact and event should be received
-	testDevice.Agent.PubEvent(deviceID, event1Name, event2Value)
+	testDevice.ExposedThing.PubEvent(deviceID, event1Name, event2Value)
 	time.Sleep(time.Millisecond) // time to receive
 	assert.Equal(t, event2Value, rxValue.Load())
 

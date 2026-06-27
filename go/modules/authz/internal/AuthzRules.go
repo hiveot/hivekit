@@ -15,8 +15,8 @@ import (
 // 2. operators can read properties, query and invoke actions
 // 3. managers can read properties, write configuration, query and invoke actions
 // 4. administrators can do everything
-// 5. agents can publish events (notifications) for their own devices and services
-// 6. services can publish events (notifications) for their own devices and services and subscribe to any events
+// 5. devices can publish events (notifications) for their own and nested devices
+// 6. services can publish events (notifications) for their own service(s) and subscribe to any events
 func (m *AuthzService) HasPermission(req *msg.RequestMessage) (hasPermission bool) {
 	if m.getRoleHandler == nil {
 		return false

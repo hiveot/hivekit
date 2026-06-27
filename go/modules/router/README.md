@@ -4,14 +4,14 @@ The objective of the router module is to deliver request messages to Things that
 
 ## Status
 
-This module is in alpha. Both routing to connected RC agents and individual Thing devices is supported based on the TD.
+This module is in alpha. Both routing to connected RC devices and stand-alone Thing devices is supported based on the TD.
 Authentication with client devices works for bearer tokens. Additional security schemes should be implemented in the 'Authenticate' method of the client implementations.
 
 
 
 ## Summary
 
-This module aims to deliver request messages to IoT devices or services identified by the ThingID in the request, the operation and name in the request are used to determine the final href to use for deliving the request. The module can create outgoing connections to Things or use reverse-connections from device agents when running on a gateway.
+This module aims to deliver request messages to IoT devices or services identified by the ThingID in the request, the operation and name in the request are used to determine the Thing form needed for deliving the request. The module can create outgoing connections to stand-alone Things or use reverse-connections from the device when running on a gateway.
 
 ### Use Of TD Forms
 
@@ -24,10 +24,10 @@ Connecting to IoT devices:
 With the address known, the router first determines if a connecting to the endpoint already exists. If so, it is reused with the path from the discovered form.
 If a connection doesn't exist, the router will attempt to establish one. When successful, the router passes the request and stores the active connection for later re-use.
 
-Connecting to IoT RC agents:
-HiveOT also supports reverse connections by IoT devices. This is intended for gateways, hubs and similar devices that bridge between consumers and IoT devices. Device agents can manage multiple devices and have their own account ID. Agents self-provision by writing the TD's of the devices it manages to the directory. When writing a TD, the directory stores the sender clientID in a custom field in the TD so the sender is known for each TD.
+Connecting to IoT RC devices:
+HiveOT also supports reverse connections by IoT devices. This is intended for use with gateways or hubs that provide a bridge between consumers and IoT devices. Device Things can manage nested Things and use a separate account ID to connect to the gateway. Device Things self-provision by writing the TD's of the Things they manage to the directory. When writing a TD, the directory stores the sender clientID - the device Thing account ID - so the RC client ID is known for each Thing.
 
-Since RC agents don't run servers, the TD they write will not have any href's to connect to. Instead, the router will use the sender clientID in the TD to lookup the agent connection with the provided transport servers. If successful the request is forwarded to the agent which will forward it to the device it manages.
+Since RC devices don't run servers, the TD they write to the directory does not need to contain forms to connect with. Instead, the router uses the directory to lookup the  device account ID associated with the Thing and forwards requests to the server to whom the device is connected. If successful the request is forwarded to the device Thing which will handle the request or forward it to the nested Thing that is addressed in the request.
 
 If no destination can be found, the requests fail and the sender will receive an error.
 
@@ -46,4 +46,4 @@ To alleviate this, each ConsumedThing can be registered as a notification sink u
 
 ## Usage
 
-To create an instance of this module, a directory instance is required. If reverse-connections by agents is supported then one or more transport servers should be provided as well.
+To create an instance of this module, a directory instance is required. If reverse-connections by devices is used then one or more transport servers should be provided as well so the router can forward the requests.

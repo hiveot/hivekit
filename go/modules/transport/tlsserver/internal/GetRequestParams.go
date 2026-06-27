@@ -37,7 +37,7 @@ func GetClientIdFromContext(r *http.Request) (clientID string, err error) {
 // It unmarshals the request body into 'data', if given.
 //
 //	{op} is the operation
-//	{id} is the agent or digital twin thing ID
+//	{id} is the thingID for whom the message is intended
 //	{name} is the property, event or action name. '+' means 'all'
 func GetRequestParams(r *http.Request) (reqParam transport.RequestParams, err error) {
 	// determine the clientID, either from context or client cert

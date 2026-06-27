@@ -19,7 +19,7 @@ import (
 //
 //	storageDir location where the module stores its data
 //	getTD is the handler to lookup a TD for a thingID from a directory
-//	transports is a list of transport servers that can contain reverse agent connections.
+//	transports is a list of transport servers that can contain reverse connections.
 //	caCert is the CA certificate used to verify device connections
 //	timeout is the maximum wait time for sending requests to clients.
 func NewRouterService(storageDir string, getTD func(thingID string) *td.TD,

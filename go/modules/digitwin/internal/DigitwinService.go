@@ -35,18 +35,18 @@ const DefaultDigitwinServiceID = "digitwin"
 //     b. Forwards action and property write requests to the device.
 //  3. Auto-connect to the original device when a request for a digital twin is received.
 //     the downstream router module manages these connections.
-//     This supports connections to network devices and from agents that use RC (reverse connections)
+//     This supports connections to network devices and from devices that use RC (reverse connections)
 //
 // For this to work the request and notification chains must be setup as follows:
 //
 // request chain:
 //  1. consumer -> server -> ... -> digitwin ->
 //     2A. router -> device clients -> device
-//     2B. router -> server (RC agent)
+//     2B. router -> server (RC device/service)
 //
 // notification chain:
 //  3. device -> device clients -> router -> digitwin
-//  4. rc agent -> server -> router -> digitwin
+//  4. rc device/service -> server -> router -> digitwin
 //  5. digitwin -> ... -> server -> consumer
 //
 // Both the digitwin test package and the digitwin example in the examples section shows a how to establish
@@ -70,15 +70,16 @@ const DefaultDigitwinServiceID = "digitwin"
 //     2A. If the Thing is a network device then the router connects if needed and forwards the request
 //     to the device. Device connections are cached by the router module.
 //
-//     2B. If the Thing is handled by a RC agent then the request is forwarded to the server module
-//     which locates the agent connection using the agentID and forwards the request.
-//     TDs provided by agents all include the agentID in the TD instead of forms.
-//     WoT doesn't support/specify RC agents so this is the HiveOT specific solution.
+//     2B. If the Thing is served by a RC device then the request is forwarded to the
+//     server module which locates the device connection using the device clientID
+//     and forwards the request.
+//     TDs provided by RC devices all include the clientID in the TD instead of forms.
+//     WoT doesn't support/specify RC so this is the HiveOT specific solution.
 //
 //  3. Notifications received from devices are send down the device connection that was established
 //     by the router module. The router module passes it upstream to the digitwin module.
 //
-//  4. Notifications received from RC agents arrive at the server which pass it to the router
+//  4. Notifications received via RC arrive at the server which pass it to the router
 //     which forwards it to the digitwin module.
 //
 //  5. The digitwin receives the notifications from the router.
@@ -88,8 +89,8 @@ const DefaultDigitwinServiceID = "digitwin"
 type DigitwinService struct {
 	*modules.HiveModuleBase
 
-	// track the connections of agents
-	agentStatus sync.Map
+	// track the connections of RC devices
+	deviceStatus sync.Map
 
 	// hook to server to add secforms to a TD for interacting with affordances
 	addForms func(tdoc *td.TD, includeAffordances bool)
@@ -98,11 +99,11 @@ type DigitwinService struct {
 	deviceTDBucket bucketstore.IBucket
 	deviceTDStore  bucketstore.IBucketStore
 
-	// the device directory holding TD's of the native devices/agents
+	// the device directory holding TD's of the native devices.
 	// deviceDirectory directory.IDirectoryServer
 
 	// The application Thing directory where digital twin TDs are stored.
-	// This also contains TDs of non-digital twin devices and services, as consumers
+	// This also contains TDs of non-digital twin devices, as consumers
 	// should be able to use these as well.
 	directory directory.IDirectoryService
 
@@ -125,18 +126,22 @@ type DigitwinService struct {
 	storageDir string
 }
 
-// ForwardDigitalTwinRequest passes the request made to a digital twin to the original device.
-// This will restore the original device thingID before forwarding the request.
+// ForwardDigitalTwinRequest passes the request made to a digital twin to the
+// original device.
+// This will restore the original thingID before forwarding the request to
+// the device itself.
 func (m *DigitwinService) ForwardDigitwinRequestToDevice(dtwReq *msg.RequestMessage, replyTo msg.ResponseHandler) (err error) {
 	// reverse the digital twin thingID
-	agentID, thingID, err := SplitDigitwinID(dtwReq.ThingID)
+	clientID, thingID, err := SplitDigitwinID(dtwReq.ThingID)
 
-	// the device agent expects the actual thingID
+	// the device itself expects the actual thingID, identifying itself or one of
+	// its nested devices.
 	deviceReq := *dtwReq
 	deviceReq.ThingID = thingID
 
-	// forward the request to the sink, which is responsible for routing it to the destination
-	_ = agentID
+	// forward the request to the sink, which is responsible for routing it to the
+	// destination.
+	_ = clientID
 	err = m.ForwardRequest(&deviceReq, func(resp *msg.ResponseMessage) error {
 		// put the digitwin thingID back into the response
 		resp.ThingID = dtwReq.ThingID
@@ -161,34 +166,34 @@ func (m *DigitwinService) GetDeviceTD(thingID string) *td.TD {
 }
 
 // HandleNotification stores the latest notification things for retrieval as a digital twin value
-// These notifications are passed from upstream, eg the router that connects to agents, or from
-// downstream when the server that receives client connections pushes out an event.
+// These notifications are passed from upstream, eg the router that connects to devices, or from
+// downstream when the server that receives RC client notifications pushes out an event.
 //
 // This requires that the digitwin service is set as the notification sink from both the
-// router and the servers, as both can receive events from remote agents.
+// router and the servers, as both can receive events from remote Things.
 //
-// This also includes connection events from the server, which are used to update agent online status.
+// This also includes connection events from the server, which are used to update client online status.
 func (m *DigitwinService) HandleNotification(notif *msg.NotificationMessage) {
 
-	// track online status of agents - this needs tracking of agents
-	// FIXME: how to know if senderID is an agent?
+	// track online status of devices - this needs tracking of devices
+	// FIXME: how to know if senderID is a device?
 	if notif.Name == transport.ServerConnectEvent {
 
-		// if the sender is an agent instead of a consumer then its things are now online
+		// if the sender is an device or service instead of a consumer then its things are now online.
 		cinfo := transport.ConnectionInfo{}
 		err := notif.Decode(&cinfo)
 		if err == nil {
-			m.SetAgentStatus(cinfo.ClientID, true)
+			m.SetDeviceStatus(cinfo.ClientID, true)
 		}
 		// send notifications upstream to potential consumers
 		m.ForwardNotification(notif)
 		return
 	} else if notif.Name == transport.ServerDisconnectEvent {
-		// if this is an agent then its things are no longer online
+		// if this is an device or service then its things are no longer online
 		cinfo := transport.ConnectionInfo{}
 		err := notif.Decode(&cinfo)
 		if err == nil {
-			m.SetAgentStatus(cinfo.ClientID, false)
+			m.SetDeviceStatus(cinfo.ClientID, false)
 		}
 		// send notifications upstream to potential consumers
 		m.ForwardNotification(notif)
@@ -268,20 +273,16 @@ func (m *DigitwinService) HandleRequest(req *msg.RequestMessage, replyTo msg.Res
 	return m.msgAPI.HandleRequest(req, replyTo)
 }
 
-// Set the connected status of an agent
+// Set the connected status of a device
 // TODO: update the online status of all its digitwin devices
-func (m *DigitwinService) SetAgentStatus(agentID string, connected bool) {
-	// if this is an agent then its things are no longer online
-	m.agentStatus.Store(agentID, connected)
-	// IDList := m.directory.GetThingsByAgentID(agentID)
-	// for _, thingID := range IDList {
-	// m.vcache.SetProperty(thingID, digitwin.OnlinePropName, connected)
-	// // vcache will notify subscribers
-	// }
+func (m *DigitwinService) SetDeviceStatus(clientID string, connected bool) {
+
+	m.deviceStatus.Store(clientID, connected)
+
 }
 
 // Start the digital twin module and open its native thing backup
-// This subscribes to devices and agents that have a digital twin in the directory.
+// This subscribes to devices that have a digital twin in the directory.
 func (m *DigitwinService) Start() (err error) {
 
 	slog.Info("Start: Starting digitwin module")
@@ -311,10 +312,10 @@ func (m *DigitwinService) Start() (err error) {
 
 	// FIXME: Subscribe to devices.
 	// lets hope there aren't too many or this can take a while.
-	// how to support wildcard device subscriptions? flatten the list of agents?
+	// how to support wildcard device subscriptions? flatten the list of devices?
 	// digitalTwins, err := m.directory.RetrieveAllThings(0, 0)
 
-	// FIXME: RC agents are subscribed to when they (re)connect,
+	// FIXME: RC clients are subscribed to when they (re)connect,
 	// so subscribe to server 'connect' notifications.
 
 	return nil

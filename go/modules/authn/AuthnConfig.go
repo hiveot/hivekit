@@ -7,8 +7,8 @@ import (
 
 // Session token validity for client types
 const (
-	DefaultAgentTokenValidityDays    = 90
 	DefaultConsumerTokenValidityDays = 30
+	DefaultDeviceTokenValidityDays   = 90
 	DefaultServiceTokenValidityDays  = 365
 )
 
@@ -36,13 +36,6 @@ type AuthnConfig struct {
 	PasswordFile string `yaml:"passwordFile,omitempty"`
 	// Encryption of passwords: "argon2id" (default) or "bcrypt"
 	Encryption string `yaml:"encryption,omitempty"`
-
-	// // Auth token validity for agents in days
-	// AgentTokenValidityDays int `yaml:"agentTokenValidityDays,omitempty"`
-	// // Auth token validity for consumers in days
-	// ConsumerTokenValidityDays int `yaml:"consumerTokenValidityDays,omitempty"`
-	// // Auth token validity for services in days
-	// ServiceTokenValidityDays int `yaml:"serviceTokenValidityDays,omitempty"`
 
 	// NoAutoStart prevents the auth service for auto starting. Intended for testing or custom implementation.
 	// NoAutoStart bool `yaml:"noAutoStart,omitempty"`
@@ -83,8 +76,8 @@ func (cfg *AuthnConfig) Setup(keysDir, storageDir string) {
 		cfg.Encryption = PWHASH_ARGON2id
 	}
 
-	// if cfg.AgentTokenValidityDays == 0 {
-	// 	cfg.AgentTokenValidityDays = DefaultAgentTokenValidityDays
+	// if cfg.DeviceTokenValidityDays == 0 {
+	// 	cfg.DeviceTokenValidityDays = DefaultDeviceTokenValidityDays
 	// }
 	// if cfg.ServiceTokenValidityDays == 0 {
 	// 	cfg.ServiceTokenValidityDays = DefaultServiceTokenValidityDays

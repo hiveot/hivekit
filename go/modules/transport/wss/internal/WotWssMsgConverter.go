@@ -80,8 +80,8 @@ type WotWssRequestMessage struct {
 	// op; readmultipleproperties (array of property names)y
 	Names []string `json:"names,omitempty"`
 
-	// SenderID is an optional non-WoT field. Primarily intended for testing agents know who
-	// send the request if they have a reverse connection.
+	// SenderID is an optional non-WoT field intended for tracking the request sender
+	// for logging or other use-cases.
 	SenderID string `json:"senderID"`
 
 	// op: writeproperty

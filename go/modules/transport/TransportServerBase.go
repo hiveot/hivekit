@@ -56,7 +56,7 @@ type TransportServerBase struct {
 // AddConnection adds a new connection and notifies subscribers with a ServerConnectEvent notification.
 //
 // The connection can be looked up with GetConnectionByClientID or indirectly
-// using DetermineAgentConnection(thingID).
+// using DetermineRCConnection(thingID).
 //
 // The given connection is stored under clientID:connectionID. If the connectionID
 // is empty then only a single connection for the client can be used.
@@ -160,17 +160,20 @@ func (srv *TransportServerBase) CloseAll() {
 	//m.UpdateProperty(PropName_NrConnections, 0)
 }
 
-// Get the agent/producer (reverse) connection that serves the given ThingID.
+// [Deprecated] Get the device reverse connection that serves the given ThingID.
 //
-// Intended for looking up an agent with a reverse connection, when acting as a gateway.
-// HiveOT agents that use reverse connections are required to add their agentID as a prefix
-// in the thingID of the TDs they publish. For example: "agent1:thing1". This is a
+// This depends on a ThingID that contains the deviceID:thingID.  The new solution
+// is to have the directory track the device clientID that uploaded a TD.
+//
+// Intended for looking up an device with a reverse connection, when acting as a gateway.
+// HiveOT devices that use reverse connections are required to add their deviceID as a prefix
+// in the thingID of the TDs they publish. For example: "device1:thing1". This is a
 // convention but it is not required by the WoT specifications.
-func (m *TransportServerBase) DetermineAgentConnection(thingID string) (IConnection, error) {
+func (m *TransportServerBase) DetermineRCConnection(thingID string) (IConnection, error) {
 	parts := strings.Split(thingID, ":")
-	agentID := parts[0]
+	deviceID := parts[0]
 
-	c := m.GetConnectionByClientID(agentID)
+	c := m.GetConnectionByClientID(deviceID)
 	if c == nil {
 		return nil, fmt.Errorf("No connection found for ThingID '%s'", thingID)
 	}
@@ -218,7 +221,7 @@ func (srv *TransportServerBase) GetConnectionByConnectionID(clientID, connection
 }
 
 // GetConnectionByClientID locates the first connection of the client using its account ID.
-// Intended to find agents which only have a single connection.
+// Intended to find devices which only have a single connection.
 // This returns nil if no connection was found with the given login
 func (srv *TransportServerBase) GetConnectionByClientID(clientID string) (c IConnection) {
 
@@ -251,18 +254,17 @@ func (m *TransportServerBase) HandleNotification(notif *msg.NotificationMessage)
 	m.SendNotification(notif)
 }
 
-// HandleRequest sends requests to connected client.
+// [deprecated] HandleRequest sends requests to the RC client using the thingID
+// to determine the device reverse connection.
 //
-// This only happens when a consumer on the server or gateway passes the request to
-// this server module through the chain, when this server is the sink for the consumer.
-// Transport modules forward requests to connected clients instead of processing them locally.
+// This is used when a consumer or service passes the request to this server module,
+// for forwarding to a RC device.
 //
-// This returns an error when the destination for the request cannot be found.
+// This returns an error when the destination for the request cannot be determined.
 // If multiple server protocols are used it is okay to try them one by one.
 //
-// When using the router/directory module combo, this should not be used. Instead the router
-// determines the destination using the TD in the directory and determines the agent and connection
-// without relying on the agentID in ThingID convention.
+// Instead it is better to use the directory which tracks the device account ID that
+// uploaded a TD. Requests for the Thing are forwarded to this device.
 func (m *TransportServerBase) HandleRequest(
 	req *msg.RequestMessage, replyTo msg.ResponseHandler) (err error) {
 
@@ -275,11 +277,11 @@ func (m *TransportServerBase) HandleRequest(
 		}
 	}
 
-	// first attempt to procss the when targeted at this module
-	// if the request is not for this module then pass it to the remote agent
-	// if the agent isn't connected then this returns an error. This can be valid
+	// first attempt to process the when targeted at this module
+	// if the request is not for this module then pass it to the remote device
+	// if the device isn't connected then this returns an error. This can be valid
 	// in case multiple server protocols are used and the request is for another protocol.
-	c, err := m.DetermineAgentConnection(req.ThingID)
+	c, err := m.DetermineRCConnection(req.ThingID)
 	if err == nil {
 		err = c.SendRequest(req, replyTo)
 	}
@@ -361,7 +363,7 @@ func (srv *TransportServerBase) RemoveConnection(c IConnection) {
 	srv.ForwardNotification(notif)
 }
 
-// SendNotification [agent] server sends a notification to its connections
+// SendNotification [device] server sends a notification to its connected clients.
 // The connection handles subscriptions.
 func (srv *TransportServerBase) SendNotification(notif *msg.NotificationMessage) {
 	srv.ForEachConnection(func(c IConnection) {
@@ -369,21 +371,21 @@ func (srv *TransportServerBase) SendNotification(notif *msg.NotificationMessage)
 	})
 }
 
-// SendRequest [consumer] sends a request over the reverse-connection to an agent.
+// SendRequest [consumer] sends a request over the reverse-connection to a device.
 //
-// agentID is the agent's authentication ID that hosts one or more Things.
+// deviceID is the device's authentication ID that hosts one or more Things.
 // req is the request message envelope to send
 // replyTo is the callback handler, or nil to handle replies via the async
 // module callback, which by default is the sink's HandleResponse.
 //
 // Note that the request message contains the ThingID of the thing for which the request
-// is intended. The agent must know how to forward the request to the Thing.
+// is intended. The device must know how to forward the request to the Thing.
 func (srv *TransportServerBase) SendRequest(
-	agentID string, req *msg.RequestMessage, replyTo msg.ResponseHandler) (err error) {
+	deviceID string, req *msg.RequestMessage, replyTo msg.ResponseHandler) (err error) {
 
-	c := srv.GetConnectionByClientID(agentID)
+	c := srv.GetConnectionByClientID(deviceID)
 	if c == nil {
-		err := fmt.Errorf("SendRequest: Agent '%s' has no reverse connection", agentID)
+		err := fmt.Errorf("SendRequest: Device '%s' has no reverse connection", deviceID)
 		slog.Warn(err.Error())
 		return err
 	}
@@ -391,7 +393,7 @@ func (srv *TransportServerBase) SendRequest(
 	return err
 }
 
-// SendResponse [agent] sends the response message over the transport to a remote
+// SendResponse [device] sends the response message over the transport to a remote
 // consumer with the given client and connection ID.
 // This is equivalent to calling SendResponse on the connection itself.
 //

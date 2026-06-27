@@ -16,7 +16,7 @@ type ConnectionHandler func(status ConnectionStatus, c IConnection)
 // Intended for exchanging messages between client and server.
 //
 // Connections do not differentiate between consumers and devices or services.
-// Both clients and servers can provide a connection for use by consumers or agents.
+// Both clients and servers can provide a connection for use by consumers, devices and services.
 // In case of connection reversal the server can act as the consumer.
 //
 // All transport servers provide a callback handler that notifies when a new connection
@@ -37,12 +37,12 @@ type IConnection interface {
 	// // Return the connecting status
 	// GetConnectionStatus() ConnectionStatus
 
-	// SendNotification [agent] sends a notification over the connection to a remote consumer.
+	// SendNotification [Thing] sends a notification over the connection to a remote consumer.
 	// The connection can decide not to deliver the notification depending on subscriptions or
 	// other criteria.
 	SendNotification(notif *msg.NotificationMessage)
 
-	// SendRequest [consumer] sends a request over the connection to an agent.
+	// SendRequest [consumer] sends a request over the connection to a Thing.
 	//
 	// Since not all connections are bidirectional this interface is unidirectional
 	// The system MUST always send an asynchronous response carrying the same correlationID
@@ -55,7 +55,7 @@ type IConnection interface {
 	// to wait for a response with a matching correlationID.
 	SendRequest(req *msg.RequestMessage, replyTo msg.ResponseHandler) error
 
-	// SendResponse [agent] sends an asynchronous response over the connection to a consumer.
+	// SendResponse [Thing] sends an asynchronous response over the connection to a consumer.
 	// This returns an error if the response could not be delivered.
 	SendResponse(response *msg.ResponseMessage) error
 

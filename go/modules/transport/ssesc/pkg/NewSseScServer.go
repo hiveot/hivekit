@@ -19,7 +19,7 @@ import (
 // respTimeout is the time the server waits for a response when receiving requests. defaults to 3sec
 //
 // Use SetRequestSink to set the handler for requests send by consumers
-// Use SetNotificationSink to set the handler for notifications send by agents.
+// Use SetNotificationSink to set the handler for notifications send by devices.
 func NewSseScServer(httpServer transport.IHttpServer, respTimeout time.Duration) ssesc.ISseScTransportServer {
 	transport := internal.NewSseScServer(httpServer, respTimeout)
 	return transport

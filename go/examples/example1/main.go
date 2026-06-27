@@ -9,14 +9,15 @@ import (
 
 	"github.com/hiveot/hivekit/go/api/msg"
 	"github.com/hiveot/hivekit/go/api/td"
-	"github.com/hiveot/hivekit/go/examples/example1/counterdevice"
+
 	"github.com/hiveot/hivekit/go/modules/factory"
 	factorypkg "github.com/hiveot/hivekit/go/modules/factory/pkg"
 	"github.com/hiveot/hivekit/go/modules/factory/recipes"
+	"github.com/hiveot/hivekit/go/testenv"
 	"github.com/hiveot/hivekit/go/utils"
 )
 
-// Demo IoT device running a counter server
+// Demo IoT device running the test counting device
 // This uses the Device-Server recipe and inserts the counter module into the app slot.
 // See the factory/recipes/DeviceServerRecipe.go for the modules in the recipe.
 // On start the device publishes its TD to the discovery server.
@@ -32,14 +33,14 @@ func main() {
 	// Create a factory recipe using the counterdevice in the constructor
 	appDef := &factory.ModuleDefinition{
 		Type:        env.AppID,
-		Constructor: counterdevice.MyCounterModuleFactory,
-		Config: &counterdevice.CounterConfig{
+		Constructor: testenv.NewCounterDeviceFactory,
+		Config: &testenv.CounterConfig{
 			ResetValue: 60,
 		},
 	}
 	// the device server recipe contains modules for running a server with certs and authn
 	// you can message the recipe as a module or via a client. Here we message directly.
-	r := recipes.NewDeviceServerRecipe(f, appDef)
+	r := recipes.NewServerDeviceRecipe(f, appDef)
 
 	err := r.Start()
 	if err != nil {
@@ -48,8 +49,8 @@ func main() {
 	}
 	// increment the counter using a message
 	req := msg.NewRequestMessage(td.OpInvokeAction,
-		counterdevice.DefaultCounterDeviceThingID,
-		counterdevice.IncrementActionName, nil)
+		testenv.DefaultCounterDeviceThingID,
+		testenv.IncrementActionName, nil)
 	req.SenderID = "main"
 	err = r.HandleRequest(req, req.NoReply)
 	if err != nil {

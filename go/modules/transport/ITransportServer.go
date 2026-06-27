@@ -102,24 +102,24 @@ type ITransportServer interface {
 	// client subscribes.
 	HandleNotification(notif *msg.NotificationMessage)
 
-	// SendNotification [agent] sends a notification over the connections to
+	// SendNotification [Thing] sends a notification over the connections to
 	// remote subscribed consumers.
 	// This returns an error if the notification has no subscribers.
 	SendNotification(notif *msg.NotificationMessage)
 
-	// SendRequest [consumer] sends a request to a connected agent.
+	// SendRequest [consumer] sends a request to a connected Thing.
 	//
-	// Intended for use by consumers when agents are connected using connection reversal.
+	// Intended for use by consumers when Things are connected using connection reversal.
 	//
-	// agentID is the agent's authentication ID that hosts the Thing.
+	// clientID of the device's that hosts the Thing.
 	// responseHandler is the optional callback with the response.
 	//
-	// This returns an error if the agent is no longer connected.
-	SendRequest(agentID string, req *msg.RequestMessage, replyTo msg.ResponseHandler) error
+	// This returns an error if the Thing is no longer connected.
+	SendRequest(clientID string, req *msg.RequestMessage, replyTo msg.ResponseHandler) error
 
-	// SendResponse [agent] sends the response message over the transport to a remote
+	// SendResponse [Thing] sends the response message over the transport to a remote
 	// consumer with the given client and connection ID.
 	//
-	// Intended for use by agents that host one or more Things.
+	// Intended for use by Things
 	SendResponse(clientID string, cid string, resp *msg.ResponseMessage) error
 }

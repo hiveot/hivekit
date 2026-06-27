@@ -83,7 +83,7 @@ Backend Recommendations:
 
 ### Retention - for consideration
 
-Data that loses its meaningful usage after time can be removed or averaged using retention rules. The retention engine periodically removes records of events and actions from the store that meet the criteria. Rule criteria include the publishing agent, thingID and names.
+Data that loses its meaningful usage after time can be removed or averaged using retention rules. The retention engine periodically removes records of events and actions from the store that meet the criteria. Rule criteria include the publishing device, thingID and names.
 
 ## Configuration
 

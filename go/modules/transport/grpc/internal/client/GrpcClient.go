@@ -85,7 +85,7 @@ func (cl *GrpcClient) _onClientMessage(raw []byte) {
 	// assume message is request
 	req, err := cl.encoder.DecodeRequest(raw)
 	if err == nil {
-		// client agent receives a request (using reverse connection)
+		// client receives a request (using reverse connection)
 		go func() {
 			// pass it on to the linked producer.
 			err = cl.ForwardRequest(req, func(resp *msg.ResponseMessage) error {
@@ -354,7 +354,7 @@ func (cl *GrpcClient) HandleRequest(request *msg.RequestMessage, replyTo msg.Res
 // 	return cl.grpcSvcClient != nil && cl.grpcSvcClient.IsConnected(grpctransport.StreamNameNotification)
 // }
 
-// SendNotification Agent posts a notification to the server
+// SendNotification exposed thing posts a notification to the server
 func (cl *GrpcClient) SendNotification(notif *msg.NotificationMessage) {
 	if cl.GetConnectionStatus() != transport.StatusConnected {
 		slog.Error("SendNotification: Not connected")

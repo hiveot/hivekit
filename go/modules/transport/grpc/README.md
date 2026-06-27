@@ -15,7 +15,7 @@ TODO-6: authenticate with Client TLS cert when using tcp sockets
 
 The primary purpose of the gRPC transport is to support Unix Domain Sockets for high performance (10K msg/sec on rPi3+, 100K/sec on i5) local inter-process communication. Tcp sockets are also supported, expanding its use to the network.
 
-It is mainly intended for agents that use reverse connections Since they represent multiple devices or services, performance is more important than with a single isolated device.
+It is mainly intended for devices that use a reverse connection. Since they represent multiple devices or services, performance is more important than with a single isolated device.
 
 ## Configuration
 
@@ -76,16 +76,16 @@ srv := NewHiveotGrpcServer(connectURL, tlsCert, authn, respTimeout)
 srv.Start()
 ```
 
-2a. Link it to an agent for serving requests, when running a standalone device
+2a. Link it to an thing for serving requests when running a standalone device.
 
 ```go
-// create the agent and link it to the server
-agent := NewAgent(clientID)
-srv.SetRequestSink(agent.HandleRequest)
-agent.SetNotificationSink(srv.HandleNotification)
+// create the devoce and link it to the server
+exposedThing := NewExposedThing(clientID)
+srv.SetRequestSink(exposedThing.HandleRequest)
+exposedThing.SetNotificationSink(srv.HandleNotification)
 // set the request handler
-agent.SetAppRequestHook(myapphandler)
+exposedThing.SetAppRequestHook(myapphandler)
 // publish updates
-agent.PubEvent(thingID, eventName, value)
-agent.PubProperty(thingID, propName, value)
+exposedThing.PubEvent(thingID, eventName, value)
+exposedThing.PubProperty(thingID, propName, value)
 ```

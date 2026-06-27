@@ -53,20 +53,6 @@ type DirectoryServiceImpl struct {
 	writeTDHook directory.WriteTDHook
 }
 
-// GetAgentInfo provides information on Things registered by an agent
-func (svc *DirectoryServiceImpl) GetAgentInfo(agentID string) (
-	info directory.AgentInfo, found bool) {
-
-	// how are agents tracked?
-	// option 1: separate bucket with all agents
-	// option 2: a bucket per agent
-	// option 3: agent as prefix of thingID
-	//   + allows seek/filter while iterating
-	//   - cant lookup by thingID
-
-	return info, false
-}
-
 // Return the directory TDD and its json itself
 func (svc *DirectoryServiceImpl) GetTDD() (*td.TD, string) {
 	return svc.dirTDD, svc.dirTDDJson

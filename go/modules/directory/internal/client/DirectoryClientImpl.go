@@ -136,8 +136,8 @@ func (cl *DirectoryClientImpl) Start() (err error) {
 // creating the router. Last, add the directory TDD with LoadTD(tdd) so that the
 // router knows how to connect to the directory server when receiving a request.
 //
-// Agents should use the directorypkg.UpdateTD function to publish their TD
-// to discovery or directory server.
+// Devices should use the directorypkg.UpdateTD function to publish their TD(s) to
+// the discovery or directory server.
 //
 // This listens for directory notifications from the sink to receive directory updates.
 //

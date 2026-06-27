@@ -367,7 +367,7 @@ func (cl *WssTransportClient) HandleRequest(request *msg.RequestMessage, replyTo
 	return err
 }
 
-// SendNotification Agent posts a notification over to the server
+// SendNotification Device posts a notification over to the server
 // This serializes the notification and sends it to the server.
 func (cl *WssTransportClient) SendNotification(notif *msg.NotificationMessage) {
 	slog.Info("SendNotification",

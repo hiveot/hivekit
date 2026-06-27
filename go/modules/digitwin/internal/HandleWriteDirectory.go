@@ -11,10 +11,10 @@ import (
 
 // Delete the digital twin TD of the thingID.
 // This returns an error if the TD should not be deleted
-func (m *DigitwinService) HandleDeleteTD(agentID string, thingID string) error {
+func (m *DigitwinService) HandleDeleteTD(clientID string, thingID string) error {
 
-	agentThingID := fmt.Sprint(agentID, ":", thingID)
-	m.deviceTDBucket.Delete(agentThingID)
+	deviceThingID := fmt.Sprint(clientID, ":", thingID)
+	m.deviceTDBucket.Delete(deviceThingID)
 	return nil
 }
 
@@ -25,12 +25,12 @@ func (m *DigitwinService) HandleDeleteTD(agentID string, thingID string) error {
 // 1. Ignores services - return them as-is
 // 2. Stores the original TD in the 'device TD bucket'
 // 3. Replace the ThingID with that of the digital twin
-// 4. Add a 'online' property that is updated if the agent changes connection status
+// 4. Add a 'online' property that is updated if the device changes connection status
 // 5. Removes all forms
 // 6. Inserts forms that point to the digital twin
 //
 // This returns the updated TD, or the old one if no digital twin is used for this Thing.
-func (m *DigitwinService) HandleWriteDirectory(agentID string, tdi *td.TD) (*td.TD, error) {
+func (m *DigitwinService) HandleWriteDirectory(senderID string, tdi *td.TD) (*td.TD, error) {
 
 	// 1. service types do not get a digital twin
 	// this seems a bit simplistic but it avoids hiveot modules from getting a twin
@@ -38,15 +38,15 @@ func (m *DigitwinService) HandleWriteDirectory(agentID string, tdi *td.TD) (*td.
 		return tdi, nil
 	}
 
-	// 2. store the original TD and its agent for retrieval by the router
-	tdi.AgentID = agentID
+	// 2. store the original TD and its clientID for retrieval by the router
+	tdi.RCID = senderID
 	tdJson, _ := jsoniter.Marshal(tdi)
 	m.deviceTDBucket.Set(tdi.ID, tdJson)
 
 	// 3. change the device ID to the digitwin ID
 	// note that this modifies the original TD. - is this a problem?
 	dtwTD := tdi
-	digitwinThingID := MakeDigitwinID(agentID, tdi.ID)
+	digitwinThingID := MakeDigitwinID(senderID, tdi.ID)
 	dtwTD.ID = digitwinThingID
 
 	// 4. add a 'online' property indicating if it is reachable

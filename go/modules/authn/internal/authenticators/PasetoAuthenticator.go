@@ -25,8 +25,8 @@ type PasetoAuthenticator struct {
 
 	// The URI of the authentication service that provides paseto tokens
 	authServerURI             string
-	AgentTokenValidityDays    int
 	ConsumerTokenValidityDays int
+	DeviceTokenValidityDays   int
 	ServiceTokenValidityDays  int
 }
 
@@ -184,7 +184,7 @@ func NewPasetoAuthenticator(
 		clientStore: authnStore,
 		//authServerURI: authServerURI, use SetAuthServerURI
 		// validity can be changed by user of this service
-		AgentTokenValidityDays:    authn.DefaultAgentTokenValidityDays,
+		DeviceTokenValidityDays:   authn.DefaultDeviceTokenValidityDays,
 		ConsumerTokenValidityDays: authn.DefaultConsumerTokenValidityDays,
 		ServiceTokenValidityDays:  authn.DefaultServiceTokenValidityDays,
 	}

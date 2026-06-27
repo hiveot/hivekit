@@ -55,7 +55,7 @@
   "actions": {
     "createThing": {
       "title": "Create Thing TD",
-      "description": "Update the Thing TD in the directory. For use by Thing agents only.",
+      "description": "Update the device Thing TD in the directory.",
       "comment": "only admin can create TDs",
       "idempotent": true,
       "input": {
@@ -71,7 +71,7 @@
       "description": "Remove a TD from the directory",
       "safe": false,
       "idempotent": true,
-      "allow": ["admin"],
+      "hiveot:allow": ["admin"],
       "comment": "only admin can remove TDs",
       "input": {
         "title": "dThing ID",
@@ -132,10 +132,10 @@
 
     "updateThing": {
       "title": "Update Thing TD",
-      "description": "Update the Thing TD in the directory. For use by agents only.",
+      "description": "Update the Thing TD in the directory. ",
       "idempotent": true,
-      "allow": ["agent", "admin"],
-      "comment": "Only agents can update their TD",
+      "hiveot:allow": ["device", "admin"], 
+      "comment": "Only device and admin can update a TD",
       "input": {
         "title": "TD",
         "description": "Device TD document in JSON format",

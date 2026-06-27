@@ -22,8 +22,8 @@ const MessageTypeRequest = "request"
 // This returns an error if the request cannot be handled or forwarded.
 type RequestHandler func(req *RequestMessage, replyTo ResponseHandler) (err error)
 
-// RequestMessage for sending a request for an operation on a Thing or service.
-// Agents/Things  MUST send a response when a request is received and a correlationID
+// RequestMessage for sending a request for an operation on a device or service.
+// Things MUST send a response when a request is received and a correlationID
 // is included.
 //
 // The following operations are considered to be requests:
@@ -81,8 +81,6 @@ type RequestMessage struct {
 	SenderID string `json:"senderID,omitempty"`
 
 	// ThingID of the thing this request is for.
-	// For messages from consumers this is the digitwin dThingID
-	// For messages to agents this is the agent ThingID
 	// This field is required.
 	ThingID string `json:"thingID"`
 

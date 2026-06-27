@@ -10,9 +10,9 @@ import (
 
 	"github.com/hiveot/hivekit/go/api/msg"
 	"github.com/hiveot/hivekit/go/api/td"
-	"github.com/hiveot/hivekit/go/modules/agent"
 	"github.com/hiveot/hivekit/go/modules/authn"
 	"github.com/hiveot/hivekit/go/modules/consumer"
+	"github.com/hiveot/hivekit/go/modules/thing"
 	"github.com/hiveot/hivekit/go/modules/transport"
 	"github.com/hiveot/hivekit/go/testenv"
 	"github.com/stretchr/testify/assert"
@@ -26,11 +26,11 @@ func TestAllEventsProtocols(t *testing.T) {
 }
 func TestAllEvents(t *testing.T) {
 	t.Run("TestSubscribeAll", TestSubscribeAll)
-	t.Run("TestPublishEventsByAgent", TestPublishEventsByRCAgent)
+	t.Run("TestPublishEventsByThing", TestPublishEventsByRCThing)
 	t.Run("TestReadEvent", TestReadEvent)
 }
 
-// test event messages between agent, server and client
+// test event messages between thing, server and client
 // this uses the client and server helpers defined in connect_test.go
 // Test subscribing and receiving all events by consumer
 func TestSubscribeAll(t *testing.T) {
@@ -38,7 +38,7 @@ func TestSubscribeAll(t *testing.T) {
 	var rxVal atomic.Value
 	var testMsg1 = "hello world 1"
 	var testMsg2 = "hello world 2"
-	var agentID = "agent1"
+	var deviceID = "device1"
 	var thingID = "thing1"
 	var eventKey = "event11"
 
@@ -60,7 +60,7 @@ func TestSubscribeAll(t *testing.T) {
 	co1.SetNotificationHook(func(ev *msg.NotificationMessage) {
 		slog.Info("client 1 receives event")
 		if ev.ThingID == thingID {
-			// receive event, expect data from agent
+			// receive event, expect data from device
 			rxVal.Store(ev.Data)
 		}
 	})
@@ -78,7 +78,7 @@ func TestSubscribeAll(t *testing.T) {
 	// 3. Server sends event to consumers
 	time.Sleep(time.Millisecond * 10)
 	notif1 := msg.NewNotificationMessage(
-		agentID, msg.AffordanceTypeEvent, thingID, eventKey, testMsg1)
+		deviceID, msg.AffordanceTypeEvent, thingID, eventKey, testMsg1)
 	testEnv.Server.SendNotification(notif1)
 
 	// 4. subscriber should have received them
@@ -95,7 +95,7 @@ func TestSubscribeAll(t *testing.T) {
 
 	// 5. Server sends another event to consumers
 	notif2 := msg.NewNotificationMessage(
-		agentID, msg.AffordanceTypeEvent, thingID, eventKey, testMsg2)
+		deviceID, msg.AffordanceTypeEvent, thingID, eventKey, testMsg2)
 	testEnv.Server.SendNotification(notif2)
 	time.Sleep(time.Millisecond)
 	// update not received
@@ -105,7 +105,7 @@ func TestSubscribeAll(t *testing.T) {
 // test if subscriptions are retained after a reconnect
 func TestSubscribeReconnect(t *testing.T) {
 	t.Logf("---%s---\n", t.Name())
-	const agentID = "agent1"
+	const deviceID = "deviceID"
 	var thingID = "thing1"
 	var eventKey = "event11"
 	var testMsg1 = "hello world 1"
@@ -124,7 +124,7 @@ func TestSubscribeReconnect(t *testing.T) {
 	err := co1.Subscribe("", "")
 	assert.NoError(t, err)
 	co1.SetNotificationHook(func(notif *msg.NotificationMessage) {
-		// receive event, tests whether agents work as a consumer
+		// receive event, tests whether devices work as a consumer
 		slog.Info("consumer receives event",
 			"name", notif.Name, "data", notif.ToString(0))
 		notifEvent.Add(1)
@@ -136,7 +136,7 @@ func TestSubscribeReconnect(t *testing.T) {
 	// 3. Server sends event to consumers
 	time.Sleep(time.Millisecond * 10)
 	notif1 := msg.NewNotificationMessage(
-		agentID, msg.AffordanceTypeEvent, thingID, eventKey, testMsg1)
+		deviceID, msg.AffordanceTypeEvent, thingID, eventKey, testMsg1)
 	testEnv.Server.SendNotification(notif1)
 
 	time.Sleep(time.Millisecond)
@@ -168,8 +168,8 @@ func TestSubscribeReconnect(t *testing.T) {
 
 }
 
-// Agent sends events to server using reverse connection.
-func TestPublishEventsByRCAgent(t *testing.T) {
+// Device sends events to server using reverse connection.
+func TestPublishEventsByRCThing(t *testing.T) {
 	t.Logf("---%s---\n", t.Name())
 	var evVal atomic.Value
 	var testMsg = "hello world"
@@ -188,13 +188,13 @@ func TestPublishEventsByRCAgent(t *testing.T) {
 	testEnv.Server.SetNotificationSink(co)
 	defer cancelFn()
 
-	// 2. connect an agent to the server - eg connection reversal
-	agent1, agConn1, _ := testEnv.NewRCAgent(testAgentID1, nil)
-	defer agConn1.Close()
+	// 2. connect a device to the server - eg connection reversal
+	device1, deviceConn1, _ := testEnv.NewRCThing(testDeviceID1, nil)
+	defer deviceConn1.Close()
 
-	// 3. agent publishes an event
-	//  the agent is the sink of the client. Client connection will send notifications to server.
-	agent1.PubEvent(thingID, eventKey, testMsg)
+	// 3. device publishes an event
+	//  the device is the sink of the client. Client connection will send notifications to server.
+	device1.PubEvent(thingID, eventKey, testMsg)
 	time.Sleep(time.Millisecond) // time to take effect
 
 	// event received by server
@@ -203,7 +203,7 @@ func TestPublishEventsByRCAgent(t *testing.T) {
 	assert.Equal(t, testMsg, rxMsg2)
 }
 
-// Consumer reads events from agent
+// Consumer reads events from device
 func TestReadEvent(t *testing.T) {
 	t.Logf("---%s---\n", t.Name())
 	var thingID = "thing1"
@@ -211,11 +211,11 @@ func TestReadEvent(t *testing.T) {
 	var eventValue = "value11"
 	var timestamp = "eventtime"
 
-	// 1. start the agent transport with the request handler
-	// in this case the consumer connects to the agent (unlike when using a hub)
-	ag := agent.NewAgent("", func(req *msg.RequestMessage, replyTo msg.ResponseHandler) error {
+	// 1. start the device transport with the request handler
+	// in this case the consumer connects to the device (unlike when using a hub)
+	ag := thing.NewExposedThing("", func(req *msg.RequestMessage, replyTo msg.ResponseHandler) error {
 		if req.Operation == td.HTOpReadEvent && req.ThingID == thingID && req.Name == eventKey {
-			evNotif := msg.NewNotificationMessage("agent1", msg.AffordanceTypeEvent, thingID, req.Name, eventValue)
+			evNotif := msg.NewNotificationMessage("device1", msg.AffordanceTypeEvent, thingID, req.Name, eventValue)
 			evNotif.Timestamp = timestamp
 
 			resp := req.CreateResponse(evNotif, nil)
@@ -241,7 +241,7 @@ func TestReadEvent(t *testing.T) {
 
 }
 
-// Consumer reads events from agent
+// Consumer reads events from a device
 //func TestReadAllEvents(t *testing.T) {
 //	t.Logf("---%s---\n", t.Name())
 //	var thingID = "thing1"
@@ -250,9 +250,9 @@ func TestReadEvent(t *testing.T) {
 //	var event1Value = "value1"
 //	var event2Value = "value2"
 //
-//	// 1. start the agent transport with the request handler
-//	// in this case the consumer connects to the agent (unlike when using a hub)
-//	agentReqHandler := func(req *transport.RequestMessage, c transport.IConnection) *transport.ResponseMessage {
+//	// 1. start the device transport with the request handler
+//	// in this case the consumer connects to the device (unlike when using a hub)
+//	reqHandler := func(req *transport.RequestMessage, c transport.IConnection) *transport.ResponseMessage {
 //		if req.Operation == td.HTOpReadAllEvents {
 //			output := make(map[string]*transport.ResponseMessage)
 //			output[event1Name] = transport.NewResponseMessage(td.OpSubscribeEvent, thingID, event1Name, event1Value, nil, "")
@@ -262,7 +262,7 @@ func TestReadEvent(t *testing.T) {
 //		}
 //		return req.CreateResponse(nil, errors.New("unexpected request"))
 //	}
-//	srv, cancelFn := StartTransportServer(agentReqHandler, nil)
+//	srv, cancelFn := StartTransportServer(reqHandler, nil)
 //	_ = srv
 //	defer cancelFn()
 //

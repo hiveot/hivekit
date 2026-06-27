@@ -18,8 +18,8 @@ import (
 // httpServer is the http server the websocket is using
 // respTimeout is the time the server waits for a response when sending requests. defaults to 3sec
 //
-// Use SetRequestSink to set the handler for requests send by consumers
-// Use SetNotificationSink to set the handler for notifications send by agents.
+// Use SetRequestSink to set the handler for requests send by consumers.
+// Use SetNotificationSink to set the handler for notifications send by devices and services.
 func NewHiveotWssServer(
 	httpServer transport.IHttpServer, respTimeout time.Duration) wss.IWssTransportServer {
 
@@ -47,7 +47,7 @@ func NewHiveotWssServerFactory(f factory.IModuleFactory, md *factory.ModuleDefin
 // respTimeout is the time the server waits for a response when receiving requests. defaults to 3sec
 //
 // Use SetRequestSink to set the handler for requests send by consumers
-// Use SetNotificationSink to set the handler for notifications send by agents.
+// Use SetNotificationSink to set the handler for notifications send by device.
 func NewWotWssServer(
 	httpServer transport.IHttpServer, respTimeout time.Duration) wss.IWssTransportServer {
 

@@ -1,4 +1,4 @@
-package agent
+package thing
 
 import (
 	"fmt"
@@ -14,29 +14,27 @@ import (
 	"github.com/hiveot/hivekit/go/utils"
 )
 
-const AgentModuleType = "agent"
+const ExposedThingModuleType = "exposed-thing"
 
-// Agent is a module providing a Golang API for IoT device operations using the
-// standard RRN (request-response-notification) messages. The RRN interface is compatible
-// with all HiveKit modules.
+// ExposedThing is a module representing an Exposed Thing for IoT device operations using the
+// standard RRN (request-response-notification) messages. The RRN interface is
+// compatible with all HiveKit modules.
 //
-// This Agent is intended to help building a 'Thing' by:
-//   - track Thing status with SetState and GetState
+// This module is intended to help building a 'ExposedThing' by:
+//   - track ExposedThing status with SetState and GetState
 //   - methods for publishing property updates, events, action status and TDs
 //     automatic update of property, event and action state when using publish methods
 //   - handle read requests for property, event and action status
-//   - hook for handling requests directed at the Thing
+//   - hook for handling requests directed at the ExposedThing
 //
 // Usage:
-//  1. Set this agent as the request sink of a transport connection so it can receive requests
-//  2. Set this agent notification sink to the transport connection so it can publish notifications
-//  3. Set this agent request sink to other modules that handle server side requests.
+//  1. Set this module as the request sink of a transport connection so it can receive requests
+//  2. Set this module notification sink to the transport connection so it can publish notifications
+//  3. Set this module request sink to other modules that handle server side requests.
 //
 // Therefore if no appRequestHandler is set, then do not set the request sink to
 // the connection for use to send requests.
-//
-// An Agent is also a consumer as they are able to invoke services.
-type Agent struct {
+type ExposedThing struct {
 	*modules.HiveModuleBase
 
 	// appRequestHook is the application handler of requests addressed to this module.
@@ -47,45 +45,46 @@ type Agent struct {
 
 	mux sync.RWMutex
 
-	// Map of the Things managed by the agent
+	// Map of the nested Things managed by this module
 	tstates map[string]*ThingState
 }
 
-// Return the state of a thing managed by the agent
+// Return the state of a thing that is managed by this module.
+// This module is a Thing and can also manage nested things, like a 1-ware hardware
+// gateway managing 1-wire devices.
 //
-// thingID is the Thing managed by the agent or "" for the agent Thing itself
+// thingID is the ID of a nested Thing or "" for the module's Thing itself.
 //
 // If no entry for thingID yet exists, one is created.
-func (ag *Agent) GetState(thingID string) *ThingState {
+func (m *ExposedThing) GetState(thingID string) *ThingState {
 	if thingID == "" {
-		thingID = ag.GetThingID()
+		thingID = m.GetThingID()
 	}
-	ag.mux.RLock()
-	state, ok := ag.tstates[thingID]
-	ag.mux.RUnlock()
+	m.mux.RLock()
+	state, ok := m.tstates[thingID]
+	m.mux.RUnlock()
 	if !ok {
-		ag.mux.Lock()
+		m.mux.Lock()
 		state = NewThingState(thingID)
-		ag.tstates[thingID] = state
-		defer ag.mux.Unlock()
+		m.tstates[thingID] = state
+		defer m.mux.Unlock()
 	}
 	return state
 }
 
-// HandleReadRequests handles reading of actions, events, and properties for a thing
-// managed by this agent.
+// HandleReadRequests handles reading of actions, events, and properties for a nested thing.
 // This returns nil if the request was handled or an error if this is not a valid read request
 // or the thingID is unknown.
-func (ag *Agent) HandleReadRequests(req *msg.RequestMessage, replyTo msg.ResponseHandler) (err error) {
+func (m *ExposedThing) HandleReadRequests(req *msg.RequestMessage, replyTo msg.ResponseHandler) (err error) {
 	var found bool
 	var output any
 
-	ag.mux.RLock()
-	defer ag.mux.RUnlock()
-	state, ok := ag.tstates[req.ThingID]
+	m.mux.RLock()
+	defer m.mux.RUnlock()
+	state, ok := m.tstates[req.ThingID]
 	if !ok {
 		// not handled
-		err = fmt.Errorf("Unknown thingID '%s' for agent '%s'", req.ThingID, ag.GetThingID())
+		err = fmt.Errorf("Unknown thingID '%s' for module '%s'", req.ThingID, m.GetThingID())
 		return err
 	}
 
@@ -151,96 +150,92 @@ func (ag *Agent) HandleReadRequests(req *msg.RequestMessage, replyTo msg.Respons
 // If a request hook is set then pass the request to the hook. If the hook does not handle the
 // request then it MUST forward it using ForwardRequest.
 //
-// Applications can also embed this agent and override HandleRequest to handle requests themselves.
+// Applications can also embed this module and override HandleRequest to handle requests themselves.
 //
 // Modules that override HandleRequest should first handle the request itself and
 // only hand it over to this base method when there is nothing for them to do. This method
 // simply forwards the request if no request handler hook is set.
-func (ag *Agent) HandleRequest(req *msg.RequestMessage, replyTo msg.ResponseHandler) (err error) {
+func (m *ExposedThing) HandleRequest(req *msg.RequestMessage, replyTo msg.ResponseHandler) (err error) {
 
 	// application can set a hook for handling all requests
-	ag.mux.RLock()
-	handler := ag.appRequestHook
-	ag.mux.RUnlock()
+	m.mux.RLock()
+	handler := m.appRequestHook
+	m.mux.RUnlock()
 
 	// invoke registered hook
 	if handler != nil {
 		err = handler(req, replyTo)
 		return err
 	}
-	if req.ThingID == ag.GetThingID() {
-		err = ag.HandleReadRequests(req, replyTo)
+	if req.ThingID == m.GetThingID() {
+		err = m.HandleReadRequests(req, replyTo)
 	} else {
-		err = ag.ForwardRequest(req, replyTo)
+		err = m.ForwardRequest(req, replyTo)
 	}
 	return err
 }
 
-// PubActionProgress helper for agents to send a 'running' ActionStatus notification
+// PubActionProgress helper for things to send a 'running' ActionStatus notification
 //
 // This sends an ResponseMessage message with status of running.
-func (ag *Agent) PubActionProgress(req msg.RequestMessage, value any) {
+func (m *ExposedThing) PubActionProgress(req msg.RequestMessage, value any) {
 	status := &msg.ResponseMessage{
-		//AgentID:   ag.GetClientID(),
-		// Input:     req.Input,
 		Name:      req.Name,
 		Output:    value,
-		SenderID:  ag.GetThingID(),
+		SenderID:  m.GetThingID(),
 		Status:    msg.StatusRunning,
 		ThingID:   req.ThingID,
 		Timestamp: utils.FormatNowUTCMilli(),
 	}
 
 	resp := msg.NewNotificationMessage(
-		ag.GetThingID(), msg.AffordanceTypeAction, req.ThingID, req.Name, status)
+		m.GetThingID(), msg.AffordanceTypeAction, req.ThingID, req.Name, status)
 
-	ag.GetState(req.ThingID).SetActionResponse(req.Name, status)
+	m.GetState(req.ThingID).SetActionResponse(req.Name, status)
 
-	ag.ForwardNotification(resp)
+	m.ForwardNotification(resp)
 }
 
-// PubEvent helper for agents to publish an event to the server.
+// PubEvent helper for things to publish an event to the server.
 //
-//	thingID is the thing for which the agent publishes the properties or "" for the agent itself
+//	thingID is the thing for which the module publishes the properties or "" for the module Thing itself.
 //	name is the name of the event to publish.
 //	value is the value of the event to publish, if any
-func (ag *Agent) PubEvent(thingID string, name string, value any) {
+func (m *ExposedThing) PubEvent(thingID string, name string, value any) {
 
 	if thingID == "" {
-		thingID = ag.GetThingID()
+		thingID = m.GetThingID()
 	}
 
 	// This is a response to subscription request.
 	// for now assume this is a hub connection and the hub wants all events
 	notif := msg.NewNotificationMessage(
-		ag.GetThingID(), msg.AffordanceTypeEvent, thingID, name, value)
+		m.GetThingID(), msg.AffordanceTypeEvent, thingID, name, value)
 	slog.Info("PubEvent",
 		"thingID", thingID,
 		"name", name,
 		"value", notif.ToString(50),
 	)
-	ag.GetState(thingID).SetEvent(name, notif)
+	m.GetState(thingID).SetEvent(name, notif)
 
-	ag.ForwardNotification(notif)
+	m.ForwardNotification(notif)
 }
 
 // PubProperty publishes a property change notification to observers,
 // and store the notification in the state store.
 //
-// Storing the notification allows handling property read requests by the agent.
-//
 // Do not publish non-observable properties like date/time and counters, unless intentional.
 //
-//	thingID is the thing for which the agent publishes the properties or "" for the agent itself
+//	thingID is the thing for which the module publishes the properties or "" for the module itself
 //	propName is the name of the property to publish.
 //	propValue is the value of the property to publish.
 //	onlyChanges flag only publish changed values.
-func (ag *Agent) PubProperty(thingID string, propName string, propVal any, onlyChanges bool) {
+func (m *ExposedThing) PubProperty(thingID string, propName string, propVal any, onlyChanges bool) {
 
 	if thingID == "" {
-		thingID = ag.GetThingID()
+		thingID = m.GetThingID()
 	}
-	tstate := ag.GetState(thingID)
+	tstate := m.GetState(thingID)
 	hasChanged := true
 	if onlyChanges {
 		// since most values are native types a simple compare should suffice
@@ -254,7 +249,7 @@ func (ag *Agent) PubProperty(thingID string, propName string, propVal any, onlyC
 		// This is a response to an observation request.
 		// send the property update as a response to the observe request
 		notif := msg.NewNotificationMessage(
-			ag.GetThingID(), msg.AffordanceTypeProperty, thingID, propName, propVal)
+			m.GetThingID(), msg.AffordanceTypeProperty, thingID, propName, propVal)
 		slog.Info("PubProperty",
 			"thingID", thingID,
 			"name", notif.Name,
@@ -262,40 +257,40 @@ func (ag *Agent) PubProperty(thingID string, propName string, propVal any, onlyC
 		)
 		tstate.SetProperty(propName, notif.Data)
 
-		ag.ForwardNotification(notif)
+		m.ForwardNotification(notif)
 	}
 }
 
 // PubProperties publishes multiple property changes to observers
 // This updates the Thing state map with the property values
 //
-//	thingID is the thing for which the agent publishes the properties, or "" for the agent itself
+//	thingID is the thing for which the module publishes the properties, or "" for the module itself
 //	propMap is the map of properties to handle
 //	onlyChanges flag only publish changed values
-func (ag *Agent) PubProperties(thingID string, propMap map[string]any, onlyChanges bool) {
+func (m *ExposedThing) PubProperties(thingID string, propMap map[string]any, onlyChanges bool) {
 	if thingID == "" {
-		thingID = ag.GetThingID()
+		thingID = m.GetThingID()
 	}
 	for propName, propVal := range propMap {
-		ag.PubProperty(thingID, propName, propVal, onlyChanges)
+		m.PubProperty(thingID, propName, propVal, onlyChanges)
 	}
 }
 
 // Set the hook to invoke when requests are received by this module.
 //
 // The handler is invoked when requests are received with the ThingID set to
-// this agent's moduleID.
+// this Thing's moduleID.
 //
-// This hook is intended to implement agent behavior without having to implement
+// This hook is intended to implement Thing behavior without having to implement
 // a separate module.
 //
 // The hook MUST either call replyTo with the result or return an error.
 // Failure to do so results in the request being lost and the caller waiting
 // for a response until timeout.
-func (ag *Agent) SetAppRequestHook(hook msg.RequestHandler) {
-	ag.mux.Lock()
-	defer ag.mux.Unlock()
-	ag.appRequestHook = hook
+func (m *ExposedThing) SetAppRequestHook(hook msg.RequestHandler) {
+	m.mux.Lock()
+	defer m.mux.Unlock()
+	m.appRequestHook = hook
 }
 
 // WriteTD publish a request downstream to write a TD to a directory or discovery service.
@@ -308,11 +303,11 @@ func (ag *Agent) SetAppRequestHook(hook msg.RequestHandler) {
 // can be a TM as the forms and auth info are not applicable.
 //
 // If the application runs its own server then it should place a discovery server module
-// behind this agent so it can publish the TD. The TD should contain the auth and form
+// behind this module so it can publish the TD. The TD should contain the auth and form
 // info for connecting to the server.
-func (ag *Agent) WriteTD(tdJson string) error {
+func (m *ExposedThing) WriteTD(tdJson string) error {
 
-	err := ag.Rpc(td.OpInvokeAction,
+	err := m.Rpc(td.OpInvokeAction,
 		directory.DefaultDirectoryThingID,
 		directory.CreateThingAction,
 		tdJson, nil)
@@ -320,27 +315,28 @@ func (ag *Agent) WriteTD(tdJson string) error {
 	return err
 }
 
-// NewAgent creates a new agent (producer) instance for serving requests and sending notifications.
+// NewExposedThing creates a new exposed thing (producer) instance for serving requests and
+// sending notifications.
 //
-//	agentID is the ThingID of this agent.
-//	appReqHandler is the application handler invoked when receiving requests for this agent.
-func NewAgent(agentID string, appReqHandler msg.RequestHandler) *Agent {
+//	thingID is the ID of the exposed Thing.
+//	appReqHandler is the application handler invoked when receiving requests for this Thing.
+func NewExposedThing(thingID string, appReqHandler msg.RequestHandler) *ExposedThing {
 
-	agent := &Agent{
-		// agents dont use timeouts
-		HiveModuleBase: modules.NewHiveModuleBase(agentID, 0),
+	m := &ExposedThing{
+		// Things dont send requests so no wait
+		HiveModuleBase: modules.NewHiveModuleBase(thingID, 0),
 		tstates:        make(map[string]*ThingState),
 	}
 
 	if appReqHandler != nil {
-		agent.SetAppRequestHook(appReqHandler)
+		m.SetAppRequestHook(appReqHandler)
 	}
-	return agent
+	return m
 }
 
-// Factory for creating an agent module using the factory environment
-func NewAgentFactory(f factory.IModuleFactory, md *factory.ModuleDefinition) (modules.IHiveModule, error) {
+// Factory for creating a thing module using the factory environment
+func NewExposedThingFactory(f factory.IModuleFactory, md *factory.ModuleDefinition) (modules.IHiveModule, error) {
 	appID := f.GetEnvironment().AppID
-	c := NewAgent(appID, nil)
+	c := NewExposedThing(appID, nil)
 	return c, nil
 }

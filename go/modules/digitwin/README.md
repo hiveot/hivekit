@@ -7,14 +7,14 @@ This approach provides the following benefits:
 1. Improved security. Devices remain isolated from consumers. Many types of security vulnerabilities can not be utilized if the device cannot be reached directly.
 2. Thing state remains available even when a device is not reachable, like when it entered sleep mode or when its connection is intermittent.
 3. Access to devices no longer requires the consumer to use a variety of transport protocols and endpoints. Instead, a single protocol can be used to connect to the digital twin server.
-4. Simplified device provisioning. Agent self-provision TD's in the device directory using random IDs or firmware encoded IDs.
+4. Simplified device provisioning. Exposed Things self-provision TD's in the device directory using random IDs or firmware encoded IDs.
 5. Simplified account management. Consumers only need a single account to access all devices. The devices only need to be provisioned with a digital twin account. This avoids the need to create consumer accounts on each device.
 
 ## Status
 
 This module is in alpha. Breaking changes can still be expected.
 
-Managing digital twins from RC agents is functional. The online status of these agents is currently not tracked.
+Managing digital twins from RC devices is functional. The online status of these devices is currently not tracked.
 
 Managing digital twins for stand-alone devices is only partly supported as it needs credentials for each device and a way to handle certificate validation for TLS connections.
 
@@ -43,7 +43,7 @@ This module is intended to be used in a module chain together with the server, d
 
 (1) The http server is used by discovery, the directory, and messaging servers. It authenticates and identifies connecting clients and routes http requests to the endpoint registered by the modules.
 (2) The discovery server publishes the TDD as provided by a Thing directory using DNS-SD.
-(3) The messaging transport server(s) serves non-http messaging protocol such as websocket and mqtt. This transport receives property read, write and action requests from consumers, and property and event change notifications sent by agents.
+(3) The messaging transport server(s) serves non-http messaging protocol such as websocket and mqtt. This transport receives property read, write and action requests from consumers, and property and event change notifications sent by exposed things.
 (4) The directory handles requests for reading and writing the directory as described in its TDD. This handles both RRN messages and optionally an HTTP API for the same purpose, as per WoT specification.
 (5) The digitwin module hooks into the directory to intercept directory write requests and replace TD's with a digital twin TD whose forms point to the digitwin module. All read/write requests for digital twins are handled by the digitwin module using the value cache module.
 
@@ -52,15 +52,14 @@ This module is intended to be used in a module chain together with the server, d
 
 (6) The router passes request messages to devices using the device TD.
 (7) The router establishes client connections for passing requests to standard WoT compatible devices.
-(8) The router uses the messaging server for passing requests to devices whose agents have a reverse connection.
+(8) The router uses the messaging server for passing requests to devices that have a reverse connection.
 
-Hiveot uses the concept of 'agents'. Agents are services that manage one or multiple Things. For example, a 1-wire bus can have up to 63 devices connected. The service that manages the 1-wire bus therefore represents up to 63 Things. It can create up to 63 TD's, each containing information on how to connect to the service. Thus, the service is the 'agent' for the 63 devices. When the term 'agent' is used it therefore refers to the service and not the Things that are managed by the agent. HiveOT agents use reverse connection to adhere to the 'Things dont run servers paradigm'.
 
 ### [discovery](../transports/discovery/README.md)
 
 The [discovery module](../transports/discovery/README.md) publishes the availability of the TDD (Thing Description Directory) on the local network using DNS-SD. This follows the WoT discovery specification.
 
-Devices, Agents and Consumers kickstart their application or service by looking for the directory using discovery. When found, the discovery record contains the URL to the TDD. This TDD describes how to write a TD in the directory for use by devices or agents, and how to read the directory for use by consumers.
+Devices, Services and Consumers kickstart their application or service by looking for the directory using discovery. When found, the discovery record contains the URL to the TDD. This TDD describes how to write a TD in the directory and how to read the directory for for use by consumers or services.
 
 ### [directory](../directory/README.md)
 
@@ -99,11 +98,9 @@ When a TD is written to the directory and it receives a digital twin, the module
 
 On restart, the module re-subscribes to all notifications of devices that have a digital twin.
 
-b. Notification push by agents that use reverse connection.
+b. Notification push by Things that use reverse connection.
 
-Thing agents establish a connection to the server described in the directory TDD they discovered. Agents publish notifications to the server without using subscriptions. When the server receives a notification it passes this to the registered notification handler. Since notifications travel in reverse direction of requests, this is typically the end of the chain, eg the router.
-
-The router forwards the notification to the digitwin module, similar to notifications received from one of its connections.
+Things can also establish a connection to a discovered gateway. After connecting successfully notifications for Things are published to the gateway which passes them to notification handler, eg the digital twin vcache.
 
 #### Reading values from the vcache
 
@@ -125,12 +122,12 @@ The [router module](../router/README.md) must determine how to deliver these req
 
 In case of standard Thing devices, the router will establish a connection to the device, or re-use an existing connection, and pass the request.
 
-In case the device is managed by an agent that uses reverse connection, the router forwards the request to the server that has that connection. Reverse connections are not described in the WoT specifications so they only works for HiveOT compatible Thing agents.
+In case the device uses reverse connection, the router forwards the request to the server that has that connection. Reverse connections are not described in the WoT specifications so they only works for HiveOT compatible Things.
 
-How does the router know a Thing is accessed via an agent with reverse connection?
-Agents discover the directory TDD just like devices. They connect to the server defined in the base attribute of the directory TDD, using the compatible protocol identified by the schema. By default this is the websocket connection endpoint.
+How does the router know a Thing is accessed via reverse connection?
+RC Things discover the directory TDD just like devices. They connect to the server defined in the base attribute of the directory TDD, using the compatible protocol identified by the schema. By default this is the websocket connection endpoint.
 
-When agents write TDs to the directory, either through http or using the messaging protocol, the directory receives the agent ID along with the TD. The agent ID is set in the root form of the device TD and stored as part of the TD in the device directory (not the digital twin directory). When the router looks up the form in the TD of the device to forward a request to, its form describes the protocol as a reverse connection from the agent. While this is not a WoT specification, the domain knowledge for this mechanism is limited to the digitwin and router modules and has no external dependencies.
+When RC Things write TDs to the directory, either through http or using the messaging protocol, the directory receives the thing account-ID along with the TD. The thing account ID is stored in the Thing directory (not the digital twin directory). When the router receives a request for the Thing it looks up the TD in the directory and searches the URL for the request form. Instead of a form it receives the thing accountID which identifies the server connection of the Thing to send the request to. While this is not a WoT specification, the domain knowledge for this mechanism is limited to the digitwin and router modules and has no external dependencies.
 
 ## Usage
 
@@ -142,7 +139,7 @@ A basic setup could use modules as follows:
 
 Below a description how a request pipeline handles the various requests to the directory and the digital twin. [rsink] follows a registered request sink and [call] follows a registered callback hook.
 
-1. Request flow for writing the directory, made by agents with reverse connections:
+1. Request flow for writing the directory, made by Things with reverse connections:
 
 > server -[rsink]> directory -[call]> digitwin
 
@@ -154,9 +151,9 @@ Below a description how a request pipeline handles the various requests to the d
 
 > server -[rsink]> directory -[rsink]> digitwin -[call]> vcache
 
-4. Request flow to read uncached digitwin values, made by consumers, where the digital twin is reachable via an agent. The digitwin module maps from digital twin to device IDs.
+4. Request flow to read uncached digitwin values, made by consumers, where the digital twin is reachable via a reverse connection. The digitwin module maps from digital twin to device IDs.
 
-> server -[rsink]> directory -[rsink]> digitwin -[rsink]> router -[rsink]> server => agent
+> server -[rsink]> directory -[rsink]> digitwin -[rsink]> router -[rsink]> server => rc thing
 
 5. Request flow to read uncached digitwin values, made by consumers, where the digital twin is reachable via a client connection made by the router. The digitwin module maps from digital twin to device IDs.
 
@@ -170,7 +167,7 @@ Notifications originate devices and services and are consumed by consumers and s
 
 [nsink] follows a registered notification sink
 
-1. Notification flow from agent to digital twin. This notification is received by the server and forwarded by the router to updates the vcache of the digital twin. The digitwin module maps the device ID to the digital twin ID before updating the vcache.
+1. Notification flow from Thing to digital twin. This notification is received by the server and forwarded by the router to updates the vcache of the digital twin. The digitwin module maps the device ID to the digital twin ID before updating the vcache.
 
 > server -[nsink]> router -[nsink]> digitwin -[nsink]> vcache
 

@@ -126,12 +126,12 @@ func (m *WssServer) Stop() {
 }
 
 // NewHiveotWssTransportServer creates a websocket server module using serving HiveOT websocket
-// connections from consumers and agents.
+// connections from consumers and devices.
 //
 // httpServer is the http server the websocket is using
 //
 // Use SetRequestSink to set the handler for requests send by consumers
-// Use SetNotificationSink to set the handler for notifications send by agents.
+// Use SetNotificationSink to set the handler for notifications send by devices.
 func NewHiveotWssServer(httpServer transport.IHttpServer, respTimeout time.Duration) *WssServer {
 
 	httpURL := httpServer.GetConnectURL()
@@ -168,7 +168,7 @@ func NewHiveotWssServer(httpServer transport.IHttpServer, respTimeout time.Durat
 // respTimeout is the time the server waits for a response when receiving requests. defaults to 3sec
 //
 // Use SetRequestSink to set the handler for requests send by consumers
-// Use SetNotificationSink to set the handler for notifications send by agents.
+// Use SetNotificationSink to set the handler for notifications send by devices.
 func NewWotWssServer(httpServer transport.IHttpServer, respTimeout time.Duration) *WssServer {
 	if httpServer == nil {
 		panic("NewWotWssModule: Http server is nil")

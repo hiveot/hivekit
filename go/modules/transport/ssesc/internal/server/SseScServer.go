@@ -73,7 +73,7 @@ func (m *SseScServer) Stop() {
 // # The optional connect handler is invoked when connections appear and disappear
 //
 // Use SetRequestSink to set the handler for requests send by consumers
-// Use SetNotificationSink to set the handler for notifications send by agents.
+// Use SetNotificationSink to set the handler for notifications send by Things.
 func NewSseScServer(httpServer transport.IHttpServer, respTimeout time.Duration) *SseScServer {
 
 	ssePath := ssesc.SseScPath

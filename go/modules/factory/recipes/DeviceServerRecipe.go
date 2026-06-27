@@ -17,12 +17,12 @@ import (
 	wsspkg "github.com/hiveot/hivekit/go/modules/transport/wss/pkg"
 )
 
-// the module slot where to insert the application
+// the module slot where to insert the application exposed thing
 const AppSlotType = "appSlot"
 
-// DeviceServerChain is a template that defines the module chain for an IoT device
+// ServerDeviceModuleChain is a template that defines the module chain for an IoT device
 // running a server.
-var DeviceServerChain = []factory.ModuleDefinition{
+var ServerDeviceModuleChain = []factory.ModuleDefinition{
 
 	//--- modules that do not depend on where they are placed
 	{
@@ -71,7 +71,7 @@ var DeviceServerChain = []factory.ModuleDefinition{
 	},
 }
 
-// NewDeviceServerRecipe creates a recipe for IOT devices running a server.
+// NewServerDeviceRecipe creates a recipe for IOT devices running a server.
 //
 // 1. load CA and server certificate
 // 2. Run a http server to publish the device TD
@@ -82,12 +82,12 @@ var DeviceServerChain = []factory.ModuleDefinition{
 // 7. Run a service discovery server to publish the TD using the discovery specification.
 //
 // f is the module factory to use to use.
-// appModule is the device application module definition to inject in the app slot.
+// appModule is the module definition of the exposed thing to inject in the app slot.
 //
 // This returns the recipe, which can be used like any other module
-func NewDeviceServerRecipe(
+func NewServerDeviceRecipe(
 	f factory.IModuleFactory, appModule *factory.ModuleDefinition) factory.IRecipe {
-	chain := DeviceServerChain
+	chain := ServerDeviceModuleChain
 
 	r := factorypkg.NewChainRecipe(f, chain)
 	// place the application module before discovery

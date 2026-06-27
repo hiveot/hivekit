@@ -202,7 +202,7 @@ func (cc *CursorCache) Start() {
 			ciList := cc.GetExpiredCursors()
 			for _, ci := range ciList {
 				slog.Warn("Releasing expired cursor",
-					slog.String("agentID", ci.OwnerID), slog.String("key", ci.Key))
+					slog.String("ownerID", ci.OwnerID), slog.String("key", ci.Key))
 				// release the expired cursor and remove it from the cache
 				_ = cc.Release(ci.OwnerID, ci.Key)
 			}

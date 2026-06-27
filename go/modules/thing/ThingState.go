@@ -1,4 +1,4 @@
-package agent
+package thing
 
 import (
 	"maps"
@@ -7,7 +7,7 @@ import (
 	"github.com/hiveot/hivekit/go/api/msg"
 )
 
-// ThingState holds the state values of Things managed by the agent.
+// ThingState holds the state values of a Thing and its nested Things.
 // Intended to support querying property and event values.
 type ThingState struct {
 

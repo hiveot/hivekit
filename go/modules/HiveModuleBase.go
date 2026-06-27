@@ -29,9 +29,9 @@ type ModuleEnv struct {
 // Call Init(moduleID,sink) after construction
 type HiveModuleBase struct {
 
-	// thingID is the instance ID of this module. Used as the senderID in notifications
+	// moduleID is the instance ID of this module. Used as the senderID in notifications
 	// and in logging.
-	thingID string
+	moduleID string
 
 	// notificationSink is the sink for forwarding notification messages.
 	// sinks set with an empty thingID receive all notifications.
@@ -90,11 +90,11 @@ func (m *HiveModuleBase) ForwardRequest(req *msg.RequestMessage, replyTo msg.Res
 	m.mux.RUnlock()
 	if sink == nil {
 		return fmt.Errorf("ForwardRequest: no sink for request at '%s' for request '%s/%s' to thingID '%s'",
-			m.thingID, req.Operation, req.Name, req.ThingID)
+			m.moduleID, req.Operation, req.Name, req.ThingID)
 	}
 	if replyTo == nil {
 		slog.Warn("ForwardRequest: no replyTo handler provided",
-			"moduleID", m.thingID, "req.Sender", req.SenderID, "req.ThingID", req.ThingID)
+			"moduleID", m.moduleID, "req.Sender", req.SenderID, "req.ThingID", req.ThingID)
 	}
 	err = sink.HandleRequest(req, replyTo)
 	return err
@@ -151,7 +151,7 @@ func (m *HiveModuleBase) GetRequestSink() IHiveModule {
 
 // GetThingID returns the module's thingID
 func (m *HiveModuleBase) GetThingID() string {
-	return m.thingID
+	return m.moduleID
 }
 
 // GetTimeout returns the module's rpc timeout
@@ -228,7 +228,7 @@ func (m *HiveModuleBase) SetNotificationSink(sink IHiveModule, thingIDs ...strin
 	for _, thingID := range thingIDs {
 		if m.notificationSinks[thingID] != nil {
 			slog.Warn("SetNotificationSink: A notification sink already exists. It will be overwritten.",
-				"moduleID", m.thingID,
+				"moduleID", m.moduleID,
 				"thingID", thingID)
 		}
 		m.notificationSinks[thingID] = sink
@@ -277,7 +277,7 @@ func NewHiveModuleBase(thingID string, rpcTimeout time.Duration) *HiveModuleBase
 	}
 	m := &HiveModuleBase{
 		mux:               sync.RWMutex{},
-		thingID:           thingID,
+		moduleID:          thingID,
 		rpcTimeout:        rpcTimeout,
 		notificationSinks: make(map[string]IHiveModule),
 	}

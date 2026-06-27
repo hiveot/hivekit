@@ -135,7 +135,7 @@ func (srv *DirectoryHttpServer) SendNotification(notif *msg.NotificationMessage)
 
 // ITransportServer stub - not supported in uni-directional transports
 func (srv *DirectoryHttpServer) SendRequest(
-	agentID string, req *msg.RequestMessage, replyTo msg.ResponseHandler) (err error) {
+	senderID string, req *msg.RequestMessage, replyTo msg.ResponseHandler) (err error) {
 	return fmt.Errorf("SendRequest: Not supported")
 }
 

@@ -78,7 +78,7 @@ func startTestAuthnModule(encryption string) (tp transport.IHttpServer, authnSvc
 
 	authnConfig = authn.NewAuthnConfig(testDir, testDir)
 	authnConfig.PasswordFile = passwordFile
-	// authnConfig.AgentTokenValidityDays = 1
+	// authnConfig.DeviceTokenValidityDays = 1
 	authnConfig.Encryption = encryption
 
 	authnSvc = service.NewAuthnService(authnConfig)

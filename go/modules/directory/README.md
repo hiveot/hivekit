@@ -13,15 +13,15 @@ This module is not a full blow stand-alone application but simply offers the dir
 This module is in alpha. It is functional but breaking changes might still happen.
 
 There are some notable issues for which there is no standardization:
-1: For security reasons, a device TD should only be updatable by the owning agent of a device. How to determine who this agent is?
+1: For security reasons, a device TD should only be updatable by the owning device. How to determine who this is?
 
-Proposed solution: HiveOT uses the convention that thingIDs contain the agentID prefix separated by a colon. The format for thingID is: "{agentID}:{deviceID}", where {deviceID} is the ID of the device unique within the scope of the agent publishing the TD.
+Proposed solution: HiveOT uses the convention that thingIDs contain the device clientID prefix separated by a colon. The format for thingID is: "{deviceID}:{thingID}", where {thingID} is the ID of the Thing managed by the device.
 
-If the TD is to be published in an internet based directory, the agentID must be globally unique and the forms must be updated to externally reachable addresses. In HiveOT this is not a concern of devices. Instead a gateway module must handle external exposure and security.
+If the TD is to be published in an internet based directory, the clientID must be globally unique and the forms must be updated to externally reachable addresses. In HiveOT this is not a concern of devices. Instead a gateway module must handle external exposure and security.
 
 2: How to prevent thingID collisions? There is no mechanism to guarantee uniquenes between devices. One option is to use UUIDs. Another is to use namespaces in the ID.
 
-Current solution, same as above. ThingIDs have the agent prefix.
+Current solution, same as above. ThingIDs have the clientID prefix.
 
 3: The http client should not be needed. Just use the messaging client with a
 http-basic client. The directory server TD with forms should be sufficient.
@@ -36,7 +36,7 @@ The WoT discovery specification defines the directory service API for storing an
 
 The directory package contains these modules: the directory service, its http API server, a messaging client, and an HTTP client. These can be used as any other module, and operate client side or server side. Typically, the directory server is linked to a transport server to receive requests and publish notifications. Similarly the directory client module can be used by applications to query the TDs of the available Things.
 
-The directory should be updated by IoT devices or their agent. In HiveOT, the convention is that Thing agents update the directory with one or more TD's of the Things it manages.
+The directory should be updated by IoT devices. In HiveOT, the convention is that devices update the directory with one or more TD's of the Things it manages.
 
 Alternatively, an administrator can update the directory manually with a JSON document using the provided CLI. The CLI is a simple example commandline interface that uses the directory client to read and write the directory.
 

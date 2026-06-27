@@ -1,16 +1,16 @@
 package factory_test
 
 import (
-	"github.com/hiveot/hivekit/go/modules/agent"
 	"github.com/hiveot/hivekit/go/modules/consumer"
 	"github.com/hiveot/hivekit/go/modules/factory"
+	"github.com/hiveot/hivekit/go/modules/thing"
 	"github.com/hiveot/hivekit/go/modules/transport"
 	tlsserverpkg "github.com/hiveot/hivekit/go/modules/transport/tlsserver/pkg"
 	wss "github.com/hiveot/hivekit/go/modules/transport/wss"
 	wsspkg "github.com/hiveot/hivekit/go/modules/transport/wss/pkg"
 )
 
-// module types of a device server agent chain
+// module types of a device server device chain
 var DeviceServerRecipe = []factory.ModuleDefinition{
 	{
 		Type:        transport.TLSServerModuleType,
@@ -21,8 +21,8 @@ var DeviceServerRecipe = []factory.ModuleDefinition{
 		Constructor: wsspkg.NewWotWssServerFactory,
 	},
 	{
-		Type:        agent.AgentModuleType,
-		Constructor: agent.NewAgentFactory,
+		Type:        thing.ExposedThingModuleType,
+		Constructor: thing.NewExposedThingFactory,
 	},
 }
 

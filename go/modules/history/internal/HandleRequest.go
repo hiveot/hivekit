@@ -237,16 +237,3 @@ func (svc *HistoryServiceImpl) handleSeek(req *msg.RequestMessage) (*msg.Respons
 	resp := req.CreateResponse(valueResp, err)
 	return resp, nil
 }
-
-// NewReadHistory starts the capability to read from a things's history
-//
-//	hc with the message bus connection. Its ID will be used as the agentID that provides the capability.
-//	thingBucket is the open bucket used to store history data
-// func NewHistoryServiceImpl(histStore history.IHistoryService) (svc *HistoryServiceImpl) {
-
-// 	svc = &HistoryServiceImpl{
-// 		histStore:   histStore,
-// 		cursorCache: bucketstorepkg.NewCursorCache(),
-// 	}
-// 	return svc
-// }

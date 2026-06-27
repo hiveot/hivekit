@@ -2,7 +2,6 @@ package testenv
 
 import (
 	"context"
-	_ "embed"
 	"fmt"
 	"log/slog"
 	"sync/atomic"
@@ -11,8 +10,8 @@ import (
 	"github.com/hiveot/hivekit/go/api/msg"
 	"github.com/hiveot/hivekit/go/api/td"
 	"github.com/hiveot/hivekit/go/modules"
-	"github.com/hiveot/hivekit/go/modules/agent"
 	"github.com/hiveot/hivekit/go/modules/factory"
+	"github.com/hiveot/hivekit/go/modules/thing"
 )
 
 // TM of the test device
@@ -25,17 +24,21 @@ const counterDeviceTM = `
     }
   ],
   "@type": "Service",
-  "base": "to be set by server",
-  "id": "counter1",
+  "base": "{{server}}",
+  "id": "url:counter",
   "title": "A simple counter",
-  "description": "HiveKit test device that exposes a counter",
+  "description": "HiveKit test Thing that exposes a counter",
   "version": {
     "instance": "0.1.0"
   },
-  "created": "2026-04-25T17:00:00.000Z",
-  "modified": "2024-04-25T17:00:00.000Z",
+  "created": "2026-06-25T17:00:00.000Z",
+  "modified": "2026-06-25T17:00:00.000Z",
   "support": "https://www.github.com/hiveot/hivekit",
   "properties": {
+    "autoincrement": {
+      "title": "Auto Increment",
+      "type": "bool"
+    },
     "counter": {
       "title": "Current counter value",
       "type": "integer",
@@ -53,6 +56,7 @@ const counterDeviceTM = `
     }
   },
   "actions": {
+    
     "decrement": {
       "title": "Decrement the counter"
     },
@@ -74,21 +78,23 @@ const DefaultCounterDeviceThingID = "counter1"
 
 // Affordance IDs
 const (
-	CounterPropName     = "counter"
-	CounterUpdatedEvent = "counterUpdated"
-	DecrementActionName = "decrement"
-	IncrementActionName = "increment"
+	AutoIncrementPropName = "autoincrement"
+	CounterPropName       = "counter"
+	CounterUpdatedEvent   = "counterUpdated"
+	DecrementActionName   = "decrement"
+	IncrementActionName   = "increment"
 )
 
 type CounterConfig struct {
 	// background counter
-	AutoCount bool
+	AutoIncrement bool
 	// reset the count if the auto-increment reaches this value
 	ResetValue int
 }
 
 // Simple example of an IoT test device that tracks a counter.
-// The device uses Agent as a base. Agents facilitate storing and querying properties so you dont have to.
+// The device uses Thing as a base. Things facilitate storing and querying properties
+// so you dont have to.
 //
 // This implements the properties, events and actions listed in the device TM.
 //
@@ -96,7 +102,7 @@ type CounterConfig struct {
 // A. RC hub (no forms):  TestDevice -> transport client (wss,sse,mqtt)
 // B. Standalone: http server -> transport server <-> authn service -> TestDevice -> discovery (TD)
 type TestDevice struct {
-	*agent.Agent
+	*thing.ExposedThing
 
 	config           *CounterConfig
 	counter          atomic.Int32
@@ -115,7 +121,9 @@ func (m *TestDevice) Background() {
 		<-ctx.Done()
 		cancelFn()
 		slog.Info("Incrementing counter (in background)", "value", m.counter.Load())
-		go m.Update(int(m.counter.Load() + 1))
+		if m.config.AutoIncrement {
+			go m.Update(int(m.counter.Load() + 1))
+		}
 	}
 }
 
@@ -140,7 +148,7 @@ func (m *TestDevice) HandleRequest(req *msg.RequestMessage, replyTo msg.Response
 	if req.ThingID != m.GetThingID() {
 		return m.ForwardRequest(req, replyTo)
 	}
-	// use Agent to handle read properties/events/action requests
+	// use Thing base to handle read properties/events/action requests
 	err = m.HandleReadRequests(req, replyTo)
 	if err == nil {
 		return nil
@@ -182,15 +190,26 @@ func (m *TestDevice) HandleIncrement(req *msg.RequestMessage, replyTo msg.Respon
 	return err
 }
 
+// Change a property value
 func (m *TestDevice) HandleWriteProperty(req *msg.RequestMessage, replyTo msg.ResponseHandler) (err error) {
-	var newValue int
 
-	err = req.Decode(&newValue)
-	if err == nil {
-		m.counter.Store(int32(newValue))
+	switch req.Name {
+	case CounterPropName:
+		var newValue int
+		err = req.Decode(&newValue)
+		if err == nil {
+			m.counter.Store(int32(newValue))
+			// PubProperty makes the last value available via HandleReadRequests
+			m.PubProperty(req.ThingID, req.Name, newValue, true)
+		}
+	case AutoIncrementPropName:
+		var newValue bool
+		err = req.Decode(&newValue)
+		m.config.AutoIncrement = newValue
 		// PubProperty makes the last value available via HandleReadRequests
 		m.PubProperty(req.ThingID, req.Name, newValue, true)
 	}
+
 	resp := req.CreateResponse(nil, err)
 	if replyTo != nil {
 		err = replyTo(resp)
@@ -222,13 +241,14 @@ func (m *TestDevice) Start() error {
 	}()
 	// publish the latest property values
 	props := map[string]any{
-		CounterPropName: m.counter.Load(),
+		AutoIncrementPropName: m.config.AutoIncrement,
+		CounterPropName:       m.counter.Load(),
 	}
 	thingID := m.GetThingID()
 	m.PubProperties(thingID, props, true)
 	m.PubEvent(thingID, CounterUpdatedEvent, m.counter.Load())
 
-	if m.config.AutoCount {
+	if m.config.AutoIncrement {
 		go m.Background()
 	}
 	return nil
@@ -249,27 +269,30 @@ func (m *TestDevice) Update(newValue int) {
 	m.PubEvent(thingID, CounterUpdatedEvent, m.counter.Load())
 }
 
-// Create a new counter device that starts counting at 42.
+// Create a new counter test device that starts counting at 42.
 //
 // the deviceID is the thingID
-func NewTestDevice(deviceID string, config *CounterConfig) *TestDevice {
+func NewCounterDevice(deviceID string, config *CounterConfig) *TestDevice {
 	if config == nil {
-		config = &CounterConfig{}
+		config = &CounterConfig{
+			AutoIncrement: false,
+			ResetValue:    1000,
+		}
 	}
 	m := &TestDevice{
-		Agent:  agent.NewAgent(deviceID, nil),
-		config: config,
+		ExposedThing: thing.NewExposedThing(deviceID, nil),
+		config:       config,
 	}
 	m.counter.Store(42)
 	return m
 }
 
-func NewTestDeviceFactory(f factory.IModuleFactory,
+func NewCounterDeviceFactory(f factory.IModuleFactory,
 	md *factory.ModuleDefinition) (modules.IHiveModule, error) {
 
 	// todo md can now provide configuration
-	agentID := DefaultCounterDeviceThingID
+	thingID := DefaultCounterDeviceThingID
 	counterConfig, _ := md.Config.(*CounterConfig)
-	m := NewTestDevice(agentID, counterConfig)
+	m := NewCounterDevice(thingID, counterConfig)
 	return m, nil
 }

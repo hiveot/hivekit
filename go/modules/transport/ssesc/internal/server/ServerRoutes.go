@@ -15,7 +15,7 @@ import (
 // routes for handling http server requests
 
 // HiveOTPostResponseHRef is the HTTP path that accepts HiveOT ResponseMessage envelopes
-// intended for agents that post responses.
+// intended for things that post responses.
 //const HiveOTPostResponseHRef = "/hiveot/response"
 //const HiveOTGetSseConnectHRef = "/hiveot/sse-sc"
 
@@ -41,7 +41,7 @@ func (m *SseScServer) DeleteRoutes(ssePath string, r chi.Router) {
 	r.Delete(ssesc.PostSseScResponsePath, m.onHttpResponseMessage)
 }
 
-// onNotificationMessage handles responses sent by agents.
+// onNotificationMessage handles responses sent by Things.
 //
 // The notification is decoded into a standard notification message and passed on
 // to the registered sink.
@@ -142,15 +142,15 @@ func (m *SseScServer) onHttpRequestMessage(w http.ResponseWriter, r *http.Reques
 	utils.WriteReply(w, false, nil, err)
 }
 
-// onHttpResponseMessage handles responses sent by agents.
+// onHttpResponseMessage handles responses sent by Things.
 //
-// As WoT doesn't support reverse connections this is only used by hiveot agents
-// that connect as clients. In that case the server is the consumer.
+// As WoT doesn't support reverse connections this is only used by hiveot devices
+// and services that connect as clients. In that case the server is the consumer.
 //
 // This receives a ResponseMessage envelope and passes it to the corresponding
 // connection as if the connection received the response itself.
 //
-// Message flow: agent POST response -> server forwards to -> connection ->
+// Message flow: device POST response -> server forwards to -> connection ->
 // forwards to subscriber (which is the server again, or a consumer)
 //
 // The message body is unmarshalled and included as the response.

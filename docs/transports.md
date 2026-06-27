@@ -40,9 +40,9 @@ Most HiveOT transports work fully asynchronously to maximize performance and kee
 
 The HiveOT approach is to provide a 'replyTo' callback in the HandleRequest API that can be called at any time to return a response. The response path is therefore known and can be handled asynchronously depending on the transport protocol.
 
-## Client-Server vs Consumer-Agent (Connection Reversal)
+## Client-Server vs Consumer-ExposedThing (Connection Reversal)
 
-One of the objectives of Transport modules is to support connection reversal. During connection reversal an IoT agent (device, service) connects as a client to a protocol server. Once connected it accepts requests and sends responses and notifications just as if it was running a server. The IoT agent functions independently from how the connection is established.
+One of the objectives of Transport modules is to support connection reversal. During connection reversal an exposed thing (device, service) connects as a client to a protocol server. Once connected it accepts requests and sends responses and notifications just as if it was running a server. The exposed thing functions independently from how the connection is established.
 
 ### Why Connection Reversal
 
@@ -50,7 +50,7 @@ The primarily benefit of using connection reversal is that it is much more resis
 
 Secondary benefits are that authentication and authorization can be centralized in a gateway, the user interface provided by a gateway is consistent for all IoT devices, and monitoring and logging can be centralized. New automation features can be added to the gateway even if the device doesn't support them.
 
-Last but not least, this removes quite a burden from IoT devices as they now only have a single purpose: Interface with hardware or a service. They don't have to manage users, don't run a server, and don't implement a user interface for day-to-day usage. This results in lower memory and cpu requirements.
+Last but not least, this removes quite a burden from developing IoT devices as the developer only has to write interfacing with hardware or a service. They don't have to manage users, don't run a server, and don't implement a user interface for day-to-day usage. This results in lower memory and cpu requirements.
 
 The main downside of using connection reversal is that it needs a gateway that devices discover and connect to. There is currently no clearly defined standard to accomplish this, although WoT discovery can be used to discover the gateway as if it is an IoT device.
 

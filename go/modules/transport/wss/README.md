@@ -26,7 +26,7 @@ This module uses a http server that implements the IHttpServer interface. HiveKi
 
 This module can both receive and send messages over established websocket connections.
 
-Websocket Transport connections implement the IConnection interface which contains handlers for receiving and sending, request, response and notification messages. A connection can therefore be used as a consumer or device agent.
+Websocket Transport connections implement the IConnection interface which contains handlers for receiving and sending, request, response and notification messages. A connection can therefore be used as a consumer or Thing.
 
 This module uses the TransportServerBase library that takes care of managing multiple incoming connections.
 

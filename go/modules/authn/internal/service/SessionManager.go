@@ -16,10 +16,10 @@ import (
 // Session manager for authenticating users.
 // This implements the IAuthenticator and IAuthnAuthenticator interfaces
 type SessionManager struct {
-	// Auth token validity for agents in days
-	AgentTokenValidityDays int `yaml:"agentTokenValidityDays,omitempty"`
 	// Auth token validity for consumers in days
 	ConsumerTokenValidityDays int `yaml:"consumerTokenValidityDays,omitempty"`
+	// Auth token validity for devices in days
+	DeviceTokenValidityDays int `yaml:"deviceTokenValidityDays,omitempty"`
 	// Auth token validity for services in days
 	ServiceTokenValidityDays int `yaml:"serviceTokenValidityDays,omitempty"`
 
@@ -128,8 +128,8 @@ func (sm *SessionManager) RefreshToken(senderID string, oldToken string) (
 		return newToken, validUntil, fmt.Errorf("Profile for '%s' is disabled", senderID)
 	}
 	validityDays := sm.ConsumerTokenValidityDays
-	if prof.Role == authn.ClientRoleAgent {
-		validityDays = sm.AgentTokenValidityDays
+	if prof.Role == authn.ClientRoleDevice {
+		validityDays = sm.DeviceTokenValidityDays
 	} else if prof.Role == authn.ClientRoleService {
 		validityDays = sm.ServiceTokenValidityDays
 	}
@@ -197,7 +197,7 @@ func NewSessionManager(
 	sm := &SessionManager{
 		keysDir:                   keysDir,
 		authnStore:                authnStore,
-		AgentTokenValidityDays:    authn.DefaultAgentTokenValidityDays,
+		DeviceTokenValidityDays:   authn.DefaultDeviceTokenValidityDays,
 		ServiceTokenValidityDays:  authn.DefaultServiceTokenValidityDays,
 		ConsumerTokenValidityDays: authn.DefaultConsumerTokenValidityDays,
 		sessionStart:              make(map[string]time.Time),

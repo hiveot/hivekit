@@ -10,7 +10,8 @@ import (
 // MessageTypeResponse identify the message as a response.
 const MessageTypeResponse = "response"
 
-// ResponseHandler handles an asynchronous response to a request, send by an agent.
+// ResponseHandler handles an asynchronous response to a request, sent by an
+// Exposed Thing.
 // The handler delivers the response to the client that sent the original request.
 //
 // This returns an error if the response cannot be delivered. This can be used to
@@ -100,17 +101,17 @@ type ResponseMessage struct {
 	// If an error is returned then value is empty
 	Output any `json:"output,omitempty"`
 
-	// SenderID is the authenticated clientID of the agent sending the response.
+	// SenderID is the authenticated clientID of the device or service sending the response.
 	//
 	// This is set by the transport server handling the request.
 	// When using reverse connection, the transport server sets this to the clientID of
-	// the agent that sends the response.
+	// the sender that sends the response.
 	//
 	// This feature of hiveot enables tracking of which service instance responded to a
 	// request. See also ConsumerID
 	//
-	// The Hub protocol server MUST set this to the authenticated sender.
-	SenderID string `json:"agentID"`
+	// The protocol server MUST set this to the authenticated sender.
+	SenderID string `json:"senderID"`
 
 	// Status of request with progress: pending, running, completed, failed.
 	// In most cases there is only a single response to a request. This should not be
@@ -120,10 +121,7 @@ type ResponseMessage struct {
 	// state changes due to property writes as property update notifications
 	Status string `json:"status,omitempty"`
 
-	// ThingID of the thing this is a response from.
-	// For responses passed to consumers this is the digitwin dThingID
-	// For responses sent by agents this is the agent ThingID
-	// This field is optional and intended to help debugging and logging.
+	// ThingID of the Exposed Thing this is a response from.
 	ThingID string `json:"thingID,omitempty"`
 
 	// Timestamp the response was created

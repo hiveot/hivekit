@@ -51,16 +51,20 @@ const (
 // The handler of TD write requests
 // This returns the original or a modified TD
 // This returns an error if writing the TD is not allowed.
-type WriteTDHook func(agentID string, tdi *td.TD) (*td.TD, error)
+//
+// clientID is the account ID of the client writing the TD, eg the device.
+type WriteTDHook func(clientID string, tdoc *td.TD) (*td.TD, error)
 
 // The handler of deleting TD requests
 // This returns an error if deleting the TD is not allowed.
-type DeleteTDHook func(agentID string, thingID string) error
+//
+// clientID is the account ID of the client writing the TD, eg the device.
+type DeleteTDHook func(clientID string, thingID string) error
 
-// Information of an agent that has registered Things
-type AgentInfo struct {
-	// The agent whose info this contains
-	AgentID string
+// Information of the thing registrations for a client account.
+type RegistrationInfo struct {
+	// The clientID of the device managing the Things.
+	ClientID string
 	// ThingIDs of the devices it has registered
 	ThingIDs []string
 }
@@ -97,12 +101,14 @@ type IDirectoryService interface {
 	// CreateThing creates or updates the TD in the directory.
 	// If the thing doesn't exist in the directory it is added.
 	//
-	// Only agents can create a TD. If the administrator acts as the agent then it
-	// is also responsible for updating it if that is ever needed.
-	CreateThing(agentID string, tdJson string) error
+	// Only devices can create the TD of things that use reverse connections.
+	//
+	// Administrators can upload TDs using their own account but only if these
+	// devices do not use reverse connections.
+	CreateThing(senderID string, tdJson string) error
 
 	// DeleteThing removes a Thing TD document from the directory
-	DeleteThing(agentID string, thingID string) error
+	DeleteThing(senderID string, thingID string) error
 
 	// Return an instance of a TD from the store.
 	// These TD's are cached so successive requests do not parse the json each time.
@@ -128,7 +134,5 @@ type IDirectoryService interface {
 
 	// UpdateThing replaces the TD in the store.
 	// If the thing doesn't exist in the store it is added.
-	//
-	// Only agents can update a TD.
-	UpdateThing(agentID string, tdJson string) error
+	UpdateThing(senderID string, tdJson string) error
 }

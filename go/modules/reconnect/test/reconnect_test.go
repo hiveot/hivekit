@@ -10,9 +10,9 @@ import (
 
 	"github.com/hiveot/hivekit/go/api/msg"
 	"github.com/hiveot/hivekit/go/api/td"
-	"github.com/hiveot/hivekit/go/modules/agent"
 	"github.com/hiveot/hivekit/go/modules/authn"
 	"github.com/hiveot/hivekit/go/modules/consumer"
+	"github.com/hiveot/hivekit/go/modules/thing"
 	"github.com/hiveot/hivekit/go/modules/transport"
 	"github.com/hiveot/hivekit/go/testenv"
 	"github.com/stretchr/testify/assert"
@@ -43,7 +43,7 @@ func TestReconnect(t *testing.T) {
 
 	const thingID = "thing1"
 	const actionKey = "action1"
-	const agentID = "agent1"
+	const deviceID = "device1"
 	var serverConnectEvents atomic.Int32
 	var clientConnectEvents atomic.Int32
 
@@ -58,9 +58,9 @@ func TestReconnect(t *testing.T) {
 		}
 	}
 
-	// this test agent receives an action and returns the input
+	// this test device receives an action and returns the input
 	// it is intended to prove reconnect works.
-	ag := agent.NewAgent("", func(req *msg.RequestMessage, replyTo msg.ResponseHandler) error {
+	ag := thing.NewExposedThing("", func(req *msg.RequestMessage, replyTo msg.ResponseHandler) error {
 		slog.Info("Received request", "op", req.Operation)
 		var err error
 		// prove that the return channel is connected
@@ -71,7 +71,7 @@ func TestReconnect(t *testing.T) {
 				output := req.Input
 
 				resp := req.CreateResponse(output, nil)
-				resp.SenderID = agentID
+				resp.SenderID = deviceID
 				err = replyTo(resp)
 				assert.NoError(t, err)
 			}()

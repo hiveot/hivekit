@@ -65,7 +65,7 @@ var DataSizeTable = []struct {
 }
 
 func BenchmarkAddEvents(b *testing.B) {
-	const agentID = "agent1"
+	const senderID = "device-1"
 	const thing0ID = thingIDPrefix + "0"
 	const timespanSec = 3600 * 24 * 10
 
@@ -75,7 +75,7 @@ func BenchmarkAddEvents(b *testing.B) {
 		utils.SetLogging("error", "")
 		time.Sleep(time.Millisecond)
 		// build a dataset in the store
-		addBulkHistory(m, agentID, tbl.dataSize, 10, timespanSec)
+		addBulkHistory(m, senderID, tbl.dataSize, 10, timespanSec)
 
 		// test adding records one by one
 		// add history directly access the history store. No comms protocol is used.

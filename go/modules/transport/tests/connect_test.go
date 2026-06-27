@@ -17,7 +17,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-const testAgentID1 = "agent1"
+const testDeviceID1 = "device1"
 const testClientID1 = "client1"
 
 var testProtocol = transport.ProtocolTypeHiveotGrpc

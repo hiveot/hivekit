@@ -43,7 +43,7 @@ func TestAddRemoveClientsSuccess(t *testing.T) {
 	err = m.AddClient("user4", "user 4", authn.ClientRoleViewer)
 	assert.NoError(t, err)
 
-	err = m.AddClient(deviceID, "agent 1", authn.ClientRoleAgent)
+	err = m.AddClient(deviceID, "device 1", authn.ClientRoleDevice)
 	assert.NoError(t, err)
 
 	err = m.AddClient(serviceID, "service 1", authn.ClientRoleService)
@@ -149,17 +149,17 @@ func TestUpdatePubKey(t *testing.T) {
 	assert.Equal(t, profile.PubKeyPem, profile2.PubKeyPem)
 }
 
-func TestNewAgentToken(t *testing.T) {
+func TestNewDeviceToken(t *testing.T) {
 	t.Logf("---%s---\n", t.Name())
-	var tu1ID = "ag1ID"
-	var tu1Name = "agent 1"
+	var tu1ID = "device1ID"
+	var tu1Name = "device 1"
 
 	const adminID = "administrator-1"
 	_, m, stopFn := startTestAuthnModule(defaultHash)
 	defer stopFn()
 
-	// add agent to test with and connect
-	err := m.AddClient(tu1ID, tu1Name, authn.ClientRoleAgent)
+	// add device to test with and connect
+	err := m.AddClient(tu1ID, tu1Name, authn.ClientRoleDevice)
 	require.NoError(t, err)
 
 	// get a new token
