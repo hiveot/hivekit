@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/hiveot/hivekit/go/api"
 	"github.com/hiveot/hivekit/go/modules/transport"
 	grpctransport "github.com/hiveot/hivekit/go/modules/transport/grpc"
 	grpclib "github.com/hiveot/hivekit/go/modules/transport/grpc/internal"
@@ -28,7 +29,7 @@ const DefaultUDSModuleID = "hiveot-uds"
 type GrpcServer struct {
 	*transport.TransportServerBase
 	// Authenticate
-	authenticator transport.IAuthenticator
+	authenticator api.IAuthenticator
 
 	tlsCert *tls.Certificate
 
@@ -133,7 +134,7 @@ func (m *GrpcServer) Stop() {
 //	respTimeout is the time the server waits for a response when sending requests. defaults to 3sec
 func NewGrpcServer(
 	address string, tlsCert *tls.Certificate, caCert *x509.Certificate,
-	authn transport.IAuthenticator, respTimeout time.Duration) *GrpcServer {
+	authn api.IAuthenticator, respTimeout time.Duration) *GrpcServer {
 
 	// cleanup the connect URL into one of these:
 	// UDS: unix://path/to/sock

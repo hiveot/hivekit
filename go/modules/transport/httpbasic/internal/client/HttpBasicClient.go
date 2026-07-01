@@ -12,11 +12,12 @@ import (
 	"sync"
 	"time"
 
+	"github.com/hiveot/hivekit/go/api"
 	"github.com/hiveot/hivekit/go/api/msg"
 	"github.com/hiveot/hivekit/go/api/td"
 	"github.com/hiveot/hivekit/go/modules"
-	"github.com/hiveot/hivekit/go/modules/transport"
 	"github.com/hiveot/hivekit/go/modules/transport/httpbasic"
+	"github.com/hiveot/hivekit/go/modules/transport/tlsclient"
 	tlsclientpkg "github.com/hiveot/hivekit/go/modules/transport/tlsclient/pkg"
 	"github.com/hiveot/hivekit/go/utils"
 	jsoniter "github.com/json-iterator/go"
@@ -41,32 +42,32 @@ type HttpBasicClient struct {
 	bearerToken string
 
 	// current connection status
-	connectStatus transport.ConnectionStatus
+	connectStatus api.ConnectionStatus
 	// callback when connection changes
-	connectHandler func(newStatus transport.ConnectionStatus, c transport.ITransportClient)
+	connectHandler func(newStatus api.ConnectionStatus, c api.ITransportClient)
 
 	// getForm obtains the form for sending a request or notification
 	// if nil, then the hiveot protocol envelope and URL are used as fallback
-	getForm transport.GetFormHandler
+	getForm api.GetFormHandler
 
 	// protected operations
 	mux sync.RWMutex
 
 	// destination for notifications, requests and responses.
 	// This is intended to be the application module the client connects to.
-	sink modules.IHiveModule
+	sink api.IHiveModule
 
 	// timeout for use with SendRequest
 	timeout time.Duration
 
 	// http2 client for posting messages
-	tlsClient transport.ITLSClient
+	tlsClient tlsclient.ITLSClient
 }
 
 // update the connection status and publish an notification if it differs from the last status
 // a 'lost' status is ignored if the current status is set to closed as it was intentional.
 func (cl *HttpBasicClient) _setConnectionStatus(
-	newStatus transport.ConnectionStatus, err error) {
+	newStatus api.ConnectionStatus, err error) {
 
 	cl.mux.RLock()
 	oldStatus := cl.connectStatus
@@ -74,7 +75,7 @@ func (cl *HttpBasicClient) _setConnectionStatus(
 
 	if newStatus == oldStatus {
 		return
-	} else if oldStatus == transport.StatusClosed && newStatus == transport.StatusLost {
+	} else if oldStatus == api.StatusClosed && newStatus == api.StatusLost {
 		return
 	}
 	cl.mux.Lock()
@@ -84,7 +85,7 @@ func (cl *HttpBasicClient) _setConnectionStatus(
 
 	// notify upstream of status change
 	moduleID := cl.GetThingID()
-	evName := transport.ClientConnectionStatusEvent
+	evName := api.ClientConnectionStatusEvent
 	notif := msg.NewNotificationMessage(
 		moduleID, msg.AffordanceTypeEvent, moduleID, evName, newStatus)
 	cl.ForwardNotification(notif)
@@ -106,7 +107,7 @@ func (cl *HttpBasicClient) AuthenticateWithClientCert(clientCert *tls.Certificat
 // and injects the authentication credentials according to the TDI schema.
 // This returns an error if the schema isn't supported or is not compatible.
 func (cl *HttpBasicClient) AuthenticateWithForm(
-	tdDoc *td.TD, getCredentials transport.GetCredentials) error {
+	tdDoc *td.TD, getCredentials api.GetCredentials) error {
 
 	clientID, secret, schemeName, err := getCredentials(tdDoc.ID)
 	secScheme, err := tdDoc.GetSecurityScheme()
@@ -137,7 +138,7 @@ func (cl *HttpBasicClient) AuthenticateWithToken(
 func (cl *HttpBasicClient) Close() {
 
 	// set status to closed first to avoid a reconnect
-	cl._setConnectionStatus(transport.StatusClosed, nil)
+	cl._setConnectionStatus(api.StatusClosed, nil)
 
 	cl.mux.Lock()
 	defer cl.mux.Unlock()
@@ -149,14 +150,14 @@ func (cl *HttpBasicClient) Close() {
 // This performs a standard /ping health check that the hiveot http server supports.
 func (cl *HttpBasicClient) Connect() error {
 
-	cl._setConnectionStatus(transport.StatusConnecting, nil)
+	cl._setConnectionStatus(api.StatusConnecting, nil)
 	statusCode, err := cl.tlsClient.Ping()
 	if statusCode == http.StatusOK {
-		cl._setConnectionStatus(transport.StatusConnected, err)
+		cl._setConnectionStatus(api.StatusConnected, err)
 	} else if statusCode == http.StatusUnauthorized {
-		cl._setConnectionStatus(transport.StatusRefused, err)
+		cl._setConnectionStatus(api.StatusRefused, err)
 	} else {
-		cl._setConnectionStatus(transport.StatusLost, err)
+		cl._setConnectionStatus(api.StatusLost, err)
 	}
 	return err
 }
@@ -169,7 +170,7 @@ func (cl *HttpBasicClient) GetConnectionID() string {
 }
 
 // // GetConnectionStatus returns the current connection status
-func (cl *HttpBasicClient) GetConnectionStatus() transport.ConnectionStatus {
+func (cl *HttpBasicClient) GetConnectionStatus() api.ConnectionStatus {
 	cl.mux.RLock()
 	defer cl.mux.RUnlock()
 	stat := cl.connectStatus
@@ -182,7 +183,7 @@ func (cl *HttpBasicClient) GetDefaultForm(op, thingID, name string) (f *td.Form,
 	// login has its own URL as it is unauthenticated
 	if op == td.HTOpPing {
 		base := cl.tlsClient.GetHostPort()
-		href = fmt.Sprintf("https://%s%s", base, transport.DefaultPingPath)
+		href = fmt.Sprintf("https://%s%s", base, api.DefaultPingPath)
 		nf := td.NewForm(op, href)
 		nf.SetMethodName(http.MethodGet)
 		f = &nf
@@ -192,7 +193,7 @@ func (cl *HttpBasicClient) GetDefaultForm(op, thingID, name string) (f *td.Form,
 }
 
 // Return the TLS client used by this connection
-func (cl *HttpBasicClient) GetTlsClient() transport.ITLSClient {
+func (cl *HttpBasicClient) GetTlsClient() tlsclient.ITLSClient {
 	cl.mux.RLock()
 	defer cl.mux.RUnlock()
 	return cl.tlsClient
@@ -386,7 +387,7 @@ func (cl *HttpBasicClient) SendResponse(resp *msg.ResponseMessage) error {
 }
 
 // Does reports an error as http clients dont receive notifications
-func (cl *HttpBasicClient) SetNotificationSink(sink modules.IHiveModule, thingID ...string) {
+func (cl *HttpBasicClient) SetNotificationSink(sink api.IHiveModule, thingID ...string) {
 	slog.Warn("SetNotificationSink: HttpBasicClients dont handle notifications",
 		"clientID", cl.GetClientID())
 }
@@ -394,13 +395,13 @@ func (cl *HttpBasicClient) SetNotificationSink(sink modules.IHiveModule, thingID
 // SetRequestSink set sink that handles requests
 // Since http-basic is a uni-directional transport client, requests are send to the server
 // instead of passing it to this sink. Therefore this logs an error.
-func (cl *HttpBasicClient) SetRequestSink(sink modules.IHiveModule) {
+func (cl *HttpBasicClient) SetRequestSink(sink api.IHiveModule) {
 	slog.Warn("SetRequestSink. HttpBasicClient cannot be a request sink.")
 }
 
 // SetConnectHandler sets the callback to invoke when the connection status changes
 func (cl *HttpBasicClient) SetConnectHandler(
-	h func(newStatus transport.ConnectionStatus, c transport.ITransportClient)) {
+	h func(newStatus api.ConnectionStatus, c api.ITransportClient)) {
 	cl.mux.Lock()
 	defer cl.mux.Unlock()
 	cl.connectHandler = h
@@ -434,9 +435,9 @@ func (cl *HttpBasicClient) Stop() {
 //	getForm is the handler for return a form for invoking an operation. nil for default
 //	ch optional callback with connection status changes
 func NewHttpBasicClient(
-	baseURL string, caCert *x509.Certificate, getForm transport.GetFormHandler) *HttpBasicClient {
+	baseURL string, caCert *x509.Certificate, getForm api.GetFormHandler) *HttpBasicClient {
 
-	timeout := transport.DefaultClientTimeout
+	timeout := tlsclient.DefaultClientTimeout
 	urlParts, err := url.Parse(baseURL)
 	if err != nil {
 		slog.Error("Invalid URL")
@@ -456,19 +457,19 @@ func NewHttpBasicClient(
 //	tlsClient used for the server connection
 //	getForm is the handler for return a form for invoking an operation. nil for default
 func NewHttpBasicTLSClient(
-	tlsClient transport.ITLSClient, getForm transport.GetFormHandler) *HttpBasicClient {
+	tlsClient tlsclient.ITLSClient, getForm api.GetFormHandler) *HttpBasicClient {
 
 	thingID := httpbasic.HttpBasicClientModuleType + shortid.MustGenerate()
 	cl := &HttpBasicClient{
 		HiveModuleBase: modules.NewHiveModuleBase(thingID, 0),
 		getForm:        getForm,
-		timeout:        transport.DefaultClientTimeout,
+		timeout:        tlsclient.DefaultClientTimeout,
 		tlsClient:      tlsClient,
 	}
 	if cl.getForm == nil {
 		cl.getForm = cl.GetDefaultForm
 	}
-	var _ transport.IConnection = cl // interface check
-	var _ modules.IHiveModule = cl   // interface check
+	var _ api.IConnection = cl // interface check
+	var _ api.IHiveModule = cl // interface check
 	return cl
 }

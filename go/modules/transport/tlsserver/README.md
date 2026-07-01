@@ -55,7 +55,7 @@ See NewTLSServerConfig for defaults.
 ```go
  config := tls.NewTLSServerConfig()
  config.CaCert = certsModule.GetCACert(),
- config.ServerCert = certsModule.GetDefaultServerCert(),
+ config.ServerCert = certsModule.LoadServerCert(name),
  config.Authenticator = authnModule.GetAuthenticator()
  module := tlspkg.NewTLSServer(config)
  err := module.Start()

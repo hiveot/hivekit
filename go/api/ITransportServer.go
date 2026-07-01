@@ -1,11 +1,10 @@
-package transport
+package api
 
 import (
 	"time"
 
 	"github.com/hiveot/hivekit/go/api/msg"
 	"github.com/hiveot/hivekit/go/api/td"
-	"github.com/hiveot/hivekit/go/modules"
 )
 
 // Transport server module definitions for use by transport protocols.
@@ -77,7 +76,7 @@ type ValidateTokenHandler func(token string) (clientID string, validUntil time.T
 
 // A transport server module is a server module with hooks for sending messages to remote clients.
 type ITransportServer interface {
-	modules.IHiveModule
+	IHiveModule
 
 	// AddTDSecForms updates the given Thing Description with security and forms for this
 	// transport module.

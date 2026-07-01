@@ -9,11 +9,10 @@ import (
 	"sync"
 	"syscall"
 
+	"github.com/hiveot/hivekit/go/api"
 	"github.com/hiveot/hivekit/go/api/msg"
 	"github.com/hiveot/hivekit/go/api/td"
 	"github.com/hiveot/hivekit/go/modules"
-	"github.com/hiveot/hivekit/go/modules/factory"
-	"github.com/hiveot/hivekit/go/modules/transport"
 )
 
 // ModuleFactoryImpl for creating instances of modules using the application environment.
@@ -22,22 +21,22 @@ import (
 type ModuleFactoryImpl struct {
 	*modules.HiveModuleBase
 
-	env *factory.AppEnvironment
+	env *api.AppEnvironment
 
 	// the http server with and modules that serve http endpoints
-	httpServer transport.IHttpServer
+	httpServer api.IHttpServer
 
 	// module definitions used for creating module instances by name
-	moduleMap map[string]factory.ModuleDefinition
+	moduleMap map[string]api.ModuleDefinition
 
 	// list of loaded modules in order of instantiation
-	loadedModules []modules.IHiveModule
+	loadedModules []api.IHiveModule
 
 	// instances of modules marked as singleton
-	singletonModules map[string]modules.IHiveModule
+	singletonModules map[string]api.IHiveModule
 
 	// list of all transport modules
-	transportModules []transport.ITransportServer
+	transportModules []api.ITransportServer
 
 	// the authenticator proxy
 	authProxy *AuthenticatorProxy
@@ -49,7 +48,7 @@ type ModuleFactoryImpl struct {
 // This invokes all singletonModules that implement the ITransportServer interface
 func (f *ModuleFactoryImpl) AddTDSecForms(tdoc *td.TD, includeAffordances bool) {
 	f.mux.RLock()
-	tpList := []transport.ITransportServer{}
+	tpList := []api.ITransportServer{}
 	copy(tpList, f.transportModules)
 	f.mux.RUnlock()
 	for _, tp := range tpList {
@@ -57,9 +56,20 @@ func (f *ModuleFactoryImpl) AddTDSecForms(tdoc *td.TD, includeAffordances bool) 
 	}
 }
 
-// Find the first loaded singleton module instance by its type
+// Used for server modules that need to authenticate incoming connections
+// This returns a proxy to the actual authenticator.
+func (f *ModuleFactoryImpl) GetAuthenticator() api.IAuthenticator {
+	return f.authProxy
+}
+
+// Return the application environment used by the factory.
+func (f *ModuleFactoryImpl) GetEnvironment() *api.AppEnvironment {
+	return f.env
+}
+
+// GetModule returns the module instance by its type
 // This returns nil if no instance was loaded or the module isn't a singleton
-func (f *ModuleFactoryImpl) FindModule(moduleType string) (m modules.IHiveModule) {
+func (f *ModuleFactoryImpl) GetModule(moduleType string) (m api.IHiveModule) {
 	f.mux.RLock()
 	defer f.mux.RUnlock()
 	m, ok := f.singletonModules[moduleType]
@@ -67,19 +77,8 @@ func (f *ModuleFactoryImpl) FindModule(moduleType string) (m modules.IHiveModule
 	return m
 }
 
-// Return the application environment used by the factory.
-func (f *ModuleFactoryImpl) GetEnvironment() *factory.AppEnvironment {
-	return f.env
-}
-
-// Used for server modules that need to authenticate incoming connections
-// This returns a proxy to the actual authenticator.
-func (f *ModuleFactoryImpl) GetAuthenticator() transport.IAuthenticator {
-	return f.authProxy
-}
-
 // Return the first loaded module. This returns nil if no modules are loaded
-func (f *ModuleFactoryImpl) GetFirstModule() modules.IHiveModule {
+func (f *ModuleFactoryImpl) GetFirstModule() api.IHiveModule {
 	f.mux.RLock()
 	defer f.mux.RUnlock()
 	if len(f.loadedModules) > 0 {
@@ -93,7 +92,7 @@ func (f *ModuleFactoryImpl) GetFirstModule() modules.IHiveModule {
 //	instantiate indicates if the http server instance should be created if it doesnt exist.
 //
 // This returns nil if no http server module is registered
-func (f *ModuleFactoryImpl) GetHttpServer(instantiate bool) transport.IHttpServer {
+func (f *ModuleFactoryImpl) GetHttpServer(instantiate bool) api.IHttpServer {
 	f.mux.RLock()
 	httpServer := f.httpServer
 	f.mux.RUnlock()
@@ -104,12 +103,12 @@ func (f *ModuleFactoryImpl) GetHttpServer(instantiate bool) transport.IHttpServe
 	if !instantiate {
 		return nil
 	}
-	m, err := f.StartModule(transport.TLSServerModuleType, instantiate)
+	m, err := f.StartModule(api.HttpServerModuleType, instantiate)
 	if err != nil {
 		slog.Warn("GetHttpServer: no http server module is registered")
 		return nil
 	}
-	httpServer, ok := m.(transport.IHttpServer)
+	httpServer, ok := m.(api.IHttpServer)
 	if !ok {
 		slog.Error("The http server module does not support the IHttpServer API")
 	}
@@ -120,7 +119,7 @@ func (f *ModuleFactoryImpl) GetHttpServer(instantiate bool) transport.IHttpServe
 }
 
 // Return the last loaded module. This returns nil if no modules are loaded
-func (f *ModuleFactoryImpl) GetLastModule() modules.IHiveModule {
+func (f *ModuleFactoryImpl) GetLastModule() api.IHiveModule {
 	f.mux.RLock()
 	defer f.mux.RUnlock()
 	if len(f.loadedModules) > 0 {
@@ -139,9 +138,9 @@ func (f *ModuleFactoryImpl) GetConnectURL() string {
 }
 
 // Return a copy of the list with loaded transport servers.
-func (f *ModuleFactoryImpl) GetTransportServers() []transport.ITransportServer {
+func (f *ModuleFactoryImpl) GetTransportServers() []api.ITransportServer {
 	f.mux.RLock()
-	tpList := make([]transport.ITransportServer, len(f.transportModules))
+	tpList := make([]api.ITransportServer, len(f.transportModules))
 	copy(tpList, f.transportModules)
 	f.mux.RUnlock()
 	return tpList
@@ -160,7 +159,7 @@ func (f *ModuleFactoryImpl) HandleRequest(req *msg.RequestMessage, replyTo msg.R
 //
 // If the module implements the ITransportModule interface it is added to the list of available
 // transport. See GetTransportServers() to obtain the collection of all loaded servers.
-func (f *ModuleFactoryImpl) LoadModule(moduleType string) (m modules.IHiveModule, isNew bool, err error) {
+func (f *ModuleFactoryImpl) LoadModule(moduleType string) (m api.IHiveModule, isNew bool, err error) {
 	f.mux.RLock()
 	m, ok := f.singletonModules[moduleType]
 	f.mux.RUnlock()
@@ -194,7 +193,7 @@ func (f *ModuleFactoryImpl) LoadModule(moduleType string) (m modules.IHiveModule
 
 	f.mux.Lock()
 	f.singletonModules[moduleType] = mod
-	tp, ok := mod.(transport.ITransportServer)
+	tp, ok := mod.(api.ITransportServer)
 	if ok {
 		f.transportModules = append(f.transportModules, tp)
 	}
@@ -211,7 +210,7 @@ func (f *ModuleFactoryImpl) LoadModule(moduleType string) (m modules.IHiveModule
 // Used for registring recipe modules and support for 3rd party modules.
 //
 // If the given moduleDef has a no  factory function then only the config is added used.
-func (f *ModuleFactoryImpl) RegisterModule(moduleDef factory.ModuleDefinition) {
+func (f *ModuleFactoryImpl) RegisterModule(moduleDef api.ModuleDefinition) {
 	f.mux.Lock()
 	defer f.mux.Unlock()
 	// merge the registration if it exists
@@ -226,7 +225,7 @@ func (f *ModuleFactoryImpl) RegisterModule(moduleDef factory.ModuleDefinition) {
 // Set the authenticator to use with the module.
 // Intended to be set by a service like authn that performs actual authentication.
 // If nil is provided then disable authentication
-func (f *ModuleFactoryImpl) SetAuthenticator(impl transport.IAuthenticator) {
+func (f *ModuleFactoryImpl) SetAuthenticator(impl api.IAuthenticator) {
 	f.authProxy.SetAuthenticator(impl)
 }
 
@@ -238,7 +237,7 @@ func (f *ModuleFactoryImpl) Stop() {
 		m := f.loadedModules[i]
 		m.Stop()
 	}
-	f.loadedModules = make([]modules.IHiveModule, 0)
+	f.loadedModules = make([]api.IHiveModule, 0)
 }
 
 // StartModule loads and starts an instance of a module by its type.
@@ -248,7 +247,7 @@ func (f *ModuleFactoryImpl) Stop() {
 // factory function returns nil. Intended for initializing the factory environment.
 //
 // This returns an error if instantiate is false and the module is not yet loaded.
-func (f *ModuleFactoryImpl) StartModule(moduleType string, instantiate bool) (modules.IHiveModule, error) {
+func (f *ModuleFactoryImpl) StartModule(moduleType string, instantiate bool) (api.IHiveModule, error) {
 	f.mux.RLock()
 	m, ok := f.singletonModules[moduleType]
 	f.mux.RUnlock()
@@ -293,12 +292,12 @@ func (f *ModuleFactoryImpl) WaitForSignal(ctx context.Context) {
 // Create a new module factory.
 // Modules can be nil if they are registered separately or if StartRecipe is used.
 //
-//	env is the application enviroment created with factory.NewAppEnvironment
+//	env is the application enviroment created with api.NewAppEnvironment
 //	moduleDefs are the module definitions available to GetModule(type)
 func NewModuleFactoryImpl(
-	env *factory.AppEnvironment, moduleDefs []factory.ModuleDefinition) factory.IModuleFactory {
+	env *api.AppEnvironment, moduleDefs []api.ModuleDefinition) api.IModuleFactory {
 
-	moduleMap := make(map[string]factory.ModuleDefinition)
+	moduleMap := make(map[string]api.ModuleDefinition)
 	for _, def := range moduleDefs {
 		moduleMap[def.Type] = def
 	}
@@ -308,8 +307,8 @@ func NewModuleFactoryImpl(
 		authProxy:        NewAuthenticatorProxy(),
 		env:              env,
 		moduleMap:        moduleMap,
-		singletonModules: make(map[string]modules.IHiveModule),
+		singletonModules: make(map[string]api.IHiveModule),
 	}
-	var _ factory.IModuleFactory = f // API check
+	var _ api.IModuleFactory = f // API check
 	return f
 }

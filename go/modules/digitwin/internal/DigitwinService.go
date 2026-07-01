@@ -7,6 +7,7 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/hiveot/hivekit/go/api"
 	"github.com/hiveot/hivekit/go/api/msg"
 	"github.com/hiveot/hivekit/go/api/td"
 	"github.com/hiveot/hivekit/go/modules"
@@ -14,7 +15,6 @@ import (
 	bucketstorepkg "github.com/hiveot/hivekit/go/modules/bucketstore/pkg"
 	"github.com/hiveot/hivekit/go/modules/digitwin"
 	"github.com/hiveot/hivekit/go/modules/directory"
-	"github.com/hiveot/hivekit/go/modules/transport"
 	"github.com/hiveot/hivekit/go/modules/vcache"
 	vcacheapi "github.com/hiveot/hivekit/go/modules/vcache/api"
 )
@@ -177,10 +177,10 @@ func (m *DigitwinService) HandleNotification(notif *msg.NotificationMessage) {
 
 	// track online status of devices - this needs tracking of devices
 	// FIXME: how to know if senderID is a device?
-	if notif.Name == transport.ServerConnectEvent {
+	if notif.Name == api.ServerConnectEvent {
 
 		// if the sender is an device or service instead of a consumer then its things are now online.
-		cinfo := transport.ConnectionInfo{}
+		cinfo := api.ConnectionInfo{}
 		err := notif.Decode(&cinfo)
 		if err == nil {
 			m.SetDeviceStatus(cinfo.ClientID, true)
@@ -188,9 +188,9 @@ func (m *DigitwinService) HandleNotification(notif *msg.NotificationMessage) {
 		// send notifications upstream to potential consumers
 		m.ForwardNotification(notif)
 		return
-	} else if notif.Name == transport.ServerDisconnectEvent {
+	} else if notif.Name == api.ServerDisconnectEvent {
 		// if this is an device or service then its things are no longer online
-		cinfo := transport.ConnectionInfo{}
+		cinfo := api.ConnectionInfo{}
 		err := notif.Decode(&cinfo)
 		if err == nil {
 			m.SetDeviceStatus(cinfo.ClientID, false)

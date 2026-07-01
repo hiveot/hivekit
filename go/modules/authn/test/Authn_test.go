@@ -6,11 +6,11 @@ import (
 	"testing"
 	"time"
 
+	"github.com/hiveot/hivekit/go/api"
 	"github.com/hiveot/hivekit/go/modules/authn"
 	"github.com/hiveot/hivekit/go/modules/authn/internal/service"
 	authnpkg "github.com/hiveot/hivekit/go/modules/authn/pkg"
 	certstest "github.com/hiveot/hivekit/go/modules/certs/test"
-	"github.com/hiveot/hivekit/go/modules/transport"
 	"github.com/hiveot/hivekit/go/modules/transport/tlsserver"
 	tlsserverpkg "github.com/hiveot/hivekit/go/modules/transport/tlsserver/pkg"
 	"github.com/hiveot/hivekit/go/utils"
@@ -47,7 +47,7 @@ func TestMain(m *testing.M) {
 // This uses the clientID as password
 // This panics if a client cannot be created
 // func NewTestConsumer(m *service.AuthnService, protocolType, serverURL, clientID string) (
-// 	*consumer.Consumer, transport.ITransportClient, string) {
+// 	*consumer.Consumer, api.ITransportClient, string) {
 
 // 	// ensure the client exists
 // 	_ = m.AddClient(clientID, "client 1", authn.ClientRoleViewer)
@@ -66,7 +66,7 @@ func TestMain(m *testing.M) {
 
 // This test file sets up the environment for testing authn admin and user services.
 // This starts the authn module with a http server for testing the http API
-func startTestAuthnModule(encryption string) (tp transport.IHttpServer, authnSvc *service.AuthnService, stopFn func()) {
+func startTestAuthnModule(encryption string) (tp api.IHttpServer, authnSvc *service.AuthnService, stopFn func()) {
 
 	_ = os.RemoveAll(testDir)
 	_ = os.MkdirAll(testDir, 0700)

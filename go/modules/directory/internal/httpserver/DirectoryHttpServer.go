@@ -5,11 +5,11 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/hiveot/hivekit/go/api"
 	"github.com/hiveot/hivekit/go/api/msg"
 	"github.com/hiveot/hivekit/go/api/td"
 	"github.com/hiveot/hivekit/go/modules"
 	"github.com/hiveot/hivekit/go/modules/directory"
-	"github.com/hiveot/hivekit/go/modules/transport"
 )
 
 const ThingIDURIVar = "thingID"
@@ -23,7 +23,7 @@ const ThingIDURIVar = "thingID"
 type DirectoryHttpServer struct {
 	// transport.TransportServerBase
 	*modules.HiveModuleBase
-	httpServer       transport.IHttpServer
+	httpServer       api.IHttpServer
 	directoryThingID string
 }
 
@@ -120,12 +120,12 @@ func (srv *DirectoryHttpServer) GetConnectURL() string {
 }
 
 // ITransportServer stub - not supported in uni-directional transports
-func (srv *DirectoryHttpServer) GetConnectionByConnectionID(clientID, connectionID string) (c transport.IConnection) {
+func (srv *DirectoryHttpServer) GetConnectionByConnectionID(clientID, connectionID string) (c api.IConnection) {
 	return nil
 }
 
 // ITransportServer stub - not supported in uni-directional transports
-func (srv *DirectoryHttpServer) GetConnectionByClientID(clientID string) (c transport.IConnection) {
+func (srv *DirectoryHttpServer) GetConnectionByClientID(clientID string) (c api.IConnection) {
 	return nil
 }
 
@@ -147,12 +147,20 @@ func (srv *DirectoryHttpServer) SendResponse(
 
 // Start a new Directory HTTP handler and start listening on the given router
 //
+// This panics if no http server is provided.
+//
 // This registers the HTTP API with the router and serves its TD on the
 // .well-known/wot endpoint as per discovery specification.
 //
+//	httpServer to register with
 //	respTimeout is the maximum time the server waits for a response when forwarding directory requests
 //	 to the directory server.
-func StartDirectoryHttpServer(httpServer transport.IHttpServer, respTimeout time.Duration) *DirectoryHttpServer {
+func StartDirectoryHttpServer(httpServer api.IHttpServer, respTimeout time.Duration) *DirectoryHttpServer {
+
+	if httpServer == nil {
+		panic("NewDirectoryHttpServer: Missing http server")
+	}
+
 	srv := &DirectoryHttpServer{
 		HiveModuleBase:   modules.NewHiveModuleBase("DirectoryHttpServer", respTimeout),
 		httpServer:       httpServer,

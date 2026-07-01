@@ -44,7 +44,7 @@ The module configuration includes:
 
 There are two ways to create a websocket transport module instance, manually or using the pipeline factory.
 
-For manual instantiation call wsstransport.NewWoTWssTransport or NewHiveotWssTransport, and provide it an embedded http server. The http server must implement the transport.IHttpServer interface. The transport.httpserver package can be used with any transport that uses http.
+For manual instantiation call wsstransport.NewWoTWssTransport or NewHiveotWssTransport, and provide it an embedded http server. The http server must implement the api.IHttpServer interface. The transport.httpserver package can be used with any transport that uses http.
 
 When using the module pipeline factory, the module is automatically instantiated using the pipeline configuration and linked to the configured http server.
 

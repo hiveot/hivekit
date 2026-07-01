@@ -9,11 +9,11 @@ import (
 	"testing"
 	"time"
 
+	"github.com/hiveot/hivekit/go/api"
 	"github.com/hiveot/hivekit/go/api/td"
 	"github.com/hiveot/hivekit/go/modules/authn"
 	"github.com/hiveot/hivekit/go/modules/directory"
 	directorypkg "github.com/hiveot/hivekit/go/modules/directory/pkg"
-	"github.com/hiveot/hivekit/go/modules/transport"
 	tlsclientpkg "github.com/hiveot/hivekit/go/modules/transport/tlsclient/pkg"
 	"github.com/hiveot/hivekit/go/testenv"
 	"github.com/hiveot/hivekit/go/utils"
@@ -25,7 +25,7 @@ import (
 var storageDir = filepath.Join(os.TempDir(), "hivekit", "directory-test")
 
 const defaultDeviceID = "device-smith"
-const defaultProtocol = transport.ProtocolTypeWotWebsocket
+const defaultProtocol = api.ProtocolTypeWotWebsocket
 const TestKeyType = utils.KeyTypeED25519
 const rpcTimeout = time.Minute // for testing/debugging
 
@@ -51,7 +51,7 @@ func StartDirectoryServer(withHttp bool) (
 
 	proto := defaultProtocol
 	testEnv, cancelTestEnv := testenv.StartTestEnv(proto, true)
-	transports := []transport.ITransportServer{testEnv.Server}
+	transports := []api.ITransportServer{testEnv.Server}
 
 	if withHttp {
 		// add directory endpoints to the http server

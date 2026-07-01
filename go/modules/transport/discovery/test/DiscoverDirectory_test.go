@@ -4,9 +4,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/hiveot/hivekit/go/api"
 	directorypkg "github.com/hiveot/hivekit/go/modules/directory/pkg"
-	"github.com/hiveot/hivekit/go/modules/factory"
-	"github.com/hiveot/hivekit/go/modules/transport"
 	discoverypkg "github.com/hiveot/hivekit/go/modules/transport/discovery/pkg"
 	"github.com/hiveot/hivekit/go/testenv"
 	"github.com/hiveot/hivekit/go/utils"
@@ -64,7 +63,7 @@ func TestDiscoverGetDirectoryTD(t *testing.T) {
 	defer testEnv.HttpServer.Stop()
 
 	// run a directory that will be discoverable
-	tpList := []transport.ITransportServer{}
+	tpList := []api.ITransportServer{}
 	if testEnv.Server != nil {
 		tpList = append(tpList, testEnv.Server)
 	}
@@ -83,7 +82,7 @@ func TestDiscoverGetDirectoryTD(t *testing.T) {
 	require.NoError(t, err)
 
 	// discover and read the directory on start
-	appEnv := factory.NewAppEnvironment("", false)
+	appEnv := api.NewAppEnvironment("", false)
 	cl := discoverypkg.NewDiscoveryClient(appEnv, true)
 	err = cl.Start()
 	require.NoError(t, err)

@@ -6,6 +6,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/hiveot/hivekit/go/api"
 	"github.com/hiveot/hivekit/go/api/msg"
 	"github.com/hiveot/hivekit/go/utils"
 	"github.com/teris-io/shortid"
@@ -36,7 +37,7 @@ type HiveModuleBase struct {
 	// notificationSink is the sink for forwarding notification messages.
 	// sinks set with an empty thingID receive all notifications.
 	// sinks set with a specific thingID will receive notifications for that thingID only.
-	notificationSinks map[string]IHiveModule
+	notificationSinks map[string]api.IHiveModule
 
 	// module properties and their value, nil if not used
 	// use UpdateProperty to modify a value and flag it for change
@@ -46,7 +47,7 @@ type HiveModuleBase struct {
 	mux sync.RWMutex
 
 	// requestSink is the sink for forwarding requests messages to
-	requestSink IHiveModule
+	requestSink api.IHiveModule
 
 	rpcTimeout time.Duration
 
@@ -135,7 +136,7 @@ func (m *HiveModuleBase) ForwardRequestWait(req *msg.RequestMessage) (
 
 // GetNotificationSink returns the module's default notification sink
 // (the one without thingID)
-func (m *HiveModuleBase) GetNotificationSink() IHiveModule {
+func (m *HiveModuleBase) GetNotificationSink() api.IHiveModule {
 	m.mux.RLock()
 	defer m.mux.RUnlock()
 	sink, _ := m.notificationSinks[""]
@@ -143,7 +144,7 @@ func (m *HiveModuleBase) GetNotificationSink() IHiveModule {
 }
 
 // GetRequestSink returns the module's request sink
-func (m *HiveModuleBase) GetRequestSink() IHiveModule {
+func (m *HiveModuleBase) GetRequestSink() api.IHiveModule {
 	m.mux.RLock()
 	defer m.mux.RUnlock()
 	return m.requestSink
@@ -214,7 +215,7 @@ func (m *HiveModuleBase) Rpc(
 
 // Set the handler that will receive notifications emitted by this module.
 // Use thingIDs to set an additional handler specific for the specified thingIDs
-func (m *HiveModuleBase) SetNotificationSink(sink IHiveModule, thingIDs ...string) {
+func (m *HiveModuleBase) SetNotificationSink(sink api.IHiveModule, thingIDs ...string) {
 	m.mux.Lock()
 	defer m.mux.Unlock()
 	if len(thingIDs) == 0 {
@@ -238,7 +239,7 @@ func (m *HiveModuleBase) SetNotificationSink(sink IHiveModule, thingIDs ...strin
 // SetRequestSink sets the handler for requests send or forwarded by this module.
 //
 //	requestSink is the sink that will handle requests and send notifications
-func (m *HiveModuleBase) SetRequestSink(requestSink IHiveModule) {
+func (m *HiveModuleBase) SetRequestSink(requestSink api.IHiveModule) {
 	m.mux.Lock()
 	defer m.mux.Unlock()
 	// to be determined if there is a use-case for replacing the sink
@@ -279,7 +280,7 @@ func NewHiveModuleBase(thingID string, rpcTimeout time.Duration) *HiveModuleBase
 		mux:               sync.RWMutex{},
 		moduleID:          thingID,
 		rpcTimeout:        rpcTimeout,
-		notificationSinks: make(map[string]IHiveModule),
+		notificationSinks: make(map[string]api.IHiveModule),
 	}
 	return m
 }

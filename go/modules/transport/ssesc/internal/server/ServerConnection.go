@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/hiveot/hivekit/go/api"
 	"github.com/hiveot/hivekit/go/api/msg"
 	"github.com/hiveot/hivekit/go/api/td"
 	"github.com/hiveot/hivekit/go/modules/transport"
@@ -324,6 +325,6 @@ func NewHiveotSseConnection(
 	c.Init(clientID, httpReq.URL.String(), cid, nil, nil)
 
 	// interface check
-	var _ transport.IConnection = c
+	var _ api.IConnection = c
 	return c
 }

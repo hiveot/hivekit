@@ -7,10 +7,9 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/hiveot/hivekit/go/api"
 	"github.com/hiveot/hivekit/go/api/msg"
 	"github.com/hiveot/hivekit/go/api/td"
-	"github.com/hiveot/hivekit/go/modules"
-	"github.com/hiveot/hivekit/go/modules/factory"
 	"github.com/hiveot/hivekit/go/modules/thing"
 )
 
@@ -287,8 +286,8 @@ func NewCounterDevice(deviceID string, config *CounterConfig) *TestDevice {
 	return m
 }
 
-func NewCounterDeviceFactory(f factory.IModuleFactory,
-	md *factory.ModuleDefinition) (modules.IHiveModule, error) {
+func NewCounterDeviceFactory(f api.IModuleFactory,
+	md *api.ModuleDefinition) (api.IHiveModule, error) {
 
 	// todo md can now provide configuration
 	thingID := DefaultCounterDeviceThingID

@@ -1,11 +1,9 @@
 package directorypkg
 
 import (
-	"github.com/hiveot/hivekit/go/modules"
+	"github.com/hiveot/hivekit/go/api"
 	"github.com/hiveot/hivekit/go/modules/directory"
 	"github.com/hiveot/hivekit/go/modules/directory/internal/service"
-	"github.com/hiveot/hivekit/go/modules/factory"
-	"github.com/hiveot/hivekit/go/modules/transport"
 )
 
 // NewDirectoryService creates a new Thing directory server module instance.
@@ -20,8 +18,8 @@ import (
 //	httpServer is used to expose the directory TDD on the well-known path.
 //	transports is a list of transports that should be included in the TDD security and forms
 func NewDirectoryService(
-	thingID string, storageDir string, httpServer transport.IHttpServer,
-	transports []transport.ITransportServer) directory.IDirectoryService {
+	thingID string, storageDir string, httpServer api.IHttpServer,
+	transports []api.ITransportServer) directory.IDirectoryService {
 
 	m := service.NewDirectoryServiceImpl(
 		thingID, storageDir, httpServer, transports)
@@ -32,7 +30,7 @@ func NewDirectoryService(
 // Create the directory service module using the factory environment
 // The director http-service is optional. This will continue without http if the
 // module is not yet loaded.
-func NewDirectoryServiceFactory(f factory.IModuleFactory, md *factory.ModuleDefinition) (modules.IHiveModule, error) {
+func NewDirectoryServiceFactory(f api.IModuleFactory, md *api.ModuleDefinition) (api.IHiveModule, error) {
 	env := f.GetEnvironment()
 	storageDir := env.GetStorageDir(directory.DirectoryServiceModuleType)
 
@@ -41,8 +39,9 @@ func NewDirectoryServiceFactory(f factory.IModuleFactory, md *factory.ModuleDefi
 	// if !ok {
 	// 	slog.Info("NewDirectoryMsgServerFactory: No http so running directory without http api")
 	// }
-	transports := f.GetTransportServers()
+	httpServer, _ := f.GetHttpServer(false).(api.IHttpServer)
+	transportMods := f.GetTransportServers()
 
-	m := NewDirectoryService("", storageDir, f.GetHttpServer(false), transports)
+	m := NewDirectoryService("", storageDir, httpServer, transportMods)
 	return m, nil
 }

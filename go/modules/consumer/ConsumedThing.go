@@ -3,6 +3,7 @@ package consumer
 import (
 	"fmt"
 
+	"github.com/hiveot/hivekit/go/api"
 	"github.com/hiveot/hivekit/go/modules"
 )
 
@@ -19,7 +20,7 @@ func (ct *ConsumedThing) Start() error {
 	return fmt.Errorf("not yet implemented")
 }
 
-func NewConsumedThing(thingID string, sink modules.IHiveModule) *ConsumedThing {
+func NewConsumedThing(thingID string, sink api.IHiveModule) *ConsumedThing {
 	ct := &ConsumedThing{
 		HiveModuleBase: *modules.NewHiveModuleBase(thingID, 0),
 	}

@@ -10,8 +10,9 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/hiveot/hivekit/go/modules/transport"
+	"github.com/hiveot/hivekit/go/api"
 	"github.com/hiveot/hivekit/go/modules/transport/ssesc"
+	"github.com/hiveot/hivekit/go/modules/transport/tlsclient"
 	gosse "github.com/tmaxmax/go-sse"
 )
 
@@ -25,9 +26,9 @@ const maxSSEMessageSize = 1024 * 1024 * 10
 // If the connection is interrupted this invokes the onConnect callback.
 // Retry is disabled since subscriptions are lost.
 func ConnectSSE(
-	tlsClient transport.ITLSClient, // TLS client with bearer token
+	tlsClient tlsclient.ITLSClient, // TLS client with bearer token
 	ssePath string,
-	onConnect func(status transport.ConnectionStatus, err error),
+	onConnect func(status api.ConnectionStatus, err error),
 	onMessage func(event gosse.Event),
 	timeout time.Duration,
 ) (cancelFn func(), err error) {
@@ -39,7 +40,7 @@ func ConnectSSE(
 	sseCtx, sseCancelFn := context.WithCancel(context.Background())
 
 	clientID := tlsClient.GetClientID()
-	onConnect(transport.StatusConnecting, nil)
+	onConnect(api.StatusConnecting, nil)
 
 	// replace the sse:// schema with https:// required for the request itself
 	fullURL := fmt.Sprintf("https://%s%s", tlsClient.GetHostPort(), ssePath)
@@ -74,7 +75,7 @@ func ConnectSSE(
 		// As soon as a connection is established the server could send a 'ping' event.
 		// success!
 		slog.Info("handleSSEEvent: connection (re)established; setting connected to true")
-		onConnect(transport.StatusConnected, nil)
+		onConnect(api.StatusConnected, nil)
 		waitConnectCancelFn()
 	})
 	var sseConnErr atomic.Pointer[gosse.ConnectionError]
@@ -84,7 +85,7 @@ func ConnectSSE(
 		// onConnect will be called on receiving the first (ping) message
 		//onConnect(true, nil)
 		err := conn.Connect()
-		var status transport.ConnectionStatus
+		var status api.ConnectionStatus
 
 		if connError, ok := err.(*gosse.ConnectionError); ok {
 			if strings.Contains(connError.Error(), "401") {
@@ -92,12 +93,12 @@ func ConnectSSE(
 				slog.Error("SSE authentication failed. Invalid credentials.",
 					"clientID", clientID,
 					"err", err.Error())
-				status = transport.StatusRefused
+				status = api.StatusRefused
 			} else {
 				slog.Warn("SSE connection failed (server shutdown or connection interrupted)",
 					"clientID", clientID,
 					"err", err.Error())
-				status = transport.StatusLost
+				status = api.StatusLost
 			}
 			sseConnErr.Store(connError)
 			//err = fmt.Errorf("connect Failed: %w", connError.Err) //connError.Err
@@ -105,7 +106,7 @@ func ConnectSSE(
 		} else if errors.Is(err, context.Canceled) {
 			// context was closed. no error
 			err = nil
-			status = transport.StatusClosed
+			status = api.StatusClosed
 		}
 		onConnect(status, err)
 		_ = remover

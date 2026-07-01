@@ -6,11 +6,11 @@ import (
 	"maps"
 	"sync"
 
+	"github.com/hiveot/hivekit/go/api"
 	"github.com/hiveot/hivekit/go/api/msg"
 	"github.com/hiveot/hivekit/go/api/td"
 	"github.com/hiveot/hivekit/go/modules"
 	"github.com/hiveot/hivekit/go/modules/directory"
-	"github.com/hiveot/hivekit/go/modules/factory"
 	"github.com/hiveot/hivekit/go/utils"
 )
 
@@ -335,7 +335,7 @@ func NewExposedThing(thingID string, appReqHandler msg.RequestHandler) *ExposedT
 }
 
 // Factory for creating a thing module using the factory environment
-func NewExposedThingFactory(f factory.IModuleFactory, md *factory.ModuleDefinition) (modules.IHiveModule, error) {
+func NewExposedThingFactory(f api.IModuleFactory, md *api.ModuleDefinition) (api.IHiveModule, error) {
 	appID := f.GetEnvironment().AppID
 	c := NewExposedThing(appID, nil)
 	return c, nil

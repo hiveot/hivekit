@@ -39,6 +39,11 @@
       "title": "Get Server Cert",
       "description": "Return the default server certificate.",
       "idempotent": true,
+      "input": {
+        "title": "Server name",
+        "description": "Name under which the certification was created",
+        "type":"string"
+      },
       "output": {
         "title": "Server Cert PEM",
         "description": "Server certificate in PEM format",

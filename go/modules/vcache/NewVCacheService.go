@@ -1,8 +1,7 @@
 package vcache
 
 import (
-	"github.com/hiveot/hivekit/go/modules"
-	factory "github.com/hiveot/hivekit/go/modules/factory"
+	"github.com/hiveot/hivekit/go/api"
 	vcacheapi "github.com/hiveot/hivekit/go/modules/vcache/api"
 	"github.com/hiveot/hivekit/go/modules/vcache/internal"
 )
@@ -14,7 +13,7 @@ func NewVCacheService() vcacheapi.IVCacheService {
 }
 
 // Create a new instance of the value cache server module using the module factory environment.
-func NewVCacheServiceFactory(f factory.IModuleFactory, md *factory.ModuleDefinition) (modules.IHiveModule, error) {
+func NewVCacheServiceFactory(f api.IModuleFactory, md *api.ModuleDefinition) (api.IHiveModule, error) {
 	m := NewVCacheService()
 	return m, nil
 }

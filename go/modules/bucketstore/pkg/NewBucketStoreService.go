@@ -1,10 +1,9 @@
 package bucketstorepkg
 
 import (
-	"github.com/hiveot/hivekit/go/modules"
+	"github.com/hiveot/hivekit/go/api"
 	"github.com/hiveot/hivekit/go/modules/bucketstore"
 	"github.com/hiveot/hivekit/go/modules/bucketstore/internal/service"
-	factory "github.com/hiveot/hivekit/go/modules/factory"
 )
 
 // NewBucketStoreService returns a new bucket store service module
@@ -21,7 +20,7 @@ func NewBucketStoreService(
 
 // NewBucketStoreServiceFactory returns a new bucket store service using the factory environment
 // This defaults to the kvbtree store which is a balance between speed and capacity.
-func NewBucketStoreServiceFactory(f factory.IModuleFactory, md *factory.ModuleDefinition) (modules.IHiveModule, error) {
+func NewBucketStoreServiceFactory(f api.IModuleFactory, md *api.ModuleDefinition) (api.IHiveModule, error) {
 
 	location := f.GetEnvironment().GetStorageDir(bucketstore.BucketStoreModuleType)
 	// TODO: support configuration of storage type (default is pebble)

@@ -1,8 +1,7 @@
 package historypkg
 
 import (
-	"github.com/hiveot/hivekit/go/modules"
-	"github.com/hiveot/hivekit/go/modules/factory"
+	"github.com/hiveot/hivekit/go/api"
 	"github.com/hiveot/hivekit/go/modules/history"
 	"github.com/hiveot/hivekit/go/modules/history/internal"
 )
@@ -16,7 +15,7 @@ func NewHistoryService(config history.HistoryConfig) history.IHistoryService {
 }
 
 // Create the history service module using the factory environment
-func NewHistoryServiceFactory(f factory.IModuleFactory, md *factory.ModuleDefinition) (modules.IHiveModule, error) {
+func NewHistoryServiceFactory(f api.IModuleFactory, md *api.ModuleDefinition) (api.IHiveModule, error) {
 	env := f.GetEnvironment()
 	storageDir := env.GetStorageDir(history.HistoryModuleType)
 	config := history.NewHistoryConfig(storageDir, "")

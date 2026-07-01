@@ -3,9 +3,7 @@ package httpbasicpkg
 import (
 	"crypto/x509"
 
-	"github.com/hiveot/hivekit/go/modules"
-	"github.com/hiveot/hivekit/go/modules/factory"
-	"github.com/hiveot/hivekit/go/modules/transport"
+	"github.com/hiveot/hivekit/go/api"
 	internalclient "github.com/hiveot/hivekit/go/modules/transport/httpbasic/internal/client"
 )
 
@@ -22,17 +20,17 @@ import (
 //	ch optional callback with connection status changes
 func NewHttpBasicClient(
 	baseURL string, caCert *x509.Certificate,
-	getForm transport.GetFormHandler) transport.ITransportClient {
+	getForm api.GetFormHandler) api.ITransportClient {
 
 	return internalclient.NewHttpBasicClient(baseURL, caCert, getForm)
 }
 
 // Create an HTTP-Basic client using the application environment from the provided factory
-func NewHttpBasicClientFactory(f factory.IModuleFactory, md *factory.ModuleDefinition) (modules.IHiveModule, error) {
+func NewHttpBasicClientFactory(f api.IModuleFactory, md *api.ModuleDefinition) (api.IHiveModule, error) {
 	var err error
 	env := f.GetEnvironment()
 	m := NewHttpBasicClient(env.ServerURL, env.CaCert, nil)
-	clientCert, _ := env.GetClientCert()
+	clientCert, _ := env.GetTLSCert()
 	if clientCert != nil {
 		err = m.AuthenticateWithClientCert(clientCert)
 	}

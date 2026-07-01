@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/araddon/dateparse"
+	"github.com/hiveot/hivekit/go/api"
 	"github.com/hiveot/hivekit/go/api/msg"
 	"github.com/hiveot/hivekit/go/api/vocab"
 	"github.com/hiveot/hivekit/go/modules/authn"
@@ -19,7 +20,6 @@ import (
 	"github.com/hiveot/hivekit/go/modules/history/internal"
 	historypkg "github.com/hiveot/hivekit/go/modules/history/pkg"
 	"github.com/hiveot/hivekit/go/modules/thing"
-	"github.com/hiveot/hivekit/go/modules/transport"
 	"github.com/hiveot/hivekit/go/testenv"
 	"github.com/hiveot/hivekit/go/utils"
 
@@ -29,7 +29,7 @@ import (
 
 const thingIDPrefix = "things-"
 
-const defaultProtocol = transport.ProtocolTypeWotWebsocket
+const defaultProtocol = api.ProtocolTypeWotWebsocket
 
 // recommended store for history is Pebble
 const historyStoreBackend = bucketstore.BackendPebble

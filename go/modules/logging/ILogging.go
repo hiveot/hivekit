@@ -1,6 +1,6 @@
 package logging
 
-import "github.com/hiveot/hivekit/go/modules"
+import "github.com/hiveot/hivekit/go/api"
 
 // Logging destinations
 const (
@@ -14,5 +14,5 @@ const LoggingModuleType = "logging"
 
 // ILoggingService logging module interface.
 type ILoggingService interface {
-	modules.IHiveModule
+	api.IHiveModule
 }

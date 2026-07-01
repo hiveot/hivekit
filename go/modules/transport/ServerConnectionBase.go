@@ -7,6 +7,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/hiveot/hivekit/go/api"
 	"github.com/hiveot/hivekit/go/api/msg"
 	"github.com/hiveot/hivekit/go/api/td"
 	"github.com/teris-io/shortid"
@@ -82,11 +83,11 @@ func (scb *ServerConnectionBase) GetConnectionID() string {
 }
 
 // // GetConnectionStatus returns the current connection status
-func (sc *ServerConnectionBase) GetConnectionStatus() ConnectionStatus {
+func (sc *ServerConnectionBase) GetConnectionStatus() api.ConnectionStatus {
 	if sc.isConnected.Load() {
-		return StatusConnected
+		return api.StatusConnected
 	}
-	return StatusLost
+	return api.StatusLost
 }
 
 // HasSubscription returns true if this connection has subscribed to the given

@@ -1,8 +1,8 @@
 package digitwin
 
 import (
+	"github.com/hiveot/hivekit/go/api"
 	"github.com/hiveot/hivekit/go/api/td"
-	"github.com/hiveot/hivekit/go/modules"
 )
 
 // The default instance ID of the digital twin module
@@ -19,7 +19,7 @@ const OnlinePropName = "online"
 
 // IDigitwinService is the interface of the digitwin module
 type IDigitwinService interface {
-	modules.IHiveModule
+	api.IHiveModule
 
 	// Return the internal device directory
 	// Intended for modules like the router, that need to connect to the devices themselves.

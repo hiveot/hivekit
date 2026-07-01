@@ -5,15 +5,13 @@ import (
 	"os"
 	"path"
 
-	"github.com/hiveot/hivekit/go/modules"
-	"github.com/hiveot/hivekit/go/modules/certs"
-	"github.com/hiveot/hivekit/go/modules/certs/certutils"
+	"github.com/hiveot/hivekit/go/api"
 	"github.com/hiveot/hivekit/go/modules/certs/internal/providers/selfsigned"
-	factory "github.com/hiveot/hivekit/go/modules/factory"
 	"github.com/hiveot/hivekit/go/utils"
 )
 
-// NewInitFactoryCerts ensure the factory has certificates needed to run.
+// NewInitFactoryCerts if a factory initialization method to ensure it has
+// certificates needed to run the servers.
 //
 // If a CA and server certs are already loaded then this does nothing.
 // If a CA with key is loaded but the server cert is not then create a server cert.
@@ -24,7 +22,7 @@ import (
 //
 // This returns nil so it won't be added to the module chain, just does some setup
 // at startup.
-func NewInitFactoryCerts(f factory.IModuleFactory, md *factory.ModuleDefinition) (modules.IHiveModule, error) {
+func NewInitFactoryCerts(f api.IModuleFactory, md *api.ModuleDefinition) (api.IHiveModule, error) {
 	var err error
 	var caPrivKey crypto.PrivateKey
 	var caPubKey crypto.PublicKey
@@ -32,13 +30,13 @@ func NewInitFactoryCerts(f factory.IModuleFactory, md *factory.ModuleDefinition)
 	env := f.GetEnvironment()
 
 	// if certs are in place there is nothing to do
-	if env.CaCert != nil && env.ServerCert != nil {
+	if env.CaCert != nil && env.TLSCert != nil {
 		// return nil is not an error are this module's work is done
 		return nil, nil
 	}
 
 	// to ensure a CA and server cert can be created, a CA private key is required
-	caKeyPath := path.Join(env.CertsDir, certs.DefaultCaKeyFile)
+	caKeyPath := path.Join(env.CertsDir, api.DefaultCaKeyFile)
 	caPrivKey, caPubKey, err = utils.LoadPrivateKey(caKeyPath)
 	if err != nil {
 		// no luck, need a new set of keys, all certs need to be created
@@ -65,7 +63,7 @@ func NewInitFactoryCerts(f factory.IModuleFactory, md *factory.ModuleDefinition)
 	serverPrivKey, serverPubKey := utils.NewKey(utils.KeyTypeECDSA)
 	serverX509, err := selfsigned.CreateSelfSignedServerCert(
 		hostname, "HiveOT", 365, serverPubKey, names, env.CaCert, caPrivKey)
-	env.ServerCert = certutils.X509CertToTLS(serverX509, serverPrivKey)
+	env.TLSCert = utils.X509CertToTLS(serverX509, serverPrivKey)
 
 	// the job here is done. No need to return a module
 	return nil, nil

@@ -6,8 +6,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/hiveot/hivekit/go/api"
 	certstest "github.com/hiveot/hivekit/go/modules/certs/test"
-	"github.com/hiveot/hivekit/go/modules/transport"
 	httpbasicpkg "github.com/hiveot/hivekit/go/modules/transport/httpbasic/pkg"
 	"github.com/hiveot/hivekit/go/modules/transport/tlsserver"
 	tlsserverpkg "github.com/hiveot/hivekit/go/modules/transport/tlsserver/pkg"
@@ -43,9 +43,9 @@ func TestConnect(t *testing.T) {
 	require.NoError(t, err)
 	err = cl.Connect()
 	require.NoError(t, err)
-	assert.Equal(t, transport.StatusConnected, cl.GetConnectionStatus())
+	assert.Equal(t, api.StatusConnected, cl.GetConnectionStatus())
 
 	cl.Close()
 	time.Sleep(time.Millisecond)
-	assert.Equal(t, transport.StatusClosed, cl.GetConnectionStatus())
+	assert.Equal(t, api.StatusClosed, cl.GetConnectionStatus())
 }

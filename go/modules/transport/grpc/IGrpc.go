@@ -1,7 +1,7 @@
 package grpctransport
 
 import (
-	"github.com/hiveot/hivekit/go/modules/transport"
+	"github.com/hiveot/hivekit/go/api"
 )
 
 // constants
@@ -28,9 +28,15 @@ const (
 // var HiveotGrpcSocketPath = filepath.Join(os.TempDir(), "/hiveot/grpc.sock")
 // var HiveotGrpcSocketPath = "/tmp/hiveot/grpc.sock"
 
+// optional configuration to include factory ModuleDefinition.Config
+type GrpcConfig struct {
+	// The default is defined in {DefaultGrpcURL}
+	URL string
+}
+
 // Interface of the Hiveot gRPC transport server module
 type IGrpcTransportServer interface {
-	transport.ITransportServer
+	api.ITransportServer
 
 	// todo: future API  for servicing the module
 }

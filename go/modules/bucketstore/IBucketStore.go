@@ -2,7 +2,7 @@
 // This package defines an API to use the store with several implementations.
 package bucketstore
 
-import "github.com/hiveot/hivekit/go/modules"
+import "github.com/hiveot/hivekit/go/api"
 
 const BucketStoreModuleType = "bucketstore"
 const DefaultBucketStoreThingID = "bucketstore"
@@ -188,5 +188,5 @@ type IBucketCursor interface {
 }
 
 type IBucketStoreService interface {
-	modules.IHiveModule
+	api.IHiveModule
 }

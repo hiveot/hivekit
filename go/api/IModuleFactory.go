@@ -1,16 +1,14 @@
-package factory
+package api
 
 import (
 	"context"
 
 	"github.com/hiveot/hivekit/go/api/td"
-	"github.com/hiveot/hivekit/go/modules"
-	"github.com/hiveot/hivekit/go/modules/transport"
 )
 
 // the constructor function to create an instance of the module using the given environment
 // The recommended moduleID is auto-generated. The module can decide to override if needed.
-// type ModuleFactoryFn func(f IModuleFactory) modules.IHiveModule
+// type ModuleFactoryFn func(f IModuleFactory) api.IHiveModule
 
 // ModuleDefinition defines the constructor for a module, used for registration in the module factory
 // This can also be used to add custom modules.
@@ -34,7 +32,7 @@ type ModuleDefinition struct {
 	//
 	// This returns an error if the module cannot be created.
 	// This returns nil with no error for modules that are used for initialization.
-	Constructor func(f IModuleFactory, modDef *ModuleDefinition) (modules.IHiveModule, error)
+	Constructor func(f IModuleFactory, modDef *ModuleDefinition) (IHiveModule, error)
 
 	// Optional configuration passed to the creation of the module
 	Config any
@@ -47,7 +45,7 @@ type ModuleDefinition struct {
 // an IoT device running its own server with discover and a IoT device using reverse connections.
 // These templates can be used as-is or be copied and modified as seen fit.
 type IRecipe interface {
-	modules.IHiveModule
+	IHiveModule
 
 	// Place the given module definition into the recipe slot
 	// Originally intended for placing the application module in the right spot in the chain.
@@ -68,17 +66,13 @@ type IModuleFactory interface {
 	// this factory.
 	AddTDSecForms(tdoc *td.TD, includeAffordances bool)
 
-	// FindModule returns the loaded module of the given type
-	// This returns nil if no such module is loaded
-	FindModule(moduleType string) modules.IHiveModule
-
 	// Provide the means to authenticate incoming connections.
 	// Intended for transport server modules.
 	// This returns a proxy stub that can be updated with SetAuthenticator.
 	// If no authenticator is set the this proxy fails all authentication attempts.
 	//
 	// SetAuthenticator is called by the authn module when it is created.
-	GetAuthenticator() transport.IAuthenticator
+	GetAuthenticator() IAuthenticator
 
 	// Get the connection URL of the first loaded server module or "" if none.
 	// Primarily intended for testing. It is recommended to use a discovery server/client module
@@ -91,20 +85,30 @@ type IModuleFactory interface {
 	// to update the TDD, location of gateway and other discoverable information.
 	GetEnvironment() *AppEnvironment
 
-	// Return the http module if it was instantiated.
+	// GetModule returns the loaded module of the given module type.
+	//
+	// If a module hasn't been loaded/started yet then this returns nil.
+	GetModule(moduleType string) IHiveModule
+
+	// Return the http server module instance.
+	//
 	// Used for modules that need to serve http endpoints, e.g. http basic authn, directory, etc.
 	//
-	//  instantiate true to create the server module instance if it hasn't been created yet
+	// Set the instantiate flag to indicate that the http server module of type TLSServerModuleType
+	// should be loaded if it hasn't been loaded yet. If no such module is registered in the factory
+	// module definitions then this returns nil and a warning is logged.
+	//
+	//  instantiate set to true to auto load the http server module
 	//
 	// This returns nil if no httpserver module is registered.
-	GetHttpServer(instantiate bool) transport.IHttpServer
+	GetHttpServer(instantiate bool) IHttpServer
 
 	// Obtain the directory TD.
 	// Intended for bootstrapping the directory client.
 	// GetTDD() *td.TD
 
 	// Return the list of available transport servers
-	GetTransportServers() []transport.ITransportServer
+	GetTransportServers() []ITransportServer
 
 	// RegisterModule adds a module to the factory, making it available for instantiation
 	// and for running recipes.
@@ -122,11 +126,11 @@ type IModuleFactory interface {
 	// SetAuthenticator sets the authenticator returned by GetAuthenticator.
 	// Note that GetAuthenticator returns a proxy to the actual authenticator.
 	// Intended for use by the module that offers authentication capabilities,
-	// such as the authn module. Other authentication modules can be used instead.
+	// such as the authn module.
 	//
 	// By default the authenticator proxy blocks all authentication.
 	// Setting a nil authenticator disables authentication.
-	SetAuthenticator(a transport.IAuthenticator)
+	SetAuthenticator(a IAuthenticator)
 
 	// StartModule creates and starts an instance of a module by its type.
 	//
@@ -144,7 +148,7 @@ type IModuleFactory interface {
 	// starting the module fails.
 	// This returns nil with no error if the module factory is a 'one-shot'
 	// initialization function where its factory handler returns nil.
-	StartModule(moduleType string, instantiate bool) (modules.IHiveModule, error)
+	StartModule(moduleType string, instantiate bool) (IHiveModule, error)
 
 	// Stop all loaded modules in reverse order of loading.
 	// Intended for graceful shutdown.

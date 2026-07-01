@@ -3,11 +3,10 @@ package authzpkg
 import (
 	"log/slog"
 
-	"github.com/hiveot/hivekit/go/modules"
+	"github.com/hiveot/hivekit/go/api"
 	"github.com/hiveot/hivekit/go/modules/authn"
 	"github.com/hiveot/hivekit/go/modules/authz"
 	"github.com/hiveot/hivekit/go/modules/authz/internal"
-	"github.com/hiveot/hivekit/go/modules/factory"
 )
 
 const AuthzModuleType = "authz"
@@ -19,7 +18,7 @@ func NewAuthzService(getRoleHandler func(clientID string) (role string, err erro
 
 // factory function for creating authz module instance.
 // This loads the authn module to use GetProfile to obtain the role.
-func NewAuthzServiceFactory(f factory.IModuleFactory, md *factory.ModuleDefinition) (modules.IHiveModule, error) {
+func NewAuthzServiceFactory(f api.IModuleFactory, md *api.ModuleDefinition) (api.IHiveModule, error) {
 	m1, err := f.StartModule(authn.AuthnServiceModuleType, true)
 	if err != nil {
 		return nil, err

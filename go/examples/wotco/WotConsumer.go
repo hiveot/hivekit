@@ -9,13 +9,11 @@ import (
 	"sync"
 	"time"
 
+	"github.com/hiveot/hivekit/go/api"
 	"github.com/hiveot/hivekit/go/api/msg"
 	"github.com/hiveot/hivekit/go/api/td"
-	"github.com/hiveot/hivekit/go/modules"
 	"github.com/hiveot/hivekit/go/modules/consumer"
 	directorypkg "github.com/hiveot/hivekit/go/modules/directory/pkg"
-	"github.com/hiveot/hivekit/go/modules/factory"
-	"github.com/hiveot/hivekit/go/modules/transport"
 	"github.com/hiveot/hivekit/go/modules/transport/clients"
 	"github.com/hiveot/hivekit/go/modules/transport/discovery"
 	discoverypkg "github.com/hiveot/hivekit/go/modules/transport/discovery/pkg"
@@ -40,13 +38,13 @@ type WotConsumer struct {
 	caCert *x509.Certificate
 
 	// existing connections by thingID
-	clients map[string]transport.ITransportClient
+	clients map[string]api.ITransportClient
 
 	// discovered directories by directoryID
 	directories map[string]*td.TD
 
 	// the connection this module links to
-	// connection transport.ITransportClient
+	// connection api.ITransportClient
 
 	// discovery records found after Discover()
 	records []*discovery.DiscoveryResult
@@ -58,7 +56,7 @@ type WotConsumer struct {
 }
 
 // Create a Thing connection using the TD of the thingID
-func (co *WotConsumer) Connect(thingID string) (transport.ITransportClient, error) {
+func (co *WotConsumer) Connect(thingID string) (api.ITransportClient, error) {
 	co.mux.Lock()
 	defer co.mux.Unlock()
 	c, found := co.clients[thingID]
@@ -120,7 +118,7 @@ func (co *WotConsumer) Discover(cb func(*discovery.DiscoveryResult) bool) (err e
 	return err
 }
 
-func (co *WotConsumer) GetConnection(thingID string) (c transport.ITransportClient, found bool) {
+func (co *WotConsumer) GetConnection(thingID string) (c api.ITransportClient, found bool) {
 	co.mux.RLock()
 	defer co.mux.RUnlock()
 
@@ -309,13 +307,13 @@ func (co *WotConsumer) ReadThing(thingID string) []string {
 //	wotConsumer.SetRequestSink(r.HandleRequest)
 //	r.SetNotificationSink(wotConsumer.HandleNotification)
 
-func NewWotConsumer(sink modules.IHiveModule, timeout time.Duration) *WotConsumer {
+func NewWotConsumer(sink api.IHiveModule, timeout time.Duration) *WotConsumer {
 
 	cl := &WotConsumer{
 		clientID:    "client1",
 		authToken:   "no-token",
 		records:     make([]*discovery.DiscoveryResult, 0),
-		clients:     make(map[string]transport.ITransportClient),
+		clients:     make(map[string]api.ITransportClient),
 		Consumer:    *consumer.NewConsumer(sink, nil),
 		directories: make(map[string]*td.TD),
 		things:      make(map[string]*td.TD),
@@ -325,7 +323,7 @@ func NewWotConsumer(sink modules.IHiveModule, timeout time.Duration) *WotConsume
 }
 
 // This module can be used in a factory recipe.
-func NewWotConsumerFactory(f factory.IModuleFactory) modules.IHiveModule {
+func NewWotConsumerFactory(f api.IModuleFactory) api.IHiveModule {
 	cl := NewWotConsumer(nil, f.GetEnvironment().RpcTimeout)
 	return cl
 }

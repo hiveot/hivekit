@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"log/slog"
 
+	"github.com/hiveot/hivekit/go/api"
 	"github.com/hiveot/hivekit/go/api/msg"
-	"github.com/hiveot/hivekit/go/modules"
 	"github.com/hiveot/hivekit/go/modules/transport"
 	"github.com/hiveot/hivekit/go/modules/transport/httpbasic"
 	"github.com/teris-io/shortid"
@@ -28,13 +28,13 @@ type HttpBasicServer struct {
 	*transport.TransportServerBase
 
 	// actual httpServer exposing routes
-	httpServer transport.IHttpServer
+	httpServer api.IHttpServer
 
 	// reqHandler handles the requests received from the remote consumer
 	// requestHandler msg.RequestHandler
 }
 
-func (m *HttpBasicServer) GetHttpServer() transport.IHttpServer {
+func (m *HttpBasicServer) GetHttpServer() api.IHttpServer {
 	return m.httpServer
 }
 
@@ -96,7 +96,7 @@ func (m *HttpBasicServer) Stop() {
 //
 //	httpServer is the http server that listens for messages
 //	sink is the optional receiver of request, response and notification messages, nil to set later
-func NewHttpBasicServer(httpServer transport.IHttpServer) *HttpBasicServer {
+func NewHttpBasicServer(httpServer api.IHttpServer) *HttpBasicServer {
 
 	thingID := httpbasic.HttpBasicServerModuleType + "-" + shortid.MustGenerate()
 	connectURL := httpServer.GetConnectURL()
@@ -109,8 +109,8 @@ func NewHttpBasicServer(httpServer transport.IHttpServer) *HttpBasicServer {
 	// TODO: properties must match the module TM
 	// m.UpdateProperty(transport.PropName_NrConnections, 0)
 
-	var _ transport.ITransportServer = m // interface check
-	var _ modules.IHiveModule = m        // interface check
+	var _ api.ITransportServer = m // interface check
+	var _ api.IHiveModule = m      // interface check
 
 	return m
 }

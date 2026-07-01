@@ -4,6 +4,7 @@ import (
 	"log/slog"
 	"time"
 
+	"github.com/hiveot/hivekit/go/api"
 	"github.com/hiveot/hivekit/go/api/msg"
 	"github.com/hiveot/hivekit/go/modules/transport"
 	grpclib "github.com/hiveot/hivekit/go/modules/transport/grpc/internal"
@@ -68,11 +69,11 @@ func (sc *GrpcServerConnection) IsConnected() bool {
 }
 
 // // GetConnectionStatus returns the current connection status
-func (sc *GrpcServerConnection) GetConnectionStatus() transport.ConnectionStatus {
+func (sc *GrpcServerConnection) GetConnectionStatus() api.ConnectionStatus {
 	if sc.bstrm.IsConnected() {
-		return transport.StatusConnected
+		return api.StatusConnected
 	}
-	return transport.StatusLost
+	return api.StatusLost
 }
 
 func (sc *GrpcServerConnection) sendRaw(msgType string, raw []byte) error {
@@ -116,7 +117,7 @@ func StartGrpcTransportConnection(
 	// use the same buffered stream as the client uses for sending and receiving messages
 	c.bstrm = grpclib.NewBufferedStream(grpcStream, nil, c._onServerMessage, time.Minute)
 
-	var _ transport.IConnection = c // interface check
+	var _ api.IConnection = c // interface check
 
 	return c
 }

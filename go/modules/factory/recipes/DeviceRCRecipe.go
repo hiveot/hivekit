@@ -1,9 +1,9 @@
 package recipes
 
 import (
+	"github.com/hiveot/hivekit/go/api"
 	"github.com/hiveot/hivekit/go/modules/certs"
 	certspkg "github.com/hiveot/hivekit/go/modules/certs/pkg"
-	"github.com/hiveot/hivekit/go/modules/factory"
 	factorypkg "github.com/hiveot/hivekit/go/modules/factory/pkg"
 	"github.com/hiveot/hivekit/go/modules/reconnect"
 	reconnectpkg "github.com/hiveot/hivekit/go/modules/reconnect/pkg"
@@ -15,7 +15,7 @@ import (
 // RCDeviceChain defines the module chain for use by IoT devices that use reverse
 // connection to a gateway or hub.
 // The IoT device logic can be added at the end using AppendModule or linking to it.
-var RCDeviceChain = []factory.ModuleDefinition{
+var RCDeviceChain = []api.ModuleDefinition{
 	{
 		// initialize client certs / auth token in app environment
 		Type:        certs.InitFactoryCertsModuleType,
@@ -57,7 +57,7 @@ var RCDeviceChain = []factory.ModuleDefinition{
 //
 // This returns the recipe, which can be used like any other module
 func NewRCDeviceRecipe(
-	f factory.IModuleFactory, appModule *factory.ModuleDefinition) factory.IRecipe {
+	f api.IModuleFactory, appModule *api.ModuleDefinition) api.IRecipe {
 	chain := RCDeviceChain
 	if appModule != nil {
 		chain = append(chain, *appModule)

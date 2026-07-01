@@ -6,11 +6,11 @@ import (
 	"net/http"
 	"net/url"
 
+	"github.com/hiveot/hivekit/go/api"
 	"github.com/hiveot/hivekit/go/api/msg"
 	"github.com/hiveot/hivekit/go/api/td"
 	"github.com/hiveot/hivekit/go/modules"
 	"github.com/hiveot/hivekit/go/modules/authn"
-	"github.com/hiveot/hivekit/go/modules/transport"
 	"github.com/hiveot/hivekit/go/utils"
 	jsoniter "github.com/json-iterator/go"
 )
@@ -29,7 +29,7 @@ const (
 // This converts http to RRN requests that are handled downstream
 type AuthnUserHttpService struct {
 	*modules.HiveModuleBase
-	httpServer transport.IHttpServer
+	httpServer api.IHttpServer
 }
 
 // GetConnectURL returns the URI of the authentication server with protocol to include
@@ -45,7 +45,7 @@ type AuthnUserHttpService struct {
 func (m *AuthnUserHttpService) GetConnectURL() (uri string, protocolType string) {
 	baseURL := m.httpServer.GetConnectURL()
 	loginURL, _ := url.JoinPath(baseURL, HttpPostLoginPath)
-	return loginURL, transport.ProtocolTypeWotHttpBasic
+	return loginURL, api.ProtocolTypeWotHttpBasic
 }
 
 // onHttpGetProfile returns the client's profile
@@ -161,7 +161,7 @@ func (m *AuthnUserHttpService) Stop() {
 
 // Create an authn handler for serving user requests over http
 // This converts http requests to RRN messages that are handled downstream.
-func NewAuthnUserHttpService(httpServer transport.IHttpServer) *AuthnUserHttpService {
+func NewAuthnUserHttpService(httpServer api.IHttpServer) *AuthnUserHttpService {
 	if httpServer == nil {
 		panic("NewAuthnUserHttpHandler: missing http server")
 	}

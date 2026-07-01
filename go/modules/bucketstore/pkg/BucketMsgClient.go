@@ -1,6 +1,7 @@
 package bucketstorepkg
 
 import (
+	"github.com/hiveot/hivekit/go/api"
 	"github.com/hiveot/hivekit/go/api/td"
 	"github.com/hiveot/hivekit/go/modules"
 	"github.com/hiveot/hivekit/go/modules/bucketstore"
@@ -68,7 +69,7 @@ func (cl *BucketMsgClient) SetMultiple(kv map[string]string) error {
 //
 //	thingID is the instance ID of the bucket store module
 //	sink is the module that forwards requests. nil to do this manually.
-func NewBucketStoreMsgClient(sink modules.IHiveModule, thingID string) *BucketMsgClient {
+func NewBucketStoreMsgClient(sink api.IHiveModule, thingID string) *BucketMsgClient {
 	cl := &BucketMsgClient{
 		storeThingID:   thingID,
 		HiveModuleBase: modules.NewHiveModuleBase("", 0),

@@ -9,6 +9,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/hiveot/hivekit/go/api"
 	"github.com/hiveot/hivekit/go/api/msg"
 	"github.com/hiveot/hivekit/go/api/td"
 	"github.com/hiveot/hivekit/go/modules"
@@ -26,9 +27,9 @@ type GrpcClient struct {
 	bearerToken string
 
 	// status of current connection
-	connectStatus transport.ConnectionStatus
+	connectStatus api.ConnectionStatus
 	// callback when connection changes
-	connectHandler func(newStatus transport.ConnectionStatus, c transport.ITransportClient)
+	connectHandler func(newStatus api.ConnectionStatus, c api.ITransportClient)
 
 	// instance ID used to identify the client and its connection
 	connectionID string
@@ -57,7 +58,7 @@ type GrpcClient struct {
 
 // // socket connection status handler
 // // This emits a notification if the connection is established, lost or disconnected.
-// func (cl *GrpcClient) _onConnectionChanged(newStatus transport.ConnectionStatus, err error) {
+// func (cl *GrpcClient) _onConnectionChanged(newStatus api.ConnectionStatus, err error) {
 
 // 	// 1. update the connection status
 // 	cl.mux.Lock()
@@ -127,7 +128,7 @@ func (cl *GrpcClient) _onClientMessage(raw []byte) {
 // a 'lost' status is ignored if the current status is set to closed as it was intentional.
 // a lost status cancels all waiting requests.
 func (cl *GrpcClient) _setConnectionStatus(
-	newStatus transport.ConnectionStatus, err error) {
+	newStatus api.ConnectionStatus, err error) {
 
 	cl.mux.RLock()
 	oldStatus := cl.connectStatus
@@ -135,9 +136,9 @@ func (cl *GrpcClient) _setConnectionStatus(
 
 	if newStatus == oldStatus {
 		return
-	} else if oldStatus == transport.StatusClosed && newStatus == transport.StatusLost {
+	} else if oldStatus == api.StatusClosed && newStatus == api.StatusLost {
 		return
-	} else if newStatus == transport.StatusLost {
+	} else if newStatus == api.StatusLost {
 		slog.Info("_setConnectionStatus gRPC client connection lost", "status", newStatus)
 		// fail all outstanding RnR requests
 		cl.rnrChan.CloseAll()
@@ -149,7 +150,7 @@ func (cl *GrpcClient) _setConnectionStatus(
 
 	// notify upstream of status change. the cid is the client instance thingID
 	cid := cl.GetConnectionID()
-	evName := transport.ClientConnectionStatusEvent
+	evName := api.ClientConnectionStatusEvent
 	notif := msg.NewNotificationMessage(
 		cid, msg.AffordanceTypeEvent, cid, evName, newStatus)
 	cl.ForwardNotification(notif)
@@ -164,7 +165,7 @@ func (cl *GrpcClient) _setConnectionStatus(
 // AuthenticateWithClientCert sets the authentication credentials to the client certificate.
 func (cl *GrpcClient) AuthenticateWithClientCert(clientCert *tls.Certificate) (err error) {
 	status := cl.GetConnectionStatus()
-	if status == transport.StatusConnected || status == transport.StatusConnecting {
+	if status == api.StatusConnected || status == api.StatusConnecting {
 		return fmt.Errorf("AuthenticateWithClientCert: Connection in progress.")
 	}
 
@@ -198,10 +199,10 @@ func (cl *GrpcClient) AuthenticateWithClientCert(clientCert *tls.Certificate) (e
 
 // Authenticate
 func (cl *GrpcClient) AuthenticateWithForm(
-	tdDoc *td.TD, getCredentials transport.GetCredentials) error {
+	tdDoc *td.TD, getCredentials api.GetCredentials) error {
 
 	status := cl.GetConnectionStatus()
-	if status == transport.StatusConnected || status == transport.StatusConnecting {
+	if status == api.StatusConnected || status == api.StatusConnecting {
 		return fmt.Errorf("AuthenticateWithForm: Connection already in progress.")
 	}
 	clientID, secret, schemeName, err := getCredentials(tdDoc.ID)
@@ -224,7 +225,7 @@ func (cl *GrpcClient) AuthenticateWithForm(
 func (cl *GrpcClient) AuthenticateWithToken(clientID string, token string) (err error) {
 
 	status := cl.GetConnectionStatus()
-	if status == transport.StatusConnected || status == transport.StatusConnecting {
+	if status == api.StatusConnected || status == api.StatusConnecting {
 		return fmt.Errorf("AuthenticateWithToken: Connection in progress.")
 	}
 
@@ -244,7 +245,7 @@ func (cl *GrpcClient) AuthenticateWithToken(clientID string, token string) (err 
 func (cl *GrpcClient) Close() {
 
 	// set status to closed first to avoid a reconnect
-	cl._setConnectionStatus(transport.StatusClosed, nil)
+	cl._setConnectionStatus(api.StatusClosed, nil)
 
 	cl.mux.Lock()
 	defer cl.mux.Unlock()
@@ -260,21 +261,21 @@ func (cl *GrpcClient) Connect() (err error) {
 	status := cl.GetConnectionStatus()
 	if cl.grpcSvcClient == nil {
 		return fmt.Errorf("Auth credentials not set")
-	} else if status == transport.StatusConnected {
+	} else if status == api.StatusConnected {
 		return nil
-	} else if status == transport.StatusConnecting {
+	} else if status == api.StatusConnecting {
 		return fmt.Errorf("Busy connecting")
 	}
 
 	// new connect attempt
-	cl._setConnectionStatus(transport.StatusConnecting, nil)
+	cl._setConnectionStatus(api.StatusConnecting, nil)
 	err = cl.grpcSvcClient.Connect()
 
 	// use ping as 'connect' might not detect a failed connection
 	_, err = cl.grpcSvcClient.Ping("")
 	if err != nil {
 		slog.Error(err.Error(), "url", cl.connectURL)
-		cl._setConnectionStatus(transport.StatusLost, err)
+		cl._setConnectionStatus(api.StatusLost, err)
 		return err
 	}
 
@@ -290,10 +291,10 @@ func (cl *GrpcClient) Connect() (err error) {
 		// the req/resp stream should follow like a good doggie
 		name := grpctransport.StreamNameNotification
 		if cl.grpcSvcClient.IsConnected(name) {
-			cl._setConnectionStatus(transport.StatusConnected, nil)
+			cl._setConnectionStatus(api.StatusConnected, nil)
 
 			cl.grpcSvcClient.WaitUntilDisconnect(name)
-			cl._setConnectionStatus(transport.StatusLost, nil)
+			cl._setConnectionStatus(api.StatusLost, nil)
 
 		} else {
 			slog.Error("AuthenticateWithToken: connection unexpectedly dropped")
@@ -318,7 +319,7 @@ func (cl *GrpcClient) GetConnectionID() string {
 }
 
 // // GetConnectionStatus returns the current connection status
-func (cl *GrpcClient) GetConnectionStatus() transport.ConnectionStatus {
+func (cl *GrpcClient) GetConnectionStatus() api.ConnectionStatus {
 	cl.mux.RLock()
 	defer cl.mux.RUnlock()
 	stat := cl.connectStatus
@@ -336,7 +337,7 @@ func (cl *GrpcClient) HandleNotification(notif *msg.NotificationMessage) {
 // - other requests (like subscribe) are send to the server
 func (cl *GrpcClient) HandleRequest(request *msg.RequestMessage, replyTo msg.ResponseHandler) error {
 	if request.ThingID == cl.GetConnectionID() {
-		if request.Operation == td.OpInvokeAction && request.Name == transport.ClientConnectAction {
+		if request.Operation == td.OpInvokeAction && request.Name == api.ClientConnectAction {
 			err := cl.Connect()
 			resp := request.CreateResponse(cl.GetConnectionStatus(), err)
 			return replyTo(resp)
@@ -356,7 +357,7 @@ func (cl *GrpcClient) HandleRequest(request *msg.RequestMessage, replyTo msg.Res
 
 // SendNotification exposed thing posts a notification to the server
 func (cl *GrpcClient) SendNotification(notif *msg.NotificationMessage) {
-	if cl.GetConnectionStatus() != transport.StatusConnected {
+	if cl.GetConnectionStatus() != api.StatusConnected {
 		slog.Error("SendNotification: Not connected")
 	}
 
@@ -378,7 +379,7 @@ func (cl *GrpcClient) SendNotification(notif *msg.NotificationMessage) {
 func (cl *GrpcClient) SendRequest(
 	req *msg.RequestMessage, replyTo msg.ResponseHandler) error {
 
-	if cl.GetConnectionStatus() != transport.StatusConnected {
+	if cl.GetConnectionStatus() != api.StatusConnected {
 		return fmt.Errorf("SendRequest: Not connected")
 	}
 
@@ -426,7 +427,7 @@ func (cl *GrpcClient) SendRequest(
 // SendResponse send a response message to the server
 func (cl *GrpcClient) SendResponse(resp *msg.ResponseMessage) error {
 
-	if cl.GetConnectionStatus() != transport.StatusConnected {
+	if cl.GetConnectionStatus() != api.StatusConnected {
 		return fmt.Errorf("SendResponse: Not connected")
 	}
 
@@ -441,7 +442,7 @@ func (cl *GrpcClient) SendResponse(resp *msg.ResponseMessage) error {
 
 // SetConnectHandler sets the callback to invoke when the connection status changes
 func (cl *GrpcClient) SetConnectHandler(
-	h func(newStatus transport.ConnectionStatus, c transport.ITransportClient)) {
+	h func(newStatus api.ConnectionStatus, c api.ITransportClient)) {
 	cl.mux.Lock()
 	defer cl.mux.Unlock()
 	cl.connectHandler = h
@@ -494,6 +495,6 @@ func NewGrpcClient(
 		rnrChan:        msg.NewRnRChan(),
 	}
 
-	var _ transport.ITransportClient = cl // check interface implementation
+	var _ api.ITransportClient = cl // check interface implementation
 	return cl
 }

@@ -8,12 +8,12 @@ import (
 	"testing"
 	"time"
 
+	"github.com/hiveot/hivekit/go/api"
 	"github.com/hiveot/hivekit/go/api/msg"
 	"github.com/hiveot/hivekit/go/api/td"
 	"github.com/hiveot/hivekit/go/modules/authn"
 	"github.com/hiveot/hivekit/go/modules/consumer"
 	"github.com/hiveot/hivekit/go/modules/thing"
-	"github.com/hiveot/hivekit/go/modules/transport"
 	"github.com/hiveot/hivekit/go/testenv"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -128,8 +128,8 @@ func TestSubscribeReconnect(t *testing.T) {
 		slog.Info("consumer receives event",
 			"name", notif.Name, "data", notif.ToString(0))
 		notifEvent.Add(1)
-		if notif.Name == transport.ClientConnectionStatusEvent &&
-			notif.Data.(transport.ConnectionStatus) == transport.StatusConnected {
+		if notif.Name == api.ClientConnectionStatusEvent &&
+			notif.Data.(api.ConnectionStatus) == api.StatusConnected {
 			connectedCh <- true
 		}
 	})
@@ -252,7 +252,7 @@ func TestReadEvent(t *testing.T) {
 //
 //	// 1. start the device transport with the request handler
 //	// in this case the consumer connects to the device (unlike when using a hub)
-//	reqHandler := func(req *transport.RequestMessage, c transport.IConnection) *transport.ResponseMessage {
+//	reqHandler := func(req *transport.RequestMessage, c api.IConnection) *transport.ResponseMessage {
 //		if req.Operation == td.HTOpReadAllEvents {
 //			output := make(map[string]*transport.ResponseMessage)
 //			output[event1Name] = transport.NewResponseMessage(td.OpSubscribeEvent, thingID, event1Name, event1Value, nil, "")

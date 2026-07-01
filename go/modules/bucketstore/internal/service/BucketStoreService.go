@@ -5,6 +5,7 @@ import (
 	_ "embed"
 	"log/slog"
 
+	"github.com/hiveot/hivekit/go/api"
 	"github.com/hiveot/hivekit/go/api/msg"
 	"github.com/hiveot/hivekit/go/modules"
 	bucketstore "github.com/hiveot/hivekit/go/modules/bucketstore"
@@ -102,7 +103,7 @@ func NewBucketStoreService(location string, storeType string) *BucketStoreServic
 		// bucketStore: bucketStore,
 	}
 
-	var _ modules.IHiveModule = m            // interface check
+	var _ api.IHiveModule = m                // interface check
 	var _ bucketstore.IBucketStore = m.store // interface check
 
 	return m

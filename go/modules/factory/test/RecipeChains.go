@@ -1,19 +1,18 @@
 package factory_test
 
 import (
+	"github.com/hiveot/hivekit/go/api"
 	"github.com/hiveot/hivekit/go/modules/consumer"
-	"github.com/hiveot/hivekit/go/modules/factory"
 	"github.com/hiveot/hivekit/go/modules/thing"
-	"github.com/hiveot/hivekit/go/modules/transport"
 	tlsserverpkg "github.com/hiveot/hivekit/go/modules/transport/tlsserver/pkg"
 	wss "github.com/hiveot/hivekit/go/modules/transport/wss"
 	wsspkg "github.com/hiveot/hivekit/go/modules/transport/wss/pkg"
 )
 
 // module types of a device server device chain
-var DeviceServerRecipe = []factory.ModuleDefinition{
+var DeviceServerRecipe = []api.ModuleDefinition{
 	{
-		Type:        transport.TLSServerModuleType,
+		Type:        api.HttpServerModuleType,
 		Constructor: tlsserverpkg.NewTLSServerFactory,
 	},
 	{
@@ -27,7 +26,7 @@ var DeviceServerRecipe = []factory.ModuleDefinition{
 }
 
 // module types of a client chain
-var DeviceClientRecipe = []factory.ModuleDefinition{
+var DeviceClientRecipe = []api.ModuleDefinition{
 	{
 		Type:        consumer.ConsumerModuleType,
 		Constructor: consumer.NewConsumerFactory,

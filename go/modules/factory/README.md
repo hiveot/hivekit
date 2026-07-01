@@ -35,7 +35,7 @@ func main(){
     // optionally register the application logic as a module or modify the recipe
     recipe.AddModule(MyAppModuleType, NewAppModuleFn)
     // create the application environment. This supports commandline options.
-    env := factory.NewAppEnvironment("", true)
+    env := api.NewAppEnvironment("", true)
     // instantiate the factory and run the recipe
     f := factory.NewModuleFactory(env, nil)
     recipe.Start(f)
@@ -71,7 +71,7 @@ Since many modules operate in an environment that uses files, credentials or net
 
 The first step is therefore to setup the environment:
 
-> env := factory.NewAppEnvironment(homedir, withFlags)
+> env := api.NewAppEnvironment(homedir, withFlags)
 
 Where 'withFlags' allows control of the home and other directories uses commandline flags.
 

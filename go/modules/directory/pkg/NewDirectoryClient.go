@@ -1,11 +1,10 @@
 package directorypkg
 
 import (
+	"github.com/hiveot/hivekit/go/api"
 	"github.com/hiveot/hivekit/go/api/td"
-	"github.com/hiveot/hivekit/go/modules"
 	"github.com/hiveot/hivekit/go/modules/directory"
 	directoryclient "github.com/hiveot/hivekit/go/modules/directory/internal/client"
-	"github.com/hiveot/hivekit/go/modules/factory"
 )
 
 // NewDirectoryClient creates a client for the Thing directory service.
@@ -65,14 +64,14 @@ import (
 //	See also the discovery client which supports this method.
 //
 // This returns a new instance of the directory client
-func NewDirectoryClient(dirTDD *td.TD, sink modules.IHiveModule) directory.IDirectoryClient {
+func NewDirectoryClient(dirTDD *td.TD, sink api.IHiveModule) directory.IDirectoryClient {
 	dirClient := directoryclient.NewDirectoryClientImpl(dirTDD, sink)
 	return dirClient
 }
 
 // NewDirectoryClientFactory creates the directory client using the TDD from the app environment.
 // If no TDD is available then Start checks for an out-of-band stored TDD file.
-func NewDirectoryClientFactory(f factory.IModuleFactory, modDef *factory.ModuleDefinition) (modules.IHiveModule, error) {
+func NewDirectoryClientFactory(f api.IModuleFactory, modDef *api.ModuleDefinition) (api.IHiveModule, error) {
 	appEnv := f.GetEnvironment()
 	dirClient := NewDirectoryClient(appEnv.DirTDD, nil)
 	return dirClient, nil

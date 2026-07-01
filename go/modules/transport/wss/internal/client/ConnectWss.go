@@ -12,7 +12,7 @@ import (
 	"sync/atomic"
 
 	"github.com/gorilla/websocket"
-	"github.com/hiveot/hivekit/go/modules/transport"
+	"github.com/hiveot/hivekit/go/api"
 )
 
 // ConnectWSS establishes a websocket session with the server
@@ -25,7 +25,7 @@ func ConnectWSS(
 	bearerToken string,
 	clientCert *tls.Certificate,
 	caCert *x509.Certificate,
-	onConnect func(transport.ConnectionStatus, error),
+	onConnect func(api.ConnectionStatus, error),
 	onMessage func(raw []byte),
 ) (cancelFn func(), conn *websocket.Conn, err error) {
 
@@ -42,7 +42,7 @@ func ConnectWSS(
 
 	// use context to disconnect the client
 	wssCtx, wssCancelFn := context.WithCancel(context.Background())
-	onConnect(transport.StatusConnecting, nil)
+	onConnect(api.StatusConnecting, nil)
 
 	caCertPool := x509.NewCertPool()
 	if caCert != nil {
@@ -64,7 +64,7 @@ func ConnectWSS(
 	if bearerToken != "" {
 		wssHeader.Add("Authorization", "bearer "+bearerToken)
 	}
-	wssHeader.Add(transport.ConnectionIDHeader, cid)
+	wssHeader.Add(api.ConnectionIDHeader, cid)
 	//parts, _ := url.Parse(hostPort)
 	//origin := fmt.Sprintf("%s://%s", parts.Scheme, parts.Host)
 	//opts.HTTPHeader.Add("Origin", origin)
@@ -100,9 +100,9 @@ func ConnectWSS(
 			err = fmt.Errorf("ConnectWSS: Unauthorized connection as '%s' to '%s': %w",
 				clientID, connectURL, err)
 			slog.Warn(err.Error())
-			onConnect(transport.StatusRefused, err)
+			onConnect(api.StatusRefused, err)
 		} else {
-			onConnect(transport.StatusLost, err)
+			onConnect(api.StatusLost, err)
 		}
 		wssCancelFn()
 		return nil, nil, err
@@ -115,14 +115,14 @@ func ConnectWSS(
 		wssCancelFn()
 	}
 	// notify the world we're connected
-	onConnect(transport.StatusConnected, nil)
+	onConnect(api.StatusConnected, nil)
 
 	// last, start handling incoming messages
 	go func() {
 		WSSReadLoop(wssCtx, wssConn, onMessage)
 
 		// end of read loop
-		onConnect(transport.StatusLost, nil)
+		onConnect(api.StatusLost, nil)
 	}()
 
 	return closeWSSFn, wssConn, nil

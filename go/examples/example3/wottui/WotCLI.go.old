@@ -32,7 +32,7 @@ type WotCLI struct {
 	caCert *x509.Certificate
 
 	// the connection this module links to
-	// connection transport.ITransportClient
+	// connection api.ITransportClient
 
 	// discovery records found after Discover()
 	records []*discoverypkg.DiscoveryResult
@@ -206,7 +206,7 @@ func NewWotCLI() *WotCLI {
 	return cl
 }
 
-func NewWotCLIFactory(f factory.IModuleFactory) modules.IHiveModule {
+func NewWotCLIFactory(f api.IModuleFactory) api.IHiveModule {
 	cl := NewWotCLI()
 	return cl
 }

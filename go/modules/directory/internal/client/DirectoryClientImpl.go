@@ -3,6 +3,7 @@ package directoryclient
 import (
 	"fmt"
 
+	"github.com/hiveot/hivekit/go/api"
 	"github.com/hiveot/hivekit/go/api/msg"
 	"github.com/hiveot/hivekit/go/api/td"
 	"github.com/hiveot/hivekit/go/modules"
@@ -143,7 +144,7 @@ func (cl *DirectoryClientImpl) Start() (err error) {
 //
 //	dirTDD is the optional directory TD from external source.
 //	sink forwards requests to the directory server and returns notifications. nil to set manually.
-func NewDirectoryClientImpl(dirTDD *td.TD, sink modules.IHiveModule) *DirectoryClientImpl {
+func NewDirectoryClientImpl(dirTDD *td.TD, sink api.IHiveModule) *DirectoryClientImpl {
 
 	cl := &DirectoryClientImpl{
 		HiveModuleBase:   modules.NewHiveModuleBase("", 0),

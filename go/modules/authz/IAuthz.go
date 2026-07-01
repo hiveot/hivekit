@@ -1,8 +1,8 @@
 package authz
 
 import (
+	"github.com/hiveot/hivekit/go/api"
 	"github.com/hiveot/hivekit/go/api/msg"
-	"github.com/hiveot/hivekit/go/modules"
 )
 
 // default module type and instance identification
@@ -10,7 +10,7 @@ const AuthzModuleType = "authz"
 
 // Authorisation server module for authorizing module requests based on client roles.
 type IAuthzService interface {
-	modules.IHiveModule
+	api.IHiveModule
 
 	// ValidateAuthorization verifies that the sender is authorized for the request.
 	// Currently this is a hard coded RBAC based on the client role. Services must

@@ -10,6 +10,7 @@ import (
 	"sync"
 
 	"github.com/gorilla/websocket"
+	"github.com/hiveot/hivekit/go/api"
 	"github.com/hiveot/hivekit/go/api/msg"
 	"github.com/hiveot/hivekit/go/api/td"
 	"github.com/hiveot/hivekit/go/modules"
@@ -54,9 +55,9 @@ type WssTransportClient struct {
 	clientID string
 
 	// handler for sending connection notifications
-	connectStatus transport.ConnectionStatus
+	connectStatus api.ConnectionStatus
 	// callback when connection changes
-	connectHandler func(newStatus transport.ConnectionStatus, c transport.ITransportClient)
+	connectHandler func(newStatus api.ConnectionStatus, c api.ITransportClient)
 
 	// convert the request/response to the wss messaging protocol used
 	encoder transport.IMessageEncoder
@@ -147,10 +148,10 @@ func (cl *WssTransportClient) _send(wssMsg []byte) (err error) {
 	cl.mux.Lock()
 	defer cl.mux.Unlock()
 
-	if cl.connectStatus == transport.StatusConnecting {
+	if cl.connectStatus == api.StatusConnecting {
 		// TODO: should we wait for a bit while connecting?
 		return fmt.Errorf("_send: Not connected. Connecting.")
-	} else if cl.connectStatus != transport.StatusConnected {
+	} else if cl.connectStatus != api.StatusConnected {
 		return fmt.Errorf("_send: Not connected")
 	}
 
@@ -163,7 +164,7 @@ func (cl *WssTransportClient) _send(wssMsg []byte) (err error) {
 }
 
 // websocket connection status handler - this uses mux lock for critical section
-func (cl *WssTransportClient) _setConnectionStatus(newStatus transport.ConnectionStatus, err error) {
+func (cl *WssTransportClient) _setConnectionStatus(newStatus api.ConnectionStatus, err error) {
 
 	cl.mux.Lock()
 	oldStatus := cl.connectStatus
@@ -173,10 +174,10 @@ func (cl *WssTransportClient) _setConnectionStatus(newStatus transport.Connectio
 
 	if newStatus == oldStatus {
 		return
-	} else if oldStatus == transport.StatusClosed && newStatus == transport.StatusLost {
+	} else if oldStatus == api.StatusClosed && newStatus == api.StatusLost {
 		// already closed, don't send status lost
 		return
-	} else if newStatus == transport.StatusLost {
+	} else if newStatus == api.StatusLost {
 		slog.Info("_setConnectionStatus WSS client connection lost", "status", newStatus)
 		// fail all outstanding RnR requests
 		cl.rnrChan.CloseAll()
@@ -184,7 +185,7 @@ func (cl *WssTransportClient) _setConnectionStatus(newStatus transport.Connectio
 
 	// notify upstream of connect, disconnect or lost
 	moduleID := cl.GetThingID()
-	evName := transport.ClientConnectionStatusEvent
+	evName := api.ClientConnectionStatusEvent
 	notif := msg.NewNotificationMessage(
 		moduleID, msg.AffordanceTypeEvent, moduleID, evName, newStatus)
 	cl.ForwardNotification(notif)
@@ -199,7 +200,7 @@ func (cl *WssTransportClient) _setConnectionStatus(newStatus transport.Connectio
 // AuthenticateWithClientCert sets the authentication credentials to the client certificate.
 func (cl *WssTransportClient) AuthenticateWithClientCert(clientCert *tls.Certificate) (err error) {
 	status := cl.GetConnectionStatus()
-	if status == transport.StatusConnected || status == transport.StatusConnecting {
+	if status == api.StatusConnected || status == api.StatusConnecting {
 		return fmt.Errorf("AuthenticateWithClientCert: Connection in progress.")
 	}
 	// tell the client to use the certificate
@@ -241,7 +242,7 @@ func (cl *WssTransportClient) AuthenticateWithClientCert(clientCert *tls.Certifi
 // and injects the authentication credentials according to the TDI schema.
 // This returns an error if the schema isn't supported or is not compatible.
 func (cl *WssTransportClient) AuthenticateWithForm(tdDoc *td.TD,
-	getCredentials transport.GetCredentials) error {
+	getCredentials api.GetCredentials) error {
 
 	// for now just assume its bearer token, just to get it working
 	clientID, secret, schemeName, err := getCredentials(tdDoc.ID)
@@ -266,7 +267,7 @@ func (cl *WssTransportClient) AuthenticateWithForm(tdDoc *td.TD,
 func (cl *WssTransportClient) AuthenticateWithToken(clientID string, token string) error {
 
 	status := cl.GetConnectionStatus()
-	if status == transport.StatusConnected || status == transport.StatusConnecting {
+	if status == api.StatusConnected || status == api.StatusConnecting {
 		return fmt.Errorf("AuthenticateWithToken: Connection in progress.")
 	}
 	cl.clientID = clientID
@@ -278,7 +279,7 @@ func (cl *WssTransportClient) AuthenticateWithToken(clientID string, token strin
 func (cl *WssTransportClient) Close() {
 
 	// set status to closed first to avoid a reconnect
-	cl._setConnectionStatus(transport.StatusClosed, nil)
+	cl._setConnectionStatus(api.StatusClosed, nil)
 
 	cl.mux.Lock()
 	defer cl.mux.Unlock()
@@ -293,9 +294,9 @@ func (cl *WssTransportClient) Close() {
 func (cl *WssTransportClient) Connect() error {
 	status := cl.GetConnectionStatus()
 
-	if status == transport.StatusConnected {
+	if status == api.StatusConnected {
 		return nil
-	} else if status == transport.StatusConnecting {
+	} else if status == api.StatusConnecting {
 		return fmt.Errorf("Busy connecting")
 	}
 
@@ -334,7 +335,7 @@ func (cl *WssTransportClient) GetConnectionID() string {
 }
 
 // // GetConnectionStatus returns the current connection status
-func (cl *WssTransportClient) GetConnectionStatus() transport.ConnectionStatus {
+func (cl *WssTransportClient) GetConnectionStatus() api.ConnectionStatus {
 	cl.mux.RLock()
 	defer cl.mux.RUnlock()
 	stat := cl.connectStatus
@@ -354,7 +355,7 @@ func (m *WssTransportClient) HandleNotification(notif *msg.NotificationMessage) 
 // - other requests (like subscribe) are send to the server
 func (cl *WssTransportClient) HandleRequest(request *msg.RequestMessage, replyTo msg.ResponseHandler) error {
 	if request.ThingID == cl.GetThingID() {
-		if request.Operation == td.OpInvokeAction && request.Name == transport.ClientConnectAction {
+		if request.Operation == td.OpInvokeAction && request.Name == api.ClientConnectAction {
 			err := cl.Connect()
 			resp := request.CreateResponse(cl.GetConnectionStatus(), err)
 			return replyTo(resp)
@@ -464,7 +465,7 @@ func (cl *WssTransportClient) SendResponse(resp *msg.ResponseMessage) error {
 
 // SetConnectHandler sets the callback to invoke when the connection status changes
 func (cl *WssTransportClient) SetConnectHandler(
-	h func(newStatus transport.ConnectionStatus, c transport.ITransportClient)) {
+	h func(newStatus api.ConnectionStatus, c api.ITransportClient)) {
 	cl.mux.Lock()
 	defer cl.mux.Unlock()
 	cl.connectHandler = h
@@ -531,6 +532,6 @@ func NewWotWssClient(
 		rnrChan:        msg.NewRnRChan(),
 		wssURL:         wssURL,
 	}
-	var _ transport.ITransportClient = cl // interface check
+	var _ api.ITransportClient = cl // interface check
 	return cl
 }

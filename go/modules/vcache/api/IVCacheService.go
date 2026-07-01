@@ -1,8 +1,8 @@
 package vcacheapi
 
 import (
+	"github.com/hiveot/hivekit/go/api"
 	"github.com/hiveot/hivekit/go/api/msg"
-	"github.com/hiveot/hivekit/go/modules"
 )
 
 const VCacheModuleType = "vcache"
@@ -21,7 +21,7 @@ type CacheInfo struct {
 // ReadProperty operation is received. Intended for speeding up querying property values
 // and to provide answers when the queried thing is unavailable.
 type IVCacheService interface {
-	modules.IHiveModule
+	api.IHiveModule
 
 	// Forward the request downstream if the module can't answer it.
 	// The intent is to pass it to the thing device to serve the request.

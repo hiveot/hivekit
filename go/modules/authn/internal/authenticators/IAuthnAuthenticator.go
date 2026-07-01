@@ -3,14 +3,14 @@ package authenticators
 import (
 	"time"
 
+	"github.com/hiveot/hivekit/go/api"
 	"github.com/hiveot/hivekit/go/api/td"
-	"github.com/hiveot/hivekit/go/modules/transport"
 )
 
 // IAuthnAuthenticator is the interface of the authentication capability to obtain and
 // validate authentication tokens.
 type IAuthnAuthenticator interface {
-	transport.IAuthenticator
+	api.IAuthenticator
 
 	// AddSecurityScheme adds the wot securityscheme to the given TD
 	AddSecurityScheme(tdoc *td.TD)

@@ -3,8 +3,8 @@ package internal
 import (
 	"net/http"
 
+	"github.com/hiveot/hivekit/go/api"
 	"github.com/hiveot/hivekit/go/api/td"
-	"github.com/hiveot/hivekit/go/modules/transport"
 	"github.com/hiveot/hivekit/go/modules/transport/ssesc"
 )
 
@@ -24,8 +24,8 @@ func (srv *SseScServer) AddTDSecForms(tdoc *td.TD, includeAffordances bool) {
 	vars := map[string]string{
 		td.UriVarThingID: tdoc.ID,
 	}
-	// protocolType := transport.ProtocolTypeHiveotSsesc
-	subprotocol := transport.SubprotocolHiveotSsesc
+	// protocolType := api.ProtocolTypeHiveotSsesc
+	subprotocol := api.SubprotocolHiveotSsesc
 
 	// 2. Set the security scheme used by the authenticator.
 	// TODO: risk of duplicates?

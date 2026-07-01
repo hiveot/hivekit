@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/hiveot/hivekit/go/api"
 	"github.com/hiveot/hivekit/go/api/msg"
 	"github.com/hiveot/hivekit/go/modules"
 	"github.com/hiveot/hivekit/go/modules/logging"
@@ -125,13 +126,13 @@ func (m *LoggingServiceImpl) NewLogger(cfg *logging.LoggingConfig) (
 }
 
 // SetSource is a convenience function to set the source module of requests and destination of notifications
-func (m *LoggingServiceImpl) SetSource(source modules.IHiveModule) {
+func (m *LoggingServiceImpl) SetSource(source api.IHiveModule) {
 	source.SetRequestSink(m)
 	m.SetNotificationSink(source)
 }
 
 // SetSink is a convenience function to set the downstream module of requests and source of notifications
-func (m *LoggingServiceImpl) SetSink(sink modules.IHiveModule) {
+func (m *LoggingServiceImpl) SetSink(sink api.IHiveModule) {
 	m.SetRequestSink(sink)
 	sink.SetNotificationSink(m)
 }

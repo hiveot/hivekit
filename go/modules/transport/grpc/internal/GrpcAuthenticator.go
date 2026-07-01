@@ -6,7 +6,7 @@ import (
 	"log/slog"
 	"strings"
 
-	"github.com/hiveot/hivekit/go/modules/transport"
+	"github.com/hiveot/hivekit/go/api"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/metadata"
@@ -18,10 +18,10 @@ import (
 var ErrMissingMetadata = status.Errorf(codes.InvalidArgument, "missing metadata")
 var ErrInvalidToken = status.Errorf(codes.PermissionDenied, "invalid token")
 
-// GrpcAuthenticator adapter that adapts the transport.IAuthenticator interface to be used
+// GrpcAuthenticator adapter that adapts the api.IAuthenticator interface to be used
 // as a gRPC stream interceptor for authenticating incoming connections.
 type GrpcAuthenticator struct {
-	authenticator transport.IAuthenticator
+	authenticator api.IAuthenticator
 }
 
 // Determine the clientID and authenticate a new stream connection
@@ -49,7 +49,7 @@ func (srv *GrpcAuthenticator) Authenticate(
 	}
 
 	// no or invalid client cert, try auth token
-	contextClientID := strings.Join(md[transport.ClientIDContextID], "")
+	contextClientID := strings.Join(md[api.ClientIDContextID], "")
 	mdAuthn := md["authorization"]
 	if len(mdAuthn) == 0 {
 		return md, "", ErrInvalidToken
@@ -68,7 +68,7 @@ func (srv *GrpcAuthenticator) Authenticate(
 	return md, clientID, nil
 }
 
-func NewGrpcAuthenticator(authenticator transport.IAuthenticator) *GrpcAuthenticator {
+func NewGrpcAuthenticator(authenticator api.IAuthenticator) *GrpcAuthenticator {
 	return &GrpcAuthenticator{
 		authenticator: authenticator,
 	}

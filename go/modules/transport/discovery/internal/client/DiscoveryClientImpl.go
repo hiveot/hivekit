@@ -10,10 +10,10 @@ import (
 	"time"
 
 	"github.com/grandcat/zeroconf"
+	"github.com/hiveot/hivekit/go/api"
 	"github.com/hiveot/hivekit/go/api/msg"
 	"github.com/hiveot/hivekit/go/api/td"
 	"github.com/hiveot/hivekit/go/modules"
-	"github.com/hiveot/hivekit/go/modules/factory"
 	"github.com/hiveot/hivekit/go/modules/transport/discovery"
 	tlsclientpkg "github.com/hiveot/hivekit/go/modules/transport/tlsclient/pkg"
 )
@@ -29,7 +29,7 @@ type DiscoveryClientImpl struct {
 	caCert *x509.Certificate
 
 	// optional update the discovery results in the app environment
-	env *factory.AppEnvironment
+	env *api.AppEnvironment
 
 	// discovery directory info when running DiscoveryFirstDirectory
 	dirURL string // the directory TD instance
@@ -367,7 +367,7 @@ func (cl *DiscoveryClientImpl) Start() (err error) {
 // NewDiscoveryClientImpl creates a new instance of a discovery client
 //
 // appEnv is optional. On Start it will be updated with the discovered directory and server.
-func NewDiscoveryClientImpl(appEnv *factory.AppEnvironment, discoOnStart bool) *DiscoveryClientImpl {
+func NewDiscoveryClientImpl(appEnv *api.AppEnvironment, discoOnStart bool) *DiscoveryClientImpl {
 	cl := &DiscoveryClientImpl{
 		HiveModuleBase:  modules.NewHiveModuleBase("", 0),
 		env:             appEnv,

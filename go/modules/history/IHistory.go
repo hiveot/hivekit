@@ -3,8 +3,8 @@ package history
 import (
 	"time"
 
+	"github.com/hiveot/hivekit/go/api"
 	"github.com/hiveot/hivekit/go/api/msg"
-	"github.com/hiveot/hivekit/go/modules"
 )
 
 // The type of module that implements the IHistoryService interface
@@ -32,7 +32,7 @@ const DefaultLimit = 1000
 // To prevent cursor hijacking, it is linked to the authenticated clientID of the caller
 // The caller's clientID of all iteration requests must match that of the cursor creator.
 type IHistoryService interface {
-	modules.IHiveModule
+	api.IHiveModule
 
 	// CreateCursor creates a new iterator for reading historical values of a Thing.
 	//

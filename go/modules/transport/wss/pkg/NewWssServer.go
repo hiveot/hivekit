@@ -4,9 +4,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/hiveot/hivekit/go/modules"
-	"github.com/hiveot/hivekit/go/modules/factory"
-	"github.com/hiveot/hivekit/go/modules/transport"
+	"github.com/hiveot/hivekit/go/api"
 	"github.com/hiveot/hivekit/go/modules/transport/wss"
 	internal "github.com/hiveot/hivekit/go/modules/transport/wss/internal/server"
 )
@@ -21,7 +19,7 @@ import (
 // Use SetRequestSink to set the handler for requests send by consumers.
 // Use SetNotificationSink to set the handler for notifications send by devices and services.
 func NewHiveotWssServer(
-	httpServer transport.IHttpServer, respTimeout time.Duration) wss.IWssTransportServer {
+	httpServer api.IHttpServer, respTimeout time.Duration) wss.IWssTransportServer {
 
 	wssTransport := internal.NewHiveotWssServer(httpServer, respTimeout)
 	return wssTransport
@@ -29,7 +27,9 @@ func NewHiveotWssServer(
 
 // Load the HiveOT websocket server using the factory environment
 // This loads the http server
-func NewHiveotWssServerFactory(f factory.IModuleFactory, md *factory.ModuleDefinition) (modules.IHiveModule, error) {
+func NewHiveotWssServerFactory(
+	f api.IModuleFactory, md *api.ModuleDefinition) (api.IHiveModule, error) {
+
 	httpServer := f.GetHttpServer(true)
 	if httpServer == nil {
 		return nil, fmt.Errorf("NewHiveotWssServerFactory: missing http server")
@@ -49,7 +49,7 @@ func NewHiveotWssServerFactory(f factory.IModuleFactory, md *factory.ModuleDefin
 // Use SetRequestSink to set the handler for requests send by consumers
 // Use SetNotificationSink to set the handler for notifications send by device.
 func NewWotWssServer(
-	httpServer transport.IHttpServer, respTimeout time.Duration) wss.IWssTransportServer {
+	httpServer api.IHttpServer, respTimeout time.Duration) wss.IWssTransportServer {
 
 	wssTransport := internal.NewWotWssServer(httpServer, respTimeout)
 	return wssTransport
@@ -58,7 +58,7 @@ func NewWotWssServer(
 // Load the Wot websocket server using the factory environment
 // This loads the http server.
 // This returns nil if the http server could not be loaded.
-func NewWotWssServerFactory(f factory.IModuleFactory, md *factory.ModuleDefinition) (modules.IHiveModule, error) {
+func NewWotWssServerFactory(f api.IModuleFactory, md *api.ModuleDefinition) (api.IHiveModule, error) {
 	httpServer := f.GetHttpServer(true)
 	if httpServer == nil {
 		return nil, fmt.Errorf("NewWotWssServerFactory: missing http server")

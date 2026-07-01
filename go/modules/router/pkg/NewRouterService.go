@@ -5,13 +5,11 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/hiveot/hivekit/go/api"
 	"github.com/hiveot/hivekit/go/api/td"
-	"github.com/hiveot/hivekit/go/modules"
 	"github.com/hiveot/hivekit/go/modules/directory"
-	"github.com/hiveot/hivekit/go/modules/factory"
 	"github.com/hiveot/hivekit/go/modules/router"
 	"github.com/hiveot/hivekit/go/modules/router/internal"
-	"github.com/hiveot/hivekit/go/modules/transport"
 )
 
 // NewRouterService creates a new instance of the router service module with the default module ID.
@@ -23,7 +21,7 @@ import (
 //	caCert is the CA certificate used to verify device connections
 //	timeout is the maximum wait time for sending requests to clients.
 func NewRouterService(storageDir string, getTD func(thingID string) *td.TD,
-	tps []transport.ITransportServer, caCert *x509.Certificate, timeout time.Duration,
+	tps []api.ITransportServer, caCert *x509.Certificate, timeout time.Duration,
 ) router.IRouterService {
 
 	m := internal.NewRouterServiceImpl(storageDir, getTD, tps, caCert, timeout)
@@ -32,7 +30,7 @@ func NewRouterService(storageDir string, getTD func(thingID string) *td.TD,
 
 // Create a router service instance using the factory environment
 // This loads the directory module to lookup a Thing TD
-func NewRouterServiceFactory(f factory.IModuleFactory, md *factory.ModuleDefinition) (modules.IHiveModule, error) {
+func NewRouterServiceFactory(f api.IModuleFactory, md *api.ModuleDefinition) (api.IHiveModule, error) {
 	var getTD func(string) *td.TD
 	env := f.GetEnvironment()
 	storageDir := env.GetStorageDir(router.RouterModuleType)

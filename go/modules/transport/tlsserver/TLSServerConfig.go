@@ -6,7 +6,7 @@ import (
 	"net/http"
 
 	"github.com/go-chi/chi/v5/middleware"
-	"github.com/hiveot/hivekit/go/modules/transport"
+	"github.com/hiveot/hivekit/go/api"
 	"github.com/hiveot/hivekit/go/utils"
 )
 
@@ -98,7 +98,7 @@ func NewTLSServerConfig(
 		addr = utils.GetOutboundIP("").String()
 	}
 	if port == 0 {
-		port = transport.DefaultHttpsPort
+		port = api.DefaultHttpsPort
 	}
 
 	o := &TLSServerConfig{

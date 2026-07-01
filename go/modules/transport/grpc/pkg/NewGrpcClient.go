@@ -3,9 +3,7 @@ package grpcpkg
 import (
 	"crypto/x509"
 
-	"github.com/hiveot/hivekit/go/modules"
-	"github.com/hiveot/hivekit/go/modules/factory"
-	"github.com/hiveot/hivekit/go/modules/transport"
+	"github.com/hiveot/hivekit/go/api"
 	internalclient "github.com/hiveot/hivekit/go/modules/transport/grpc/internal/client"
 )
 
@@ -20,19 +18,19 @@ import (
 // Use SetRequestSink to set the handler for requests send by consumers
 // Use SetNotificationSink to set the handler for notifications send by exposed things.
 func NewHiveotGrpcClient(
-	addr string, caCert *x509.Certificate) transport.ITransportClient {
+	addr string, caCert *x509.Certificate) api.ITransportClient {
 
 	return internalclient.NewGrpcClient(addr, caCert)
 }
 
 // Create a hiveot gRPC client using the factory
 func NewHiveotGrpcClientFactory(
-	f factory.IModuleFactory, md *factory.ModuleDefinition) (modules.IHiveModule, error) {
+	f api.IModuleFactory, md *api.ModuleDefinition) (api.IHiveModule, error) {
 
 	var err error
 
 	env := f.GetEnvironment()
-	clientCert, _ := env.GetClientCert()
+	clientCert, _ := env.GetTLSCert()
 	serverURL := env.GetServerURL()
 
 	m := NewHiveotGrpcClient(serverURL, env.CaCert)
@@ -42,7 +40,7 @@ func NewHiveotGrpcClientFactory(
 	if clientCert == nil {
 		// must use token auth
 		clientID := env.GetClientID()
-		authToken, err := env.GetClientToken()
+		authToken, err := env.GetAuthToken()
 
 		if err == nil && clientID != "" && authToken != "" {
 			err = m.AuthenticateWithToken(clientID, authToken)

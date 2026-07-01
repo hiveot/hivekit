@@ -4,10 +4,10 @@ import (
 	"errors"
 	"sync"
 
+	"github.com/hiveot/hivekit/go/api"
 	"github.com/hiveot/hivekit/go/api/msg"
 	"github.com/hiveot/hivekit/go/api/td"
 	"github.com/hiveot/hivekit/go/modules"
-	factory "github.com/hiveot/hivekit/go/modules/factory"
 	"github.com/teris-io/shortid"
 )
 
@@ -33,7 +33,7 @@ type Consumer struct {
 	*modules.HiveModuleBase
 
 	// The sink that will forward the requests and respond with notifications.
-	// sink modules.IHiveModule
+	// sink api.IHiveModule
 
 	// notificationHandler is the application handler of notifications
 	// notifications will also be forwarded upstream to the upstream handler.
@@ -255,7 +255,7 @@ func (co *Consumer) WriteProperty(thingID string, name string, input any, wait b
 // Provide a sink for forwarding requests and receiving notifications. Use nil to do this manually.
 // A notification handler can be provided or set with SetNotificationHook
 // Use SetTimeout to modify the default RPC timeout
-func NewConsumer(sink modules.IHiveModule, notificationHook msg.NotificationHandler) *Consumer {
+func NewConsumer(sink api.IHiveModule, notificationHook msg.NotificationHandler) *Consumer {
 	thingID := ConsumerModuleType + "-" + shortid.MustGenerate()
 	consumer := &Consumer{
 		HiveModuleBase:      modules.NewHiveModuleBase(thingID, msg.DefaultRnRTimeout),
@@ -270,7 +270,7 @@ func NewConsumer(sink modules.IHiveModule, notificationHook msg.NotificationHand
 }
 
 // Factory for creating a consumer module using the factory environment
-func NewConsumerFactory(f factory.IModuleFactory, md *factory.ModuleDefinition) (modules.IHiveModule, error) {
+func NewConsumerFactory(f api.IModuleFactory, md *api.ModuleDefinition) (api.IHiveModule, error) {
 	c := NewConsumer(nil, nil)
 	c.SetTimeout(f.GetEnvironment().RpcTimeout)
 	return c, nil

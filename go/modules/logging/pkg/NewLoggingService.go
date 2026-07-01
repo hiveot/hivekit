@@ -3,8 +3,7 @@ package loggingpkg
 import (
 	"path"
 
-	"github.com/hiveot/hivekit/go/modules"
-	factory "github.com/hiveot/hivekit/go/modules/factory"
+	"github.com/hiveot/hivekit/go/api"
 	"github.com/hiveot/hivekit/go/modules/logging"
 	"github.com/hiveot/hivekit/go/modules/logging/internal"
 )
@@ -17,7 +16,7 @@ func NewLoggingService(config logging.LoggingConfig) logging.ILoggingService {
 }
 
 // NewLoggingServiceFactory creates a new instance of the logging module using the factory environment.
-func NewLoggingServiceFactory(f factory.IModuleFactory, md *factory.ModuleDefinition) (modules.IHiveModule, error) {
+func NewLoggingServiceFactory(f api.IModuleFactory, md *api.ModuleDefinition) (api.IHiveModule, error) {
 
 	// use the application binary as the logfile name
 	var logfilename = path.Join(f.GetEnvironment().LogsDir, f.GetEnvironment().AppID)

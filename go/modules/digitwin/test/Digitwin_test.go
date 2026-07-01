@@ -10,6 +10,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/hiveot/hivekit/go/api"
 	"github.com/hiveot/hivekit/go/api/msg"
 	"github.com/hiveot/hivekit/go/api/td"
 	"github.com/hiveot/hivekit/go/modules/authn"
@@ -20,7 +21,6 @@ import (
 	directorypkg "github.com/hiveot/hivekit/go/modules/directory/pkg"
 	routerpkg "github.com/hiveot/hivekit/go/modules/router/pkg"
 	"github.com/hiveot/hivekit/go/modules/thing"
-	"github.com/hiveot/hivekit/go/modules/transport"
 	"github.com/hiveot/hivekit/go/testenv"
 	"github.com/hiveot/hivekit/go/utils"
 	"github.com/stretchr/testify/assert"
@@ -53,7 +53,7 @@ func startService() (
 	stopFn func()) {
 
 	os.RemoveAll(storageDir)
-	// testEnv,cancelFn = tptests.StartTestEnv(transport.ProtocolSchemeWotWSS)
+	// testEnv,cancelFn = tptests.StartTestEnv(api.ProtocolSchemeWotWSS)
 	testEnv = testenv.NewTestEnv(true)
 
 	// a websocket server for RRN messaging
@@ -62,7 +62,7 @@ func startService() (
 	// the directory server that will contain digitwin Things
 	// digiDir := filepath.Join(storageDir, "digiDir.json")
 	dirThingID := directory.DefaultDirectoryThingID
-	servers := []transport.ITransportServer{testEnv.Server}
+	servers := []api.ITransportServer{testEnv.Server}
 	// httpAPI := directorypkg.NewDirectoryHttpServer(testEnv.HttpServer)
 
 	dir = directorypkg.NewDirectoryService(
@@ -82,7 +82,7 @@ func startService() (
 	rtr := routerpkg.NewRouterService(
 		storageDir,
 		dtw.GetDeviceTD,
-		[]transport.ITransportServer{appServer},
+		[]api.ITransportServer{appServer},
 		testEnv.CertBundle.CaCert, rpcTimout)
 	err = rtr.Start()
 	if err != nil {

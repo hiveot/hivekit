@@ -1,4 +1,4 @@
-package certutils
+package utils
 
 import (
 	"crypto"
@@ -10,12 +10,22 @@ import (
 	"encoding/pem"
 	"errors"
 	"fmt"
-	"log/slog"
 	"os"
 	"path/filepath"
-
-	"github.com/hiveot/hivekit/go/utils"
 )
+
+// // certificate file names
+// const (
+// 	// CA key for self signed certificates
+// 	DefaultCaKeyFile = "caKey.pem"
+
+// 	// clients and server need the CA
+// 	DefaultCaCertFile = "caCert.pem"
+
+// 	// client side certificate
+// 	DefaultCertFileSuffix = "Cert.pem"
+// 	DefaultKeyFileSuffix  = "Key.pem"
+// )
 
 // Certificate Organization Unit for client certificate based authorization
 const (
@@ -45,11 +55,11 @@ func LoadCA(caCertPath, caKeyPath string) (*x509.Certificate, crypto.PrivateKey,
 	caCert, err := LoadX509CertFromPEM(caCertPath)
 	if err != nil {
 		// On first start there might not be a CA. Not a fatal error.
-		slog.Warn("no valid CA certificate found", "path", caCertPath, "err", err.Error())
+		err = fmt.Errorf("No valid CA found at '%s': %w", caCertPath, err)
 	} else {
-		caPrivateKey, _, err := utils.LoadPrivateKey(caKeyPath)
+		caPrivateKey, _, err := LoadPrivateKey(caKeyPath)
 		if err != nil {
-			slog.Warn("No valid CA key-pair found", "path", caCertPath, "err", err.Error())
+			err = fmt.Errorf("No valid CA private key found at '%s': %w", caCertPath, err)
 		} else {
 			// verify CA cert and key
 
@@ -94,17 +104,17 @@ func LoadTLSCertFromPEM(certPEMPath, keyPEMPath string) (tlsCert *tls.Certificat
 // PublicKeyFromCert extracts the public key from x509 certificate.
 // Returns nil if certificate doesn't hold a public key.
 // The key can be an ecdsa or ed25519 public key.
-func PublicKeyFromCert(cert *x509.Certificate) (keyType utils.KeyType, pubKey crypto.PublicKey) {
+func PublicKeyFromCert(cert *x509.Certificate) (keyType KeyType, pubKey crypto.PublicKey) {
 
 	switch pub := cert.PublicKey.(type) {
 	case *ecdsa.PublicKey:
-		keyType = utils.KeyTypeECDSA
+		keyType = KeyTypeECDSA
 		pubKey = pub
 	case ed25519.PublicKey: // yes, not a pointer
-		keyType = utils.KeyTypeED25519
+		keyType = KeyTypeED25519
 		pubKey = pub
 	case *rsa.PublicKey:
-		keyType = utils.KeyTypeRSA
+		keyType = KeyTypeRSA
 		pubKey = pub
 	}
 	return keyType, pubKey
@@ -118,7 +128,7 @@ func PublicKeyFromCert(cert *x509.Certificate) (keyType utils.KeyType, pubKey cr
 //	certPEMPath the file to save the X509 certificate to in PEM format
 //	keyPEMPath the file to save the private key to in PEM format
 func SaveTLSCertToPEM(cert *tls.Certificate, certPEMPath, keyPEMPath string) error {
-	//slog.Info("Saving TLS cert to " + certPEMPath)
+
 	b := pem.Block{Type: "CERTIFICATE", Bytes: cert.Certificate[0]}
 	certPEM := pem.EncodeToMemory(&b)
 	// remove existing cert since perm 0444 doesn't allow overwriting it
@@ -129,17 +139,17 @@ func SaveTLSCertToPEM(cert *tls.Certificate, certPEMPath, keyPEMPath string) err
 
 	err := os.WriteFile(certPEMPath, certPEM, 0444)
 	if err != nil {
-		slog.Error("Failed writing server cert to file", "err", err)
+		err = fmt.Errorf("Failed writing TLS cert to '%s': %w", certPEMPath, err)
 		return err
 	}
 	ecdsaPK, found := cert.PrivateKey.(*ecdsa.PrivateKey)
 	if found {
-		err = utils.SavePrivateKey(ecdsaPK, keyPEMPath)
+		err = SavePrivateKey(ecdsaPK, keyPEMPath)
 		return err
 	}
 	ed25519PK, found := cert.PrivateKey.(ed25519.PrivateKey)
 	if found {
-		err = utils.SavePrivateKey(ed25519PK, keyPEMPath)
+		err = SavePrivateKey(ed25519PK, keyPEMPath)
 		return err
 	}
 	return err

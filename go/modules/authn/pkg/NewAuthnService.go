@@ -1,9 +1,8 @@
 package authnpkg
 
 import (
-	"github.com/hiveot/hivekit/go/modules"
+	"github.com/hiveot/hivekit/go/api"
 	"github.com/hiveot/hivekit/go/modules/authn"
-	"github.com/hiveot/hivekit/go/modules/factory"
 
 	"github.com/hiveot/hivekit/go/modules/authn/internal/service"
 )
@@ -26,7 +25,7 @@ func NewAuthnService(
 // Create a new instance of the authentication service using the factory environment.
 // The factory will provide the configuration and http server.
 // This sets the authn session manager as the factory authenticator.
-func NewAuthnServiceFactory(f factory.IModuleFactory, md *factory.ModuleDefinition) (modules.IHiveModule, error) {
+func NewAuthnServiceFactory(f api.IModuleFactory, md *api.ModuleDefinition) (api.IHiveModule, error) {
 	env := f.GetEnvironment()
 	keysDir := env.CertsDir
 	storageDir := env.GetStorageDir(authn.AuthnServiceModuleType)

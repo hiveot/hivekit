@@ -2,6 +2,7 @@
 package authnpkg
 
 import (
+	"github.com/hiveot/hivekit/go/api"
 	"github.com/hiveot/hivekit/go/api/td"
 	"github.com/hiveot/hivekit/go/modules"
 	authnapi "github.com/hiveot/hivekit/go/modules/authn"
@@ -82,7 +83,7 @@ func (m *AuthnAdminClient) UpdateClientProfile(clientProfile authnapi.ClientProf
 //
 // sink is the request handler this will forward requests to the authn service.
 // This will also set this client as the notification sink for all authn generated notifications.
-func NewAuthnAdminClient(sink modules.IHiveModule) *AuthnAdminClient {
+func NewAuthnAdminClient(sink api.IHiveModule) *AuthnAdminClient {
 	m := &AuthnAdminClient{
 		serviceID:      authnapi.DefaultAdminServiceID,
 		HiveModuleBase: modules.NewHiveModuleBase("", 0),

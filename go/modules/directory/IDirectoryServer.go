@@ -3,9 +3,8 @@ package directory
 import (
 	_ "embed"
 
+	"github.com/hiveot/hivekit/go/api"
 	"github.com/hiveot/hivekit/go/api/td"
-	"github.com/hiveot/hivekit/go/modules"
-	"github.com/hiveot/hivekit/go/modules/transport"
 )
 
 // Embed the directory TM
@@ -91,12 +90,12 @@ type RetrieveAllThingsOutput []string
 // This acts as a simple http transport server and should be placed ahead of
 // the DirectoryService module chain.
 type IDirectoryHttpServer interface {
-	transport.ITransportServer
+	api.ITransportServer
 }
 
 // IDirectoryService defines the interface to the directory service module
 type IDirectoryService interface {
-	modules.IHiveModule
+	api.IHiveModule
 
 	// CreateThing creates or updates the TD in the directory.
 	// If the thing doesn't exist in the directory it is added.

@@ -1,7 +1,7 @@
 package factorypkg
 
 import (
-	"github.com/hiveot/hivekit/go/modules/factory"
+	"github.com/hiveot/hivekit/go/api"
 	"github.com/hiveot/hivekit/go/modules/factory/internal"
 )
 
@@ -16,7 +16,7 @@ import (
 // chain is a collection of modules in order of instantiation.
 //
 // This returns the chain recipe module.
-func NewChainRecipe(f factory.IModuleFactory, chain []factory.ModuleDefinition) factory.IRecipe {
+func NewChainRecipe(f api.IModuleFactory, chain []api.ModuleDefinition) api.IRecipe {
 
 	m := internal.NewChainRecipe(f, chain)
 	return m
@@ -25,7 +25,7 @@ func NewChainRecipe(f factory.IModuleFactory, chain []factory.ModuleDefinition) 
 // Create a recipe instance for running modules in a star formation.
 // This returns the star recipe module.
 func NewStarRecipe(
-	f factory.IModuleFactory, star []factory.ModuleDefinition) factory.IRecipe {
+	f api.IModuleFactory, star []api.ModuleDefinition) api.IRecipe {
 
 	m := internal.NewStarRecipe(f, star)
 	return m

@@ -1,6 +1,8 @@
 package ssesc
 
-import "github.com/hiveot/hivekit/go/modules/transport"
+import (
+	"github.com/hiveot/hivekit/go/api"
+)
 
 // SSEPingEvent used by the server to ping the client that the connection is ready
 const SSEPingEvent = "sse-ping"
@@ -26,7 +28,7 @@ const (
 
 // Interface of the HiveotSseSc transport module
 type ISseScTransportServer interface {
-	transport.ITransportServer
+	api.ITransportServer
 
 	// todo: future API for configuration of the module
 }

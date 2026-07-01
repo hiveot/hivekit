@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log/slog"
 
+	"github.com/hiveot/hivekit/go/api"
 	"github.com/hiveot/hivekit/go/api/msg"
 	"github.com/hiveot/hivekit/go/modules"
 	"github.com/hiveot/hivekit/go/modules/authn"
@@ -153,7 +154,7 @@ func NewAuthnService(authnConfig authn.AuthnConfig) *AuthnService {
 		sessionManager: sessionManager,
 		// sessionStart: make(map[string]time.Time),
 	}
-	var _ modules.IHiveModule = m // interface check
+	var _ api.IHiveModule = m     // interface check
 	var _ authn.IAuthnService = m // interface check
 	return m
 }

@@ -3,7 +3,7 @@ package authn
 import (
 	_ "embed"
 
-	"github.com/hiveot/hivekit/go/modules"
+	"github.com/hiveot/hivekit/go/api"
 )
 
 // Embed admin service TM
@@ -99,7 +99,7 @@ type ClientProfile struct {
 // Interface of the authentication server module for managing clients and provide
 // the session manager and authenticator.
 type IAuthnService interface {
-	modules.IHiveModule
+	api.IHiveModule
 
 	// AddClient add a new client account. This fails if the client already exists.
 	// Use authenticator's SetPassword or CreateToken to obtain a token to connect.

@@ -1,9 +1,9 @@
 package recipes
 
 import (
+	"github.com/hiveot/hivekit/go/api"
 	"github.com/hiveot/hivekit/go/modules/certs"
 	certspkg "github.com/hiveot/hivekit/go/modules/certs/pkg"
-	"github.com/hiveot/hivekit/go/modules/factory"
 	factorypkg "github.com/hiveot/hivekit/go/modules/factory/pkg"
 	"github.com/hiveot/hivekit/go/modules/reconnect"
 	reconnectpkg "github.com/hiveot/hivekit/go/modules/reconnect/pkg"
@@ -14,7 +14,7 @@ import (
 )
 
 // ConsumerRecipeChain defines the modules for IoT consumers in order of instantiation
-var ConsumerRecipeChain = []factory.ModuleDefinition{
+var ConsumerRecipeChain = []api.ModuleDefinition{
 	{
 		// initialize client certs / auth token in app environment
 		Type:        certs.InitFactoryCertsModuleType,
@@ -58,7 +58,7 @@ var ConsumerRecipeChain = []factory.ModuleDefinition{
 //
 // This returns the recipe, which can be used like any other module
 func NewConsumerRecipe(
-	f factory.IModuleFactory, appModule *factory.ModuleDefinition) factory.IRecipe {
+	f api.IModuleFactory, appModule *api.ModuleDefinition) api.IRecipe {
 
 	chain := ConsumerRecipeChain
 

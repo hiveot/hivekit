@@ -3,11 +3,12 @@ package certspkg
 import (
 	"crypto/x509"
 
+	"github.com/hiveot/hivekit/go/api"
 	"github.com/hiveot/hivekit/go/api/td"
 	"github.com/hiveot/hivekit/go/modules"
 	"github.com/hiveot/hivekit/go/modules/certs"
 	certsapi "github.com/hiveot/hivekit/go/modules/certs"
-	"github.com/hiveot/hivekit/go/modules/certs/certutils"
+	"github.com/hiveot/hivekit/go/utils"
 )
 
 // CertsMsgClient is a client for the Certificate module using RRN messages.
@@ -25,9 +26,9 @@ type CertsMsgClient struct {
 func (cl *CertsMsgClient) GetCACert() (cert *x509.Certificate, err error) {
 	var certPem string
 
-	err = cl.Rpc(td.OpInvokeAction, cl.certServiceID, certs.ActionGetCACert, nil, &certPem)
+	err = cl.Rpc(td.OpInvokeAction, cl.certServiceID, certs.GetCACertAction, nil, &certPem)
 	if err == nil {
-		cert, err = certutils.X509CertFromPEM(certPem)
+		cert, err = utils.X509CertFromPEM(certPem)
 	}
 	return cert, err
 }
@@ -37,7 +38,7 @@ func (cl *CertsMsgClient) GetCACert() (cert *x509.Certificate, err error) {
 //
 //	certServiceID is the certificate service instance thingID, "" to select default.
 //	sink is the handler that forwards requests to the service and receives notifications. nil to ignore.
-func NewCertsMsgClient(sink modules.IHiveModule, svcThingID string) *CertsMsgClient {
+func NewCertsMsgClient(sink api.IHiveModule, svcThingID string) *CertsMsgClient {
 	if svcThingID == "" {
 		svcThingID = certsapi.DefaultCertsServiceThingID
 	}

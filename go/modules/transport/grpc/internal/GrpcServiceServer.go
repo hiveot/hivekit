@@ -10,8 +10,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/hiveot/hivekit/go/api"
 	"github.com/hiveot/hivekit/go/api/msg"
-	"github.com/hiveot/hivekit/go/modules/transport"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials"
@@ -122,8 +122,8 @@ func (srv *GrpcServiceServer) GetRequestParams(ctx context.Context) (
 		slog.Error("GetRequestParams: missing auth metadata context")
 		return "", "", fmt.Errorf("missing metadata")
 	}
-	clientID = strings.Join(md[transport.ClientIDContextID], "")
-	cid = strings.Join(md[transport.ClientCIDContextID], "")
+	clientID = strings.Join(md[api.ClientIDContextID], "")
+	cid = strings.Join(md[api.ClientCIDContextID], "")
 	return clientID, cid, err
 }
 

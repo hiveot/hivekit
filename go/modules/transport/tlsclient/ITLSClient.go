@@ -1,4 +1,4 @@
-package transport
+package tlsclient
 
 import (
 	"context"

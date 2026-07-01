@@ -4,10 +4,10 @@ import (
 	"log/slog"
 	"time"
 
+	"github.com/hiveot/hivekit/go/api"
 	"github.com/hiveot/hivekit/go/api/msg"
 	"github.com/hiveot/hivekit/go/api/td"
 	"github.com/hiveot/hivekit/go/modules"
-	"github.com/hiveot/hivekit/go/modules/factory"
 	"github.com/hiveot/hivekit/go/modules/history"
 	"github.com/hiveot/hivekit/go/utils"
 )
@@ -171,7 +171,7 @@ func (cl *ReadHistoryClient) Seek(cursorKey string, timestamp time.Time) (
 // (multiple clients can be chained this way)
 //
 //	invokeAction is the TD invokeAction for the invoke-action operation of the history service
-func NewReadHistoryClient(sink modules.IHiveModule) *ReadHistoryClient {
+func NewReadHistoryClient(sink api.IHiveModule) *ReadHistoryClient {
 	// how to determine the thingID of the history service?
 	// For now we use the well-known IDs. In future this needs discovery
 	histCl := &ReadHistoryClient{
@@ -191,6 +191,6 @@ func NewReadHistoryClient(sink modules.IHiveModule) *ReadHistoryClient {
 // (multiple clients can be chained this way)
 //
 //	invokeAction is the TD invokeAction for the invoke-action operation of the history service
-func NewReadHistoryClientFactory(f factory.IModuleFactory, md *factory.ModuleDefinition) (modules.IHiveModule, error) {
+func NewReadHistoryClientFactory(f api.IModuleFactory, md *api.ModuleDefinition) (api.IHiveModule, error) {
 	return NewReadHistoryClient(nil), nil
 }

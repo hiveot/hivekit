@@ -1,10 +1,12 @@
-package transport
+package api
 
 import (
 	"time"
 
 	"github.com/hiveot/hivekit/go/api/td"
 )
+
+// const IAuthenticatorModuleType = "IAuthenticator"
 
 // Interface of the authentication capability for setting TD security scheme
 // and authenticating incoming connections.

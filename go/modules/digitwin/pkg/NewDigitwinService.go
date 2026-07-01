@@ -4,12 +4,11 @@ import (
 	"fmt"
 	"path/filepath"
 
+	"github.com/hiveot/hivekit/go/api"
 	"github.com/hiveot/hivekit/go/api/td"
-	"github.com/hiveot/hivekit/go/modules"
 	"github.com/hiveot/hivekit/go/modules/digitwin"
 	"github.com/hiveot/hivekit/go/modules/digitwin/internal"
 	"github.com/hiveot/hivekit/go/modules/directory"
-	"github.com/hiveot/hivekit/go/modules/factory"
 )
 
 // NewDigitwinService creates a new instance of the digital twin service module.
@@ -30,7 +29,7 @@ func NewDigitwinService(storageDir string, dirModule directory.IDirectoryService
 
 // Create a new digitwin service using the module factory
 // This loads the directory module and hooks itself into it to intercept directory writes.
-func NewDigitwinServiceFactory(f factory.IModuleFactory, md *factory.ModuleDefinition) (modules.IHiveModule, error) {
+func NewDigitwinServiceFactory(f api.IModuleFactory, md *api.ModuleDefinition) (api.IHiveModule, error) {
 	env := f.GetEnvironment()
 
 	// data is stored in a module subdir

@@ -3,10 +3,9 @@ package wotcli
 import (
 	"crypto/x509"
 
-	"github.com/hiveot/hivekit/go/modules"
+	"github.com/hiveot/hivekit/go/api"
 	"github.com/hiveot/hivekit/go/modules/consumer"
 	"github.com/hiveot/hivekit/go/modules/directory"
-	"github.com/hiveot/hivekit/go/modules/factory"
 	"github.com/hiveot/hivekit/go/modules/transport/discovery"
 )
 
@@ -59,12 +58,12 @@ func NewCliApp(config CliAppConfig, discoClient discovery.IDiscoveryClient, caCe
 }
 
 // Factory function for the cli app
-func NewCliAppFactory(f factory.IModuleFactory,
-	modDef *factory.ModuleDefinition) (modules.IHiveModule, error) {
+func NewCliAppFactory(f api.IModuleFactory,
+	modDef *api.ModuleDefinition) (api.IHiveModule, error) {
 
 	config, ok := modDef.Config.(CliAppConfig)
 	_ = ok
-	discoMod := f.FindModule(discovery.DiscoveryClientModuleType)
+	discoMod := f.GetModule(discovery.DiscoveryClientModuleType)
 	discoClient, ok := discoMod.(discovery.IDiscoveryClient)
 
 	m := NewCliApp(config, discoClient, f.GetEnvironment().CaCert)

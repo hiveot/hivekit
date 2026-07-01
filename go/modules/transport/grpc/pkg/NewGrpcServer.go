@@ -5,9 +5,7 @@ import (
 	"crypto/x509"
 	"time"
 
-	"github.com/hiveot/hivekit/go/modules"
-	"github.com/hiveot/hivekit/go/modules/factory"
-	"github.com/hiveot/hivekit/go/modules/transport"
+	"github.com/hiveot/hivekit/go/api"
 	grpctransport "github.com/hiveot/hivekit/go/modules/transport/grpc"
 	internalserver "github.com/hiveot/hivekit/go/modules/transport/grpc/internal/server"
 )
@@ -27,19 +25,27 @@ import (
 // Use SetNotificationSink to set the handler for notifications send by exposed things.
 func NewHiveotGrpcServer(
 	connectURL string, tlsCert *tls.Certificate, caCert *x509.Certificate,
-	authn transport.IAuthenticator, respTimeout time.Duration) grpctransport.IGrpcTransportServer {
+	authn api.IAuthenticator, respTimeout time.Duration) grpctransport.IGrpcTransportServer {
 
 	return internalserver.NewGrpcServer(connectURL, tlsCert, caCert, authn, respTimeout)
 }
 
 // Create a new instance of the hiveot gRPC server using the factory environment
-func NewHiveotGrpcServerFactory(f factory.IModuleFactory, md *factory.ModuleDefinition) (modules.IHiveModule, error) {
+func NewHiveotGrpcServerFactory(f api.IModuleFactory, md *api.ModuleDefinition) (api.IHiveModule, error) {
 	// TODO: determine a good default
 	env := f.GetEnvironment()
-	tlsCert, err := env.GetServerCert()
-	caCert, err := env.GetCA()
+	serverCert, err := env.GetTLSCert()
+	caCert, err := env.GetCACert()
 	_ = err
-	authenticator := f.GetAuthenticator()
-	m := NewHiveotGrpcServer(env.GrpcURL, tlsCert, caCert, authenticator, env.RpcTimeout)
+
+	grpcURL := grpctransport.DefaultGrpcURL
+	if md.Config != nil {
+		grpcConfig, ok := md.Config.(grpctransport.GrpcConfig)
+		if ok {
+			grpcURL = grpcConfig.URL
+		}
+	}
+
+	m := NewHiveotGrpcServer(grpcURL, serverCert, caCert, f.GetAuthenticator(), env.RpcTimeout)
 	return m, nil
 }

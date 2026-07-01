@@ -6,7 +6,7 @@ We're not there yet so for now this explains the concepts.
 
 ## Concepts and Usage Examples
 
-### Constructing a basic IoT Sensor or Actuator
+### Constructing a Basic IoT Sensor or Actuator
 
 Most IoT devices have in common that they contain logic to read their current state and update writable state such as configuration or actuator value.
 

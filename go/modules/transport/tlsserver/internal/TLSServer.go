@@ -14,8 +14,8 @@ import (
 	"time"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/hiveot/hivekit/go/api"
 	"github.com/hiveot/hivekit/go/modules"
-	"github.com/hiveot/hivekit/go/modules/transport"
 	"github.com/hiveot/hivekit/go/modules/transport/tlsserver"
 	"github.com/hiveot/hivekit/go/utils"
 	"github.com/lmittmann/tint"
@@ -32,7 +32,7 @@ type TLSServer struct {
 	*modules.HiveModuleBase
 
 	// authenticator to validate incoming conncetions
-	authenticator transport.IAuthenticator
+	authenticator api.IAuthenticator
 
 	// HTTP authentication handler.
 	authRequestHandler func(req *http.Request) (clientID string, err error)
@@ -95,7 +95,7 @@ func (m *TLSServer) DefaultAuthRequest(req *http.Request) (clientID string, err 
 }
 
 // GetAuthenticator returns the authenticator used to authenticate incoming connections
-func (m *TLSServer) GetAuthenticator() transport.IAuthenticator {
+func (m *TLSServer) GetAuthenticator() api.IAuthenticator {
 	return m.authenticator
 }
 
@@ -106,7 +106,7 @@ func (m *TLSServer) GetConnectURL() string {
 
 // Set the handler that validates tokens.
 // This will enable the protected routes.
-func (m *TLSServer) SetAuthenticator(authenticator transport.IAuthenticator) {
+func (m *TLSServer) SetAuthenticator(authenticator api.IAuthenticator) {
 	m.authenticator = authenticator
 }
 
@@ -210,9 +210,9 @@ func (m *TLSServer) Stop() {
 // config MUST have been configured with a CA and server certificate unless
 // NoTLS is set.
 // authenticator for http requests. nil for refusing all protected routes
-func NewTLSServer(config *tlsserver.TLSServerConfig, authenticator transport.IAuthenticator) *TLSServer {
+func NewTLSServer(config *tlsserver.TLSServerConfig, authenticator api.IAuthenticator) *TLSServer {
 
-	thingID := transport.TLSServerModuleType + "-" + shortid.MustGenerate()
+	thingID := api.HttpServerModuleType + "-" + shortid.MustGenerate()
 	m := &TLSServer{
 		HiveModuleBase: modules.NewHiveModuleBase(thingID, 0),
 		config:         config,
@@ -222,7 +222,7 @@ func NewTLSServer(config *tlsserver.TLSServerConfig, authenticator transport.IAu
 	if m.authRequestHandler == nil {
 		m.authRequestHandler = m.DefaultAuthRequest
 	}
-	var _ transport.IHttpServer = m // interface check
-	var _ modules.IHiveModule = m
+	var _ api.IHttpServer = m // interface check
+	var _ api.IHiveModule = m
 	return m
 }

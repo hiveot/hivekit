@@ -7,8 +7,8 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
+	"github.com/hiveot/hivekit/go/api"
 	"github.com/hiveot/hivekit/go/modules"
-	"github.com/hiveot/hivekit/go/modules/transport"
 )
 
 // A dummy transport for testing
@@ -19,10 +19,10 @@ type TestHttpTransport struct {
 	url       string
 	protRoute chi.Router
 	pubRoute  chi.Router
-	authr     transport.IAuthenticator
+	authr     api.IAuthenticator
 }
 
-func (d *TestHttpTransport) GetAuthenticator() transport.IAuthenticator {
+func (d *TestHttpTransport) GetAuthenticator() api.IAuthenticator {
 	return d.authr
 }
 
@@ -34,8 +34,8 @@ func (d *TestHttpTransport) GetClientIdFromContext(r *http.Request) (string, err
 	return "", errors.New("not implemented")
 }
 
-func (d *TestHttpTransport) GetRequestParams(r *http.Request) (transport.RequestParams, error) {
-	rp := transport.RequestParams{}
+func (d *TestHttpTransport) GetRequestParams(r *http.Request) (api.RequestParams, error) {
+	rp := api.RequestParams{}
 	return rp, fmt.Errorf("not supported in dummy server")
 }
 func (d *TestHttpTransport) GetProtectedRoute() chi.Router {
@@ -44,7 +44,7 @@ func (d *TestHttpTransport) GetProtectedRoute() chi.Router {
 func (d *TestHttpTransport) GetPublicRoute() chi.Router {
 	return d.pubRoute
 }
-func (d *TestHttpTransport) SetAuthenticator(authr transport.IAuthenticator) {
+func (d *TestHttpTransport) SetAuthenticator(authr api.IAuthenticator) {
 	d.authr = authr
 }
 func (d *TestHttpTransport) Start() error {
@@ -53,9 +53,9 @@ func (d *TestHttpTransport) Start() error {
 func (d *TestHttpTransport) Stop() {
 }
 
-func NewDummyServer(url string) transport.IHttpServer {
+func NewDummyServer(url string) api.IHttpServer {
 	rootRouter := chi.NewRouter()
-	rootRouter.Use(middleware.Heartbeat(transport.DefaultPingPath))
+	rootRouter.Use(middleware.Heartbeat(api.DefaultPingPath))
 	d := &TestHttpTransport{
 		HiveModuleBase: modules.NewHiveModuleBase("", 0),
 		url:            url,

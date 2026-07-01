@@ -1,6 +1,8 @@
 package httpbasic
 
-import "github.com/hiveot/hivekit/go/modules/transport"
+import (
+	"github.com/hiveot/hivekit/go/api"
+)
 
 const (
 	HttpBasicClientModuleType = "http-basic-client"
@@ -63,8 +65,8 @@ type HttpErrorResponse struct {
 // Interface of the HttpBasic transport module
 // The http-basic is a transport that adds http to forms
 type IHttpBasicServer interface {
-	transport.ITransportServer
+	api.ITransportServer
 
 	// Return the underlying http server
-	GetHttpServer() transport.IHttpServer
+	GetHttpServer() api.IHttpServer
 }

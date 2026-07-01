@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"log/slog"
 
+	"github.com/hiveot/hivekit/go/api"
 	"github.com/hiveot/hivekit/go/api/msg"
 	"github.com/hiveot/hivekit/go/modules"
-	"github.com/hiveot/hivekit/go/modules/factory"
 )
 
 // The ChainRecipe is a module that links its modules in a chain formation.
@@ -22,13 +22,13 @@ import (
 type ChainRecipe struct {
 	*modules.HiveModuleBase
 	// Chain of modules in the order to instantiate and link
-	chain []factory.ModuleDefinition `yaml:"chain"`
+	chain []api.ModuleDefinition `yaml:"chain"`
 
 	// The factory to use
-	f factory.IModuleFactory
+	f api.IModuleFactory
 
 	// loaded modules in order of the chain
-	modList []modules.IHiveModule
+	modList []api.IHiveModule
 }
 
 // Requests sent to the chain are passed on to the first module in the chain.
@@ -45,7 +45,7 @@ func (m *ChainRecipe) HandleRequest(req *msg.RequestMessage, replyTo msg.Respons
 // Use this before starting the chain.
 // Intended to create chain templates where the application module needs to be placed
 // before some other modules.
-func (m *ChainRecipe) SetSlot(slotID string, modDef factory.ModuleDefinition) error {
+func (m *ChainRecipe) SetSlot(slotID string, modDef api.ModuleDefinition) error {
 	for i, md := range m.chain {
 		if md.Type == slotID {
 			m.chain[i] = modDef
@@ -64,8 +64,8 @@ func (m *ChainRecipe) Start() error {
 	}
 
 	// start and link modules in the defined order
-	m.modList = make([]modules.IHiveModule, 0, len(m.chain))
-	var prevModule modules.IHiveModule
+	m.modList = make([]api.IHiveModule, 0, len(m.chain))
+	var prevModule api.IHiveModule
 	for _, moduleDef := range m.chain {
 		chainedMod, err := m.f.StartModule(moduleDef.Type, true)
 		if err != nil {
@@ -103,7 +103,8 @@ func (m *ChainRecipe) Start() error {
 // chain is a collection of modules in order of instantiation.
 //
 // This returns the chain recipe module.
-func NewChainRecipe(f factory.IModuleFactory, chain []factory.ModuleDefinition) factory.IRecipe {
+func NewChainRecipe(f api.IModuleFactory,
+	chain []api.ModuleDefinition) api.IRecipe {
 
 	m := &ChainRecipe{
 		HiveModuleBase: modules.NewHiveModuleBase("", 0),

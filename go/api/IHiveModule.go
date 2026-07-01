@@ -1,4 +1,4 @@
-package modules
+package api
 
 import (
 	"github.com/hiveot/hivekit/go/api/msg"

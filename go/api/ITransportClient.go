@@ -1,10 +1,9 @@
-package transport
+package api
 
 import (
 	"crypto/tls"
 
 	"github.com/hiveot/hivekit/go/api/td"
-	"github.com/hiveot/hivekit/go/modules"
 )
 
 // Actions implemented in transport clients
@@ -84,7 +83,7 @@ type GetFormHandler func(op string, thingID string, name string) (f *td.Form, hr
 // Transport clients issue ClientConnectionStatusEvent notifications when the connection
 // status changes.
 type ITransportClient interface {
-	modules.IHiveModule
+	IHiveModule
 	IConnection
 
 	// AuthenticateWithClientCert sets the authentication credentials to the client certificate.

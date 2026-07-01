@@ -7,8 +7,8 @@ import (
 	"net/http"
 	"os"
 
+	"github.com/hiveot/hivekit/go/api"
 	"github.com/hiveot/hivekit/go/examples/example2/wotcli"
-	"github.com/hiveot/hivekit/go/modules/factory"
 	factorypkg "github.com/hiveot/hivekit/go/modules/factory/pkg"
 	"github.com/hiveot/hivekit/go/modules/factory/recipes"
 	"github.com/hiveot/hivekit/go/utils"
@@ -39,7 +39,7 @@ func main() {
 	flag.BoolVar(&appConfig.Verbose, "v", appConfig.Verbose, "Show more detailed output")
 	flag.BoolVar(&appConfig.NoDisco, "nd", appConfig.NoDisco, "Do not start with discovery")
 
-	env := factory.NewAppEnvironment("", true)
+	env := api.NewAppEnvironment("", true)
 	_ = env
 	args := flag.Args()
 	if len(args) == 0 {
@@ -70,7 +70,7 @@ func main() {
 	http.DefaultTransport.(*http.Transport).TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
 
 	// insert the CLI application in the chain and give it the commandline options
-	wotcliApp := &factory.ModuleDefinition{
+	wotcliApp := &api.ModuleDefinition{
 		Type:        "CliApp",
 		Constructor: wotcli.NewCliAppFactory,
 		Config:      appConfig,
@@ -83,7 +83,7 @@ func main() {
 	if err != nil {
 		os.Exit(1)
 	}
-	app := f.FindModule("CliApp").(*wotcli.CliApp)
+	app := f.GetModule("CliApp").(*wotcli.CliApp)
 
 	// co := wotco.NewWotConsumer(nil, time.Minute)
 	// err := co.Start()

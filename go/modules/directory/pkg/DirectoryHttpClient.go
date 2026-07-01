@@ -14,7 +14,7 @@ import (
 	"github.com/hiveot/hivekit/go/modules"
 	"github.com/hiveot/hivekit/go/modules/directory"
 	directoryclient "github.com/hiveot/hivekit/go/modules/directory/internal/client"
-	"github.com/hiveot/hivekit/go/modules/transport"
+	"github.com/hiveot/hivekit/go/modules/transport/tlsclient"
 	tlsclientpkg "github.com/hiveot/hivekit/go/modules/transport/tlsclient/pkg"
 	"github.com/hiveot/hivekit/go/utils"
 )
@@ -46,7 +46,7 @@ type DirectoryHttpClient struct {
 	// directoryBasePath string
 
 	// Connection to the directory for reading or update
-	tlsClient transport.ITLSClient
+	tlsClient tlsclient.ITLSClient
 
 	timeout time.Duration
 }

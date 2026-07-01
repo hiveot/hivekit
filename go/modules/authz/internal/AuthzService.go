@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log/slog"
 
+	"github.com/hiveot/hivekit/go/api"
 	"github.com/hiveot/hivekit/go/api/msg"
 	"github.com/hiveot/hivekit/go/modules"
 	"github.com/hiveot/hivekit/go/modules/authz"
@@ -63,6 +64,6 @@ func NewAuthzService(getRoleHandler func(clientID string) (role string, err erro
 		HiveModuleBase: modules.NewHiveModuleBase(thingID, 0),
 		getRoleHandler: getRoleHandler,
 	}
-	var _ modules.IHiveModule = m // check interface
+	var _ api.IHiveModule = m // check interface
 	return m
 }

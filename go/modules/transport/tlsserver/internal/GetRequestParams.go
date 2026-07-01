@@ -8,14 +8,14 @@ import (
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/hiveot/hivekit/go/api"
 	"github.com/hiveot/hivekit/go/api/td"
-	"github.com/hiveot/hivekit/go/modules/transport"
 )
 
 // GetClientIdFromContext returns the authenticated clientID for the given request
 func GetClientIdFromContext(r *http.Request) (clientID string, err error) {
 
-	ctxClientID := r.Context().Value(transport.ClientIDContextID)
+	ctxClientID := r.Context().Value(api.ClientIDContextID)
 	if ctxClientID == nil {
 		return "", errors.New("no clientID in context")
 	}
@@ -39,7 +39,7 @@ func GetClientIdFromContext(r *http.Request) (clientID string, err error) {
 //	{op} is the operation
 //	{id} is the thingID for whom the message is intended
 //	{name} is the property, event or action name. '+' means 'all'
-func GetRequestParams(r *http.Request) (reqParam transport.RequestParams, err error) {
+func GetRequestParams(r *http.Request) (reqParam api.RequestParams, err error) {
 	// determine the clientID, either from context or client cert
 	reqParam.ClientID, err = GetClientIdFromContext(r)
 	if err != nil {
@@ -55,14 +55,14 @@ func GetRequestParams(r *http.Request) (reqParam transport.RequestParams, err er
 		return reqParam, err
 	}
 	err = nil
-	correlationID := r.Header.Get(transport.CorrelationIDHeader)
+	correlationID := r.Header.Get(api.CorrelationIDHeader)
 	reqParam.CorrelationID = correlationID
 
 	// A connection ID distinguishes between different connections from the same client.
 	// This is used to correlate http requests with out-of-band responses like a SSE
 	// return channel.
 	// If a 'cid' header exists, use it as the connection ID.
-	headerCID := r.Header.Get(transport.ConnectionIDHeader)
+	headerCID := r.Header.Get(api.ConnectionIDHeader)
 	if headerCID == "" {
 		// FIXME: this is only an issue with hiveot-sse. Maybe time to retire it?
 		// alt: use a session-id from the auth token - two browser connections would

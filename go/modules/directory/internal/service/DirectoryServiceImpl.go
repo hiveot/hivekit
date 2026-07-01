@@ -6,12 +6,12 @@ import (
 	"path/filepath"
 	"sync"
 
+	"github.com/hiveot/hivekit/go/api"
 	"github.com/hiveot/hivekit/go/api/td"
 	"github.com/hiveot/hivekit/go/modules"
 	"github.com/hiveot/hivekit/go/modules/bucketstore"
 	bucketstorepkg "github.com/hiveot/hivekit/go/modules/bucketstore/pkg"
 	"github.com/hiveot/hivekit/go/modules/directory"
-	"github.com/hiveot/hivekit/go/modules/transport"
 )
 
 // DirectoryServiceImpl is a module for serving a WoT Thing directory.
@@ -36,7 +36,7 @@ type DirectoryServiceImpl struct {
 	bucketStore  bucketstore.IBucketStore
 
 	// the http server to expose the TDD on the .well-known/wot path. nil to ignore
-	httpServer transport.IHttpServer
+	httpServer api.IHttpServer
 
 	// data storage directory
 	storageLoc string
@@ -130,8 +130,8 @@ func (svc *DirectoryServiceImpl) Stop() {
 //	httpServer is used to expose the directory TDD on the well-known path.
 //	transports is a list of transports that should be included in the TDD security and forms. nil to not include these.
 func NewDirectoryServiceImpl(
-	thingID string, location string, httpServer transport.IHttpServer,
-	transports []transport.ITransportServer) *DirectoryServiceImpl {
+	thingID string, location string, httpServer api.IHttpServer,
+	transports []api.ITransportServer) *DirectoryServiceImpl {
 
 	if thingID == "" {
 		thingID = directory.DefaultDirectoryThingID

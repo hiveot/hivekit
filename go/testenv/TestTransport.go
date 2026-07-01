@@ -1,9 +1,9 @@
 package testenv
 
 import (
+	"github.com/hiveot/hivekit/go/api"
 	"github.com/hiveot/hivekit/go/api/msg"
 	"github.com/hiveot/hivekit/go/api/td"
-	"github.com/hiveot/hivekit/go/modules"
 	"github.com/hiveot/hivekit/go/modules/transport"
 )
 
@@ -66,7 +66,7 @@ func (m *TestTransport) SendRequest(
 // }
 
 // assign the authenticator of incoming connections
-func (m *TestTransport) SetAuthenticationHandler(h transport.ValidateTokenHandler) {
+func (m *TestTransport) SetAuthenticationHandler(h api.ValidateTokenHandler) {
 	_ = h
 }
 
@@ -87,13 +87,13 @@ func (m *TestTransport) Stop() {
 // This sets the producer as the request sink for requests and this module as
 // the notification sink of the producer.
 func NewTestTransport(
-	thingID string, producer modules.IHiveModule) modules.IHiveModule {
+	thingID string, producer api.IHiveModule) api.IHiveModule {
 	t := &TestTransport{
 		TransportServerBase: transport.NewTransportServerBase(thingID, "", nil),
 	}
 	producer.SetNotificationSink(t)
 	t.SetRequestSink(producer)
-	var _ transport.ITransportServer = t // interface check
-	var _ modules.IHiveModule = t        // interface check
+	var _ api.ITransportServer = t // interface check
+	var _ api.IHiveModule = t      // interface check
 	return t
 }

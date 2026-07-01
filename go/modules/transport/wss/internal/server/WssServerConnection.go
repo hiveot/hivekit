@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
+	"github.com/hiveot/hivekit/go/api"
 	"github.com/hiveot/hivekit/go/api/msg"
 	"github.com/hiveot/hivekit/go/modules/transport"
 	"github.com/teris-io/shortid"
@@ -176,6 +177,6 @@ func NewWSSServerConnection(
 	}
 	c.Init(clientID, r.URL.String(), cid, encoder, c._sendRaw)
 
-	var _ transport.IConnection = c // interface check
+	var _ api.IConnection = c // interface check
 	return c
 }

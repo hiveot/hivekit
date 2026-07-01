@@ -8,11 +8,11 @@ import (
 	"time"
 
 	"github.com/grandcat/zeroconf"
+	"github.com/hiveot/hivekit/go/api"
 	"github.com/hiveot/hivekit/go/api/msg"
 	"github.com/hiveot/hivekit/go/api/td"
 	"github.com/hiveot/hivekit/go/modules"
 	"github.com/hiveot/hivekit/go/modules/directory"
-	"github.com/hiveot/hivekit/go/modules/transport"
 	"github.com/hiveot/hivekit/go/modules/transport/discovery"
 )
 
@@ -33,7 +33,7 @@ type DiscoveryServerImpl struct {
 	dnssdServer *zeroconf.Server
 
 	// the http server that servers the exploration endpoint.
-	httpServer transport.IHttpServer
+	httpServer api.IHttpServer
 }
 
 // When a request to create/update a TD is received then serve it in discovery.
@@ -155,7 +155,7 @@ func (m *DiscoveryServerImpl) Stop() {
 //	httpServer is the server that serves the TD on the well-known endpoint.
 //	transports for TD security scheme, base URL and forms. Optional.
 func NewDiscoveryServerImpl(thingID string,
-	httpServer transport.IHttpServer, endpoints map[string]string) *DiscoveryServerImpl {
+	httpServer api.IHttpServer, endpoints map[string]string) *DiscoveryServerImpl {
 
 	if thingID == "" {
 		thingID = discovery.DiscoveryServerModuleType

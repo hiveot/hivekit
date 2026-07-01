@@ -1,8 +1,6 @@
 package discovery
 
-import (
-	"github.com/hiveot/hivekit/go/modules"
-)
+import "github.com/hiveot/hivekit/go/api"
 
 // The discovery module types
 const (
@@ -42,7 +40,7 @@ const WellKnownHttpPath = "/.well-known/wot"
 //
 // through discovery instead of forwarding it to a directory service.
 type IDiscoveryServer interface {
-	modules.IHiveModule
+	api.IHiveModule
 
 	// ServeDirectoryTD serves the given directory TD on http at the well-known endpoint, and
 	// publishes this using DNS-SD discovery.

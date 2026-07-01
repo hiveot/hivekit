@@ -121,7 +121,7 @@ func TestAddForms(t *testing.T) {
 //
 //	// handler of TDs on the server
 //	requestHandler := func(msg *transport.RequestMessage,
-//		c transport.IConnection) *transport.ResponseMessage {
+//		c api.IConnection) *transport.ResponseMessage {
 //		var err error
 //		if msg.Operation == td.HTOpUpdateTD {
 //			assert.Equal(t, thingID, msg.ThingID)

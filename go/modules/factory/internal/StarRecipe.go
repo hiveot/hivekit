@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"log/slog"
 
+	"github.com/hiveot/hivekit/go/api"
 	"github.com/hiveot/hivekit/go/api/msg"
 	"github.com/hiveot/hivekit/go/modules"
-	"github.com/hiveot/hivekit/go/modules/factory"
 )
 
 // The StarRecipe is a module that links its modules in a star formation.
@@ -21,13 +21,13 @@ import (
 type StarRecipe struct {
 	*modules.HiveModuleBase
 	// Chain of modules in the order to instantiate and link
-	star []factory.ModuleDefinition `yaml:"star"`
+	star []api.ModuleDefinition `yaml:"star"`
 
 	// The factory to use
-	f factory.IModuleFactory
+	f api.IModuleFactory
 
 	// module rays by their ThingID
-	rays map[string]modules.IHiveModule
+	rays map[string]api.IHiveModule
 }
 
 // Requests sent to the star are passed on to the module with the matching thingID.
@@ -40,7 +40,7 @@ func (m *StarRecipe) HandleRequest(req *msg.RequestMessage, replyTo msg.Response
 	return m.HiveModuleBase.HandleRequest(req, replyTo)
 }
 
-func (m *StarRecipe) SetSlot(slotID string, modDef factory.ModuleDefinition) error {
+func (m *StarRecipe) SetSlot(slotID string, modDef api.ModuleDefinition) error {
 	for i, md := range m.star {
 		if md.Type == slotID {
 			m.star[i] = modDef
@@ -87,7 +87,7 @@ func (m *StarRecipe) Start() error {
 // Create a recipe instance for running modules in a star formation.
 // This returns the star recipe module.
 func NewStarRecipe(
-	f factory.IModuleFactory, star []factory.ModuleDefinition) factory.IRecipe {
+	f api.IModuleFactory, star []api.ModuleDefinition) api.IRecipe {
 
 	m := &StarRecipe{
 		HiveModuleBase: modules.NewHiveModuleBase("", 0),

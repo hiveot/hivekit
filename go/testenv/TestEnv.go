@@ -8,16 +8,15 @@ import (
 	"path/filepath"
 	"time"
 
+	"github.com/hiveot/hivekit/go/api"
 	"github.com/hiveot/hivekit/go/api/msg"
 	"github.com/hiveot/hivekit/go/api/td"
 	"github.com/hiveot/hivekit/go/api/vocab"
 	"github.com/hiveot/hivekit/go/modules/authn"
 	certstest "github.com/hiveot/hivekit/go/modules/certs/test"
 	"github.com/hiveot/hivekit/go/modules/consumer"
-	"github.com/hiveot/hivekit/go/modules/factory"
 	reconnectpkg "github.com/hiveot/hivekit/go/modules/reconnect/pkg"
 	"github.com/hiveot/hivekit/go/modules/thing"
-	"github.com/hiveot/hivekit/go/modules/transport"
 	"github.com/hiveot/hivekit/go/modules/transport/clients"
 	grpcpkg "github.com/hiveot/hivekit/go/modules/transport/grpc/pkg"
 	httpbasicpkg "github.com/hiveot/hivekit/go/modules/transport/httpbasic/pkg"
@@ -35,19 +34,19 @@ const (
 
 var TestHome = filepath.Join(os.TempDir(), "hivekit-test")
 var TestUDSPath = "/tmp/hivekit/testenv.socket"
-var TestUDSURL = transport.ProtocolSchemeHiveotGrpc + "://" + TestUDSPath
+var TestUDSURL = api.ProtocolSchemeHiveotGrpc + "://" + TestUDSPath
 
 // alt UDS using TCP socket
 // var TestUDSPath = ":8899"
 // var TestUDSURL = "tcp://" + TestUDSPath
 
-// var DefaultProtocol = transport.ProtocolTypeHiveotGrpc
+// var DefaultProtocol = api.ProtocolTypeHiveotGrpc
 
-// var DefaultProtocol = transport.ProtocolTypeHiveotSsesc
-var DefaultProtocol = transport.ProtocolTypeHiveotWebsocket
+// var DefaultProtocol = api.ProtocolTypeHiveotSsesc
+var DefaultProtocol = api.ProtocolTypeHiveotWebsocket
 
-// var DefaultProtocol = transport.ProtocolTypeWotWebsocket
-// var DefaultProtocol = transport.ProtocolTypeWotHttpBasic
+// var DefaultProtocol = api.ProtocolTypeWotWebsocket
+// var DefaultProtocol = api.ProtocolTypeWotHttpBasic
 
 // testTDs are a bunch of TD's for generating test data. The first 5 are predefined and always the same.
 // A higher number generates at random.
@@ -82,15 +81,15 @@ var ActionTypes = []string{vocab.ActionDimmer, vocab.ActionSwitch,
 // Test environment for testing modules
 type TestEnv struct {
 	// App test environment with directories
-	AppEnv *factory.AppEnvironment
+	AppEnv *api.AppEnvironment
 	// certificate bundle to use for this test environment
 	CertBundle certstest.TestCertBundle
 	// base http server
-	HttpServer transport.IHttpServer
+	HttpServer api.IHttpServer
 	// The transport server connection URL
 	ServerURL string
 	// the transport to use for this test environment
-	Server         transport.ITransportServer
+	Server         api.ITransportServer
 	ServerProtocol string
 	// Authenticator to use for managing clients
 	TestAuthn *TestAuthenticator
@@ -150,7 +149,7 @@ func (testEnv *TestEnv) CreateToken(clientID string, validity time.Duration) (to
 //
 // This panics if a client cannot be created or cannot connect.
 func (testEnv *TestEnv) NewConnectedClient(
-	clientID string, role string) (cl transport.ITransportClient, token string) {
+	clientID string, role string) (cl api.ITransportClient, token string) {
 
 	// ensure the test client account exists
 	err := testEnv.TestAuthn.AddClient(clientID, clientID, role)
@@ -207,7 +206,7 @@ func (testEnv *TestEnv) NewServerThing(thingID string) *thing.ExposedThing {
 // This returns the Thing module, its connected client connection and the auth token.
 // This panics if a client cannot be created
 func (testEnv *TestEnv) NewRCThing(clientID string, appReqHandler msg.RequestHandler) (
-	ag *thing.ExposedThing, cc transport.IConnection, authToken string) {
+	ag *thing.ExposedThing, cc api.IConnection, authToken string) {
 
 	// cc is the client connection for the Thing that receives requests from the
 	// server and sends notifications to the server.
@@ -239,7 +238,7 @@ func (testEnv *TestEnv) NewRCThing(clientID string, appReqHandler msg.RequestHan
 //	reconnect flag to include the reconnect module
 func (testEnv *TestEnv) NewConnectedConsumer(
 	clientID string, role string, useReconnect bool) (
-	co *consumer.Consumer, cc transport.ITransportClient, token string) {
+	co *consumer.Consumer, cc api.ITransportClient, token string) {
 
 	cc, token = testEnv.NewConnectedClient(clientID, role)
 	co = consumer.NewConsumer(nil, nil)
@@ -263,11 +262,11 @@ func (testEnv *TestEnv) NewConnectedConsumer(
 //
 // protocols is one of a list of the server protocols to support. nil for all
 // protocols:
-// * transport.ProtocolTypeHTTPBasic
+// * api.ProtocolTypeWotHTTPBasic
 // * ProtocolTypeWotWSS
 // * ProtocolTypeHiveotSSE
 // * and more
-func (testEnv *TestEnv) StartTestServer(protocol string) (srv transport.ITransportServer) {
+func (testEnv *TestEnv) StartTestServer(protocol string) (srv api.ITransportServer) {
 
 	var err error
 	if protocol == "" {
@@ -275,30 +274,30 @@ func (testEnv *TestEnv) StartTestServer(protocol string) (srv transport.ITranspo
 	}
 
 	switch protocol {
-	case transport.ProtocolTypeHiveotGrpc:
+	case api.ProtocolTypeHiveotGrpc:
 		serverCert := testEnv.CertBundle.ServerCert
 		caCert := testEnv.CertBundle.CaCert
 		srv = grpcpkg.NewHiveotGrpcServer(
 			TestUDSURL, serverCert, caCert, testEnv.TestAuthn, TestTimeout)
 		err = srv.Start()
 
-	case transport.ProtocolTypeHiveotSsesc:
+	case api.ProtocolTypeHiveotSsesc:
 		testEnv.StartHttpServer(false)
 		srv = ssescpkg.NewSseScServer(testEnv.HttpServer, TestTimeout)
 		err = srv.Start()
 
-	case transport.ProtocolTypeHiveotWebsocket:
+	case api.ProtocolTypeHiveotWebsocket:
 		testEnv.StartHttpServer(false)
 		srv = wsspkg.NewHiveotWssServer(testEnv.HttpServer, TestTimeout)
 		err = srv.Start()
 
-	case transport.ProtocolTypeWotHttpBasic:
+	case api.ProtocolTypeWotHttpBasic:
 		testEnv.StartHttpServer(false)
 		srv = httpbasicpkg.NewHttpBasicServer(testEnv.HttpServer)
 		err = srv.Start()
 		// http only, no subprotocol bindings
 
-	case transport.ProtocolTypeWotWebsocket:
+	case api.ProtocolTypeWotWebsocket:
 		testEnv.StartHttpServer(false)
 		srv = wsspkg.NewWotWssServer(testEnv.HttpServer, TestTimeout)
 		err = srv.Start()
@@ -329,7 +328,7 @@ func (testEnv *TestEnv) StartTestServer(protocol string) (srv transport.ITranspo
 // If the http server is already running then do nothing.
 // This returns the http server and its URL
 // This panic if the server cannot be started.
-func (testEnv *TestEnv) StartHttpServer(logging bool) (transport.IHttpServer, string) {
+func (testEnv *TestEnv) StartHttpServer(logging bool) (api.IHttpServer, string) {
 	if testEnv.HttpServer != nil {
 		return testEnv.HttpServer, testEnv.ServerURL
 	}
@@ -364,7 +363,7 @@ func NewTestEnv(clean bool) *TestEnv {
 		os.RemoveAll(TestHome)
 		os.MkdirAll(TestHome, 0750)
 	}
-	appEnv := factory.NewAppEnvironment(TestHome, false)
+	appEnv := api.NewAppEnvironment(TestHome, false)
 	// ensure the directories exist
 	os.MkdirAll(appEnv.BinDir, 0750)
 	os.MkdirAll(appEnv.CertsDir, 0700)

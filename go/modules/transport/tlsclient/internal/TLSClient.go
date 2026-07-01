@@ -16,7 +16,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/hiveot/hivekit/go/modules/transport"
+	"github.com/hiveot/hivekit/go/api"
+	"github.com/hiveot/hivekit/go/modules/transport/tlsclient"
 	"github.com/teris-io/shortid"
 	"golang.org/x/net/http2"
 	"golang.org/x/net/publicsuffix"
@@ -166,7 +167,7 @@ func (cl *TLSClient) CreateRequest(
 		r.Header.Add("Authorization", "bearer "+cl.bearerToken)
 	}
 	if cl.cid != "" {
-		r.Header.Add(transport.ConnectionIDHeader, cl.cid)
+		r.Header.Add(api.ConnectionIDHeader, cl.cid)
 	}
 
 	//  any custom headers
@@ -265,7 +266,7 @@ func (cl *TLSClient) Head(path string) (statusCode int, err error) {
 func (cl *TLSClient) Ping() (statusCode int, err error) {
 
 	ctx, cancelFn := context.WithTimeout(context.Background(), cl.timeout)
-	_, statusCode, _, err = cl.Send(ctx, http.MethodGet, transport.DefaultPingPath, nil, nil, "")
+	_, statusCode, _, err = cl.Send(ctx, http.MethodGet, api.DefaultPingPath, nil, nil, "")
 	cancelFn()
 	return statusCode, err
 }
@@ -439,7 +440,7 @@ func NewTLSClient(hostPort string, caCert *x509.Certificate, timeout time.Durati
 
 	var clientID string
 	if timeout == 0 {
-		timeout = transport.DefaultClientTimeout
+		timeout = tlsclient.DefaultClientTimeout
 	}
 	// Use CA certificate for server authentication if it exists
 	if caCert == nil {
@@ -499,7 +500,7 @@ func NewTLSClient(hostPort string, caCert *x509.Certificate, timeout time.Durati
 	}
 
 	// interface check
-	var _ transport.ITLSClient = cl
+	var _ tlsclient.ITLSClient = cl
 
 	return cl
 }

@@ -6,10 +6,10 @@ import (
 	"testing"
 	"time"
 
+	"github.com/hiveot/hivekit/go/api"
 	"github.com/hiveot/hivekit/go/api/msg"
 	"github.com/hiveot/hivekit/go/api/td"
 	"github.com/hiveot/hivekit/go/modules/authn"
-	"github.com/hiveot/hivekit/go/modules/transport"
 	"github.com/hiveot/hivekit/go/modules/transport/clients"
 	"github.com/hiveot/hivekit/go/testenv"
 	"github.com/hiveot/hivekit/go/utils"
@@ -20,13 +20,13 @@ import (
 const testDeviceID1 = "device1"
 const testClientID1 = "client1"
 
-var testProtocol = transport.ProtocolTypeHiveotGrpc
+var testProtocol = api.ProtocolTypeHiveotGrpc
 
 var testProtocols = []string{
-	transport.ProtocolTypeHiveotSsesc,
-	transport.ProtocolTypeHiveotGrpc,
-	transport.ProtocolTypeHiveotWebsocket,
-	transport.ProtocolTypeWotWebsocket,
+	api.ProtocolTypeHiveotSsesc,
+	api.ProtocolTypeHiveotGrpc,
+	api.ProtocolTypeHiveotWebsocket,
+	api.ProtocolTypeWotWebsocket,
 }
 
 // TestMain sets logging
@@ -58,7 +58,7 @@ func TestStartStop(t *testing.T) {
 	assert.NotNil(t, co1)
 
 	status := cc1.GetConnectionStatus()
-	assert.Equal(t, transport.StatusConnected, status)
+	assert.Equal(t, api.StatusConnected, status)
 
 	// time.Sleep(time.Millisecond)
 	// cc1.Close()
@@ -101,7 +101,7 @@ func TestPingClientCert(t *testing.T) {
 	err = cl.Connect()
 	require.NoError(t, err)
 	status := cl.GetConnectionStatus()
-	require.Equal(t, transport.StatusConnected, status)
+	require.Equal(t, api.StatusConnected, status)
 
 	cl.SetTimeout(time.Minute)
 	defer cl.Close()
@@ -115,7 +115,7 @@ func TestPingClientCert(t *testing.T) {
 	require.NoError(t, err)
 
 	status = cl.GetConnectionStatus()
-	assert.Equal(t, transport.StatusConnected, status)
+	assert.Equal(t, api.StatusConnected, status)
 }
 
 // Test getting form for unknown operation

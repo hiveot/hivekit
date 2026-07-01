@@ -7,7 +7,7 @@ import (
 	"net/url"
 
 	"github.com/hiveot/hivekit/go/modules/authn"
-	"github.com/hiveot/hivekit/go/modules/transport"
+	"github.com/hiveot/hivekit/go/modules/transport/tlsclient"
 	tlsclientpkg "github.com/hiveot/hivekit/go/modules/transport/tlsclient/pkg"
 	jsoniter "github.com/json-iterator/go"
 )
@@ -15,7 +15,7 @@ import (
 // AuthnUserHttpClient is a http client for authentication operations such as login using http requests.
 // This is a simple API for clients to be able to obtain an auth token and refresh it.
 type AuthnUserHttpClient struct {
-	tlsClient transport.ITLSClient
+	tlsClient tlsclient.ITLSClient
 }
 
 // Close the underlying TLS client used by the authentication client
@@ -44,7 +44,7 @@ func (cl *AuthnUserHttpClient) GetProfile() (profile authn.ClientProfile, err er
 
 // Return the TLS client used to connect to the authn server.
 // This can be used anywhere an http client is needed for the same server.
-func (cl *AuthnUserHttpClient) GetTlsClient() transport.ITLSClient {
+func (cl *AuthnUserHttpClient) GetTlsClient() tlsclient.ITLSClient {
 	return cl.tlsClient
 }
 

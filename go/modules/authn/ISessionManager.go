@@ -3,12 +3,12 @@ package authn
 import (
 	"time"
 
-	"github.com/hiveot/hivekit/go/modules/transport"
+	"github.com/hiveot/hivekit/go/api"
 )
 
 // Interface of client session management that also support transport authentication
 type ISessionManager interface {
-	transport.IAuthenticator
+	api.IAuthenticator
 
 	// DecodeToken decodes the given token using the configured authenticator.
 	// DecodeToken(token string, signedNonce string, nonce string) (

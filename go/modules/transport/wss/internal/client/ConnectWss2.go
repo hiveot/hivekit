@@ -9,7 +9,7 @@ import (
 	"net/http"
 
 	"github.com/gorilla/websocket"
-	"github.com/hiveot/hivekit/go/modules/transport"
+	"github.com/hiveot/hivekit/go/modules/transport/tlsclient"
 	"github.com/hiveot/hivekit/go/utils"
 )
 
@@ -17,7 +17,7 @@ import (
 // NOTE: As of Jan 2026 this does not work because gorilla websockets doesnt support http/2.
 // consider using https://github.com/coder/websocket instead as it has experimental support.
 func ConnectWSS2(
-	tlsClient transport.ITLSClient,
+	tlsClient tlsclient.ITLSClient,
 	wssPath string,
 	onConnect func(bool, error),
 	onMessage func(raw []byte),

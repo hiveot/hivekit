@@ -7,7 +7,6 @@ import (
 	"testing"
 
 	"github.com/hiveot/hivekit/go/modules/certs"
-	"github.com/hiveot/hivekit/go/modules/certs/certutils"
 	certspkg "github.com/hiveot/hivekit/go/modules/certs/pkg"
 	certstest "github.com/hiveot/hivekit/go/modules/certs/test"
 	"github.com/hiveot/hivekit/go/testenv"
@@ -16,17 +15,18 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-var storageDir = filepath.Join(os.TempDir(), "hivekit", "certs-test")
+var storageDir = filepath.Join(testenv.TestHome, "certs")
 
 // private key type used in test
 const TestKeyType = utils.KeyTypeECDSA
 
-func startModule(t *testing.T) (certs.ICertsService, func(), error) {
+// start the certs service
+func startService(t *testing.T) (certs.ICertsService, func(), error) {
 
 	// clear start
 	_ = os.RemoveAll(storageDir)
-
-	m := certspkg.NewCertsService(storageDir)
+	cfg := certs.CertsConfig{CertsDir: storageDir}
+	m := certspkg.NewCertsService(cfg)
 	err := m.Start()
 	require.NoError(t, err)
 	return m, func() {
@@ -55,7 +55,7 @@ func TestMain(m *testing.M) {
 func TestStartStop(t *testing.T) {
 	t.Logf("---%s---\n", t.Name())
 
-	m, stopFn, err := startModule(t)
+	m, stopFn, err := startService(t)
 	_ = m
 	require.NoError(t, err)
 	defer stopFn()
@@ -63,9 +63,9 @@ func TestStartStop(t *testing.T) {
 
 func TestX509ToFromPem(t *testing.T) {
 	testCerts := certstest.CreateTestCertBundle(TestKeyType)
-	asPem := certutils.X509CertToPEM(testCerts.CaCert)
+	asPem := utils.X509CertToPEM(testCerts.CaCert)
 	assert.NotEmpty(t, asPem)
-	asX509, err := certutils.X509CertFromPEM(asPem)
+	asX509, err := utils.X509CertFromPEM(asPem)
 	assert.NoError(t, err)
 	assert.NotEmpty(t, asX509)
 }
@@ -77,22 +77,22 @@ func TestSaveLoadX509Cert(t *testing.T) {
 	testCerts := certstest.CreateTestCertBundle(TestKeyType)
 
 	// save the test x509 cert
-	err := certutils.SaveX509CertToPEM(testCerts.CaCert, caPemFile)
+	err := utils.SaveX509CertToPEM(testCerts.CaCert, caPemFile)
 	assert.NoError(t, err)
 
-	caCert, err := certutils.LoadX509CertFromPEM(caPemFile)
+	caCert, err := utils.LoadX509CertFromPEM(caPemFile)
 	assert.NoError(t, err)
 	assert.NotNil(t, caCert)
 
 	// create a server TLS cert
-	tlsCert := certutils.X509CertToTLS(caCert, testCerts.CaPrivKey)
+	tlsCert := utils.X509CertToTLS(caCert, testCerts.CaPrivKey)
 	assert.NotEmpty(t, tlsCert)
 
 }
 
 func TestPublicKeyFromCert(t *testing.T) {
 	testCerts := certstest.CreateTestCertBundle(TestKeyType)
-	kt, pubKey := certutils.PublicKeyFromCert(testCerts.CaCert)
+	kt, pubKey := utils.PublicKeyFromCert(testCerts.CaCert)
 	assert.NotEmpty(t, pubKey)
 	assert.NotEmpty(t, kt)
 }
@@ -105,17 +105,19 @@ func TestSaveLoadTLSCert(t *testing.T) {
 	testCerts := certstest.CreateTestCertBundle(TestKeyType)
 
 	// save the test x509 part of the TLS cert
-	err := certutils.SaveTLSCertToPEM(testCerts.ServerCert, certFile, keyFile)
+	err := utils.SaveTLSCertToPEM(testCerts.ServerCert, certFile, keyFile)
 	assert.NoError(t, err)
 
 	// load back the x509 part of the TLS cert
-	cert, err := certutils.LoadTLSCertFromPEM(certFile, keyFile)
+	cert, err := utils.LoadTLSCertFromPEM(certFile, keyFile)
 	assert.NoError(t, err)
 	assert.NotNil(t, cert)
 }
 
 func TestService(t *testing.T) {
-	m, cancelFn, err := startModule(t)
+	const appName = "server"
+
+	m, cancelFn, err := startService(t)
 	_ = m
 	require.NoError(t, err)
 	defer cancelFn()
@@ -124,20 +126,25 @@ func TestService(t *testing.T) {
 	require.NoError(t, err)
 	require.NotEmpty(t, caCert)
 
-	tlsServerCert, err := m.GetDefaultServerTlsCert()
+	// create the server cert and generate the keys
+	newServerCert, err := m.CreateServerCert(appName, "", nil, nil)
+	require.NoError(t, err)
+	require.NotEmpty(t, newServerCert)
+
+	tlsServerCert, err := m.LoadServerTLSCert(appName)
 	require.NoError(t, err)
 	require.NotEmpty(t, tlsServerCert)
 
-	serverCert, serverKey, err := certutils.TLSCertToX509(tlsServerCert)
+	serverCert, serverKey, err := utils.TLSCertToX509(tlsServerCert)
 	require.NoError(t, err)
 	require.NotEmpty(t, serverKey)
 
-	err = m.VerifyCert(certs.DefaultServerName, serverCert)
+	err = m.VerifyCert(appName, serverCert)
 	require.NoError(t, err)
 }
 
 func TestMsgClient(t *testing.T) {
-	m, cancelFn, err := startModule(t)
+	m, cancelFn, err := startService(t)
 	_ = m
 	require.NoError(t, err)
 	defer cancelFn()
@@ -159,7 +166,7 @@ func TestMsgClient(t *testing.T) {
 }
 
 func TestCreateCerts(t *testing.T) {
-	m, cancelFn, err := startModule(t)
+	m, cancelFn, err := startService(t)
 	_ = m
 	require.NoError(t, err)
 	defer cancelFn()

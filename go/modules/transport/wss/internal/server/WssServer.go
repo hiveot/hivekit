@@ -8,8 +8,8 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
+	"github.com/hiveot/hivekit/go/api"
 	"github.com/hiveot/hivekit/go/api/msg"
-	"github.com/hiveot/hivekit/go/modules"
 	"github.com/hiveot/hivekit/go/modules/transport"
 	"github.com/hiveot/hivekit/go/modules/transport/wss"
 	"github.com/hiveot/hivekit/go/modules/transport/wss/internal"
@@ -23,7 +23,7 @@ type WssServer struct {
 	*transport.TransportServerBase
 
 	// actual server exposing routes including websocket endpoint
-	httpServer transport.IHttpServer
+	httpServer api.IHttpServer
 
 	// Websocket protocol message converter
 	encoder transport.IMessageEncoder // WoT or Hiveot message format
@@ -132,7 +132,7 @@ func (m *WssServer) Stop() {
 //
 // Use SetRequestSink to set the handler for requests send by consumers
 // Use SetNotificationSink to set the handler for notifications send by devices.
-func NewHiveotWssServer(httpServer transport.IHttpServer, respTimeout time.Duration) *WssServer {
+func NewHiveotWssServer(httpServer api.IHttpServer, respTimeout time.Duration) *WssServer {
 
 	httpURL := httpServer.GetConnectURL()
 	urlParts, err := url.Parse(httpURL)
@@ -145,7 +145,7 @@ func NewHiveotWssServer(httpServer transport.IHttpServer, respTimeout time.Durat
 	}
 	thingID := wss.HiveotWebsocketServerModuleType + "-" + shortid.MustGenerate()
 	connectURL := fmt.Sprintf("%s://%s%s",
-		transport.ProtocolSchemeHiveotWebsocket, urlParts.Host, wss.HiveotWebsocketPath)
+		api.ProtocolSchemeHiveotWebsocket, urlParts.Host, wss.HiveotWebsocketPath)
 	authenticator := httpServer.GetAuthenticator()
 	m := &WssServer{
 		TransportServerBase: transport.NewTransportServerBase(thingID, connectURL, authenticator),
@@ -154,7 +154,7 @@ func NewHiveotWssServer(httpServer transport.IHttpServer, respTimeout time.Durat
 		httpServer: httpServer,
 		// connectHandler: nil,
 		respTimeout: respTimeout,
-		subprotocol: transport.SubprotocolHiveotWebsocket,
+		subprotocol: api.SubprotocolHiveotWebsocket,
 		wssPath:     wss.HiveotWebsocketPath,
 	}
 	return m
@@ -169,7 +169,7 @@ func NewHiveotWssServer(httpServer transport.IHttpServer, respTimeout time.Durat
 //
 // Use SetRequestSink to set the handler for requests send by consumers
 // Use SetNotificationSink to set the handler for notifications send by devices.
-func NewWotWssServer(httpServer transport.IHttpServer, respTimeout time.Duration) *WssServer {
+func NewWotWssServer(httpServer api.IHttpServer, respTimeout time.Duration) *WssServer {
 	if httpServer == nil {
 		panic("NewWotWssModule: Http server is nil")
 	}
@@ -182,7 +182,7 @@ func NewWotWssServer(httpServer transport.IHttpServer, respTimeout time.Duration
 		respTimeout = msg.DefaultRnRTimeout
 	}
 	thingID := wss.WotWebsocketServerModuleType + "-" + shortid.MustGenerate()
-	connectURL := fmt.Sprintf("%s://%s%s", transport.ProtocolSchemeWotWebsocket, urlParts.Host, wss.WotWebsocketPath)
+	connectURL := fmt.Sprintf("%s://%s%s", api.ProtocolSchemeWotWebsocket, urlParts.Host, wss.WotWebsocketPath)
 	authenticator := httpServer.GetAuthenticator()
 	m := &WssServer{
 		TransportServerBase: transport.NewTransportServerBase(thingID, connectURL, authenticator),
@@ -191,11 +191,11 @@ func NewWotWssServer(httpServer transport.IHttpServer, respTimeout time.Duration
 		encoder:     internal.NewWotWssMsgEncoder(),
 		respTimeout: respTimeout,
 		wssPath:     wss.WotWebsocketPath,
-		subprotocol: transport.SubprotocolWotWebsocket,
+		subprotocol: api.SubprotocolWotWebsocket,
 	}
 
-	var _ modules.IHiveModule = m        // interface check
-	var _ transport.ITransportServer = m // interface check
+	var _ api.IHiveModule = m            // interface check
+	var _ api.ITransportServer = m // interface check
 
 	return m
 }

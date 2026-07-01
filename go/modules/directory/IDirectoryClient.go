@@ -3,8 +3,8 @@ package directory
 import (
 	_ "embed"
 
+	"github.com/hiveot/hivekit/go/api"
 	"github.com/hiveot/hivekit/go/api/td"
-	"github.com/hiveot/hivekit/go/modules"
 )
 
 const DirectoryClientModuleType = "DirectoryClient"
@@ -37,7 +37,7 @@ type IDirectoryCache interface {
 // intended for devices and services, not consumers.
 
 type IDirectoryClient interface {
-	modules.IHiveModule
+	api.IHiveModule
 
 	// CreateThing creates or updates the TD in the directory.
 	// If the thing doesn't exist in the directory it is added.

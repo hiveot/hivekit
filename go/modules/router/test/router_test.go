@@ -10,6 +10,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/hiveot/hivekit/go/api"
 	"github.com/hiveot/hivekit/go/api/msg"
 	"github.com/hiveot/hivekit/go/api/td"
 	"github.com/hiveot/hivekit/go/modules/authn"
@@ -19,7 +20,6 @@ import (
 	directorypkg "github.com/hiveot/hivekit/go/modules/directory/pkg"
 	"github.com/hiveot/hivekit/go/modules/router"
 	routerpkg "github.com/hiveot/hivekit/go/modules/router/pkg"
-	"github.com/hiveot/hivekit/go/modules/transport"
 	grpcpkg "github.com/hiveot/hivekit/go/modules/transport/grpc/pkg"
 	httpbasicpkg "github.com/hiveot/hivekit/go/modules/transport/httpbasic/pkg"
 	ssescpkg "github.com/hiveot/hivekit/go/modules/transport/ssesc/pkg"
@@ -41,15 +41,15 @@ var testAuthn = testenv.NewTestAuthenticator()
 const rpcTimeout = time.Minute * 3 // allow for debugging breakpoints
 const testConsumerID = "router1"
 
-const serverType = transport.ProtocolTypeHiveotGrpc
+const serverType = api.ProtocolTypeHiveotGrpc
 
-// const serverType = transport.ProtocolTypeHiveotWebsocket
+// const serverType = api.ProtocolTypeHiveotWebsocket
 
-// const serverType = transport.ProtocolTypeHiveotSsesc
+// const serverType = api.ProtocolTypeHiveotSsesc
 
-// const serverType = transport.ProtocolTypeWotHttpBasic
+// const serverType = api.ProtocolTypeWotHttpBasic
 
-// const serverType = transport.ProtocolTypeWotWebsocket
+// const serverType = api.ProtocolTypeWotWebsocket
 
 // the test directory that holds this td. http server is not needed
 
@@ -63,7 +63,7 @@ const serverType = transport.ProtocolTypeHiveotGrpc
 //
 // The deviceID is the thingID of the device
 func startTestServerDevice(deviceID string) (testDevice *testenv.TestDevice,
-	tdoc *td.TD, transportServer transport.ITransportServer, stopFn func()) {
+	tdoc *td.TD, transportServer api.ITransportServer, stopFn func()) {
 
 	// 1. need a http server for serving the protocol and optionally discovery
 	cfg := tlsserver.NewTLSServerConfig(
@@ -78,17 +78,17 @@ func startTestServerDevice(deviceID string) (testDevice *testenv.TestDevice,
 
 	// 2. Create a protocol server for receiving requests
 	switch serverType {
-	case transport.ProtocolTypeWotHttpBasic:
+	case api.ProtocolTypeWotHttpBasic:
 		transportServer = httpbasicpkg.NewHttpBasicServer(httpServer)
-	case transport.ProtocolTypeHiveotGrpc:
+	case api.ProtocolTypeHiveotGrpc:
 		address := "unix://" + filepath.Join(storageDir, "grpc-server.sock")
 		transportServer = grpcpkg.NewHiveotGrpcServer(
 			address, cfg.ServerCert, cfg.CaCert, testAuthn, 0)
-	case transport.ProtocolTypeHiveotSsesc:
+	case api.ProtocolTypeHiveotSsesc:
 		transportServer = ssescpkg.NewSseScServer(httpServer, 0)
-	case transport.ProtocolTypeWotWebsocket:
+	case api.ProtocolTypeWotWebsocket:
 		transportServer = wsspkg.NewWotWssServer(httpServer, 0)
-	case transport.ProtocolTypeHiveotWebsocket:
+	case api.ProtocolTypeHiveotWebsocket:
 		transportServer = wsspkg.NewHiveotWssServer(httpServer, 0)
 	}
 	err = transportServer.Start()
@@ -124,7 +124,7 @@ func startTestServerDevice(deviceID string) (testDevice *testenv.TestDevice,
 
 // Setup a consumer that uses the router and directory to connect to devices
 // The router has a credentials store for authentication
-func SetupConsumerWithRouter(authn transport.IAuthenticator) (
+func SetupConsumerWithRouter(authn api.IAuthenticator) (
 	co *consumer.Consumer,
 	routerMod router.IRouterService,
 	dirSvc directory.IDirectoryService,

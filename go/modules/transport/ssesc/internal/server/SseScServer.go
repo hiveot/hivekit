@@ -6,8 +6,8 @@ import (
 	"net/url"
 	"time"
 
+	"github.com/hiveot/hivekit/go/api"
 	"github.com/hiveot/hivekit/go/api/msg"
-	"github.com/hiveot/hivekit/go/modules"
 	"github.com/hiveot/hivekit/go/modules/transport"
 	"github.com/hiveot/hivekit/go/modules/transport/ssesc"
 	"github.com/teris-io/shortid"
@@ -29,7 +29,7 @@ type SseScServer struct {
 	// msgAPI *HiveotSseScMsgHandler
 
 	// actual server exposing routes
-	httpServer transport.IHttpServer
+	httpServer api.IHttpServer
 
 	// The connection address for subscription and URL to connect using SSE
 	// connectAddr string
@@ -43,7 +43,7 @@ type SseScServer struct {
 }
 
 func (m *SseScServer) GetProtocolType() (string, string) {
-	return transport.ProtocolTypeHiveotSsesc, transport.SubprotocolHiveotSsesc
+	return api.ProtocolTypeHiveotSsesc, api.SubprotocolHiveotSsesc
 }
 
 // Start readies the module for use.
@@ -74,14 +74,14 @@ func (m *SseScServer) Stop() {
 //
 // Use SetRequestSink to set the handler for requests send by consumers
 // Use SetNotificationSink to set the handler for notifications send by Things.
-func NewSseScServer(httpServer transport.IHttpServer, respTimeout time.Duration) *SseScServer {
+func NewSseScServer(httpServer api.IHttpServer, respTimeout time.Duration) *SseScServer {
 
 	ssePath := ssesc.SseScPath
 
 	httpAddr := httpServer.GetConnectURL()
 	urlParts, _ := url.Parse(httpAddr)
 
-	connectURL := fmt.Sprintf("%s://%s%s", transport.ProtocolSchemeHiveotSseSc, urlParts.Host, ssePath)
+	connectURL := fmt.Sprintf("%s://%s%s", api.ProtocolSchemeHiveotSseSc, urlParts.Host, ssePath)
 
 	// use the RRN message format. Simple passthrough.
 	encoder := transport.NewRRNJsonEncoder()
@@ -99,8 +99,8 @@ func NewSseScServer(httpServer transport.IHttpServer, respTimeout time.Duration)
 		respTimeout:         respTimeout,
 	}
 
-	var _ modules.IHiveModule = m        // interface check
-	var _ transport.ITransportServer = m // interface check
+	var _ api.IHiveModule = m      // interface check
+	var _ api.ITransportServer = m // interface check
 
 	return m
 }

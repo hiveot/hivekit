@@ -1,6 +1,6 @@
 package wss
 
-import "github.com/hiveot/hivekit/go/modules/transport"
+import "github.com/hiveot/hivekit/go/api"
 
 const (
 	// Hiveot websocket sub-protocol
@@ -18,7 +18,7 @@ const (
 
 // Interface of the Hiveot websocket server module
 type IWssTransportServer interface {
-	transport.ITransportServer
+	api.ITransportServer
 
 	// todo: future API  for servicing the module
 }

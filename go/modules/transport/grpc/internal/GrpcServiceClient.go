@@ -9,7 +9,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/hiveot/hivekit/go/modules/transport"
+	"github.com/hiveot/hivekit/go/api"
 	"github.com/teris-io/shortid"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
@@ -189,9 +189,9 @@ func (cl *GrpcServiceClient) ConnectStream(name string) (*BufferedStream, error)
 func (cl *GrpcServiceClient) GetRequestMetadata(ctx context.Context, uri ...string) (map[string]string, error) {
 	// bearer authentication
 	return map[string]string{
-		"authorization":              "bearer " + cl.authToken,
-		transport.ClientIDContextID:  cl.clientID,
-		transport.ClientCIDContextID: cl.connectionID,
+		"authorization":        "bearer " + cl.authToken,
+		api.ClientIDContextID:  cl.clientID,
+		api.ClientCIDContextID: cl.connectionID,
 	}, nil
 }
 

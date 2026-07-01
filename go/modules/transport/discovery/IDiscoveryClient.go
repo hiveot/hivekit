@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/hiveot/hivekit/go/api"
 	"github.com/hiveot/hivekit/go/api/td"
-	"github.com/hiveot/hivekit/go/modules"
 )
 
 // The discovery module types
@@ -45,7 +45,7 @@ func (dr *DiscoveryResult) AsURL() string {
 // IDiscoveryClient is the interface of discovery client.
 // This module is for discovering Thing TD's or Directory TDD's on the local network.
 type IDiscoveryClient interface {
-	modules.IHiveModule
+	api.IHiveModule
 
 	// DiscoverDevices returns a list of discovery records of WoT compatible devices.
 	//

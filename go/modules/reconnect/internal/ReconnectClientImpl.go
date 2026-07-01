@@ -7,11 +7,11 @@ import (
 	"sync"
 	"time"
 
+	"github.com/hiveot/hivekit/go/api"
 	"github.com/hiveot/hivekit/go/api/msg"
 	"github.com/hiveot/hivekit/go/api/td"
 	"github.com/hiveot/hivekit/go/modules"
 	"github.com/hiveot/hivekit/go/modules/reconnect"
-	"github.com/hiveot/hivekit/go/modules/transport"
 )
 
 // ReconnectClientImpl is a module that automatically reconnects a transport client when
@@ -31,7 +31,7 @@ type ReconnectClientImpl struct {
 	cancelFn func()
 
 	// the client connection instance
-	conn transport.ITransportClient
+	conn api.ITransportClient
 	//
 	maxReconnectAttempts int // 0 for indefinite
 
@@ -63,7 +63,7 @@ func (m *ReconnectClientImpl) applySubscription() (err error) {
 	return err
 }
 
-func (m *ReconnectClientImpl) AuthenticateWithForm(tdoc *td.TD, getcred transport.GetCredentials) error {
+func (m *ReconnectClientImpl) AuthenticateWithForm(tdoc *td.TD, getcred api.GetCredentials) error {
 	return m.conn.AuthenticateWithForm(tdoc, getcred)
 }
 
@@ -83,7 +83,7 @@ func (m *ReconnectClientImpl) Connect(ctx context.Context) error {
 			return ctx.Err() // fmt.Errorf("Context cancelled")
 		case <-sleep.Done():
 			sleepEndFn()
-			if m.conn.GetConnectionStatus() == transport.StatusConnected {
+			if m.conn.GetConnectionStatus() == api.StatusConnected {
 				return nil
 			}
 			// request a reconnect with the last known parameters
@@ -95,7 +95,7 @@ func (m *ReconnectClientImpl) Connect(ctx context.Context) error {
 				return err
 			}
 			// don't retry if client is refused
-			if m.conn.GetConnectionStatus() == transport.StatusRefused {
+			if m.conn.GetConnectionStatus() == api.StatusRefused {
 				return err
 			}
 			// backoffDuration += time.Duration(rand.Uint64N(uint64(time.Second)))
@@ -125,20 +125,20 @@ func (m *ReconnectClientImpl) DoReconnect() {
 
 }
 
-func (m *ReconnectClientImpl) GetConnectionStatus() transport.ConnectionStatus {
+func (m *ReconnectClientImpl) GetConnectionStatus() api.ConnectionStatus {
 	return m.conn.GetConnectionStatus()
 }
 
 // handleConnectChange handles a disconnection callback
 // if no reconnect is in progress then start it.
 func (m *ReconnectClientImpl) handleConnectChange(
-	newStatus transport.ConnectionStatus, c transport.ITransportClient) {
+	newStatus api.ConnectionStatus, c api.ITransportClient) {
 
 	// if connection is lost then initiate the reconnect process.
 	// note that closing a client can still cause a lost callback, but in that case
 	// it should be ignored.
 	status := m.conn.GetConnectionStatus()
-	if status == transport.StatusLost {
+	if status == api.StatusLost {
 		m.mux.Lock()
 		defer m.mux.Unlock()
 		// only start reconnecting if not already reconnecting
@@ -154,12 +154,12 @@ func (m *ReconnectClientImpl) HandleNotification(notif *msg.NotificationMessage)
 
 	if m.conn == nil {
 		if notif.AffordanceType == msg.AffordanceTypeEvent &&
-			notif.Name == transport.ClientConnectionStatusEvent &&
-			notif.Data.(transport.ConnectionStatus) == transport.StatusLost {
+			notif.Name == api.ClientConnectionStatusEvent &&
+			notif.Data.(api.ConnectionStatus) == api.StatusLost {
 
 			// Send a connect request
 			req := msg.NewRequestMessage(
-				td.OpInvokeAction, notif.SenderID, transport.ClientConnectAction, nil)
+				td.OpInvokeAction, notif.SenderID, api.ClientConnectAction, nil)
 			go m.ForwardRequest(req, nil)
 		}
 	}
@@ -217,7 +217,7 @@ func (m *ReconnectClientImpl) Stop() {
 // This module uses the ReconnectModuleType as its ID.
 //
 //	cl is the transport client connection instance to use before connecting
-func NewReconnectClientImpl(cl transport.ITransportClient) (m *ReconnectClientImpl) {
+func NewReconnectClientImpl(cl api.ITransportClient) (m *ReconnectClientImpl) {
 
 	m = &ReconnectClientImpl{
 		HiveModuleBase: modules.NewHiveModuleBase(reconnect.ReconnectModuleType, 0),

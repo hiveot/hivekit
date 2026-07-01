@@ -5,7 +5,7 @@ import (
 	"log/slog"
 	"net/http"
 
-	"github.com/hiveot/hivekit/go/modules/transport"
+	"github.com/hiveot/hivekit/go/api"
 	"github.com/hiveot/hivekit/go/modules/transport/tlsserver"
 
 	"github.com/go-chi/chi/v5"
@@ -93,7 +93,7 @@ func (m *TLSServer) addMiddleware(cfg *tlsserver.TLSServerConfig) {
 	}
 
 	// support health monitor
-	rootRouter.Use(middleware.Heartbeat(transport.DefaultPingPath))
+	rootRouter.Use(middleware.Heartbeat(api.DefaultPingPath))
 
 	//--- public routes do not require a Hub connection
 	rootRouter.Group(func(r chi.Router) {
@@ -132,7 +132,7 @@ func (m *TLSServer) addMiddleware(cfg *tlsserver.TLSServerConfig) {
 					return
 				}
 				ctx := r.Context()
-				ctx = context.WithValue(ctx, transport.ClientIDContextID, clientID)
+				ctx = context.WithValue(ctx, api.ClientIDContextID, clientID)
 				next.ServeHTTP(w, r.WithContext(ctx))
 			})
 
@@ -157,7 +157,7 @@ func (m *TLSServer) GetPublicRoute() chi.Router {
 }
 
 // GetRequestParams
-func (m *TLSServer) GetRequestParams(r *http.Request) (transport.RequestParams, error) {
+func (m *TLSServer) GetRequestParams(r *http.Request) (api.RequestParams, error) {
 	return GetRequestParams(r)
 }
 

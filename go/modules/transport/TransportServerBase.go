@@ -7,6 +7,7 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/hiveot/hivekit/go/api"
 	"github.com/hiveot/hivekit/go/api/msg"
 	"github.com/hiveot/hivekit/go/modules"
 )
@@ -32,13 +33,13 @@ type TransportServerBase struct {
 	appRequestHook msg.RequestHandler
 
 	// authenticator for incoming connections and for adding form security info
-	authenticator IAuthenticator
+	authenticator api.IAuthenticator
 
 	// The base URL used to connect. Used to set TD.Base field when adding forms
 	connectURL string
 
 	// connections by clcid = {clientID}:{connectionID}
-	connectionsByClcid map[string]IConnection
+	connectionsByClcid map[string]api.IConnection
 
 	// connectionIDs by clientID
 	connectionsByClientID map[string][]string
@@ -62,7 +63,7 @@ type TransportServerBase struct {
 // is empty then only a single connection for the client can be used.
 //
 // If an endpoint with this clientID:connectionID exists the existing connection is forcibly closed.
-func (srv *TransportServerBase) AddConnection(c IConnection) error {
+func (srv *TransportServerBase) AddConnection(c api.IConnection) error {
 	var clientID string
 	var cid string
 	// enter protected block
@@ -71,7 +72,7 @@ func (srv *TransportServerBase) AddConnection(c IConnection) error {
 		defer srv.cmux.Unlock()
 
 		if srv.connectionsByClcid == nil {
-			srv.connectionsByClcid = make(map[string]IConnection)
+			srv.connectionsByClcid = make(map[string]api.IConnection)
 		}
 		if srv.connectionsByClientID == nil {
 			srv.connectionsByClientID = make(map[string][]string)
@@ -107,7 +108,7 @@ func (srv *TransportServerBase) AddConnection(c IConnection) error {
 
 	// notify listeners outside of locked area
 	// publish a notification about the new connection
-	connectionInfo := ConnectionInfo{
+	connectionInfo := api.ConnectionInfo{
 		ClientID:     clientID,
 		ConnectionID: cid,
 	}
@@ -115,7 +116,7 @@ func (srv *TransportServerBase) AddConnection(c IConnection) error {
 	senderID := srv.GetThingID()
 	thingID := senderID
 	notif := msg.NewNotificationMessage(senderID, msg.AffordanceTypeEvent, thingID,
-		ServerConnectEvent, connectionInfo)
+		api.ServerConnectEvent, connectionInfo)
 	srv.ForwardNotification(notif)
 	return nil
 }
@@ -169,7 +170,7 @@ func (srv *TransportServerBase) CloseAll() {
 // HiveOT devices that use reverse connections are required to add their deviceID as a prefix
 // in the thingID of the TDs they publish. For example: "device1:thing1". This is a
 // convention but it is not required by the WoT specifications.
-func (m *TransportServerBase) DetermineRCConnection(thingID string) (IConnection, error) {
+func (m *TransportServerBase) DetermineRCConnection(thingID string) (api.IConnection, error) {
 	parts := strings.Split(thingID, ":")
 	deviceID := parts[0]
 
@@ -185,10 +186,10 @@ func (m *TransportServerBase) DetermineRCConnection(thingID string) (IConnection
 //
 // This is concurrent safe as the iteration takes place on a copy.
 // The handler can be blocking on non-blocking (goroutine)
-func (srv *TransportServerBase) ForEachConnection(handler func(c IConnection)) {
+func (srv *TransportServerBase) ForEachConnection(handler func(c api.IConnection)) {
 	// collect a list of connections
 	srv.cmux.Lock()
-	connList := make([]IConnection, 0, len(srv.connectionsByClcid))
+	connList := make([]api.IConnection, 0, len(srv.connectionsByClcid))
 	for _, c := range srv.connectionsByClcid {
 		connList = append(connList, c)
 	}
@@ -208,7 +209,7 @@ func (m *TransportServerBase) GetConnectURL() string {
 
 // GetConnectionByConnectionID locates the connection of the client using the client's connectionID
 // This returns nil if no connection was found with the given connectionID
-func (srv *TransportServerBase) GetConnectionByConnectionID(clientID, connectionID string) (c IConnection) {
+func (srv *TransportServerBase) GetConnectionByConnectionID(clientID, connectionID string) (c api.IConnection) {
 	clcid := clientID + ":" + connectionID
 	srv.cmux.Lock()
 	defer srv.cmux.Unlock()
@@ -223,13 +224,13 @@ func (srv *TransportServerBase) GetConnectionByConnectionID(clientID, connection
 // GetConnectionByClientID locates the first connection of the client using its account ID.
 // Intended to find devices which only have a single connection.
 // This returns nil if no connection was found with the given login
-func (srv *TransportServerBase) GetConnectionByClientID(clientID string) (c IConnection) {
+func (srv *TransportServerBase) GetConnectionByClientID(clientID string) (c api.IConnection) {
 
 	srv.cmux.Lock()
 	defer srv.cmux.Unlock()
 	if srv.connectionsByClientID == nil {
 		// no incoming connections yet
-		slog.Info("GetConnectionByClientID: server has no connections from client", "clientID", clientID)
+		slog.Info("GetConnectionByClientID: server has no connections from client.", "clientID", clientID)
 		return nil
 	}
 	cList := srv.connectionsByClientID[clientID]
@@ -292,7 +293,7 @@ func (m *TransportServerBase) HandleRequest(
 // non-concurrent safe internal function that can be used from a locked section.
 // This will close the connnection if it isn't closed already.
 // Call this after the connection is closed or before closing.
-func (srv *TransportServerBase) removeConnection(c IConnection) {
+func (srv *TransportServerBase) removeConnection(c api.IConnection) {
 	clientID := c.GetClientID()
 	connectionID := c.GetConnectionID()
 	clcid := clientID + ":" + connectionID
@@ -342,7 +343,7 @@ func (srv *TransportServerBase) removeConnection(c IConnection) {
 //
 // This will close the connnection if it isn't closed already.
 // This submits a ServerDisconnectEvent to subscribers.
-func (srv *TransportServerBase) RemoveConnection(c IConnection) {
+func (srv *TransportServerBase) RemoveConnection(c api.IConnection) {
 	// protected block
 	prot := func() {
 		srv.cmux.Lock()
@@ -352,21 +353,21 @@ func (srv *TransportServerBase) RemoveConnection(c IConnection) {
 	prot()
 	// notify listeners
 	// publish a notification about the connection
-	connectionInfo := ConnectionInfo{
+	connectionInfo := api.ConnectionInfo{
 		ClientID:     c.GetClientID(),
 		ConnectionID: c.GetConnectionID(),
 	}
 	senderID := srv.GetThingID()
 	thingID := senderID
 	notif := msg.NewNotificationMessage(senderID, msg.AffordanceTypeEvent, thingID,
-		ServerDisconnectEvent, connectionInfo)
+		api.ServerDisconnectEvent, connectionInfo)
 	srv.ForwardNotification(notif)
 }
 
 // SendNotification [device] server sends a notification to its connected clients.
 // The connection handles subscriptions.
 func (srv *TransportServerBase) SendNotification(notif *msg.NotificationMessage) {
-	srv.ForEachConnection(func(c IConnection) {
+	srv.ForEachConnection(func(c api.IConnection) {
 		c.SendNotification(notif)
 	})
 }
@@ -400,7 +401,7 @@ func (srv *TransportServerBase) SendRequest(
 //	clientID identifies the consumer to send the response to
 func (srv *TransportServerBase) SendResponse(
 	clientID, cid string, resp *msg.ResponseMessage) (err error) {
-	// var c IConnection
+	// var capi.IConnection
 
 	c := srv.GetConnectionByConnectionID(clientID, cid)
 
@@ -426,7 +427,7 @@ func (m *TransportServerBase) SetAppRequestHook(hook msg.RequestHandler) {
 //	connectURL is the URL this module can be reached at. Used to set TD.Base
 //	authenticator used to include the security in TDs
 func NewTransportServerBase(
-	thingID, connectURL string, authenticator IAuthenticator) *TransportServerBase {
+	thingID, connectURL string, authenticator api.IAuthenticator) *TransportServerBase {
 
 	base := &TransportServerBase{
 		HiveModuleBase: modules.NewHiveModuleBase(thingID, 0),

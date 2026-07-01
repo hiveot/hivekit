@@ -1,6 +1,7 @@
 package factory_test
 
 import (
+	"github.com/hiveot/hivekit/go/api"
 	authnapi "github.com/hiveot/hivekit/go/modules/authn"
 	authnpkg "github.com/hiveot/hivekit/go/modules/authn/pkg"
 	"github.com/hiveot/hivekit/go/modules/authz"
@@ -14,7 +15,6 @@ import (
 	digitwinpkg "github.com/hiveot/hivekit/go/modules/digitwin/pkg"
 	"github.com/hiveot/hivekit/go/modules/directory"
 	directorypkg "github.com/hiveot/hivekit/go/modules/directory/pkg"
-	"github.com/hiveot/hivekit/go/modules/factory"
 	"github.com/hiveot/hivekit/go/modules/history"
 	historypkg "github.com/hiveot/hivekit/go/modules/history/pkg"
 	"github.com/hiveot/hivekit/go/modules/logging"
@@ -24,7 +24,6 @@ import (
 	"github.com/hiveot/hivekit/go/modules/router"
 	routerpkg "github.com/hiveot/hivekit/go/modules/router/pkg"
 	"github.com/hiveot/hivekit/go/modules/thing"
-	"github.com/hiveot/hivekit/go/modules/transport"
 	"github.com/hiveot/hivekit/go/modules/transport/addforms"
 	addformspkg "github.com/hiveot/hivekit/go/modules/transport/addforms/pkg"
 	"github.com/hiveot/hivekit/go/modules/transport/discovery"
@@ -44,7 +43,7 @@ import (
 )
 
 // List hivekit available modules
-var HiveKitModules = []factory.ModuleDefinition{
+var HiveKitModules = []api.ModuleDefinition{
 
 	//--- factory related modules
 
@@ -80,7 +79,7 @@ var HiveKitModules = []factory.ModuleDefinition{
 	},
 	// http server provider
 	{
-		Type:        transport.TLSServerModuleType,
+		Type:        api.HttpServerModuleType,
 		Constructor: tlsserverpkg.NewTLSServerFactory,
 	},
 	// http-basic transport

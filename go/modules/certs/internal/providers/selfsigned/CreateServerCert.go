@@ -21,7 +21,7 @@ const DefaultServerCertValidityDays = 100
 //
 //	  certPEM = certs.X509CertToPEM(cert)
 //
-//	* serviceID is the unique service ID used as the CN. for example hostname-serviceName
+//	* cn is the server domain name or owner ID. for example hostname-serviceName
 //	* ou is the organizational unit of the certificate
 //	* validityDays is the duration the cert is valid for. Use 0 for default.
 //	* serverKeyPair contains the server's key-pair (use ecdsa keys for browser certificates)
@@ -29,12 +29,12 @@ const DefaultServerCertValidityDays = 100
 //	* caCert is the CA certificate used to sign the certificate
 //	* caKey is the CA private key used to sign certificate
 func CreateSelfSignedServerCert(
-	serverID string, ou string, validityDays int,
+	cn string, ou string, validityDays int,
 	serverPubKey crypto.PublicKey, names []string,
 	caCert *x509.Certificate, caPrivKey crypto.PrivateKey) (
 	x509Cert *x509.Certificate, err error) {
 
-	if serverID == "" || serverPubKey == nil {
+	if cn == "" || serverPubKey == nil {
 		err := fmt.Errorf("missing argument serviceID, servicePubKey")
 		slog.Error(err.Error())
 		return nil, err
@@ -62,7 +62,7 @@ func CreateSelfSignedServerCert(
 			Locality:           []string{"local"},
 			Organization:       []string{"hiveot"},
 			OrganizationalUnit: []string{ou},
-			CommonName:         serverID,
+			CommonName:         cn,
 		},
 		NotBefore: time.Now().Add(-time.Second),
 		NotAfter:  time.Now().AddDate(0, 0, validityDays),

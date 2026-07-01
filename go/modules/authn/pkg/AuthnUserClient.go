@@ -2,6 +2,7 @@
 package authnpkg
 
 import (
+	"github.com/hiveot/hivekit/go/api"
 	"github.com/hiveot/hivekit/go/api/td"
 	"github.com/hiveot/hivekit/go/modules"
 	"github.com/hiveot/hivekit/go/modules/authn"
@@ -57,7 +58,7 @@ func (m *AuthnUserClient) UpdateProfile(password string) (err error) {
 // Create a new instance of the authn user client
 //
 // sink is the chain containing the user's transport client
-func NewAuthnUserClient(sink modules.IHiveModule) *AuthnUserClient {
+func NewAuthnUserClient(sink api.IHiveModule) *AuthnUserClient {
 	cl := &AuthnUserClient{
 		HiveModuleBase: modules.NewHiveModuleBase("", 0),
 	}

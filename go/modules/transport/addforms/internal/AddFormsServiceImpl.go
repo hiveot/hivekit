@@ -1,11 +1,11 @@
 package internal
 
 import (
+	"github.com/hiveot/hivekit/go/api"
 	"github.com/hiveot/hivekit/go/api/msg"
 	"github.com/hiveot/hivekit/go/api/td"
 	"github.com/hiveot/hivekit/go/modules"
 	"github.com/hiveot/hivekit/go/modules/directory"
-	"github.com/hiveot/hivekit/go/modules/transport"
 )
 
 // AddFormsServiceImpl modifies TD's sent with directory update and create commands with base, security, and form information from the configured transports.
@@ -20,7 +20,7 @@ type AddFormsServiceImpl struct {
 	includeAffordances bool
 
 	// The servers available for connecting to the modules
-	tpServers []transport.ITransportServer
+	tpServers []api.ITransportServer
 }
 
 // convert TDs provided with CreateThing and UpdateThing directory actions
@@ -57,7 +57,7 @@ func (m *AddFormsServiceImpl) AddTDSecForms(tdoc *td.TD, includeAffordances bool
 }
 
 // NewAddFormsServiceImpl creates a new instance of the service
-func NewAddFormsServiceImpl(tpServers []transport.ITransportServer) *AddFormsServiceImpl {
+func NewAddFormsServiceImpl(tpServers []api.ITransportServer) *AddFormsServiceImpl {
 
 	m := &AddFormsServiceImpl{
 		HiveModuleBase:     *modules.NewHiveModuleBase("", 0),

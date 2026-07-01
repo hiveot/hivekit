@@ -5,10 +5,10 @@ import (
 	"testing"
 	"time"
 
+	"github.com/hiveot/hivekit/go/api"
 	"github.com/hiveot/hivekit/go/api/msg"
 	"github.com/hiveot/hivekit/go/api/td"
 	"github.com/hiveot/hivekit/go/modules/directory"
-	"github.com/hiveot/hivekit/go/modules/factory"
 	discoverypkg "github.com/hiveot/hivekit/go/modules/transport/discovery/pkg"
 	"github.com/hiveot/hivekit/go/testenv"
 
@@ -69,7 +69,7 @@ func TestDiscoverGetThingTD(t *testing.T) {
 	require.NoError(t, err)
 
 	// discover the server
-	appEnv := factory.NewAppEnvironment("", false)
+	appEnv := api.NewAppEnvironment("", false)
 	cl := discoverypkg.NewDiscoveryClient(appEnv, false)
 	rec0, err := cl.DiscoverFirstGateway(testThingServiceID, time.Second)
 	// records, err := cl.DiscoverThings(testThingServiceID, time.Second, nil)

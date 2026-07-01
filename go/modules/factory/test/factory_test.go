@@ -8,12 +8,12 @@ import (
 	"testing"
 	"time"
 
+	"github.com/hiveot/hivekit/go/api"
 	"github.com/hiveot/hivekit/go/api/msg"
 	"github.com/hiveot/hivekit/go/modules/authn"
 	certstest "github.com/hiveot/hivekit/go/modules/certs/test"
 	"github.com/hiveot/hivekit/go/modules/consumer"
 	"github.com/hiveot/hivekit/go/modules/digitwin"
-	factory "github.com/hiveot/hivekit/go/modules/factory"
 	factorypkg "github.com/hiveot/hivekit/go/modules/factory/pkg"
 	"github.com/hiveot/hivekit/go/modules/thing"
 	"github.com/hiveot/hivekit/go/utils"
@@ -39,7 +39,7 @@ func TestMain(m *testing.M) {
 
 func TestAppEnv(t *testing.T) {
 
-	f := factory.NewAppEnvironment(testDir, false)
+	f := api.NewAppEnvironment(testDir, false)
 	if f.HomeDir != testDir {
 		t.Errorf("Expected homeDir to be %s, got %s", testDir, f.HomeDir)
 	}
@@ -60,7 +60,7 @@ func TestAppEnv(t *testing.T) {
 func TestStartStop(t *testing.T) {
 
 	// just test that the environment can be created and loaded
-	env := factory.NewAppEnvironment(testDir, false)
+	env := api.NewAppEnvironment(testDir, false)
 	// err := env.LoadConfig(&env)
 	// if err != nil {
 	// t.Errorf("Failed loading config: %s", err.Error())
@@ -74,9 +74,9 @@ func TestStartStop(t *testing.T) {
 // test with the server module table
 func TestAuthentication(t *testing.T) {
 	// just test that the environment can be created and loaded
-	env := factory.NewAppEnvironment(testDir, false)
+	env := api.NewAppEnvironment(testDir, false)
 	env.CaCert = testCerts.CaCert
-	env.ServerCert = testCerts.ServerCert
+	env.TLSCert = testCerts.ServerCert
 	env.HttpsPort = testPort
 
 	f := factorypkg.NewModuleFactory(env, HiveKitModules)
@@ -118,9 +118,9 @@ func TestAuthentication(t *testing.T) {
 // test creating the digital twin instance
 func TestDigitwin(t *testing.T) {
 	// just test that the environment can be created and loaded
-	env := factory.NewAppEnvironment(testDir, false)
+	env := api.NewAppEnvironment(testDir, false)
 	env.CaCert = testCerts.CaCert
-	env.ServerCert = testCerts.ServerCert
+	env.TLSCert = testCerts.ServerCert
 	env.HttpsPort = testPort
 
 	f := factorypkg.NewModuleFactory(env, HiveKitModules)
@@ -140,10 +140,10 @@ func TestDigitwin(t *testing.T) {
 func TestClientServerRecipe(t *testing.T) {
 	var thingID string = "thing1"
 
-	env := factory.NewAppEnvironment(testDir, false)
+	env := api.NewAppEnvironment(testDir, false)
 	env.CaCert = testCerts.CaCert
 	env.ClientCert = testCerts.ClientCert
-	env.ServerCert = testCerts.ServerCert
+	env.TLSCert = testCerts.ServerCert
 	env.HttpsPort = testPort
 
 	serverFactory := factorypkg.NewModuleFactory(env, HiveKitModules)

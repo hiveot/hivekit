@@ -9,12 +9,12 @@ import (
 	"sync"
 	"time"
 
+	"github.com/hiveot/hivekit/go/api"
 	"github.com/hiveot/hivekit/go/api/msg"
 	"github.com/hiveot/hivekit/go/api/td"
 	"github.com/hiveot/hivekit/go/modules"
 	reconnectpkg "github.com/hiveot/hivekit/go/modules/reconnect/pkg"
 	"github.com/hiveot/hivekit/go/modules/router"
-	"github.com/hiveot/hivekit/go/modules/transport"
 	"github.com/hiveot/hivekit/go/modules/transport/clients"
 )
 
@@ -35,8 +35,8 @@ type RouterServiceImpl struct {
 
 	// established device connections by origin (schema://host:port)
 	cmux sync.RWMutex
-	// deviceConnections map[string]transport.ITransportClient
-	deviceConnections map[string]modules.IHiveModule
+	// deviceConnections map[string]api.ITransportClient
+	deviceConnections map[string]api.IHiveModule
 
 	// directory to store device accounts
 	storageDir string
@@ -47,7 +47,7 @@ type RouterServiceImpl struct {
 	timeout time.Duration
 
 	// transport servers
-	tpServers []transport.ITransportServer
+	tpServers []api.ITransportServer
 }
 
 // Add the secret to access a Thing.
@@ -71,9 +71,9 @@ func (m *RouterServiceImpl) DeleteThingCredential(thingID string) {
 // that automatically reconnects and resubscribes if the connection fails.
 //
 // The caller must check if the connection is established before sending a message.
-func (m *RouterServiceImpl) GetClientConnection(tdi *td.TD, op string) (cl modules.IHiveModule, err error) {
+func (m *RouterServiceImpl) GetClientConnection(tdi *td.TD, op string) (cl api.IHiveModule, err error) {
 
-	var c transport.ITransportClient
+	var c api.ITransportClient
 
 	// use URI scheme to determine the protocol, except for the hiveot WSS, which also
 	// has a wss scheme. Instead look at the base path which is fixed.
@@ -112,7 +112,7 @@ func (m *RouterServiceImpl) GetClientConnection(tdi *td.TD, op string) (cl modul
 	}
 	m.cmux.Unlock()
 
-	// if rc.GetConnectionStatus() != transport.StatusConnected {
+	// if rc.GetConnectionStatus() != api.StatusConnected {
 	// 	err = rc.AuthenticateWithForm(tdi, m.credStore.GetCredentials)
 	// 	if err == nil {
 	// 		slog.Info("GetClientConnection: (re)Connecting to ", slog.String("href", href))
@@ -128,7 +128,7 @@ func (m *RouterServiceImpl) GetClientConnection(tdi *td.TD, op string) (cl modul
 
 // Return the reverse-client connection to a device, if it exists.
 // This returns nil if the clientID does not have an existing connection.
-func (m *RouterServiceImpl) GetRCConnection(clientID string) (c transport.IConnection) {
+func (m *RouterServiceImpl) GetRCConnection(clientID string) (c api.IConnection) {
 	if m.tpServers == nil {
 		return nil
 	}
@@ -271,7 +271,7 @@ func (m *RouterServiceImpl) Stop() {
 //	caCert is the CA used to verify device connections
 //	timeout is the maximum communication timeout with connect clients
 func NewRouterServiceImpl(storageDir string, getTD func(thingID string) *td.TD,
-	tpServers []transport.ITransportServer, caCert *x509.Certificate, timeout time.Duration,
+	tpServers []api.ITransportServer, caCert *x509.Certificate, timeout time.Duration,
 ) *RouterServiceImpl {
 	if timeout == 0 {
 		timeout = msg.DefaultRnRTimeout
@@ -285,7 +285,7 @@ func NewRouterServiceImpl(storageDir string, getTD func(thingID string) *td.TD,
 		getTD:             getTD,
 		storageDir:        storageDir,
 		tpServers:         tpServers,
-		deviceConnections: make(map[string]modules.IHiveModule),
+		deviceConnections: make(map[string]api.IHiveModule),
 		timeout:           timeout,
 	}
 

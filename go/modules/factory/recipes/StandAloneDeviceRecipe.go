@@ -1,13 +1,12 @@
 package recipes
 
 import (
+	"github.com/hiveot/hivekit/go/api"
 	"github.com/hiveot/hivekit/go/modules/authn"
 	authnpkg "github.com/hiveot/hivekit/go/modules/authn/pkg"
 	"github.com/hiveot/hivekit/go/modules/certs"
 	certspkg "github.com/hiveot/hivekit/go/modules/certs/pkg"
-	"github.com/hiveot/hivekit/go/modules/factory"
 	factorypkg "github.com/hiveot/hivekit/go/modules/factory/pkg"
-	"github.com/hiveot/hivekit/go/modules/transport"
 	"github.com/hiveot/hivekit/go/modules/transport/addforms"
 	addformspkg "github.com/hiveot/hivekit/go/modules/transport/addforms/pkg"
 	"github.com/hiveot/hivekit/go/modules/transport/discovery"
@@ -17,12 +16,12 @@ import (
 	wsspkg "github.com/hiveot/hivekit/go/modules/transport/wss/pkg"
 )
 
-// the module slot where to insert the application exposed thing
+// module type name of the slot where to insert the 'exposed thing' application module.
 const AppSlotType = "appSlot"
 
-// ServerDeviceModuleChain is a template that defines the module chain for an IoT device
+// StandAloneDeviceModuleChain is a template that defines the module chain for an IoT device
 // running a server.
-var ServerDeviceModuleChain = []factory.ModuleDefinition{
+var StandAloneDeviceModuleChain = []api.ModuleDefinition{
 
 	//--- modules that do not depend on where they are placed
 	{
@@ -32,8 +31,18 @@ var ServerDeviceModuleChain = []factory.ModuleDefinition{
 	},
 	{
 		// http server module is used by websockets
-		Type:        transport.TLSServerModuleType,
+		Type:        api.HttpServerModuleType,
 		Constructor: tlsserverpkg.NewTLSServerFactory,
+	},
+
+	// FIXME: requests to the chain are passed to the wss server which
+	// tries to send it to a RC device instead of down the chain... oops
+
+	//--- sequence required for processing requests
+	{
+		// websocket server transport for consumer connections
+		Type:        wss.HiveotWebsocketServerModuleType,
+		Constructor: wsspkg.NewHiveotWssServerFactory,
 	},
 	{
 		// run an authentication service
@@ -41,19 +50,12 @@ var ServerDeviceModuleChain = []factory.ModuleDefinition{
 		Constructor: authnpkg.NewAuthnServiceFactory,
 	},
 
-	//--- sequence required for processing requests
-	{
-		// websockets is the main communication transport
-		Type:        wss.HiveotWebsocketServerModuleType,
-		Constructor: wsspkg.NewHiveotWssServerFactory,
-	},
-
 	// todo: add optional logging of requests
 	// todo: optional authorization of requests
 
 	{
 		// Module slot for the application module.
-		// Use this slot to allow modules to publish their TD for discovery as it is
+		// This is the application module. This place lets it publish its TD for discovery as it is
 		// placed before those modules.
 		// Use Chain.SetSlot(AppSlotType, moduleDef)
 		Type: AppSlotType,
@@ -71,7 +73,7 @@ var ServerDeviceModuleChain = []factory.ModuleDefinition{
 	},
 }
 
-// NewServerDeviceRecipe creates a recipe for IOT devices running a server.
+// NewStandAloneDeviceRecipe creates a recipe for standalone IOT devices running a server.
 //
 // 1. load CA and server certificate
 // 2. Run a http server to publish the device TD
@@ -85,9 +87,9 @@ var ServerDeviceModuleChain = []factory.ModuleDefinition{
 // appModule is the module definition of the exposed thing to inject in the app slot.
 //
 // This returns the recipe, which can be used like any other module
-func NewServerDeviceRecipe(
-	f factory.IModuleFactory, appModule *factory.ModuleDefinition) factory.IRecipe {
-	chain := ServerDeviceModuleChain
+func NewStandAloneDeviceRecipe(
+	f api.IModuleFactory, appModule *api.ModuleDefinition) api.IRecipe {
+	chain := StandAloneDeviceModuleChain
 
 	r := factorypkg.NewChainRecipe(f, chain)
 	// place the application module before discovery

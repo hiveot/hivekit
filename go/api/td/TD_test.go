@@ -5,8 +5,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/hiveot/hivekit/go/api"
 	"github.com/hiveot/hivekit/go/api/td"
-	"github.com/hiveot/hivekit/go/modules/transport"
 	"github.com/stretchr/testify/require"
 
 	"github.com/stretchr/testify/assert"
@@ -186,7 +186,7 @@ func TestForms(t *testing.T) {
 	require.NotNil(t, f3)
 
 	f1b, href, err := tdoc.GetFormHRef(
-		td.OpWriteProperty, prop1Name, transport.ProtocolSchemeWotHttpBasic, nil)
+		td.OpWriteProperty, prop1Name, api.ProtocolSchemeWotHttpBasic, nil)
 	assert.NoError(t, err)
 	assert.NotEmpty(t, f1b)
 	assert.NotEmpty(t, href)

@@ -3,7 +3,7 @@ package router
 import (
 	"time"
 
-	"github.com/hiveot/hivekit/go/modules"
+	"github.com/hiveot/hivekit/go/api"
 )
 
 const RouterModuleType = "router"
@@ -12,7 +12,7 @@ const RouterModuleType = "router"
 const DefaultRouterThingID = "router"
 
 type IRouterService interface {
-	modules.IHiveModule
+	api.IHiveModule
 
 	// Add the secret to access a Thing on a device.
 	//

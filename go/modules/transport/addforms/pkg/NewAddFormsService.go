@@ -1,9 +1,7 @@
 package addformspkg
 
 import (
-	"github.com/hiveot/hivekit/go/modules"
-	"github.com/hiveot/hivekit/go/modules/factory"
-	"github.com/hiveot/hivekit/go/modules/transport"
+	"github.com/hiveot/hivekit/go/api"
 	"github.com/hiveot/hivekit/go/modules/transport/addforms"
 	"github.com/hiveot/hivekit/go/modules/transport/addforms/internal"
 )
@@ -13,11 +11,11 @@ import (
 // transport servers.
 // It should be placed behind the publisher in the chain and either before the discovery
 // or the directory server, whichever one is used.
-func NewAddFormsService(tpServers []transport.ITransportServer) addforms.IAddFormsService {
+func NewAddFormsService(tpServers []api.ITransportServer) addforms.IAddFormsService {
 	return internal.NewAddFormsServiceImpl(tpServers)
 }
 
-func NewAddFormsServiceFactory(f factory.IModuleFactory, md *factory.ModuleDefinition) (modules.IHiveModule, error) {
+func NewAddFormsServiceFactory(f api.IModuleFactory, md *api.ModuleDefinition) (api.IHiveModule, error) {
 	tpServers := f.GetTransportServers()
 	m := internal.NewAddFormsServiceImpl(tpServers)
 	return m, nil

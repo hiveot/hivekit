@@ -1,8 +1,7 @@
 package discoverypkg
 
 import (
-	"github.com/hiveot/hivekit/go/modules"
-	"github.com/hiveot/hivekit/go/modules/factory"
+	"github.com/hiveot/hivekit/go/api"
 	"github.com/hiveot/hivekit/go/modules/transport/discovery"
 	internal "github.com/hiveot/hivekit/go/modules/transport/discovery/internal/client"
 )
@@ -11,7 +10,7 @@ import (
 //
 // appEnv is optional. On Start it will be updated with the discovered directory and server.
 // discoOnStart runs a directory discovery on startup.
-func NewDiscoveryClient(appEnv *factory.AppEnvironment, discoOnStart bool) discovery.IDiscoveryClient {
+func NewDiscoveryClient(appEnv *api.AppEnvironment, discoOnStart bool) discovery.IDiscoveryClient {
 	cl := internal.NewDiscoveryClientImpl(appEnv, discoOnStart)
 	return cl
 }
@@ -22,7 +21,7 @@ func NewDiscoveryClient(appEnv *factory.AppEnvironment, discoOnStart bool) disco
 // This automatically runs discovery of things on the network on Start()
 //
 // Intended to be used by a client side factory recipe to automatically discover devices.
-func NewDiscoveryClientFactory(f factory.IModuleFactory, md *factory.ModuleDefinition) (modules.IHiveModule, error) {
+func NewDiscoveryClientFactory(f api.IModuleFactory, md *api.ModuleDefinition) (api.IHiveModule, error) {
 	appEnv := f.GetEnvironment()
 	cl := NewDiscoveryClient(appEnv, true)
 	// nothing else to do here right now

@@ -8,10 +8,8 @@ import (
 	"net/url"
 	"strings"
 
+	"github.com/hiveot/hivekit/go/api"
 	"github.com/hiveot/hivekit/go/api/td"
-	"github.com/hiveot/hivekit/go/modules"
-	"github.com/hiveot/hivekit/go/modules/factory"
-	"github.com/hiveot/hivekit/go/modules/transport"
 	grpcpkg "github.com/hiveot/hivekit/go/modules/transport/grpc/pkg"
 	httpbasicpkg "github.com/hiveot/hivekit/go/modules/transport/httpbasic/pkg"
 	ssescpkg "github.com/hiveot/hivekit/go/modules/transport/ssesc/pkg"
@@ -23,12 +21,12 @@ const TransportClientModuleType = "transport-client"
 
 // list of supported client protocols
 var SupportedClientProtocols = []string{
-	transport.ProtocolSchemeHiveotGrpc,
-	transport.ProtocolSchemeHiveotSseSc,
-	transport.SubprotocolHiveotWebsocket,
-	transport.SubprotocolWotWebsocket,
-	transport.ProtocolSchemeWotHttpBasic,
-	// transport.ProtocolSchemeWotMqtt,
+	api.ProtocolSchemeHiveotGrpc,
+	api.ProtocolSchemeHiveotSseSc,
+	api.SubprotocolHiveotWebsocket,
+	api.SubprotocolWotWebsocket,
+	api.ProtocolSchemeWotHttpBasic,
+	// api.ProtocolSchemeWotMqtt,
 }
 
 // GetProtocolType returns the protocol used for connecting to this device.
@@ -67,14 +65,14 @@ func GetProtocolType(tdoc *td.TD, op string) (protocolType string, href string) 
 	}
 	// 3. determine the protocol type from the subprotocol
 	switch subprotocol {
-	case transport.SubprotocolHiveotSsesc:
-		protocolType = transport.ProtocolTypeHiveotSsesc
-	case transport.SubprotocolHiveotWebsocket:
-		protocolType = transport.ProtocolTypeHiveotWebsocket
-	case transport.SubprotocolWotWebsocket:
-		protocolType = transport.ProtocolTypeWotWebsocket
-	case transport.SubprotocolWotHttpLongPoll:
-		protocolType = transport.ProtocolTypeWotHttpLongPoll
+	case api.SubprotocolHiveotSsesc:
+		protocolType = api.ProtocolTypeHiveotSsesc
+	case api.SubprotocolHiveotWebsocket:
+		protocolType = api.ProtocolTypeHiveotWebsocket
+	case api.SubprotocolWotWebsocket:
+		protocolType = api.ProtocolTypeWotWebsocket
+	case api.SubprotocolWotHttpLongPoll:
+		protocolType = api.ProtocolTypeWotHttpLongPoll
 	}
 
 	// if a subprotocol is found then use it
@@ -89,16 +87,16 @@ func GetProtocolType(tdoc *td.TD, op string) (protocolType string, href string) 
 	}
 	scheme := strings.ToLower(parts.Scheme)
 	switch scheme {
-	case transport.ProtocolSchemeHiveotGrpc:
-		protocolType = transport.ProtocolTypeHiveotGrpc
-	case transport.ProtocolSchemeWotHttpBasic:
-		protocolType = transport.ProtocolTypeWotHttpBasic
-	case transport.ProtocolSchemeWotWebsocket:
-		protocolType = transport.ProtocolTypeWotWebsocket
-	case transport.ProtocolSchemeWotMqtt:
-		protocolType = transport.ProtocolTypeWotMqtt
-	case transport.ProtocolSchemeWotSse:
-		protocolType = transport.ProtocolTypeWotSse
+	case api.ProtocolSchemeHiveotGrpc:
+		protocolType = api.ProtocolTypeHiveotGrpc
+	case api.ProtocolSchemeWotHttpBasic:
+		protocolType = api.ProtocolTypeWotHttpBasic
+	case api.ProtocolSchemeWotWebsocket:
+		protocolType = api.ProtocolTypeWotWebsocket
+	case api.ProtocolSchemeWotMqtt:
+		protocolType = api.ProtocolTypeWotMqtt
+	case api.ProtocolSchemeWotSse:
+		protocolType = api.ProtocolTypeWotSse
 	default:
 		protocolType = scheme
 	}
@@ -120,7 +118,7 @@ func GetProtocolType(tdoc *td.TD, op string) (protocolType string, href string) 
 // This is intended to be used as a sink for application modules.
 func NewTransportClient(
 	protocolType string, serverURL string, caCert *x509.Certificate) (
-	cl transport.ITransportClient, err error) {
+	cl api.ITransportClient, err error) {
 
 	// // 1. determine the connection address
 	// if serverURL == "" {
@@ -145,43 +143,43 @@ func NewTransportClient(
 	if protocolType == "" {
 		scheme := strings.ToLower(parts.Scheme)
 		switch scheme {
-		case transport.ProtocolSchemeHiveotGrpc:
-			protocolType = transport.ProtocolTypeHiveotGrpc
-		case transport.ProtocolSchemeWotHttpBasic:
-			protocolType = transport.ProtocolTypeWotHttpBasic
-		case transport.ProtocolSchemeWotWebsocket:
-			protocolType = transport.ProtocolTypeWotWebsocket
-		case transport.ProtocolSchemeWotMqtt:
-			protocolType = transport.ProtocolTypeWotMqtt
-		case transport.ProtocolSchemeWotSse:
-			protocolType = transport.ProtocolTypeWotSse
+		case api.ProtocolSchemeHiveotGrpc:
+			protocolType = api.ProtocolTypeHiveotGrpc
+		case api.ProtocolSchemeWotHttpBasic:
+			protocolType = api.ProtocolTypeWotHttpBasic
+		case api.ProtocolSchemeWotWebsocket:
+			protocolType = api.ProtocolTypeWotWebsocket
+		case api.ProtocolSchemeWotMqtt:
+			protocolType = api.ProtocolTypeWotMqtt
+		case api.ProtocolSchemeWotSse:
+			protocolType = api.ProtocolTypeWotSse
 		default:
 			protocolType = scheme
 		}
 	}
 
 	switch protocolType {
-	case transport.ProtocolTypeHiveotGrpc:
+	case api.ProtocolTypeHiveotGrpc:
 		// don't use TLS on unix domain sockets
 		// if strings.HasPrefix(serverURL, "unix") {
 		// 	caCert = nil
 		// }
 		cl = grpcpkg.NewHiveotGrpcClient(serverURL, caCert)
 
-	case transport.ProtocolTypeHiveotSsesc:
+	case api.ProtocolTypeHiveotSsesc:
 		cl = ssescpkg.NewSseScClient(serverURL, caCert)
 
-	case transport.ProtocolTypeHiveotWebsocket:
+	case api.ProtocolTypeHiveotWebsocket:
 		cl = wsspkg.NewHiveotWssClient(serverURL, caCert)
 
-	case transport.ProtocolTypeWotWebsocket:
+	case api.ProtocolTypeWotWebsocket:
 		cl = wsspkg.NewWotWssClient(serverURL, caCert)
 
-	case transport.ProtocolTypeWotHttpBasic:
+	case api.ProtocolTypeWotHttpBasic:
 		caCert := caCert
 		cl = httpbasicpkg.NewHttpBasicClient(serverURL, caCert, nil)
 
-	//case transport.ProtocolTypeWotMQTTWSS:
+	//case api.ProtocolTypeWotMQTTWSS:
 	//	fullURL = testServerMqttWssURL
 	default:
 		err = fmt.Errorf("NewTransportClient. Unknown protocol '%s'", scheme)
@@ -194,7 +192,7 @@ func NewTransportClient(
 //
 // This uses the TD base to determine the connection protocol.
 func NewTransportClientFromTD(
-	tdoc *td.TD, caCert *x509.Certificate) (cl transport.ITransportClient, err error) {
+	tdoc *td.TD, caCert *x509.Certificate) (cl api.ITransportClient, err error) {
 
 	protocolType, href := GetProtocolType(tdoc, "")
 	cl, err = NewTransportClient(protocolType, href, caCert)
@@ -203,8 +201,8 @@ func NewTransportClientFromTD(
 
 // Create a new client instance using the gathered information from the factory
 // This uses the factory serverURL or server TD to determine which protocol to instantiate
-func NewTransportClientFactory(f factory.IModuleFactory,
-	md *factory.ModuleDefinition) (cl modules.IHiveModule, err error) {
+func NewTransportClientFactory(f api.IModuleFactory,
+	md *api.ModuleDefinition) (cl api.IHiveModule, err error) {
 
 	serverURL := f.GetEnvironment().ServerURL
 	if serverURL != "" {
