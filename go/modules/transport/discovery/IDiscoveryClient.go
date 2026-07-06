@@ -1,7 +1,6 @@
 package discovery
 
 import (
-	"crypto/x509"
 	"fmt"
 	"time"
 
@@ -47,7 +46,61 @@ func (dr *DiscoveryResult) AsURL() string {
 type IDiscoveryClient interface {
 	api.IHiveModule
 
-	// DiscoverDevices returns a list of discovery records of WoT compatible devices.
+	// DiscoverDirectories supports introduction mechanisms to bootstrap the WoT discovery
+	// process and returns a list of discovered directory TD URLs with the wot service name.
+	//
+	// Intended for clients that need to find one or more WoT directories.
+	//
+	//	searchTime is the time to search for.
+	//	cb is the optional callback to call for each discovered thing. It should
+	//  return true to stop or false to continue searching up until the searchTime.
+	//
+	// This returns a list of all discoveries or an error if discovery was unable to run
+	DiscoverDirectories(searchTime time.Duration, cb func(*DiscoveryResult) bool) ([]*DiscoveryResult, error)
+
+	// Discover directories and load their TD's
+	// If a TD cannot be downloaded it is ignored.
+	DiscoverDirectoryTDs(searchTime time.Duration) ([]*DiscoveryResult, []*td.TD)
+
+	// DiscoverDirectory returns the discovery record of the first discovered directory
+	//
+	//	instanceName is the optional name of a non-default service instance.
+	//   this defaults to WOT_DIRECTORY_SERVICE_TYPE (_directory._sub._wot._tcp)
+	//	maxWaitTime defaults to 3 seconds
+	//
+	//	This returns the record or nil if none was found within the search time.
+	//	This returns an error if it wasn't possible to run discovery.
+	DiscoverFirstDirectory(
+		instanceName string, maxWaitTime time.Duration) (rec0 *DiscoveryResult, err error)
+
+	// DiscoverDirectoryTD returns the TD of the first discovered directory
+	//
+	//	instanceName is the optional name of a non-default service instance, or "" for default.
+	//   this defaults to WOT_DIRECTORY_SERVICE_TYPE (_directory._sub._wot._tcp)
+	//	maxWaitTime defaults to 3 seconds
+	//
+	//	This returns the TD, its JSON, if found
+	//	This returns an error if it wasn't possible to run discovery.
+	DiscoverFirstDirectoryTD(
+		instanceName string, maxWaitTime time.Duration) (tdoc *td.TD, tddJson string, err error)
+
+	// DiscoverFirstGateway returns the discovery record if the first gateway server.
+	//
+	// To distinguish a gateway from other IoT devices it uses a predefined serviceID,
+	// defined in discovery.DefaultGatewayServiceID.
+	//
+	// A custom instance name can be provided or "" for default.
+	//
+	//	instanceName is the optional name of the directory instance, "" for default
+	//   this defaults to HIVEOT_GATEWAY_SERVICE_TYPE (_gateway._sub._wot._tcp)
+	//	searchTime defaults to 3 seconds
+	//
+	//	This returns the record or nil if none was found within 3 seconds.
+	//	This returns an error if it wasn't possible to run discovery.
+	// DiscoverFirstGateway(instanceName string, searchTime time.Duration) (rec0 *DiscoveryResult, err error)
+
+	// DiscoverThings returns a list of all discovery records of all WoT compatible devices,
+	// including Things, Directories and Gateways.
 	//
 	//	instanceName is the optional name of the directory instance, "" for default
 	//   this defaults to WOT_DEVICE_SERVICE_TYPE (_wot._tcp)
@@ -60,55 +113,15 @@ type IDiscoveryClient interface {
 	DiscoverThings(instanceName string, searchTime time.Duration,
 		cb func(*DiscoveryResult) bool) (recs []*DiscoveryResult, err error)
 
-	// DiscoverDirectories supports introduction mechanisms to bootstrap the WoT discovery
-	// process and returns a list of discovered directory TD URLs with the wot service name.
-	//
-	// Intended for clients that need to find one or more WoT directories.
-	//
-	//	instanceName is optional and intended to search for a particular instance by name, such as 'hub'.
-	//	searchTime is the time to search for.
-	//	cb is the optional callback to call for each discovered thing. It should
-	//  return true to stop or false to continue searching up until the searchTime.
-	//
-	// This returns a list of all discoveries or an error if discovery was unable to run
-	DiscoverDirectories(instanceName string, searchTime time.Duration,
-		cb func(*DiscoveryResult) bool) ([]*DiscoveryResult, error)
-
-	// DiscoverDirectory returns the discovery record of the first discovered directory
-	//
-	//	instanceName is the optional name of a non-default service instance.
-	//   this defaults to WOT_DIRECTORY_SERVICE_TYPE (_directory._sub._wot._tcp)
-	//	searchTime defaults to 3 seconds
-	//
-	//	This returns the record or nil if none was found within 3 seconds.
-	//	This returns an error if it wasn't possible to run discovery.
-	DiscoverFirstDirectory(instanceName string, searchTime time.Duration) (rec0 *DiscoveryResult, err error)
-
-	// DiscoverFirstGateway returns the discovery record if the first gateway server.
-	//
-	// To distinguish a gateway from other IoT devices it uses a predefined serviceID,
-	// defined in discovery.DefaultGatewayServiceID.
-	//
-	// A custom instance name can be provided or "" for default.
-	//
-	//	instanceName is the optional name of the directory instance, "" for default
-	//   this defaults to WOT_DIRECTORY_SERVICE_TYPE (_directory._sub._wot._tcp)
-	//	searchTime defaults to 3 seconds
-	//
-	//	This returns the record or nil if none was found within 3 seconds.
-	//	This returns an error if it wasn't possible to run discovery.
-	DiscoverFirstGateway(instanceName string, searchTime time.Duration) (rec0 *DiscoveryResult, err error)
+	// Discover Things and download their TD
+	DiscoverThingTDs(instanceName string, searchTime time.Duration,
+		cb func(*td.TD) bool) ([]*DiscoveryResult, []*td.TD)
 
 	// DownloadTD a TD document from a discovery record.
 	// Intended to obtain the TD of a discovered directory or thing.
 	//
 	// tdURL points to the discovery spec http well-known endpoint address.
-	// caCert is optional CA to verify the server validity. nil skips this validation.
 	//
 	// This returns the TD, its JSON or an error if none is found
-	LoadTD(tdURL string, caCert *x509.Certificate) (
-		tdoc *td.TD, tdJSON string, err error)
-
-	// Return the first directory TD that was discovered on startup
-	GetTDD() (dirTD *td.TD)
+	LoadTD(tdURL string) (tdoc *td.TD, tdJSON string, err error)
 }

@@ -1,7 +1,7 @@
 package directoryclient
 
 import (
-	"fmt"
+	"path"
 
 	"github.com/hiveot/hivekit/go/api"
 	"github.com/hiveot/hivekit/go/api/msg"
@@ -19,6 +19,9 @@ import (
 type DirectoryClientImpl struct {
 	*modules.HiveModuleBase
 
+	// configuration folder potentially containing a TDD file
+	configDir string
+
 	// TBD: should the directory cache support the filesystem for out-of-band TDs?
 	cache *DirectoryCacheImpl
 
@@ -29,64 +32,73 @@ type DirectoryClientImpl struct {
 	dirTDD *td.TD
 }
 
+// Send a request to the directory server.
+//
+// Use the TDD ThingID if known. Otherwise fall back to the default directory ThingID.
+func (m *DirectoryClientImpl) _sendServerRequest(
+	op string, action string, input any, output any) error {
+
+	var dirID = directory.DefaultDirectoryThingID
+
+	if m.dirTDD != nil {
+		dirID = m.dirTDD.ID
+	}
+	// this assumes that the client knows how to reach the directory. This is not a concern
+	// if this module though.
+	err := m.Rpc(op, dirID, action, input, output)
+	return err
+}
+
 // Return the local cache of Things
-func (cl *DirectoryClientImpl) Cache() directory.IDirectoryCache {
-	return cl.cache
+func (m *DirectoryClientImpl) Cache() directory.IDirectoryCache {
+	return m.cache
 }
 
 // Send request to delete a TD
-func (cl *DirectoryClientImpl) DeleteThing(thingID string) error {
-	cl.cache.RemoveTD(thingID)
-
-	// the senderID is added by the transport server
-	err := cl.Rpc(td.OpInvokeAction,
-		cl.dirTDD.ID, directory.DeleteThingAction, thingID, nil)
+func (m *DirectoryClientImpl) DeleteThing(thingID string) error {
+	m.cache.RemoveTD(thingID)
+	err := m._sendServerRequest(td.OpInvokeAction, directory.DeleteThingAction, thingID, nil)
 	return err
 }
 
 // Receive notifications from the directory service to update the directory
-func (cl *DirectoryClientImpl) HandleNotification(notif *msg.NotificationMessage) {
-	cl.HiveModuleBase.HandleNotification(notif)
+func (m *DirectoryClientImpl) HandleNotification(notif *msg.NotificationMessage) {
+	m.HiveModuleBase.HandleNotification(notif)
 }
 
-// Read the TDD from a configuration file (not yet supported)
-func (cl *DirectoryClientImpl) readTDDFromFile() (*td.TD, error) {
-	return nil, fmt.Errorf("Read TDD from file is not yet supported")
-}
-
-func (cl *DirectoryClientImpl) RetrieveThing(thingID string) (tdoc *td.TD, err error) {
+func (m *DirectoryClientImpl) RetrieveThing(thingID string) (tdoc *td.TD, err error) {
 
 	// first try the cache
-	tdoc = cl.cache.GetThing(thingID)
+	tdoc = m.cache.GetThing(thingID)
 	if tdoc != nil {
 		return tdoc, nil
 	}
 
 	//retrieve the TD and update the local cache
 	var tdJson string
-	err = cl.Rpc(td.OpInvokeAction,
-		cl.dirTDD.ID, directory.RetrieveThingAction, thingID, &tdJson)
+	err = m._sendServerRequest(
+		td.OpInvokeAction, directory.RetrieveThingAction, thingID, &tdJson)
 	if err != nil {
 		return nil, err
 	}
-	tdoc, err = cl.cache.ImportTD(tdJson)
+	tdoc, err = m.cache.ImportTDJson(tdJson)
 	return tdoc, err
 }
 
-func (cl *DirectoryClientImpl) RetrieveAllThings(offset int, limit int) (tdList []*td.TD, err error) {
+func (m *DirectoryClientImpl) RetrieveAllThings(offset int, limit int) (tdList []*td.TD, err error) {
 
 	args := directory.RetrieveAllThingsArgs{
 		Offset: offset,
 		Limit:  limit,
 	}
 	var tdJsonList []string
-	err = cl.Rpc(td.OpInvokeAction,
-		cl.dirTDD.ID, directory.RetrieveAllThingsAction, args, &tdJsonList)
+	err = m._sendServerRequest(
+		td.OpInvokeAction, directory.RetrieveAllThingsAction, args, &tdJsonList)
 
 	// import them into the cache
 	tdList = make([]*td.TD, 0, len(tdJsonList))
 	for _, tdJson := range tdJsonList {
-		tdoc, err := cl.cache.ImportTD(tdJson)
+		tdoc, err := m.cache.ImportTDJson(tdJson)
 		if err == nil {
 			tdList = append(tdList, tdoc)
 		}
@@ -95,8 +107,8 @@ func (cl *DirectoryClientImpl) RetrieveAllThings(offset int, limit int) (tdList 
 }
 
 // Set the directory TD to use.
-func (cl *DirectoryClientImpl) SetTDD(tdd *td.TD) {
-	cl.dirTDD = tdd
+func (m *DirectoryClientImpl) SetTDD(tdd *td.TD) {
+	m.dirTDD = tdd
 }
 
 // Start the directory client and retrieve the TDD.
@@ -106,10 +118,13 @@ func (cl *DirectoryClientImpl) SetTDD(tdd *td.TD) {
 // configured TDD.
 //
 // Start fails if no TDD is found.
-func (cl *DirectoryClientImpl) Start() (err error) {
+func (m *DirectoryClientImpl) Start() (err error) {
 
-	if cl.dirTDD == nil {
-		cl.dirTDD, err = cl.readTDDFromFile()
+	if m.dirTDD == nil {
+		dirTDDPath := path.Join(m.configDir, directory.ConfigTDDFilename)
+		m.dirTDD, err = td.ReadTDFromFile(dirTDDPath)
+		// not having a TDD is not fatal
+		err = nil
 	}
 	return err
 }
@@ -142,7 +157,7 @@ func (cl *DirectoryClientImpl) Start() (err error) {
 //
 // This listens for directory notifications from the sink to receive directory updates.
 //
-//	dirTDD is the optional directory TD from external source.
+//	dirTDD is the optional directory TD from external source. Use SetTDD if not yet available.
 //	sink forwards requests to the directory server and returns notifications. nil to set manually.
 func NewDirectoryClientImpl(dirTDD *td.TD, sink api.IHiveModule) *DirectoryClientImpl {
 

@@ -17,6 +17,7 @@ func TestServerRecipe(t *testing.T) {
 	const TestDeviceModuleType = "testDevice"
 
 	env := api.NewAppEnvironment(testDir, false)
+	env.HttpsPort = testPort
 	serverFactory := factorypkg.NewModuleFactory(env, nil)
 
 	// use test device factory

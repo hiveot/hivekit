@@ -158,3 +158,10 @@ type IModuleFactory interface {
 	// Call StopAll() afters this returns for proper cleanup.
 	WaitForSignal(ctx context.Context)
 }
+
+// Helper to get a module from the factory with the given interface
+func GetFactoryModule[T interface{}](f IModuleFactory, moduleType string) T {
+	m := f.GetModule(moduleType)
+	t, _ := m.(T)
+	return t
+}

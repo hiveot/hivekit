@@ -47,10 +47,10 @@ func TestSubscribeAll(t *testing.T) {
 	defer cancelFn()
 
 	// 2. connect as consumers
-	co1, cc1, _ := testEnv.NewConnectedConsumer(testClientID1, authn.ClientRoleViewer, false)
+	co1, cc1, _ := testEnv.NewConnectedConsumer(testClientID1, authn.ClientRoleViewer)
 	defer cc1.Close()
 
-	co2, cc2, _ := testEnv.NewConnectedConsumer(testClientID1, authn.ClientRoleViewer, false)
+	co2, cc2, _ := testEnv.NewConnectedConsumer(testClientID1, authn.ClientRoleViewer)
 	defer cc2.Close()
 
 	// set the handler for events and subscribe
@@ -117,7 +117,7 @@ func TestSubscribeReconnect(t *testing.T) {
 	defer cancelFn()
 
 	// 2. connect a consumer with reconnect capability
-	co1, cc1, _ := testEnv.NewConnectedConsumer(testClientID1, authn.ClientRoleViewer, true)
+	co1, cc1, _ := testEnv.NewReconnectedConsumer(testClientID1, authn.ClientRoleViewer)
 	defer cc1.Close()
 
 	// Consumer subscribes to events.
@@ -231,7 +231,7 @@ func TestReadEvent(t *testing.T) {
 	defer cancelFn()
 
 	// 2. connect as a consumer
-	co1, cc1, _ := testEnv.NewConnectedConsumer(testClientID1, authn.ClientRoleViewer, false)
+	co1, cc1, _ := testEnv.NewConnectedConsumer(testClientID1, authn.ClientRoleViewer)
 	defer cc1.Close()
 
 	evNotif, err := co1.ReadEvent(thingID, eventKey)

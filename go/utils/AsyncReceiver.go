@@ -60,6 +60,8 @@ func (arx *AsyncReceiver[T]) WaitForResponse(timeout time.Duration) (T, error) {
 	return arx.data, err
 }
 
+// Create a new receiver of async messages.
+// FIXME: this should take a context that can be cancelled.
 func NewAsyncReceiver[T comparable]() AsyncReceiver[T] {
 	r := AsyncReceiver[T]{
 		// use a buffer of 1 to allow setting response before waiting

@@ -1,4 +1,4 @@
-package wotcli
+package cliapp
 
 import (
 	"fmt"
@@ -24,10 +24,10 @@ func (app *CliApp) ShowStatus(thingID string, subscribe bool) {
 	// 2. import the TD into the directory client cache
 	for _, rec := range recs {
 		tdURL := rec.AsURL()
-		tdoc, tdJSON, err := app.discoClient.LoadTD(tdURL, app.caCert)
+		tdoc, _, err := app.discoClient.LoadTD(tdURL)
 		_ = tdoc
 		if err == nil {
-			app.dirClient.Cache().ImportTD(tdJSON)
+			app.dirClient.Cache().ImportTD(tdoc)
 		}
 	}
 

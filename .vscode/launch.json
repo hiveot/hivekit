@@ -39,7 +39,7 @@
             "program": "${workspaceFolder}/go/examples/example2/main.go",
             "showLog": false,
             "env": {},
-            "args": ["subscribe", "counter1"],
+            "args": ["discover"],
             "logOutput": "rpc",
             // "console": "integratedTerminal",
         },

@@ -100,6 +100,7 @@ func (m *RouterServiceImpl) GetClientConnection(tdi *td.TD, op string) (cl api.I
 			return nil, err
 		}
 		if m.autoReconnect {
+			// reconnect connects the client on start
 			rc := reconnectpkg.NewReconnectClient(c)
 			cl = rc
 		} else {
@@ -108,6 +109,7 @@ func (m *RouterServiceImpl) GetClientConnection(tdi *td.TD, op string) (cl api.I
 		m.deviceConnections[origin] = cl
 		// forward notifications to this module and up to its consumer
 		cl.SetNotificationSink(m)
+		// last, Connect. If reconnect is used it will connect the client
 		err = cl.Start()
 	}
 	m.cmux.Unlock()

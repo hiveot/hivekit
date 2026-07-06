@@ -1,4 +1,4 @@
-package wottui
+package tuiapp
 
 import (
 	"github.com/gdamore/tcell/v2"

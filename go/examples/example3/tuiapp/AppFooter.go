@@ -1,23 +1,22 @@
-package wottui
+package tuiapp
 
 import (
 	"github.com/gdamore/tcell/v2"
-	"github.com/hiveot/hivekit/go/examples/wotco"
+	"github.com/hiveot/hivekit/go/api/td"
 	"github.com/rivo/tview"
 )
 
 // The application footer are that shows the current activity and ?
 type AppFooter struct {
 	View          *tview.Flex
-	model         *wotco.WotConsumer
 	listThingsBtn *tview.Button
 	nextPageBtn   *tview.Button
 	handler       func(ev ...string)
 }
 
 // Reload the text being shown using updated values
-func (footer *AppFooter) Refresh() {
-	hasThings := len(footer.model.GetThings()) > 0
+func (footer *AppFooter) Refresh(allThings []*td.TD) {
+	hasThings := len(allThings) > 0
 
 	// disable the list things button if there are no things loaded
 	footer.listThingsBtn.SetDisabled(!hasThings)
@@ -35,7 +34,7 @@ func (footer *AppFooter) submit(ev string) {
 }
 
 // Create a new instance of the application view
-func NewAppFooter(model *wotco.WotConsumer) *AppFooter {
+func NewAppFooter() *AppFooter {
 
 	view := tview.NewFlex().SetDirection(tview.FlexColumn)
 
@@ -44,11 +43,11 @@ func NewAppFooter(model *wotco.WotConsumer) *AppFooter {
 
 	listThingsBtn := tview.NewButton("(l) List Things")
 	view.AddItem(listThingsBtn, 17, 1, false)
-	listThingsBtn.SetDisabled(len(model.GetThings()) == 0)
+	listThingsBtn.SetDisabled(true)
 
 	nextPageBtn := tview.NewButton("(tab) Toggle Views")
 	view.AddItem(nextPageBtn, 20, 1, false)
-	nextPageBtn.SetDisabled(len(model.GetThings()) == 0)
+	nextPageBtn.SetDisabled(true)
 
 	filler := tview.NewBox()
 	filler.SetBackgroundColor(tcell.Color(tview.Styles.ContrastBackgroundColor))
@@ -61,7 +60,6 @@ func NewAppFooter(model *wotco.WotConsumer) *AppFooter {
 
 	footer := &AppFooter{
 		View:          view,
-		model:         model,
 		listThingsBtn: listThingsBtn,
 		nextPageBtn:   nextPageBtn,
 	}

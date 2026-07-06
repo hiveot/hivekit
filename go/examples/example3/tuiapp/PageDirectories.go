@@ -1,8 +1,8 @@
-package wottui
+package tuiapp
 
 import (
 	"github.com/araddon/dateparse"
-	"github.com/hiveot/hivekit/go/examples/wotco"
+	"github.com/hiveot/hivekit/go/api/td"
 	"github.com/hiveot/hivekit/go/utils"
 	"github.com/rivo/tview"
 )
@@ -10,7 +10,6 @@ import (
 // Show the loaded directories in the main view
 type DirectoriesPage struct {
 	TuiTable
-	model     *wotco.WotConsumer
 	evHandler func(ev ...string)
 }
 
@@ -37,27 +36,24 @@ func (v *DirectoriesPage) GetDirectoryID(row int) string {
 }
 
 // Show the loaded directories in the main view
-// this rotates through different tables
-func (v *DirectoriesPage) Refresh() {
+func (v *DirectoriesPage) Refresh(dirList []*td.TD) {
 	v.titleColor = tview.Styles.TertiaryTextColor
 
 	v.SetTitle(" Discovered Directories ")
 	v.SetBorders(false)
 	v.SetSelectable(true, false)
 
-	tdList := v.model.GetDirectories()
-
 	// start with an empty table
 	v.Clear()
 	v.SetTitleRow(0, "DirectoryID", "Title", "Security", "Base URL", "Modified")
 	row := 0
-	for thingID, tdoc := range tdList {
+	for _, tdoc := range dirList {
 		row++
 		sec := utils.DecodeAsString(tdoc.Security, 20)
 		modified := dateparse.MustParse(tdoc.Modified).Local()
 		modString := modified.Format("2006-01-02 15:04")
 
-		v.SetDataRow(row, thingID, tdoc.Title, sec, tdoc.Base, modString)
+		v.SetDataRow(row, tdoc.ID, tdoc.Title, sec, tdoc.Base, modString)
 	}
 }
 
@@ -72,15 +68,14 @@ func (v *DirectoriesPage) submitEvent(ev string, thingID string) {
 	}
 }
 
-// Return a new page with a table of known thing TDs
-func NewDirectoriesPage(model *wotco.WotConsumer) *DirectoriesPage {
+// Return a new page with a table of known directory TDs
+func NewDirectoriesPage() *DirectoriesPage {
 
 	directoriesPage := &DirectoriesPage{
 		TuiTable: *NewTuiTable(tview.Styles.TertiaryTextColor),
-		model:    model,
 	}
 	directoriesPage.SetBorder(true)
-	directoriesPage.Refresh()
+	directoriesPage.Refresh(nil)
 	directoriesPage.Table.SetSelectedFunc(func(row int, column int) {
 		thingID := directoriesPage.GetDirectoryID(row)
 		directoriesPage.submitEvent(MenuEvShowDirectory, thingID)

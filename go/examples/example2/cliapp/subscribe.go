@@ -1,4 +1,4 @@
-package wotcli
+package cliapp
 
 import (
 	"fmt"

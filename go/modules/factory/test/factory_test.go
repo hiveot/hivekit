@@ -39,21 +39,22 @@ func TestMain(m *testing.M) {
 
 func TestAppEnv(t *testing.T) {
 
-	f := api.NewAppEnvironment(testDir, false)
-	if f.HomeDir != testDir {
-		t.Errorf("Expected homeDir to be %s, got %s", testDir, f.HomeDir)
+	env := api.NewAppEnvironment(testDir, false)
+	env.HttpsPort = testPort
+	if env.HomeDir != testDir {
+		t.Errorf("Expected homeDir to be %s, got %s", testDir, env.HomeDir)
 	}
-	if f.BinDir != path.Join(testDir, "bin") {
-		t.Errorf("Expected binDir to be %s, got %s", path.Join(testDir, "bin"), f.BinDir)
+	if env.BinDir != path.Join(testDir, "bin") {
+		t.Errorf("Expected binDir to be %s, got %s", path.Join(testDir, "bin"), env.BinDir)
 	}
 	// if f.PluginsDir != path.Join(testDir, "plugins") {
 	// t.Errorf("Expected pluginsDir to be %s, got %s", path.Join(testDir, "plugins"), f.PluginsDir)
 	// }
-	if f.CertsDir != path.Join(testDir, "certs") {
-		t.Errorf("Expected certsDir to be %s, got %s", path.Join(testDir, "certs"), f.CertsDir)
+	if env.CertsDir != path.Join(testDir, "certs") {
+		t.Errorf("Expected certsDir to be %s, got %s", path.Join(testDir, "certs"), env.CertsDir)
 	}
-	if f.LogsDir != path.Join(testDir, "logs") {
-		t.Errorf("Expected logsDir to be %s, got %s", path.Join(testDir, "logs"), f.LogsDir)
+	if env.LogsDir != path.Join(testDir, "logs") {
+		t.Errorf("Expected logsDir to be %s, got %s", path.Join(testDir, "logs"), env.LogsDir)
 	}
 }
 

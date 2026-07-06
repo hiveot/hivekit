@@ -9,6 +9,9 @@ import (
 
 const DirectoryClientModuleType = "DirectoryClient"
 
+// The filename of the TDD in the configuration folder, if available
+const ConfigTDDFilename = "tdd.json"
+
 // IDirectoryCache defines the interface of the local cache of TDs
 type IDirectoryCache interface {
 
@@ -25,7 +28,11 @@ type IDirectoryCache interface {
 
 	// Import the TD into the directory client cache.
 	// Intended for discovered things or out of band cache loading.
-	ImportTD(tdJSON string) (*td.TD, error)
+	ImportTD(tdoc *td.TD)
+
+	// Import the raw TD into the directory client cache.
+	// Intended for discovered things or out of band cache loading.
+	ImportTDJson(tdJSON string) (*td.TD, error)
 }
 
 // IDirectoryClient defines the interface to the directory consumer.
@@ -54,6 +61,13 @@ type IDirectoryClient interface {
 	//
 	// This returns an error on insufficient permissions.
 	DeleteThing(thingID string) error
+
+	// Return an instance of a TD from the local cache. (TBD whether this is needed)
+	// These TD's are cached so successive requests do not parse the json each time.
+	// GetTD(thingID string) *td.TD
+
+	// Return the Directory TD and its json from the local cache (TBD whether this is needed)
+	// GetTDD() (*td.TD, string)
 
 	// RetrieveAllThings loads a batch of TD JSON documents from the directory server
 	// and updates the local cache.

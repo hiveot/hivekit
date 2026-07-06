@@ -46,9 +46,16 @@ type AppEnvironment struct {
 	LogLevel   string `yaml:"logLevel,omitempty"`   // logging level: error, warning, info, debug
 	StoresDir  string `yaml:"storesDir,omitempty"`  // Root of the service stores
 
-	// for clients: forced server to connect to: scheme://host/path or "" for auto
+	// For clients: forced server to connect to: scheme://host/path, or "" for auto.
+	// This can be useful to point to a gateway if the directory can't be discovered
+	// or runs on a different server.
 	ServerURL string `yaml:"serverURL,omitempty"`
-	// The provided URL of the TD directory
+
+	// The provided URL of the directory for a direct connection. This is not the
+	// exploration http endpoint but the directory server itself. This endpoint will
+	// accept requests for reading the directory using action names from the directory
+	// specification. See also the directory.IDirectory api for these method names.
+	// This is empty if a directory is not available.
 	DirectoryURL string `yaml:"directoryURL,omitempty"`
 
 	// The CA public certificate that signed the server certificate.

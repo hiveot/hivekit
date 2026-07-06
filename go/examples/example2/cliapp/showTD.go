@@ -1,4 +1,4 @@
-package wotcli
+package cliapp
 
 import (
 	"fmt"
@@ -22,7 +22,7 @@ func (app *CliApp) ShowTD(thingID string) {
 	}
 
 	dirURL := rec0.AsURL()
-	tdd, _, err := app.discoClient.LoadTD(dirURL, app.caCert)
+	tdd, _, err := app.discoClient.LoadTD(dirURL)
 	app.dirClient.SetTDD(tdd)
 
 	// fmt.Printf("found %d Thing(s)", len(tdList))

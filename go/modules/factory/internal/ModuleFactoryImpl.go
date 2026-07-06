@@ -170,7 +170,6 @@ func (f *ModuleFactoryImpl) LoadModule(moduleType string) (m api.IHiveModule, is
 	def, ok := f.moduleMap[moduleType]
 	if !ok {
 		err := fmt.Errorf("LoadModule: module '%s' not found", moduleType)
-		slog.Error(err.Error())
 		return nil, false, err
 	}
 	// ignore empty slots

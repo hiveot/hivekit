@@ -3,13 +3,10 @@ package main
 import (
 	"context"
 	"fmt"
-	"log/slog"
 	"os"
 	"time"
 
 	"github.com/hiveot/hivekit/go/api"
-	"github.com/hiveot/hivekit/go/api/msg"
-	"github.com/hiveot/hivekit/go/api/td"
 
 	factorypkg "github.com/hiveot/hivekit/go/modules/factory/pkg"
 	"github.com/hiveot/hivekit/go/modules/factory/recipes"
@@ -46,16 +43,6 @@ func main() {
 	err := r.Start()
 	if err != nil {
 		fmt.Println("Startup failed: " + err.Error())
-		os.Exit(1)
-	}
-	// increment the counter using a message
-	req := msg.NewRequestMessage(td.OpInvokeAction,
-		testenv.DefaultCounterDeviceThingID,
-		testenv.IncrementActionName, nil)
-	req.SenderID = "main"
-	err = r.HandleRequest(req, req.NoReply)
-	if err != nil {
-		slog.Error("main: Unable to increment counter: ", "err", err.Error())
 		os.Exit(1)
 	}
 

@@ -1,10 +1,11 @@
-package wottui
+package tuiapp
 
 import (
 	"fmt"
-	"log/slog"
 
-	"github.com/hiveot/hivekit/go/examples/wotco"
+	"github.com/hiveot/hivekit/go/api/msg"
+	"github.com/hiveot/hivekit/go/api/td"
+	"github.com/hiveot/hivekit/go/utils"
 	"github.com/rivo/tview"
 )
 
@@ -13,30 +14,19 @@ import (
 // Including a button to subscribe and download the TD document as JSON.
 type TDPage struct {
 	tview.Flex
-	header      *TuiTable
-	affordances *TuiTable
-	evHandler   func(ev ...string)
-
-	model *wotco.WotConsumer
+	header         *TuiTable
+	affordances    *TuiTable
+	evHandler      func(ev ...string)
+	invokeActionCb func(thingID, name string, input any)
 }
 
-func (page *TDPage) Refresh(thingID string) {
-	// var consumer *consumer.Consumer
+func (page *TDPage) Refresh(thingID string,
+	tdoc *td.TD, props map[string]any, events map[string]*msg.NotificationMessage) {
 
-	tdList := page.model.GetThings()
-	tdoc, found := tdList[thingID]
-	if !found {
-		tdList := page.model.GetDirectories()
-		tdoc, found = tdList[thingID]
-	}
-	if !found {
+	if tdoc == nil {
 		page.AddItem(tview.NewTextView().SetText("Thing not found: "+thingID), 0, 1, false)
 		return
 	}
-
-	// connect to the thing to read its props
-	cl, err := page.model.Connect(thingID)
-	_ = cl
 
 	// Header
 	titleColor := tview.Styles.TertiaryTextColor
@@ -68,13 +58,8 @@ func (page *TDPage) Refresh(thingID string) {
 	tbl.SetTitleRow(row, "Name", "Title", "DataType", "Latest Value")
 	row++
 	for name, aff := range tdoc.Properties {
-		var latestValue string
-		err = page.model.ReadPropertyAs(thingID, name, &latestValue)
-		if err != nil {
-			slog.Error("Refresh error", "err", err.Error())
-		}
-		// }
-		tbl.SetDataRow(row, name, aff.Title, aff.Type, latestValue)
+		propValue := utils.DecodeAsString(props[name], 50)
+		tbl.SetDataRow(row, name, aff.Title, aff.Type, propValue)
 		row++
 	}
 
@@ -85,14 +70,11 @@ func (page *TDPage) Refresh(thingID string) {
 	tbl.SetTitleRow(row, "Name", "Title", "DataType", "Latest Value", "Updated")
 	row++
 	for name, aff := range tdoc.Events {
-		var latestValue string
-		var updated string
-		ev, err := page.model.ReadEvent(thingID, name)
-		if err == nil {
-			ev.Decode(&latestValue)
-			updated = ev.Timestamp
-		}
-		tbl.SetDataRow(row, name, aff.Title, aff.Data.Type, latestValue, updated)
+		var evValue string
+		notif := events[name]
+		_ = notif.Decode(&evValue)
+		updated := utils.FormatDateTime(notif.Timestamp, "S")
+		tbl.SetDataRow(row, name, aff.Title, aff.Data.Type, evValue, updated)
 
 		row++
 	}
@@ -112,7 +94,7 @@ func (page *TDPage) Refresh(thingID string) {
 		} else {
 			tbl.SetCell(row, 2,
 				tview.NewTableCell("[red]run").SetSelectable(true).SetClickedFunc(func() bool {
-					page.model.InvokeAction(thingID, name, nil, nil)
+					page.invokeActionCb(thingID, name, nil)
 					return true
 				}))
 
@@ -136,14 +118,14 @@ func (page *TDPage) submitEvent(ev string, thingID string) {
 		page.evHandler(ev, thingID)
 	}
 }
-func NewTDPage(model *wotco.WotConsumer) *TDPage {
+func NewTDPage(invokeActionCb func(thingID, name string, input any)) *TDPage {
 	header := NewTuiTable(tview.Styles.TertiaryTextColor)
 	affordances := NewTuiTable(tview.Styles.TertiaryTextColor)
 	page := &TDPage{
-		Flex:        *tview.NewFlex(),
-		header:      header,
-		affordances: affordances,
-		model:       model,
+		Flex:           *tview.NewFlex(),
+		header:         header,
+		affordances:    affordances,
+		invokeActionCb: invokeActionCb,
 	}
 	page.SetTitle(" TD ")
 	page.SetBorder(true)

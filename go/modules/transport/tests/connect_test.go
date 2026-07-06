@@ -53,7 +53,7 @@ func TestStartStop(t *testing.T) {
 	testEnv, cancelFn := testenv.StartTestEnv(testProtocol, true)
 
 	defer cancelFn()
-	co1, cc1, _ := testEnv.NewConnectedConsumer(testClientID1, authn.ClientRoleViewer, false)
+	co1, cc1, _ := testEnv.NewConnectedConsumer(testClientID1, authn.ClientRoleViewer)
 	defer cc1.Close()
 	assert.NotNil(t, co1)
 
@@ -73,7 +73,7 @@ func TestPing(t *testing.T) {
 	testEnv, cancelFn := testenv.StartTestEnv(testProtocol, true)
 	defer cancelFn()
 	// NewConsumerClient creates a client
-	co1, cc1, _ := testEnv.NewConnectedConsumer(testClientID1, authn.ClientRoleViewer, false)
+	co1, cc1, _ := testEnv.NewConnectedConsumer(testClientID1, authn.ClientRoleViewer)
 	defer cc1.Close()
 
 	err := co1.Ping()

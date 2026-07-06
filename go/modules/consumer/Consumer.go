@@ -255,6 +255,9 @@ func (co *Consumer) WriteProperty(thingID string, name string, input any, wait b
 // Provide a sink for forwarding requests and receiving notifications. Use nil to do this manually.
 // A notification handler can be provided or set with SetNotificationHook
 // Use SetTimeout to modify the default RPC timeout
+//
+//		sink, if provided, is the request sink and notification source
+//	 notificationHook is the optional application callback for incoming notifications
 func NewConsumer(sink api.IHiveModule, notificationHook msg.NotificationHandler) *Consumer {
 	thingID := ConsumerModuleType + "-" + shortid.MustGenerate()
 	consumer := &Consumer{

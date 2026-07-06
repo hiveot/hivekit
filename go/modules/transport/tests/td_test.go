@@ -64,7 +64,7 @@ func TestReadTDFromDevice(t *testing.T) {
 	ag1.SetAppRequestHook(deviceReqHandler)
 
 	// 4. create a consumer and verify the TD can be read by a client
-	co, cc, _ := testEnv.NewConnectedConsumer(consumerID, "somerole", false)
+	co, cc, _ := testEnv.NewConnectedConsumer(consumerID, "somerole")
 	defer cc.Close()
 
 	var rxTDJson string

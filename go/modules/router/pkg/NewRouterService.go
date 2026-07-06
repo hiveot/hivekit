@@ -39,12 +39,23 @@ func NewRouterServiceFactory(f api.IModuleFactory, md *api.ModuleDefinition) (ap
 	// option 1: provide a method to retrieve them when needed
 	tps := f.GetTransportServers()
 
+	// The router can also be used server and client side. Check for both server and client directory.
 	m, err := f.StartModule(directory.DirectoryServiceModuleType, true)
+	if err == nil {
+		if dirMod, ok := m.(directory.IDirectoryService); ok {
+			getTD = dirMod.GetTD
+		}
+	} else {
+		// maybe directory client?
+		m, err = f.StartModule(directory.DirectoryClientModuleType, true)
+		if err == nil {
+			if dirMod, ok := m.(directory.IDirectoryClient); ok {
+				getTD = dirMod.Cache().GetThing
+			}
+		}
+	}
 	if err != nil {
 		return nil, fmt.Errorf("NewRouterServiceFactory. Missing TD directory: %w", err)
-	}
-	if dirMod, ok := m.(directory.IDirectoryService); ok {
-		getTD = dirMod.GetTD
 	}
 	svc := NewRouterService(storageDir, getTD, tps, env.CaCert, f.GetEnvironment().RpcTimeout)
 	return svc, nil

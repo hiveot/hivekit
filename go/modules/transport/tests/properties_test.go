@@ -3,6 +3,7 @@ package transporttests
 
 import (
 	"errors"
+	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -42,15 +43,17 @@ func TestObservePropertyByConsumer(t *testing.T) {
 	var propertyKey2 = "property2"
 	var propValue1 = "value1"
 	var propValue2 = "value2"
+	var wg sync.WaitGroup
 
 	// 1. start the server
+	wg.Add(2)
 	testEnv, cancelFn := testenv.StartTestEnv(testProtocol, true)
 	defer cancelFn()
 
 	// 2. connect with two consumers
-	co1, cc1, _ := testEnv.NewConnectedConsumer(testClientID1, authn.ClientRoleViewer, false)
+	co1, cc1, _ := testEnv.NewConnectedConsumer(testClientID1, authn.ClientRoleViewer)
 	defer cc1.Close()
-	co2, cc2, _ := testEnv.NewConnectedConsumer(testClientID1, authn.ClientRoleViewer, false)
+	co2, cc2, _ := testEnv.NewConnectedConsumer(testClientID1, authn.ClientRoleViewer)
 	defer cc2.Close()
 
 	// set the handler for property updates and subscribe
@@ -59,12 +62,14 @@ func TestObservePropertyByConsumer(t *testing.T) {
 		// assert.NotEmpty(t, ev.SenderID)
 		if ev.ThingID == thingID {
 			rxVal1.Store(ev.Data)
+			defer wg.Done()
 		}
 	})
 	// co2 receive all events
 	co2.SetNotificationHook(func(ev *msg.NotificationMessage) {
 		if ev.ThingID == thingID {
 			rxVal2.Store(ev.Data)
+			defer wg.Done()
 		}
 	})
 
@@ -81,7 +86,8 @@ func TestObservePropertyByConsumer(t *testing.T) {
 	testEnv.Server.SendNotification(notif1)
 
 	// 4. both observers should have received it
-	time.Sleep(time.Millisecond)
+	wg.Wait()
+
 	assert.Equal(t, propValue1, rxVal1.Load())
 	assert.Equal(t, propValue1, rxVal2.Load())
 
@@ -93,22 +99,27 @@ func TestObservePropertyByConsumer(t *testing.T) {
 	// 6. Server sends a property update to consumers
 	notif2 := msg.NewNotificationMessage(
 		thingID, msg.AffordanceTypeProperty, thingID, propertyKey1, propValue2)
+	wg.Add(1)
 	testEnv.Server.SendNotification(notif2)
 	notif3 := msg.NewNotificationMessage(
 		thingID, msg.AffordanceTypeProperty, thingID, propertyKey2, propValue2)
+	wg.Add(1)
 	testEnv.Server.SendNotification(notif3)
 
-	// 7. property should not have been received
-	time.Sleep(time.Millisecond * 10)
+	// 7. property should have been received
+	wg.Wait()
 	assert.Equal(t, propValue1, rxVal1.Load())
 	assert.Equal(t, propValue2, rxVal2.Load())
 
 	// 8. client 2 unobserves
 	err = co2.UnobserveProperty("", "")
 	time.Sleep(time.Millisecond * 10)
+
 	notif4 := msg.NewNotificationMessage(
 		thingID, msg.AffordanceTypeProperty, thingID, propertyKey2, propValue1)
+	wg.Add(1)
 	testEnv.Server.SendNotification(notif4)
+
 	// no change is expected
 	assert.Equal(t, propValue2, rxVal2.Load())
 
@@ -174,7 +185,7 @@ func TestReadProperty(t *testing.T) {
 	defer cancelFn()
 
 	// 2. connect as a consumer
-	co1, cc1, _ := testEnv.NewConnectedConsumer(testClientID1, authn.ClientRoleViewer, false)
+	co1, cc1, _ := testEnv.NewConnectedConsumer(testClientID1, authn.ClientRoleViewer)
 	defer cc1.Close()
 
 	var rxVal string
@@ -211,7 +222,7 @@ func TestReadAllProperties(t *testing.T) {
 	defer cancelFn()
 
 	// 2. connect as a consumer
-	co1, cc1, _ := testEnv.NewConnectedConsumer(testClientID1, authn.ClientRoleViewer, false)
+	co1, cc1, _ := testEnv.NewConnectedConsumer(testClientID1, authn.ClientRoleViewer)
 	defer cc1.Close()
 
 	propMap, err := co1.ReadAllProperties(thingID)

@@ -228,39 +228,51 @@ func (testEnv *TestEnv) NewRCThing(clientID string, appReqHandler msg.RequestHan
 }
 
 // NewConnectedConsumer creates a new connected consumer.
-// The transport server must be started first.
+// The transport server must be started first so the client can connect.
 //
 // This uses the clientID as password
 // This panics if a client cannot be created
 //
 //	clientID to use
 //	role of the client
-//	reconnect flag to include the reconnect module
-func (testEnv *TestEnv) NewConnectedConsumer(
-	clientID string, role string, useReconnect bool) (
+func (testEnv *TestEnv) NewConnectedConsumer(clientID string, role string) (
 	co *consumer.Consumer, cc api.ITransportClient, token string) {
 
 	cc, token = testEnv.NewConnectedClient(clientID, role)
-	co = consumer.NewConsumer(nil, nil)
+	co = consumer.NewConsumer(cc, nil)
 	co.SetTimeout(TestTimeout)
-	if useReconnect {
-		// insert the reconnect module between consumer and client connection
-		rc := reconnectpkg.NewReconnectClient(cc)
-		co.SetRequestSink(rc)
-		rc.SetNotificationSink(co)
-	} else {
-		co.SetRequestSink(cc)
-		cc.SetNotificationSink(co)
-	}
 	return co, cc, token
 }
 
-// Create a new running test server instance using the given http server
+// NewReconnectedConsumer creates a new connected consumer with reconnect module.
+// The reconnect module is placed before client.
+// The transport server must be started first so that connect can succeed.
+//
+// This uses the clientID as password
+// This panics if a client cannot be created
+//
+//	clientID to use
+//	role of the client
+func (testEnv *TestEnv) NewReconnectedConsumer(clientID string, role string) (
+	co *consumer.Consumer, cc api.ITransportClient, token string) {
+
+	cc, token = testEnv.NewConnectedClient(clientID, role)
+
+	// insert the reconnect module between consumer and client connection
+	rc := reconnectpkg.NewReconnectClient(cc)
+
+	co = consumer.NewConsumer(rc, nil)
+	co.SetTimeout(TestTimeout)
+
+	return co, cc, token
+}
+
+// Create a new running test transport server .
 //
 // This can be called multiple times to support multiple servers. However, only the
 // first server will be stored in the 'TestEnv.Server' property.
 //
-// protocols is one of a list of the server protocols to support. nil for all
+// protocols is one of a list of the server protocols to support. "" for default.
 // protocols:
 // * api.ProtocolTypeWotHTTPBasic
 // * ProtocolTypeWotWSS
@@ -334,7 +346,7 @@ func (testEnv *TestEnv) StartHttpServer(logging bool) (api.IHttpServer, string) 
 	}
 	// cert uses localhost
 	cfg := tlsserver.NewTLSServerConfig(
-		testEnv.CertBundle.ServerAddr, TestServerHttpPort,
+		testEnv.CertBundle.ServerAddr, testEnv.AppEnv.HttpsPort,
 		testEnv.CertBundle.ServerCert,
 		testEnv.CertBundle.CaCert,
 		logging)
@@ -364,6 +376,7 @@ func NewTestEnv(clean bool) *TestEnv {
 		os.MkdirAll(TestHome, 0750)
 	}
 	appEnv := api.NewAppEnvironment(TestHome, false)
+	appEnv.HttpsPort = TestServerHttpPort
 	// ensure the directories exist
 	os.MkdirAll(appEnv.BinDir, 0750)
 	os.MkdirAll(appEnv.CertsDir, 0700)

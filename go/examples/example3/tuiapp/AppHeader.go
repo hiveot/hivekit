@@ -1,29 +1,29 @@
-package wottui
+package tuiapp
 
 import (
 	"fmt"
 
-	"github.com/hiveot/hivekit/go/examples/wotco"
+	"github.com/hiveot/hivekit/go/api/td"
+	"github.com/hiveot/hivekit/go/modules/transport/discovery"
 	"github.com/rivo/tview"
 )
 
 // The application header are that shows the connect connection and loaded status
 type AppHeader struct {
-	View  *tview.Flex
-	text  *tview.TextView
-	model *wotco.WotConsumer
+	View *tview.Flex
+	text *tview.TextView
 }
 
 // Reload the text being shown using updated values
-func (header *AppHeader) Refresh() {
+func (header *AppHeader) Refresh(discoRecs []*discovery.DiscoveryResult, tdList []*td.TD) {
 
 	newText := fmt.Sprintf("Discovery records: %d,  Loaded %d TDs",
-		len(header.model.GetRecords()), len(header.model.GetThings()))
+		len(discoRecs), len(tdList))
 	header.text.SetText(newText)
 }
 
 // Create a new instance of the application view
-func NewAppHeader(model *wotco.WotConsumer) *AppHeader {
+func NewAppHeader() *AppHeader {
 	view := tview.NewFlex().SetDirection(tview.FlexColumn)
 	text := tview.NewTextView().SetTextAlign(tview.AlignLeft).
 		SetText("Start 'Discover' to find devices on the network")
@@ -37,9 +37,8 @@ func NewAppHeader(model *wotco.WotConsumer) *AppHeader {
 	// view.SetBackgroundColor(tcell.ColorDarkGray)
 
 	header := &AppHeader{
-		model: model,
-		View:  view,
-		text:  text,
+		View: view,
+		text: text,
 		// btn:   discoBtn,
 	}
 	// discoBtn.SetSelectedFunc(func() {

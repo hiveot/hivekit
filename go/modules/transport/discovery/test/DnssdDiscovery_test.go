@@ -41,16 +41,16 @@ func TestDiscover(t *testing.T) {
 	address := utils.GetOutboundIP("").String()
 
 	srv, err := internalserver.ServeDnsSD(
-		testThingServiceID, testServiceType, address, testThingServicePort, nil)
+		testServiceID, testServiceType, address, testServicePort, nil)
 	assert.NoError(t, err)
 	defer srv.Shutdown()
 
-	r, err := internal.DnsSDScan(testThingServiceID, testServiceType, time.Second,
+	r, err := internal.DnsSDScan(testServiceID, testServiceType, time.Second,
 		func(*zeroconf.ServiceEntry) bool {
 			return true // stop
 		})
 	require.Len(t, r, 1)
-	assert.Equal(t, testThingServiceID, r[0].Instance)
+	assert.Equal(t, testServiceID, r[0].Instance)
 }
 
 func TestNoInstanceID(t *testing.T) {
@@ -58,11 +58,11 @@ func TestNoInstanceID(t *testing.T) {
 	testServiceType := "test-service-type"
 
 	_, err := internalserver.ServeDnsSD(
-		"", testServiceType, address, testThingServicePort, nil)
+		"", testServiceType, address, testServicePort, nil)
 	assert.Error(t, err) // missing instance name
 
 	_, err = internalserver.ServeDnsSD(
-		testThingServiceID, "", address, testThingServicePort, nil)
+		testServiceID, "", address, testServicePort, nil)
 	assert.Error(t, err) // missing service name
 }
 
@@ -70,7 +70,7 @@ func TestBadAddress(t *testing.T) {
 	testServiceType := "test-service-type"
 
 	discoServer, err := internalserver.ServeDnsSD(
-		testThingServiceID, testServiceType, "notanipaddress", testThingServicePort, nil)
+		testServiceID, testServiceType, "notanipaddress", testServicePort, nil)
 
 	assert.Error(t, err)
 	assert.Nil(t, discoServer)
@@ -80,7 +80,7 @@ func TestExternalAddress(t *testing.T) {
 	testServiceType := "test-service-type"
 
 	discoServer, err := internalserver.ServeDnsSD(
-		testThingServiceID, testServiceType, "1.2.3.4", testThingServicePort, nil)
+		testServiceID, testServiceType, "1.2.3.4", testServicePort, nil)
 
 	// expect a warning
 	assert.NoError(t, err)
@@ -93,7 +93,7 @@ func TestDiscoverBadPort(t *testing.T) {
 
 	badPort := 0
 	address := utils.GetOutboundIP("").String()
-	_, err := internalserver.ServeDnsSD(testThingServiceID, testServiceType, address, badPort, nil)
+	_, err := internalserver.ServeDnsSD(testServiceID, testServiceType, address, badPort, nil)
 
 	assert.Error(t, err)
 }

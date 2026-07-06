@@ -1,4 +1,4 @@
-package wottui
+package tuiapp
 
 import (
 	"fmt"
@@ -7,7 +7,7 @@ import (
 
 	"github.com/araddon/dateparse"
 	"github.com/gdamore/tcell/v2"
-	"github.com/hiveot/hivekit/go/examples/wotco"
+	"github.com/hiveot/hivekit/go/api/td"
 	"github.com/hiveot/hivekit/go/utils"
 	"github.com/rivo/tview"
 )
@@ -16,7 +16,7 @@ import (
 // this rotates through different tabl
 type ThingsPage struct {
 	tview.Table
-	model       *wotco.WotConsumer
+	// model       *wotco.WotConsumer
 	thingViewNr int
 	titleColor  tcell.Color
 	evHandler   func(ev ...string)
@@ -46,7 +46,7 @@ func (v *ThingsPage) GetThingID(row int) string {
 
 // Show the loaded things in the main view
 // this rotates through different tables
-func (v *ThingsPage) Refresh() {
+func (v *ThingsPage) Refresh(tdList []*td.TD) {
 	v.titleColor = tview.Styles.TertiaryTextColor
 
 	viewNr := v.thingViewNr
@@ -58,7 +58,6 @@ func (v *ThingsPage) Refresh() {
 	v.SetBorders(false)
 	v.SetSelectable(true, false)
 
-	tdList := v.model.GetThings()
 	lines := []string{}
 	// start with an empty table
 	v.Clear()
@@ -80,7 +79,7 @@ func (v *ThingsPage) Refresh() {
 	}
 
 	row := 0
-	for thingID, tdoc := range tdList {
+	for _, tdoc := range tdList {
 		row++
 		names := []string{}
 		for name := range tdoc.Actions {
@@ -89,7 +88,7 @@ func (v *ThingsPage) Refresh() {
 		sec := utils.DecodeAsString(tdoc.Security, 20)
 		modified := dateparse.MustParse(tdoc.Modified).Local()
 
-		col := v.addData(thingID, row, 0)
+		col := v.addData(tdoc.ID, row, 0)
 		col = v.addData(tdoc.Title, row, col)
 		if viewNr == 0 {
 			col = v.addData(sec, row, col)
@@ -121,14 +120,13 @@ func (v *ThingsPage) submitEvent(ev string, thingID string) {
 }
 
 // Return a new page with a table of known thing TDs
-func NewThingsPage(model *wotco.WotConsumer) *ThingsPage {
+func NewThingsPage() *ThingsPage {
 
 	thingsPage := &ThingsPage{
 		Table:       *tview.NewTable(),
-		model:       model,
 		thingViewNr: 0,
 	}
-	thingsPage.Refresh()
+	thingsPage.Refresh(nil)
 	thingsPage.SetBorder(true)
 	thingsPage.Table.SetSelectedFunc(func(row int, column int) {
 		// Select a Thing from the list and show its details

@@ -10,17 +10,17 @@ import (
 
 // NewDiscoveryServer creates a new discovery server module instance.
 //
-//	thingID of the discovery server module. This defaults to the module type.
+// The optional instanceID is used both as the module ThingID and as the instanceID
+// in the discovery record.
+//
+//	instanceID of the discovery server module. This defaults to {module type}-{shortID}.
 //	httpServer is the server that serves the TD on the well-known endpoint.
 //	endpoints are optional additional URLS to include in the DNS-SD discovery record
 //		 where key is the schema "http", "wss", "sse-sc" and value the URL.
-func NewDiscoveryServer(thingID string,
+func NewDiscoveryServer(instanceID string,
 	httpServer api.IHttpServer, endpoints map[string]string) discovery.IDiscoveryServer {
 
-	if thingID == "" {
-		thingID = discovery.DiscoveryServerModuleType
-	}
-	srv := internalserver.NewDiscoveryServerImpl(thingID, httpServer, endpoints)
+	srv := internalserver.NewDiscoveryServerImpl(instanceID, httpServer, endpoints)
 	return srv
 }
 
@@ -32,12 +32,14 @@ func NewDiscoveryServerFactory(f api.IModuleFactory, md *api.ModuleDefinition) (
 	httpServer := f.GetHttpServer(true)
 	endpoints := make(map[string]string)
 	tps := f.GetTransportServers()
-	thingID := discovery.DiscoveryServerModuleType
+
 	for _, tp := range tps {
 		connectURL := tp.GetConnectURL()
 		parts := strings.Split(connectURL, ":")
 		scheme := parts[0]
 		endpoints[scheme] = connectURL
 	}
-	return NewDiscoveryServer(thingID, httpServer, endpoints), nil
+	// TBD: get a non-default instanceID from discovery config
+	srv := NewDiscoveryServer("", httpServer, endpoints)
+	return srv, nil
 }

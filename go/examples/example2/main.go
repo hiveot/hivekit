@@ -8,9 +8,11 @@ import (
 	"os"
 
 	"github.com/hiveot/hivekit/go/api"
-	"github.com/hiveot/hivekit/go/examples/example2/wotcli"
+	"github.com/hiveot/hivekit/go/examples/example2/cliapp"
+	"github.com/hiveot/hivekit/go/modules/directory"
 	factorypkg "github.com/hiveot/hivekit/go/modules/factory/pkg"
 	"github.com/hiveot/hivekit/go/modules/factory/recipes"
+	"github.com/hiveot/hivekit/go/modules/transport/discovery"
 	"github.com/hiveot/hivekit/go/utils"
 )
 
@@ -28,7 +30,7 @@ const (
 	CmdSubscribe  = "subscribe"
 )
 
-var appConfig wotcli.CliAppConfig
+var appConfig cliapp.CliAppConfig
 
 func main() {
 	// var subscribe bool
@@ -69,39 +71,29 @@ func main() {
 	// Ignore the certificate check just for this example. Dont do this in your app.
 	http.DefaultTransport.(*http.Transport).TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
 
-	// insert the CLI application in the chain and give it the commandline options
-	wotcliApp := &api.ModuleDefinition{
-		Type:        "CliApp",
-		Constructor: wotcli.NewCliAppFactory,
-		Config:      appConfig,
-	}
-
 	f := factorypkg.NewModuleFactory(env, nil)
-	r := recipes.NewConsumerRecipe(f, wotcliApp)
+	r := recipes.NewConsumerRecipe(f)
 
 	err := r.Start()
 	if err != nil {
 		os.Exit(1)
 	}
-	app := f.GetModule("CliApp").(*wotcli.CliApp)
-
-	// co := wotco.NewWotConsumer(nil, time.Minute)
-	// err := co.Start()
-
-	// rtr := routerpkg.NewRouterService("", co.GetTD, nil, nil, time.Minute)
-	// rtr.SetNotificationSink(co)
-	// co.SetRequestSink(rtr)
-
-	// err = rtr.Start()
-	// if err != nil {
-	// slog.Error(err.Error())
+	// not really needed as this is manually instantiated but this is an easy way.
+	// appDef := &api.ModuleDefinition{
+	// 	Type:        "CliApp",
+	// 	Constructor: cliapp.NewCliAppFactory,
+	// 	Config:      appConfig,
 	// }
+	// app, _ := cliapp.NewCliAppFactory(f, appDef)
 
-	// how to inject the app?
-	// A: Single app
-	// B: Multiple apps for each command
+	discoClient := api.GetFactoryModule[discovery.IDiscoveryClient](f, discovery.DiscoveryClientModuleType)
+	dirClient := api.GetFactoryModule[directory.IDirectoryClient](f, directory.DirectoryClientModuleType)
+	app := cliapp.NewCliApp(appConfig, discoClient, dirClient, f.GetEnvironment().CaCert)
 
-	// discover.Discover(filterType, filterAddr, showAff, showTXT, showTD, waitTime)
+	app.SetRequestSink(r)
+	r.SetNotificationSink(app)
+	err = app.Start()
+
 	switch cmd {
 	case CmdDiscover:
 		app.ShowDiscovery()

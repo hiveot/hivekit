@@ -305,8 +305,8 @@ func NewCertsServiceImpl(config certs.CertsConfig) *CertsServiceImpl {
 	// certificate service is a singleton
 	thingID := certs.DefaultCertsServiceThingID
 	m := &CertsServiceImpl{
-		config:         config,
 		HiveModuleBase: modules.NewHiveModuleBase(thingID, 0),
+		config:         config,
 	}
 	var _ api.IHiveModule = m     // interface check
 	var _ certs.ICertsService = m // interface check

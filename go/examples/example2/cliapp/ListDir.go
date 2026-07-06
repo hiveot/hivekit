@@ -1,4 +1,4 @@
-package wotcli
+package cliapp
 
 import (
 	"fmt"
@@ -23,7 +23,7 @@ func (app *CliApp) ListDir() {
 		return
 	}
 	tddURL := rec0.AsURL()
-	tdoc, _, err = app.discoClient.LoadTD(tddURL, app.caCert)
+	tdoc, _, err = app.discoClient.LoadTD(tddURL)
 	if err != nil {
 		fmt.Printf(" Error reading TD: %s\n", err.Error())
 	}

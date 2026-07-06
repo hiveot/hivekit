@@ -31,57 +31,82 @@ type DiscoveryClientImpl struct {
 	// optional update the discovery results in the app environment
 	env *api.AppEnvironment
 
-	// discovery directory info when running DiscoveryFirstDirectory
-	dirURL string // the directory TD instance
-	// the discovered directory TD if available
-	dirTD *td.TD
-
 	// auto run discovery on startup
 	discoverOnStart bool
-
-	// discovery of the server using the env serverURL
-	serverURL string
-	// the discovered server TD if available
-	serverTD *td.TD
 
 	// mux for access to discovered data
 	mux sync.RWMutex
 }
 
-// discoverDirectories invokes a callback on each directory discovered
-// The callback can return true to stop the process.
-func (cl *DiscoveryClientImpl) DiscoverDirectories(instanceName string, maxWaitTime time.Duration,
+func (cl *DiscoveryClientImpl) _discover(
+	instanceName string, serviceType string, maxWaitTime time.Duration,
 	cb func(*discovery.DiscoveryResult) bool) ([]*discovery.DiscoveryResult, error) {
 
+	mux := sync.RWMutex{}
 	drList := make([]*discovery.DiscoveryResult, 0)
 
 	// run the scan to collect results
-	_, err := DnsSDScan(instanceName, discovery.WOT_DIRECTORY_SERVICE_TYPE, maxWaitTime,
+	_, err := DnsSDScan(instanceName, serviceType, maxWaitTime,
 		func(rec *zeroconf.ServiceEntry) bool {
 			var stop = false
 			// create a discovery record for the service entry
 			discoRecord := cl.ParseZeroconfServiceEntry(rec)
+			// when maxWaitTime is reached there can be a race with this callback
+			mux.Lock()
 			drList = append(drList, discoRecord)
+			mux.Unlock()
 			if cb != nil {
 				stop = cb(discoRecord)
 			}
 			return stop
 		})
-	return drList, err
+	mux.RLock()
+	result := drList
+	mux.RUnlock()
+	return result, err
+}
+
+// discoverDirectories invokes a callback on each directory discovered
+// The callback can return true to stop the process.
+func (cl *DiscoveryClientImpl) DiscoverDirectories(maxWaitTime time.Duration,
+	cb func(*discovery.DiscoveryResult) bool) ([]*discovery.DiscoveryResult, error) {
+
+	recs, err := cl._discover("", discovery.WOT_DIRECTORY_SERVICE_TYPE, maxWaitTime, cb)
+	return recs, err
+}
+
+// Discover all directories on the local network and return their TDs.
+// If the TD cannot be downloaded then it is ignored in the result.
+func (cl *DiscoveryClientImpl) DiscoverDirectoryTDs(
+	searchTime time.Duration) (recs []*discovery.DiscoveryResult, tddList []*td.TD) {
+
+	recs, _ = cl.DiscoverDirectories(searchTime, nil)
+	tddList = make([]*td.TD, 0, len(recs))
+
+	for _, rec := range recs {
+		dirURL := rec.AsURL()
+		if dirURL != "" {
+			dirTD, _, err := cl.LoadTD(dirURL)
+			if err == nil {
+				tddList = append(tddList, dirTD)
+			}
+		}
+	}
+	return recs, tddList
 }
 
 // DiscoverDirectory returns the first discovered record for a directory
 //
 // This returns nil with no error if discovery ran successful but no record was found.
 func (cl *DiscoveryClientImpl) DiscoverFirstDirectory(
-	instanceName string, searchTime time.Duration) (rec0 *discovery.DiscoveryResult, err error) {
+	instanceName string, maxWaitTime time.Duration) (rec0 *discovery.DiscoveryResult, err error) {
 
-	// stop on the first result
-	records, err := cl.DiscoverDirectories(instanceName, searchTime,
+	records, err := cl._discover(instanceName, discovery.WOT_DIRECTORY_SERVICE_TYPE, maxWaitTime,
+		// stop on the first result
 		func(*discovery.DiscoveryResult) bool { return true })
 
 	if len(records) == 0 {
-		return nil, err
+		return nil, fmt.Errorf("DiscoverFirstDirectory: No directory was found")
 	}
 
 	// Determine the directory URL and download the TD.
@@ -89,27 +114,55 @@ func (cl *DiscoveryClientImpl) DiscoverFirstDirectory(
 	return rec0, nil
 }
 
-// DiscoverFirstGateway returns the discovery record if the first gateway server.
-func (cl *DiscoveryClientImpl) DiscoverFirstGateway(
-	instanceName string, searchTime time.Duration) (rec0 *discovery.DiscoveryResult, err error) {
-	if instanceName == "" {
-		instanceName = discovery.HIVEOT_GATEWAY_SERVICE_TYPE
-	}
-	if searchTime == 0 {
-		searchTime = time.Second * 3
-	}
+// Discover the first directory TD and return the result or an error
+//
+// If a directory URL is known then load the TDD from the URL, otherwise do a DNS-SD search
+// for the directory to get the URL.
+//
+// This updates this client's directory TD and returns the TDD and its loaded JSON.
+// If no TDD is found this responds with an error.
+//
+// If multiple requests are send then each will update the directory TDD if found.
+// If a directory URL
+func (cl *DiscoveryClientImpl) DiscoverFirstDirectoryTD(
+	instanceName string, maxWaitTime time.Duration) (dirTD *td.TD, tddJson string, err error) {
+	var rec0 *discovery.DiscoveryResult
 
-	// return on the first result
-	records, err := cl.DiscoverThings(
-		instanceName, searchTime, func(res *discovery.DiscoveryResult) bool {
-			return true
-		})
-	if len(records) == 0 {
-		return nil, err
+	var dirURL string
+	rec0, err = cl.DiscoverFirstDirectory(instanceName, maxWaitTime)
+
+	if rec0 != nil {
+		dirURL = rec0.AsURL()
 	}
-	rec0 = records[0]
-	return rec0, nil
+	if dirURL == "" {
+		err = fmt.Errorf("No directory was discovered")
+	} else {
+		dirTD, tddJson, err = cl.LoadTD(dirURL)
+	}
+	return dirTD, tddJson, err
 }
+
+// DiscoverFirstGateway returns the discovery record if the first gateway server.
+// func (cl *DiscoveryClientImpl) DiscoverFirstGateway(
+// 	instanceName string, searchTime time.Duration) (rec0 *discovery.DiscoveryResult, err error) {
+// 	if instanceName == "" {
+// 		instanceName = discovery.HIVEOT_GATEWAY_SERVICE_TYPE
+// 	}
+// 	if searchTime == 0 {
+// 		searchTime = time.Second * 3
+// 	}
+
+// 	// return on the first result
+// 	records, err := cl.DiscoverThings(
+// 		instanceName, searchTime, func(res *discovery.DiscoveryResult) bool {
+// 			return true
+// 		})
+// 	if len(records) == 0 {
+// 		return nil, err
+// 	}
+// 	rec0 = records[0]
+// 	return rec0, nil
+// }
 
 // DiscoverThings returns discovery records of wot Things that publish themselves on the network.
 //
@@ -124,53 +177,32 @@ func (cl *DiscoveryClientImpl) DiscoverThings(
 	instanceName string, maxWaitTime time.Duration,
 	cb func(*discovery.DiscoveryResult) bool) ([]*discovery.DiscoveryResult, error) {
 
-	var mux sync.RWMutex
-
-	drList := make([]*discovery.DiscoveryResult, 0)
-
-	// run the scan to collect results
-	_, err := DnsSDScan(instanceName, discovery.WOT_THING_SERVICE_TYPE, maxWaitTime,
-		func(rec *zeroconf.ServiceEntry) bool {
-
-			// create a discovery record for the service entry
-			discoRecord := cl.ParseZeroconfServiceEntry(rec)
-			mux.Lock()
-			drList = append(drList, discoRecord)
-			mux.Unlock()
-			if cb != nil {
-				return cb(discoRecord) // return true to stop
-			}
-			return false // keep looking
-		})
-
-	mux.Lock()
-	result := drList
-	mux.Unlock()
+	records, err := cl._discover(instanceName, discovery.WOT_THING_SERVICE_TYPE, maxWaitTime, cb)
+	result := records
 	return result, err
 }
 
-// Discover a TDD and return the result or an error
-//
-// If a directory URL is known then load the TDD from the URL, otherwise do a DNS-SD search
-// for the directory to get the URL.
-//
-// This updates this client's directory TD and returns the TDD and its loaded JSON.
-// If no TDD is found this responds with an error.
-//
-// If multiple requests are send then each will update the directory TDD if found.
-// If a directory URL
-func (cl *DiscoveryClientImpl) DiscoverTDD() (tdd *td.TD, tddJson string, err error) {
+// Discover things and download their TD
+func (cl *DiscoveryClientImpl) DiscoverThingTDs(
+	instanceName string, maxWaitTime time.Duration, cb func(*td.TD) bool) ([]*discovery.DiscoveryResult, []*td.TD) {
 
-	if cl.dirURL == "" {
-		rec0, _ := cl.DiscoverFirstDirectory("", time.Second)
-		cl.dirURL = rec0.AsURL()
-	}
-	if cl.dirURL == "" {
-		err = fmt.Errorf("No directory was discovered")
-	} else {
-		cl.dirTD, tddJson, err = cl.LoadTD(cl.dirURL, cl.caCert)
-	}
-	return cl.dirTD, tddJson, err
+	tddList := make([]*td.TD, 0)
+	recs, _ := cl.DiscoverThings(instanceName, maxWaitTime, func(rec *discovery.DiscoveryResult) bool {
+		stop := false
+		dirURL := rec.AsURL()
+		if dirURL != "" {
+			dirTD, _, err := cl.LoadTD(dirURL)
+			if err == nil {
+				tddList = append(tddList, dirTD)
+				if cb != nil {
+					stop = cb(dirTD)
+				}
+			}
+		}
+		return stop
+	})
+
+	return recs, tddList
 }
 
 // Handle requests to discover directory TD.
@@ -178,7 +210,7 @@ func (cl *DiscoveryClientImpl) HandleRequest(
 	req *msg.RequestMessage, replyTo msg.ResponseHandler) error {
 
 	if req.Operation == td.OpInvokeAction && req.Name == discovery.DiscoverDirectoryAction {
-		_, tddJson, err := cl.DiscoverTDD()
+		_, tddJson, err := cl.DiscoverFirstDirectoryTD("", 0)
 		resp := req.CreateResponse(tddJson, err)
 		return replyTo(resp)
 	}
@@ -191,10 +223,9 @@ func (cl *DiscoveryClientImpl) HandleRequest(
 // the URL in the discovery record.
 //
 // rec points to the discovery record.
-// caCert is optional CA to verify the server validity. nil skips this validation.
 //
 // This returns the TD, its JSON or an error if none is found
-func (cl *DiscoveryClientImpl) LoadTD(tdURL string, caCert *x509.Certificate) (tdoc *td.TD, tdJSON string, err error) {
+func (cl *DiscoveryClientImpl) LoadTD(tdURL string) (tdoc *td.TD, tdJSON string, err error) {
 
 	slog.Info("DownloadTD", "url", tdURL)
 	parts, err := url.Parse(tdURL)
@@ -204,7 +235,7 @@ func (cl *DiscoveryClientImpl) LoadTD(tdURL string, caCert *x509.Certificate) (t
 	if strings.ToLower(parts.Scheme) != "https" {
 		return nil, "", fmt.Errorf("Unknown scheme '%s', only http is supported", parts.Scheme)
 	}
-	httpCl := tlsclientpkg.NewTLSClient(parts.Host, caCert, 0)
+	httpCl := tlsclientpkg.NewTLSClient(parts.Host, cl.caCert, 0)
 	resp, statusCode, err := httpCl.Get(parts.Path)
 	_ = statusCode
 	if err != nil {
@@ -212,35 +243,11 @@ func (cl *DiscoveryClientImpl) LoadTD(tdURL string, caCert *x509.Certificate) (t
 	}
 	tdJSON = string(resp)
 	tdDoc, err := td.UnmarshalTD(tdJSON)
+	if err != nil {
+		err = fmt.Errorf("LoadTD: TD loaded from '%s' but it doesn't appear to be valid json: %w",
+			parts.Host+"/"+parts.Path, err)
+	}
 	return tdDoc, tdJSON, err
-}
-
-// Return the gateway server URL discovered during start
-//
-// If an app environment was provided on start and it contained a server URL then
-// it will return this server URL instead.
-// func (cl *DiscoveryClient) GetServerURL() string {
-// 	cl.mux.RLock()
-// 	defer cl.mux.RUnlock()
-
-// 	return cl.serverURL
-// }
-
-// Return the directory connection TD instance discovered during Start
-func (cl *DiscoveryClientImpl) GetTDD() (dirTD *td.TD) {
-	cl.mux.RLock()
-	defer cl.mux.RUnlock()
-
-	return cl.dirTD
-}
-
-// Return the server TD instance discovered during Start
-// // This returns nil if no server was discovered.
-func (cl *DiscoveryClientImpl) GetServerTD() *td.TD {
-	cl.mux.RLock()
-	defer cl.mux.RUnlock()
-
-	return cl.serverTD
 }
 
 // Convert a zeroconf result to a hiveot discovery record
@@ -306,59 +313,65 @@ func (cl *DiscoveryClientImpl) ParseZeroconfServiceEntry(
 	return &discoResult
 }
 
-// Start runs a discovery of directory and gateway.
+// Start the discovery client.
 //
-// If an application environment is provided it will also update the directory URL
-// if it isn't set manually.
+// If an application environment is provided it will run a discovery to update its directory URL and TD
 func (cl *DiscoveryClientImpl) Start() (err error) {
-	var rec0 *discovery.DiscoveryResult
 
-	// first obtain the directory URL
-	if cl.dirURL == "" && cl.discoverOnStart {
+	var rec0 *discovery.DiscoveryResult
+	var dirURL string
+	var tddURL string
+
+	// discover to populate the app env if needed
+	if cl.discoverOnStart && cl.env != nil && cl.env.DirectoryURL == "" {
+
+		// first obtain the directory exploration URL for downloading a TDD
 		rec0, err = cl.DiscoverFirstDirectory("", 0)
 		if rec0 != nil {
-			cl.dirURL = rec0.AsURL()
+			tddURL = rec0.AsURL()
 		}
-		if cl.dirURL == "" {
+		if tddURL == "" {
 			slog.Warn("Start: No directories are discovered on the local network.")
+			return nil
 		}
-	}
-	// next, use it to load the directory TD
-	if cl.dirURL != "" {
-		cl.dirTD, _, err = cl.LoadTD(cl.dirURL, cl.caCert)
+
+		// next, use it to load the directory TD from the exploration endpoint
+		dirTD, _, err := cl.LoadTD(tddURL)
 
 		if err != nil {
-			slog.Warn("Start: Directory is not available ..", "err", err.Error())
+			slog.Warn("Start: Directory is not available at the discovered URL",
+				"tddURL", tddURL,
+				"err", err.Error())
+			return nil // not fatal
 			// "directoryURL", dirURL, "err", err.Error())
+		} else {
+			// validate the URL
+			parts, err := url.Parse(dirTD.Base)
+			_ = parts
+			if err != nil || parts.Host == "" {
+				slog.Warn("Start: Directory found but its Base is not a valid URL",
+					"Base", dirTD.Base)
+			} else {
+				// Base is a valid URL. Use it as the directory connection url.
+				// Technically, each action request can have a different URL for the directory
+				// subscription and each of the actions. Ignore this for now and use the TDD Base
+				// as the directory URL.
+				dirURL = dirTD.Base
+				slog.Info("Start: Directory found", "URL", dirURL)
+			}
 		}
 
-		// optionally update the factory environment to share the results with other modules
-		if cl.env != nil && cl.env.DirectoryURL == "" {
-			cl.env.DirectoryURL = cl.dirURL
+		// update the factory environment to share the results with other modules
+		if dirURL != "" {
+			if cl.env.DirectoryURL == "" {
+				cl.env.DirectoryURL = dirURL
+			}
+			// in case a gateway server is used the gateway server URL is the same as that of the directory.
+			if cl.env.ServerURL == "" {
+				cl.env.ServerURL = dirTD.Base
+			}
 		}
-	}
-
-	// FIXME: determine the server URL
-	// what is a serverURL anyways? does this work without forms?
-	//   RC doesn't need forms, so no need for a TD?...
-	// what about connecting to a device?
-	//   do devices expose their TD?
-	//
-	// option1: serverURL is hiveot transport endpoint. Just connect and send requests
-	// option2: don't use serverURL. this is discovery so discover the URL
-	if cl.serverURL == "" && cl.discoverOnStart {
-		rec0, err := cl.DiscoverFirstGateway("", time.Second)
-		if err != nil {
-			cl.serverURL = rec0.AsURL()
-		}
-
-		if cl.serverURL != "" {
-			cl.serverTD, _, err = cl.LoadTD(cl.serverURL, cl.caCert)
-		}
-		// optionally update the factory environment to share the results with other modules
-		if cl.env != nil && cl.env.ServerURL == "" {
-			cl.env.ServerURL = cl.serverURL
-		}
+		// if we have a valid Directory TDD then send a notification.
 	}
 
 	return nil
@@ -366,7 +379,11 @@ func (cl *DiscoveryClientImpl) Start() (err error) {
 
 // NewDiscoveryClientImpl creates a new instance of a discovery client
 //
-// appEnv is optional. On Start it will be updated with the discovered directory and server.
+// If an appEnv is provided and a DirectoryURL is set, or discoOnStart is disabled, then
+// Start will not run discovery.
+//
+// If appEnv is provided and discovery on Start is successful then update appEnv with
+// the discovered directory URL. The directory client can use this to connect to the directory.
 func NewDiscoveryClientImpl(appEnv *api.AppEnvironment, discoOnStart bool) *DiscoveryClientImpl {
 	cl := &DiscoveryClientImpl{
 		HiveModuleBase:  modules.NewHiveModuleBase("", 0),
@@ -375,8 +392,7 @@ func NewDiscoveryClientImpl(appEnv *api.AppEnvironment, discoOnStart bool) *Disc
 	}
 	if appEnv != nil {
 		cl.caCert = appEnv.CaCert
-		cl.dirURL = appEnv.DirectoryURL
-		cl.serverURL = appEnv.ServerURL
 	}
+	var _ discovery.IDiscoveryClient = cl // interface check
 	return cl
 }

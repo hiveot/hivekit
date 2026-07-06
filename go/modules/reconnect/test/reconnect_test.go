@@ -19,7 +19,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-var testProtocol = api.ProtocolTypeHiveotGrpc
+var testProtocol = api.ProtocolTypeWotWebsocket
 
 var testProtocols = []string{
 	api.ProtocolTypeHiveotSsesc,
@@ -60,7 +60,7 @@ func TestReconnect(t *testing.T) {
 
 	// this test device receives an action and returns the input
 	// it is intended to prove reconnect works.
-	ag := thing.NewExposedThing("", func(req *msg.RequestMessage, replyTo msg.ResponseHandler) error {
+	ething := thing.NewExposedThing("", func(req *msg.RequestMessage, replyTo msg.ResponseHandler) error {
 		slog.Info("Received request", "op", req.Operation)
 		var err error
 		// prove that the return channel is connected
@@ -84,9 +84,11 @@ func TestReconnect(t *testing.T) {
 		err = replyTo(resp)
 		return err
 	})
+
 	// start the servers and handle a request
 	testEnv, cancelFn := testenv.StartTestEnv(testProtocol, true)
-	testEnv.Server.SetRequestSink(ag)
+	testEnv.Server.SetRequestSink(ething)
+
 	// server emits notification when a new connection is received
 	notifHandler := consumer.NewConsumer(nil, func(notif *msg.NotificationMessage) {
 		if notif.Name == api.ServerConnectEvent {
@@ -105,9 +107,10 @@ func TestReconnect(t *testing.T) {
 	// connect as consumer and give client a second to reconnect
 	ctx1, cancelFn1 := context.WithTimeout(context.Background(), time.Second)
 	defer cancelFn1()
+
 	// new consumer with reconnect client
-	co1, cc1, _ := testEnv.NewConnectedConsumer(
-		testClientID1, authn.ClientRoleViewer, true)
+	co1, cc1, _ := testEnv.NewReconnectedConsumer(testClientID1, authn.ClientRoleViewer)
+
 	// cc1.SetConnectHandler(handleConnect)
 	co1.SetNotificationHook(notificationHook)
 	defer cc1.Close()

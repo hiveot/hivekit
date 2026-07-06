@@ -1,4 +1,4 @@
-package wotcli
+package cliapp
 
 import (
 	"crypto/x509"
@@ -20,7 +20,7 @@ type CliAppConfig struct {
 
 // The CLI App has a module wrapper so it can be used as part of the module chain
 type CliApp struct {
-	// this is a consumer. Don't use it directly.
+	// this is a consumer for chaining modules. Don't use it directly.
 	*consumer.Consumer
 
 	// the consumer this app is linked to
@@ -40,32 +40,38 @@ type CliApp struct {
 	config CliAppConfig
 }
 
-// Start the CLI application
-// This expects the next module in the chain to be the consumer
-func (app *CliApp) Start() error {
-	app.co = app.Consumer
-	return nil
-}
+// // Start the CLI application
+// func (app *CliApp) Start() error {
+// 	return nil
+// }
 
 // Create a new instance of the CLI app
-func NewCliApp(config CliAppConfig, discoClient discovery.IDiscoveryClient, caCert *x509.Certificate) *CliApp {
+// FIXME: where does it get discoClient and dirClient?
+//
+//	option1: use the chain, eg send request
+//	option2: use parameters, pass directly
+func NewCliApp(config CliAppConfig, discoClient discovery.IDiscoveryClient,
+	dirClient directory.IDirectoryClient, caCert *x509.Certificate) *CliApp {
+
 	m := &CliApp{
-		Consumer: consumer.NewConsumer(nil, nil),
-		caCert:   caCert,
-		config:   config,
+		Consumer:    consumer.NewConsumer(nil, nil),
+		caCert:      caCert,
+		config:      config,
+		discoClient: discoClient,
+		dirClient:   dirClient,
 	}
+	m.co = m.Consumer
 	return m
 }
 
 // Factory function for the cli app
-func NewCliAppFactory(f api.IModuleFactory,
-	modDef *api.ModuleDefinition) (api.IHiveModule, error) {
+func NewCliAppFactory(f api.IModuleFactory, modDef *api.ModuleDefinition) (api.IHiveModule, error) {
 
 	config, ok := modDef.Config.(CliAppConfig)
+	discoClient := api.GetFactoryModule[discovery.IDiscoveryClient](f, discovery.DiscoveryClientModuleType)
+	dirClient := api.GetFactoryModule[directory.IDirectoryClient](f, directory.DirectoryClientModuleType)
 	_ = ok
-	discoMod := f.GetModule(discovery.DiscoveryClientModuleType)
-	discoClient, ok := discoMod.(discovery.IDiscoveryClient)
 
-	m := NewCliApp(config, discoClient, f.GetEnvironment().CaCert)
+	m := NewCliApp(config, discoClient, dirClient, f.GetEnvironment().CaCert)
 	return m, nil
 }

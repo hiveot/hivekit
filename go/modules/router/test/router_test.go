@@ -229,7 +229,7 @@ func TestReadObserveDeviceProperties(t *testing.T) {
 	const prop1Value = "value1"
 	var notifCount atomic.Int32
 
-	// Setup the test device with server and a TD
+	// 1. Setup the test device with server and a TD
 	// The test device is a runs a server that passes requests to its device.
 	// The router will have to match its security as described in the device TD
 	// The device of the test device handles read requests
@@ -239,7 +239,7 @@ func TestReadObserveDeviceProperties(t *testing.T) {
 	// when the device publishes an observable property it becomes available for querying
 	testDevice.ExposedThing.PubProperty(deviceID, prop1Name, prop1Value, false)
 
-	// setup the consumer with the router module and directory client or service
+	// 2. setup the consumer with the router module and directory client or service
 	co, routerMod, dirSvc := SetupConsumerWithRouter(testAuthn)
 	defer dirSvc.Stop()
 	defer routerMod.Stop()
@@ -251,18 +251,18 @@ func TestReadObserveDeviceProperties(t *testing.T) {
 		}
 	})
 
-	// the directory client or server used by the router needs the device TD
+	// 3. the directory (client or server) used by the router needs the device TD
 	deviceTDJson := td.MarshalTD(device1TD)
 	err := dirSvc.CreateThing(deviceID, deviceTDJson)
 	require.NoError(t, err)
 
-	// to connect to the device, credentials are needed
+	// 4. to connect to the device, credentials are needed
 	testAuthn.AddClient(testConsumerID, "", authn.ClientRoleOperator)
 	token, _, err := testAuthn.CreateToken(testConsumerID, rpcTimeout)
 	assert.NoError(t, err)
 	routerMod.AddDeviceCredential(deviceID, clientID, token, td.SecSchemeBearer)
 
-	// this should cause the router to connect to the device
+	// 5. Send a request, which causes the router to connect to the device
 	values, err := co.ReadAllProperties(deviceID)
 	assert.NoError(t, err)
 	assert.NotEmpty(t, values)

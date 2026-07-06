@@ -4,9 +4,9 @@ import (
 	"github.com/hiveot/hivekit/go/api"
 	"github.com/hiveot/hivekit/go/modules/certs"
 	certspkg "github.com/hiveot/hivekit/go/modules/certs/pkg"
+	"github.com/hiveot/hivekit/go/modules/directory"
+	directorypkg "github.com/hiveot/hivekit/go/modules/directory/pkg"
 	factorypkg "github.com/hiveot/hivekit/go/modules/factory/pkg"
-	"github.com/hiveot/hivekit/go/modules/reconnect"
-	reconnectpkg "github.com/hiveot/hivekit/go/modules/reconnect/pkg"
 	"github.com/hiveot/hivekit/go/modules/router"
 	routerpkg "github.com/hiveot/hivekit/go/modules/router/pkg"
 	"github.com/hiveot/hivekit/go/modules/transport/discovery"
@@ -14,15 +14,21 @@ import (
 )
 
 // ConsumerRecipeChain defines the modules for IoT consumers in order of instantiation
+// Link a consumer to this chain.
 var ConsumerRecipeChain = []api.ModuleDefinition{
 	{
 		// initialize client certs / auth token in app environment
 		Type:        certs.InitFactoryCertsModuleType,
 		Constructor: certspkg.NewInitFactoryCerts,
 	},
+	// {
+	// 	// application slot
+	// 	Type: AppSlotType,
+	// },
 	{
-		// application slot
-		Type: AppSlotType,
+		// use a directory client to read things
+		Type:        directory.DirectoryClientModuleType,
+		Constructor: directorypkg.NewDirectoryClientFactory,
 	},
 	{
 		// discover the server using DNS-SD
@@ -31,41 +37,28 @@ var ConsumerRecipeChain = []api.ModuleDefinition{
 		Constructor: discoverypkg.NewDiscoveryClientFactory,
 	},
 	{
-		// enable auto-reconnect for the client on server restart
-		Type:        reconnect.ReconnectModuleType,
-		Constructor: reconnectpkg.NewReconnectFactory,
-	},
-	{
 		// the router manages client connections
 		Type:        router.RouterModuleType,
 		Constructor: routerpkg.NewRouterServiceFactory,
 	},
 }
 
-// ConsumerRecipe.go is a recipe for general consumers that do not use a gateway.
+// ConsumerRecipe.go is a recipe for general consumers
 //
-// This recipe places a consumer behind the application in the chain. The
-// application can obtain it as its request sink.
-//
+// This:
 // * support AppEnvironment commandline options
 // * load CA and client certificate, and auth token if found
-// * slot for applications
-// * consumer for application.
-// * enable auto-reconnect for possible client connections
+// * directory client for access to discovered devices
+// * discovery client for locating devices and directories
+// * router for connecting to clients
 //
 // f is the module factory to use to use.
-// appModule is the optional application module to prepend to the chain
 //
-// This returns the recipe, which can be used like any other module
-func NewConsumerRecipe(
-	f api.IModuleFactory, appModule *api.ModuleDefinition) api.IRecipe {
+// This returns the recipe, which can be used as a module sink to a consumer module.
+func NewConsumerRecipe(f api.IModuleFactory) api.IRecipe {
 
 	chain := ConsumerRecipeChain
 
 	r := factorypkg.NewChainRecipe(f, chain)
-	// place the application module before
-	if appModule != nil {
-		r.SetSlot(AppSlotType, *appModule)
-	}
 	return r
 }

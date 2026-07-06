@@ -46,15 +46,10 @@ func (dc *DirectoryCacheImpl) GetAllThings(offset int, limit int) []*td.TD {
 }
 
 // Import the TD into the cache
-func (dc *DirectoryCacheImpl) ImportTD(tdJson string) (*td.TD, error) {
+func (dc *DirectoryCacheImpl) ImportTD(tdoc *td.TD) {
 	dc.mux.Lock()
 	defer dc.mux.Unlock()
 
-	tdoc, err := td.UnmarshalTD(tdJson)
-	if err != nil {
-		err = fmt.Errorf("UpdateTD: invalid TD JSON: %s", err.Error())
-		return tdoc, err
-	}
 	isNew := dc.cache[tdoc.ID] == nil
 	dc.cache[tdoc.ID] = tdoc
 
@@ -62,6 +57,16 @@ func (dc *DirectoryCacheImpl) ImportTD(tdJson string) (*td.TD, error) {
 	if isNew {
 		dc.thingIDs = append(dc.thingIDs, tdoc.ID)
 	}
+}
+
+// Import the TD into the cache
+func (dc *DirectoryCacheImpl) ImportTDJson(tdJson string) (*td.TD, error) {
+	tdoc, err := td.UnmarshalTD(tdJson)
+	if err != nil {
+		err = fmt.Errorf("UpdateTD: invalid TD JSON: %s", err.Error())
+		return tdoc, err
+	}
+	dc.ImportTD(tdoc)
 	return tdoc, nil
 }
 

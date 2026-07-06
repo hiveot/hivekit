@@ -211,7 +211,7 @@ func TestReadDigitwinProperty(t *testing.T) {
 	dtw.SetRequestSink(downstream)
 
 	// 1: create a consumer that subscribes to notifications
-	co, cc1, _ := testEnv.NewConnectedConsumer(userID, authn.ClientRoleViewer, false)
+	co, cc1, _ := testEnv.NewConnectedConsumer(userID, authn.ClientRoleViewer)
 	err := co.ObserveProperty("", prop1Name)
 	require.NoError(t, err)
 	defer cc1.Stop()
@@ -268,7 +268,7 @@ func TestWriteDigitwinProperty(t *testing.T) {
 	defer stopFn()
 
 	// 1: create a consumer that writes a property
-	co, cc1, _ := testEnv.NewConnectedConsumer(userID, authn.ClientRoleViewer, false)
+	co, cc1, _ := testEnv.NewConnectedConsumer(userID, authn.ClientRoleViewer)
 	err := co.ObserveProperty("", prop1Name)
 	require.NoError(t, err)
 	defer cc1.Stop()
@@ -351,7 +351,7 @@ func TestInvokeDigitwinAction(t *testing.T) {
 	defer stopFn()
 
 	// 1: create a consumer
-	co, cc1, _ := testEnv.NewConnectedConsumer(userID, authn.ClientRoleViewer, false)
+	co, cc1, _ := testEnv.NewConnectedConsumer(userID, authn.ClientRoleViewer)
 	// the action will submit an event
 	err := co.Subscribe(dtwThing1ID, actionName)
 	require.NoError(t, err)

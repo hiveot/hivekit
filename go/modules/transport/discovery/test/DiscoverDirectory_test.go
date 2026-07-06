@@ -20,7 +20,7 @@ const testDirServicePort = 9999
 
 // Test the discovery without using the module
 func TestDiscoverDirectory(t *testing.T) {
-	dirTdd := "{this is a directory TD}"
+	dirTdd := "{}"
 
 	testServiceAddress := utils.GetOutboundIP("").String()
 	endpoints := map[string]string{"wss": "wss://localhost/wssendpoint"}
@@ -56,17 +56,19 @@ func TestDiscoverDirectory(t *testing.T) {
 
 func TestDiscoverGetDirectoryTD(t *testing.T) {
 
-	// run the server
+	// the http server is needed to expose the TDD
 	testEnv := testenv.NewTestEnv(true)
 	testHttpServer, httpServerURL := testEnv.StartHttpServer(true)
 	_ = httpServerURL
 	defer testEnv.HttpServer.Stop()
 
+	// the transport server for reading the directory
+	// This is needed to set the connection information in the directory TDD.
+	tpServer := testEnv.StartTestServer("")
+	defer tpServer.Stop()
+
 	// run a directory that will be discoverable
-	tpList := []api.ITransportServer{}
-	if testEnv.Server != nil {
-		tpList = append(tpList, testEnv.Server)
-	}
+	tpList := []api.ITransportServer{tpServer}
 	dirMod := directorypkg.NewDirectoryService("", "", testHttpServer, tpList)
 	dirMod.Start()
 	_, dirTDJson := dirMod.GetTDD()
@@ -86,11 +88,12 @@ func TestDiscoverGetDirectoryTD(t *testing.T) {
 	cl := discoverypkg.NewDiscoveryClient(appEnv, true)
 	err = cl.Start()
 	require.NoError(t, err)
+	assert.NotEmpty(t, appEnv.DirectoryURL)
 
-	dirTD2 := cl.GetTDD()
+	dirTD2, _, err := cl.DiscoverFirstDirectoryTD(testDirServiceID, time.Second)
+	require.NoError(t, err)
 	assert.NotNil(t, dirTD2, "Client failed to discover the directory on start")
 	assert.Equal(t, dirMod.GetThingID(), dirTD2.ID)
-	assert.NotEmpty(t, appEnv.DirectoryURL)
 }
 
 func TestDiscoverNoDirectory(t *testing.T) {
@@ -105,7 +108,7 @@ func TestDiscoverNoDirectory(t *testing.T) {
 	cl := discoverypkg.NewDiscoveryClient(testEnv.AppEnv, true)
 	err := cl.Start()
 	require.NoError(t, err)
-	dirTD2 := cl.GetTDD()
+	dirTD2, _, err := cl.DiscoverFirstDirectoryTD(testDirServiceID, time.Second)
 	assert.Nil(t, dirTD2)
 
 	// run the discover server without exposing the directory TDD
@@ -122,6 +125,7 @@ func TestDiscoverNoDirectory(t *testing.T) {
 	require.NoError(t, err)
 
 	// no directory has been found
-	dirTD2 = cl.GetTDD()
+	dirTD2, _, err = cl.DiscoverFirstDirectoryTD(testDirServiceID, time.Second)
+	require.Error(t, err)
 	assert.Nil(t, dirTD2)
 }

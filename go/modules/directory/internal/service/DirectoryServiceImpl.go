@@ -78,7 +78,7 @@ func (svc *DirectoryServiceImpl) SetTDHooks(
 // - opens the bucket store using the configured name.
 // - enable the messaging request handler
 // - enable the http request handler using the given router
-// - updates this service TD in the store
+// - updates the directory TDD in the store
 func (svc *DirectoryServiceImpl) Start() (err error) {
 
 	storagePath := svc.storageLoc
@@ -116,7 +116,7 @@ func (svc *DirectoryServiceImpl) Stop() {
 }
 
 // Start a new thing directory service module.
-// On start this opens or creates a directory store in root/moduleID.
+// On start this opens or creates a directory store in {home}/{moduleID}.
 // Directory entries are stored in the 'directory' bucket.
 //
 // The directory publishes a TD that describes how it can be reached. This TD needs
@@ -145,15 +145,15 @@ func NewDirectoryServiceImpl(
 		dirTDD.ID = thingID
 	}
 	// add the forms for additional endpoints
-	if len(transports) > 0 {
-		for _, tp := range transports {
-			if tp == nil {
-				slog.Error("NewDirectoryService: Transports has a nil transport")
-			} else {
-				tp.AddTDSecForms(dirTDD, true)
-			}
+	// if len(transports) > 0 {
+	for _, tp := range transports {
+		if tp == nil {
+			slog.Error("NewDirectoryService: Transports has a nil transport")
+		} else {
+			tp.AddTDSecForms(dirTDD, true)
 		}
 	}
+	// }
 	tddJson := td.MarshalTD(dirTDD)
 	m := &DirectoryServiceImpl{
 		HiveModuleBase: modules.NewHiveModuleBase(thingID, 0),

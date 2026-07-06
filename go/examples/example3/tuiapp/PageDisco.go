@@ -1,17 +1,16 @@
-package wottui
+package tuiapp
 
 import (
 	"fmt"
 
 	"github.com/gdamore/tcell/v2"
-	"github.com/hiveot/hivekit/go/examples/wotco"
+	"github.com/hiveot/hivekit/go/modules/transport/discovery"
 	"github.com/rivo/tview"
 )
 
 // Page with discovery records
 type DiscoPage struct {
 	tview.Table
-	model      *wotco.WotConsumer
 	titleColor tcell.Color
 }
 
@@ -29,12 +28,12 @@ func (v *DiscoPage) addData(content string, row int, col int) int {
 }
 
 // Show the discovered records in the main view
-func (v *DiscoPage) Refresh() {
+// records can be nil for initial display.
+func (v *DiscoPage) Refresh(records []*discovery.DiscoveryResult) {
 
 	v.SetBorders(false)
 	v.SetSelectable(true, false)
 
-	records := v.model.GetRecords()
 	if len(records) > 0 {
 		v.SetTitle(" Discovered Records ")
 	}
@@ -59,17 +58,16 @@ func (v *DiscoPage) Refresh() {
 }
 
 // Create a new discovery table page
-func NewDiscoPage(model *wotco.WotConsumer) *DiscoPage {
+func NewDiscoPage() *DiscoPage {
 
 	discoPage := &DiscoPage{
 		Table: *tview.NewTable(),
-		model: model,
 	}
 	discoPage.SetBorder(true)
 	discoPage.SetFixed(1, 1)
 	discoPage.SetTitle(" Discovery ")
 
-	discoPage.Refresh()
+	discoPage.Refresh(nil)
 
 	return discoPage
 }

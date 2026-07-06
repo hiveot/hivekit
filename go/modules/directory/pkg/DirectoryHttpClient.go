@@ -121,7 +121,7 @@ func (cl *DirectoryHttpClient) Close() error {
 // CreateThing creates a new TD document in the remote directory.
 func (cl *DirectoryHttpClient) CreateThing(tdJson string) error {
 
-	cl.cache.ImportTD(tdJson)
+	cl.cache.ImportTDJson(tdJson)
 
 	// validate the TD and determine the thingID needed in the path
 	tdi, err := td.UnmarshalTD(tdJson)
@@ -165,7 +165,7 @@ func (cl *DirectoryHttpClient) RetrieveAllThings(offset int, limit int) ([]*td.T
 
 	tdList = make([]*td.TD, 0, len(tdJsonList))
 	for _, tdJson := range tdJsonList {
-		tdoc, err := cl.cache.ImportTD(tdJson)
+		tdoc, err := cl.cache.ImportTDJson(tdJson)
 		if err == nil {
 			tdList = append(tdList, tdoc)
 		}
@@ -193,7 +193,7 @@ func (cl *DirectoryHttpClient) RetrieveThing(thingID string) (tdoc *td.TD, err e
 		return nil, err
 	}
 
-	tdoc, err = cl.cache.ImportTD(string(raw))
+	tdoc, err = cl.cache.ImportTDJson(string(raw))
 	return tdoc, err
 }
 

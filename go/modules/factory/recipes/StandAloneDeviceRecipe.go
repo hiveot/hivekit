@@ -21,6 +21,11 @@ const AppSlotType = "appSlot"
 
 // StandAloneDeviceModuleChain is a template that defines the module chain for an IoT device
 // running a server.
+//
+// Tip: if you need to send request messages to the app module directly then get the module
+// and pass it the request, or cast the module to the app interface.
+// Passing messages to the chain itself will be intercepted by the server module which
+// will try to forward it to a client.
 var StandAloneDeviceModuleChain = []api.ModuleDefinition{
 
 	//--- modules that do not depend on where they are placed
@@ -34,9 +39,6 @@ var StandAloneDeviceModuleChain = []api.ModuleDefinition{
 		Type:        api.HttpServerModuleType,
 		Constructor: tlsserverpkg.NewTLSServerFactory,
 	},
-
-	// FIXME: requests to the chain are passed to the wss server which
-	// tries to send it to a RC device instead of down the chain... oops
 
 	//--- sequence required for processing requests
 	{

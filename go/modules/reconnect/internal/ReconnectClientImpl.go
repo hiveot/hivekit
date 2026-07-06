@@ -188,9 +188,32 @@ func (m *ReconnectClientImpl) HandleRequest(req *msg.RequestMessage, replyTo msg
 	return m.HiveModuleBase.HandleRequest(req, replyTo)
 }
 
-// Start the reconnect module
-// If no transport client was provided on startup then see if the request sink is one.
+// SetRequestSink registers the given sink as the client if one isn't set.
+// requestSink must implement the ITransportClient interface so it can be used to
+// register the connect callback.
+func (m *ReconnectClientImpl) SetRequestSink(requestSink api.IHiveModule) {
+	m.HiveModuleBase.SetRequestSink(requestSink)
+
+	// attempt to use the sink if no client is set yet
+	if m.conn == nil {
+		cl, ok := requestSink.(api.ITransportClient)
+		if ok {
+			m.conn = cl
+			m.conn.SetConnectHandler(m.handleConnectChange)
+		}
+	}
+}
+
+// Start the reconnect module.
+//
+// This connects the provided client module.
 func (m *ReconnectClientImpl) Start() error {
+	// if m.conn == nil {
+	// 	sink := m.GetRequestSink()
+	// 	if sink != nil {
+	// 		m.conn, _ = sink.(api.ITransportClient)
+	// 	}
+	// }
 	if m.conn != nil {
 		// A failure to connect is not a failure of this module
 		// TBD - should this run DoReconnect instead?
@@ -202,6 +225,8 @@ func (m *ReconnectClientImpl) Start() error {
 	}
 	return nil
 }
+
+// Stop the reconnect module and disconnect the client
 func (m *ReconnectClientImpl) Stop() {
 	m.mux.Lock()
 	defer m.mux.Unlock()
@@ -214,25 +239,30 @@ func (m *ReconnectClientImpl) Stop() {
 
 // NewReconnectClientImpl creates a reconnect module for use with the given client.
 //
+// If cl is nil then use SetRequestSink to check if the next module is a client.
+// If cl is provided then it is registered as this module's sink
+//
 // This module uses the ReconnectModuleType as its ID.
 //
-//	cl is the transport client connection instance to use before connecting
-func NewReconnectClientImpl(cl api.ITransportClient) (m *ReconnectClientImpl) {
+//	sink is the transport client connection that is a sink for this module.
+func NewReconnectClientImpl(sink api.ITransportClient) (m *ReconnectClientImpl) {
 
 	m = &ReconnectClientImpl{
 		HiveModuleBase: modules.NewHiveModuleBase(reconnect.ReconnectModuleType, 0),
 
 		maxBackoffTimeLimit: reconnect.DefaultBackoffLimit,
 
-		conn:                 cl,
+		conn:                 sink,
 		maxReconnectAttempts: reconnect.DefaultMaxReconnectAttempts,
 		subscriptions:        make(map[string]*msg.RequestMessage),
 	}
-	// enable the reconnect using the callback
-	cl.SetConnectHandler(m.handleConnectChange)
-	// link between client and this module
-	m.SetRequestSink(m.conn)
-	cl.SetNotificationSink(m)
 
+	// link between client and this module
+	if sink != nil {
+		m.conn.SetConnectHandler(m.handleConnectChange)
+
+		m.SetRequestSink(sink)
+		sink.SetNotificationSink(m)
+	}
 	return m
 }

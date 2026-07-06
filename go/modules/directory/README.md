@@ -23,7 +23,7 @@ If the TD is to be published in an internet based directory, the clientID must b
 
 Current solution, same as above. ThingIDs have the clientID prefix.
 
-3: The http client should not be needed. Just use the messaging client with a
+3: The directory http client should not be needed. Just use the messaging client with a
 http-basic client. The directory server TD with forms should be sufficient.
 The main issue is that the generic http-basic server uses different paths, is 
 this valid or are the paths in the spec mandatory. For now assume paths are not fixed.
@@ -50,7 +50,7 @@ TBD: maybe use a filesystem based backend where TDs are stored? It would make im
 
 ## Usage
 
-### Creating a Directory
+### Creating a Directory Server
 
 Examples of creating an instance of the directory.
 
@@ -72,13 +72,13 @@ Examples of creating an instance of the directory.
 
    3. Create an instance of the directory service using directorypkg.NewDirectoryService() and provide it with the storage location of the embedded database, and the http api. The http api is used to set the base URL, security and forms of the directory TD.
 
-   4. Set the service module as the sink of the http api module. Request received via the directory http API is now handled by the server.
+   4. Set the service module as the sink of the http api module. Request received via the http API are now handled by the service.
 
-   5. Call Start on both the http api and the service(). This will initialize or create the store and register the HTTP endpoints with the HTTP server module.
+   5. Call Start on both the http api and the service modules. This will initialize the directory store and register the HTTP endpoints with the HTTP server module.
 
    6. Before shutdown call Stop() to ensure the datastore is properly closed.
 
-### Updating the directory
+### Updating the Directory With TD's
 
 There are several use-cases for updating the directory with TD from Things. At this moment it isn't clear if there is a preferred way. HiveOT is leaning towards option 3 and 4 as HiveOT devices do not run servers.
 
@@ -86,3 +86,18 @@ There are several use-cases for updating the directory with TD from Things. At t
 2. A stand-alone device discovers a directory and write its TD to it.
 3. Devices with reverse connection to a hub or gateway can write the TDs they manage to the its directory.
 4. An administrator can manually upload TDs to the directory import location. This is not yet supported (but seems like a good idea)
+
+
+### Using the Directory Client
+
+The directory client is a module that be used together with a consumer module and discovery module to build consumer applications. It can operate with the directory service or be used stand-alone.
+
+When used with a directory service it needs a transport client module to pass directory requests to the service. Several ways to achieve this:
+1. Have the transportclient module connect to the service using the directory TDD. The TDD describes the service endpoint and protocol for connecting to the directory service. See below for ways to obtain the TDD.
+2. Have the transport client module connect to a gateway that serves the directory. The transport client will pass all requests to the gateway which forwards it to the directory. The transport client can connect using the gateway TDD or a connection URL can be provided to a transport client. 
+
+Obtaining the TDD:
+1. Manual download and storing the tdd in a local file. The filename of the TDD is defined in the directory client interface and defaults to {apphome}/config/tdd.json.
+2. Use the discovery client which has an api to discover directories. The retrieved directory can be activated with "SetTDD()" on the directory client. 
+3. Use the discovery client in the chain. Place the discovery client behind the directory client module. The discovery client automatically performs a discovery on startup (if configured). When found, it sends a notification with the first discovered directory. The directory client intercepts discovery notifications and set the TDD to the discovered directory.
+
