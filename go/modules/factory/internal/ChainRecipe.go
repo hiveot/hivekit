@@ -31,11 +31,21 @@ type ChainRecipe struct {
 	modList []api.IHiveModule
 }
 
+// Recipe receives notifications from the application.
+// Send it up the chain, starting at the last module.
+func (m *ChainRecipe) HandleNotification(notif *msg.NotificationMessage) {
+	if len(m.modList) == 0 {
+		return
+	}
+	tail := m.modList[len(m.modList)-1]
+	tail.HandleNotification(notif)
+}
+
 // Requests sent to the chain are passed on to the first module in the chain.
-// If no modules match it is forwarded to the registered sink.
+// If no modules are registered then this is an error.
 func (m *ChainRecipe) HandleRequest(req *msg.RequestMessage, replyTo msg.ResponseHandler) error {
 	if len(m.modList) == 0 {
-		return m.HiveModuleBase.HandleRequest(req, replyTo)
+		return fmt.Errorf("HandleRequest: recipe has no modules registered")
 	}
 	head := m.modList[0]
 	return head.HandleRequest(req, replyTo)
@@ -55,7 +65,11 @@ func (m *ChainRecipe) SetSlot(slotID string, modDef api.ModuleDefinition) error 
 	return fmt.Errorf("SetSlot: slot '%s' not found", slotID)
 }
 
-// Start the recipe
+// Start the recipe.
+// This starts the modules in sequence.
+//
+// Note that during Start modules are not yet linked, so they should not send
+// any requests.
 func (m *ChainRecipe) Start() error {
 
 	// register all modules with the factory
@@ -89,6 +103,13 @@ func (m *ChainRecipe) Start() error {
 		}
 		prevModule = chainedMod
 	}
+	// notify the modules the recipe is started
+	// if len(m.modList) > 0 {
+	// 	tail := m.modList[len(m.modList)-1]
+	// 	notif := msg.NewNotificationMessage(
+	// 		"", msg.AffordanceTypeEvent, "", api.RecipeStartedEvent, nil)
+	// 	tail.HandleNotification(notif)
+	// }
 	return nil
 }
 
@@ -107,7 +128,7 @@ func NewChainRecipe(f api.IModuleFactory,
 	chain []api.ModuleDefinition) api.IRecipe {
 
 	m := &ChainRecipe{
-		HiveModuleBase: modules.NewHiveModuleBase("", 0),
+		HiveModuleBase: modules.NewHiveModuleBase("ChainRecipe", 0),
 		f:              f,
 		chain:          chain,
 	}

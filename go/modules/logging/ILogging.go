@@ -10,7 +10,7 @@ const (
 	// TODO: log to syslog
 	// LoggingBackendSyslog = "syslog"
 )
-const LoggingModuleType = "logging"
+const LoggingServiceModuleType = "logging"
 
 // ILoggingService logging module interface.
 type ILoggingService interface {

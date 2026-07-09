@@ -9,7 +9,7 @@ import (
 	wsspkg "github.com/hiveot/hivekit/go/modules/transport/wss/pkg"
 )
 
-// module types of a device server device chain
+// Recipe chain of a device server device chain
 var DeviceServerRecipe = []api.ModuleDefinition{
 	{
 		Type:        api.HttpServerModuleType,

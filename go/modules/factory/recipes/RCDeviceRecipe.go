@@ -2,8 +2,6 @@ package recipes
 
 import (
 	"github.com/hiveot/hivekit/go/api"
-	"github.com/hiveot/hivekit/go/modules/certs"
-	certspkg "github.com/hiveot/hivekit/go/modules/certs/pkg"
 	factorypkg "github.com/hiveot/hivekit/go/modules/factory/pkg"
 	"github.com/hiveot/hivekit/go/modules/reconnect"
 	reconnectpkg "github.com/hiveot/hivekit/go/modules/reconnect/pkg"
@@ -12,17 +10,12 @@ import (
 	discoverypkg "github.com/hiveot/hivekit/go/modules/transport/discovery/pkg"
 )
 
-// RCDeviceChain defines the module chain for use by IoT devices that use reverse
+// RCDeviceChain defines a client module chain for IoT devices that use reverse
 // connection to a gateway or hub.
 // The IoT device logic can be added at the end using AppendModule or linking to it.
 var RCDeviceChain = []api.ModuleDefinition{
 	{
-		// initialize client certs / auth token in app environment
-		Type:        certs.InitFactoryCertsModuleType,
-		Constructor: certspkg.NewInitFactoryCerts,
-	},
-	{
-		// discover the server using DNS-SD
+		// discover the server running the directory
 		Type:        discovery.DiscoveryClientModuleType,
 		Constructor: discoverypkg.NewDiscoveryClientFactory,
 	},
@@ -33,13 +26,24 @@ var RCDeviceChain = []api.ModuleDefinition{
 	},
 	{
 		// connect a new client to the discovered server
+		// the server URL is set by discovery.
 		Type:        clients.TransportClientModuleType,
 		Constructor: clients.NewTransportClientFactory,
 	},
 	// todo: add optional logging of requests
 	// todo: optional authorization of requests
 
-	// add and link your application module
+	// add and link your application module, which will handle requests
+	// or use the app slot.
+	{
+		// Module slot for the application module.
+		// This is the application module. This place lets it publish its TD for discovery as it is
+		// placed before those modules.
+		// Use Chain.SetSlot(AppSlotType, moduleDef)
+		Type: AppSlotType,
+	},
+	// Q: how does the device write its TD to the directory?
+	// A: Use directorypkg.UpdateTD(dirThingID, tdjson, recipe-as-sink)
 }
 
 // RCDeviceRecipe is a recipe for creating a reverse-connected devices.

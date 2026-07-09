@@ -59,7 +59,7 @@ func (m *AuthzService) Stop() {
 // The getRole handler is used to determine a client's role for RBAC
 func NewAuthzService(getRoleHandler func(clientID string) (role string, err error)) *AuthzService {
 	// this module is a singleton that exposes multiple service things
-	thingID := authz.AuthzModuleType
+	thingID := authz.AuthzServiceModuleType
 	m := &AuthzService{
 		HiveModuleBase: modules.NewHiveModuleBase(thingID, 0),
 		getRoleHandler: getRoleHandler,

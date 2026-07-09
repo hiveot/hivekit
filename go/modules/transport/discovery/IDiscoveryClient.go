@@ -8,12 +8,15 @@ import (
 	"github.com/hiveot/hivekit/go/api/td"
 )
 
-// The discovery module types
 const (
+	// The discovery client module type for including in a module chain
 	DiscoveryClientModuleType = "discovery-client"
 
-	// Action request to discover a directory TDD
-	// Output: JSON with directory TD
+	// Action request to discover a directory TDD.
+	// Output: JSON with directory TD.
+	//
+	// This action is intended for applications to request 'rediscovery' of TD Directories
+	// and Things after the chain has started.
 	DiscoverDirectoryAction = "discoverDirectory"
 )
 

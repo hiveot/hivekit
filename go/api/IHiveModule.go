@@ -76,10 +76,17 @@ type IHiveModule interface {
 	SetRequestSink(sink IHiveModule)
 
 	// Start readies the module for use.
-	// Intended for modulues to initialize resources
+	//
+	// Note that during Start modules might not yet be linked, so they must not send
+	// any requests until all modules have started.
+	//
+	// If this is an issue then try to solve it by providing dependencies during
+	// instantiation, not during Start. When using the factory, other modules can be
+	// retrieved using f.GetModule(type).(interface), where f is the factory instance.
+	//
+	// If the module cannot be used as intended then return an error.
 	Start() error
 
 	// Stop halts module operation and releases resources.
-	// Intended for modulues to free resources
 	Stop()
 }

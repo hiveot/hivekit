@@ -143,6 +143,35 @@ func (m *TestDevice) GetTD() string {
 	return m.tdocJson
 }
 
+func (m *TestDevice) HandleDecrement(req *msg.RequestMessage, replyTo msg.ResponseHandler) (err error) {
+	resp := req.CreateResponse(nil, nil)
+	if replyTo != nil {
+		err = replyTo(resp)
+	}
+	go m.Update(int(m.counter.Load() - 1))
+	return err
+}
+
+func (m *TestDevice) HandleIncrement(req *msg.RequestMessage, replyTo msg.ResponseHandler) (err error) {
+
+	resp := req.CreateResponse(nil, nil)
+	if replyTo != nil {
+		err = replyTo(resp)
+	}
+	go m.DoIncrement()
+	return err
+}
+
+// Receive notifications from the chain
+// * New connection to the server
+// * Any notifications send by connected clients - none are expected so ignore these
+func (m *TestDevice) HandleNotification(notif *msg.NotificationMessage) {
+	if notif.AffordanceType == msg.AffordanceTypeEvent && notif.Name == api.ClientConnectionStatusEvent {
+		slog.Info("HandleNotification: Client connection event", "data", notif.Data)
+	}
+	m.ForwardNotification(notif)
+}
+
 func (m *TestDevice) HandleRequest(req *msg.RequestMessage, replyTo msg.ResponseHandler) (err error) {
 	if req.ThingID != m.GetThingID() {
 		return m.ForwardRequest(req, replyTo)
@@ -167,25 +196,6 @@ func (m *TestDevice) HandleRequest(req *msg.RequestMessage, replyTo msg.Response
 	default:
 		err = fmt.Errorf("Unhandled operation '%s'", req.Operation)
 	}
-	return err
-}
-
-func (m *TestDevice) HandleDecrement(req *msg.RequestMessage, replyTo msg.ResponseHandler) (err error) {
-	resp := req.CreateResponse(nil, nil)
-	if replyTo != nil {
-		err = replyTo(resp)
-	}
-	go m.Update(int(m.counter.Load() - 1))
-	return err
-}
-
-func (m *TestDevice) HandleIncrement(req *msg.RequestMessage, replyTo msg.ResponseHandler) (err error) {
-
-	resp := req.CreateResponse(nil, nil)
-	if replyTo != nil {
-		err = replyTo(resp)
-	}
-	go m.DoIncrement()
 	return err
 }
 
@@ -220,7 +230,9 @@ func (m *TestDevice) HandleWriteProperty(req *msg.RequestMessage, replyTo msg.Re
 	return err
 }
 
-// Start the device module.
+// Start the test device module.
+//
+// This publishes a write TD request to the sink.
 func (m *TestDevice) Start() error {
 	m.backgroundCtx, m.backgroundCancel = context.WithCancel(context.Background())
 
@@ -229,8 +241,8 @@ func (m *TestDevice) Start() error {
 	m.tdocJson = td.MarshalTD(tdoc)
 
 	// publish the device TD/TM
-	// wait until the chain is complete before publishing the TD for discovery.
-	// the transport will add the neccesary forms
+	// the downstream modules must already be actived so writing the TD is
+	// send to discovery or directory.
 	go func() {
 		time.Sleep(time.Millisecond)
 		// write TD to the directory or discovery
@@ -268,9 +280,10 @@ func (m *TestDevice) Update(newValue int) {
 	m.PubEvent(thingID, CounterUpdatedEvent, m.counter.Load())
 }
 
-// Create a new counter test device that starts counting at 42.
+// Create a new counter exposed thing test device that starts counting at 42.
 //
-// the deviceID is the thingID
+// the deviceID is the thingID or use "" for an auto generated ID
+// config defines behavior of the Thing
 func NewCounterDevice(deviceID string, config *CounterConfig) *TestDevice {
 	if config == nil {
 		config = &CounterConfig{
@@ -278,20 +291,13 @@ func NewCounterDevice(deviceID string, config *CounterConfig) *TestDevice {
 			ResetValue:    1000,
 		}
 	}
+	if deviceID == "" {
+		deviceID = DefaultCounterDeviceThingID
+	}
 	m := &TestDevice{
 		ExposedThing: thing.NewExposedThing(deviceID, nil),
 		config:       config,
 	}
 	m.counter.Store(42)
 	return m
-}
-
-func NewCounterDeviceFactory(f api.IModuleFactory,
-	md *api.ModuleDefinition) (api.IHiveModule, error) {
-
-	// todo md can now provide configuration
-	thingID := DefaultCounterDeviceThingID
-	counterConfig, _ := md.Config.(*CounterConfig)
-	m := NewCounterDevice(thingID, counterConfig)
-	return m, nil
 }

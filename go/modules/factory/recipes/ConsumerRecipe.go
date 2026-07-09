@@ -2,8 +2,6 @@ package recipes
 
 import (
 	"github.com/hiveot/hivekit/go/api"
-	"github.com/hiveot/hivekit/go/modules/certs"
-	certspkg "github.com/hiveot/hivekit/go/modules/certs/pkg"
 	"github.com/hiveot/hivekit/go/modules/directory"
 	directorypkg "github.com/hiveot/hivekit/go/modules/directory/pkg"
 	factorypkg "github.com/hiveot/hivekit/go/modules/factory/pkg"
@@ -13,20 +11,10 @@ import (
 	discoverypkg "github.com/hiveot/hivekit/go/modules/transport/discovery/pkg"
 )
 
-// ConsumerRecipeChain defines the modules for IoT consumers in order of instantiation
-// Link a consumer to this chain.
+// ConsumerRecipeChain defines the modules for IoT consumers in order of instantiation.
 var ConsumerRecipeChain = []api.ModuleDefinition{
 	{
-		// initialize client certs / auth token in app environment
-		Type:        certs.InitFactoryCertsModuleType,
-		Constructor: certspkg.NewInitFactoryCerts,
-	},
-	// {
-	// 	// application slot
-	// 	Type: AppSlotType,
-	// },
-	{
-		// use a directory client to read things
+		// use a directory client to read thing TDs
 		Type:        directory.DirectoryClientModuleType,
 		Constructor: directorypkg.NewDirectoryClientFactory,
 	},
@@ -43,7 +31,7 @@ var ConsumerRecipeChain = []api.ModuleDefinition{
 	},
 }
 
-// ConsumerRecipe.go is a recipe for general consumers
+// ConsumerRecipe.go is a recipe for general consumers.
 //
 // This:
 // * support AppEnvironment commandline options

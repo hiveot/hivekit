@@ -1,14 +1,30 @@
 package factorypkg
 
 import (
+	"fmt"
+
 	"github.com/hiveot/hivekit/go/api"
 	"github.com/hiveot/hivekit/go/modules/factory/internal"
 )
 
+// Create a new module bus with an array of modules defined in the def config
+func NewBusRecipeFactory(
+	f api.IModuleFactory, def *api.ModuleDefinition) (api.IHiveModule, error) {
+
+	members, ok := def.Config.([]api.ModuleDefinition)
+	if !ok {
+		return nil, fmt.Errorf("NewBusRecipeFactory: Config has no members")
+	}
+	m := internal.NewBusRecipe(members)
+	return m, nil
+}
+
 // Create a recipe instance for running modules in a chain formation.
 //
-// Use Start to instantiate and link the modules in the given order. This uses the factory
-// to create the module instances.
+// Use Start to instantiate and link the modules in REVERSE order. The reverse
+// order start is neccesary to enable sending requests on start.
+//
+// This uses the factory to create the module instances.
 // Providing a factory function in the chain is only needed if the factory doesn't contain
 // it already.
 //

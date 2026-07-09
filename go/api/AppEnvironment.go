@@ -13,10 +13,14 @@ import (
 	"strings"
 	"time"
 
+	"github.com/hiveot/hivekit/go/api/msg"
 	"github.com/hiveot/hivekit/go/api/td"
 	"github.com/hiveot/hivekit/go/utils"
 	"gopkg.in/yaml.v3"
 )
+
+// For use in the factory chain
+const AppEnvironmentModuleType = "AppEnvironment"
 
 // certificate file names
 const (
@@ -253,6 +257,7 @@ func NewAppEnvironment(homeDir string, withFlags bool) *AppEnvironment {
 	var storesDir string
 	var directoryURL string
 	var serverURL string
+	var rpcTimeout time.Duration = msg.DefaultRnRTimeout
 
 	// The default appID is the binary name. This allows for multiple instances
 	// by linking instance IDs to the binary.
@@ -390,7 +395,15 @@ func NewAppEnvironment(homeDir string, withFlags bool) *AppEnvironment {
 		LogsDir:    logsDir,
 		LogLevel:   logLevel,
 		PluginsDir: pluginsDir,
+		RpcTimeout: rpcTimeout,
 		ServerURL:  serverURL,
 		StoresDir:  storesDir,
 	}
 }
+
+// Initialize the factory application environment
+// func AppEnvironmentFactory(f IModuleFactory, def *ModuleDefinition) (IHiveModule, error) {
+// 	env := NewAppEnvironment("", true)
+// 	f.SetAppEnvironment(env)
+// 	return nil, nil
+// }

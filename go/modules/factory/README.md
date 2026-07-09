@@ -1,55 +1,30 @@
 # HiveKit Module Factory
 
-The module factory creates module instances for the configured environment. Use of the factory is optional. It does make life easier though so give it a spin.
+The module factory is intended to create a complete application out of modules using the provided application environment. 
 
-The factory is a module itself that passes requests to the chain of loaded modules and returns notifications. The factory supports the ability to create a chain from a recipe that defines the modules to be included and the order they are linked.
+While modules can be used stand-alone, use of factory recipes make it easy to construct an application while only needing to focus on the application logic itself. 
+
+Module recipes are a companion to the factory that constructs a module chain, or star formation, from a declared recipe. A recipe is a module itself that passes requests to the modules in the recipe and returns notifications from the recipe modules. 
 
 ![chaining](../../../docs/module-chain.png)
 
 ## Status
 
-This module is in alpha. It is functional but breaking changes can be expected.
+The factory and recipe modules are in alpha. They are functional but breaking changes can be expected.
 
 ## Summary
 
-The purpose of the factory module is the simplify instantiation and linking of (golang) modules for a client or server applications. It operates using a collection of registered modules. 3rd party modules can easily be added to the registry. By making modules for application logic, a complete application can be generated from the factory.
+The purpose of the factory is the simplify instantiation and linking of (golang) modules for a client or server applications along with the needed environment. It operates using a collection of registered modules. 3rd party modules can easily be added to the registry. 
 
-The factory can be used to obtain individual modules or a chain of modules following a 'recipe'. Module dependencies are automatically resolved by letting modules load other modules during instantiation..
+To develop an application the application logic can be placed in a module itself and linked to a recipe. The recipe handles the needed capabilities for discovery, communication, storage and much more.
 
-Each module is registered using a module-type. The module type identifies the implementation and can require that a specific interface is implemented. Modules can be replaced with custom functionality as long as the replacement implements the interface for that module type.
+Each module is registered using a module-type name and a default implementation. The module type identifies the interface of the module implementation. Modules can be replaced with custom functionality as long as the replacement implements the interface for that module type.
 
-Applications can generate the module instances using 'GetModule(moduleType)'. The module uses the factory provided environment to obtain directory locations, certificates as needed. In case of clients the environment offers the server URL which can be set manually or by the discovery module.
+Applications can instantiate a module using 'GetModule(moduleType)'. The module uses the factory provided environment to obtain directory locations, certificates as needed. In case of clients the environment offers the server URL which can be set manually or by the discovery module.
 
-## Application Example
+The recipes folder contains a set of convenient cookie-cutter recipies for building consumers, Things and gateways. See also the examples to see how they are used for creating a test device and a consumer cli.
 
-The easiest method to build an application is to use one of the predefined recipes and add the application specific module.
-
-```go (tenative)
-func main(){
-    // collect the modules to include. Templates define modules for common use-cases.
-    modules := DeviceServerTemplate
-    // determine the chaining sequence
-    chain := []string{moduleType1, moduleType2}
-    // create the recipe handler
-    recipe := NewFactoryRecipe(modules, chain)
-    // optionally register the application logic as a module or modify the recipe
-    recipe.AddModule(MyAppModuleType, NewAppModuleFn)
-    // create the application environment. This supports commandline options.
-    env := api.NewAppEnvironment("", true)
-    // instantiate the factory and run the recipe
-    f := factory.NewModuleFactory(env, nil)
-    recipe.Start(f)
-
-    // wait for Control-C or other signal to end the application
-    f.WaitForSignal(context.Background())
-    // Graceful shutdown
-    f.StopAll()
-}
-```
-
-The factory includes predefined recipes for building client and server applications. The user can use one of these to create a new template and add to it.
-
-## Recipe Creation
+### Recipe Creation
 
 Recipes are the quickest way to build a client or server application or plugin. They specify wich modules are used and how they are chained.
 
@@ -57,13 +32,16 @@ A recipe contains a map of module factory functions by their module type, and a 
 
 Use of recipes is optional as a user can also just load modules with the factory using factoryInstance.GetModule(moduleType) and link them manually using SetRequestHandler and SetResponseHandler.
 
-A recipe can be expanded with a custom module by calling recipe.AddModule(moduleType, moduleDef).
+### Inter-process and Multi-Language Recipes
+
+The factory is written in golang and can only instantiate modules running in the same process. Modules written in a different program language or running on a different host cannot be started.
+
+It is possible however to build an application consisting of modules on different platforms by connecting them through a transport client/server or by using an application gateway. The gateway recipe can be expanded to include local business logic and accept connections from javascript or python modules that run on the same or separate hosts. 
+
+
+### Including 3rd party modules
 
 3rd party modules can be included if they are written in golang. For 3rd party modules written in different languages it is better to define them as plugins. A javascript and python implementation of the factory is planned to simplify writing IoT applications and plugins in those languages.
-
-### Which Modules Should Be Used?
-
-todo
 
 ## Application Environment
 
@@ -146,3 +124,43 @@ The key file has the application-ID as the filename with ".key" as the suffix. T
 If the server side uses the authn module for authentication (recommended) then the keys must be generated using this module.
 
 The cli and launcher mentioned above are applications build with HiveKit. See the go/apps directory for details.
+
+
+
+
+
+## Application Example
+
+The easiest method to build an application is to use one of the predefined recipes and add the application specific module. Below some pseudocode for illustration. See also the examples section.
+
+```go (tenative)
+func main(){
+    // collect the modules to include. Predefined recipes already contain the modules for common use-cases.
+	env := api.NewAppEnvironment("~/bin/hiveot", true)
+	f := factorypkg.NewModuleFactory(env, nil)
+    recipe := NewStandAloneDeviceRecipe(f)
+    // register the recipe modules with the factory and start them.
+    err = recipe.Start()
+    if err != nil {
+        return 
+    }
+
+    // create your application and link it to the recipe
+    appModule := NewMyAppModule()
+    // A: have the recipe handle requests (consumers)
+    appModule.SetRequestSink(recipe)
+    recipe.SetNotificationSink(appModule)
+    // B: have the recipe pass requests (IoT devices and services)
+    recipe.SetRequestSink(appModule)
+    appModule.SetNotificationSink(recipe)
+
+    appModule.Start()
+
+    // wait for Control-C or other signal to end the application
+    f.WaitForSignal(context.Background())
+    // Graceful shutdown of all modules in the factory
+    f.Stop()
+}
+```
+This is all that is needed to include hivekit and other modules in your application. The developer only needs to provide 'appModule' which provides the application logic and interacts with request handler and notification handlers.
+

@@ -29,7 +29,7 @@ func TestDiscoverDirectory(t *testing.T) {
 	testEnv.StartHttpServer(true)
 	defer testEnv.HttpServer.Stop()
 
-	m := discoverypkg.NewDiscoveryServer(testDirServiceID, testEnv.HttpServer, endpoints)
+	m := discoverypkg.NewDirectoryDiscoveryServer(testDirServiceID, testEnv.HttpServer, endpoints)
 	err := m.Start()
 	require.NoError(t, err)
 	defer m.Stop()
@@ -76,7 +76,7 @@ func TestDiscoverGetDirectoryTD(t *testing.T) {
 	// dirTDJson := td.MarshalTD(dirTD)
 
 	// run the discover server and expose the directory TDD
-	m := discoverypkg.NewDiscoveryServer(testDirServiceID, testEnv.HttpServer, nil)
+	m := discoverypkg.NewDirectoryDiscoveryServer(testDirServiceID, testEnv.HttpServer, nil)
 	err := m.Start()
 	require.NoError(t, err)
 	defer m.Stop()
@@ -112,7 +112,7 @@ func TestDiscoverNoDirectory(t *testing.T) {
 	assert.Nil(t, dirTD2)
 
 	// run the discover server without exposing the directory TDD
-	m := discoverypkg.NewDiscoveryServer(testDirServiceID, testHttpServer, nil)
+	m := discoverypkg.NewDirectoryDiscoveryServer(testDirServiceID, testHttpServer, nil)
 	err = m.Start()
 	require.NoError(t, err)
 	defer m.Stop()

@@ -6,7 +6,7 @@ import (
 	"github.com/hiveot/hivekit/go/modules/reconnect/internal"
 )
 
-// NewReconnectClient creates a reconnect module for use with the given client.
+// NewReconnectClient creates a reconnect module for use with a transport client.
 //
 // If cl is not known at time of creation, then SetRequestSink is used to detect
 // if the sink is the client to apply reconnect to.
@@ -18,7 +18,7 @@ func NewReconnectClient(sink api.ITransportClient) reconnect.IReconnect {
 	return m
 }
 
-// Factory for creating a consumer module using the factory environment
+// Factory for creating a module using the factory environment
 func NewReconnectFactory(f api.IModuleFactory, md *api.ModuleDefinition) (api.IHiveModule, error) {
 	// env := f.GetEnvironment()
 

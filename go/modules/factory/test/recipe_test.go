@@ -7,31 +7,27 @@ import (
 	factorypkg "github.com/hiveot/hivekit/go/modules/factory/pkg"
 	"github.com/hiveot/hivekit/go/modules/factory/recipes"
 	"github.com/hiveot/hivekit/go/testenv"
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
 // 1: setup a test chain
 
 func TestServerRecipe(t *testing.T) {
-	const TestDeviceModuleType = "testDevice"
 
 	env := api.NewAppEnvironment(testDir, false)
 	env.HttpsPort = testPort
-	serverFactory := factorypkg.NewModuleFactory(env, nil)
 
-	// use test device factory
-	deviceRecipe := recipes.NewStandAloneDeviceRecipe(serverFactory, &api.ModuleDefinition{
-		Type:        TestDeviceModuleType,
-		Constructor: testenv.NewCounterDeviceFactory,
-	})
+	// run the module chain for a standalone server
+	f := factorypkg.NewModuleFactory(env, nil)
+	deviceRecipe := recipes.NewStandAloneDeviceRecipe(f)
 	err := deviceRecipe.Start()
 	require.NoError(t, err)
+	defer deviceRecipe.Stop()
 
-	m1 := serverFactory.GetModule(TestDeviceModuleType)
-	testDevice, ok := m1.(*testenv.TestDevice)
-	_ = testDevice
-	assert.True(t, ok)
+	// run a test device
+	testDevice := testenv.NewCounterDevice("", nil)
+	err = testDevice.Start()
+	require.NoError(t, err)
+	defer testDevice.Stop()
 
-	deviceRecipe.Stop()
 }

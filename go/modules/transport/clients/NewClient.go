@@ -199,17 +199,19 @@ func NewTransportClientFromTD(
 	return cl, err
 }
 
-// Create a new client instance using the gathered information from the factory
+// Create a new client instance using the information from the application
+// environment, in particular the ServerURL.
 // This uses the factory serverURL or server TD to determine which protocol to instantiate
-func NewTransportClientFactory(f api.IModuleFactory,
-	md *api.ModuleDefinition) (cl api.IHiveModule, err error) {
+func NewTransportClientFactory(
+	f api.IModuleFactory, md *api.ModuleDefinition) (cl api.IHiveModule, err error) {
 
+	// the server url is set through commandline, or useing a discovery client
 	serverURL := f.GetEnvironment().ServerURL
 	if serverURL != "" {
 		cl, err = NewTransportClient("", serverURL, f.GetEnvironment().CaCert)
 	} else {
 		// TODO: use discovered server TD
-		err = fmt.Errorf("unknown protocol")
+		err = fmt.Errorf("unknown protocol or missing server URL '%s'", serverURL)
 	}
 	return cl, err
 }

@@ -6,6 +6,8 @@ import (
 	"github.com/hiveot/hivekit/go/api/td"
 	"github.com/hiveot/hivekit/go/modules"
 	"github.com/hiveot/hivekit/go/modules/directory"
+	"github.com/hiveot/hivekit/go/modules/transport/addforms"
+	"github.com/teris-io/shortid"
 )
 
 // AddFormsServiceImpl modifies TD's sent with directory update and create commands with base, security, and form information from the configured transports.
@@ -43,7 +45,7 @@ func (m *AddFormsServiceImpl) HandleRequest(req *msg.RequestMessage, replyTo msg
 	m.AddTDSecForms(tdoc, m.includeAffordances)
 
 	newInput := td.MarshalTD(tdoc)
-	// shallow copy of the request
+	// shallow copy of the request before changing the input
 	req2 := *req
 	req2.Input = newInput
 	return m.ForwardRequest(&req2, replyTo)
@@ -58,9 +60,9 @@ func (m *AddFormsServiceImpl) AddTDSecForms(tdoc *td.TD, includeAffordances bool
 
 // NewAddFormsServiceImpl creates a new instance of the service
 func NewAddFormsServiceImpl(tpServers []api.ITransportServer) *AddFormsServiceImpl {
-
+	thingID := addforms.AddFormsModuleType + "-" + shortid.MustGenerate()
 	m := &AddFormsServiceImpl{
-		HiveModuleBase:     *modules.NewHiveModuleBase("", 0),
+		HiveModuleBase:     *modules.NewHiveModuleBase(thingID, 0),
 		includeAffordances: true,
 		tpServers:          tpServers,
 	}

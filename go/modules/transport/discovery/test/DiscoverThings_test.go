@@ -31,7 +31,7 @@ func TestDiscoverThings(t *testing.T) {
 	testEnv.StartHttpServer(true)
 	defer testEnv.HttpServer.Stop()
 
-	m := discoverypkg.NewDiscoveryServer(testServiceID, testEnv.HttpServer, nil)
+	m := discoverypkg.NewThingDiscoveryServer(testServiceID, testEnv.HttpServer, nil)
 	err := m.Start()
 	require.NoError(t, err)
 	defer m.Stop()
@@ -57,7 +57,7 @@ func TestDiscoverGetThingTD(t *testing.T) {
 	defer testEnv.HttpServer.Stop()
 	thingTD := testEnv.CreateTestTD(12)
 
-	m := discoverypkg.NewDiscoveryServer(testServiceID, testEnv.HttpServer, nil)
+	m := discoverypkg.NewThingDiscoveryServer(testServiceID, testEnv.HttpServer, nil)
 	err := m.Start()
 	require.NoError(t, err)
 	defer m.Stop()
@@ -67,14 +67,14 @@ func TestDiscoverGetThingTD(t *testing.T) {
 	// err = m.ServeThingTD(thingTD)
 	tdJson1 := td.MarshalTD(thingTD)
 	req := msg.NewRequestMessage(td.OpInvokeAction,
-		discovery.DiscoveryServerModuleType, discovery.ServeThingTDAction, tdJson1)
+		discovery.ThingDiscoveryServerModuleType, discovery.ServeThingTDAction, tdJson1)
 	err = m.HandleRequest(req, req.NoReply)
 	require.NoError(t, err)
 
 	// discover the server
 	appEnv := api.NewAppEnvironment("", false)
 	cl := discoverypkg.NewDiscoveryClient(appEnv, false)
-	recs, err := cl.DiscoverThings(testServiceID, time.Second, nil)
+	recs, err := cl.DiscoverThings("", time.Second, nil)
 	// records, err := cl.DiscoverThings(testThingServiceID, time.Second, nil)
 	require.NoError(t, err)
 	require.NotEmpty(t, recs)

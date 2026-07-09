@@ -44,7 +44,7 @@ func NewLoggingConfig(logDestination string, backend string) LoggingConfig {
 
 	}
 	cfg := LoggingConfig{
-		ModuleID:       LoggingModuleType,
+		ModuleID:       LoggingServiceModuleType,
 		Backend:        backend,
 		LogDestination: logDestination,
 		TimeFormat:     "Jan _2 15:04:05.0000",

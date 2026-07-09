@@ -22,45 +22,22 @@ const AppSlotType = "appSlot"
 // StandAloneDeviceModuleChain is a template that defines the module chain for an IoT device
 // running a server.
 //
-// Tip: if you need to send request messages to the app module directly then get the module
-// and pass it the request, or cast the module to the app interface.
-// Passing messages to the chain itself will be intercepted by the server module which
-// will try to forward it to a client.
+// Each of the modules can be obtained with api.GetFactoryModule[IModuleAPI](f,moduleType),
+//
+//	where IModuleAPI is the defined interface of the module,
+//	f is the factory instance.
+//	moduleType is the registration name of the module.
+//
+// To make the app discoverable:
+// After the chain has started, the app can send an invokeaction request with the name
+// 'ServeThingTDAction' and the TD/TM as the payload. The chain will update the forms with the
+// server information and serve a discovery record using DNS-SD.
 var StandAloneDeviceModuleChain = []api.ModuleDefinition{
-
-	//--- modules that do not depend on where they are placed
 	{
-		// initialize CA and server certs
+		// If no CA certificate is found in the AppEnvironment then generate a CA.
+		// If no server certificate is found in the AppEnvironment then generate a self-signed certificate.
 		Type:        certs.InitFactoryCertsModuleType,
 		Constructor: certspkg.NewInitFactoryCerts,
-	},
-	{
-		// http server module is used by websockets
-		Type:        api.HttpServerModuleType,
-		Constructor: tlsserverpkg.NewTLSServerFactory,
-	},
-
-	//--- sequence required for processing requests
-	{
-		// websocket server transport for consumer connections
-		Type:        wss.HiveotWebsocketServerModuleType,
-		Constructor: wsspkg.NewHiveotWssServerFactory,
-	},
-	{
-		// run an authentication service
-		Type:        authn.AuthnServiceModuleType,
-		Constructor: authnpkg.NewAuthnServiceFactory,
-	},
-
-	// todo: add optional logging of requests
-	// todo: optional authorization of requests
-
-	{
-		// Module slot for the application module.
-		// This is the application module. This place lets it publish its TD for discovery as it is
-		// placed before those modules.
-		// Use Chain.SetSlot(AppSlotType, moduleDef)
-		Type: AppSlotType,
 	},
 
 	{
@@ -70,33 +47,54 @@ var StandAloneDeviceModuleChain = []api.ModuleDefinition{
 	},
 	{
 		// discovery server for publishing the device TD
-		Type:        discovery.DiscoveryServerModuleType,
-		Constructor: discoverypkg.NewDiscoveryServerFactory,
+		// invoke action ServeThingTDAction to expose a TD
+		// or locate the module and call ServeThingTD()
+		// Type: discovery.DiscoveryServerModuleType,
+		// Constructor: discoverypkg.NewDiscoveryServerFactory,
+		Type:        discovery.ThingDiscoveryServerModuleType,
+		Constructor: discoverypkg.NewThingDiscoveryServerFactory,
 	},
+
+	{
+		// http server module is needed by websocket transport server
+		// It uses the factory registered authenticator.
+		Type:        api.HttpServerModuleType,
+		Constructor: tlsserverpkg.NewTLSServerFactory,
+	},
+	{
+		// Websocket transport server for incoming connections
+		// This will be used later to update forms in the TD
+		Type:        wss.HiveotWebsocketServerModuleType,
+		Constructor: wsspkg.NewHiveotWssServerFactory,
+	},
+	{
+		// Register the transport server authentication handler, and handle requests
+		// to manage authentication configuration.
+		Type:        authn.AuthnServiceModuleType,
+		Constructor: authnpkg.NewAuthnServiceFactory,
+	},
+
+	// todo: optional logging of requests
+	// todo: optional authorization of requests
 }
 
 // NewStandAloneDeviceRecipe creates a recipe for standalone IOT devices running a server.
 //
 // 1. load CA and server certificate
-// 2. Run a http server to publish the device TD
-// 3. Run the authentication server for authenticate requests and manage clients
-// 4. Run a websocket server for receiving requests
-// 5. {the application slot>
-// 6. Add forms to the published TD/TM
-// 7. Run a service discovery server to publish the TD using the discovery specification.
+// 2. Intercept updateTD and add forms to the published TD/TM
+// 3. Run a service discovery server to publish the TD using the discovery specification.
+//
+// Service message handling
+// 4. Run a http server to publish the device TD
+// 5. Run the authentication server for authenticate requests and manage clients
+// 6. Run a websocket server for receiving requests
 //
 // f is the module factory to use to use.
-// appModule is the module definition of the exposed thing to inject in the app slot.
 //
 // This returns the recipe, which can be used like any other module
-func NewStandAloneDeviceRecipe(
-	f api.IModuleFactory, appModule *api.ModuleDefinition) api.IRecipe {
+func NewStandAloneDeviceRecipe(f api.IModuleFactory) api.IRecipe {
 	chain := StandAloneDeviceModuleChain
 
 	r := factorypkg.NewChainRecipe(f, chain)
-	// place the application module before discovery
-	if appModule != nil {
-		r.SetSlot(AppSlotType, *appModule)
-	}
 	return r
 }

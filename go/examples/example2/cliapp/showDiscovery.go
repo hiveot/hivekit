@@ -30,7 +30,7 @@ func ListThings(tdList []*td.TD) {
 // if readDir is true then try to read the directory content/hivekit/go/examples/wotco"
 func (app *CliApp) ShowDiscovery() {
 	nrFound := 0
-	waitDuration := time.Second
+	waitDuration := time.Second * 3
 
 	utils.SetLogging("warning", "")
 	fmt.Println("Discovered Things and Directories on the local network")

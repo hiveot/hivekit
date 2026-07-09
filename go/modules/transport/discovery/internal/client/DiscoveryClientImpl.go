@@ -164,7 +164,7 @@ func (cl *DiscoveryClientImpl) DiscoverFirstDirectoryTD(
 // 	return rec0, nil
 // }
 
-// DiscoverThings returns discovery records of wot Things that publish themselves on the network.
+// DiscoverThings returns discovery records of all wot Things that publish themselves on the network.
 //
 // Intended for environments where things run servers themselves (instead of using a hub/gateway).
 //
@@ -315,7 +315,9 @@ func (cl *DiscoveryClientImpl) ParseZeroconfServiceEntry(
 
 // Start the discovery client.
 //
-// If an application environment is provided it will run a discovery to update its directory URL and TD
+// If an application environment is provided and no directory URL is set,
+// then run a discovery to update the AppEnvironment directory URL and
+// Server URL. (if empty)
 func (cl *DiscoveryClientImpl) Start() (err error) {
 
 	var rec0 *discovery.DiscoveryResult
@@ -377,10 +379,11 @@ func (cl *DiscoveryClientImpl) Start() (err error) {
 	return nil
 }
 
-// NewDiscoveryClientImpl creates a new instance of a discovery client
+// NewDiscoveryClientImpl creates a new instance of a discovery client.
 //
-// If an appEnv is provided and a DirectoryURL is set, or discoOnStart is disabled, then
-// Start will not run discovery.
+// If an appEnv is provided and its DirectoryURL is empty, and discoOnStart is enabled
+// then Start will run in initial directory discovery and update appEnv with the
+// resulting directory.
 //
 // If appEnv is provided and discovery on Start is successful then update appEnv with
 // the discovered directory URL. The directory client can use this to connect to the directory.

@@ -13,6 +13,7 @@ import (
 //
 // Incoming requests are forwarded to the module that matches the request thingID.
 // There is no need for linking individual request handlers.
+//
 // If a request is received for a thingID not in the star, it is forwarded to the
 // star module registered sink.
 //
@@ -20,20 +21,27 @@ import (
 // star and will forward these notifications to its own registered notification sink.
 type StarRecipe struct {
 	*modules.HiveModuleBase
-	// Chain of modules in the order to instantiate and link
+	// modules in the order to instantiate and link
 	star []api.ModuleDefinition `yaml:"star"`
 
 	// The factory to use
 	f api.IModuleFactory
 
-	// module rays by their ThingID
-	rays map[string]api.IHiveModule
+	// module instances by their ThingID
+	instances map[string]api.IHiveModule
+}
+
+// Receives notifications from downstream and send it to all modules
+func (m *StarRecipe) HandleNotification(notif *msg.NotificationMessage) {
+	for _, member := range m.instances {
+		member.HandleNotification(notif)
+	}
 }
 
 // Requests sent to the star are passed on to the module with the matching thingID.
 // If no modules match it is forwarded to the registered sink.
 func (m *StarRecipe) HandleRequest(req *msg.RequestMessage, replyTo msg.ResponseHandler) error {
-	ray, found := m.rays[req.ThingID]
+	ray, found := m.instances[req.ThingID]
 	if found {
 		return ray.HandleRequest(req, replyTo)
 	}
@@ -73,7 +81,7 @@ func (m *StarRecipe) Start() error {
 			// don't track 'one-shot' modules that are used to initialize the factory.
 			// These return nil without error.
 		} else {
-			m.rays[ray.GetThingID()] = ray
+			m.instances[ray.GetThingID()] = ray
 			// requests send by the ray will be forwarded to the star, which
 			// passes it to the ray module with the matching thingID. See HandleRequest.
 			ray.SetRequestSink(m)

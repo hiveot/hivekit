@@ -58,5 +58,7 @@ func NewRouterServiceFactory(f api.IModuleFactory, md *api.ModuleDefinition) (ap
 		return nil, fmt.Errorf("NewRouterServiceFactory. Missing TD directory: %w", err)
 	}
 	svc := NewRouterService(storageDir, getTD, tps, env.CaCert, f.GetEnvironment().RpcTimeout)
+	svc.SetTimeout(env.RpcTimeout)
+
 	return svc, nil
 }
