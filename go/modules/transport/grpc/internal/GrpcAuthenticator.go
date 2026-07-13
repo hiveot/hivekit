@@ -2,7 +2,6 @@ package internal
 
 import (
 	"context"
-	"fmt"
 	"log/slog"
 	"strings"
 
@@ -58,12 +57,10 @@ func (srv *GrpcAuthenticator) Authenticate(
 	token := mdAuthn[0]
 	tokenParts := strings.Split(token, " ")
 	bearerToken := tokenParts[1]
-	clientID, _, _, err = srv.authenticator.ValidateToken(bearerToken)
+	clientID, _, _, err = srv.authenticator.ValidateClient(contextClientID, bearerToken)
 	if err != nil {
 		slog.Warn("GrpcAuthenticator: auth failed: ", "err", err.Error())
 		return md, "", err
-	} else if clientID != contextClientID {
-		return md, "", fmt.Errorf("Authenticate: Context clientID doesn't match token clientID")
 	}
 	return md, clientID, nil
 }

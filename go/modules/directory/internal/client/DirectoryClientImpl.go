@@ -9,6 +9,7 @@ import (
 	"github.com/hiveot/hivekit/go/modules"
 	"github.com/hiveot/hivekit/go/modules/directory"
 	"github.com/hiveot/hivekit/go/modules/transport/discovery"
+	"github.com/teris-io/shortid"
 )
 
 // Implementation of the directory client
@@ -161,8 +162,9 @@ func (m *DirectoryClientImpl) Start() (err error) {
 //	sink forwards requests to the directory server and returns notifications. nil to set manually.
 func NewDirectoryClientImpl(dirTDD *td.TD, sink api.IHiveModule) *DirectoryClientImpl {
 
+	thingID := directory.DirectoryClientModuleType + "-" + shortid.MustGenerate()
 	cl := &DirectoryClientImpl{
-		HiveModuleBase:   modules.NewHiveModuleBase("", 0),
+		HiveModuleBase:   modules.NewHiveModuleBase(thingID, 0),
 		cache:            NewDirectoryCacheImpl(),
 		dirTDD:           dirTDD,
 		discoveryThingID: discovery.DiscoveryClientModuleType,

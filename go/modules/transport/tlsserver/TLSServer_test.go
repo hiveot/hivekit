@@ -25,16 +25,18 @@ var clientHostPort string
 var testCerts certstest.TestCertBundle
 var TestKeyType = utils.KeyTypeED25519
 
+// This is a test authenticator that simply accepts any claim
 type TestAuthenticator struct {
-	ClientID   string
+	// ClientID   string
 	ValidUntil time.Time
 }
 
 func (ta *TestAuthenticator) AddSecurityScheme(tdoc *td.TD) {}
 
-func (ta *TestAuthenticator) ValidateToken(bearerToken string) (
+func (ta *TestAuthenticator) ValidateClient(claimedClientID string, bearerToken string) (
 	clientID string, issuedAt time.Time, validUntil time.Time, err error) {
-	return ta.ClientID, time.Now(), ta.ValidUntil, nil //fmt.Errorf("test fail")
+
+	return claimedClientID, time.Now(), ta.ValidUntil, nil //fmt.Errorf("test fail")
 }
 
 // TestMain runs a http server
@@ -121,7 +123,7 @@ func TestTokenAuth(t *testing.T) {
 	validUntil := time.Now()
 
 	testAuth := &TestAuthenticator{}
-	testAuth.ClientID = "bob"
+	// testAuth.ClientID = "bob"
 	testAuth.ValidUntil = validUntil
 
 	// setup server and client environment

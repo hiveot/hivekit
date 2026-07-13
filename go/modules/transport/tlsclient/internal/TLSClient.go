@@ -166,6 +166,9 @@ func (cl *TLSClient) CreateRequest(
 	if cl.bearerToken != "" {
 		r.Header.Add("Authorization", "bearer "+cl.bearerToken)
 	}
+	if cl.clientID != "" {
+		r.Header.Add(api.ClientIDHeader, cl.clientID)
+	}
 	if cl.cid != "" {
 		r.Header.Add(api.ConnectionIDHeader, cl.cid)
 	}

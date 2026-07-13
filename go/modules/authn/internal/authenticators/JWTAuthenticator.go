@@ -206,8 +206,8 @@ func (svc *JWTAuthenticator) SetAuthServerURI(serverURI string) {
 // 	return svc.clientStore.SetPassword(clientID, password)
 // }
 
-// ValidateToken verifies the token and client are valid.
-func (svc *JWTAuthenticator) ValidateToken(token string) (
+// ValidateClient verifies the token and client are valid.
+func (svc *JWTAuthenticator) ValidateClient(claimedClientID string, token string) (
 	clientID string, issuedAt time.Time, validUntil time.Time, err error) {
 
 	clientID, issuedAt, validUntil, err = svc.DecodeToken(token, "", "")
@@ -232,6 +232,10 @@ func (svc *JWTAuthenticator) ValidateToken(token string) (
 	if issuedAt.Before(sessionStart) {
 		slog.Warn("ValidateToken. The token session is no longer valid", "clientID", clientID)
 		return clientID, issuedAt, validUntil, fmt.Errorf("Session is no longer valid")
+	}
+	if clientID != claimedClientID {
+		return clientID, issuedAt, validUntil, fmt.Errorf("Claimed clientID '%s' doesn't match token clientID '%s'",
+			claimedClientID, clientID)
 	}
 
 	return clientID, issuedAt, validUntil, nil

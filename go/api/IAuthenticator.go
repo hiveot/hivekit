@@ -13,24 +13,18 @@ import (
 
 type IAuthenticator interface {
 
-	// AddSecurityScheme adds the wot securityscheme to the given TD
+	// AddSecurityScheme adds the wot securityscheme that describes this authenticator to the given TD
 	AddSecurityScheme(tdoc *td.TD)
 
-	// DecodeToken decodes the given token using the configured authenticator.
-	// DecodeToken(token string, signedNonce string, nonce string) (
-	// clientID string, issuedAt time.Time, validUntil time.Time, err error)
-
-	// GetAlg returns the supported security format and authentication algorithm.
-	// This uses the vocabulary as defined in the TD.
-	// JWT: "ES256", "ES512", "EdDSA"
-	// paseto: "local" (symmetric), "public" (asymmetric)
-	// GetAlg() (string, string)
+	// ValidateDigest checks if the given password digest is valid for the client
+	// ValidateDigest(clientID string, digest string) (err error)
 
 	// ValidatePassword checks if the given password is valid for the client
 	// ValidatePassword(clientID string, password string) (err error)
 
-	// ValidateToken verifies the token and client are valid.
-	// This returns an error if the token is invalid, the token has expired,
-	// or the client is not a valid and enabled client.
-	ValidateToken(token string) (clientID string, issuedAt time.Time, validUntil time.Time, err error)
+	// ValidateClient verifies the secret is valid for the claimed clientID.
+	//
+	// This returns the validated clientID and the time the secret was issued and is valid for.
+	// This returns an error if the secret is invalid, has expired, or the client is blocked..
+	ValidateClient(claimedClientID string, secret string) (clientID string, issuedAt time.Time, validUntil time.Time, err error)
 }

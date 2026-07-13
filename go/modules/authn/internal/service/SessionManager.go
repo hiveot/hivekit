@@ -117,7 +117,7 @@ func (sm *SessionManager) RefreshToken(senderID string, oldToken string) (
 	newToken string, validUntil time.Time, err error) {
 
 	// validation only succeeds if there is an active session
-	tokenClientID, _, _, err := sm.ValidateToken(oldToken)
+	tokenClientID, _, _, err := sm.ValidateClient(senderID, oldToken)
 	if err != nil || senderID != tokenClientID {
 		return newToken, validUntil, fmt.Errorf("Invalid token or senderID mismatch")
 	}
@@ -145,11 +145,11 @@ func (sm *SessionManager) ValidatePassword(clientID, password string) (err error
 	return err
 }
 
-// ValidateToken verifies the token and client are valid.
-func (sm *SessionManager) ValidateToken(token string) (
+// ValidateClient verifies the token and client are valid.
+func (sm *SessionManager) ValidateClient(claimedClientID string, token string) (
 	clientID string, issuedAt time.Time, validUntil time.Time, err error) {
 
-	clientID, issuedAt, validUntil, err = sm.authenticator.ValidateToken(token)
+	clientID, issuedAt, validUntil, err = sm.authenticator.ValidateClient(claimedClientID, token)
 	if err != nil {
 		return
 	}

@@ -36,16 +36,17 @@ func (ap *AuthenticatorProxy) SetAuthenticator(actual api.IAuthenticator) {
 // Validate the token
 // This passes it on to the authenticator set with SetAuthenticator.
 // If no authenticator is setup and noauth is true then always accept the token.
-func (ap *AuthenticatorProxy) ValidateToken(token string) (
+func (ap *AuthenticatorProxy) ValidateClient(claimedClientID string, token string) (
 	clientID string, issuedAt time.Time, validUntil time.Time, err error) {
 
 	if ap.impl != nil {
-		return ap.impl.ValidateToken(token)
+		return ap.impl.ValidateClient(claimedClientID, token)
 	}
+	// noauth can  be controlled separate from the implementation
 	if ap.noAuth {
-		return "", issuedAt, validUntil, nil
+		return claimedClientID, issuedAt, validUntil, nil
 	}
-	return "", issuedAt, validUntil, fmt.Errorf("No authenticator has been configured")
+	return claimedClientID, issuedAt, validUntil, fmt.Errorf("No authenticator has been configured")
 }
 
 func NewAuthenticatorProxy() *AuthenticatorProxy {

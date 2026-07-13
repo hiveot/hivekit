@@ -257,7 +257,7 @@ func NewReconnectClientImpl(sink api.ITransportClient) (m *ReconnectClientImpl) 
 		subscriptions:        make(map[string]*msg.RequestMessage),
 	}
 
-	// link between client and this module
+	// link between transport client and this module
 	if sink != nil {
 		m.conn.SetConnectHandler(m.handleConnectChange)
 

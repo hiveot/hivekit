@@ -74,7 +74,7 @@ func TestDiscoverGetThingTD(t *testing.T) {
 	// discover the server
 	appEnv := api.NewAppEnvironment("", false)
 	cl := discoverypkg.NewDiscoveryClient(appEnv, false)
-	recs, err := cl.DiscoverThings("", time.Second, nil)
+	recs, err := cl.DiscoverThings(testServiceID, time.Second, nil)
 	// records, err := cl.DiscoverThings(testThingServiceID, time.Second, nil)
 	require.NoError(t, err)
 	require.NotEmpty(t, recs)

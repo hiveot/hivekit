@@ -16,15 +16,18 @@ import (
 // Start must be called before usage.
 //
 //	storageDir location where the module stores its data
-//	getTD is the handler to lookup a TD for a thingID from a directory
-//	transports is a list of transport servers that can contain reverse connections.
+//	getTD  handler to lookup a TD for a thingID from a directory
+//	getSrv handler to return the running list of transport servers that can contain
+//	 reverse connections. nil to not support RCs.
 //	caCert is the CA certificate used to verify device connections
 //	timeout is the maximum wait time for sending requests to clients.
-func NewRouterService(storageDir string, getTD func(thingID string) *td.TD,
-	tps []api.ITransportServer, caCert *x509.Certificate, timeout time.Duration,
+func NewRouterService(storageDir string,
+	getTD func(thingID string) *td.TD,
+	getSrv func() []api.ITransportServer,
+	caCert *x509.Certificate, timeout time.Duration,
 ) router.IRouterService {
 
-	m := internal.NewRouterServiceImpl(storageDir, getTD, tps, caCert, timeout)
+	m := internal.NewRouterServiceImpl(storageDir, getTD, getSrv, caCert, timeout)
 	return m
 }
 
@@ -34,10 +37,6 @@ func NewRouterServiceFactory(f api.IModuleFactory, md *api.ModuleDefinition) (ap
 	var getTD func(string) *td.TD
 	env := f.GetEnvironment()
 	storageDir := env.GetStorageDir(router.RouterModuleType)
-
-	// FIXME: what if a new transport server is started after the router is started?
-	// option 1: provide a method to retrieve them when needed
-	tps := f.GetTransportServers()
 
 	// The router can also be used server and client side. Check for both server and client directory.
 	m, err := f.StartModule(directory.DirectoryServiceModuleType, true)
@@ -57,7 +56,7 @@ func NewRouterServiceFactory(f api.IModuleFactory, md *api.ModuleDefinition) (ap
 	if err != nil {
 		return nil, fmt.Errorf("NewRouterServiceFactory. Missing TD directory: %w", err)
 	}
-	svc := NewRouterService(storageDir, getTD, tps, env.CaCert, f.GetEnvironment().RpcTimeout)
+	svc := NewRouterService(storageDir, getTD, f.GetTransportServers, env.CaCert, f.GetEnvironment().RpcTimeout)
 	svc.SetTimeout(env.RpcTimeout)
 
 	return svc, nil

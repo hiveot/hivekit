@@ -22,13 +22,10 @@ func NewDiscoveryClient(appEnv *api.AppEnvironment, discoOnStart bool) discovery
 // NewDiscoveryClientFactory creates a new instance of a discovery client for
 // use by the factory.
 //
-// This automatically runs discovery of things on the network on Start() unless a
-// directory URL is already set.
-//
 // Intended to be used by a client side factory recipe to automatically discover devices.
 func NewDiscoveryClientFactory(f api.IModuleFactory, md *api.ModuleDefinition) (api.IHiveModule, error) {
 	appEnv := f.GetEnvironment()
-	cl := NewDiscoveryClient(appEnv, true)
+	cl := NewDiscoveryClient(appEnv, false)
 	// nothing else to do here right now
 
 	return cl, nil

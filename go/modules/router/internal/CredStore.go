@@ -34,6 +34,11 @@ type CredentialsStore struct {
 }
 
 // Add the secret to access a Thing.
+//
+// thingID for which the credentials apply or "" to set default credentials.
+// clientID to authenticate as. Required.
+// secret to use or "" if no secret is known.
+// credType  type as used in td SecurityScheme.Scheme eg, apikey, digest, bearer, ...
 func (store *CredentialsStore) AddCredentials(
 	thingID string, clientID string, secret string, credType string) {
 	store.mux.Lock()
@@ -61,7 +66,9 @@ func (store *CredentialsStore) DeleteCredentials(thingID string) {
 	delete(store.thingAccounts, thingID)
 }
 
-// Obtain the connection credentials for connection to the GetCredentials
+// Obtain the connection credentials for connecting to a Thing.
+// If not credentials are set for the given thingID then try the default credentials
+// for thingID "".
 // If no credentials are found this returns an error
 func (store *CredentialsStore) GetCredentials(thingID string) (
 	clientID string, token string, credType string, err error) {
@@ -69,6 +76,10 @@ func (store *CredentialsStore) GetCredentials(thingID string) (
 	store.mux.RLock()
 	defer store.mux.RUnlock()
 	acct, found := store.thingAccounts[thingID]
+	// fallback to the default credentials if available
+	if !found {
+		acct, found = store.thingAccounts[""]
+	}
 	if !found {
 		return "", "", credType, fmt.Errorf("No credentials for thing with ID '%s'", thingID)
 	}

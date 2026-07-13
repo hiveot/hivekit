@@ -244,10 +244,17 @@ func (cl *WssTransportClient) AuthenticateWithClientCert(clientCert *tls.Certifi
 func (cl *WssTransportClient) AuthenticateWithForm(tdDoc *td.TD,
 	getCredentials api.GetCredentials) error {
 
+	var secScheme td.SecurityScheme
+
 	// for now just assume its bearer token, just to get it working
 	clientID, secret, schemeName, err := getCredentials(tdDoc.ID)
-	secScheme, err := tdDoc.GetSecurityScheme()
-
+	if err != nil {
+		slog.Warn("AuthenticateWithForm: No credentials for thing. Continuing", "thingID", tdDoc.ID)
+	}
+	secScheme, err = tdDoc.GetSecurityScheme()
+	if err != nil {
+		return err
+	}
 	if secScheme.Scheme == td.SecSchemeNoSec {
 		err = cl.AuthenticateWithToken(clientID, "")
 	} else if schemeName != secScheme.Scheme && schemeName != "" && schemeName != td.SecSchemeAuto {

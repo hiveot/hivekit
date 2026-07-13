@@ -153,8 +153,8 @@ func (svc *PasetoAuthenticator) SetAuthServerURI(serverURI string) {
 // 	return err
 // }
 
-// ValidateToken verifies the token and client are valid.
-func (svc *PasetoAuthenticator) ValidateToken(token string) (
+// ValidateClient verifies the token and client are valid.
+func (svc *PasetoAuthenticator) ValidateClient(claimedClientID string, token string) (
 	clientID string, issuedAt time.Time, validUntil time.Time, err error) {
 
 	clientID, issuedAt, validUntil, err = svc.DecodeToken(token, "", "")
@@ -166,6 +166,10 @@ func (svc *PasetoAuthenticator) ValidateToken(token string) (
 	prof, err := svc.clientStore.GetProfile(clientID)
 	if err != nil || prof.Disabled {
 		return clientID, issuedAt, validUntil, fmt.Errorf("Profile for '%s' is disabled", clientID)
+	}
+	if clientID != claimedClientID {
+		return clientID, issuedAt, validUntil, fmt.Errorf("Claimed clientID '%s' doesn't match token clientID '%s'",
+			claimedClientID, clientID)
 	}
 
 	return clientID, issuedAt, validUntil, nil

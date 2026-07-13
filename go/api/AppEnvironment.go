@@ -265,7 +265,7 @@ func NewAppEnvironment(homeDir string, withFlags bool) *AppEnvironment {
 	clientID = appID
 	logLevel = os.Getenv("LOGLEVEL")
 	if logLevel == "" {
-		logLevel = "info"
+		logLevel = "warn"
 	}
 
 	// TODO: get default config from environment
@@ -364,8 +364,10 @@ func NewAppEnvironment(homeDir string, withFlags bool) *AppEnvironment {
 	caCertFile := path.Join(certsDir, DefaultCaCertFile)
 	caCert, _ := utils.LoadX509CertFromPEM(caCertFile)
 
-	// determine the expected location of the service auth key and token
+	// determine the expected location of the client auth key and token
 	keyFile := path.Join(certsDir, clientID+".key")
+
+	utils.SetLogging(logLevel, "")
 
 	slog.Info("NewAppEnvironment",
 		slog.String("appID", appID),
@@ -376,8 +378,6 @@ func NewAppEnvironment(homeDir string, withFlags bool) *AppEnvironment {
 		slog.String("pluginsDir", pluginsDir),
 		slog.String("serverURL", serverURL),
 	)
-
-	utils.SetLogging(logLevel, "")
 
 	return &AppEnvironment{
 		BinDir:       binDir,

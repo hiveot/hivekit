@@ -21,8 +21,8 @@ type AddFormsServiceImpl struct {
 	// flag, include the forms for all affordances
 	includeAffordances bool
 
-	// The servers available for connecting to the modules
-	tpServers []api.ITransportServer
+	// The callback that returns a list of servers available for connecting to the modules
+	getServers func() []api.ITransportServer
 }
 
 // convert TDs provided with CreateThing and UpdateThing directory actions
@@ -53,18 +53,30 @@ func (m *AddFormsServiceImpl) HandleRequest(req *msg.RequestMessage, replyTo msg
 
 // Update the base-URL, security scheme and forms to the given TD
 func (m *AddFormsServiceImpl) AddTDSecForms(tdoc *td.TD, includeAffordances bool) {
-	for _, srv := range m.tpServers {
+	tpServers := m.getServers()
+	for _, srv := range tpServers {
 		srv.AddTDSecForms(tdoc, includeAffordances)
 	}
 }
 
 // NewAddFormsServiceImpl creates a new instance of the service
-func NewAddFormsServiceImpl(tpServers []api.ITransportServer) *AddFormsServiceImpl {
+func NewAddFormsServiceImpl(getServers func() []api.ITransportServer) *AddFormsServiceImpl {
 	thingID := addforms.AddFormsModuleType + "-" + shortid.MustGenerate()
 	m := &AddFormsServiceImpl{
 		HiveModuleBase:     *modules.NewHiveModuleBase(thingID, 0),
 		includeAffordances: true,
-		tpServers:          tpServers,
+		getServers:         getServers,
 	}
 	return m
 }
+
+// // NewAddFormsServiceImpl creates a new instance of the service
+// func NewAddFormsServiceImpl(tpServers []api.ITransportServer) *AddFormsServiceImpl {
+// 	thingID := addforms.AddFormsModuleType + "-" + shortid.MustGenerate()
+// 	m := &AddFormsServiceImpl{
+// 		HiveModuleBase:     *modules.NewHiveModuleBase(thingID, 0),
+// 		includeAffordances: true,
+// 		tpServers:          tpServers,
+// 	}
+// 	return m
+// }

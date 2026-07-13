@@ -40,6 +40,7 @@ var StandAloneDeviceModuleChain = []api.ModuleDefinition{
 		Constructor: certspkg.NewInitFactoryCerts,
 	},
 
+	// A: handle outgoing request to write TD
 	{
 		// add forms to update the published TD with appropriate forms
 		Type:        addforms.AddFormsModuleType,
@@ -47,14 +48,11 @@ var StandAloneDeviceModuleChain = []api.ModuleDefinition{
 	},
 	{
 		// discovery server for publishing the device TD
-		// invoke action ServeThingTDAction to expose a TD
-		// or locate the module and call ServeThingTD()
-		// Type: discovery.DiscoveryServerModuleType,
-		// Constructor: discoverypkg.NewDiscoveryServerFactory,
 		Type:        discovery.ThingDiscoveryServerModuleType,
 		Constructor: discoverypkg.NewThingDiscoveryServerFactory,
 	},
 
+	// B: handle incoming request from servers
 	{
 		// http server module is needed by websocket transport server
 		// It uses the factory registered authenticator.
@@ -76,6 +74,7 @@ var StandAloneDeviceModuleChain = []api.ModuleDefinition{
 
 	// todo: optional logging of requests
 	// todo: optional authorization of requests
+
 }
 
 // NewStandAloneDeviceRecipe creates a recipe for standalone IOT devices running a server.

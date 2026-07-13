@@ -55,11 +55,18 @@ const (
 	StatusRefused ConnectionStatus = "refused"
 )
 
-// GetCredentials is the handler that provides the credentials for connecting
-// to a transport server.
+// GetCredentials is the handler that provides the credentials for connecting to a
+// device server.
+//
+// thingID is the Thing to connect to. If no credentials are set for the device then
+// this attempts to obtain the default credentials, set with thingID "". If none are
+// found this returns an error.
 //
 // If the TD has no security info, this returns the scheme auto, which means
 // that the protocol uses its default authentication scheme.
+//
+// If a device serves multiple things then use the deviceID instead.
+// TODO: is it better to use origin to avoid mixup with devices and things?
 //
 // This returns:
 // - clientID is the account on the device to connect to.
@@ -101,7 +108,11 @@ type ITransportClient interface {
 	// This determines which auth schema the TD describes, obtains the credentials
 	// and injects the authentication credentials according to the TDI schema.
 	//
-	// Use Connect() to establish a connection.
+	// The getCredentials provides credentials for the given thingID. If no credentials
+	// are set for the thingID, the default credentials are returned. If no default
+	// credentials are set this returns an error.
+	//
+	// Next, use Connect() to establish a connection.
 	//
 	// This returns an error if credentials cannot be determined or obtained or if an
 	// existing connection is not closed.

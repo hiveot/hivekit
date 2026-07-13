@@ -2,7 +2,15 @@
 
 These examples demonstrate how to build an ecosystem of IoT devices and services using HiveKit. The examples can be used on their own or together.
 
-To build run "make examples". Binaries are created in the ./dist directory.
+The examples can be run directly using:
+> go run example1/main.go --help
+
+or by building and running:
+> make examples
+> dist/example1 --help
+
+This creates a 'tmp' in the examples directory that acts as home for config, certificates, and data storage.
+
 
 ## Simple Examples
 

@@ -30,7 +30,7 @@ func TestLoginRefresh(t *testing.T) {
 	require.NoError(t, err)
 	require.Greater(t, validUntil, time.Now())
 
-	cid2, _, validUntil2, err := sm.ValidateToken(token1)
+	cid2, _, validUntil2, err := sm.ValidateClient(user1ID, token1)
 	require.NoError(t, err)
 	assert.Equal(t, user1ID, cid2)
 	require.Equal(t, validUntil2, validUntil)
@@ -40,7 +40,7 @@ func TestLoginRefresh(t *testing.T) {
 	require.NotEmpty(t, token3)
 
 	// ValidateToken the new token
-	cid4, _, validUntil4, err := sm.ValidateToken(token3)
+	cid4, _, validUntil4, err := sm.ValidateClient(user1ID, token3)
 	assert.Equal(t, user1ID, cid4)
 	assert.Equal(t, validUntil3, validUntil4)
 	require.NoError(t, err)

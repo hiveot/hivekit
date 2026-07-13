@@ -169,7 +169,7 @@ func TestNewDeviceToken(t *testing.T) {
 	require.NotEmpty(t, token)
 
 	// login with new token
-	clientID, _, _, err := sm.ValidateToken(token)
+	clientID, _, _, err := sm.ValidateClient(tu1ID, token)
 	require.NoError(t, err)
 	require.Equal(t, tu1ID, clientID)
 }

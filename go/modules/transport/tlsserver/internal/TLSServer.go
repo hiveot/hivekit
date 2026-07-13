@@ -64,6 +64,8 @@ type TLSServer struct {
 // The default authentication handler extracts the bearer token from the authorization header
 // and passes it to the configured token validator.
 func (m *TLSServer) DefaultAuthRequest(req *http.Request) (clientID string, err error) {
+	var issuedAt time.Time
+	var validUntil time.Time
 
 	// first check client certificate
 	if len(req.TLS.PeerCertificates) > 0 {
@@ -78,14 +80,10 @@ func (m *TLSServer) DefaultAuthRequest(req *http.Request) (clientID string, err 
 		err := fmt.Errorf("DefaultAuthRequest: No authenticator set. Request denied")
 		return "", err
 	}
-
-	bearerToken, err := utils.GetBearerToken(req)
-	// accept missing bearer token if authentication doesn't require one
-	// if err != nil {
-	// 	return "", err
-	// }
-	//check if the token is properly signed and still valid
-	clientID, issuedAt, validUntil, err := m.authenticator.ValidateToken(bearerToken)
+	// Expect the header to include the clientID. Only used if the authenticator requires it.
+	claimedClientID := req.Header.Get(api.ClientIDHeader)
+	bearerToken, _ := utils.GetBearerToken(req)
+	clientID, issuedAt, validUntil, err = m.authenticator.ValidateClient(claimedClientID, bearerToken)
 	if err != nil {
 		return "", err
 	}
@@ -218,7 +216,7 @@ func NewTLSServer(config *tlsserver.TLSServerConfig, authenticator api.IAuthenti
 		config:         config,
 		authenticator:  authenticator,
 	}
-	// m.authRequestHandler = config.AuthRequestHandler
+
 	if m.authRequestHandler == nil {
 		m.authRequestHandler = m.DefaultAuthRequest
 	}

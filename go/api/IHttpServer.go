@@ -27,6 +27,10 @@ const (
 	// context for session identification - not currently in use
 	// SessionContextID = "sessionID"
 
+	// ClientID header is used if the authentication secret does not contain the clientID
+	// and can only validate it. Second usage is to provide a clientID if no auth is used.
+	ClientIDHeader = "clientID"
+
 	// ConnectionIDHeader is intended for linking return channels to requests.
 	// intended for separated return channel like sse.
 	ConnectionIDHeader = "cid"

@@ -16,6 +16,7 @@ import (
 	reconnectpkg "github.com/hiveot/hivekit/go/modules/reconnect/pkg"
 	"github.com/hiveot/hivekit/go/modules/router"
 	"github.com/hiveot/hivekit/go/modules/transport/clients"
+	"github.com/teris-io/shortid"
 )
 
 type RouterServiceImpl struct {
@@ -43,14 +44,13 @@ type RouterServiceImpl struct {
 	// location of the device credentials store. "" for in-memory only.
 	storageFile string
 
-	// client communication timeout or 0 for default
-	timeout time.Duration
-
-	// transport servers
-	tpServers []api.ITransportServer
+	// handler to get available transport servers for forwarding to RC clients.
+	// nil to not support RC.
+	getSrv func() []api.ITransportServer
 }
 
 // Add the secret to access a Thing.
+// if thingID is empty then the credentials are used for all unknown devices.
 func (m *RouterServiceImpl) AddDeviceCredential(
 	thingID string, clientID string, secret string, secScheme string) {
 	m.credStore.AddCredentials(thingID, clientID, secret, secScheme)
@@ -94,7 +94,7 @@ func (m *RouterServiceImpl) GetClientConnection(tdi *td.TD, op string) (cl api.I
 		if err != nil {
 			return nil, err
 		}
-		c.SetTimeout(m.timeout)
+		c.SetTimeout(m.GetTimeout())
 		err = c.AuthenticateWithForm(tdi, m.credStore.GetCredentials)
 		if err != nil {
 			return nil, err
@@ -131,10 +131,11 @@ func (m *RouterServiceImpl) GetClientConnection(tdi *td.TD, op string) (cl api.I
 // Return the reverse-client connection to a device, if it exists.
 // This returns nil if the clientID does not have an existing connection.
 func (m *RouterServiceImpl) GetRCConnection(clientID string) (c api.IConnection) {
-	if m.tpServers == nil {
+	if m.getSrv == nil {
 		return nil
 	}
-	for _, tp := range m.tpServers {
+	serverList := m.getSrv()
+	for _, tp := range serverList {
 		c := tp.GetConnectionByClientID(clientID)
 		if c != nil {
 			return c
@@ -233,12 +234,6 @@ func (m *RouterServiceImpl) RouteRequest(req *msg.RequestMessage, replyTo msg.Re
 	return err
 }
 
-// SetTimeout changes the default communication timeout applied to new connections
-// Existing connections are not changed.
-func (m *RouterServiceImpl) SetTimeout(rpcTimeout time.Duration) {
-	m.timeout = rpcTimeout
-}
-
 // Start the router module.
 // This loads to stored Thing credentials
 func (m *RouterServiceImpl) Start() (err error) {
@@ -249,6 +244,7 @@ func (m *RouterServiceImpl) Start() (err error) {
 	}
 	m.credStore = NewCredentialsStore(m.storageFile)
 	err = m.credStore.Open()
+
 	return err
 }
 
@@ -267,28 +263,32 @@ func (m *RouterServiceImpl) Stop() {
 
 // NewRouterServiceImpl creates a new router module
 //
+//	clientID loginID for connecting to a Thing if no credentials are available
 //	storageDir with the module credentials storage directory, "" for in-memory testing
-//	getTD is the handler to lookup a TD for a thingID from a directory
-//	transports is a list of transport servers that can contain RC devices.
+//	getTD  handler to lookup a TD for a thingID from a directory
+//	getSrv handler returning a list of transport servers that can contain RC devices.
 //	caCert is the CA used to verify device connections
 //	timeout is the maximum communication timeout with connect clients
-func NewRouterServiceImpl(storageDir string, getTD func(thingID string) *td.TD,
-	tpServers []api.ITransportServer, caCert *x509.Certificate, timeout time.Duration,
+func NewRouterServiceImpl(
+	storageDir string,
+	getTD func(thingID string) *td.TD,
+	getSrv func() []api.ITransportServer,
+	caCert *x509.Certificate, timeout time.Duration,
 ) *RouterServiceImpl {
 	if timeout == 0 {
 		timeout = msg.DefaultRnRTimeout
 	}
 
-	thingID := router.DefaultRouterThingID
+	// defaultClientID := "router"
+	thingID := router.DefaultRouterThingID + "-" + shortid.MustGenerate()
 	m := &RouterServiceImpl{
-		HiveModuleBase:    modules.NewHiveModuleBase(thingID, 0),
+		HiveModuleBase:    modules.NewHiveModuleBase(thingID, timeout),
 		autoReconnect:     true,
 		caCert:            caCert,
 		getTD:             getTD,
 		storageDir:        storageDir,
-		tpServers:         tpServers,
+		getSrv:            getSrv,
 		deviceConnections: make(map[string]api.IHiveModule),
-		timeout:           timeout,
 	}
 
 	var _ router.IRouterService = m // interface check

@@ -354,7 +354,7 @@ func TestSubscribeReconnectToDevice(t *testing.T) {
 	//--- phase 2 force a disconnect
 
 	// drop client connections
-	slog.Info("--- breaking connections on the server, expect a warning ---")
+	slog.Warn("--- breaking connections on the server, expect a warning ---")
 	testServer.CloseAll()
 
 	// reading properties should fail while auto-reconnect is ongoing

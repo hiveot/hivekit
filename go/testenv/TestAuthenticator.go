@@ -78,7 +78,7 @@ func (d *TestAuthenticator) DecodeToken(token string, signedNonce string, nonce 
 	clientID string, issuedAt, validUntil time.Time, err error) {
 
 	// validUntil = time.Now().Add(time.Minute)
-	clientID, issuedAt, validUntil, err = d.ValidateToken(token)
+	clientID, issuedAt, validUntil, err = d.ValidateClient("", token)
 
 	return clientID, issuedAt, validUntil, err
 }
@@ -115,7 +115,7 @@ func (d *TestAuthenticator) ValidatePassword(clientID string, password string) (
 func (d *TestAuthenticator) RefreshToken(
 	senderID string, oldToken string) (newToken string, validUntil time.Time, err error) {
 
-	tokenClientID, issuedAt, validUntil, err := d.ValidateToken(oldToken)
+	tokenClientID, issuedAt, validUntil, err := d.ValidateClient(senderID, oldToken)
 	_ = issuedAt
 	if err != nil || senderID != tokenClientID {
 		err = fmt.Errorf("invalid token, client or sender")
@@ -135,7 +135,7 @@ func (d *TestAuthenticator) SetPassword(clientID, password string) error {
 }
 
 // Validate the token
-func (d *TestAuthenticator) ValidateToken(token string) (
+func (d *TestAuthenticator) ValidateClient(claimedClientID string, token string) (
 	clientID string, issuedAt time.Time, validUntil time.Time, err error) {
 
 	parts := strings.Split(token, "/")
@@ -148,6 +148,10 @@ func (d *TestAuthenticator) ValidateToken(token string) (
 	_, found := d.inSession[clientID]
 	if !found {
 		err = errors.New("no active session")
+	}
+	if claimedClientID != clientID {
+		// ignore this for testing
+		// err = fmt.Errorf("ValidateClient: claimed clientID doesn't match token clientID")
 	}
 
 	return clientID, time.Now(), validUntil, err

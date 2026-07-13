@@ -21,12 +21,8 @@ func NewBusRecipeFactory(
 
 // Create a recipe instance for running modules in a chain formation.
 //
-// Use Start to instantiate and link the modules in REVERSE order. The reverse
-// order start is neccesary to enable sending requests on start.
-//
+// Use Start to instantiate and link the modules in a chain.
 // This uses the factory to create the module instances.
-// Providing a factory function in the chain is only needed if the factory doesn't contain
-// it already.
 //
 // f is the module factory that instantiates the modules
 // chain is a collection of modules in order of instantiation.

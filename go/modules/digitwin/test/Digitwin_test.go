@@ -77,12 +77,16 @@ func startService() (
 	if err != nil {
 		panic("unable to start the digitwin service")
 	}
+	// callback to return available servers
+	getTps := func() []api.ITransportServer {
+		return []api.ITransportServer{appServer}
+	}
 	// the router module uses the digitwin Thing Directory
 	// getDeviceTD := dtw.GetDeviceDirectory().GetTD
 	rtr := routerpkg.NewRouterService(
 		storageDir,
 		dtw.GetDeviceTD,
-		[]api.ITransportServer{appServer},
+		getTps,
 		testEnv.CertBundle.CaCert, rpcTimout)
 	err = rtr.Start()
 	if err != nil {

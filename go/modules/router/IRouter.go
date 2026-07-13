@@ -14,14 +14,21 @@ const DefaultRouterThingID = "router"
 type IRouterService interface {
 	api.IHiveModule
 
-	// Add the secret to access a Thing on a device.
+	// Add the secret to access one or more Things on a device.
 	//
 	// If it already exists then it is replaced.
-	// Used in combination with the Thing TD that describes how the secret is used
-	// in establishing the connection or request.
+	// Used in combination with the Thing TD that describes how the secret is used to
+	// authenticate with the device.
 	//
-	// deviceID is the ID of the device to connect to. This is the senderID used to write
-	// the device TDs to the directory.
+	// Setting a unique login credentials for each device is only realistic if only a few devices
+	// are used, or if a manual OOB (out of band) method of provisioning is used. Eg a tool that
+	// can upload a table and create accounts.
+	//
+	// As a 'convenient' way to provision a few devices, all devices can be set to use the same
+	// credentials. In this case use "" to set the default clientID and secret. Note that all this
+	// is horribly unsafe. It is safer to have devices use reverse connection with a gateway.
+	//
+	// deviceID is the connection account ID that was used when writing the device TD.
 	// clientID is the ID the router service uses to identify itself as when connecting to the device.
 	// secret is the auth token used to authenticate as the clientID.
 	// secScheme indicates the type of credentials stored: SecSchemeBearer, ...

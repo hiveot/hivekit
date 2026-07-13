@@ -63,7 +63,7 @@ func TestCreateSessionToken(t *testing.T) {
 
 	// create a persistent auth token
 	token2, validUntil, err := svc.CreateToken(clientID, time.Minute)
-	clientID4, iat2, validUntil2, err := svc.ValidateToken(token2)
+	clientID4, iat2, validUntil2, err := svc.ValidateClient(clientID, token2)
 	require.NoError(t, err)
 	require.Equal(t, clientID, clientID4)
 	require.Equal(t, validUntil.Unix(), validUntil2.Unix())
@@ -92,13 +92,13 @@ func TestBadTokens(t *testing.T) {
 
 	// bad token
 	badToken := token1 + "-bad"
-	_, _, _, err = svc.ValidateToken(badToken)
+	_, _, _, err = svc.ValidateClient(clientID, badToken)
 	require.Error(t, err)
 
 	// expired
 	token2, _, err := svc.CreateToken(clientID, -1)
 	require.NoError(t, err)
-	clientID2, iat2, sid2, err := svc.ValidateToken(token2)
+	clientID2, iat2, sid2, err := svc.ValidateClient(clientID, token2)
 	require.Error(t, err)
 	assert.Empty(t, clientID2)
 	assert.Empty(t, iat2)
@@ -108,4 +108,9 @@ func TestBadTokens(t *testing.T) {
 	token2, _, err = svc.CreateToken("", 1)
 	require.Error(t, err)
 
+	// clientID doesnt match
+	token3, _, err := svc.CreateToken(clientID, 1)
+	require.NoError(t, err)
+	_, _, _, err = svc.ValidateClient("mismatchedClientID", token3)
+	require.Error(t, err)
 }

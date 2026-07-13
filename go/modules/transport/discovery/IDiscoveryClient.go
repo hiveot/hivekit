@@ -77,9 +77,9 @@ type IDiscoveryClient interface {
 		instanceName string, maxWaitTime time.Duration) (rec0 *DiscoveryResult, err error)
 
 	// DiscoverDirectoryTD returns the TD of the first discovered directory
+	// This uses the service type WOT_DIRECTORY_SERVICE_TYPE (_directory._sub._wot._tcp)
 	//
-	//	instanceName is the optional name of a non-default service instance, or "" for default.
-	//   this defaults to WOT_DIRECTORY_SERVICE_TYPE (_directory._sub._wot._tcp)
+	//	instanceName is an optional filter name of a specific directory instance, or "" for default.
 	//	maxWaitTime defaults to 3 seconds
 	//
 	//	This returns the TD, its JSON, if found
@@ -87,26 +87,12 @@ type IDiscoveryClient interface {
 	DiscoverFirstDirectoryTD(
 		instanceName string, maxWaitTime time.Duration) (tdoc *td.TD, tddJson string, err error)
 
-	// DiscoverFirstGateway returns the discovery record if the first gateway server.
-	//
-	// To distinguish a gateway from other IoT devices it uses a predefined serviceID,
-	// defined in discovery.DefaultGatewayServiceID.
-	//
-	// A custom instance name can be provided or "" for default.
-	//
-	//	instanceName is the optional name of the directory instance, "" for default
-	//   this defaults to HIVEOT_GATEWAY_SERVICE_TYPE (_gateway._sub._wot._tcp)
-	//	searchTime defaults to 3 seconds
-	//
-	//	This returns the record or nil if none was found within 3 seconds.
-	//	This returns an error if it wasn't possible to run discovery.
-	// DiscoverFirstGateway(instanceName string, searchTime time.Duration) (rec0 *DiscoveryResult, err error)
-
 	// DiscoverThings returns a list of all discovery records of all WoT compatible devices,
 	// including Things, Directories and Gateways.
 	//
-	//	instanceName is the optional name of the directory instance, "" for default
-	//   this defaults to WOT_DEVICE_SERVICE_TYPE (_wot._tcp)
+	// This uses the service type WOT_DEVICE_SERVICE_TYPE (_wot._tcp)
+	//
+	//	instanceName is an optional filter name of a specific thing instance, or "" for default.
 	//	searchTime defaults to 3 seconds
 	//	cb is the optional callback to call for each discovered thing. It should
 	//  return true to stop or false to continue searching up until the searchTime.

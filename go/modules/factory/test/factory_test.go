@@ -108,7 +108,7 @@ func TestAuthentication(t *testing.T) {
 	require.NoError(t, err)
 
 	// the httpauthn uses the factory authenticator which is set by authn to its session manager
-	clientID, issAt, validUnt, err := httpAuth.ValidateToken(token)
+	clientID, issAt, validUnt, err := httpAuth.ValidateClient("client1", token)
 	require.NoError(t, err)
 	assert.Equal(t, "client1", clientID)
 	assert.NotNil(t, issAt)

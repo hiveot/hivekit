@@ -25,8 +25,8 @@ const DefaultAdminUserID = "admin"
 // auth creates a key and auth token for the launcher on startup
 // const DefaultLauncherServiceID = "launcher"
 
-// DefaultPasswordFile is the recommended password filename for user storage
-const DefaultPasswordFile = "hub.passwd"
+// DefaultPasswordFile is the default password filename for user account storage
+const DefaultPasswordFile = "hiveot.passwd"
 
 // AuthnConfig contains the auth service configuration
 type AuthnConfig struct {

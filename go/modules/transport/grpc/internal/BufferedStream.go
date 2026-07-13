@@ -108,7 +108,7 @@ func (bs *BufferedStream) _recvLoop(recvHandler func(rawMsg []byte)) {
 func (bs *BufferedStream) _sendLoop() {
 	for msg := range bs.sendChan {
 		if err := bs.msgStream.SendMsg(msg); err != nil {
-			slog.Error("_sendLoop error", "err", err.Error())
+			slog.Warn("_sendLoop error", "err", err.Error())
 			break
 		}
 	}

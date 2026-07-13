@@ -26,6 +26,7 @@ var ConsumerRecipeChain = []api.ModuleDefinition{
 	},
 	{
 		// the router manages client connections
+		// FIXME: where does the router gets its client connection credentials from?
 		Type:        router.RouterModuleType,
 		Constructor: routerpkg.NewRouterServiceFactory,
 	},
@@ -48,5 +49,6 @@ func NewConsumerRecipe(f api.IModuleFactory) api.IRecipe {
 	chain := ConsumerRecipeChain
 
 	r := factorypkg.NewChainRecipe(f, chain)
+
 	return r
 }
