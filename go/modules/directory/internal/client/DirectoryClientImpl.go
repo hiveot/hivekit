@@ -1,6 +1,7 @@
 package directoryclient
 
 import (
+	"fmt"
 	"path"
 
 	"github.com/hiveot/hivekit/go/api"
@@ -45,8 +46,11 @@ func (m *DirectoryClientImpl) _sendServerRequest(
 		dirID = m.dirTDD.ID
 	}
 	// this assumes that the client knows how to reach the directory. This is not a concern
-	// if this module though.
+	// of this module though.
 	err := m.Rpc(op, dirID, action, input, output)
+	if err != nil {
+		return fmt.Errorf("RetrieveAllThings: op '%s' no directory connection", op)
+	}
 	return err
 }
 
@@ -56,9 +60,13 @@ func (m *DirectoryClientImpl) Cache() directory.IDirectoryCache {
 }
 
 // Send request to delete a TD
-func (m *DirectoryClientImpl) DeleteThing(thingID string) error {
+// If no TDD is set then this removes the TD from the cache and an error is returned.
+func (m *DirectoryClientImpl) DeleteThing(thingID string) (err error) {
 	m.cache.RemoveTD(thingID)
-	err := m._sendServerRequest(td.OpInvokeAction, directory.DeleteThingAction, thingID, nil)
+
+	// This client doesnt make assumptions on how it is connected.
+	// If the module downstream is connected to a gateway then this will work, otherwise it a TDD is required.
+	err = m._sendServerRequest(td.OpInvokeAction, directory.DeleteThingAction, thingID, nil)
 	return err
 }
 
@@ -67,6 +75,7 @@ func (m *DirectoryClientImpl) HandleNotification(notif *msg.NotificationMessage)
 	m.HiveModuleBase.HandleNotification(notif)
 }
 
+// Retrieve a Thing TD from the cache or remote
 func (m *DirectoryClientImpl) RetrieveThing(thingID string) (tdoc *td.TD, err error) {
 
 	// first try the cache
@@ -75,7 +84,8 @@ func (m *DirectoryClientImpl) RetrieveThing(thingID string) (tdoc *td.TD, err er
 		return tdoc, nil
 	}
 
-	//retrieve the TD and update the local cache
+	// This client doesnt make assumptions on how it is connected.
+	// If the module downstream is connected to a gateway then this will work, otherwise it a TDD is required.
 	var tdJson string
 	err = m._sendServerRequest(
 		td.OpInvokeAction, directory.RetrieveThingAction, thingID, &tdJson)
@@ -86,7 +96,12 @@ func (m *DirectoryClientImpl) RetrieveThing(thingID string) (tdoc *td.TD, err er
 	return tdoc, err
 }
 
+// Retrieve all things in the directory
+// This fails if the TDD is not set.
 func (m *DirectoryClientImpl) RetrieveAllThings(offset int, limit int) (tdList []*td.TD, err error) {
+
+	// This client doesnt make assumptions on how it is connected.
+	// If the module downstream is connected to a gateway then this will work, otherwise it a TDD is required.
 
 	args := directory.RetrieveAllThingsArgs{
 		Offset: offset,
@@ -95,6 +110,9 @@ func (m *DirectoryClientImpl) RetrieveAllThings(offset int, limit int) (tdList [
 	var tdJsonList []string
 	err = m._sendServerRequest(
 		td.OpInvokeAction, directory.RetrieveAllThingsAction, args, &tdJsonList)
+	if err != nil {
+		return nil, err
+	}
 
 	// import them into the cache
 	tdList = make([]*td.TD, 0, len(tdJsonList))

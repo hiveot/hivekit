@@ -6,7 +6,8 @@ import (
 	"github.com/hiveot/hivekit/go/api"
 )
 
-// Interface of client session management that also support transport authentication
+// Interface of client session management to manage authentication tokens.
+// A client logout will invalidate all client tokens.
 type ISessionManager interface {
 	api.IAuthenticator
 

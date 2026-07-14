@@ -16,7 +16,8 @@ import (
 	"github.com/hiveot/hivekit/go/utils"
 )
 
-// Create an admin account to login as
+// Create a client account to login as.
+// By convention this creates a token in {home}/certs/{clientID}.token
 const ExampleClientID = "admin"
 
 var ExampleHome = path.Join(os.TempDir(), "hivekit-examples")
@@ -29,10 +30,11 @@ var ExampleHome = path.Join(os.TempDir(), "hivekit-examples")
 // See the factory/recipes/StandAloneDeviceRecipe.go for the modules in the recipe.
 // On start the device publishes its TD to the discovery server.
 func main() {
-	utils.SetLogging("info", "")
 	// start the factory using the examples tmp directory as home
 	env := api.NewAppEnvironment(ExampleHome, true)
 	env.RpcTimeout = time.Minute
+	// override loglevel
+	utils.SetLogging("info", "")
 
 	f := factorypkg.NewModuleFactory(env, nil)
 
@@ -45,23 +47,23 @@ func main() {
 		os.Exit(1)
 	}
 
-	// Create an example operator account for the client and export its admin token.
-	// both login and password are ExampleClientID ("example1")
+	// Create an example operator account for the client and export its 24 hour token.
 	// FIXME: would this be better for the factory or authn service?
 	authnSvc := api.GetFactoryModule[authn.IAuthnService](f, authn.AuthnServiceModuleType)
 	if authnSvc != nil {
 		var token string
 		_ = authnSvc.AddClient(ExampleClientID, "Example client", authn.ClientRoleOperator)
-		_ = authnSvc.SetPassword(ExampleClientID, ExampleClientID)
-		// this client test token can be used for an hour
+		// _ = authnSvc.SetPassword(ExampleClientID, ExampleClientID)
+		// this client test token can be used for 24 hours
 		clientID := ExampleClientID
 		token, _, err = authnSvc.GetSessionManager().CreateToken(clientID, time.Hour*24)
 		tokenFile := path.Join(env.CertsDir, clientID+".token")
-		err := os.MkdirAll(env.CertsDir, 0700)
+		err := env.CreateDir(env.CertsDir, 0700)
 		if err != nil {
-			fmt.Printf("main:ERROR creating certs dir: %s\n", err.Error())
+			fmt.Println(err.Error())
 			os.Exit(1)
 		}
+		// remove old token
 		err = os.Remove(tokenFile)
 		err = os.WriteFile(tokenFile, []byte(token), 0400)
 		if err != nil {

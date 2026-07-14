@@ -17,7 +17,6 @@ import (
 	"github.com/hiveot/hivekit/go/modules/transport"
 	"github.com/hiveot/hivekit/go/modules/transport/wss"
 	"github.com/hiveot/hivekit/go/modules/transport/wss/internal"
-	jsoniter "github.com/json-iterator/go"
 
 	"github.com/teris-io/shortid"
 )
@@ -86,10 +85,6 @@ func (cl *WssTransportClient) _onWssMessage(raw []byte) {
 	var resp *msg.ResponseMessage
 	clientID := cl.clientID
 
-	var tmp any
-	jsoniter.Unmarshal(raw, &tmp)
-	_ = tmp
-
 	// try to decode as notification first, then response, then request as websockets
 	// do not carry metadata per request.
 	notif, err := cl.encoder.DecodeNotification(raw)
@@ -140,13 +135,14 @@ func (cl *WssTransportClient) _onWssMessage(raw []byte) {
 
 // _send publishes a message over websockets
 func (cl *WssTransportClient) _send(wssMsg []byte) (err error) {
+	// websockets do not allow concurrent writes
+	cl.mux.Lock()
+	defer cl.mux.Unlock()
+
 	if cl.wssConn == nil {
 		err := fmt.Errorf("_send: Can't send. Not connected")
 		return err
 	}
-	// websockets do not allow concurrent writes
-	cl.mux.Lock()
-	defer cl.mux.Unlock()
 
 	if cl.connectStatus == api.StatusConnecting {
 		// TODO: should we wait for a bit while connecting?

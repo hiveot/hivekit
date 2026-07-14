@@ -2,9 +2,6 @@ package cliex
 
 import (
 	"fmt"
-	"time"
-
-	"github.com/hiveot/hivekit/go/api/td"
 )
 
 // Show the status of a Thing
@@ -14,20 +11,10 @@ import (
 //	thingID whose status to show
 //	subscribe to property updates and events
 func (app *Cliex) ShowStatus(thingID string, subscribe bool) {
-	var maxWaitTime = time.Second * 1
-	var tdoc *td.TD
 
-	// 1. discover the things
-	tdlist, _ := app.discoClient.DiscoverThingTDs("", maxWaitTime, func(discoTD *td.TD) bool {
-		if discoTD.ID == thingID {
-			tdoc = discoTD
-			return true
-		}
-		return false
-	})
-	_ = tdlist
+	tdoc := app.FindTD(thingID)
 	if tdoc == nil {
-		fmt.Println("ShowStatus TD for thing not found")
+		fmt.Println("ShowStatus TD not found")
 		return
 	}
 	fmt.Printf("Found the TD of Thing '%s'\n", thingID)

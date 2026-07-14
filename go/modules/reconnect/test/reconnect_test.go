@@ -132,8 +132,10 @@ func TestReconnect(t *testing.T) {
 	err := co1.InvokeAction(thingID, actionKey, &rpcArgs, &rpcResp)
 	require.NoError(t, err)
 	assert.Equal(t, rpcArgs, rpcResp)
+
 	// expect connect and reconnect = 2
 	// Note: there might be a timing issue where only 1 event is received
+	time.Sleep(time.Millisecond)
 	assert.Equal(t, 2, int(serverConnectEvents.Load()), "duplicate or missing server connections")
 	// lost, connecting, connected = 3
 	assert.GreaterOrEqual(t, int(clientConnectEvents.Load()), 3, "missing client connection callbacks")

@@ -300,6 +300,7 @@ func NewAppEnvironment(homeDir string, withFlags bool) *AppEnvironment {
 				flag.PrintDefaults()
 			}
 		}
+		// note that no args is not an error and should not show help
 		flag.Parse()
 	}
 	if strings.HasPrefix(homeDir, "~") {
@@ -379,7 +380,7 @@ func NewAppEnvironment(homeDir string, withFlags bool) *AppEnvironment {
 		slog.String("serverURL", serverURL),
 	)
 
-	return &AppEnvironment{
+	env := &AppEnvironment{
 		BinDir:       binDir,
 		CaCert:       caCert,
 		AppID:        appID,
@@ -399,6 +400,48 @@ func NewAppEnvironment(homeDir string, withFlags bool) *AppEnvironment {
 		ServerURL:  serverURL,
 		StoresDir:  storesDir,
 	}
+	return env
+}
+
+// Create all missing directories
+// this returns an error if one of them doesnt exist and cant be created
+func (env *AppEnvironment) CreateAllDirs() (err error) {
+	if err2 := env.CreateDir(env.HomeDir, 0750); err2 != nil {
+		err = err2
+	}
+	if err2 := env.CreateDir(env.BinDir, 0750); err2 != nil {
+		err = err2
+	}
+	if err2 := env.CreateDir(env.CertsDir, 0750); err2 != nil {
+		err = err2
+	}
+	if err2 := env.CreateDir(env.ConfigDir, 0750); err2 != nil {
+		err = err2
+	}
+	if err2 := env.CreateDir(env.LogsDir, 0750); err2 != nil {
+		err = err2
+	}
+	if err2 := env.CreateDir(env.PluginsDir, 0750); err2 != nil {
+		err = err2
+	}
+	if err2 := env.CreateDir(env.StoresDir, 0700); err2 != nil {
+		err = err2
+	}
+	return err
+}
+
+// Create a missing directory
+func (env *AppEnvironment) CreateDir(path string, mode os.FileMode) error {
+	info, err := os.Stat(path)
+	if err != nil {
+		err = os.MkdirAll(path, mode)
+		return err
+	}
+	if !info.IsDir() {
+		return fmt.Errorf("AppEnvironment.CreateDir, '%s' already exists but is not a directory", path)
+	}
+	// path already exists and is a directory
+	return nil
 }
 
 // Initialize the factory application environment

@@ -174,9 +174,10 @@ func (cl *SseScClient) Close() {
 // cl._setConnectionStatus will invoked when the first ping event is received from the server.
 // (go-sse doesn't have a connected callback)
 func (cl *SseScClient) Connect() (err error) {
-	if cl.connectStatus == api.StatusConnected {
+	status := cl.GetConnectionStatus()
+	if status == api.StatusConnected {
 		return nil
-	} else if cl.connectStatus == api.StatusConnecting {
+	} else if status == api.StatusConnecting {
 		return fmt.Errorf("Connect: busy connecting.")
 	}
 
@@ -185,12 +186,16 @@ func (cl *SseScClient) Connect() (err error) {
 	}
 
 	// the credentials are already set in the tlsClient
-	cl.sseCancelFn, err = ConnectSSE(
+	sseCancel, err := ConnectSSE(
 		cl.tlsClient,
 		cl.ssePath,
 		cl._setConnectionStatus,
 		cl.handleSseEvent,
 		cl.GetTimeout())
+
+	cl.mux.Lock()
+	cl.sseCancelFn = sseCancel
+	cl.mux.Unlock()
 
 	return err
 }

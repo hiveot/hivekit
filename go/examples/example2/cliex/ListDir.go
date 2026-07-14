@@ -2,7 +2,6 @@ package cliex
 
 import (
 	"fmt"
-	"log/slog"
 	"time"
 
 	"github.com/hiveot/hivekit/go/api/td"
@@ -15,11 +14,8 @@ func (app *Cliex) ListDir() {
 	var waitTime = time.Second
 
 	rec0, err := app.discoClient.DiscoverFirstDirectory("", waitTime)
-	if err != nil {
-		slog.Error("ListDir: Discovery failed")
-		return
-	} else if rec0 == nil {
-		fmt.Println("ListDir: No directory found")
+	if err != nil || rec0 == nil {
+		fmt.Println("ERROR ListDir: No directory discovered. Need a directory to list")
 		return
 	}
 	tddURL := rec0.AsURL()
@@ -31,7 +27,7 @@ func (app *Cliex) ListDir() {
 		// for now just show the first 100
 		tdList, err := app.dirClient.RetrieveAllThings(0, 100)
 		if err != nil {
-			fmt.Printf("Read directory '%s' failed: %s", tdoc.ID, err.Error())
+			fmt.Printf("ERROR: Read directory '%s' failed: %s", tdoc.ID, err.Error())
 		} else {
 			ListThings(tdList)
 		}

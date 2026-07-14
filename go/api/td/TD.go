@@ -387,63 +387,48 @@ func (tdoc *TD) GetForm(operation string, name string, protocol string) *Form {
 //	operation is the operation as defined in TD forms
 //	name is the name of property, event or action whose form to get or "" for the TD level operations
 func (tdoc *TD) GetForms(operation string, name string) []Form {
-	var thingLevelOperations = []string{
-		OpQueryAllActions,
-		OpObserveAllProperties,
-		OpReadAllProperties,
-		OpUnobserveAllProperties,
-		OpSubscribeAllEvents,
-		OpUnsubscribeAllEvents}
 
-	var availableForms []Form
+	var availableForms = make([]Form, 0)
 	var opForms []Form = make([]Form, 0)
 
-	// operation is a top level operation without expecting an affordance name
-	if slices.Index(thingLevelOperations, operation) >= 0 {
-		availableForms = tdoc.Forms
-	} else if name == "" {
-		return nil
-	} else {
+	// get the form from the affordance if a name is given
+	switch operation {
+	case
+		OpInvokeAction,
+		OpCancelAction,
+		OpQueryAction:
+		aff := tdoc.Actions[name]
+		if aff != nil && aff.Forms != nil {
+			availableForms = append(availableForms, aff.Forms...)
+		}
 
-		// get the form from the affordance if a name is given
-		switch operation {
-		case
-			OpInvokeAction,
-			OpCancelAction,
-			OpQueryAction:
-			aff := tdoc.Actions[name]
-			if aff != nil {
-				availableForms = aff.Forms
-			}
+	case
+		OpObserveProperty,
+		OpReadProperty,
+		OpUnobserveProperty,
+		OpWriteProperty,
+		OpWriteMultipleProperties:
+		aff := tdoc.Properties[name]
+		if aff != nil && aff.Forms != nil {
+			availableForms = append(availableForms, aff.Forms...)
+		}
 
-		case
-			OpObserveProperty,
-			OpReadProperty,
-			OpUnobserveProperty,
-			OpWriteProperty,
-			OpWriteMultipleProperties:
-			aff := tdoc.Properties[name]
-			if aff != nil {
-				availableForms = aff.Forms
-			}
-
-		case
-			OpSubscribeEvent,
-			OpUnsubscribeEvent:
-			aff := tdoc.Events[name]
-			if aff != nil {
-				availableForms = aff.Forms
-			}
+	case
+		OpSubscribeEvent,
+		OpUnsubscribeEvent:
+		aff := tdoc.Events[name]
+		if aff != nil && aff.Forms != nil {
+			availableForms = append(availableForms, aff.Forms...)
 		}
 	}
 
-	// If no affordance level forms are found try the top level form
-	if availableForms == nil {
-		availableForms = tdoc.Forms
+	// add the top level forms as fallback
+	if tdoc.Forms != nil {
+		availableForms = append(availableForms, tdoc.Forms...)
 	}
 
 	// find the forms for the operation
-	// include forms that do not no contain any operations
+	// include forms that do not contain any operations as it implies 'all'
 	for _, form := range availableForms {
 		opList := form.GetOperations()
 		if len(opList) == 0 {

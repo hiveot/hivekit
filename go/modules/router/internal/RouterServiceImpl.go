@@ -208,7 +208,8 @@ func (m *RouterServiceImpl) RouteRequest(req *msg.RequestMessage, replyTo msg.Re
 		err = m.ForwardRequest(req, replyTo)
 		if err != nil {
 			err = fmt.Errorf("RouteRequest: No TD document found for thing '%s' and forwarding failed: %w", req.ThingID, err)
-			slog.Warn("RouteRequest", "err", err.Error())
+			// just log as info as this can be legit.
+			slog.Info("RouteRequest", "err", err.Error())
 		}
 		return err
 	}

@@ -29,11 +29,18 @@ func (srv *WssServer) AddTDSecForms(tdoc *td.TD, includeAffordances bool) {
 	form := td.NewForm("", srv.GetConnectURL())
 	form.SetSubprotocol(subprotocol)
 	form["op"] = []string{
-		td.OpQueryAllActions,
-		td.OpObserveAllProperties, td.OpUnobserveAllProperties,
-		td.OpReadAllProperties,
-		td.HTOpReadAllEvents, // hiveot supports reading latest events
-		td.OpSubscribeAllEvents, td.OpUnsubscribeAllEvents,
+		td.OpInvokeAction, td.OpCancelAction,
+		td.OpQueryAction, td.OpQueryAllActions,
+
+		td.OpReadProperty, td.OpReadAllProperties, td.OpReadMultipleProperties,
+		td.OpWriteProperty, td.OpWriteMultipleProperties,
+		td.OpObserveProperty, td.OpObserveAllProperties, td.OpObserveMultipleProperties,
+		td.OpUnobserveProperty, td.OpUnobserveAllProperties, td.OpUnobserveMultipleProperties,
+
+		// hiveot supports reading latest events
+		td.HTOpReadEvent, td.HTOpReadAllEvents,
+		td.OpSubscribeEvent, td.OpSubscribeAllEvents,
+		td.OpUnsubscribeEvent, td.OpUnsubscribeAllEvents,
 	}
 	//form["contentType"] = "application/json"
 	tdoc.Forms = append(tdoc.Forms, form)

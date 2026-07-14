@@ -19,7 +19,7 @@ import (
 	"github.com/hiveot/hivekit/go/modules/transport/discovery"
 )
 
-// Create an admin account to login as
+// Use the admin account to login as. This uses the home/certs directory to load the token.
 const ExampleClientID = "admin"
 
 var ExampleHome = path.Join(os.TempDir(), "hivekit-examples")
@@ -31,49 +31,60 @@ var ExampleHome = path.Join(os.TempDir(), "hivekit-examples")
 //	cliex  subscribe  <thingID>      subscribe to updates of a thing
 
 const (
-	CmdDiscover   = "discover"
-	CmdListDir    = "dir"
-	CmdLogin      = "login"
-	CmdShowTD     = "td"
-	CmdShowStatus = "status"
-	CmdSubscribe  = "subscribe"
+	CmdDiscover    = "discover"
+	CmdListDir     = "dir"
+	CmdLogin       = "login"
+	CmdShowActions = "actions"
+	CmdShowTD      = "td"
+	CmdShowStatus  = "status"
+	CmdSubscribe   = "subscribe"
 )
 
 var appConfig cliex.CliexConfig
 
-// Run the CLI app using the Consumer Recipe
+// Run the CLI app
 func main() {
-	// setup the environment
-	env := api.NewAppEnvironment(ExampleHome, true)
-	// FIXME: how to set a default clientID instead of the APP ID
-	if env.ClientID == "" {
-		env.ClientID = "admin"
-	}
-	env.RpcTimeout = time.Minute * 6 // for testing
+
+	// flag.CommandLine.Init("CLI example", flag.ContinueOnError)
 
 	// environment defaults
 	flag.BoolVar(&appConfig.Subscribe, "subscribe", appConfig.Subscribe, "Subscribe to events or property changes until ^C")
 	flag.BoolVar(&appConfig.Verbose, "v", appConfig.Verbose, "Show more detailed output")
 	flag.BoolVar(&appConfig.NoDisco, "nd", appConfig.NoDisco, "Do not start with discovery")
 
+	// flag.CommandLine.Init("CLI example", flag.ContinueOnError)
+	flag.Usage = func() {
+		fmt.Println("Usage: cliex [options] Command")
+		fmt.Println()
+		fmt.Println("Commands:")
+		fmt.Printf("  %-10s                Discover WoT devices and directories\n", CmdDiscover)
+		fmt.Printf("  %-10s thingID        Login to the device\n", CmdLogin)
+		fmt.Printf("  %-10s thingID        List the content of a directory\n", CmdListDir)
+		fmt.Printf("  %-10s thingID        Show the TD of a Thing\n", CmdShowTD)
+		fmt.Printf("  %-10s thingID        Show the current status of a Thing\n", CmdShowStatus)
+		fmt.Printf("  %-10s thingID        Subscribe to Thing events and property updates\n", CmdSubscribe)
+		fmt.Printf("  %-10s thingID [actionName]  Show/Invoke actions\n", CmdShowActions)
+		fmt.Println()
+		fmt.Println("Options:")
+		flag.PrintDefaults()
+	}
+
+	// Setup the environment after parsing the commandline
+	env := api.NewAppEnvironment(ExampleHome, true)
+
+	// FIXME: for a different clientID when running with go run, instead of the APP ID
+	if env.ClientID == "main" {
+		env.ClientID = "admin"
+	}
+	env.RpcTimeout = time.Minute * 6 // for testing
 	args := flag.Args()
 	if len(args) == 0 {
-		fmt.Printf("cliex [options] command  \n\n")
-		fmt.Println("Where command is one of:")
-		fmt.Printf(" %-10s           Discover WoT devices and directories\n", CmdDiscover)
-		fmt.Printf(" %-10s thingID   Login to the device\n", CmdLogin)
-		fmt.Printf(" %-10s thingID   List the content of a directory\n", CmdListDir)
-		fmt.Printf(" %-10s thingID   Show the TD of a Thing\n", CmdShowTD)
-		fmt.Printf(" %-10s thingID   Show the current status of a Thing\n", CmdShowStatus)
-		fmt.Printf(" %-10s thingID   Subscribe to Thing events and property updates\n", CmdSubscribe)
-		fmt.Println("\nOptions:")
-		// flag.Usage()
-		flag.PrintDefaults()
+		flag.Usage()
 		return
 	}
 	cmd := args[0]
 
-	getArgs := func() string {
+	getThingID := func() string {
 		if len(args) > 1 {
 			return args[1]
 		}
@@ -112,15 +123,22 @@ func main() {
 		app.ShowDiscovery()
 	case CmdListDir:
 		app.ListDir()
+	case CmdShowActions:
+		thingID := getThingID()
+		actionName := ""
+		if len(args) > 2 {
+			actionName = args[2]
+		}
+		app.ShowActions(thingID, actionName)
 	case CmdShowTD:
-		thingID := getArgs()
+		thingID := getThingID()
 		app.ShowTD(thingID)
 	case CmdShowStatus:
-		thingID := getArgs()
+		thingID := getThingID()
 		app.ShowStatus(thingID, false)
 	case CmdSubscribe:
-		thingID := getArgs()
-		app.Subscribe(thingID)
+		thingID := getThingID()
+		app.ShowSubscribe(thingID)
 
 	default:
 		fmt.Printf("\nUnknown command: %s\n", cmd)

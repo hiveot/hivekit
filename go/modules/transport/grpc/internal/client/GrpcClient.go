@@ -259,6 +259,7 @@ func (cl *GrpcClient) Close() {
 func (cl *GrpcClient) Connect() (err error) {
 
 	status := cl.GetConnectionStatus()
+
 	if cl.grpcSvcClient == nil {
 		return fmt.Errorf("Auth credentials not set")
 	} else if status == api.StatusConnected {

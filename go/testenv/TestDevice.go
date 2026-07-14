@@ -126,14 +126,27 @@ func (m *TestDevice) Background() {
 	}
 }
 
-// Increment the counter
-func (m *TestDevice) DoIncrement() {
+// Decrement the counter
+func (m *TestDevice) DoDecrement() error {
 	oldValue := m.counter.Load()
-	if oldValue < int32(m.config.ResetValue) {
-		m.counter.Store(oldValue + 1)
-	} else {
-		m.counter.Store(0)
+	newValue := oldValue - 1
+	m.counter.Store(newValue)
+	m.PubProperty("", CounterPropName, newValue, true)
+	m.PubEvent("", CounterUpdatedEvent, newValue)
+	return nil
+}
+
+// Increment the counter
+func (m *TestDevice) DoIncrement() error {
+	oldValue := m.counter.Load()
+	newValue := oldValue + 1
+	if oldValue >= int32(m.config.ResetValue) {
+		newValue = 0
 	}
+	m.counter.Store(newValue)
+	m.PubProperty("", CounterPropName, newValue, true)
+	m.PubEvent("", CounterUpdatedEvent, newValue)
+	return nil
 }
 
 // Return the TD of this device.
@@ -141,25 +154,6 @@ func (m *TestDevice) DoIncrement() {
 // This is also written to the directory on start.
 func (m *TestDevice) GetTD() string {
 	return m.tdocJson
-}
-
-func (m *TestDevice) HandleDecrement(req *msg.RequestMessage, replyTo msg.ResponseHandler) (err error) {
-	resp := req.CreateResponse(nil, nil)
-	if replyTo != nil {
-		err = replyTo(resp)
-	}
-	go m.Update(int(m.counter.Load() - 1))
-	return err
-}
-
-func (m *TestDevice) HandleIncrement(req *msg.RequestMessage, replyTo msg.ResponseHandler) (err error) {
-
-	resp := req.CreateResponse(nil, nil)
-	if replyTo != nil {
-		err = replyTo(resp)
-	}
-	go m.DoIncrement()
-	return err
 }
 
 // Receive notifications from the chain
@@ -183,14 +177,19 @@ func (m *TestDevice) HandleRequest(req *msg.RequestMessage, replyTo msg.Response
 	}
 
 	// request was unhandled
+
 	switch req.Operation {
 	case td.OpInvokeAction:
+		var output any
+
 		switch req.Name {
 		case DecrementActionName:
-			return m.HandleDecrement(req, replyTo)
+			err = m.DoDecrement()
 		case IncrementActionName:
-			return m.HandleIncrement(req, replyTo)
+			err = m.DoIncrement()
 		}
+		resp := req.CreateResponse(output, err)
+		err = replyTo(resp)
 	case td.OpWriteProperty:
 		return m.HandleWriteProperty(req, replyTo)
 	default:

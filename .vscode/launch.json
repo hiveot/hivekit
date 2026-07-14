@@ -41,7 +41,7 @@
             "cwd": "${workspaceFolder}/go/examples",
             "showLog": false,
             "env": {},
-            "args": ["-clientID", "admin", "status", "counter1"],
+            "args": ["-clientID", "admin", "actions", "counter1", "increment"],
             "logOutput": "rpc",
             // "console": "integratedTerminal",
         },
