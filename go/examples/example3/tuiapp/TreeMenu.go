@@ -24,7 +24,8 @@ func (m *TreeMenu) HandleSelection(node *tview.TreeNode) {
 		// root node has no reference, show discovered things
 		m.submitEvent(MenuEvShowDiscovered, "")
 	} else {
-		thingID := node.GetReference().(string)
+		refObj := node.GetReference()
+		thingID := refObj.(string)
 
 		m.submitEvent(MenuEvShowTD, thingID)
 
@@ -36,16 +37,16 @@ func (m *TreeMenu) HandleSelection(node *tview.TreeNode) {
 func (m *TreeMenu) Refresh(allDirs []*td.TD, allThings []*td.TD) {
 
 	m.dirNodes.ClearChildren()
-	for dirID, td := range allDirs {
-		treeNode := tview.NewTreeNode(td.Title)
-		treeNode.SetReference(dirID)
+	for _, tdoc := range allDirs {
+		treeNode := tview.NewTreeNode(tdoc.Title)
+		treeNode.SetReference(tdoc.ID)
 		m.dirNodes.AddChild(treeNode)
 	}
 
 	m.thingNodes.ClearChildren()
-	for thingID, td := range allThings {
-		treeNode := tview.NewTreeNode(td.Title)
-		treeNode.SetReference(thingID)
+	for _, tdoc := range allThings {
+		treeNode := tview.NewTreeNode(tdoc.Title)
+		treeNode.SetReference(tdoc.ID)
 		m.thingNodes.AddChild(treeNode)
 	}
 }
@@ -70,6 +71,7 @@ func (m *TreeMenu) submitEvent(ev string, thingID string) {
 	}
 }
 
+// Show a tree menu with discovered directories and things
 func NewTreeMenu() *TreeMenu {
 	menu := &TreeMenu{
 		TreeView: *tview.NewTreeView(),
@@ -79,7 +81,7 @@ func NewTreeMenu() *TreeMenu {
 	menu.SetRoot(menu.root)
 	menu.root.SetSelectable(true)
 	menu.SetCurrentNode(menu.root)
-	menu.SetChangedFunc(func(node *tview.TreeNode) {
+	menu.SetSelectedFunc(func(node *tview.TreeNode) {
 		menu.HandleSelection(node)
 	})
 	// menu.SetSelectedFunc(menu.HandleSelection)

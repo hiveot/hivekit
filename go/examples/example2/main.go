@@ -58,7 +58,7 @@ func main() {
 		fmt.Println()
 		fmt.Println("Commands:")
 		fmt.Printf("  %-10s                Discover WoT devices and directories\n", CmdDiscover)
-		fmt.Printf("  %-10s thingID        Login to the device\n", CmdLogin)
+		// fmt.Printf("  %-10s thingID        Set login ID for the device\n", CmdLogin)
 		fmt.Printf("  %-10s thingID        List the content of a directory\n", CmdListDir)
 		fmt.Printf("  %-10s thingID        Show the TD of a Thing\n", CmdShowTD)
 		fmt.Printf("  %-10s thingID        Show the current status of a Thing\n", CmdShowStatus)
@@ -98,13 +98,15 @@ func main() {
 
 	// Start the CLI recipe modules
 	f := factorypkg.NewModuleFactory(env, nil)
-	r := recipes.NewConsumerRecipe(f)
+	r := recipes.NewConsumerRecipe(f, false)
 	err := r.Start()
 	if err != nil {
 		os.Exit(1)
 	}
-	// the router module sets the default clientID to AppEnvironment.ClientID
-	// the default auth token is set to {clientID}.token
+
+	// Set default credentials for connecting to devices with the router module.
+	// The router looks up the credentials for connecting to standalone devices using
+	// the device thingID and falls back to the "" thingID.
 	authToken, _ := env.GetAuthToken()
 	rtr := api.GetFactoryModule[router.IRouterService](f, router.RouterModuleType)
 	rtr.AddDeviceCredential("", env.GetClientID(), authToken, td.SecSchemeBearer)
@@ -129,6 +131,7 @@ func main() {
 		if len(args) > 2 {
 			actionName = args[2]
 		}
+		// providing a name to invoke the action
 		app.ShowActions(thingID, actionName)
 	case CmdShowTD:
 		thingID := getThingID()

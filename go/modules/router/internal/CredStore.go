@@ -35,7 +35,9 @@ type CredentialsStore struct {
 
 // Add the secret to access a Thing.
 //
-// thingID for which the credentials apply or "" to set default credentials.
+// use "" for thingID to set the default credentials.
+//
+// thingID for which the credentials apply
 // clientID to authenticate as. Required.
 // secret to use or "" if no secret is known.
 // credType  type as used in td SecurityScheme.Scheme eg, apikey, digest, bearer, ...

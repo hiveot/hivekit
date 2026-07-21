@@ -6,7 +6,7 @@ import (
 
 	"github.com/hiveot/hivekit/go/api/msg"
 	"github.com/hiveot/hivekit/go/api/td"
-	"github.com/hiveot/hivekit/go/modules/vcache"
+	vcachepkg "github.com/hiveot/hivekit/go/modules/vcache/pkg"
 	"github.com/hiveot/hivekit/go/utils"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -29,7 +29,7 @@ func TestMain(m *testing.M) {
 func TestStartStop(t *testing.T) {
 	t.Logf("---%s---\n", t.Name())
 
-	m := vcache.NewVCacheService()
+	m := vcachepkg.NewValueCacheService()
 	err := m.Start()
 	require.NoError(t, err)
 	defer m.Stop()
@@ -46,7 +46,7 @@ func TestPropertyNotifications(t *testing.T) {
 	const prop1Value = "value1"
 	const prop2Value = "value2"
 
-	m := vcache.NewVCacheService()
+	m := vcachepkg.NewValueCacheService()
 	err := m.Start()
 	require.NoError(t, err)
 	defer m.Stop()
@@ -110,7 +110,7 @@ func TestEventNotifications(t *testing.T) {
 	const ev1Value = "value1"
 	const ev2Value = "value2"
 
-	m := vcache.NewVCacheService()
+	m := vcachepkg.NewValueCacheService()
 	err := m.Start()
 	require.NoError(t, err)
 	defer m.Stop()

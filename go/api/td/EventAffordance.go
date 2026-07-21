@@ -28,6 +28,7 @@ type EventAffordance struct {
 	Titles []string `json:"titles,omitempty"`
 	// Define URI template variables according to [RFC6570] as collection based on DataSchema declarations.
 	// ... right
+
 	UriVariables map[string]DataSchema `json:"uriVariables,omitempty"`
 	//--- InteractionAffordance ends ---
 

@@ -23,6 +23,7 @@ const (
 type DiscoveryResult struct {
 	Addr        string // IP or hostname of the server
 	Port        int    // port the server listens on
+	Service     string // DNS-SD service field
 	IsDirectory bool   // URL is that of a Thing Directory
 	IsThing     bool   // URL is of a Thing
 	Instance    string
@@ -102,9 +103,13 @@ type IDiscoveryClient interface {
 	DiscoverThings(instanceName string, searchTime time.Duration,
 		cb func(*DiscoveryResult) bool) (recs []*DiscoveryResult, err error)
 
-	// Discover Things and download their TD
+	// Discover all Things and download their TD.
+	// This returns both the discovery record and corresponding TD
+	// If a TD cannot be downloaded or is invalid a nil value is returned.
 	DiscoverThingTDs(instanceName string, searchTime time.Duration,
-		cb func(*td.TD) bool) ([]*DiscoveryResult, []*td.TD)
+		cb func(*td.TD) bool) (
+		dirs []*DiscoveryResult, dirTDs []*td.TD,
+		things []*DiscoveryResult, thingTDs []*td.TD)
 
 	// DownloadTD a TD document from a discovery record.
 	// Intended to obtain the TD of a discovered directory or thing.

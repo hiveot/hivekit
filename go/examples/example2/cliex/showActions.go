@@ -6,6 +6,8 @@ import (
 
 // Show the actions of a Thing
 //
+// If a name is provided then invoke the action. Currently this doesn't accept input data.
+//
 // The thing must have published its TD using discovery.
 //
 //	thingID whose actions to show

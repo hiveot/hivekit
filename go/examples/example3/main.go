@@ -1,36 +1,59 @@
 package main
 
 import (
+	"fmt"
+	"os"
+	"path"
+	"time"
+
 	"github.com/hiveot/hivekit/go/api"
+	"github.com/hiveot/hivekit/go/api/td"
 	"github.com/hiveot/hivekit/go/examples/example3/tuiapp"
 	factorypkg "github.com/hiveot/hivekit/go/modules/factory/pkg"
 	"github.com/hiveot/hivekit/go/modules/factory/recipes"
+	"github.com/hiveot/hivekit/go/modules/router"
 	"github.com/hiveot/hivekit/go/utils"
 )
 
+// Use the admin account to login as. This uses the home/certs directory to load the token.
+const ExampleClientID = "admin"
+
+var ExampleHome = path.Join(os.TempDir(), "hivekit-examples")
+
 func main() {
+
+	env := api.NewAppEnvironment(ExampleHome, true)
+	env.RpcTimeout = time.Second * 60 // avoid comm timeout during debugging
+	// FIXME: for a different clientID when running with go run, instead of the APP ID
+	if env.ClientID == "main" {
+		env.ClientID = "admin"
+	}
+
 	// utils.SetLogging("warn", "")
 	// log to file to avoid messing up the tui
-	utils.SetLogging("info", "/tmp/example3.log")
+	env.CreateDir(env.LogsDir, 0750)
+	utils.SetLogging("info", path.Join(env.LogsDir, "example3.log"))
 
-	// run the EFR trio: env, factory and recipe
-	env := api.NewAppEnvironment("", true)
 	f := factorypkg.NewModuleFactory(env, nil)
-	r := recipes.NewConsumerRecipe(f)
-
-	// Ignore the certificate check just for this example. Dont do this at home.
-	// http.DefaultTransport.(*http.Transport).TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
-
-	// co := wotco.NewWotConsumer(nil, time.Minute)
-	// co := consumer.NewConsumer()
-	// co.SetTimeout(time.Minute)
-	// run the router without CA. Don't try this at home.
-	// r := routerpkg.NewRouterService("", co.GetTD, nil, nil, time.Minute)
-	// co.SetRequestSink(r)
-	// r.SetNotificationSink(co)
+	r := recipes.NewConsumerRecipe(f, true)
 	err := r.Start()
+	if err != nil {
+		os.Exit(1)
+	}
+
+	// Set default credentials for connecting to devices with the router module.
+	// The router looks up the credentials for connecting to standalone devices using
+	// the device thingID and falls back to the "" thingID.
+	authToken, _ := env.GetAuthToken()
+	rtr := api.GetFactoryModule[router.IRouterService](f, router.RouterModuleType)
+	rtr.AddDeviceCredential("", env.GetClientID(), authToken, td.SecSchemeBearer)
+	fmt.Printf("Using '%s' as login ID\n", env.GetClientID())
+
 	app := tuiapp.NewTuiApp(f)
-	app.Run()
+	app.SetRequestSink(r)
+	r.SetNotificationSink(app)
+
+	app.Start()
 	if err != nil {
 		println("Tui failed to start: ", err.Error())
 	} else {

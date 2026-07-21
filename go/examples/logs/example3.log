@@ -1,0 +1,24 @@
+[2mJul 16 08:29:47.9747[0m [92mINF[0m [2mModuleFactoryImpl.go:179[0m LoadModule loaded new module instance [2mmoduleType=[0mDirectoryClient
+[2mJul 16 08:29:47.9749[0m [92mINF[0m [2mModuleFactoryImpl.go:179[0m LoadModule loaded new module instance [2mmoduleType=[0mdiscovery-client
+[2mJul 16 08:29:47.9749[0m [92mINF[0m [2mModuleFactoryImpl.go:179[0m LoadModule loaded new module instance [2mmoduleType=[0mrouter
+[2mJul 16 08:29:47.9749[0m [92mINF[0m [2mRouterServiceImpl.go:241[0m Start: Starting router module
+[2mJul 16 08:29:47.9861[0m [92mINF[0m [2mDnsSDScan.go:53[0m DnsSDScan: Found service [2minstance=[0mthingDiscovery-nkYQ0UYvg [2mservice=[0m_wot._tcp [2mserviceType=[0m_services._dns-sd._udp.local. [2mdomain=[0mlocal [2mip4=[0m[10.3.3.40] [2mport=[0m8444
+[2mJul 16 08:29:47.9865[0m [92mINF[0m [2mDnsSDScan.go:53[0m DnsSDScan: Found service [2minstance=[0mnuc1 [2mservice=[0m_wot._tcp [2mserviceType=[0m_services._dns-sd._udp.local. [2mdomain=[0mlocal [2mip4=[0m[10.3.3.10] [2mport=[0m8444
+[2mJul 16 08:29:48.9785[0m [92mINF[0m [2mDnsSDScan.go:53[0m DnsSDScan: Found service [2minstance=[0mthingDiscovery-nkYQ0UYvg [2mservice=[0m_wot._tcp [2mserviceType=[0m_services._dns-sd._udp.local. [2mdomain=[0mlocal [2mip4=[0m[10.3.3.40] [2mport=[0m8444
+[2mJul 16 08:29:48.9786[0m [92mINF[0m [2mDiscoveryClientImpl.go:230[0m DownloadTD [2murl=[0mhttps://10.3.3.40:8444/.well-known/wot
+[2mJul 16 08:29:48.9786[0m [92mINF[0m [2mTLSClient.go:450[0m NewTLSClient: No CA certificate. InsecureSkipVerify used [2mdestination=[0m10.3.3.40:8444
+[2mJul 16 08:29:48.9848[0m [92mINF[0m [2mDnsSDScan.go:53[0m DnsSDScan: Found service [2minstance=[0mnuc1 [2mservice=[0m_wot._tcp [2mserviceType=[0m_services._dns-sd._udp.local. [2mdomain=[0mlocal [2mip4=[0m[10.3.3.10] [2mport=[0m8444
+[2mJul 16 08:29:48.9849[0m [92mINF[0m [2mDiscoveryClientImpl.go:230[0m DownloadTD [2murl=[0mhttps://10.3.3.10:8444/.well-known/wot
+[2mJul 16 08:29:48.9849[0m [92mINF[0m [2mTLSClient.go:450[0m NewTLSClient: No CA certificate. InsecureSkipVerify used [2mdestination=[0m10.3.3.10:8444
+[2mJul 16 08:30:16.2081[0m [93mWRN[0m [2mWssTransportClient.go:248[0m AuthenticateWithForm: No credentials for thing. Continuing [2mthingID=[0mcounter1
+[2mJul 16 08:30:16.2082[0m [92mINF[0m [2mConnectWss.go:34[0m ConnectWSS - establishing Websocket connection to server [2mserver=[0m10.3.3.40:8444 [2mpath=[0m/hiveot/wss [2mclientID=[0m""
+[2mJul 16 08:30:16.2122[0m [93mWRN[0m [2mConnectWss.go:103[0m ConnectWSS: Unauthorized connection as '' to 'wss://10.3.3.40:8444/hiveot/wss': websocket: bad handshake
+[2mJul 16 08:30:44.6232[0m [93mWRN[0m [2mReconnectClientImpl.go:222[0m ReconnectClient.Start The linked client failed to start. [2merr=[0m"ConnectWSS: Unauthorized connection as '' to 'wss://10.3.3.40:8444/hiveot/wss': websocket: bad handshake" [2m"client module"=[0mhiveot-wss-client0gXz18LDg
+[2mJul 16 08:30:44.6233[0m [92mINF[0m [2mWssTransportClient.go:399[0m SendRequest [2mclientID=[0m"" [2mcorrelationID=[0mTguk1ULDR [2moperation=[0mreadallproperties [2mthingID=[0mcounter1 [2mname=[0m""
+[2mJul 16 08:30:44.6235[0m [93mWRN[0m [2mWssTransportClient.go:428[0m SendRequest ->: error in sending request [2mdThingID=[0mcounter1 [2mname=[0m"" [2mcorrelationID=[0mTguk1ULDR [2merr=[0m"_send: Can't send. Not connected"
+[2mJul 16 08:30:44.6235[0m [92mINF[0m [2mWssTransportClient.go:399[0m SendRequest [2mclientID=[0m"" [2mcorrelationID=[0moUEmJULvg [2moperation=[0mreadallevents [2mthingID=[0mcounter1 [2mname=[0m""
+[2mJul 16 08:30:44.6235[0m [93mWRN[0m [2mWssTransportClient.go:428[0m SendRequest ->: error in sending request [2mdThingID=[0mcounter1 [2mname=[0m"" [2mcorrelationID=[0moUEmJULvg [2merr=[0m"_send: Can't send. Not connected"
+[2mJul 16 08:30:44.6240[0m [92mINF[0m [2mWssTransportClient.go:399[0m SendRequest [2mclientID=[0m"" [2mcorrelationID=[0mT8EmJUYvRm [2moperation=[0mreadallproperties [2mthingID=[0mcounter1 [2mname=[0m""
+[2mJul 16 08:30:44.6241[0m [93mWRN[0m [2mWssTransportClient.go:428[0m SendRequest ->: error in sending request [2mdThingID=[0mcounter1 [2mname=[0m"" [2mcorrelationID=[0mT8EmJUYvRm [2merr=[0m"_send: Can't send. Not connected"
+[2mJul 16 08:30:44.6241[0m [92mINF[0m [2mWssTransportClient.go:399[0m SendRequest [2mclientID=[0m"" [2mcorrelationID=[0m0UEmJ8YDRz [2moperation=[0mreadallevents [2mthingID=[0mcounter1 [2mname=[0m""
+[2mJul 16 08:30:44.6242[0m [93mWRN[0m [2mWssTransportClient.go:428[0m SendRequest ->: error in sending request [2mdThingID=[0mcounter1 [2mname=[0m"" [2mcorrelationID=[0m0UEmJ8YDRz [2merr=[0m"_send: Can't send. Not connected"

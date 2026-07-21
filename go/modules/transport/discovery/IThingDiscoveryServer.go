@@ -9,9 +9,7 @@ const (
 
 // DNS-SD service IDs
 const (
-	// WOT_UDP_DNSSD_TYPE = "_wot._udp"
-
-	// DNS-SD service types for WoT Thing TD
+	// DNS-SD service types for a light-weight WoT Thing introduction
 	WOT_THING_SERVICE_TYPE = "_wot._tcp"
 )
 

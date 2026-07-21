@@ -16,7 +16,7 @@ import (
 	"github.com/hiveot/hivekit/go/modules/digitwin"
 	"github.com/hiveot/hivekit/go/modules/directory"
 	"github.com/hiveot/hivekit/go/modules/vcache"
-	vcacheapi "github.com/hiveot/hivekit/go/modules/vcache/api"
+	vcachepkg "github.com/hiveot/hivekit/go/modules/vcache/pkg"
 )
 
 // DefaultDigitwinServiceID is the default moduleID of the digital twin module instance.
@@ -120,7 +120,7 @@ type DigitwinService struct {
 	msgAPI *DigitwinMsgHandler
 
 	// notification cache holding device property and events values
-	vcache vcacheapi.IVCacheService
+	vcache vcache.IValueCacheService
 
 	// location of the digital twin storage location
 	storageDir string
@@ -291,7 +291,7 @@ func (m *DigitwinService) Start() (err error) {
 	// if it doesn't contain a value it should forward the request to the device
 	// note that the thingID is the digital twin ID, which needs to be converted
 	// back to the device thingID
-	m.vcache = vcache.NewVCacheService()
+	m.vcache = vcachepkg.NewValueCacheService()
 	// don't set a sink
 	// m.vcache.SetRequestSink(m.ForwardDigitwinRequestToDevice)
 	m.vcache.Start()

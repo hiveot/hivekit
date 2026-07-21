@@ -46,17 +46,18 @@
             // "console": "integratedTerminal",
         },
         {
-            "name": "Test TUI",
+            "name": "Debug TUI",
             "type": "go",
             "request": "launch",
             "mode": "auto",
-            "program": "${file}",
+            "program": "${workspaceFolder}/go/examples/example3/main.go",
             "cwd": "${workspaceFolder}/go/examples",
             "env": {},
-            "args": [],
+            "args": ["-clientID", "admin"],
             "showLog": false,
             "logOutput": "dap",
-            "console": "integratedTerminal",
+            // "console": "integratedTerminal",
+            "console": "externalTerminal",
         },
     ]
 }

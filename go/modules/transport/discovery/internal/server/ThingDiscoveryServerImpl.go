@@ -87,7 +87,7 @@ func (m *ThingDiscoveryServerImpl) ServeThingTD(thingTDJSON string) (err error) 
 	// publish a discovery record
 	instanceName := m.GetThingID()
 	thingTDURL, err := url.JoinPath(m.httpServer.GetConnectURL(), wellKnownPath)
-	m.dnssdServer, err = ServeWotDiscovery(instanceName, thingTDURL, discovery.WOT_THING_SERVICE_TYPE, nil)
+	m.dnssdServer, err = ServeWotDiscovery(instanceName, thingTDURL, false, nil)
 	if err != nil {
 		slog.Error("Failed starting introduction server for DNS-SD",
 			"Thing TD URL", thingTDURL,

@@ -88,7 +88,7 @@ func (m *DirectoryDiscoveryServerImpl) ServeDirectoryTD(dirTDJSON string) (err e
 	tddURL, err := url.JoinPath(m.httpServer.GetConnectURL(), wellKnownPath)
 
 	m.dnssdServer, err = ServeWotDiscovery(
-		instanceName, tddURL, discovery.WOT_DIRECTORY_SERVICE_TYPE, m.endpoints)
+		instanceName, tddURL, true, m.endpoints)
 
 	if err != nil {
 		slog.Error("Failed starting introduction server for DNS-SD",

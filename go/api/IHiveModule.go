@@ -13,6 +13,12 @@ type IHiveModule interface {
 	// This is not the instance ID.
 	// GetModuleType() string
 
+	// GetNotificationSink returns the module's notification sink that was set with SetRequestSink
+	GetNotificationSink() IHiveModule
+
+	// GetRequestSink returns the module's request sink that was set with SetRequestSink
+	GetRequestSink() IHiveModule
+
 	// GetThingID returns the module's instance ID.
 	// This is used as the sender ThingID when sending notifications.
 	GetThingID() string

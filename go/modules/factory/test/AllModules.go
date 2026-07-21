@@ -37,9 +37,8 @@ import (
 	tlsserverpkg "github.com/hiveot/hivekit/go/modules/transport/tlsserver/pkg"
 	wss "github.com/hiveot/hivekit/go/modules/transport/wss"
 	wsspkg "github.com/hiveot/hivekit/go/modules/transport/wss/pkg"
-
 	"github.com/hiveot/hivekit/go/modules/vcache"
-	vcacheapi "github.com/hiveot/hivekit/go/modules/vcache/api"
+	vcachepkg "github.com/hiveot/hivekit/go/modules/vcache/pkg"
 )
 
 // List hivekit available modules
@@ -208,7 +207,7 @@ var HiveKitModules = []api.ModuleDefinition{
 	},
 	// vcache server provider
 	{
-		Type:        vcacheapi.VCacheModuleType,
-		Constructor: vcache.NewVCacheServiceFactory,
+		Type:        vcache.ValueCacheModuleType,
+		Constructor: vcachepkg.NewValueCacheServiceFactory,
 	},
 }

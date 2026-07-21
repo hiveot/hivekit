@@ -63,6 +63,28 @@ func (m *Consumer) HandleNotification(notif *msg.NotificationMessage) {
 	m.ForwardNotification(notif)
 }
 
+// // Return the vcache if present in the module chain
+// // This is experimental. The other method is to use the module factory.
+// func (co *Consumer) GetVCache() vcache.IValueCacheService {
+// 	for sink := co.GetRequestSink(); sink != nil; sink = sink.GetRequestSink() {
+// 		if svc, found := sink.(vcache.IValueCacheService); found {
+// 			return svc
+// 		}
+// 	}
+// 	return nil
+// }
+
+// // Return the directory client if present in the module chain
+// // This is experimental. The other method is to use the module factory.
+// func (co *Consumer) GetDirClient() directory.IDirectoryClient {
+// 	for sink := co.GetRequestSink(); sink != nil; sink = sink.GetRequestSink() {
+// 		if svc, found := sink.(directory.IDirectoryClient); found {
+// 			return svc
+// 		}
+// 	}
+// 	return nil
+// }
+
 // InvokeAction invokes an action on a thing and wait for the response
 // If the response type is known then provide it with output, otherwise use interface{}
 func (co *Consumer) InvokeAction(

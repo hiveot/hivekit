@@ -10,12 +10,16 @@ const (
 // DNS-SD service IDs
 const (
 
-	// DNS-SD service types for WoT Directory TD
-	// See discovery specification: https://w3c.github.io/wot-discovery/#introduction-dns-sd-sec
-	WOT_DIRECTORY_SERVICE_TYPE = "_directory._sub._wot._tcp"
+// the exploration mechanism has moved away from this service type. Instead,
+// DNS-SD is phase 1 of the introduction mechanism to obtain the TD url
+// to read over http. Use the TXT record TYPE field to distinguish directory from thing.
 
-	// WoT doesnt define gateways in their discovery spec so use our own.
-	// HIVEOT_GATEWAY_SERVICE_TYPE = "_gateway._sub._wot._tcp"
+// DNS-SD service types for WoT Directory TD
+// See discovery specification: https://w3c.github.io/wot-discovery/#introduction-dns-sd-sec
+// WOT_DIRECTORY_SERVICE_TYPE = "_directory._sub._wot._tcp"
+
+// WoT doesnt define gateways in their discovery spec so use our own.
+// HIVEOT_GATEWAY_SERVICE_TYPE = "_gateway._sub._wot._tcp"
 )
 
 // Actions to serve discovery of a TD provided by a different module.

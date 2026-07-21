@@ -29,16 +29,16 @@ import (
 //	instanceName is the name of the server instance serving, like the module ID or "hiveot" for its hub.
 //	  This can be used to search for a particular directory instance when multiple are available.
 //	  When omitted, the device hostname is used.
-//	tddURL is the URL the thing or directory TD is served at.
-//	serviceType is WOT_THING_SERVICE_TYPE or WOT_DIRECTORY_SERVICE_TYPE
+//	tdURL is the URL the thing or directory TD is served at.
+//	isDirectory true if tdURL points to a directory
 //	endpoints contains a map of additional {scheme:connection} connection URLs
 //
 // Returns the discovery service instance. Use Shutdown() when done.
 func ServeWotDiscovery(
-	instanceName string, tddURL string, serviceType string, endpoints map[string]string,
+	instanceName string, tdURL string, isDirectory bool, endpoints map[string]string,
 ) (*zeroconf.Server, error) {
 
-	parts, err := url.Parse(tddURL)
+	parts, err := url.Parse(tdURL)
 	if err != nil {
 		return nil, err
 	}
@@ -72,7 +72,7 @@ func ServeWotDiscovery(
 		"scheme": scheme,
 		"type":   "Thing",
 	}
-	if serviceType == discovery.WOT_DIRECTORY_SERVICE_TYPE {
+	if isDirectory {
 		params["type"] = "Directory"
 	}
 	// add connection endpoints as parameters
@@ -81,11 +81,12 @@ func ServeWotDiscovery(
 	}
 	slog.Info("Serving discovery for address",
 		slog.String("address", parts.Hostname()),
-		slog.String("serviceType", serviceType),
+		slog.String("type", params["type"]),
 		slog.Int("port", portNr),
 	)
+	// note that the only official service type is _wot._tcp
 	discoServer, err := ServeDnsSD(
-		instanceName, serviceType,
+		instanceName, discovery.WOT_THING_SERVICE_TYPE,
 		address, portNr, params)
 
 	return discoServer, err

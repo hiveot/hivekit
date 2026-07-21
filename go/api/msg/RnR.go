@@ -97,7 +97,7 @@ func (rnr *RnRChan) HandleResponse(resp *ResponseMessage, timeout time.Duration)
 		}
 		cancelFn()
 	} else {
-		// detect a lost
+		// detect a lost response
 		slog.Info("HandleResponse: response without a RnR request.",
 			slog.String("correlationID", resp.CorrelationID))
 	}

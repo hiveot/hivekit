@@ -60,6 +60,8 @@ Consumers can discover stand-alone Thing TDs using the discovery client module.
 1. Directly invoke the module DiscoverThings method.
 2. Directly invoke DiscoverThingTDs to download the TDs
 
+DiscoverThingTDs separates directories from device Things.
+
 
 ### Discovery and Use Of RC devices
 

@@ -38,7 +38,8 @@ type DiscoveryClientImpl struct {
 	mux sync.RWMutex
 }
 
-func (cl *DiscoveryClientImpl) _discover(
+// perform a DNS-SD discovery for WoT things, including directories
+func (cl *DiscoveryClientImpl) _dnssd_discover(
 	instanceName string, serviceType string, maxWaitTime time.Duration,
 	cb func(*discovery.DiscoveryResult) bool) ([]*discovery.DiscoveryResult, error) {
 
@@ -68,11 +69,28 @@ func (cl *DiscoveryClientImpl) _discover(
 
 // discoverDirectories invokes a callback on each directory discovered
 // The callback can return true to stop the process.
+// This is using the _wot._tcp service type. Note that _directory._sub._wot._tcp
+// not a defined specification.
 func (cl *DiscoveryClientImpl) DiscoverDirectories(maxWaitTime time.Duration,
 	cb func(*discovery.DiscoveryResult) bool) ([]*discovery.DiscoveryResult, error) {
 
-	recs, err := cl._discover("", discovery.WOT_DIRECTORY_SERVICE_TYPE, maxWaitTime, cb)
-	return recs, err
+	dirRecs := make([]*discovery.DiscoveryResult, 0)
+	_, err := cl._dnssd_discover("",
+		discovery.WOT_THING_SERVICE_TYPE, maxWaitTime,
+		func(rec *discovery.DiscoveryResult) bool {
+			stop := false
+			// filter on directories
+			if strings.ToLower(rec.Type) != "directory" {
+				return false
+			}
+			dirRecs = append(dirRecs, rec)
+			if cb != nil {
+				stop = cb(rec)
+			}
+			return stop
+		})
+
+	return dirRecs, err
 }
 
 // Discover all directories on the local network and return their TDs.
@@ -80,8 +98,8 @@ func (cl *DiscoveryClientImpl) DiscoverDirectories(maxWaitTime time.Duration,
 func (cl *DiscoveryClientImpl) DiscoverDirectoryTDs(
 	searchTime time.Duration) (recs []*discovery.DiscoveryResult, tddList []*td.TD) {
 
-	recs, _ = cl.DiscoverDirectories(searchTime, nil)
 	tddList = make([]*td.TD, 0, len(recs))
+	recs, _ = cl.DiscoverDirectories(searchTime, nil)
 
 	for _, rec := range recs {
 		dirURL := rec.AsURL()
@@ -101,9 +119,9 @@ func (cl *DiscoveryClientImpl) DiscoverDirectoryTDs(
 func (cl *DiscoveryClientImpl) DiscoverFirstDirectory(
 	instanceName string, maxWaitTime time.Duration) (rec0 *discovery.DiscoveryResult, err error) {
 
-	records, err := cl._discover(instanceName, discovery.WOT_DIRECTORY_SERVICE_TYPE, maxWaitTime,
-		// stop on the first result
-		func(*discovery.DiscoveryResult) bool { return true })
+	// stop on the first result
+	records, err := cl.DiscoverDirectories(
+		maxWaitTime, func(*discovery.DiscoveryResult) bool { return true })
 
 	if len(records) == 0 {
 		return nil, fmt.Errorf("DiscoverFirstDirectory: No directory was found")
@@ -142,28 +160,6 @@ func (cl *DiscoveryClientImpl) DiscoverFirstDirectoryTD(
 	return dirTD, tddJson, err
 }
 
-// DiscoverFirstGateway returns the discovery record if the first gateway server.
-// func (cl *DiscoveryClientImpl) DiscoverFirstGateway(
-// 	instanceName string, searchTime time.Duration) (rec0 *discovery.DiscoveryResult, err error) {
-// 	if instanceName == "" {
-// 		instanceName = discovery.HIVEOT_GATEWAY_SERVICE_TYPE
-// 	}
-// 	if searchTime == 0 {
-// 		searchTime = time.Second * 3
-// 	}
-
-// 	// return on the first result
-// 	records, err := cl.DiscoverThings(
-// 		instanceName, searchTime, func(res *discovery.DiscoveryResult) bool {
-// 			return true
-// 		})
-// 	if len(records) == 0 {
-// 		return nil, err
-// 	}
-// 	rec0 = records[0]
-// 	return rec0, nil
-// }
-
 // DiscoverThings returns discovery records of all wot Things that publish themselves on the network.
 //
 // Intended for environments where things run servers themselves (instead of using a hub/gateway).
@@ -177,32 +173,46 @@ func (cl *DiscoveryClientImpl) DiscoverThings(
 	instanceName string, maxWaitTime time.Duration,
 	cb func(*discovery.DiscoveryResult) bool) ([]*discovery.DiscoveryResult, error) {
 
-	records, err := cl._discover(instanceName, discovery.WOT_THING_SERVICE_TYPE, maxWaitTime, cb)
+	records, err := cl._dnssd_discover(instanceName, discovery.WOT_THING_SERVICE_TYPE, maxWaitTime, cb)
 	result := records
 	return result, err
 }
 
-// Discover things and download their TD
+// Discover all things and download their TD
+// This separates directories from devices
+// If a TD cannot be read this includes nil in the result.
 func (cl *DiscoveryClientImpl) DiscoverThingTDs(
-	instanceName string, maxWaitTime time.Duration, cb func(*td.TD) bool) ([]*discovery.DiscoveryResult, []*td.TD) {
+	instanceName string, maxWaitTime time.Duration,
+	cb func(*td.TD) bool) (
+	dirRecs []*discovery.DiscoveryResult, dirTDs []*td.TD,
+	deviceRecs []*discovery.DiscoveryResult, deviceTDs []*td.TD) {
 
-	tddList := make([]*td.TD, 0)
-	recs, _ := cl.DiscoverThings(instanceName, maxWaitTime, func(rec *discovery.DiscoveryResult) bool {
+	dirRecs = make([]*discovery.DiscoveryResult, 0)
+	deviceRecs = make([]*discovery.DiscoveryResult, 0)
+
+	dirTDs = make([]*td.TD, 0)
+	deviceTDs = make([]*td.TD, 0)
+	cl.DiscoverThings(instanceName, maxWaitTime, func(rec *discovery.DiscoveryResult) bool {
 		stop := false
-		dirURL := rec.AsURL()
-		if dirURL != "" {
-			dirTD, _, err := cl.LoadTD(dirURL)
-			if err == nil {
-				tddList = append(tddList, dirTD)
-				if cb != nil {
-					stop = cb(dirTD)
-				}
-			}
+		if rec.IsDirectory {
+			dirRecs = append(dirRecs, rec)
+		} else {
+			deviceRecs = append(deviceRecs, rec)
+		}
+		tdURL := rec.AsURL()
+		var tdoc *td.TD
+		if tdURL != "" {
+			tdoc, _, _ = cl.LoadTD(tdURL)
+		}
+		if rec.IsDirectory {
+			dirTDs = append(dirTDs, tdoc)
+		} else {
+			deviceTDs = append(deviceTDs, tdoc)
 		}
 		return stop
 	})
 
-	return recs, tddList
+	return dirRecs, dirTDs, deviceRecs, deviceTDs
 }
 
 // Handle requests to discover directory TD.
@@ -258,6 +268,7 @@ func (cl *DiscoveryClientImpl) ParseZeroconfServiceEntry(
 		Params:   make(map[string]string),
 		Instance: rec.Instance,
 		Port:     rec.Port,
+		Service:  rec.Service,
 	}
 
 	// determine the address string
@@ -271,14 +282,8 @@ func (cl *DiscoveryClientImpl) ParseZeroconfServiceEntry(
 		discoResult.Addr = rec.HostName
 	}
 
-	// https://w3c.github.io/wot-discovery/#introduction-dns-sd-sec
-	if rec.Service == discovery.WOT_DIRECTORY_SERVICE_TYPE {
-		discoResult.IsDirectory = true
-	} else if rec.Service == discovery.WOT_THING_SERVICE_TYPE {
-		discoResult.IsThing = true
-	} else {
-		// not sure what this is
-	}
+	// default to Thing unless a TXT "Type" record is present
+	discoResult.IsThing = true
 
 	// For TCP-based services, the following information MUST be included in the
 	// TXT record that is pointed to by the Service Instance Name:
@@ -293,9 +298,10 @@ func (cl *DiscoveryClientImpl) ParseZeroconfServiceEntry(
 		if key == "td" {
 			discoResult.TD = val // Absolute pathname of the TD/TDD
 		} else if key == "type" {
+			//https://w3c.github.io/wot-discovery/#exploration-td-type-thingdirectory
 			discoResult.Type = val // Type of TD, "Thing" or "Directory" or "Hiveot"
-			discoResult.IsDirectory = val == "Directory"
-			discoResult.IsThing = val == "Thing"
+			discoResult.IsDirectory = strings.ToLower(val) == "directory"
+			discoResult.IsThing = strings.ToLower(val) == "thing"
 		} else if key == "scheme" {
 			// http (default), https, coap+tcp, coaps+tcp
 			discoResult.Schema = val // Scheme part of URL

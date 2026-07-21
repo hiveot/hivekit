@@ -19,7 +19,14 @@ func (header *AppHeader) Refresh(discoRecs []*discovery.DiscoveryResult, tdList 
 
 	newText := fmt.Sprintf("Discovery records: %d,  Loaded %d TDs",
 		len(discoRecs), len(tdList))
-	header.text.SetText(newText)
+	header.ShowStatus(newText)
+}
+
+// Show a status text in the header
+func (header *AppHeader) ShowStatus(text string) {
+
+	header.text.SetText(text)
+	header.text.SetTextColor(tview.Styles.PrimaryTextColor)
 }
 
 // Create a new instance of the application view
@@ -41,9 +48,5 @@ func NewAppHeader() *AppHeader {
 		text: text,
 		// btn:   discoBtn,
 	}
-	// discoBtn.SetSelectedFunc(func() {
-	// header.submit(MenuEvDiscover)
-	// })
-
 	return header
 }
