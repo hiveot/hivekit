@@ -69,10 +69,10 @@ func (tbl *TuiTable) SetTitleRow(row int, titles ...string) {
 func NewTuiTable() *TuiTable {
 	tbl := &TuiTable{
 		Table:           *tview.NewTable(),
-		TitleColor:      tview.Styles.TertiaryTextColor,
-		DataColor:       tcell.ColorLightGrey,
-		TextColor:       tcell.ColorGray,
-		SelectableColor: tcell.ColorWhite,
+		TitleColor:      tview.Styles.TitleColor,
+		DataColor:       tview.Styles.SecondaryTextColor,
+		TextColor:       tview.Styles.TertiaryTextColor,
+		SelectableColor: tview.Styles.ContrastSecondaryTextColor,
 	}
 	// tbl.SetBorders(true)
 	return tbl
