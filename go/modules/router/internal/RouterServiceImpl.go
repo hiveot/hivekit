@@ -13,7 +13,7 @@ import (
 	"github.com/hiveot/hivekit/go/api/msg"
 	"github.com/hiveot/hivekit/go/api/td"
 	"github.com/hiveot/hivekit/go/modules"
-	reconnectpkg "github.com/hiveot/hivekit/go/modules/reconnect/pkg"
+	reconnect_service "github.com/hiveot/hivekit/go/modules/reconnect/service"
 	"github.com/hiveot/hivekit/go/modules/router"
 	"github.com/hiveot/hivekit/go/modules/transport/clients"
 	"github.com/teris-io/shortid"
@@ -101,7 +101,7 @@ func (m *RouterServiceImpl) GetClientConnection(tdi *td.TD, op string) (cl api.I
 		}
 		if m.autoReconnect {
 			// reconnect connects the client on start
-			rc := reconnectpkg.NewReconnectClient(c)
+			rc := reconnect_service.NewReconnectService(c)
 			cl = rc
 		} else {
 			cl = c

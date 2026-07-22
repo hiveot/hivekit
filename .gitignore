@@ -1,1 +1,5 @@
-go/examples/dist/example1
+dist/
+bin/
+*.out
+*.log
+__debug_bin*

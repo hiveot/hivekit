@@ -10,9 +10,9 @@ import (
 
 	"github.com/hiveot/hivekit/go/api/td"
 	certstest "github.com/hiveot/hivekit/go/modules/certs/test"
-	tlsclientpkg "github.com/hiveot/hivekit/go/modules/transport/tlsclient/pkg"
+	tls_client "github.com/hiveot/hivekit/go/modules/transport/tlsclient/client"
 	"github.com/hiveot/hivekit/go/modules/transport/tlsserver"
-	tlsserverpkg "github.com/hiveot/hivekit/go/modules/transport/tlsserver/pkg"
+	tls_server "github.com/hiveot/hivekit/go/modules/transport/tlsserver/server"
 	"github.com/hiveot/hivekit/go/utils"
 
 	"github.com/stretchr/testify/assert"
@@ -62,7 +62,7 @@ func TestStartStop(t *testing.T) {
 	t.Logf("---%s---\n", t.Name())
 	cfg := tlsserver.NewTLSServerConfig(
 		serverAddress, serverPort, testCerts.ServerCert, testCerts.CaCert, true)
-	srv := tlsserverpkg.NewTLSServer(cfg, nil)
+	srv := tls_server.NewTLSServer(cfg, nil)
 	err := srv.Start()
 	assert.NoError(t, err)
 	srv.Stop()
@@ -73,7 +73,7 @@ func TestNoServerCert(t *testing.T) {
 	cfg := tlsserver.NewTLSServerConfig(
 		serverAddress, serverPort, nil, testCerts.CaCert, true)
 
-	srv := tlsserverpkg.NewTLSServer(cfg, nil)
+	srv := tls_server.NewTLSServer(cfg, nil)
 	err := srv.Start()
 	require.Error(t, err)
 	srv.Stop()
@@ -88,7 +88,7 @@ func TestNoAuth(t *testing.T) {
 	cfg := tlsserver.NewTLSServerConfig(
 		serverAddress, serverPort, testCerts.ServerCert, testCerts.CaCert, true)
 
-	srv := tlsserverpkg.NewTLSServer(cfg, nil)
+	srv := tls_server.NewTLSServer(cfg, nil)
 
 	err := srv.Start()
 	require.NoError(t, err)
@@ -105,7 +105,7 @@ func TestNoAuth(t *testing.T) {
 		path1Hit++
 	})
 
-	cl := tlsclientpkg.NewTLSClient(clientHostPort, testCerts.CaCert, 0)
+	cl := tls_client.NewTLSClient(clientHostPort, testCerts.CaCert, 0)
 	_, _, err = cl.Get(path1)
 	assert.NoError(t, err)
 	assert.Equal(t, 1, path1Hit)
@@ -130,7 +130,7 @@ func TestTokenAuth(t *testing.T) {
 	cfg := tlsserver.NewTLSServerConfig(
 		serverAddress, serverPort, testCerts.ServerCert, testCerts.CaCert, true)
 
-	srv := tlsserverpkg.NewTLSServer(cfg, testAuth)
+	srv := tls_server.NewTLSServer(cfg, testAuth)
 	err := srv.Start()
 	require.NoError(t, err)
 	defer srv.Stop()
@@ -155,7 +155,7 @@ func TestTokenAuth(t *testing.T) {
 	})
 
 	// create a client and login
-	cl := tlsclientpkg.NewTLSClient(clientHostPort, testCerts.CaCert, 0)
+	cl := tls_client.NewTLSClient(clientHostPort, testCerts.CaCert, 0)
 	require.NoError(t, err)
 	defer cl.Close()
 	cl.AuthenticateWithToken(loginID1, token1)
@@ -183,7 +183,7 @@ func TestClientCert(t *testing.T) {
 
 	cfg := tlsserver.NewTLSServerConfig(
 		serverAddress, serverPort, testCerts.ServerCert, testCerts.CaCert, true)
-	srv := tlsserverpkg.NewTLSServer(cfg, nil)
+	srv := tls_server.NewTLSServer(cfg, nil)
 
 	err := srv.Start()
 	assert.NoError(t, err)
@@ -209,7 +209,7 @@ func TestClientCert(t *testing.T) {
 		path1Hit++
 	})
 
-	cl := tlsclientpkg.NewTLSClient(clientHostPort, testCerts.CaCert, 0)
+	cl := tls_client.NewTLSClient(clientHostPort, testCerts.CaCert, 0)
 	cl.AuthenticateWithClientCert(testCerts.ClientCert)
 	_, status, err := cl.Get(path1)
 	assert.NoError(t, err)
@@ -268,7 +268,7 @@ func TestWriteResponse(t *testing.T) {
 
 	cfg := tlsserver.NewTLSServerConfig(
 		serverAddress, serverPort, testCerts.ServerCert, testCerts.CaCert, true)
-	srv := tlsserverpkg.NewTLSServer(cfg, nil)
+	srv := tls_server.NewTLSServer(cfg, nil)
 
 	err := srv.Start()
 	assert.NoError(t, err)
@@ -286,7 +286,7 @@ func TestWriteResponse(t *testing.T) {
 		path2Hit++
 	})
 
-	cl := tlsclientpkg.NewTLSClient(clientHostPort, testCerts.CaCert, 0)
+	cl := tls_client.NewTLSClient(clientHostPort, testCerts.CaCert, 0)
 	require.NoError(t, err)
 	defer cl.Close()
 	reply, _, err := cl.Get(path2)
@@ -305,7 +305,7 @@ func TestBadPort(t *testing.T) {
 	cfg.Port = 1 // bad port
 	cfg.CaCert = testCerts.CaCert
 	cfg.ServerCert = testCerts.ServerCert
-	srv := tlsserverpkg.NewTLSServer(cfg, nil)
+	srv := tls_server.NewTLSServer(cfg, nil)
 
 	err := srv.Start()
 	defer srv.Stop()

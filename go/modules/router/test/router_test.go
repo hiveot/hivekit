@@ -17,15 +17,15 @@ import (
 	certstest "github.com/hiveot/hivekit/go/modules/certs/test"
 	"github.com/hiveot/hivekit/go/modules/consumer"
 	"github.com/hiveot/hivekit/go/modules/directory"
-	directorypkg "github.com/hiveot/hivekit/go/modules/directory/pkg"
+	directory_service "github.com/hiveot/hivekit/go/modules/directory/service"
 	"github.com/hiveot/hivekit/go/modules/router"
-	routerpkg "github.com/hiveot/hivekit/go/modules/router/pkg"
-	grpcpkg "github.com/hiveot/hivekit/go/modules/transport/grpc/pkg"
-	httpbasicpkg "github.com/hiveot/hivekit/go/modules/transport/httpbasic/pkg"
-	ssescpkg "github.com/hiveot/hivekit/go/modules/transport/ssesc/pkg"
+	router_service "github.com/hiveot/hivekit/go/modules/router/service"
+	grpc_server "github.com/hiveot/hivekit/go/modules/transport/grpc/server"
+	httpbasic_server "github.com/hiveot/hivekit/go/modules/transport/httpbasic/server"
+	ssesc_server "github.com/hiveot/hivekit/go/modules/transport/ssesc/server"
 	"github.com/hiveot/hivekit/go/modules/transport/tlsserver"
-	tlsserverpkg "github.com/hiveot/hivekit/go/modules/transport/tlsserver/pkg"
-	wsspkg "github.com/hiveot/hivekit/go/modules/transport/wss/pkg"
+	tls_server "github.com/hiveot/hivekit/go/modules/transport/tlsserver/server"
+	wss_server "github.com/hiveot/hivekit/go/modules/transport/wss/server"
 	"github.com/hiveot/hivekit/go/testenv"
 	"github.com/hiveot/hivekit/go/utils"
 	"github.com/stretchr/testify/assert"
@@ -70,7 +70,7 @@ func startTestServerDevice(deviceID string) (testDevice *testenv.TestDevice,
 		certsBundle.ServerAddr, testDevicePort,
 		certsBundle.ServerCert, certsBundle.CaCert, true)
 
-	httpServer := tlsserverpkg.NewTLSServer(cfg, testAuthn)
+	httpServer := tls_server.NewTLSServer(cfg, testAuthn)
 	err := httpServer.Start()
 	if err != nil {
 		panic("startTestServer: failed to start http server")
@@ -79,17 +79,17 @@ func startTestServerDevice(deviceID string) (testDevice *testenv.TestDevice,
 	// 2. Create a protocol server for receiving requests
 	switch serverType {
 	case api.ProtocolTypeWotHttpBasic:
-		transportServer = httpbasicpkg.NewHttpBasicServer(httpServer)
+		transportServer = httpbasic_server.NewHttpBasicServer(httpServer)
 	case api.ProtocolTypeHiveotGrpc:
 		address := "unix://" + filepath.Join(storageDir, "grpc-server.sock")
-		transportServer = grpcpkg.NewHiveotGrpcServer(
+		transportServer = grpc_server.NewHiveotGrpcServer(
 			address, cfg.ServerCert, cfg.CaCert, testAuthn, 0)
 	case api.ProtocolTypeHiveotSsesc:
-		transportServer = ssescpkg.NewSseScServer(httpServer, 0)
+		transportServer = ssesc_server.NewSseScServer(httpServer, 0)
 	case api.ProtocolTypeWotWebsocket:
-		transportServer = wsspkg.NewWotWssServer(httpServer, 0)
+		transportServer = wss_server.NewWotWssServer(httpServer, 0)
 	case api.ProtocolTypeHiveotWebsocket:
-		transportServer = wsspkg.NewHiveotWssServer(httpServer, 0)
+		transportServer = wss_server.NewHiveotWssServer(httpServer, 0)
 	}
 	err = transportServer.Start()
 	if err != nil {
@@ -132,7 +132,7 @@ func SetupConsumerWithRouter(authn api.IAuthenticator) (
 
 	// setup the consumer side: directory, router and consumer
 	// register the device TD in the directory for use by the router
-	dirSvc = directorypkg.NewDirectoryService("", storageDir, nil, nil)
+	dirSvc = directory_service.NewDirectoryService("", storageDir, nil, nil)
 	err := dirSvc.Start()
 	if err != nil {
 		panic("SetupConsumerWithRouter: Directory.Start: " + err.Error())
@@ -140,7 +140,7 @@ func SetupConsumerWithRouter(authn api.IAuthenticator) (
 
 	// the router uses the TD to connect to the device.
 	// this doesn't actually need a directory. GetTD could also simply return the device TD.
-	routerMod = routerpkg.NewRouterService(
+	routerMod = router_service.NewRouterService(
 		storageDir, dirSvc.GetTD, nil, certsBundle.CaCert, rpcTimeout)
 
 	err = routerMod.Start()
@@ -176,11 +176,11 @@ func TestMain(m *testing.M) {
 func TestStartStop(t *testing.T) {
 	t.Logf("---%s---\n", t.Name())
 
-	var testDirMod = directorypkg.NewDirectoryService("", "", nil, nil)
+	var testDirMod = directory_service.NewDirectoryService("", "", nil, nil)
 	err := testDirMod.Start()
 	require.NoError(t, err)
 	// test no cred store
-	m := routerpkg.NewRouterService("", testDirMod.GetTD, nil, certsBundle.CaCert, rpcTimeout)
+	m := router_service.NewRouterService("", testDirMod.GetTD, nil, certsBundle.CaCert, rpcTimeout)
 	err = m.Start()
 	require.NoError(t, err)
 	defer m.Stop()
@@ -197,7 +197,7 @@ func TestCredentialsStore(t *testing.T) {
 
 	// the router uses the TD to connect to the device.
 	// this doesn't actually need a directory. GetTD could also simply return the device TD.
-	routerMod := routerpkg.NewRouterService(storageDir, nil, nil, nil, rpcTimeout)
+	routerMod := router_service.NewRouterService(storageDir, nil, nil, nil, rpcTimeout)
 	err := routerMod.Start()
 	require.NoError(t, err)
 
@@ -305,7 +305,7 @@ func TestSubscribeReconnectToDevice(t *testing.T) {
 	// 2. setup the consumer side: directory, router and consumer
 	// register the device TD in the directory for use by the router
 	// See also the factory consumer recipes for this use-case that makes it easier.
-	var testDirMod = directorypkg.NewDirectoryService("", "", nil, nil)
+	var testDirMod = directory_service.NewDirectoryService("", "", nil, nil)
 	err := testDirMod.Start()
 	require.NoError(t, err)
 	defer testDirMod.Stop()
@@ -315,7 +315,7 @@ func TestSubscribeReconnectToDevice(t *testing.T) {
 
 	// the router uses the TD to connect to the device.
 	// this doesn't actually need a directory. GetTD could also simply return the device TD.
-	routerMod := routerpkg.NewRouterService(storageDir, testDirMod.GetTD, nil, certsBundle.CaCert, rpcTimeout)
+	routerMod := router_service.NewRouterService(storageDir, testDirMod.GetTD, nil, certsBundle.CaCert, rpcTimeout)
 	err = routerMod.Start()
 	require.NoError(t, err)
 	defer routerMod.Stop()

@@ -9,8 +9,8 @@ import (
 	"github.com/hiveot/hivekit/go/api"
 	"github.com/hiveot/hivekit/go/api/td"
 	"github.com/hiveot/hivekit/go/examples/example3/tuiapp"
-	factorypkg "github.com/hiveot/hivekit/go/modules/factory/pkg"
-	"github.com/hiveot/hivekit/go/modules/factory/recipes"
+	consumer_recipe "github.com/hiveot/hivekit/go/modules/factory/recipes/consumer"
+	factory_service "github.com/hiveot/hivekit/go/modules/factory/service"
 	"github.com/hiveot/hivekit/go/modules/router"
 	"github.com/hiveot/hivekit/go/utils"
 )
@@ -34,8 +34,8 @@ func main() {
 	env.CreateDir(env.LogsDir, 0750)
 	utils.SetLogging("info", path.Join(env.LogsDir, "example3.log"))
 
-	f := factorypkg.NewModuleFactory(env, nil)
-	r := recipes.NewConsumerRecipe(f, true)
+	f := factory_service.NewModuleFactory(env, nil)
+	r := consumer_recipe.NewConsumerRecipe(f, true)
 	err := r.Start()
 	if err != nil {
 		os.Exit(1)

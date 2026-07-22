@@ -14,7 +14,7 @@ import (
 	certstest "github.com/hiveot/hivekit/go/modules/certs/test"
 	"github.com/hiveot/hivekit/go/modules/consumer"
 	"github.com/hiveot/hivekit/go/modules/digitwin"
-	factorypkg "github.com/hiveot/hivekit/go/modules/factory/pkg"
+	factory_service "github.com/hiveot/hivekit/go/modules/factory/service"
 	"github.com/hiveot/hivekit/go/modules/thing"
 	"github.com/hiveot/hivekit/go/utils"
 	"github.com/stretchr/testify/assert"
@@ -66,7 +66,7 @@ func TestStartStop(t *testing.T) {
 	// if err != nil {
 	// t.Errorf("Failed loading config: %s", err.Error())
 	// }
-	f := factorypkg.NewModuleFactory(env, nil)
+	f := factory_service.NewModuleFactory(env, nil)
 	require.NotNil(t, f)
 	// f.Start(recipe)
 	f.Stop()
@@ -80,7 +80,7 @@ func TestAuthentication(t *testing.T) {
 	env.TLSCert = testCerts.ServerCert
 	env.HttpsPort = testPort
 
-	f := factorypkg.NewModuleFactory(env, HiveKitModules)
+	f := factory_service.NewModuleFactory(env, HiveKitModules)
 	assert.NotNil(t, f)
 	defer f.Stop()
 
@@ -124,7 +124,7 @@ func TestDigitwin(t *testing.T) {
 	env.TLSCert = testCerts.ServerCert
 	env.HttpsPort = testPort
 
-	f := factorypkg.NewModuleFactory(env, HiveKitModules)
+	f := factory_service.NewModuleFactory(env, HiveKitModules)
 	defer f.Stop()
 
 	// clientRecipe := factoryrecipe.NewFactoryRecipe(AvailableModules, chain)
@@ -147,8 +147,8 @@ func TestClientServerRecipe(t *testing.T) {
 	env.TLSCert = testCerts.ServerCert
 	env.HttpsPort = testPort
 
-	serverFactory := factorypkg.NewModuleFactory(env, HiveKitModules)
-	serverChain := factorypkg.NewChainRecipe(serverFactory, DeviceServerRecipe)
+	serverFactory := factory_service.NewModuleFactory(env, HiveKitModules)
+	serverChain := factory_service.NewChainRecipe(serverFactory, DeviceServerRecipe)
 	err := serverChain.Start()
 	require.NoError(t, err)
 	defer serverFactory.Stop()
@@ -167,8 +167,8 @@ func TestClientServerRecipe(t *testing.T) {
 	})
 
 	// the client sends requests and receives responses
-	clientFactory := factorypkg.NewModuleFactory(env, HiveKitModules)
-	clientChain := factorypkg.NewChainRecipe(clientFactory, DeviceClientRecipe)
+	clientFactory := factory_service.NewModuleFactory(env, HiveKitModules)
+	clientChain := factory_service.NewChainRecipe(clientFactory, DeviceClientRecipe)
 	err = clientChain.Start()
 	require.NoError(t, err)
 	defer clientFactory.Stop()

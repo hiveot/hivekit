@@ -1,4 +1,4 @@
-package authnstore_test
+package authn_store_test
 
 import (
 	"fmt"
@@ -13,7 +13,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/hiveot/hivekit/go/modules/authn"
-	authnstore "github.com/hiveot/hivekit/go/modules/authn/internal/store"
+	authn_store "github.com/hiveot/hivekit/go/modules/authn/internal/store"
 	"github.com/hiveot/hivekit/go/utils"
 )
 
@@ -43,7 +43,7 @@ func TestMain(m *testing.M) {
 
 func TestOpenClosePWFile(t *testing.T) {
 	_ = os.Remove(unpwFilePath)
-	unpwStore := authnstore.NewAuthnFileStore(unpwFilePath, "")
+	unpwStore := authn_store.NewAuthnFileStore(unpwFilePath, "")
 	err := unpwStore.Open()
 	assert.NoError(t, err)
 
@@ -57,7 +57,7 @@ func TestOpenClosePWFile(t *testing.T) {
 
 func TestOpenBadData(t *testing.T) {
 	// /bin/yes cannot be read
-	unpwStore := authnstore.NewAuthnFileStore("/bin/yes", "")
+	unpwStore := authn_store.NewAuthnFileStore("/bin/yes", "")
 	err := unpwStore.Open()
 	assert.Error(t, err)
 
@@ -66,7 +66,7 @@ func TestOpenBadData(t *testing.T) {
 func TestGetMissingEntry(t *testing.T) {
 	_ = os.Remove(unpwFilePath)
 	// create 2 separate stores
-	pwStore1 := authnstore.NewAuthnFileStore(unpwFilePath, "")
+	pwStore1 := authn_store.NewAuthnFileStore(unpwFilePath, "")
 	err := pwStore1.Open()
 	require.NoError(t, err)
 	defer pwStore1.Close()
@@ -86,7 +86,7 @@ func TestAdd(t *testing.T) {
 	const role1 = "role1"
 
 	_ = os.Remove(unpwFilePath)
-	pwStore1 := authnstore.NewAuthnFileStore(unpwFilePath, "")
+	pwStore1 := authn_store.NewAuthnFileStore(unpwFilePath, "")
 	err := pwStore1.Open()
 	require.NoError(t, err)
 	defer pwStore1.Close()
@@ -131,7 +131,7 @@ func TestVerifyHashAlgo(t *testing.T) {
 	const role1 = "role1"
 
 	_ = os.Remove(unpwFilePath)
-	pwStore1 := authnstore.NewAuthnFileStore(unpwFilePath, algo)
+	pwStore1 := authn_store.NewAuthnFileStore(unpwFilePath, algo)
 	err := pwStore1.Open()
 	require.NoError(t, err)
 	defer pwStore1.Close()
@@ -190,7 +190,7 @@ func TestName(t *testing.T) {
 	const role1 = "role1"
 
 	_ = os.Remove(unpwFilePath)
-	pwStore1 := authnstore.NewAuthnFileStore(unpwFilePath, "")
+	pwStore1 := authn_store.NewAuthnFileStore(unpwFilePath, "")
 	err := pwStore1.Open()
 	require.NoError(t, err)
 	defer pwStore1.Close()
@@ -214,7 +214,7 @@ func TestSetPasswordTwoStores(t *testing.T) {
 
 	// create 2 separate stores
 	_ = os.Remove(unpwFilePath)
-	pwStore1 := authnstore.NewAuthnFileStore(unpwFilePath, "")
+	pwStore1 := authn_store.NewAuthnFileStore(unpwFilePath, "")
 	err := pwStore1.Open()
 	require.NoError(t, err)
 	err = pwStore1.Add(authn.ClientProfile{
@@ -223,7 +223,7 @@ func TestSetPasswordTwoStores(t *testing.T) {
 	})
 	require.NoError(t, err)
 	//
-	pwStore2 := authnstore.NewAuthnFileStore(unpwFilePath, "")
+	pwStore2 := authn_store.NewAuthnFileStore(unpwFilePath, "")
 	err = pwStore2.Open()
 	require.NoError(t, err)
 	err = pwStore2.Add(authn.ClientProfile{
@@ -291,10 +291,10 @@ func TestConcurrentReadWrite(t *testing.T) {
 	_ = fp.Close()
 
 	// two stores in parallel
-	pwStore1 := authnstore.NewAuthnFileStore(unpwFilePath, "")
+	pwStore1 := authn_store.NewAuthnFileStore(unpwFilePath, "")
 	err := pwStore1.Open()
 	assert.NoError(t, err)
-	pwStore2 := authnstore.NewAuthnFileStore(unpwFilePath, "")
+	pwStore2 := authn_store.NewAuthnFileStore(unpwFilePath, "")
 	err = pwStore2.Open()
 	assert.NoError(t, err)
 
@@ -331,11 +331,11 @@ func TestConcurrentReadWrite(t *testing.T) {
 }
 
 func TestWritePwToBadTempFolder(t *testing.T) {
-	pws := make(map[string]authnstore.AuthnEntry)
-	pwStore1 := authnstore.NewAuthnFileStore(unpwFilePath, "")
+	pws := make(map[string]authn_store.AuthnEntry)
+	pwStore1 := authn_store.NewAuthnFileStore(unpwFilePath, "")
 	err := pwStore1.Open()
 	assert.NoError(t, err)
-	_, err = authnstore.WritePasswordsToTempFile("/badfolder", pws)
+	_, err = authn_store.WritePasswordsToTempFile("/badfolder", pws)
 	assert.Error(t, err)
 	pwStore1.Close()
 }
@@ -344,7 +344,7 @@ func TestWritePwToReadonlyFile(t *testing.T) {
 	const user1 = "user1"
 	const pass1 = "pass1"
 	// bin/yes cannot be written to
-	pwStore1 := authnstore.NewAuthnFileStore("/bin/yes", "")
+	pwStore1 := authn_store.NewAuthnFileStore("/bin/yes", "")
 	err := pwStore1.Open()
 	assert.Error(t, err)
 	err = pwStore1.SetPassword(user1, pass1)
@@ -361,7 +361,7 @@ func TestUpdate(t *testing.T) {
 	const role1 = "role1"
 
 	_ = os.Remove(unpwFilePath)
-	pwStore1 := authnstore.NewAuthnFileStore(unpwFilePath, "")
+	pwStore1 := authn_store.NewAuthnFileStore(unpwFilePath, "")
 	err := pwStore1.Open()
 	require.NoError(t, err)
 	err = pwStore1.Add(authn.ClientProfile{
@@ -406,7 +406,7 @@ func TestSetRole(t *testing.T) {
 	const role2 = "role2"
 
 	_ = os.Remove(unpwFilePath)
-	pwStore1 := authnstore.NewAuthnFileStore(unpwFilePath, "")
+	pwStore1 := authn_store.NewAuthnFileStore(unpwFilePath, "")
 	err := pwStore1.Open()
 	require.NoError(t, err)
 	err = pwStore1.Add(authn.ClientProfile{

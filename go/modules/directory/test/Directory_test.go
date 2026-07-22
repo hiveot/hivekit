@@ -13,8 +13,9 @@ import (
 	"github.com/hiveot/hivekit/go/api/td"
 	"github.com/hiveot/hivekit/go/modules/authn"
 	"github.com/hiveot/hivekit/go/modules/directory"
-	directorypkg "github.com/hiveot/hivekit/go/modules/directory/pkg"
-	tlsclientpkg "github.com/hiveot/hivekit/go/modules/transport/tlsclient/pkg"
+	directory_client "github.com/hiveot/hivekit/go/modules/directory/client"
+	directory_service "github.com/hiveot/hivekit/go/modules/directory/service"
+	tls_client "github.com/hiveot/hivekit/go/modules/transport/tlsclient/client"
 	"github.com/hiveot/hivekit/go/testenv"
 	"github.com/hiveot/hivekit/go/utils"
 	jsoniter "github.com/json-iterator/go"
@@ -55,11 +56,11 @@ func StartDirectoryServer(withHttp bool) (
 
 	if withHttp {
 		// add directory endpoints to the http server
-		dirHttpServer = directorypkg.NewDirectoryHttpServer(testEnv.HttpServer, rpcTimeout)
+		dirHttpServer = directory_service.NewDirectoryHttpServer(testEnv.HttpServer, rpcTimeout)
 		transports = append(transports, dirHttpServer)
 	}
 	// the transports are used to update the TDD forms and security
-	m = directorypkg.NewDirectoryService("", storageDir, testEnv.HttpServer, transports)
+	m = directory_service.NewDirectoryService("", storageDir, testEnv.HttpServer, transports)
 	err := m.Start()
 	if err != nil {
 		panic("StartDirectoryServer: failed to start the directory " + err.Error())
@@ -89,7 +90,7 @@ func StartDirectoryServer(withHttp bool) (
 func TestStartStop(t *testing.T) {
 	t.Logf("---%s---\n", t.Name())
 
-	m := directorypkg.NewDirectoryService("", storageDir, nil, nil)
+	m := directory_service.NewDirectoryService("", storageDir, nil, nil)
 	err := m.Start()
 	require.NoError(t, err)
 	defer m.Stop()
@@ -107,7 +108,7 @@ func TestStartStop(t *testing.T) {
 func TestCreateTD(t *testing.T) {
 	thingID := "thing1"
 
-	m := directorypkg.NewDirectoryService("", storageDir, nil, nil)
+	m := directory_service.NewDirectoryService("", storageDir, nil, nil)
 	err := m.Start()
 	require.NoError(t, err)
 	defer m.Stop()
@@ -159,12 +160,12 @@ func TestCRUDUsingMsgAPI(t *testing.T) {
 	tp := testenv.NewTestTransport(clientID, m)
 
 	// err := dirClient.CreateThing(tdi1Json)
-	err := directorypkg.UpdateTD(directoryID, tdi1Json, tp.HandleRequest)
+	err := directory_service.UpdateTD(directoryID, tdi1Json, tp.HandleRequest)
 	require.NoError(t, err)
 
 	// read the new TD
 	dirTDD, _ := m.GetTDD()
-	dirClient := directorypkg.NewDirectoryClient(dirTDD, tp)
+	dirClient := directory_client.NewDirectoryClient(dirTDD, tp)
 	tdi2, err := dirClient.RetrieveThing(thing1ID)
 	require.NoError(t, err)
 	assert.Equal(t, thing1ID, tdi2.ID)
@@ -198,7 +199,7 @@ func TestGetDirectoryTD(t *testing.T) {
 	// token, _, err := testEnv.CreateToken(userID, time.Minute)
 	// require.NoError(t, err)
 
-	httpClient := tlsclientpkg.NewTLSClient(hostPort, testEnv.CertBundle.CaCert, time.Minute)
+	httpClient := tls_client.NewTLSClient(hostPort, testEnv.CertBundle.CaCert, time.Minute)
 	err := httpClient.AuthenticateWithToken(userID, token)
 	require.NoError(t, err)
 	defer httpClient.Close()
@@ -235,7 +236,7 @@ func TestCRUDUsingRestAPI(t *testing.T) {
 	// require.NoError(t, err)
 
 	// test the http client
-	dirClient := directorypkg.NewDirectoryHttpClient(dirTDD, testEnv.CertBundle.CaCert)
+	dirClient := directory_client.NewDirectoryHttpClient(dirTDD, testEnv.CertBundle.CaCert)
 
 	// FIXME: the http client should be able to do this using forms
 

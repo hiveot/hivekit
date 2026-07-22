@@ -3,7 +3,7 @@ package httpbasic
 import (
 	"testing"
 
-	httpbasicpkg "github.com/hiveot/hivekit/go/modules/transport/httpbasic/pkg"
+	httpbasic_server "github.com/hiveot/hivekit/go/modules/transport/httpbasic/server"
 	"github.com/hiveot/hivekit/go/testenv"
 	"github.com/stretchr/testify/require"
 )
@@ -14,7 +14,7 @@ func TestStartStop(t *testing.T) {
 
 	dummyServer := testenv.NewDummyServer("")
 	// dummyAuthenticator := authnapi.NewDummyAuthenticator()
-	m := httpbasicpkg.NewHttpBasicServer(dummyServer)
+	m := httpbasic_server.NewHttpBasicServer(dummyServer)
 	err := m.Start()
 	require.NoError(t, err)
 	defer m.Stop()

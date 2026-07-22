@@ -13,8 +13,8 @@ import (
 	"github.com/hiveot/hivekit/go/api/td"
 	"github.com/hiveot/hivekit/go/examples/example2/cliex"
 	"github.com/hiveot/hivekit/go/modules/directory"
-	factorypkg "github.com/hiveot/hivekit/go/modules/factory/pkg"
-	"github.com/hiveot/hivekit/go/modules/factory/recipes"
+	consumerrecipe "github.com/hiveot/hivekit/go/modules/factory/recipes/consumer"
+	factory_service "github.com/hiveot/hivekit/go/modules/factory/service"
 	"github.com/hiveot/hivekit/go/modules/router"
 	"github.com/hiveot/hivekit/go/modules/transport/discovery"
 )
@@ -97,8 +97,8 @@ func main() {
 	http.DefaultTransport.(*http.Transport).TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
 
 	// Start the CLI recipe modules
-	f := factorypkg.NewModuleFactory(env, nil)
-	r := recipes.NewConsumerRecipe(f, false)
+	f := factory_service.NewModuleFactory(env, nil)
+	r := consumerrecipe.NewConsumerRecipe(f, false)
 	err := r.Start()
 	if err != nil {
 		os.Exit(1)

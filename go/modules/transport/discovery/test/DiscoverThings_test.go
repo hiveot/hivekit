@@ -9,7 +9,8 @@ import (
 	"github.com/hiveot/hivekit/go/api/msg"
 	"github.com/hiveot/hivekit/go/api/td"
 	"github.com/hiveot/hivekit/go/modules/transport/discovery"
-	discoverypkg "github.com/hiveot/hivekit/go/modules/transport/discovery/pkg"
+	discovery_client "github.com/hiveot/hivekit/go/modules/transport/discovery/client"
+	discovery_server "github.com/hiveot/hivekit/go/modules/transport/discovery/server"
 	"github.com/hiveot/hivekit/go/testenv"
 
 	"github.com/stretchr/testify/assert"
@@ -31,7 +32,7 @@ func TestDiscoverThings(t *testing.T) {
 	testEnv.StartHttpServer(true)
 	defer testEnv.HttpServer.Stop()
 
-	m := discoverypkg.NewThingDiscoveryServer(testServiceID, testEnv.HttpServer, nil)
+	m := discovery_server.NewThingDiscoveryServer(testServiceID, testEnv.HttpServer, nil)
 	err := m.Start()
 	require.NoError(t, err)
 	defer m.Stop()
@@ -41,7 +42,7 @@ func TestDiscoverThings(t *testing.T) {
 	// Test if it is discovered
 	serverAddr := testEnv.HttpServer.GetConnectURL()
 	urlParts, _ := url.Parse(serverAddr)
-	cl := discoverypkg.NewDiscoveryClient(nil, false)
+	cl := discovery_client.NewDiscoveryClient(nil, false)
 	records, err := cl.DiscoverThings(testServiceID, time.Second, nil)
 	require.NoError(t, err)
 	require.Equal(t, len(records), 1, "the test thing record was not discovered")
@@ -57,7 +58,7 @@ func TestDiscoverGetThingTD(t *testing.T) {
 	defer testEnv.HttpServer.Stop()
 	thingTD := testEnv.CreateTestTD(12)
 
-	m := discoverypkg.NewThingDiscoveryServer(testServiceID, testEnv.HttpServer, nil)
+	m := discovery_server.NewThingDiscoveryServer(testServiceID, testEnv.HttpServer, nil)
 	err := m.Start()
 	require.NoError(t, err)
 	defer m.Stop()
@@ -73,7 +74,7 @@ func TestDiscoverGetThingTD(t *testing.T) {
 
 	// discover the server
 	appEnv := api.NewAppEnvironment("", false)
-	cl := discoverypkg.NewDiscoveryClient(appEnv, false)
+	cl := discovery_client.NewDiscoveryClient(appEnv, false)
 	recs, err := cl.DiscoverThings(testServiceID, time.Second, nil)
 	// records, err := cl.DiscoverThings(testThingServiceID, time.Second, nil)
 	require.NoError(t, err)

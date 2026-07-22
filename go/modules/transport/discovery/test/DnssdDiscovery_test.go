@@ -7,8 +7,8 @@ import (
 
 	"github.com/grandcat/zeroconf"
 
-	internal "github.com/hiveot/hivekit/go/modules/transport/discovery/internal/client"
-	internalserver "github.com/hiveot/hivekit/go/modules/transport/discovery/internal/server"
+	"github.com/hiveot/hivekit/go/modules/transport/discovery/internal/clientimpl"
+	"github.com/hiveot/hivekit/go/modules/transport/discovery/internal/serverimpl"
 	"github.com/hiveot/hivekit/go/utils"
 
 	"github.com/stretchr/testify/assert"
@@ -22,7 +22,7 @@ import (
 func TestDNSSDScan(t *testing.T) {
 	var count atomic.Int32
 
-	r, err := internal.DnsSDScan("", "", time.Second*2,
+	r, err := clientimpl.DnsSDScan("", "", time.Second*2,
 		func(_ *zeroconf.ServiceEntry) bool {
 			count.Add(1)
 			return false
@@ -40,12 +40,12 @@ func TestDiscover(t *testing.T) {
 	testServiceType := "_discovery.test-type._tcp"
 	address := utils.GetOutboundIP("").String()
 
-	srv, err := internalserver.ServeDnsSD(
+	srv, err := serverimpl.ServeDnsSD(
 		testServiceID, testServiceType, address, testServicePort, nil)
 	assert.NoError(t, err)
 	defer srv.Shutdown()
 
-	r, err := internal.DnsSDScan(testServiceID, testServiceType, time.Second,
+	r, err := clientimpl.DnsSDScan(testServiceID, testServiceType, time.Second,
 		func(*zeroconf.ServiceEntry) bool {
 			return true // stop
 		})
@@ -57,11 +57,11 @@ func TestNoInstanceID(t *testing.T) {
 	address := utils.GetOutboundIP("").String()
 	testServiceType := "test-service-type"
 
-	_, err := internalserver.ServeDnsSD(
+	_, err := serverimpl.ServeDnsSD(
 		"", testServiceType, address, testServicePort, nil)
 	assert.Error(t, err) // missing instance name
 
-	_, err = internalserver.ServeDnsSD(
+	_, err = serverimpl.ServeDnsSD(
 		testServiceID, "", address, testServicePort, nil)
 	assert.Error(t, err) // missing service name
 }
@@ -69,7 +69,7 @@ func TestNoInstanceID(t *testing.T) {
 func TestBadAddress(t *testing.T) {
 	testServiceType := "test-service-type"
 
-	discoServer, err := internalserver.ServeDnsSD(
+	discoServer, err := serverimpl.ServeDnsSD(
 		testServiceID, testServiceType, "notanipaddress", testServicePort, nil)
 
 	assert.Error(t, err)
@@ -79,7 +79,7 @@ func TestBadAddress(t *testing.T) {
 func TestExternalAddress(t *testing.T) {
 	testServiceType := "test-service-type"
 
-	discoServer, err := internalserver.ServeDnsSD(
+	discoServer, err := serverimpl.ServeDnsSD(
 		testServiceID, testServiceType, "1.2.3.4", testServicePort, nil)
 
 	// expect a warning
@@ -93,7 +93,7 @@ func TestDiscoverBadPort(t *testing.T) {
 
 	badPort := 0
 	address := utils.GetOutboundIP("").String()
-	_, err := internalserver.ServeDnsSD(testServiceID, testServiceType, address, badPort, nil)
+	_, err := serverimpl.ServeDnsSD(testServiceID, testServiceType, address, badPort, nil)
 
 	assert.Error(t, err)
 }

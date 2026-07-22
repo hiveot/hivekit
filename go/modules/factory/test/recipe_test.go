@@ -4,8 +4,8 @@ import (
 	"testing"
 
 	"github.com/hiveot/hivekit/go/api"
-	factorypkg "github.com/hiveot/hivekit/go/modules/factory/pkg"
-	"github.com/hiveot/hivekit/go/modules/factory/recipes"
+	standalonerecipe "github.com/hiveot/hivekit/go/modules/factory/recipes/standalone"
+	factory_service "github.com/hiveot/hivekit/go/modules/factory/service"
 	"github.com/hiveot/hivekit/go/testenv"
 	"github.com/stretchr/testify/require"
 )
@@ -18,8 +18,8 @@ func TestServerRecipe(t *testing.T) {
 	env.HttpsPort = testPort
 
 	// run the module chain for a standalone server
-	f := factorypkg.NewModuleFactory(env, nil)
-	deviceRecipe := recipes.NewStandAloneDeviceRecipe(f)
+	f := factory_service.NewModuleFactory(env, nil)
+	deviceRecipe := standalonerecipe.NewStandAloneDeviceRecipe(f)
 	err := deviceRecipe.Start()
 	require.NoError(t, err)
 	defer deviceRecipe.Stop()

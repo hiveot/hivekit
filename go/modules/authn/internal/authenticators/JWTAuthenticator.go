@@ -255,7 +255,7 @@ func NewJWTAuthenticator(
 		signingMethod:             jwt.SigningMethodES256,
 		sessionStart:              make(map[string]time.Time),
 	}
-	var _ IAuthnAuthenticator = svc // interface check
+	var _ authn.IAuthnAuthenticator = svc // interface check
 	return svc
 }
 

@@ -5,8 +5,9 @@ import (
 	"time"
 
 	"github.com/hiveot/hivekit/go/api"
-	directorypkg "github.com/hiveot/hivekit/go/modules/directory/pkg"
-	discoverypkg "github.com/hiveot/hivekit/go/modules/transport/discovery/pkg"
+	directory_service "github.com/hiveot/hivekit/go/modules/directory/service"
+	discovery_client "github.com/hiveot/hivekit/go/modules/transport/discovery/client"
+	discovery_server "github.com/hiveot/hivekit/go/modules/transport/discovery/server"
 	"github.com/hiveot/hivekit/go/testenv"
 	"github.com/hiveot/hivekit/go/utils"
 
@@ -29,7 +30,7 @@ func TestDiscoverDirectory(t *testing.T) {
 	testEnv.StartHttpServer(true)
 	defer testEnv.HttpServer.Stop()
 
-	m := discoverypkg.NewDirectoryDiscoveryServer(testDirServiceID, testEnv.HttpServer, endpoints)
+	m := discovery_server.NewDirectoryDiscoveryServer(testDirServiceID, testEnv.HttpServer, endpoints)
 	err := m.Start()
 	require.NoError(t, err)
 	defer m.Stop()
@@ -38,7 +39,7 @@ func TestDiscoverDirectory(t *testing.T) {
 	require.NoError(t, err)
 
 	// Test if it is discovered on startup
-	cl := discoverypkg.NewDiscoveryClient(nil, true)
+	cl := discovery_client.NewDiscoveryClient(nil, true)
 	err = cl.Start()
 	assert.NoError(t, err)
 
@@ -69,14 +70,14 @@ func TestDiscoverGetDirectoryTD(t *testing.T) {
 
 	// run a directory that will be discoverable
 	tpList := []api.ITransportServer{tpServer}
-	dirMod := directorypkg.NewDirectoryService("", "", testHttpServer, tpList)
+	dirMod := directory_service.NewDirectoryService("", "", testHttpServer, tpList)
 	dirMod.Start()
 	_, dirTDJson := dirMod.GetTDD()
 	// dirTD := dirMod.GetTD(dirMod.GetThingID())
 	// dirTDJson := td.MarshalTD(dirTD)
 
 	// run the discover server and expose the directory TDD
-	m := discoverypkg.NewDirectoryDiscoveryServer(testDirServiceID, testEnv.HttpServer, nil)
+	m := discovery_server.NewDirectoryDiscoveryServer(testDirServiceID, testEnv.HttpServer, nil)
 	err := m.Start()
 	require.NoError(t, err)
 	defer m.Stop()
@@ -85,7 +86,7 @@ func TestDiscoverGetDirectoryTD(t *testing.T) {
 
 	// discover and read the directory on start
 	appEnv := api.NewAppEnvironment("", false)
-	cl := discoverypkg.NewDiscoveryClient(appEnv, true)
+	cl := discovery_client.NewDiscoveryClient(appEnv, true)
 	err = cl.Start()
 	require.NoError(t, err)
 	assert.NotEmpty(t, appEnv.DirectoryURL)
@@ -105,14 +106,14 @@ func TestDiscoverNoDirectory(t *testing.T) {
 	defer testEnv.HttpServer.Stop()
 
 	// start discovery client
-	cl := discoverypkg.NewDiscoveryClient(testEnv.AppEnv, true)
+	cl := discovery_client.NewDiscoveryClient(testEnv.AppEnv, true)
 	err := cl.Start()
 	require.NoError(t, err)
 	dirTD2, _, err := cl.DiscoverFirstDirectoryTD(testDirServiceID, time.Second)
 	assert.Nil(t, dirTD2)
 
 	// run the discover server without exposing the directory TDD
-	m := discoverypkg.NewDirectoryDiscoveryServer(testDirServiceID, testHttpServer, nil)
+	m := discovery_server.NewDirectoryDiscoveryServer(testDirServiceID, testHttpServer, nil)
 	err = m.Start()
 	require.NoError(t, err)
 	defer m.Stop()

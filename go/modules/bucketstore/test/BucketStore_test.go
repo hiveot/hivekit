@@ -13,8 +13,10 @@ import (
 
 	"github.com/hiveot/hivekit/go/api/td"
 	"github.com/hiveot/hivekit/go/modules/bucketstore"
-	"github.com/hiveot/hivekit/go/modules/bucketstore/internal/service"
-	bucketstorepkg "github.com/hiveot/hivekit/go/modules/bucketstore/pkg"
+	bucketstore_client "github.com/hiveot/hivekit/go/modules/bucketstore/client"
+	"github.com/hiveot/hivekit/go/modules/bucketstore/kvbtreestore"
+	"github.com/hiveot/hivekit/go/modules/bucketstore/pebblestore"
+	bucketstore_service "github.com/hiveot/hivekit/go/modules/bucketstore/service"
 	"github.com/hiveot/hivekit/go/testenv"
 	"github.com/hiveot/hivekit/go/utils"
 
@@ -77,8 +79,11 @@ func openNewStore(storeDir string) (store bucketstore.IBucketStore, err error) {
 	if err != nil {
 		return nil, err
 	}
-
-	store, err = bucketstorepkg.NewBucketStore(storeDir, testBackendType)
+	if testBackendType == bucketstore.BackendPebble {
+		store = pebblestore.NewBucketStore(storeDir)
+	} else {
+		store = kvbtreestore.NewBucketStore(storeDir)
+	}
 	if err == nil {
 		err = store.Open()
 	}
@@ -184,8 +189,8 @@ func addDocs(store bucketstore.IBucketStore, bucketID string, count int) error {
 	return err
 }
 
-func startServer(t *testing.T) (*service.BucketStoreService, func(), error) {
-	m := service.NewBucketStoreService(storageLocation, testBackendType)
+func startServer(t *testing.T) (bucketstore.IBucketStoreService, func(), error) {
+	m := bucketstore_service.NewBucketStoreService(storageLocation, testBackendType)
 	err := m.Start()
 	require.NoError(t, err)
 	return m, func() {
@@ -695,7 +700,7 @@ func TestGetSetMsgAPI(t *testing.T) {
 	require.NoError(t, err)
 	defer stopFn()
 	tp := testenv.NewTestTransport(clientID, m)
-	cl := bucketstorepkg.NewBucketStoreMsgClient(tp, storeThingID)
+	cl := bucketstore_client.NewBucketStoreMsgClient(tp, storeThingID)
 	err = cl.Set(key1, val1)
 	require.NoError(t, err)
 

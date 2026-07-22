@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/hiveot/hivekit/go/modules/authn"
-	authnpkg "github.com/hiveot/hivekit/go/modules/authn/pkg"
+	authnclient "github.com/hiveot/hivekit/go/modules/authn/client"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -23,7 +23,7 @@ func TestBadRefreshHttp(t *testing.T) {
 	assert.NoError(t, err)
 
 	serverURL := httpServer.GetConnectURL()
-	authCl := authnpkg.NewUserAuthnHttpClient(serverURL, testCerts.CaCert)
+	authCl := authnclient.NewUserAuthnHttpClient(serverURL, testCerts.CaCert)
 	defer authCl.Close()
 	err = authCl.AuthenticateWithToken(testClientID1, token1)
 	assert.NoError(t, err)
@@ -55,7 +55,7 @@ func TestLogoutHttp(t *testing.T) {
 	require.NoError(t, err)
 
 	serverURL := httpServer.GetConnectURL()
-	authnClient := authnpkg.NewUserAuthnHttpClient(serverURL, testCerts.CaCert)
+	authnClient := authnclient.NewUserAuthnHttpClient(serverURL, testCerts.CaCert)
 	err = authnClient.AuthenticateWithToken(testClientID1, token1)
 	defer authnClient.Close()
 
@@ -90,7 +90,7 @@ func TestAuthClientCertHttp(t *testing.T) {
 	serverURL := httpServer.GetConnectURL()
 
 	// client should be able to read its profile using just client cert as auth
-	authCl := authnpkg.NewUserAuthnHttpClient(serverURL, testCerts.CaCert)
+	authCl := authnclient.NewUserAuthnHttpClient(serverURL, testCerts.CaCert)
 	authCl.GetTlsClient().AuthenticateWithClientCert(testCerts.ClientCert)
 	defer authCl.Close()
 

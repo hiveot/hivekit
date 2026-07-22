@@ -1,4 +1,4 @@
-package authnstore
+package authn_store
 
 import (
 	"encoding/json"

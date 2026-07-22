@@ -3,42 +3,49 @@ package factory_test
 import (
 	"github.com/hiveot/hivekit/go/api"
 	authnapi "github.com/hiveot/hivekit/go/modules/authn"
-	authnpkg "github.com/hiveot/hivekit/go/modules/authn/pkg"
+	authn_service "github.com/hiveot/hivekit/go/modules/authn/service"
 	"github.com/hiveot/hivekit/go/modules/authz"
-	authzpkg "github.com/hiveot/hivekit/go/modules/authz/pkg"
+	authz_service "github.com/hiveot/hivekit/go/modules/authz/service"
 	"github.com/hiveot/hivekit/go/modules/bucketstore"
-	bucketstorepkg "github.com/hiveot/hivekit/go/modules/bucketstore/pkg"
+	bucketstore_service "github.com/hiveot/hivekit/go/modules/bucketstore/service"
 	"github.com/hiveot/hivekit/go/modules/certs"
-	certspkg "github.com/hiveot/hivekit/go/modules/certs/pkg"
+	certs_service "github.com/hiveot/hivekit/go/modules/certs/service"
 	"github.com/hiveot/hivekit/go/modules/consumer"
 	"github.com/hiveot/hivekit/go/modules/digitwin"
-	digitwinpkg "github.com/hiveot/hivekit/go/modules/digitwin/pkg"
+	digitwin_service "github.com/hiveot/hivekit/go/modules/digitwin/service"
 	"github.com/hiveot/hivekit/go/modules/directory"
-	directorypkg "github.com/hiveot/hivekit/go/modules/directory/pkg"
+	directory_client "github.com/hiveot/hivekit/go/modules/directory/client"
+	directory_service "github.com/hiveot/hivekit/go/modules/directory/service"
 	"github.com/hiveot/hivekit/go/modules/history"
-	historypkg "github.com/hiveot/hivekit/go/modules/history/pkg"
+	history_client "github.com/hiveot/hivekit/go/modules/history/client"
+	history_service "github.com/hiveot/hivekit/go/modules/history/service"
 	"github.com/hiveot/hivekit/go/modules/logging"
-	loggingpkg "github.com/hiveot/hivekit/go/modules/logging/pkg"
+	logging_service "github.com/hiveot/hivekit/go/modules/logging/service"
 	"github.com/hiveot/hivekit/go/modules/reconnect"
-	reconnectpkg "github.com/hiveot/hivekit/go/modules/reconnect/pkg"
+	reconnect_service "github.com/hiveot/hivekit/go/modules/reconnect/service"
 	"github.com/hiveot/hivekit/go/modules/router"
-	routerpkg "github.com/hiveot/hivekit/go/modules/router/pkg"
+	router_service "github.com/hiveot/hivekit/go/modules/router/service"
 	"github.com/hiveot/hivekit/go/modules/thing"
 	"github.com/hiveot/hivekit/go/modules/transport/addforms"
-	addformspkg "github.com/hiveot/hivekit/go/modules/transport/addforms/pkg"
+	addforms_service "github.com/hiveot/hivekit/go/modules/transport/addforms/service"
 	"github.com/hiveot/hivekit/go/modules/transport/discovery"
-	discoverypkg "github.com/hiveot/hivekit/go/modules/transport/discovery/pkg"
+	discovery_client "github.com/hiveot/hivekit/go/modules/transport/discovery/client"
+	discovery_server "github.com/hiveot/hivekit/go/modules/transport/discovery/server"
 	grpctransport "github.com/hiveot/hivekit/go/modules/transport/grpc"
-	grpcpkg "github.com/hiveot/hivekit/go/modules/transport/grpc/pkg"
+	grpc_client "github.com/hiveot/hivekit/go/modules/transport/grpc/client"
+	grpc_server "github.com/hiveot/hivekit/go/modules/transport/grpc/server"
 	"github.com/hiveot/hivekit/go/modules/transport/httpbasic"
-	httpbasicpkg "github.com/hiveot/hivekit/go/modules/transport/httpbasic/pkg"
+	httpbasic_client "github.com/hiveot/hivekit/go/modules/transport/httpbasic/client"
+	httpbasic_server "github.com/hiveot/hivekit/go/modules/transport/httpbasic/server"
 	"github.com/hiveot/hivekit/go/modules/transport/ssesc"
-	ssescpkg "github.com/hiveot/hivekit/go/modules/transport/ssesc/pkg"
-	tlsserverpkg "github.com/hiveot/hivekit/go/modules/transport/tlsserver/pkg"
+	ssesc_client "github.com/hiveot/hivekit/go/modules/transport/ssesc/client"
+	ssesc_server "github.com/hiveot/hivekit/go/modules/transport/ssesc/server"
+	tls_server "github.com/hiveot/hivekit/go/modules/transport/tlsserver/server"
 	wss "github.com/hiveot/hivekit/go/modules/transport/wss"
-	wsspkg "github.com/hiveot/hivekit/go/modules/transport/wss/pkg"
+	wss_client "github.com/hiveot/hivekit/go/modules/transport/wss/client"
+	wss_server "github.com/hiveot/hivekit/go/modules/transport/wss/server"
 	"github.com/hiveot/hivekit/go/modules/vcache"
-	vcachepkg "github.com/hiveot/hivekit/go/modules/vcache/pkg"
+	vcache_service "github.com/hiveot/hivekit/go/modules/vcache/service"
 )
 
 // List hivekit available modules
@@ -61,65 +68,65 @@ var HiveKitModules = []api.ModuleDefinition{
 	// discovery transport
 	{
 		Type:        discovery.DiscoveryClientModuleType,
-		Constructor: discoverypkg.NewDiscoveryClientFactory,
+		Constructor: discovery_client.NewDiscoveryClientFactory,
 	},
 	{
 		Type:        discovery.DirectoryDiscoveryServerModuleType,
-		Constructor: discoverypkg.NewDirectoryDiscoveryServerFactory,
+		Constructor: discovery_server.NewDirectoryDiscoveryServerFactory,
 	},
 	{
 		Type:        discovery.ThingDiscoveryServerModuleType,
-		Constructor: discoverypkg.NewThingDiscoveryServerFactory,
+		Constructor: discovery_server.NewThingDiscoveryServerFactory,
 	},
 	// gRPC transport
 	{
 		Type:        grpctransport.HiveotGrpcClientModuleType,
-		Constructor: grpcpkg.NewHiveotGrpcClientFactory,
+		Constructor: grpc_client.NewHiveotGrpcClientFactory,
 	},
 	{
 		Type:        grpctransport.HiveotGrpcServerModuleType,
-		Constructor: grpcpkg.NewHiveotGrpcServerFactory,
+		Constructor: grpc_server.NewHiveotGrpcServerFactory,
 	},
 	// http server provider
 	{
 		Type:        api.HttpServerModuleType,
-		Constructor: tlsserverpkg.NewTLSServerFactory,
+		Constructor: tls_server.NewTLSServerFactory,
 	},
 	// http-basic transport
 	{
 		Type:        httpbasic.HttpBasicClientModuleType,
-		Constructor: httpbasicpkg.NewHttpBasicClientFactory,
+		Constructor: httpbasic_client.NewHttpBasicClientFactory,
 	},
 	{
 		Type:        httpbasic.HttpBasicServerModuleType,
-		Constructor: httpbasicpkg.NewHttpBasicServerFactory,
+		Constructor: httpbasic_server.NewHttpBasicServerFactory,
 	},
 	// sse-sc transport
 	{
 		Type:        ssesc.SseScServerModuleType,
-		Constructor: ssescpkg.NewSseScServerFactory,
+		Constructor: ssesc_server.NewSseScServerFactory,
 	},
 	{
 		Type:        ssesc.SseScClientModuleType,
-		Constructor: ssescpkg.NewSseScClientFactory,
+		Constructor: ssesc_client.NewSseScClientFactory,
 	},
 	// wss transport for hiveot RRN messaging
 	{
 		Type:        wss.HiveotWebsocketClientModuleType,
-		Constructor: wsspkg.NewHiveotWssClientFactory,
+		Constructor: wss_client.NewHiveotWssClientFactory,
 	},
 	{
 		Type:        wss.HiveotWebsocketServerModuleType,
-		Constructor: wsspkg.NewHiveotWssServerFactory,
+		Constructor: wss_server.NewHiveotWssServerFactory,
 	},
 	// wss transport for WoT websocket messaging
 	{
 		Type:        wss.WotWebsocketClientModuleType,
-		Constructor: wsspkg.NewWotWssClientFactory,
+		Constructor: wss_client.NewWotWssClientFactory,
 	},
 	{
 		Type:        wss.WotWebsocketServerModuleType,
-		Constructor: wsspkg.NewWotWssServerFactory,
+		Constructor: wss_server.NewWotWssServerFactory,
 	},
 
 	//--- services ---
@@ -127,7 +134,7 @@ var HiveKitModules = []api.ModuleDefinition{
 	// add forms to createTD or updateTD requests
 	{
 		Type:        addforms.AddFormsModuleType,
-		Constructor: addformspkg.NewAddFormsServiceFactory,
+		Constructor: addforms_service.NewAddFormsServiceFactory,
 	},
 
 	// thing service helper
@@ -139,27 +146,27 @@ var HiveKitModules = []api.ModuleDefinition{
 	// client and session management provider
 	{
 		Type:        authnapi.AuthnServiceModuleType,
-		Constructor: authnpkg.NewAuthnServiceFactory,
+		Constructor: authn_service.NewAuthnServiceFactory,
 	},
 	// authorization provider
 	{
 		Type:        authz.AuthzServiceModuleType,
-		Constructor: authzpkg.NewAuthzServiceFactory,
+		Constructor: authz_service.NewAuthzServiceFactory,
 	},
 	// bucket store as a service
 	{
 		Type:        bucketstore.BucketStoreModuleType,
-		Constructor: bucketstorepkg.NewBucketStoreServiceFactory,
+		Constructor: bucketstore_service.NewBucketStoreServiceFactory,
 	},
 	// certs service
 	{
 		Type:        certs.CertsServerModuleType,
-		Constructor: certspkg.NewCertsServiceFactory,
+		Constructor: certs_service.NewCertsServiceFactory,
 	},
 	// InitFactoryCerts ensure the factory has certificates needed to run.
 	{
 		Type:        certs.InitFactoryCertsModuleType,
-		Constructor: certspkg.NewInitFactoryCerts,
+		Constructor: certs_service.NewInitFactoryCerts,
 	},
 	// consumer helper
 	{
@@ -170,44 +177,44 @@ var HiveKitModules = []api.ModuleDefinition{
 	// digitwin service
 	{
 		Type:        digitwin.DigitwinModuleType,
-		Constructor: digitwinpkg.NewDigitwinServiceFactory,
+		Constructor: digitwin_service.NewDigitwinServiceFactory,
 	},
 	// directory service
 	{
 		Type:        directory.DirectoryServiceModuleType,
-		Constructor: directorypkg.NewDirectoryServiceFactory,
+		Constructor: directory_service.NewDirectoryServiceFactory,
 	},
 	{
 		Type:        directory.DirectoryClientModuleType,
-		Constructor: directorypkg.NewDirectoryClientFactory,
+		Constructor: directory_client.NewDirectoryClientFactory,
 	},
 	// history service provider
 	{
 		Type:        history.HistoryModuleType,
-		Constructor: historypkg.NewHistoryServiceFactory,
+		Constructor: history_service.NewHistoryServiceFactory,
 	},
 	{
 		Type:        history.ReadHistoryClientModuleType,
-		Constructor: historypkg.NewReadHistoryClientFactory,
+		Constructor: history_client.NewReadHistoryClientFactory,
 	},
 	// logging service provider
 	{
 		Type:        logging.LoggingServiceModuleType,
-		Constructor: loggingpkg.NewLoggingServiceFactory,
+		Constructor: logging_service.NewLoggingServiceFactory,
 	},
 	// auto-reconnect client
 	{
 		Type:        reconnect.ReconnectModuleType,
-		Constructor: reconnectpkg.NewReconnectFactory,
+		Constructor: reconnect_service.NewReconnectFactory,
 	},
 	// router service provider
 	{
 		Type:        router.RouterModuleType,
-		Constructor: routerpkg.NewRouterServiceFactory,
+		Constructor: router_service.NewRouterServiceFactory,
 	},
 	// vcache server provider
 	{
 		Type:        vcache.ValueCacheModuleType,
-		Constructor: vcachepkg.NewValueCacheServiceFactory,
+		Constructor: vcache_service.NewValueCacheServiceFactory,
 	},
 }

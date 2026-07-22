@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/hiveot/hivekit/go/modules/authn"
-	historypkg "github.com/hiveot/hivekit/go/modules/history/pkg"
+	history_client "github.com/hiveot/hivekit/go/modules/history/client"
 	"github.com/hiveot/hivekit/go/utils"
 
 	"github.com/stretchr/testify/assert"
@@ -109,7 +109,7 @@ func BenchmarkAddEvents(b *testing.B) {
 		co1, _, _ := testEnv.NewConnectedConsumer(
 			testClientID, authn.ClientRoleOperator)
 
-		readHist := historypkg.NewReadHistoryClient(co1)
+		readHist := history_client.NewReadHistoryClient(co1)
 		defer co1.Stop()
 
 		time.Sleep(time.Millisecond * 300) // let the add settle

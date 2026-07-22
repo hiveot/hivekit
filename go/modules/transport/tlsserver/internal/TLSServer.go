@@ -22,13 +22,13 @@ import (
 	"github.com/teris-io/shortid"
 )
 
-// TLSServer is a hiveot module providing a TLS HTTPS server.
+// TLSServerImpl is a hiveot module providing a TLS HTTPS server.
 // Intended for use by HTTP based application protocols.
 // This implements IHttpServer and IHiveModule interfaces.
 //
 // Note that this does not implement the ITransportModule interface as this module provides the
 // http server for use by transport modules.
-type TLSServer struct {
+type TLSServerImpl struct {
 	*modules.HiveModuleBase
 
 	// authenticator to validate incoming conncetions
@@ -63,7 +63,7 @@ type TLSServer struct {
 
 // The default authentication handler extracts the bearer token from the authorization header
 // and passes it to the configured token validator.
-func (m *TLSServer) DefaultAuthRequest(req *http.Request) (clientID string, err error) {
+func (m *TLSServerImpl) DefaultAuthRequest(req *http.Request) (clientID string, err error) {
 	var issuedAt time.Time
 	var validUntil time.Time
 
@@ -93,18 +93,18 @@ func (m *TLSServer) DefaultAuthRequest(req *http.Request) (clientID string, err 
 }
 
 // GetAuthenticator returns the authenticator used to authenticate incoming connections
-func (m *TLSServer) GetAuthenticator() api.IAuthenticator {
+func (m *TLSServerImpl) GetAuthenticator() api.IAuthenticator {
 	return m.authenticator
 }
 
 // Provide the HTTP base URL to connect to the server. Eg "https://addr:port/""
-func (m *TLSServer) GetConnectURL() string {
+func (m *TLSServerImpl) GetConnectURL() string {
 	return m.connectURL
 }
 
 // Set the handler that validates tokens.
 // This will enable the protected routes.
-func (m *TLSServer) SetAuthenticator(authenticator api.IAuthenticator) {
+func (m *TLSServerImpl) SetAuthenticator(authenticator api.IAuthenticator) {
 	m.authenticator = authenticator
 }
 
@@ -112,7 +112,7 @@ func (m *TLSServer) SetAuthenticator(authenticator api.IAuthenticator) {
 // This starts a http server instance and sets-up a public and protected route.
 //
 // Starts a HTTPS TLS service
-func (m *TLSServer) Start() (err error) {
+func (m *TLSServerImpl) Start() (err error) {
 	var tlsConf *tls.Config
 	cfg := m.config
 	m.connectURL = fmt.Sprintf("https://%s:%d", cfg.Address, cfg.Port)
@@ -182,7 +182,7 @@ func (m *TLSServer) Start() (err error) {
 // Stop the TLS server and close all connections.
 // this waits until for up to 3 seconds for connections are closed. After that
 // continue.
-func (m *TLSServer) Stop() {
+func (m *TLSServerImpl) Stop() {
 
 	slog.Info("Stop: Stopping TLSServer")
 
@@ -208,10 +208,10 @@ func (m *TLSServer) Stop() {
 // config MUST have been configured with a CA and server certificate unless
 // NoTLS is set.
 // authenticator for http requests. nil for refusing all protected routes
-func NewTLSServer(config *tlsserver.TLSServerConfig, authenticator api.IAuthenticator) *TLSServer {
+func NewTLSServerImpl(config *tlsserver.TLSServerConfig, authenticator api.IAuthenticator) *TLSServerImpl {
 
 	thingID := api.HttpServerModuleType + "-" + shortid.MustGenerate()
-	m := &TLSServer{
+	m := &TLSServerImpl{
 		HiveModuleBase: modules.NewHiveModuleBase(thingID, 0),
 		config:         config,
 		authenticator:  authenticator,

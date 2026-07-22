@@ -9,7 +9,9 @@ import (
 	"github.com/hiveot/hivekit/go/api/td"
 	"github.com/hiveot/hivekit/go/modules"
 	"github.com/hiveot/hivekit/go/modules/bucketstore"
-	bucketstorepkg "github.com/hiveot/hivekit/go/modules/bucketstore/pkg"
+	"github.com/hiveot/hivekit/go/modules/bucketstore/kvbtreestore"
+	"github.com/hiveot/hivekit/go/modules/bucketstore/pebblestore"
+	bucketstoreservice "github.com/hiveot/hivekit/go/modules/bucketstore/service"
 	"github.com/hiveot/hivekit/go/modules/history"
 )
 
@@ -51,7 +53,16 @@ func (m *HistoryServiceImpl) HandleNotification(notif *msg.NotificationMessage) 
 // Start the history module and open the store
 // this loads the filters
 func (m *HistoryServiceImpl) Start() (err error) {
-	m.bucketStore, err = bucketstorepkg.OpenBucketStore(m.config.StoreDirectory, m.config.Backend)
+	switch m.config.Backend {
+	case bucketstore.BackendPebble:
+		m.bucketStore = pebblestore.NewBucketStore(m.config.StoreDirectory)
+		err = m.bucketStore.Open()
+	case bucketstore.BackendKVBTree:
+		m.bucketStore = kvbtreestore.NewBucketStore(m.config.StoreDirectory)
+		err = m.bucketStore.Open()
+	default:
+		err = fmt.Errorf("Start: Unknown bucket store backend type '%s'", m.config.Backend)
+	}
 	if err != nil {
 		return err
 	}
@@ -104,7 +115,7 @@ func NewHistoryServiceImpl(config history.HistoryConfig) *HistoryServiceImpl {
 	m := &HistoryServiceImpl{
 		HiveModuleBase: modules.NewHiveModuleBase(thingID, 0),
 		cursorLifespan: time.Minute,
-		cursorCache:    bucketstorepkg.NewCursorCache(),
+		cursorCache:    bucketstoreservice.NewCursorCache(),
 		config:         config,
 	}
 	// m.config = NewHistoryConfig()

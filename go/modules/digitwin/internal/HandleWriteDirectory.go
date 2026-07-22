@@ -11,7 +11,7 @@ import (
 
 // Delete the digital twin TD of the thingID.
 // This returns an error if the TD should not be deleted
-func (m *DigitwinService) HandleDeleteTD(clientID string, thingID string) error {
+func (m *DigitwinServiceImpl) HandleDeleteTD(clientID string, thingID string) error {
 
 	deviceThingID := fmt.Sprint(clientID, ":", thingID)
 	m.deviceTDBucket.Delete(deviceThingID)
@@ -30,7 +30,7 @@ func (m *DigitwinService) HandleDeleteTD(clientID string, thingID string) error 
 // 6. Inserts forms that point to the digital twin
 //
 // This returns the updated TD, or the old one if no digital twin is used for this Thing.
-func (m *DigitwinService) HandleWriteDirectory(senderID string, tdi *td.TD) (*td.TD, error) {
+func (m *DigitwinServiceImpl) HandleWriteDirectory(senderID string, tdi *td.TD) (*td.TD, error) {
 
 	// 1. service types do not get a digital twin
 	// this seems a bit simplistic but it avoids hiveot modules from getting a twin

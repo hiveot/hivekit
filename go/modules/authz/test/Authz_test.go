@@ -8,7 +8,7 @@ import (
 	"github.com/hiveot/hivekit/go/api/msg"
 	"github.com/hiveot/hivekit/go/api/td"
 	"github.com/hiveot/hivekit/go/modules/authn"
-	authzpkg "github.com/hiveot/hivekit/go/modules/authz/pkg"
+	authzservice "github.com/hiveot/hivekit/go/modules/authz/service"
 	"github.com/hiveot/hivekit/go/utils"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -28,7 +28,7 @@ func TestMain(m *testing.M) {
 // Test starting and stopping authorization service
 func TestStartStop(t *testing.T) {
 	// cfg := module.NewAuthzConfig()
-	svc := authzpkg.NewAuthzService(nil)
+	svc := authzservice.NewAuthzService(nil)
 	err := svc.Start()
 	require.NoError(t, err)
 	svc.Stop()
@@ -48,7 +48,7 @@ func TestHasPermission(t *testing.T) {
 		}
 		return "", fmt.Errorf("unknown client")
 	}
-	m := authzpkg.NewAuthzService(getRole)
+	m := authzservice.NewAuthzService(getRole)
 	err := m.Start()
 	require.NoError(t, err)
 	defer m.Stop()

@@ -7,7 +7,8 @@ import (
 	"testing"
 
 	"github.com/hiveot/hivekit/go/modules/certs"
-	certspkg "github.com/hiveot/hivekit/go/modules/certs/pkg"
+	certsclient "github.com/hiveot/hivekit/go/modules/certs/client"
+	certsservice "github.com/hiveot/hivekit/go/modules/certs/service"
 	certstest "github.com/hiveot/hivekit/go/modules/certs/test"
 	"github.com/hiveot/hivekit/go/testenv"
 	"github.com/hiveot/hivekit/go/utils"
@@ -26,7 +27,7 @@ func startService(t *testing.T) (certs.ICertsService, func(), error) {
 	// clear start
 	_ = os.RemoveAll(storageDir)
 	cfg := certs.CertsConfig{CertsDir: storageDir}
-	m := certspkg.NewCertsService(cfg)
+	m := certsservice.NewCertsService(cfg)
 	err := m.Start()
 	require.NoError(t, err)
 	return m, func() {
@@ -151,7 +152,7 @@ func TestMsgClient(t *testing.T) {
 
 	// use a direct transport instead of running a client-server
 	tp := testenv.NewTestTransport("testclient", m)
-	cl := certspkg.NewCertsMsgClient(tp, "")
+	cl := certsclient.NewCertsMsgClient(tp, "")
 	caCert, err := cl.GetCACert()
 	require.NoError(t, err)
 	require.NotEmpty(t, caCert)
@@ -181,7 +182,7 @@ func TestCreateCerts(t *testing.T) {
 	require.NotNil(t, serverTlsCert)
 
 	// this needs completion
-	cl := certspkg.NewCertsMsgClient(nil, "")
+	cl := certsclient.NewCertsMsgClient(nil, "")
 	// var _ certs.ICertsService = cl // interface check
 	_ = cl
 }

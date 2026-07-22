@@ -24,6 +24,7 @@ type CursorInfo struct {
 	Lifespan time.Duration
 }
 
+// Interface of the cursor cache to support remote iteration
 type ICursorCache interface {
 
 	// Add adds a cursor to the tracker and returns its key

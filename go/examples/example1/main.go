@@ -10,8 +10,8 @@ import (
 	"github.com/hiveot/hivekit/go/api"
 
 	"github.com/hiveot/hivekit/go/modules/authn"
-	factorypkg "github.com/hiveot/hivekit/go/modules/factory/pkg"
-	"github.com/hiveot/hivekit/go/modules/factory/recipes"
+	standalonerecipe "github.com/hiveot/hivekit/go/modules/factory/recipes/standalone"
+	factory_service "github.com/hiveot/hivekit/go/modules/factory/service"
 	"github.com/hiveot/hivekit/go/testenv"
 	"github.com/hiveot/hivekit/go/utils"
 )
@@ -36,11 +36,11 @@ func main() {
 	// override loglevel
 	utils.SetLogging("info", "")
 
-	f := factorypkg.NewModuleFactory(env, nil)
+	f := factory_service.NewModuleFactory(env, nil)
 
 	// the device server recipe contains modules for running a server with certs and authn
 	// you can message the recipe as a module or via a client. Here we message directly.
-	r := recipes.NewStandAloneDeviceRecipe(f)
+	r := standalonerecipe.NewStandAloneDeviceRecipe(f)
 	err := r.Start()
 	if err != nil {
 		fmt.Println("Startup failed: " + err.Error())

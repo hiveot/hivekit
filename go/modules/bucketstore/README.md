@@ -77,17 +77,33 @@ That said, it has a well defined interface and superb performance so if a use-ca
 
 ## Usage
 
-Start a module instance and obtain the bucket store:
+Create a kvbtree store
+
+```go
+    // storageDir with path to the bucket storage directory or "" for in-memory storage.
+	store := kvbtreestore.NewBucketStore(storageDir)
+	err := store.Open()
+
+    bucket := store.GetBucket(name)
+    // do stuff with the bucket
+
+    // end
+    store.Close()
+```
+
+
+
+Start a service instance and obtain the bucket store:
 
 ```go
     // create a local instance
-    // storageDir with path to the bucket storage directory or "" for in-memory storage.
-	m := module.NewBucketStoreModule(storageDir)
+    // storageDir with path to the bucket storage directory
+	m := bucketstoreservice.NewBucketStoreService(storageDir, storeType)
 	err := m.Start()
 
-    // direct access to the bucketstore
-    store := m.GetService()
-    // do stuff with the store
+    // direct access to the bucketstore service
+    store := m.GetBucket(name)
+    // do stuff with the bucket
 
     // end
     m.Stop()

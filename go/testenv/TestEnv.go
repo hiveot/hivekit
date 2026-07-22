@@ -15,15 +15,15 @@ import (
 	"github.com/hiveot/hivekit/go/modules/authn"
 	certstest "github.com/hiveot/hivekit/go/modules/certs/test"
 	"github.com/hiveot/hivekit/go/modules/consumer"
-	reconnectpkg "github.com/hiveot/hivekit/go/modules/reconnect/pkg"
+	reconnect_service "github.com/hiveot/hivekit/go/modules/reconnect/service"
 	"github.com/hiveot/hivekit/go/modules/thing"
 	"github.com/hiveot/hivekit/go/modules/transport/clients"
-	grpcpkg "github.com/hiveot/hivekit/go/modules/transport/grpc/pkg"
-	httpbasicpkg "github.com/hiveot/hivekit/go/modules/transport/httpbasic/pkg"
-	ssescpkg "github.com/hiveot/hivekit/go/modules/transport/ssesc/pkg"
+	grpc_server "github.com/hiveot/hivekit/go/modules/transport/grpc/server"
+	httpbasic_server "github.com/hiveot/hivekit/go/modules/transport/httpbasic/server"
+	ssesc_server "github.com/hiveot/hivekit/go/modules/transport/ssesc/server"
 	"github.com/hiveot/hivekit/go/modules/transport/tlsserver"
-	tlsserverpkg "github.com/hiveot/hivekit/go/modules/transport/tlsserver/pkg"
-	wsspkg "github.com/hiveot/hivekit/go/modules/transport/wss/pkg"
+	tls_server "github.com/hiveot/hivekit/go/modules/transport/tlsserver/server"
+	wss_server "github.com/hiveot/hivekit/go/modules/transport/wss/server"
 	"github.com/hiveot/hivekit/go/utils"
 )
 
@@ -259,7 +259,7 @@ func (testEnv *TestEnv) NewReconnectedConsumer(clientID string, role string) (
 	cc, token = testEnv.NewConnectedClient(clientID, role)
 
 	// insert the reconnect module between consumer and client connection
-	rc := reconnectpkg.NewReconnectClient(cc)
+	rc := reconnect_service.NewReconnectService(cc)
 
 	co = consumer.NewConsumer(rc, nil)
 	co.SetTimeout(TestTimeout)
@@ -289,29 +289,29 @@ func (testEnv *TestEnv) StartTestServer(protocol string) (srv api.ITransportServ
 	case api.ProtocolTypeHiveotGrpc:
 		serverCert := testEnv.CertBundle.ServerCert
 		caCert := testEnv.CertBundle.CaCert
-		srv = grpcpkg.NewHiveotGrpcServer(
+		srv = grpc_server.NewHiveotGrpcServer(
 			TestUDSURL, serverCert, caCert, testEnv.TestAuthn, TestTimeout)
 		err = srv.Start()
 
 	case api.ProtocolTypeHiveotSsesc:
 		testEnv.StartHttpServer(false)
-		srv = ssescpkg.NewSseScServer(testEnv.HttpServer, TestTimeout)
+		srv = ssesc_server.NewSseScServer(testEnv.HttpServer, TestTimeout)
 		err = srv.Start()
 
 	case api.ProtocolTypeHiveotWebsocket:
 		testEnv.StartHttpServer(false)
-		srv = wsspkg.NewHiveotWssServer(testEnv.HttpServer, TestTimeout)
+		srv = wss_server.NewHiveotWssServer(testEnv.HttpServer, TestTimeout)
 		err = srv.Start()
 
 	case api.ProtocolTypeWotHttpBasic:
 		testEnv.StartHttpServer(false)
-		srv = httpbasicpkg.NewHttpBasicServer(testEnv.HttpServer)
+		srv = httpbasic_server.NewHttpBasicServer(testEnv.HttpServer)
 		err = srv.Start()
 		// http only, no subprotocol bindings
 
 	case api.ProtocolTypeWotWebsocket:
 		testEnv.StartHttpServer(false)
-		srv = wsspkg.NewWotWssServer(testEnv.HttpServer, TestTimeout)
+		srv = wss_server.NewWotWssServer(testEnv.HttpServer, TestTimeout)
 		err = srv.Start()
 
 	default:
@@ -353,7 +353,7 @@ func (testEnv *TestEnv) StartHttpServer(logging bool) (api.IHttpServer, string) 
 
 	// cfg.Address = fmt.Sprintf("%s:%d", certBundle.ServerAddr, testServerHttpPort)
 
-	testEnv.HttpServer = tlsserverpkg.NewTLSServer(cfg, testEnv.TestAuthn)
+	testEnv.HttpServer = tls_server.NewTLSServer(cfg, testEnv.TestAuthn)
 	err := testEnv.HttpServer.Start()
 	if err != nil {
 		panic("unable to start TLS server: " + err.Error())

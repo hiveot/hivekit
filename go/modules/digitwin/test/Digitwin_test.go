@@ -16,10 +16,11 @@ import (
 	"github.com/hiveot/hivekit/go/modules/authn"
 	"github.com/hiveot/hivekit/go/modules/digitwin"
 	"github.com/hiveot/hivekit/go/modules/digitwin/internal"
-	digitwinpkg "github.com/hiveot/hivekit/go/modules/digitwin/pkg"
+	digitwin_service "github.com/hiveot/hivekit/go/modules/digitwin/service"
 	"github.com/hiveot/hivekit/go/modules/directory"
-	directorypkg "github.com/hiveot/hivekit/go/modules/directory/pkg"
-	routerpkg "github.com/hiveot/hivekit/go/modules/router/pkg"
+	directory_client "github.com/hiveot/hivekit/go/modules/directory/client"
+	directory_service "github.com/hiveot/hivekit/go/modules/directory/service"
+	router_service "github.com/hiveot/hivekit/go/modules/router/service"
 	"github.com/hiveot/hivekit/go/modules/thing"
 	"github.com/hiveot/hivekit/go/testenv"
 	"github.com/hiveot/hivekit/go/utils"
@@ -65,14 +66,14 @@ func startService() (
 	servers := []api.ITransportServer{testEnv.Server}
 	// httpAPI := directorypkg.NewDirectoryHttpServer(testEnv.HttpServer)
 
-	dir = directorypkg.NewDirectoryService(
+	dir = directory_service.NewDirectoryService(
 		dirThingID, storageDir, testEnv.HttpServer, servers)
 	err := dir.Start()
 	if err != nil {
 		panic("Failed to start directory server")
 	}
 	// the digitwin module to test, it will create its own vcache module
-	dtw = digitwinpkg.NewDigitwinService(storageDir, dir, appServer.AddTDSecForms)
+	dtw = digitwin_service.NewDigitwinService(storageDir, dir, appServer.AddTDSecForms)
 	err = dtw.Start()
 	if err != nil {
 		panic("unable to start the digitwin service")
@@ -83,7 +84,7 @@ func startService() (
 	}
 	// the router module uses the digitwin Thing Directory
 	// getDeviceTD := dtw.GetDeviceDirectory().GetTD
-	rtr := routerpkg.NewRouterService(
+	rtr := router_service.NewRouterService(
 		storageDir,
 		dtw.GetDeviceTD,
 		getTps,
@@ -304,7 +305,7 @@ func TestWriteDigitwinProperty(t *testing.T) {
 	// but most likely it uses the default.
 	td1 := testEnv.CreateTestTD(0)
 	td1Json := td.MarshalTD(td1)
-	err = directorypkg.UpdateTD(
+	err = directory_service.UpdateTD(
 		directory.DefaultDirectoryThingID, td1Json, ag.ForwardRequest)
 	assert.NoError(t, err)
 
@@ -320,7 +321,7 @@ func TestWriteDigitwinProperty(t *testing.T) {
 
 	// 4. Consumer reads the TD with its own directory client
 	dirTDD, _ := dir.GetTDD()
-	dirCoCl := directorypkg.NewDirectoryClient(dirTDD, co)
+	dirCoCl := directory_client.NewDirectoryClient(dirTDD, co)
 	tdoc3, err := dirCoCl.RetrieveThing(dtwThing1ID)
 	require.NoError(t, err)
 	require.NotEmpty(t, tdoc3)
@@ -385,7 +386,7 @@ func TestInvokeDigitwinAction(t *testing.T) {
 	td1 := testEnv.CreateTestTD(0)
 	td1.ID = thingID
 	td1Json := td.MarshalTD(td1)
-	err = directorypkg.UpdateTD(
+	err = directory_service.UpdateTD(
 		directory.DefaultDirectoryThingID, td1Json, ag.ForwardRequest)
 	assert.NoError(t, err)
 

@@ -8,11 +8,10 @@ import (
 
 	"github.com/hiveot/hivekit/go/api"
 	"github.com/hiveot/hivekit/go/modules/authn"
-	"github.com/hiveot/hivekit/go/modules/authn/internal/service"
-	authnpkg "github.com/hiveot/hivekit/go/modules/authn/pkg"
+	authn_service "github.com/hiveot/hivekit/go/modules/authn/service"
 	certstest "github.com/hiveot/hivekit/go/modules/certs/test"
 	"github.com/hiveot/hivekit/go/modules/transport/tlsserver"
-	tlsserverpkg "github.com/hiveot/hivekit/go/modules/transport/tlsserver/pkg"
+	tls_server "github.com/hiveot/hivekit/go/modules/transport/tlsserver/server"
 	"github.com/hiveot/hivekit/go/utils"
 	"github.com/stretchr/testify/require"
 )
@@ -66,7 +65,7 @@ func TestMain(m *testing.M) {
 
 // This test file sets up the environment for testing authn admin and user services.
 // This starts the authn module with a http server for testing the http API
-func startTestAuthnModule(encryption string) (tp api.IHttpServer, authnSvc *service.AuthnService, stopFn func()) {
+func startTestAuthnModule(encryption string) (tp api.IHttpServer, authnSvc authn.IAuthnService, stopFn func()) {
 
 	_ = os.RemoveAll(testDir)
 	_ = os.MkdirAll(testDir, 0700)
@@ -81,7 +80,7 @@ func startTestAuthnModule(encryption string) (tp api.IHttpServer, authnSvc *serv
 	// authnConfig.DeviceTokenValidityDays = 1
 	authnConfig.Encryption = encryption
 
-	authnSvc = service.NewAuthnService(authnConfig)
+	authnSvc = authn_service.NewAuthnService(authnConfig)
 	err := authnSvc.Start()
 	if err != nil {
 		panic("Error starting authn admin service:" + err.Error())
@@ -96,13 +95,13 @@ func startTestAuthnModule(encryption string) (tp api.IHttpServer, authnSvc *serv
 		"localhost", serverPort,
 		testCerts.ServerCert, testCerts.CaCert, true)
 
-	httpServer := tlsserverpkg.NewTLSServer(cfg, authenticator)
+	httpServer := tls_server.NewTLSServer(cfg, authenticator)
 	err = httpServer.Start()
 
 	if err != nil {
 		panic("Unable to start http server: " + err.Error())
 	}
-	authnHttpMod := authnpkg.NewAuthnUserHttpService(httpServer)
+	authnHttpMod := authn_service.NewAuthnUserHttpService(httpServer)
 	_ = authnHttpMod.Start()
 	authnHttpMod.SetRequestSink(authnSvc)
 

@@ -8,19 +8,20 @@ import (
 
 	"github.com/hiveot/hivekit/go/modules/authn"
 	"github.com/hiveot/hivekit/go/modules/authn/internal/authenticators"
+	authn_store "github.com/hiveot/hivekit/go/modules/authn/internal/store"
 	authnstore "github.com/hiveot/hivekit/go/modules/authn/internal/store"
 	"github.com/hiveot/hivekit/go/utils"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
-var authnStore authnstore.IAuthnStore
+var authnStore authn_store.IAuthnStore
 var testDir = path.Join(os.TempDir(), "hivekit", "test-authn")
 var defaultHash = authn.PWHASH_ARGON2id
 
-func NewAuthenticator() (authenticators.IAuthnAuthenticator, authnstore.IAuthnStore) {
+func NewAuthenticator() (authn.IAuthnAuthenticator, authnstore.IAuthnStore) {
 	passwordFile := path.Join(testDir, "test.passwd")
-	authnStore = authnstore.NewAuthnFileStore(passwordFile, defaultHash)
+	authnStore = authn_store.NewAuthnFileStore(passwordFile, defaultHash)
 
 	// signingKey, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	// svc := authenticator.NewJWTAuthenticator(authnStore, signingKey, "")

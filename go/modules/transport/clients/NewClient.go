@@ -10,10 +10,10 @@ import (
 
 	"github.com/hiveot/hivekit/go/api"
 	"github.com/hiveot/hivekit/go/api/td"
-	grpcpkg "github.com/hiveot/hivekit/go/modules/transport/grpc/pkg"
-	httpbasicpkg "github.com/hiveot/hivekit/go/modules/transport/httpbasic/pkg"
-	ssescpkg "github.com/hiveot/hivekit/go/modules/transport/ssesc/pkg"
-	wsspkg "github.com/hiveot/hivekit/go/modules/transport/wss/pkg"
+	grpc_client "github.com/hiveot/hivekit/go/modules/transport/grpc/client"
+	httpbasic_client "github.com/hiveot/hivekit/go/modules/transport/httpbasic/client"
+	ssesc_client "github.com/hiveot/hivekit/go/modules/transport/ssesc/client"
+	wss_client "github.com/hiveot/hivekit/go/modules/transport/wss/client"
 )
 
 // Module type for inclusion in the factory chain
@@ -164,20 +164,20 @@ func NewTransportClient(
 		// if strings.HasPrefix(serverURL, "unix") {
 		// 	caCert = nil
 		// }
-		cl = grpcpkg.NewHiveotGrpcClient(serverURL, caCert)
+		cl = grpc_client.NewHiveotGrpcClient(serverURL, caCert)
 
 	case api.ProtocolTypeHiveotSsesc:
-		cl = ssescpkg.NewSseScClient(serverURL, caCert)
+		cl = ssesc_client.NewSseScClient(serverURL, caCert)
 
 	case api.ProtocolTypeHiveotWebsocket:
-		cl = wsspkg.NewHiveotWssClient(serverURL, caCert)
+		cl = wss_client.NewHiveotWssClient(serverURL, caCert)
 
 	case api.ProtocolTypeWotWebsocket:
-		cl = wsspkg.NewWotWssClient(serverURL, caCert)
+		cl = wss_client.NewWotWssClient(serverURL, caCert)
 
 	case api.ProtocolTypeWotHttpBasic:
 		caCert := caCert
-		cl = httpbasicpkg.NewHttpBasicClient(serverURL, caCert, nil)
+		cl = httpbasic_client.NewHttpBasicClient(serverURL, caCert, nil)
 
 	//case api.ProtocolTypeWotMQTTWSS:
 	//	fullURL = testServerMqttWssURL

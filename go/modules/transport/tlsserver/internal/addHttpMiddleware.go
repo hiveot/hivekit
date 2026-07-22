@@ -28,7 +28,7 @@ import (
 // # This includes middleware for ping health check
 //
 // Note that without authentication, the context will not have clientID or sessionID set.
-func (m *TLSServer) addMiddleware(cfg *tlsserver.TLSServerConfig) {
+func (m *TLSServerImpl) addMiddleware(cfg *tlsserver.TLSServerConfig) {
 	rootRouter := m.rootRouter
 
 	// handle CORS using the cors plugin
@@ -146,22 +146,22 @@ func (m *TLSServer) addMiddleware(cfg *tlsserver.TLSServerConfig) {
 // This router has cors protection enabled.
 // This returns nil if authentication is not configured and will probably
 // cause a panic when used.
-func (m *TLSServer) GetProtectedRoute() chi.Router {
+func (m *TLSServerImpl) GetProtectedRoute() chi.Router {
 	return m.protRoute
 }
 
 // GetPublicRouter returns the router with public accessible routes for this server.
 // This router has cors protection enabled.
-func (m *TLSServer) GetPublicRoute() chi.Router {
+func (m *TLSServerImpl) GetPublicRoute() chi.Router {
 	return m.pubRoute
 }
 
 // GetRequestParams
-func (m *TLSServer) GetRequestParams(r *http.Request) (api.RequestParams, error) {
+func (m *TLSServerImpl) GetRequestParams(r *http.Request) (api.RequestParams, error) {
 	return GetRequestParams(r)
 }
 
 // GetClientIdFromContext
-func (m *TLSServer) GetClientIdFromContext(r *http.Request) (string, error) {
+func (m *TLSServerImpl) GetClientIdFromContext(r *http.Request) (string, error) {
 	return GetClientIdFromContext(r)
 }

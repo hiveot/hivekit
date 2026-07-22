@@ -17,7 +17,7 @@ import (
 // 4. administrators can do everything
 // 5. devices can publish events (notifications) for their own and nested devices
 // 6. services can publish events (notifications) for their own service(s) and subscribe to any events
-func (m *AuthzService) HasPermission(req *msg.RequestMessage) (hasPermission bool) {
+func (m *AuthzServiceImpl) HasPermission(req *msg.RequestMessage) (hasPermission bool) {
 	if m.getRoleHandler == nil {
 		return false
 	}

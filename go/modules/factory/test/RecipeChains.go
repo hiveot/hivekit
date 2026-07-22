@@ -4,20 +4,21 @@ import (
 	"github.com/hiveot/hivekit/go/api"
 	"github.com/hiveot/hivekit/go/modules/consumer"
 	"github.com/hiveot/hivekit/go/modules/thing"
-	tlsserverpkg "github.com/hiveot/hivekit/go/modules/transport/tlsserver/pkg"
+	tls_server "github.com/hiveot/hivekit/go/modules/transport/tlsserver/server"
 	wss "github.com/hiveot/hivekit/go/modules/transport/wss"
-	wsspkg "github.com/hiveot/hivekit/go/modules/transport/wss/pkg"
+	wss_client "github.com/hiveot/hivekit/go/modules/transport/wss/client"
+	wss_server "github.com/hiveot/hivekit/go/modules/transport/wss/server"
 )
 
 // Recipe chain of a device server device chain
 var DeviceServerRecipe = []api.ModuleDefinition{
 	{
 		Type:        api.HttpServerModuleType,
-		Constructor: tlsserverpkg.NewTLSServerFactory,
+		Constructor: tls_server.NewTLSServerFactory,
 	},
 	{
 		Type:        wss.WotWebsocketServerModuleType,
-		Constructor: wsspkg.NewWotWssServerFactory,
+		Constructor: wss_server.NewWotWssServerFactory,
 	},
 	{
 		Type:        thing.ExposedThingModuleType,
@@ -33,6 +34,6 @@ var DeviceClientRecipe = []api.ModuleDefinition{
 	},
 	{
 		Type:        wss.WotWebsocketClientModuleType,
-		Constructor: wsspkg.NewWotWssClientFactory,
+		Constructor: wss_client.NewWotWssClientFactory,
 	},
 }
