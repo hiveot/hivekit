@@ -141,37 +141,34 @@ type WotWssMsgEncoder struct {
 
 // DecodeNotification converts a websocket notification to a hiveot notification message.
 // Raw is the json serialized encoded message
-func (svc *WotWssMsgEncoder) DecodeNotification(raw []byte) (*msg.NotificationMessage, error) {
+func (svc *WotWssMsgEncoder) DecodeNotification(senderID string, raw []byte) (*msg.NotificationMessage, error) {
 
-	var wssnotif WotWssNotificationMessage
+	var wssNotif WotWssNotificationMessage
 
-	err := jsoniter.Unmarshal(raw, &wssnotif)
+	err := jsoniter.Unmarshal(raw, &wssNotif)
 	if err != nil {
-		return nil, fmt.Errorf("DecodeNotification: unmarshal error: %w", err)
-	}
-	if wssnotif.MessageType != msg.MessageTypeNotification {
-		return nil, fmt.Errorf("DecodeRequest: Message is not a NotificationMessage")
+		return nil, fmt.Errorf("DecodeNotification: Not a WoT WSS notification message: %w", err)
 	}
 
 	affType := msg.AffordanceTypeProperty
-	if slices.Contains(EventAffOps, wssnotif.Operation) {
+	if slices.Contains(EventAffOps, wssNotif.Operation) {
 		affType = msg.AffordanceTypeEvent
-	} else if slices.Contains(ActionAffOps, wssnotif.Operation) {
+	} else if slices.Contains(ActionAffOps, wssNotif.Operation) {
 		affType = msg.AffordanceTypeAction
 	}
-	notifmsg := &msg.NotificationMessage{
+	notif := &msg.NotificationMessage{
 		AffordanceType: affType,
-		CorrelationID:  wssnotif.CorrelationID,
-		Data:           wssnotif.Data,
-		MessageID:      wssnotif.MessageID,
-		MessageType:    wssnotif.MessageType,
-		Name:           wssnotif.Name,
+		CorrelationID:  wssNotif.CorrelationID,
+		Data:           wssNotif.Data,
+		MessageID:      wssNotif.MessageID,
+		MessageType:    wssNotif.MessageType,
+		Name:           wssNotif.Name,
 		// Operation:      wssnotif.Operation,
-		// SenderID:      wssreq.SenderID,
-		ThingID:   wssnotif.ThingID,
-		Timestamp: wssnotif.Timestamp,
+		SenderID:  senderID,
+		ThingID:   wssNotif.ThingID,
+		Timestamp: wssNotif.Timestamp,
 	}
-	return notifmsg, nil
+	return notif, nil
 }
 
 // DecodeRequest converts a websocket request message to a hiveot request message.
@@ -183,54 +180,55 @@ func (svc *WotWssMsgEncoder) DecodeNotification(raw []byte) (*msg.NotificationMe
 // - queryaction: copy wss actionID field to input
 // - queryallactions: none
 // - writeproperty:
-func (svc *WotWssMsgEncoder) DecodeRequest(raw []byte) (*msg.RequestMessage, error) {
+func (svc *WotWssMsgEncoder) DecodeRequest(senderID string, raw []byte) (*msg.RequestMessage, error) {
 
-	var wssreq WotWssRequestMessage
-	err := jsoniter.Unmarshal(raw, &wssreq)
+	var wssReq WotWssRequestMessage
+	err := jsoniter.Unmarshal(raw, &wssReq)
 
 	if err != nil {
-		return nil, fmt.Errorf("DecodeRequest: unmarshal error: %w", err)
+		return nil, fmt.Errorf("DecodeRequest: Not a WoT WSS request message: %w", err)
 	}
-	if wssreq.MessageType != msg.MessageTypeRequest {
-		return nil, fmt.Errorf("DecodeRequest: Message is not a RequestMessage")
+	// keep the senderID if none is provided
+	if senderID == "" {
+		senderID = wssReq.SenderID
 	}
+
 	// query/cancel action messages carry an actionID in the request
 	// (tentative: https://github.com/w3c/web-thing-protocol/issues/43)
-	reqMsg := &msg.RequestMessage{
-		CorrelationID: wssreq.CorrelationID,
-		Input:         wssreq.Input,
-		MessageID:     wssreq.MessageID,
-		MessageType:   wssreq.MessageType,
-		Name:          wssreq.Name,
-		Operation:     wssreq.Operation,
-		SenderID:      wssreq.SenderID,
-		ThingID:       wssreq.ThingID,
-		Timestamp:     wssreq.Timestamp,
+	req := &msg.RequestMessage{
+		CorrelationID: wssReq.CorrelationID,
+		Input:         wssReq.Input,
+		MessageID:     wssReq.MessageID,
+		MessageType:   wssReq.MessageType,
+		Name:          wssReq.Name,
+		Operation:     wssReq.Operation,
+		SenderID:      senderID,
+		ThingID:       wssReq.ThingID,
+		Timestamp:     wssReq.Timestamp,
 	}
-	switch wssreq.Operation {
+	switch wssReq.Operation {
 
 	case td.OpQueryAction, td.OpCancelAction:
 		// correlationID identifies the action to query/cancel
 		// input is actionID
 		// reqMsg.Input = wssreq.ActionID
 	}
-	return reqMsg, nil
+	return req, nil
 }
 
 // DecodeResponse converts a websocket response message to a hiveot response message.
-// Raw is the json serialized encoded message
-func (svc *WotWssMsgEncoder) DecodeResponse(raw []byte) (*msg.ResponseMessage, error) {
+//
+//	senderID is the authenticated sender's ID or "" if not known
+//	raw is the json serialized encoded message
+func (svc *WotWssMsgEncoder) DecodeResponse(senderID string, raw []byte) (*msg.ResponseMessage, error) {
 
 	var wssResp WotWssResponseMessage
 	err := jsoniter.Unmarshal(raw, &wssResp)
 	if err != nil {
-		return nil, fmt.Errorf("DecodeResponse: unmarshal error: %w", err)
-	}
-	if wssResp.MessageType != msg.MessageTypeResponse {
-		return nil, fmt.Errorf("Message isn't a ResponseMessage")
+		return nil, fmt.Errorf("DecodeResponse:Not a WoT WSS response message: %w", err)
 	}
 
-	respMsg := &msg.ResponseMessage{
+	resp := &msg.ResponseMessage{
 		CorrelationID: wssResp.CorrelationID,
 		Error:         wssResp.Error,
 		// Input:         wssResp.Input,
@@ -239,10 +237,10 @@ func (svc *WotWssMsgEncoder) DecodeResponse(raw []byte) (*msg.ResponseMessage, e
 		Name:        wssResp.Name,
 		Operation:   wssResp.Operation,
 		Output:      wssResp.Output,
-		// SenderID:      wssreq.SenderID,
-		Status:    msg.StatusCompleted,
-		ThingID:   wssResp.ThingID,
-		Timestamp: wssResp.Timestamp,
+		SenderID:    senderID,
+		Status:      msg.StatusCompleted,
+		ThingID:     wssResp.ThingID,
+		Timestamp:   wssResp.Timestamp,
 	}
 
 	switch wssResp.Operation {
@@ -252,9 +250,9 @@ func (svc *WotWssMsgEncoder) DecodeResponse(raw []byte) (*msg.ResponseMessage, e
 	case td.OpInvokeAction:
 		// if wss contains a status object, use it
 		if wssResp.Status != nil {
-			respMsg.Status = wssResp.Status.State
+			resp.Status = wssResp.Status.State
 			// respMsg.Timestamp = wssResp.Status.TimeRequested
-			respMsg.Timestamp = wssResp.Status.TimeEnded
+			resp.Timestamp = wssResp.Status.TimeEnded
 		}
 
 	case td.OpQueryAction:
@@ -278,7 +276,7 @@ func (svc *WotWssMsgEncoder) DecodeResponse(raw []byte) (*msg.ResponseMessage, e
 			Timestamp:     wssStatus.TimeEnded,
 			Error:         wssResp.Error,
 		}
-		respMsg.Output = output
+		resp.Output = output
 
 	case td.OpQueryAllActions:
 		// WSS ResponseMessage contains ActionStatus map
@@ -301,17 +299,27 @@ func (svc *WotWssMsgEncoder) DecodeResponse(raw []byte) (*msg.ResponseMessage, e
 				Error:         wssResp.Error,
 			}
 		}
-		respMsg.Output = output
+		resp.Output = output
 
 	case td.OpReadAllProperties, td.OpReadMultipleProperties:
 		// the 'Values' property from the msg.ResponseMessage embedded struct
 		// contains the object with all property-value names
-		respMsg.Output = wssResp.Values
+		resp.Output = wssResp.Values
 	case td.OpReadProperty:
 		// the 'Value' property contains the actual value
-		respMsg.Output = wssResp.Value
+		resp.Output = wssResp.Value
 	}
-	return respMsg, err
+	return resp, err
+}
+
+// determine the type of WSS message
+func (svc *WotWssMsgEncoder) DetermineMessageType(raw []byte) string {
+	var rxType struct {
+		// WoT WSS messageType field contains the info
+		MessageType string `json:"messageType"`
+	}
+	_ = jsoniter.Unmarshal(raw, &rxType)
+	return rxType.MessageType
 }
 
 // EncodeNotification converts a hiveot RequestMessage to a websocket equivalent message

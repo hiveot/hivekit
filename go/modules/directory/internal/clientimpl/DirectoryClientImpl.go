@@ -125,9 +125,10 @@ func (m *DirectoryClientImpl) RetrieveAllThings(offset int, limit int) (tdList [
 	return tdList, err
 }
 
-// Set the directory TD to use.
+// Set the directory TD to use and include it in the local cache
 func (m *DirectoryClientImpl) SetTDD(tdd *td.TD) {
 	m.dirTDD = tdd
+	m.cache.ImportTD(tdd)
 }
 
 // Start the directory client and retrieve the TDD.

@@ -35,7 +35,7 @@ func TestAllActions(t *testing.T) {
 // as if it is a Thing. In this test the server replies.
 // (routing is not part of this package)
 func TestInvokeActionFromConsumerToServer(t *testing.T) {
-	t.Logf("---%s---\n", t.Name())
+	slog.Warn(fmt.Sprintf("---Test: %s %s---\n", t.Name(), testProtocol))
 	//var outputVal atomic.Value
 	var testOutput string
 	// var testActionStatus msg.ActionStatus
@@ -105,13 +105,11 @@ func TestInvokeActionFromConsumerToServer(t *testing.T) {
 	assert.Equal(t, testMsg1, result1)
 }
 
-// Warning: this is a bit of a mind bender if you're used to classic consumer->thing interaction.
-// This test uses a device as a client (reverse connection) and have it reply to a request
-// from the server.
+// This test uses a device RC (reverse connection) and have it reply to a request from the server.
 // The server in this case passes on a message received from a consumer, which is also a client.
-// This reflects the use-case of devices using connection reversal to gateways.
+// This reflects the use-case of devices using connection reversal to a gateway.
 func TestInvokeActionFromServerToDevice(t *testing.T) {
-	t.Logf("---%s---\n", t.Name())
+	slog.Warn(fmt.Sprintf("---Test: %s %s---\n", t.Name(), testProtocol))
 	var reqVal atomic.Value
 	var replyVal atomic.Value
 	var testMsg1 = "hello world 1"
@@ -152,21 +150,21 @@ func TestInvokeActionFromServerToDevice(t *testing.T) {
 	defer cancelFn2()
 
 	// 2a. connect as an device, app request handler is set separately
-	thingClient, cc1, token := testEnv.NewRCThing(testDeviceID1, nil)
+	deviceCl, cc1, token := testEnv.NewRCThing(testDeviceID1, nil)
 	require.NotEmpty(t, token)
 	defer cc1.Close()
 
 	// the Thing receives requests from the server
-	thingClient.SetAppRequestHook(func(req *msg.RequestMessage, replyTo msg.ResponseHandler) error {
+	deviceCl.SetAppRequestHook(func(req *msg.RequestMessage, replyTo msg.ResponseHandler) error {
 		// device receives action request and returns a result
-		slog.Info("Thing receives request", "op", req.Operation)
+		slog.Info("Device receives request", "op", req.Operation)
 		assert.Equal(t, testClientID1, req.SenderID)
 		reqVal.Store(req.Input)
 		go func() {
 			time.Sleep(time.Millisecond)
 			// separately send a completed response
 			resp := req.CreateResponse(testMsg2, nil)
-			slog.Info("Thing sends response", "op", req.Operation)
+			slog.Info("Device sends response", "op", req.Operation)
 			err2 := replyTo(resp)
 			assert.NoError(t, err2)
 		}()
@@ -198,7 +196,7 @@ func TestInvokeActionFromServerToDevice(t *testing.T) {
 // TestQueryActions consumer queries the server for actions
 // The server receives a QueryAction request and sends a response
 func TestQueryActions(t *testing.T) {
-	t.Logf("---%s---\n", t.Name())
+	slog.Warn(fmt.Sprintf("---Test: %s %s---\n", t.Name(), testProtocol))
 	var testMsg1 = "hello world 1"
 	var thingID = "thing1"
 	var actionKey = "action1"

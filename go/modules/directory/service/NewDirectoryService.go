@@ -33,13 +33,14 @@ func NewDirectoryService(
 func NewDirectoryServiceFactory(f api.IModuleFactory, md *api.ModuleDefinition) (api.IHiveModule, error) {
 	env := f.GetEnvironment()
 	storageDir := env.GetStorageDir(directory.DirectoryServiceModuleType)
+	env.CreateDir(storageDir, 0700)
 
 	// httpMod, _ := f.GetModule(directory.DirectoryHttpModuleType, false)
 	// httpAPI, ok := httpMod.(directory.IDirectoryHttpServer)
 	// if !ok {
 	// 	slog.Info("NewDirectoryMsgServerFactory: No http so running directory without http api")
 	// }
-	httpServer, _ := f.GetHttpServer(false).(api.IHttpServer)
+	httpServer := f.GetHttpServer(false)
 	transportMods := f.GetTransportServers()
 
 	m := NewDirectoryService("", storageDir, httpServer, transportMods)

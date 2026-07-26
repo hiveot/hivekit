@@ -8,11 +8,8 @@ import (
 
 	"github.com/hiveot/hivekit/go/api"
 	"github.com/hiveot/hivekit/go/api/msg"
-	"github.com/hiveot/hivekit/go/api/td"
 	"github.com/hiveot/hivekit/go/modules/transport"
 	"github.com/hiveot/hivekit/go/modules/transport/ssesc"
-	jsoniter "github.com/json-iterator/go"
-	"github.com/teris-io/shortid"
 )
 
 type SSEEvent struct {
@@ -20,7 +17,7 @@ type SSEEvent struct {
 	Payload   string // message content
 }
 
-// ServerConnection handles the SSE connection by remote client
+// SseScServerConnection handles the SSE connection by remote client
 //
 // The Sse-sc (sse single connection) protocol binding uses a 'hiveot' message
 // envelope for sending messages between server and consumer.
@@ -30,10 +27,9 @@ type SSEEvent struct {
 // to the server.
 //
 // This implements the IConnection interface for sending messages to the client over SSE.
-type ServerConnection struct {
-	// Connection information such as clientID, cid, address, protocol etc
-	// subscriptions made through the http side.
-	transport.ServerConnectionBase
+type SseScServerConnection struct {
+	// ServerConnectionBase handles the generic messaging part with RnR and timeouts
+	*transport.ServerConnectionBase
 
 	// connection remote address
 	remoteAddr string
@@ -41,30 +37,20 @@ type ServerConnection struct {
 	// incoming sse request
 	httpReq *http.Request
 
-	// isConnected atomic.Bool
-
 	// track last used time to auto-close inactive cm
 	lastActivity time.Time
 
 	sseChan chan SSEEvent
-
-	// the Request-and-Response helper that links responses from http
-	// with requests send over sse.
-	// This instance is owned by the http server which passes responses to it.
-	rnrChan *msg.RnRChan
-	// timeout to observe when waiting for responses
-	respTimeout time.Duration
 }
 
 // _send sends a request, response or notification message to the client over SSE.
 // This is different from the WoT SSE subprotocol in that the payload is the
 // message envelope and can carry any operation.
-func (sc *ServerConnection) _send(msgType string, msg any) (err error) {
+func (sc *SseScServerConnection) _sendRaw(msgType string, raw []byte) (err error) {
 
-	payloadJSON, _ := jsoniter.MarshalToString(msg)
 	sseMsg := SSEEvent{
 		EventType: msgType,
-		Payload:   payloadJSON,
+		Payload:   string(raw),
 	}
 	sc.Mux.Lock()
 	defer sc.Mux.Unlock()
@@ -83,7 +69,7 @@ func (sc *ServerConnection) _send(msgType string, msg any) (err error) {
 }
 
 // Close closes the connection and ends the read loop
-func (sc *ServerConnection) Close() {
+func (sc *SseScServerConnection) Close() {
 	sc.Mux.Lock()
 	defer sc.Mux.Unlock()
 	if sc.IsConnected() {
@@ -94,118 +80,12 @@ func (sc *ServerConnection) Close() {
 	}
 }
 
-// Handle received notification message.
-// func (sc *HiveotSseServerConnection) onNotificationMessage(notif msg.NotificationMessage) {
-// 	// TODO: is this handled here or does this use http-basic
-// }
-
-// func (sc *HiveotSseServerConnection) onResponseMessage(notif msg.ResponseMessage) {
-// 	// TODO: is this handled here or does this use http-basic
-
-// }
-
-// onRequestMessage handles (un)subscribe and (un)observe requests.
-// This sends a response to the client, confirming the subscription.
+// Serve serves SSE return channel to the client.
 //
-// Everything else returns with handled false.
-func (sc *ServerConnection) onRequestMessage(
-	req *msg.RequestMessage) (handled bool, err error) {
-
-	// handle subscriptions using connection base
-	handled = true
-	switch req.Operation {
-	case td.OpSubscribeEvent, td.OpSubscribeAllEvents:
-		sc.SubscribeEvent(req.ThingID, req.Name, req.CorrelationID)
-	case td.OpUnsubscribeEvent, td.OpUnsubscribeAllEvents:
-		sc.UnsubscribeEvent(req.ThingID, req.Name)
-	case td.OpObserveProperty, td.OpObserveAllProperties:
-		sc.ObserveProperty(req.ThingID, req.Name, req.CorrelationID)
-	case td.OpUnobserveProperty, td.OpUnobserveAllProperties:
-		sc.UnobserveProperty(req.ThingID, req.Name)
-	default:
-		handled = false
-	}
-	if handled {
-		// confirm
-		resp := req.CreateResponse(nil, nil)
-		err = sc.SendResponse(resp)
-	}
-	return handled, err
-}
-
-// SendNotification sends a notification to the client if subscribed.
-func (sc *ServerConnection) SendNotification(
-	notif *msg.NotificationMessage) {
-
-	clientID := sc.GetClientID()
-
-	if sc.HasSubscription(notif) {
-		// hiveotSSE sends messages as-is and does not use a message converter
-		// msg, err := sc.messageConverter.EncodeNotification(notif)
-		slog.Info("SendNotification (subscribed)",
-			slog.String("clientID", clientID),
-			slog.String("thingID", notif.ThingID),
-			slog.String("affordance", string(notif.AffordanceType)),
-			slog.String("name", notif.Name),
-		)
-		err := sc._send(msg.MessageTypeNotification, notif)
-		if err != nil {
-			// maybe the connection dropped. It should have been removed though so something went wrong.
-			slog.Warn("SendNotification: Unable to send the notification to the client",
-				"clientID", clientID,
-				"err", err.Error())
-		}
-	} else {
-		// ignore the notification
-	}
-
-}
-
-// SendRequest sends a request message to device Thing over SSE.
-// If responseHandler is provided then the response is received via http using rnrChan.
-func (sc *ServerConnection) SendRequest(
-	req *msg.RequestMessage, responseHandler msg.ResponseHandler) (err error) {
-
-	// This sends the message as-is over SSE
-	// The async response is expected over HTTP.
-	if responseHandler == nil {
-		err = sc._send(msg.MessageTypeRequest, req)
-		return err
-	}
-
-	if req.CorrelationID == "" {
-		req.CorrelationID = shortid.MustGenerate()
-	}
-
-	// The module provided the RnR channel handling.
-	// The response to this request will be received over HTTP via the module routes.
-	// Once received, the response handler  it will pass it to the RnR channel which
-	// in turn invokes this responseHandler callback.
-	sc.rnrChan.WaitWithCallback(req.CorrelationID, sc.respTimeout, responseHandler)
-
-	err = sc._send(msg.MessageTypeRequest, req)
-
-	if err != nil {
-		slog.Warn("SendRequest ->: error in sending request",
-			"dThingID", req.ThingID,
-			"name", req.Name,
-			"correlationID", req.CorrelationID,
-			"err", err.Error())
-	}
-	return err
-}
-
-// SendResponse send a response from server to client over SSE.
-func (sc *ServerConnection) SendResponse(resp *msg.ResponseMessage) error {
-	// This simply sends the message as-is
-	return sc._send(msg.MessageTypeResponse, resp)
-}
-
-// Serve serves SSE cm.
 // This listens for outgoing requests on the given channel
 // It ends when the client disconnects or the connection is closed with Close()
 // Sse requests are refused if no valid session is found.
-func (sc *ServerConnection) Serve(w http.ResponseWriter, r *http.Request) {
+func (sc *SseScServerConnection) Serve(w http.ResponseWriter, r *http.Request) {
 	// Set headers for SSE response
 	//w.Header().Set("Access-Control-Allow-Origin", "*")
 	w.Header().Set("Access-Control-Expose-Headers", "Content-Type")
@@ -297,32 +177,37 @@ func (sc *ServerConnection) Serve(w http.ResponseWriter, r *http.Request) {
 }
 
 // SetTimeout set the timeout sending requests
-func (sc *ServerConnection) SetTimeout(timeout time.Duration) {
-	sc.respTimeout = timeout
-}
+// func (sc *SseScServerConnection) SetTimeout(timeout time.Duration) {
+// 	sc.respTimeout = timeout
+// }
 
-// NewHiveotSseConnection creates a new SSE 1-way connection instance.
+// NewSseScServerConnection creates a new SSE 1-way connection instance.
 // This implements the IConnection interface.
 //
 // clientID is the authenticated ID of the client that just connected
-// cid is the client's instance connectionID
+// connectionID is the client's instance connectionID
 // remoteAdd is the address used to connect.
 // httpReq is the request that started the websocket connection
 // rnrChan is the http server request&response channel where responses are passed.
-func NewHiveotSseConnection(
-	clientID string, cid string, remoteAddr string,
-	httpReq *http.Request, rnrChan *msg.RnRChan,
-	respTimeout time.Duration) *ServerConnection {
+func NewSseScServerConnection(
+	clientID string, connectionID string, remoteAddr string,
+	httpReq *http.Request,
+	reqHandler msg.RequestHandler,
+	notifHandler msg.NotificationHandler,
+) *SseScServerConnection {
 
-	c := &ServerConnection{
+	c := &SseScServerConnection{
 		remoteAddr:   remoteAddr,
 		httpReq:      httpReq,
 		lastActivity: time.Now(),
-
-		rnrChan:     rnrChan,
-		respTimeout: respTimeout,
 	}
-	c.Init(clientID, httpReq.URL.String(), cid, nil, nil)
+	encoder := transport.NewRRNJsonEncoder()
+
+	// OnRemoteMessage is not used so requestHandler and notificationHandler can be nil.
+	c.ServerConnectionBase = transport.NewServerConnectionBase(
+		clientID, remoteAddr, connectionID,
+		encoder, c._sendRaw, reqHandler, notifHandler,
+	)
 
 	// interface check
 	var _ api.IConnection = c

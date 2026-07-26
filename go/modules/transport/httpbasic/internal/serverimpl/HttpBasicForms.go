@@ -9,6 +9,7 @@ import (
 
 // list of supported thing level operations
 var thingLevelOperations = []string{
+	td.HTOpPing,
 	td.OpQueryAllActions, td.OpReadAllProperties, td.HTOpReadAllEvents}
 
 // list of supported affordance operations
@@ -46,6 +47,10 @@ func (srv *HttpBasicServerImpl) AddTDSecForms(tdoc *td.TD, includeAffordances bo
 	// 2. Set the security scheme used by the authenticator.
 	// TODO: risk of duplicates?
 	authr := srv.httpServer.GetAuthenticator()
+	if authr == nil {
+		// cant use the http server without authenticator
+		panic("HttpBasicServerImpl requires an authenticator from the http server")
+	}
 	authr.AddSecurityScheme(tdoc)
 
 	// 3. add thing level form for thing level operations

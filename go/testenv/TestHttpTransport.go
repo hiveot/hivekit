@@ -11,7 +11,7 @@ import (
 	"github.com/hiveot/hivekit/go/modules"
 )
 
-// A dummy transport for testing
+// A dummy transport server for testing
 // This implements IHttpServer and ITransportServer interfaces
 type TestHttpTransport struct {
 	*modules.HiveModuleBase
@@ -53,6 +53,7 @@ func (d *TestHttpTransport) Start() error {
 func (d *TestHttpTransport) Stop() {
 }
 
+// create a new dummy server with a dummy authenticator
 func NewDummyServer(url string) api.IHttpServer {
 	rootRouter := chi.NewRouter()
 	rootRouter.Use(middleware.Heartbeat(api.DefaultPingPath))
@@ -61,6 +62,7 @@ func NewDummyServer(url string) api.IHttpServer {
 		url:            url,
 		protRoute:      rootRouter.With(),
 		pubRoute:       rootRouter.With(),
+		authr:          NewTestAuthenticator(),
 	}
 	return d
 }

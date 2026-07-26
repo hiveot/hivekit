@@ -29,6 +29,7 @@ func (srv *WssServerImpl) AddTDSecForms(tdoc *td.TD, includeAffordances bool) {
 	form := td.NewForm("", srv.GetConnectURL())
 	form.SetSubprotocol(subprotocol)
 	form["op"] = []string{
+		td.HTOpPing,
 		td.OpInvokeAction, td.OpCancelAction,
 		td.OpQueryAction, td.OpQueryAllActions,
 

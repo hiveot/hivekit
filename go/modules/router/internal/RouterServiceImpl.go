@@ -71,31 +71,38 @@ func (m *RouterServiceImpl) DeleteThingCredential(thingID string) {
 // that automatically reconnects and resubscribes if the connection fails.
 //
 // The caller must check if the connection is established before sending a message.
-func (m *RouterServiceImpl) GetClientConnection(tdi *td.TD, op string) (cl api.IHiveModule, err error) {
+//
+//	tdoc is the TD of the device to connect to
+//	op is the operation to perform
+//	name is the optional affordance name for the operation. "" for thing level operations.
+func (m *RouterServiceImpl) GetClientConnection(tdoc *td.TD, op string, name string) (cl api.IHiveModule, err error) {
 
 	var c api.ITransportClient
 
 	// use URI scheme to determine the protocol, except for the hiveot WSS, which also
 	// has a wss scheme. Instead look at the base path which is fixed.
-	protocolType, href := clients.GetProtocolType(tdi, op)
+	protocolType, href := clients.GetProtocolType(tdoc, op, name)
+	_ = protocolType
 	parts, err := url.Parse(href)
 	if err != nil {
 		return nil, err
 	}
 	// determine the 'origin' for this connection, which is the protocol and address
-	// of the connection. Multiple Things from the same device share the same connection.
+	// of the connection. Multiple Things from the same device share the same connection
+	// and different protocols used by the same thing lead to different client instances
+	// when origin differs.
 	origin := fmt.Sprintf("%s://%s", parts.Scheme, parts.Host)
 	m.cmux.Lock()
 	cl, found := m.deviceConnections[origin]
 	if !found {
 		// TODO: how to determine the CA for this server?
 		// TODO: support use of client cert for this server?
-		c, err = clients.NewTransportClient(protocolType, href, m.caCert)
+		c, err = clients.NewTransportClientFromTD(tdoc, op, name, m.caCert)
 		if err != nil {
 			return nil, err
 		}
 		c.SetTimeout(m.GetTimeout())
-		err = c.AuthenticateWithForm(tdi, m.credStore.GetCredentials)
+		err = c.AuthenticateWithForm(tdoc, m.credStore.GetCredentials)
 		if err != nil {
 			return nil, err
 		}
@@ -224,7 +231,11 @@ func (m *RouterServiceImpl) RouteRequest(req *msg.RequestMessage, replyTo msg.Re
 			err = c.SendRequest(req, replyTo)
 		}
 	} else {
-		c, err2 := m.GetClientConnection(tdoc, req.Operation)
+		c, err2 := m.GetClientConnection(tdoc, req.Operation, req.Name)
+		// FIXME: gap between tdoc op and handlerequest href
+		// tdoc/op -> client connection based on href but doesnt use href
+		// 1. should c handlerequest have a callback to get href?
+		// 2. should handlerequest use a context to pass href?
 		if c == nil {
 			err = fmt.Errorf("RouteRequest: Unable to establish a connection to client '%s': %w", rcClientID, err2)
 		} else {

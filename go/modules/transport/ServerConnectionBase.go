@@ -13,12 +13,13 @@ import (
 	"github.com/teris-io/shortid"
 )
 
-// ServerConnectionBase is a generic base type for implementing server side transport connections.
+// ServerConnectionBase is a generic base type for implementing server side
+// transport connections.
 //
 // Use of this is totally optional and might not apply to all transport.
 //
 // Features:
-//  1. Handle received request message (OnRequest)
+//  1. Handle received messages
 //     1a. ping request
 //     1b. subscription requests (OnRequest)
 //  2. Handle received response and pass it to the RnR handler (OnResponse)
@@ -47,6 +48,12 @@ type ServerConnectionBase struct {
 	// messageEncoder for request/response messages
 	messageEncoder IMessageEncoder
 
+	// notifForwarder used by OnMessage to forward the decoded notifications to the server sink
+	notifForwarder msg.NotificationHandler
+
+	// reqForwarder used by OnRemoteMessage to forwards the decoded requests to the server sink
+	reqForwarder msg.RequestHandler
+
 	// property observations made by the client
 	observations Subscriptions
 
@@ -54,7 +61,7 @@ type ServerConnectionBase struct {
 	// Used by SendRequest to wait and pass a response to the sender replyTo
 	rnrChan *msg.RnRChan
 
-	// send encoded messages
+	// send encoded messages to the remote client
 	sendRaw func(msgType string, raw []byte) error
 
 	// Remote address of the connection
@@ -153,10 +160,56 @@ func (sc *ServerConnectionBase) OnNotification(
 	forwardTo(notif)
 }
 
+// OnRemoteMessage handles an incoming message from remote client.
+// The message is converted into a request, response or notification
+// by the provided encoder and and passed on to the registered handler.
+func (sc *ServerConnectionBase) OnRemoteMessage(raw []byte) {
+
+	var err error
+	if raw == nil {
+		slog.Error("OnServerMessage: raw data is nil")
+	}
+	senderID := sc.GetClientID()
+	msgType := sc.messageEncoder.DetermineMessageType(raw)
+
+	switch msgType {
+	case msg.MessageTypeNotification:
+		var notif *msg.NotificationMessage
+		notif, err = sc.messageEncoder.DecodeNotification(senderID, raw)
+		if err == nil {
+			sc.OnNotification(notif, sc.notifForwarder)
+			return
+		}
+	case msg.MessageTypeRequest:
+		var req *msg.RequestMessage
+		req, err := sc.messageEncoder.DecodeRequest(senderID, raw)
+		if err == nil {
+			req.SenderID = sc.GetClientID()
+			sc.OnRequest(req, sc.reqForwarder)
+			return
+		}
+	case msg.MessageTypeResponse:
+		var resp *msg.ResponseMessage
+		resp, err := sc.messageEncoder.DecodeResponse(senderID, raw)
+		if err == nil {
+			resp.SenderID = sc.GetClientID()
+			sc.OnResponse(resp)
+			return
+		}
+	default:
+		err = fmt.Errorf("Unknown message type '%s'", msgType)
+	}
+	if err != nil {
+		slog.Warn("_onGrpcServerMessage: Failed to decode message", "msgType", msgType, "err", err.Error())
+	}
+}
+
 // OnRequest is passed the request message sent by the remote client.
+//
 // This handles ping and subscription requests for the connection.
-// All other requests are forwarded to the provided handler. The reply is send back to the
-// This returns the response to be sent to the sender.
+//
+// All other requests are forwarded to the 'forwardRequest' handler.
+// The reply is send back as a response message the sender.
 func (scb *ServerConnectionBase) OnRequest(
 	req *msg.RequestMessage, forwardRequest msg.RequestHandler) error {
 
@@ -225,16 +278,15 @@ func (scb *ServerConnectionBase) OnRequest(
 	return err
 }
 
-// OnResponse is passed the received response message after decoding to the standard response message format.
+// OnResponse is passed the received response message for passing it to
+// the waiting handler.
 //
-// This sets the client ID to that of the connection and passes the response to
-// the RnR response handler to serve any request handlers that are waiting
+// This sets the senderID to that of the connection and passes the response
+// to the RnR response handler to serve the request handler that is waiting
 // for a response.
-// All this takes place asynchronously without blocking the connection.
-//
-// If the RNR handler doesn't have a matching correlationID listed then the response is passed to the
-// connection response handler.
-func (sc *ServerConnectionBase) OnResponse(resp *msg.ResponseMessage) {
+// See also RnRChan.HandleResponse that does the heavy lifting.
+// This returns an error if RnR is not expecting a response with the correlationID
+func (sc *ServerConnectionBase) OnResponse(resp *msg.ResponseMessage) (err error) {
 	// sender is identified by the server, not the client
 	resp.SenderID = sc.GetClientID()
 
@@ -248,12 +300,10 @@ func (sc *ServerConnectionBase) OnResponse(resp *msg.ResponseMessage) {
 	// this responsehandler points to the rnrChannel that matches the correlationID to the replyTo handler
 	handled := sc.rnrChan.HandleResponse(resp, sc.respTimeout)
 	if !handled {
-		slog.Warn("onResponse: No response handler for request, response is lost",
-			"correlationID", resp.CorrelationID,
-			"op", resp.Operation,
-			"thingID", resp.ThingID,
-			"name", resp.Name)
+		err = fmt.Errorf("OnResponse: Response from thingID/name '%s/%s' is lost. CorrelationID '%s' is not known",
+			resp.ThingID, resp.Name, resp.CorrelationID)
 	}
+	return err
 }
 
 // SendNotification encodes the notifications and passes it to sendRaw
@@ -354,32 +404,41 @@ func (scb *ServerConnectionBase) UnobserveProperty(dThingID, name string) {
 	scb.observations.Unsubscribe(dThingID, name)
 }
 
-//func (c *DummyConnection) WriteProperty(thingID, name string, value any, correlationID string, senderID string) (status string, err error) {
-//	return "", nil
-//}
-
-// Initialize the connection base. Call this before use.
+// NewServerConnectionBase creates a server connection base that implements most of the
+// boilerplate of converting and handling messages and subscriptions.
 //
 // To use the SendReq/Notif/Resp messages provide the encoder and sendRaw methods.
+// reqForwarder and notifForwarder are used by OnRemoteMessage to pass to OnRequest and OnNotification.
+// If OnRemoteMessage is not used then these can be nil.
 //
-//	clientID of the client at the remote end
+//	clientID of the remote client
 //	remoteAddr is the remote client's endpoint address
 //	cid is the connection ID to differentiate multiple connections from this client
-//	encoder is used for encoding sent messages. Nil defaults to json encoding of RRN messages
+//	encoder is used for encoding and decoding messages. nil defaults to json encoding of RRN messages
 //	sendRaw is the underlying transport sending encoded messages
-func (scb *ServerConnectionBase) Init(
+//	reqForwarder is the callback for forwarding incoming request messages from the remote client
+//	notifForwarder is the callback for forwarding incoming notification messages from the remote client
+func NewServerConnectionBase(
 	clientID, remoteAddr, cid string,
-	encoder IMessageEncoder, sendRaw func(msgType string, raw []byte) error) {
+	encoder IMessageEncoder,
+	sendRaw func(msgType string, raw []byte) error,
+	reqForwarder msg.RequestHandler,
+	notifForwarder msg.NotificationHandler,
+) *ServerConnectionBase {
 
 	if encoder == nil {
 		encoder = NewRRNJsonEncoder()
 	}
-
-	scb.ClientID = clientID
-	scb.ConnectionID = cid
-	scb.remoteAddr = remoteAddr
+	scb := &ServerConnectionBase{
+		ClientID:       clientID,
+		ConnectionID:   cid,
+		remoteAddr:     remoteAddr,
+		messageEncoder: encoder,
+		reqForwarder:   reqForwarder,
+		notifForwarder: notifForwarder,
+		sendRaw:        sendRaw,
+		rnrChan:        msg.NewRnRChan(),
+	}
 	scb.isConnected.Store(true)
-	scb.messageEncoder = encoder
-	scb.sendRaw = sendRaw
-	scb.rnrChan = msg.NewRnRChan()
+	return scb
 }

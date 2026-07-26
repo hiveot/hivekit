@@ -12,50 +12,19 @@ import (
 	"google.golang.org/grpc/peer"
 )
 
-// GrpcServerConnection implements the IConnection interface
-// Intended to provide RRN messages for an incoming GRPC stream connection.
+// GrpcServerConnection implements the IConnection interface for grpc server side connections.
+// Intended to handle RRN messages for a GRPC stream connection.
 // Use ReadLoop to start processing incoming messages.
 type GrpcServerConnection struct {
-	transport.ServerConnectionBase
+	// ServerConnectionBase handles the generic messaging part
+	*transport.ServerConnectionBase
 
+	// buffered stream handles the raw grpc data
 	bstrm *grpclib.BufferedStream
-
-	// notifHandler handles the requests received from the remote producer
-	notifHandler msg.NotificationHandler
-
-	// reqHandler handles the requests received from the remote consumer
-	reqHandler msg.RequestHandler
-
-	encoder transport.IMessageEncoder
 }
 
-// _onMessage handles an incoming message
-// The message is converted into a request, response or notification and passed
-// on to the registered handler.
-func (sc *GrpcServerConnection) _onServerMessage(raw []byte) {
-
-	if raw == nil {
-		slog.Error("_onServerMessage: raw data is nil")
-	}
-	notif, err := sc.encoder.DecodeNotification(raw)
-	if err == nil {
-		notif.SenderID = sc.GetClientID()
-		sc.OnNotification(notif, sc.notifHandler)
-		return
-	}
-	req, err := sc.encoder.DecodeRequest(raw)
-	if err == nil {
-		req.SenderID = sc.GetClientID()
-		sc.OnRequest(req, sc.reqHandler)
-		return
-	}
-	resp, err := sc.encoder.DecodeResponse(raw)
-	if err == nil {
-		resp.SenderID = sc.GetClientID()
-		sc.OnResponse(resp)
-		return
-	}
-	slog.Error("_onServerMessage: Failed to unmarshal message", "err", err.Error())
+func (sc *GrpcServerConnection) _sendRaw(msgType string, raw []byte) error {
+	return sc.bstrm.Send(raw)
 }
 
 // Close the stream connection
@@ -76,10 +45,6 @@ func (sc *GrpcServerConnection) GetConnectionStatus() api.ConnectionStatus {
 	return api.StatusLost
 }
 
-func (sc *GrpcServerConnection) sendRaw(msgType string, raw []byte) error {
-	return sc.bstrm.Send(raw)
-}
-
 // Run starts processing a message stream from the client.
 // This returns when the stream is closed.
 func (sc *GrpcServerConnection) WaitUntilDisconnect() {
@@ -89,9 +54,9 @@ func (sc *GrpcServerConnection) WaitUntilDisconnect() {
 // Create a transport server side connection of a grpc messaging stream.
 // This implemements the IConnection interface.
 //
-// Run Close() to close the connection from the server end
+// Use Close() to close the connection from the server end.
 // Run WaitUntilDisconnect() to block until the connection is closed by the client or server.
-func StartGrpcTransportConnection(
+func NewGrpcServerConnection(
 	clientID string,
 	connectionID string,
 	grpcStream grpc.ServerStream,
@@ -101,21 +66,23 @@ func StartGrpcTransportConnection(
 ) *GrpcServerConnection {
 
 	slog.Info("StartGrpcTransportConnection", slog.String("clientID", clientID))
-	c := &GrpcServerConnection{
-		reqHandler:   reqHandler,
-		notifHandler: notifHandler,
-		encoder:      transport.NewRRNJsonEncoder(),
-	}
 	// determine the client ID and connection ID from the grpc stream context
 	peerInfo, ok := peer.FromContext(grpcStream.Context())
 	var remoteAddr string
 	if ok {
 		remoteAddr = peerInfo.Addr.String()
 	}
-	c.Init(clientID, remoteAddr, connectionID, nil, c.sendRaw)
+
+	c := &GrpcServerConnection{}
+	// the server connection base handles the generic portion of message handling
+	encoder := transport.NewRRNJsonEncoder()
+	c.ServerConnectionBase = transport.NewServerConnectionBase(
+		clientID, remoteAddr, connectionID,
+		encoder, c._sendRaw, reqHandler, notifHandler,
+	)
 
 	// use the same buffered stream as the client uses for sending and receiving messages
-	c.bstrm = grpclib.NewBufferedStream(grpcStream, nil, c._onServerMessage, time.Minute)
+	c.bstrm = grpclib.NewBufferedStream(grpcStream, nil, c.OnRemoteMessage, time.Minute)
 
 	var _ api.IConnection = c // interface check
 

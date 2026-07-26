@@ -34,8 +34,8 @@ func (app *Cliex) ShowDiscovery() {
 
 	utils.SetLogging("warning", "")
 	fmt.Println("Discovered Things and Directories on the local network")
-	fmt.Printf("Type       Address    Port   Instance Name        Schema   ThingID                           TD URL   \n")
-	fmt.Printf("---------- ---------- -----  -------------------  -------  --------------------------------  -------  \n")
+	fmt.Printf("Type       Address    Port   Instance Name             Schema   ThingID                           TD URL   \n")
+	fmt.Printf("---------- ---------- -----  ------------------------  -------  --------------------------------  -------  \n")
 
 	app.discoClient.DiscoverThings("", waitDuration, func(r *discovery.DiscoveryResult) bool {
 		// load the TD to present nr of affordances
@@ -55,7 +55,7 @@ func (app *Cliex) ShowDiscovery() {
 			}
 		}
 		// show the discovery record and the nr of affordances in the TD
-		fmt.Printf("%-10s %-10s %-5d  %-20s %-8s %-33s %s \n",
+		fmt.Printf("%-10s %-10s %-5d  %-25s %-8s %-33s %s \n",
 			r.Type, r.Addr, r.Port, r.Instance, r.Schema, thingID, tdURL)
 
 		if app.config.Verbose {

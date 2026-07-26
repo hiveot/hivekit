@@ -95,7 +95,7 @@ type AppEnvironment struct {
 	// This can be set manually or loaded with GetAuthToken()
 	AuthToken string `yaml:"-"`
 
-	// The clientID used to authenticate, certificate filename and token name.
+	// The clientID used to authenticate, in certificate file and token names.
 	// By default the clientID is the same as the appID unless changed.
 	ClientID string `yaml:"clientID"`
 
@@ -103,12 +103,57 @@ type AppEnvironment struct {
 	// This can be provided by discovery or set manually.
 	DirTDD *td.TD `yaml:"-"`
 
+	// The gateway server TD for bootstrapping a client.
+	// This can be provided by discovery or set manually.
+	ServerTD *td.TD `yaml:"-"`
+
 	// KeyFile is the file that holds the private/public keys of the application.
 	// Can be used by client applications to authenticate connect to a hub/gateway.
 	// Intended for encryption and for client cert authentication when using reverse connections.
 	// This is derived from the AppID: {certsDir}/{AppID}.key
 	KeyFile string `yaml:"keyFile"` // app's key pair file location
 
+}
+
+// Create all missing directories
+// this returns an error if one of them doesnt exist and cant be created
+func (env *AppEnvironment) CreateAllDirs() (err error) {
+	if err2 := env.CreateDir(env.HomeDir, 0750); err2 != nil {
+		err = err2
+	}
+	if err2 := env.CreateDir(env.BinDir, 0750); err2 != nil {
+		err = err2
+	}
+	if err2 := env.CreateDir(env.CertsDir, 0750); err2 != nil {
+		err = err2
+	}
+	if err2 := env.CreateDir(env.ConfigDir, 0750); err2 != nil {
+		err = err2
+	}
+	if err2 := env.CreateDir(env.LogsDir, 0750); err2 != nil {
+		err = err2
+	}
+	if err2 := env.CreateDir(env.PluginsDir, 0750); err2 != nil {
+		err = err2
+	}
+	if err2 := env.CreateDir(env.StoresDir, 0700); err2 != nil {
+		err = err2
+	}
+	return err
+}
+
+// Create a missing directory
+func (env *AppEnvironment) CreateDir(path string, mode os.FileMode) error {
+	info, err := os.Stat(path)
+	if err != nil {
+		err = os.MkdirAll(path, mode)
+		return err
+	}
+	if !info.IsDir() {
+		return fmt.Errorf("AppEnvironment.CreateDir, '%s' already exists but is not a directory", path)
+	}
+	// path already exists and is a directory
+	return nil
 }
 
 // GetAuthToken returns the application authentication token.
@@ -139,20 +184,6 @@ func (env *AppEnvironment) GetCACert() (caCert *x509.Certificate, err error) {
 	caCertPath := filepath.Join(env.CertsDir, DefaultCaCertFile)
 	env.CaCert, err = utils.LoadX509CertFromPEM(caCertPath)
 	return env.CaCert, err
-}
-
-// Return the configured clientID
-// This defaults to the appID, unless a different ID was provided via the commandline
-func (env *AppEnvironment) GetClientID() string {
-	return env.ClientID
-}
-
-// Get the server URL when needed - intended for starting clients when using the factory.
-// This returns the preconfigured or commandline provided URL.
-//
-// This URL can also be set using the discovery client module configured for a specific protocol.
-func (env *AppEnvironment) GetServerURL() string {
-	return env.ServerURL
 }
 
 // Return the directory where a module stores its data.
@@ -401,47 +432,6 @@ func NewAppEnvironment(homeDir string, withFlags bool) *AppEnvironment {
 		StoresDir:  storesDir,
 	}
 	return env
-}
-
-// Create all missing directories
-// this returns an error if one of them doesnt exist and cant be created
-func (env *AppEnvironment) CreateAllDirs() (err error) {
-	if err2 := env.CreateDir(env.HomeDir, 0750); err2 != nil {
-		err = err2
-	}
-	if err2 := env.CreateDir(env.BinDir, 0750); err2 != nil {
-		err = err2
-	}
-	if err2 := env.CreateDir(env.CertsDir, 0750); err2 != nil {
-		err = err2
-	}
-	if err2 := env.CreateDir(env.ConfigDir, 0750); err2 != nil {
-		err = err2
-	}
-	if err2 := env.CreateDir(env.LogsDir, 0750); err2 != nil {
-		err = err2
-	}
-	if err2 := env.CreateDir(env.PluginsDir, 0750); err2 != nil {
-		err = err2
-	}
-	if err2 := env.CreateDir(env.StoresDir, 0700); err2 != nil {
-		err = err2
-	}
-	return err
-}
-
-// Create a missing directory
-func (env *AppEnvironment) CreateDir(path string, mode os.FileMode) error {
-	info, err := os.Stat(path)
-	if err != nil {
-		err = os.MkdirAll(path, mode)
-		return err
-	}
-	if !info.IsDir() {
-		return fmt.Errorf("AppEnvironment.CreateDir, '%s' already exists but is not a directory", path)
-	}
-	// path already exists and is a directory
-	return nil
 }
 
 // Initialize the factory application environment

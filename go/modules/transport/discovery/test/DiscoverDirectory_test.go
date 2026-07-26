@@ -72,7 +72,10 @@ func TestDiscoverGetDirectoryTD(t *testing.T) {
 	tpList := []api.ITransportServer{tpServer}
 	dirMod := directory_service.NewDirectoryService("", "", testHttpServer, tpList)
 	dirMod.Start()
-	_, dirTDJson := dirMod.GetTDD()
+	dirThingID := dirMod.GetThingID()
+	dirTD, dirTDJson := dirMod.GetTDD()
+	_ = dirTD
+
 	// dirTD := dirMod.GetTD(dirMod.GetThingID())
 	// dirTDJson := td.MarshalTD(dirTD)
 
@@ -90,8 +93,7 @@ func TestDiscoverGetDirectoryTD(t *testing.T) {
 	err = cl.Start()
 	require.NoError(t, err)
 	assert.NotEmpty(t, appEnv.DirectoryURL)
-
-	dirTD2, _, err := cl.DiscoverFirstDirectoryTD(testDirServiceID, time.Second)
+	dirTD2, _, err := cl.DiscoverFirstDirectoryTD(dirThingID, time.Second)
 	require.NoError(t, err)
 	assert.NotNil(t, dirTD2, "Client failed to discover the directory on start")
 	assert.Equal(t, dirMod.GetThingID(), dirTD2.ID)

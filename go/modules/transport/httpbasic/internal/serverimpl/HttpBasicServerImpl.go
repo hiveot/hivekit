@@ -6,6 +6,8 @@ import (
 
 	"github.com/hiveot/hivekit/go/api"
 	"github.com/hiveot/hivekit/go/api/msg"
+	"github.com/hiveot/hivekit/go/api/td"
+	"github.com/hiveot/hivekit/go/api/vocab"
 	"github.com/hiveot/hivekit/go/modules/transport"
 	"github.com/hiveot/hivekit/go/modules/transport/httpbasic"
 	"github.com/teris-io/shortid"
@@ -30,25 +32,30 @@ type HttpBasicServerImpl struct {
 	// actual httpServer exposing routes
 	httpServer api.IHttpServer
 
-	// reqHandler handles the requests received from the remote consumer
-	// requestHandler msg.RequestHandler
+	// the TD describing this server
+	serverTD *td.TD
 }
 
-func (m *HttpBasicServerImpl) GetHttpServer() api.IHttpServer {
-	return m.httpServer
+func (srv *HttpBasicServerImpl) GetHttpServer() api.IHttpServer {
+	return srv.httpServer
+}
+
+// GetTD returns the server TD, containing connection and authentication information
+func (srv *HttpBasicServerImpl) GetTD() *td.TD {
+	return srv.serverTD
 }
 
 // Handle a notification this module (or downstream in the chain) subscribed to.
 // Notifications are forwarded to their upstream sink, which for a server is the
 // client.
-func (m *HttpBasicServerImpl) HandleNotification(notif *msg.NotificationMessage) {
-	m.SendNotification(notif)
+func (srv *HttpBasicServerImpl) HandleNotification(notif *msg.NotificationMessage) {
+	srv.SendNotification(notif)
 }
 
 // HandleRequest passes the module request messages to the API handler.
 // If the request isn't for this module then this returns an error as the server
 // cannot deliver messages to the client.
-func (m *HttpBasicServerImpl) HandleRequest(
+func (srv *HttpBasicServerImpl) HandleRequest(
 	req *msg.RequestMessage, replyTo msg.ResponseHandler) (err error) {
 
 	err = fmt.Errorf("SendRequest. HTTP can't send requests to remote clients.")
@@ -73,16 +80,20 @@ func (m *HttpBasicServerImpl) HandleRequest(
 // will not be passed to connected clients.
 //
 // yamlConfig tbd: use base path?
-func (m *HttpBasicServerImpl) Start() (err error) {
+func (srv *HttpBasicServerImpl) Start() (err error) {
 
 	slog.Info("Start: Starting httpbasic transport server")
-	m.createRoutes()
+	srv.createRoutes()
 
+	// create a TD describing this server along with its connection URL
+	thingID := srv.GetThingID()
+	srv.serverTD = td.NewTD(thingID, "HTTP-Basic server", vocab.DeviceTypeService)
+	srv.AddTDSecForms(srv.serverTD, false)
 	return err
 }
 
 // Stop any running actions
-func (m *HttpBasicServerImpl) Stop() {
+func (srv *HttpBasicServerImpl) Stop() {
 	slog.Info("Stop: Stopping httpbasic transport server")
 
 }

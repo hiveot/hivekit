@@ -3,6 +3,8 @@ package transporttests
 
 import (
 	"errors"
+	"fmt"
+	"log/slog"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -35,7 +37,7 @@ func TestAllProps(t *testing.T) {
 
 // Test observing and receiving all properties by consumer
 func TestObservePropertyByConsumer(t *testing.T) {
-	t.Logf("---%s--- (%s)\n", t.Name(), testProtocol)
+	slog.Warn(fmt.Sprintf("---Test: %s %s---\n", t.Name(), testProtocol))
 	var rxVal1 atomic.Value
 	var rxVal2 atomic.Value
 	var thingID = "thing1"
@@ -127,7 +129,7 @@ func TestObservePropertyByConsumer(t *testing.T) {
 
 // Thing publishes property updates to subscribers
 func TestPublishPropertyByThing(t *testing.T) {
-	t.Logf("---%s---\n", t.Name())
+	slog.Warn(fmt.Sprintf("---Test: %s %s---\n", t.Name(), testProtocol))
 	var evVal atomic.Value
 	var thingID = "thing1"
 	var propKey1 = "property1"
@@ -162,7 +164,7 @@ func TestPublishPropertyByThing(t *testing.T) {
 
 // Consumer reads property from device
 func TestReadProperty(t *testing.T) {
-	t.Logf("---%s---\n", t.Name())
+	slog.Warn(fmt.Sprintf("---Test: %s %s---\n", t.Name(), testProtocol))
 	var thingID = "thing1"
 	var propKey = "propKey1"
 	var propValue = "value11"
@@ -196,7 +198,7 @@ func TestReadProperty(t *testing.T) {
 
 // Consumer reads events from device
 func TestReadAllProperties(t *testing.T) {
-	t.Logf("---%s---\n", t.Name())
+	slog.Warn(fmt.Sprintf("---Test: %s %s---\n", t.Name(), testProtocol))
 	var thingID = "thing1"
 	var name1 = "prop1"
 	var name2 = "prop2"

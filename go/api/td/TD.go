@@ -338,12 +338,13 @@ func (tdoc *TD) GetEvent(eventName string) *EventAffordance {
 //
 //	operation is the operation as defined in TD forms
 //	name is the name of property, event or action whose form to get or "" for the TD level operations
-//	protocol is the transport (sub)protocol scheme or subprotocol, use "" for any
+//	protocol is the transport (sub)protocol scheme or subprotocol, use "" for the first in the list
 //
 // This returns the form or nil if no match is found
 func (tdoc *TD) GetForm(operation string, name string, protocol string) *Form {
 	forms := tdoc.GetForms(operation, name)
 
+	// if no protocol is provided then return the first form in the list
 	if protocol == "" {
 		if len(forms) == 0 {
 			return nil
@@ -646,9 +647,9 @@ func (tdoc *TD) UpdateTitleDescription(title string, description string) {
 // NewTD creates a new Thing Description document with properties, events and actions
 //
 // Conventions:
-// 1. Things should add a property WoTTitle and update the TD title if it is set.
-// 2. Things should add a property WoTDescription and update the TD description if it is set.
-// 3. the deviceType comes from the vocabulary and has ID vocab.DeviceType<Xyz>
+//  1. Things should add a writable property WoTTitle to allow consumers to update the TD title.
+//  2. Things should add a writable property WoTDescription to allow consumers to update the TD description.
+//  3. the deviceType comes from the vocabulary and has ID vocab.DeviceType<Xyz>
 //
 // Devices or bindings are not expected to use forms. The form content describes the
 // connection protocol which should reference the hub, not the device.

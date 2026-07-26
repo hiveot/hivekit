@@ -29,6 +29,7 @@ func (srv *GrpcServerImpl) AddTDSecForms(tdoc *td.TD, includeAffordances bool) {
 	// the href is the connection URL because it is the same as base for all forms in this protocol
 	form := td.NewForm("", href)
 	form["op"] = []string{
+		td.HTOpPing,
 		td.OpQueryAllActions,
 		td.OpObserveAllProperties, td.OpUnobserveAllProperties,
 		td.OpReadAllProperties,

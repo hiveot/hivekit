@@ -35,7 +35,6 @@ import (
 	grpc_client "github.com/hiveot/hivekit/go/modules/transport/grpc/client"
 	grpc_server "github.com/hiveot/hivekit/go/modules/transport/grpc/server"
 	"github.com/hiveot/hivekit/go/modules/transport/httpbasic"
-	httpbasic_client "github.com/hiveot/hivekit/go/modules/transport/httpbasic/client"
 	httpbasic_server "github.com/hiveot/hivekit/go/modules/transport/httpbasic/server"
 	"github.com/hiveot/hivekit/go/modules/transport/ssesc"
 	ssesc_client "github.com/hiveot/hivekit/go/modules/transport/ssesc/client"
@@ -93,10 +92,10 @@ var HiveKitModules = []api.ModuleDefinition{
 		Constructor: tls_server.NewTLSServerFactory,
 	},
 	// http-basic transport
-	{
-		Type:        httpbasic.HttpBasicClientModuleType,
-		Constructor: httpbasic_client.NewHttpBasicClientFactory,
-	},
+	// {
+	// 	Type:        httpbasic.HttpBasicClientModuleType,
+	// 	Constructor: httpbasic_client.NewHttpBasicClientFactory,
+	// },
 	{
 		Type:        httpbasic.HttpBasicServerModuleType,
 		Constructor: httpbasic_server.NewHttpBasicServerFactory,

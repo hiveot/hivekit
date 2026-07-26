@@ -38,6 +38,7 @@ func (srv *SseScServerImpl) AddTDSecForms(tdoc *td.TD, includeAffordances bool) 
 	form := td.NewForm("", href2)
 	form.SetSubprotocol(subprotocol)
 	form["op"] = []string{
+		td.HTOpPing,
 		td.OpQueryAllActions,
 		td.OpObserveAllProperties, td.OpUnobserveAllProperties,
 		td.OpReadAllProperties,

@@ -1,4 +1,4 @@
-package httpbasic
+package httpbasic_test
 
 import (
 	"testing"

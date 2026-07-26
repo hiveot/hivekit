@@ -51,7 +51,7 @@ type TransportServerBase struct {
 	// Since some transports use unidirectional channels, a request to one channel
 	// will result in a response over the other. RnRChan will pass the response from
 	// one channel to the requester.
-	RnrChan *msg.RnRChan
+	// RnrChan *msg.RnRChan
 }
 
 // AddConnection adds a new connection and notifies subscribers with a ServerConnectEvent notification.
@@ -434,7 +434,7 @@ func NewTransportServerBase(
 
 		authenticator: authenticator,
 		connectURL:    connectURL,
-		RnrChan:       msg.NewRnRChan(),
+		// RnrChan:       msg.NewRnRChan(),
 	}
 	return base
 }

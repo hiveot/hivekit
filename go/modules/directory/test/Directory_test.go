@@ -11,6 +11,7 @@ import (
 
 	"github.com/hiveot/hivekit/go/api"
 	"github.com/hiveot/hivekit/go/api/td"
+	"github.com/hiveot/hivekit/go/api/vocab"
 	"github.com/hiveot/hivekit/go/modules/authn"
 	"github.com/hiveot/hivekit/go/modules/directory"
 	directory_client "github.com/hiveot/hivekit/go/modules/directory/client"
@@ -58,6 +59,7 @@ func StartDirectoryServer(withHttp bool) (
 		// add directory endpoints to the http server
 		dirHttpServer = directory_service.NewDirectoryHttpServer(testEnv.HttpServer, rpcTimeout)
 		transports = append(transports, dirHttpServer)
+		dirHttpServer.Start()
 	}
 	// the transports are used to update the TDD forms and security
 	m = directory_service.NewDirectoryService("", storageDir, testEnv.HttpServer, transports)
@@ -245,7 +247,7 @@ func TestCRUDUsingRestAPI(t *testing.T) {
 	require.NoError(t, err)
 
 	// test create a TD
-	tdi1 := td.NewTD(thing1ID, "thing 1", "device")
+	tdi1 := td.NewTD(thing1ID, "thing 1", vocab.Device)
 	tdi1Json := tdi1.ToString()
 
 	err = dirClient.CreateThing(tdi1Json)

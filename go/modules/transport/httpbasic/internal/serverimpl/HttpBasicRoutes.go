@@ -24,16 +24,16 @@ import (
 // handling a single endpoint for all operations. See HttpBasicThingOperationPath and
 // HttpBasicAffordanceOperationPath for the generic paths.
 // The paths are included in the thing level forms when invoking AddTDSecForms.
-func (m *HttpBasicServerImpl) createRoutes() {
+func (srv *HttpBasicServerImpl) createRoutes() {
 
 	//--- public routes do not require an authenticated session
-	pubRoutes := m.httpServer.GetPublicRoute()
+	pubRoutes := srv.httpServer.GetPublicRoute()
 	_ = pubRoutes
 
 	//pubRoutes.Get("/static/*", staticFileServer.ServeHTTP)
 
 	//--- private routes that requires authentication (as published in the TD)
-	protRoutes := m.httpServer.GetProtectedRoute()
+	protRoutes := srv.httpServer.GetProtectedRoute()
 	if protRoutes == nil {
 		panic("no protected route available")
 	}
@@ -41,9 +41,9 @@ func (m *HttpBasicServerImpl) createRoutes() {
 	// register generic handlers for operations on Thing and affordance level
 	// these endpoints are published in the forms of each TD. See also AddTDForms.
 	protRoutes.HandleFunc(
-		httpbasic.HttpBasicAffordanceOperationPath, m.onHttpAffordanceOperation)
+		httpbasic.HttpBasicAffordanceOperationPath, srv.onHttpAffordanceOperation)
 	protRoutes.HandleFunc(
-		httpbasic.HttpBasicThingOperationPath, m.onHttpThingOperation)
+		httpbasic.HttpBasicThingOperationPath, srv.onHttpThingOperation)
 
 }
 
@@ -51,8 +51,8 @@ func (m *HttpBasicServerImpl) createRoutes() {
 //
 //	base is the base path on which to serve the static files, eg: "/static"
 //	staticRoot is the root directory where static files are kept. This must be a full path.
-func (m *HttpBasicServerImpl) EnableStatic(base string, staticRoot string) error {
-	protRoutes := m.httpServer.GetProtectedRoute()
+func (srv *HttpBasicServerImpl) EnableStatic(base string, staticRoot string) error {
+	protRoutes := srv.httpServer.GetProtectedRoute()
 	if protRoutes == nil || base == "" {
 		return fmt.Errorf("no protected route or invalid parameters")
 	}
@@ -75,12 +75,12 @@ func (m *HttpBasicServerImpl) EnableStatic(base string, staticRoot string) error
 // onHttpAffordanceOperation converts the http request to a request message and pass it to the
 // registered request handler.
 // This read request params for {op}, {id} and {name}
-func (m *HttpBasicServerImpl) onHttpAffordanceOperation(w http.ResponseWriter, r *http.Request) {
+func (srv *HttpBasicServerImpl) onHttpAffordanceOperation(w http.ResponseWriter, r *http.Request) {
 	var output any
 	var handled bool
 
 	// 1. Decode the request message
-	rp, err := m.httpServer.GetRequestParams(r)
+	rp, err := srv.httpServer.GetRequestParams(r)
 	if err != nil {
 		slog.Error(err.Error())
 		w.WriteHeader(http.StatusUnauthorized)
@@ -107,7 +107,7 @@ func (m *HttpBasicServerImpl) onHttpAffordanceOperation(w http.ResponseWriter, r
 	// This passes the request to the request sink. The replyTo is
 	// expected to be called before the timeout, otherwise this returns an error.
 	rx := utils.NewAsyncReceiver[*msg.ResponseMessage]()
-	err = m.ForwardRequest(req, func(resp *msg.ResponseMessage) error {
+	err = srv.ForwardRequest(req, func(resp *msg.ResponseMessage) error {
 		rx.SetResponse(resp)
 		return nil
 	})
@@ -123,13 +123,13 @@ func (m *HttpBasicServerImpl) onHttpAffordanceOperation(w http.ResponseWriter, r
 }
 
 // onHttpThingOperation converts the http request to a request message and pass it to the registered request handler
-func (m *HttpBasicServerImpl) onHttpThingOperation(w http.ResponseWriter, r *http.Request) {
+func (srv *HttpBasicServerImpl) onHttpThingOperation(w http.ResponseWriter, r *http.Request) {
 	// same same
-	m.onHttpAffordanceOperation(w, r)
+	srv.onHttpAffordanceOperation(w, r)
 }
 
 // onHttpPing with http handler returns a pong response
-func (m *HttpBasicServerImpl) onHttpPing(w http.ResponseWriter, r *http.Request) {
+func (srv *HttpBasicServerImpl) onHttpPing(w http.ResponseWriter, r *http.Request) {
 	// simply return a pong message
 	utils.WriteReply(w, true, "pong", nil)
 }

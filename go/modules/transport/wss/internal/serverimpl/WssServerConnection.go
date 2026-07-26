@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
-	"time"
 
 	"github.com/gorilla/websocket"
 	"github.com/hiveot/hivekit/go/api"
@@ -20,18 +19,11 @@ type WSSMessage map[string]any
 // This implements the IConnection interface for sending messages to
 // devices, services or consumers.
 type WssServerConnection struct {
-	transport.ServerConnectionBase
+	// ServerConnectionBase handles the generic messaging part
+	*transport.ServerConnectionBase
 
 	// connection request remote address
 	httpReq *http.Request
-
-	// isConnected atomic.Bool
-
-	// track last used time to auto-close stale connections
-	lastActivity time.Time
-
-	// mutex for controlling writing and closing
-	// mux sync.RWMutex
 
 	// converter for request/response messages
 	encoder transport.IMessageEncoder
@@ -42,48 +34,8 @@ type WssServerConnection struct {
 	// reqHandler handles the requests received from the remote consumer
 	reqHandler msg.RequestHandler
 
-	// request-response channel
-	// rnrChan *msg.RnRChan
-
-	// how long to wait for a response after sending a request
-	// respTimeout time.Duration
-
 	// underlying websocket connection
 	wssConn *websocket.Conn
-}
-
-// _onMessage handles an incoming websocket message
-// The message is converted into a request, response or notification and passed
-// on to the registered handler.
-func (sc *WssServerConnection) _onMessage(raw []byte) {
-	sc.Mux.Lock()
-	sc.lastActivity = time.Now()
-	sc.Mux.Unlock()
-	var notif *msg.NotificationMessage
-	var req *msg.RequestMessage
-	var resp *msg.ResponseMessage
-
-	// the only way to know which message type it is is to decode it
-	notif, err := sc.encoder.DecodeNotification(raw)
-	if err == nil {
-		notif.SenderID = sc.GetClientID()
-		sc.OnNotification(notif, sc.notifHandler)
-		return
-	}
-	resp, err = sc.encoder.DecodeResponse(raw)
-	if err == nil {
-		// the response hadler is already provided with the request
-		resp.SenderID = sc.GetClientID()
-		sc.OnResponse(resp)
-		return
-	}
-	req, err = sc.encoder.DecodeRequest(raw)
-	if err == nil {
-		req.SenderID = sc.GetClientID()
-		sc.OnRequest(req, sc.reqHandler)
-		return
-	}
-	slog.Warn("onMessage: Message is not a notification, request or response")
 }
 
 // _sendRaw sends the seriaziled websocket message to the connected client
@@ -136,13 +88,16 @@ func (sc *WssServerConnection) ReadLoop(ctx context.Context, wssConn *websocket.
 			break
 		}
 		// process the message in the background to allow concurrent messages
-		go sc._onMessage(raw)
+		// all the logic is generic, so handled in the server base
+		go sc.OnRemoteMessage(raw)
 	}
 }
 
 // NewWSSServerConnection creates a new Websocket connection instance for use by
 // devices, services and consumers.
-// This implements the IConnection interface.
+//
+// This implements the IConnection interface. Use Close() to close the
+// connection from the server end.
 //
 // clientID is the consumer, device or service authenticated ID
 // r is the request used to establish this connection
@@ -157,10 +112,9 @@ func NewWSSServerConnection(
 	encoder transport.IMessageEncoder,
 	reqHandler msg.RequestHandler,
 	notifHandler msg.NotificationHandler,
-	// respTimeout time.Duration,
 ) *WssServerConnection {
 
-	cid := "WSS" + shortid.MustGenerate()
+	connectionID := "WSS" + shortid.MustGenerate()
 	if reqHandler == nil || notifHandler == nil {
 		panic("WSS incoming connection needs request and notification handlers.")
 	}
@@ -169,13 +123,14 @@ func NewWSSServerConnection(
 		wssConn:      wssConn,
 		encoder:      encoder,
 		httpReq:      r,
-		lastActivity: time.Time{},
-		// rnrChan:          msg.NewRnRChan(),
-		// respTimeout:      respTimeout,
 		reqHandler:   reqHandler,
 		notifHandler: notifHandler,
 	}
-	c.Init(clientID, r.URL.String(), cid, encoder, c._sendRaw)
+	remoteAddr := r.URL.String()
+	c.ServerConnectionBase = transport.NewServerConnectionBase(
+		clientID, remoteAddr, connectionID,
+		encoder, c._sendRaw, reqHandler, notifHandler,
+	)
 
 	var _ api.IConnection = c // interface check
 	return c

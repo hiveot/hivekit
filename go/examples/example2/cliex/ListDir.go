@@ -3,34 +3,30 @@ package cliex
 import (
 	"fmt"
 	"time"
-
-	"github.com/hiveot/hivekit/go/api/td"
 )
 
 // Show the content of a remote directory
+// if a TD is not found, discover it first
 // This first discovers the directory then attempts to read it.
-func (app *Cliex) ListDir() {
-	var tdoc *td.TD
+func (app *Cliex) ListDir(thingID string) {
 	var waitTime = time.Second
 
-	rec0, err := app.discoClient.DiscoverFirstDirectory("", waitTime)
-	if err != nil || rec0 == nil {
+	dirTD, rec0, err := app.discoClient.DiscoverFirstDirectoryTD(thingID, waitTime)
+	_ = rec0
+
+	if err != nil || dirTD == nil {
 		fmt.Println("ERROR ListDir: No directory discovered. Need a directory to list")
 		return
+	} else {
+		fmt.Printf("Found directory with thingID '%s'\n", dirTD.ID)
 	}
-	tddURL := rec0.AsURL()
-	tdoc, _, err = app.discoClient.LoadTD(tddURL)
+	// for now just show the first 100
+	app.dirClient.SetTDD(dirTD)
+	tdList, err := app.dirClient.RetrieveAllThings(0, 100)
 	if err != nil {
-		fmt.Printf(" Error reading TD: %s\n", err.Error())
-	}
-	if tdoc != nil {
-		// for now just show the first 100
-		tdList, err := app.dirClient.RetrieveAllThings(0, 100)
-		if err != nil {
-			fmt.Printf("ERROR: Read directory '%s' failed: %s", tdoc.ID, err.Error())
-		} else {
-			ListThings(tdList)
-		}
+		fmt.Printf("ERROR: Read directory '%s' failed: %s\n", dirTD.ID, err.Error())
+	} else {
+		ListThings(tdList)
 	}
 
 }

@@ -1,6 +1,7 @@
 package transporttests
 
 import (
+	"fmt"
 	"log/slog"
 	"os"
 	"testing"
@@ -20,7 +21,7 @@ import (
 const testDeviceID1 = "device1"
 const testClientID1 = "client1"
 
-var testProtocol = api.ProtocolTypeHiveotGrpc
+var testProtocol = api.ProtocolTypeHiveotSsesc
 
 var testProtocols = []string{
 	api.ProtocolTypeHiveotSsesc,
@@ -47,7 +48,7 @@ func TestConnectAllProtocols(t *testing.T) {
 
 // test create a server and connect a client
 func TestStartStop(t *testing.T) {
-	t.Logf("---%s %s---\n", t.Name(), testProtocol)
+	slog.Warn(fmt.Sprintf("---Test: %s %s---\n", t.Name(), testProtocol))
 
 	// testenv might still start the httpserver - fixme: use on-demand factory
 	testEnv, cancelFn := testenv.StartTestEnv(testProtocol, true)
@@ -68,7 +69,7 @@ func TestStartStop(t *testing.T) {
 
 // Run a ping test to verify a client-server connection using the test protocol
 func TestPing(t *testing.T) {
-	t.Logf("---%s %s---\n", t.Name(), testProtocol)
+	slog.Warn(fmt.Sprintf("---Test: %s %s---\n", t.Name(), testProtocol))
 
 	testEnv, cancelFn := testenv.StartTestEnv(testProtocol, true)
 	defer cancelFn()
@@ -82,7 +83,7 @@ func TestPing(t *testing.T) {
 
 // Run a ping test with client cert auth for the given test protocol
 func TestPingClientCert(t *testing.T) {
-	t.Logf("---%s %s---\n", t.Name(), testProtocol)
+	slog.Warn(fmt.Sprintf("---Test: %s %s---\n", t.Name(), testProtocol))
 
 	testEnv, cancelFn := testenv.StartTestEnv(testProtocol, true)
 	defer cancelFn()
@@ -92,8 +93,10 @@ func TestPingClientCert(t *testing.T) {
 
 	// NewConsumerClient creates a client
 	// create a connection to the test server
-	cl, err := clients.NewTransportClient(
-		testEnv.ServerProtocol, testEnv.ServerURL, testEnv.CertBundle.CaCert)
+	serverTD := testEnv.Server.GetTD()
+	// cl, err := clients.NewTransportClient(
+	// 	testEnv.ServerProtocol, testEnv.ServerURL, testEnv.CertBundle.CaCert)
+	cl, err := clients.NewTransportClientFromTD(serverTD, td.HTOpPing, "", testEnv.CertBundle.CaCert)
 	require.NoError(t, err)
 	cl.SetTimeout(time.Minute)
 	err = cl.AuthenticateWithClientCert(testEnv.CertBundle.ClientCert)
@@ -131,10 +134,19 @@ func TestPingClientCert(t *testing.T) {
 
 // Test getting server URL
 func TestServerURL(t *testing.T) {
-	t.Logf("---%s %s---\n", t.Name(), testProtocol)
+	slog.Warn(fmt.Sprintf("---Test: %s %s---\n", t.Name(), testProtocol))
 
 	testEnv, cancelFn := testenv.StartTestEnv(testProtocol, true)
 	defer cancelFn()
 	serverURL := testEnv.Server.GetConnectURL()
 	assert.NotEmpty(t, serverURL)
+}
+
+func TestServerTD(t *testing.T) {
+	slog.Warn(fmt.Sprintf("---Test: %s %s---\n", t.Name(), testProtocol))
+
+	testEnv, cancelFn := testenv.StartTestEnv(testProtocol, true)
+	defer cancelFn()
+	tdoc := testEnv.Server.GetTD()
+	assert.NotEmpty(t, tdoc)
 }

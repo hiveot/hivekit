@@ -68,25 +68,23 @@ type IDiscoveryClient interface {
 
 	// DiscoverDirectory returns the discovery record of the first discovered directory
 	//
-	//	instanceName is the optional name of a non-default service instance.
-	//   this defaults to WOT_DIRECTORY_SERVICE_TYPE (_directory._sub._wot._tcp)
+	//	instanceName is the optional name of a specific service instance.
 	//	maxWaitTime defaults to 3 seconds
 	//
 	//	This returns the record or nil if none was found within the search time.
 	//	This returns an error if it wasn't possible to run discovery.
-	DiscoverFirstDirectory(
-		instanceName string, maxWaitTime time.Duration) (rec0 *DiscoveryResult, err error)
+	DiscoverFirstDirectory(instanceName string, maxWaitTime time.Duration) (rec0 *DiscoveryResult, err error)
 
-	// DiscoverDirectoryTD returns the TD of the first discovered directory
-	// This uses the service type WOT_DIRECTORY_SERVICE_TYPE (_directory._sub._wot._tcp)
+	// DiscoverFirstDirectoryTD returns the TD of the first discovered directory
+	// This optional filters on thingID, not the dicovery record instanceName.
 	//
-	//	instanceName is an optional filter name of a specific directory instance, or "" for default.
+	//	thingID is an optional filter name of a specific directory thing, or "" for any.
 	//	maxWaitTime defaults to 3 seconds
 	//
 	//	This returns the TD, its JSON, if found
 	//	This returns an error if it wasn't possible to run discovery.
 	DiscoverFirstDirectoryTD(
-		instanceName string, maxWaitTime time.Duration) (tdoc *td.TD, tddJson string, err error)
+		thingID string, maxWaitTime time.Duration) (tdoc *td.TD, tddJson string, err error)
 
 	// DiscoverThings returns a list of all discovery records of all WoT compatible devices,
 	// including Things, Directories and Gateways.

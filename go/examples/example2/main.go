@@ -32,7 +32,7 @@ var ExampleHome = path.Join(os.TempDir(), "hivekit-examples")
 
 const (
 	CmdDiscover    = "discover"
-	CmdListDir     = "dir"
+	CmdListDir     = "ld"
 	CmdLogin       = "login"
 	CmdShowActions = "actions"
 	CmdShowTD      = "td"
@@ -43,6 +43,8 @@ const (
 var appConfig cliex.CliexConfig
 
 // Run the CLI app
+// This uses the 'ConsumerRecipe' for discovery, reading a directory and routing requests
+// to Things.
 func main() {
 
 	// flag.CommandLine.Init("CLI example", flag.ContinueOnError)
@@ -59,7 +61,7 @@ func main() {
 		fmt.Println("Commands:")
 		fmt.Printf("  %-10s                Discover WoT devices and directories\n", CmdDiscover)
 		// fmt.Printf("  %-10s thingID        Set login ID for the device\n", CmdLogin)
-		fmt.Printf("  %-10s thingID        List the content of a directory\n", CmdListDir)
+		fmt.Printf("  %-10s [thingID]      List the content of a directory with optional thingID\n", CmdListDir)
 		fmt.Printf("  %-10s thingID        Show the TD of a Thing\n", CmdShowTD)
 		fmt.Printf("  %-10s thingID        Show the current status of a Thing\n", CmdShowStatus)
 		fmt.Printf("  %-10s thingID        Subscribe to Thing events and property updates\n", CmdSubscribe)
@@ -109,8 +111,8 @@ func main() {
 	// the device thingID and falls back to the "" thingID.
 	authToken, _ := env.GetAuthToken()
 	rtr := api.GetFactoryModule[router.IRouterService](f, router.RouterModuleType)
-	rtr.AddDeviceCredential("", env.GetClientID(), authToken, td.SecSchemeBearer)
-	fmt.Printf("Using '%s' as login ID\n", env.GetClientID())
+	rtr.AddDeviceCredential("", env.ClientID, authToken, td.SecSchemeBearer)
+	fmt.Printf("Using '%s' as login ID\n", env.ClientID)
 
 	discoClient := api.GetFactoryModule[discovery.IDiscoveryClient](f, discovery.DiscoveryClientModuleType)
 	dirClient := api.GetFactoryModule[directory.IDirectoryClient](f, directory.DirectoryClientModuleType)
@@ -124,7 +126,9 @@ func main() {
 	case CmdDiscover:
 		app.ShowDiscovery()
 	case CmdListDir:
-		app.ListDir()
+		// optional directory thingID
+		thingID := getThingID()
+		app.ListDir(thingID)
 	case CmdShowActions:
 		thingID := getThingID()
 		actionName := ""

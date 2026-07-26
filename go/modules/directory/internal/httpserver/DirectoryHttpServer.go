@@ -21,10 +21,11 @@ const ThingIDURIVar = "thingID"
 // The http server endpoints follow the specification in:
 // https://w3c.github.io/wot-discovery/#exploration-directory-api
 type DirectoryHttpServer struct {
-	// transport.TransportServerBase
 	*modules.HiveModuleBase
 	httpServer       api.IHttpServer
 	directoryThingID string
+	// the TD describing this server
+	serverTD *td.TD
 }
 
 // AddTDSecForms updates the given Thing Description with security and forms for this
@@ -129,6 +130,11 @@ func (srv *DirectoryHttpServer) GetConnectionByClientID(clientID string) (c api.
 	return nil
 }
 
+// GetTD returns the server TD, containing connection and authentication information
+func (srv *DirectoryHttpServer) GetTD() *td.TD {
+	return srv.serverTD
+}
+
 // ITransportServer stub - not supported in uni-directional transports
 func (srv *DirectoryHttpServer) SendNotification(notif *msg.NotificationMessage) {
 }
@@ -145,17 +151,39 @@ func (srv *DirectoryHttpServer) SendResponse(
 	return fmt.Errorf("SendResposne: not supported")
 }
 
-// Start a new Directory HTTP handler and start listening on the given router
+// Register the directory endpoint with the http server
+func (srv *DirectoryHttpServer) Start() error {
+
+	protRoute := srv.httpServer.GetProtectedRoute()
+	// add secured routes
+	// protRoute.Get(directory.WellKnownWoTPath, srv.handleRetrieveTDD)
+
+	protRoute.Get("/things", srv.handleRetrieveAllThings)
+	thingPath := fmt.Sprintf("/things/{%s}", ThingIDURIVar)
+	protRoute.Post(thingPath, srv.handleCreateThing)
+	protRoute.Get(thingPath, srv.handleRetrieveThing)
+	protRoute.Put(thingPath, srv.handleUpdateThing)
+	protRoute.Delete(thingPath, srv.handleDeleteThing)
+
+	// create a TD describing this server along with its connection URL
+	// thingID := srv.GetThingID()
+	// FIXME whose TD to update? this server or the directory itself? both?
+	// srv.serverTD = td.NewTD(thingID, "Directory HTTP server", vocab.DeviceTypeService)
+	// srv.AddTDSecForms(srv.serverTD, false)
+	return nil
+}
+
+// Create a new Directory HTTP handler using the given router
 //
 // This panics if no http server is provided.
 //
-// This registers the HTTP API with the router and serves its TD on the
+// Call Start to register the HTTP API with the router and serves its TD on the
 // .well-known/wot endpoint as per discovery specification.
 //
 //	httpServer to register with
 //	respTimeout is the maximum time the server waits for a response when forwarding directory requests
 //	 to the directory server.
-func StartDirectoryHttpServer(httpServer api.IHttpServer, respTimeout time.Duration) *DirectoryHttpServer {
+func NewDirectoryHttpServer(httpServer api.IHttpServer, respTimeout time.Duration) *DirectoryHttpServer {
 
 	if httpServer == nil {
 		panic("NewDirectoryHttpServer: Missing http server")
@@ -166,16 +194,6 @@ func StartDirectoryHttpServer(httpServer api.IHttpServer, respTimeout time.Durat
 		httpServer:       httpServer,
 		directoryThingID: directory.DefaultDirectoryThingID,
 	}
-	protRoute := httpServer.GetProtectedRoute()
-	// add secured routes
-	// protRoute.Get(directory.WellKnownWoTPath, srv.handleRetrieveTDD)
-
-	protRoute.Get("/things", srv.handleRetrieveAllThings)
-	thingPath := fmt.Sprintf("/things/{%s}", ThingIDURIVar)
-	protRoute.Post(thingPath, srv.handleCreateThing)
-	protRoute.Get(thingPath, srv.handleRetrieveThing)
-	protRoute.Put(thingPath, srv.handleUpdateThing)
-	protRoute.Delete(thingPath, srv.handleDeleteThing)
 
 	var _ directory.IDirectoryHttpServer = srv
 	return srv

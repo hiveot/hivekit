@@ -8,6 +8,8 @@ import (
 
 	"github.com/hiveot/hivekit/go/api"
 	"github.com/hiveot/hivekit/go/api/msg"
+	"github.com/hiveot/hivekit/go/api/td"
+	"github.com/hiveot/hivekit/go/api/vocab"
 	"github.com/hiveot/hivekit/go/modules/transport"
 	"github.com/hiveot/hivekit/go/modules/transport/ssesc"
 	"github.com/teris-io/shortid"
@@ -25,46 +27,49 @@ type SseScServerImpl struct {
 	// SSE-Sc protocol message encoder
 	encoder transport.IMessageEncoder
 
-	// the RRN messaging receiver
-	// msgAPI *HiveotSseScMsgHandler
-
 	// actual server exposing routes
 	httpServer api.IHttpServer
-
-	// The connection address for subscription and URL to connect using SSE
-	// connectAddr string
-	// connectURL string
 
 	// waiting for response timeout (see rnr)
 	respTimeout time.Duration
 
 	// The SSE connection path
 	ssePath string
+
+	// serverTD is the TD describing how to connect to this server
+	serverTD *td.TD
 }
 
-func (m *SseScServerImpl) GetProtocolType() (string, string) {
+func (srv *SseScServerImpl) GetProtocolType() (string, string) {
 	return api.ProtocolTypeHiveotSsesc, api.SubprotocolHiveotSsesc
+}
+
+// GetTD returns the server TD, containing connection and authentication information
+func (srv *SseScServerImpl) GetTD() *td.TD {
+	return srv.serverTD
 }
 
 // Start readies the module for use.
 //
 // yamlConfig todo configure ssepath
-func (m *SseScServerImpl) Start() (err error) {
+func (srv *SseScServerImpl) Start() (err error) {
 
-	slog.Info("Start: Starting ssesc transport server", "ssePath", m.ssePath)
+	slog.Info("Start: Starting ssesc transport server", "ssePath", srv.ssePath)
 
 	// Add the routes used in SSE connection and subscription requests
-	m.CreateRoutes(m.ssePath, m.httpServer.GetProtectedRoute())
+	srv.CreateRoutes(srv.ssePath, srv.httpServer.GetProtectedRoute())
 
-	// The handler for messaging requests directed at this module
-	// m.msgAPI = NewHiveotSseMsgHandler(m)
+	// create a TD describing this server along with its connection URL
+	thingID := srv.GetThingID()
+	srv.serverTD = td.NewTD(thingID, "SSE-SC server", vocab.DeviceTypeService)
+	srv.AddTDSecForms(srv.serverTD, false)
 	return err
 }
 
 // Stop any running actions
-func (m *SseScServerImpl) Stop() {
+func (srv *SseScServerImpl) Stop() {
 	slog.Info("Stop: Stopping ssesc transport server")
-	m.CloseAll()
+	srv.CloseAll()
 }
 
 // Start a new HiveOT Http/SSE server using the given http server.

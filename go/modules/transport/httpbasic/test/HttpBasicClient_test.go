@@ -1,8 +1,7 @@
-package httpbasic_client_test
+package httpbasic_test
 
 import (
 	"crypto/x509"
-	"fmt"
 	"testing"
 	"time"
 
@@ -12,6 +11,7 @@ import (
 	httpbasic_server "github.com/hiveot/hivekit/go/modules/transport/httpbasic/server"
 	"github.com/hiveot/hivekit/go/modules/transport/tlsserver"
 	tls_server "github.com/hiveot/hivekit/go/modules/transport/tlsserver/server"
+	"github.com/hiveot/hivekit/go/testenv"
 	"github.com/hiveot/hivekit/go/utils"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -22,23 +22,26 @@ var testCerts = certstest.CreateTestCertBundle(utils.KeyTypeED25519)
 var rpcTimeout = time.Minute * 3 // for debugging
 
 func TestConnect(t *testing.T) {
-	baseURL := fmt.Sprintf("http://localhost:%d", serverPort)
 	clientID := "testclient"
 	var caCert *x509.Certificate
 	var token = ""
 
-	// dummyAuthenticator := authnapi.NewDummyAuthenticator()
+	// first start the server
+	testAuthenticator := testenv.NewTestAuthenticator()
 	cfg := tlsserver.NewTLSServerConfig(
 		"localhost", serverPort, testCerts.ServerCert, testCerts.CaCert, true)
-	srv := tls_server.NewTLSServer(cfg, nil)
+	srv := tls_server.NewTLSServer(cfg, testAuthenticator)
 	err := srv.Start()
+
 	require.NoError(t, err)
 	m := httpbasic_server.NewHttpBasicServer(srv)
-
 	err = m.Start()
+	// this could work if all servers have a TD
+	tdoc := m.GetTD()
 	require.NoError(t, err)
 
-	cl := httpbasic_client.NewHttpBasicClient(baseURL, caCert, nil)
+	// get the client
+	cl := httpbasic_client.NewHttpBasicClient(tdoc, caCert)
 	cl.SetTimeout(rpcTimeout)
 	err = cl.AuthenticateWithToken(clientID, token)
 	require.NoError(t, err)

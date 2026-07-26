@@ -9,21 +9,27 @@ import "github.com/hiveot/hivekit/go/api/msg"
 // to 'standard RRN'.
 type IMessageEncoder interface {
 	// Determine which message type is contained
-	// DetermineMessageType(raw []byte) string
+	// This returns an empty name if the message is invalid
+	DetermineMessageType(raw []byte) string
 
 	// DecodeNotification converts a protocol message to a hiveot notification message
 	// provide the serialized data to avoid multiple unmarshalls
+	//
+	// senderID sets the notification sender if known. Use "" client side.
 	// This returns an error if this isn't a notification.
-	DecodeNotification(raw []byte) (*msg.NotificationMessage, error)
+	DecodeNotification(senderID string, raw []byte) (*msg.NotificationMessage, error)
 
 	// DecodeRequest converts a protocol message to a hiveot request message
 	// provide the serialized data to avoid multiple unmarshalls
+	//
+	// senderID sets the request sender if known. Use "" client side.
 	// This returns an error if this isn't a request.
-	DecodeRequest(raw []byte) (*msg.RequestMessage, error)
+	DecodeRequest(senderID string, raw []byte) (*msg.RequestMessage, error)
 
 	// DecodeResponse converts a protocol message to a hiveot response message.
+	// senderID sets the response sender if known. Use "" client side.
 	// This returns an error if this isn't a response
-	DecodeResponse(raw []byte) (*msg.ResponseMessage, error)
+	DecodeResponse(senderID string, raw []byte) (*msg.ResponseMessage, error)
 
 	// EncodeNotification converts a hiveot NotificationMessage to a native serialized protocol message
 	// return an error if the message cannot be converted.

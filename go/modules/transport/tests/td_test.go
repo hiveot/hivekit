@@ -2,6 +2,8 @@ package transporttests
 
 import (
 	"errors"
+	"fmt"
+	"log/slog"
 	"testing"
 
 	"github.com/hiveot/hivekit/go/api/msg"
@@ -30,7 +32,7 @@ const DeviceTypeSensor = "hiveot:sensor"
 // Test consumer reads a TD from a device
 // the device runs a server and offers a 'td' property
 func TestReadTDFromDevice(t *testing.T) {
-	t.Logf("---%s---\n", t.Name())
+	slog.Warn(fmt.Sprintf("---Test: %s %s---\n", t.Name(), testProtocol))
 	var thingID = "thing1"
 	var deviceID = "device1"
 	var consumerID = "consumer1"
@@ -80,7 +82,7 @@ func TestReadTDFromDevice(t *testing.T) {
 
 // Test if forms are indeed added to a TD, describing the transport protocol binding operations
 func TestAddForms(t *testing.T) {
-	t.Logf("---%s---\n", t.Name())
+	slog.Warn(fmt.Sprintf("---Test: %s %s---\n", t.Name(), testProtocol))
 	var thingID = "thing1"
 
 	// handler of TDs on the server

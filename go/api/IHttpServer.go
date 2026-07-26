@@ -58,6 +58,7 @@ type RequestParams struct {
 type IHttpServer interface {
 	// GetAuthenticator returns the authenticator used to authenticate incoming connections
 	// Also used by sub-protocols to include security scheme in TD's
+	// This is required for all http servers.
 	GetAuthenticator() IAuthenticator
 
 	// Returns the connection URL of the http server

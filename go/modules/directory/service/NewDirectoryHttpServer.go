@@ -10,7 +10,7 @@ import (
 
 // Create a new instance
 func NewDirectoryHttpServer(httpServer api.IHttpServer, respTimeout time.Duration) directory.IDirectoryHttpServer {
-	m := internal.StartDirectoryHttpServer(httpServer, respTimeout)
+	m := internal.NewDirectoryHttpServer(httpServer, respTimeout)
 	return m
 }
 
@@ -22,6 +22,6 @@ func NewDirectoryHttpServerFactory(f api.IModuleFactory) api.IHiveModule {
 	rpcTimeout := f.GetEnvironment().RpcTimeout
 	httpServer, ok := f.GetModule(api.HttpServerModuleType).(api.IHttpServer)
 	_ = ok
-	m := internal.StartDirectoryHttpServer(httpServer, rpcTimeout)
+	m := internal.NewDirectoryHttpServer(httpServer, rpcTimeout)
 	return m
 }

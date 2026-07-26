@@ -41,7 +41,7 @@
             "cwd": "${workspaceFolder}/go/examples",
             "showLog": false,
             "env": {},
-            "args": ["-clientID", "admin", "actions", "counter1", "increment"],
+            "args": ["-home","~/bin/hiveot", "-clientID", "admin", "ld", "dtw:digitwin:ThingDirectory"],
             "logOutput": "rpc",
             // "console": "integratedTerminal",
         },

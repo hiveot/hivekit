@@ -67,61 +67,68 @@ type GrpcClientImpl struct {
 // 	cl._setConnectionStatus(newStatus, err)
 // }
 
-// _onClientMessage processes the incoming message received from the server.
+// _onGrpcClientMessage processes the incoming message received from the server.
 // This decodes the message into a request or response message and passes
 // it to the application handler.
-func (cl *GrpcClientImpl) _onClientMessage(raw []byte) {
-
+func (cl *GrpcClientImpl) _onGrpcClientMessage(raw []byte) {
+	var err error
 	if raw == nil {
-		slog.Error("_onClientMessage: raw data is nil")
+		slog.Error("_onGrpcClientMessage: raw data is nil")
 	}
-	// assume message is a notification (most likely)
-	notif, err := cl.encoder.DecodeNotification(raw)
-	if err == nil {
-		go func() {
-			cl.HiveModuleBase.HandleNotification(notif)
-		}()
-		return
+	msgType := cl.encoder.DetermineMessageType(raw)
+	switch msgType {
+	case msg.MessageTypeNotification:
+		var notif *msg.NotificationMessage
+		notif, err = cl.encoder.DecodeNotification("", raw)
+		if err == nil {
+			go func() {
+				cl.HiveModuleBase.HandleNotification(notif)
+			}()
+			return
+		}
+	case msg.MessageTypeRequest:
+		var req *msg.RequestMessage
+		req, err = cl.encoder.DecodeRequest("", raw)
+		if err == nil {
+			// client receives a request (device with reverse connection)
+			go func() {
+				// pass it on to the linked producer.
+				err = cl.ForwardRequest(req, func(resp *msg.ResponseMessage) error {
+					// return the response to the caller
+					err2 := cl.SendResponse(resp)
+					return err2
+				})
+				// an error means the request could not be delivered
+				if err != nil {
+					resp := req.CreateErrorResponse(err)
+					_ = cl.SendResponse(resp)
+				}
+			}()
+			return
+		}
+	case msg.MessageTypeResponse:
+		var resp *msg.ResponseMessage
+		resp, err = cl.encoder.DecodeResponse("", raw)
+		if err == nil {
+			// client consumer receives a response
+			go func() {
+				// pass it on to the waiting consumer
+				handled := cl.rnrChan.HandleResponse(resp, cl.GetTimeout())
+				if !handled {
+					slog.Error("_onGrpcClientMessage: received response but no matching request",
+						"correlationID", resp.CorrelationID,
+						"op", resp.Operation,
+						"name", resp.Name,
+						"clientID", cl.clientID,
+					)
+				}
+			}()
+			return
+		}
+	default:
+		err = fmt.Errorf("Unknown message type '%s'", msgType)
 	}
-	// assume message is request
-	req, err := cl.encoder.DecodeRequest(raw)
-	if err == nil {
-		// client receives a request (using reverse connection)
-		go func() {
-			// pass it on to the linked producer.
-			err = cl.ForwardRequest(req, func(resp *msg.ResponseMessage) error {
-				// return the response to the caller
-				err2 := cl.SendResponse(resp)
-				return err2
-			})
-			// an error means the request could not be delivered
-			if err != nil {
-				resp := req.CreateErrorResponse(err)
-				_ = cl.SendResponse(resp)
-			}
-		}()
-		return
-	}
-	// remaining option
-	resp, err := cl.encoder.DecodeResponse(raw)
-	if err == nil {
-		// client consumer receives a response
-		go func() {
-			// pass it on to the waiting consumer
-			handled := cl.rnrChan.HandleResponse(resp, cl.GetTimeout())
-			if !handled {
-				slog.Error("HandleWssMessage: received response but no matching request",
-					"correlationID", resp.CorrelationID,
-					"op", resp.Operation,
-					"name", resp.Name,
-					"clientID", cl.clientID,
-				)
-			}
-		}()
-		return
-	}
-
-	slog.Error("_onClientMessage: Failed to unmarshal message", "err", err.Error())
+	slog.Error("_onGrpcClientMessage: Failed to handle message", "err", err.Error())
 }
 
 // update the connection status and publish an notification if it differs from the last status
@@ -192,7 +199,7 @@ func (cl *GrpcClientImpl) AuthenticateWithClientCert(clientCert *tls.Certificate
 	// create the grpc client to use but do not connect yet
 	cl.grpcSvcClient = internal.NewGrpcServiceClient(
 		cl.connectURL, clientCert, cl.caCert, cl.GetTimeout(),
-		grpctransport.GrpcTransportServiceName, cl._onClientMessage)
+		grpctransport.GrpcTransportServiceName, cl._onGrpcClientMessage)
 
 	return err
 }
@@ -235,7 +242,7 @@ func (cl *GrpcClientImpl) AuthenticateWithToken(clientID string, token string) (
 	// create the grpc client to use but do not connect yet
 	cl.grpcSvcClient = internal.NewGrpcServiceClient(
 		cl.connectURL, cl.clientCert, cl.caCert, cl.GetTimeout(),
-		grpctransport.GrpcTransportServiceName, cl._onClientMessage)
+		grpctransport.GrpcTransportServiceName, cl._onGrpcClientMessage)
 
 	err = cl.grpcSvcClient.AuthenticateWithToken(clientID, token)
 	return err

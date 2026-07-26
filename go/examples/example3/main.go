@@ -46,8 +46,8 @@ func main() {
 	// the device thingID and falls back to the "" thingID.
 	authToken, _ := env.GetAuthToken()
 	rtr := api.GetFactoryModule[router.IRouterService](f, router.RouterModuleType)
-	rtr.AddDeviceCredential("", env.GetClientID(), authToken, td.SecSchemeBearer)
-	fmt.Printf("Using '%s' as login ID\n", env.GetClientID())
+	rtr.AddDeviceCredential("", env.ClientID, authToken, td.SecSchemeBearer)
+	fmt.Printf("Using '%s' as login ID\n", env.ClientID)
 
 	app := tuiapp.NewTuiApp(f)
 	app.SetRequestSink(r)

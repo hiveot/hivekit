@@ -140,23 +140,36 @@ func (cl *DiscoveryClientImpl) DiscoverFirstDirectory(
 // If no TDD is found this responds with an error.
 //
 // If multiple requests are send then each will update the directory TDD if found.
-// If a directory URL
 func (cl *DiscoveryClientImpl) DiscoverFirstDirectoryTD(
-	instanceName string, maxWaitTime time.Duration) (dirTD *td.TD, tddJson string, err error) {
-	var first *discovery.DiscoveryResult
+	thingID string, maxWaitTime time.Duration) (dirTD *td.TD, tddJSON string, err error) {
 
 	var dirURL string
-	first, err = cl.DiscoverFirstDirectory(instanceName, maxWaitTime)
+	// stop on the first matching result
+	_, err = cl.DiscoverDirectories(maxWaitTime, func(rec *discovery.DiscoveryResult) bool {
+		// keep looking until a matching TD is found
+		dirURL = rec.AsURL()
+		if dirURL == "" {
+			return false
+		}
+		recTD, recTddJSON, err := cl.LoadTD(dirURL)
+		if err != nil || recTD == nil {
+			return false
+		}
+		if thingID != "" && thingID != recTD.ID {
+			return false
+		}
+		// found a matching TD
+		dirTD = recTD
+		tddJSON = recTddJSON
+		return true
+	})
 
-	if first != nil {
-		dirURL = first.AsURL()
-	}
-	if dirURL == "" {
+	if dirTD == nil {
 		err = fmt.Errorf("No directory was discovered")
 	} else {
-		dirTD, tddJson, err = cl.LoadTD(dirURL)
+		err = nil
 	}
-	return dirTD, tddJson, err
+	return dirTD, tddJSON, err
 }
 
 // DiscoverThings returns discovery records of all wot Things that publish themselves on the network.
@@ -207,6 +220,10 @@ func (cl *DiscoveryClientImpl) DiscoverThingTDs(
 			dirTDs = append(dirTDs, tdoc)
 		} else {
 			deviceTDs = append(deviceTDs, tdoc)
+		}
+		// invoke the callback if a TD was successfully loaded
+		if tdoc != nil && cb != nil {
+			stop = cb(tdoc)
 		}
 		return stop
 	})

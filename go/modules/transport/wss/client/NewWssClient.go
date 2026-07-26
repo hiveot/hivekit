@@ -31,14 +31,14 @@ func NewHiveotWssClientFactory(f api.IModuleFactory, md *api.ModuleDefinition) (
 
 	env := f.GetEnvironment()
 	clientCert, _ := env.GetTLSCert()
-	wssURL := env.GetServerURL()
+	wssURL := env.ServerURL
 	m := NewHiveotWssClient(wssURL, env.CaCert)
 	m.SetTimeout(env.RpcTimeout)
 	if clientCert != nil {
 		err = m.AuthenticateWithClientCert(clientCert)
 	} else {
 		// if client certificate not available attempt auth token
-		clientID := env.GetClientID()
+		clientID := env.ClientID
 		authToken, _ := env.GetAuthToken()
 
 		if clientID != "" && authToken != "" {
@@ -80,7 +80,7 @@ func NewWotWssClientFactory(f api.IModuleFactory, md *api.ModuleDefinition) (api
 
 	env := f.GetEnvironment()
 	clientCert, _ := env.GetTLSCert()
-	serverURL := env.GetServerURL()
+	serverURL := env.ServerURL
 
 	m := NewWotWssClient(serverURL, env.CaCert)
 	m.SetTimeout(env.RpcTimeout)
@@ -89,7 +89,7 @@ func NewWotWssClientFactory(f api.IModuleFactory, md *api.ModuleDefinition) (api
 		err = m.AuthenticateWithClientCert(clientCert)
 	} else {
 		// must use token auth
-		clientID := env.GetClientID()
+		clientID := env.ClientID
 		authToken, _ := env.GetAuthToken()
 
 		if clientID != "" && authToken != "" {

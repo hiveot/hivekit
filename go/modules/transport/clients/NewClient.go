@@ -46,15 +46,16 @@ var SupportedClientProtocols = []string{
 //  3. if the operation has a subprotocol then use this as the protocol-type
 //
 //  4. if no subprotocol is provided in the operation then derive it from href
-func GetProtocolType(tdoc *td.TD, op string) (protocolType string, href string) {
+func GetProtocolType(tdoc *td.TD, op string, name string) (protocolType string, href string) {
 	subprotocol := ""
 	// 1. derive href  from base
 	if tdoc.Base != "" {
 		href = tdoc.Base
 	}
+	// if an operation is given then its form will provide an updated href and potentially a subprotocol
 	if op != "" {
 		// 2. if an op is provided determine href and subprotocol from the form
-		forms := tdoc.GetForms(op, "")
+		forms := tdoc.GetForms(op, name)
 		if len(forms) > 0 {
 			form := forms[0]
 			if href == "" {
@@ -62,7 +63,10 @@ func GetProtocolType(tdoc *td.TD, op string) (protocolType string, href string) 
 			}
 			subprotocol, _ = form.GetSubprotocol()
 		}
+	} else {
+		// no operation, so just need a connection. the scheme is
 	}
+
 	// 3. determine the protocol type from the subprotocol
 	switch subprotocol {
 	case api.SubprotocolHiveotSsesc:
@@ -109,7 +113,8 @@ func GetProtocolType(tdoc *td.TD, op string) (protocolType string, href string) 
 //	protocolType provides direct control of the client to create regardless of the URL.
 //	 If omitted, then it is derived from the serverURL scheme.
 //
-//	serverURL is the connection endpoint to connect to
+//	serverURL is the connection endpoint to connect to.
+//		note that without a TD, http-basic cannot be used.
 //
 //	caCert is the CA certificate to validate the server certificate.
 //
@@ -119,21 +124,6 @@ func GetProtocolType(tdoc *td.TD, op string) (protocolType string, href string) 
 func NewTransportClient(
 	protocolType string, serverURL string, caCert *x509.Certificate) (
 	cl api.ITransportClient, err error) {
-
-	// // 1. determine the connection address
-	// if serverURL == "" {
-	// 	// use the first hiveot instance to connect to
-	// 	discoClient := discoverypkg.NewDiscoveryClient()
-	// 	discoList, err := discoClient.DiscoverThings(discoserver.DefaultServiceName, timeout, nil)
-	// 	if err != nil || len(discoList) == 0 {
-	// 		return nil, fmt.Errorf("no server found")
-	// 	}
-	// 	// match protocolType
-	// 	serverURL = discoList[0].WSSEndpoint
-	// 	if serverURL == "" {
-	// 		serverURL = discoList[0].SSEEndpoint
-	// 	}
-	// }
 
 	parts, err := url.Parse(serverURL)
 	scheme := strings.ToLower(parts.Scheme)
@@ -145,14 +135,18 @@ func NewTransportClient(
 		switch scheme {
 		case api.ProtocolSchemeHiveotGrpc:
 			protocolType = api.ProtocolTypeHiveotGrpc
+		// hiveot sse doesn't need a TD as the protocol is self-descriptive
+		case api.ProtocolSchemeHiveotSseSc:
+			protocolType = api.ProtocolTypeHiveotSsesc
+
 		case api.ProtocolSchemeWotHttpBasic:
 			protocolType = api.ProtocolTypeWotHttpBasic
 		case api.ProtocolSchemeWotWebsocket:
 			protocolType = api.ProtocolTypeWotWebsocket
 		case api.ProtocolSchemeWotMqtt:
 			protocolType = api.ProtocolTypeWotMqtt
-		case api.ProtocolSchemeWotSse:
-			protocolType = api.ProtocolTypeWotSse
+		// case api.ProtocolSchemeWotSse:
+		// 	protocolType = api.ProtocolTypeWotSse
 		default:
 			protocolType = scheme
 		}
@@ -176,42 +170,81 @@ func NewTransportClient(
 		cl = wss_client.NewWotWssClient(serverURL, caCert)
 
 	case api.ProtocolTypeWotHttpBasic:
-		caCert := caCert
-		cl = httpbasic_client.NewHttpBasicClient(serverURL, caCert, nil)
+		// without a TD http-basic cannot be used
+		err = fmt.Errorf("NewTransportClient. Cannot use URL '%s'. Http-basic requires a TD ", serverURL)
+		// cl = httpbasic_client.NewHttpBasicClient(serverURL, caCert, tdoc)
 
 	//case api.ProtocolTypeWotMQTTWSS:
 	//	fullURL = testServerMqttWssURL
 	default:
-		err = fmt.Errorf("NewTransportClient. Unknown protocol '%s'", scheme)
+		err = fmt.Errorf("NewTransportClient. Unsupported URL scheme '%s'", scheme)
 	}
 	return cl, err
 }
 
-// NewTransportClientFromTD returns a new client module instance ready to connect to a
-// thing.
+// NewTransportClientFromForm returns a new client module instance needed to invoke
+// the operation in the form.
 //
-// This uses the TD base to determine the connection protocol.
+// This uses the TD, op and name to determine the connection protocol.
+//
+// If name is empty then op should be a thing level operation
+// If op is empty then this uses the TD 'base' as the connection URL
 func NewTransportClientFromTD(
-	tdoc *td.TD, caCert *x509.Certificate) (cl api.ITransportClient, err error) {
+	tdoc *td.TD, op string, name string, caCert *x509.Certificate) (cl api.ITransportClient, err error) {
 
-	protocolType, href := GetProtocolType(tdoc, "")
-	cl, err = NewTransportClient(protocolType, href, caCert)
+	protocolType, href := GetProtocolType(tdoc, op, name)
+
+	switch protocolType {
+	case api.ProtocolTypeHiveotGrpc:
+		// don't use TLS on unix domain sockets
+		// if strings.HasPrefix(serverURL, "unix") {
+		// 	caCert = nil
+		// }
+		cl = grpc_client.NewHiveotGrpcClient(href, caCert)
+
+	case api.ProtocolTypeHiveotSsesc:
+		cl = ssesc_client.NewSseScClient(href, caCert)
+
+	case api.ProtocolTypeHiveotWebsocket:
+		cl = wss_client.NewHiveotWssClient(href, caCert)
+
+	case api.ProtocolTypeWotWebsocket:
+		cl = wss_client.NewWotWssClient(href, caCert)
+
+	case api.ProtocolTypeWotHttpBasic:
+		caCert := caCert
+		cl = httpbasic_client.NewHttpBasicClient(tdoc, caCert)
+
+	//case api.ProtocolTypeWotMQTTWSS:
+	//	fullURL = testServerMqttWssURL
+	default:
+		err = fmt.Errorf("NewTransportClient. Unknown or missing protocol type '%s' for href '%s'",
+			protocolType, href)
+	}
 	return cl, err
 }
 
-// Create a new client instance using the information from the application
-// environment, in particular the ServerURL.
-// This uses the factory serverURL or server TD to determine which protocol to instantiate
+// Create a new client instance using the factory app environment.
+//
+// This requires the app environment server TD. This can be provided manually or through client discovery.
+// If no Server TD is set in the app environment, try the server URL as fallback.
+//
+// Intended for RC and consumer recipes that connect to a gateway, or a consumer of a single device
+// without using a directory.
 func NewTransportClientFactory(
 	f api.IModuleFactory, md *api.ModuleDefinition) (cl api.IHiveModule, err error) {
 
+	env := f.GetEnvironment()
+
 	// the server url is set through commandline, or useing a discovery client
-	serverURL := f.GetEnvironment().ServerURL
-	if serverURL != "" {
-		cl, err = NewTransportClient("", serverURL, f.GetEnvironment().CaCert)
+	if env.ServerTD != nil {
+		// there is no op or name to use so this requires the TD to have a 'base' URL
+		cl, err = NewTransportClientFromTD(env.ServerTD, "", "", env.CaCert)
+	} else if env.ServerURL != "" {
+		cl, err = NewTransportClient("", env.ServerURL, env.CaCert)
 	} else {
 		// TODO: use discovered server TD
-		err = fmt.Errorf("unknown protocol or missing server URL '%s'", serverURL)
+		err = fmt.Errorf("NewTransportClientFactory: no server TD or URL is available")
 	}
 	return cl, err
 }

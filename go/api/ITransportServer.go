@@ -93,6 +93,12 @@ type ITransportServer interface {
 	// GetConnectURL returns connection URL of the server
 	GetConnectURL() (uri string)
 
+	// Return the server's TD.
+	// This TD describes the server itself and provides a base URL for its connection
+	// Primarily intended for testing. In most cases a server is run together with a
+	// device module whose TD is updated with forms from the server.
+	GetTD() *td.TD
+
 	// HandleNotification sends the notification to subscribed clients using SendNotification.
 	// The remote clients are the notification sink from the server perspective.
 	//

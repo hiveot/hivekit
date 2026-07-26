@@ -19,6 +19,7 @@ const AppSlotType = "appSlot"
 var RCDeviceChain = []api.ModuleDefinition{
 	{
 		// discover the server running the directory
+		// this sets the factory serverTD
 		Type:        discovery.DiscoveryClientModuleType,
 		Constructor: discovery_client.NewDiscoveryClientFactory,
 	},
@@ -29,7 +30,7 @@ var RCDeviceChain = []api.ModuleDefinition{
 	},
 	{
 		// connect a new client to the discovered server
-		// the server URL is set by discovery.
+		// the server TD is set by discovery. (work in progress)
 		Type:        clients.TransportClientModuleType,
 		Constructor: clients.NewTransportClientFactory,
 	},

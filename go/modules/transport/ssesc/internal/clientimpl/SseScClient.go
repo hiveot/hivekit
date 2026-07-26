@@ -270,14 +270,14 @@ func (cl *SseScClientImpl) handleSseEvent(event gosse.Event) {
 	// Use the hiveot message envelopes for request, response and notification
 	switch event.Type {
 	case msg.MessageTypeNotification:
-		notif, err := cl.encoder.DecodeNotification([]byte(event.Data))
+		notif, err := cl.encoder.DecodeNotification("", []byte(event.Data))
 		if err != nil {
 			return
 		}
 		go cl.ForwardNotification(notif)
 	case msg.MessageTypeRequest:
 		var err error
-		req, err := cl.encoder.DecodeRequest([]byte(event.Data))
+		req, err := cl.encoder.DecodeRequest("", []byte(event.Data))
 		if err != nil {
 			return
 		}
@@ -295,7 +295,7 @@ func (cl *SseScClientImpl) handleSseEvent(event gosse.Event) {
 		}
 
 	case msg.MessageTypeResponse:
-		resp, err := cl.encoder.DecodeResponse([]byte(event.Data))
+		resp, err := cl.encoder.DecodeResponse("", []byte(event.Data))
 		if err != nil {
 			slog.Info("handleSseEvent: Received SSE Event but decoder returns nil", "data", string(event.Data))
 			return

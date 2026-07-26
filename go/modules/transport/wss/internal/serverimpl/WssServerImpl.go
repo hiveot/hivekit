@@ -10,6 +10,8 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/hiveot/hivekit/go/api"
 	"github.com/hiveot/hivekit/go/api/msg"
+	"github.com/hiveot/hivekit/go/api/td"
+	"github.com/hiveot/hivekit/go/api/vocab"
 	"github.com/hiveot/hivekit/go/modules/transport"
 	"github.com/hiveot/hivekit/go/modules/transport/wss"
 	"github.com/hiveot/hivekit/go/modules/transport/wss/internal"
@@ -31,11 +33,19 @@ type WssServerImpl struct {
 	// the time to wait for responses to request
 	respTimeout time.Duration
 
+	// serverTD is the TD describing how to connect to this server
+	serverTD *td.TD
+
 	// WoT or Hiveot subprotocol
 	subprotocol string
 
 	// listening path for incoming connections
 	wssPath string
+}
+
+// GetTD returns the server TD, containing connection and authentication information
+func (srv *WssServerImpl) GetTD() *td.TD {
+	return srv.serverTD
 }
 
 // ServeWssConnection serves a new websocket connection.
@@ -46,14 +56,14 @@ type WssServerImpl struct {
 //
 // serverRequestHandler and serverResponseHandler are used as handlers for incoming
 // messages.
-func (m *WssServerImpl) ServeWssConnection(w http.ResponseWriter, r *http.Request) {
+func (srv *WssServerImpl) ServeWssConnection(w http.ResponseWriter, r *http.Request) {
 	//An active session is required before accepting the request. This is created on
 	//authentication/login. Until then connections are blocked.
 	// rp, err := m.httpServer.GetRequestParams(r)
 	// if err != nil {
 	// net.WriteError(w, err, 0)
 	// }
-	clientID, err := m.httpServer.GetClientIdFromContext(r)
+	clientID, err := srv.httpServer.GetClientIdFromContext(r)
 	if err != nil {
 		utils.WriteError(w, err, 0)
 	}
@@ -79,11 +89,11 @@ func (m *WssServerImpl) ServeWssConnection(w http.ResponseWriter, r *http.Reques
 	}
 
 	// the new server connection sends messages to the module sink
-	c := NewWSSServerConnection(clientID, r, wssConn, m.encoder,
-		m.ForwardRequest, m.ForwardNotification)
-	c.SetTimeout(m.respTimeout)
+	c := NewWSSServerConnection(clientID, r, wssConn, srv.encoder,
+		srv.ForwardRequest, srv.ForwardNotification)
+	c.SetTimeout(srv.respTimeout)
 	// add connection sends a notification
-	err = m.AddConnection(c)
+	err = srv.AddConnection(c)
 
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusUnauthorized)
@@ -97,7 +107,7 @@ func (m *WssServerImpl) ServeWssConnection(w http.ResponseWriter, r *http.Reques
 
 	_ = err
 	// finally cleanup the connection
-	m.RemoveConnection(c)
+	srv.RemoveConnection(c)
 	// if m.connectHandler != nil {
 	// m.connectHandler(false, c, nil)
 	// }
@@ -106,23 +116,28 @@ func (m *WssServerImpl) ServeWssConnection(w http.ResponseWriter, r *http.Reques
 // Start listening for incoming websocket connections
 //
 //	yamlConfig: todo, wssPath
-func (m *WssServerImpl) Start() (err error) {
+func (srv *WssServerImpl) Start() (err error) {
 
-	connectURL := m.httpServer.GetConnectURL()
+	connectURL := srv.httpServer.GetConnectURL()
 	slog.Info("Start: Starting websocket transport server, Listening on: " + connectURL)
 
 	// create routes
-	router := m.httpServer.GetProtectedRoute()
-	router.Get(m.wssPath, m.ServeWssConnection)
-	return nil
+	router := srv.httpServer.GetProtectedRoute()
+	router.Get(srv.wssPath, srv.ServeWssConnection)
+
+	// create a TD describing this server along with its connection URL
+	thingID := srv.GetThingID()
+	srv.serverTD = td.NewTD(thingID, srv.subprotocol+" Websocket server", vocab.DeviceTypeService)
+	srv.AddTDSecForms(srv.serverTD, false)
+	return err
 }
 
 // Stop disconnects clients and remove connection listening
-func (m *WssServerImpl) Stop() {
+func (srv *WssServerImpl) Stop() {
 	slog.Info("Stop: Stopping websocket transport server")
-	m.CloseAll()
-	router := m.httpServer.GetProtectedRoute()
-	router.Delete(m.wssPath, m.ServeWssConnection)
+	srv.CloseAll()
+	router := srv.httpServer.GetProtectedRoute()
+	router.Delete(srv.wssPath, srv.ServeWssConnection)
 }
 
 // NewHiveotWssTransportServer creates a websocket server module using serving HiveOT websocket

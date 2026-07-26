@@ -31,7 +31,7 @@ func NewHiveotGrpcClientFactory(
 
 	env := f.GetEnvironment()
 	clientCert, _ := env.GetTLSCert()
-	serverURL := env.GetServerURL()
+	serverURL := env.ServerURL
 
 	m := NewHiveotGrpcClient(serverURL, env.CaCert)
 	m.SetTimeout(env.RpcTimeout)
@@ -39,7 +39,7 @@ func NewHiveotGrpcClientFactory(
 	// if client certificate not available attempt auth token
 	if clientCert == nil {
 		// must use token auth
-		clientID := env.GetClientID()
+		clientID := env.ClientID
 		authToken, err := env.GetAuthToken()
 
 		if err == nil && clientID != "" && authToken != "" {

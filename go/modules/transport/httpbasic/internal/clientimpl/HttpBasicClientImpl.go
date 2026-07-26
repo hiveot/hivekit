@@ -46,9 +46,8 @@ type HttpBasicClientImpl struct {
 	// callback when connection changes
 	connectHandler func(newStatus api.ConnectionStatus, c api.ITransportClient)
 
-	// getForm obtains the form for sending a request or notification
-	// if nil, then the hiveot protocol envelope and URL are used as fallback
-	getForm api.GetFormHandler
+	// The TD used to get the http URL for operations
+	tdoc *td.TD
 
 	// protected operations
 	mux sync.RWMutex
@@ -179,18 +178,18 @@ func (cl *HttpBasicClientImpl) GetConnectionStatus() api.ConnectionStatus {
 
 // GetDefaultForm return the default http form for the operation
 // This simply returns nil for anything else than login, logout, ping or refresh.
-func (cl *HttpBasicClientImpl) GetDefaultForm(op, thingID, name string) (f *td.Form, href string) {
-	// login has its own URL as it is unauthenticated
-	if op == td.HTOpPing {
-		base := cl.tlsClient.GetHostPort()
-		href = fmt.Sprintf("https://%s%s", base, api.DefaultPingPath)
-		nf := td.NewForm(op, href)
-		nf.SetMethodName(http.MethodGet)
-		f = &nf
-	}
-	// everything else has no default form, so falls back to hiveot protocol endpoints
-	return f, href
-}
+// func (cl *HttpBasicClientImpl) GetDefaultForm(op, thingID, name string) (f *td.Form, href string) {
+// 	// login has its own URL as it is unauthenticated
+// 	if op == td.HTOpPing {
+// 		base := cl.tlsClient.GetHostPort()
+// 		href = fmt.Sprintf("https://%s%s", base, api.DefaultPingPath)
+// 		nf := td.NewForm(op, href)
+// 		nf.SetMethodName(http.MethodGet)
+// 		f = &nf
+// 	}
+// 	// everything else has no default form, so falls back to hiveot protocol endpoints
+// 	return f, href
+// }
 
 // Return the TLS client used by this connection
 func (cl *HttpBasicClientImpl) GetTlsClient() tlsclient.ITLSClient {
@@ -246,6 +245,7 @@ func (cl *HttpBasicClientImpl) SendRequest(
 	var inputJSON string
 	var method string
 	var href string
+	var form *td.Form
 	var thingID = req.ThingID
 	var name = req.Name
 
@@ -255,16 +255,16 @@ func (cl *HttpBasicClientImpl) SendRequest(
 		return err
 	}
 
-	// the getForm callback provides the method and URL to invoke for this operation.
+	// the getTD callback provides the method and URL to invoke for this operation.
 	// use the hiveot fallback if not available
-	// If a form is provided and it doesn't use the hiveot subprotocol then fall
-	// back to invoking using http basic using the form href.
-	f, href := cl.getForm(req.Operation, req.ThingID, req.Name)
-	if f != nil {
-		method, _ = f.GetMethodName()
+	// If the TD has no matching form then fall back to default well-known http basic href.
+	if cl.tdoc != nil {
+		form = cl.tdoc.GetForm(req.Operation, req.Name, api.ProtocolTypeWotHttpBasic)
 	}
-
-	if f == nil {
+	if form != nil {
+		href = form.GetHRef()
+		method, _ = form.GetMethodName()
+	} else {
 		// fall back to the 'well known' hiveot request URL using uri variables
 		// eg: /things/{op}/{id}/{name} or /hiveot/request
 		method = http.MethodPost
@@ -424,21 +424,20 @@ func (cl *HttpBasicClientImpl) Stop() {
 }
 
 // NewHttpBasicClientImpl creates a new instance of the WoT compatible http-basic
-// protocol binding client.
+// protocol binding client for use with the given TD.
 //
 // Users must use AuthenticateWithToken to authenticate and connect.
 //
 // This uses TD forms to perform an operation.
 //
-//	baseURL of the http server. Used as the base for all further requests.
+//	tdoc is the TD to use for operations.
 //	caCert of the server to validate the server or nil to not check the server cert
-//	getForm is the handler for return a form for invoking an operation. nil for default
-//	ch optional callback with connection status changes
-func NewHttpBasicClientImpl(
-	baseURL string, caCert *x509.Certificate, getForm api.GetFormHandler) *HttpBasicClientImpl {
+func NewHttpBasicClientImpl(tdoc *td.TD, caCert *x509.Certificate) *HttpBasicClientImpl {
 
 	timeout := tlsclient.DefaultClientTimeout
-	urlParts, err := url.Parse(baseURL)
+	// FIXME: TD spec says base is optional and can vary per operation
+	//
+	urlParts, err := url.Parse(tdoc.Base)
 	if err != nil {
 		slog.Error("Invalid URL")
 		return nil
@@ -446,28 +445,25 @@ func NewHttpBasicClientImpl(
 	hostPort := urlParts.Host
 
 	tlsClient := tls_client.NewTLSClient(hostPort, caCert, timeout)
-	cl := NewHttpBasicTLSClientImpl(tlsClient, getForm)
+	cl := NewHttpBasicTLSClientImpl(tdoc, tlsClient)
 
 	return cl
 }
 
 // NewHttpBasicTlsClient creates a new instance of the WoT compatible http-basic
-// protocol binding client using the given TLS client.
+// protocol binding client using the given configured TLS client.
 //
 //	tlsClient used for the server connection
-//	getForm is the handler for return a form for invoking an operation. nil for default
+//	getTD is the handler providing the TD for invoking an operation.
 func NewHttpBasicTLSClientImpl(
-	tlsClient tlsclient.ITLSClient, getForm api.GetFormHandler) *HttpBasicClientImpl {
+	tdoc *td.TD, tlsClient tlsclient.ITLSClient) *HttpBasicClientImpl {
 
 	thingID := httpbasic.HttpBasicClientModuleType + shortid.MustGenerate()
 	cl := &HttpBasicClientImpl{
 		HiveModuleBase: modules.NewHiveModuleBase(thingID, 0),
-		getForm:        getForm,
+		tdoc:           tdoc,
 		timeout:        tlsclient.DefaultClientTimeout,
 		tlsClient:      tlsClient,
-	}
-	if cl.getForm == nil {
-		cl.getForm = cl.GetDefaultForm
 	}
 	var _ api.IConnection = cl // interface check
 	var _ api.IHiveModule = cl // interface check

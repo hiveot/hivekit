@@ -25,6 +25,11 @@ type TestTransport struct {
 func (srv *TestTransport) AddTDSecForms(tdi *td.TD, includeAffordances bool) {
 }
 
+// GetTD returns the server TD, containing connection and authentication information
+func (srv *TestTransport) GetTD() *td.TD {
+	return nil
+}
+
 // Receive a notification from the sink and sends it to the client.
 func (m *TestTransport) HandleNotification(notif *msg.NotificationMessage) {
 	m.SendNotification(notif)

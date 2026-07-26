@@ -6,8 +6,6 @@ import (
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
-	"github.com/hiveot/hivekit/go/api/msg"
-	"github.com/hiveot/hivekit/go/api/td"
 	"github.com/hiveot/hivekit/go/modules/transport/ssesc"
 	"github.com/hiveot/hivekit/go/utils"
 )
@@ -21,49 +19,48 @@ import (
 
 // CreateRoutes add the routes used in SSE-SC sub-protocol
 // This is simple, one endpoint to connect, and one to pass requests, using URI variables
-func (m *SseScServerImpl) CreateRoutes(ssePath string, r chi.Router) {
+func (srv *SseScServerImpl) CreateRoutes(ssePath string, r chi.Router) {
 	if r == nil {
 		slog.Error("HiveotSseModule CreateRoutes: missing router")
 		return
 	}
 	// SSE connection endpoint
-	r.Get(ssePath, m.onSseConnection)
-	r.Post(ssesc.PostSseScNotificationPath, m.onHttpNotificationMessage)
-	r.Post(ssesc.PostSseScRequestPath, m.onHttpRequestMessage)
-	r.Post(ssesc.PostSseScResponsePath, m.onHttpResponseMessage)
+	r.Get(ssePath, srv.onSseConnection)
+	r.Post(ssesc.PostSseScNotificationPath, srv.onHttpNotificationMessage)
+	r.Post(ssesc.PostSseScRequestPath, srv.onHttpRequestMessage)
+	r.Post(ssesc.PostSseScResponsePath, srv.onHttpResponseMessage)
 }
 
 // DeleteRoutes removes the routes used in SSE-SC sub-protocol
-func (m *SseScServerImpl) DeleteRoutes(ssePath string, r chi.Router) {
-	r.Delete(ssePath, m.onSseConnection)
-	r.Delete(ssesc.PostSseScNotificationPath, m.onHttpNotificationMessage)
-	r.Delete(ssesc.PostSseScRequestPath, m.onHttpRequestMessage)
-	r.Delete(ssesc.PostSseScResponsePath, m.onHttpResponseMessage)
+func (srv *SseScServerImpl) DeleteRoutes(ssePath string, r chi.Router) {
+	r.Delete(ssePath, srv.onSseConnection)
+	r.Delete(ssesc.PostSseScNotificationPath, srv.onHttpNotificationMessage)
+	r.Delete(ssesc.PostSseScRequestPath, srv.onHttpRequestMessage)
+	r.Delete(ssesc.PostSseScResponsePath, srv.onHttpResponseMessage)
 }
 
 // onNotificationMessage handles responses sent by Things.
 //
 // The notification is decoded into a standard notification message and passed on
 // to the registered sink.
-func (m *SseScServerImpl) onHttpNotificationMessage(w http.ResponseWriter, r *http.Request) {
+func (srv *SseScServerImpl) onHttpNotificationMessage(w http.ResponseWriter, r *http.Request) {
 
 	// 1. Decode the message
-	rp, err := m.httpServer.GetRequestParams(r)
+	rp, err := srv.httpServer.GetRequestParams(r)
 	if err != nil {
 		utils.WriteError(w, err, 0)
 		return
 	}
 	// the converter translates the payload to a NotificationMessage
-	notif, err := m.encoder.DecodeNotification(rp.Payload)
+	notif, err := srv.encoder.DecodeNotification(rp.ClientID, rp.Payload)
 	if notif == nil || notif.AffordanceType == "" {
 		err = fmt.Errorf("onHttpNotificationMessage: missing notification in payload")
 		utils.WriteError(w, err, 0)
 		return
 	}
-	notif.SenderID = rp.ClientID
 
 	// pass the notification to the sinks
-	m.ForwardNotification(notif)
+	srv.ForwardNotification(notif)
 
 	utils.WriteReply(w, true, nil, nil)
 }
@@ -80,17 +77,17 @@ func (m *SseScServerImpl) onHttpNotificationMessage(w http.ResponseWriter, r *ht
 //
 // Note that in case of invokeaction, the response should be an ActionStatus object.
 // The handler can easily create this using req.CreateActionResponse().
-func (m *SseScServerImpl) onHttpRequestMessage(w http.ResponseWriter, r *http.Request) {
-	var resp *msg.ResponseMessage
+func (srv *SseScServerImpl) onHttpRequestMessage(w http.ResponseWriter, r *http.Request) {
 
 	// 1. Decode the request message
-	rp, err := m.httpServer.GetRequestParams(r)
+	rp, err := srv.httpServer.GetRequestParams(r)
 	if err != nil {
 		slog.Error(err.Error())
 		w.WriteHeader(http.StatusUnauthorized)
 		return
 	}
-	req, err := m.encoder.DecodeRequest(rp.Payload)
+
+	req, err := srv.encoder.DecodeRequest(rp.ClientID, rp.Payload)
 	if err != nil || req.Operation == "" {
 		err = fmt.Errorf("HandleRequestMessage: missing or invalid request")
 		slog.Error(err.Error())
@@ -101,14 +98,13 @@ func (m *SseScServerImpl) onHttpRequestMessage(w http.ResponseWriter, r *http.Re
 	slog.Info("onHttpRequestMessage", "sender", rp.ClientID, "op", req.Operation)
 
 	// The authenticated clientID and the cid header are required.
-	req.SenderID = rp.ClientID
 	if rp.ClientID == "" || rp.ConnectionID == "" {
 		err = fmt.Errorf("onHttpRequestMessage: missing clientID or connectionID (cid)")
 		utils.WriteError(w, err, http.StatusBadRequest)
 		return
 	}
 	// 2. locate the SSE connection that handles the response.
-	c := m.GetConnectionByConnectionID(rp.ClientID, rp.ConnectionID)
+	c := srv.GetConnectionByConnectionID(rp.ClientID, rp.ConnectionID)
 	if c == nil {
 		slog.Error("onHttpRequestMessage. No SSE connection for response.",
 			"clientID", rp.ClientID, "connectionID", rp.ConnectionID,
@@ -118,26 +114,10 @@ func (m *SseScServerImpl) onHttpRequestMessage(w http.ResponseWriter, r *http.Re
 		return
 	}
 
-	// 3. handle ping operation internally
-	if req.Operation == td.HTOpPing {
-		// ping responds immediately via SSE
-		resp = req.CreateResponse("pong", nil)
-		//
-		err = c.SendResponse(resp)
-		// debugger bug not stopping on WriteReply when at the bottom?
-	} else {
-		// server connection handles subscriptions so forward it
-		sc, _ := c.(*ServerConnection)
-		handled, _ := sc.onRequestMessage(req)
+	// 3. handle requests. Forward unhandled requests to the server sink.
+	sc, _ := c.(*SseScServerConnection)
+	sc.OnRequest(req, srv.ForwardRequest)
 
-		// if the connection doesnt handle the request then forward it to the
-		// registered request sink, a producer running on the server.
-		if !handled {
-			err = m.ForwardRequest(req, c.SendResponse)
-		} else {
-
-		}
-	}
 	// 4. The response is sent via SSE, just confirm the request is processed
 	utils.WriteReply(w, false, nil, err)
 }
@@ -154,16 +134,16 @@ func (m *SseScServerImpl) onHttpRequestMessage(w http.ResponseWriter, r *http.Re
 // forwards to subscriber (which is the server again, or a consumer)
 //
 // The message body is unmarshalled and included as the response.
-func (m *SseScServerImpl) onHttpResponseMessage(w http.ResponseWriter, r *http.Request) {
+func (srv *SseScServerImpl) onHttpResponseMessage(w http.ResponseWriter, r *http.Request) {
 
 	// 1. Decode the request message
-	rp, err := m.httpServer.GetRequestParams(r)
+	rp, err := srv.httpServer.GetRequestParams(r)
 	if err != nil {
 		slog.Error(err.Error())
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
-	resp, err := m.encoder.DecodeResponse(rp.Payload)
+	resp, err := srv.encoder.DecodeResponse(rp.ClientID, rp.Payload)
 	if err != nil || resp.Operation == "" {
 		err = fmt.Errorf("HandleResponseMessage: invalid or missing response in payload")
 		slog.Error(err.Error())
@@ -171,19 +151,16 @@ func (m *SseScServerImpl) onHttpResponseMessage(w http.ResponseWriter, r *http.R
 		return
 	}
 	// pass the response to the sinks
-	resp.SenderID = rp.ClientID
 
+	// FIXME: the response should be passed to the connection, the server doesn't need an rnr
 	// If a request was sent to the client (via SSE) with a callback then an RNR channel was
 	// opened waiting for the response.
-	handled := m.RnrChan.HandleResponse(resp, 0)
-	if !handled {
-		err := fmt.Errorf("onResponse: No response handler for request, response is lost")
-		slog.Warn("onResponse: No response handler for request, response is lost",
-			"correlationID", resp.CorrelationID,
-			"op", resp.Operation,
-			"thingID", resp.ThingID,
-			"name", resp.Name)
+	c := srv.GetConnectionByConnectionID(rp.ClientID, rp.ConnectionID).(*SseScServerConnection)
+	err = c.OnResponse(resp)
 
+	///---
+	// handled := srv.RnrChan.HandleResponse(resp, 0)
+	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	} else {
 		utils.WriteReply(w, true, nil, err)
@@ -192,11 +169,11 @@ func (m *SseScServerImpl) onHttpResponseMessage(w http.ResponseWriter, r *http.R
 
 // onSseConnection serves a new incoming hiveot SSE connection.
 // This doesn't return until the connection is closed by either client or server.
-func (m *SseScServerImpl) onSseConnection(w http.ResponseWriter, r *http.Request) {
+func (srv *SseScServerImpl) onSseConnection(w http.ResponseWriter, r *http.Request) {
 
 	//An active session is required before accepting the request. This is created on
 	//authentication/login. Until then SSE cm are blocked.
-	rp, err := m.httpServer.GetRequestParams(r)
+	rp, err := srv.httpServer.GetRequestParams(r)
 
 	if err != nil {
 		slog.Warn("SSESC Serve. No session available yet, telling client to delay retry to 10 seconds",
@@ -214,15 +191,16 @@ func (m *SseScServerImpl) onSseConnection(w http.ResponseWriter, r *http.Request
 	// add the new sse connection
 	// the sse connection can only be used to *send* messages to the remote client
 	// responses are received via http and passed to rnrChan handler.
-	c := NewHiveotSseConnection(
-		rp.ClientID, rp.ConnectionID, r.RemoteAddr, r, m.RnrChan, m.respTimeout)
-
-	err = m.AddConnection(c)
+	c := NewSseScServerConnection(
+		rp.ClientID, rp.ConnectionID, r.RemoteAddr, r,
+		srv.ForwardRequest, srv.ForwardNotification)
+	c.SetTimeout(srv.respTimeout)
+	err = srv.AddConnection(c)
 
 	c.Serve(w, r)
 
 	// finally cleanup the connection
-	m.RemoveConnection(c)
+	srv.RemoveConnection(c)
 	// if m.connectHandler != nil {
 	// m.connectHandler(false, c, nil)
 	// }

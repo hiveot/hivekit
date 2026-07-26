@@ -12,6 +12,8 @@ import (
 	"time"
 
 	"github.com/hiveot/hivekit/go/api"
+	"github.com/hiveot/hivekit/go/api/td"
+	"github.com/hiveot/hivekit/go/api/vocab"
 	"github.com/hiveot/hivekit/go/modules/transport"
 	grpctransport "github.com/hiveot/hivekit/go/modules/transport/grpc"
 	grpclib "github.com/hiveot/hivekit/go/modules/transport/grpc/internal"
@@ -41,24 +43,32 @@ type GrpcServerImpl struct {
 
 	// the service name the streams are published under
 	serviceName string
+
+	// the TD describing this server
+	serverTD *td.TD
+}
+
+// GetTD returns the server TD, containing connection and authentication information
+func (srv *GrpcServerImpl) GetTD() *td.TD {
+	return srv.serverTD
 }
 
 // The grpc service callback handler for incoming stream connections.
 // This creates a new transport connection for the stream and blocks until the stream is closed.
-func (m *GrpcServerImpl) ServeStreamConnection(
+func (srv *GrpcServerImpl) ServeStreamConnection(
 	clientID string, cid string, grpcStream grpc.ServerStream) error {
 
 	// authentication???
 
 	// Create a hiveot transport connection for this stream.
-	c := StartGrpcTransportConnection(
-		clientID, cid, grpcStream, m.ForwardRequest, m.ForwardNotification)
-	c.SetTimeout(m.respTimeout)
+	c := NewGrpcServerConnection(
+		clientID, cid, grpcStream, srv.ForwardRequest, srv.ForwardNotification)
+	c.SetTimeout(srv.respTimeout)
 
-	m.AddConnection(c)
+	srv.AddConnection(c)
 	// must block until connection closes
 	c.WaitUntilDisconnect()
-	m.RemoveConnection(c)
+	srv.RemoveConnection(c)
 	return nil
 }
 
@@ -66,12 +76,12 @@ func (m *GrpcServerImpl) ServeStreamConnection(
 // The server will listen on the configured URL and handle incoming connections.
 // This adapts the URL scheme "unix", "uds", or "tcp" to the appropriate network type for net.Listen
 // and update the connectURL to match the scheme used for listening.
-func (m *GrpcServerImpl) Start() (err error) {
+func (srv *GrpcServerImpl) Start() (err error) {
 
 	slog.Info("Start: Starting grpc transport server",
-		slog.String("connectURL", m.GetConnectURL()))
+		slog.String("connectURL", srv.GetConnectURL()))
 
-	address := m.GetConnectURL()
+	address := srv.GetConnectURL()
 	network := "tcp"
 	// start listening on unix sockets. Make sure the directory exists and the socket file doesn't.
 	if strings.HasPrefix(address, "unix") {
@@ -96,27 +106,31 @@ func (m *GrpcServerImpl) Start() (err error) {
 	if err != nil {
 		return err
 	}
-	grpcAuthn := grpclib.NewGrpcAuthenticator(m.authenticator)
-	m.grpcService = grpclib.NewGrpcServiceServer(
-		lis, m.tlsCert, m.caCert, m.serviceName, grpcAuthn, time.Minute)
+	grpcAuthn := grpclib.NewGrpcAuthenticator(srv.authenticator)
+	srv.grpcService = grpclib.NewGrpcServiceServer(
+		lis, srv.tlsCert, srv.caCert, srv.serviceName, grpcAuthn, time.Minute)
 
-	m.grpcService.CreateStream(grpctransport.StreamNameNotification, m.ServeStreamConnection)
+	srv.grpcService.CreateStream(grpctransport.StreamNameNotification, srv.ServeStreamConnection)
 	// m.grpcService.AddStream(grpcapi.StreamNameRequestResponse, m.ServeStreamConnection)
 
-	err = m.grpcService.Start()
+	err = srv.grpcService.Start()
 	if err != nil {
 		lis.Close()
 		return err
 	}
 
+	// create a TD describing this server along with its connection URL
+	thingID := srv.GetThingID()
+	srv.serverTD = td.NewTD(thingID, "gRPC server", vocab.DeviceTypeService)
+	srv.AddTDSecForms(srv.serverTD, false)
 	return err
 }
 
 // Stop any running actions
-func (m *GrpcServerImpl) Stop() {
+func (srv *GrpcServerImpl) Stop() {
 	slog.Info("Stop: Stopping grpc transport server")
-	m.CloseAll()
-	m.grpcService.Stop()
+	srv.CloseAll()
+	srv.grpcService.Stop()
 }
 
 // GRPC server using UDS or TCP sockets.

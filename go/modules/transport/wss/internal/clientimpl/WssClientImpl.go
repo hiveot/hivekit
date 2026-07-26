@@ -76,60 +76,73 @@ type WssTransportClientImpl struct {
 	// wssPath string
 }
 
-// _onWssMessage processes the websocket message received from the server.
+// _onWssClientMessage processes the websocket message received from the server.
 // This decodes the message into a request or response message and passes
 // it to the application handler.
-func (cl *WssTransportClientImpl) _onWssMessage(raw []byte) {
-	var notif *msg.NotificationMessage
-	var req *msg.RequestMessage
-	var resp *msg.ResponseMessage
-	clientID := cl.clientID
-
-	// try to decode as notification first, then response, then request as websockets
-	// do not carry metadata per request.
-	notif, err := cl.encoder.DecodeNotification(raw)
-	if err != nil {
-		resp, err = cl.encoder.DecodeResponse(raw)
-		if err != nil {
-			req, err = cl.encoder.DecodeRequest(raw)
-		}
-	}
-	if notif != nil {
-		// client receives a notification message from the server
-		// pass it on to the registered hook and sink
-		go func() {
-			cl.HiveModuleBase.HandleNotification(notif)
-		}()
-	} else if req != nil {
-		var err error
-		// client receives a request (using reverse connection)
-		// pass it on to the linked producer.
-		err = cl.ForwardRequest(req, func(resp *msg.ResponseMessage) error {
-			// return the response to the caller
-			err2 := cl.SendResponse(resp)
-			return err2
-		})
-		// an error means the request could not be delivered
-		if err != nil {
-			resp := req.CreateErrorResponse(err)
-			_ = cl.SendResponse(resp)
-		}
-	} else if resp != nil {
-		// client receives a response message
-		// pass it on to the waiting consumer
-		handled := cl.rnrChan.HandleResponse(resp, cl.GetTimeout())
-		if !handled {
-			slog.Error("_onWssMessage: received response but no matching request",
-				"correlationID", resp.CorrelationID,
-				"op", resp.Operation,
-				"name", resp.Name,
-				"clientID", clientID,
-			)
-		}
-	} else {
-		slog.Warn("_onWssMessage: Message is not a valid request, response or notification, request or response",
-			"raw", string(raw))
+//
+// TODO: _onClientMessage might go into a ClientConnectionBase and reused by grpc, wss, ...
+//
+//	as they only differ by encoder.
+func (cl *WssTransportClientImpl) _onWssClientMessage(raw []byte) {
+	var err error
+	msgType := cl.encoder.DetermineMessageType(raw)
+	if msgType == "" {
+		slog.Warn("_onWssClientMessage: Wss message is has no messageType", "raw", string(raw))
 		return
+	}
+	switch msgType {
+	case msg.MessageTypeNotification:
+		var notif *msg.NotificationMessage
+		notif, err = cl.encoder.DecodeNotification("", raw)
+		if err == nil {
+			// client receives a notification message from the server
+			// pass it on to the registered hook and sink
+			go func() {
+				cl.HiveModuleBase.HandleNotification(notif)
+			}()
+			return
+		}
+
+	case msg.MessageTypeRequest:
+		var req *msg.RequestMessage
+		req, err = cl.encoder.DecodeRequest("", raw)
+		if err == nil {
+			// client receives a request (using reverse connection)
+			// pass it on to the linked producer.
+			err = cl.ForwardRequest(req, func(resp *msg.ResponseMessage) error {
+				// return the response to the caller
+				err2 := cl.SendResponse(resp)
+				return err2
+			})
+			// an error means the request could not be delivered
+			if err != nil {
+				resp := req.CreateErrorResponse(err)
+				_ = cl.SendResponse(resp)
+			}
+			return
+		}
+
+	case msg.MessageTypeResponse:
+		var resp *msg.ResponseMessage
+		resp, err = cl.encoder.DecodeResponse("", raw)
+		if err == nil {
+			// client receives a response message
+			// pass it on to the waiting consumer
+			handled := cl.rnrChan.HandleResponse(resp, cl.GetTimeout())
+			if !handled {
+				slog.Error("_onWssClientMessage: received response but no matching request",
+					"correlationID", resp.CorrelationID,
+					"op", resp.Operation,
+					"name", resp.Name,
+					"clientID", cl.clientID,
+				)
+			}
+		}
+	default:
+		err = fmt.Errorf("Unknown message type '%s'", msgType)
+	}
+	if err != nil {
+		slog.Warn("_onWssClientMessage: Failed to decode message", "msgType", msgType, "err", err.Error())
 	}
 }
 
@@ -317,7 +330,7 @@ func (cl *WssTransportClientImpl) Connect() error {
 		cl.clientID, hostPort, urlParts.Path, cl.cid,
 		cl.bearerToken, cl.clientCert, cl.caCert,
 		cl._setConnectionStatus,
-		cl._onWssMessage)
+		cl._onWssClientMessage)
 
 	cl.mux.Lock()
 	cl.wssCancelFn = wssCancelFn

@@ -13,49 +13,63 @@ type RRNJsonEncoder struct {
 }
 
 // DecodeNotification passes the notification message as-is
-// Raw is the json serialized encoded message
-func (svc *RRNJsonEncoder) DecodeNotification(raw []byte) (*msg.NotificationMessage, error) {
+//
+//	senderID is the server provided ID of the authenticated client.
+//	raw is the json serialized encoded message
+func (svc *RRNJsonEncoder) DecodeNotification(senderID string, raw []byte) (*msg.NotificationMessage, error) {
 
 	var notif msg.NotificationMessage
 	err := jsoniter.Unmarshal(raw, &notif)
 	if err != nil {
-		return nil, fmt.Errorf("DecodeNotification: unmarshal error: %w", err)
+		return nil, fmt.Errorf("DecodeNotification: Not a HiveOT RRN notification message: %w", err)
 	}
-
-	if notif.AffordanceType == "" {
-		return nil, fmt.Errorf("DecodeRequest: Message is not a NotificationMessage")
+	if senderID != "" {
+		notif.SenderID = senderID
 	}
 	return &notif, nil
 }
 
 // DecodeRequest passes the request message as-is
-// Raw is the json serialized encoded message
-func (svc *RRNJsonEncoder) DecodeRequest(raw []byte) (*msg.RequestMessage, error) {
+//
+//	senderID is the server provided ID of the authenticated client.
+//	raw is the json serialized encoded message
+func (svc *RRNJsonEncoder) DecodeRequest(senderID string, raw []byte) (*msg.RequestMessage, error) {
 
 	var req msg.RequestMessage
 	err := jsoniter.Unmarshal(raw, &req)
 	if err != nil {
-		return nil, fmt.Errorf("DecodeRequest: unmarshal error: %w", err)
+		return nil, fmt.Errorf("DecodeRequest: Not a HiveOT RRN Request message: %w", err)
 	}
-	if req.MessageType != msg.MessageTypeRequest {
-		return nil, fmt.Errorf("DecodeRequest: Message is not a RequestMessage")
+	if senderID != "" {
+		req.SenderID = senderID
 	}
 	return &req, nil
 }
 
 // DecodeResponse passes the response message as-is
-// Raw is the json serialized encoded message
-func (svc *RRNJsonEncoder) DecodeResponse(raw []byte) (*msg.ResponseMessage, error) {
+//
+//	senderID is the server provided ID of the authenticated client.
+//	raw is the json serialized encoded message
+func (svc *RRNJsonEncoder) DecodeResponse(senderID string, raw []byte) (*msg.ResponseMessage, error) {
 
 	var resp msg.ResponseMessage
 	err := jsoniter.Unmarshal(raw, &resp)
 	if err != nil {
-		return nil, fmt.Errorf("DecodeResponse: unmarshal error: %w", err)
+		return nil, fmt.Errorf("DecodeResponse: Not a HiveOT RRN Response message: %w", err)
 	}
-	if resp.MessageType != msg.MessageTypeResponse {
-		return nil, fmt.Errorf("Message isn't a ResponseMessage")
+	if senderID != "" {
+		resp.SenderID = senderID
 	}
 	return &resp, nil
+}
+
+// determine the type of WSS message
+func (svc *RRNJsonEncoder) DetermineMessageType(raw []byte) string {
+	var rxType struct {
+		MessageType string `json:"messageType"`
+	}
+	_ = jsoniter.Unmarshal(raw, &rxType)
+	return rxType.MessageType
 }
 
 // EncodeNotification serializes the notification message as-is

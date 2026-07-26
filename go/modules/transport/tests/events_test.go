@@ -3,6 +3,7 @@ package transporttests
 import (
 	"context"
 	"errors"
+	"fmt"
 	"log/slog"
 	"sync/atomic"
 	"testing"
@@ -34,7 +35,7 @@ func TestAllEvents(t *testing.T) {
 // this uses the client and server helpers defined in connect_test.go
 // Test subscribing and receiving all events by consumer
 func TestSubscribeAll(t *testing.T) {
-	t.Logf("---%s---\n", t.Name())
+	slog.Warn(fmt.Sprintf("---Test: %s %s---\n", t.Name(), testProtocol))
 	var rxVal atomic.Value
 	var testMsg1 = "hello world 1"
 	var testMsg2 = "hello world 2"
@@ -104,7 +105,7 @@ func TestSubscribeAll(t *testing.T) {
 
 // test if subscriptions are retained after a reconnect
 func TestSubscribeReconnect(t *testing.T) {
-	t.Logf("---%s---\n", t.Name())
+	slog.Warn(fmt.Sprintf("---Test: %s %s---\n", t.Name(), testProtocol))
 	const deviceID = "deviceID"
 	var thingID = "thing1"
 	var eventKey = "event11"
@@ -170,7 +171,7 @@ func TestSubscribeReconnect(t *testing.T) {
 
 // Device sends events to server using reverse connection.
 func TestPublishEventsByRCThing(t *testing.T) {
-	t.Logf("---%s---\n", t.Name())
+	slog.Warn(fmt.Sprintf("---Test: %s %s---\n", t.Name(), testProtocol))
 	var evVal atomic.Value
 	var testMsg = "hello world"
 	var thingID = "thing1"
@@ -205,7 +206,7 @@ func TestPublishEventsByRCThing(t *testing.T) {
 
 // Consumer reads events from device
 func TestReadEvent(t *testing.T) {
-	t.Logf("---%s---\n", t.Name())
+	slog.Warn(fmt.Sprintf("---Test: %s %s---\n", t.Name(), testProtocol))
 	var thingID = "thing1"
 	var eventKey = "event11"
 	var eventValue = "value11"
@@ -243,7 +244,7 @@ func TestReadEvent(t *testing.T) {
 
 // Consumer reads events from a device
 //func TestReadAllEvents(t *testing.T) {
-//	t.Logf("---%s---\n", t.Name())
+//	slog.Warn(fmt.Sprintf("---Test: %s %s---\n", t.Name(), testProtocol))
 //	var thingID = "thing1"
 //	var event1Name = "event1"
 //	var event2Name = "event2"
