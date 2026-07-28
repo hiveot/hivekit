@@ -36,6 +36,8 @@ func (srv *GrpcServerImpl) AddTDSecForms(tdoc *td.TD, includeAffordances bool) {
 		td.HTOpReadAllEvents, // hiveot supports reading latest events
 		td.OpSubscribeAllEvents, td.OpUnsubscribeAllEvents,
 	}
+	form.SetSubprotocol(srv.subprotocol)
+
 	//form["contentType"] = "application/json"
 	tdoc.Forms = append(tdoc.Forms, form)
 

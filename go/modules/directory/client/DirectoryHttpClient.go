@@ -9,6 +9,7 @@ import (
 	"net/url"
 	"time"
 
+	"github.com/hiveot/hivekit/go/api"
 	"github.com/hiveot/hivekit/go/api/msg"
 	"github.com/hiveot/hivekit/go/api/td"
 	"github.com/hiveot/hivekit/go/modules"
@@ -66,7 +67,9 @@ func (cl *DirectoryHttpClient) _send(
 
 	// Use the form from the directory TD if available
 	var method string
-	f, href, err := cl.dirTD.GetFormHRef(td.OpInvokeAction, actionName, "https", uriVars)
+	f, href, err := cl.dirTD.GetFormHRef(td.OpInvokeAction, actionName,
+		api.HttpBasicScheme, api.HttpBasicSubprotocol, uriVars)
+
 	if err == nil {
 		// use the form href and method
 		method, _ = f.GetMethodName()

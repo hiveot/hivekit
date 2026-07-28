@@ -18,7 +18,8 @@ import (
 //const HiveOTGetSseConnectHRef = "/hiveot/sse-sc"
 
 // CreateRoutes add the routes used in SSE-SC sub-protocol
-// This is simple, one endpoint to connect, and one to pass requests, using URI variables
+// This is simple, one full URL to connect, and three relative paths to pass
+// requests, responses and notification messages.
 func (srv *SseScServerImpl) CreateRoutes(ssePath string, r chi.Router) {
 	if r == nil {
 		slog.Error("HiveotSseModule CreateRoutes: missing router")

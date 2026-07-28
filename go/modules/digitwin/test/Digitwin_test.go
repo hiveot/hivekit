@@ -159,9 +159,7 @@ func TestCreateDigitwinTD(t *testing.T) {
 	// 4. check if the base form points to the server
 	require.NotEmpty(t, dtw1.Base, "Missing base in TD")
 	expectedBase := testEnv.Server.GetConnectURL()
-	// expectedProtocolType, expectedSubProtocol := testEnv.Server.GetProtocolType()
-	// _ = expectedSubProtocol
-	// assert.NotEmpty(t, expectedProtocolType)
+
 	assert.Equal(t, expectedBase, dtw1.Base)
 
 	// 5. check if the forms in the affordances are replaced

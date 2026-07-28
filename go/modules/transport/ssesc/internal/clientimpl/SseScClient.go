@@ -224,9 +224,9 @@ func (cl *SseScClientImpl) GetHttpClient() *http.Client {
 	return cl.tlsClient.GetHttpClient()
 }
 
-func (cl *SseScClientImpl) GetTM() string {
-	return ""
-}
+// func (cl *SseScClientImpl) GetTM() string {
+// 	return ""
+// }
 
 // HandleNotification receives an incoming notification and sends it to the server.
 // Set this as a sink of a Thing module. Do not use for consumers.

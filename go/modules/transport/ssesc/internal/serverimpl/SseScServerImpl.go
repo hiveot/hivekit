@@ -40,10 +40,6 @@ type SseScServerImpl struct {
 	serverTD *td.TD
 }
 
-func (srv *SseScServerImpl) GetProtocolType() (string, string) {
-	return api.ProtocolTypeHiveotSsesc, api.SubprotocolHiveotSsesc
-}
-
 // GetTD returns the server TD, containing connection and authentication information
 func (srv *SseScServerImpl) GetTD() *td.TD {
 	return srv.serverTD
@@ -86,7 +82,7 @@ func NewSseScServerImpl(httpServer api.IHttpServer, respTimeout time.Duration) *
 	httpAddr := httpServer.GetConnectURL()
 	urlParts, _ := url.Parse(httpAddr)
 
-	connectURL := fmt.Sprintf("%s://%s%s", api.ProtocolSchemeHiveotSseSc, urlParts.Host, ssePath)
+	connectURL := fmt.Sprintf("%s://%s%s", api.HiveotSseScScheme, urlParts.Host, ssePath)
 
 	// use the RRN message format. Simple passthrough.
 	encoder := transport.NewRRNJsonEncoder()

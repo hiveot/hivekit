@@ -19,46 +19,51 @@ const (
 	ServerDisconnectEvent = "serverdisconnect"
 )
 
+// Note: the definition of protocol-type is scheme:subprotocol
 const (
 	// HiveOT SSE uses a single SSE connection as return channel; payload are RRN messages.
-	ProtocolTypeHiveotSsesc   = "hiveot-ssesc"
-	ProtocolSchemeHiveotSseSc = "sse"
-	SubprotocolHiveotSsesc    = "sse-sc"
+	HiveotSseScScheme       = "sse"
+	HiveotSsescSubprotocol  = "sse-sc"
+	HiveotSseScProtocolType = HiveotSseScScheme + ":" + HiveotSsescSubprotocol
 
 	// HiveOT gRPC is intended for local inter-process communication using UDS,
 	// and uses the HiveOT RRN messages as the payload.
 	// TODO: also support the tcp variant
-	ProtocolTypeHiveotGrpc   = "hiveot-grpc"
-	ProtocolSchemeHiveotGrpc = "unix"
-	SubprotocolHiveotGrpc    = "" // not a subprotocol
+	HiveotGrpcUnixScheme       = "unix"
+	HiveotGrpcUnixSubprotocol  = "hiveot-grpc"
+	HiveotGrpcUnixProtocolType = HiveotGrpcUnixScheme + ":" + HiveotGrpcUnixSubprotocol
+
+	HiveotGrpcTcpScheme       = "tcp"
+	HiveotGrpcTcpSubprotocol  = "hiveot-grpc"
+	HiveotGrpcTcpProtocolType = HiveotGrpcTcpScheme + ":" + HiveotGrpcTcpSubprotocol
 
 	// HiveOT websocket uses RRN messages as the envelope.
-	ProtocolTypeHiveotWebsocket   = "hiveot-websocket"
-	ProtocolSchemeHiveotWebsocket = "wss"
-	SubprotocolHiveotWebsocket    = "hiveot:websocket"
+	HiveotWebsocketScheme       = "wss"
+	HiveotWebsocketSubprotocol  = "hiveot:websocket"
+	HiveotWebsocketProtocolType = HiveotWebsocketScheme + ":" + HiveotWebsocketSubprotocol
 
 	// Http-basic follows the WoT specification
-	ProtocolTypeWotHttpBasic   = "http-basic"
-	ProtocolSchemeWotHttpBasic = "https"
-	SubprotocolWotHttpBasic    = ""
-
-	// Http long poll is not implemented
-	ProtocolTypeWotHttpLongPoll   = "http-longpoll"
-	ProtocolSchemeWotHttpLongPoll = "https"
-	SubprotocolWotHttpLongPoll    = "longpoll"
+	HttpBasicScheme       = "https"
+	HttpBasicSubprotocol  = ""
+	HttpBasicProtocolType = HttpBasicScheme + ":" + HttpBasicSubprotocol
 
 	// WoT MQTT is not yet implemented
-	ProtocolTypeWotMqtt   = "wot-mqtt"
-	ProtocolSchemeWotMqtt = "mqtts"
+	WotMqttsScheme      = "mqtts"
+	WotMqttsSubprotocol = ""
+	WotMqttProtocolType = WotMqttsScheme + ":" + WotMqttsSubprotocol
+
+	WotMqttWebsocketScheme       = "wss"
+	WotMqttWebsocketSubprotocol  = "mqtt" // need a subprotocol to differentiate other websockets?
+	WotMqttWebsocketProtocolType = WotMqttWebsocketScheme + ":" + WotMqttWebsocketSubprotocol
 
 	// WoT SSE is not implemented
-	ProtocolTypeWotSse   = "wot-sse"
-	ProtocolSchemeWotSse = "sse"
+	// ProtocolTypeWotSse   = "wot-sse"
+	// ProtocolSchemeWotSse = "sse"
 
 	// WoT websocket follows the WoT specification
-	ProtocolTypeWotWebsocket   = "wot-websocket"
-	ProtocolSchemeWotWebsocket = "wss"
-	SubprotocolWotWebsocket    = "websocket"
+	WotWebsocketScheme       = "wss"
+	WotWebsocketSubprotocol  = "websocket"
+	WotWebsocketProtocolType = WotWebsocketScheme + ":" + WotWebsocketSubprotocol
 )
 
 // payload of connection events

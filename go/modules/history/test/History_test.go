@@ -29,7 +29,7 @@ import (
 
 const thingIDPrefix = "things-"
 
-const defaultProtocol = api.ProtocolTypeWotWebsocket
+const defaultProtocol = api.WotWebsocketProtocolType
 
 // recommended store for history is Pebble
 const historyStoreBackend = bucketstore.BackendPebble

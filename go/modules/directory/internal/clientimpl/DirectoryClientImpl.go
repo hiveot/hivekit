@@ -49,7 +49,7 @@ func (m *DirectoryClientImpl) _sendServerRequest(
 	// of this module though.
 	err := m.Rpc(op, dirID, action, input, output)
 	if err != nil {
-		return fmt.Errorf("RetrieveAllThings: op '%s' no directory connection", op)
+		return fmt.Errorf("RetrieveAllThings: op '%s' failed: %w", op, err)
 	}
 	return err
 }
@@ -109,7 +109,7 @@ func (m *DirectoryClientImpl) RetrieveAllThings(offset int, limit int) (tdList [
 	}
 	var tdJsonList []string
 	err = m._sendServerRequest(
-		td.OpInvokeAction, directory.RetrieveAllThingsAction, args, &tdJsonList)
+		td.OpInvokeAction, directory.RetrieveAllThingsAction, args, &tdJsonList) //&tdJsonList)
 	if err != nil {
 		return nil, err
 	}

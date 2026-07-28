@@ -94,11 +94,6 @@ func (svc *RRNJsonEncoder) EncodeResponse(resp *msg.ResponseMessage) ([]byte, er
 	return jsoniter.Marshal(resp)
 }
 
-// GetProtocolType returns the hiveot  protocol type identifier
-// func (svc *PassthroughMessageConverter) GetProtocolType() string {
-// 	return td.PassthroughProtocolType
-// }
-
 // Create a new instance of the hiveot RRN message encoder
 func NewRRNJsonEncoder() *RRNJsonEncoder {
 	return &RRNJsonEncoder{}

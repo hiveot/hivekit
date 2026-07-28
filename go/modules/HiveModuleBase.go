@@ -202,6 +202,10 @@ func (m *HiveModuleBase) Rpc(
 
 	if err == nil && resp != nil {
 		err = resp.Decode(output)
+		if err != nil {
+			err = fmt.Errorf("Rpc: Received response for op/thing/name '%s/%s/%s' but can't decode it: %w",
+				operation, thingID, name, err)
+		}
 	}
 	return err
 }

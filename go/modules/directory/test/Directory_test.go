@@ -27,7 +27,7 @@ import (
 var storageDir = filepath.Join(os.TempDir(), "hivekit", "directory-test")
 
 const defaultDeviceID = "device-smith"
-const defaultProtocol = api.ProtocolTypeWotWebsocket
+const defaultProtocol = api.WotWebsocketProtocolType
 const TestKeyType = utils.KeyTypeED25519
 const rpcTimeout = time.Minute // for testing/debugging
 

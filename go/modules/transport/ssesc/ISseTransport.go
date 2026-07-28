@@ -14,13 +14,13 @@ const (
 
 	SseScPath = "/hiveot/ssesc"
 
-	// PostSseScRequestPath HTTP endpoint that accepts HiveOT RequestMessage envelopes
+	// Well-known hiveot request endpoint carrying a RequestMessage envelope
 	PostSseScRequestPath = "/hiveot/request"
 
-	// PostSseScResponsePath HTTP endpoint that accepts HiveOT ResponseMessage envelopes
+	// Well-known hiveot response endpoint carrying a ResponseMessage envelope
 	PostSseScResponsePath = "/hiveot/response"
 
-	// PostHiveotSseNotificationPath HTTP endpoint that accepts HiveOT NotificationMessage envelopes
+	// Well-known hiveot notification endpoint carrying a NotificationMessage envelope
 	PostSseScNotificationPath = "/hiveot/notification"
 
 	SseScOpConnect = "ssesc-connect"

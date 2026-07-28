@@ -25,7 +25,7 @@ func (srv *SseScServerImpl) AddTDSecForms(tdoc *td.TD, includeAffordances bool) 
 		td.UriVarThingID: tdoc.ID,
 	}
 	// protocolType := api.ProtocolTypeHiveotSsesc
-	subprotocol := api.SubprotocolHiveotSsesc
+	subprotocol := api.HiveotSsescSubprotocol
 
 	// 2. Set the security scheme used by the authenticator.
 	// TODO: risk of duplicates?
@@ -33,7 +33,7 @@ func (srv *SseScServerImpl) AddTDSecForms(tdoc *td.TD, includeAffordances bool) 
 	authr.AddSecurityScheme(tdoc)
 
 	// 3. add thing level form for thing level operations
-	// since the payload is a request message, one href for all operations (pub request)
+	// since the payload is a request message, one relative path for all request operations
 	href2 := ssesc.PostSseScRequestPath
 	form := td.NewForm("", href2)
 	form.SetSubprotocol(subprotocol)

@@ -160,7 +160,7 @@ func NewHiveotWssServerImpl(httpServer api.IHttpServer, respTimeout time.Duratio
 	}
 	thingID := wss.HiveotWebsocketServerModuleType + "-" + shortid.MustGenerate()
 	connectURL := fmt.Sprintf("%s://%s%s",
-		api.ProtocolSchemeHiveotWebsocket, urlParts.Host, wss.HiveotWebsocketPath)
+		api.HiveotWebsocketScheme, urlParts.Host, wss.HiveotWebsocketPath)
 	authenticator := httpServer.GetAuthenticator()
 	m := &WssServerImpl{
 		TransportServerBase: transport.NewTransportServerBase(thingID, connectURL, authenticator),
@@ -169,7 +169,7 @@ func NewHiveotWssServerImpl(httpServer api.IHttpServer, respTimeout time.Duratio
 		httpServer: httpServer,
 		// connectHandler: nil,
 		respTimeout: respTimeout,
-		subprotocol: api.SubprotocolHiveotWebsocket,
+		subprotocol: api.HiveotWebsocketSubprotocol,
 		wssPath:     wss.HiveotWebsocketPath,
 	}
 	return m
@@ -197,7 +197,7 @@ func NewWotWssServerImpl(httpServer api.IHttpServer, respTimeout time.Duration) 
 		respTimeout = msg.DefaultRnRTimeout
 	}
 	thingID := wss.WotWebsocketServerModuleType + "-" + shortid.MustGenerate()
-	connectURL := fmt.Sprintf("%s://%s%s", api.ProtocolSchemeWotWebsocket, urlParts.Host, wss.WotWebsocketPath)
+	connectURL := fmt.Sprintf("%s://%s%s", api.WotWebsocketScheme, urlParts.Host, wss.WotWebsocketPath)
 	authenticator := httpServer.GetAuthenticator()
 	m := &WssServerImpl{
 		TransportServerBase: transport.NewTransportServerBase(thingID, connectURL, authenticator),
@@ -206,7 +206,7 @@ func NewWotWssServerImpl(httpServer api.IHttpServer, respTimeout time.Duration) 
 		encoder:     internal.NewWotWssMsgEncoder(),
 		respTimeout: respTimeout,
 		wssPath:     wss.WotWebsocketPath,
-		subprotocol: api.SubprotocolWotWebsocket,
+		subprotocol: api.WotWebsocketSubprotocol,
 	}
 
 	var _ api.IHiveModule = m      // interface check

@@ -29,12 +29,14 @@ import (
 
 const (
 	TestServerHttpPort = 9445
+	TestGrpcTcpPort    = 50052 // where 50051 is the common port
 	TestTimeout        = time.Minute * 3
 )
 
 var TestHome = filepath.Join(os.TempDir(), "hivekit-test")
 var TestUDSPath = "/tmp/hivekit/testenv.socket"
-var TestUDSURL = api.ProtocolSchemeHiveotGrpc + "://" + TestUDSPath
+var TestGrpcUnixURL = api.HiveotGrpcUnixScheme + "://" + TestUDSPath
+var TestGrpcTcpURL = fmt.Sprintf("%s://localhost:%d", api.HiveotGrpcTcpScheme, TestGrpcTcpPort)
 
 // alt UDS using TCP socket
 // var TestUDSPath = ":8899"
@@ -43,7 +45,7 @@ var TestUDSURL = api.ProtocolSchemeHiveotGrpc + "://" + TestUDSPath
 // var DefaultProtocol = api.ProtocolTypeHiveotGrpc
 
 // var DefaultProtocol = api.ProtocolTypeHiveotSsesc
-var DefaultProtocol = api.ProtocolTypeHiveotWebsocket
+var DefaultProtocol = api.HiveotWebsocketProtocolType
 
 // var DefaultProtocol = api.ProtocolTypeWotWebsocket
 // var DefaultProtocol = api.ProtocolTypeWotHttpBasic
@@ -158,8 +160,10 @@ func (testEnv *TestEnv) NewConnectedClient(
 		panic("NewConnectedClient: createToken failed: " + err.Error())
 	}
 	// create a connection to the test server
-	cl, err = clients.NewTransportClient(
-		testEnv.ServerProtocol, testEnv.ServerURL, testEnv.CertBundle.CaCert)
+	serverTD := testEnv.Server.GetTD()
+	form, _ := serverTD.GetConnectForm("", "")
+	cl, err = clients.NewTransportClientFromForm(serverTD, form, testEnv.CertBundle.CaCert)
+
 	if err == nil {
 		cl.SetTimeout(TestTimeout)
 		err = cl.AuthenticateWithToken(clientID, token)
@@ -286,30 +290,36 @@ func (testEnv *TestEnv) StartTestServer(protocol string) (srv api.ITransportServ
 	}
 
 	switch protocol {
-	case api.ProtocolTypeHiveotGrpc:
+	case api.HiveotGrpcTcpProtocolType:
 		serverCert := testEnv.CertBundle.ServerCert
 		caCert := testEnv.CertBundle.CaCert
 		srv = grpc_server.NewHiveotGrpcServer(
-			TestUDSURL, serverCert, caCert, testEnv.TestAuthn, TestTimeout)
+			TestGrpcTcpURL, serverCert, caCert, testEnv.TestAuthn, TestTimeout)
+		err = srv.Start()
+	case api.HiveotGrpcUnixProtocolType:
+		serverCert := testEnv.CertBundle.ServerCert
+		caCert := testEnv.CertBundle.CaCert
+		srv = grpc_server.NewHiveotGrpcServer(
+			TestGrpcUnixURL, serverCert, caCert, testEnv.TestAuthn, TestTimeout)
 		err = srv.Start()
 
-	case api.ProtocolTypeHiveotSsesc:
+	case api.HiveotSseScProtocolType:
 		testEnv.StartHttpServer(false)
 		srv = ssesc_server.NewSseScServer(testEnv.HttpServer, TestTimeout)
 		err = srv.Start()
 
-	case api.ProtocolTypeHiveotWebsocket:
+	case api.HiveotWebsocketProtocolType:
 		testEnv.StartHttpServer(false)
 		srv = wss_server.NewHiveotWssServer(testEnv.HttpServer, TestTimeout)
 		err = srv.Start()
 
-	case api.ProtocolTypeWotHttpBasic:
+	case api.HttpBasicProtocolType:
 		testEnv.StartHttpServer(false)
 		srv = httpbasic_server.NewHttpBasicServer(testEnv.HttpServer)
 		err = srv.Start()
 		// http only, no subprotocol bindings
 
-	case api.ProtocolTypeWotWebsocket:
+	case api.WotWebsocketProtocolType:
 		testEnv.StartHttpServer(false)
 		srv = wss_server.NewWotWssServer(testEnv.HttpServer, TestTimeout)
 		err = srv.Start()

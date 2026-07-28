@@ -456,11 +456,6 @@ func (svc *WotWssMsgEncoder) EncodeResponse(resp *msg.ResponseMessage) ([]byte, 
 	return jsoniter.Marshal(wssResp)
 }
 
-// GetProtocolType returns the hiveot WSS protocol type identifier
-// func (svc *WotWssMsgConverter) GetProtocolType() string {
-// 	return wssapi.WotWSSProtocolType
-// }
-
 // Create a new instance of the WoT websocket to hiveot message converter
 func NewWotWssMsgEncoder() *WotWssMsgEncoder {
 	return &WotWssMsgEncoder{}

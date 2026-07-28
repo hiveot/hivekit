@@ -240,7 +240,7 @@ func (cl *HttpBasicClientImpl) SendNotification(msg *msg.NotificationMessage) {
 // This returns nil if the request was successfully sent or an error if the send failed.
 // If the response has an error or is missing this invokes the replyTo with an error response and returns nil.
 func (cl *HttpBasicClientImpl) SendRequest(
-	req *msg.RequestMessage, replyTo msg.ResponseHandler) error {
+	req *msg.RequestMessage, replyTo msg.ResponseHandler) (err error) {
 
 	var inputJSON string
 	var method string
@@ -250,7 +250,7 @@ func (cl *HttpBasicClientImpl) SendRequest(
 	var name = req.Name
 
 	if req.Operation == "" && req.CorrelationID == "" {
-		err := fmt.Errorf("SendMessage: missing both operation and correlationID")
+		err = fmt.Errorf("SendMessage: missing both operation and correlationID")
 		slog.Error(err.Error())
 		return err
 	}
@@ -259,10 +259,10 @@ func (cl *HttpBasicClientImpl) SendRequest(
 	// use the hiveot fallback if not available
 	// If the TD has no matching form then fall back to default well-known http basic href.
 	if cl.tdoc != nil {
-		form = cl.tdoc.GetForm(req.Operation, req.Name, api.ProtocolTypeWotHttpBasic)
+		form, href, err = cl.tdoc.GetFormHRef(req.Operation, req.Name,
+			api.HttpBasicScheme, api.HttpBasicSubprotocol, nil)
 	}
 	if form != nil {
-		href = form.GetHRef()
 		method, _ = form.GetMethodName()
 	} else {
 		// fall back to the 'well known' hiveot request URL using uri variables

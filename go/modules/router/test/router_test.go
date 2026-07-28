@@ -41,7 +41,7 @@ var testAuthn = testenv.NewTestAuthenticator()
 const rpcTimeout = time.Minute * 3 // allow for debugging breakpoints
 const testConsumerID = "router1"
 
-const serverType = api.ProtocolTypeHiveotGrpc
+const serverType = api.HiveotGrpcUnixProtocolType
 
 // const serverType = api.ProtocolTypeHiveotWebsocket
 
@@ -78,17 +78,17 @@ func startTestServerDevice(deviceID string) (testDevice *testenv.TestDevice,
 
 	// 2. Create a protocol server for receiving requests
 	switch serverType {
-	case api.ProtocolTypeWotHttpBasic:
+	case api.HttpBasicProtocolType:
 		transportServer = httpbasic_server.NewHttpBasicServer(httpServer)
-	case api.ProtocolTypeHiveotGrpc:
+	case api.HiveotGrpcUnixProtocolType:
 		address := "unix://" + filepath.Join(storageDir, "grpc-server.sock")
 		transportServer = grpc_server.NewHiveotGrpcServer(
 			address, cfg.ServerCert, cfg.CaCert, testAuthn, 0)
-	case api.ProtocolTypeHiveotSsesc:
+	case api.HiveotSseScProtocolType:
 		transportServer = ssesc_server.NewSseScServer(httpServer, 0)
-	case api.ProtocolTypeWotWebsocket:
+	case api.WotWebsocketProtocolType:
 		transportServer = wss_server.NewWotWssServer(httpServer, 0)
-	case api.ProtocolTypeHiveotWebsocket:
+	case api.HiveotWebsocketProtocolType:
 		transportServer = wss_server.NewHiveotWssServer(httpServer, 0)
 	}
 	err = transportServer.Start()

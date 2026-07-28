@@ -42,8 +42,4 @@ type IMessageEncoder interface {
 	// EncodeResponse converts a hiveot ResponseMessage to a native serialized protocol message
 	// This returns an error response if the message cannot be converted
 	EncodeResponse(resp *msg.ResponseMessage) ([]byte, error)
-
-	// // GetProtocolType provides the protocol type for these messages,
-	// // eg ProtocolTypeWSS
-	// GetProtocolType() string
 }

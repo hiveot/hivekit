@@ -45,7 +45,7 @@ type AuthnUserHttpService struct {
 func (m *AuthnUserHttpService) GetConnectURL() (uri string, protocolType string) {
 	baseURL := m.httpServer.GetConnectURL()
 	loginURL, _ := url.JoinPath(baseURL, HttpPostLoginPath)
-	return loginURL, api.ProtocolTypeWotHttpBasic
+	return loginURL, api.HttpBasicProtocolType
 }
 
 // onHttpGetProfile returns the client's profile

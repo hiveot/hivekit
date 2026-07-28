@@ -21,13 +21,14 @@ import (
 const testDeviceID1 = "device1"
 const testClientID1 = "client1"
 
-var testProtocol = api.ProtocolTypeHiveotSsesc
+var testProtocol = api.WotWebsocketProtocolType
 
 var testProtocols = []string{
-	api.ProtocolTypeHiveotSsesc,
-	api.ProtocolTypeHiveotGrpc,
-	api.ProtocolTypeHiveotWebsocket,
-	api.ProtocolTypeWotWebsocket,
+	api.HiveotSseScProtocolType,
+	api.HiveotGrpcTcpProtocolType,
+	api.HiveotGrpcUnixProtocolType,
+	api.HiveotWebsocketProtocolType,
+	api.WotWebsocketProtocolType,
 }
 
 // TestMain sets logging
@@ -40,9 +41,9 @@ func TestMain(m *testing.M) {
 func TestConnectAllProtocols(t *testing.T) {
 	for _, testProtocol = range testProtocols {
 		t.Run("TestStartStop", TestStartStop)
-		t.Run(testProtocol, TestPing)
-		t.Run(testProtocol, TestPingClientCert)
-		t.Run(testProtocol, TestServerURL)
+		t.Run("TestPing", TestPing)
+		t.Run("TestPingClientCert", TestPingClientCert)
+		t.Run("TestServerURL", TestServerURL)
 	}
 }
 
@@ -96,7 +97,7 @@ func TestPingClientCert(t *testing.T) {
 	serverTD := testEnv.Server.GetTD()
 	// cl, err := clients.NewTransportClient(
 	// 	testEnv.ServerProtocol, testEnv.ServerURL, testEnv.CertBundle.CaCert)
-	cl, err := clients.NewTransportClientFromTD(serverTD, td.HTOpPing, "", testEnv.CertBundle.CaCert)
+	cl, err := clients.NewTransportClient(serverTD, td.HTOpPing, "", testEnv.CertBundle.CaCert)
 	require.NoError(t, err)
 	cl.SetTimeout(time.Minute)
 	err = cl.AuthenticateWithClientCert(testEnv.CertBundle.ClientCert)

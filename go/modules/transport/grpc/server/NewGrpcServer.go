@@ -38,7 +38,7 @@ func NewHiveotGrpcServerFactory(f api.IModuleFactory, md *api.ModuleDefinition) 
 	caCert, err := env.GetCACert()
 	_ = err
 
-	grpcURL := grpctransport.DefaultGrpcURL
+	grpcURL := grpctransport.DefaultGrpcUnixURL
 	if md.Config != nil {
 		grpcConfig, ok := md.Config.(grpctransport.GrpcConfig)
 		if ok {

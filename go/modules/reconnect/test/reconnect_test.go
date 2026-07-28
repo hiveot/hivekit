@@ -19,13 +19,13 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-var testProtocol = api.ProtocolTypeWotWebsocket
+var testProtocol = api.WotWebsocketProtocolType
 
 var testProtocols = []string{
-	api.ProtocolTypeHiveotSsesc,
-	api.ProtocolTypeHiveotGrpc,
-	api.ProtocolTypeHiveotWebsocket,
-	api.ProtocolTypeWotWebsocket,
+	api.HiveotSseScProtocolType,
+	api.HiveotGrpcUnixProtocolType,
+	api.HiveotWebsocketProtocolType,
+	api.WotWebsocketProtocolType,
 }
 
 const testClientID1 = "client1"

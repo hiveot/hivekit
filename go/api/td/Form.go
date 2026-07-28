@@ -4,6 +4,10 @@ package td
 import (
 	"fmt"
 	"log/slog"
+	"net/url"
+	"strings"
+
+	"github.com/hiveot/hivekit/go/utils"
 )
 
 // Form can be viewed as a statement of "To perform an operation type operation on form context, make a
@@ -14,12 +18,56 @@ type Form map[string]any
 
 // GetHRef returns the form's href field
 // Since hrefs are mandatory, this returns an empty string if not present
-func (f Form) GetHRef() (href string) {
+// // WARNING: a form href can be relative. Always check and include TD Base if this is the case.
+// func (f Form) GetHRef() (href string) {
+// 	val, found := f["href"]
+// 	if found && val != nil {
+// 		return val.(string)
+// 	}
+// 	return ""
+// }
+
+// GetHRef returns the form's full href field optionally merged with URI variables.
+// If the href is relative it is joined with the given base.
+// If uriVars is provided then substitude those in the href
+func (f Form) GetHRef(base string, uriVars map[string]string) (
+	href string, err error) {
+
 	val, found := f["href"]
 	if found && val != nil {
-		return val.(string)
+		href = val.(string)
 	}
-	return ""
+	if href == "" {
+		href = base
+	} else {
+		// if the href is relative, join it with the base
+		parts, err2 := url.Parse(href)
+		if err2 != nil {
+			err = err2
+		} else {
+			// FIXME: if base has a path and href has a path
+			// according to RFC3986 a relative path starting with '/' is considered an absolute path
+			// however, JoinPath concatenates it to base instead of replacing its path.
+			if !parts.IsAbs() {
+				if strings.HasPrefix(href, "/") {
+					// if href starts with / it should replace the base path. url.JoinPath concatenates
+					// which is not compliant with RFC3986.
+					parts, _ := url.Parse(base)
+					parts.Path = href
+					href = parts.String()
+				} else {
+					// href is relative so we can use JoinPath
+					href, err = url.JoinPath(base, href) //  <-- concatenates and does replace path in base
+				}
+			} else {
+				// href is already a full path. nothing to do here
+			}
+		}
+	}
+	if uriVars != nil {
+		href = utils.Substitute(href, uriVars)
+	}
+	return href, err
 }
 
 // GetOperation returns the first of a form's operation

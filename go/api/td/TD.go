@@ -316,6 +316,32 @@ func (tdoc *TD) GetAction(actionName string) *ActionAffordance {
 	return actionAffordance
 }
 
+// GetConnectForm returns the form that best represents a device connection.
+// This attempts to pick the thing level operation that has the preferred scheme and subprotocol.
+// this returns a match flag if the preferred scheme/subprotocol matches
+func (tdoc *TD) GetConnectForm(prefScheme, prefSubprotocol string) (*Form, bool) {
+	forms := tdoc.GetForms("", "")
+	if prefScheme == "" && prefSubprotocol == "" {
+		return &tdoc.Forms[0], true
+	}
+	// locate the preferred form if any
+	for _, form := range forms {
+		href, _ := form.GetHRef(tdoc.Base, nil)
+		parts, _ := url.Parse(href)
+		scheme := strings.ToLower(parts.Scheme)
+		subprotocol, _ := form.GetSubprotocol()
+		if prefScheme == "" || scheme == prefScheme {
+			if prefSubprotocol == "" || subprotocol == prefSubprotocol {
+				return &form, true
+			}
+		}
+	}
+	// todo: prefer other subprotocols?
+
+	// preferred form not found so just take the first one
+	return &forms[0], false
+}
+
 // GetEvent returns the Schema for the event or nil if the event doesn't exist
 func (tdoc *TD) GetEvent(eventName string) *EventAffordance {
 	//tdoc.updateMutex.RLock()
@@ -328,55 +354,97 @@ func (tdoc *TD) GetEvent(eventName string) *EventAffordance {
 	return eventAffordance
 }
 
-// GetForm returns the form for the requested operation for the given protocol.
+// GetForm returns the form that matches the transport protocol.
 //
-// This matches the protocol with the subprotocol name. If no match is found it matches
-// the scheme in the href.
+// The protocol is determined by the href scheme and the optional subprotocol field.
 //
-// This first checks for forms in the requested operation by affordance name,
-// and appends the global forms.
+// Steps to determine a match:
+//  1. Narrow down the available forms by matching operation
+//     If a name is provided then collect the forms of the affordance.
+//     Add the thing level forms with the matching operation.
+//  2. If a subprotocol is provided then for each form check the 'subprotocol' field.
+//     The form with a matching subprotocol wins.
+//  3. If no subprotocol matches then match the form's href scheme.
 //
-//	operation is the operation as defined in TD forms
-//	name is the name of property, event or action whose form to get or "" for the TD level operations
-//	protocol is the transport (sub)protocol scheme or subprotocol, use "" for the first in the list
+// To determine the href of each form both the 'base' field and the form 'href' field must be
+// considered:
+//  1. If base is empty, use the form href
+//  2. If the form href is relative, combined base and href
+//  3. If href is absolute use href and ignore 'base'
+//  4. If form href is empty then use TD 'base'.
 //
-// This returns the form or nil if no match is found
-func (tdoc *TD) GetForm(operation string, name string, protocol string) *Form {
+// In theory each affordance can use different protocols. The author considers
+// this an unnecesary risk to interoperability and strongly discourages this
+// practise. Please stick to one protocol per Thing. Note that multiple protocols
+// can be supported if the device the Thing runs on has multiple servers.
+//
+//	operation is the operation as defined in TD forms. Required.
+//	name is the optional name of property, event or action affordance, or "" for thing level operations.
+//	prefScheme is the preferred scheme to match
+//	prefSubprotocol is the preferred subprotocol name. This overrides the scheme check.
+//
+// This returns the form and a flag if preferred scheme/protocol matched
+func (tdoc *TD) GetForm(operation string, name string, prefScheme, prefSubprotocol string) (form *Form, match bool) {
 	forms := tdoc.GetForms(operation, name)
-
-	// if no protocol is provided then return the first form in the list
-	if protocol == "" {
-		if len(forms) == 0 {
-			return nil
-		}
-		return &forms[0]
+	if len(forms) == 0 {
+		// no match for the operation
+		return nil, false
 	}
 
-	// first search subprotocol
-	for _, form := range forms {
-		subp, _ := form.GetSubprotocol()
-		if subp == protocol {
-			return &form
-		}
+	// if no scheme and protocol are provided then return the first form in the list
+	if prefScheme == "" && prefSubprotocol == "" {
+		return &forms[0], true
 	}
-	// next match href scheme
+
+	// attempt a subprotocol match
+	if prefSubprotocol != "" {
+		for _, form := range forms {
+			subp, _ := form.GetSubprotocol()
+			if subp == prefSubprotocol {
+				return &form, true
+			}
+		}
+		// no match, no need to continue
+		return &forms[0], false
+	}
+
+	// last match href scheme
 	for _, form := range forms {
-		href := form.GetHRef()
-		hrefParts, err := url.Parse(href)
+		href, _ := form.GetHRef(tdoc.Base, nil)
+		parts, err := url.Parse(href)
 		if err == nil {
-			// match the protocol with the form href
-			// if href is relative then use the scheme of the base
-			switch hrefParts.Scheme {
-			case "":
-				if strings.HasPrefix(tdoc.Base, protocol+":") {
-					return &form
-				}
-			case protocol:
-				return &form
+			if parts.Scheme == prefScheme {
+				return &form, true
 			}
 		}
 	}
-	return nil
+	// return the first form
+	return &forms[0], false
+}
+
+// GetFormHRef is a helper that first obtains the matching form then
+// extracts the href.
+//
+// This injects href uriVars if provided.
+func (tdoc *TD) GetFormHRef(
+	op, name string, prefScheme, prefSubprotocol string, uriVars map[string]string) (
+	f *Form, href string, err error) {
+	var match bool
+
+	f, match = tdoc.GetForm(op, name, prefScheme, prefSubprotocol)
+	if f == nil {
+		return nil, "", fmt.Errorf("No form found for the requested operation")
+	}
+
+	href, err = f.GetHRef(tdoc.Base, uriVars)
+	if err != nil {
+		return f, "", err
+	}
+	if uriVars != nil {
+		href = utils.Substitute(href, uriVars)
+	}
+	_ = match
+	return f, href, err
 }
 
 // GetForms returns the forms for the requested operation.
@@ -439,36 +507,6 @@ func (tdoc *TD) GetForms(operation string, name string) []Form {
 		}
 	}
 	return opForms
-}
-
-// GetFormHRef returns the form and URL for the given operation and protocol.
-//
-// If no schema or protocol is provided then return the first match for operation and name.
-//
-// This uses the td base if a form uses a relative href.
-// This injects href uriVars if defined.
-func (tdoc *TD) GetFormHRef(
-	op, name string, schemeOrProtocol string, uriVars map[string]string) (
-	f *Form, href string, err error) {
-
-	f = tdoc.GetForm(op, name, schemeOrProtocol)
-	if f == nil {
-		return nil, "", fmt.Errorf("No form found for the requested operation")
-	}
-
-	href = f.GetHRef()
-	uri, err := url.Parse(href)
-	if err != nil {
-		return f, "", err
-	}
-	if uri.IsAbs() {
-		href = tdoc.Substitute(href, uriVars)
-	} else {
-		// JoinPath will mangle uri variable so substitute first
-		path := tdoc.Substitute(uri.Path, uriVars)
-		href, err = url.JoinPath(tdoc.Base, path)
-	}
-	return f, href, err
 }
 
 // GetID returns the Thing ID of this TD.
@@ -571,13 +609,13 @@ func (tdoc *TD) SetForms(formList []Form) {
 
 // Substitute substitutes the variables in a string
 // Variables are define with curly brackets, eg: "this is a {variableName}"
-func (tdoc *TD) Substitute(s string, vars map[string]string) string {
-	for k, v := range vars {
-		stringVar := "{" + k + "}"
-		s = strings.Replace(s, stringVar, v, -1)
-	}
-	return s
-}
+// func (tdoc *TD) Substitute(s string, vars map[string]string) string {
+// 	for k, v := range vars {
+// 		stringVar := "{" + k + "}"
+// 		s = strings.Replace(s, stringVar, v, -1)
+// 	}
+// 	return s
+// }
 
 // ToString returns the JSON representation of the TD
 func (tdoc *TD) ToString() string {

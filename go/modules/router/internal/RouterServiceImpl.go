@@ -34,10 +34,14 @@ type RouterServiceImpl struct {
 	// device credentials store
 	credStore *CredentialsStore
 
-	// established device connections by origin (schema://host:port)
+	// mutex for access to deviceConnections
 	cmux sync.RWMutex
+	// established device connections by origin (schema://host:port)
 	// deviceConnections map[string]api.ITransportClient
 	deviceConnections map[string]api.IHiveModule
+
+	// the preferred protocol to use when creating a new client connection
+	preferredProtocol string
 
 	// directory to store device accounts
 	storageDir string
@@ -61,11 +65,11 @@ func (m *RouterServiceImpl) DeleteThingCredential(thingID string) {
 	m.credStore.DeleteCredentials(thingID)
 }
 
-// GetClientConnection returns a module for sending requests to the server with
+// GetClientConnection returns a client for sending requests to the server with
 // the given TD. If a connection doesn't exists then create it.
 //
-// This uses schema://host:port (origin) to identify the connection to use.
-// If a connection to this client already exists then use it, otherwise create it.
+// Previous connections are re-used. This uses schema://host:port (origin) to
+// identify the connection.
 //
 // If the 'reconnect' option is configured then this returns a Reconnect client
 // that automatically reconnects and resubscribes if the connection fails.
@@ -75,29 +79,26 @@ func (m *RouterServiceImpl) DeleteThingCredential(thingID string) {
 //	tdoc is the TD of the device to connect to
 //	op is the operation to perform
 //	name is the optional affordance name for the operation. "" for thing level operations.
-func (m *RouterServiceImpl) GetClientConnection(tdoc *td.TD, op string, name string) (cl api.IHiveModule, err error) {
+func (m *RouterServiceImpl) GetClientConnection(
+	tdoc *td.TD, op string, name string) (cl api.IHiveModule, err error) {
 
 	var c api.ITransportClient
 
-	// use URI scheme to determine the protocol, except for the hiveot WSS, which also
-	// has a wss scheme. Instead look at the base path which is fixed.
-	protocolType, href := clients.GetProtocolType(tdoc, op, name)
+	// Determine the full href to use.
+	protocolType, href, form := clients.GetProtocolType(tdoc, op, name, m.preferredProtocol)
 	_ = protocolType
+
 	parts, err := url.Parse(href)
 	if err != nil {
 		return nil, err
 	}
-	// determine the 'origin' for this connection, which is the protocol and address
-	// of the connection. Multiple Things from the same device share the same connection
-	// and different protocols used by the same thing lead to different client instances
-	// when origin differs.
+	// Use the href 'origin' to identify and re-use the connection.
 	origin := fmt.Sprintf("%s://%s", parts.Scheme, parts.Host)
 	m.cmux.Lock()
 	cl, found := m.deviceConnections[origin]
 	if !found {
-		// TODO: how to determine the CA for this server?
-		// TODO: support use of client cert for this server?
-		c, err = clients.NewTransportClientFromTD(tdoc, op, name, m.caCert)
+		// TODO: how to determine the CA and client cert for this server?
+		c, err = clients.NewTransportClientFromForm(tdoc, form, m.caCert)
 		if err != nil {
 			return nil, err
 		}
@@ -232,8 +233,9 @@ func (m *RouterServiceImpl) RouteRequest(req *msg.RequestMessage, replyTo msg.Re
 		}
 	} else {
 		c, err2 := m.GetClientConnection(tdoc, req.Operation, req.Name)
-		// FIXME: gap between tdoc op and handlerequest href
-		// tdoc/op -> client connection based on href but doesnt use href
+		// TODO: tdoc/op/name provides an form with href, but this isnt used in
+		// HandleRequest. Is this a problem?
+		// Depends on the protocol?
 		// 1. should c handlerequest have a callback to get href?
 		// 2. should handlerequest use a context to pass href?
 		if c == nil {
@@ -298,6 +300,7 @@ func NewRouterServiceImpl(
 		autoReconnect:     true,
 		caCert:            caCert,
 		getTD:             getTD,
+		preferredProtocol: api.WotWebsocketProtocolType,
 		storageDir:        storageDir,
 		getSrv:            getSrv,
 		deviceConnections: make(map[string]api.IHiveModule),

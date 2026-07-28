@@ -46,6 +46,9 @@ type GrpcServerImpl struct {
 
 	// the TD describing this server
 	serverTD *td.TD
+
+	// the gRPC subprotocol, eg unix or tcp
+	subprotocol string
 }
 
 // GetTD returns the server TD, containing connection and authentication information
@@ -156,20 +159,25 @@ func NewGrpcServerImpl(
 
 	// connectURL is the client endpoint to connect to
 	connectURL := address
+	subProtocol := api.HiveotGrpcTcpSubprotocol
 
 	if address == "" {
-		connectURL = grpctransport.DefaultGrpcURL
+		connectURL = grpctransport.DefaultGrpcUnixURL
+		subProtocol = api.HiveotGrpcUnixSubprotocol
 	} else if strings.HasPrefix(address, "unix") {
+		subProtocol = api.HiveotGrpcUnixSubprotocol
 		// no change
 	} else {
 		// the dns scheme allows including of a DNS server. This is not supported.
 		if strings.HasPrefix(address, "dns") {
+			subProtocol = api.HiveotGrpcTcpSubprotocol
 			// dns scheme use triple slashes
 			address = strings.TrimPrefix(address, "dns:///")
 
 		} else if strings.HasPrefix(address, "tcp") {
 			// gRPC *clients* do not support tcp scheme. remove it and use the server IP
 			address = strings.TrimPrefix(address, "tcp://")
+			subProtocol = api.HiveotGrpcTcpSubprotocol
 		} else {
 			// some unknown or missing scheme.
 			// remove the prefix if any and just use the address with tcp
@@ -180,11 +188,13 @@ func NewGrpcServerImpl(
 		if strings.HasPrefix(address, ":") {
 			// :port -> tcp://outboundIP:port
 			connectURL = fmt.Sprintf("tcp://%s%s", utils.GetOutboundIP("").String(), address)
+			subProtocol = api.HiveotGrpcTcpSubprotocol
 		} else {
 			// full address to connect;
 			// tcp:   tcp://host:port
 			// unix:  unix://path/to/sock
 			connectURL = fmt.Sprintf("tcp://%s", address)
+			subProtocol = api.HiveotGrpcTcpSubprotocol
 		}
 	}
 	thingID := grpctransport.HiveotGrpcServerModuleType + "-" + shortid.MustGenerate()
@@ -195,6 +205,7 @@ func NewGrpcServerImpl(
 		tlsCert:             tlsCert,
 		respTimeout:         respTimeout,
 		serviceName:         grpctransport.GrpcTransportServiceName,
+		subprotocol:         subProtocol,
 	}
 	return srv
 }
