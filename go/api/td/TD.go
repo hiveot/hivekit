@@ -316,11 +316,17 @@ func (tdoc *TD) GetAction(actionName string) *ActionAffordance {
 	return actionAffordance
 }
 
-// GetConnectForm returns the form that best represents a device connection.
+// Experimental: GetConnectForm returns the form that best represents a device connection.
+//
 // This attempts to pick the thing level operation that has the preferred scheme and subprotocol.
 // this returns a match flag if the preferred scheme/subprotocol matches
-func (tdoc *TD) GetConnectForm(prefScheme, prefSubprotocol string) (*Form, bool) {
-	forms := tdoc.GetForms("", "")
+//
+// Intended to be able to get a form to connect a client with connection based or a connectionless protocol.
+// Normally an operation is known but for establishing a connection this isnt the case.
+// Ideally this isn't needed so the intent is to make this function unnecesary.
+func (tdoc *TD) GetConnectForm(prefScheme, prefSubprotocol string) (form *Form, match bool) {
+	// use the first thing level forms that matches the preferred protocol
+	forms := tdoc.Forms
 	if prefScheme == "" && prefSubprotocol == "" {
 		return &tdoc.Forms[0], true
 	}
@@ -359,44 +365,48 @@ func (tdoc *TD) GetEvent(eventName string) *EventAffordance {
 // The protocol is determined by the href scheme and the optional subprotocol field.
 //
 // Steps to determine a match:
+//
 //  1. Narrow down the available forms by matching operation
 //     If a name is provided then collect the forms of the affordance.
 //     Add the thing level forms with the matching operation.
-//  2. If a subprotocol is provided then for each form check the 'subprotocol' field.
-//     The form with a matching subprotocol wins.
-//  3. If no subprotocol matches then match the form's href scheme.
+//  2. If no preferred scheme/subprotocol is provided then return the first one.
+//  3. If a subprotocol is provided then for each form check the 'subprotocol' field.
+//     If the subprotocol matches, return the form. The scheme is less specific so it can be ignored.
+//     If no form matches the preferred subprotocol then use the first available form.
+//  4. Without a subprotocol, try to match the scheme.
+//  5. If no scheme matches then return the first available form.
 //
 // To determine the href of each form both the 'base' field and the form 'href' field must be
 // considered:
+//
 //  1. If base is empty, use the form href
+//
 //  2. If the form href is relative, combined base and href
+//
 //  3. If href is absolute use href and ignore 'base'
+//
 //  4. If form href is empty then use TD 'base'.
 //
-// In theory each affordance can use different protocols. The author considers
-// this an unnecesary risk to interoperability and strongly discourages this
-// practise. Please stick to one protocol per Thing. Note that multiple protocols
-// can be supported if the device the Thing runs on has multiple servers.
-//
-//	operation is the operation as defined in TD forms. Required.
-//	name is the optional name of property, event or action affordance, or "" for thing level operations.
-//	prefScheme is the preferred scheme to match
-//	prefSubprotocol is the preferred subprotocol name. This overrides the scheme check.
+//     operation is the operation as defined in TD forms. Required.
+//     name is the optional name of property, event or action affordance, or "" for thing level operations.
+//     prefScheme is the preferred scheme to match
+//     prefSubprotocol is the preferred subprotocol name. This overrides the scheme check.
 //
 // This returns the form and a flag if preferred scheme/protocol matched
 func (tdoc *TD) GetForm(operation string, name string, prefScheme, prefSubprotocol string) (form *Form, match bool) {
+	// 1. get the forms that match the operation
 	forms := tdoc.GetForms(operation, name)
 	if len(forms) == 0 {
 		// no match for the operation
 		return nil, false
 	}
 
-	// if no scheme and protocol are provided then return the first form in the list
+	// 2. if no preferred protocol is provided then return the first form in the list
 	if prefScheme == "" && prefSubprotocol == "" {
 		return &forms[0], true
 	}
 
-	// attempt a subprotocol match
+	// 3. attempt a subprotocol match
 	if prefSubprotocol != "" {
 		for _, form := range forms {
 			subp, _ := form.GetSubprotocol()
@@ -450,8 +460,8 @@ func (tdoc *TD) GetFormHRef(
 // GetForms returns the forms for the requested operation.
 // The caller still has to find the matching protocol based on url and subprotocol field.
 //
-// This first checks for forms in the requested operation by affordance name,
-// and appends the global forms.
+// This first checks for forms in the requested operation by affordance name, and appends the global forms.
+// If no operation is given then this returns the Thing level forms.
 //
 //	operation is the operation as defined in TD forms
 //	name is the name of property, event or action whose form to get or "" for the TD level operations
@@ -459,6 +469,9 @@ func (tdoc *TD) GetForms(operation string, name string) []Form {
 
 	var availableForms = make([]Form, 0)
 	var opForms []Form = make([]Form, 0)
+	if operation == "" {
+		return tdoc.Forms
+	}
 
 	// get the form from the affordance if a name is given
 	switch operation {

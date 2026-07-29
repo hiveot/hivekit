@@ -12,6 +12,7 @@ import (
 
 	"github.com/hiveot/hivekit/go/api"
 	"github.com/hiveot/hivekit/go/api/msg"
+	"github.com/hiveot/hivekit/go/utils"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials"
@@ -67,7 +68,8 @@ func (srv *GrpcServiceServer) _streamInterceptor(
 		if err != nil {
 			slog.Error("streamInterceptor: Unauthenticated")
 
-			return status.Errorf(codes.Unauthenticated, "Unauthenticated: %s", err.Error())
+			// return status.Errorf(codes.Unauthenticated, "Unauthenticated: %s", err.Error())
+			return utils.UnauthorizedError
 		}
 	}
 	return handler(srv2, ss)
@@ -81,7 +83,8 @@ func (srv *GrpcServiceServer) _unaryInterceptor(
 	if srv.grpcAuthn != nil {
 		_, _, err := srv.grpcAuthn.Authenticate(ctx)
 		if err != nil {
-			return nil, status.Errorf(codes.Unauthenticated, "Unauthenticated: %s", err.Error())
+			// return nil, status.Errorf(codes.Unauthenticated, "Unauthenticated: %s", err.Error())
+			return nil, utils.UnauthorizedError
 		}
 	}
 	return handler(ctx, req)

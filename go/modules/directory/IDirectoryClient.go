@@ -18,7 +18,7 @@ type IDirectoryCache interface {
 	// Get all available Thing TDs from the local cache.
 	//
 	// Offset is the offset in the list for iteration.
-	// Limit is the maximum number of things to return.
+	// Limit is the maximum number of things to return. 0 for default.
 	GetAllThings(offset int, limit int) []*td.TD
 
 	// Get a Thing TD from the local cache.

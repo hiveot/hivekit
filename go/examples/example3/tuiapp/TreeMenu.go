@@ -2,6 +2,7 @@ package tuiapp
 
 import (
 	"github.com/hiveot/hivekit/go/api/td"
+	"github.com/hiveot/hivekit/go/modules/directory"
 	"github.com/rivo/tview"
 )
 
@@ -34,7 +35,7 @@ func (m *TreeMenu) HandleSelection(node *tview.TreeNode) {
 }
 
 // Refresh the menu with the latest discovered things and directories
-func (m *TreeMenu) Refresh(allDirs []*td.TD, allThings []*td.TD) {
+func (m *TreeMenu) Refresh(allDirs []*td.TD, thingCache directory.IDirectoryCache) {
 
 	m.dirNodes.ClearChildren()
 	for _, tdoc := range allDirs {
@@ -44,6 +45,7 @@ func (m *TreeMenu) Refresh(allDirs []*td.TD, allThings []*td.TD) {
 	}
 
 	m.thingNodes.ClearChildren()
+	allThings := thingCache.GetAllThings(0, 0)
 	for _, tdoc := range allThings {
 		treeNode := tview.NewTreeNode(tdoc.Title)
 		treeNode.SetReference(tdoc.ID)

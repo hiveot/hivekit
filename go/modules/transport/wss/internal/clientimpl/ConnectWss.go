@@ -4,7 +4,6 @@ import (
 	"context"
 	"crypto/tls"
 	"crypto/x509"
-	"fmt"
 	"log/slog"
 	"net"
 	"net/http"
@@ -13,6 +12,7 @@ import (
 
 	"github.com/gorilla/websocket"
 	"github.com/hiveot/hivekit/go/api"
+	"github.com/hiveot/hivekit/go/utils"
 )
 
 // ConnectWSS establishes a websocket session with the server
@@ -98,8 +98,8 @@ func ConnectWSS(
 	wssConn, r, err := wssdialer.Dial(connectURL, wssHeader)
 	if err != nil {
 		if r != nil && r.StatusCode == http.StatusUnauthorized {
-			err = fmt.Errorf("ConnectWSS: Unauthorized connection as '%s' to '%s': %w",
-				clientID, connectURL, err)
+			err = utils.UnauthorizedError
+
 			slog.Warn(err.Error())
 			onConnect(api.StatusRefused, err)
 		} else {

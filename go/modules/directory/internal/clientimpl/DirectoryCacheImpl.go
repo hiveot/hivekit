@@ -8,6 +8,9 @@ import (
 	"github.com/hiveot/hivekit/go/api/td"
 )
 
+// default limit for getting all things
+const DefaultLimit = 1000
+
 // DirectoryCacheImpl is a concurrent safe local store for thing TDs
 // This implements the IDirectoryCache interface.
 type DirectoryCacheImpl struct {
@@ -33,6 +36,10 @@ func (dc *DirectoryCacheImpl) GetAllThings(offset int, limit int) []*td.TD {
 	dc.mux.RLock()
 	defer dc.mux.RUnlock()
 	var thingID string
+
+	if limit == 0 {
+		limit = DefaultLimit
+	}
 
 	remaining := max(len(dc.thingIDs)-offset, 0)
 	size := min(remaining, limit)

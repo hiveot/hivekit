@@ -34,9 +34,10 @@ var ConsumerRecipeChain = []api.ModuleDefinition{
 	},
 	{
 		// the router manages client connections
-		// FIXME: where does the router gets its client connection credentials from?
 		Type:        router.RouterModuleType,
 		Constructor: router_service.NewRouterServiceFactory,
+		// TODO: add configuration for using auto-reconnect
+		// TODO: add configuration for providing credentials
 	},
 }
 

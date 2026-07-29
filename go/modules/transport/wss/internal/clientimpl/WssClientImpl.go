@@ -153,7 +153,7 @@ func (cl *WssTransportClientImpl) _send(wssMsg []byte) (err error) {
 	defer cl.mux.Unlock()
 
 	if cl.wssConn == nil {
-		err := fmt.Errorf("_send: Can't send. Not connected")
+		err := fmt.Errorf("_send: Not connected: %s", cl.connectStatus)
 		return err
 	}
 
@@ -284,7 +284,7 @@ func (cl *WssTransportClientImpl) AuthenticateWithToken(clientID string, token s
 
 	status := cl.GetConnectionStatus()
 	if status == api.StatusConnected || status == api.StatusConnecting {
-		return fmt.Errorf("AuthenticateWithToken: Connection in progress.")
+		return fmt.Errorf("AuthenticateWithToken: Already connected or connection in progress.")
 	}
 	cl.clientID = clientID
 	cl.bearerToken = token

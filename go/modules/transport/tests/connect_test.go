@@ -122,6 +122,39 @@ func TestPingClientCert(t *testing.T) {
 	assert.Equal(t, api.StatusConnected, status)
 }
 
+// Test client returns UnauthorizedError when not authorized
+func TestUnauthorizedError(t *testing.T) {
+	slog.Warn(fmt.Sprintf("---Test: %s %s---\n", t.Name(), testProtocol))
+
+	testEnv, cancelFn := testenv.StartTestEnv(testProtocol, true)
+	defer cancelFn()
+
+	tdoc := testEnv.Server.GetTD()
+	connectForm, _ := tdoc.GetConnectForm("", "")
+	caCert, _ := testEnv.AppEnv.GetCACert()
+
+	// ensure the test client account exists
+	err := testEnv.TestAuthn.AddClient(testClientID1, "test", authn.ClientRoleViewer)
+	token, _, err := testEnv.CreateToken(testClientID1, time.Minute*10)
+
+	// first make sure connection does validate
+	cl, err := clients.NewTransportClientFromForm(tdoc, connectForm, caCert)
+	assert.NoError(t, err)
+	err = cl.AuthenticateWithToken(testClientID1, token)
+	assert.NoError(t, err)
+	err = cl.Connect()
+	assert.NoError(t, err)
+	cl.Close()
+
+	// check bad token
+	err = cl.AuthenticateWithToken(testClientID1, "badtoken")
+	assert.NoError(t, err)
+	err = cl.Connect()
+	assert.Equal(t, utils.UnauthorizedError, err)
+	cl.Close()
+
+}
+
 // Test getting form for unknown operation
 //func TestBadForm(t *testing.T) {
 //	t.Logf("---%s---\n", t.Name())

@@ -53,7 +53,7 @@
             "program": "${workspaceFolder}/go/examples/example3/main.go",
             "cwd": "${workspaceFolder}/go/examples",
             "env": {},
-            "args": ["-clientID", "admin"],
+            "args": ["-home","~/bin/hiveot", "-clientID", "admin"],
             "showLog": false,
             "logOutput": "dap",
             // "console": "integratedTerminal",

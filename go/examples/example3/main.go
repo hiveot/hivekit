@@ -35,7 +35,8 @@ func main() {
 	utils.SetLogging("info", path.Join(env.LogsDir, "example3.log"))
 
 	f := factory_service.NewModuleFactory(env, nil)
-	r := consumer_recipe.NewConsumerRecipe(f, true)
+	// TODO: for now don't use reconnect as it hides authentication error
+	r := consumer_recipe.NewConsumerRecipe(f, false)
 	err := r.Start()
 	if err != nil {
 		os.Exit(1)

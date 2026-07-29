@@ -372,6 +372,18 @@ func (testEnv *TestEnv) StartHttpServer(logging bool) (api.IHttpServer, string) 
 	return testEnv.HttpServer, testEnv.ServerURL
 }
 
+// stop running servers
+func (testEnv *TestEnv) Stop() {
+	if testEnv.Server != nil {
+		testEnv.Server.Stop()
+		testEnv.Server = nil
+	}
+	if testEnv.HttpServer != nil {
+		testEnv.HttpServer.Stop()
+		testEnv.HttpServer = nil
+	}
+}
+
 // NewTestEnv creates a new test environment with certificates and a dummy authenticator.
 //
 // This does not start any servers.

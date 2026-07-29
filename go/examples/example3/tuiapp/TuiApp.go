@@ -50,7 +50,8 @@ type TuiApp struct {
 	tview.Application
 	*consumer.Consumer // for linking
 
-	co      *consumer.Consumer
+	co *consumer.Consumer
+	// cache for discovered things
 	dirCl   directory.IDirectoryClient
 	discoCl discovery.IDiscoveryClient
 	vcache  vcache.IValueCacheService
@@ -265,20 +266,27 @@ func (tuiApp *TuiApp) StartDiscovery() {
 	tuiApp.QueueSwitchToPage(PageDiscovery)
 
 	go func() {
+		dirTDs := make([]*td.TD, 0)
+
 		// TODO use a callback to update UI as results come in
 		dirRecs, dirTDs, deviceRecs, deviceTDs :=
 			tuiApp.discoCl.DiscoverThingTDs("", time.Second*2, nil)
 
+		// add all device TDs to the directory client cache
+		for _, tdoc := range deviceTDs {
+			if tdoc != nil {
+				tuiApp.dirCl.Cache().ImportTD(tdoc)
+			}
+		}
+		// update the directory and discover things
 		if len(dirTDs) > 0 {
 			tuiApp.dirCl.SetTDD(dirTDs[0])
 		}
-		// add all TDs to the directory client cache
-		// TBD: should directory client catch discovery notifications?
-		for _, tdoc := range dirTDs {
-			tuiApp.dirCl.Cache().ImportTD(tdoc)
-		}
-		for _, tdoc := range deviceTDs {
-			tuiApp.dirCl.Cache().ImportTD(tdoc)
+		for _, dirTD := range dirTDs {
+			if dirTD != nil {
+				tuiApp.dirCl.SetTDD(dirTD)
+				tuiApp.dirCl.RetrieveAllThings(0, 100)
+			}
 		}
 
 		tuiApp.mux.Lock()
@@ -290,7 +298,7 @@ func (tuiApp *TuiApp) StartDiscovery() {
 			tuiApp.header.Refresh(dirRecs, allThings)
 			tuiApp.footer.Refresh(allThings)
 			tuiApp.discoPage.Refresh(dirRecs, deviceRecs)
-			tuiApp.menu.Refresh(dirTDs, deviceTDs)
+			tuiApp.menu.Refresh(dirTDs, tuiApp.dirCl.Cache())
 			tuiApp.thingsPage.Refresh(allThings)
 			tuiApp.directoriesPage.Refresh(dirTDs)
 

@@ -86,7 +86,7 @@ func TestConnectPing(t *testing.T) {
 	defer srv.Stop()
 
 	// add a client to connect as
-	_ = authn.AddClient(clientID, "client 1", "myrole")
+	authn.AddClient(clientID, "client 1", "myrole")
 	token, _, _ := authn.CreateToken(clientID, time.Minute)
 
 	// connect a client
@@ -127,7 +127,7 @@ func TestConnectPingClientCert(t *testing.T) {
 	defer srv.Stop()
 
 	// add a client to connect as
-	_ = authn.AddClient(clientID, "client 1", "myrole")
+	authn.AddClient(clientID, "client 1", "myrole")
 
 	// connect a client
 	handleClientMessage := func(raw []byte) {}

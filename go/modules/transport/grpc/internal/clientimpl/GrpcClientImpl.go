@@ -263,6 +263,7 @@ func (cl *GrpcClientImpl) Close() {
 }
 
 // Connect attempts to establish the streams using the previously set authentication method
+// If this fails due to credentials it returns UnauthorizedError
 func (cl *GrpcClientImpl) Connect() (err error) {
 
 	status := cl.GetConnectionStatus()

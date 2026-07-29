@@ -85,7 +85,7 @@ func startService() (
 	// the router module uses the digitwin Thing Directory
 	// getDeviceTD := dtw.GetDeviceDirectory().GetTD
 	rtr := router_service.NewRouterService(
-		storageDir,
+		storageDir, false,
 		dtw.GetDeviceTD,
 		getTps,
 		testEnv.CertBundle.CaCert, rpcTimout)

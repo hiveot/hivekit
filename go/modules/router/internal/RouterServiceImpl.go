@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"net/url"
 	"path/filepath"
+	"strings"
 	"sync"
 	"time"
 
@@ -36,9 +37,16 @@ type RouterServiceImpl struct {
 
 	// mutex for access to deviceConnections
 	cmux sync.RWMutex
+
 	// established device connections by origin (schema://host:port)
-	// deviceConnections map[string]api.ITransportClient
+	// when connecting to individual things, thingID could be used, however when a device manages
+	// multiple Things, they all should use the same connection.
+	// The only thing they have in common is the href origin.
 	deviceConnections map[string]api.IHiveModule
+
+	// Cache of thingID to origin
+	// Used to quickly find the connection of a device.
+	thingOrigin map[string]string
 
 	// the preferred protocol to use when creating a new client connection
 	preferredProtocol string
@@ -68,8 +76,9 @@ func (m *RouterServiceImpl) DeleteThingCredential(thingID string) {
 // GetClientConnection returns a client for sending requests to the server with
 // the given TD. If a connection doesn't exists then create it.
 //
-// Previous connections are re-used. This uses schema://host:port (origin) to
-// identify the connection.
+// Previous connections are re-used. This uses schema://host:port (origin) to identify
+// the connection. For each TD its origin is cached to avoid repeated lookup of forms.
+// Origin lookup can be disabled in case TDs have multiple origins.
 //
 // If the 'reconnect' option is configured then this returns a Reconnect client
 // that automatically reconnects and resubscribes if the connection fails.
@@ -83,28 +92,79 @@ func (m *RouterServiceImpl) GetClientConnection(
 	tdoc *td.TD, op string, name string) (cl api.IHiveModule, err error) {
 
 	var c api.ITransportClient
+	var form *td.Form
+	var href string
+	var match bool
 
-	// Determine the full href to use.
-	protocolType, href, form := clients.GetProtocolType(tdoc, op, name, m.preferredProtocol)
-	_ = protocolType
-
-	parts, err := url.Parse(href)
-	if err != nil {
-		return nil, err
-	}
-	// Use the href 'origin' to identify and re-use the connection.
-	origin := fmt.Sprintf("%s://%s", parts.Scheme, parts.Host)
+	// 1. locate the existing connection using TD's origin
+	// this lock should really be per device
 	m.cmux.Lock()
-	cl, found := m.deviceConnections[origin]
+	thingOrigin, found := m.thingOrigin[tdoc.ID]
+	if found {
+		cl, found = m.deviceConnections[thingOrigin]
+	}
+	defer m.cmux.Unlock()
+
+	// 2. If a valid connection was not found. Redetermine origin and reconnect
 	if !found {
+		prefScheme := api.WotWebsocketScheme
+		prefSubprotocol := api.WotWebsocketSubprotocol
+		protocolParts := strings.Split(m.preferredProtocol, ":")
+		if len(protocolParts) > 1 {
+			prefScheme = protocolParts[0]
+			prefSubprotocol = protocolParts[1]
+		}
+		//
+		if op == "" {
+			form, match = tdoc.GetConnectForm(prefScheme, prefSubprotocol)
+		} else {
+			form, match = tdoc.GetForm(op, name, prefScheme, prefSubprotocol)
+		}
+		_ = match
+		if form == nil {
+			return nil, fmt.Errorf("No matching form for connecting to Thing '%s'", tdoc.ID)
+		}
+		// get the full URL for the operation
+		href, err = form.GetHRef(tdoc.Base, nil)
+
+		// if an href cannot be determined then this can't continue
+		if err != nil {
+			return nil, fmt.Errorf("No href for operation '%s' in TD '%s'", op, tdoc.ID)
+		}
+		// determine the origin that identifies the client connection
+		urlParts, err := url.Parse(href)
+		if err != nil {
+			return nil, err
+		}
+		newOrigin := fmt.Sprintf("%s://%s", urlParts.Scheme, urlParts.Host)
+		// origin on UDS (unix) must include the path while on tcp/http/mqtt it is schema://host:port
+		if strings.ToLower(urlParts.Scheme) == "unix" {
+			// Warning, a unix socket connection is local to the machine only.
+			newOrigin = href
+		}
+		// store the Thing's origin for future quick lookup
+		m.thingOrigin[tdoc.ID] = newOrigin
+		if newOrigin != thingOrigin {
+			cl, found = m.deviceConnections[newOrigin]
+			// guard against orphan connection if the origin changed after a TD update and it already has a connection
+			if found {
+				slog.Error("GetClientConnection: found existing connection after unexpected change in TD origin. Closing old connection.")
+				cl.Stop()
+			}
+		}
+
+		// 3. Create a new client for the origin
 		// TODO: how to determine the CA and client cert for this server?
 		c, err = clients.NewTransportClientFromForm(tdoc, form, m.caCert)
 		if err != nil {
 			return nil, err
 		}
 		c.SetTimeout(m.GetTimeout())
+		// Authentication fails if no credentials can be matched
 		err = c.AuthenticateWithForm(tdoc, m.credStore.GetCredentials)
 		if err != nil {
+			// No auth. Discard this connection.
+			slog.Warn("GetClientConnection: authentication failed", "ThingID", tdoc.ID, "err", err.Error())
 			return nil, err
 		}
 		if m.autoReconnect {
@@ -114,25 +174,14 @@ func (m *RouterServiceImpl) GetClientConnection(
 		} else {
 			cl = c
 		}
-		m.deviceConnections[origin] = cl
+		m.deviceConnections[newOrigin] = cl
+
 		// forward notifications to this module and up to its consumer
 		cl.SetNotificationSink(m)
 		// last, Connect. If reconnect is used it will connect the client
 		err = cl.Start()
 	}
-	m.cmux.Unlock()
 
-	// if rc.GetConnectionStatus() != api.StatusConnected {
-	// 	err = rc.AuthenticateWithForm(tdi, m.credStore.GetCredentials)
-	// 	if err == nil {
-	// 		slog.Info("GetClientConnection: (re)Connecting to ", slog.String("href", href))
-	// 		err = rc.Connect()
-	// 	}
-	// 	if err != nil {
-	// 		err = fmt.Errorf("GetClientConnection. Connection to '%s' failed: %w", origin, err)
-	// 		slog.Warn(err.Error())
-	// 	}
-	// }
 	return cl, err
 }
 
@@ -239,7 +288,11 @@ func (m *RouterServiceImpl) RouteRequest(req *msg.RequestMessage, replyTo msg.Re
 		// 1. should c handlerequest have a callback to get href?
 		// 2. should handlerequest use a context to pass href?
 		if c == nil {
-			err = fmt.Errorf("RouteRequest: Unable to establish a connection to client '%s': %w", rcClientID, err2)
+			slog.Warn("RouteRequest: Unable to establish a connection to client", "err", err2)
+			err = err2
+		} else if err2 != nil {
+			slog.Warn("RouteRequest: Connection failed", "err", err2)
+			err = err2
 		} else {
 			err = c.HandleRequest(req, replyTo)
 		}
@@ -277,14 +330,19 @@ func (m *RouterServiceImpl) Stop() {
 
 // NewRouterServiceImpl creates a new router module
 //
-//	clientID loginID for connecting to a Thing if no credentials are available
+// Use getSrv if routing requests to server RC connected device should be supported.
+// AutoReconnect will attempt to automatically reconnect failed client connections. Note that this
+// might hide authentication problems.
+//
 //	storageDir with the module credentials storage directory, "" for in-memory testing
+//	autoReconnect flag, to enable auto-reconnect on client connections
 //	getTD  handler to lookup a TD for a thingID from a directory
 //	getSrv handler returning a list of transport servers that can contain RC devices.
 //	caCert is the CA used to verify device connections
 //	timeout is the maximum communication timeout with connect clients
 func NewRouterServiceImpl(
 	storageDir string,
+	autoReconnect bool,
 	getTD func(thingID string) *td.TD,
 	getSrv func() []api.ITransportServer,
 	caCert *x509.Certificate, timeout time.Duration,
@@ -297,13 +355,14 @@ func NewRouterServiceImpl(
 	thingID := router.DefaultRouterThingID + "-" + shortid.MustGenerate()
 	m := &RouterServiceImpl{
 		HiveModuleBase:    modules.NewHiveModuleBase(thingID, timeout),
-		autoReconnect:     true,
+		autoReconnect:     autoReconnect,
 		caCert:            caCert,
 		getTD:             getTD,
-		preferredProtocol: api.WotWebsocketProtocolType,
+		preferredProtocol: api.WotMqttProtocolType, //WotWebsocketProtocolType,
 		storageDir:        storageDir,
 		getSrv:            getSrv,
 		deviceConnections: make(map[string]api.IHiveModule),
+		thingOrigin:       make(map[string]string),
 	}
 
 	var _ router.IRouterService = m // interface check

@@ -2,10 +2,11 @@ package router_test
 
 import (
 	"context"
+	"crypto/x509"
+	"fmt"
 	"log/slog"
 	"os"
 	"path"
-	"path/filepath"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -14,18 +15,11 @@ import (
 	"github.com/hiveot/hivekit/go/api/msg"
 	"github.com/hiveot/hivekit/go/api/td"
 	"github.com/hiveot/hivekit/go/modules/authn"
-	certstest "github.com/hiveot/hivekit/go/modules/certs/test"
 	"github.com/hiveot/hivekit/go/modules/consumer"
 	"github.com/hiveot/hivekit/go/modules/directory"
 	directory_service "github.com/hiveot/hivekit/go/modules/directory/service"
 	"github.com/hiveot/hivekit/go/modules/router"
 	router_service "github.com/hiveot/hivekit/go/modules/router/service"
-	grpc_server "github.com/hiveot/hivekit/go/modules/transport/grpc/server"
-	httpbasic_server "github.com/hiveot/hivekit/go/modules/transport/httpbasic/server"
-	ssesc_server "github.com/hiveot/hivekit/go/modules/transport/ssesc/server"
-	"github.com/hiveot/hivekit/go/modules/transport/tlsserver"
-	tls_server "github.com/hiveot/hivekit/go/modules/transport/tlsserver/server"
-	wss_server "github.com/hiveot/hivekit/go/modules/transport/wss/server"
 	"github.com/hiveot/hivekit/go/testenv"
 	"github.com/hiveot/hivekit/go/utils"
 	"github.com/stretchr/testify/assert"
@@ -34,24 +28,23 @@ import (
 
 var storageDir = path.Join(os.TempDir(), "hivekit", "router-test")
 
-var testDevicePort = 9993
-var certsBundle = certstest.CreateTestCertBundle(utils.KeyTypeED25519)
-var testAuthn = testenv.NewTestAuthenticator()
+// var testDevicePort = 9993
+// var certsBundle = certstest.CreateTestCertBundle(utils.KeyTypeED25519)
+// var testAuthn = testenv.NewTestAuthenticator()
 
 const rpcTimeout = time.Minute * 3 // allow for debugging breakpoints
 const testConsumerID = "router1"
 
-const serverType = api.HiveotGrpcUnixProtocolType
+var testProtocol = api.WotWebsocketProtocolType
 
-// const serverType = api.ProtocolTypeHiveotWebsocket
-
-// const serverType = api.ProtocolTypeHiveotSsesc
-
-// const serverType = api.ProtocolTypeWotHttpBasic
-
-// const serverType = api.ProtocolTypeWotWebsocket
-
-// the test directory that holds this td. http server is not needed
+var testProtocols = []string{
+	api.HiveotSseScProtocolType,
+	api.HiveotGrpcTcpProtocolType,
+	api.HiveotGrpcUnixProtocolType,
+	api.HiveotWebsocketProtocolType,
+	api.WotWebsocketProtocolType,
+	// api.HttpBasicProtocolType,  // can't subscribe
+}
 
 // create a chain with a virtual test device, a server and authenticator:
 //
@@ -63,49 +56,19 @@ const serverType = api.HiveotGrpcUnixProtocolType
 //
 // The deviceID is the thingID of the device
 func startTestServerDevice(deviceID string) (testDevice *testenv.TestDevice,
-	tdoc *td.TD, transportServer api.ITransportServer, stopFn func()) {
+	tdoc *td.TD, testEnv *testenv.TestEnv, stopFn func()) {
 
-	// 1. need a http server for serving the protocol and optionally discovery
-	cfg := tlsserver.NewTLSServerConfig(
-		certsBundle.ServerAddr, testDevicePort,
-		certsBundle.ServerCert, certsBundle.CaCert, true)
+	testEnv = testenv.NewTestEnv(true)
 
-	httpServer := tls_server.NewTLSServer(cfg, testAuthn)
-	err := httpServer.Start()
-	if err != nil {
-		panic("startTestServer: failed to start http server")
-	}
+	// 1. Start the server to use for the test protocol
+	slog.Info("startTestServerDevice", "deviceID", deviceID, "serverType", testProtocol)
+	transportServer := testEnv.StartTestServer(testProtocol)
 
-	// 2. Create a protocol server for receiving requests
-	switch serverType {
-	case api.HttpBasicProtocolType:
-		transportServer = httpbasic_server.NewHttpBasicServer(httpServer)
-	case api.HiveotGrpcUnixProtocolType:
-		address := "unix://" + filepath.Join(storageDir, "grpc-server.sock")
-		transportServer = grpc_server.NewHiveotGrpcServer(
-			address, cfg.ServerCert, cfg.CaCert, testAuthn, 0)
-	case api.HiveotSseScProtocolType:
-		transportServer = ssesc_server.NewSseScServer(httpServer, 0)
-	case api.WotWebsocketProtocolType:
-		transportServer = wss_server.NewWotWssServer(httpServer, 0)
-	case api.HiveotWebsocketProtocolType:
-		transportServer = wss_server.NewHiveotWssServer(httpServer, 0)
-	}
-	err = transportServer.Start()
-	if err != nil {
-		panic("startTestServerDevice: failed to start transport server " + serverType)
-	}
-	slog.Info("startTestServerDevice", "deviceID", deviceID, "serverType", serverType)
-	// var testTM *td.TD = td.NewTD(deviceID, "test device", vocab.Device)
-	// testTM.AddPropertyAsString("property-1", "Property 1", "New and improved")
-
-	// testDevice = testenv.NewTestDevice(cfg, deviceID, testAuthn, testTM, serverType)
-
-	// 3. Create the test device Thing
+	// 2. Create the test device Thing and link it to the server so it receives requests
 	testDevice = testenv.NewCounterDevice(deviceID, nil)
 	testDevice.SetNotificationSink(transportServer)
 	transportServer.SetRequestSink(testDevice)
-	err = testDevice.Start()
+	err := testDevice.Start()
 	if err != nil {
 		panic("startTestServerDevice: failed starting test device")
 	}
@@ -115,16 +78,16 @@ func startTestServerDevice(deviceID string) (testDevice *testenv.TestDevice,
 	tdoc, _ = td.UnmarshalTD(tdJson)
 	transportServer.AddTDSecForms(tdoc, false)
 
-	return testDevice, tdoc, transportServer, func() {
+	// tdoc describes how the router can connect to the testDevice
+	return testDevice, tdoc, testEnv, func() {
 		testDevice.Stop()
-		transportServer.Stop()
-		httpServer.Stop()
+		testEnv.Stop()
 	}
 }
 
 // Setup a consumer that uses the router and directory to connect to devices
 // The router has a credentials store for authentication
-func SetupConsumerWithRouter(authn api.IAuthenticator) (
+func SetupConsumerWithRouter(caCert *x509.Certificate) (
 	co *consumer.Consumer,
 	routerMod router.IRouterService,
 	dirSvc directory.IDirectoryService,
@@ -141,7 +104,7 @@ func SetupConsumerWithRouter(authn api.IAuthenticator) (
 	// the router uses the TD to connect to the device.
 	// this doesn't actually need a directory. GetTD could also simply return the device TD.
 	routerMod = router_service.NewRouterService(
-		storageDir, dirSvc.GetTD, nil, certsBundle.CaCert, rpcTimeout)
+		storageDir, false, dirSvc.GetTD, nil, caCert, rpcTimeout)
 
 	err = routerMod.Start()
 	if err != nil {
@@ -172,22 +135,31 @@ func TestMain(m *testing.M) {
 	os.Exit(result)
 }
 
+func TestConnectAllProtocols(t *testing.T) {
+	for _, testProtocol = range testProtocols {
+		t.Run("TestStartStop", TestStartStop)
+		t.Run("TestReadObserveDeviceProperties", TestReadObserveDeviceProperties)
+		t.Run("TestSubscribeReconnectToDevice", TestSubscribeReconnectToDevice)
+	}
+}
+
 // Generic directory store testcases
 func TestStartStop(t *testing.T) {
-	t.Logf("---%s---\n", t.Name())
+	slog.Warn(fmt.Sprintf("---Test: %s %s---\n", t.Name(), testProtocol))
 
 	var testDirMod = directory_service.NewDirectoryService("", "", nil, nil)
 	err := testDirMod.Start()
 	require.NoError(t, err)
 	// test no cred store
-	m := router_service.NewRouterService("", testDirMod.GetTD, nil, certsBundle.CaCert, rpcTimeout)
+	m := router_service.NewRouterService(
+		"", false, testDirMod.GetTD, nil, nil, rpcTimeout)
 	err = m.Start()
 	require.NoError(t, err)
 	defer m.Stop()
 }
 
 func TestCredentialsStore(t *testing.T) {
-	t.Logf("---%s---\n", t.Name())
+	slog.Warn(fmt.Sprintf("---Test: %s %s---\n", t.Name(), testProtocol))
 	const thingID1 = "thing-1"
 	const clientID = "client1"
 	const clientCred = "secret"
@@ -197,7 +169,7 @@ func TestCredentialsStore(t *testing.T) {
 
 	// the router uses the TD to connect to the device.
 	// this doesn't actually need a directory. GetTD could also simply return the device TD.
-	routerMod := router_service.NewRouterService(storageDir, nil, nil, nil, rpcTimeout)
+	routerMod := router_service.NewRouterService(storageDir, false, nil, nil, nil, rpcTimeout)
 	err := routerMod.Start()
 	require.NoError(t, err)
 
@@ -222,7 +194,7 @@ func TestCredentialsStore(t *testing.T) {
 
 // connect to a stand-alone test device and read its properties
 func TestReadObserveDeviceProperties(t *testing.T) {
-	t.Logf("---%s---\n", t.Name())
+	slog.Warn(fmt.Sprintf("---Test: %s %s---\n", t.Name(), testProtocol))
 	const deviceID = "device1"
 	const clientID = "router1"
 	const prop1Name = "prop1"
@@ -233,14 +205,15 @@ func TestReadObserveDeviceProperties(t *testing.T) {
 	// The test device is a runs a server that passes requests to its device.
 	// The router will have to match its security as described in the device TD
 	// The device of the test device handles read requests
-	testDevice, device1TD, _, stopFn := startTestServerDevice(deviceID)
+	testDevice, device1TD, testEnv, stopFn := startTestServerDevice(deviceID)
 	defer stopFn()
+	testAuthn := testEnv.TestAuthn
 
 	// when the device publishes an observable property it becomes available for querying
 	testDevice.ExposedThing.PubProperty(deviceID, prop1Name, prop1Value, false)
 
 	// 2. setup the consumer with the router module and directory client or service
-	co, routerMod, dirSvc := SetupConsumerWithRouter(testAuthn)
+	co, routerMod, dirSvc := SetupConsumerWithRouter(testEnv.CertBundle.CaCert)
 	defer dirSvc.Stop()
 	defer routerMod.Stop()
 
@@ -284,7 +257,7 @@ func TestReadObserveDeviceProperties(t *testing.T) {
 // This test forcefully disconnects the consumer and verifies it auto reconnects with
 // subscription restored.
 func TestSubscribeReconnectToDevice(t *testing.T) {
-	t.Logf("---%s---\n", t.Name())
+	slog.Warn(fmt.Sprintf("---Test: %s %s---\n", t.Name(), testProtocol))
 	const deviceID = "device-1"
 	const clientID = "router1"
 	event1Name := "event1"
@@ -299,7 +272,7 @@ func TestSubscribeReconnectToDevice(t *testing.T) {
 	// 1. Setup the test device with server and a TD
 	// The test device runs a server. The router will have to match its security as
 	// included in its TD
-	testDevice, tdoc, testServer, stopFn := startTestServerDevice(deviceID)
+	testDevice, tdoc, testEnv, stopFn := startTestServerDevice(deviceID)
 	defer stopFn()
 
 	// 2. setup the consumer side: directory, router and consumer
@@ -315,14 +288,15 @@ func TestSubscribeReconnectToDevice(t *testing.T) {
 
 	// the router uses the TD to connect to the device.
 	// this doesn't actually need a directory. GetTD could also simply return the device TD.
-	routerMod := router_service.NewRouterService(storageDir, testDirMod.GetTD, nil, certsBundle.CaCert, rpcTimeout)
+	routerMod := router_service.NewRouterService(
+		storageDir, true, testDirMod.GetTD, nil, testEnv.CertBundle.CaCert, rpcTimeout)
 	err = routerMod.Start()
 	require.NoError(t, err)
 	defer routerMod.Stop()
 
 	// to connect to the device, consumer credentials are needed
-	testAuthn.AddClient(testConsumerID, "", authn.ClientRoleOperator)
-	token, _, _ := testAuthn.CreateToken(testConsumerID, rpcTimeout)
+	testEnv.TestAuthn.AddClient(testConsumerID, "", authn.ClientRoleOperator)
+	token, _, _ := testEnv.TestAuthn.CreateToken(testConsumerID, rpcTimeout)
 	routerMod.AddDeviceCredential(deviceID, clientID, token, td.SecSchemeBearer)
 
 	ctx, cancelFn := context.WithTimeout(context.Background(), rpcTimeout)
@@ -355,7 +329,7 @@ func TestSubscribeReconnectToDevice(t *testing.T) {
 
 	// drop client connections
 	slog.Warn("--- breaking connections on the server, expect a warning ---")
-	testServer.CloseAll()
+	testEnv.Server.CloseAll()
 
 	// reading properties should fail while auto-reconnect is ongoing
 	slog.Info("---ReadAllProperties (while reconnecting)---")

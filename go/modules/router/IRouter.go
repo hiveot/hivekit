@@ -45,19 +45,6 @@ type IRouterService interface {
 	// Return a flag indicating whether the credentials are set for a Thing
 	HasThingCredentials(thingID string) bool
 
-	// Determine if the thing is reachable by the router.
-	//
-	// This returns true if a device connection is established by the router, or if
-	// a reverse connection exists by the thing's deviceID.
-	//
-	// This determines the deviceID that manages the thing and looks up connections made
-	// to or from the deviceID.
-	// IsReachable(thingID string) bool
-
-	// Return the ISO timestamp when the Thing was last seen by the router.
-	// This returns an empty string if no known record exists.
-	// LastSeen(thingID string) string
-
 	// Set the communication timeout that is applied to new connections made by this module
 	SetTimeout(time.Duration)
 }

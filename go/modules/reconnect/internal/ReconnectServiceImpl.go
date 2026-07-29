@@ -217,6 +217,7 @@ func (m *ReconnectServiceImpl) Start() error {
 	if m.conn != nil {
 		// A failure to connect is not a failure of this module
 		// TBD - should this run DoReconnect instead?
+		// FIXME: how to report an authentication failure:
 		err := m.conn.Start()
 		if err != nil {
 			slog.Warn("ReconnectClient.Start The linked client failed to start.",

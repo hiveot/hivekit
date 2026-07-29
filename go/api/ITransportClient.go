@@ -144,8 +144,8 @@ type ITransportClient interface {
 	//
 	// Connect does not restore subscriptions.
 	//
-	// This returns no error if the connection is established and usable.
 	// An error is return if unable to connect for any reason.
+	// The error is UnauthorizedError if credentials are invalid.
 	Connect() (err error)
 
 	// Return the connecting status

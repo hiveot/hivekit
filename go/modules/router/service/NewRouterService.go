@@ -16,18 +16,20 @@ import (
 // Start must be called before usage.
 //
 //	storageDir location where the module stores its data
+//	autoReconnect to enable auto-reconnecting of dropped client connections, restoring subscriptions.
 //	getTD  handler to lookup a TD for a thingID from a directory
 //	getSrv handler to return the running list of transport servers that can contain
 //	 reverse connections. nil to not support RCs.
 //	caCert is the CA certificate used to verify device connections
 //	timeout is the maximum wait time for sending requests to clients.
 func NewRouterService(storageDir string,
+	autoReconnect bool,
 	getTD func(thingID string) *td.TD,
 	getSrv func() []api.ITransportServer,
 	caCert *x509.Certificate, timeout time.Duration,
 ) router.IRouterService {
 
-	m := internal.NewRouterServiceImpl(storageDir, getTD, getSrv, caCert, timeout)
+	m := internal.NewRouterServiceImpl(storageDir, autoReconnect, getTD, getSrv, caCert, timeout)
 	return m
 }
 
@@ -38,7 +40,7 @@ func NewRouterServiceFactory(f api.IModuleFactory, md *api.ModuleDefinition) (ap
 	env := f.GetEnvironment()
 	storageDir := env.GetStorageDir(router.RouterModuleType)
 
-	// The router can also be used server and client side. Check for both server and client directory.
+	// The router can be used server or client side. Check for both server and client directory.
 	m, err := f.StartModule(directory.DirectoryServiceModuleType, true)
 	if err == nil {
 		if dirMod, ok := m.(directory.IDirectoryService); ok {
@@ -56,7 +58,9 @@ func NewRouterServiceFactory(f api.IModuleFactory, md *api.ModuleDefinition) (ap
 	if err != nil {
 		return nil, fmt.Errorf("NewRouterServiceFactory. Missing TD directory: %w", err)
 	}
-	svc := NewRouterService(storageDir, getTD, f.GetTransportServers, env.CaCert, f.GetEnvironment().RpcTimeout)
+	// TODO: use config to set auto-reconnect. For now don't because it might hide auth problems.
+	autoReconnect := false
+	svc := NewRouterService(storageDir, autoReconnect, getTD, f.GetTransportServers, env.CaCert, f.GetEnvironment().RpcTimeout)
 	svc.SetTimeout(env.RpcTimeout)
 
 	return svc, nil

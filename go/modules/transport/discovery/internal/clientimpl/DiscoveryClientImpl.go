@@ -192,7 +192,8 @@ func (cl *DiscoveryClientImpl) DiscoverThings(
 
 // Discover all things and download their TD
 // This separates directories from devices
-// If a TD cannot be read this includes nil in the result.
+// NOTE: If a TD cannot be read this includes nil in the result so the
+// records table matches the TD table.
 func (cl *DiscoveryClientImpl) DiscoverThingTDs(
 	instanceName string, maxWaitTime time.Duration,
 	cb func(*td.TD) bool) (
