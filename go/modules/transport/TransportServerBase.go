@@ -116,7 +116,7 @@ func (srv *TransportServerBase) AddConnection(c api.IConnection) error {
 	senderID := srv.GetThingID()
 	thingID := senderID
 	notif := msg.NewNotificationMessage(senderID, msg.AffordanceTypeEvent, thingID,
-		api.ServerConnectEvent, connectionInfo)
+		api.ServerConnectedEvent, connectionInfo)
 	srv.ForwardNotification(notif)
 	return nil
 }
@@ -360,7 +360,7 @@ func (srv *TransportServerBase) RemoveConnection(c api.IConnection) {
 	senderID := srv.GetThingID()
 	thingID := senderID
 	notif := msg.NewNotificationMessage(senderID, msg.AffordanceTypeEvent, thingID,
-		api.ServerDisconnectEvent, connectionInfo)
+		api.ServerDisconnectedEvent, connectionInfo)
 	srv.ForwardNotification(notif)
 }
 

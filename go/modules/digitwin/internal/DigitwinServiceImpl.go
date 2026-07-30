@@ -172,7 +172,7 @@ func (m *DigitwinServiceImpl) HandleNotification(notif *msg.NotificationMessage)
 
 	// track online status of devices - this needs tracking of devices
 	// FIXME: how to know if senderID is a device?
-	if notif.Name == api.ServerConnectEvent {
+	if notif.Name == api.ServerConnectedEvent {
 
 		// if the sender is an device or service instead of a consumer then its things are now online.
 		cinfo := api.ConnectionInfo{}
@@ -183,7 +183,7 @@ func (m *DigitwinServiceImpl) HandleNotification(notif *msg.NotificationMessage)
 		// send notifications upstream to potential consumers
 		m.ForwardNotification(notif)
 		return
-	} else if notif.Name == api.ServerDisconnectEvent {
+	} else if notif.Name == api.ServerDisconnectedEvent {
 		// if this is an device or service then its things are no longer online
 		cinfo := api.ConnectionInfo{}
 		err := notif.Decode(&cinfo)

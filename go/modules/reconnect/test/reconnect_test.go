@@ -3,6 +3,7 @@ package reconnect_test
 import (
 	"context"
 	"errors"
+	"fmt"
 	"log/slog"
 	"sync/atomic"
 	"testing"
@@ -15,11 +16,12 @@ import (
 	"github.com/hiveot/hivekit/go/modules/consumer"
 	"github.com/hiveot/hivekit/go/modules/thing"
 	"github.com/hiveot/hivekit/go/testenv"
+	"github.com/hiveot/hivekit/go/utils"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
-var testProtocol = api.WotWebsocketProtocolType
+var testProtocol = api.HiveotWebsocketProtocolType
 
 var testProtocols = []string{
 	api.HiveotSseScProtocolType,
@@ -39,7 +41,7 @@ func TestReconnectAllProtocols(t *testing.T) {
 // Reconnect the client using the 'ReconnectClient' module
 // TODO: move this as a test case of the Reconnect module)
 func TestReconnect(t *testing.T) {
-	t.Logf("---%s %s---\n", t.Name(), testProtocol)
+	slog.Warn(fmt.Sprintf("---Test: %s %s---\n", t.Name(), testProtocol))
 
 	const thingID = "thing1"
 	const actionKey = "action1"
@@ -87,11 +89,18 @@ func TestReconnect(t *testing.T) {
 
 	// start the servers and handle a request
 	testEnv, cancelFn := testenv.StartTestEnv(testProtocol, true)
+	defer cancelFn()
+
+	utils.SetLogging("info", "")
 	testEnv.Server.SetRequestSink(ething)
+
+	// wait max 10 sec or until nr of '(re)connected' events is reached is 2
+	ctx1, ctx1Cancel := context.WithTimeout(context.Background(), time.Second*10)
+	defer ctx1Cancel()
 
 	// server emits notification when a new connection is received
 	notifHandler := consumer.NewConsumer(nil, func(notif *msg.NotificationMessage) {
-		if notif.Name == api.ServerConnectEvent {
+		if notif.Name == api.ServerConnectedEvent {
 			// expect a connect-disconnect event
 			serverConnectEvents.Add(1)
 			slog.Info("TestReconnect: Connection notification by Server",
@@ -99,14 +108,12 @@ func TestReconnect(t *testing.T) {
 				slog.String("thingID", notif.ThingID),
 				slog.String("name", notif.Name),
 			)
+			if serverConnectEvents.Load() == 2 {
+				ctx1Cancel()
+			}
 		}
 	})
 	testEnv.Server.SetNotificationSink(notifHandler)
-	defer cancelFn()
-
-	// connect as consumer and give client a second to reconnect
-	ctx1, cancelFn1 := context.WithTimeout(context.Background(), time.Second)
-	defer cancelFn1()
 
 	// new consumer with reconnect client
 	co1, cc1, _ := testEnv.NewReconnectedConsumer(testClientID1, authn.ClientRoleViewer)
@@ -124,11 +131,14 @@ func TestReconnect(t *testing.T) {
 
 	<-ctx1.Done()
 
+	// Note: the server gets the 'connected' status before the client
+	// a little wait is needed before using the connection.
+	time.Sleep(time.Millisecond)
+
 	// 4. invoke an action which should return a value
 	// An RPC call is the ultimate test
 	var rpcArgs = "rpc test"
 	var rpcResp string
-	time.Sleep(time.Millisecond * 1000)
 	err := co1.InvokeAction(thingID, actionKey, &rpcArgs, &rpcResp)
 	require.NoError(t, err)
 	assert.Equal(t, rpcArgs, rpcResp)

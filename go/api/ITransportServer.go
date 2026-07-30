@@ -14,9 +14,9 @@ import (
 // These are published by TransportServerBase
 const (
 	// The server accepted a connection from a client
-	ServerConnectEvent = "serverconnect"
+	ServerConnectedEvent = "serverconnect"
 	// The server remove a client connection
-	ServerDisconnectEvent = "serverdisconnect"
+	ServerDisconnectedEvent = "serverdisconnect"
 )
 
 // Note: the definition of protocol-type is scheme:subprotocol
