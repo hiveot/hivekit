@@ -13,7 +13,6 @@ import (
 	standalonerecipe "github.com/hiveot/hivekit/go/modules/factory/recipes/standalone"
 	factory_service "github.com/hiveot/hivekit/go/modules/factory/service"
 	"github.com/hiveot/hivekit/go/testenv"
-	"github.com/hiveot/hivekit/go/utils"
 )
 
 // Create a client account to login as.
@@ -30,11 +29,13 @@ var ExampleHome = path.Join(os.TempDir(), "hivekit-examples")
 // See the factory/recipes/StandAloneDeviceRecipe.go for the modules in the recipe.
 // On start the device publishes its TD to the discovery server.
 func main() {
-	// start the factory using the examples tmp directory as home
 	env := api.NewAppEnvironment(ExampleHome, true)
-	env.RpcTimeout = time.Minute
-	// override loglevel
-	utils.SetLogging("info", "")
+	env.RpcTimeout = time.Minute // for testing
+
+	// FIXME: for a different clientID when running with go run, instead of the APP ID
+	if env.ClientID == "main" {
+		env.ClientID = "admin"
+	}
 
 	f := factory_service.NewModuleFactory(env, nil)
 
@@ -47,7 +48,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	// Create an example operator account for the client and export its 24 hour token.
+	// Create an admine account for the client and export its 24 hour token.
 	// FIXME: would this be better for the factory or authn service?
 	authnSvc := api.GetFactoryModule[authn.IAuthnService](f, authn.AuthnServiceModuleType)
 	if authnSvc != nil {
@@ -70,7 +71,7 @@ func main() {
 			fmt.Printf("main:ERROR writing auth token: %s\n", err.Error())
 			os.Exit(1)
 		}
-		fmt.Printf("Created new admin token at '%s'\n", tokenFile)
+		fmt.Printf("Renewed the admin token at '%s'\n", tokenFile)
 	}
 
 	// next start the app module

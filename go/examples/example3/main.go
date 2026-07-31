@@ -32,7 +32,7 @@ func main() {
 	// utils.SetLogging("warn", "")
 	// log to file to avoid messing up the tui
 	env.CreateDir(env.LogsDir, 0750)
-	utils.SetLogging("info", path.Join(env.LogsDir, "example3.log"))
+	utils.SetLogging(env.LogLevel, path.Join(env.LogsDir, "example3.log"))
 
 	f := factory_service.NewModuleFactory(env, nil)
 	// TODO: for now don't use reconnect as it hides authentication error

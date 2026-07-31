@@ -125,7 +125,7 @@ func (infoPanel *TDInfoPanel) ShowPropAff(propName string, aff *td.PropertyAffor
 // Add a form section to the table at the row
 // This returns the last row+1.
 func (infoPanel *TDInfoPanel) ShowForm(row int, form td.Form, i int) int {
-	href, _ := form.GetHRef("", nil)
+	href, _ := form.GetHRef()
 	label := fmt.Sprintf("Form[%d]", i)
 	infoPanel.SetTitleCell(row, 0, label, "")
 	row++

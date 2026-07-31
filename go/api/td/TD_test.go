@@ -164,6 +164,8 @@ func TestForms(t *testing.T) {
 	const prop1Name = "prop1"
 	const event1Name = "event1"
 	tdoc := td.NewTD(thing1ID, "test TD", deviceTypeThingSensor)
+	tdoc.Base = "https://localhost:1234/path"
+
 	actAff := tdoc.AddAction(action1Name, "action", "Test Action", nil)
 	tdoc.AddProperty(prop1Name, "prop", "Test Prop", td.DataTypeInteger)
 	tdoc.AddEvent(event1Name, "event", "Test Event", nil)
@@ -191,7 +193,12 @@ func TestForms(t *testing.T) {
 	require.NotEmpty(t, f1b)
 	assert.True(t, match)
 
-	href, err := f1b.GetHRef(tdoc.Base, nil)
-	assert.NoError(t, err)
+	href, found := f1b.GetHRef()
+	assert.True(t, found)
 	assert.NotEmpty(t, href)
+
+	// the form href is absolute
+	hrefURL, err := f1b.ResolveHRef(tdoc.Base, nil)
+	assert.NoError(t, err)
+	assert.Equal(t, href, hrefURL.String())
 }

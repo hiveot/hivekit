@@ -10,6 +10,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/hiveot/hivekit/go/api"
 	"github.com/hiveot/hivekit/go/api/msg"
 	"github.com/hiveot/hivekit/go/api/td"
 	"github.com/hiveot/hivekit/go/modules/authn"
@@ -117,6 +118,11 @@ func TestInvokeActionFromServerToDevice(t *testing.T) {
 	var thingID = "thing1"
 	var actionKey = "action1"
 	var corrID = "correlation-1"
+
+	// this test doesnt apply to http-basic
+	if testProtocol == api.HttpBasicProtocolType {
+		return
+	}
 
 	// 1. start the server. register a message handler for receiving an action status
 	// async reply from the device after the server sends an invoke action.

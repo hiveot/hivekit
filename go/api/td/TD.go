@@ -332,9 +332,8 @@ func (tdoc *TD) GetConnectForm(prefScheme, prefSubprotocol string) (form *Form, 
 	}
 	// locate the preferred form if any
 	for _, form := range forms {
-		href, _ := form.GetHRef(tdoc.Base, nil)
-		parts, _ := url.Parse(href)
-		scheme := strings.ToLower(parts.Scheme)
+		hrefURL, _ := form.ResolveHRef(tdoc.Base, nil)
+		scheme := strings.ToLower(hrefURL.Scheme)
 		subprotocol, _ := form.GetSubprotocol()
 		if prefScheme == "" || scheme == prefScheme {
 			if prefSubprotocol == "" || subprotocol == prefSubprotocol {
@@ -420,10 +419,9 @@ func (tdoc *TD) GetForm(operation string, name string, prefScheme, prefSubprotoc
 
 	// last match href scheme
 	for _, form := range forms {
-		href, _ := form.GetHRef(tdoc.Base, nil)
-		parts, err := url.Parse(href)
+		hrefURL, err := form.ResolveHRef(tdoc.Base, nil)
 		if err == nil {
-			if parts.Scheme == prefScheme {
+			if hrefURL.Scheme == prefScheme {
 				return &form, true
 			}
 		}
@@ -436,26 +434,24 @@ func (tdoc *TD) GetForm(operation string, name string, prefScheme, prefSubprotoc
 // extracts the href.
 //
 // This injects href uriVars if provided.
-func (tdoc *TD) GetFormHRef(
-	op, name string, prefScheme, prefSubprotocol string, uriVars map[string]string) (
-	f *Form, href string, err error) {
-	var match bool
+// func (tdoc *TD) GetFormHRef(
+// 	op, name string, prefScheme, prefSubprotocol string, uriVars map[string]string) (
+// 	f *Form, href string, err error) {
+// 	var match bool
 
-	f, match = tdoc.GetForm(op, name, prefScheme, prefSubprotocol)
-	if f == nil {
-		return nil, "", fmt.Errorf("No form found for the requested operation")
-	}
+// 	f, match = tdoc.GetForm(op, name, prefScheme, prefSubprotocol)
+// 	if f == nil {
+// 		return nil, "", fmt.Errorf("No form found for the requested operation")
+// 	}
 
-	href, err = f.GetHRef(tdoc.Base, uriVars)
-	if err != nil {
-		return f, "", err
-	}
-	if uriVars != nil {
-		href = utils.Substitute(href, uriVars)
-	}
-	_ = match
-	return f, href, err
-}
+// 	hrefURL, err := f.ResolveHRef(tdoc.Base, uriVars)
+// 	if err != nil {
+// 		return f, "", err
+// 	}
+// 	href = hrefURL.String()
+// 	_ = match
+// 	return f, href, err
+// }
 
 // GetForms returns the forms for the requested operation.
 // The caller still has to find the matching protocol based on url and subprotocol field.
@@ -591,18 +587,24 @@ func (tdoc *TD) GetSecurityScheme() (scheme SecurityScheme, err error) {
 // IsDirectory returns true if the TD represents a directory
 // Directories are identified by the @type "ThingDirectory" keyword.
 func (tdoc *TD) IsDirectory() bool {
-	if tdoc.AtType != nil {
-		switch tdoc.AtType.(type) {
-		case string:
-			return tdoc.AtType == AtTypeDirectory
-		case []string:
-			for _, t := range tdoc.AtType.([]string) {
-				if t == AtTypeDirectory {
-					return true
-				}
+	// if tdoc.AtType != nil {
+	switch tdoc.AtType.(type) {
+	case string:
+		return tdoc.AtType == AtTypeDirectory
+	case []string:
+		if slices.Contains(tdoc.AtType.([]string), AtTypeDirectory) {
+			return true
+		}
+	case []any:
+		for _, t := range tdoc.AtType.([]any) {
+			if t == AtTypeDirectory {
+				return true
 			}
 		}
+	default:
+		//unknown @type field
 	}
+	// }
 	return false
 }
 
@@ -612,6 +614,25 @@ func (tdoc *TD) IsDirectory() bool {
 //	tdoc.EscapeKeys()
 //	return err
 //}
+
+// ResolveHRef is a helper that determines the href from base and optional form and substitutes
+// optional URI variables.
+func (tdoc *TD) ResolveHRef(form *Form, uriVars map[string]string) (
+	href string, scheme string, err error) {
+
+	var hrefURL *url.URL
+	if form != nil {
+		hrefURL, err = form.ResolveHRef(tdoc.Base, uriVars)
+	} else {
+		hrefURL, err = url.Parse(tdoc.Base)
+	}
+	if err == nil {
+		href = hrefURL.String()
+		scheme = hrefURL.Scheme
+	}
+
+	return href, scheme, err
+}
 
 // SetForms replaces the top level forms section of the TD
 func (tdoc *TD) SetForms(formList []Form) {

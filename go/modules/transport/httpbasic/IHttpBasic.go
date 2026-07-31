@@ -14,6 +14,7 @@ const (
 	// The generic path for thing operations over http
 	// See http server for definition of the URI variables
 	HttpBaseFormOp                   = "/things"
+	HttpBasicNotificationPath        = "/things/notification"
 	HttpBasicAffordanceOperationPath = "/things/{op}/{id}/{name}"
 	HttpBasicThingOperationPath      = "/things/{op}/{id}"
 )

@@ -4,7 +4,6 @@ import (
 	"crypto/x509"
 	"fmt"
 	"log/slog"
-	"net/url"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -46,7 +45,7 @@ type RouterServiceImpl struct {
 
 	// Cache of thingID to origin
 	// Used to quickly find the connection of a device.
-	thingOrigin map[string]string
+	thingOrigins map[string]string
 
 	// the preferred protocol to use when creating a new client connection
 	preferredProtocol string
@@ -93,13 +92,12 @@ func (m *RouterServiceImpl) GetClientConnection(
 
 	var c api.ITransportClient
 	var form *td.Form
-	var href string
 	var match bool
 
 	// 1. locate the existing connection using TD's origin
 	// this lock should really be per device
 	m.cmux.Lock()
-	thingOrigin, found := m.thingOrigin[tdoc.ID]
+	thingOrigin, found := m.thingOrigins[tdoc.ID]
 	if found {
 		cl, found = m.deviceConnections[thingOrigin]
 	}
@@ -125,28 +123,24 @@ func (m *RouterServiceImpl) GetClientConnection(
 			return nil, fmt.Errorf("No matching form for connecting to Thing '%s'", tdoc.ID)
 		}
 		// get the full URL for the operation
-		href, err = form.GetHRef(tdoc.Base, nil)
+		hrefURL, err := form.ResolveHRef(tdoc.Base, nil)
 
 		// if an href cannot be determined then this can't continue
 		if err != nil {
 			return nil, fmt.Errorf("No href for operation '%s' in TD '%s'", op, tdoc.ID)
 		}
 		// determine the origin that identifies the client connection
-		urlParts, err := url.Parse(href)
-		if err != nil {
-			return nil, err
-		}
-		newOrigin := fmt.Sprintf("%s://%s", urlParts.Scheme, urlParts.Host)
+		newOrigin := fmt.Sprintf("%s://%s", hrefURL.Scheme, hrefURL.Host)
 		// origin on UDS (unix) must include the path while on tcp/http/mqtt it is schema://host:port
-		if strings.ToLower(urlParts.Scheme) == "unix" {
+		if strings.ToLower(hrefURL.Scheme) == "unix" {
 			// Warning, a unix socket connection is local to the machine only.
-			newOrigin = href
+			newOrigin = hrefURL.String()
 		}
 		// store the Thing's origin for future quick lookup
-		m.thingOrigin[tdoc.ID] = newOrigin
-		if newOrigin != thingOrigin {
+		m.thingOrigins[tdoc.ID] = newOrigin
+		// guard against orphan connection if the origin changed after a TD update and it already has a connection
+		if thingOrigin != "" && newOrigin != thingOrigin {
 			cl, found = m.deviceConnections[newOrigin]
-			// guard against orphan connection if the origin changed after a TD update and it already has a connection
 			if found {
 				slog.Error("GetClientConnection: found existing connection after unexpected change in TD origin. Closing old connection.")
 				cl.Stop()
@@ -358,11 +352,11 @@ func NewRouterServiceImpl(
 		autoReconnect:     autoReconnect,
 		caCert:            caCert,
 		getTD:             getTD,
-		preferredProtocol: api.WotMqttProtocolType, //WotWebsocketProtocolType,
+		preferredProtocol: api.WotWebsocketProtocolType,
 		storageDir:        storageDir,
 		getSrv:            getSrv,
 		deviceConnections: make(map[string]api.IHiveModule),
-		thingOrigin:       make(map[string]string),
+		thingOrigins:      make(map[string]string),
 	}
 
 	var _ router.IRouterService = m // interface check

@@ -317,10 +317,10 @@ func NewAppEnvironment(homeDir string, withFlags bool) *AppEnvironment {
 		flag.StringVar(&homeDir, "home", homeDir, "Application home directory")
 		flag.StringVar(&certsDir, "certs", certsDir, "Certificate and keys directory")
 		flag.StringVar(&configDir, "config", configDir, "Configuration directory")
-		flag.StringVar(&configFile, "configFile", configFile, "Configuration file")
+		flag.StringVar(&configFile, "configfile", configFile, "Configuration file")
 		flag.StringVar(&pluginsDir, "plugins", pluginsDir, "Plugins directory")
 		flag.StringVar(&clientID, "clientID", clientID, "clientID to authenticate with")
-		flag.StringVar(&logLevel, "logLevel", logLevel, "logging level: debug, warning, info, error")
+		flag.StringVar(&logLevel, "loglevel", logLevel, "logging level: debug, warning, info, error")
 		flag.StringVar(&directoryURL, "directoryURL", directoryURL, "url of directory TD")
 		flag.StringVar(&serverURL, "serverURL", serverURL, "connection url for server")
 		if flag.Usage == nil {

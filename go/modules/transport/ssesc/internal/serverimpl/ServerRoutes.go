@@ -49,7 +49,9 @@ func (srv *SseScServerImpl) onHttpNotificationMessage(w http.ResponseWriter, r *
 	// 1. Decode the message
 	rp, err := srv.httpServer.GetRequestParams(r)
 	if err != nil {
-		utils.WriteError(w, err, 0)
+		// slog.Error(err.Error())
+		// utils.WriteError(w, err, 0)
+		w.WriteHeader(http.StatusUnauthorized)
 		return
 	}
 	// the converter translates the payload to a NotificationMessage

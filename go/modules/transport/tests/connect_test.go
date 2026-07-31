@@ -29,6 +29,7 @@ var testProtocols = []string{
 	api.HiveotGrpcUnixProtocolType,
 	api.HiveotWebsocketProtocolType,
 	api.WotWebsocketProtocolType,
+	api.HttpBasicProtocolType,
 }
 
 // TestMain sets logging
@@ -146,12 +147,14 @@ func TestUnauthorizedError(t *testing.T) {
 	assert.NoError(t, err)
 	cl.Close()
 
-	// check bad token
-	err = cl.AuthenticateWithToken(testClientID1, "badtoken")
-	assert.NoError(t, err)
-	err = cl.Connect()
-	assert.Equal(t, utils.UnauthorizedError, err)
-	cl.Close()
+	// check bad token - httpbasic doesnt detect this until a request is sent
+	if testProtocol != api.HttpBasicProtocolType {
+		err = cl.AuthenticateWithToken(testClientID1, "badtoken")
+		assert.NoError(t, err)
+		err = cl.Connect()
+		assert.Equal(t, utils.UnauthorizedError, err)
+		cl.Close()
+	}
 
 }
 

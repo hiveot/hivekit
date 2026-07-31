@@ -3,20 +3,16 @@ package tuiapp
 import (
 	"fmt"
 	"strconv"
-	"strings"
 
 	"github.com/araddon/dateparse"
 	"github.com/hiveot/hivekit/go/api/td"
-	"github.com/hiveot/hivekit/go/utils"
 )
 
 // Show the loaded things in the main view
-// this rotates through different tabl
 type ThingsPage struct {
 	*TuiTable
 	// model       *wotco.WotConsumer
-	thingViewNr int
-	evHandler   func(ev ...string)
+	evHandler func(ev ...string)
 }
 
 // Return the thingID of the selected row, or empty string if not found
@@ -32,28 +28,14 @@ func (page *ThingsPage) GetThingID(row int) string {
 // this rotates through different tables
 func (page *ThingsPage) Refresh(tdList []*td.TD) {
 
-	viewNr := page.thingViewNr
-	page.thingViewNr++
-	if page.thingViewNr > 2 {
-		page.thingViewNr = 0
-	}
-	page.SetTitle(fmt.Sprintf(" Discovered Things - page %d ", viewNr+1))
+	page.SetTitle(fmt.Sprintf(" %d Discovered Things ", len(tdList)))
 	page.SetBorders(false)
 	page.SetSelectable(true, false)
 
 	lines := []string{}
 	// start with an empty table and a title row
 	page.Clear()
-	titles := []string{"ThingID", "Title"}
-	if viewNr == 0 {
-		titles = append(titles, "Security", "Base URL")
-	}
-	if viewNr == 1 {
-		titles = append(titles, "#Props", "#Events", "#Actions", "Modified")
-	}
-	if viewNr == 2 {
-		titles = append(titles, "Actions")
-	}
+	titles := []string{"ThingID", "Title", "#Props", "#Events", "#Actions", "Modified", "Base"}
 	page.SetTitleRow(0, titles...)
 
 	// Add a list of known things
@@ -64,23 +46,16 @@ func (page *ThingsPage) Refresh(tdList []*td.TD) {
 		for name := range tdoc.Actions {
 			names = append(names, name)
 		}
-		sec := utils.DecodeAsString(tdoc.Security, 20)
+		// sec := utils.DecodeAsString(tdoc.Security, 20)
 		modified := dateparse.MustParse(tdoc.Modified).Local()
 
 		colData := []string{tdoc.ID, tdoc.Title}
-		if viewNr == 0 {
-			colData = append(colData, sec, tdoc.Base)
-		}
-		if viewNr == 1 {
-			colData = append(colData,
-				strconv.Itoa(len(tdoc.Properties)),
-				strconv.Itoa(len(tdoc.Events)),
-				strconv.Itoa(len(tdoc.Actions)),
-				modified.Format("2006-01-02 15:04"))
-		}
-		if viewNr == 2 {
-			colData = append(colData, strings.Join(names, ", "))
-		}
+		colData = append(colData,
+			strconv.Itoa(len(tdoc.Properties)),
+			strconv.Itoa(len(tdoc.Events)),
+			strconv.Itoa(len(tdoc.Actions)),
+			modified.Format("2006-01-02 15:04"),
+			tdoc.Base)
 		page.SetTextRow(row, colData...)
 	}
 	lines = append(lines, "")
@@ -108,8 +83,7 @@ func (page *ThingsPage) onRowSelect(row int, column int) {
 func NewThingsPage() *ThingsPage {
 
 	thingsPage := &ThingsPage{
-		TuiTable:    NewTuiTable(),
-		thingViewNr: 0,
+		TuiTable: NewTuiTable(),
 	}
 	thingsPage.Refresh(nil)
 	thingsPage.SetBorder(true)

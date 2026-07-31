@@ -35,6 +35,12 @@ func TestAllEvents(t *testing.T) {
 // this uses the client and server helpers defined in connect_test.go
 // Test subscribing and receiving all events by consumer
 func TestSubscribeAll(t *testing.T) {
+
+	// this test doesnt apply to http-basic
+	if testProtocol == api.HttpBasicProtocolType {
+		return
+	}
+
 	slog.Warn(fmt.Sprintf("---Test: %s %s---\n", t.Name(), testProtocol))
 	var rxVal atomic.Value
 	var testMsg1 = "hello world 1"
@@ -105,6 +111,12 @@ func TestSubscribeAll(t *testing.T) {
 
 // test if subscriptions are retained after a reconnect
 func TestSubscribeReconnect(t *testing.T) {
+
+	// this test doesnt apply to http-basic
+	if testProtocol == api.HttpBasicProtocolType {
+		return
+	}
+
 	slog.Warn(fmt.Sprintf("---Test: %s %s---\n", t.Name(), testProtocol))
 	const deviceID = "deviceID"
 	var thingID = "thing1"

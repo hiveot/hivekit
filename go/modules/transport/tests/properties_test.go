@@ -10,6 +10,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/hiveot/hivekit/go/api"
 	"github.com/hiveot/hivekit/go/api/msg"
 	"github.com/hiveot/hivekit/go/api/td"
 	"github.com/hiveot/hivekit/go/modules/authn"
@@ -37,6 +38,11 @@ func TestAllProps(t *testing.T) {
 
 // Test observing and receiving all properties by consumer
 func TestObservePropertyByConsumer(t *testing.T) {
+
+	// this test doesnt apply to http-basic
+	if testProtocol == api.HttpBasicProtocolType {
+		return
+	}
 	slog.Warn(fmt.Sprintf("---Test: %s %s---\n", t.Name(), testProtocol))
 	var rxVal1 atomic.Value
 	var rxVal2 atomic.Value

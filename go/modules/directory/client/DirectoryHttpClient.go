@@ -67,10 +67,13 @@ func (cl *DirectoryHttpClient) _send(
 
 	// Use the form from the directory TD if available
 	var method string
-	f, href, err := cl.dirTD.GetFormHRef(td.OpInvokeAction, actionName,
-		api.HttpBasicScheme, api.HttpBasicSubprotocol, uriVars)
+	f, _ := cl.dirTD.GetForm(td.OpInvokeAction, actionName, api.HttpBasicScheme, api.HttpBasicSubprotocol)
+	hrefURL, err := f.ResolveHRef(cl.dirTD.Base, uriVars)
+	href := hrefURL.String()
 
-	if err == nil {
+	// f, href, err := cl.dirTD.GetFormHRef(td.OpInvokeAction, actionName,
+	// api.HttpBasicScheme, api.HttpBasicSubprotocol, uriVars)
+	if f != nil {
 		// use the form href and method
 		method, _ = f.GetMethodName()
 	} else {

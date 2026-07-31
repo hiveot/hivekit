@@ -178,8 +178,8 @@ func NewTDPage(invokeActionCb func(thingID, name string, input any)) *TDPage {
 	page.SetBorder(true)
 	page.SetDirection(tview.FlexColumnCSS)
 
-	page.AddItem(header, 6, 1, false)
-	page.AddItem(affordances, 0, 1, false)
+	page.AddItem(header, 6, 3, false)
+	page.AddItem(affordances, 0, 3, false)
 	page.AddItem(infoPanel, 0, 1, false)
 
 	return page

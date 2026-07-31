@@ -14,7 +14,7 @@ func (app *Cliex) ShowStatus(thingID string, subscribe bool) {
 
 	tdoc := app.FindTD(thingID)
 	if tdoc == nil {
-		fmt.Println("ShowStatus TD not found")
+		fmt.Printf("ShowStatus TD '%s' not found\n", thingID)
 		return
 	}
 	fmt.Printf("Found the TD of Thing '%s'\n", thingID)

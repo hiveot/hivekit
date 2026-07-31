@@ -6,7 +6,7 @@ import (
 )
 
 // Show the content of a remote directory
-// if a TD is not found, discover it first
+// if a thingID is not provided, discover it first
 // This first discovers the directory then attempts to read it.
 func (app *Cliex) ListDir(thingID string) {
 	var waitTime = time.Second
@@ -27,6 +27,7 @@ func (app *Cliex) ListDir(thingID string) {
 		fmt.Printf("ERROR: Read directory '%s' failed: %s\n", dirTD.ID, err.Error())
 	} else {
 		ListThings(tdList)
+		fmt.Printf("Found %d Things\n", len(tdList))
 	}
 
 }

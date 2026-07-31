@@ -176,21 +176,6 @@ func (cl *HttpBasicClientImpl) GetConnectionStatus() api.ConnectionStatus {
 	return stat
 }
 
-// GetDefaultForm return the default http form for the operation
-// This simply returns nil for anything else than login, logout, ping or refresh.
-// func (cl *HttpBasicClientImpl) GetDefaultForm(op, thingID, name string) (f *td.Form, href string) {
-// 	// login has its own URL as it is unauthenticated
-// 	if op == td.HTOpPing {
-// 		base := cl.tlsClient.GetHostPort()
-// 		href = fmt.Sprintf("https://%s%s", base, api.DefaultPingPath)
-// 		nf := td.NewForm(op, href)
-// 		nf.SetMethodName(http.MethodGet)
-// 		f = &nf
-// 	}
-// 	// everything else has no default form, so falls back to hiveot protocol endpoints
-// 	return f, href
-// }
-
 // Return the TLS client used by this connection
 func (cl *HttpBasicClientImpl) GetTlsClient() tlsclient.ITLSClient {
 	cl.mux.RLock()
@@ -215,9 +200,25 @@ func (cl *HttpBasicClientImpl) HandleRequest(request *msg.RequestMessage, replyT
 	return err
 }
 
-// SendNotification is not supported in http-basic
-func (cl *HttpBasicClientImpl) SendNotification(msg *msg.NotificationMessage) {
-	slog.Error("HttpBasic doesn't support sending notifications")
+// SendNotification sends a notification to the server using a http request message
+// Intended for devices that use RC to the server and receive requests oob.
+func (cl *HttpBasicClientImpl) SendNotification(notif *msg.NotificationMessage) {
+
+	// there is no form for this
+	method := http.MethodPost
+	payload, _ := jsoniter.Marshal(notif)
+	contentType := "application/JSON"
+
+	// this is a hiveot http-basic extension
+	hrefPath := httpbasic.HttpBasicNotificationPath
+
+	ctx := context.Background()
+	_, code, _, err := cl.tlsClient.Send(
+		ctx, method, hrefPath, nil, payload, contentType)
+
+	if err != nil {
+		slog.Warn("SendNotification failed", "code", code, "err", err.Error())
+	}
 }
 
 // SendRequest sends a request over http message using the form based path and passes
@@ -244,7 +245,7 @@ func (cl *HttpBasicClientImpl) SendRequest(
 
 	var inputJSON string
 	var method string
-	var href string
+	var hrefPath string
 	var form *td.Form
 	var thingID = req.ThingID
 	var name = req.Name
@@ -255,30 +256,6 @@ func (cl *HttpBasicClientImpl) SendRequest(
 		return err
 	}
 
-	// the getTD callback provides the method and URL to invoke for this operation.
-	// use the hiveot fallback if not available
-	// If the TD has no matching form then fall back to default well-known http basic href.
-	if cl.tdoc != nil {
-		form, href, err = cl.tdoc.GetFormHRef(req.Operation, req.Name,
-			api.HttpBasicScheme, api.HttpBasicSubprotocol, nil)
-	}
-	if form != nil {
-		method, _ = form.GetMethodName()
-	} else {
-		// fall back to the 'well known' hiveot request URL using uri variables
-		// eg: /things/{op}/{id}/{name} or /hiveot/request
-		method = http.MethodPost
-		href = httpbasic.HttpBasicAffordanceOperationPath
-		// substitute URI variables in the path, if any.
-		// intended for use with http-basic forms.
-		vars := map[string]string{
-			td.UriVarThingID:   thingID,
-			td.UriVarName:      name,
-			td.UriVarOperation: req.Operation}
-		href = utils.Substitute(href, vars)
-		inputJSON, _ = jsoniter.MarshalToString(req.Input)
-	}
-
 	// Inject URI variables for hrefs that use them:
 	//  use + as wildcard for thingID to avoid a 404
 	//  while not recommended, it is allowed to subscribe/observe all things
@@ -287,15 +264,43 @@ func (cl *HttpBasicClientImpl) SendRequest(
 	}
 	//  use + as wildcard for affordance name to avoid a 404
 	//  this should not happen very often but it is allowed
+	// name := req.Name
 	if name == "" {
 		name = "+"
 	}
+	// substitute URI variables in the path, if any.
+	// intended for use with http-basic forms.
+	uriVars := map[string]string{
+		td.UriVarThingID:   thingID,
+		td.UriVarName:      name,
+		td.UriVarOperation: req.Operation}
+
+	// the getTD callback provides the method and URL to invoke for this operation.
+	// use the hiveot fallback if not available
+	// If the TD has no matching form then fall back to default well-known http basic href.
+	if cl.tdoc != nil {
+		form, _ = cl.tdoc.GetForm(req.Operation, req.Name, api.HttpBasicScheme, api.HttpBasicSubprotocol)
+	}
+	if form != nil {
+		hrefURL, _ := form.ResolveHRef(cl.tdoc.Base, uriVars)
+		hrefPath = hrefURL.Path
+		method, _ = form.GetMethodName()
+	} else {
+		// fall back to the 'well known' hiveot request URL using uri variables
+		// eg: /things/{op}/{id}/{name} or /hiveot/request
+		method = http.MethodPost
+		hrefPath = httpbasic.HttpBasicAffordanceOperationPath
+
+		hrefPath = utils.Substitute(hrefPath, uriVars)
+		inputJSON, _ = jsoniter.MarshalToString(req.Input)
+	}
+
 	contentType := "application/JSON"
 
 	// send the request
 	ctx, cancelFn := context.WithTimeout(context.Background(), cl.timeout)
 	outputRaw, code, _, err := cl.tlsClient.Send(ctx,
-		method, href, nil, []byte(inputJSON), contentType)
+		method, hrefPath, nil, []byte(inputJSON), contentType)
 	cancelFn()
 
 	// 1. error response
@@ -303,7 +308,7 @@ func (cl *HttpBasicClientImpl) SendRequest(
 		return err
 	}
 	// follow the HTTP Basic specification
-	if code == http.StatusOK {
+	if code == http.StatusOK || code == http.StatusNoContent {
 		resp := req.CreateResponse(nil, nil)
 		// unmarshal output. This is the json encoded output
 		if len(outputRaw) == 0 {
@@ -324,12 +329,12 @@ func (cl *HttpBasicClientImpl) SendRequest(
 		// }()
 	} else if code > 200 && code < 300 {
 		// httpbasic servers/things might respond with 201 for pending as per spec
-		// this is a response message.
 		var resp *msg.ResponseMessage
 		if len(outputRaw) == 0 {
-			// no response yet. do not send process a notification
+			// request accepted but no response payload .. yet.
+			// a response will be delivered out of band.
 		} else {
-			// standard http response payload
+			// a response payload is included. Looks like we're done.
 			var tmp any
 			err = jsoniter.Unmarshal(outputRaw, &tmp)
 			resp = req.CreateResponse(tmp, err)
@@ -338,10 +343,6 @@ func (cl *HttpBasicClientImpl) SendRequest(
 		// pass a direct response to the application handler
 		if resp != nil {
 			_ = replyTo(resp)
-			// h := cc.GetAppResponseHandler()
-			// go func() {
-			// 	_ = h(resp)
-			// }()
 		}
 	} else {
 		// unknown response, create an error response
@@ -386,9 +387,9 @@ func (cl *HttpBasicClientImpl) SendResponse(resp *msg.ResponseMessage) error {
 	return errors.New("HttpBasic doesn't support sending async responses")
 }
 
-// Does reports an error as http clients dont receive notifications
+// Ignored as http clients dont receive notifications
 func (cl *HttpBasicClientImpl) SetNotificationSink(sink api.IHiveModule, thingID ...string) {
-	slog.Warn("SetNotificationSink: HttpBasicClients dont handle notifications",
+	slog.Info("SetNotificationSink: HttpBasicClients doesn't receive notifications so not expecting any.",
 		"clientID", cl.GetClientID())
 }
 

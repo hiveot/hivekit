@@ -1,11 +1,12 @@
 package serverimpl
 
 import (
+	"context"
 	"fmt"
 	"slices"
-	"time"
 
 	"github.com/hiveot/hivekit/go/api/msg"
+	"github.com/hiveot/hivekit/go/api/td"
 	"github.com/hiveot/hivekit/go/modules/transport/httpbasic"
 	"github.com/hiveot/hivekit/go/utils"
 	jsoniter "github.com/json-iterator/go"
@@ -40,6 +41,9 @@ func (srv *HttpBasicServerImpl) createRoutes() {
 
 	// register generic handlers for operations on Thing and affordance level
 	// these endpoints are published in the forms of each TD. See also AddTDForms.
+
+	protRoutes.HandleFunc(
+		httpbasic.HttpBasicNotificationPath, srv.onHttpNotification)
 	protRoutes.HandleFunc(
 		httpbasic.HttpBasicAffordanceOperationPath, srv.onHttpAffordanceOperation)
 	protRoutes.HandleFunc(
@@ -72,8 +76,37 @@ func (srv *HttpBasicServerImpl) EnableStatic(base string, staticRoot string) err
 	return nil
 }
 
+// onHttpNotification converts the http request to a notification message and forward
+// it to the notification sink
+func (srv *HttpBasicServerImpl) onHttpNotification(w http.ResponseWriter, r *http.Request) {
+
+	// 1. Decode the http request
+	rp, err := srv.httpServer.GetRequestParams(r)
+	if err != nil {
+		slog.Error(err.Error())
+		w.WriteHeader(http.StatusUnauthorized)
+		return
+	}
+	var notif *msg.NotificationMessage
+	if len(rp.Payload) > 0 {
+		err = jsoniter.Unmarshal(rp.Payload, &notif)
+	}
+
+	// Use the authenticated clientID as the sender
+	if err != nil {
+		utils.WriteError(w, err, http.StatusBadRequest)
+		return
+	}
+	notif.SenderID = rp.ClientID
+	srv.ForwardNotification(notif)
+	utils.WriteReply(w, true, nil, nil)
+}
+
 // onHttpAffordanceOperation converts the http request to a request message and pass it to the
 // registered request handler.
+//
+// This also handles notifications for hiveot compatibility sakes.
+//
 // This read request params for {op}, {id} and {name}
 func (srv *HttpBasicServerImpl) onHttpAffordanceOperation(w http.ResponseWriter, r *http.Request) {
 	var output any
@@ -88,7 +121,11 @@ func (srv *HttpBasicServerImpl) onHttpAffordanceOperation(w http.ResponseWriter,
 	}
 	// Use the authenticated clientID as the sender
 	var input any
-	err = jsoniter.Unmarshal(rp.Payload, &input)
+	if len(rp.Payload) > 0 {
+		err = jsoniter.Unmarshal(rp.Payload, &input)
+	}
+
+	// construct a request message
 	req := msg.NewRequestMessage(rp.Op, rp.ThingID, rp.Name, input)
 	req.CorrelationID = rp.CorrelationID
 	req.SenderID = rp.ClientID
@@ -104,14 +141,23 @@ func (srv *HttpBasicServerImpl) onHttpAffordanceOperation(w http.ResponseWriter,
 		return
 	}
 
-	// This passes the request to the request sink. The replyTo is
-	// expected to be called before the timeout, otherwise this returns an error.
+	// handle ping operation
+	if req.Operation == td.HTOpPing {
+		utils.WriteReply(w, true, req.Input, err)
+		return
+	}
+
+	// This passes the request to the request sink. The replyTo is expected to be called
+	// before the timeout, otherwise this returns an error.
+	ctx, cancelFn := context.WithTimeout(context.Background(), srv.GetTimeout())
 	rx := utils.NewAsyncReceiver[*msg.ResponseMessage]()
 	err = srv.ForwardRequest(req, func(resp *msg.ResponseMessage) error {
 		rx.SetResponse(resp)
+		cancelFn()
 		return nil
 	})
-	resp, err := rx.WaitForResponse(time.Second * 1)
+	<-ctx.Done()
+	resp, err := rx.WaitForResponse(0)
 	if resp != nil {
 		output = resp.Output
 	} else {

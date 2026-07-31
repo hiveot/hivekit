@@ -17,6 +17,7 @@ import (
 	factory_service "github.com/hiveot/hivekit/go/modules/factory/service"
 	"github.com/hiveot/hivekit/go/modules/router"
 	"github.com/hiveot/hivekit/go/modules/transport/discovery"
+	"github.com/hiveot/hivekit/go/utils"
 )
 
 // Use the admin account to login as. This uses the home/certs directory to load the token.
@@ -51,7 +52,7 @@ func main() {
 
 	// environment defaults
 	flag.BoolVar(&appConfig.Subscribe, "subscribe", appConfig.Subscribe, "Subscribe to events or property changes until ^C")
-	flag.BoolVar(&appConfig.Verbose, "v", appConfig.Verbose, "Show more detailed output")
+	flag.BoolVar(&appConfig.Verbose, "v", appConfig.Verbose, "Show more detailed output (loglevel info)")
 	flag.BoolVar(&appConfig.NoDisco, "nd", appConfig.NoDisco, "Do not start with discovery")
 
 	// flag.CommandLine.Init("CLI example", flag.ContinueOnError)
@@ -61,7 +62,7 @@ func main() {
 		fmt.Println("Commands:")
 		fmt.Printf("  %-10s                Discover WoT devices and directories\n", CmdDiscover)
 		// fmt.Printf("  %-10s thingID        Set login ID for the device\n", CmdLogin)
-		fmt.Printf("  %-10s [thingID]      List the content of a directory with optional thingID\n", CmdListDir)
+		fmt.Printf("  %-10s thingID        List the content of a directory with optional thingID\n", CmdListDir)
 		fmt.Printf("  %-10s thingID        Show the TD of a Thing\n", CmdShowTD)
 		fmt.Printf("  %-10s thingID        Show the current status of a Thing\n", CmdShowStatus)
 		fmt.Printf("  %-10s thingID        Subscribe to Thing events and property updates\n", CmdSubscribe)
@@ -73,7 +74,10 @@ func main() {
 
 	// Setup the environment after parsing the commandline
 	env := api.NewAppEnvironment(ExampleHome, true)
-
+	if appConfig.Verbose {
+		env.LogLevel = "info"
+	}
+	utils.SetLogging(env.LogLevel, "")
 	// FIXME: for a different clientID when running with go run, instead of the APP ID
 	if env.ClientID == "main" {
 		env.ClientID = "admin"
@@ -123,11 +127,14 @@ func main() {
 	err = app.Start()
 
 	switch cmd {
-	case CmdDiscover:
+	case CmdDiscover, "disco":
 		app.ShowDiscovery()
 	case CmdListDir:
 		// optional directory thingID
-		thingID := getThingID()
+		thingID := ""
+		if len(args) > 1 {
+			thingID = args[1]
+		}
 		app.ListDir(thingID)
 	case CmdShowActions:
 		thingID := getThingID()

@@ -32,15 +32,15 @@ var SupportedClientProtocols = []string{
 // Derive the protocol type the form href and subprotocol.
 func GetFormProtocolType(tdoc *td.TD, form *td.Form) (protocolType string, href string, err error) {
 
-	href, err = form.GetHRef(tdoc.Base, nil)
+	hrefURL, err := form.ResolveHRef(tdoc.Base, nil)
 	if err != nil {
 		return "", href, err
 	}
 
-	parts, _ := url.Parse(href)
-	scheme := strings.ToLower(parts.Scheme)
+	scheme := strings.ToLower(hrefURL.Scheme)
 	subprotocol, _ := form.GetSubprotocol()
 	protocolType = scheme + ":" + subprotocol
+	href = hrefURL.String()
 
 	return protocolType, href, nil
 }
@@ -126,12 +126,12 @@ func NewTransportClientFromForm(
 	tdoc *td.TD, form *td.Form, caCert *x509.Certificate) (
 	cl api.ITransportClient, err error) {
 
-	href, err := form.GetHRef(tdoc.Base, nil)
-	parts, err := url.Parse(href)
+	hrefURL, err := form.ResolveHRef(tdoc.Base, nil)
+	href := hrefURL.String()
 	subProtocol, _ := form.GetSubprotocol()
 
 	// Note: the definition of protocol-type is scheme:subprotocol
-	protocolType := parts.Scheme + ":" + subProtocol
+	protocolType := hrefURL.Scheme + ":" + subProtocol
 
 	switch protocolType {
 	case api.HiveotGrpcTcpProtocolType:

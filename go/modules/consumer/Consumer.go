@@ -1,7 +1,6 @@
 package consumer
 
 import (
-	"errors"
 	"sync"
 
 	"github.com/hiveot/hivekit/go/api"
@@ -111,14 +110,9 @@ func (co *Consumer) ObserveProperty(thingID string, name string) error {
 // Ping the server and wait for a response.
 // Intended to ensure the server is reachable.
 func (co *Consumer) Ping() (err error) {
-	var value any
-
-	err = co.Rpc(td.HTOpPing, "", "", nil, &value)
+	err = co.Rpc(td.HTOpPing, "", "", nil, nil)
 	if err != nil {
 		return err
-	}
-	if value == nil {
-		return errors.New("ping returned successfully but received no data")
 	}
 	return nil
 }

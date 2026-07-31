@@ -14,12 +14,12 @@ import (
 
 // Show a list of Thing TDs
 func ListThings(tdList []*td.TD) {
-	fmt.Printf("Thing ID                     Title                         #Props #Events #Actions  Modified (local)  base\n")
-	fmt.Printf("---------------------------  ----------------------------  ------ ------- --------  ----------------  -----\n")
+	fmt.Printf("Thing ID                          Title                         #Props #Events #Actions  Modified (local)  base\n")
+	fmt.Printf("--------------------------------  ----------------------------  ------ ------- --------  ----------------  -----\n")
 	for _, tdoc := range tdList {
 		modified := dateparse.MustParse(tdoc.Modified).Local()
 
-		fmt.Printf("%-28s %-28.28s %6d %7d %8d   %-16s  %-20s\n",
+		fmt.Printf("%-33s %-28.28s %6d %7d %8d   %-16s  %-20s\n",
 			tdoc.ID, tdoc.Title, len(tdoc.Properties), len(tdoc.Events), len(tdoc.Actions),
 			modified.Format("2006-01-02 15:04"), tdoc.Base)
 	}
