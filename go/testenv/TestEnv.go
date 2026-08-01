@@ -162,7 +162,7 @@ func (testEnv *TestEnv) NewConnectedClient(
 	// create a connection to the test server
 	serverTD := testEnv.Server.GetTD()
 	form, _ := serverTD.GetConnectForm("", "")
-	cl, err = clients.NewTransportClientFromForm(serverTD, form, testEnv.CertBundle.CaCert)
+	cl, err = clients.NewTransportClientFromForm(serverTD, form, testEnv.CertBundle.RootCAs)
 
 	if err == nil {
 		cl.SetTimeout(TestTimeout)
@@ -358,7 +358,7 @@ func (testEnv *TestEnv) StartHttpServer(logging bool) (api.IHttpServer, string) 
 	cfg := tlsserver.NewTLSServerConfig(
 		testEnv.CertBundle.ServerAddr, testEnv.AppEnv.HttpsPort,
 		testEnv.CertBundle.ServerCert,
-		testEnv.CertBundle.CaCert,
+		testEnv.CertBundle.RootCAs,
 		logging)
 
 	// cfg.Address = fmt.Sprintf("%s:%d", certBundle.ServerAddr, testServerHttpPort)

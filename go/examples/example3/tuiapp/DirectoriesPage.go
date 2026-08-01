@@ -4,7 +4,6 @@ import (
 	"github.com/araddon/dateparse"
 	"github.com/hiveot/hivekit/go/api/td"
 	"github.com/hiveot/hivekit/go/utils"
-	"github.com/rivo/tview"
 )
 
 // Show the loaded directories in the main view
@@ -24,8 +23,6 @@ func (v *DirectoriesPage) GetDirectoryID(row int) string {
 
 // Show the loaded directories in the main view
 func (v *DirectoriesPage) Refresh(dirList []*td.TD) {
-	v.TitleColor = tview.Styles.TertiaryTextColor
-
 	v.SetTitle(" Discovered Directories ")
 	v.SetBorders(false)
 	v.SetSelectable(true, false)

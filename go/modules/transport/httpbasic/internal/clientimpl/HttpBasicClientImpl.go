@@ -432,10 +432,9 @@ func (cl *HttpBasicClientImpl) Stop() {
 // This uses TD forms to perform an operation.
 //
 //	tdoc is the TD to use for operations.
-//	caCert of the server to validate the server or nil to not check the server cert
-func NewHttpBasicClientImpl(tdoc *td.TD, caCert *x509.Certificate) *HttpBasicClientImpl {
+//	rootCAs to validate the server or nil to skip cert check
+func NewHttpBasicClientImpl(tdoc *td.TD, rootCAs *x509.CertPool) *HttpBasicClientImpl {
 
-	timeout := tlsclient.DefaultClientTimeout
 	// FIXME: TD spec says base is optional and can vary per operation
 	//
 	urlParts, err := url.Parse(tdoc.Base)
@@ -445,7 +444,10 @@ func NewHttpBasicClientImpl(tdoc *td.TD, caCert *x509.Certificate) *HttpBasicCli
 	}
 	hostPort := urlParts.Host
 
-	tlsClient := tls_client.NewTLSClient(hostPort, caCert, timeout)
+	tlsClient := tls_client.NewTLSClient(hostPort, rootCAs)
+	if rootCAs == nil {
+		tlsClient.SetSkipCertCheck(true)
+	}
 	cl := NewHttpBasicTLSClientImpl(tdoc, tlsClient)
 
 	return cl

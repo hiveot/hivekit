@@ -275,13 +275,13 @@ func (cl *GrpcServiceClient) WaitUntilDisconnect(name string) error {
 // connectURI is the full connection
 // cid is the unique connection instance ID, identifying it with the server application
 // clientCert is optional for use with tcp sockets
-// caCert is optional for use with tcp sockets
+// rootCAs is optional for use with tcp sockets
 // respTimeout is used when creating the buffered stream
 // serviceName is provided by the application and must match the server.
 // msgHandler is the callback with received messages
 func NewGrpcServiceClient(
 	connectURI string,
-	clientCert *tls.Certificate, caCert *x509.Certificate,
+	clientCert *tls.Certificate, rootCAs *x509.CertPool,
 	respTimeout time.Duration,
 	serviceName string,
 	msgHandler func(rawMsg []byte),
@@ -301,9 +301,7 @@ func NewGrpcServiceClient(
 	var tlsConfig *tls.Config
 	var clientID string
 	var clientCertList []tls.Certificate
-	if caCert != nil {
-		caCertPool := x509.NewCertPool()
-		caCertPool.AddCert(caCert)
+	if rootCAs != nil {
 		if clientCert != nil {
 			clientCertList = []tls.Certificate{*clientCert}
 			x509Cert, err := x509.ParseCertificate(clientCert.Certificate[0])
@@ -313,7 +311,7 @@ func NewGrpcServiceClient(
 				// verify the validity of this certificate against the CA to warn the user
 				// without this one can spend a long time figuring out why the connection fails.
 				opts := x509.VerifyOptions{
-					Roots:     caCertPool,
+					Roots:     rootCAs,
 					KeyUsages: []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth},
 				}
 				_, err = x509Cert.Verify(opts)
@@ -325,9 +323,9 @@ func NewGrpcServiceClient(
 		}
 
 		tlsConfig = &tls.Config{
-			RootCAs: caCertPool,
+			RootCAs: rootCAs,
 			// why is ServerName not required?
-			InsecureSkipVerify: caCert == nil,
+			InsecureSkipVerify: rootCAs == nil,
 			Certificates:       clientCertList,
 		}
 	}

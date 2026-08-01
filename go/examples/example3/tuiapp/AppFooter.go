@@ -45,9 +45,9 @@ func NewAppFooter() *AppFooter {
 	view.AddItem(listThingsBtn, 17, 1, false)
 	listThingsBtn.SetDisabled(true)
 
-	nextPageBtn := tview.NewButton("(tab) Toggle Views")
-	view.AddItem(nextPageBtn, 20, 1, false)
-	nextPageBtn.SetDisabled(true)
+	tabPageBtn := tview.NewButton("(tab) Toggle Views")
+	view.AddItem(tabPageBtn, 20, 1, false)
+	tabPageBtn.SetDisabled(true)
 
 	filler := tview.NewBox()
 	filler.SetBackgroundColor(tcell.Color(tview.Styles.ContrastBackgroundColor))
@@ -61,7 +61,7 @@ func NewAppFooter() *AppFooter {
 	footer := &AppFooter{
 		View:          view,
 		listThingsBtn: listThingsBtn,
-		nextPageBtn:   nextPageBtn,
+		nextPageBtn:   tabPageBtn,
 	}
 
 	discoThingsBtn.SetSelectedFunc(func() {
@@ -70,7 +70,7 @@ func NewAppFooter() *AppFooter {
 	listThingsBtn.SetSelectedFunc(func() {
 		footer.submit(MenuEvListTDs)
 	})
-	nextPageBtn.SetSelectedFunc(func() {
+	tabPageBtn.SetSelectedFunc(func() {
 		footer.submit(MenuEvNextPage)
 	})
 	b4.SetSelectedFunc(func() {

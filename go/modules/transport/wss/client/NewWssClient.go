@@ -13,11 +13,11 @@ import (
 // This uses the Hiveot passthrough message converter.
 //
 //	wssURL is the full websocket connection URL including path
-//	caCert is the server CA for TLS connection validation
+//	rootCAs are the CA's for TLS connection validation
 //	ch is the connect/disconnect callback. nil to ignore
-func NewHiveotWssClient(wssURL string, caCert *x509.Certificate) api.ITransportClient {
+func NewHiveotWssClient(wssURL string, rootCAs *x509.CertPool) api.ITransportClient {
 
-	return clientimpl.NewHiveotWssClientImpl(wssURL, caCert)
+	return clientimpl.NewHiveotWssClientImpl(wssURL, rootCAs)
 }
 
 // Create a websocket client for the given factory environment
@@ -32,7 +32,7 @@ func NewHiveotWssClientFactory(f api.IModuleFactory, md *api.ModuleDefinition) (
 	env := f.GetEnvironment()
 	clientCert, _ := env.GetTLSCert()
 	wssURL := env.ServerURL
-	m := NewHiveotWssClient(wssURL, env.CaCert)
+	m := NewHiveotWssClient(wssURL, env.GetRootCAs())
 	m.SetTimeout(env.RpcTimeout)
 	if clientCert != nil {
 		err = m.AuthenticateWithClientCert(clientCert)
@@ -60,12 +60,12 @@ func NewHiveotWssClientFactory(f api.IModuleFactory, md *api.ModuleDefinition) (
 // Users must use AuthenticateWithToken to authenticate and connect.
 //
 //	wssURL is the full websocket connection URL
-//	caCert is the server CA for TLS connection validation
+//	rootCAs are the server CA's for TLS connection validation
 //	timeout is the maximum connection wait time. 0 for default.
 //	ch is the connection callback handler, nil to ignore
 func NewWotWssClient(
-	wssURL string, caCert *x509.Certificate) api.ITransportClient {
-	return clientimpl.NewWotWssClientImpl(wssURL, caCert)
+	wssURL string, rootCAs *x509.CertPool) api.ITransportClient {
+	return clientimpl.NewWotWssClientImpl(wssURL, rootCAs)
 }
 
 // Create a websocket client for the given factory environment.
@@ -82,7 +82,7 @@ func NewWotWssClientFactory(f api.IModuleFactory, md *api.ModuleDefinition) (api
 	clientCert, _ := env.GetTLSCert()
 	serverURL := env.ServerURL
 
-	m := NewWotWssClient(serverURL, env.CaCert)
+	m := NewWotWssClient(serverURL, env.GetRootCAs())
 	m.SetTimeout(env.RpcTimeout)
 	// if client certificate not available attempt auth token
 	if clientCert != nil {

@@ -18,9 +18,9 @@ import (
 //	baseURL of the http server. Used as the base for all further requests.
 //	caCert of the server to validate the server or nil to not check the server cert
 func NewHttpBasicClient(
-	tdoc *td.TD, caCert *x509.Certificate) api.ITransportClient {
+	tdoc *td.TD, rootCAs *x509.CertPool) api.ITransportClient {
 
-	return clientimpl.NewHttpBasicClientImpl(tdoc, caCert)
+	return clientimpl.NewHttpBasicClientImpl(tdoc, rootCAs)
 }
 
 // Create an HTTP-Basic client using the application environment from the provided factory.

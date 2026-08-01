@@ -115,15 +115,15 @@ func (cl *AuthnUserHttpClient) RefreshToken(oldToken string) (newToken string, e
 // auth tokens.
 //
 //	serverURL is the host:port of the http server
-//	caCert is the server CA
-func NewUserAuthnHttpClient(serverURL string, caCert *x509.Certificate) *AuthnUserHttpClient {
+//	rootCAs are available CA certificates for validating the server cert
+func NewUserAuthnHttpClient(serverURL string, rootCAs *x509.CertPool) *AuthnUserHttpClient {
 	parts, err := url.Parse(serverURL)
 	if err != nil {
 		slog.Error("NewAuthnClient: invalid server URL", "err", err.Error())
 		return nil
 	}
 
-	tlsClient := tls_client.NewTLSClient(parts.Host, caCert, 0)
+	tlsClient := tls_client.NewTLSClient(parts.Host, rootCAs)
 	return &AuthnUserHttpClient{
 		tlsClient: tlsClient,
 	}

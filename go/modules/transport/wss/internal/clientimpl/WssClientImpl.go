@@ -43,7 +43,7 @@ type WssTransportClientImpl struct {
 	// authentication token
 	bearerToken string
 
-	caCert *x509.Certificate
+	rootCAs *x509.CertPool
 
 	clientCert *tls.Certificate
 
@@ -220,8 +220,6 @@ func (cl *WssTransportClientImpl) AuthenticateWithClientCert(clientCert *tls.Cer
 	// this detects problems with certs that can be hard to track down
 	x509Cert, err := x509.ParseCertificate(clientCert.Certificate[0])
 	if err == nil {
-		caCertPool := x509.NewCertPool()
-		caCertPool.AddCert(cl.caCert)
 
 		// cert subject is clientID
 		cl.clientID = x509Cert.Subject.CommonName
@@ -229,7 +227,7 @@ func (cl *WssTransportClientImpl) AuthenticateWithClientCert(clientCert *tls.Cer
 		// verify the validity of this certificate against the CA
 		// without this one can spend a long time figuring out why the connection fails.
 		opts := x509.VerifyOptions{
-			Roots:     caCertPool,
+			Roots:     cl.rootCAs,
 			KeyUsages: []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth},
 		}
 		_, err = x509Cert.Verify(opts)
@@ -328,7 +326,7 @@ func (cl *WssTransportClientImpl) Connect() error {
 	hostPort := urlParts.Host
 	wssCancelFn, wssConn, err := ConnectWSS(
 		cl.clientID, hostPort, urlParts.Path, cl.cid,
-		cl.bearerToken, cl.clientCert, cl.caCert,
+		cl.bearerToken, cl.clientCert, cl.rootCAs,
 		cl._setConnectionStatus,
 		cl._onWssClientMessage)
 
@@ -509,16 +507,16 @@ func (cl *WssTransportClientImpl) Stop() {
 // Users must use AuthenticateWithToken to authenticate and connect.
 //
 //	wssURL is the full websocket connection URL including path
-//	caCert is the server CA for TLS connection validation
+//	rootCAs are the CA's for TLS connection validation
 func NewHiveotWssClientImpl(
-	wssURL string, caCert *x509.Certificate) *WssTransportClientImpl {
+	wssURL string, rootCAs *x509.CertPool) *WssTransportClientImpl {
 
 	timeout := msg.DefaultRnRTimeout
 	thingID := wss.HiveotWebsocketClientModuleType + shortid.MustGenerate()
 
 	cl := WssTransportClientImpl{
 		HiveModuleBase: modules.NewHiveModuleBase(thingID, timeout),
-		caCert:         caCert,
+		rootCAs:        rootCAs,
 		// hiveot uses its own standardized RRN messages
 		encoder: transport.NewRRNJsonEncoder(),
 		rnrChan: msg.NewRnRChan(),
@@ -532,18 +530,18 @@ func NewHiveotWssClientImpl(
 // Users must use AuthenticateWithToken to authenticate and connect.
 //
 //	wssURL is the full websocket connection URL
-//	caCert is the server CA for TLS connection validation
+//	caCerootCAs are the CA's for TLS connection validation
 //	timeout is the maximum connection wait time. 0 for default.
 //	ch is the connection callback handler, nil to ignore
 func NewWotWssClientImpl(
-	wssURL string, caCert *x509.Certificate) *WssTransportClientImpl {
+	wssURL string, rootCAs *x509.CertPool) *WssTransportClientImpl {
 
 	timeout := msg.DefaultRnRTimeout
 	thingID := wss.HiveotWebsocketClientModuleType + shortid.MustGenerate()
 
 	cl := &WssTransportClientImpl{
 		HiveModuleBase: modules.NewHiveModuleBase(thingID, timeout),
-		caCert:         caCert,
+		rootCAs:        rootCAs,
 		encoder:        internal.NewWotWssMsgEncoder(),
 		rnrChan:        msg.NewRnRChan(),
 		wssURL:         wssURL,

@@ -23,7 +23,7 @@ func TestBadRefreshHttp(t *testing.T) {
 	assert.NoError(t, err)
 
 	serverURL := httpServer.GetConnectURL()
-	authCl := authnclient.NewUserAuthnHttpClient(serverURL, testCerts.CaCert)
+	authCl := authnclient.NewUserAuthnHttpClient(serverURL, testCerts.RootCAs)
 	defer authCl.Close()
 	err = authCl.AuthenticateWithToken(testClientID1, token1)
 	assert.NoError(t, err)
@@ -55,7 +55,7 @@ func TestLogoutHttp(t *testing.T) {
 	require.NoError(t, err)
 
 	serverURL := httpServer.GetConnectURL()
-	authnClient := authnclient.NewUserAuthnHttpClient(serverURL, testCerts.CaCert)
+	authnClient := authnclient.NewUserAuthnHttpClient(serverURL, testCerts.RootCAs)
 	err = authnClient.AuthenticateWithToken(testClientID1, token1)
 	defer authnClient.Close()
 
@@ -90,7 +90,7 @@ func TestAuthClientCertHttp(t *testing.T) {
 	serverURL := httpServer.GetConnectURL()
 
 	// client should be able to read its profile using just client cert as auth
-	authCl := authnclient.NewUserAuthnHttpClient(serverURL, testCerts.CaCert)
+	authCl := authnclient.NewUserAuthnHttpClient(serverURL, testCerts.RootCAs)
 	authCl.GetTlsClient().AuthenticateWithClientCert(testCerts.ClientCert)
 	defer authCl.Close()
 

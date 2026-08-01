@@ -21,6 +21,7 @@ type TestCertBundle struct {
 	keyType utils.KeyType
 
 	// CA
+	RootCAs   *x509.CertPool
 	CaCert    *x509.Certificate
 	CaPrivKey crypto.PrivateKey
 	CaPubKey  crypto.PublicKey
@@ -52,6 +53,8 @@ func CreateTestCertBundle(keyType utils.KeyType) TestCertBundle {
 	if err != nil {
 		panic("CreateCertBundler failed: " + err.Error())
 	}
+	certBundle.RootCAs, _ = x509.SystemCertPool()
+	certBundle.RootCAs.AddCert(certBundle.CaCert)
 	certBundle.ServerPrivKey, certBundle.ServerPubKey = utils.NewKey(keyType)
 	certBundle.ClientPrivKey, certBundle.ClientPubKey = utils.NewKey(keyType)
 

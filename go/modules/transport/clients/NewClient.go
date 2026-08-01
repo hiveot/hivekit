@@ -112,18 +112,18 @@ func GetProtocolType(tdoc *td.TD, op string, name string, preferred string) (
 // NewTransportClient returns a new client module instance ready to connect to a
 // transport server using the given TD, operation and optional affordance name.
 func NewTransportClient(
-	tdoc *td.TD, op string, name string, caCert *x509.Certificate) (
+	tdoc *td.TD, op string, name string, rootCAs *x509.CertPool) (
 	cl api.ITransportClient, err error) {
 
 	form, _ := tdoc.GetForm(op, name, "", "")
-	cl, err = NewTransportClientFromForm(tdoc, form, caCert)
+	cl, err = NewTransportClientFromForm(tdoc, form, rootCAs)
 	return cl, err
 }
 
 // NewTransportClientFromForm returns a new client module instance ready to connect to a
 // transport server using the given form.
 func NewTransportClientFromForm(
-	tdoc *td.TD, form *td.Form, caCert *x509.Certificate) (
+	tdoc *td.TD, form *td.Form, rootCAs *x509.CertPool) (
 	cl api.ITransportClient, err error) {
 
 	hrefURL, err := form.ResolveHRef(tdoc.Base, nil)
@@ -136,29 +136,29 @@ func NewTransportClientFromForm(
 	switch protocolType {
 	case api.HiveotGrpcTcpProtocolType:
 		// gRPC only needs a connect href. All operations use this connection.
-		cl = grpc_client.NewHiveotGrpcClient(href, caCert)
+		cl = grpc_client.NewHiveotGrpcClient(href, rootCAs)
 
 	case api.HiveotGrpcUnixProtocolType:
 		// gRPC only needs a connect href. All operations use this connection.
-		cl = grpc_client.NewHiveotGrpcClient(href, caCert)
+		cl = grpc_client.NewHiveotGrpcClient(href, rootCAs)
 
 	case api.HiveotSseScProtocolType:
 		// SSE-SC has one full href to connect with SSE and 3 well-known relative paths to
 		// receive requests, response and notification messages. The SSE channel
 		// passes these in reverse direction.
-		cl = ssesc_client.NewSseScClient(tdoc.Base, caCert)
+		cl = ssesc_client.NewSseScClient(tdoc.Base, rootCAs)
 
 	case api.HiveotWebsocketProtocolType:
 		// websockets only needs a connect href. All operations use this connection.
-		cl = wss_client.NewHiveotWssClient(href, caCert)
+		cl = wss_client.NewHiveotWssClient(href, rootCAs)
 
 	case api.WotWebsocketProtocolType:
 		// websockets only needs a connect href. All operations use this connection.
-		cl = wss_client.NewWotWssClient(href, caCert)
+		cl = wss_client.NewWotWssClient(href, rootCAs)
 
 	case api.HttpBasicProtocolType:
 		// http-basic needs the TD to get a href per operation.
-		cl = httpbasic_client.NewHttpBasicClient(tdoc, caCert)
+		cl = httpbasic_client.NewHttpBasicClient(tdoc, rootCAs)
 
 		//case api.ProtocolTypeWotMQTTWSS:
 		// mqtt needs the TD for href to connect and mkv:topic field for topics per operation
@@ -179,23 +179,23 @@ func NewTransportClientFromForm(
 //
 // Note-1: if a scheme has multiple subprotocols then the most generic protocol
 // will be chosen. This is a last-resort way to create a client.
-func NewFallbackTransportClient(serverURL string, caCert *x509.Certificate) (
+func NewFallbackTransportClient(serverURL string, rootCAs *x509.CertPool) (
 	cl api.ITransportClient, err error) {
 
 	parts, err := url.Parse(serverURL)
 
 	switch parts.Scheme {
 	case api.HiveotGrpcUnixScheme:
-		cl = grpc_client.NewHiveotGrpcClient(serverURL, caCert)
+		cl = grpc_client.NewHiveotGrpcClient(serverURL, rootCAs)
 
 	case api.HiveotGrpcTcpScheme:
-		cl = grpc_client.NewHiveotGrpcClient(serverURL, caCert)
+		cl = grpc_client.NewHiveotGrpcClient(serverURL, rootCAs)
 
 	case api.HiveotSseScScheme:
-		cl = ssesc_client.NewSseScClient(serverURL, caCert)
+		cl = ssesc_client.NewSseScClient(serverURL, rootCAs)
 
 	case api.WotWebsocketScheme:
-		cl = wss_client.NewWotWssClient(serverURL, caCert)
+		cl = wss_client.NewWotWssClient(serverURL, rootCAs)
 
 	default:
 		err = fmt.Errorf("NewTransportClient. Unsupported protocol for URL '%s'", serverURL)
@@ -222,9 +222,9 @@ func NewTransportClientFactory(
 		form, _ := tdoc.GetConnectForm(api.WotWebsocketScheme, api.WotWebsocketSubprotocol)
 
 		// there is no op or name to use so this requires the TD to have a 'base' URL
-		cl, err = NewTransportClientFromForm(tdoc, form, env.CaCert)
+		cl, err = NewTransportClientFromForm(tdoc, form, env.GetRootCAs())
 	} else if env.ServerURL != "" {
-		cl, err = NewFallbackTransportClient(env.ServerURL, env.CaCert)
+		cl, err = NewFallbackTransportClient(env.ServerURL, env.GetRootCAs())
 	} else {
 		// TODO: use discovered server TD
 		err = fmt.Errorf("NewTransportClientFactory: no server TD or URL is available")

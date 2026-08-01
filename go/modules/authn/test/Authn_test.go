@@ -93,7 +93,7 @@ func startTestAuthnModule(encryption string) (tp api.IHttpServer, authnSvc authn
 	testCerts = certstest.CreateTestCertBundle(TestKeyType)
 	cfg := tlsserver.NewTLSServerConfig(
 		"localhost", serverPort,
-		testCerts.ServerCert, testCerts.CaCert, true)
+		testCerts.ServerCert, testCerts.RootCAs, true)
 
 	httpServer := tls_server.NewTLSServer(cfg, authenticator)
 	err = httpServer.Start()

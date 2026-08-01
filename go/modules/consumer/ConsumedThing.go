@@ -8,6 +8,8 @@ import (
 )
 
 // A consumedThing is a local representation of a remote Thing
+//
+// This is work in progress. The intent is to subscribe to Thing updates and reflect its values.
 // It should be linked to a client that provides the actual connection.
 //
 // Usage

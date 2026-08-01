@@ -53,6 +53,11 @@ func (m *TreeMenu) Refresh(allDirs []*td.TD, thingCache directory.IDirectoryCach
 	}
 }
 
+// Select the Discovery entry in the tree view
+func (m *TreeMenu) SelectDiscovery() {
+	m.SetCurrentNode(m.root)
+}
+
 // Select the Thing in the tree view
 func (m *TreeMenu) SelectThing(thingID string) {
 	for _, node := range m.thingNodes.GetChildren() {
@@ -62,7 +67,6 @@ func (m *TreeMenu) SelectThing(thingID string) {
 		}
 	}
 }
-
 func (m *TreeMenu) SetHandler(h func(ev ...string)) {
 	m.evHandler = h
 }

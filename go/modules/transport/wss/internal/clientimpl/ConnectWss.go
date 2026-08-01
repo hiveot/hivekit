@@ -24,7 +24,7 @@ func ConnectWSS(
 	cid string,
 	bearerToken string,
 	clientCert *tls.Certificate,
-	caCert *x509.Certificate,
+	rootCAs *x509.CertPool,
 	onConnect func(api.ConnectionStatus, error),
 	onMessage func(raw []byte),
 ) (cancelFn func(), conn *websocket.Conn, err error) {
@@ -44,19 +44,15 @@ func ConnectWSS(
 	wssCtx, wssCancelFn := context.WithCancel(context.Background())
 	onConnect(api.StatusConnecting, nil)
 
-	caCertPool := x509.NewCertPool()
-	if caCert != nil {
-		caCertPool.AddCert(caCert)
-	}
 	// support for client certificate
 	if clientCert != nil {
 		clientCertList = []tls.Certificate{*clientCert}
 	}
 	tlsConfig := &tls.Config{
-		RootCAs: caCertPool,
+		RootCAs: rootCAs,
 		// ServerName is required when InsecureSkipVerify disabled
 		ServerName:         serverName,
-		InsecureSkipVerify: caCert == nil,
+		InsecureSkipVerify: rootCAs == nil,
 		Certificates:       clientCertList,
 	}
 

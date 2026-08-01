@@ -20,16 +20,16 @@ import (
 //	getTD  handler to lookup a TD for a thingID from a directory
 //	getSrv handler to return the running list of transport servers that can contain
 //	 reverse connections. nil to not support RCs.
-//	caCert is the CA certificate used to verify device connections
+//	rootCAs are the CA certificates used to verify device connections
 //	timeout is the maximum wait time for sending requests to clients.
 func NewRouterService(storageDir string,
 	autoReconnect bool,
 	getTD func(thingID string) *td.TD,
 	getSrv func() []api.ITransportServer,
-	caCert *x509.Certificate, timeout time.Duration,
+	rootCAs *x509.CertPool, timeout time.Duration,
 ) router.IRouterService {
 
-	m := internal.NewRouterServiceImpl(storageDir, autoReconnect, getTD, getSrv, caCert, timeout)
+	m := internal.NewRouterServiceImpl(storageDir, autoReconnect, getTD, getSrv, rootCAs, timeout)
 	return m
 }
 
@@ -60,7 +60,9 @@ func NewRouterServiceFactory(f api.IModuleFactory, md *api.ModuleDefinition) (ap
 	}
 	// TODO: use config to set auto-reconnect. For now don't because it might hide auth problems.
 	autoReconnect := false
-	svc := NewRouterService(storageDir, autoReconnect, getTD, f.GetTransportServers, env.CaCert, f.GetEnvironment().RpcTimeout)
+	timeout := f.GetEnvironment().RpcTimeout
+	svc := NewRouterService(
+		storageDir, autoReconnect, getTD, f.GetTransportServers, env.GetRootCAs(), timeout)
 	svc.SetTimeout(env.RpcTimeout)
 
 	return svc, nil

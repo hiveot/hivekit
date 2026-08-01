@@ -88,7 +88,7 @@ func startService() (
 		storageDir, false,
 		dtw.GetDeviceTD,
 		getTps,
-		testEnv.CertBundle.CaCert, rpcTimout)
+		testEnv.CertBundle.RootCAs, rpcTimout)
 	err = rtr.Start()
 	if err != nil {
 		panic("unable to start the router service")

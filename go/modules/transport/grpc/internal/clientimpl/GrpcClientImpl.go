@@ -35,7 +35,7 @@ type GrpcClientImpl struct {
 	connectionID string
 
 	connectURL string
-	caCert     *x509.Certificate
+	rootCAs    *x509.CertPool
 	clientCert *tls.Certificate
 	clientID   string
 
@@ -182,10 +182,8 @@ func (cl *GrpcClientImpl) AuthenticateWithClientCert(clientCert *tls.Certificate
 	if err == nil {
 		// cert subject is clientID
 		cl.clientID = x509Cert.Subject.CommonName
-		caCertPool := x509.NewCertPool()
-		caCertPool.AddCert(cl.caCert)
 		opts := x509.VerifyOptions{
-			Roots:     caCertPool,
+			Roots:     cl.rootCAs,
 			KeyUsages: []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth},
 		}
 		_, err = x509Cert.Verify(opts)
@@ -198,7 +196,7 @@ func (cl *GrpcClientImpl) AuthenticateWithClientCert(clientCert *tls.Certificate
 
 	// create the grpc client to use but do not connect yet
 	cl.grpcSvcClient = internal.NewGrpcServiceClient(
-		cl.connectURL, clientCert, cl.caCert, cl.GetTimeout(),
+		cl.connectURL, clientCert, cl.rootCAs, cl.GetTimeout(),
 		grpctransport.GrpcTransportServiceName, cl._onGrpcClientMessage)
 
 	return err
@@ -241,7 +239,7 @@ func (cl *GrpcClientImpl) AuthenticateWithToken(clientID string, token string) (
 
 	// create the grpc client to use but do not connect yet
 	cl.grpcSvcClient = internal.NewGrpcServiceClient(
-		cl.connectURL, cl.clientCert, cl.caCert, cl.GetTimeout(),
+		cl.connectURL, cl.clientCert, cl.rootCAs, cl.GetTimeout(),
 		grpctransport.GrpcTransportServiceName, cl._onGrpcClientMessage)
 
 	err = cl.grpcSvcClient.AuthenticateWithToken(clientID, token)
@@ -483,12 +481,12 @@ func (cl *GrpcClientImpl) Stop() {
 // Use SetTimeout to change the timeout for testing purposes.
 //
 // connectURL is the server URL, e.g.  unix://{/path.sock}, tcp://localhost:{port} or simply "address:port"
-// caCert is the CA certificate to validate the server connection, or nil for UDS or insecure connections.
+// rootCAs contains the CA certificates to validate the server connection, or nil for UDS or insecure connections.
 // ch is the connect/disconnect callback
 //
 // Users must use AuthenticateWithToken to authenticate and start.
 func NewGrpcClientImpl(
-	connectURL string, caCert *x509.Certificate) *GrpcClientImpl {
+	connectURL string, rootCAs *x509.CertPool) *GrpcClientImpl {
 
 	// gRPC does not support tcp scheme, but we want to allow users to specify it for consistency with the server.
 	connectURL = strings.TrimPrefix(connectURL, "tcp://")
@@ -496,7 +494,7 @@ func NewGrpcClientImpl(
 
 	cl := &GrpcClientImpl{
 		HiveModuleBase: modules.NewHiveModuleBase(thingID, msg.DefaultRnRTimeout),
-		caCert:         caCert,
+		rootCAs:        rootCAs,
 		clientCert:     nil,
 		connectionID:   shortid.MustGenerate(),
 		connectURL:     connectURL,

@@ -3,7 +3,6 @@ package internal
 import (
 	"context"
 	"crypto/tls"
-	"crypto/x509"
 	"errors"
 	"fmt"
 	"log"
@@ -50,7 +49,7 @@ type TLSServerImpl struct {
 	logger *log.Logger
 
 	// certificate handler for running the server
-	caCert     *x509.Certificate
+	// caCert     *x509.Certificate
 	serverCert *tls.Certificate
 
 	// The router available for this TLS server
@@ -120,7 +119,7 @@ func (m *TLSServerImpl) Start() (err error) {
 	slog.Info("Start: Starting 'httpserver' transport server",
 		"address", cfg.Address, "port", cfg.Port)
 
-	if cfg.CaCert == nil || cfg.ServerCert == nil {
+	if cfg.RootCAs == nil || cfg.ServerCert == nil {
 		//no TLS possible
 		if cfg.NoTLS == false {
 			err := fmt.Errorf("Start aborted. Missing CA or server certificate.")
@@ -130,12 +129,10 @@ func (m *TLSServerImpl) Start() (err error) {
 		}
 	} else {
 		// setup TLS
-		caCertPool := x509.NewCertPool()
-		caCertPool.AddCert(cfg.CaCert)
 		tlsConf = &tls.Config{
 			Certificates:       []tls.Certificate{*cfg.ServerCert},
 			ClientAuth:         tls.VerifyClientCertIfGiven,
-			ClientCAs:          caCertPool,
+			ClientCAs:          cfg.RootCAs,
 			MinVersion:         tls.VersionTLS12,
 			InsecureSkipVerify: false,
 		}

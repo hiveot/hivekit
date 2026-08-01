@@ -27,13 +27,13 @@ Example 1 creates a standalone IoT device that runs a simple counter. It has a p
 
 usage: go run example1/main.go
 
-### Example 2. Discovery
+### Example 2. Discovery CLI
 
 A simple commandline utility to discover Things and Directories on the network and optionally show their TD. Use -h to view available filter and display options.
 
 usage: go run example2/main.go [-h] [-td] [-txt] [-type=Thing|Directory] [-addr=192.168.x.y]
 
-### Example 3. TUI
+### Example 3. Browser TUI
 
 Example 3 is a text UI shows discovered devices and their TD.
 
@@ -41,11 +41,13 @@ usage: go run example3/main.go
 
 This displays a menu with options. Commands:
 
-- discover devices
+- discover devices and directories
 - list TDs
-- show selected TD (todo)
-- view properties and events on the selected TD (todo)
-- invoke actions on the selected TD (todo)
+- login to a device (todo)
+- show details of a selected TD
+   - view properties and events
+   - invoke actions (todo)
+ 
 
 ### Example 4. Gateway
 

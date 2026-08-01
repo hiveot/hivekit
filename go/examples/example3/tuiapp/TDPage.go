@@ -2,6 +2,7 @@ package tuiapp
 
 import (
 	"fmt"
+	"log/slog"
 
 	"github.com/hiveot/hivekit/go/api/msg"
 	"github.com/hiveot/hivekit/go/api/td"
@@ -24,6 +25,14 @@ type TDPage struct {
 	invokeActionCb func(thingID, name string, input any)
 }
 
+func (page *TDPage) onFocus() {
+	slog.Info("TDPage received focus")
+	// page.SetFocus(affordances)
+}
+
+// redraw the TD page
+// TODO: Change to grid and use a tree menu for properties, events, and actions
+// TODO: table should have scroll indicators
 func (page *TDPage) Refresh(thingID string,
 	tdoc *td.TD, props map[string]any, events map[string]*msg.NotificationMessage) {
 
@@ -51,6 +60,7 @@ func (page *TDPage) Refresh(thingID string,
 	row++
 	tbl.SetTitleRow(row, "Name", "Title", "DataType", "Latest Value")
 	row++
+	// tbl.SetFixed(2, 0)
 	keys := utils.OrderedMapKeys(tdoc.Properties)
 	for _, name := range keys {
 		aff := tdoc.Properties[name]
@@ -61,7 +71,7 @@ func (page *TDPage) Refresh(thingID string,
 				propValue = utils.DecodeAsString(props[name], 50)
 			}
 		}
-		tbl.SetTextRow(row, name, aff.Title, aff.Type, propValue)
+		tbl.SetTextRow(row, "."+name, aff.Title, aff.Type, propValue)
 		tbl.GetCell(row, 3).SetSelectable(true).SetTextColor(tbl.DataColor)
 		tbl.SetSelectableCell(row, 0, name).SetClickedFunc(
 			func() bool {
@@ -163,7 +173,10 @@ func (page *TDPage) submitEvent(ev string, thingID string) {
 
 // return a new TD Page that shows the content of a TD document.
 func NewTDPage(invokeActionCb func(thingID, name string, input any)) *TDPage {
+
 	header := NewTuiTable()
+	// header should not steal focus when clicked
+	header.SetSelectable(false, false)
 	affordances := NewTuiTable()
 	infoPanel := NewTDInfoPanel()
 
@@ -174,12 +187,14 @@ func NewTDPage(invokeActionCb func(thingID, name string, input any)) *TDPage {
 		invokeActionCb: invokeActionCb,
 		infoPanel:      infoPanel,
 	}
+	// handle focus
 	page.SetTitle(" TD ")
 	page.SetBorder(true)
 	page.SetDirection(tview.FlexColumnCSS)
 
 	page.AddItem(header, 6, 3, false)
-	page.AddItem(affordances, 0, 3, false)
+	// affordance list gets the focus
+	page.AddItem(affordances, 0, 3, true)
 	page.AddItem(infoPanel, 0, 1, false)
 
 	return page

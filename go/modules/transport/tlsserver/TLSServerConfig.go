@@ -12,10 +12,10 @@ import (
 
 // Configuration options for the TLS transport server
 type TLSServerConfig struct {
-	Address    string            `yaml:"address,omitempty"`
-	Port       int               `yaml:"port,omitempty"`
-	CaCert     *x509.Certificate `yaml:"-"`
-	ServerCert *tls.Certificate  `yaml:"-"`
+	Address    string           `yaml:"address,omitempty"`
+	Port       int              `yaml:"port,omitempty"`
+	RootCAs    *x509.CertPool   `yaml:"-"`
+	ServerCert *tls.Certificate `yaml:"-"`
 
 	// NoTLS disables the use of TLS. For testing obviously
 	NoTLS bool `yaml:"noTLS,omitempty"`
@@ -91,7 +91,7 @@ type TLSServerConfig struct {
 //	validateToken is the required handler for authenticating protected routes
 //	logging enable middleware logging
 func NewTLSServerConfig(
-	addr string, port int, serverCert *tls.Certificate, caCert *x509.Certificate,
+	addr string, port int, serverCert *tls.Certificate, rootCAs *x509.CertPool,
 	logging bool) *TLSServerConfig {
 
 	if addr == "" {
@@ -105,7 +105,7 @@ func NewTLSServerConfig(
 		Address:    addr,
 		Port:       port,
 		ServerCert: serverCert,
-		CaCert:     caCert,
+		RootCAs:    rootCAs,
 		//
 		// AuthRequestHandler: nil, // use default handler provided by server
 		CorsEnabled:        false,

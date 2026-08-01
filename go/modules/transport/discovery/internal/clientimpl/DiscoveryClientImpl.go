@@ -25,8 +25,8 @@ import (
 type DiscoveryClientImpl struct {
 	*modules.HiveModuleBase
 
-	// ca certificate
-	caCert *x509.Certificate
+	// ca certificates
+	rootCAs *x509.CertPool
 
 	// optional update the discovery results in the app environment
 	env *api.AppEnvironment
@@ -262,7 +262,7 @@ func (cl *DiscoveryClientImpl) LoadTD(tdURL string) (tdoc *td.TD, tdJSON string,
 	if strings.ToLower(parts.Scheme) != "https" {
 		return nil, "", fmt.Errorf("Unknown scheme '%s', only http is supported", parts.Scheme)
 	}
-	httpCl := tls_client.NewTLSClient(parts.Host, cl.caCert, 0)
+	httpCl := tls_client.NewTLSClient(parts.Host, cl.rootCAs)
 	resp, statusCode, err := httpCl.Get(parts.Path)
 	_ = statusCode
 	if err != nil {
@@ -417,7 +417,7 @@ func NewDiscoveryClientImpl(appEnv *api.AppEnvironment, discoOnStart bool) *Disc
 		discoverOnStart: discoOnStart,
 	}
 	if appEnv != nil {
-		cl.caCert = appEnv.CaCert
+		cl.rootCAs = appEnv.GetRootCAs()
 	}
 	var _ discovery.IDiscoveryClient = cl // interface check
 	return cl

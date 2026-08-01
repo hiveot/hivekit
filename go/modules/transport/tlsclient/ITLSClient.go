@@ -106,6 +106,9 @@ type ITLSClient interface {
 		body []byte, contentType string) (
 		resp []byte, httpStatus int, headers http.Header, err error)
 
+	// Skip the client's CA certificate check
+	SetSkipCertCheck(skip bool)
+
 	// Change the default timeout for http request to the given timeout
 	SetTimeout(timeout time.Duration)
 

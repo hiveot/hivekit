@@ -1,7 +1,6 @@
 package httpbasic_test
 
 import (
-	"crypto/x509"
 	"testing"
 	"time"
 
@@ -23,13 +22,12 @@ var rpcTimeout = time.Minute * 3 // for debugging
 
 func TestConnect(t *testing.T) {
 	clientID := "testclient"
-	var caCert *x509.Certificate
 	var token = ""
 
 	// first start the server
 	testAuthenticator := testenv.NewTestAuthenticator()
 	cfg := tlsserver.NewTLSServerConfig(
-		"localhost", serverPort, testCerts.ServerCert, testCerts.CaCert, true)
+		"localhost", serverPort, testCerts.ServerCert, testCerts.RootCAs, true)
 	srv := tls_server.NewTLSServer(cfg, testAuthenticator)
 	err := srv.Start()
 
@@ -41,7 +39,7 @@ func TestConnect(t *testing.T) {
 	require.NoError(t, err)
 
 	// get the client
-	cl := httpbasic_client.NewHttpBasicClient(tdoc, caCert)
+	cl := httpbasic_client.NewHttpBasicClient(tdoc, testCerts.RootCAs)
 	cl.SetTimeout(rpcTimeout)
 	err = cl.AuthenticateWithToken(clientID, token)
 	require.NoError(t, err)

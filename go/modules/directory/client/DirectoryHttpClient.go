@@ -239,8 +239,8 @@ func (cl *DirectoryHttpClient) UpdateThing(tdJson string) error {
 // Call Connect() to connect to the directory service and Close() to release resources.
 //
 //	dirTD is the discovered TD of the directory; This must contain a base URL
-//	caCert is the directory CA to match or nil to ignore this safety check for testing
-func NewDirectoryHttpClient(dirTD *td.TD, caCert *x509.Certificate) *DirectoryHttpClient {
+//	rootCAs are the available CAs to validate the directory server certificate
+func NewDirectoryHttpClient(dirTD *td.TD, rootCAs *x509.CertPool) *DirectoryHttpClient {
 
 	if dirTD == nil {
 		slog.Error("NewDirectoryHttpClient: no TD provided")
@@ -255,7 +255,7 @@ func NewDirectoryHttpClient(dirTD *td.TD, caCert *x509.Certificate) *DirectoryHt
 		slog.Error("NewDirectoryHttpClient: TD has no invalid Base URL: " + err.Error())
 		return nil
 	}
-	tlsClient := tls_client.NewTLSClient(parts.Host, caCert, 0)
+	tlsClient := tls_client.NewTLSClient(parts.Host, rootCAs)
 
 	cl := &DirectoryHttpClient{
 		HiveModuleBase: modules.NewHiveModuleBase("", 0),

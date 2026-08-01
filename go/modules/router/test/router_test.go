@@ -87,7 +87,8 @@ func startTestServerDevice(deviceID string) (testDevice *testenv.TestDevice,
 
 // Setup a consumer that uses the router and directory to connect to devices
 // The router has a credentials store for authentication
-func SetupConsumerWithRouter(caCert *x509.Certificate) (
+func SetupConsumerWithRouter(
+	rootCAs *x509.CertPool) (
 	co *consumer.Consumer,
 	routerMod router.IRouterService,
 	dirSvc directory.IDirectoryService,
@@ -104,7 +105,7 @@ func SetupConsumerWithRouter(caCert *x509.Certificate) (
 	// the router uses the TD to connect to the device.
 	// this doesn't actually need a directory. GetTD could also simply return the device TD.
 	routerMod = router_service.NewRouterService(
-		storageDir, false, dirSvc.GetTD, nil, caCert, rpcTimeout)
+		storageDir, false, dirSvc.GetTD, nil, rootCAs, rpcTimeout)
 
 	err = routerMod.Start()
 	if err != nil {
@@ -213,7 +214,7 @@ func TestReadObserveDeviceProperties(t *testing.T) {
 	testDevice.ExposedThing.PubProperty(deviceID, prop1Name, prop1Value, false)
 
 	// 2. setup the consumer with the router module and directory client or service
-	co, routerMod, dirSvc := SetupConsumerWithRouter(testEnv.CertBundle.CaCert)
+	co, routerMod, dirSvc := SetupConsumerWithRouter(testEnv.CertBundle.RootCAs)
 	defer dirSvc.Stop()
 	defer routerMod.Stop()
 
@@ -289,7 +290,7 @@ func TestSubscribeReconnectToDevice(t *testing.T) {
 	// the router uses the TD to connect to the device.
 	// this doesn't actually need a directory. GetTD could also simply return the device TD.
 	routerMod := router_service.NewRouterService(
-		storageDir, true, testDirMod.GetTD, nil, testEnv.CertBundle.CaCert, rpcTimeout)
+		storageDir, true, testDirMod.GetTD, nil, testEnv.CertBundle.RootCAs, rpcTimeout)
 	err = routerMod.Start()
 	require.NoError(t, err)
 	defer routerMod.Stop()

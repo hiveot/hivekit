@@ -98,7 +98,7 @@ func TestPingClientCert(t *testing.T) {
 	serverTD := testEnv.Server.GetTD()
 	// cl, err := clients.NewTransportClient(
 	// 	testEnv.ServerProtocol, testEnv.ServerURL, testEnv.CertBundle.CaCert)
-	cl, err := clients.NewTransportClient(serverTD, td.HTOpPing, "", testEnv.CertBundle.CaCert)
+	cl, err := clients.NewTransportClient(serverTD, td.HTOpPing, "", testEnv.CertBundle.RootCAs)
 	require.NoError(t, err)
 	cl.SetTimeout(time.Minute)
 	err = cl.AuthenticateWithClientCert(testEnv.CertBundle.ClientCert)
@@ -132,14 +132,14 @@ func TestUnauthorizedError(t *testing.T) {
 
 	tdoc := testEnv.Server.GetTD()
 	connectForm, _ := tdoc.GetConnectForm("", "")
-	caCert, _ := testEnv.AppEnv.GetCACert()
+	rootCAs := testEnv.AppEnv.GetRootCAs()
 
 	// ensure the test client account exists
 	err := testEnv.TestAuthn.AddClient(testClientID1, "test", authn.ClientRoleViewer)
 	token, _, err := testEnv.CreateToken(testClientID1, time.Minute*10)
 
 	// first make sure connection does validate
-	cl, err := clients.NewTransportClientFromForm(tdoc, connectForm, caCert)
+	cl, err := clients.NewTransportClientFromForm(tdoc, connectForm, rootCAs)
 	assert.NoError(t, err)
 	err = cl.AuthenticateWithToken(testClientID1, token)
 	assert.NoError(t, err)

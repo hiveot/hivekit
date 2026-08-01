@@ -31,10 +31,13 @@ type TLSClientImpl struct {
 	bearerToken string
 
 	// The CA certificate to verify the server connected
-	caCert *x509.Certificate
+	// caCert *x509.Certificate
 
 	// client certificate mutual authentication
 	// clientCert *tls.Certificate
+
+	// The TLS configurion the client uses to connect to TLS servers
+	tlsConfig *tls.Config
 
 	// The client this identifies as
 	clientID string
@@ -407,6 +410,16 @@ func (cl *TLSClientImpl) Send(
 	return respBody, httpStatus, httpResp.Header, err
 }
 
+// SetSkipCertCheck disables (true) or enables the CA certificate check.
+// The default is disabled.
+func (cl *TLSClientImpl) SetSkipCertCheck(skip bool) {
+	cl.tlsConfig.InsecureSkipVerify = skip
+	if skip {
+		slog.Info("NewTLSClient:  InsecureSkipVerify used",
+			slog.String("destination", cl.hostPort))
+	}
+}
+
 // SetHeader sets a custom header to include in each request
 // use an empty value to remove the header
 func (cl *TLSClientImpl) SetHeader(name string, val string) {
@@ -432,38 +445,28 @@ func (cl *TLSClientImpl) Trace(path string) (statusCode int, err error) {
 }
 
 // NewTLSClientImpl creates a new TLS Client instance.
+// This uses the system cert pool. Use the flag 'skipCertCheck' if the CA is unknown.
 // Use setup/Remove to open and close connections
 //
 //	hostPort is the server address in host:port format
-//	caCert with the x509 CA certificate, nil if not available
-//	timeout duration for use with Delete,Get,Patch,Post,Put, 0 for DefaultClientTimeout
+//	rootCAs with optional CA certifications. Default is the system pool
 //
 // returns TLS client for submitting requests
-func NewTLSClientImpl(hostPort string, caCert *x509.Certificate, timeout time.Duration) *TLSClientImpl {
+func NewTLSClientImpl(hostPort string, rootCAs *x509.CertPool) *TLSClientImpl {
 
 	var clientID string
-	if timeout == 0 {
-		timeout = tlsclient.DefaultClientTimeout
-	}
-	// Use CA certificate for server authentication if it exists
-	if caCert == nil {
-		slog.Info("NewTLSClient: No CA certificate. InsecureSkipVerify used",
-			slog.String("destination", hostPort))
-	}
+	timeout := tlsclient.DefaultClientTimeout
 
 	serverName := strings.Split(hostPort, ":")[0]
-
+	if rootCAs == nil {
+		rootCAs, _ = x509.SystemCertPool()
+	}
 	tlsConfig := &tls.Config{
 		// see also AuthenticateWithClientCert
 		Certificates:       nil,
 		ServerName:         serverName,
-		InsecureSkipVerify: caCert == nil,
-		RootCAs:            nil,
-	}
-	if caCert != nil {
-		caCertPool := x509.NewCertPool()
-		caCertPool.AddCert(caCert)
-		tlsConfig.RootCAs = caCertPool
+		InsecureSkipVerify: true,
+		RootCAs:            rootCAs,
 	}
 
 	// create the http/2 transport for use with http.Client
@@ -498,8 +501,9 @@ func NewTLSClientImpl(hostPort string, caCert *x509.Certificate, timeout time.Du
 		httpClient:     httpClient,
 		http2Transport: http2Transport,
 		timeout:        timeout,
-		caCert:         caCert,
-		customHeaders:  make(map[string]string),
+		// caCert:         caCert,
+		tlsConfig:     tlsConfig,
+		customHeaders: make(map[string]string),
 	}
 
 	// interface check

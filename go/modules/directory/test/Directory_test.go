@@ -201,7 +201,8 @@ func TestGetDirectoryTD(t *testing.T) {
 	// token, _, err := testEnv.CreateToken(userID, time.Minute)
 	// require.NoError(t, err)
 
-	httpClient := tls_client.NewTLSClient(hostPort, testEnv.CertBundle.CaCert, time.Minute)
+	httpClient := tls_client.NewTLSClient(hostPort, testEnv.CertBundle.RootCAs)
+	httpClient.SetTimeout(testEnv.AppEnv.RpcTimeout)
 	err := httpClient.AuthenticateWithToken(userID, token)
 	require.NoError(t, err)
 	defer httpClient.Close()
@@ -238,7 +239,7 @@ func TestCRUDUsingRestAPI(t *testing.T) {
 	// require.NoError(t, err)
 
 	// test the http client
-	dirClient := directory_client.NewDirectoryHttpClient(dirTDD, testEnv.CertBundle.CaCert)
+	dirClient := directory_client.NewDirectoryHttpClient(dirTDD, testEnv.CertBundle.RootCAs)
 
 	// FIXME: the http client should be able to do this using forms
 

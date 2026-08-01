@@ -62,8 +62,9 @@ type AppEnvironment struct {
 	// This is empty if a directory is not available.
 	DirectoryURL string `yaml:"directoryURL,omitempty"`
 
-	// The CA public certificate that signed the server certificate.
+	// The self-signed CA used to signed the server certificate.
 	// Intended for clients to validate the connection with the server.
+	// If loaded this will be included in the RootCAs.
 	CaCert *x509.Certificate `yaml:"-"` // default cert if loaded
 
 	// the client certification for transport client modules if applicable
@@ -81,6 +82,10 @@ type AppEnvironment struct {
 	// Intended for gateways or hub that runs a server.
 	// Also usable for devices that run a server.
 	TLSCert *tls.Certificate `yaml:"-"`
+
+	// Optional root CA pool. This defaults to nil.
+	// If CaCert is loaded then this is set to the system CA's + the CaCert.
+	rootCAs *x509.CertPool `yaml:"-"`
 
 	// RpcTimeout is the communication timeout for use by transport client and server modules
 	RpcTimeout time.Duration
@@ -172,9 +177,10 @@ func (env *AppEnvironment) GetAuthToken() (string, error) {
 	return env.AuthToken, nil
 }
 
-// GetCACert returns the CA public certificate used with the servers using the
-// default CA cert name.
-// If not yet set this will load the certificate on first use.
+// GetCACert returns a self signed CA certificate used with the servers using
+// the default CA cert name.
+//
+// On first use this will load the CA from file.
 //
 // This returns nil if the CA is not set and cannot be loaded.
 func (env *AppEnvironment) GetCACert() (caCert *x509.Certificate, err error) {
@@ -184,6 +190,19 @@ func (env *AppEnvironment) GetCACert() (caCert *x509.Certificate, err error) {
 	caCertPath := filepath.Join(env.CertsDir, DefaultCaCertFile)
 	env.CaCert, err = utils.LoadX509CertFromPEM(caCertPath)
 	return env.CaCert, err
+}
+
+// Return the root CAs collection from the system cert pool
+// This adds the self signed CA cert if available.
+func (env *AppEnvironment) GetRootCAs() (rootCAs *x509.CertPool) {
+	if env.rootCAs != nil {
+		return env.rootCAs
+	}
+	env.rootCAs, _ = x509.SystemCertPool()
+	if env.CaCert != nil {
+		env.rootCAs.AddCert(env.CaCert)
+	}
+	return env.rootCAs
 }
 
 // Return the directory where a module stores its data.

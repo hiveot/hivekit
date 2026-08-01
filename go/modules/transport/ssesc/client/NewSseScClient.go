@@ -11,11 +11,11 @@ import (
 // NewSseScClient creates a new instance of the hiveot SSE-SC client.
 //
 //	sseURL is the full websocket connection URL including path
-//	caCert is the server CA for TLS connection validation
+//	rootCAs are CA certificates to validate the server certificate. nil for system CAs.
 //	ch is the connect/disconnect callback. nil to ignore
-func NewSseScClient(sseURL string, caCert *x509.Certificate) api.ITransportClient {
+func NewSseScClient(sseURL string, rootCAs *x509.CertPool) api.ITransportClient {
 
-	return clientimpl.NewSseScClientImpl(sseURL, caCert)
+	return clientimpl.NewSseScClientImpl(sseURL, rootCAs)
 }
 
 // Create an HTTP/SSE-SC client using the application environment from the provided factory
@@ -25,7 +25,7 @@ func NewSseScClientFactory(f api.IModuleFactory, md *api.ModuleDefinition) (api.
 	// do clients use onconnectionchanged? -> yes, show connection status
 	// how do they get informed? -> client submits an event
 	clientCert, _ := env.GetTLSCert()
-	m := NewSseScClient(env.ServerURL, env.CaCert)
+	m := NewSseScClient(env.ServerURL, env.GetRootCAs())
 	if clientCert != nil {
 		err := m.AuthenticateWithClientCert(clientCert)
 		if err != nil {

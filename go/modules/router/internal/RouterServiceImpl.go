@@ -25,8 +25,8 @@ type RouterServiceImpl struct {
 	// autoReconnect insert a reconnect client before the transport client
 	autoReconnect bool
 
-	// The CA certificate used to verify device connections
-	caCert *x509.Certificate
+	// The CA certificates used to verify device connections
+	rootCAs *x509.CertPool
 
 	// handler that provides a TD for the given thingID
 	getTD func(thingID string) *td.TD
@@ -149,7 +149,7 @@ func (m *RouterServiceImpl) GetClientConnection(
 
 		// 3. Create a new client for the origin
 		// TODO: how to determine the CA and client cert for this server?
-		c, err = clients.NewTransportClientFromForm(tdoc, form, m.caCert)
+		c, err = clients.NewTransportClientFromForm(tdoc, form, m.rootCAs)
 		if err != nil {
 			return nil, err
 		}
@@ -332,14 +332,14 @@ func (m *RouterServiceImpl) Stop() {
 //	autoReconnect flag, to enable auto-reconnect on client connections
 //	getTD  handler to lookup a TD for a thingID from a directory
 //	getSrv handler returning a list of transport servers that can contain RC devices.
-//	caCert is the CA used to verify device connections
+//	rootCAs are the CA's used to verify device connections
 //	timeout is the maximum communication timeout with connect clients
 func NewRouterServiceImpl(
 	storageDir string,
 	autoReconnect bool,
 	getTD func(thingID string) *td.TD,
 	getSrv func() []api.ITransportServer,
-	caCert *x509.Certificate, timeout time.Duration,
+	rootCAs *x509.CertPool, timeout time.Duration,
 ) *RouterServiceImpl {
 	if timeout == 0 {
 		timeout = msg.DefaultRnRTimeout
@@ -350,7 +350,7 @@ func NewRouterServiceImpl(
 	m := &RouterServiceImpl{
 		HiveModuleBase:    modules.NewHiveModuleBase(thingID, timeout),
 		autoReconnect:     autoReconnect,
-		caCert:            caCert,
+		rootCAs:           rootCAs,
 		getTD:             getTD,
 		preferredProtocol: api.WotWebsocketProtocolType,
 		storageDir:        storageDir,

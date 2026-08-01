@@ -21,16 +21,13 @@ func NewTLSServerFactory(
 
 	env := f.GetEnvironment()
 
-	caCert, err := env.GetCACert()
-	if err != nil {
-		slog.Error("unable to get the CA")
-	}
 	serverCert, err := env.GetTLSCert()
 	if err != nil {
 		slog.Error("unable to get the Server certificate")
 	}
 	addr := ""
-	cfg := tlsserver.NewTLSServerConfig(addr, env.HttpsPort, serverCert, caCert, true)
+	rootCAs := env.GetRootCAs()
+	cfg := tlsserver.NewTLSServerConfig(addr, env.HttpsPort, serverCert, rootCAs, true)
 	srv := internal.NewTLSServerImpl(cfg, f.GetAuthenticator())
 	return srv, nil
 }

@@ -5,13 +5,25 @@ import (
 	"github.com/rivo/tview"
 )
 
-// A simple table with boilerplate code for adding titles and data rows.
+// A simple table with boilerplate code for adding titles and data rows and some bug fixes.
+//
+// TODO: add paging indicators if the table is longer than available rows
 type TuiTable struct {
 	tview.Table
 	TitleColor      tcell.Color
 	DataColor       tcell.Color
 	TextColor       tcell.Color
 	SelectableColor tcell.Color
+}
+
+// Clear removes all table data.
+// Workaround for bug #1146, race causing endless loop after pressing 'down' when repopulating
+// the table after calling Clear in a fixed table. This ensure the row exists.
+func (t *TuiTable) Clear() *tview.Table {
+	t.Table.Clear()
+	// avoid bug https://github.com/rivo/tview/issues/1146
+	t.Select(0, 0)
+	return &t.Table
 }
 
 // Add a text row to the table

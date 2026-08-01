@@ -89,6 +89,7 @@ func (tuiApp *TuiApp) handleEvent(args ...string) {
 	switch ev {
 
 	case MenuEvDiscover:
+		tuiApp.ShowDiscovery()
 		tuiApp.StartDiscovery()
 
 	case MenuEvListTDs:
@@ -220,6 +221,7 @@ func (tuiApp *TuiApp) ShowDirectories() {
 // Switch to the the discovery page
 func (tuiApp *TuiApp) ShowDiscovery() {
 	// tuiApp.discoPage.Refresh(dirRecs, deviceRecs)
+	tuiApp.menu.SelectDiscovery()
 	tuiApp.QueueSwitchToPage(PageDiscovery)
 }
 
@@ -258,12 +260,11 @@ func (tuiApp *TuiApp) ShowThings() {
 	tuiApp.QueueSwitchToPage(PageThings)
 }
 
-// Start a discovery and refresh the header and main view.
+// Restart a discovery and update the cached TDs.
 // If a directory is found, set the TDD for the directory service.
 func (tuiApp *TuiApp) StartDiscovery() {
 
 	tuiApp.discoPage.SetTitle(" Running discovery... ")
-	tuiApp.QueueSwitchToPage(PageDiscovery)
 
 	go func() {
 		dirTDs := make([]*td.TD, 0)
@@ -342,6 +343,7 @@ func (tuiApp *TuiApp) Start() error {
 
 	// start discovery in the background, this will update the UI when results come in
 	go tuiApp.StartDiscovery()
+	tuiApp.ShowDiscovery()
 
 	err := tuiApp.Application.Run()
 	return err
@@ -349,6 +351,10 @@ func (tuiApp *TuiApp) Start() error {
 
 // Create a new instance of the tui app
 func NewTuiApp(f api.IModuleFactory) *TuiApp {
+
+	// adjust color scheme
+	tview.Styles.TitleColor = tcell.ColorGreen
+	tview.Styles.TertiaryTextColor = tcell.ColorWhite
 
 	co := consumer.NewConsumer(nil, nil)
 
@@ -403,7 +409,7 @@ func NewTuiApp(f api.IModuleFactory) *TuiApp {
 		directoriesPage: directoriesPage,
 		discoPage:       discoPage,
 		// landingPage:     landingPage,
-		// tdPage:     tdPage,
+		// tdPage:     tdPage,  // added below
 		thingsPage: thingsPage,
 	}
 

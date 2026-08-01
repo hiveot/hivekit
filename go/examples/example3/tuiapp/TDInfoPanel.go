@@ -168,8 +168,7 @@ func NewTDInfoPanel() *TDInfoPanel {
 			screen.SetContent(x+width, y, rightBorder, nil, tcell.StyleDefault)
 			title := infoPanel.GetTitle()
 			if title != "" {
-				titleColor := tview.Styles.PrimaryTextColor
-				tview.Print(screen, title, x+1, y, width-2, tview.AlignLeft, titleColor)
+				tview.Print(screen, title, x+1, y, width-2, tview.AlignLeft, tview.Styles.TitleColor)
 			}
 			// Return the available inner dimensions (x, y, width, height)
 			return x, y + 1, width, height - 1

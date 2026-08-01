@@ -485,9 +485,9 @@ func (cl *SseScClientImpl) Stop() {
 // For testing, or very slow networks, use SetTimeout to increase the wait time.
 //
 //	sseURL full connection URL of Hiveot SSE server and path
-//	caCert is the CA certificate to validate the server certificate
+//	rootCAs are CA certificates to validate the server certificate. nil for system CAs.
 //	ch is the connect/disconnect callback
-func NewSseScClientImpl(sseURL string, caCert *x509.Certificate) *SseScClientImpl {
+func NewSseScClientImpl(sseURL string, rootCAs *x509.CertPool) *SseScClientImpl {
 
 	urlParts, err := url.Parse(sseURL)
 	if err != nil {
@@ -498,7 +498,7 @@ func NewSseScClientImpl(sseURL string, caCert *x509.Certificate) *SseScClientImp
 	ssePath := urlParts.Path
 	// use SetTimeout to change the default
 	timeout := msg.DefaultRnRTimeout
-	tlsClient := tls_client.NewTLSClient(hostPort, caCert, timeout)
+	tlsClient := tls_client.NewTLSClient(hostPort, rootCAs)
 
 	thingID := ssesc.SseScClientModuleType + shortid.MustGenerate()
 	cl := &SseScClientImpl{
