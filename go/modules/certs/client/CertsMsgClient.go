@@ -11,9 +11,8 @@ import (
 	"github.com/hiveot/hivekit/go/utils"
 )
 
-// CertsMsgClient is a client for the Certificate module using RRN messages.
-// This implements the ICertsService interface.
-type CertsMsgClient struct {
+// CertsClient is a client for the Certificate service using RRN messages.
+type CertsClient struct {
 	modules.HiveModuleBase // clients can be used as modules
 
 	// CertsMsgClient is the RRN client for the directory service.
@@ -22,27 +21,35 @@ type CertsMsgClient struct {
 	certServiceID string
 }
 
-// GetCACert returns the x509 CA certificate.
-func (cl *CertsMsgClient) GetCACert() (cert *x509.Certificate, err error) {
+// GetCACert returns the CA x509 certificate.
+func (cl *CertsClient) GetCACert() (caCert *x509.Certificate, err error) {
 	var certPem string
 
 	err = cl.Rpc(td.OpInvokeAction, cl.certServiceID, certs.GetCACertAction, nil, &certPem)
 	if err == nil {
-		cert, err = utils.X509CertFromPEM(certPem)
+		caCert, err = utils.X509CertFromPEM(certPem)
 	}
-	return cert, err
+	return caCert, err
 }
 
-// NewCertsMsgClient creates a new CertsMsgClient instance.
+// Verify if the given client certificate is still valid
+func (cl *CertsClient) VerifyClientCert(clientID string, clientCert *x509.Certificate) error {
+
+	certPem := utils.X509CertToPEM(clientCert)
+	err := cl.Rpc(td.OpInvokeAction, cl.certServiceID, certs.VerifyClientCertAction, &certPem, nil)
+	return err
+}
+
+// NewCertsClient creates a new CertsMsgClient instance.
 // Use the sink to attach a transport client
 //
 //	certServiceID is the certificate service instance thingID, "" to select default.
 //	sink is the handler that forwards requests to the service and receives notifications. nil to ignore.
-func NewCertsMsgClient(sink api.IHiveModule, svcThingID string) *CertsMsgClient {
+func NewCertsClient(sink api.IHiveModule, svcThingID string) *CertsClient {
 	if svcThingID == "" {
 		svcThingID = certsapi.DefaultCertsServiceThingID
 	}
-	cl := &CertsMsgClient{
+	cl := &CertsClient{
 		certServiceID: svcThingID,
 	}
 	if sink != nil {

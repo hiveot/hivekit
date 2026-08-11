@@ -12,9 +12,11 @@ import (
 
 // Configuration options for the TLS transport server
 type TLSServerConfig struct {
-	Address    string           `yaml:"address,omitempty"`
-	Port       int              `yaml:"port,omitempty"`
-	RootCAs    *x509.CertPool   `yaml:"-"`
+	Address string         `yaml:"address,omitempty"`
+	Port    int            `yaml:"port,omitempty"`
+	RootCAs *x509.CertPool `yaml:"-"`
+
+	// The server certificate chain
 	ServerCert *tls.Certificate `yaml:"-"`
 
 	// NoTLS disables the use of TLS. For testing obviously
@@ -86,8 +88,8 @@ type TLSServerConfig struct {
 //
 //	addr is optional address, default is outbound address
 //	port is optional listening port, 0 for transport.DefaultHttpsPort
-//	serverCert TLS certificate signed by the CA
-//	caCert x509 CA certificate
+//	serverCert TLS certificate chain
+//	rootCAs x509 CA certificate
 //	validateToken is the required handler for authenticating protected routes
 //	logging enable middleware logging
 func NewTLSServerConfig(

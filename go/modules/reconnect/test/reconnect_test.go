@@ -21,7 +21,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-var testProtocol = api.HiveotWebsocketProtocolType
+var testProtocol = api.WotWebsocketProtocolType
 
 var testProtocols = []string{
 	api.HiveotSseScProtocolType,
@@ -52,7 +52,7 @@ func TestReconnect(t *testing.T) {
 	// check if the connection status notification is received
 	// The notification is experimental, reconnect uses the client callback which
 	// comes after the notification.
-	notificationHook := func(notif *msg.NotificationMessage) {
+	clientNotificationHook := func(notif *msg.NotificationMessage) {
 		if notif.Name == api.ClientConnectionStatusEvent {
 			status := notif.Data.(api.ConnectionStatus)
 			slog.Info("TestReconnect: client connection notification", "status", status)
@@ -117,12 +117,12 @@ func TestReconnect(t *testing.T) {
 
 	// new consumer with reconnect client
 	co1, cc1, _ := testEnv.NewReconnectedConsumer(testClientID1, authn.ClientRoleViewer)
-
-	// cc1.SetConnectHandler(handleConnect)
-	co1.SetNotificationHook(notificationHook)
 	defer cc1.Close()
+	// count nr of connection status changes
+	co1.SetNotificationHook(clientNotificationHook)
+	assert.Equal(t, api.StatusConnected, cc1.GetConnectionStatus())
 
-	//  wait until the connection is established
+	// the client
 
 	// 3. close connection server side but keep the session.
 	// This should trigger auto-reconnect on the client.
@@ -133,7 +133,7 @@ func TestReconnect(t *testing.T) {
 
 	// Note: the server gets the 'connected' status before the client
 	// a little wait is needed before using the connection.
-	time.Sleep(time.Millisecond)
+	time.Sleep(time.Millisecond * 10)
 
 	// 4. invoke an action which should return a value
 	// An RPC call is the ultimate test

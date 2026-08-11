@@ -148,7 +148,7 @@ func LoadCreateKeyPair(clientID string, keysDir string, keyType KeyType) (
 //
 //	keyPath is the path to the file containing the key
 func LoadPrivateKey(keyPath string) (
-	privKey crypto.PrivateKey, pubKey crypto.PublicKey, err error) {
+	privKey crypto.Signer, pubKey crypto.PublicKey, err error) {
 
 	privPEM, err := os.ReadFile(keyPath)
 	if err != nil {
@@ -231,7 +231,7 @@ func NewKey(keyType KeyType) (crypto.PrivateKey, crypto.PublicKey) {
 // PrivateKeyFromPem reads the key-pair from the PEM private key.
 // This returns an error if the PEM is not a valid key.
 func PrivateKeyFromPem(privatePEM string) (
-	privKey crypto.PrivateKey, pubKey crypto.PublicKey, err error) {
+	privKey crypto.Signer, pubKey crypto.PublicKey, err error) {
 
 	var rawPrivateKey crypto.PrivateKey
 	derBytes, err := PemToDer(privatePEM)
@@ -279,8 +279,8 @@ func PrivateKeyFromPem(privatePEM string) (
 	return nil, nil, err
 }
 
-// PrivateKeyToPem returns the PEM encoded private key
-func PrivateKeyToPem(privKey crypto.PrivateKey) string {
+// PrivateKeyToPEM returns the PEM encoded private key
+func PrivateKeyToPEM(privKey crypto.PrivateKey) string {
 	var err error
 	var pemEnc []byte
 	var keyBytes []byte
@@ -358,7 +358,7 @@ func SavePublicKey(pubKey crypto.PublicKey, pemPath string) error {
 //
 //	Returns error in case the key is invalid or file cannot be written.
 func SavePrivateKey(privKey crypto.PrivateKey, pemPath string) error {
-	privPEM := PrivateKeyToPem(privKey)
+	privPEM := PrivateKeyToPEM(privKey)
 	// remove existing key since perm 0400 doesn't allow overwriting it
 	_ = os.Remove(pemPath)
 	// ensure the directory exists

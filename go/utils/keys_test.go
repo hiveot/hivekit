@@ -165,7 +165,7 @@ func TestPrivateKeyPEM(t *testing.T) {
 	t.Logf("---%s---\n", t.Name())
 
 	k1, _ := utils.NewKey(keyType)
-	k1Pem := utils.PrivateKeyToPem(k1)
+	k1Pem := utils.PrivateKeyToPEM(k1)
 	assert.NotEmpty(t, k1Pem)
 
 	kt1 := utils.DetermineKeyType(k1Pem)
@@ -174,7 +174,7 @@ func TestPrivateKeyPEM(t *testing.T) {
 	k2, _, err := utils.PrivateKeyFromPem(k1Pem)
 	require.NoError(t, err)
 
-	k2Pem := utils.PrivateKeyToPem(k2)
+	k2Pem := utils.PrivateKeyToPEM(k2)
 	require.NotNil(t, k2Pem)
 
 	isEqual := k1Pem == k2Pem

@@ -2,8 +2,8 @@ package certs
 
 import (
 	"crypto"
-	"crypto/tls"
 	"crypto/x509"
+	"time"
 
 	"github.com/hiveot/hivekit/go/api"
 )
@@ -23,6 +23,10 @@ const DefaultCertsServiceThingID = "certs"
 // const DefaultServerCertFile = DefaultServerName + "Cert.pem"
 // const DefaultServerKeyFile = DefaultServerName + "Key.pem"
 
+const SelfSignedProvider = "selfsigned"
+
+const LetsEncryptProvider = "letsencrypt"
+
 // RRN Actions
 const (
 	GetCACertAction = "getCACert"
@@ -30,6 +34,10 @@ const (
 	// the get ServerCert action
 	// input: server name
 	GetServerCertAction = "getServerCert"
+
+	// verify the client certificate
+	// input: PEM encoded client certificate
+	VerifyClientCertAction = "verifyClientCert"
 )
 
 // CertsConfig defines certificate service configuration.
@@ -44,61 +52,115 @@ type CertsConfig struct {
 
 	// Provider of the Certificate service. "selfsigned" (default) or "letsencrypt".
 	// Lets-encrypt support is not complete yet so nothing to see here.
-	Provider string `yaml:"provider,omitempty"`
+	// Provider string `yaml:"provider,omitempty"`
 
 	// ServerCertName holds the default name of the server certificate to load on request.
 	// If empty no server certificate will be available.
 	// ServerCertName string `yaml:"createServerCertName,omitempty"`
+
+	// Override the default settings for Country, Locality, Org and Province
+	Country  string
+	Locality string
+	Org      string
+	Province string
 }
 
-// ICertsService interface of the certificate module server
+// ICertsProvider interface of the certificate provider service like letsencrypt
+type ICertProvider interface {
+	// Create a new server certficate.
+	//
+	// If a provider is used then request it from the provider.
+	// If no provider is used then create a self-signed certificate.
+	//
+	//  serverName is the name of the server under which the cert, key and certificate is stored.
+	//  hostName is the name or IP to include in the certificate SAN. "" to ignore.
+	//	validity is the validity period of the certificate. Required.
+	//  serverPubKey is the server public key to include in the certificate. Required.
+	//
+	// This returns the server x509 certificate chain.
+	CreateServerCert(
+		serverName string, hostName string,
+		validity time.Duration, pubKey crypto.PublicKey) (
+		[]*x509.Certificate, error)
+
+	// GetServerCert returns a previously created server certificate.
+	//
+	// If a cert exists in the local certs storage, load and return it. This can be
+	// created and stored out of band. The name is {certs}/{serverName}Cert.pem.
+	//
+	// If no cert is found and a provider is used then request the cert from the provider.
+	GetServerCert(serverName string) ([]*x509.Certificate, error)
+
+	// Refresh the server certificate.
+	//
+	// This returns the new certificate.
+	Refresh(serverName string) ([]*x509.Certificate, error)
+}
+
+// ICertsService interface of the certificate management service
 type ICertsService interface {
 	api.IHiveModule
 
-	// Create and store the server TLS certificate for a server module.
+	// Create a new server certificate chain
 	//
 	// This includes localhost and 127.0.0.1 in the certificate SAN names.
 	// A server private key can be provided or will be created when omitted.
-	// This returns a TLS certificate, signed by the service CA.
-	// If the service is configured to use LetsEncrypt, then a working internet is
-	// required to have LetsEncrypt create the certificate.
+	// This returns a TLS certificate, signed by the provider CA.
+	// Providers like Lets-Encrypt require a working internet to create the certificate.
 	//
-	// While the default serverKey is ecdsa it is also possible to use ed25519.
-	// Since the crypto api does not offer a method to obtain the public key from
-	// the private key, it has to be provided separately.
+	// The country, province, locality fields are set to hiveot's default from
+	// the service configuration.
 	//
-	//  serverName is the name under which to store the key and certificate.
+	//  serverName is the name of the server and under which to store the key and certificate.
 	//  hostName is the name or IP to include in the certificate SAN. "" to ignore.
-	//  serverPrivKey is the server private key used to create the TLS certificate. nil to generate.
-	//  serverPubKey is the corresponding public key.
+	//	validity is the validity period of the certificate or 0 for the recommended default.
+	//  serverPubKey is the server public key to include in the certificate.
 	//
-	// Only administrators are allowed to create certificates.
-	CreateServerCert(serverName string, hostName string,
-		serverPrivKey crypto.PrivateKey, serverPubKey crypto.PublicKey) (*tls.Certificate, error)
+	// This returns the server x509 certificate chain.
+	// Use utils.X509CertToTLS to convert it to a TLS certificate.
+	CreateServerCert(
+		serverName string, hostName string,
+		validity time.Duration, pubKey crypto.PublicKey) (
+		[]*x509.Certificate, error)
+
+	// Create a self-signed client certificate using the given client public key.
+	//
+	// Intended for devices and consumers to support authentication with a server
+	// using a client certificate. The country, province, locality fields are set
+	// to hiveot's default from the service configuration.
+	//
+	// Use utils.X509CertToTLS to convert it to a TLS certificate.
+	//
+	//	clientID identifies the authentication accountID of the client
+	//  ou is intended to identify the client as a device, consumer or service
+	//	validity is the time the certificate is valid for
+	//	pubKey is the client's public key needed to authenticate.
+	CreateClientCert(clientID string, ou string, validity time.Duration,
+		pubKey crypto.PublicKey) (*x509.Certificate, error)
 
 	// GetCACert returns the x509 CA certificate.
+	// A self-signed provider will create a CA if one isn't provided.
+	//
 	// Returns and error if a CA is not initialized or can not be returned.
 	GetCACert() (*x509.Certificate, error)
 
-	// LoadServerCert loads the public x509 certification of a previous saved certificate.
-	//
-	// serverName name under which certificate was created/saved
-	// Only administrators or modules themselves are allowed to load the TLS certificate.
-	LoadServerCert(serverName string) (*x509.Certificate, error)
+	// GetServerCert returns a previously created server certificate chain.
+	// This first locates a previously saved certificate with the name in the
+	// certs directory.
+	// If no certificate was found then check with the configured providers.
+	GetServerCert(serverName string) ([]*x509.Certificate, error)
 
-	// LoadServerTLSCert loads a previously saved server certificate from the
-	// certificate directory.
-	// This returns an error if certificate/key files are not found.
-	//
-	// serverName name under which certificate was created/saved
-	// Only administrators or modules themselves are allowed to load the TLS certificate.
-	LoadServerTLSCert(serverName string) (*tls.Certificate, error)
+	// Refresh the server certificate if needed.
+	// The certificate is updated when its remaining validity is below minRemaining
+	// If minRemaining is negative then force a refresh.
+	// This returns the new certificate if refreshed or the old certificate if plenty of life is left.
+	Refresh(serverName string, minRemaining time.Duration) ([]*x509.Certificate, error)
 
-	// Verify if the given certificate is signed by the CA.
+	// Verify if the given client certificate is valid and signed by the CA.
 	//
-	// This checks if the certificate uses serverName as the Common Name.
+	// Intended for validating self-signed client certificates.
 	//
 	// This returns an error if the certificate cannot be verified or doesn't
-	// have the serverName as cn.
-	VerifyCert(serverName string, cert *x509.Certificate) error
+	// have the clientID as cn.
+	VerifyClientCert(clientID string, clientCert *x509.Certificate) error
 }

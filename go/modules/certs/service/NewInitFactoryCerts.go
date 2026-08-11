@@ -4,9 +4,9 @@ import (
 	"crypto"
 	"os"
 	"path"
+	"time"
 
 	"github.com/hiveot/hivekit/go/api"
-	"github.com/hiveot/hivekit/go/modules/certs/internal/providers/selfsigned"
 	"github.com/hiveot/hivekit/go/utils"
 )
 
@@ -47,8 +47,8 @@ func NewInitFactoryCerts(f api.IModuleFactory, md *api.ModuleDefinition) (api.IH
 
 	// if no CA exists then create it
 	if env.CaCert == nil {
-		env.CaCert, err = selfsigned.CreateCAFromKey(
-			"CA", "BC", "local", "HiveOT", env.AppID, 365, caPrivKey, caPubKey)
+		env.CaCert, err = utils.CreateCACert(
+			env.AppID, "CA", "BC", "local", "HiveOT", 365, caPrivKey, caPubKey)
 	}
 
 	// and include a new server cert with hostname and outbound ip
@@ -61,8 +61,9 @@ func NewInitFactoryCerts(f api.IModuleFactory, md *api.ModuleDefinition) (api.IH
 	names = append(names, ip.String())
 
 	serverPrivKey, serverPubKey := utils.NewKey(utils.KeyTypeECDSA)
-	serverX509, err := selfsigned.CreateSelfSignedServerCert(
-		hostname, "HiveOT", 365, serverPubKey, names, env.CaCert, caPrivKey)
+	serverX509, err := utils.CreateServerCert(
+		hostname, "HiveOT", "country", "province", "locality", "org",
+		names, time.Hour*24*365, serverPubKey, env.CaCert, caPrivKey)
 	env.TLSCert = utils.X509CertToTLS(serverX509, serverPrivKey)
 
 	// the job here is done. No need to return a module

@@ -1,15 +1,15 @@
 package certstest_test
 
 import (
+	"crypto/x509"
 	"os"
-	"path"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/hiveot/hivekit/go/modules/certs"
 	certsclient "github.com/hiveot/hivekit/go/modules/certs/client"
 	certsservice "github.com/hiveot/hivekit/go/modules/certs/service"
-	certstest "github.com/hiveot/hivekit/go/modules/certs/test"
 	"github.com/hiveot/hivekit/go/testenv"
 	"github.com/hiveot/hivekit/go/utils"
 	"github.com/stretchr/testify/assert"
@@ -26,7 +26,7 @@ func startService(t *testing.T) (certs.ICertsService, func(), error) {
 
 	// clear start
 	_ = os.RemoveAll(storageDir)
-	cfg := certs.CertsConfig{CertsDir: storageDir}
+	cfg := &certs.CertsConfig{CertsDir: storageDir}
 	m := certsservice.NewCertsService(cfg)
 	err := m.Start()
 	require.NoError(t, err)
@@ -62,59 +62,6 @@ func TestStartStop(t *testing.T) {
 	defer stopFn()
 }
 
-func TestX509ToFromPem(t *testing.T) {
-	testCerts := certstest.CreateTestCertBundle(TestKeyType)
-	asPem := utils.X509CertToPEM(testCerts.CaCert)
-	assert.NotEmpty(t, asPem)
-	asX509, err := utils.X509CertFromPEM(asPem)
-	assert.NoError(t, err)
-	assert.NotEmpty(t, asX509)
-}
-
-func TestSaveLoadX509Cert(t *testing.T) {
-	// hostnames := []string{"localhost"}
-	caPemFile := path.Join(storageDir, "caCert.pem")
-
-	testCerts := certstest.CreateTestCertBundle(TestKeyType)
-
-	// save the test x509 cert
-	err := utils.SaveX509CertToPEM(testCerts.CaCert, caPemFile)
-	assert.NoError(t, err)
-
-	caCert, err := utils.LoadX509CertFromPEM(caPemFile)
-	assert.NoError(t, err)
-	assert.NotNil(t, caCert)
-
-	// create a server TLS cert
-	tlsCert := utils.X509CertToTLS(caCert, testCerts.CaPrivKey)
-	assert.NotEmpty(t, tlsCert)
-
-}
-
-func TestPublicKeyFromCert(t *testing.T) {
-	testCerts := certstest.CreateTestCertBundle(TestKeyType)
-	kt, pubKey := utils.PublicKeyFromCert(testCerts.CaCert)
-	assert.NotEmpty(t, pubKey)
-	assert.NotEmpty(t, kt)
-}
-
-func TestSaveLoadTLSCert(t *testing.T) {
-	// hostnames := []string{"localhost"}
-	certFile := path.Join(storageDir, "x509cert.pem")
-	keyFile := path.Join(storageDir, "tlskey.pem")
-
-	testCerts := certstest.CreateTestCertBundle(TestKeyType)
-
-	// save the test x509 part of the TLS cert
-	err := utils.SaveTLSCertToPEM(testCerts.ServerCert, certFile, keyFile)
-	assert.NoError(t, err)
-
-	// load back the x509 part of the TLS cert
-	cert, err := utils.LoadTLSCertFromPEM(certFile, keyFile)
-	assert.NoError(t, err)
-	assert.NotNil(t, cert)
-}
-
 func TestService(t *testing.T) {
 	const appName = "server"
 
@@ -127,43 +74,51 @@ func TestService(t *testing.T) {
 	require.NoError(t, err)
 	require.NotEmpty(t, caCert)
 
-	// create the server cert and generate the keys
-	newServerCert, err := m.CreateServerCert(appName, "", nil, nil)
+	// create the server cert
+	privKey, pubKey := utils.NewEd25519Key()
+	_ = privKey
+	newServerCert, err := m.CreateServerCert(appName, "", time.Hour, pubKey)
 	require.NoError(t, err)
 	require.NotEmpty(t, newServerCert)
 
-	tlsServerCert, err := m.LoadServerTLSCert(appName)
+	certChain, err := m.GetServerCert(appName)
 	require.NoError(t, err)
-	require.NotEmpty(t, tlsServerCert)
+	require.NotEmpty(t, certChain)
 
-	serverCert, serverKey, err := utils.TLSCertToX509(tlsServerCert)
-	require.NoError(t, err)
-	require.NotEmpty(t, serverKey)
-
-	err = m.VerifyCert(appName, serverCert)
+	//
+	caPool := x509.NewCertPool()
+	caPool.AddCert(caCert)
+	opts := x509.VerifyOptions{
+		Roots:     caPool,
+		KeyUsages: []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth},
+	}
+	_, err = certChain[0].Verify(opts)
 	require.NoError(t, err)
 }
 
-func TestMsgClient(t *testing.T) {
+func TestCertClient(t *testing.T) {
+	const clientID = "clientID"
+
 	m, cancelFn, err := startService(t)
 	_ = m
 	require.NoError(t, err)
 	defer cancelFn()
 
 	// use a direct transport instead of running a client-server
-	tp := testenv.NewTestTransport("testclient", m)
-	cl := certsclient.NewCertsMsgClient(tp, "")
-	caCert, err := cl.GetCACert()
-	require.NoError(t, err)
-	require.NotEmpty(t, caCert)
+	tp := testenv.NewTestTransport(clientID, m)
+	cl := certsclient.NewCertsClient(tp, "")
 
-	modCA, _ := m.GetCACert()
-	err = m.VerifyCert(modCA.Subject.CommonName, caCert)
+	privKey, pubKey := utils.NewEd25519Key()
+	_ = privKey
+	clientCert, err := m.CreateClientCert(clientID, utils.ClientOUConsumer, time.Hour, pubKey)
+	require.NoError(t, err)
+
+	err = m.VerifyClientCert(clientID, clientCert)
 	assert.NoError(t, err)
 
-	// assert.Equal(t, testCerts.CaCert.Issuer, caCert.Issuer.CommonName)
-	// var _ certs.ICertsService = cl // interface check
-	_ = cl
+	err = cl.VerifyClientCert(clientID, clientCert)
+	assert.NoError(t, err)
+
 }
 
 func TestCreateCerts(t *testing.T) {
@@ -175,14 +130,15 @@ func TestCreateCerts(t *testing.T) {
 	caCert, err := m.GetCACert()
 	require.NoError(t, err)
 	require.NotNil(t, caCert)
-	// require.NotNil(t, caPrivKey)
 
-	serverTlsCert, err := m.CreateServerCert("test", "hostname", nil, nil)
+	privKey, pubKey := utils.NewEd25519Key()
+	_ = privKey
+	serverChain, err := m.CreateServerCert("test", "hostname", time.Hour, pubKey)
 	require.NoError(t, err)
-	require.NotNil(t, serverTlsCert)
+	require.NotNil(t, serverChain)
 
 	// this needs completion
-	cl := certsclient.NewCertsMsgClient(nil, "")
+	cl := certsclient.NewCertsClient(nil, "")
 	// var _ certs.ICertsService = cl // interface check
 	_ = cl
 }

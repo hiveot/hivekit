@@ -123,8 +123,8 @@ func (req *RequestMessage) CreateResponse(value any, err error) (resp *ResponseM
 // 	return notif
 // }
 
-// Decode is a helper to easily convert the request input to an object
-func (req *RequestMessage) Decode(input any) error {
+// DecodeInput is a helper to easily convert the request input to an object
+func (req *RequestMessage) DecodeInput(input any) error {
 	return utils.DecodeAsObject(req.Input, &input)
 }
 

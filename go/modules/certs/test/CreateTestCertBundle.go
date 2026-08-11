@@ -5,8 +5,8 @@ import (
 	"crypto"
 	"crypto/tls"
 	"crypto/x509"
+	"time"
 
-	"github.com/hiveot/hivekit/go/modules/certs/internal/providers/selfsigned"
 	"github.com/hiveot/hivekit/go/utils"
 )
 
@@ -43,13 +43,22 @@ type TestCertBundle struct {
 // The server cert is valid for the 127.0.0.1, localhost, os.hostname and outbound IP.
 func CreateTestCertBundle(keyType utils.KeyType) TestCertBundle {
 	var err error
+	// cfg := certs.CertsConfig{}
+	// provider := selfsignedimpl.NewSelfSignedProvider(&cfg)
+
 	certBundle := TestCertBundle{
 		keyType:    keyType,
 		ServerAddr: ServerAddress,
 	}
 	// Setup CA and server TLS certificates
-	certBundle.CaCert, certBundle.CaPrivKey, certBundle.CaPubKey, err =
-		selfsigned.CreateSelfSignedCA("", "", "", "", "testbundleca", 1, keyType)
+	caPrivKey, caPubKey := utils.NewKey(keyType)
+	caCert, err := utils.CreateCACert(
+		"testbundleca", "country", "province", "locality", "orgName",
+		time.Hour, caPrivKey, caPubKey)
+	certBundle.CaCert = caCert
+	certBundle.CaPrivKey = caPrivKey
+	certBundle.CaPubKey = caPubKey
+
 	if err != nil {
 		panic("CreateCertBundler failed: " + err.Error())
 	}
@@ -59,10 +68,9 @@ func CreateTestCertBundle(keyType utils.KeyType) TestCertBundle {
 	certBundle.ClientPrivKey, certBundle.ClientPubKey = utils.NewKey(keyType)
 
 	names := []string{ServerAddress}
-	serverCert, err := selfsigned.CreateSelfSignedServerCert(
-		TestServerID, "server", 1,
+	serverCert, err := utils.CreateServerCert(
+		TestServerID, "ou", "country", "province", "locality", "org", names, time.Hour,
 		certBundle.ServerPubKey,
-		names,
 		certBundle.CaCert, certBundle.CaPrivKey)
 	if err != nil {
 		panic("unable to create server cert: " + err.Error())
@@ -73,7 +81,8 @@ func CreateTestCertBundle(keyType utils.KeyType) TestCertBundle {
 		PrivateKey:  certBundle.ServerPrivKey,
 	}
 	certBundle.ClientID = TestClientID
-	clientCert, err := selfsigned.CreateClientCert(certBundle.ClientID, "service", 1,
+	clientCert, err := utils.CreateClientCert(certBundle.ClientID, "service",
+		"country", "province", "locality", "org", time.Hour,
 		certBundle.ClientPubKey,
 		certBundle.CaCert,
 		certBundle.CaPrivKey)

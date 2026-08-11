@@ -112,7 +112,7 @@ func (m *ExposedThing) HandleReadRequests(req *msg.RequestMessage, replyTo msg.R
 	case td.OpReadMultipleProperties:
 
 		var keys []string
-		err = req.Decode(&keys)
+		err = req.DecodeInput(&keys)
 		if err != nil {
 			err = fmt.Errorf("Invalid input: %w", err)
 			break

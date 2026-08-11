@@ -3,29 +3,43 @@ package certs_service
 import (
 	"github.com/hiveot/hivekit/go/api"
 	"github.com/hiveot/hivekit/go/modules/certs"
-	"github.com/hiveot/hivekit/go/modules/certs/internal/serviceimpl"
+	"github.com/hiveot/hivekit/go/modules/certs/internal"
 )
 
-// Create a new instance of the certs server module
-// This module is reachable as the DefaultCertsServiceID ThingID
-// certsDir is the storage directory to read or create keys and certificates.
-func NewCertsService(config certs.CertsConfig) certs.ICertsService {
-	m := serviceimpl.NewCertsServiceImpl(config)
+// Create a new instance of the default certs service module.
+// This uses the self-signed cert service implementation
+func NewCertsService(config *certs.CertsConfig) certs.ICertsService {
+	m := internal.NewCertsServiceImpl(config)
 	return m
 }
 
 // Create a new instance of the certs server module using the factory environment
 // This module is reachable as the DefaultCertsServiceID ThingID
-// certsDir is the storage directory to read or create keys and certificates.
-func NewCertsServiceFactory(f api.IModuleFactory, md *api.ModuleDefinition) (api.IHiveModule, error) {
+// Configuration is optional and defaults to the self-signed cert provider.
+//
+// Configuration:
+//
+//	CertsDir is the storage directory to read or create keys and certificates.
+func NewCertsServiceFactory(f api.IModuleFactory, md *api.ModuleDefinition) (
+	m api.IHiveModule, err error) {
+
 	envDir := f.GetEnvironment()
 
 	config, ok := md.Config.(*certs.CertsConfig)
 	if !ok {
-		config = &certs.CertsConfig{
-			CertsDir: envDir.CertsDir,
+		config, _ = md.Config.(*certs.CertsConfig)
+		if config == nil {
+			config = &certs.CertsConfig{
+				// Provider: certs.SelfSignedProvider,
+				CertsDir: envDir.CertsDir,
+			}
 		}
 	}
-	m := serviceimpl.NewCertsServiceImpl(*config)
+	m = NewCertsService(config)
+	// if config.Provider == certs.LetsEncryptProvider {
+	// 	m = NewLetsEncryptCertService(config)
+	// } else {
+	// 	m = NewSelfSignedCertService(config)
+	// }
 	return m, nil
 }

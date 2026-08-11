@@ -204,7 +204,7 @@ func (m *TestDevice) HandleWriteProperty(req *msg.RequestMessage, replyTo msg.Re
 	switch req.Name {
 	case CounterPropName:
 		var newValue int
-		err = req.Decode(&newValue)
+		err = req.DecodeInput(&newValue)
 		if err == nil {
 			m.counter.Store(int32(newValue))
 			// PubProperty makes the last value available via HandleReadRequests
@@ -212,7 +212,7 @@ func (m *TestDevice) HandleWriteProperty(req *msg.RequestMessage, replyTo msg.Re
 		}
 	case AutoIncrementPropName:
 		var newValue bool
-		err = req.Decode(&newValue)
+		err = req.DecodeInput(&newValue)
 		m.config.AutoIncrement = newValue
 		// PubProperty makes the last value available via HandleReadRequests
 		m.PubProperty(req.ThingID, req.Name, newValue, true)

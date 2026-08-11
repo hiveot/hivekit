@@ -49,6 +49,16 @@
         "description": "Server certificate in PEM format",
         "type": "string"
       }
+    },
+    "verifyClientCert": {
+      "title": "Verify client certificate",
+      "description": "Verify if the client certificate is still valid.",
+      "idempotent": true,
+      "input": {
+        "title": "cert",
+        "description": "PEM encoded client certificate",
+        "type":"string"
+      }
     }
   }
 }

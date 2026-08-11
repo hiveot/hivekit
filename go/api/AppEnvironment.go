@@ -188,7 +188,7 @@ func (env *AppEnvironment) GetCACert() (caCert *x509.Certificate, err error) {
 		return env.CaCert, nil
 	}
 	caCertPath := filepath.Join(env.CertsDir, DefaultCaCertFile)
-	env.CaCert, err = utils.LoadX509CertFromPEM(caCertPath)
+	env.CaCert, _, err = utils.LoadCA(caCertPath, "")
 	return env.CaCert, err
 }
 
@@ -225,7 +225,7 @@ func (env *AppEnvironment) GetTLSCert() (cert *tls.Certificate, err error) {
 	}
 	certPath := filepath.Join(env.CertsDir, env.ClientID+DefaultCertFileSuffix)
 	keyPath := filepath.Join(env.CertsDir, env.ClientID+DefaultKeyFileSuffix)
-	env.TLSCert, err = utils.LoadTLSCertFromPEM(certPath, keyPath)
+	env.TLSCert, err = utils.LoadTLSCert(certPath, keyPath)
 	return env.TLSCert, err
 }
 
@@ -413,7 +413,7 @@ func NewAppEnvironment(homeDir string, withFlags bool) *AppEnvironment {
 	}
 	// load the CA cert if found
 	caCertFile := path.Join(certsDir, DefaultCaCertFile)
-	caCert, _ := utils.LoadX509CertFromPEM(caCertFile)
+	caCert, _, _ := utils.LoadCA(caCertFile, "")
 
 	// determine the expected location of the client auth key and token
 	keyFile := path.Join(certsDir, clientID+".key")
