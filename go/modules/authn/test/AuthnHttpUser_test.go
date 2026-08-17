@@ -25,7 +25,7 @@ func TestBadRefreshHttp(t *testing.T) {
 	serverURL := httpServer.GetConnectURL()
 	authCl := authnclient.NewUserAuthnHttpClient(serverURL, testCerts.RootCAs)
 	defer authCl.Close()
-	err = authCl.AuthenticateWithToken(testClientID1, token1)
+	err = authCl.SetAuthToken(testClientID1, token1)
 	assert.NoError(t, err)
 
 	// http clients can't detect a bad token until making requests to a protected route
@@ -56,7 +56,7 @@ func TestLogoutHttp(t *testing.T) {
 
 	serverURL := httpServer.GetConnectURL()
 	authnClient := authnclient.NewUserAuthnHttpClient(serverURL, testCerts.RootCAs)
-	err = authnClient.AuthenticateWithToken(testClientID1, token1)
+	err = authnClient.SetAuthToken(testClientID1, token1)
 	defer authnClient.Close()
 
 	token2, err := authnClient.RefreshToken(token1)
@@ -91,7 +91,7 @@ func TestAuthClientCertHttp(t *testing.T) {
 
 	// client should be able to read its profile using just client cert as auth
 	authCl := authnclient.NewUserAuthnHttpClient(serverURL, testCerts.RootCAs)
-	authCl.GetTlsClient().AuthenticateWithClientCert(testCerts.ClientCert)
+	authCl.GetTlsClient().SetClientCert(testCerts.ClientCert)
 	defer authCl.Close()
 
 	profile, err := authCl.GetProfile()

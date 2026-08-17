@@ -2,69 +2,52 @@ package certs_service
 
 import (
 	"crypto"
-	"os"
-	"path"
-	"time"
 
 	"github.com/hiveot/hivekit/go/api"
-	"github.com/hiveot/hivekit/go/utils"
+	"github.com/hiveot/hivekit/go/modules/certs"
+	"github.com/hiveot/hivekit/go/modules/certs/internal"
 )
 
 // NewInitFactoryCerts if a factory initialization method to ensure it has
-// certificates needed to run the servers.
+// certificates needed to run the servers or administrator.
 //
-// If a CA and server certs are already loaded then this does nothing.
-// If a CA with key is loaded but the server cert is not then create a server cert.
-// If no certs are available then generate a self-signed CA with server cert.
+// Intended to ensure all certs are in place before running the services.
+// This can be used together with the certs service.
 //
-// Any certs created are in-memory only. No files on disk are changed as certificate
-// management is a separate concern.
+// If certificates are created they are valid for the default 90 days:
+// 1. Create a self-signed CA Key if it doesn't exist.
+// 2. Create a self-signed CA Certificate if it doesn't exist.
+// 3. Create a self-signed admin client TLS certificate if it doesn't exist.
+// 4. Create a self-signed server TLS certificate if it doesn't exist. (in memory only)
 //
 // This returns nil so it won't be added to the module chain, just does some setup
 // at startup.
-func NewInitFactoryCerts(f api.IModuleFactory, md *api.ModuleDefinition) (api.IHiveModule, error) {
-	var err error
-	var caPrivKey crypto.PrivateKey
-	var caPubKey crypto.PublicKey
+func NewInitFactoryCerts(
+	f api.IModuleFactory, md *api.ModuleDefinition) (api.IHiveModule, error) {
 
+	var err error
+	var caPrivKey crypto.Signer
+
+	// Update the environment with the CA, server and admin client certificate
 	env := f.GetEnvironment()
 
-	// if certs are in place there is nothing to do
-	if env.CaCert != nil && env.TLSCert != nil {
-		// return nil is not an error are this module's work is done
-		return nil, nil
-	}
-
-	// to ensure a CA and server cert can be created, a CA private key is required
-	caKeyPath := path.Join(env.CertsDir, api.DefaultCaKeyFile)
-	caPrivKey, caPubKey, err = utils.LoadPrivateKey(caKeyPath)
+	env.CaCert, caPrivKey, err = internal.LoadOrCreateSelfSignedCACert(
+		env.CertsDir, certs.DefaultCAValidityPeriod)
 	if err != nil {
-		// no luck, need a new set of keys, all certs need to be created
-		caPrivKey, caPubKey = utils.NewKey(utils.KeyTypeECDSA)
-		// even if there was a CA, without a key it cannot be used to create a server cert
-		env.CaCert = nil
+		return nil, err
 	}
 
-	// if no CA exists then create it
-	if env.CaCert == nil {
-		env.CaCert, err = utils.CreateCACert(
-			env.AppID, "CA", "BC", "local", "HiveOT", 365, caPrivKey, caPubKey)
+	cfg := &certs.CertsConfig{
+		CertsDir: env.CertsDir,
+		CaCert:   env.CaCert,
+		CaKey:    caPrivKey,
 	}
 
-	// and include a new server cert with hostname and outbound ip
-	names := []string{}
-	hostname, err := os.Hostname()
-	if err == nil {
-		names = append(names, hostname)
-	}
-	ip := utils.GetOutboundIP("")
-	names = append(names, ip.String())
+	env.ServerCert, err = internal.LoadOrCreateSelfSignedServerCert(
+		api.DefaultServerName, cfg, certs.DefaultServerValidityPeriod)
 
-	serverPrivKey, serverPubKey := utils.NewKey(utils.KeyTypeECDSA)
-	serverX509, err := utils.CreateServerCert(
-		hostname, "HiveOT", "country", "province", "locality", "org",
-		names, time.Hour*24*365, serverPubKey, env.CaCert, caPrivKey)
-	env.TLSCert = utils.X509CertToTLS(serverX509, serverPrivKey)
+	env.ClientCert, err = internal.LoadOrCreateSelfSignedClientCert(
+		certs.DefaultAdminID, cfg, "ou", certs.DefaultAdminValidityPeriod)
 
 	// the job here is done. No need to return a module
 	return nil, nil

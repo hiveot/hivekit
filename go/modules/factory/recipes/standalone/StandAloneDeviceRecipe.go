@@ -59,8 +59,8 @@ var StandAloneDeviceModuleChain = []api.ModuleDefinition{
 	{
 		// Websocket transport server for incoming connections
 		// This will be used later to update forms in the TD
-		Type:        wss.HiveotWebsocketServerModuleType,
-		Constructor: wss_server.NewHiveotWssServerFactory,
+		Type:        wss.WotWebsocketServerModuleType,
+		Constructor: wss_server.NewWotWssServerFactory,
 	},
 	{
 		// Register the transport server authentication handler, and handle requests

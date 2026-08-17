@@ -99,7 +99,7 @@ func TestNoCA(t *testing.T) {
 
 	// certificate authentication but no CA should fail
 	cl := tls_client.NewTLSClient(testAddress, nil)
-	err = cl.AuthenticateWithClientCert(authBundle.ClientCert)
+	err = cl.SetClientCert(authBundle.ClientCert)
 	assert.Error(t, err)
 
 	_, _, err = cl.Get(path1)
@@ -136,7 +136,7 @@ func TestAuthClientCert(t *testing.T) {
 	})
 	//
 	cl := internal.NewTLSClientImpl(testAddress, authBundle.RootCAs)
-	cl.AuthenticateWithClientCert(authBundle.ClientCert)
+	cl.SetClientCert(authBundle.ClientCert)
 	assert.NoError(t, err)
 
 	clientCert := cl.GetClientCertificate()
@@ -188,7 +188,7 @@ func TestBadClientCert(t *testing.T) {
 	bundle2 := certstest.CreateTestCertBundle(TestKeyType)
 
 	cl := tls_client.NewTLSClient(testAddress, authBundle.RootCAs)
-	err := cl.AuthenticateWithClientCert(bundle2.ServerCert)
+	err := cl.SetClientCert(bundle2.ServerCert)
 	assert.Error(t, err)
 	cl.Close()
 }
@@ -197,7 +197,7 @@ func TestNoServer(t *testing.T) {
 	// setup server and client environm
 	//
 	cl := tls_client.NewTLSClient(testAddress, authBundle.RootCAs)
-	err := cl.AuthenticateWithClientCert(authBundle.ClientCert)
+	err := cl.SetClientCert(authBundle.ClientCert)
 	assert.NoError(t, err)
 	_, _, err = cl.Get("/noserver")
 	assert.Error(t, err)
@@ -209,7 +209,7 @@ func TestCert404(t *testing.T) {
 	assert.NoError(t, err)
 
 	cl := tls_client.NewTLSClient(testAddress, authBundle.RootCAs)
-	err = cl.AuthenticateWithClientCert(authBundle.ClientCert)
+	err = cl.SetClientCert(authBundle.ClientCert)
 	assert.NoError(t, err)
 
 	_, status, err := cl.Get("/pathnotfound")
@@ -245,7 +245,7 @@ func TestTokenAuth(t *testing.T) {
 
 	// connect using the given token
 	cl := tls_client.NewTLSClient(testAddress, authBundle.RootCAs)
-	err = cl.AuthenticateWithToken(user1, authToken)
+	err = cl.SetAuthToken(user1, authToken)
 	require.NoError(t, err)
 
 	resp, status, err := cl.Post(pathLogin1, nil)
@@ -275,7 +275,7 @@ func TestTokenFail(t *testing.T) {
 	})
 	//
 	cl := tls_client.NewTLSClient(testAddress, authBundle.RootCAs)
-	cl.AuthenticateWithToken(clientID, "badtoken")
+	cl.SetAuthToken(clientID, "badtoken")
 	resp, _, err := cl.Post(pathHello1, []byte("test"))
 	assert.Empty(t, resp)
 	// unauthorized

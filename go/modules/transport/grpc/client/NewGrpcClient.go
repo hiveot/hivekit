@@ -4,6 +4,7 @@ import (
 	"crypto/x509"
 
 	"github.com/hiveot/hivekit/go/api"
+	"github.com/hiveot/hivekit/go/api/td"
 	"github.com/hiveot/hivekit/go/modules/transport/grpc/internal/clientimpl"
 )
 
@@ -30,7 +31,7 @@ func NewHiveotGrpcClientFactory(
 	var err error
 
 	env := f.GetEnvironment()
-	clientCert, _ := env.GetTLSCert()
+	clientCert, _ := env.GetClientCert()
 	serverURL := env.ServerURL
 
 	m := NewHiveotGrpcClient(serverURL, env.GetRootCAs())
@@ -43,7 +44,7 @@ func NewHiveotGrpcClientFactory(
 		authToken, err := env.GetAuthToken()
 
 		if err == nil && clientID != "" && authToken != "" {
-			err = m.AuthenticateWithToken(clientID, authToken)
+			err = m.SetAuthToken(clientID, authToken, td.SecSchemeBearer)
 		}
 	}
 	return m, err

@@ -36,6 +36,19 @@ const KPFileExt = ".key"
 // in the keys directory.
 const PubKeyFileExt = ".pub"
 
+// Compare two unknqon private keys.
+//
+// The keys must implement the 'Equal' method.
+func ComparePrivKey(priv1 crypto.PrivateKey, priv2 crypto.PrivateKey) bool {
+	type equaler interface {
+		Equal(crypto.PrivateKey) bool
+	}
+	if eq1, ok := priv1.(equaler); ok {
+		return eq1.Equal(priv2)
+	}
+	return false
+}
+
 // DetermineKeyType returns the type of key
 func DetermineKeyType(encKey string) KeyType {
 	var derBytes []byte
@@ -215,7 +228,8 @@ func NewRsaKey() (*rsa.PrivateKey, *rsa.PublicKey) {
 }
 
 // NewKey creates a new key of the given type
-func NewKey(keyType KeyType) (crypto.PrivateKey, crypto.PublicKey) {
+// This returns a private key that supports signing and a public key.
+func NewKey(keyType KeyType) (crypto.Signer, crypto.PublicKey) {
 	switch keyType {
 	case KeyTypeECDSA:
 		return NewEcdsaKey()

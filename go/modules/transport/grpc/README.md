@@ -57,7 +57,7 @@ Client gist:
 ```go
 	grpcClient = grpclib.NewGrpcServiceClient(
         "unix:///run/myapp.sock", nil, time.Minute, "myservicename", clientStreamHandler)
-	err := grpcClient.AuthenticateWithToken(clientID, token)
+	err := grpcClient.SetAuthToken(clientID, token)
 	_, err = grpcClient.Ping("")
 	strm, err = grpcClient.ConnectStream("stream-1")
     // this blocks

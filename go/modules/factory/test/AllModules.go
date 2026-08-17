@@ -159,7 +159,7 @@ var HiveKitModules = []api.ModuleDefinition{
 	},
 	// certs service
 	{
-		Type:        certs.CertsServerModuleType,
+		Type:        certs.CertsServiceModuleType,
 		Constructor: certs_service.NewCertsServiceFactory,
 	},
 	// InitFactoryCerts ensure the factory has certificates needed to run.

@@ -11,7 +11,7 @@ import (
 // NewHttpBasicClient creates a new instance of the WoT compatible http-basic
 // protocol binding client.
 //
-// Users must use AuthenticateWithToken to authenticate and Connect to connect.
+// Users must use SetAuthToken or SetClientCert to authenticate.
 //
 // This uses the given TD to connect and perform an operation.
 //

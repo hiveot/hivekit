@@ -23,13 +23,6 @@ func (cl *AuthnUserHttpClient) Close() {
 	cl.tlsClient.Close()
 }
 
-// set the clientID and authn token this client uses
-func (cl *AuthnUserHttpClient) AuthenticateWithToken(clientID string, token string) (err error) {
-
-	cl.tlsClient.AuthenticateWithToken(clientID, token)
-	return nil
-}
-
 // Return the client's profile.
 // The client must be authenticated first.
 func (cl *AuthnUserHttpClient) GetProfile() (profile authn.ClientProfile, err error) {
@@ -51,7 +44,7 @@ func (cl *AuthnUserHttpClient) GetTlsClient() tlsclient.ITLSClient {
 func (cl *AuthnUserHttpClient) LoginWithPassword(clientID string, password string) (newToken string, err error) {
 
 	// LoginWithPassword posts a login request to the TLS server using a login ID and
-	// password and obtain an auth token for use with AuthenticateWithToken.
+	// password and obtain an auth token for use with SetAuthToken.
 	// This uses the http-basic login endpoint.
 	//
 	// TBD: is there a WoT standardized auth method?
@@ -70,7 +63,7 @@ func (cl *AuthnUserHttpClient) LoginWithPassword(clientID string, password strin
 	if err == nil && status == http.StatusOK {
 		err = jsoniter.Unmarshal(outputRaw, &newToken)
 		// apply the new token in this client
-		cl.tlsClient.AuthenticateWithToken(clientID, newToken)
+		cl.tlsClient.SetAuthToken(clientID, newToken)
 	}
 	if err != nil {
 		slog.Warn("LoginWithPassword failed: " + err.Error())
@@ -94,7 +87,7 @@ func (cl *AuthnUserHttpClient) RefreshToken(oldToken string) (newToken string, e
 	refreshPath := authn.HttpPostRefreshPath
 	dataJSON, _ := jsoniter.Marshal(oldToken)
 	// first initialize the client with the old token
-	cl.tlsClient.AuthenticateWithToken(clientID, oldToken)
+	cl.tlsClient.SetAuthToken(clientID, oldToken)
 	// post a request and expect an instance response
 	outputRaw, status, err := cl.tlsClient.Post(refreshPath, dataJSON)
 
@@ -106,9 +99,16 @@ func (cl *AuthnUserHttpClient) RefreshToken(oldToken string) (newToken string, e
 		slog.Warn("RefreshToken failed: " + err.Error())
 	} else {
 		// apply the token to the connection
-		err = cl.tlsClient.AuthenticateWithToken(clientID, oldToken)
+		err = cl.tlsClient.SetAuthToken(clientID, oldToken)
 	}
 	return newToken, err
+}
+
+// set the clientID and authn token this client uses
+func (cl *AuthnUserHttpClient) SetAuthToken(clientID string, token string) (err error) {
+
+	cl.tlsClient.SetAuthToken(clientID, token)
+	return nil
 }
 
 // NewUserAuthnHttpClient creates an instance of the authentication client to login and obtain

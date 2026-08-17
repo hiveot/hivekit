@@ -57,20 +57,21 @@ func GetSourceFilesInDir(sourceDir string) ([]string, error) {
 // ReadTDFromFile returns the TD instance of a TM/TD loaded from file
 //
 //	sourceFile is the file containing the TM/TD in JSON
-func ReadTDFromFile(sourceFile string) (*TD, error) {
-	tdi := TD{}
+//
+// This returns nil and an error if the TD file cannot be loaded
+func ReadTDFromFile(sourceFile string) (tdoc *TD, err error) {
 	tdJSON, err := os.ReadFile(sourceFile)
 	if err == nil {
 		// json has more readable error reporting
-		err = json.Unmarshal(tdJSON, &tdi)
+		err = json.Unmarshal(tdJSON, &tdoc)
 		if err2, ok := err.(*json.UnmarshalTypeError); ok {
-			err = fmt.Errorf("ReadTDFromFile failed for file '%s:%d': %w",
+			err = fmt.Errorf("ReadTDFromFile '%s:%d' invalid JSON: %w",
 				sourceFile, err2.Offset, err2)
-			return &tdi, err
+			return tdoc, err
 		}
 	}
 	if err != nil {
-		err = fmt.Errorf("ReadTDFromFile failed for file '%s': %w", sourceFile, err)
+		err = fmt.Errorf("ReadTDFromFile file '%s': %w", sourceFile, err)
 	}
-	return &tdi, err
+	return tdoc, err
 }

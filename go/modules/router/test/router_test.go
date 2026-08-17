@@ -90,9 +90,10 @@ func startTestServerDevice(deviceID string) (testDevice *testenv.TestDevice,
 func SetupConsumerWithRouter(
 	rootCAs *x509.CertPool) (
 	co *consumer.Consumer,
-	routerMod router.IRouterService,
+	routerSvc router.IRouterService,
 	dirSvc directory.IDirectoryService,
 ) {
+	const clientID = "clientID" // fallback ID to connect as client
 
 	// setup the consumer side: directory, router and consumer
 	// register the device TD in the directory for use by the router
@@ -104,28 +105,30 @@ func SetupConsumerWithRouter(
 
 	// the router uses the TD to connect to the device.
 	// this doesn't actually need a directory. GetTD could also simply return the device TD.
-	routerMod = router_service.NewRouterService(
-		storageDir, false, dirSvc.GetTD, nil, rootCAs, rpcTimeout)
+	routerSvc = router_service.NewRouterService(
+		storageDir, false, clientID, nil, rootCAs, rpcTimeout, dirSvc.GetTD, nil)
 
-	err = routerMod.Start()
+	err = routerSvc.Start()
 	if err != nil {
 		panic("SetupConsumerWithRouter: Router.Start: " + err.Error())
 	}
 
 	// A consumer links to the router and subscribes to the device.
 	// For the purpose of this test the router runs client side.
-	co = consumer.NewConsumer(routerMod, nil)
+	co = consumer.NewConsumer(routerSvc, nil)
 	co.SetTimeout(rpcTimeout)
 	err = co.Start()
 	if err != nil {
 		panic("SetupConsumerWithRouter: Consumer.Start: " + err.Error())
 	}
-	return co, routerMod, dirSvc
+	return co, routerSvc, dirSvc
 }
 
 // TestMain create a test folder for certificates and private key
 func TestMain(m *testing.M) {
 	utils.SetLogging("info", "")
+
+	os.RemoveAll(storageDir)
 
 	result := m.Run()
 	if result != 0 {
@@ -147,13 +150,14 @@ func TestConnectAllProtocols(t *testing.T) {
 // Generic directory store testcases
 func TestStartStop(t *testing.T) {
 	slog.Warn(fmt.Sprintf("---Test: %s %s---\n", t.Name(), testProtocol))
+	const clientID = "testclient"
 
 	var testDirMod = directory_service.NewDirectoryService("", "", nil, nil)
 	err := testDirMod.Start()
 	require.NoError(t, err)
 	// test no cred store
 	m := router_service.NewRouterService(
-		"", false, testDirMod.GetTD, nil, nil, rpcTimeout)
+		"", false, clientID, nil, nil, rpcTimeout, testDirMod.GetTD, nil)
 	err = m.Start()
 	require.NoError(t, err)
 	defer m.Stop()
@@ -170,17 +174,20 @@ func TestCredentialsStore(t *testing.T) {
 
 	// the router uses the TD to connect to the device.
 	// this doesn't actually need a directory. GetTD could also simply return the device TD.
-	routerMod := router_service.NewRouterService(storageDir, false, nil, nil, nil, rpcTimeout)
+	routerMod := router_service.NewRouterService(
+		storageDir, false, clientID, nil, nil, rpcTimeout, nil, nil)
 	err := routerMod.Start()
 	require.NoError(t, err)
 
-	hasCred := routerMod.HasThingCredentials(thingID1)
+	credType, hasCred := routerMod.HasThingCredentials(thingID1)
 	assert.False(t, hasCred)
+	assert.Equal(t, "", credType)
 
 	routerMod.AddDeviceCredential(thingID1, clientID, clientCred, thingScheme)
 
-	hasCred = routerMod.HasThingCredentials(thingID1)
+	credType, hasCred = routerMod.HasThingCredentials(thingID1)
 	assert.True(t, hasCred)
+	assert.Equal(t, thingScheme, credType)
 
 	routerMod.Stop()
 
@@ -188,12 +195,49 @@ func TestCredentialsStore(t *testing.T) {
 	err = routerMod.Start()
 	require.NoError(t, err)
 
-	hasCred = routerMod.HasThingCredentials(thingID1)
+	credType, hasCred = routerMod.HasThingCredentials(thingID1)
 	assert.True(t, hasCred)
 	routerMod.Stop()
 }
 
-// connect to a stand-alone test device and read its properties
+// connect to a stand-alone test device and authenticate with client cert
+func TestAuthClientCert(t *testing.T) {
+	const deviceID = "device1"
+	const clientID = "router1"
+	const prop1Name = "prop1"
+	const prop1Value = "value1"
+
+	testDevice, device1TD, testEnv, stopFn := startTestServerDevice(deviceID)
+	defer stopFn()
+	// when the device publishes an observable property it becomes available for querying
+	testDevice.ExposedThing.PubProperty(deviceID, prop1Name, prop1Value, false)
+
+	// 2. setup the consumer with the router module and directory client or service
+	co, routerSvc, dirSvc := SetupConsumerWithRouter(testEnv.CertBundle.RootCAs)
+	defer dirSvc.Stop()
+	defer routerSvc.Stop()
+
+	// 3. the directory (client or server) used by the router needs the device TD
+	deviceTDJson := td.MarshalTD(device1TD)
+	err := dirSvc.CreateThing(deviceID, deviceTDJson)
+	require.NoError(t, err)
+
+	// 4. use client cert as credentials to connect to the device
+	testEnv.TestAuthn.AddClient(testConsumerID, "", authn.ClientRoleOperator)
+	clientCert := testEnv.CertBundle.ClientCert
+	routerSvc.SetClientCert(clientCert)
+	// alt:
+	// certPem, keyPem := utils.TLSCertToPEM(clientCert)
+	// pemCred := certPem + "\n" + keyPem
+	// routerMod.AddDeviceCredential(deviceID, clientID, pemCred, td.SecSchemeCert)
+
+	// 5. Send a request, which causes the router to connect to the device
+	values, err := co.ReadAllProperties(deviceID)
+	assert.NoError(t, err)
+	assert.NotEmpty(t, values)
+}
+
+// connect to a stand-alone test device and subscribe to property updates
 func TestReadObserveDeviceProperties(t *testing.T) {
 	slog.Warn(fmt.Sprintf("---Test: %s %s---\n", t.Name(), testProtocol))
 	const deviceID = "device1"
@@ -290,7 +334,10 @@ func TestSubscribeReconnectToDevice(t *testing.T) {
 	// the router uses the TD to connect to the device.
 	// this doesn't actually need a directory. GetTD could also simply return the device TD.
 	routerMod := router_service.NewRouterService(
-		storageDir, true, testDirMod.GetTD, nil, testEnv.CertBundle.RootCAs, rpcTimeout)
+		storageDir, true, clientID,
+		testEnv.CertBundle.ClientCert,
+		testEnv.CertBundle.RootCAs,
+		rpcTimeout, testDirMod.GetTD, nil)
 	err = routerMod.Start()
 	require.NoError(t, err)
 	defer routerMod.Stop()

@@ -150,7 +150,7 @@ func CreateClientCert(clientID string, ou string,
 //		tlsCert = X509CertToTLS(x509Cert, privKey)
 //
 //
-//	cn is the server domain name or owner ID. for example hostname-serviceName
+//	cn is the server common name
 //	ou is the organizational unit of the certificate
 //	country, province, locality, orgName are optional to include
 //
@@ -260,30 +260,19 @@ func GetPublicKeyFromCert(cert *x509.Certificate) (keyType KeyType, pubKey crypt
 	return keyType, pubKey
 }
 
-// Load a saved CA certificate and private key from file
+// Load a saved CA certificate from file
 // if caKeyPath then ignore the private key
-// This returns an error if no valid certificate is found.
-func LoadCA(caCertPath, caKeyPath string) (
-	caCert *x509.Certificate, privKey crypto.Signer, err error) {
+// This returns an error if no valid certificate or key is found.
+func LoadCACert(caCertPath string) (caCert *x509.Certificate, err error) {
 
 	chain, err := LoadX509Cert(caCertPath)
 	if err != nil {
 		// On first start there might not be a CA. Not a fatal error.
 		err = fmt.Errorf("No valid CA found at '%s': %w", caCertPath, err)
-		return nil, nil, err
+		return nil, err
 	}
 	caCert = chain[0]
-	if caKeyPath == "" {
-		return caCert, nil, nil
-	}
-	caPrivateKey, _, err := LoadPrivateKey(caKeyPath)
-	if err != nil {
-		err = fmt.Errorf("No valid CA private key found at '%s': %w", caCertPath, err)
-	} else {
-		// verify CA cert and key
-
-	}
-	return caCert, caPrivateKey, err
+	return caCert, err
 }
 
 // LoadX509Cert loads the x509 certificate chain from a PEM file format.
@@ -397,6 +386,18 @@ func TLSCertToX509(tlsCert *tls.Certificate) ([]*x509.Certificate, crypto.Privat
 	return certChain, tlsCert.PrivateKey
 }
 
+// TLSCertFromPEM converts a PEM text to a TLS certificate.
+//
+// This support a concatenated PEM text.
+// If the provided PEM only contains a certificate then the TLS wont have a
+// private key part.
+func TLSCertFromPEM(tlsPem string) (*tls.Certificate, error) {
+
+	// X509KeyPair just picks the compatible block from the PEM
+	tlsCert, err := tls.X509KeyPair([]byte(tlsPem), []byte(tlsPem))
+	return &tlsCert, err
+}
+
 // TLSCertToPEM converts a TLS certificate to a certificate and a private key PEM string.
 // If the TLS cert does not contain a private key it is returned as empty.
 func TLSCertToPEM(tlsCert *tls.Certificate) (certPem string, keyPem string) {
@@ -445,6 +446,8 @@ func X509CertFromPEM(certPem string) (cert *x509.Certificate, err error) {
 func X509ChainFromPEM(certPem string) (chain []*x509.Certificate, err error) {
 
 	chain = make([]*x509.Certificate, 0)
+
+	// certChain, err := x509.ParseCertificates([]byte(certPem))
 
 	// first cert
 	pemBlock, remainder := pem.Decode([]byte(certPem))

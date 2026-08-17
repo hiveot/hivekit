@@ -86,31 +86,6 @@ func (cl *DirectoryHttpClient) _send(
 	return reply, err
 }
 
-// AuthenticateWithToken creates a TLS client, connects to the directory, reads the directory's TD.
-func (cl *DirectoryHttpClient) AuthenticateWithToken(clientID string, token string) error {
-
-	// 1: connect to the directory and read its TD
-
-	cl.tlsClient.AuthenticateWithToken(clientID, token)
-
-	// 2: read its TD
-	// GetTDPath := directory.WellKnownWoTPath
-	// resp, status, err := cl.tlsClient.Get(GetTDPath)
-	// _ = status
-	// if err != nil {
-	// 	return err
-	// }
-	// tdi, err := td.UnmarshalTD(string(resp))
-	// if err != nil {
-	// 	cl.tlsClient.Close()
-	// 	return err
-	// }
-	// don't need a base if its the same as the directory client path
-	// _ = tdi.Base
-	// cl.directoryBasePath = tdi.Base
-	return nil
-}
-
 // Return the local cache of Things
 func (cl *DirectoryHttpClient) Cache() directory.IDirectoryCache {
 	return cl.cache
@@ -201,6 +176,13 @@ func (cl *DirectoryHttpClient) RetrieveThing(thingID string) (tdoc *td.TD, err e
 
 	tdoc, err = cl.cache.ImportTDJson(string(raw))
 	return tdoc, err
+}
+
+// SetAuthToken sets the bearer authentication token to authenticate with.
+func (cl *DirectoryHttpClient) SetAuthToken(clientID string, token string) error {
+	cl.tlsClient.SetAuthToken(clientID, token)
+
+	return nil
 }
 
 // set the TDD of the directory server

@@ -1,95 +1,81 @@
 # Certificate Management Service Module
 
-This module offers a service for managing CA and Server TLS certificates for use by servers and clients.
+This module offers a service for managing CA, Server and client TLS certificates for use by servers and clients.
 
-This supports self-signed certificate and 3rd party provided certificate providers such as certbot for use with lets-encrypt (*).
+This supports self-signed certificates and 3rd party certificate providers such as certbot for use with lets-encrypt (*).  
 
 ## Status
 
 This module is in alpha. It has basic functionality but breaking changes can be expected.
 
-(*) The Lets-encrypt provider currently simply serves the server TLS certificate that the administrator obtained from lets-encrypt. It is intended to work together with the certbot package. If there is a use-case then this can be modified to use the google's autocert as built-in solution.
-
-(**) Should this module provide a certificate chain for use by servers instead of just a TLS certificate? TBD
+(*) The Lets-encrypt provider currently simply serves the server TLS certificate that the administrator obtained from lets-encrypt. It does not (yet) manage the certificates using lets-encrypt directly.
 
 
 ## Summary
 
-To function securely, HiveKit transport servers need a valid server TLS certificate, signed by a trusted CA. HiveKit standardizes access to these certificates through its AppEnvironment. This environment implements default rules for obtaining these certificates. By using the app environment certificates, modules can directly run a server or connect to one without the need for additional code.
+To function securely, HiveKit transport servers need a valid server TLS certificate, signed by a trusted CA. HiveKit standardizes access to these certificates through its application environment (AppEnvironment). This environment implements default rules for obtaining these certificates. By using the app environment certificates, modules can directly run a server or connect to one without the need for additional code to manage certificates.
 
-The purpose of this certificate module is to make sure a valid CA and/or TLS certificates are available for the App Environment to load, and enable generating client certificates for connecting to HiveOT servers.
+HiveKit expects applications to use the application environment for loading certificates, or use the module factory, which already includes the application environment. The application environment only loads certificates from the configured 'certs' directory. It does not create certificates. 
 
-The server certificate is primarily intended for use by the HiveKit servers, although they can also be used by 3rd party servers with a matching name.
+The purpose of this 'certs' module is to make sure a valid CA, server and client certificate is available for use by the App Environment.
 
-### Loading of CA Certificates
 
-HiveKit loads the CA certificates from the system certificate pool into the the App Environment. 
+### Loading of Certificates
 
-In addition, a self-signed CA is automatically loaded and included if available. The default location of this file defaults to {certsDir}/caCert.pem. 
+This section describes how the application environment loads CA, server and client certificates. The application environment uses two sources of CA certificates. 
 
-Use of the self-signed CA is optional and is intended for working with self-signed Server certificate and/or with generating client certificates for authentication.
+1. The first source is the system 'root' CA pool, which houses the same CA certificates as browsers and other applications use. When using an external certificate provider, it is expected that the CA of this provider is loaded in the system pool and no further action is needed. 
 
-Administrators can replace this certificate with their own CA if so desired. A corresponding private key is required if the service is asked to generate self-signed server certificates or generating client authentication certificates. 
+2. The second source is the hivekit '{certs}' directory. This directory is determined by the application environment on startup and can be modified through commandline options or environment variables. This defaults to {apphome}/certs where {apphome} defaults to ~/bin/hiveot on Linux.
 
-The behavior depends on availability of the CA and its key:
-* If no CA certificate and key are present, they will be generated.
-* If no CA certificate is present but the CA private key is available, the CA will be generated using the loaded private key. Previous created TLS/Client certificates will continue to be valid for the generated CA.
-* If a CA certificate but no key is present, the CA will be loaded into the pool but self-signed certificate creation will fail. This can be valid if certificate creation is done out of bound.
+On instantiation, the application environment determines the location of the {certs} directory, loads the self-signed CA certificate from {certs}/caCert.pem, and adds it to the CA cert pool. If a private key is present in {certs}/caKey.pem it will be loaded as well. See below on when and how this is used.
+
+The application environment also provides methods to load a server TLS certificate, and client TLS certificates. This simply locates the TLS certificate in {certs}/{name}Cert.pem and {certs}/{name}Key.pem where name is the server certificate name, or the clientID in case of client certificates. As a convention  this is the 'cn' field in the certificate.
+
+If a certificate provider is used for provide a Server certificate, this module will store the certificate in the {certs} directory to allow the application environment to load it along with the key used to generate the certificate.
 
 
 ### Creating of the self-signed CA Certificate
 
-If no CA certificate is present on startup but the CA private key is available, it will be used to generate the self-signed CA certificate. Previous TLS/Client self signed certificates will continue to be valid for the generated CA.
+On startup this module will create a self-signed CA certificate and corresponding private key in the {certs} directory unless a valid CA certificate already exists. If the private key is missing it will be created along with a new self-signed CA certificate.
 
-If no CA certificate is present and no private key is found, they will both be created. Existing self-signed certificates will no longer be valid.
+If no valid CA certificate is present on startup of this 'certs' service but the CA private key is available, it will be used to generate the self-signed CA certificate. Re-using the private key will allow previous self-signed server and client certificates to be used.
 
-If a CA certificate is present but no private key is found then self-signed certificates cannot be created. This mode is specific for users that manage self-signed certificates themselves. They must ensure that the CA, Server Certificate and private key, and client certificate and private key are installed in the {certs} folder.
+Please note that even if Lets-Encrypt is used as the provider, the self-signed CA and key are still needed for creating authentication client certificates. If client certificates are not used then the CA will still be created but not used.
 
-Please note that even if Lets-Encrypt is used as the provider, the self-signed CA is still needed for creating authentication client certificates.
+### Creating The TLS Server Certificate
 
+On startup this module will check if a valid TLS server certificate exists in the application environment. If no valid certificate exists then it will be created and stored in the {certs} directory where the application environment loads it from. The default server certificate name is the application ID as expected by the application environment. 
 
-### Loading of Server TLS Certificate
+The method of creating the TLS server certificate depends on whether an external provider is used. Without a provider, this service will generate a self-signed certificate using the self-signed CA. 
 
-TLS Server certificate/key-pairs can be loaded using the application environment GetTLSCert(serverName) method. 
+If a external provider, like lets-encrypt, is used then it will be asked to create the server certificate using the provided private key. This module will save the certificate and key in the certs directory where it can be loaded by the servers using the application environment.
 
-This first attempts to locate a x509 certificate and corresponding private key from {certDir}/{serverName}Cert.pem and {certDir}/{serverName}Key.pem. If not found, the lets-encrypt provider is checked for its location at /etc/letsencrypt/live on linux.
+### Creating A Client Certificate
 
+This module supports creating self-signed client certificates that work with the built-in self-signed CA. Application servers that support authentication through client certificates should use the CA pool from the application environment so client certificates will automatically be recognized.
 
-### Creating TLS Server Certificate
+To create a client certificate, an administrator user invokes the 'CreateClientCert' service method, providing the client loginID, certificate validity period and client public key. 
 
-Each provider has its own method to create the TLS server certificate.
-
-Self-signed certificate provider:
-
-When requested, the self-signed certificate provider locates or generates a self-signed TLS certificate using the self-signed CA. These are stored in the hiveot 'certs' directory. If a server key key exists it is re-used, otherwise it is newly generated. 
-
-Built-in Lets-Encrypt provider:
-
-The lets-encrypt provider uses the acme/autocert package to obtain and refresh a Lets-encrypt certificate. It stores these in the hiveot 'certs' directory.
-
-Certbot provider:
-
-Certbot is an external utility for getting certificates from Lets-Encrypt.
-
-Refresh can also be called manually on the module, which forwards it to the selected provider.
+Invoking the CreateClientCert method must be done using an application that ensures only administrators with proper permissions can invoke this method. 
 
 
 ## Usage
 
-Prerequisite: To have permissions to read the certificates created by this module, the application must run as the same user as this module, or the certificate files ownership must be changed to that of the hivekit application if it differs.
+Prerequisite: To have permissions to read the certificates created by this service, the application must run as the same user as this service, or the certificate files ownership must be changed to that of the hivekit application if it differs.
 
 ### Manual Instantiation
 
-To manually create the module instance:
+To manually create the service instance:
 
 ```golang
 testCertDir := "./certs"
-m := module.NewCertsModule(certDir)
+svc := certs_service.NewCertsService(certDir)
 ```
 
 ### Module Factory Instantiation
 
-The certificate service can be added to the module factory using 'certs_service.CertsServiceFactory' method and the certs.CertsServerModuleType as the module type. This enables admin access to manage CA and server certificate configuration. Intended for gateways but can also be used on stand-alone devices.
+The certificate service can be added to the module factory using the 'certs_service.NewCertsServiceFactory' method and the certs.CertsServiceModuleType as the module type. This enables admin access to manage CA and server certificate configuration. Intended for gateways but can also be used on stand-alone devices.
 
 To ensure certificates are created if they cannot be located by the app environment, a factory 'NewInitFactoryCerts' initializer module must be added to the start of the module chain:
 > factory method: certs_service.NewInitFactoryCerts
@@ -97,11 +83,11 @@ To ensure certificates are created if they cannot be located by the app environm
 
 This generates and loads self-signed CA certificate if it wasnt found by the app environment. In addition it generates and loads a TLS Server certificate with the serverID name. It does nothing if the CA/Server certificates are already loaded.
 
-### Using certbot for Lets-Encypt
+### Using Lets-Encypt
 
-When the certbot utility is used, it automatically obtains and refreshes a server certificate. The CA is already included in the system cert pool so nothing to do here.
+When the lets-encrypt provider is used it can automatically obtain a server certificate. The CA is already included in the system cert pool so nothing to do here.
 
-By default the letsencrypt provider locates the server certificate in the '/etc/letsencrypt/live' directory. The server needs the certificate chain for it to be recognized.
+The letsencrypt provider locates server certificates in the '/etc/letsencrypt/live' directory and stores it in the {certs} directory. Further automation is planned for the future.
 
 
 

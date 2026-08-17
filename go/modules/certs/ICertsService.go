@@ -13,10 +13,21 @@ import (
 const InitFactoryCertsModuleType = "initFactoryCerts"
 
 // certs service module type for factory. Must implement ICertsService
-const CertsServerModuleType = "certs"
+const CertsServiceModuleType = "certs"
 
 // DefaultCertsServiceThingID is the default thingID of the certs service module.
 const DefaultCertsServiceThingID = "certs"
+
+// Default certificate validity periods
+const (
+	DefaultAdminID  = "admin"
+	DefaultServerOU = ""
+
+	DefaultAdminValidityPeriod  = time.Hour * 24 * 90
+	DefaultClientValidityPeriod = time.Hour * 24 * 90
+	DefaultCAValidityPeriod     = time.Hour * 24 * 90
+	DefaultServerValidityPeriod = time.Hour * 24 * 90
+)
 
 // [deprecated] DefaultServerName is the name of the shared default server cert
 // const DefaultServerName = "server"
@@ -46,17 +57,10 @@ type CertsConfig struct {
 	// The certificate storage directory. Required.
 	CertsDir string `yaml:"certsDir"`
 
-	// Create a server certificate on startup.
-	// This requires ServerCertName to be set.
-	// CreateServerCert bool `yaml:"createServerCert,omitempty"`
-
-	// Provider of the Certificate service. "selfsigned" (default) or "letsencrypt".
-	// Lets-encrypt support is not complete yet so nothing to see here.
-	// Provider string `yaml:"provider,omitempty"`
-
-	// ServerCertName holds the default name of the server certificate to load on request.
-	// If empty no server certificate will be available.
-	// ServerCertName string `yaml:"createServerCertName,omitempty"`
+	// The self-signed CA certificate to use.
+	CaCert *x509.Certificate
+	// The private/public key-pair of the self-signed CA
+	CaKey crypto.Signer
 
 	// Override the default settings for Country, Locality, Org and Province
 	Country  string
@@ -73,13 +77,13 @@ type ICertProvider interface {
 	// If no provider is used then create a self-signed certificate.
 	//
 	//  serverName is the name of the server under which the cert, key and certificate is stored.
-	//  hostName is the name or IP to include in the certificate SAN. "" to ignore.
+	//  names are the IP or domain names to include in the certificate SAN. nil to ignore.
 	//	validity is the validity period of the certificate. Required.
 	//  serverPubKey is the server public key to include in the certificate. Required.
 	//
 	// This returns the server x509 certificate chain.
 	CreateServerCert(
-		serverName string, hostName string,
+		serverName string, names []string,
 		validity time.Duration, pubKey crypto.PublicKey) (
 		[]*x509.Certificate, error)
 
@@ -138,11 +142,8 @@ type ICertsService interface {
 	CreateClientCert(clientID string, ou string, validity time.Duration,
 		pubKey crypto.PublicKey) (*x509.Certificate, error)
 
-	// GetCACert returns the x509 CA certificate.
-	// A self-signed provider will create a CA if one isn't provided.
-	//
-	// Returns and error if a CA is not initialized or can not be returned.
-	GetCACert() (*x509.Certificate, error)
+	// GetCACert returns the service self-signed CA certificate.
+	GetCACert() *x509.Certificate
 
 	// GetServerCert returns a previously created server certificate chain.
 	// This first locates a previously saved certificate with the name in the

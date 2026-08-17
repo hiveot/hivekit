@@ -24,10 +24,10 @@ func NewSseScClientFactory(f api.IModuleFactory, md *api.ModuleDefinition) (api.
 	env := f.GetEnvironment()
 	// do clients use onconnectionchanged? -> yes, show connection status
 	// how do they get informed? -> client submits an event
-	clientCert, _ := env.GetTLSCert()
+	clientCert, _ := env.GetClientCert()
 	m := NewSseScClient(env.ServerURL, env.GetRootCAs())
 	if clientCert != nil {
-		err := m.AuthenticateWithClientCert(clientCert)
+		err := m.SetClientCert(clientCert)
 		if err != nil {
 			slog.Error("NewSseScClientFactory. Failed: " + err.Error())
 		}

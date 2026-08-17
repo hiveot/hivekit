@@ -1,18 +1,15 @@
 package clientimpl
 
 import (
-	"crypto/tls"
 	"crypto/x509"
 	"fmt"
 	"log/slog"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/hiveot/hivekit/go/api"
 	"github.com/hiveot/hivekit/go/api/msg"
 	"github.com/hiveot/hivekit/go/api/td"
-	"github.com/hiveot/hivekit/go/modules"
 	"github.com/hiveot/hivekit/go/modules/transport"
 	grpctransport "github.com/hiveot/hivekit/go/modules/transport/grpc"
 	"github.com/hiveot/hivekit/go/modules/transport/grpc/internal"
@@ -22,50 +19,21 @@ import (
 // gRPC transport client for hiveot
 // This implements the ITransportClient interface
 type GrpcClientImpl struct {
-	*modules.HiveModuleBase
-
-	bearerToken string
-
-	// status of current connection
-	connectStatus api.ConnectionStatus
-	// callback when connection changes
-	connectHandler func(newStatus api.ConnectionStatus, c api.ITransportClient)
-
-	// instance ID used to identify the client and its connection
-	connectionID string
+	*transport.TransportClientBase
 
 	connectURL string
 	rootCAs    *x509.CertPool
-	clientCert *tls.Certificate
-	clientID   string
 
 	// encoding and decoding of RRN messages
 	encoder transport.IMessageEncoder
 
-	// Close is called so a disconnect is expected
-	// isClosed atomic.Bool
-
 	// the underlying grpc client. Set on authenticate. nil when closed
 	grpcSvcClient *internal.GrpcServiceClient
-
-	// variables access
-	mux sync.RWMutex
 
 	// the request & response channel handler
 	// all responses are passed here to support response callbacks
 	rnrChan *msg.RnRChan
 }
-
-// // socket connection status handler
-// // This emits a notification if the connection is established, lost or disconnected.
-// func (cl *GrpcClient) _onConnectionChanged(newStatus api.ConnectionStatus, err error) {
-
-// 	// 1. update the connection status
-// 	cl.mux.Lock()
-// 	cl.connectStatus = newStatus
-// 	cl.mux.Unlock()
-// 	cl._setConnectionStatus(newStatus, err)
-// }
 
 // _onGrpcClientMessage processes the incoming message received from the server.
 // This decodes the message into a request or response message and passes
@@ -119,7 +87,7 @@ func (cl *GrpcClientImpl) _onGrpcClientMessage(raw []byte) {
 						"correlationID", resp.CorrelationID,
 						"op", resp.Operation,
 						"name", resp.Name,
-						"clientID", cl.clientID,
+						"clientID", cl.GetClientID(),
 					)
 				}
 			}()
@@ -134,116 +102,14 @@ func (cl *GrpcClientImpl) _onGrpcClientMessage(raw []byte) {
 // update the connection status and publish an notification if it differs from the last status
 // a 'lost' status is ignored if the current status is set to closed as it was intentional.
 // a lost status cancels all waiting requests.
-func (cl *GrpcClientImpl) _setConnectionStatus(
-	newStatus api.ConnectionStatus, err error) {
+func (cl *GrpcClientImpl) _setConnectionStatus(newStatus api.ConnectionStatus, err error) {
 
-	cl.mux.RLock()
-	oldStatus := cl.connectStatus
-	cl.mux.RUnlock()
-
-	if newStatus == oldStatus {
-		return
-	} else if oldStatus == api.StatusClosed && newStatus == api.StatusLost {
-		return
-	} else if newStatus == api.StatusLost {
-		slog.Info("_setConnectionStatus gRPC client connection lost", "status", newStatus)
+	if newStatus == api.StatusLost {
+		slog.Info("_setConnectionStatus SseCl client connection lost", "status", newStatus)
 		// fail all outstanding RnR requests
 		cl.rnrChan.CloseAll()
 	}
-	cl.mux.Lock()
-	cl.connectStatus = newStatus
-	ch := cl.connectHandler
-	cl.mux.Unlock()
-
-	// notify upstream of status change. the cid is the client instance thingID
-	cid := cl.GetConnectionID()
-	evName := api.ClientConnectionStatusEvent
-	notif := msg.NewNotificationMessage(
-		cid, msg.AffordanceTypeEvent, cid, evName, newStatus)
-	cl.ForwardNotification(notif)
-
-	// invoke the callback after the notification so that the proper sequence is maintained
-	// if the callback tries to reconnect.
-	if ch != nil {
-		ch(newStatus, cl)
-	}
-}
-
-// AuthenticateWithClientCert sets the authentication credentials to the client certificate.
-func (cl *GrpcClientImpl) AuthenticateWithClientCert(clientCert *tls.Certificate) (err error) {
-	status := cl.GetConnectionStatus()
-	if status == api.StatusConnected || status == api.StatusConnecting {
-		return fmt.Errorf("AuthenticateWithClientCert: Connection in progress.")
-	}
-
-	// verify the validity of this certificate against the CA
-	// without this one can spend a long time figuring out why the connection fails.
-	x509Cert, err := x509.ParseCertificate(clientCert.Certificate[0])
-	if err == nil {
-		// cert subject is clientID
-		cl.clientID = x509Cert.Subject.CommonName
-		opts := x509.VerifyOptions{
-			Roots:     cl.rootCAs,
-			KeyUsages: []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth},
-		}
-		_, err = x509Cert.Verify(opts)
-	}
-	if err != nil {
-		slog.Error("AuthenticateWithClientCert failed: " + err.Error())
-		return err
-	}
-	cl.clientCert = clientCert
-
-	// create the grpc client to use but do not connect yet
-	cl.grpcSvcClient = internal.NewGrpcServiceClient(
-		cl.connectURL, clientCert, cl.rootCAs, cl.GetTimeout(),
-		grpctransport.GrpcTransportServiceName, cl._onGrpcClientMessage)
-
-	return err
-}
-
-// Authenticate
-func (cl *GrpcClientImpl) AuthenticateWithForm(
-	tdDoc *td.TD, getCredentials api.GetCredentials) error {
-
-	status := cl.GetConnectionStatus()
-	if status == api.StatusConnected || status == api.StatusConnecting {
-		return fmt.Errorf("AuthenticateWithForm: Connection already in progress.")
-	}
-	clientID, secret, schemeName, err := getCredentials(tdDoc.ID)
-
-	secScheme, err := tdDoc.GetSecurityScheme()
-	if secScheme.Scheme == td.SecSchemeNoSec {
-		// a unix socket relies on the filesystem permissions
-	} else if schemeName != secScheme.Scheme && schemeName != "" && schemeName != td.SecSchemeAuto {
-		err = fmt.Errorf("AuthenticateWithForm: TD Security scheme doesn't match credentials TD scheme='%s', credentials scheme='%s'", secScheme.Scheme, schemeName)
-	} else if secScheme.Scheme == td.SecSchemeBearer || secScheme.Scheme == td.SecSchemeAuto {
-		err = cl.AuthenticateWithToken(clientID, secret)
-	} else {
-		err = fmt.Errorf("AuthenticateWithForm: Unsupported security scheme '%s'", secScheme.Scheme)
-	}
-	return err
-}
-
-// AuthenticateWithToken sets the token credentials to use in Connect
-// and create the underlying grpc service client with the credentials to use.
-func (cl *GrpcClientImpl) AuthenticateWithToken(clientID string, token string) (err error) {
-
-	status := cl.GetConnectionStatus()
-	if status == api.StatusConnected || status == api.StatusConnecting {
-		return fmt.Errorf("AuthenticateWithToken: Connection in progress.")
-	}
-
-	cl.clientID = clientID
-	cl.bearerToken = token
-
-	// create the grpc client to use but do not connect yet
-	cl.grpcSvcClient = internal.NewGrpcServiceClient(
-		cl.connectURL, cl.clientCert, cl.rootCAs, cl.GetTimeout(),
-		grpctransport.GrpcTransportServiceName, cl._onGrpcClientMessage)
-
-	err = cl.grpcSvcClient.AuthenticateWithToken(clientID, token)
-	return err
+	cl.TransportClientBase.SetConnectionStatus(newStatus, err)
 }
 
 // Close disconnects the current connection and publish a closed notification
@@ -252,8 +118,6 @@ func (cl *GrpcClientImpl) Close() {
 	// set status to closed first to avoid a reconnect
 	cl._setConnectionStatus(api.StatusClosed, nil)
 
-	cl.mux.Lock()
-	defer cl.mux.Unlock()
 	if cl.grpcSvcClient != nil {
 		cl.grpcSvcClient.Close()
 		cl.grpcSvcClient = nil
@@ -265,14 +129,20 @@ func (cl *GrpcClientImpl) Close() {
 func (cl *GrpcClientImpl) Connect() (err error) {
 
 	status := cl.GetConnectionStatus()
-
-	if cl.grpcSvcClient == nil {
-		return fmt.Errorf("Auth credentials not set")
-	} else if status == api.StatusConnected {
-		return nil
+	if status == api.StatusConnected {
+		return fmt.Errorf("Already connected")
 	} else if status == api.StatusConnecting {
 		return fmt.Errorf("Busy connecting")
 	}
+
+	// create the grpc client to use but do not connect yet
+	clientCert := cl.GetClientCert()
+	authToken, scheme := cl.GetAuthToken()
+	_ = scheme
+	clientID := cl.GetClientID()
+	cl.grpcSvcClient = internal.NewGrpcServiceClient(
+		cl.connectURL, clientID, authToken, clientCert, cl.rootCAs, cl.GetTimeout(),
+		grpctransport.GrpcTransportServiceName, cl._onGrpcClientMessage)
 
 	// new connect attempt
 	cl._setConnectionStatus(api.StatusConnecting, nil)
@@ -304,7 +174,7 @@ func (cl *GrpcClientImpl) Connect() (err error) {
 			cl._setConnectionStatus(api.StatusLost, nil)
 
 		} else {
-			slog.Error("AuthenticateWithToken: connection unexpectedly dropped")
+			slog.Error("Connect: connection unexpectedly dropped")
 		}
 	}()
 
@@ -312,25 +182,6 @@ func (cl *GrpcClientImpl) Connect() (err error) {
 	time.Sleep(time.Millisecond)
 
 	return nil
-}
-
-// GetClientID returns the client's connection details
-func (cl *GrpcClientImpl) GetClientID() string {
-	return cl.clientID
-}
-
-// GetConnectionID returns the client's instance-ID
-// the connectionID is also used as the client's ThingID
-func (cl *GrpcClientImpl) GetConnectionID() string {
-	return cl.connectionID
-}
-
-// // GetConnectionStatus returns the current connection status
-func (cl *GrpcClientImpl) GetConnectionStatus() api.ConnectionStatus {
-	cl.mux.RLock()
-	defer cl.mux.RUnlock()
-	stat := cl.connectStatus
-	return stat
 }
 
 // HandleNotification forwards notifications to the server instead of forwarding to their sink.
@@ -357,18 +208,13 @@ func (cl *GrpcClientImpl) HandleRequest(request *msg.RequestMessage, replyTo msg
 	return err
 }
 
-// // IsConnected return whether the notification stream is established
-// func (cl *GrpcClient) IsConnected() bool {
-// 	return cl.grpcSvcClient != nil && cl.grpcSvcClient.IsConnected(grpctransport.StreamNameNotification)
-// }
-
 // SendNotification exposed thing posts a notification to the server
 func (cl *GrpcClientImpl) SendNotification(notif *msg.NotificationMessage) {
 	if cl.GetConnectionStatus() != api.StatusConnected {
 		slog.Error("SendNotification: Not connected")
 	}
 
-	clientID := cl.clientID
+	clientID := cl.GetClientID()
 	slog.Info("SendNotification",
 		slog.String("clientID", clientID),
 		slog.String("correlationID", notif.CorrelationID),
@@ -447,20 +293,10 @@ func (cl *GrpcClientImpl) SendResponse(resp *msg.ResponseMessage) error {
 	return err
 }
 
-// SetConnectHandler sets the callback to invoke when the connection status changes
-func (cl *GrpcClientImpl) SetConnectHandler(
-	h func(newStatus api.ConnectionStatus, c api.ITransportClient)) {
-	cl.mux.Lock()
-	defer cl.mux.Unlock()
-	cl.connectHandler = h
-}
-
 // Start the module and attempt to connect to the server if not already connected.
 //
 // Intended for use by the factory as the factory provides a clientID/token or client
-// certificate.
-//
-// Most users will use AuthenticateWithToken() followed by Connect() instead.
+// certificate. This just calls Connect().
 func (cl *GrpcClientImpl) Start() error {
 	err := cl.Connect()
 	return err
@@ -483,23 +319,19 @@ func (cl *GrpcClientImpl) Stop() {
 // connectURL is the server URL, e.g.  unix://{/path.sock}, tcp://localhost:{port} or simply "address:port"
 // rootCAs contains the CA certificates to validate the server connection, or nil for UDS or insecure connections.
 // ch is the connect/disconnect callback
-//
-// Users must use AuthenticateWithToken to authenticate and start.
-func NewGrpcClientImpl(
-	connectURL string, rootCAs *x509.CertPool) *GrpcClientImpl {
+func NewGrpcClientImpl(connectURL string, rootCAs *x509.CertPool) *GrpcClientImpl {
 
 	// gRPC does not support tcp scheme, but we want to allow users to specify it for consistency with the server.
 	connectURL = strings.TrimPrefix(connectURL, "tcp://")
 	thingID := "grpc-client-" + shortid.MustGenerate()
+	timeout := msg.DefaultRnRTimeout
 
 	cl := &GrpcClientImpl{
-		HiveModuleBase: modules.NewHiveModuleBase(thingID, msg.DefaultRnRTimeout),
-		rootCAs:        rootCAs,
-		clientCert:     nil,
-		connectionID:   shortid.MustGenerate(),
-		connectURL:     connectURL,
-		encoder:        transport.NewRRNJsonEncoder(),
-		rnrChan:        msg.NewRnRChan(),
+		TransportClientBase: transport.NewTransportClientBase(thingID, rootCAs, timeout),
+		rootCAs:             rootCAs,
+		connectURL:          connectURL,
+		encoder:             transport.NewRRNJsonEncoder(),
+		rnrChan:             msg.NewRnRChan(),
 	}
 
 	var _ api.ITransportClient = cl // check interface implementation

@@ -34,7 +34,7 @@ func NewHiveotGrpcServer(
 func NewHiveotGrpcServerFactory(f api.IModuleFactory, md *api.ModuleDefinition) (api.IHiveModule, error) {
 	// TODO: determine a good default
 	env := f.GetEnvironment()
-	serverCert, err := env.GetTLSCert()
+	serverCert, err := env.GetServerCert()
 	caCert, err := env.GetCACert()
 	_ = err
 

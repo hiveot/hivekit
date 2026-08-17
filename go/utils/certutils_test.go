@@ -112,6 +112,22 @@ func TestSaveLoadTLSCert(t *testing.T) {
 	assert.NoError(t, err)
 	assert.NotEmpty(t, cn)
 
+	// concatenate the cert and key PEM into a tls pem, decode and verify it
+	serverKeyPem := utils.PrivateKeyToPEM(serverPrivKey)
+	serverCertPem := utils.X509ChainToPEM(serverChain)
+	combinedPem := serverCertPem + serverKeyPem
+	tlsCert, err := utils.TLSCertFromPEM(combinedPem)
+	assert.NoError(t, err)
+	tlsCertChain, tlsPrivKey := utils.TLSCertToX509(tlsCert)
+	assert.NoError(t, err)
+
+	assert.True(t, utils.ComparePrivKey(serverPrivKey, tlsPrivKey))
+	assert.True(t, serverChain[0].Equal(tlsCertChain[0]))
+
+	cn2, err := utils.VerifyCert(tlsCertChain[0], caPool)
+	assert.NoError(t, err)
+	assert.Equal(t, cn, cn2)
+
 }
 
 // test with bad parameters

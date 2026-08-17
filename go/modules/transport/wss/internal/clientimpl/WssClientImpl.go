@@ -2,7 +2,6 @@ package clientimpl
 
 import (
 	"context"
-	"crypto/tls"
 	"crypto/x509"
 	"fmt"
 	"log/slog"
@@ -13,7 +12,6 @@ import (
 	"github.com/hiveot/hivekit/go/api"
 	"github.com/hiveot/hivekit/go/api/msg"
 	"github.com/hiveot/hivekit/go/api/td"
-	"github.com/hiveot/hivekit/go/modules"
 	"github.com/hiveot/hivekit/go/modules/transport"
 	"github.com/hiveot/hivekit/go/modules/transport/wss"
 	"github.com/hiveot/hivekit/go/modules/transport/wss/internal"
@@ -38,31 +36,15 @@ import (
 // converts is a straight passthrough of RequestMessage and ResponseMessage, while
 // the wotwssConverter maps the messages to the WoT websocket specification.
 type WssTransportClientImpl struct {
-	*modules.HiveModuleBase
-
-	// authentication token
-	bearerToken string
+	*transport.TransportClientBase
 
 	rootCAs *x509.CertPool
-
-	clientCert *tls.Certificate
-
-	// connection ID set during connect
-	cid string
-
-	// The client connecting as
-	clientID string
-
-	// handler for sending connection notifications
-	connectStatus api.ConnectionStatus
-	// callback when connection changes
-	connectHandler func(newStatus api.ConnectionStatus, c api.ITransportClient)
 
 	// convert the request/response to the wss messaging protocol used
 	encoder transport.IMessageEncoder
 
 	// mutex for controlling writing and closing
-	mux sync.RWMutex
+	writeMux sync.RWMutex
 
 	// the request & response channel handler
 	// all responses are passed here to support response callbacks
@@ -134,7 +116,7 @@ func (cl *WssTransportClientImpl) _onWssClientMessage(raw []byte) {
 					"correlationID", resp.CorrelationID,
 					"op", resp.Operation,
 					"name", resp.Name,
-					"clientID", cl.clientID,
+					"clientID", cl.GetClientID(),
 				)
 			}
 		}
@@ -148,19 +130,21 @@ func (cl *WssTransportClientImpl) _onWssClientMessage(raw []byte) {
 
 // _send publishes a message over websockets
 func (cl *WssTransportClientImpl) _send(wssMsg []byte) (err error) {
+	cstatus := cl.GetConnectionStatus()
+
 	// websockets do not allow concurrent writes
-	cl.mux.Lock()
-	defer cl.mux.Unlock()
+	cl.writeMux.Lock()
+	defer cl.writeMux.Unlock()
 
 	if cl.wssConn == nil {
-		err := fmt.Errorf("_send: Not connected: %s", cl.connectStatus)
+		err := fmt.Errorf("_send: No websocket connection. Status: %s", cstatus)
 		return err
 	}
 
-	if cl.connectStatus == api.StatusConnecting {
+	if cstatus == api.StatusConnecting {
 		// TODO: should we wait for a bit while connecting?
 		return fmt.Errorf("_send: Not connected. Connecting.")
-	} else if cl.connectStatus != api.StatusConnected {
+	} else if cstatus != api.StatusConnected {
 		return fmt.Errorf("_send: Not connected")
 	}
 
@@ -172,121 +156,16 @@ func (cl *WssTransportClientImpl) _send(wssMsg []byte) (err error) {
 	return err
 }
 
-// websocket connection status handler - this uses mux lock for critical section
+// update the connection status and publish an notification if it differs from the last status
+// a 'lost' status is ignored if the current status is set to closed as it was intentional.
 func (cl *WssTransportClientImpl) _setConnectionStatus(newStatus api.ConnectionStatus, err error) {
 
-	cl.mux.Lock()
-	oldStatus := cl.connectStatus
-	cl.connectStatus = newStatus
-	ch := cl.connectHandler
-	cl.mux.Unlock()
-
-	if newStatus == oldStatus {
-		return
-	} else if oldStatus == api.StatusClosed && newStatus == api.StatusLost {
-		// already closed, don't send status lost
-		return
-	} else if newStatus == api.StatusLost {
-		slog.Info("_setConnectionStatus WSS client connection lost", "status", newStatus)
+	if newStatus == api.StatusLost {
+		slog.Info("_setConnectionStatus SseCl client connection lost", "status", newStatus)
 		// fail all outstanding RnR requests
 		cl.rnrChan.CloseAll()
 	}
-
-	// notify upstream of connect, disconnect or lost
-	moduleID := cl.GetThingID()
-	evName := api.ClientConnectionStatusEvent
-	notif := msg.NewNotificationMessage(
-		moduleID, msg.AffordanceTypeEvent, moduleID, evName, newStatus)
-	cl.ForwardNotification(notif)
-
-	// invoke the callback after the notification so that the proper sequence is maintained
-	// if the callback tries to reconnect.
-	if ch != nil {
-		ch(newStatus, cl)
-	}
-}
-
-// AuthenticateWithClientCert sets the authentication credentials to the client certificate.
-func (cl *WssTransportClientImpl) AuthenticateWithClientCert(clientCert *tls.Certificate) (err error) {
-	status := cl.GetConnectionStatus()
-	if status == api.StatusConnected || status == api.StatusConnecting {
-		return fmt.Errorf("AuthenticateWithClientCert: Connection in progress.")
-	}
-	// tell the client to use the certificate
-	cl.clientCert = clientCert
-
-	//--- verify the client certificate against the CA and extract the clientID
-	// if a client cert is given then test if it is valid for our CA.
-	// this detects problems with certs that can be hard to track down
-	x509Cert, err := x509.ParseCertificate(clientCert.Certificate[0])
-	if err == nil {
-
-		// cert subject is clientID
-		cl.clientID = x509Cert.Subject.CommonName
-
-		// verify the validity of this certificate against the CA
-		// without this one can spend a long time figuring out why the connection fails.
-		opts := x509.VerifyOptions{
-			Roots:     cl.rootCAs,
-			KeyUsages: []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth},
-		}
-		_, err = x509Cert.Verify(opts)
-	}
-
-	// err = cl.tlsClient.AuthenticateWithClientCert(clientCert)
-	// if err != nil {
-	// return err
-	// }
-	// err = cl.Connect()
-	return err
-}
-
-// AuthenticateWithForm authenticates the client using the method described in the form.
-//
-// This currently only supports bearer token authentication.
-//
-// This determine which auth schema the TD describes, obtains the credentials
-// and injects the authentication credentials according to the TDI schema.
-// This returns an error if the schema isn't supported or is not compatible.
-func (cl *WssTransportClientImpl) AuthenticateWithForm(tdDoc *td.TD,
-	getCredentials api.GetCredentials) error {
-
-	var secScheme td.SecurityScheme
-
-	// for now just assume its bearer token, just to get it working
-	clientID, secret, schemeName, err := getCredentials(tdDoc.ID)
-	if err != nil {
-		slog.Warn("AuthenticateWithForm: No credentials for thing. Continuing", "thingID", tdDoc.ID)
-	}
-	secScheme, err = tdDoc.GetSecurityScheme()
-	if err != nil {
-		return err
-	}
-	if secScheme.Scheme == td.SecSchemeNoSec {
-		err = cl.AuthenticateWithToken(clientID, "")
-	} else if schemeName != secScheme.Scheme && schemeName != "" && schemeName != td.SecSchemeAuto {
-		err = fmt.Errorf("Security scheme doesn't match credentials TD scheme='%s', credentials scheme='%s'", secScheme.Scheme, schemeName)
-	} else if secScheme.Scheme == td.SecSchemeDigest {
-		// err = cl.ConnectWithDigest(clientID, secret)
-		err = fmt.Errorf("Digest authentication is not yet supported. Use bearer token instead")
-	} else if secScheme.Scheme == td.SecSchemeBearer || secScheme.Scheme == td.SecSchemeAuto {
-		err = cl.AuthenticateWithToken(clientID, secret)
-	} else {
-		err = fmt.Errorf("Unexpected security scheme '%s'", secScheme.Scheme)
-	}
-	return err
-}
-
-// AuthenticateWithToken sets the token credentials to use in Connect
-func (cl *WssTransportClientImpl) AuthenticateWithToken(clientID string, token string) error {
-
-	status := cl.GetConnectionStatus()
-	if status == api.StatusConnected || status == api.StatusConnecting {
-		return fmt.Errorf("AuthenticateWithToken: Already connected or connection in progress.")
-	}
-	cl.clientID = clientID
-	cl.bearerToken = token
-	return nil
+	cl.TransportClientBase.SetConnectionStatus(newStatus, err)
 }
 
 // Disconnect from the server
@@ -295,8 +174,9 @@ func (cl *WssTransportClientImpl) Close() {
 	// set status to closed first to avoid a reconnect
 	cl._setConnectionStatus(api.StatusClosed, nil)
 
-	cl.mux.Lock()
-	defer cl.mux.Unlock()
+	// wait until any writes are complete
+	cl.writeMux.Lock()
+	defer cl.writeMux.Unlock()
 	if cl.wssCancelFn != nil {
 		cl.wssCancelFn()
 		cl.wssCancelFn = nil
@@ -315,45 +195,32 @@ func (cl *WssTransportClientImpl) Connect() error {
 	}
 
 	// differentiate connections from the same client
-	if cl.cid == "" {
-		cl.cid = cl.GetThingID()
-	}
+	// if cl.cid == "" {
+	// 	cl.cid = cl.GetThingID()
+	// }
 
 	urlParts, err := url.Parse(cl.wssURL)
 	if err != nil {
 		return err
 	}
+	cid := cl.GetConnectionID()
+	clientID := cl.GetClientID()
+	clientCert := cl.GetClientCert()
+	bearerToken, secScheme := cl.GetAuthToken()
+	_ = secScheme
 	hostPort := urlParts.Host
 	wssCancelFn, wssConn, err := ConnectWSS(
-		cl.clientID, hostPort, urlParts.Path, cl.cid,
-		cl.bearerToken, cl.clientCert, cl.rootCAs,
+		clientID, hostPort, urlParts.Path, cid,
+		bearerToken, clientCert, cl.rootCAs,
 		cl._setConnectionStatus,
 		cl._onWssClientMessage)
 
-	cl.mux.Lock()
+	cl.writeMux.Lock()
 	cl.wssCancelFn = wssCancelFn
 	cl.wssConn = wssConn
-	cl.mux.Unlock()
+	cl.writeMux.Unlock()
 
 	return err
-}
-
-// GetClientID returns the client's connection details
-func (cl *WssTransportClientImpl) GetClientID() string {
-	return cl.clientID
-}
-
-// // GetConnectionID returns the client's connection details
-func (cl *WssTransportClientImpl) GetConnectionID() string {
-	return cl.cid
-}
-
-// // GetConnectionStatus returns the current connection status
-func (cl *WssTransportClientImpl) GetConnectionStatus() api.ConnectionStatus {
-	cl.mux.RLock()
-	defer cl.mux.RUnlock()
-	stat := cl.connectStatus
-	return stat
 }
 
 // HandleNotification receives an incoming notification from a producer
@@ -386,7 +253,7 @@ func (cl *WssTransportClientImpl) HandleRequest(request *msg.RequestMessage, rep
 // This serializes the notification and sends it to the server.
 func (cl *WssTransportClientImpl) SendNotification(notif *msg.NotificationMessage) {
 	slog.Info("SendNotification",
-		slog.String("clientID", cl.clientID),
+		slog.String("clientID", cl.GetClientID()),
 		slog.String("correlationID", notif.CorrelationID),
 		slog.String("affordance", string(notif.AffordanceType)),
 		slog.String("thingID", notif.ThingID),
@@ -399,7 +266,9 @@ func (cl *WssTransportClientImpl) SendNotification(notif *msg.NotificationMessag
 	}
 	err = cl._send(wssMsg)
 	if err != nil {
-		slog.Warn("SendNotification failed", "clientID", cl.clientID, "err", err.Error())
+		slog.Warn("SendNotification failed",
+			"clientID", cl.GetClientID(),
+			"err", err.Error())
 	}
 }
 
@@ -408,7 +277,7 @@ func (cl *WssTransportClientImpl) SendNotification(notif *msg.NotificationMessag
 func (cl *WssTransportClientImpl) SendRequest(
 	req *msg.RequestMessage, replyTo msg.ResponseHandler) error {
 	slog.Info("SendRequest",
-		slog.String("clientID", cl.clientID),
+		slog.String("clientID", cl.GetClientID()),
 		slog.String("correlationID", req.CorrelationID),
 		slog.String("operation", req.Operation),
 		slog.String("thingID", req.ThingID),
@@ -457,7 +326,7 @@ func (cl *WssTransportClientImpl) SendRequest(
 // This transforms the response to the protocol message and sends it to the server.
 // Responses without correlationID are subscription notifications.
 func (cl *WssTransportClientImpl) SendResponse(resp *msg.ResponseMessage) error {
-	clientID := cl.clientID
+	clientID := cl.GetClientID()
 	errMsg := ""
 	if resp.Error != nil {
 		errMsg = resp.Error.String()
@@ -477,20 +346,12 @@ func (cl *WssTransportClientImpl) SendResponse(resp *msg.ResponseMessage) error 
 	return err
 }
 
-// SetConnectHandler sets the callback to invoke when the connection status changes
-func (cl *WssTransportClientImpl) SetConnectHandler(
-	h func(newStatus api.ConnectionStatus, c api.ITransportClient)) {
-	cl.mux.Lock()
-	defer cl.mux.Unlock()
-	cl.connectHandler = h
-}
-
 // Start the module but do not yet connect.
 //
 // Intended for use by the factory as the factory provides a clientID/token or client
 // certificate.
 //
-// Most users will use AuthenticateWithToken() followed by Connect() instead.
+// Most users will use Connect()
 func (cl *WssTransportClientImpl) Start() error {
 	err := cl.Connect()
 	return err
@@ -503,8 +364,9 @@ func (cl *WssTransportClientImpl) Stop() {
 
 // NewHiveotWssTransportClient creates a new instance of the hiveot websocket client.
 //
-// This uses the Hiveot passthrough message converter.
-// Users must use AuthenticateWithToken to authenticate and connect.
+// This uses the highly efficient Hiveot passthrough message converter.
+// Users must use setAuthToken or SetClientCert to authenticate and Connect or Start
+// to establish the connection.
 //
 //	wssURL is the full websocket connection URL including path
 //	rootCAs are the CA's for TLS connection validation
@@ -515,8 +377,8 @@ func NewHiveotWssClientImpl(
 	thingID := wss.HiveotWebsocketClientModuleType + shortid.MustGenerate()
 
 	cl := WssTransportClientImpl{
-		HiveModuleBase: modules.NewHiveModuleBase(thingID, timeout),
-		rootCAs:        rootCAs,
+		TransportClientBase: transport.NewTransportClientBase(thingID, rootCAs, timeout),
+		rootCAs:             rootCAs,
 		// hiveot uses its own standardized RRN messages
 		encoder: transport.NewRRNJsonEncoder(),
 		rnrChan: msg.NewRnRChan(),
@@ -527,7 +389,8 @@ func NewHiveotWssClientImpl(
 
 // NewWotWssTransportClient creates a new instance of the WoT compatible websocket client.
 //
-// Users must use AuthenticateWithToken to authenticate and connect.
+// Users must use setAuthToken or SetClientCert to authenticate and Connect or Start
+// to establish the connection.
 //
 //	wssURL is the full websocket connection URL
 //	caCerootCAs are the CA's for TLS connection validation
@@ -540,11 +403,11 @@ func NewWotWssClientImpl(
 	thingID := wss.HiveotWebsocketClientModuleType + shortid.MustGenerate()
 
 	cl := &WssTransportClientImpl{
-		HiveModuleBase: modules.NewHiveModuleBase(thingID, timeout),
-		rootCAs:        rootCAs,
-		encoder:        internal.NewWotWssMsgEncoder(),
-		rnrChan:        msg.NewRnRChan(),
-		wssURL:         wssURL,
+		TransportClientBase: transport.NewTransportClientBase(thingID, rootCAs, timeout),
+		rootCAs:             rootCAs,
+		encoder:             internal.NewWotWssMsgEncoder(),
+		rnrChan:             msg.NewRnRChan(),
+		wssURL:              wssURL,
 	}
 	var _ api.ITransportClient = cl // interface check
 	return cl

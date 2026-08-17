@@ -21,7 +21,7 @@ import (
 const testDeviceID1 = "device1"
 const testClientID1 = "client1"
 
-var testProtocol = api.WotWebsocketProtocolType
+var testProtocol = api.HiveotSseScProtocolType
 
 var testProtocols = []string{
 	api.HiveotSseScProtocolType,
@@ -41,16 +41,16 @@ func TestMain(m *testing.M) {
 
 func TestConnectAllProtocols(t *testing.T) {
 	for _, testProtocol = range testProtocols {
-		t.Run("TestStartStop", TestStartStop)
-		t.Run("TestPing", TestPing)
-		t.Run("TestPingClientCert", TestPingClientCert)
-		t.Run("TestServerURL", TestServerURL)
+		t.Run("TestStartStop - "+testProtocol, TestStartStop)
+		t.Run("TestPing - "+testProtocol, TestPing)
+		t.Run("TestPingClientCert - "+testProtocol, TestPingClientCert)
+		t.Run("TestServerURL - "+testProtocol, TestServerURL)
 	}
 }
 
 // test create a server and connect a client
 func TestStartStop(t *testing.T) {
-	slog.Warn(fmt.Sprintf("---Test: %s %s---\n", t.Name(), testProtocol))
+	fmt.Printf("---Test: %s %s---\n", t.Name(), testProtocol)
 
 	// testenv might still start the httpserver - fixme: use on-demand factory
 	testEnv, cancelFn := testenv.StartTestEnv(testProtocol, true)
@@ -66,12 +66,11 @@ func TestStartStop(t *testing.T) {
 	// time.Sleep(time.Millisecond)
 	// cc1.Close()
 
-	t.Log("---ending---")
 }
 
 // Run a ping test to verify a client-server connection using the test protocol
 func TestPing(t *testing.T) {
-	slog.Warn(fmt.Sprintf("---Test: %s %s---\n", t.Name(), testProtocol))
+	fmt.Printf("---Test: %s %s---\n", t.Name(), testProtocol)
 
 	testEnv, cancelFn := testenv.StartTestEnv(testProtocol, true)
 	defer cancelFn()
@@ -85,7 +84,7 @@ func TestPing(t *testing.T) {
 
 // Run a ping test with client cert auth for the given test protocol
 func TestPingClientCert(t *testing.T) {
-	slog.Warn(fmt.Sprintf("---Test: %s %s---\n", t.Name(), testProtocol))
+	fmt.Printf("---Test: %s %s---\n", t.Name(), testProtocol)
 
 	testEnv, cancelFn := testenv.StartTestEnv(testProtocol, true)
 	defer cancelFn()
@@ -101,7 +100,7 @@ func TestPingClientCert(t *testing.T) {
 	cl, err := clients.NewTransportClient(serverTD, td.HTOpPing, "", testEnv.CertBundle.RootCAs)
 	require.NoError(t, err)
 	cl.SetTimeout(time.Minute)
-	err = cl.AuthenticateWithClientCert(testEnv.CertBundle.ClientCert)
+	err = cl.SetClientCert(testEnv.CertBundle.ClientCert)
 	require.NoError(t, err)
 	err = cl.Connect()
 	require.NoError(t, err)
@@ -125,7 +124,7 @@ func TestPingClientCert(t *testing.T) {
 
 // Test client returns UnauthorizedError when not authorized
 func TestUnauthorizedError(t *testing.T) {
-	slog.Warn(fmt.Sprintf("---Test: %s %s---\n", t.Name(), testProtocol))
+	fmt.Sprintf("---Test: %s %s---\n", t.Name(), testProtocol)
 
 	testEnv, cancelFn := testenv.StartTestEnv(testProtocol, true)
 	defer cancelFn()
@@ -141,7 +140,7 @@ func TestUnauthorizedError(t *testing.T) {
 	// first make sure connection does validate
 	cl, err := clients.NewTransportClientFromForm(tdoc, connectForm, rootCAs)
 	assert.NoError(t, err)
-	err = cl.AuthenticateWithToken(testClientID1, token)
+	err = cl.SetAuthToken(testClientID1, token, td.SecSchemeBearer)
 	assert.NoError(t, err)
 	err = cl.Connect()
 	assert.NoError(t, err)
@@ -149,7 +148,7 @@ func TestUnauthorizedError(t *testing.T) {
 
 	// check bad token - httpbasic doesnt detect this until a request is sent
 	if testProtocol != api.HttpBasicProtocolType {
-		err = cl.AuthenticateWithToken(testClientID1, "badtoken")
+		err = cl.SetAuthToken(testClientID1, "badtoken", td.SecSchemeBearer)
 		assert.NoError(t, err)
 		err = cl.Connect()
 		assert.Equal(t, utils.UnauthorizedError, err)
@@ -171,7 +170,7 @@ func TestUnauthorizedError(t *testing.T) {
 
 // Test getting server URL
 func TestServerURL(t *testing.T) {
-	slog.Warn(fmt.Sprintf("---Test: %s %s---\n", t.Name(), testProtocol))
+	fmt.Sprintf("---Test: %s %s---\n", t.Name(), testProtocol)
 
 	testEnv, cancelFn := testenv.StartTestEnv(testProtocol, true)
 	defer cancelFn()
@@ -180,7 +179,7 @@ func TestServerURL(t *testing.T) {
 }
 
 func TestServerTD(t *testing.T) {
-	slog.Warn(fmt.Sprintf("---Test: %s %s---\n", t.Name(), testProtocol))
+	fmt.Sprintf("---Test: %s %s---\n", t.Name(), testProtocol)
 
 	testEnv, cancelFn := testenv.StartTestEnv(testProtocol, true)
 	defer cancelFn()

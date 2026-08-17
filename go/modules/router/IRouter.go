@@ -1,6 +1,7 @@
 package router
 
 import (
+	"crypto/tls"
 	"time"
 
 	"github.com/hiveot/hivekit/go/api"
@@ -20,30 +21,30 @@ type IRouterService interface {
 	// Used in combination with the Thing TD that describes how the secret is used to
 	// authenticate with the device.
 	//
-	// Setting a unique login credentials for each device is only realistic if only a few devices
-	// are used, or if a manual OOB (out of band) method of provisioning is used. Eg a tool that
-	// can upload a table and create accounts.
-	//
-	// As a 'convenient' way to provision a few devices, all devices can be set to use the same
-	// credentials. In this case use "" to set the default clientID and secret. Note that all this
-	// is horribly unsafe. It is safer to have devices use reverse connection with a gateway.
-	//
-	// deviceID is the connection account ID that was used when writing the device TD.
+	// deviceID is the thingID of the device connected to.
 	// clientID is the ID the router service uses to identify itself as when connecting to the device.
-	// secret is the auth token used to authenticate as the clientID.
+	// secret is the auth token or cert tls PEM used to authenticate as the clientID.
 	// secScheme indicates the type of credentials stored: SecSchemeBearer, ...
 	//  See also SecSchemeXyz and https://www.w3.org/TR/wot-thing-description11/#securityscheme
+	//  This also supports secSchemeCert although WoT removed it from the draft.
 	//
 	// When routing a request to a Thing device, this secret is used to authenticate
-	// the connection needed to pass the request. The TD describes the securityDefinitions
-	// available.
-	AddDeviceCredential(deviceID string, clientID, secret string, secScheme string)
+	// when creating a new connection. This is typically bearer token or client cert.
+	AddDeviceCredential(deviceID string, clientID string, secret string, secScheme string)
 
 	// Remove the secret to access a Thing
 	DeleteThingCredential(thingID string)
 
 	// Return a flag indicating whether the credentials are set for a Thing
-	HasThingCredentials(thingID string) bool
+	HasThingCredentials(thingID string) (credType string, found bool)
+
+	// Set the default client certificate the router can use to authenticate new
+	// client connections.
+	// See also AddDeviceCredential() for a per-device authentication.
+	SetClientCert(*tls.Certificate)
+
+	// Enable/disable auto reconnect for new connections
+	SetAutoReconnect(enable bool)
 
 	// Set the communication timeout that is applied to new connections made by this module
 	SetTimeout(time.Duration)

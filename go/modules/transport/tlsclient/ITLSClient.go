@@ -28,18 +28,6 @@ type ITLSClient interface {
 	// Close the connection and release resources
 	Close()
 
-	// Connect using a client certificate
-	// This does not make any calls yet, just sets the client certificate.
-	// This returns an error if no CA is set
-	AuthenticateWithClientCert(clientCert *tls.Certificate) (err error)
-
-	// Connect the client to a server with the clientID and token.
-	//
-	// If subprotocols require a connection then this will establish that connection.
-	// This creates a unque connectionID for the header and places the token in
-	// the authorization hedaer.
-	AuthenticateWithToken(clientID string, token string) error
-
 	// Create a new http request with all the headers including authorization.
 	// The request can be cancelled using the provided context.
 	CreateRequest(ctx context.Context,
@@ -105,6 +93,15 @@ type ITLSClient interface {
 	Send(ctx context.Context, method string, path string, qParams map[string]string,
 		body []byte, contentType string) (
 		resp []byte, httpStatus int, headers http.Header, err error)
+
+	// Set the bearer token to use to authenticate.
+	//
+	SetAuthToken(clientID string, token string) error
+
+	// Set the client certificate for mutual authentication.
+	//
+	// This returns an error if no CA is set
+	SetClientCert(clientCert *tls.Certificate) (err error)
 
 	// Skip the client's CA certificate check
 	SetSkipCertCheck(skip bool)

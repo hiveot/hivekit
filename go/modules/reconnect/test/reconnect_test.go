@@ -55,7 +55,8 @@ func TestReconnect(t *testing.T) {
 	clientNotificationHook := func(notif *msg.NotificationMessage) {
 		if notif.Name == api.ClientConnectionStatusEvent {
 			status := notif.Data.(api.ConnectionStatus)
-			slog.Info("TestReconnect: client connection notification", "status", status)
+			slog.Info("TestReconnect: client connection notification",
+				"status", status)
 			clientConnectEvents.Add(1)
 		}
 	}

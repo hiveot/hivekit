@@ -17,13 +17,13 @@ export type ResponseHandler = (resp: ResponseMessage) => void;
 export default interface IConsumerConnection {
   // ConnectWithPassword connects to the hub using password authentication.
   // @param password is created when registering the user with the auth service.
-  // This returns an authentication token that can be used in refresh and AuthenticateWithToken.
+  // This returns an authentication token that can be used in refresh and SetAuthToken.
   connectWithPassword(password: string): Promise<string>;
 
-  // AuthenticateWithToken connects to the messaging server using an authentication token
+  // SetAuthToken connects to the messaging server using an authentication token
   // and pub/private keys provided when creating an instance of the hub client.
   // @param token is created by the auth service.
-  AuthenticateWithToken(token: string): Promise<string>;
+  SetAuthToken(token: string): Promise<string>;
 
   // Disconnect from the messaging server.
   disconnect(): void;

@@ -1,9 +1,11 @@
 package internal
 
 import (
+	"crypto/tls"
 	"crypto/x509"
 	"fmt"
 	"log/slog"
+	"net/url"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -25,7 +27,17 @@ type RouterServiceImpl struct {
 	// autoReconnect insert a reconnect client before the transport client
 	autoReconnect bool
 
-	// The CA certificates used to verify device connections
+	// default ClientID if no credentials are set
+	clientID string
+
+	// The client certificate this service can use to connect to devices
+	// NOTE: This has the limitation that these devices must recognize the CA that signed
+	//  the certificate.
+	// FIXME: determine if devices deny a connection if the auth token is valid but the client
+	// cert is not recognized?
+	clientCert *tls.Certificate
+
+	// The root CA certificates used to verify device connections
 	rootCAs *x509.CertPool
 
 	// handler that provides a TD for the given thingID
@@ -62,14 +74,20 @@ type RouterServiceImpl struct {
 
 // Add the secret to access a Thing.
 // if thingID is empty then the credentials are used for all unknown devices.
-func (m *RouterServiceImpl) AddDeviceCredential(
-	thingID string, clientID string, secret string, secScheme string) {
-	m.credStore.AddCredentials(thingID, clientID, secret, secScheme)
+func (svc *RouterServiceImpl) AddDeviceCredential(
+	thingID string, clientID string, secret string, credType string) {
+
+	creds := ThingCredentials{
+		ClientID: clientID,
+		Secret:   secret,
+		CredType: credType,
+	}
+	svc.credStore.AddCredentials(thingID, creds)
 }
 
 // Remove the secret to access a Thing
-func (m *RouterServiceImpl) DeleteThingCredential(thingID string) {
-	m.credStore.DeleteCredentials(thingID)
+func (svc *RouterServiceImpl) DeleteThingCredential(thingID string) {
+	svc.credStore.DeleteCredentials(thingID)
 }
 
 // GetClientConnection returns a client for sending requests to the server with
@@ -87,7 +105,7 @@ func (m *RouterServiceImpl) DeleteThingCredential(thingID string) {
 //	tdoc is the TD of the device to connect to
 //	op is the operation to perform
 //	name is the optional affordance name for the operation. "" for thing level operations.
-func (m *RouterServiceImpl) GetClientConnection(
+func (svc *RouterServiceImpl) GetClientConnection(
 	tdoc *td.TD, op string, name string) (cl api.IHiveModule, err error) {
 
 	var c api.ITransportClient
@@ -96,18 +114,19 @@ func (m *RouterServiceImpl) GetClientConnection(
 
 	// 1. locate the existing connection using TD's origin
 	// this lock should really be per device
-	m.cmux.Lock()
-	thingOrigin, found := m.thingOrigins[tdoc.ID]
+	svc.cmux.Lock()
+	thingOrigin, found := svc.thingOrigins[tdoc.ID]
 	if found {
-		cl, found = m.deviceConnections[thingOrigin]
+		cl, found = svc.deviceConnections[thingOrigin]
 	}
-	defer m.cmux.Unlock()
+	defer svc.cmux.Unlock()
 
 	// 2. If a valid connection was not found. Redetermine origin and reconnect
 	if !found {
+		var hrefURL *url.URL
 		prefScheme := api.WotWebsocketScheme
 		prefSubprotocol := api.WotWebsocketSubprotocol
-		protocolParts := strings.Split(m.preferredProtocol, ":")
+		protocolParts := strings.Split(svc.preferredProtocol, ":")
 		if len(protocolParts) > 1 {
 			prefScheme = protocolParts[0]
 			prefSubprotocol = protocolParts[1]
@@ -123,7 +142,7 @@ func (m *RouterServiceImpl) GetClientConnection(
 			return nil, fmt.Errorf("No matching form for connecting to Thing '%s'", tdoc.ID)
 		}
 		// get the full URL for the operation
-		hrefURL, err := form.ResolveHRef(tdoc.Base, nil)
+		hrefURL, err = form.ResolveHRef(tdoc.Base, nil)
 
 		// if an href cannot be determined then this can't continue
 		if err != nil {
@@ -131,16 +150,16 @@ func (m *RouterServiceImpl) GetClientConnection(
 		}
 		// determine the origin that identifies the client connection
 		newOrigin := fmt.Sprintf("%s://%s", hrefURL.Scheme, hrefURL.Host)
-		// origin on UDS (unix) must include the path while on tcp/http/mqtt it is schema://host:port
+		// FIXME: origin on UDS (unix) and WSS must include the path while on tcp/http/mqtt it is schema://host:port
 		if strings.ToLower(hrefURL.Scheme) == "unix" {
 			// Warning, a unix socket connection is local to the machine only.
 			newOrigin = hrefURL.String()
 		}
 		// store the Thing's origin for future quick lookup
-		m.thingOrigins[tdoc.ID] = newOrigin
+		svc.thingOrigins[tdoc.ID] = newOrigin
 		// guard against orphan connection if the origin changed after a TD update and it already has a connection
 		if thingOrigin != "" && newOrigin != thingOrigin {
-			cl, found = m.deviceConnections[newOrigin]
+			cl, found = svc.deviceConnections[newOrigin]
 			if found {
 				slog.Error("GetClientConnection: found existing connection after unexpected change in TD origin. Closing old connection.")
 				cl.Stop()
@@ -148,30 +167,41 @@ func (m *RouterServiceImpl) GetClientConnection(
 		}
 
 		// 3. Create a new client for the origin
-		// TODO: how to determine the CA and client cert for this server?
-		c, err = clients.NewTransportClientFromForm(tdoc, form, m.rootCAs)
+		c, err = clients.NewTransportClientFromForm(tdoc, form, svc.rootCAs)
 		if err != nil {
 			return nil, err
 		}
-		c.SetTimeout(m.GetTimeout())
-		// Authentication fails if no credentials can be matched
-		err = c.AuthenticateWithForm(tdoc, m.credStore.GetCredentials)
+		c.SetTimeout(svc.GetTimeout())
+
+		// if a client certificate is available set it for authentication
+		// TBD: set a client cert per device? seems a bit overkill
+		if svc.clientCert != nil {
+			err = c.SetClientCert(svc.clientCert)
+		}
+
+		// Note that while the TD form contains authentication instructions, the
+		// available credentials determine the format used.
+		clientID, secret, secScheme, found := svc.credStore.GetCredentials(tdoc.ID)
+		if !found {
+			clientID = svc.clientID
+		}
+		err = c.SetAuthToken(clientID, secret, secScheme)
 		if err != nil {
 			// No auth. Discard this connection.
-			slog.Warn("GetClientConnection: authentication failed", "ThingID", tdoc.ID, "err", err.Error())
+			slog.Warn("GetClientConnection: failed", "ThingID", tdoc.ID, "err", err.Error())
 			return nil, err
 		}
-		if m.autoReconnect {
+		if svc.autoReconnect {
 			// reconnect connects the client on start
 			rc := reconnect_service.NewReconnectService(c)
 			cl = rc
 		} else {
 			cl = c
 		}
-		m.deviceConnections[newOrigin] = cl
+		svc.deviceConnections[newOrigin] = cl
 
 		// forward notifications to this module and up to its consumer
-		cl.SetNotificationSink(m)
+		cl.SetNotificationSink(svc)
 		// last, Connect. If reconnect is used it will connect the client
 		err = cl.Start()
 	}
@@ -181,11 +211,11 @@ func (m *RouterServiceImpl) GetClientConnection(
 
 // Return the reverse-client connection to a device, if it exists.
 // This returns nil if the clientID does not have an existing connection.
-func (m *RouterServiceImpl) GetRCConnection(clientID string) (c api.IConnection) {
-	if m.getSrv == nil {
+func (svc *RouterServiceImpl) GetRCConnection(clientID string) (c api.IConnection) {
+	if svc.getSrv == nil {
 		return nil
 	}
-	serverList := m.getSrv()
+	serverList := svc.getSrv()
 	for _, tp := range serverList {
 		c := tp.GetConnectionByClientID(clientID)
 		if c != nil {
@@ -196,11 +226,11 @@ func (m *RouterServiceImpl) GetRCConnection(clientID string) (c api.IConnection)
 }
 
 // HandleRequest handles module requests or routes the request to its destination
-func (m *RouterServiceImpl) HandleRequest(req *msg.RequestMessage, replyTo msg.ResponseHandler) (err error) {
+func (svc *RouterServiceImpl) HandleRequest(req *msg.RequestMessage, replyTo msg.ResponseHandler) (err error) {
 	var resp *msg.ResponseMessage
 
-	if req.ThingID != m.GetThingID() {
-		return m.RouteRequest(req, replyTo)
+	if req.ThingID != svc.GetThingID() {
+		return svc.RouteRequest(req, replyTo)
 	}
 	// handle requests for router module itself
 	switch req.Operation {
@@ -223,8 +253,8 @@ func (m *RouterServiceImpl) HandleRequest(req *msg.RequestMessage, replyTo msg.R
 }
 
 // HasDeviceCredentials returns a flag if credentials are set for a Thing
-func (m *RouterServiceImpl) HasThingCredentials(thingID string) bool {
-	return m.credStore.HasCredentials(thingID)
+func (svc *RouterServiceImpl) HasThingCredentials(thingID string) (credType string, found bool) {
+	return svc.credStore.HasCredentials(thingID)
 }
 
 // Determine if the thing is reachable by the router.
@@ -250,15 +280,16 @@ func (m *RouterServiceImpl) HasThingCredentials(thingID string) bool {
 //     the device's RC connection to the server and forward the request.
 //  3. If the TD points to a non RC device then establish a connection or re-use
 //     an existing connection from the pool.
-func (m *RouterServiceImpl) RouteRequest(req *msg.RequestMessage, replyTo msg.ResponseHandler) (err error) {
+func (svc *RouterServiceImpl) RouteRequest(req *msg.RequestMessage, replyTo msg.ResponseHandler) (err error) {
 
 	// the requested thingID must be known
-	tdoc := m.getTD(req.ThingID)
+	tdoc := svc.getTD(req.ThingID)
 	if tdoc == nil {
 		// thingID not known, only option is to forward the request downstream
-		err = m.ForwardRequest(req, replyTo)
+		err = svc.ForwardRequest(req, replyTo)
 		if err != nil {
-			err = fmt.Errorf("RouteRequest: No TD document found for thing '%s' and forwarding failed: %w", req.ThingID, err)
+			err = fmt.Errorf("RouteRequest: TD not found for thing '%s' and forwarding request failed: %w",
+				req.ThingID, err)
 			// just log as info as this can be legit.
 			slog.Info("RouteRequest", "err", err.Error())
 		}
@@ -268,14 +299,14 @@ func (m *RouterServiceImpl) RouteRequest(req *msg.RequestMessage, replyTo msg.Re
 	// if the tdoc has an RC clientID then look for its RC connection
 	rcClientID := tdoc.GetRCClientID()
 	if rcClientID != "" {
-		c := m.GetRCConnection(rcClientID)
+		c := svc.GetRCConnection(rcClientID)
 		if c == nil {
 			err = fmt.Errorf("RouteRequest: device '%s' isnt connected", rcClientID)
 		} else {
 			err = c.SendRequest(req, replyTo)
 		}
 	} else {
-		c, err2 := m.GetClientConnection(tdoc, req.Operation, req.Name)
+		c, err2 := svc.GetClientConnection(tdoc, req.Operation, req.Name)
 		// TODO: tdoc/op/name provides an form with href, but this isnt used in
 		// HandleRequest. Is this a problem?
 		// Depends on the protocol?
@@ -295,31 +326,41 @@ func (m *RouterServiceImpl) RouteRequest(req *msg.RequestMessage, replyTo msg.Re
 	return err
 }
 
+// Enable/disable auto reconnect for new connections
+func (svc *RouterServiceImpl) SetAutoReconnect(enable bool) {
+	svc.autoReconnect = enable
+}
+
+// Provide client certificate for authentication of new client connections
+func (svc *RouterServiceImpl) SetClientCert(clientCert *tls.Certificate) {
+	svc.clientCert = clientCert
+}
+
 // Start the router module.
 // This loads to stored Thing credentials
-func (m *RouterServiceImpl) Start() (err error) {
+func (svc *RouterServiceImpl) Start() (err error) {
 	slog.Info("Start: Starting router module")
-	if m.storageDir != "" {
+	if svc.storageDir != "" {
 		fileName := "deviceCredentials.json"
-		m.storageFile = filepath.Join(m.storageDir, fileName)
+		svc.storageFile = filepath.Join(svc.storageDir, fileName)
 	}
-	m.credStore = NewCredentialsStore(m.storageFile)
-	err = m.credStore.Open()
+	svc.credStore = NewCredentialsStore(svc.storageFile)
+	err = svc.credStore.Open()
 
 	return err
 }
 
 // Stop the router module.
 // This closes all established client connections.
-func (m *RouterServiceImpl) Stop() {
+func (svc *RouterServiceImpl) Stop() {
 	slog.Info("Stop: Stopping router module")
-	for clientID, c := range m.deviceConnections {
+	for clientID, c := range svc.deviceConnections {
 		_ = clientID
 		c.Stop()
 	}
-	m.deviceConnections = nil
+	svc.deviceConnections = nil
 	// last close credential store
-	m.credStore.Close()
+	svc.credStore.Close()
 }
 
 // NewRouterServiceImpl creates a new router module
@@ -330,16 +371,21 @@ func (m *RouterServiceImpl) Stop() {
 //
 //	storageDir with the module credentials storage directory, "" for in-memory testing
 //	autoReconnect flag, to enable auto-reconnect on client connections
+//	clientID default clientID to connect to devices with
+//	clientCert optional client certificate to connect to devices with - overrides clientID
+//	rootCAs are the CA's used to verify TLS connections to devices
+//	timeout is the maximum communication timeout with connect clients
 //	getTD  handler to lookup a TD for a thingID from a directory
 //	getSrv handler returning a list of transport servers that can contain RC devices.
-//	rootCAs are the CA's used to verify device connections
-//	timeout is the maximum communication timeout with connect clients
 func NewRouterServiceImpl(
 	storageDir string,
 	autoReconnect bool,
+	clientID string,
+	clientCert *tls.Certificate,
+	rootCAs *x509.CertPool,
+	timeout time.Duration,
 	getTD func(thingID string) *td.TD,
 	getSrv func() []api.ITransportServer,
-	rootCAs *x509.CertPool, timeout time.Duration,
 ) *RouterServiceImpl {
 	if timeout == 0 {
 		timeout = msg.DefaultRnRTimeout
@@ -350,6 +396,7 @@ func NewRouterServiceImpl(
 	m := &RouterServiceImpl{
 		HiveModuleBase:    modules.NewHiveModuleBase(thingID, timeout),
 		autoReconnect:     autoReconnect,
+		clientID:          clientID,
 		rootCAs:           rootCAs,
 		getTD:             getTD,
 		preferredProtocol: api.WotWebsocketProtocolType,

@@ -96,43 +96,6 @@ func (cl *HttpBasicClientImpl) _setConnectionStatus(
 	}
 }
 
-// Connect authenticating using a client certificate
-func (cl *HttpBasicClientImpl) AuthenticateWithClientCert(clientCert *tls.Certificate) (err error) {
-	return cl.tlsClient.AuthenticateWithClientCert(clientCert)
-}
-
-// Authenticate the client connection with the server
-// This determine which auth schema the TD describes, obtains the credentials
-// and injects the authentication credentials according to the TDI schema.
-// This returns an error if the schema isn't supported or is not compatible.
-func (cl *HttpBasicClientImpl) AuthenticateWithForm(
-	tdDoc *td.TD, getCredentials api.GetCredentials) error {
-
-	clientID, secret, schemeName, err := getCredentials(tdDoc.ID)
-	secScheme, err := tdDoc.GetSecurityScheme()
-
-	if schemeName != secScheme.Scheme && schemeName != "" && schemeName != td.SecSchemeAuto {
-		err = fmt.Errorf("Security scheme doesn't match credentials TD scheme='%s', credentials scheme='%s'", secScheme.Scheme, schemeName)
-	} else if secScheme.Scheme == td.SecSchemeDigest {
-		// err = cl.ConnectWithDigest(clientID, secret)
-		err = fmt.Errorf("Digest authentication is not yet supported. Use bearer token instead")
-	} else if secScheme.Scheme == td.SecSchemeBearer || secScheme.Scheme == td.SecSchemeAuto {
-		err = cl.AuthenticateWithToken(clientID, secret)
-	} else {
-		err = fmt.Errorf("Unexpected security scheme '%s'", secScheme.Scheme)
-	}
-	return err
-}
-
-// Set the clientID and authentication bearer token.
-func (cl *HttpBasicClientImpl) AuthenticateWithToken(
-	clientID string, token string) error {
-
-	cl.bearerToken = token
-	err := cl.tlsClient.AuthenticateWithToken(clientID, token)
-	return err
-}
-
 // Close disconnects from the server
 func (cl *HttpBasicClientImpl) Close() {
 
@@ -387,6 +350,20 @@ func (cl *HttpBasicClientImpl) SendResponse(resp *msg.ResponseMessage) error {
 	return errors.New("HttpBasic doesn't support sending async responses")
 }
 
+// Set the clientID and authentication bearer token.
+func (cl *HttpBasicClientImpl) SetAuthToken(clientID string, token string, secScheme string) error {
+
+	_ = secScheme
+	cl.bearerToken = token
+	err := cl.tlsClient.SetAuthToken(clientID, token)
+	return err
+}
+
+// Connect authenticating using a client certificate
+func (cl *HttpBasicClientImpl) SetClientCert(clientCert *tls.Certificate) (err error) {
+	return cl.tlsClient.SetClientCert(clientCert)
+}
+
 // Ignored as http clients dont receive notifications
 func (cl *HttpBasicClientImpl) SetNotificationSink(sink api.IHiveModule, thingID ...string) {
 	slog.Info("SetNotificationSink: HttpBasicClients doesn't receive notifications so not expecting any.",
@@ -427,7 +404,8 @@ func (cl *HttpBasicClientImpl) Stop() {
 // NewHttpBasicClientImpl creates a new instance of the WoT compatible http-basic
 // protocol binding client for use with the given TD.
 //
-// Users must use AuthenticateWithToken to authenticate and connect.
+// Users must use setAuthToken or SetClientCert to authenticate and Connect or Start
+// to establish the connection.
 //
 // This uses TD forms to perform an operation.
 //

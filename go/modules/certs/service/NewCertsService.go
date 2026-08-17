@@ -9,8 +9,8 @@ import (
 // Create a new instance of the default certs service module.
 // This uses the self-signed cert service implementation
 func NewCertsService(config *certs.CertsConfig) certs.ICertsService {
-	m := internal.NewCertsServiceImpl(config)
-	return m
+	svc := internal.NewCertsServiceImpl(config)
+	return svc
 }
 
 // Create a new instance of the certs server module using the factory environment

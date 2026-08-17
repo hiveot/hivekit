@@ -24,15 +24,18 @@ const AppEnvironmentModuleType = "AppEnvironment"
 
 // certificate file names
 const (
-	// CA key for self signed certificates
+	// CA key for creating self signed certificates
 	DefaultCaKeyFile = "caKey.pem"
 
 	// clients and server need the CA
 	DefaultCaCertFile = "caCert.pem"
 
-	// client side certificate
+	// certificate name suffix {name}Cert.pem and {name}Key.pem
 	DefaultCertFileSuffix = "Cert.pem"
 	DefaultKeyFileSuffix  = "Key.pem"
+
+	// default server name to use if none is provided
+	DefaultServerName = "server"
 )
 
 // AppEnvironment holds the running environment naming conventions.
@@ -50,11 +53,6 @@ type AppEnvironment struct {
 	LogLevel   string `yaml:"logLevel,omitempty"`   // logging level: error, warning, info, debug
 	StoresDir  string `yaml:"storesDir,omitempty"`  // Root of the service stores
 
-	// For clients: forced server to connect to: scheme://host/path, or "" for auto.
-	// This can be useful to point to a gateway if the directory can't be discovered
-	// or runs on a different server.
-	ServerURL string `yaml:"serverURL,omitempty"`
-
 	// The provided URL of the directory for a direct connection. This is not the
 	// exploration http endpoint but the directory server itself. This endpoint will
 	// accept requests for reading the directory using action names from the directory
@@ -67,9 +65,18 @@ type AppEnvironment struct {
 	// If loaded this will be included in the RootCAs.
 	CaCert *x509.Certificate `yaml:"-"` // default cert if loaded
 
-	// the client certification for transport client modules if applicable
+	// The self-signed CA private key if available
+	// CaKey crypto.Signer `yaml:"-"`
+
+	// The self-signed client certificate loaded from {clientID}Cert|Key.pem
 	// Intended for clients that authenticate using a certificate.
 	ClientCert *tls.Certificate `yaml:"-"`
+
+	// The server certificate loaded from ServerCert|ServerKey.pem
+	// Intended for devices, gateway or hub that runs a server.
+	// Use NewInitFactoryCerts in the factory chain to ensure a self signed server
+	// cert is created if needed, or place a cert manually.
+	ServerCert *tls.Certificate `yaml:"-"`
 
 	// The grpc URL used for the grpc server instantiation - part of grpc config
 	// eg: "unix:///path/to/sock"  (yes triple slash)
@@ -77,18 +84,17 @@ type AppEnvironment struct {
 
 	// Override the https port used for the http server instantiation
 	HttpsPort int `yaml:"httpsPort"`
-
-	// the server certification for transport server modules if applicable
-	// Intended for gateways or hub that runs a server.
-	// Also usable for devices that run a server.
-	TLSCert *tls.Certificate `yaml:"-"`
-
 	// Optional root CA pool. This defaults to nil.
 	// If CaCert is loaded then this is set to the system CA's + the CaCert.
 	rootCAs *x509.CertPool `yaml:"-"`
 
 	// RpcTimeout is the communication timeout for use by transport client and server modules
 	RpcTimeout time.Duration
+
+	// For clients: forced server to connect to: scheme://host/path, or "" for auto.
+	// This can be useful to point to a gateway if the directory can't be discovered
+	// or runs on a different server.
+	ServerURL string `yaml:"serverURL,omitempty"`
 
 	//--- ID and credentials for running as a client or using reverse connections ---
 
@@ -112,7 +118,8 @@ type AppEnvironment struct {
 	// This can be provided by discovery or set manually.
 	ServerTD *td.TD `yaml:"-"`
 
-	// KeyFile is the file that holds the private/public keys of the application.
+	// KeyFile is the file that holds the private/public keys of the client or application.
+	//
 	// Can be used by client applications to authenticate connect to a hub/gateway.
 	// Intended for encryption and for client cert authentication when using reverse connections.
 	// This is derived from the AppID: {certsDir}/{AppID}.key
@@ -177,19 +184,14 @@ func (env *AppEnvironment) GetAuthToken() (string, error) {
 	return env.AuthToken, nil
 }
 
-// GetCACert returns a self signed CA certificate used with the servers using
-// the default CA cert name.
-//
-// On first use this will load the CA from file.
+// GetCACert returns a self signed CA certificate that was loaded on initialization.
 //
 // This returns nil if the CA is not set and cannot be loaded.
 func (env *AppEnvironment) GetCACert() (caCert *x509.Certificate, err error) {
-	if env.CaCert != nil {
-		return env.CaCert, nil
+	if env.CaCert == nil {
+		return nil, fmt.Errorf("AppEnvironment:GetCACert. CA Cert not found")
 	}
-	caCertPath := filepath.Join(env.CertsDir, DefaultCaCertFile)
-	env.CaCert, _, err = utils.LoadCA(caCertPath, "")
-	return env.CaCert, err
+	return env.CaCert, nil
 }
 
 // Return the root CAs collection from the system cert pool
@@ -212,21 +214,36 @@ func (env *AppEnvironment) GetStorageDir(moduleType string) string {
 	return storeDir
 }
 
-// GetTLSCert return the application TLS cert.
-// If no cert is set yet, an attempt is made to load it from file.
-// For servers this is the server app certificate.
-// For clients this is the client certificate for authentication using certificates.
-// This loads the {certsDir}/{clientID}Cert.Pem and {clientID}Key.pem files
+// GetServerCert return the application server certificate.
+//
+// If no cert is loaded then an attempt is made to load it from file using the
+// name ServerCert.pem and ServerKey.pem.
 //
 // This returns the cert or an error if none is found.
-func (env *AppEnvironment) GetTLSCert() (cert *tls.Certificate, err error) {
-	if env.TLSCert != nil {
-		return env.TLSCert, nil
+func (env *AppEnvironment) GetServerCert() (cert *tls.Certificate, err error) {
+	if env.ServerCert != nil {
+		return env.ServerCert, nil
+	}
+	certPath := filepath.Join(env.CertsDir, "Server"+DefaultCertFileSuffix)
+	keyPath := filepath.Join(env.CertsDir, "Server"+DefaultKeyFileSuffix)
+	env.ServerCert, err = utils.LoadTLSCert(certPath, keyPath)
+	return env.ServerCert, err
+}
+
+// GetClientCert return the client authentication certificate.
+//
+// If no certificate is loaded then an attempt is made to load it from file
+// using the name {clientID}Cert.pem and {clientID}Key.pem.
+//
+// This returns the TLS certificate or an error if none is found.
+func (env *AppEnvironment) GetClientCert() (cert *tls.Certificate, err error) {
+	if env.ClientCert != nil {
+		return env.ClientCert, nil
 	}
 	certPath := filepath.Join(env.CertsDir, env.ClientID+DefaultCertFileSuffix)
 	keyPath := filepath.Join(env.CertsDir, env.ClientID+DefaultKeyFileSuffix)
-	env.TLSCert, err = utils.LoadTLSCert(certPath, keyPath)
-	return env.TLSCert, err
+	env.ClientCert, err = utils.LoadTLSCert(certPath, keyPath)
+	return env.ClientCert, err
 }
 
 // LoadConfig loads the application/plugin configuration from {configDir}/{clientID}.yaml
@@ -413,7 +430,7 @@ func NewAppEnvironment(homeDir string, withFlags bool) *AppEnvironment {
 	}
 	// load the CA cert if found
 	caCertFile := path.Join(certsDir, DefaultCaCertFile)
-	caCert, _, _ := utils.LoadCA(caCertFile, "")
+	caCert, _ := utils.LoadCACert(caCertFile)
 
 	// determine the expected location of the client auth key and token
 	keyFile := path.Join(certsDir, clientID+".key")

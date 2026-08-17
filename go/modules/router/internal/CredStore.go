@@ -14,42 +14,51 @@ import (
 const CredStoreFilename = "credstore.data"
 
 // Login credentials for known devices
-type ThingAccount struct {
+type ThingCredentials struct {
 	ClientID string `json:"clientID"`
 
 	// Secret password or token
 	Secret string `json:"secret"`
 
-	// the credentials type as used in td SecurityScheme.Scheme
+	// The credentials type of the secret as defined in td SecurityScheme.Scheme
 	// eg, apikey, digest, bearer, ...
 	CredType string `json:"type"`
+
+	// Optional CA certificate for use with this client. It will be added to the app root cert pool.
+	// This is needed when the device uses its own CA not in the app cert pool
+	// CaCertPEM string `json:"caCert"`
+
+	// Optional client certificate for mutual authentication
+	// This is only usable when the device supports client certificate authentication
+	// ClientCertPEM string `json:"clientCert"`
 }
 
 // Device credentials storage
+// Authentication credentials can be stored for devices by their thingID
 type CredentialsStore struct {
 	mux sync.RWMutex
-	// device account by device thingID
-	thingAccounts map[string]ThingAccount
-	storageFile   string
+
+	// credentials by device thingID
+	thingCredentials map[string]ThingCredentials
+	//
+	storageFile string
+
+	// The cache of client certificates.
+	// Populated if a thing credential is used and a client cert is present.
+	// clientCertCache map[string]*tls.Certificate
 }
 
 // Add the secret to access a Thing.
 //
 // use "" for thingID to set the default credentials.
+// When credType is Cert then secret must include the TLS certificate in PEM format
 //
 // thingID for which the credentials apply
-// clientID to authenticate as. Required.
-// secret to use or "" if no secret is known.
-// credType  type as used in td SecurityScheme.Scheme eg, apikey, digest, bearer, ...
-func (store *CredentialsStore) AddCredentials(
-	thingID string, clientID string, secret string, credType string) {
+// creds credentials to authenticate with.
+func (store *CredentialsStore) AddCredentials(thingID string, creds ThingCredentials) {
 	store.mux.Lock()
 	defer store.mux.Unlock()
-	store.thingAccounts[thingID] = ThingAccount{
-		ClientID: clientID,
-		Secret:   secret,
-		CredType: credType,
-	}
+	store.thingCredentials[thingID] = creds
 }
 
 // Close the store.
@@ -65,35 +74,38 @@ func (store *CredentialsStore) Close() {
 func (store *CredentialsStore) DeleteCredentials(thingID string) {
 	store.mux.Lock()
 	defer store.mux.Unlock()
-	delete(store.thingAccounts, thingID)
+	delete(store.thingCredentials, thingID)
 }
 
-// Obtain the connection credentials for connecting to a Thing.
-// If not credentials are set for the given thingID then try the default credentials
+// GetCredentials returns the account credentials for connecting to a Thing.
+//
+// If no credentials are set for the given thingID then try the default credentials
 // for thingID "".
 // If no credentials are found this returns an error
 func (store *CredentialsStore) GetCredentials(thingID string) (
-	clientID string, token string, credType string, err error) {
+	clientID string, token string, credType string, found bool) {
 
 	store.mux.RLock()
 	defer store.mux.RUnlock()
-	acct, found := store.thingAccounts[thingID]
+	cred, found := store.thingCredentials[thingID]
 	// fallback to the default credentials if available
 	if !found {
-		acct, found = store.thingAccounts[""]
+		cred, found = store.thingCredentials[""]
 	}
-	if !found {
-		return "", "", credType, fmt.Errorf("No credentials for thing with ID '%s'", thingID)
-	}
-	return acct.ClientID, acct.Secret, acct.CredType, err
+	return cred.ClientID, cred.Secret, cred.CredType, found
 }
 
-// HasDeviceCredentials returns a flag if credentials are set for a Thing
-func (store *CredentialsStore) HasCredentials(thingID string) bool {
+// HasDeviceCredentials checks if credentials for a device exists.
+// This returns the credential type and a flag is found or not found.
+func (store *CredentialsStore) HasCredentials(thingID string) (credType string, found bool) {
 	store.mux.RLock()
 	defer store.mux.RUnlock()
-	_, found := store.thingAccounts[thingID]
-	return found
+	cred, found := store.thingCredentials[thingID]
+	if !found {
+		// try the fallback credentials
+		cred, found = store.thingCredentials[""]
+	}
+	return cred.CredType, found
 }
 
 // Reload the credentials from the store into memory and replace the existing
@@ -101,7 +113,7 @@ func (store *CredentialsStore) HasCredentials(thingID string) bool {
 //
 // Returns an error if the file could not be opened.
 func (store *CredentialsStore) load() (err error) {
-	accounts := make(map[string]ThingAccount)
+	thingCredentials := make(map[string]ThingCredentials)
 
 	// only load if the filename is set
 	if store.storageFile != "" {
@@ -115,14 +127,14 @@ func (store *CredentialsStore) load() (err error) {
 		} else if len(dataBytes) == 0 {
 			// nothing to do
 		} else {
-			err = jsoniter.Unmarshal(dataBytes, &accounts)
+			err = jsoniter.Unmarshal(dataBytes, &thingCredentials)
 			if err != nil {
 				err = fmt.Errorf("error while parsing password file: %w", err)
 			}
 		}
 	}
 	if err == nil {
-		store.thingAccounts = accounts
+		store.thingCredentials = thingCredentials
 	}
 	return err
 }
@@ -137,8 +149,9 @@ func (store *CredentialsStore) Open() (err error) {
 	return err
 }
 
-// save the credentials to file
-// if the storage folder doesn't exist it will be created
+// save the credentials to file.
+// if the storage folder doesn't exist it will be created.
+// FIXME: this file should be encrypted!
 func (store *CredentialsStore) save() error {
 	// only save if the filename is set
 	if store.storageFile == "" {
@@ -179,7 +192,7 @@ func (store *CredentialsStore) writeToTempFile(storageDir string) (tempFileName 
 	tempFileName = file.Name()
 
 	defer file.Close()
-	pwData, err := json.Marshal(store.thingAccounts)
+	pwData, err := json.Marshal(store.thingCredentials)
 	if err == nil {
 		_, err = file.Write(pwData)
 	}

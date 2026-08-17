@@ -105,7 +105,7 @@ func TestAddForms(t *testing.T) {
 	require.NotEmpty(t, tdi.Security)
 	require.NotEmpty(t, tdi.SecurityDefinitions)
 
-	scheme, err := tdi.GetSecurityScheme()
+	scheme, _, err := tdi.GetSecurityScheme()
 	assert.NoError(t, err)
 	assert.NotEmpty(t, scheme.Scheme)
 

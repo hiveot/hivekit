@@ -74,7 +74,7 @@ export default class HttpSSEClient implements IAgentConnection {
 
   isInitialized: boolean = false;
   sseConnStatus: ConnectionStatus;
-  // the auth token when using AuthenticateWithToken
+  // the auth token set by SetAuthToken
   authToken: string;
 
   // client handler for connection status change
@@ -213,7 +213,7 @@ export default class HttpSSEClient implements IAgentConnection {
 
   // connect and login to the Hub gateway using a JWT token
   // host is the server address
-  async AuthenticateWithToken(authToken: string): Promise<string> {
+  async SetAuthToken(authToken: string): Promise<string> {
     this.authToken = authToken;
     await this.connect();
     this._sseClient = await connectSSE(
@@ -263,7 +263,7 @@ export default class HttpSSEClient implements IAgentConnection {
       hcLog.warn("HubClient SSE disconnected. Will attempt to reconnect");
       // TODO: can this be done here in the callback?
       this._sseClient = undefined;
-      this.AuthenticateWithToken(this.authToken).then();
+      this.SetAuthToken(this.authToken).then();
     }
   }
 

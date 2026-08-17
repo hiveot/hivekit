@@ -2,8 +2,6 @@ package api
 
 import (
 	"crypto/tls"
-
-	"github.com/hiveot/hivekit/go/api/td"
 )
 
 // Actions implemented in transport clients
@@ -55,10 +53,9 @@ const (
 	StatusRefused ConnectionStatus = "refused"
 )
 
-// GetCredentials is the handler that provides the credentials for connecting to a
-// device server.
+// GetCredentials is the handler that provides the credentials for connecting to a thing server.
 //
-// thingID is the Thing to connect to. If no credentials are set for the device then
+// thingID identifies the Thing to connect to. If no credentials are set for the device then
 // this attempts to obtain the default credentials, set with thingID "". If none are
 // found this returns an error.
 //
@@ -70,10 +67,10 @@ const (
 //
 // This returns:
 // - clientID is the account on the device to connect to.
-// - cred is the credentials to authenticate with
+// - cred is the secret credentials to authenticate with
 // - credType is the type of credentials stored, eg bearer token, digist, etc
-// - error if the destination is unknown.
-type GetCredentials func(thingID string) (clientID string, cred string, credType string, err error)
+// - found is true if credentials for thingID are found
+type GetCredentials func(thingID string) (clientID string, cred string, credType string, found bool)
 
 // ITransportClient defines the interface of a transport client connection.
 // This implements IHiveModule and IConnection interfaces.
@@ -87,54 +84,6 @@ type GetCredentials func(thingID string) (clientID string, cred string, credType
 type ITransportClient interface {
 	IHiveModule
 	IConnection
-
-	// AuthenticateWithClientCert sets the authentication credentials to the client certificate.
-	//
-	// The client certificate common name is the client ID and must be signed by the
-	// same CA as the server.
-	//
-	// This returns an error if the certificate is invalid for the current CA, if
-	// certificate authentication is not supported or if an existing connection is not closed.
-	AuthenticateWithClientCert(clientCert *tls.Certificate) error
-
-	// AuthenticateWithForm determines authentication credentials using forms
-	// and the given getCredentials handler.
-	//
-	// This determines which auth schema the TD describes, obtains the credentials
-	// and injects the authentication credentials according to the TDI schema.
-	//
-	// The getCredentials provides credentials for the given thingID. If no credentials
-	// are set for the thingID, the default credentials are returned. If no default
-	// credentials are set this returns an error.
-	//
-	// Next, use Connect() to establish a connection.
-	//
-	// This returns an error if credentials cannot be determined or obtained or if an
-	// existing connection is not closed.
-	AuthenticateWithForm(tdi *td.TD, getCredentials GetCredentials) error
-
-	// AuthenticateWithToken sets the authentication credentials to the given clientID and
-	// token.
-	//
-	// Use Connect() to establish a connection.
-	//
-	// This method can be used if it is known that token authentication is supported by
-	// the server. The method of obtaining a token depends on the application environment.
-	// The authn module can be used for token authentication using LoginWithPassword.
-	//
-	// If the transport client is started by the module factory, credentials can be
-	// provided through the included AppEnvironment using client certificate or token,
-	// and used when Start() is called to establish a connection. If the AppEnvironment
-	// does not contain credentials then AuthenticateWithToken must be used on the client
-	// module obtained using factoryInstance.GetModule(TransportClientType) to establish
-	// the connection before the chain can be used.
-	//
-	//	clientID is the ID to authenticate as, it must match the token
-	//	token is the authentication token obtained on login
-	//
-	// This returns an error if token authentication is not supported or if an existing
-	// connection is not closed.
-	AuthenticateWithToken(clientID, token string) error
 
 	// Connect using the previously set connection credentials. See AuthenticateWith...
 	//
@@ -150,6 +99,34 @@ type ITransportClient interface {
 
 	// Return the connecting status
 	GetConnectionStatus() ConnectionStatus
+
+	// SetAuthToken sets the authentication credentials to a supported the token based
+	// security scheme. See also td.SecScheme...
+	//
+	// SetAuthToken or SetClientCert is require to connect, even if nosec is used.
+	//
+	// Use Connect() to establish a connection.
+	//
+	// If the provided secScheme is not supported by the transport then Connect will
+	// return an error.
+	//
+	//	clientID is the ID to authenticate as, it must match the token. Required.
+	//	token is the authentication token obtained on login
+	//	secScheme identifies the authentication security scheme to use. Defaults to SecSchemeNoSec.
+	//    for example td.SecSchemeBearer, SecSchemeNoSec, ...
+	//
+	// This returns an error if token authentication is not supported or if an existing
+	// connection is not closed.
+	SetAuthToken(clientID string, token string, secScheme string) error
+
+	// SetClientCert sets the client certificate for mutual authentication.
+	//
+	// The client certificate common name is the client ID and must be signed by the
+	// same CA as the server.
+	//
+	// This returns an error if the certificate is invalid for the current CA pool,
+	// or if a connection attempt is in progress.
+	SetClientCert(clientCert *tls.Certificate) error
 
 	// SetConnectHandler sets the callback handler that is invoked when the connection
 	// status changes.

@@ -70,8 +70,7 @@ func TestService(t *testing.T) {
 	require.NoError(t, err)
 	defer cancelFn()
 
-	caCert, err := m.GetCACert()
-	require.NoError(t, err)
+	caCert := m.GetCACert()
 	require.NotEmpty(t, caCert)
 
 	// create the server cert
@@ -127,8 +126,7 @@ func TestCreateCerts(t *testing.T) {
 	require.NoError(t, err)
 	defer cancelFn()
 
-	caCert, err := m.GetCACert()
-	require.NoError(t, err)
+	caCert := m.GetCACert()
 	require.NotNil(t, caCert)
 
 	privKey, pubKey := utils.NewEd25519Key()

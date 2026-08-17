@@ -15,7 +15,7 @@ type LetsEncryptProvider struct {
 }
 
 func (svc *LetsEncryptProvider) CreateServerCert(
-	serverName string, hostname string, validity time.Duration,
+	serverName string, names []string, validity time.Duration,
 	serverPubKey crypto.PublicKey) (serverCert []*x509.Certificate, err error) {
 
 	return nil, fmt.Errorf("Not yet implemented")

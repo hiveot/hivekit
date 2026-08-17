@@ -166,7 +166,7 @@ func (testEnv *TestEnv) NewConnectedClient(
 
 	if err == nil {
 		cl.SetTimeout(TestTimeout)
-		err = cl.AuthenticateWithToken(clientID, token)
+		err = cl.SetAuthToken(clientID, token, td.SecSchemeBearer)
 	}
 	if err == nil {
 		err = cl.Connect()

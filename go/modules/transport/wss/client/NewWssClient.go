@@ -5,6 +5,7 @@ import (
 	"log/slog"
 
 	"github.com/hiveot/hivekit/go/api"
+	"github.com/hiveot/hivekit/go/api/td"
 	"github.com/hiveot/hivekit/go/modules/transport/wss/internal/clientimpl"
 )
 
@@ -30,19 +31,19 @@ func NewHiveotWssClientFactory(f api.IModuleFactory, md *api.ModuleDefinition) (
 	var err error
 
 	env := f.GetEnvironment()
-	clientCert, _ := env.GetTLSCert()
+	clientCert, _ := env.GetClientCert()
 	wssURL := env.ServerURL
 	m := NewHiveotWssClient(wssURL, env.GetRootCAs())
 	m.SetTimeout(env.RpcTimeout)
 	if clientCert != nil {
-		err = m.AuthenticateWithClientCert(clientCert)
+		err = m.SetClientCert(clientCert)
 	} else {
 		// if client certificate not available attempt auth token
 		clientID := env.ClientID
 		authToken, _ := env.GetAuthToken()
 
 		if clientID != "" && authToken != "" {
-			err = m.AuthenticateWithToken(clientID, authToken)
+			err = m.SetAuthToken(clientID, authToken, td.SecSchemeBearer)
 		}
 	}
 	if err != nil {
@@ -57,7 +58,8 @@ func NewHiveotWssClientFactory(f api.IModuleFactory, md *api.ModuleDefinition) (
 // can be mapped to a RequestMessage and ResponseMessage. It is used to support
 // both hiveot and WoT websocket message formats.
 //
-// Users must use AuthenticateWithToken to authenticate and connect.
+// Users must use setAuthToken or SetClientCert to authenticate and Connect or Start
+// to establish the connection.
 //
 //	wssURL is the full websocket connection URL
 //	rootCAs are the server CA's for TLS connection validation
@@ -79,21 +81,21 @@ func NewWotWssClientFactory(f api.IModuleFactory, md *api.ModuleDefinition) (api
 	var err error
 
 	env := f.GetEnvironment()
-	clientCert, _ := env.GetTLSCert()
+	clientCert, _ := env.GetClientCert()
 	serverURL := env.ServerURL
 
 	m := NewWotWssClient(serverURL, env.GetRootCAs())
 	m.SetTimeout(env.RpcTimeout)
 	// if client certificate not available attempt auth token
 	if clientCert != nil {
-		err = m.AuthenticateWithClientCert(clientCert)
+		err = m.SetClientCert(clientCert)
 	} else {
 		// must use token auth
 		clientID := env.ClientID
 		authToken, _ := env.GetAuthToken()
 
 		if clientID != "" && authToken != "" {
-			err = m.AuthenticateWithToken(clientID, authToken)
+			err = m.SetAuthToken(clientID, authToken, td.SecSchemeBearer)
 		}
 	}
 	if err != nil {

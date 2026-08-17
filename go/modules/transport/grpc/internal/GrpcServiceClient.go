@@ -72,15 +72,6 @@ type GrpcServiceClient struct {
 	tlsConfig *tls.Config
 }
 
-// Set the token to use with authentication but do not connect yet.
-func (cl *GrpcServiceClient) AuthenticateWithToken(clientID string, authToken string) (err error) {
-	cl.mux.Lock()
-	defer cl.mux.Unlock()
-	cl.clientID = clientID
-	cl.authToken = authToken
-	return nil
-}
-
 // Close disconnects
 func (cl *GrpcServiceClient) Close() {
 	cl.mux.Lock()
@@ -268,7 +259,7 @@ func (cl *GrpcServiceClient) WaitUntilDisconnect(name string) error {
 // or
 // > cl := NewGrpcServiceClient("127.0.0.1:8899", caCert, time.Minute, "service1", onClientMessage)
 // >
-// > cl.AuthenticateWithToken(clientID,authToken)
+// > cl.SetAuthToken(clientID,authToken)
 // > cl.Connect()
 // > cl.ConnectStream(streamName) to connect to individual server streams.
 //
@@ -281,6 +272,7 @@ func (cl *GrpcServiceClient) WaitUntilDisconnect(name string) error {
 // msgHandler is the callback with received messages
 func NewGrpcServiceClient(
 	connectURI string,
+	clientID string, authToken string,
 	clientCert *tls.Certificate, rootCAs *x509.CertPool,
 	respTimeout time.Duration,
 	serviceName string,
@@ -299,14 +291,13 @@ func NewGrpcServiceClient(
 	// include TLS options when a CA cert is provided
 	// if a clientCert is provided then extract the clientID
 	var tlsConfig *tls.Config
-	var clientID string
 	var clientCertList []tls.Certificate
 	if rootCAs != nil {
 		if clientCert != nil {
 			clientCertList = []tls.Certificate{*clientCert}
 			x509Cert, err := x509.ParseCertificate(clientCert.Certificate[0])
 			if err == nil {
-				// cert subject is clientID
+				// cert subject overrides clientID
 				clientID = x509Cert.Subject.CommonName
 				// verify the validity of this certificate against the CA to warn the user
 				// without this one can spend a long time figuring out why the connection fails.
@@ -332,6 +323,7 @@ func NewGrpcServiceClient(
 
 	cl := &GrpcServiceClient{
 		clientID:     clientID,
+		authToken:    authToken,
 		tlsConfig:    tlsConfig,
 		connectionID: shortid.MustGenerate(),
 		connectURL:   connectURI,

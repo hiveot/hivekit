@@ -13,9 +13,9 @@ import (
 // Invoke the GetCACert method
 func (svc *CertsServiceImpl) handleGetCACert(req *msg.RequestMessage) (resp *msg.ResponseMessage, err error) {
 	// no args
-	caCert, err := svc.GetCACert()
-	if err != nil {
-		return nil, err
+	caCert := svc.GetCACert()
+	if caCert == nil {
+		return nil, fmt.Errorf("No CA cert")
 	}
 	// convert cert to PEM
 	caPem := utils.X509CertToPEM(caCert)

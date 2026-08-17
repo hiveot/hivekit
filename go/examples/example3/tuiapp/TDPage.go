@@ -47,8 +47,11 @@ func (page *TDPage) Refresh(thingID string,
 	page.header.SetTitleCell(2, 0, "Base URL:", tdoc.Base)
 	page.header.SetTitleCell(3, 0, "Modified:", tdoc.Modified)
 
-	secScheme, _ := tdoc.GetSecurityScheme()
+	secScheme, hasMultiple, _ := tdoc.GetSecurityScheme()
 	page.header.SetTitleCell(4, 0, "Security:", fmt.Sprintf("%s (%s)", secScheme.Scheme, secScheme.Description))
+	if hasMultiple {
+		page.header.SetTitleCell(5, 0, "Security (2)", "Additional security schemes available")
+	}
 
 	// Start with a clean Properties table
 	tbl := page.affordances

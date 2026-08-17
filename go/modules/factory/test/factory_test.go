@@ -77,7 +77,7 @@ func TestAuthentication(t *testing.T) {
 	// just test that the environment can be created and loaded
 	env := api.NewAppEnvironment(testDir, false)
 	env.CaCert = testCerts.CaCert
-	env.TLSCert = testCerts.ServerCert
+	env.ServerCert = testCerts.ServerCert
 	env.HttpsPort = testPort
 
 	f := factory_service.NewModuleFactory(env, HiveKitModules)
@@ -121,7 +121,7 @@ func TestDigitwin(t *testing.T) {
 	// just test that the environment can be created and loaded
 	env := api.NewAppEnvironment(testDir, false)
 	env.CaCert = testCerts.CaCert
-	env.TLSCert = testCerts.ServerCert
+	env.ServerCert = testCerts.ServerCert
 	env.HttpsPort = testPort
 
 	f := factory_service.NewModuleFactory(env, HiveKitModules)
@@ -144,7 +144,7 @@ func TestClientServerRecipe(t *testing.T) {
 	env := api.NewAppEnvironment(testDir, false)
 	env.CaCert = testCerts.CaCert
 	env.ClientCert = testCerts.ClientCert
-	env.TLSCert = testCerts.ServerCert
+	env.ServerCert = testCerts.ServerCert
 	env.HttpsPort = testPort
 
 	serverFactory := factory_service.NewModuleFactory(env, HiveKitModules)

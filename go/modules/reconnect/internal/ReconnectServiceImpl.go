@@ -63,9 +63,9 @@ func (m *ReconnectServiceImpl) applySubscription() (err error) {
 	return err
 }
 
-func (m *ReconnectServiceImpl) AuthenticateWithForm(tdoc *td.TD, getcred api.GetCredentials) error {
-	return m.conn.AuthenticateWithForm(tdoc, getcred)
-}
+// func (m *ReconnectServiceImpl) AuthenticateWithTD(tdoc *td.TD, getcred api.GetCredentials) error {
+// 	return m.conn.AuthenticateWithTD(tdoc, getcred)
+// }
 
 // Connect periodically tries a reconnect until successful or the context is cancelled
 // This uses an increasing backoff period up to 15 seconds, starting at 1msec.

@@ -21,7 +21,7 @@ func NewTLSServerFactory(
 
 	env := f.GetEnvironment()
 
-	serverCert, err := env.GetTLSCert()
+	serverCert, err := env.GetServerCert()
 	if err != nil {
 		slog.Error("unable to get the Server certificate")
 	}

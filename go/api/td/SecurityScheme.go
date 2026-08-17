@@ -6,6 +6,8 @@ const (
 	SecSchemeAuto   string = "auto"
 	SecSchemeBasic  string = "basic"
 	SecSchemeBearer string = "bearer"
+	// no longer in TD-1.1; we still support it as its useful
+	SecSchemeCert   string = "cert"
 	SecSchemeDigest string = "digest"
 	SecSchemePSK    string = "psk"
 	SecSchemeNoSec  string = "nosec"

@@ -84,11 +84,13 @@ func startService() (
 	}
 	// the router module uses the digitwin Thing Directory
 	// getDeviceTD := dtw.GetDeviceDirectory().GetTD
+	clientID := testEnv.AppEnv.ClientID
 	rtr := router_service.NewRouterService(
-		storageDir, false,
+		storageDir, false, clientID, nil, //svc.clientCert, use SetClientCert if known
+		testEnv.CertBundle.RootCAs, rpcTimout,
 		dtw.GetDeviceTD,
 		getTps,
-		testEnv.CertBundle.RootCAs, rpcTimout)
+	)
 	err = rtr.Start()
 	if err != nil {
 		panic("unable to start the router service")

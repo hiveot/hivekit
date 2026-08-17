@@ -558,30 +558,33 @@ func (tdoc *TD) GetRCClientID() string {
 
 // Get the security scheme for connecting to this device.
 //
-// This only supports a single scheme as hivekit transports only handle a single scheme.
-// If multiple schemes apply then the application must handle it.
+// NOTE: this is a convenience function that returns a single security scheme.
+// If multiple schemes then 'hasMultiple' returns true and the application can decide
+// to do more work to select an alternative.
 //
 // If the Security field is empty, then return a nosec scheme.
 //
 // This returns an error if multiple schemes must be used or not scheme is defined
 // for the TD security field.
-func (tdoc *TD) GetSecurityScheme() (scheme SecurityScheme, err error) {
+func (tdoc *TD) GetSecurityScheme() (scheme SecurityScheme, hasMultiple bool, err error) {
+
 	if tdoc.Security == nil || tdoc.Security == SecSchemeNoSec {
 		scheme.Scheme = "nosec"
-		return scheme, nil
+		return scheme, false, nil
 	}
 	// scheme name can be a string or array :/
 	name, valid := tdoc.Security.(string)
 	if valid {
 		scheme = tdoc.SecurityDefinitions[name]
-		return scheme, nil
+		return scheme, false, nil
 	}
 	nameArr, valid := tdoc.Security.([]string)
-	if valid && len(nameArr) == 1 {
+	if valid && len(nameArr) >= 1 {
 		scheme = tdoc.SecurityDefinitions[nameArr[0]]
-		return scheme, nil
+		hasMultiple = len(nameArr) > 1
+		return scheme, hasMultiple, nil
 	}
-	return scheme, fmt.Errorf("unsupported security scheme in this TD")
+	return scheme, false, fmt.Errorf("unsupported security scheme in this TD")
 }
 
 // IsDirectory returns true if the TD represents a directory

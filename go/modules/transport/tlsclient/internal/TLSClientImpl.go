@@ -69,14 +69,14 @@ func (cl *TLSClientImpl) Close() {
 	}
 }
 
-// AuthenticateWithClientCert obtains the clientID from the certificate CommonName and
+// SetClientCert obtains the clientID from the certificate CommonName and
 // updates the TLS connection to use the client certificate.
 // The provided certificate must be signed by the server's CA.
 //
 //	clientCert client tls certificate containing x509 cert and private key
 //
 // Returns nil if successful, or an error if no CA is set or cert invalid
-func (cl *TLSClientImpl) AuthenticateWithClientCert(clientCert *tls.Certificate) (err error) {
+func (cl *TLSClientImpl) SetClientCert(clientCert *tls.Certificate) (err error) {
 
 	// update the existing TLS configuration created during instantiation
 	tlsConfig := cl.http2Transport.TLSClientConfig
@@ -119,7 +119,7 @@ func (cl *TLSClientImpl) AuthenticateWithClientCert(clientCert *tls.Certificate)
 //
 // This creates a unique connectionID for the header and places the token in
 // the authorization hedaer.
-func (cl *TLSClientImpl) AuthenticateWithToken(clientID string, token string) error {
+func (cl *TLSClientImpl) SetAuthToken(clientID string, token string) error {
 	// ensure disconnected
 	cl.bearerToken = token
 	cl.clientID = clientID

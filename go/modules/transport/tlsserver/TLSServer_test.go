@@ -158,7 +158,7 @@ func TestTokenAuth(t *testing.T) {
 	cl := tls_client.NewTLSClient(clientHostPort, testCerts.RootCAs)
 	require.NoError(t, err)
 	defer cl.Close()
-	cl.AuthenticateWithToken(loginID1, token1)
+	cl.SetAuthToken(loginID1, token1)
 
 	// test the auth with a GET request
 	_, _, err = cl.Get(path1)
@@ -168,7 +168,7 @@ func TestTokenAuth(t *testing.T) {
 	// test a failed login
 	t.Log("--- test unauthorized token login ---")
 	cl.Close()
-	cl.AuthenticateWithToken(loginID1, badToken)
+	cl.SetAuthToken(loginID1, badToken)
 	_, _, err = cl.Get(path1)
 	assert.Error(t, err)
 	assert.Equal(t, 2, path1Hit) // should not increase
@@ -210,7 +210,7 @@ func TestClientCert(t *testing.T) {
 	})
 
 	cl := tls_client.NewTLSClient(clientHostPort, testCerts.RootCAs)
-	cl.AuthenticateWithClientCert(testCerts.ClientCert)
+	cl.SetClientCert(testCerts.ClientCert)
 	_, status, err := cl.Get(path1)
 	assert.NoError(t, err)
 	assert.Equal(t, http.StatusOK, status)
