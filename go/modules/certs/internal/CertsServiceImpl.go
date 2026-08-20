@@ -178,8 +178,12 @@ func (svc *CertsServiceImpl) Start() (err error) {
 		return fmt.Errorf("Start: Missing certificate directory")
 	}
 	if cfg.CaCert == nil {
-		cfg.CaCert, cfg.CaKey, err = LoadOrCreateSelfSignedCACert(
-			cfg.CertsDir, certs.DefaultCAValidityPeriod)
+		cfg.CaCert, cfg.CaKey = LoadCACert(cfg.CertsDir)
+	}
+
+	// a self-signed CA is need for generating client certificates and
+	if cfg.CaKey == nil || cfg.CaCert == nil {
+		cfg.CaCert, cfg.CaKey, err = CreateSelfSignedCACert(cfg.CertsDir, cfg.CaKey, certs.DefaultCAValidityPeriod)
 	}
 
 	// include the CA in the certificate pool for verifying certificates

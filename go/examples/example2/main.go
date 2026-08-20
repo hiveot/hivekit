@@ -20,8 +20,8 @@ import (
 	"github.com/hiveot/hivekit/go/utils"
 )
 
-// Use the admin account to login as. This uses the home/certs directory to load the token.
-const ExampleClientID = "admin"
+// By default use the admin account to login as. This uses the home/certs directory to load the token.
+const DefaultClientID = "admin"
 
 var ExampleHome = path.Join(os.TempDir(), "hivekit-examples")
 
@@ -78,10 +78,10 @@ func main() {
 		env.LogLevel = "info"
 	}
 	utils.SetLogging(env.LogLevel, "")
-	// FIXME: for a different clientID when running with go run, instead of the APP ID
-	if env.ClientID == "main" {
-		env.ClientID = "admin"
+	if env.ClientID == "" {
+		env.ClientID = DefaultClientID
 	}
+
 	env.RpcTimeout = time.Minute * 6 // for testing
 	args := flag.Args()
 	if len(args) == 0 {
@@ -115,12 +115,23 @@ func main() {
 	// the device thingID and falls back to the "" thingID.
 	authToken, _ := env.GetAuthToken()
 	rtr := api.GetFactoryModule[router.IRouterService](f, router.RouterModuleType)
-	rtr.AddDeviceCredential("", env.ClientID, authToken, td.SecSchemeBearer)
-	fmt.Printf("Using '%s' as login ID\n", env.ClientID)
+	if authToken != "" {
+		rtr.AddDeviceCredential("", env.ClientID, authToken, td.SecSchemeBearer)
+		fmt.Printf("Found auth token for login as '%s'\n", env.ClientID)
+	} else {
+		fmt.Printf("No auth token. Using '%s' as login ID\n", env.ClientID)
+	}
+	clientCert, _ := env.GetClientCert()
+	if clientCert != nil {
+		fmt.Printf("Found Client cert with clientID '%s'\n", clientCert.Leaf.Subject.CommonName)
+	} else {
+		fmt.Printf("No client Cert found.\n")
+	}
 
 	discoClient := api.GetFactoryModule[discovery.IDiscoveryClient](f, discovery.DiscoveryClientModuleType)
 	dirClient := api.GetFactoryModule[directory.IDirectoryClient](f, directory.DirectoryClientModuleType)
-	app := cliex.NewCliex(appConfig, discoClient, dirClient, f.GetEnvironment().CaCert)
+	caCert, err := env.GetCACert()
+	app := cliex.NewCliex(appConfig, discoClient, dirClient, caCert)
 
 	app.SetRequestSink(r)
 	r.SetNotificationSink(app)

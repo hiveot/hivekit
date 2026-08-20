@@ -5,7 +5,6 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"log/slog"
-	"os"
 	"path"
 	"path/filepath"
 	"time"
@@ -52,7 +51,7 @@ func CreateSelfSignedServerCert(
 	return tlsCert, nil
 }
 
-// Load or create/save a HiveOT self-signed client certificate.
+// Create and save a HiveOT self-signed client certificate.
 //
 // If a private key is found it is re-used.
 // If no private key is provided then one is generated using ED25519.
@@ -63,72 +62,43 @@ func CreateSelfSignedServerCert(
 //	validity for creation
 //
 // This returns the CA with private key, or an error if none can be created or stored.
-func LoadOrCreateSelfSignedClientCert(
+func CreateSelfSignedClientCert(
 	clientID string, cfg *certs.CertsConfig, ou string, validity time.Duration) (
 	cert *tls.Certificate, err error) {
 
 	certPath := filepath.Join(cfg.CertsDir, clientID+api.DefaultCertFileSuffix)
 	keyPath := filepath.Join(cfg.CertsDir, clientID+api.DefaultKeyFileSuffix)
-	tlsCert, err := utils.LoadTLSCert(certPath, keyPath)
-	if err == nil {
-		return tlsCert, err
-	}
+
 	// create the cert and key
 	privKey, _ := utils.NewEd25519Key()
-
 	x509Cert, err := utils.CreateClientCert(
 		clientID, ou,
 		cfg.Country, cfg.Province, cfg.Locality, cfg.Org,
 		validity, privKey.Public(), cfg.CaCert, cfg.CaKey)
 
-	tlsCert = utils.X509CertToTLS(x509Cert, privKey)
+	tlsCert := utils.X509CertToTLS(x509Cert, privKey)
 
 	err = utils.SaveTLSCert(tlsCert, certPath, keyPath)
 
 	return tlsCert, err
 }
 
-// Load or create/save a HiveOT self-signed server certificate and keys for
-// the current machine.
-//
-// This adds os.Hostname and outbound IP to the certificate names.
-// If a private key is found it is re-used.
-// If no private key is provided then one is generated using ED25519.
-//
-//	serverName under which the certificate is saved
-//	certsDir is the location of certificates
-//	validity is the CA's validity duration
-//
-// This returns the server TLS certificate, or an error if none can be created or stored.
-func LoadOrCreateSelfSignedServerCert(
-	serverName string, cfg *certs.CertsConfig, validity time.Duration) (*tls.Certificate, error) {
-
-	certPath := path.Join(cfg.CertsDir, serverName+api.DefaultCertFileSuffix)
-	keyPath := path.Join(cfg.CertsDir, serverName+api.DefaultKeyFileSuffix)
-	tlsCert, err := utils.LoadTLSCert(certPath, keyPath)
-	if err == nil {
-		return tlsCert, err
-	}
-
-	hostname, err := os.Hostname()
-	tlsCert, err = CreateSelfSignedServerCert(serverName, hostname, cfg, validity)
-	err = utils.SaveTLSCert(tlsCert, certPath, keyPath)
-
-	return tlsCert, err
-}
-
-// Load or create/save a HiveOT self-signed CA certificate and keys.
+// Create/save a HiveOT self-signed CA certificate using the given key.
 // Intended for local and client cert use.
 //
-// If a private key is found it is re-used.
+// If the privateKey is provided then the new CA certificate will be still be
+// able to match old certificates as long as the issuer matches.
+//
 // If no private key is provided then one is generated using ED25519.
 //
 //	certsDir is the location of certificates
+//	caKey the private key used to sign the CA selfsigned certificate. nil to generate.
 //	validity is the CA's validity duration
 //
 // This returns the CA with private key, or an error if none can be created or stored.
-func LoadOrCreateSelfSignedCACert(certsDir string, validity time.Duration) (
-	caCert *x509.Certificate, caPrivKey crypto.Signer, err error) {
+func CreateSelfSignedCACert(
+	certsDir string, caSignerKey crypto.Signer, validity time.Duration) (
+	caCert *x509.Certificate, caKey crypto.Signer, err error) {
 
 	var caPubKey crypto.PublicKey
 
@@ -136,31 +106,41 @@ func LoadOrCreateSelfSignedCACert(certsDir string, validity time.Duration) (
 	caCertPath := path.Join(certsDir, api.DefaultCaCertFile)
 
 	// load or create the self-signed CA private key
-	caPrivKey, caPubKey, err = utils.LoadPrivateKey(caKeyPath)
-	if err != nil {
-		caPrivKey, caPubKey = utils.NewEd25519Key()
+	if caSignerKey == nil {
+		caSignerKey, caPubKey = utils.NewEd25519Key()
 
-		slog.Warn("Created new CA private key", "caKeyPath", caKeyPath)
-		err = utils.SavePrivateKey(caPrivKey, caKeyPath)
+		slog.Warn("CreateSelfSignedCACert: New CA key", "caKeyPath", caKeyPath)
+		err = utils.SavePrivateKey(caSignerKey, caKeyPath)
 	}
 
-	// load or create the CA cert
-	caCert, err = utils.LoadCACert(caCertPath)
-	if err != nil {
-		// note that if a private key exists but the CA is recreated the new
-		// CA will be valid with old cert IF the issuer information matches.
-		caCert, err = utils.CreateCACert(
-			"hiveot", "CA", "BC", "HiveOT zone", "HiveOT",
-			validity, caPrivKey, caPubKey)
+	// note that if a private key exists but the CA is recreated the new
+	// CA will be valid with old cert IF the issuer information matches.
+	caCert, err = utils.CreateCACert(
+		"hiveot", "CA", "BC", "HiveOT zone", "HiveOT",
+		validity, caSignerKey, caPubKey)
 
-		if err == nil {
-			slog.Warn("Created self-signed CA", "caCertPath", caCertPath)
-			err = utils.SaveX509Cert(caCert, caCertPath)
-		}
+	if err == nil {
+		slog.Warn("CreateSelfSignedCACert: New CA at", "caCertPath", caCertPath)
+		err = utils.SaveX509Cert(caCert, caCertPath)
 	}
+
 	if err != nil {
 		return nil, nil, err
 	}
 
-	return caCert, caPrivKey, err
+	return caCert, caSignerKey, err
+}
+
+// Load the default CA certificate
+// This returns the CA certificate and optional private key if found.
+// This returns nil for the CA or key if not found.
+func LoadCACert(certsDir string) (*x509.Certificate, crypto.Signer) {
+
+	caKeyPath := path.Join(certsDir, api.DefaultCaKeyFile)
+	caKey, caPub, _ := utils.LoadPrivateKey(caKeyPath)
+	_ = caPub
+
+	caCertPath := path.Join(certsDir, api.DefaultCaCertFile)
+	caCert, _ := utils.LoadCACert(caCertPath)
+	return caCert, caKey
 }

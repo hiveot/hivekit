@@ -2,6 +2,7 @@ package cliex
 
 import (
 	"crypto/x509"
+	"log/slog"
 	"time"
 
 	"github.com/hiveot/hivekit/go/api/td"
@@ -51,12 +52,13 @@ func (cliex *Cliex) FindTD(thingID string) (tdoc *td.TD) {
 	var maxWaitTime = time.Second * 1
 	var tdd *td.TD
 
-	// 1. ask the directory client
+	// 1. ask the directory client.
+	// It might not be in the cache yet so continue if not found.
 	tdoc, _ = cliex.dirClient.RetrieveThing(thingID)
 	if tdoc != nil {
 		return tdoc
 	}
-	// 2. attempt thing discovery
+	// 2. attempt thing discovery or directory discovery
 	cliex.discoClient.DiscoverThingTDs("", maxWaitTime, func(discoTD *td.TD) bool {
 		if discoTD.ID == thingID {
 			tdoc = discoTD
@@ -72,14 +74,19 @@ func (cliex *Cliex) FindTD(thingID string) (tdoc *td.TD) {
 		return tdoc
 	}
 
-	// 3. Locate a directory
+	// 3. Device not found so trying by locating a directory
 	if tdd == nil {
 		return nil
 	}
-	// 4. Read this directory
-	// this will pass a request down the recipe chain to the router
+	// 4. A directory was found, try to read it.
+	// Update the directory client with the newly found TDD so the router can
+	// forward requests to it.
+	// Reading a directory typically requires authentication credentials.
 	cliex.dirClient.SetTDD(tdd)
-	tdoc, _ = cliex.dirClient.RetrieveThing(thingID)
+	tdoc, err := cliex.dirClient.RetrieveThing(thingID)
+	if err != nil {
+		slog.Warn("FindTD. No access to directory", "err", err.Error)
+	}
 	return tdoc
 }
 

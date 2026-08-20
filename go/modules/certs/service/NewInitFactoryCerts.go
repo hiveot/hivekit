@@ -1,7 +1,7 @@
 package certs_service
 
 import (
-	"crypto"
+	"os"
 
 	"github.com/hiveot/hivekit/go/api"
 	"github.com/hiveot/hivekit/go/modules/certs"
@@ -26,29 +26,42 @@ func NewInitFactoryCerts(
 	f api.IModuleFactory, md *api.ModuleDefinition) (api.IHiveModule, error) {
 
 	var err error
-	var caPrivKey crypto.Signer
 
 	// Update the environment with the CA, server and admin client certificate
 	env := f.GetEnvironment()
 
-	env.CaCert, caPrivKey, err = internal.LoadOrCreateSelfSignedCACert(
-		env.CertsDir, certs.DefaultCAValidityPeriod)
+	// Load or create a self-signed CA
+	caCert, caPrivKey := internal.LoadCACert(env.CertsDir)
+	if caCert == nil || caPrivKey == nil {
+		caCert, caPrivKey, err = internal.CreateSelfSignedCACert(
+			env.CertsDir, caPrivKey, certs.DefaultCAValidityPeriod)
+	}
 	if err != nil {
 		return nil, err
 	}
 
+	// Load or create a self-signed server cert
+	env.SetCACert(caCert)
+
 	cfg := &certs.CertsConfig{
 		CertsDir: env.CertsDir,
-		CaCert:   env.CaCert,
+		CaCert:   caCert,
 		CaKey:    caPrivKey,
 	}
-
-	env.ServerCert, err = internal.LoadOrCreateSelfSignedServerCert(
-		api.DefaultServerName, cfg, certs.DefaultServerValidityPeriod)
-
-	env.ClientCert, err = internal.LoadOrCreateSelfSignedClientCert(
-		certs.DefaultAdminID, cfg, "ou", certs.DefaultAdminValidityPeriod)
-
+	serverCert, err := env.GetServerCert()
+	if err != nil {
+		// default server cert not found, create it
+		hostname, _ := os.Hostname()
+		serverCert, err = internal.CreateSelfSignedServerCert(
+			api.DefaultServerName, hostname, cfg, certs.DefaultServerValidityPeriod)
+		env.SetServerCert(serverCert)
+	}
+	clientCert, err := env.GetClientCert()
+	if err != nil {
+		clientCert, err = internal.CreateSelfSignedClientCert(
+			certs.DefaultAdminID, cfg, "ou", certs.DefaultAdminValidityPeriod)
+		env.SetClientCert(clientCert)
+	}
 	// the job here is done. No need to return a module
 	return nil, nil
 }

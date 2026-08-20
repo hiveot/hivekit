@@ -150,10 +150,13 @@ func (svc *RouterServiceImpl) GetClientConnection(
 		}
 		// determine the origin that identifies the client connection
 		newOrigin := fmt.Sprintf("%s://%s", hrefURL.Scheme, hrefURL.Host)
-		// FIXME: origin on UDS (unix) and WSS must include the path while on tcp/http/mqtt it is schema://host:port
-		if strings.ToLower(hrefURL.Scheme) == "unix" {
-			// Warning, a unix socket connection is local to the machine only.
+		urlScheme := strings.ToLower(hrefURL.Scheme)
+		if urlScheme == "unix" || urlScheme == "wss" || urlScheme == "sse" {
+			// Origin on UDS, websockets, sse must use the full path as each path is a
+			// different connection.
 			newOrigin = hrefURL.String()
+		} else {
+			// mqtt and http clients share connections
 		}
 		// store the Thing's origin for future quick lookup
 		svc.thingOrigins[tdoc.ID] = newOrigin
@@ -397,6 +400,7 @@ func NewRouterServiceImpl(
 		HiveModuleBase:    modules.NewHiveModuleBase(thingID, timeout),
 		autoReconnect:     autoReconnect,
 		clientID:          clientID,
+		clientCert:        clientCert,
 		rootCAs:           rootCAs,
 		getTD:             getTD,
 		preferredProtocol: api.WotWebsocketProtocolType,

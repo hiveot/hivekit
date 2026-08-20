@@ -7,7 +7,7 @@ import locateHub from "./locateHub.ts";
 // ConnectToHub helper function to connect to the Hub using existing token and key files.
 // This assumes that CA cert, user keys and auth token have already been set up and
 // are available in the certDir.
-// The key-pair file is named {certDir}/{clientID}.key
+// The key-pair file is named {certDir}/{clientID}Key.pem
 // The token file is named {certDir}/{clientID}.token
 //
 // 1. If no fullURL is given then use discovery to determine the URL

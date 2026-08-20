@@ -32,8 +32,7 @@ func main() {
 	env := api.NewAppEnvironment(ExampleHome, true)
 	env.RpcTimeout = time.Minute // for testing
 
-	// FIXME: for a different clientID when running with go run, instead of the APP ID
-	if env.ClientID == "main" {
+	if env.ClientID == "" {
 		env.ClientID = "admin"
 	}
 

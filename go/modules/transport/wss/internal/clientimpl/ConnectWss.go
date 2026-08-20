@@ -95,8 +95,13 @@ func ConnectWSS(
 	if err != nil {
 		if r != nil && r.StatusCode == http.StatusUnauthorized {
 			err = utils.UnauthorizedError
+			hasBearer := bearerToken != ""
+			hasCert := clientCert != nil
 
-			slog.Warn(err.Error())
+			slog.Warn("ConnectWSS Authentication failed",
+				"url", connectURL, "clientID", clientID,
+				"useAuthToken", hasBearer,
+				"useClientCert", hasCert)
 			onConnect(api.StatusRefused, err)
 		} else {
 			onConnect(api.StatusLost, err)

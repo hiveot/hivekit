@@ -2,7 +2,6 @@ package clientimpl
 
 import (
 	"context"
-	"crypto/tls"
 	"crypto/x509"
 	"errors"
 	"fmt"
@@ -10,12 +9,11 @@ import (
 	"net/http"
 	"net/url"
 	"sync"
-	"time"
 
 	"github.com/hiveot/hivekit/go/api"
 	"github.com/hiveot/hivekit/go/api/msg"
 	"github.com/hiveot/hivekit/go/api/td"
-	"github.com/hiveot/hivekit/go/modules"
+	"github.com/hiveot/hivekit/go/modules/transport"
 	"github.com/hiveot/hivekit/go/modules/transport/httpbasic"
 	"github.com/hiveot/hivekit/go/modules/transport/tlsclient"
 	tls_client "github.com/hiveot/hivekit/go/modules/transport/tlsclient/client"
@@ -36,15 +34,7 @@ import (
 // hiveot RequestMessage and ResponseMessage endpoints. If no form is available
 // then use the default hiveot endpoints that are defined with this protocol binding.
 type HttpBasicClientImpl struct {
-	*modules.HiveModuleBase
-
-	// auth token when connecting with token
-	bearerToken string
-
-	// current connection status
-	connectStatus api.ConnectionStatus
-	// callback when connection changes
-	connectHandler func(newStatus api.ConnectionStatus, c api.ITransportClient)
+	*transport.TransportClientBase
 
 	// The TD used to get the http URL for operations
 	tdoc *td.TD
@@ -56,44 +46,21 @@ type HttpBasicClientImpl struct {
 	// This is intended to be the application module the client connects to.
 	sink api.IHiveModule
 
-	// timeout for use with SendRequest
-	timeout time.Duration
-
 	// http2 client for posting messages
 	tlsClient tlsclient.ITLSClient
 }
 
 // update the connection status and publish an notification if it differs from the last status
 // a 'lost' status is ignored if the current status is set to closed as it was intentional.
-func (cl *HttpBasicClientImpl) _setConnectionStatus(
-	newStatus api.ConnectionStatus, err error) {
+// a lost status cancels all waiting requests.
+func (cl *HttpBasicClientImpl) _setConnectionStatus(newStatus api.ConnectionStatus, err error) {
 
-	cl.mux.RLock()
-	oldStatus := cl.connectStatus
-	cl.mux.RUnlock()
-
-	if newStatus == oldStatus {
-		return
-	} else if oldStatus == api.StatusClosed && newStatus == api.StatusLost {
-		return
+	if newStatus == api.StatusLost {
+		slog.Info("_setConnectionStatus SseCl client connection lost", "status", newStatus)
+		// fail all outstanding RnR requests
+		// cl.rnrChan.CloseAll()
 	}
-	cl.mux.Lock()
-	cl.connectStatus = newStatus
-	ch := cl.connectHandler
-	cl.mux.Unlock()
-
-	// notify upstream of status change
-	moduleID := cl.GetThingID()
-	evName := api.ClientConnectionStatusEvent
-	notif := msg.NewNotificationMessage(
-		moduleID, msg.AffordanceTypeEvent, moduleID, evName, newStatus)
-	cl.ForwardNotification(notif)
-
-	// invoke the callback after the notification so that the proper sequence is maintained
-	// if the callback tries to reconnect.
-	if ch != nil {
-		ch(newStatus, cl)
-	}
+	cl.TransportClientBase.SetConnectionStatus(newStatus, err)
 }
 
 // Close disconnects from the server
@@ -109,8 +76,19 @@ func (cl *HttpBasicClientImpl) Close() {
 	}
 }
 
-// This performs a standard /ping health check that the hiveot http server supports.
+// Connect configures the http client with authentication and performs
+// performs a /ping health check that the hiveot http server supports.
 func (cl *HttpBasicClientImpl) Connect() error {
+
+	// configure auth for the tls client
+	clientID := cl.GetClientID()
+	authToken, _ := cl.GetAuthToken()
+	err := cl.tlsClient.SetAuthToken(clientID, authToken)
+
+	clientCert := cl.GetClientCert()
+	if clientCert != nil {
+		cl.tlsClient.SetClientCert(clientCert)
+	}
 
 	cl._setConnectionStatus(api.StatusConnecting, nil)
 	statusCode, err := cl.tlsClient.Ping()
@@ -124,29 +102,11 @@ func (cl *HttpBasicClientImpl) Connect() error {
 	return err
 }
 
-func (cl *HttpBasicClientImpl) GetClientID() string {
-	return cl.tlsClient.GetClientID()
-}
-func (cl *HttpBasicClientImpl) GetConnectionID() string {
-	return cl.tlsClient.GetConnectionID()
-}
-
-// // GetConnectionStatus returns the current connection status
-func (cl *HttpBasicClientImpl) GetConnectionStatus() api.ConnectionStatus {
-	cl.mux.RLock()
-	defer cl.mux.RUnlock()
-	stat := cl.connectStatus
-	return stat
-}
-
 // Return the TLS client used by this connection
 func (cl *HttpBasicClientImpl) GetTlsClient() tlsclient.ITLSClient {
 	cl.mux.RLock()
 	defer cl.mux.RUnlock()
 	return cl.tlsClient
-}
-func (cl *HttpBasicClientImpl) GetTM() string {
-	return ""
 }
 
 // HandleNotification receives an incoming notification from a producer
@@ -261,7 +221,7 @@ func (cl *HttpBasicClientImpl) SendRequest(
 	contentType := "application/JSON"
 
 	// send the request
-	ctx, cancelFn := context.WithTimeout(context.Background(), cl.timeout)
+	ctx, cancelFn := context.WithTimeout(context.Background(), cl.GetTimeout())
 	outputRaw, code, _, err := cl.tlsClient.Send(ctx,
 		method, hrefPath, nil, []byte(inputJSON), contentType)
 	cancelFn()
@@ -350,20 +310,6 @@ func (cl *HttpBasicClientImpl) SendResponse(resp *msg.ResponseMessage) error {
 	return errors.New("HttpBasic doesn't support sending async responses")
 }
 
-// Set the clientID and authentication bearer token.
-func (cl *HttpBasicClientImpl) SetAuthToken(clientID string, token string, secScheme string) error {
-
-	_ = secScheme
-	cl.bearerToken = token
-	err := cl.tlsClient.SetAuthToken(clientID, token)
-	return err
-}
-
-// Connect authenticating using a client certificate
-func (cl *HttpBasicClientImpl) SetClientCert(clientCert *tls.Certificate) (err error) {
-	return cl.tlsClient.SetClientCert(clientCert)
-}
-
 // Ignored as http clients dont receive notifications
 func (cl *HttpBasicClientImpl) SetNotificationSink(sink api.IHiveModule, thingID ...string) {
 	slog.Info("SetNotificationSink: HttpBasicClients doesn't receive notifications so not expecting any.",
@@ -375,19 +321,6 @@ func (cl *HttpBasicClientImpl) SetNotificationSink(sink api.IHiveModule, thingID
 // instead of passing it to this sink. Therefore this logs an error.
 func (cl *HttpBasicClientImpl) SetRequestSink(sink api.IHiveModule) {
 	slog.Warn("SetRequestSink. HttpBasicClient cannot be a request sink.")
-}
-
-// SetConnectHandler sets the callback to invoke when the connection status changes
-func (cl *HttpBasicClientImpl) SetConnectHandler(
-	h func(newStatus api.ConnectionStatus, c api.ITransportClient)) {
-	cl.mux.Lock()
-	defer cl.mux.Unlock()
-	cl.connectHandler = h
-}
-
-func (cl *HttpBasicClientImpl) SetTimeout(timeout time.Duration) {
-	cl.timeout = timeout
-	cl.tlsClient.SetTimeout(timeout)
 }
 
 // start doesn't do anything. Use ConnectWith... to connect.
@@ -426,7 +359,7 @@ func NewHttpBasicClientImpl(tdoc *td.TD, rootCAs *x509.CertPool) *HttpBasicClien
 	if rootCAs == nil {
 		tlsClient.SetSkipCertCheck(true)
 	}
-	cl := NewHttpBasicTLSClientImpl(tdoc, tlsClient)
+	cl := NewHttpBasicTLSClientImpl(tdoc, rootCAs, tlsClient)
 
 	return cl
 }
@@ -434,17 +367,18 @@ func NewHttpBasicClientImpl(tdoc *td.TD, rootCAs *x509.CertPool) *HttpBasicClien
 // NewHttpBasicTlsClient creates a new instance of the WoT compatible http-basic
 // protocol binding client using the given configured TLS client.
 //
-//	tlsClient used for the server connection
-//	getTD is the handler providing the TD for invoking an operation.
+//	tdoc describing server requests
+//	rootCAs used to verify client certificate authentication. nil when not using client cert.
+//	tlsClient TLS client to submit requests
 func NewHttpBasicTLSClientImpl(
-	tdoc *td.TD, tlsClient tlsclient.ITLSClient) *HttpBasicClientImpl {
+	tdoc *td.TD, rootCAs *x509.CertPool, tlsClient tlsclient.ITLSClient) *HttpBasicClientImpl {
 
+	timeout := tlsclient.DefaultClientTimeout
 	thingID := httpbasic.HttpBasicClientModuleType + shortid.MustGenerate()
 	cl := &HttpBasicClientImpl{
-		HiveModuleBase: modules.NewHiveModuleBase(thingID, 0),
-		tdoc:           tdoc,
-		timeout:        tlsclient.DefaultClientTimeout,
-		tlsClient:      tlsClient,
+		TransportClientBase: transport.NewTransportClientBase(thingID, rootCAs, timeout),
+		tdoc:                tdoc,
+		tlsClient:           tlsClient,
 	}
 	var _ api.IConnection = cl // interface check
 	var _ api.IHiveModule = cl // interface check

@@ -49,7 +49,7 @@ type TransportClientBase struct {
 	// all responses are passed here to support response callbacks
 	// rnrChan *msg.RnRChan
 
-	// Root CA's for client cert validation before use
+	// Root CA's for client cert validation before use. nil to ignore validation.
 	rootCAs *x509.CertPool
 
 	// the parent transport client to pass to connection status callback
@@ -108,11 +108,10 @@ func (cl *TransportClientBase) SetAuthToken(clientID string, token string, authS
 	return nil
 }
 
-// SetClientCert sets the client certificate for mutual authentication.
+// SetClientCert sets the client certificate for mutual authentication and
+// determine the client ID to connect as.
 //
-// This validates the certificate against the root CA pool.
-//
-// Use in Connect to establish a connection.
+// This validates the certificate against the root CA pool, if set.
 //
 // This returns an error if a connection is in progress or the certificate doesn't
 // validate using the root CA pool.
@@ -137,11 +136,13 @@ func (cl *TransportClientBase) SetClientCert(clientCert *tls.Certificate) (err e
 
 		// verify the validity of this certificate against the CA
 		// without this one can spend a long time figuring out why the connection fails.
-		opts := x509.VerifyOptions{
-			Roots:     cl.rootCAs,
-			KeyUsages: []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth},
+		if cl.rootCAs != nil {
+			opts := x509.VerifyOptions{
+				Roots:     cl.rootCAs,
+				KeyUsages: []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth},
+			}
+			_, err = x509Cert.Verify(opts)
 		}
-		_, err = x509Cert.Verify(opts)
 	}
 	return err
 }
@@ -202,7 +203,10 @@ func (cl *TransportClientBase) SetTransportClient(c api.ITransportClient) {
 }
 
 // NewTransportClientBase creates a new instance of the base for client connection
-// Call SetTransportClient after instantiation.
+//
+//	thingID is the instance thingID of this module. "" to auto generate.
+//	rootCAs root CA pool used to verify client auth certificate. It can be nil to ignore client cert validation.
+//	rpcTimeout to use for messaging
 func NewTransportClientBase(thingID string, rootCAs *x509.CertPool, rpcTimeout time.Duration) *TransportClientBase {
 	m := &TransportClientBase{
 		HiveModuleBase: *modules.NewHiveModuleBase(thingID, rpcTimeout),

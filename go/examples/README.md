@@ -3,13 +3,13 @@
 These examples demonstrate how to build an ecosystem of IoT devices and services using HiveKit. The examples can be used on their own or together.
 
 The examples can be run directly using:
-> go run example1/main.go --help
+> go run example1/main.go ---home ~/bin/hiveot 
 
 or by building and running:
 > make examples
-> dist/example1 --help
+> dist/example1 --home ~/bin/hiveot
 
-This creates a 'tmp' in the examples directory that acts as home for config, certificates, and data storage.
+This uses the "~/bin/hiveot" directory as home directory for config, certificates, and data storage. 
 
 
 ## Simple Examples
@@ -25,19 +25,21 @@ Example 1 creates a standalone IoT device that runs a simple counter. It has a p
 - This offers actions for incrementing and decrementing the counter.
 - This serves Thing discovery of the module TD and can be discovered with example 2.
 
-usage: go run example1/main.go
+usage: go run example1/main.go --home ~/bin/hiveot
 
 ### Example 2. Discovery CLI
 
 A simple commandline utility to discover Things and Directories on the network and optionally show their TD. Use -h to view available filter and display options.
 
-usage: go run example2/main.go [-h] [-td] [-txt] [-type=Thing|Directory] [-addr=192.168.x.y]
+usage: go run example2/main.go [-h] -home ~/bin/hiveot 
+
+This shows the supported commands including discovery and status.
 
 ### Example 3. Browser TUI
 
 Example 3 is a text UI shows discovered devices and their TD.
 
-usage: go run example3/main.go
+usage: go run example3/main.go -home ~/bin/hiveot
 
 This displays a menu with options. Commands:
 
@@ -49,13 +51,16 @@ This displays a menu with options. Commands:
    - invoke actions (todo)
  
 
-### Example 4. Gateway
+### Example 4. Gateway [todo]
 
 The gateway runs a server that both devices and consumers connect to. It includes a discovery server, a directory with discovered and registered devices and a router to forward requests from consumer to standandalone and RC devices.
 
-### Example 5. RC Device (reverse connection)
+### Example 5. RC Device (reverse connection) [todo]
 
 This example constructs a RC device that uses a reverse connection to a gateway. It contains a test device and a client for a gateway.
+
+This is the preferred way to create and connect devices in hiveot. It does require the gateway from example 4. Note that the hiveot Hub is intended as an out-of-the-box gateway.
+
 
 ## Usage
 

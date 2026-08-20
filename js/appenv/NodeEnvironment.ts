@@ -47,7 +47,7 @@ export default class NodeEnvironment extends Object {
     // the clientID. Default is the application binary name - hostname
     // this is the default for the login ID
     clientID: string = ""
-    // the client's private/public key pair used in authentication
+    // the client's private/public key pair used in client certificate
     clientKey: string = ""
     // the client's login ID, when different from the default clientID
     loginID: string = ""
@@ -223,7 +223,7 @@ export default class NodeEnvironment extends Object {
 
         // determine the expected location of the service auth key and token
         this.tokenFile = path.join(this.certsDir, this.clientID + ".token")
-        this.keyFile = path.join(this.certsDir, this.clientID + ".key")
+        this.keyFile = path.join(this.certsDir, this.clientID + "Key.pem")
 
         // attempt to load the CA cert, client key, and auth token, if available in a file
         if (!this.caCertPEM) {

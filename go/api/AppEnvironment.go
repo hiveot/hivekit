@@ -47,11 +47,11 @@ type AppEnvironment struct {
 	PluginsDir string `yaml:"pluginsDir,omitempty"` // Plugin folder
 	HomeDir    string `yaml:"homeDir,omitempty"`    // Home folder, default this is the parent of bin, config, certs and logs
 	ConfigDir  string `yaml:"configDir,omitempty"`  // config folder with application and configuration files
-	ConfigFile string `yaml:"configFile,omitempty"` // Application configuration file. Default is clientID.yaml
-	CertsDir   string `yaml:"certsDir,omitempty"`   // Certificates and keys location
-	LogsDir    string `yaml:"logsDir,omitempty"`    // Logging output
-	LogLevel   string `yaml:"logLevel,omitempty"`   // logging level: error, warning, info, debug
-	StoresDir  string `yaml:"storesDir,omitempty"`  // Root of the service stores
+	// ConfigFile string `yaml:"configFile,omitempty"` // Application configuration file. Default is clientID.yaml
+	CertsDir  string `yaml:"certsDir,omitempty"`  // Certificates and keys location
+	LogsDir   string `yaml:"logsDir,omitempty"`   // Logging output
+	LogLevel  string `yaml:"logLevel,omitempty"`  // logging level: error, warning, info, debug
+	StoresDir string `yaml:"storesDir,omitempty"` // Root of the service stores
 
 	// The provided URL of the directory for a direct connection. This is not the
 	// exploration http endpoint but the directory server itself. This endpoint will
@@ -60,23 +60,8 @@ type AppEnvironment struct {
 	// This is empty if a directory is not available.
 	DirectoryURL string `yaml:"directoryURL,omitempty"`
 
-	// The self-signed CA used to signed the server certificate.
-	// Intended for clients to validate the connection with the server.
-	// If loaded this will be included in the RootCAs.
-	CaCert *x509.Certificate `yaml:"-"` // default cert if loaded
-
 	// The self-signed CA private key if available
 	// CaKey crypto.Signer `yaml:"-"`
-
-	// The self-signed client certificate loaded from {clientID}Cert|Key.pem
-	// Intended for clients that authenticate using a certificate.
-	ClientCert *tls.Certificate `yaml:"-"`
-
-	// The server certificate loaded from ServerCert|ServerKey.pem
-	// Intended for devices, gateway or hub that runs a server.
-	// Use NewInitFactoryCerts in the factory chain to ensure a self signed server
-	// cert is created if needed, or place a cert manually.
-	ServerCert *tls.Certificate `yaml:"-"`
 
 	// The grpc URL used for the grpc server instantiation - part of grpc config
 	// eg: "unix:///path/to/sock"  (yes triple slash)
@@ -84,9 +69,6 @@ type AppEnvironment struct {
 
 	// Override the https port used for the http server instantiation
 	HttpsPort int `yaml:"httpsPort"`
-	// Optional root CA pool. This defaults to nil.
-	// If CaCert is loaded then this is set to the system CA's + the CaCert.
-	rootCAs *x509.CertPool `yaml:"-"`
 
 	// RpcTimeout is the communication timeout for use by transport client and server modules
 	RpcTimeout time.Duration
@@ -96,15 +78,37 @@ type AppEnvironment struct {
 	// or runs on a different server.
 	ServerURL string `yaml:"serverURL,omitempty"`
 
+	//--- loaded and generated data
+
+	// AuthToken contains the client authentication token for connecting to the server.
+	// This can be set manually or loaded with GetAuthToken()
+	// See also GetAuthToken which will attempt to load it on first use.
+	authToken string `yaml:"-"`
+
+	// The self-signed CA used to signed the server certificate.
+	// Intended for clients to validate the connection with the server.
+	// If loaded this will be included in the RootCAs.
+	caCert *x509.Certificate `yaml:"-"` // default cert if loaded
+
+	// The self-signed client certificate loaded from {clientID}Cert|{clientID}Key.pem
+	// Intended for clients that authenticate using a certificate.
+	clientCert *tls.Certificate `yaml:"-"`
+
+	// Optional root CA pool. This defaults to nil.
+	// If CaCert is loaded then this is set to the system CA's + the CaCert.
+	rootCAs *x509.CertPool `yaml:"-"`
+
+	// The server certificate loaded from ServerCert|ServerKey.pem
+	// Intended for devices, gateway or hub that runs a server.
+	// Use NewInitFactoryCerts in the factory chain to ensure a self signed server
+	// cert is created if needed, or place a cert manually.
+	serverCert *tls.Certificate `yaml:"-"`
+
 	//--- ID and credentials for running as a client or using reverse connections ---
 
 	// AppID is the application instance ID derived from the binary
 	// Used as the default clientID
 	AppID string `yaml:"appID"`
-
-	// AuthToken contains the client authentication token for connecting to the server.
-	// This can be set manually or loaded with GetAuthToken()
-	AuthToken string `yaml:"-"`
 
 	// The clientID used to authenticate, in certificate file and token names.
 	// By default the clientID is the same as the appID unless changed.
@@ -121,9 +125,9 @@ type AppEnvironment struct {
 	// KeyFile is the file that holds the private/public keys of the client or application.
 	//
 	// Can be used by client applications to authenticate connect to a hub/gateway.
-	// Intended for encryption and for client cert authentication when using reverse connections.
-	// This is derived from the AppID: {certsDir}/{AppID}.key
-	KeyFile string `yaml:"keyFile"` // app's key pair file location
+	// Intended for encryption and for client cert authentication.
+	// This is derived from the AppID: {certsDir}/{ClientID}Key.pem
+	// KeyFile string `yaml:"keyFile"` // app's key pair file location
 
 }
 
@@ -172,39 +176,74 @@ func (env *AppEnvironment) CreateDir(path string, mode os.FileMode) error {
 // If no auth token is set then this is loaded from {clientID}.token.
 // This returns an error if the token isn't set and the file cant be loaded.
 func (env *AppEnvironment) GetAuthToken() (string, error) {
-	if env.AuthToken != "" {
-		return env.AuthToken, nil
+	if env.authToken != "" {
+		return env.authToken, nil
 	}
 	tokenFile := path.Join(env.CertsDir, env.ClientID+".token")
 	token, err := os.ReadFile(tokenFile)
 	if err != nil {
 		return "", err
 	}
-	env.AuthToken = string(token)
-	return env.AuthToken, nil
+	env.authToken = string(token)
+	return env.authToken, nil
 }
 
-// GetCACert returns a self signed CA certificate that was loaded on initialization.
+// GetCACert returns a self signed CA certificate.
+//
+// If no CA cert is set then this is loaded from {certsDir}/caCert.pem
 //
 // This returns nil if the CA is not set and cannot be loaded.
 func (env *AppEnvironment) GetCACert() (caCert *x509.Certificate, err error) {
-	if env.CaCert == nil {
-		return nil, fmt.Errorf("AppEnvironment:GetCACert. CA Cert not found")
+	if env.caCert != nil {
+		return env.caCert, nil
 	}
-	return env.CaCert, nil
+	certPath := filepath.Join(env.CertsDir, DefaultCaCertFile)
+	env.caCert, err = utils.LoadCACert(certPath)
+	return env.caCert, err
+}
+
+// GetClientCert return the client authentication certificate.
+//
+// This loads the file {certsDir}/{clientID}Cert.pem and {clientID}Key.pem.
+//
+// This returns the TLS certificate or an error if none is found.
+func (env *AppEnvironment) GetClientCert() (cert *tls.Certificate, err error) {
+	if env.clientCert != nil {
+		return env.clientCert, nil
+	}
+	certPath := filepath.Join(env.CertsDir, env.ClientID+DefaultCertFileSuffix)
+	keyPath := filepath.Join(env.CertsDir, env.ClientID+DefaultKeyFileSuffix)
+	env.clientCert, err = utils.LoadTLSCert(certPath, keyPath)
+	return env.clientCert, err
 }
 
 // Return the root CAs collection from the system cert pool
-// This adds the self signed CA cert if available.
+// This includes the self signed CA cert if available.
 func (env *AppEnvironment) GetRootCAs() (rootCAs *x509.CertPool) {
 	if env.rootCAs != nil {
 		return env.rootCAs
 	}
 	env.rootCAs, _ = x509.SystemCertPool()
-	if env.CaCert != nil {
-		env.rootCAs.AddCert(env.CaCert)
+	caCert, _ := env.GetCACert()
+	if caCert != nil {
+		env.rootCAs.AddCert(caCert)
 	}
 	return env.rootCAs
+}
+
+// GetServerCert return the application server certificate.
+//
+// This loads the cert from "ServerCert.pem" and "ServerKey.pem".
+//
+// This returns the cert or an error if none is found.
+func (env *AppEnvironment) GetServerCert() (cert *tls.Certificate, err error) {
+	if env.serverCert != nil {
+		return env.serverCert, nil
+	}
+	certPath := filepath.Join(env.CertsDir, "Server"+DefaultCertFileSuffix)
+	keyPath := filepath.Join(env.CertsDir, "Server"+DefaultKeyFileSuffix)
+	env.serverCert, err = utils.LoadTLSCert(certPath, keyPath)
+	return env.serverCert, err
 }
 
 // Return the directory where a module stores its data.
@@ -214,44 +253,12 @@ func (env *AppEnvironment) GetStorageDir(moduleType string) string {
 	return storeDir
 }
 
-// GetServerCert return the application server certificate.
-//
-// If no cert is loaded then an attempt is made to load it from file using the
-// name ServerCert.pem and ServerKey.pem.
-//
-// This returns the cert or an error if none is found.
-func (env *AppEnvironment) GetServerCert() (cert *tls.Certificate, err error) {
-	if env.ServerCert != nil {
-		return env.ServerCert, nil
-	}
-	certPath := filepath.Join(env.CertsDir, "Server"+DefaultCertFileSuffix)
-	keyPath := filepath.Join(env.CertsDir, "Server"+DefaultKeyFileSuffix)
-	env.ServerCert, err = utils.LoadTLSCert(certPath, keyPath)
-	return env.ServerCert, err
-}
-
-// GetClientCert return the client authentication certificate.
-//
-// If no certificate is loaded then an attempt is made to load it from file
-// using the name {clientID}Cert.pem and {clientID}Key.pem.
-//
-// This returns the TLS certificate or an error if none is found.
-func (env *AppEnvironment) GetClientCert() (cert *tls.Certificate, err error) {
-	if env.ClientCert != nil {
-		return env.ClientCert, nil
-	}
-	certPath := filepath.Join(env.CertsDir, env.ClientID+DefaultCertFileSuffix)
-	keyPath := filepath.Join(env.CertsDir, env.ClientID+DefaultKeyFileSuffix)
-	env.ClientCert, err = utils.LoadTLSCert(certPath, keyPath)
-	return env.ClientCert, err
-}
-
 // LoadConfig loads the application/plugin configuration from {configDir}/{clientID}.yaml
 //
 // This returns an error if loading or parsing the config file fails.
 // Returns nil if the config file doesn't exist or is loaded successfully.
-func (env *AppEnvironment) LoadConfig(cfg interface{}) error {
-	configFile := env.ConfigFile
+func (env *AppEnvironment) LoadConfig(name string, cfg interface{}) error {
+	configFile := name
 	if !path.IsAbs(configFile) {
 		configFile = path.Join(env.CertsDir, configFile)
 	}
@@ -269,6 +276,26 @@ func (env *AppEnvironment) LoadConfig(cfg interface{}) error {
 		err = yaml.Unmarshal(cfgData, cfg)
 	}
 	return err
+}
+
+// Set the CA certificate and add it to the cert pool
+// The updates the environment root CA pool.
+func (env *AppEnvironment) SetCACert(caCert *x509.Certificate) {
+	env.caCert = caCert
+	env.rootCAs, _ = x509.SystemCertPool()
+	env.rootCAs.AddCert(caCert)
+}
+
+// Set or replace the client certificate used by the environment.
+// This will prevent GetClientCert from trying to load the default client certificate.
+func (env *AppEnvironment) SetClientCert(cert *tls.Certificate) {
+	env.clientCert = cert
+}
+
+// Set or replace the server certificate used by the environment.
+// This will prevent GetServerCert from trying to load the default server certificate.
+func (env *AppEnvironment) SetServerCert(cert *tls.Certificate) {
+	env.serverCert = cert
 }
 
 // NewAppEnvironment returns an application environment including folders for use by modules.
@@ -317,7 +344,7 @@ func NewAppEnvironment(homeDir string, withFlags bool) *AppEnvironment {
 	var certsDir string
 	var clientID string
 	var configDir string
-	var configFile string
+	// var configFile string
 	var logLevel string
 	var logsDir string
 	var pluginsDir string
@@ -353,7 +380,7 @@ func NewAppEnvironment(homeDir string, withFlags bool) *AppEnvironment {
 		flag.StringVar(&homeDir, "home", homeDir, "Application home directory")
 		flag.StringVar(&certsDir, "certs", certsDir, "Certificate and keys directory")
 		flag.StringVar(&configDir, "config", configDir, "Configuration directory")
-		flag.StringVar(&configFile, "configfile", configFile, "Configuration file")
+		// flag.StringVar(&configFile, "configfile", configFile, "Configuration file")
 		flag.StringVar(&pluginsDir, "plugins", pluginsDir, "Plugins directory")
 		flag.StringVar(&clientID, "clientID", clientID, "clientID to authenticate with")
 		flag.StringVar(&logLevel, "loglevel", logLevel, "logging level: debug, warning, info, error")
@@ -425,15 +452,12 @@ func NewAppEnvironment(homeDir string, withFlags bool) *AppEnvironment {
 			configDir = filepath.Join(homeDir, "config")
 		}
 	}
-	if configFile == "" {
-		configFile = path.Join(configDir, clientID+".yaml")
-	}
-	// load the CA cert if found
-	caCertFile := path.Join(certsDir, DefaultCaCertFile)
-	caCert, _ := utils.LoadCACert(caCertFile)
+	// if configFile == "" {
+	// configFile = path.Join(configDir, clientID+".yaml")
+	// }
 
 	// determine the expected location of the client auth key and token
-	keyFile := path.Join(certsDir, clientID+".key")
+	// keyFile := path.Join(certsDir, clientID+DefaultKeyFileSuffix)
 
 	utils.SetLogging(logLevel, "")
 
@@ -448,18 +472,17 @@ func NewAppEnvironment(homeDir string, withFlags bool) *AppEnvironment {
 	)
 
 	env := &AppEnvironment{
-		BinDir:       binDir,
-		CaCert:       caCert,
-		AppID:        appID,
-		ClientID:     clientID,
-		ConfigDir:    configDir,
-		ConfigFile:   configFile,
+		BinDir:    binDir,
+		AppID:     appID,
+		ClientID:  clientID,
+		ConfigDir: configDir,
+		// ConfigFile:   configFile,
 		CertsDir:     certsDir,
 		DirectoryURL: directoryURL,
 		// GrpcURL:    grpctransport.DefaultGrpcURL,
 		// HttpsPort:  transport.DefaultHttpsPort,
-		HomeDir:    homeDir,
-		KeyFile:    keyFile,
+		HomeDir: homeDir,
+		// KeyFile:    keyFile,
 		LogsDir:    logsDir,
 		LogLevel:   logLevel,
 		PluginsDir: pluginsDir,

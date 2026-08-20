@@ -307,9 +307,15 @@ func LoadTLSCert(certPEMPath, keyPEMPath string) (tlsCert *tls.Certificate, err 
 	return &cert, err
 }
 
-// SaveTLSCert saves the x509 certificate and private key to separate files in PEM format
+// SaveTLSCert creates and saves the TLS certificate to a x509 and key file in PEM format.
+//
+// If the TLS certificate contains a chain then all certificates in the chain are included
+// in the cert file.
 //
 // Intended for saving a certificate received from provisioning or created for testing.
+// If the directory doesn't exist it will be created with permissions 755
+// The certificate file will be written with permissions 0444. Existing file will be removed first.
+// The key file, if provided, will be written with permissions 0400
 //
 //	tlsCert is the obtained TLS certificate whose parts to save
 //	certPemPath the file to save the X509 certificate to in PEM format
@@ -339,6 +345,10 @@ func SaveTLSCert(tlsCert *tls.Certificate, certPemPath, keyPemPath string) error
 }
 
 // SaveX509Cert saves the x509 certificate to file in PEM format.
+//
+// If the directory doesn't exist it will be created with permissions 755
+// The certificate file will be written with permissions 0444. Existing file will be removed first.
+//
 // Clients that receive a client certificate from provisioning can use this
 // to save the provided certificate to file.
 // If the file exists it is removed first.

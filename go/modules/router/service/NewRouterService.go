@@ -38,7 +38,8 @@ func NewRouterService(storageDir string,
 	getSrv func() []api.ITransportServer,
 ) router.IRouterService {
 
-	m := internal.NewRouterServiceImpl(storageDir, autoReconnect, clientID, clientCert, rootCAs, timeout, getTD, getSrv)
+	m := internal.NewRouterServiceImpl(storageDir, autoReconnect,
+		clientID, clientCert, rootCAs, timeout, getTD, getSrv)
 	return m
 }
 
@@ -71,8 +72,9 @@ func NewRouterServiceFactory(f api.IModuleFactory, md *api.ModuleDefinition) (ap
 	// TODO: use config to set auto-reconnect. For now don't because it might hide auth problems.
 	autoReconnect := DefaultRouterAutoConnect
 	timeout := f.GetEnvironment().RpcTimeout
+	clientCert, _ := env.GetClientCert()
 	svc := NewRouterService(
-		storageDir, autoReconnect, env.ClientID, env.ClientCert, env.GetRootCAs(),
+		storageDir, autoReconnect, env.ClientID, clientCert, env.GetRootCAs(),
 		timeout, getTD, f.GetTransportServers)
 	svc.SetTimeout(env.RpcTimeout)
 
