@@ -105,7 +105,7 @@ func NewBucketServiceImpl(location string, storeType string) *BucketServiceImpl 
 
 	// this module is a singleton that exposes multiple service things
 	thingID := bucketstore.DefaultBucketStoreThingID
-	m := &BucketServiceImpl{
+	svc := &BucketServiceImpl{
 		HiveModuleBase: modules.NewHiveModuleBase(thingID, 0),
 		location:       location,
 		backend:        storeType,
@@ -115,8 +115,8 @@ func NewBucketServiceImpl(location string, storeType string) *BucketServiceImpl 
 		// bucketStore: bucketStore,
 	}
 
-	var _ api.IHiveModule = m                // interface check
-	var _ bucketstore.IBucketStore = m.store // interface check
+	var _ api.IHiveModule = svc                // interface check
+	var _ bucketstore.IBucketStore = svc.store // interface check
 
-	return m
+	return svc
 }

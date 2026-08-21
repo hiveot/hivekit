@@ -20,25 +20,6 @@ import (
 	"time"
 )
 
-// Certificate Organization Unit for client certificate based authorization.
-// Intended to identify the purpose of the certificate.
-const (
-	//ClientOUAdmin lets a client approve things provisioning (postOOB), add and remove users
-	ClientOUAdmin = "admin"
-
-	// OUNone is the default OU with no API access permissions
-	ClientOUNone = "n/a"
-
-	// OUConsumer for consumers
-	ClientOUConsumer = "consumer"
-
-	// OUIoTDevice for IoT devices
-	ClientOUIoTDevice = "device"
-
-	// OUService for Hiveot services.
-	ClientOUService = "service"
-)
-
 // CreateCACert creates a CA certificate for signing certificates and digital signatures.
 // Intended for self-signed server, client certificates and message signing.
 // Source: https://shaneutt.com/blog/golang-ca-and-signed-cert-go/

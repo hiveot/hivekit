@@ -258,22 +258,3 @@ func NewJWTAuthenticator(
 	var _ authn.IAuthnAuthenticator = svc // interface check
 	return svc
 }
-
-// NewJWTAuthenticatorFromFile returns a new instance of a JWT token authenticator
-// loading a keypair from file or creating one if it doesn't exist.
-// This returns nil if no signing key can be loaded or created
-//func NewJWTAuthenticatorFromFile(
-//	authnStore api.IAuthnStore,
-//	keysDir string, keyType keys.KeyType) *JWTAuthenticator {
-//
-//	clientID := "authn"
-//	signingKey, err := keys.LoadCreateKeyPair(clientID, keysDir, keyType)
-//	if err != nil {
-//		slog.Error("NewJWTAuthenticatorFromFile failed creating key pair for client",
-//			"err", err.Error(), "clientID", clientID)
-//		return nil
-//	}
-//	_ = err
-//	svc := NewJWTAuthenticator(authnStore, signingKey)
-//	return svc
-//}

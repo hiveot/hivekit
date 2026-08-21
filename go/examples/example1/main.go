@@ -9,7 +9,6 @@ import (
 
 	"github.com/hiveot/hivekit/go/api"
 
-	"github.com/hiveot/hivekit/go/modules/authn"
 	standalonerecipe "github.com/hiveot/hivekit/go/modules/factory/recipes/standalone"
 	factory_service "github.com/hiveot/hivekit/go/modules/factory/service"
 	"github.com/hiveot/hivekit/go/testenv"
@@ -26,14 +25,18 @@ var ExampleHome = path.Join(os.TempDir(), "hivekit-examples")
 // This uses the "StandAloneDevice" factory recipe and inserts the test counter module
 // into the app slot.
 //
+// The factory authn module factory creates an admin client certificate and auth token if
+// not present.
+//
 // See the factory/recipes/StandAloneDeviceRecipe.go for the modules in the recipe.
 // On start the device publishes its TD to the discovery server.
 func main() {
 	env := api.NewAppEnvironment(ExampleHome, true)
 	env.RpcTimeout = time.Minute // for testing
+	env.HttpsPort = 9222         // for testing
 
 	if env.ClientID == "" {
-		env.ClientID = "admin"
+		env.ClientID = api.DefaultAdminUserID
 	}
 
 	f := factory_service.NewModuleFactory(env, nil)
@@ -47,36 +50,11 @@ func main() {
 		os.Exit(1)
 	}
 
-	// Create an admine account for the client and export its 24 hour token.
-	// FIXME: would this be better for the factory or authn service?
-	authnSvc := api.GetFactoryModule[authn.IAuthnService](f, authn.AuthnServiceModuleType)
-	if authnSvc != nil {
-		var token string
-		_ = authnSvc.AddClient(ExampleClientID, "Example client", authn.ClientRoleOperator)
-		// _ = authnSvc.SetPassword(ExampleClientID, ExampleClientID)
-		// this client test token can be used for 24 hours
-		clientID := ExampleClientID
-		token, _, err = authnSvc.GetSessionManager().CreateToken(clientID, time.Hour*24)
-		tokenFile := path.Join(env.CertsDir, clientID+".token")
-		err := env.CreateDir(env.CertsDir, 0700)
-		if err != nil {
-			fmt.Println(err.Error())
-			os.Exit(1)
-		}
-		// remove old token
-		err = os.Remove(tokenFile)
-		err = os.WriteFile(tokenFile, []byte(token), 0400)
-		if err != nil {
-			fmt.Printf("main:ERROR writing auth token: %s\n", err.Error())
-			os.Exit(1)
-		}
-		fmt.Printf("Renewed the admin token at '%s'\n", tokenFile)
-	}
-
 	// next start the app module
 	cfg := &testenv.CounterConfig{
 		AutoIncrement: false,
-		ResetValue:    60}
+		ResetValue:    60,
+	}
 	appModule := testenv.NewCounterDevice("", cfg)
 
 	// requests from the app module are passed to the modules in the chain
@@ -92,6 +70,7 @@ func main() {
 	appModule.SetNotificationSink(r)
 	appModule.Start()
 
+	fmt.Printf("main: homeDir: %s\n", env.HomeDir)
 	fmt.Printf("main: Counter is running and listening on '%s'\n", f.GetConnectURL())
 	fmt.Printf("main: Use the cli from example 2 to read its status\n")
 	f.WaitForSignal(context.Background())

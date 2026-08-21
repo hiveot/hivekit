@@ -12,8 +12,8 @@ import (
 const AuthzModuleType = "authz"
 
 func NewAuthzService(getRoleHandler func(clientID string) (role string, err error)) authz.IAuthzService {
-	m := internal.NewAuthzServiceImpl(getRoleHandler)
-	return m
+	svc := internal.NewAuthzServiceImpl(getRoleHandler)
+	return svc
 }
 
 // factory function for creating authz module instance.
@@ -29,12 +29,12 @@ func NewAuthzServiceFactory(f api.IModuleFactory, md *api.ModuleDefinition) (api
 		return nil, err
 	}
 	// getrole uses the authn module to get the client profile
-	m := internal.NewAuthzServiceImpl(func(clientID string) (string, error) {
+	svc := internal.NewAuthzServiceImpl(func(clientID string) (string, error) {
 		p, err := authn.GetProfile(clientID)
 		if err != nil {
 			return "", err
 		}
 		return p.Role, nil
 	})
-	return m, nil
+	return svc, nil
 }

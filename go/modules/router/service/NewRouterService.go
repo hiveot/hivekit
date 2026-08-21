@@ -38,9 +38,9 @@ func NewRouterService(storageDir string,
 	getSrv func() []api.ITransportServer,
 ) router.IRouterService {
 
-	m := internal.NewRouterServiceImpl(storageDir, autoReconnect,
+	svc := internal.NewRouterServiceImpl(storageDir, autoReconnect,
 		clientID, clientCert, rootCAs, timeout, getTD, getSrv)
-	return m
+	return svc
 }
 
 // Create a router service instance using the factory environment

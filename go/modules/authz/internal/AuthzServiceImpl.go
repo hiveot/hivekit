@@ -26,32 +26,32 @@ type AuthzServiceImpl struct {
 
 // Handle requests to be served by this module and filter unauthorized requests.
 // This depends on a validated SenderID in the request message.
-func (m *AuthzServiceImpl) HandleRequest(req *msg.RequestMessage, replyTo msg.ResponseHandler) error {
+func (svc *AuthzServiceImpl) HandleRequest(req *msg.RequestMessage, replyTo msg.ResponseHandler) error {
 
-	hasPermission := m.HasPermission(req)
+	hasPermission := svc.HasPermission(req)
 	if !hasPermission {
 		return fmt.Errorf("Insufficient permissions for request '%s' by client '%s'", req.Operation, req.SenderID)
 	}
 
 	if req.ThingID == AuthzAdminServiceID {
-		return HandleAuthzAdminRequest(m, req, replyTo)
+		return HandleAuthzAdminRequest(svc, req, replyTo)
 	}
 	// forward the request to the chain
-	return m.HiveModuleBase.HandleRequest(req, replyTo)
+	return svc.HiveModuleBase.HandleRequest(req, replyTo)
 }
 
 // start opens the store with authorization rules
 // currently the RBAC is hard coded so nothing to configure
-func (m *AuthzServiceImpl) Start() (err error) {
+func (svc *AuthzServiceImpl) Start() (err error) {
 	slog.Info("Start: Starting authz")
-	if m.getRoleHandler == nil {
+	if svc.getRoleHandler == nil {
 		slog.Warn("AuthzModule: no getRoleHandler provided, only read requests will be accepted")
 	}
 	return nil
 }
 
 // Stop closes the rules store and releases resources
-func (m *AuthzServiceImpl) Stop() {
+func (svc *AuthzServiceImpl) Stop() {
 	slog.Info("Stop: Stopping authz")
 }
 
@@ -60,10 +60,10 @@ func (m *AuthzServiceImpl) Stop() {
 func NewAuthzServiceImpl(getRoleHandler func(clientID string) (role string, err error)) *AuthzServiceImpl {
 	// this module is a singleton that exposes multiple service things
 	thingID := authz.AuthzServiceModuleType
-	m := &AuthzServiceImpl{
+	svc := &AuthzServiceImpl{
 		HiveModuleBase: modules.NewHiveModuleBase(thingID, 0),
 		getRoleHandler: getRoleHandler,
 	}
-	var _ api.IHiveModule = m // check interface
-	return m
+	var _ api.IHiveModule = svc // check interface
+	return svc
 }

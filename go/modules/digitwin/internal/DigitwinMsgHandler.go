@@ -20,7 +20,7 @@ import (
 //
 // If the request is not for this module then it is forwarded to the next sink.
 // If the request is for this module but invalid, an error is returned
-func (m *DigitwinServiceImpl) HandleRequest(req *msg.RequestMessage, replyTo msg.ResponseHandler) (err error) {
+func (svc *DigitwinServiceImpl) HandleRequest(req *msg.RequestMessage, replyTo msg.ResponseHandler) (err error) {
 
 	// Handle requests for a digital twin
 	// TODO: try to remove the thingID dependency on the digital twin.
@@ -39,10 +39,10 @@ func (m *DigitwinServiceImpl) HandleRequest(req *msg.RequestMessage, replyTo msg
 			td.OpReadProperty, // this returns the property value
 			td.HTOpReadEvent,  // this returns the event notification (not just the value)
 			td.HTOpReadAllEvents:
-			err = m.vcache.HandleRequest(req, replyTo)
+			err = svc.vcache.HandleRequest(req, replyTo)
 			if err != nil {
 				// vcache didn't handle the request, so forward it
-				return m.ForwardDigitwinRequestToDevice(req, replyTo)
+				return svc.ForwardDigitwinRequestToDevice(req, replyTo)
 			}
 
 		// write requests are forwarded to the actual device after mapping
@@ -51,22 +51,22 @@ func (m *DigitwinServiceImpl) HandleRequest(req *msg.RequestMessage, replyTo msg
 			td.OpWriteMultipleProperties,
 			td.OpInvokeAction:
 
-			return m.ForwardDigitwinRequestToDevice(req, replyTo)
+			return svc.ForwardDigitwinRequestToDevice(req, replyTo)
 		}
 	}
 
 	// Handle requests for this module
-	if req.ThingID != m.GetThingID() {
+	if req.ThingID != svc.GetThingID() {
 		return nil
 	} else if req.SenderID == "" {
 		err := fmt.Errorf("missing senderID in request")
 		return err
 	}
-	return m.HandleDigitwinRequest(req, replyTo)
+	return svc.HandleDigitwinRequest(req, replyTo)
 }
 
 // HandleRequest handles requests aimed at the digital twin module itself
-func (handler *DigitwinServiceImpl) HandleDigitwinRequest(req *msg.RequestMessage, replyTo msg.ResponseHandler) (err error) {
+func (svc *DigitwinServiceImpl) HandleDigitwinRequest(req *msg.RequestMessage, replyTo msg.ResponseHandler) (err error) {
 	var resp *msg.ResponseMessage
 
 	// Handle requests for this module

@@ -49,10 +49,6 @@ func (srv *TestAuthenticator) AddSecurityScheme(tdoc *td.TD) {
 	})
 }
 
-//func (d *DummyAuthenticator) AddToken(clientID string, token string) {
-//	d.tokens[clientID] = token
-//}
-
 // if validity is 0 it defaults to 1 minute
 func (d *TestAuthenticator) CreateToken(
 	clientID string, validity time.Duration) (token string, validUntil time.Time, err error) {

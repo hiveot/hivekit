@@ -36,43 +36,43 @@ type ChainRecipe struct {
 
 // Recipe receives notifications from the application.
 // Send it up the recipe content chain, starting at the last module.
-func (m *ChainRecipe) HandleNotification(notif *msg.NotificationMessage) {
-	if len(m.modList) == 0 {
+func (r *ChainRecipe) HandleNotification(notif *msg.NotificationMessage) {
+	if len(r.modList) == 0 {
 		return
 	}
-	tail := m.modList[len(m.modList)-1]
+	tail := r.modList[len(r.modList)-1]
 	tail.HandleNotification(notif)
 }
 
 // Requests sent to the chain are passed on to the first module in the chain.
 // If no modules are registered then this is an error.
-func (m *ChainRecipe) HandleRequest(req *msg.RequestMessage, replyTo msg.ResponseHandler) error {
-	if len(m.modList) == 0 {
+func (r *ChainRecipe) HandleRequest(req *msg.RequestMessage, replyTo msg.ResponseHandler) error {
+	if len(r.modList) == 0 {
 		return fmt.Errorf("HandleRequest: recipe has no modules registered")
 	}
-	head := m.modList[0]
+	head := r.modList[0]
 	return head.HandleRequest(req, replyTo)
 }
 
 // Set the sink for notifications from the chain
 // This sets the sink to the first module in the chain. Call this after start.
-func (m *ChainRecipe) SetNotificationSink(sink api.IHiveModule, thingIDs ...string) {
-	if len(m.modList) == 0 {
+func (r *ChainRecipe) SetNotificationSink(sink api.IHiveModule, thingIDs ...string) {
+	if len(r.modList) == 0 {
 		slog.Error("SetNotificationSink called but the chain is not started")
 		return
 	}
-	head := m.modList[0]
+	head := r.modList[0]
 	head.SetNotificationSink(sink, thingIDs...)
 }
 
 // Set the sink for requests from the chain
 // This sets the sink to the last module in the chain. Call this after start.
-func (m *ChainRecipe) SetRequestSink(sink api.IHiveModule) {
-	if len(m.modList) == 0 {
+func (r *ChainRecipe) SetRequestSink(sink api.IHiveModule) {
+	if len(r.modList) == 0 {
 		slog.Error("SetRequestSink called but the chain is not started")
 		return
 	}
-	tail := m.modList[len(m.modList)-1]
+	tail := r.modList[len(r.modList)-1]
 	tail.SetRequestSink(sink)
 }
 
@@ -80,10 +80,10 @@ func (m *ChainRecipe) SetRequestSink(sink api.IHiveModule) {
 // Use this before starting the chain.
 // Intended to create chain templates where the application module needs to be placed
 // before some other modules.
-func (m *ChainRecipe) SetSlot(slotID string, modDef api.ModuleDefinition) error {
-	for i, md := range m.chain {
+func (r *ChainRecipe) SetSlot(slotID string, modDef api.ModuleDefinition) error {
+	for i, md := range r.chain {
 		if md.Type == slotID {
-			m.chain[i] = modDef
+			r.chain[i] = modDef
 			return nil
 		}
 	}
@@ -103,28 +103,28 @@ func (m *ChainRecipe) SetSlot(slotID string, modDef api.ModuleDefinition) error 
 // * sending a notification to the chain passes it to the last module, which makes it
 //
 //	way to the first module and up to the linked notification handler.
-func (m *ChainRecipe) Start() error {
+func (r *ChainRecipe) Start() error {
 
 	// register all modules with the factory
-	for _, moduleDef := range m.chain {
-		m.f.RegisterModule(moduleDef)
+	for _, moduleDef := range r.chain {
+		r.f.RegisterModule(moduleDef)
 	}
 
 	// start and link modules in the defined order
-	m.modList = make([]api.IHiveModule, 0, len(m.chain))
+	r.modList = make([]api.IHiveModule, 0, len(r.chain))
 	var prevModule api.IHiveModule
-	for _, moduleDef := range m.chain {
-		member, err := m.f.StartModule(moduleDef.Type, true)
+	for _, moduleDef := range r.chain {
+		member, err := r.f.StartModule(moduleDef.Type, true)
 		if err != nil {
 			slog.Error("StartRecipe: starting module failed. Shutting down",
 				"moduleType", moduleDef.Type, "err", err.Error())
-			m.Stop()
+			r.Stop()
 			return err
 		} else if member == nil {
 			// don't track 'one-shot' modules that are used to initialize the factory.
 			// These return nil without error.
 		} else {
-			m.modList = append(m.modList, member)
+			r.modList = append(r.modList, member)
 			// Link the module to the previous module in the list
 			if prevModule != nil {
 				prevModule.SetRequestSink(member)

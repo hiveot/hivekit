@@ -6,6 +6,9 @@ import (
 	"github.com/hiveot/hivekit/go/modules/authn/internal/serviceimpl"
 )
 
+// admin auth validity
+const DefaultAdminTokenValidityDays = 366
+
 // NewAuthnService create a new instance of the authentication service using RRN messaging.
 // This service offers the ability to manage clients.
 //
@@ -17,19 +20,22 @@ import (
 func NewAuthnService(
 	authnConfig authn.AuthnConfig) authn.IAuthnService {
 
-	m := serviceimpl.NewAuthnServiceImpl(authnConfig)
-	return m
+	svc := serviceimpl.NewAuthnServiceImpl(authnConfig)
+	return svc
 }
 
 // Create a new instance of the authentication service using the factory environment.
+//
 // The factory will provide the configuration and http server.
 // This sets the authn session manager as the factory authenticator.
+// This configures the authn service to create an admin account token on startup.
 func NewAuthnServiceFactory(f api.IModuleFactory, md *api.ModuleDefinition) (api.IHiveModule, error) {
 	env := f.GetEnvironment()
 	keysDir := env.CertsDir
 	storageDir := env.GetStorageDir(authn.AuthnServiceModuleType)
 	authnConfig := authn.NewAuthnConfig(keysDir, storageDir)
-	m := NewAuthnService(authnConfig)
-	f.SetAuthenticator(m.GetSessionManager())
-	return m, nil
+	authnConfig.AdminTokenValidityDays = DefaultAdminTokenValidityDays
+	svc := NewAuthnService(authnConfig)
+	f.SetAuthenticator(svc.GetSessionManager())
+	return svc, nil
 }

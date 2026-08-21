@@ -3,6 +3,7 @@ package authn_test
 import (
 	"os"
 	"path"
+	"path/filepath"
 	"testing"
 	"time"
 
@@ -13,6 +14,7 @@ import (
 	"github.com/hiveot/hivekit/go/modules/transport/tlsserver"
 	tls_server "github.com/hiveot/hivekit/go/modules/transport/tlsserver/server"
 	"github.com/hiveot/hivekit/go/utils"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -26,8 +28,6 @@ var testClientID1 = "client1"
 var rpcTimeout = time.Minute * 3
 
 const TestKeyType = utils.KeyTypeED25519
-
-const appID = "authn-test"
 
 // TestMain creates a test environment
 // Used for all test cases in this package
@@ -77,6 +77,7 @@ func startTestAuthnModule(encryption string) (tp api.IHttpServer, authnSvc authn
 
 	authnConfig = authn.NewAuthnConfig(testDir, testDir)
 	authnConfig.PasswordFile = passwordFile
+	authnConfig.AdminTokenValidityDays = 1
 	// authnConfig.DeviceTokenValidityDays = 1
 	authnConfig.Encryption = encryption
 
@@ -121,6 +122,11 @@ func TestStartStop(t *testing.T) {
 	httpServer, m, stopFn := startTestAuthnModule(defaultHash)
 	require.NotNil(t, m)
 	require.NotNil(t, httpServer)
+
+	//	expect an admin token to be created in the keys dir
+	adminTokenPath := filepath.Join(authnConfig.KeysDir, api.DefaultAdminUserID+api.DefaultTokenFileSuffix)
+	assert.FileExists(t, adminTokenPath)
+
 	defer stopFn()
 }
 

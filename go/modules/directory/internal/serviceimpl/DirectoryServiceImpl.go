@@ -155,7 +155,7 @@ func NewDirectoryServiceImpl(
 	}
 	// }
 	tddJson := td.MarshalTD(dirTDD)
-	m := &DirectoryServiceImpl{
+	svc := &DirectoryServiceImpl{
 		HiveModuleBase: modules.NewHiveModuleBase(thingID, 0),
 		httpServer:     httpServer,
 		storageLoc:     location,
@@ -164,7 +164,7 @@ func NewDirectoryServiceImpl(
 		tdCache:        make(map[string]*td.TD),
 	}
 
-	var _ directory.IDirectoryService = m // interface check
+	var _ directory.IDirectoryService = svc // interface check
 
-	return m
+	return svc
 }

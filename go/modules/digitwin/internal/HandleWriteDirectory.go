@@ -11,10 +11,10 @@ import (
 
 // Delete the digital twin TD of the thingID.
 // This returns an error if the TD should not be deleted
-func (m *DigitwinServiceImpl) HandleDeleteTD(clientID string, thingID string) error {
+func (svc *DigitwinServiceImpl) HandleDeleteTD(clientID string, thingID string) error {
 
 	deviceThingID := fmt.Sprint(clientID, ":", thingID)
-	m.deviceTDBucket.Delete(deviceThingID)
+	svc.deviceTDBucket.Delete(deviceThingID)
 	return nil
 }
 
@@ -30,7 +30,7 @@ func (m *DigitwinServiceImpl) HandleDeleteTD(clientID string, thingID string) er
 // 6. Inserts forms that point to the digital twin
 //
 // This returns the updated TD, or the old one if no digital twin is used for this Thing.
-func (m *DigitwinServiceImpl) HandleWriteDirectory(senderID string, tdi *td.TD) (*td.TD, error) {
+func (svc *DigitwinServiceImpl) HandleWriteDirectory(senderID string, tdi *td.TD) (*td.TD, error) {
 
 	// 1. service types do not get a digital twin
 	// this seems a bit simplistic but it avoids hiveot modules from getting a twin
@@ -41,7 +41,7 @@ func (m *DigitwinServiceImpl) HandleWriteDirectory(senderID string, tdi *td.TD) 
 	// 2. store the original TD and its clientID for retrieval by the router
 	tdi.RCID = senderID
 	tdJson, _ := jsoniter.Marshal(tdi)
-	m.deviceTDBucket.Set(tdi.ID, tdJson)
+	svc.deviceTDBucket.Set(tdi.ID, tdJson)
 
 	// 3. change the device ID to the digitwin ID
 	// note that this modifies the original TD. - is this a problem?
@@ -69,8 +69,8 @@ func (m *DigitwinServiceImpl) HandleWriteDirectory(senderID string, tdi *td.TD) 
 	}
 
 	// 6. populate the TD with forms and security definitions of the available transports
-	if m.addForms != nil {
-		m.addForms(dtwTD, m.includeAffordanceForms)
+	if svc.addForms != nil {
+		svc.addForms(dtwTD, svc.includeAffordanceForms)
 	}
 
 	return dtwTD, nil

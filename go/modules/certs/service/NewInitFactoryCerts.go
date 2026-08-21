@@ -59,7 +59,7 @@ func NewInitFactoryCerts(
 	clientCert, err := env.GetClientCert()
 	if err != nil {
 		clientCert, err = internal.CreateSelfSignedClientCert(
-			certs.DefaultAdminID, cfg, "ou", certs.DefaultAdminValidityPeriod)
+			api.DefaultAdminUserID, cfg, "ou", certs.DefaultAdminValidityPeriod)
 		env.SetClientCert(clientCert)
 	}
 	// the job here is done. No need to return a module

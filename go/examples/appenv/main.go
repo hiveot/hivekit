@@ -5,6 +5,7 @@ import (
 	"os"
 
 	"github.com/hiveot/hivekit/go/api"
+	"github.com/hiveot/hivekit/go/utils"
 )
 
 // Commandline utility for displaying the application environment
@@ -38,6 +39,18 @@ func main() {
 		fmt.Printf(" - Locality: %s\n", caCert.Subject.Locality)
 		fmt.Printf(" - Organization: %s\n", caCert.Subject.Organization)
 		fmt.Printf(" - valid until: %s\n", caCert.NotAfter)
+	}
+	// same for client cert
+	clientCert, err := appenv.GetClientCert()
+	if err != nil {
+		fmt.Printf(" Client cert not loaded: %s\n", err.Error())
+	} else {
+		chain, _ := utils.TLSCertToX509(clientCert)
+		cert := chain[0]
+		fmt.Printf(" Client Cert cert was successfully loaded\n")
+		fmt.Printf(" - CN: %s\n", cert.Subject.CommonName)
+		fmt.Printf(" - OU: %s\n", cert.Subject.OrganizationalUnit)
+		fmt.Printf(" - valid until: %s\n", cert.NotAfter)
 	}
 
 }

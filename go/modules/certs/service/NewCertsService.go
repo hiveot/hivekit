@@ -21,7 +21,7 @@ func NewCertsService(config *certs.CertsConfig) certs.ICertsService {
 //
 //	CertsDir is the storage directory to read or create keys and certificates.
 func NewCertsServiceFactory(f api.IModuleFactory, md *api.ModuleDefinition) (
-	m api.IHiveModule, err error) {
+	svc api.IHiveModule, err error) {
 
 	envDir := f.GetEnvironment()
 
@@ -35,11 +35,11 @@ func NewCertsServiceFactory(f api.IModuleFactory, md *api.ModuleDefinition) (
 			}
 		}
 	}
-	m = NewCertsService(config)
+	svc = NewCertsService(config)
 	// if config.Provider == certs.LetsEncryptProvider {
 	// 	m = NewLetsEncryptCertService(config)
 	// } else {
 	// 	m = NewSelfSignedCertService(config)
 	// }
-	return m, nil
+	return svc, nil
 }

@@ -26,7 +26,7 @@ const (
 	SseScOpConnect = "ssesc-connect"
 )
 
-// Interface of the HiveotSseSc transport module
+// Interface of the HiveotSseSc transport server
 type ISseScTransportServer interface {
 	api.ITransportServer
 

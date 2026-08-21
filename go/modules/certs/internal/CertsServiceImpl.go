@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"log/slog"
 	"path"
+	"path/filepath"
 	"time"
 
 	"github.com/hiveot/hivekit/go/api"
@@ -168,6 +169,7 @@ func (svc *CertsServiceImpl) RefreshCA(minRemaining time.Duration) error {
 // Start readies the certificate management service for use.
 //
 // If a self-signed CA isn't configured, it will be created.
+// If an AdminCertValidityDays is configured create its client certificate.
 //
 // This returns an error if a certsdir is not provided.
 func (svc *CertsServiceImpl) Start() (err error) {
@@ -189,6 +191,25 @@ func (svc *CertsServiceImpl) Start() (err error) {
 	// include the CA in the certificate pool for verifying certificates
 	svc.caCertPool, _ = x509.SystemCertPool()
 	svc.caCertPool.AddCert(svc.config.CaCert)
+
+	// create an admin client cert if validation period is set and no exist cert exists
+	if cfg.AdminCertValidityDays > 0 {
+		adminID := api.DefaultAdminUserID
+		certPath := filepath.Join(cfg.CertsDir, adminID+api.DefaultCertFileSuffix)
+		keyPath := filepath.Join(cfg.CertsDir, adminID+api.DefaultPrivKeyFileSuffix)
+		adminCert, err := utils.LoadTLSCert(certPath, keyPath)
+		_ = adminCert
+		if err != nil {
+			// admin client cert doesn't exist, create one
+			privKey, pubKey := utils.NewEd25519Key()
+			certValidity := time.Duration(cfg.AdminCertValidityDays) * 24 * time.Hour
+			adminX509, err2 := svc.CreateClientCert(
+				adminID, api.ClientOUAdmin, certValidity, pubKey)
+			err = err2
+			adminCert := utils.X509CertToTLS(adminX509, privKey)
+			utils.SaveTLSCert(adminCert, certPath, keyPath)
+		}
+	}
 
 	return err
 }

@@ -23,8 +23,8 @@ import (
 func NewDigitwinService(storageDir string, dirModule directory.IDirectoryService,
 	addForms func(tdi *td.TD, includeAffordances bool)) digitwin.IDigitwinService {
 
-	m := internal.NewDigitwinServiceImpl(storageDir, dirModule, addForms)
-	return m
+	svc := internal.NewDigitwinServiceImpl(storageDir, dirModule, addForms)
+	return svc
 }
 
 // Create a new digitwin service using the module factory
@@ -36,14 +36,14 @@ func NewDigitwinServiceFactory(f api.IModuleFactory, md *api.ModuleDefinition) (
 	storageDir := filepath.Join(env.StoresDir, digitwin.DigitwinModuleType)
 
 	// the directory module used to intercept directory writes to create digital twins of
-	m, err := f.StartModule(directory.DirectoryServiceModuleType, true)
+	svc, err := f.StartModule(directory.DirectoryServiceModuleType, true)
 	if err != nil {
 		return nil, err
 	}
-	dirModule, ok := m.(directory.IDirectoryService)
+	dirModule, ok := svc.(directory.IDirectoryService)
 	if !ok {
 		return nil, fmt.Errorf("NewDigitwinServiceFactory: directory module is wrong type")
 	}
-	m = NewDigitwinService(storageDir, dirModule, f.AddTDSecForms)
-	return m, nil
+	svc = NewDigitwinService(storageDir, dirModule, f.AddTDSecForms)
+	return svc, nil
 }

@@ -32,26 +32,26 @@ type StarRecipe struct {
 }
 
 // Receives notifications from downstream and send it to all modules
-func (m *StarRecipe) HandleNotification(notif *msg.NotificationMessage) {
-	for _, member := range m.instances {
+func (r *StarRecipe) HandleNotification(notif *msg.NotificationMessage) {
+	for _, member := range r.instances {
 		member.HandleNotification(notif)
 	}
 }
 
 // Requests sent to the star are passed on to the module with the matching thingID.
 // If no modules match it is forwarded to the registered sink.
-func (m *StarRecipe) HandleRequest(req *msg.RequestMessage, replyTo msg.ResponseHandler) error {
-	ray, found := m.instances[req.ThingID]
+func (r *StarRecipe) HandleRequest(req *msg.RequestMessage, replyTo msg.ResponseHandler) error {
+	ray, found := r.instances[req.ThingID]
 	if found {
 		return ray.HandleRequest(req, replyTo)
 	}
-	return m.HiveModuleBase.HandleRequest(req, replyTo)
+	return r.HiveModuleBase.HandleRequest(req, replyTo)
 }
 
-func (m *StarRecipe) SetSlot(slotID string, modDef api.ModuleDefinition) error {
-	for i, md := range m.star {
+func (r *StarRecipe) SetSlot(slotID string, modDef api.ModuleDefinition) error {
+	for i, md := range r.star {
 		if md.Type == slotID {
-			m.star[i] = modDef
+			r.star[i] = modDef
 			return nil
 		}
 	}
@@ -59,34 +59,34 @@ func (m *StarRecipe) SetSlot(slotID string, modDef api.ModuleDefinition) error {
 }
 
 // Start the recipe
-func (m *StarRecipe) Start() error {
+func (r *StarRecipe) Start() error {
 
 	// add the module definitions to the factory
-	if m.star != nil {
+	if r.star != nil {
 		// register all modules
-		for _, modDef := range m.star {
-			m.f.RegisterModule(modDef)
+		for _, modDef := range r.star {
+			r.f.RegisterModule(modDef)
 		}
 	}
 	// start modules in the defined order and link their notifications
-	for _, moduleDef := range m.star {
-		ray, err := m.f.StartModule(moduleDef.Type, true)
+	for _, moduleDef := range r.star {
+		ray, err := r.f.StartModule(moduleDef.Type, true)
 		// module cant be started. This is fatal
 		if err != nil {
 			slog.Error("StartRecipe: starting module failed. Shutting down",
 				"moduleType", moduleDef.Type, "err", err.Error())
-			m.Stop()
+			r.Stop()
 			return err
-		} else if m == nil {
+		} else if r == nil {
 			// don't track 'one-shot' modules that are used to initialize the factory.
 			// These return nil without error.
 		} else {
-			m.instances[ray.GetThingID()] = ray
+			r.instances[ray.GetThingID()] = ray
 			// requests send by the ray will be forwarded to the star, which
 			// passes it to the ray module with the matching thingID. See HandleRequest.
-			ray.SetRequestSink(m)
+			ray.SetRequestSink(r)
 			// all notifications from the rays will be forwarded to the star. See HandleNotification.
-			ray.SetNotificationSink(m)
+			ray.SetNotificationSink(r)
 		}
 	}
 	return nil

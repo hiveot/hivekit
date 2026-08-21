@@ -1,0 +1,44 @@
+package main
+
+import (
+	"context"
+	"fmt"
+	"os"
+	"path"
+	"time"
+
+	"github.com/hiveot/hivekit/go/api"
+	gatewayrecipe "github.com/hiveot/hivekit/go/modules/factory/recipes/gateway"
+	factory_service "github.com/hiveot/hivekit/go/modules/factory/service"
+)
+
+var ExampleHome = path.Join(os.TempDir(), "hivekit-examples")
+
+// Example of an IoT gateway using the HiveKit gateway factory recipe.
+//
+// The authn module factory creates a new admin auth token if not present.
+// The certs module factory creates a new admin client cert if not present.
+//
+// See the factory/recipes/GatewayRecipe.go for the modules in the recipe.
+func main() {
+
+	env := api.NewAppEnvironment(ExampleHome, true)
+	env.RpcTimeout = time.Minute // for testing
+
+	f := factory_service.NewModuleFactory(env, nil)
+	r := gatewayrecipe.NewGatewayDeviceRecipe(f, false)
+
+	// the authn factory creates an admin token and client certificate for use by consumers
+
+	err := r.Start()
+	if err != nil {
+		fmt.Println("Startup failed: " + err.Error())
+		os.Exit(1)
+	}
+
+	fmt.Printf("main: homeDir: %s\n", env.HomeDir)
+	fmt.Printf("main: Counter is running and listening on '%s'\n", f.GetConnectURL())
+	f.WaitForSignal(context.Background())
+	f.Stop()
+
+}

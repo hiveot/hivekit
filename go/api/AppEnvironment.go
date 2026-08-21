@@ -22,6 +22,10 @@ import (
 // For use in the factory chain
 const AppEnvironmentModuleType = "AppEnvironment"
 
+// DefaultAdminUserID is the default administrator client ID
+// Used by authn and certs modules to create an admin account on startup.
+const DefaultAdminUserID = "admin"
+
 // certificate file names
 const (
 	// CA key for creating self signed certificates
@@ -30,12 +34,35 @@ const (
 	// clients and server need the CA
 	DefaultCaCertFile = "caCert.pem"
 
-	// certificate name suffix {name}Cert.pem and {name}Key.pem
+	// certificate name suffix {name}Cert.pem
 	DefaultCertFileSuffix = "Cert.pem"
-	DefaultKeyFileSuffix  = "Key.pem"
+
+	// DefaultPrivKeyFileSuffix defines the filename suffix under which public/private keys are
+	// stored in the certs directory.
+	DefaultPrivKeyFileSuffix = "Key.pem"
 
 	// default server name to use if none is provided
 	DefaultServerName = "server"
+
+	DefaultTokenFileSuffix = ".token"
+
+	//---  Certificate Organization Unit for client certificate based authorization.
+	// Intended to identify the purpose of issued certificates.
+
+	// ClientOUAdmin lets a client approve things provisioning (postOOB), add and remove users
+	ClientOUAdmin = "admin"
+
+	// OUNone is the default OU with no API access permissions
+	ClientOUNone = "n/a"
+
+	// OUConsumer for consumers
+	ClientOUConsumer = "consumer"
+
+	// OUIoTDevice for IoT devices
+	ClientOUIoTDevice = "device"
+
+	// OUService for Hiveot services.
+	ClientOUService = "service"
 )
 
 // AppEnvironment holds the running environment naming conventions.
@@ -43,11 +70,10 @@ const (
 // This contains folder locations, CA certificate and application clientID
 type AppEnvironment struct {
 	// Directories
-	BinDir     string `yaml:"binDir,omitempty"`     // Application binary folder, e.g. launcher, cli, ...
-	PluginsDir string `yaml:"pluginsDir,omitempty"` // Plugin folder
-	HomeDir    string `yaml:"homeDir,omitempty"`    // Home folder, default this is the parent of bin, config, certs and logs
-	ConfigDir  string `yaml:"configDir,omitempty"`  // config folder with application and configuration files
-	// ConfigFile string `yaml:"configFile,omitempty"` // Application configuration file. Default is clientID.yaml
+	BinDir string `yaml:"binDir,omitempty"` // Application binary folder, e.g. launcher, cli, ...
+	// PluginsDir string `yaml:"pluginsDir,omitempty"` // Plugin folder
+	HomeDir   string `yaml:"homeDir,omitempty"`   // Home folder, default this is the parent of bin, config, certs and logs
+	ConfigDir string `yaml:"configDir,omitempty"` // config folder with application and configuration files
 	CertsDir  string `yaml:"certsDir,omitempty"`  // Certificates and keys location
 	LogsDir   string `yaml:"logsDir,omitempty"`   // Logging output
 	LogLevel  string `yaml:"logLevel,omitempty"`  // logging level: error, warning, info, debug
@@ -111,8 +137,8 @@ type AppEnvironment struct {
 	AppID string `yaml:"appID"`
 
 	// The clientID used to authenticate, in certificate file and token names.
-	// By default the clientID is the same as the appID unless changed.
-	ClientID string `yaml:"clientID"`
+	// Can be provided with the --clientID commandline option or set manually.
+	ClientID string `yaml:"clientID,omitempty"`
 
 	// The directory TD for bootstrapping a client.
 	// This can be provided by discovery or set manually.
@@ -121,14 +147,6 @@ type AppEnvironment struct {
 	// The gateway server TD for bootstrapping a client.
 	// This can be provided by discovery or set manually.
 	ServerTD *td.TD `yaml:"-"`
-
-	// KeyFile is the file that holds the private/public keys of the client or application.
-	//
-	// Can be used by client applications to authenticate connect to a hub/gateway.
-	// Intended for encryption and for client cert authentication.
-	// This is derived from the AppID: {certsDir}/{ClientID}Key.pem
-	// KeyFile string `yaml:"keyFile"` // app's key pair file location
-
 }
 
 // Create all missing directories
@@ -149,9 +167,9 @@ func (env *AppEnvironment) CreateAllDirs() (err error) {
 	if err2 := env.CreateDir(env.LogsDir, 0750); err2 != nil {
 		err = err2
 	}
-	if err2 := env.CreateDir(env.PluginsDir, 0750); err2 != nil {
-		err = err2
-	}
+	// if err2 := env.CreateDir(env.PluginsDir, 0750); err2 != nil {
+	// err = err2
+	// }
 	if err2 := env.CreateDir(env.StoresDir, 0700); err2 != nil {
 		err = err2
 	}
@@ -179,7 +197,7 @@ func (env *AppEnvironment) GetAuthToken() (string, error) {
 	if env.authToken != "" {
 		return env.authToken, nil
 	}
-	tokenFile := path.Join(env.CertsDir, env.ClientID+".token")
+	tokenFile := path.Join(env.CertsDir, env.ClientID+DefaultTokenFileSuffix)
 	token, err := os.ReadFile(tokenFile)
 	if err != nil {
 		return "", err
@@ -204,7 +222,9 @@ func (env *AppEnvironment) GetCACert() (caCert *x509.Certificate, err error) {
 
 // GetClientCert return the client authentication certificate.
 //
-// This loads the file {certsDir}/{clientID}Cert.pem and {clientID}Key.pem.
+// A clientID must be set before using this method.
+//
+// This loads the file {certsDir}/{ClientID}Cert.pem and {ClientID}Key.pem.
 //
 // This returns the TLS certificate or an error if none is found.
 func (env *AppEnvironment) GetClientCert() (cert *tls.Certificate, err error) {
@@ -212,7 +232,7 @@ func (env *AppEnvironment) GetClientCert() (cert *tls.Certificate, err error) {
 		return env.clientCert, nil
 	}
 	certPath := filepath.Join(env.CertsDir, env.ClientID+DefaultCertFileSuffix)
-	keyPath := filepath.Join(env.CertsDir, env.ClientID+DefaultKeyFileSuffix)
+	keyPath := filepath.Join(env.CertsDir, env.ClientID+DefaultPrivKeyFileSuffix)
 	env.clientCert, err = utils.LoadTLSCert(certPath, keyPath)
 	return env.clientCert, err
 }
@@ -241,7 +261,7 @@ func (env *AppEnvironment) GetServerCert() (cert *tls.Certificate, err error) {
 		return env.serverCert, nil
 	}
 	certPath := filepath.Join(env.CertsDir, "Server"+DefaultCertFileSuffix)
-	keyPath := filepath.Join(env.CertsDir, "Server"+DefaultKeyFileSuffix)
+	keyPath := filepath.Join(env.CertsDir, "Server"+DefaultPrivKeyFileSuffix)
 	env.serverCert, err = utils.LoadTLSCert(certPath, keyPath)
 	return env.serverCert, err
 }
@@ -253,7 +273,7 @@ func (env *AppEnvironment) GetStorageDir(moduleType string) string {
 	return storeDir
 }
 
-// LoadConfig loads the application/plugin configuration from {configDir}/{clientID}.yaml
+// LoadConfig loads the application/plugin configuration from {configDir}/{name}.yaml
 //
 // This returns an error if loading or parsing the config file fails.
 // Returns nil if the config file doesn't exist or is loaded successfully.
@@ -303,7 +323,7 @@ func (env *AppEnvironment) SetServerCert(cert *tls.Certificate) {
 // Optionally parse commandline flags:
 //
 //	-home  	      alternative home directory. Default is the parent folder of the app binary
-//	-clientID     alternative clientID. Default is the application binary name (appID).
+//	-clientID     Client ID to use. Needed for loading token and client cert.
 //	-config       alternative config directory. Default is home/certs
 //	-loglevel     debug, info, warning (default), error
 //	-serverURL    optional device or gateway server URL or "" for auto-detect
@@ -344,10 +364,9 @@ func NewAppEnvironment(homeDir string, withFlags bool) *AppEnvironment {
 	var certsDir string
 	var clientID string
 	var configDir string
-	// var configFile string
 	var logLevel string
 	var logsDir string
-	var pluginsDir string
+	// var pluginsDir string
 	var storesDir string
 	var directoryURL string
 	var serverURL string
@@ -356,7 +375,6 @@ func NewAppEnvironment(homeDir string, withFlags bool) *AppEnvironment {
 	// The default appID is the binary name. This allows for multiple instances
 	// by linking instance IDs to the binary.
 	appID := path.Base(os.Args[0])
-	clientID = appID
 	logLevel = os.Getenv("LOGLEVEL")
 	if logLevel == "" {
 		logLevel = "warn"
@@ -381,11 +399,11 @@ func NewAppEnvironment(homeDir string, withFlags bool) *AppEnvironment {
 		flag.StringVar(&certsDir, "certs", certsDir, "Certificate and keys directory")
 		flag.StringVar(&configDir, "config", configDir, "Configuration directory")
 		// flag.StringVar(&configFile, "configfile", configFile, "Configuration file")
-		flag.StringVar(&pluginsDir, "plugins", pluginsDir, "Plugins directory")
+		// flag.StringVar(&pluginsDir, "plugins", pluginsDir, "Plugins directory")
 		flag.StringVar(&clientID, "clientID", clientID, "clientID to authenticate with")
 		flag.StringVar(&logLevel, "loglevel", logLevel, "logging level: debug, warning, info, error")
 		flag.StringVar(&directoryURL, "directoryURL", directoryURL, "url of directory TD")
-		flag.StringVar(&serverURL, "serverURL", serverURL, "connection url for server")
+		flag.StringVar(&serverURL, "serverURL", serverURL, "server connection url for consumers")
 		if flag.Usage == nil {
 			flag.Usage = func() {
 				fmt.Println("Usage: " + appID + " [options] ")
@@ -417,9 +435,9 @@ func NewAppEnvironment(homeDir string, withFlags bool) *AppEnvironment {
 		if binDir == "" {
 			binDir = filepath.Join("/opt", "hiveot")
 		}
-		if pluginsDir == "" {
-			pluginsDir = filepath.Join(binDir, "plugins")
-		}
+		// if pluginsDir == "" {
+		// pluginsDir = filepath.Join(binDir, "plugins")
+		// }
 		if configDir == "" {
 			configDir = filepath.Join("/etc", "hiveot", "conf.d")
 		}
@@ -436,9 +454,9 @@ func NewAppEnvironment(homeDir string, withFlags bool) *AppEnvironment {
 		if binDir == "" {
 			binDir = filepath.Join(homeDir, "bin")
 		}
-		if pluginsDir == "" {
-			pluginsDir = filepath.Join(homeDir, "plugins")
-		}
+		// if pluginsDir == "" {
+		// pluginsDir = filepath.Join(homeDir, "plugins")
+		// }
 		if certsDir == "" {
 			certsDir = filepath.Join(homeDir, "certs")
 		}
@@ -452,12 +470,6 @@ func NewAppEnvironment(homeDir string, withFlags bool) *AppEnvironment {
 			configDir = filepath.Join(homeDir, "config")
 		}
 	}
-	// if configFile == "" {
-	// configFile = path.Join(configDir, clientID+".yaml")
-	// }
-
-	// determine the expected location of the client auth key and token
-	// keyFile := path.Join(certsDir, clientID+DefaultKeyFileSuffix)
 
 	utils.SetLogging(logLevel, "")
 
@@ -467,35 +479,24 @@ func NewAppEnvironment(homeDir string, withFlags bool) *AppEnvironment {
 		slog.String("home", homeDir),
 		slog.String("certsDir", certsDir),
 		slog.String("configDir", configDir),
-		slog.String("pluginsDir", pluginsDir),
+		// slog.String("pluginsDir", pluginsDir),
 		slog.String("serverURL", serverURL),
 	)
 
 	env := &AppEnvironment{
-		BinDir:    binDir,
-		AppID:     appID,
-		ClientID:  clientID,
-		ConfigDir: configDir,
-		// ConfigFile:   configFile,
+		BinDir:       binDir,
+		AppID:        appID,
+		ClientID:     clientID,
+		ConfigDir:    configDir,
 		CertsDir:     certsDir,
 		DirectoryURL: directoryURL,
-		// GrpcURL:    grpctransport.DefaultGrpcURL,
-		// HttpsPort:  transport.DefaultHttpsPort,
-		HomeDir: homeDir,
-		// KeyFile:    keyFile,
-		LogsDir:    logsDir,
-		LogLevel:   logLevel,
-		PluginsDir: pluginsDir,
+		HomeDir:      homeDir,
+		LogsDir:      logsDir,
+		LogLevel:     logLevel,
+		// PluginsDir:   pluginsDir,
 		RpcTimeout: rpcTimeout,
 		ServerURL:  serverURL,
 		StoresDir:  storesDir,
 	}
 	return env
 }
-
-// Initialize the factory application environment
-// func AppEnvironmentFactory(f IModuleFactory, def *ModuleDefinition) (IHiveModule, error) {
-// 	env := NewAppEnvironment("", true)
-// 	f.SetAppEnvironment(env)
-// 	return nil, nil
-// }

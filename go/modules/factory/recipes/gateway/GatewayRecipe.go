@@ -21,6 +21,8 @@ import (
 	router_service "github.com/hiveot/hivekit/go/modules/router/service"
 	"github.com/hiveot/hivekit/go/modules/transport/discovery"
 	discovery_server "github.com/hiveot/hivekit/go/modules/transport/discovery/server"
+	grpc "github.com/hiveot/hivekit/go/modules/transport/grpc"
+	grpc_server "github.com/hiveot/hivekit/go/modules/transport/grpc/server"
 	"github.com/hiveot/hivekit/go/modules/transport/httpbasic"
 	httpbasic_server "github.com/hiveot/hivekit/go/modules/transport/httpbasic/server"
 	"github.com/hiveot/hivekit/go/modules/transport/ssesc"
@@ -43,7 +45,6 @@ var AppGatewayRecipeModules = []api.ModuleDefinition{
 		Type:        certs.InitFactoryCertsModuleType,
 		Constructor: certs_service.NewInitFactoryCerts,
 	},
-
 	{
 		// http server module is needed by websocket transport server
 		// It uses the factory registered authenticator.
@@ -70,6 +71,11 @@ var AppGatewayRecipeModules = []api.ModuleDefinition{
 				// Hiveot SSE
 				Type:        ssesc.SseScServerModuleType,
 				Constructor: ssesc_server.NewSseScServerFactory,
+			},
+			{
+				// Hiveot gRPC
+				Type:        grpc.HiveotGrpcServerModuleType,
+				Constructor: grpc_server.NewHiveotGrpcServerFactory,
 			},
 			// {
 			// 	// MQTT server
@@ -129,9 +135,9 @@ var AppGatewayRecipeModules = []api.ModuleDefinition{
 	// todo: optional authorization of requests
 }
 
-// NewAppGatewayDeviceRecipe creates a recipe for an application gateway.
+// NewGatewayDeviceRecipe creates a recipe for an IoT gateway.
 //
-// Intended as the central connection point for consumers and RC devices, services,
+// Intended as the central connection point for consumers, services, RC devices,
 // and external devices whose TD exists in the directory.
 //
 // This:
@@ -156,8 +162,7 @@ var AppGatewayRecipeModules = []api.ModuleDefinition{
 //		    	                   -> router | reconnect | clients
 //
 // This returns the recipe, which can be used like any other module
-func NewAppGatewayDeviceRecipe(f api.IModuleFactory,
-	includeDigitwin bool) api.IRecipe {
+func NewGatewayDeviceRecipe(f api.IModuleFactory, includeDigitwin bool) api.IRecipe {
 
 	chain := AppGatewayRecipeModules
 	r := factory_service.NewChainRecipe(f, chain)
@@ -169,6 +174,5 @@ func NewAppGatewayDeviceRecipe(f api.IModuleFactory,
 		}
 		r.SetSlot("digitwin-slot", digitwinDef)
 	}
-	// looks like there is work to do
-	return nil
+	return r
 }

@@ -394,8 +394,7 @@ func NewRouterServiceImpl(
 		timeout = msg.DefaultRnRTimeout
 	}
 
-	// defaultClientID := "router"
-	thingID := router.DefaultRouterThingID + "-" + shortid.MustGenerate()
+	thingID := router.RouterModuleType + "-" + shortid.MustGenerate()
 	m := &RouterServiceImpl{
 		HiveModuleBase:    modules.NewHiveModuleBase(thingID, timeout),
 		autoReconnect:     autoReconnect,

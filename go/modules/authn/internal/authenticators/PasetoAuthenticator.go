@@ -195,26 +195,3 @@ func NewPasetoAuthenticator(
 	var _ authn.IAuthnAuthenticator = svc // interface check
 	return svc
 }
-
-// NewPasetoAuthenticatorFromFile returns a new instance of a Paseto token authenticator
-// loading a keypair from file or creating one if it doesn't exist.
-// This returns nil if no signing key can be loaded or created
-//
-// The authServerURI is included the TD security scheme to point consumers to the
-// endpoint to obtain tokens for this authenticator.
-// func NewPasetoAuthenticatorFromFile(
-// 	authnStore authnstore.IAuthnStore, keysDir string) *PasetoAuthenticator {
-
-// 	clientID := "authn"
-// 	authKey, err := keys.LoadCreateKeyPair(clientID, keysDir, keys.KeyTypeEd25519)
-
-// 	if err != nil {
-// 		slog.Error("NewPasetoAuthenticatorFromFile failed loading or creating a Paseto key pair",
-// 			"err", err.Error(), "clientID", clientID)
-// 		panic("failed loading or creating Paseto key pair")
-// 	}
-// 	signingKey := authKey.PrivateKey().(ed25519.PrivateKey)
-// 	_ = err
-// 	svc := NewPasetoAuthenticator(authnStore, signingKey)
-// 	return svc
-// }

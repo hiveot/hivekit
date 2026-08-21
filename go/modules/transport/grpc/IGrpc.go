@@ -1,4 +1,4 @@
-package grpctransport
+package grpc
 
 import (
 	"github.com/hiveot/hivekit/go/api"
@@ -31,7 +31,7 @@ const (
 
 // optional configuration to include factory ModuleDefinition.Config
 type GrpcConfig struct {
-	// The default is defined in {DefaultGrpcURL}
+	// gRPC server listening URL: DefaultGrpcUnixURL or DefaultGrpcTcpURL
 	URL string
 }
 

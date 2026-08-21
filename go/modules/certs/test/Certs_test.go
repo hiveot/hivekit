@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/hiveot/hivekit/go/api"
 	"github.com/hiveot/hivekit/go/modules/certs"
 	certsclient "github.com/hiveot/hivekit/go/modules/certs/client"
 	certsservice "github.com/hiveot/hivekit/go/modules/certs/service"
@@ -109,7 +110,7 @@ func TestCertClient(t *testing.T) {
 
 	privKey, pubKey := utils.NewEd25519Key()
 	_ = privKey
-	clientCert, err := m.CreateClientCert(clientID, utils.ClientOUConsumer, time.Hour, pubKey)
+	clientCert, err := m.CreateClientCert(clientID, api.ClientOUConsumer, time.Hour, pubKey)
 	require.NoError(t, err)
 
 	err = m.VerifyClientCert(clientID, clientCert)

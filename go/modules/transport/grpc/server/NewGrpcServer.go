@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/hiveot/hivekit/go/api"
-	grpctransport "github.com/hiveot/hivekit/go/modules/transport/grpc"
+	"github.com/hiveot/hivekit/go/modules/transport/grpc"
 	"github.com/hiveot/hivekit/go/modules/transport/grpc/internal/serverimpl"
 )
 
@@ -25,7 +25,7 @@ import (
 // Use SetNotificationSink to set the handler for notifications send by exposed things.
 func NewHiveotGrpcServer(
 	connectURL string, tlsCert *tls.Certificate, caCert *x509.Certificate,
-	authn api.IAuthenticator, respTimeout time.Duration) grpctransport.IGrpcTransportServer {
+	authn api.IAuthenticator, respTimeout time.Duration) grpc.IGrpcTransportServer {
 
 	return serverimpl.NewGrpcServerImpl(connectURL, tlsCert, caCert, authn, respTimeout)
 }
@@ -38,9 +38,9 @@ func NewHiveotGrpcServerFactory(f api.IModuleFactory, md *api.ModuleDefinition) 
 	caCert, err := env.GetCACert()
 	_ = err
 
-	grpcURL := grpctransport.DefaultGrpcUnixURL
+	grpcURL := grpc.DefaultGrpcUnixURL
 	if md.Config != nil {
-		grpcConfig, ok := md.Config.(grpctransport.GrpcConfig)
+		grpcConfig, ok := md.Config.(grpc.GrpcConfig)
 		if ok {
 			grpcURL = grpcConfig.URL
 		}

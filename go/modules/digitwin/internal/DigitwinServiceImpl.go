@@ -125,7 +125,7 @@ type DigitwinServiceImpl struct {
 // original device.
 // This will restore the original thingID before forwarding the request to
 // the device itself.
-func (m *DigitwinServiceImpl) ForwardDigitwinRequestToDevice(dtwReq *msg.RequestMessage, replyTo msg.ResponseHandler) (err error) {
+func (svc *DigitwinServiceImpl) ForwardDigitwinRequestToDevice(dtwReq *msg.RequestMessage, replyTo msg.ResponseHandler) (err error) {
 	// reverse the digital twin thingID
 	clientID, thingID, err := SplitDigitwinID(dtwReq.ThingID)
 
@@ -137,7 +137,7 @@ func (m *DigitwinServiceImpl) ForwardDigitwinRequestToDevice(dtwReq *msg.Request
 	// forward the request to the sink, which is responsible for routing it to the
 	// destination.
 	_ = clientID
-	err = m.ForwardRequest(&deviceReq, func(resp *msg.ResponseMessage) error {
+	err = svc.ForwardRequest(&deviceReq, func(resp *msg.ResponseMessage) error {
 		// put the digitwin thingID back into the response
 		resp.ThingID = dtwReq.ThingID
 		return replyTo(resp)
@@ -151,8 +151,8 @@ func (m *DigitwinServiceImpl) ForwardDigitwinRequestToDevice(dtwReq *msg.Request
 
 // Return the unmarshalled device TD
 // TODO: cache the unmarshalled TDs for faster handling
-func (m *DigitwinServiceImpl) GetDeviceTD(thingID string) *td.TD {
-	tdJson, err := m.deviceTDBucket.Get(thingID)
+func (svc *DigitwinServiceImpl) GetDeviceTD(thingID string) *td.TD {
+	tdJson, err := svc.deviceTDBucket.Get(thingID)
 	if err != nil {
 		return nil
 	}
@@ -168,7 +168,7 @@ func (m *DigitwinServiceImpl) GetDeviceTD(thingID string) *td.TD {
 // router and the servers, as both can receive events from remote Things.
 //
 // This also includes connection events from the server, which are used to update client online status.
-func (m *DigitwinServiceImpl) HandleNotification(notif *msg.NotificationMessage) {
+func (svc *DigitwinServiceImpl) HandleNotification(notif *msg.NotificationMessage) {
 
 	// track online status of devices - this needs tracking of devices
 	// FIXME: how to know if senderID is a device?
@@ -178,51 +178,51 @@ func (m *DigitwinServiceImpl) HandleNotification(notif *msg.NotificationMessage)
 		cinfo := api.ConnectionInfo{}
 		err := notif.Decode(&cinfo)
 		if err == nil {
-			m.SetDeviceStatus(cinfo.ClientID, true)
+			svc.SetDeviceStatus(cinfo.ClientID, true)
 		}
 		// send notifications upstream to potential consumers
-		m.ForwardNotification(notif)
+		svc.ForwardNotification(notif)
 		return
 	} else if notif.Name == api.ServerDisconnectedEvent {
 		// if this is an device or service then its things are no longer online
 		cinfo := api.ConnectionInfo{}
 		err := notif.Decode(&cinfo)
 		if err == nil {
-			m.SetDeviceStatus(cinfo.ClientID, false)
+			svc.SetDeviceStatus(cinfo.ClientID, false)
 		}
 		// send notifications upstream to potential consumers
-		m.ForwardNotification(notif)
+		svc.ForwardNotification(notif)
 		return
 	}
 
 	// if the thingID is a digital twin then store its value in the vcache
 	dtwThingID := MakeDigitwinID(notif.SenderID, notif.ThingID)
-	_, err := m.directory.RetrieveThing(dtwThingID)
+	_, err := svc.directory.RetrieveThing(dtwThingID)
 	if err == nil {
 		dtwNotif := *notif
 		dtwNotif.ThingID = dtwThingID
-		m.vcache.HandleNotification(&dtwNotif)
+		svc.vcache.HandleNotification(&dtwNotif)
 		// emit this notification as a digital twin update
-		m.ForwardNotification(&dtwNotif)
+		svc.ForwardNotification(&dtwNotif)
 
 	} else {
 		// not a digital twin notification. Send it upstream to potential consumers
-		m.ForwardNotification(notif)
+		svc.ForwardNotification(notif)
 	}
 
 }
 
 // Set the connected status of a device
 // TODO: update the online status of all its digitwin devices
-func (m *DigitwinServiceImpl) SetDeviceStatus(clientID string, connected bool) {
+func (svc *DigitwinServiceImpl) SetDeviceStatus(clientID string, connected bool) {
 
-	m.deviceStatus.Store(clientID, connected)
+	svc.deviceStatus.Store(clientID, connected)
 
 }
 
 // Start the digital twin module and open its native thing backup
 // This subscribes to devices that have a digital twin in the directory.
-func (m *DigitwinServiceImpl) Start() (err error) {
+func (svc *DigitwinServiceImpl) Start() (err error) {
 
 	slog.Info("Start: Starting digitwin module")
 
@@ -230,20 +230,20 @@ func (m *DigitwinServiceImpl) Start() (err error) {
 	// if it doesn't contain a value it should forward the request to the device
 	// note that the thingID is the digital twin ID, which needs to be converted
 	// back to the device thingID
-	m.vcache = vcache_service.NewValueCacheService()
+	svc.vcache = vcache_service.NewValueCacheService()
 	// don't set a sink
 	// m.vcache.SetRequestSink(m.ForwardDigitwinRequestToDevice)
-	m.vcache.Start()
-	storageFile := filepath.Join(m.storageDir, "deviceTD.kvbtree")
-	m.deviceTDStore = kvbtreestore.NewBucketStore(storageFile)
+	svc.vcache.Start()
+	storageFile := filepath.Join(svc.storageDir, "deviceTD.kvbtree")
+	svc.deviceTDStore = kvbtreestore.NewBucketStore(storageFile)
 
-	err = m.deviceTDStore.Open()
+	err = svc.deviceTDStore.Open()
 	if err == nil {
-		thingID := m.GetThingID()
-		m.deviceTDBucket = m.deviceTDStore.GetBucket(thingID)
+		thingID := svc.GetThingID()
+		svc.deviceTDBucket = svc.deviceTDStore.GetBucket(thingID)
 	}
 
-	m.directory.SetTDHooks(m.HandleWriteDirectory, m.HandleDeleteTD)
+	svc.directory.SetTDHooks(svc.HandleWriteDirectory, svc.HandleDeleteTD)
 
 	// FIXME: Subscribe to devices.
 	// lets hope there aren't too many or this can take a while.
@@ -257,14 +257,14 @@ func (m *DigitwinServiceImpl) Start() (err error) {
 }
 
 // Stop the digital twin module and release the allocation resources
-func (m *DigitwinServiceImpl) Stop() {
+func (svc *DigitwinServiceImpl) Stop() {
 	slog.Info("Stop: stopping digitwin module")
-	err := m.deviceTDBucket.Close()
+	err := svc.deviceTDBucket.Close()
 	if err != nil {
 		slog.Error("Stop: error stopping digitwin bucket", "err", err.Error())
 	}
-	m.deviceTDStore.Close()
-	m.vcache.Stop()
+	svc.deviceTDStore.Close()
+	svc.vcache.Stop()
 	// m.deviceDirectory.Stop()
 }
 
@@ -282,7 +282,7 @@ func NewDigitwinServiceImpl(storageDir string,
 	addforms func(tdoc *td.TD, includeAffordances bool)) *DigitwinServiceImpl {
 
 	thingID := digitwin.DefaultDigitwinThingID
-	m := &DigitwinServiceImpl{
+	svc := &DigitwinServiceImpl{
 		HiveModuleBase:         modules.NewHiveModuleBase(thingID, 0),
 		addForms:               addforms,
 		directory:              thingDir,
@@ -290,6 +290,6 @@ func NewDigitwinServiceImpl(storageDir string,
 		includeAffordanceForms: true,
 	}
 
-	var _ digitwin.IDigitwinService = m // interface check
-	return m
+	var _ digitwin.IDigitwinService = svc // interface check
+	return svc
 }

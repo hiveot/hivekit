@@ -4,8 +4,10 @@ import (
 	"crypto/ed25519"
 	"fmt"
 	"log/slog"
+	"path/filepath"
 	"time"
 
+	"github.com/hiveot/hivekit/go/api"
 	"github.com/hiveot/hivekit/go/api/td"
 	"github.com/hiveot/hivekit/go/modules/authn"
 	"github.com/hiveot/hivekit/go/modules/authn/internal/authenticators"
@@ -174,11 +176,11 @@ func (sm *SessionManager) ValidateClient(claimedClientID string, token string) (
 // Start a new session manager for client sessions
 func (sm *SessionManager) Start() error {
 
-	clientID := "authn"
+	serviceID := "authn"
 
-	// store the signing key
-	signingPrivKey, _, err := utils.LoadCreateKeyPair(
-		clientID, sm.keysDir, utils.KeyTypeED25519)
+	// store the signing key in: {keysDir}/authnKey.pem
+	keyFilename := filepath.Join(sm.keysDir, serviceID+api.DefaultPrivKeyFileSuffix)
+	signingPrivKey, _, err := utils.LoadCreateKeyPair(keyFilename, utils.KeyTypeED25519)
 	if err != nil {
 		return err
 	}

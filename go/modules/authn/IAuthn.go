@@ -102,7 +102,7 @@ type IAuthnService interface {
 	api.IHiveModule
 
 	// AddClient add a new client account. This fails if the client already exists.
-	// Use authenticator's SetPassword or CreateToken to obtain a token to connect.
+	// Use authenticator's SetPassword or CreateToken to obtain a token to connect with.
 	AddClient(clientID string, displayName string, role string) error
 
 	// GetProfile Get the client profile

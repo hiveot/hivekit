@@ -14,7 +14,6 @@ import (
 	"encoding/pem"
 	"fmt"
 	"os"
-	"path"
 	"path/filepath"
 	"reflect"
 )
@@ -28,13 +27,13 @@ const (
 	KeyTypeUnknown KeyType = ""
 )
 
-// KPFileExt defines the filename extension under which public/private keys are stored
-// in the keys directory.
-const KPFileExt = ".key"
+// PrivKeyFileSuffix defines the filename suffix under which public/private keys are
+// stored in the keys directory.
+// const PrivKeyFileSuffix = "Key.pem"
 
-// PubKeyFileExt defines the filename extension under which public key is stored
+// PubKeyFileSuffix defines the filename suffix under which public key is stored
 // in the keys directory.
-const PubKeyFileExt = ".pub"
+// const PubKeyFileSuffix = "Pub.pem"
 
 // Compare two unknqon private keys.
 //
@@ -123,21 +122,17 @@ func PemToDer(pemString string) ([]byte, error) {
 }
 
 // LoadCreateKeyPair loads a public/private key pair from file.
-// This will load or create a file <clientID>.key and <clientID>.pub from the keysDir.
+//
 // If the key doesn't exist a new key is created using the given keyType.
 //
-//	clientID is the client to create the keys for
-//	keysDir is the location of the key file
+//	keysFile is the location of the key file to load or create. Required.
 //	keyType is the type of key when creating a new key
-func LoadCreateKeyPair(clientID string, keysDir string, keyType KeyType) (
+func LoadCreateKeyPair(keyFile string, keyType KeyType) (
 	privKey crypto.PrivateKey, pubKey crypto.PublicKey, err error) {
 
-	if keysDir == "" {
+	if keyFile == "" {
 		return nil, nil, fmt.Errorf("keys directory must be provided")
 	}
-
-	keyFile := path.Join(keysDir, clientID+KPFileExt)
-	pubFile := path.Join(keysDir, clientID+PubKeyFileExt)
 
 	// load key from file
 	privKey, pubKey, err = LoadPrivateKey(keyFile)
@@ -148,9 +143,6 @@ func LoadCreateKeyPair(clientID string, keysDir string, keyType KeyType) (
 
 		// save the key for future use
 		err = SavePrivateKey(privKey, keyFile)
-		if err == nil {
-			err = SavePublicKey(pubKey, pubFile)
-		}
 	}
 
 	return privKey, pubKey, err
@@ -367,6 +359,7 @@ func SavePublicKey(pubKey crypto.PublicKey, pemPath string) error {
 }
 
 // SavePrivateKeyToFile saves the private key to file in PEM format.
+//
 // The file permissions are set to 0400, current user only, read-write permissions.
 // If the directory does not exist it will becreated
 //

@@ -31,29 +31,29 @@ type LoggingServiceImpl struct {
 }
 
 // log notifications upstream and logs them if they pass the filter
-func (m *LoggingServiceImpl) HandleNotification(notif *msg.NotificationMessage) {
+func (svc *LoggingServiceImpl) HandleNotification(notif *msg.NotificationMessage) {
 	go func() {
-		if m.Config.NotificationFilter.AcceptNotification(notif) {
-			m.LogNotification(notif)
+		if svc.Config.NotificationFilter.AcceptNotification(notif) {
+			svc.LogNotification(notif)
 		}
 	}()
-	m.ForwardNotification(notif)
+	svc.ForwardNotification(notif)
 }
 
 // HandleRequest forwards requests downstream and logs them if they pass the filter
-func (m *LoggingServiceImpl) HandleRequest(req *msg.RequestMessage, replyTo msg.ResponseHandler) (err error) {
+func (svc *LoggingServiceImpl) HandleRequest(req *msg.RequestMessage, replyTo msg.ResponseHandler) (err error) {
 	go func() {
-		if m.Config.NotificationFilter.AcceptRequest(req) {
-			m.LogRequest(req)
+		if svc.Config.NotificationFilter.AcceptRequest(req) {
+			svc.LogRequest(req)
 		}
 	}()
-	return m.ForwardRequest(req, replyTo)
+	return svc.ForwardRequest(req, replyTo)
 }
 
 // write notifications to the logging backend
-func (m *LoggingServiceImpl) LogNotification(notif *msg.NotificationMessage) {
+func (svc *LoggingServiceImpl) LogNotification(notif *msg.NotificationMessage) {
 	value := utils.DecodeAsString(notif.Data, 32)
-	m.notificationLogger.Info("Notification",
+	svc.notificationLogger.Info("Notification",
 		slog.String("type", string(notif.AffordanceType)),
 		slog.String("thingID", notif.ThingID),
 		slog.String("name", notif.Name),
@@ -64,9 +64,9 @@ func (m *LoggingServiceImpl) LogNotification(notif *msg.NotificationMessage) {
 }
 
 // write request to the logging backend
-func (m *LoggingServiceImpl) LogRequest(req *msg.RequestMessage) {
+func (svc *LoggingServiceImpl) LogRequest(req *msg.RequestMessage) {
 	value := utils.DecodeAsString(req.Input, 32)
-	m.requestLogger.Info("Request",
+	svc.requestLogger.Info("Request",
 		slog.String("op", string(req.Operation)),
 		slog.String("thingID", req.ThingID),
 		slog.String("name", req.Name),
@@ -79,7 +79,7 @@ func (m *LoggingServiceImpl) LogRequest(req *msg.RequestMessage) {
 
 // NewLogger returns a new instance of a logger using the given backend along with
 // a function to release resources.
-func (m *LoggingServiceImpl) NewLogger(cfg *logging.LoggingConfig) (
+func (svc *LoggingServiceImpl) NewLogger(cfg *logging.LoggingConfig) (
 	logger *slog.Logger, releaseFn func()) {
 
 	var logFile *os.File
@@ -126,32 +126,32 @@ func (m *LoggingServiceImpl) NewLogger(cfg *logging.LoggingConfig) (
 }
 
 // SetSource is a convenience function to set the source module of requests and destination of notifications
-func (m *LoggingServiceImpl) SetSource(source api.IHiveModule) {
-	source.SetRequestSink(m)
-	m.SetNotificationSink(source)
+func (svc *LoggingServiceImpl) SetSource(source api.IHiveModule) {
+	source.SetRequestSink(svc)
+	svc.SetNotificationSink(source)
 }
 
 // SetSink is a convenience function to set the downstream module of requests and source of notifications
-func (m *LoggingServiceImpl) SetSink(sink api.IHiveModule) {
-	m.SetRequestSink(sink)
-	sink.SetNotificationSink(m)
+func (svc *LoggingServiceImpl) SetSink(sink api.IHiveModule) {
+	svc.SetRequestSink(sink)
+	sink.SetNotificationSink(svc)
 }
 
 // Start opens the logging destination.
-func (m *LoggingServiceImpl) Start() (err error) {
+func (svc *LoggingServiceImpl) Start() (err error) {
 	slog.Info("Start: Starting logging module")
 	// TBD: separate config for  notifications vs requests logs?
-	m.requestLogger, m.releaseFn = m.NewLogger(&m.Config)
-	m.notificationLogger = m.requestLogger
+	svc.requestLogger, svc.releaseFn = svc.NewLogger(&svc.Config)
+	svc.notificationLogger = svc.requestLogger
 	return nil
 }
 
 // Stop closes the logging destination.
-func (m *LoggingServiceImpl) Stop() {
+func (svc *LoggingServiceImpl) Stop() {
 	slog.Info("Stop: Stopping logging module")
-	if m.releaseFn != nil {
-		m.releaseFn()
-		m.releaseFn = nil
+	if svc.releaseFn != nil {
+		svc.releaseFn()
+		svc.releaseFn = nil
 	}
 }
 
@@ -160,10 +160,10 @@ func (m *LoggingServiceImpl) Stop() {
 // config is the default module configuration.
 func NewLoggingServiceImpl(config logging.LoggingConfig) *LoggingServiceImpl {
 
-	m := &LoggingServiceImpl{
+	svc := &LoggingServiceImpl{
 		HiveModuleBase: modules.NewHiveModuleBase(config.ModuleID, 0),
 	}
-	m.Config = config
+	svc.Config = config
 
-	return m
+	return svc
 }

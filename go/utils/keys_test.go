@@ -76,8 +76,6 @@ func TestSaveLoadPrivKey(t *testing.T) {
 	valid := utils.Verify(msg, signature, k2pub)
 	assert.True(t, valid)
 
-	//
-	// privKey, pubKey, err := utils.LoadCreateKeyPair(clientID, keysDir, keyType)
 	assert.NoError(t, err)
 }
 

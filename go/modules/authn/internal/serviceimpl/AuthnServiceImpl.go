@@ -3,6 +3,9 @@ package serviceimpl
 import (
 	"fmt"
 	"log/slog"
+	"os"
+	"path/filepath"
+	"time"
 
 	"github.com/hiveot/hivekit/go/api"
 	"github.com/hiveot/hivekit/go/api/msg"
@@ -28,9 +31,9 @@ type AuthnServiceImpl struct {
 
 // AddClient adds a client. This fails if the client already exists
 // This should only be usable by administrators.
-func (m *AuthnServiceImpl) AddClient(clientID string, displayName string, role string) error {
+func (svc *AuthnServiceImpl) AddClient(clientID string, displayName string, role string) error {
 
-	_, err := m.authnStore.GetProfile(clientID)
+	_, err := svc.authnStore.GetProfile(clientID)
 	if err == nil {
 		return fmt.Errorf("Account for client '%s' already exists", clientID)
 	}
@@ -40,84 +43,123 @@ func (m *AuthnServiceImpl) AddClient(clientID string, displayName string, role s
 		DisplayName: displayName,
 		Role:        role,
 	}
-	return m.authnStore.Add(newProfile)
+	return svc.authnStore.Add(newProfile)
 }
 
 // GetProfile return the client's profile
-func (m *AuthnServiceImpl) GetProfile(clientID string) (profile authn.ClientProfile, err error) {
-	return m.authnStore.GetProfile(clientID)
+func (svc *AuthnServiceImpl) GetProfile(clientID string) (profile authn.ClientProfile, err error) {
+	return svc.authnStore.GetProfile(clientID)
 }
 
 // GetProfile return a list of client profiles
-func (m *AuthnServiceImpl) GetProfiles() (profiles []authn.ClientProfile, err error) {
-	return m.authnStore.GetProfiles()
+func (svc *AuthnServiceImpl) GetProfiles() (profiles []authn.ClientProfile, err error) {
+	return svc.authnStore.GetProfiles()
 }
 
-func (m *AuthnServiceImpl) GetSessionManager() authn.ISessionManager {
-	return m.sessionManager
+func (svc *AuthnServiceImpl) GetSessionManager() authn.ISessionManager {
+	return svc.sessionManager
 }
 
 // Handle requests to be served by this module
-func (m *AuthnServiceImpl) HandleRequest(req *msg.RequestMessage, replyTo msg.ResponseHandler) error {
+func (svc *AuthnServiceImpl) HandleRequest(req *msg.RequestMessage, replyTo msg.ResponseHandler) error {
 
 	switch req.ThingID {
 	case authn.AuthnAdminServiceID:
-		return HandleAuthnAdminRequest(m, req, replyTo)
+		return HandleAuthnAdminRequest(svc, req, replyTo)
 	case authn.AuthnUserServiceID:
-		return HandleAuthnUserRequest(m, req, replyTo)
+		return HandleAuthnUserRequest(svc, req, replyTo)
 	default:
 		// forward
-		return m.HiveModuleBase.HandleRequest(req, replyTo)
+		return svc.HiveModuleBase.HandleRequest(req, replyTo)
 	}
 }
 
 // Remove a client
-func (m *AuthnServiceImpl) RemoveClient(clientID string) error {
-	return m.authnStore.Remove(clientID)
+func (svc *AuthnServiceImpl) RemoveClient(clientID string) error {
+	return svc.authnStore.Remove(clientID)
 }
 
-// Change the password of a client
-func (m *AuthnServiceImpl) SetPassword(clientID string, password string) error {
-	return m.authnStore.SetPassword(clientID, password)
-}
-
-// Change the role of a client
-func (m *AuthnServiceImpl) SetRole(clientID string, role string) error {
-	return m.authnStore.SetRole(clientID, role)
-}
-
-// Start the authentication module and handle for login and token refresh requests.
+// Save the token to the keys directory under the name {clientID}.token
 //
-// Opens the password store and starts the session manager instance.
-func (m *AuthnServiceImpl) Start() (err error) {
+// Intended for storing tokens for core services and admin user.
+// For internal use only. This might change in the future
+func (svc *AuthnServiceImpl) SaveToken(clientID string, token string) error {
+	tokenFile := filepath.Join(svc.config.KeysDir, clientID+api.DefaultTokenFileSuffix)
 
-	slog.Info("Start: Starting authn")
-	err = m.authnStore.Open()
+	err := os.MkdirAll(svc.config.KeysDir, 0700)
 	if err != nil {
-		return err
+		slog.Error("SaveToken can't ensure directory exist.",
+			"keysdir", svc.config.KeysDir, "err", err.Error())
 	}
-	err = m.sessionManager.Start()
+	// the old token can't be overwritten
+	_ = os.Remove(tokenFile)
+	err = os.WriteFile(tokenFile, []byte(token), 0400)
 	if err != nil {
-		return err
+		slog.Error("SaveToken failed", "err", err.Error())
 	}
 
 	return err
 }
 
+// Change the password of a client
+func (svc *AuthnServiceImpl) SetPassword(clientID string, password string) error {
+	return svc.authnStore.SetPassword(clientID, password)
+}
+
+// Change the role of a client
+func (svc *AuthnServiceImpl) SetRole(clientID string, role string) error {
+	return svc.authnStore.SetRole(clientID, role)
+}
+
+// Start the authentication module and handle for login and token refresh requests.
+//
+// This opens the password store and starts the session manager instance.
+//
+// If a validity period is set for an administrator then create a new token file
+// for this administrator. {adminID}.token
+func (svc *AuthnServiceImpl) Start() (err error) {
+
+	slog.Info("Start: Starting authn")
+	err = svc.authnStore.Open()
+	if err != nil {
+		return err
+	}
+
+	err = svc.sessionManager.Start()
+	if err != nil {
+		return err
+	}
+	// ensure the administrator account exists
+	if svc.config.AdminUserID != "" {
+		_, err = svc.GetProfile(svc.config.AdminUserID)
+		if err != nil {
+			err = svc.AddClient(svc.config.AdminUserID, "Administrator", authn.ClientRoleAdmin)
+
+			if err == nil && svc.config.AdminTokenValidityDays > 0 {
+				validity := time.Duration(svc.config.AdminTokenValidityDays) * 24 * time.Hour
+				// create a new token for this session
+				adminToken, _, _ := svc.sessionManager.CreateToken(svc.config.AdminUserID, validity)
+				err = svc.SaveToken(svc.config.AdminUserID, adminToken)
+			}
+		}
+	}
+	return err
+}
+
 // Stop closes the client store and releases resources
-func (m *AuthnServiceImpl) Stop() {
+func (svc *AuthnServiceImpl) Stop() {
 	slog.Info("Stop: Stopping authn")
-	m.authnStore.Close()
+	svc.authnStore.Close()
 }
 
 // UpdateProfile update the client profile
 // only administrators are allowed to update the role
-func (m *AuthnServiceImpl) UpdateProfile(senderID string, newProfile authn.ClientProfile) error {
-	senderProf, err := m.authnStore.GetProfile(senderID)
+func (svc *AuthnServiceImpl) UpdateProfile(senderID string, newProfile authn.ClientProfile) error {
+	senderProf, err := svc.authnStore.GetProfile(senderID)
 	if err != nil {
 		return fmt.Errorf("Unknown sender '%s'", senderID)
 	}
-	clientProf, err := m.authnStore.GetProfile(newProfile.ClientID)
+	clientProf, err := svc.authnStore.GetProfile(newProfile.ClientID)
 	if err != nil {
 		return fmt.Errorf("Unknown client '%s'", newProfile.ClientID)
 	}
@@ -132,7 +174,7 @@ func (m *AuthnServiceImpl) UpdateProfile(senderID string, newProfile authn.Clien
 			return fmt.Errorf("Client '%s' is not allowed to change its role", senderID)
 		}
 	}
-	return m.authnStore.UpdateProfile(newProfile)
+	return svc.authnStore.UpdateProfile(newProfile)
 }
 
 // Create a new authentication service.
@@ -147,14 +189,14 @@ func NewAuthnServiceImpl(authnConfig authn.AuthnConfig) *AuthnServiceImpl {
 
 	// this module is a singleton that exposes multiple service things
 	thingID := authn.AuthnServiceModuleType
-	m := &AuthnServiceImpl{
+	svc := &AuthnServiceImpl{
 		HiveModuleBase: modules.NewHiveModuleBase(thingID, 0),
 		config:         authnConfig,
 		authnStore:     authnStore,
 		sessionManager: sessionManager,
 		// sessionStart: make(map[string]time.Time),
 	}
-	var _ api.IHiveModule = m     // interface check
-	var _ authn.IAuthnService = m // interface check
-	return m
+	var _ api.IHiveModule = svc     // interface check
+	var _ authn.IAuthnService = svc // interface check
+	return svc
 }

@@ -3,6 +3,8 @@ package authn
 import (
 	"log/slog"
 	"path"
+
+	"github.com/hiveot/hivekit/go/api"
 )
 
 // Session token validity for client types
@@ -17,9 +19,6 @@ const (
 	PWHASH_ARGON2id = "argon2id"
 	PWHASH_BCRYPT   = "bcrypt" // fallback in case argon2id cannot be used
 )
-
-// DefaultAdminUserID is the client ID of the default CLI administrator account
-const DefaultAdminUserID = "admin"
 
 // DefaultLauncherServiceID is the client ID of the launcher service
 // auth creates a key and auth token for the launcher on startup
@@ -37,23 +36,15 @@ type AuthnConfig struct {
 	// Encryption of passwords: "argon2id" (default) or "bcrypt"
 	Encryption string `yaml:"encryption,omitempty"`
 
-	// NoAutoStart prevents the auth service for auto starting. Intended for testing or custom implementation.
-	// NoAutoStart bool `yaml:"noAutoStart,omitempty"`
-
 	// predefined accounts
-	// Location of client keys and tokens
+	// Location of client keys and auth tokens
 	KeysDir string `yaml:"certsDir,omitempty"`
 
-	// The default admin account ID to create
-	AdminAccountID string `yaml:"adminAccountID,omitempty"`
+	// The admin account ID to create on startup. "" to not create an admin account.
+	AdminUserID string `yaml:"adminAccountID,omitempty"`
 
-	// LauncherAccountID string `yaml:"launcherAccountID,omitempty"`
-	//AdminUserKeyFile   string `yaml:"adminUserKeyFile,omitempty"`   // default: admin.key
-	//AdminUserTokenFile string `yaml:"adminUserTokenFile,omitempty"` // default: admin.token
-	//
-	//// Setup for an launcher account
-	//LauncherKeyFile   string `yaml:"launcherKeyFile,omitempty"`   // default: launcher.key
-	//LauncherTokenFile string `yaml:"launcherTokenFile,omitempty"` // default: launcher.token
+	// The admin token validity when created/saved on startup. 0 to not create a token.
+	AdminTokenValidityDays int `yaml:"adminTokenValidityDays,omitempty"`
 }
 
 // Setup ensures config is valid
@@ -76,6 +67,10 @@ func (cfg *AuthnConfig) Setup(keysDir, storageDir string) {
 		cfg.Encryption = PWHASH_ARGON2id
 	}
 
+	if cfg.AdminUserID == "" {
+		cfg.AdminUserID = api.DefaultAdminUserID
+	}
+
 	// if cfg.DeviceTokenValidityDays == 0 {
 	// 	cfg.DeviceTokenValidityDays = DefaultDeviceTokenValidityDays
 	// }
@@ -86,7 +81,7 @@ func (cfg *AuthnConfig) Setup(keysDir, storageDir string) {
 	// 	cfg.ConsumerTokenValidityDays = DefaultConsumerTokenValidityDays
 	// }
 	cfg.KeysDir = keysDir
-	cfg.AdminAccountID = DefaultAdminUserID
+
 	// cfg.LauncherAccountID = DefaultLauncherServiceID
 
 	//if cfg.AdminUserKeyFile == "" {
@@ -123,7 +118,7 @@ func (cfg *AuthnConfig) Setup(keysDir, storageDir string) {
 // Location of client keys and tokens
 //
 //	storesDir is the authentication data storage directory ($HOME/stores/authn)
-func NewAuthnConfig(keysDir, storageDir string) AuthnConfig {
+func NewAuthnConfig(keysDir string, storageDir string) AuthnConfig {
 	cfg := AuthnConfig{
 		// default password encryption method
 		Encryption: PWHASH_ARGON2id,

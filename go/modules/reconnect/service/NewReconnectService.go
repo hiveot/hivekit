@@ -13,9 +13,9 @@ import (
 //
 //	sink is the transport client connection instance and sink to use before connecting.
 func NewReconnectService(sink api.ITransportClient) reconnect.IReconnect {
-	m := internal.NewReconnectServiceImpl(sink)
+	svc := internal.NewReconnectServiceImpl(sink)
 
-	return m
+	return svc
 }
 
 // Factory for creating a module using the factory environment
@@ -23,6 +23,6 @@ func NewReconnectFactory(f api.IModuleFactory, md *api.ModuleDefinition) (api.IH
 	// env := f.GetEnvironment()
 
 	// option: on start check if the next in the chain is a transport client and register the callback
-	c := NewReconnectService(nil)
-	return c, nil
+	svc := NewReconnectService(nil)
+	return svc, nil
 }

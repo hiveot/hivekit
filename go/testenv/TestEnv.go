@@ -404,7 +404,7 @@ func NewTestEnv(clean bool) *TestEnv {
 	os.MkdirAll(appEnv.CertsDir, 0700)
 	os.MkdirAll(appEnv.ConfigDir, 0750)
 	os.MkdirAll(appEnv.LogsDir, 0750)
-	os.MkdirAll(appEnv.PluginsDir, 0750)
+	// os.MkdirAll(appEnv.PluginsDir, 0750)
 	os.MkdirAll(appEnv.StoresDir, 0750)
 	certBundle := certstest.CreateTestCertBundle(utils.KeyTypeED25519)
 	appEnv.SetCACert(certBundle.CaCert)

@@ -47,15 +47,15 @@ type ReconnectServiceImpl struct {
 
 // applySubscription applies recorded subscriptions
 // this will lock subscriptions until complete or error
-func (m *ReconnectServiceImpl) applySubscription() (err error) {
-	m.mux.Lock()
-	defer m.mux.Unlock()
+func (svc *ReconnectServiceImpl) applySubscription() (err error) {
+	svc.mux.Lock()
+	defer svc.mux.Unlock()
 
 	slog.Info("applySubscriptions. Re-applying subscriptions",
-		slog.Int("subscriptions", len(m.subscriptions)))
-	for k, req := range m.subscriptions {
+		slog.Int("subscriptions", len(svc.subscriptions)))
+	for k, req := range svc.subscriptions {
 		_ = k
-		_, err = m.ForwardRequestWait(req)
+		_, err = svc.ForwardRequestWait(req)
 		if err != nil {
 			break
 		}
@@ -69,11 +69,11 @@ func (m *ReconnectServiceImpl) applySubscription() (err error) {
 
 // Connect periodically tries a reconnect until successful or the context is cancelled
 // This uses an increasing backoff period up to 15 seconds, starting at 1msec.
-func (m *ReconnectServiceImpl) Connect(ctx context.Context) error {
+func (svc *ReconnectServiceImpl) Connect(ctx context.Context) error {
 
 	var backoffDuration time.Duration = time.Millisecond
 
-	for i := 0; m.maxReconnectAttempts == 0 || i < m.maxReconnectAttempts; i++ {
+	for i := 0; svc.maxReconnectAttempts == 0 || i < svc.maxReconnectAttempts; i++ {
 
 		// wait the backoff period or until the main context is cancelled before trying again
 		sleep, sleepEndFn := context.WithTimeout(ctx, backoffDuration)
@@ -83,19 +83,19 @@ func (m *ReconnectServiceImpl) Connect(ctx context.Context) error {
 			return ctx.Err() // fmt.Errorf("Context cancelled")
 		case <-sleep.Done():
 			sleepEndFn()
-			if m.conn.GetConnectionStatus() == api.StatusConnected {
+			if svc.conn.GetConnectionStatus() == api.StatusConnected {
 				return nil
 			}
 			// request a reconnect with the last known parameters
-			slog.Info("Connect; client attempt connection", "client module", m.conn.GetThingID())
-			err := m.conn.Connect()
+			slog.Info("Connect; client attempt connection", "client module", svc.conn.GetThingID())
+			err := svc.conn.Connect()
 			if err == nil {
 				// success,
-				err = m.applySubscription()
+				err = svc.applySubscription()
 				return err
 			}
 			// don't retry if client is refused
-			if m.conn.GetConnectionStatus() == api.StatusRefused {
+			if svc.conn.GetConnectionStatus() == api.StatusRefused {
 				return err
 			}
 			// backoffDuration += time.Duration(rand.Uint64N(uint64(time.Second)))
@@ -103,56 +103,56 @@ func (m *ReconnectServiceImpl) Connect(ctx context.Context) error {
 			slog.Info("Connect; reconnect failed. Retrying after backoff...", "backoff", backoffDuration)
 		}
 	}
-	return fmt.Errorf("Unable to reconnect after '%d' attempts", m.maxReconnectAttempts)
+	return fmt.Errorf("Unable to reconnect after '%d' attempts", svc.maxReconnectAttempts)
 }
 
 // Start the reconnect attempt
 // This sets the cancelFn so the Close method can interrupt the reconnect
-func (m *ReconnectServiceImpl) DoReconnect() {
+func (svc *ReconnectServiceImpl) DoReconnect() {
 	ctx, cancelFn := context.WithCancel(context.Background())
-	m.mux.Lock()
-	m.cancelFn = cancelFn
-	m.mux.Unlock()
+	svc.mux.Lock()
+	svc.cancelFn = cancelFn
+	svc.mux.Unlock()
 
-	err := m.Connect(ctx)
+	err := svc.Connect(ctx)
 	if err != nil {
 		slog.Warn("Reconnect failed", "err", err.Error())
 	}
-	m.mux.Lock()
+	svc.mux.Lock()
 	cancelFn()
-	m.cancelFn = nil
-	m.mux.Unlock()
+	svc.cancelFn = nil
+	svc.mux.Unlock()
 
 }
 
-func (m *ReconnectServiceImpl) GetConnectionStatus() api.ConnectionStatus {
-	return m.conn.GetConnectionStatus()
+func (svc *ReconnectServiceImpl) GetConnectionStatus() api.ConnectionStatus {
+	return svc.conn.GetConnectionStatus()
 }
 
 // handleConnectChange handles a disconnection callback
 // if no reconnect is in progress then start it.
-func (m *ReconnectServiceImpl) handleConnectChange(
+func (svc *ReconnectServiceImpl) handleConnectChange(
 	newStatus api.ConnectionStatus, c api.ITransportClient) {
 
 	// if connection is lost then initiate the reconnect process.
 	// note that closing a client can still cause a lost callback, but in that case
 	// it should be ignored.
-	status := m.conn.GetConnectionStatus()
+	status := svc.conn.GetConnectionStatus()
 	if status == api.StatusLost {
-		m.mux.Lock()
-		defer m.mux.Unlock()
+		svc.mux.Lock()
+		defer svc.mux.Unlock()
 		// only start reconnecting if not already reconnecting
-		if m.cancelFn == nil {
-			go m.DoReconnect()
+		if svc.cancelFn == nil {
+			go svc.DoReconnect()
 		}
 	}
 }
 
 // Experimental: If no client is linked then monitor the notification for a disconnect
 // and send a reconnect request.
-func (m *ReconnectServiceImpl) HandleNotification(notif *msg.NotificationMessage) {
+func (svc *ReconnectServiceImpl) HandleNotification(notif *msg.NotificationMessage) {
 
-	if m.conn == nil {
+	if svc.conn == nil {
 		if notif.AffordanceType == msg.AffordanceTypeEvent &&
 			notif.Name == api.ClientConnectionStatusEvent &&
 			notif.Data.(api.ConnectionStatus) == api.StatusLost {
@@ -160,14 +160,14 @@ func (m *ReconnectServiceImpl) HandleNotification(notif *msg.NotificationMessage
 			// Send a connect request
 			req := msg.NewRequestMessage(
 				td.OpInvokeAction, notif.SenderID, api.ClientConnectAction, nil)
-			go m.ForwardRequest(req, nil)
+			go svc.ForwardRequest(req, nil)
 		}
 	}
-	m.HiveModuleBase.HandleNotification(notif)
+	svc.HiveModuleBase.HandleNotification(notif)
 }
 
 // HandleRequest tracks subscriptions to events and property updates
-func (m *ReconnectServiceImpl) HandleRequest(req *msg.RequestMessage, replyTo msg.ResponseHandler) (err error) {
+func (svc *ReconnectServiceImpl) HandleRequest(req *msg.RequestMessage, replyTo msg.ResponseHandler) (err error) {
 
 	switch req.Operation {
 	case td.OpSubscribeAllEvents, td.OpSubscribeEvent,
@@ -175,31 +175,31 @@ func (m *ReconnectServiceImpl) HandleRequest(req *msg.RequestMessage, replyTo ms
 
 		// TBD: this doesn't differentiate between event/property affordance or single or multiple
 		key := fmt.Sprintf("%s-%s-%s", req.Operation, req.ThingID, req.Name)
-		m.subscriptions[key] = req
+		svc.subscriptions[key] = req
 
 	case td.OpUnobserveAllProperties, td.OpUnobserveMultipleProperties, td.OpUnobserveProperty,
 		td.OpUnsubscribeAllEvents, td.OpUnsubscribeEvent:
 		// remove the recorded subscription request
 		// FIXME: map the unsubscribe/unobserve to the stored operation
 		key := fmt.Sprintf("%s-%s-%s", req.Operation, req.ThingID, req.Name)
-		delete(m.subscriptions, key)
+		delete(svc.subscriptions, key)
 	}
 	// forward
-	return m.HiveModuleBase.HandleRequest(req, replyTo)
+	return svc.HiveModuleBase.HandleRequest(req, replyTo)
 }
 
 // SetRequestSink registers the given sink as the client if one isn't set.
 // requestSink must implement the ITransportClient interface so it can be used to
 // register the connect callback.
-func (m *ReconnectServiceImpl) SetRequestSink(requestSink api.IHiveModule) {
-	m.HiveModuleBase.SetRequestSink(requestSink)
+func (svc *ReconnectServiceImpl) SetRequestSink(requestSink api.IHiveModule) {
+	svc.HiveModuleBase.SetRequestSink(requestSink)
 
 	// attempt to use the sink if no client is set yet
-	if m.conn == nil {
+	if svc.conn == nil {
 		cl, ok := requestSink.(api.ITransportClient)
 		if ok {
-			m.conn = cl
-			m.conn.SetConnectHandler(m.handleConnectChange)
+			svc.conn = cl
+			svc.conn.SetConnectHandler(svc.handleConnectChange)
 		}
 	}
 }
@@ -207,35 +207,35 @@ func (m *ReconnectServiceImpl) SetRequestSink(requestSink api.IHiveModule) {
 // Start the reconnect module.
 //
 // This connects the provided client module.
-func (m *ReconnectServiceImpl) Start() error {
+func (svc *ReconnectServiceImpl) Start() error {
 	// if m.conn == nil {
 	// 	sink := m.GetRequestSink()
 	// 	if sink != nil {
 	// 		m.conn, _ = sink.(api.ITransportClient)
 	// 	}
 	// }
-	if m.conn != nil {
+	if svc.conn != nil {
 		// A failure to connect is not a failure of this module
 		// TBD - should this run DoReconnect instead?
 		// FIXME: how to report an authentication failure:
-		err := m.conn.Start()
+		err := svc.conn.Start()
 		if err != nil {
 			slog.Warn("ReconnectClient.Start The linked client failed to start.",
-				"err", err.Error(), "client module", m.conn.GetThingID())
+				"err", err.Error(), "client module", svc.conn.GetThingID())
 		}
 	}
 	return nil
 }
 
 // Stop the reconnect module and disconnect the client
-func (m *ReconnectServiceImpl) Stop() {
-	m.mux.Lock()
-	defer m.mux.Unlock()
-	if m.cancelFn != nil {
+func (svc *ReconnectServiceImpl) Stop() {
+	svc.mux.Lock()
+	defer svc.mux.Unlock()
+	if svc.cancelFn != nil {
 		// cancelFn will be cleared when reconnect loop has exited
-		m.cancelFn()
+		svc.cancelFn()
 	}
-	m.conn.Stop()
+	svc.conn.Stop()
 }
 
 // NewReconnectServiceImpl creates a reconnect module for use with the given client.
@@ -246,9 +246,9 @@ func (m *ReconnectServiceImpl) Stop() {
 // This module uses the ReconnectModuleType as its ID.
 //
 //	sink is the transport client connection that is a sink for this module.
-func NewReconnectServiceImpl(sink api.ITransportClient) (m *ReconnectServiceImpl) {
+func NewReconnectServiceImpl(sink api.ITransportClient) (svc *ReconnectServiceImpl) {
 
-	m = &ReconnectServiceImpl{
+	svc = &ReconnectServiceImpl{
 		HiveModuleBase: modules.NewHiveModuleBase(reconnect.ReconnectModuleType, 0),
 
 		maxBackoffTimeLimit: reconnect.DefaultBackoffLimit,
@@ -260,10 +260,10 @@ func NewReconnectServiceImpl(sink api.ITransportClient) (m *ReconnectServiceImpl
 
 	// link between transport client and this module
 	if sink != nil {
-		m.conn.SetConnectHandler(m.handleConnectChange)
+		svc.conn.SetConnectHandler(svc.handleConnectChange)
 
-		m.SetRequestSink(sink)
-		sink.SetNotificationSink(m)
+		svc.SetRequestSink(sink)
+		sink.SetNotificationSink(svc)
 	}
-	return m
+	return svc
 }

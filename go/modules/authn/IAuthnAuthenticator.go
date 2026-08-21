@@ -22,9 +22,9 @@ type IAuthnAuthenticator interface {
 	// If no session has started, a new one will be created. This is intended for
 	// issuing connection auth tokens (devices, services) where login is not applicable.
 	//
-	// Note that accidentally created tokens can be invalidated by invoking Logout.
-	// The authenticator tracks a sessionStart time and only tokens created
-	// after the sessionStart times are valid.
+	// Tokens can be invalidated by invoking Logout. The authenticator tracks a
+	// sessionStart time and only tokens created after the sessionStart times are
+	// valid. Restarting the session manager invalidates all tokens.
 	//
 	//	clientID identifies the client
 	//	validity is the duration of the token starting

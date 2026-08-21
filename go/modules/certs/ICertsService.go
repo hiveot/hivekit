@@ -20,7 +20,6 @@ const DefaultCertsServiceThingID = "certs"
 
 // Default certificate validity periods
 const (
-	DefaultAdminID  = "admin"
 	DefaultServerOU = ""
 
 	DefaultAdminValidityPeriod  = time.Hour * 24 * 90
@@ -28,11 +27,6 @@ const (
 	DefaultCAValidityPeriod     = time.Hour * 24 * 90
 	DefaultServerValidityPeriod = time.Hour * 24 * 90
 )
-
-// [deprecated] DefaultServerName is the name of the shared default server cert
-// const DefaultServerName = "server"
-// const DefaultServerCertFile = DefaultServerName + "Cert.pem"
-// const DefaultServerKeyFile = DefaultServerName + "Key.pem"
 
 const SelfSignedProvider = "selfsigned"
 
@@ -54,13 +48,17 @@ const (
 // CertsConfig defines certificate service configuration.
 // This can also be provided through the factory function
 type CertsConfig struct {
-	// The certificate storage directory. Required.
-	CertsDir string `yaml:"certsDir"`
+	// On start create a client certificate for the admin account in CertsDir
+	// 0 to not create an admin client cert.
+	AdminCertValidityDays int `yaml:"adminCertValidityDays,omitempty"`
 
 	// The self-signed CA certificate to use.
 	CaCert *x509.Certificate
 	// The private/public key-pair of the self-signed CA
 	CaKey crypto.Signer
+
+	// The certificate storage directory. Required.
+	CertsDir string `yaml:"certsDir"`
 
 	// Override the default settings for Country, Locality, Org and Province
 	Country  string
@@ -102,6 +100,7 @@ type ICertProvider interface {
 }
 
 // ICertsService interface of the certificate management service
+// On Start this creates a self-signed CA, server and admin client cert.
 type ICertsService interface {
 	api.IHiveModule
 

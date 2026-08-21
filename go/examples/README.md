@@ -44,16 +44,21 @@ usage: go run example3/main.go -home ~/bin/hiveot
 This displays a menu with options. Commands:
 
 - discover devices and directories
-- list TDs
-- login to a device (todo)
+- list discovered TDs
 - show details of a selected TD
-   - view properties and events
-   - invoke actions (todo)
+- when client cert or token authentication is available :
+   - view device status with property and latest event values
+   - invoke actions (no input yet)
  
 
-### Example 4. Gateway [todo]
+### Example 4. Gateway Server
 
-The gateway runs a server that both devices and consumers connect to. It includes a discovery server, a directory with discovered and registered devices and a router to forward requests from consumer to standandalone and RC devices.
+The gateway server runs a server that consumers connect to for access to standalone and RC devices. It uses the gateway recipe that includes a discovery server; a directory with discovered and registered devices; a router to forward requests from consumer to standandalone and RC devices, and the authn service for authentication of consumers and RC devices. 
+
+
+This can be used with example 1, 2, 3 and 5.
+
+
 
 ### Example 5. RC Device (reverse connection) [todo]
 

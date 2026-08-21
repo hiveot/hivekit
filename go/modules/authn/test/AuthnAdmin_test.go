@@ -52,7 +52,7 @@ func TestAddRemoveClientsSuccess(t *testing.T) {
 	// there should be 6 clients
 	profiles, err := m.GetProfiles()
 	require.NoError(t, err)
-	assert.Equal(t, 6, len(profiles))
+	assert.Equal(t, 7, len(profiles))
 
 	err = m.RemoveClient("user1")
 	assert.NoError(t, err)
@@ -66,9 +66,9 @@ func TestAddRemoveClientsSuccess(t *testing.T) {
 	assert.NoError(t, err)
 
 	profiles, err = m.GetProfiles()
-	// two accounts remaining (user 3 and 4)
+	// admin+two accounts remaining (user 3 and 4)
 	require.NoError(t, err)
-	assert.Equal(t, 2, len(profiles))
+	assert.Equal(t, 3, len(profiles))
 }
 
 // Create manage users

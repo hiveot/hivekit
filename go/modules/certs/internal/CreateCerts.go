@@ -67,7 +67,7 @@ func CreateSelfSignedClientCert(
 	cert *tls.Certificate, err error) {
 
 	certPath := filepath.Join(cfg.CertsDir, clientID+api.DefaultCertFileSuffix)
-	keyPath := filepath.Join(cfg.CertsDir, clientID+api.DefaultKeyFileSuffix)
+	keyPath := filepath.Join(cfg.CertsDir, clientID+api.DefaultPrivKeyFileSuffix)
 
 	// create the cert and key
 	privKey, _ := utils.NewEd25519Key()

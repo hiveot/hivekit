@@ -41,33 +41,33 @@ type HistoryServiceImpl struct {
 }
 
 // Forward notifications to the registered sink and record it if they pass the filter.
-func (m *HistoryServiceImpl) HandleNotification(notif *msg.NotificationMessage) {
+func (svc *HistoryServiceImpl) HandleNotification(notif *msg.NotificationMessage) {
 	go func() {
-		if m.config.NotificationFilter.AcceptNotification(notif) {
-			m.StoreNotification(notif)
+		if svc.config.NotificationFilter.AcceptNotification(notif) {
+			svc.StoreNotification(notif)
 		}
 	}()
-	m.ForwardNotification(notif)
+	svc.ForwardNotification(notif)
 }
 
 // Start the history module and open the store
 // this loads the filters
-func (m *HistoryServiceImpl) Start() (err error) {
-	switch m.config.Backend {
+func (svc *HistoryServiceImpl) Start() (err error) {
+	switch svc.config.Backend {
 	case bucketstore.BackendPebble:
-		m.bucketStore = pebblestore.NewBucketStore(m.config.StoreDirectory)
-		err = m.bucketStore.Open()
+		svc.bucketStore = pebblestore.NewBucketStore(svc.config.StoreDirectory)
+		err = svc.bucketStore.Open()
 	case bucketstore.BackendKVBTree:
-		m.bucketStore = kvbtreestore.NewBucketStore(m.config.StoreDirectory)
-		err = m.bucketStore.Open()
+		svc.bucketStore = kvbtreestore.NewBucketStore(svc.config.StoreDirectory)
+		err = svc.bucketStore.Open()
 	default:
-		err = fmt.Errorf("Start: Unknown bucket store backend type '%s'", m.config.Backend)
+		err = fmt.Errorf("Start: Unknown bucket store backend type '%s'", svc.config.Backend)
 	}
 	if err != nil {
 		return err
 	}
 
-	slog.Info("Start: Starting history module with backend " + m.config.Backend)
+	slog.Info("Start: Starting history module with backend " + svc.config.Backend)
 	// Messaging API handler for reading the history
 	// m.readHistoryMsgHandler = NewReadHistoryMsgHandler(m)
 
@@ -75,19 +75,19 @@ func (m *HistoryServiceImpl) Start() (err error) {
 }
 
 // Stop using the history service and release resources
-func (m *HistoryServiceImpl) Stop() {
+func (svc *HistoryServiceImpl) Stop() {
 	slog.Info("Stop: Stopping history module")
-	_ = m.bucketStore.Close()
+	_ = svc.bucketStore.Close()
 }
 
 // Store notifications for later retrieval
-func (m *HistoryServiceImpl) StoreNotification(notif *msg.NotificationMessage) error {
-	err := m.AddValue(notif)
+func (svc *HistoryServiceImpl) StoreNotification(notif *msg.NotificationMessage) error {
+	err := svc.AddValue(notif)
 	return err
 }
 
 // Store requests for later retrieval
-func (m *HistoryServiceImpl) StoreRequest(req *msg.RequestMessage) error {
+func (svc *HistoryServiceImpl) StoreRequest(req *msg.RequestMessage) error {
 
 	if req.Operation != td.OpInvokeAction {
 		return fmt.Errorf("AddAction: Operation is not invokeaction")
@@ -101,7 +101,7 @@ func (m *HistoryServiceImpl) StoreRequest(req *msg.RequestMessage) error {
 		req.Input,
 	)
 	value.Timestamp = req.Timestamp
-	err := m.AddValue(value)
+	err := svc.AddValue(value)
 	return err
 }
 
@@ -112,7 +112,7 @@ func (m *HistoryServiceImpl) StoreRequest(req *msg.RequestMessage) error {
 func NewHistoryServiceImpl(config history.HistoryConfig) *HistoryServiceImpl {
 
 	thingID := history.DefaultHistoryThingID
-	m := &HistoryServiceImpl{
+	svc := &HistoryServiceImpl{
 		HiveModuleBase: modules.NewHiveModuleBase(thingID, 0),
 		cursorLifespan: time.Minute,
 		cursorCache:    bucketstoreservice.NewCursorCache(),
@@ -121,6 +121,6 @@ func NewHistoryServiceImpl(config history.HistoryConfig) *HistoryServiceImpl {
 	// m.config = NewHistoryConfig()
 	// m.config = config.NewHistoryConfig(storeDirectory, backend)
 
-	var _ history.IHistoryService = m // interface check
-	return m
+	var _ history.IHistoryService = svc // interface check
+	return svc
 }
