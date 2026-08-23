@@ -6,7 +6,7 @@ import (
 
 // Actions implemented in transport clients
 const (
-	// Experimental: Ask the client module to connect with previously set credentials.
+	// Experimental: Ask the client to connect with previously set credentials.
 	// the action responds with the completed or failed result.
 	// If Connect is not supported the request should return with an error.
 	ClientConnectAction = "connect"
@@ -14,7 +14,7 @@ const (
 
 // Experimental: notification that the client connect status has changed.
 // the payload is the new connection status.
-// The notification thingID is the client's module-id.
+// The notification thingID is the client's cell-id.
 // Note that connection status events are never transmitted to and from the server.
 const ClientConnectionStatusEvent = "connectionStatus"
 
@@ -73,16 +73,16 @@ const (
 type GetCredentials func(thingID string) (clientID string, cred string, credType string, found bool)
 
 // ITransportClient defines the interface of a transport client connection.
-// This implements IHiveModule and IConnection interfaces.
+// This implements IHiveCell and IConnection interfaces.
 //
 // Note that transport clients do not retain subscription status. If a connection drops
 // then event subscriptions and property observations have to be re-issued by the application.
-// See the 'Reconnect' module that manages automatic reconnection and restoring of subscriptions.
+// See the 'Reconnect' cell that manages automatic reconnection and restoring of subscriptions.
 //
 // Transport clients issue ClientConnectionStatusEvent notifications when the connection
 // status changes.
 type ITransportClient interface {
-	IHiveModule
+	IHiveCell
 	IConnection
 
 	// Connect using the previously set connection credentials. See AuthenticateWith...

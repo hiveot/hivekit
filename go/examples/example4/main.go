@@ -8,24 +8,24 @@ import (
 	"time"
 
 	"github.com/hiveot/hivekit/go/api"
-	gatewayrecipe "github.com/hiveot/hivekit/go/modules/factory/recipes/gateway"
-	factory_service "github.com/hiveot/hivekit/go/modules/factory/service"
+	gatewayrecipe "github.com/hiveot/hivekit/go/cells/factory/recipes/gateway"
+	factory_service "github.com/hiveot/hivekit/go/cells/factory/service"
 )
 
 var ExampleHome = path.Join(os.TempDir(), "hivekit-examples")
 
 // Example of an IoT gateway using the HiveKit gateway factory recipe.
 //
-// The authn module factory creates a new admin auth token if not present.
-// The certs module factory creates a new admin client cert if not present.
+// The authn service factory creates a new admin auth token if not present.
+// The certs service factory creates a new admin client cert if not present.
 //
-// See the factory/recipes/GatewayRecipe.go for the modules in the recipe.
+// See the factory/recipes/GatewayRecipe.go for the cells in the recipe.
 func main() {
 
-	env := api.NewAppEnvironment(ExampleHome, true)
+	env := api.NewHiveEnvironment(ExampleHome, true)
 	env.RpcTimeout = time.Minute // for testing
 
-	f := factory_service.NewModuleFactory(env, nil)
+	f := factory_service.NewCellFactory(env, nil)
 	r := gatewayrecipe.NewGatewayDeviceRecipe(f, false)
 
 	// the authn factory creates an admin token and client certificate for use by consumers

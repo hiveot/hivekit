@@ -1,6 +1,6 @@
 # HiveKit Examples
 
-This is under heavy development and will be offering concrete examples on building IoT applications using HiveKit and 3rd party modules.
+This is under heavy development and will be offering concrete examples on building IoT applications using HiveKit and 3rd party cells.
 
 We're not there yet so for now this explains the concepts.
 
@@ -16,7 +16,7 @@ Most devices will have some form of authentication built-in to ensure only peopl
 
 Sometimes there is a logging capability to assist users in troubleshooting.
 
-These steps are common across devices and, except for the first step, can be standardized as reusable modules:
+These steps are common across devices and, except for the first step, can be standardized as reusable cells:
 
 1. read/write hardware - this is device specific
 2. run a server to receive connections and messages
@@ -28,7 +28,7 @@ These steps are common across devices and, except for the first step, can be sta
 8. notify of changes (consumer subscription of events and properties)
 9. log requests to a configured destination
 
-WoT capable modules can export a TD describing its capabilities, although this can also be defined out of band.
+WoT capable cells can export a TD describing its capabilities, although this can also be defined out of band.
 
 Other potential capabilities of IoT devices are authorization, rate control, connection reversal, publishing a TD in a discovered directory, and more.
 
@@ -54,49 +54,44 @@ While the W3C WoT (Web of Things) is working on providing a common standard for 
 To construct a simple consumer of WoT devices the following recipe can be used.
 
 [presentation] -> [directory client]
-[presentation] -> [multi-client] => [device client]
+[presentation] -> [router] => [device client]
 
 (\*the concept and notation of recipies to construct pipelines is still in development)
 
-The modules used here are:
+The cells used here are:
 
-- [presentation]: There are various presentation modules, ranging from a simple commandline interface to web components to full blown web or desktop applications. This is an entire topic on its own. HiveKit supports several basic presentation modules that can be used separately or concurrently. Presentation modules can retrieve device TD's (Thing Description document) from a directory and connect to selected devices using their TD to present and control devices.
-- [directory client]: Consumers can select from a list of available devices provided by a directory client. The directory client module obtains these from a discovered directory service.
-- [multi-client]: The multi-client module provides the capability to establish multiple connections to one or more devices. It can also include the capability to re-use an existing connection if multiple devices can be reached through that one connection. This module is useful when presentation connects to more than one device.
-- [device client]: The client module connects to a device to read status and to subscribe to updates. The HiveKit WoT client module supports multiple protocols to connect with.
+- [presentation]: There are various presentation cells, ranging from a simple commandline interface to web components to full blown web or desktop applications. This is an entire topic on its own. HiveKit supports several basic presentation cells that can be used separately or concurrently. Presentation cells can retrieve device TD's (Thing Description document) from a directory and connect to selected devices using their TD to present and control devices.
+- [directory client]: Consumers can select from a list of available devices provided by a directory client. The directory client cell obtains these from a discovered directory service.
+- [router]: The router provides the capability to establish multiple connections to one or more devices. It can also include the capability to re-use an existing connection if multiple devices can be reached through that one connection. This enables presentation to connect to more than one device.
+- [device client]: The client cell connects to a device to read status and to subscribe to updates. HiveKit WoT clients are available for multiple protocols to connect with.
 
 ### Constructing a Gateway
 
-A gateway is useful when using multiple IoT devices of different protocols, when devices are hidden on their own subnet, or simply when a single endpoint is desired that provides its own directory. Such a gateway can be constructed with modules from this Kit.
+A gateway is useful when using multiple IoT devices of different protocols, when devices are hidden on their own subnet, or simply when a single endpoint is desired that provides its own directory. Such a gateway can be constructed with cells from this Kit.
 
 A typical gateway implements the following steps:
 
 1. Discover devices on the network. This can be done manually or automatically.
-2. Update the device TD with gateway endpoints.
-3. Add discovered devices to a directory. The directory can be part of the gateway or operate externally.
-4. Publish gateway discovery by consumers.
-5. Serve incoming connections from consumers.
-6. Authenticate consumers
-7. Track server connected consumers to be able to forward notification messages.
-8. Serve directory requests from consumers.
-9. Use a gateway client to connect to devices whose information is requested.
-10. Forward event and property subscription requests to devices.
-11. Notify consumers of event and property updates they subscribed to.
-12. Forward action requests to devices and return responses.
-13. Log requests to a configured logger.
-14. Drop device connections that are no longer needed.
+2. Update forms in discovered TDs with gateway endpoints.
+3. Add discovered device TDs to a directory.
+4. Publish gateway discovery.
+5. Serve incoming connections.
+6. Authenticate clients.
+7. Track connected clients to be able to forward notification and request messages.
+8. Serve directory requests.
+9. Use the router cell to connect to devices whose information is requested.
+10. Authorize event and property requests based on client roles.
+11. Forward event and property subscription requests to devices.
+12. Notify consumers of event and property updates they subscribed to.
+13. Forward action and property requests to devices and return responses.
+14. Log requests to a configured logger.
+15. Drop connections that are no longer needed.
 
-Although not part of the WoT standard, the use of reverse connections by supporting devices closes a big attack vectors as devices can no longer be access directly. This is an approach favored by HiveOT and supported through HiveKit modules. For gateways that support reverse connections:
+Although not part of the WoT standard, the use of reverse connections by supporting devices closes a big attack vectors as devices can no longer be access directly. This is an approach favored by HiveOT and supported through HiveKit cells. For gateways that support reverse connections:
 
 1. Serve incoming connections from devices.
 2. Track connected devices in order to forward consumer requests.
 
-Optionally, to enhance the functionality:
-
-1. Authorize requests based on consumer roles.
-2. Store device property, event and/or action history.
-
-Modules are available for storing most of these steps.
 
 The recipe for this setup could look like:
 
@@ -119,7 +114,7 @@ The recipe for this setup could look like:
 
 Where,
 
-- the message router uses the directory store to determine request destinations and create client connections to the devices using a device client.
+- the router uses the directory store to determine request destinations and create client connections to the devices using a device client.
 - requests to read the directory are routed to the directory server
 - requests for clients are passed to the multi-client which establishes client connections to connect to devices
 
@@ -127,16 +122,13 @@ Where,
 
 A digital twin hub takes the gateway to the next level. Instead of consumers interacting with devices via a gateway, they interact directly with a digital twin that represents the device. This:
 
-- makes device status available even if they are asleep or temporary offline.
+- makes device status available, even if they are asleep or temporary offline.
 - greatly reduces the traffic with devices themselves as all read operations are handled through the digital twin. This in turn reduces latency and increases consumer performance.
 - supports device simulation as part of a test program.
 - improves security as the device location and access remains hiddden from the consumer.
-- opens the option to substitute or replace devices without affecting consumers.
+- opens the option to substitute or replace devices without affecting consumers, by mapping the digital twin thingID to a replacement device thingID.
 
-The extra modules for the digital twin include:
+The cells involved with using the digital twin includes:
 
-- an internal directory storage module that contains the digital twins TDs. Device TD's are converted to the digital twin equivalent.
+- an internal directory storage cell that contains the digital twins TDs. Device TD's are converted to the digital twin equivalent.
 - a value store containing the last known property, event and action values as reported by devices.
-- an updated router that forwards read/query request to the value store for digital twin devices
-- an action store that tracks action progress.
-- optionally a simulator module that intercepts messages for specific devices.

@@ -1,28 +1,28 @@
-# HiveKit Transport Modules
+# HiveKit Transports 
 
 ## Summary
 
-HiveKit transport modules provide client and server modules for connecting producers and consumers running on different devices or in different processes. Both the client and server modules can be linked to any other module that needs to send requests, receive notifications or vice-versa. Transport modules are implemented for various IoT protocols, and link with modules using the HiveOT standard RRN message envelope. Common transport modules support WoT protocols http-basic, websocket, the hiveot http/sse-sc protocol. MQTT is under development.
+HiveKit transports provides client and server cells for connecting producers and consumers running on different devices or in different processes. Both the client and server cells can be linked to any cell that needs to send requests, receive notifications or vice-versa. Transport cells are implemented for various IoT protocols, and link with cells using the HiveOT standard RRN message envelope. Common transport cells support WoT protocols http-basic, websocket, the hiveot http/sse-sc protocol. MQTT is under development.
 
-All client and server modules implement the IHiveModule interface to support chaining modules in a pipeline. This supports the following use-cases:
+All client and server cells implement the IHiveCell interface to support chaining cells in a pipeline. This supports the following use-cases:
 
-1. A consumer links to a client module to send requests and receive notifications.
-2. An IoT device or service is linked-to by a server module to receive requests and return responses and notifications.
-3. An IoT device links to a client module - using connection reversal - to receive requests and publish notifications.
+1. A consumer links to a client cell to send requests and receive notifications.
+2. An IoT device or service is linked-to by a server cell to receive requests and return responses and notifications.
+3. An IoT device links to a client cell - using connection reversal - to receive requests and publish notifications.
 
-Transport module support sending requests from client to server and vice versa. Similarly, responses and notifications can be sent by the client and by the server side. Therefore the producer and consumer role is separated from the client and server role. This enables connection reversal and allows IoT devices to connect to a gateway that handles things like authentication and authorization.
+Transport cells support sending requests from client to server and vice versa. Similarly, responses and notifications can be sent by the client and by the server side. Therefore the producer and consumer role is separated from the client and server role. This enables connection reversal and allows IoT devices to connect to a gateway that handles things like authentication and authorization.
 
-This is achieved by requiring that the HandleRequest and HandleNotification methods of a (client and server) Transport module sends the message to the remote side of the connection. Received messages are passed to the registered request sink and notification sink.
+This is achieved by requiring that the HandleRequest and HandleNotification methods of a (client and server) Transport cells sends the message to the remote side of the connection. Received messages are passed to the registered request sink and notification sink.
 
-Subscriptions are handled by the server side depending on the protocol used. When a consumer subscribes to notifications, the request is forwarded until it reaches a server module which tracks the notification and links it to the connection.
+Subscriptions are handled by the server side depending on the protocol used. When a consumer subscribes to notifications, the request is forwarded until it reaches a server which tracks the notification and links it to the connection.
 
 ## Uni-Directional vs Bi-Directional Transports
 
 Most protocols are bi-directional in that responses and notifications can be sent from server to client.
 
-The HTTP-Basic protocol is an exception as http is connectionless and uni-directional. In this context it means that messages can be received server side from remote clients but not pushed to remote clients. With HTTP-basic, a response can be returned to the remote client if it is received by the server module before the request completes.
+The HTTP-Basic protocol is an exception as http is connectionless and uni-directional. In this context it means that messages can be received server side from remote clients but not pushed to remote clients. With HTTP-basic, a response can be returned to the remote client if it is received by the server before the request completes.
 
-The HiveOT SSE-SC module extends HTTP-Basic with an SSE return channel. This enables it to be used as a bi-directional protocol just like websockets. In most cases the websocket protocol is preferred as it is a WoT standard.
+The HiveOT SSE-SC transport extends HTTP-Basic with an SSE return channel. This enables it to be used as a bi-directional protocol just like websockets. In most cases the websocket protocol is preferred as it is a WoT standard.
 
 Subscription to events and property updates are therefore not supported by uni-direction protocols. Remote clients will have to 'poll' for information to receive updates.
 
@@ -42,7 +42,7 @@ The HiveOT approach is to provide a 'replyTo' callback in the HandleRequest API 
 
 ## Client-Server vs Consumer-ExposedThing (Connection Reversal)
 
-One of the objectives of Transport modules is to support connection reversal. During connection reversal an exposed thing (device, service) connects as a client to a protocol server. Once connected it accepts requests and sends responses and notifications just as if it was running a server. The exposed thing functions independently from how the connection is established.
+One of the objectives of Transport cells is to support connection reversal. During connection reversal an exposed thing (device, service) connects as a client to a protocol server. Once connected it accepts requests and sends responses and notifications just as if it was running a server. The exposed thing functions independently from how the connection is established.
 
 ### Why Connection Reversal
 
@@ -56,7 +56,7 @@ The main downside of using connection reversal is that it needs a gateway that d
 
 ### Supporting Connection Reversal
 
-The good news for supporting connection reversal is that it is quite easy to support. Transport modules just need to transfer all request, response and notification messages regardless if are send by via the client or from the server.
+The good news for supporting connection reversal is that it is quite easy to support. Transport cells just need to transfer all request, response and notification messages regardless if are send by via the client or from the server.
 
 The main 'burden' is on the IoT device side that instead of listening for incoming connections, it now must discover and connect to a gateway.
 
@@ -65,23 +65,23 @@ Note that not all WoT protocols, such as WoT HTTP-Basic/SSE, support connection 
 
 ## Transport API
 
-The server side module of a transport must implement the ITransportServer interface. The client side must implement the IHiveModule and IConnection interfaces.
-By doing so they can be used by any module sending requests and receiving notifications.
+The server side cell of a transport must implement the ITransportServer interface. The client side must implement the ITransportClient interface.
+By doing so they can be used by any cell sending requests and receiving notifications.
 
 ## Subscriptions
 
-In HiveKit subscriptions are the responsibility of the transport server module. There are several reasons for this:
+In HiveKit subscriptions are the responsibility of transport servers. There are several reasons for this:
 
 1. The client-server communication is often the most costly wrt performance.
 2. Some protocols such as MQTT already have built-in support for subscription.
-3. The classic use-case where the IoT device runs a server works out of the box when using the HiveKit server module. There is no need for it to manage subscriptions as the server module takes care of it.
+3. The classic use-case where the IoT device runs a server works out of the box when using a HiveKit server. There is no need for it to manage subscriptions as the server takes care of it.
 4. It is the most efficient for the gateway use-case. When using a gateway IoT devices can serve many consumers via the gateway. Handling subscriptions at the gateway server avoids having to send notifications multiple times, one for each subscriber, from the IoT device to the gateway.
-5. Middleware modules such as logging, history storage and other types of transformations often need access to the full data stream. Therefore the IoT device ends up sending all (notification) messages anyways.
+5. Middleware cells such as logging, history storage and other types of transformations often need access to the full data stream. Therefore the IoT device ends up sending all (notification) messages anyways.
 
 
 ## Client Auto-Reconnect
 
-In HiveOT the server side of a connection tracks subscriptions to events and property changes. When the client connection is interrupted, these subscriptions are lost.
+In HiveOT the server side of a connection tracks subscriptions to events and property changes. When the client connection is interrupted, these subscriptions are dropped.
 
-When the client reconnects, the subscriptions need to be restored. This is the role of the client Reconnect module. This keeps the transport clients themselves simple as no reconnection logic is needed. 
+When the client reconnects, the subscriptions need to be restored. This is the role of the client Reconnect cell. This keeps the transport clients themselves simple as no re-subscription logic is needed. 
 

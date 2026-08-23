@@ -2,7 +2,7 @@ package tuiapp
 
 import (
 	"github.com/hiveot/hivekit/go/api/td"
-	"github.com/hiveot/hivekit/go/modules/directory"
+	"github.com/hiveot/hivekit/go/cells/directory"
 	"github.com/rivo/tview"
 )
 

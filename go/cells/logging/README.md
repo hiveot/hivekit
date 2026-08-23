@@ -1,0 +1,32 @@
+# logging - Request and Notification Logging
+
+The logging cells captures the message flow and writes a filtered copy to the designated output.
+
+The purpose is to track specific messages for review later.
+
+## Status
+
+This service is in development.
+
+## Summary
+
+This service should be a installed in between a source and a sink of another cell. All messages received by the service will be forwarded to the sink unchanged.
+
+Logging is implemented using slog, the golang structured logging framework. The supported output formats are text and/or json. Logging can be configured through a yaml configuration file that defines the filters and outputs. ANSI colorized output is also supported. Custom handlers as described [here](https://betterstack.com/community/guides/logging/logging-in-go/#customizing-slog-handlers) including tint, slog-sampling and slog-multi are also supported.
+
+While slog provides a unified logging frontend, it supports different backends.
+
+This currently does not include a client to configure logging via commands. Instead a yaml configuration defines its configuration.
+
+This is work in progress.
+
+## Usage
+
+Placement in the cell pipeline:
+
+One possible place is in the device behind the server so it receives all requests and the emitted events.
+
+```
+Requests:       [consumer] -> [client] -> [server] -> [logging] -> [device]
+Notifications:  [consumer] <- [client] <- [server] <- [logging] <- [device]
+```

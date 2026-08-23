@@ -4,17 +4,17 @@ import (
 	"github.com/hiveot/hivekit/go/api"
 	"github.com/hiveot/hivekit/go/api/msg"
 	"github.com/hiveot/hivekit/go/api/td"
-	"github.com/hiveot/hivekit/go/modules/transport"
+	"github.com/hiveot/hivekit/go/cells/transport"
 )
 
-// TestTransport is a direct transport module to connect consumer and
-// producer modules as if they were connected via a network client and server transport,
+// TestTransport is a direct transport client/server to connect consumer and
+// producer cells as if they were connected via a network client and server transport,
 // but without the overhead of setting up a transport server and client.
 //
-// The thingID of this transport module is used as the senderID of requests. This
-// simulates server modules that set the clientID of the connection as the sender.
+// The thingID of this transport is used as the senderID of requests. This
+// simulates server cells that set the clientID of the connection as the sender.
 //
-// Intended for testing the messaging between client and server side of a module.
+// Intended for testing the messaging between client and server side of a cell.
 //
 // This implements the IHiveTransport interface
 type TestTransport struct {
@@ -88,17 +88,16 @@ func (m *TestTransport) Start() (err error) {
 func (m *TestTransport) Stop() {
 }
 
-// NewTestTransport returns a transport module that passes messages from a consumer to a producer
-// This sets the producer as the request sink for requests and this module as
-// the notification sink of the producer.
+// NewTestTransport returns a transport cell that passes messages from a consumer to a producer
+// This sets the producer as the request sink and this cell as the notification sink.
 func NewTestTransport(
-	thingID string, producer api.IHiveModule) api.IHiveModule {
+	thingID string, producer api.IHiveCell) api.IHiveCell {
 	t := &TestTransport{
 		TransportServerBase: transport.NewTransportServerBase(thingID, "", nil),
 	}
 	producer.SetNotificationSink(t)
 	t.SetRequestSink(producer)
 	var _ api.ITransportServer = t // interface check
-	var _ api.IHiveModule = t      // interface check
+	var _ api.IHiveCell = t        // interface check
 	return t
 }

@@ -6,9 +6,9 @@ import (
 	"time"
 
 	"github.com/hiveot/hivekit/go/api/td"
-	"github.com/hiveot/hivekit/go/modules/consumer"
-	"github.com/hiveot/hivekit/go/modules/directory"
-	"github.com/hiveot/hivekit/go/modules/transport/discovery"
+	"github.com/hiveot/hivekit/go/cells/consumer"
+	"github.com/hiveot/hivekit/go/cells/directory"
+	"github.com/hiveot/hivekit/go/cells/transport/discovery"
 )
 
 type CliexConfig struct {
@@ -20,9 +20,9 @@ type CliexConfig struct {
 	Verbose bool
 }
 
-// The CLI example consumer module.
+// The CLI example consumer.
 type Cliex struct {
-	// this is a consumer for chaining modules and sending Thing operations.
+	// this is a consumer for chaining cells and sending Thing operations.
 	*consumer.Consumer
 
 	// the consumer this app is linked to
@@ -106,15 +106,3 @@ func NewCliex(config CliexConfig,
 	m.co = m.Consumer
 	return m
 }
-
-// // Factory function for the cli app
-// func NewCliexFactory(f api.IModuleFactory, modDef *api.ModuleDefinition) (api.IHiveModule, error) {
-
-// 	config, ok := modDef.Config.(CliexConfig)
-// 	discoClient := api.GetFactoryModule[discovery.IDiscoveryClient](f, discovery.DiscoveryClientModuleType)
-// 	dirClient := api.GetFactoryModule[directory.IDirectoryClient](f, directory.DirectoryClientModuleType)
-// 	_ = ok
-
-// 	m := NewCliex(config, discoClient, dirClient, f.GetEnvironment().CaCert)
-// 	return m, nil
-// }

@@ -10,10 +10,10 @@ import (
 	"github.com/hiveot/hivekit/go/api"
 	"github.com/hiveot/hivekit/go/api/msg"
 	"github.com/hiveot/hivekit/go/api/td"
-	"github.com/hiveot/hivekit/go/modules/consumer"
-	"github.com/hiveot/hivekit/go/modules/directory"
-	"github.com/hiveot/hivekit/go/modules/transport/discovery"
-	"github.com/hiveot/hivekit/go/modules/vcache"
+	"github.com/hiveot/hivekit/go/cells/consumer"
+	"github.com/hiveot/hivekit/go/cells/directory"
+	"github.com/hiveot/hivekit/go/cells/transport/discovery"
+	"github.com/hiveot/hivekit/go/cells/vcache"
 	"github.com/hiveot/hivekit/go/utils"
 	"github.com/rivo/tview"
 )
@@ -187,7 +187,7 @@ func (tuiApp *TuiApp) HandleNotification(notif *msg.NotificationMessage) {
 	// option 2: redraw of properties or event fields
 	//   todo: how to identify and update these fields?
 
-	// option 3: include a vcache in the module chain
+	// option 3: include a vcache in the cell chain
 
 	// option 4: include a vcache as part of a consumer
 }
@@ -350,7 +350,7 @@ func (tuiApp *TuiApp) Start() error {
 }
 
 // Create a new instance of the tui app
-func NewTuiApp(f api.IModuleFactory) *TuiApp {
+func NewTuiApp(f api.ICellFactory) *TuiApp {
 
 	// adjust color scheme
 	tview.Styles.TitleColor = tcell.ColorGreen
@@ -386,10 +386,10 @@ func NewTuiApp(f api.IModuleFactory) *TuiApp {
 		AddItem(pages, 1, 1, 1, 1, 0, 0, true).
 		AddItem(footer.View, 2, 0, 1, 2, 0, 0, false)
 
-	discoCl := api.GetFactoryModule[discovery.IDiscoveryClient](
-		f, discovery.DiscoveryClientModuleType)
-	dirCl := api.GetFactoryModule[directory.IDirectoryClient](
-		f, directory.DirectoryClientModuleType)
+	discoCl := api.GetFactoryCell[discovery.IDiscoveryClient](
+		f, discovery.DiscoveryClientCellType)
+	dirCl := api.GetFactoryCell[directory.IDirectoryClient](
+		f, directory.DirectoryClientCellType)
 
 	tuiApp := &TuiApp{
 		Application: *tview.NewApplication(),

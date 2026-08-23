@@ -15,7 +15,7 @@ import (
 func main() {
 
 	// accept commandline flags
-	appenv := api.NewAppEnvironment("", true)
+	appenv := api.NewHiveEnvironment("", true)
 
 	// for now just print the location
 	fmt.Printf("Application Environment\n")

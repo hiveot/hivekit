@@ -10,8 +10,8 @@ import (
 // Standardized http transport definitions for use with HiveOT.
 // These are used by GetRequestParams but usage is optional.
 const (
-	// The http server module type that can be used to retrieve the server instance from the factor.
-	HttpServerModuleType = "httpserver"
+	// The http server cell type that can be used to retrieve the server instance from the factor.
+	HttpServerCellType = "httpserver"
 
 	// The default health check ping path to register
 	DefaultPingPath = "/ping"
@@ -53,7 +53,7 @@ type RequestParams struct {
 }
 
 // IHttpServer is the minimal HTTP server interface as used by various http subprotocols.
-// The subprotocols can work with any http server module that supports this interface.
+// The subprotocols can work with any http server cell that supports this interface.
 // The factory provides a GetHttpServer() method to retrieve the embedded http server.
 type IHttpServer interface {
 	// GetAuthenticator returns the authenticator used to authenticate incoming connections
@@ -87,7 +87,7 @@ type IHttpServer interface {
 	// Set the authenticator for http requests
 	// This enables the protected routes.
 	//
-	// Note that the authn module can provide this capability
+	// Note that the authn cell can provide this capability
 	// SetAuthenticator(authenticator IAuthenticator)
 
 	// Start the server and open the listening port

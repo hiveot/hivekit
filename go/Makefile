@@ -1,4 +1,4 @@
-# Makefile to test HiveKit modules
+# Makefile to test HiveKit cells
 DIST_FOLDER=./dist
 
 .FORCE: 

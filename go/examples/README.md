@@ -20,10 +20,10 @@ These first few examples are kept simple on purpose. They use a single protocol 
 
 Example 1 creates a standalone IoT device that runs a simple counter. It has a property with the current value, sends an event when it changes and has actions for increment and decrement.
 
-- This uses a factory recipe to create a server and link it to the counter module.
+- This uses a factory recipe to create a server and link it to the counter service.
 - This publishes an event each time the counter value changes.
 - This offers actions for incrementing and decrementing the counter.
-- This serves Thing discovery of the module TD and can be discovered with example 2.
+- This serves Thing discovery of the service TD and can be discovered with example 2.
 
 usage: go run example1/main.go --home ~/bin/hiveot
 

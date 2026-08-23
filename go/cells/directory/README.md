@@ -1,0 +1,103 @@
+# directory - Things Directory Service
+
+This directory service provides the means to store and retrieve TD (Thing Description) documents.
+
+The primary objective is to let consumers discover what Things are available and obtain the information on how to access them.
+
+This service follows the WoT discovery specification https://w3c.github.io/wot-discovery/#exploration-directory and a subset of the TM described at https://w3c.github.io/wot-discovery/#directory-api-spec.
+
+This service is not a full blow stand-alone application but simply offers the directory capabilities to applications or services that want to include a directory. It must be linked to a transport service to receive the requests.
+
+## Status
+
+This service is in alpha. It is functional but breaking changes might still happen.
+
+There are some notable issues for which there is no standardization:
+1: For security reasons, a device TD should only be updatable by the owning device. How to determine who this is?
+
+Proposed solution: HiveOT uses the convention that thingIDs contain the device clientID prefix separated by a colon. The format for thingID is: "{deviceID}:{thingID}", where {thingID} is the ID of the Thing managed by the device.
+
+If the TD is to be published in an internet based directory, the clientID must be globally unique and the forms must be updated to externally reachable addresses. In HiveOT this is not a concern of devices. Instead a gateway must handle external exposure and security.
+
+2: How to prevent thingID collisions? There is no mechanism to guarantee uniquenes between devices. One option is to use UUIDs. Another is to use namespaces in the ID.
+
+Current solution, same as above. ThingIDs have the clientID prefix.
+
+3: The directory http client should not be needed. Just use the messaging client with a
+http-basic client. The directory server TD with forms should be sufficient.
+The main issue is that the generic http-basic server uses different paths, is 
+this valid or are the paths in the spec mandatory. For now assume paths are not fixed.
+
+This needs testing that it works as intended.
+
+## Summary
+
+The WoT discovery specification defines the directory service API for storing and retrieving TD information. This service exports a TM that matches the description provided in the specification.
+
+The directory package contains these cells: the directory service, its http API server, a messaging client, and an HTTP client. These can be used as any other cell, and operate client side or server side. Typically, the directory server is linked to a transport server to receive requests and publish notifications. Similarly the directory client service can be used by applications to query the TDs of the available Things.
+
+The directory should be updated by IoT devices. In HiveOT, the convention is that devices update the directory with one or more TD's of the Things it manages.
+
+Alternatively, an administrator can update the directory manually with a JSON document using the provided CLI. The CLI is a simple example commandline interface that uses the directory client to read and write the directory.
+
+To write their TD to the directory storage, IoT devices need to discover the location of the directory and invoke the createThing or updateThing action, providing the TD JSON document as the payload.
+
+## Backends
+
+This service internally uses a Key-Value bucket store for persisting TD documents. When read, TDs are cached in memory for fast access by consumers.
+
+TBD: maybe use a filesystem based backend where TDs are stored? It would make importing TDs out-of-band easier.
+
+## Usage
+
+### Creating a Directory Server
+
+Examples of creating an instance of the directory.
+
+1. Use the HiveKit factory. This factory provides the application environment and automatically creates instances of the neccesary cells.
+
+2. Manually without the HTTP API: **[server]->[directory]**
+   1. Create an instance of the service using directory_service.NewDirectoryService() and provide it with the storage location of the embedded database.
+
+   2. Call Start on the service. This will initialize and create the store.
+
+   3. Link it as a sink of a server cell chain. Any directory requests will be handled by the service. .
+
+   4. Before shutdown call Stop() to ensure the datastore is properly closed.
+
+3. Manually with the HTTP API: **[server]->[http-api]->[directory]**
+   1. Create an instance of the directory http API server using directorypkg.NewDirectoryHttpHandler()
+
+   2. Set the HTTP API service as the sink of the server cell chain.
+
+   3. Create an instance of the directory service using directorypkg.NewDirectoryService() and provide it with the storage location of the embedded database, and the http api. The http api is used to set the base URL, security and forms of the directory TD.
+
+   4. Set the service as the sink of the directory http api. Request received via the http API are now handled by the service.
+
+   5. Call Start on both the directory http api and the service cells. This will initialize the directory store and register the HTTP endpoints with the HTTP server.
+
+   6. Before shutdown call Stop() to ensure the datastore is properly closed.
+
+### Updating the Directory With TD's
+
+There are several use-cases for updating the directory with TD from Things. At this moment it isn't clear if there is a preferred way. HiveOT is leaning towards option 3 and 4 as HiveOT devices do not run servers.
+
+1. Stand-alone devices can use discovery to publish their TD or TDD in case there are multiple. Someone need to get the TD and add it to the directory. Who?
+2. A stand-alone device discovers a directory and write its TD to it.
+3. Devices with reverse connection to a hub or gateway can write the TDs they manage to the its directory.
+4. An administrator can manually upload TDs to the directory import location. This is not yet supported (but seems like a good idea)
+
+
+### Using the Directory Client
+
+The directory client is a cell that be used together with a consumer and discovery cells to build consumer applications. It can operate with the directory service or be used stand-alone.
+
+When used with a directory service it needs a transport client to pass directory requests to the service. Several ways to achieve this:
+1. Have the transport client connect to the service server using the directory TDD. The TDD describes the service endpoint and protocol for connecting to the directory service. See below for ways to obtain the TDD.
+2. Have the transport client connect to a gateway that serves the directory. The transport client will pass all requests to the gateway which forwards it to the directory. The transport client can connect using the gateway TDD or a connection URL can be provided to a transport client. 
+
+Obtaining the TDD:
+1. Manual download and storing the tdd in a local file. The filename of the TDD is defined in the directory client interface and defaults to {apphome}/config/tdd.json.
+2. Use the discovery client which has an api to discover directories. The retrieved directory can be activated with "SetTDD()" on the directory client. 
+3. Use the discovery client in the chain. Place the discovery client behind the directory client. The discovery client automatically performs a discovery on startup (if configured). When found, it sends a notification with the first discovered directory. The directory client intercepts discovery notifications (TODO)  and set the TDD to the discovered directory.
+

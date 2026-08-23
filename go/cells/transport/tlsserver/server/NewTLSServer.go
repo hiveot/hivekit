@@ -1,0 +1,33 @@
+package tls_server
+
+import (
+	"log/slog"
+
+	"github.com/hiveot/hivekit/go/api"
+	"github.com/hiveot/hivekit/go/cells/transport/tlsserver"
+	"github.com/hiveot/hivekit/go/cells/transport/tlsserver/internal"
+)
+
+// Create a new TLS server instance with the given configuration
+func NewTLSServer(cfg *tlsserver.TLSServerConfig, authenticator api.IAuthenticator) api.IHttpServer {
+	srv := internal.NewTLSServerImpl(cfg, authenticator)
+	return srv
+}
+
+// Create a new http transport server instance for the provided factory environment.
+// This uses the appp ID as the server and certificate name.
+func NewTLSServerFactory(
+	f api.ICellFactory, md *api.CellDefinition) (api.IHiveCell, error) {
+
+	env := f.GetEnvironment()
+
+	serverCert, err := env.GetServerCert()
+	if err != nil {
+		slog.Error("unable to get the Server certificate")
+	}
+	addr := ""
+	rootCAs := env.GetRootCAs()
+	cfg := tlsserver.NewTLSServerConfig(addr, env.HttpsPort, serverCert, rootCAs, true)
+	srv := internal.NewTLSServerImpl(cfg, f.GetAuthenticator())
+	return srv, nil
+}

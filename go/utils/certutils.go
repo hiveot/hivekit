@@ -280,7 +280,7 @@ func LoadX509Cert(pemPath string) (cert []*x509.Certificate, err error) {
 //
 // If loading fails, this returns nil as certificate pointer
 func LoadTLSCert(certPEMPath, keyPEMPath string) (tlsCert *tls.Certificate, err error) {
-	// golang tls module does it for us
+	// Golang's tls package does it for us
 	cert, err := tls.LoadX509KeyPair(certPEMPath, keyPEMPath)
 	if err != nil {
 		return nil, err

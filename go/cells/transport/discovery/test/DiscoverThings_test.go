@@ -1,0 +1,91 @@
+package discovery_test
+
+import (
+	"net/url"
+	"testing"
+	"time"
+
+	"github.com/hiveot/hivekit/go/api"
+	"github.com/hiveot/hivekit/go/api/msg"
+	"github.com/hiveot/hivekit/go/api/td"
+	"github.com/hiveot/hivekit/go/cells/transport/discovery"
+	discovery_client "github.com/hiveot/hivekit/go/cells/transport/discovery/client"
+	discovery_server "github.com/hiveot/hivekit/go/cells/transport/discovery/server"
+	"github.com/hiveot/hivekit/go/testenv"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+)
+
+// filter on test serviceID to avoid interference with running services
+const testServiceID = "hiveot-test"
+const testServicePort = 9999
+
+var testTDJson string
+
+// testTDD := testenv.NewTDD()
+
+// discover things
+func TestDiscoverThings(t *testing.T) {
+
+	testEnv := testenv.NewTestEnv(true)
+	testEnv.StartHttpServer(true)
+	defer testEnv.HttpServer.Stop()
+
+	m := discovery_server.NewThingDiscoveryServer(testServiceID, testEnv.HttpServer, nil)
+	err := m.Start()
+	require.NoError(t, err)
+	defer m.Stop()
+	err = m.ServeThingTD(testTDJson)
+	require.NoError(t, err)
+
+	// Test if it is discovered
+	serverAddr := testEnv.HttpServer.GetConnectURL()
+	urlParts, _ := url.Parse(serverAddr)
+	cl := discovery_client.NewDiscoveryClient(nil, false)
+	records, err := cl.DiscoverThings(testServiceID, time.Second, nil)
+	require.NoError(t, err)
+	require.Equal(t, len(records), 1, "the test thing record was not discovered")
+	rec0 := records[0]
+	assert.Equal(t, urlParts.Hostname(), rec0.Addr)
+}
+
+func TestDiscoverGetThingTD(t *testing.T) {
+
+	// run the server
+	testEnv := testenv.NewTestEnv(true)
+	testEnv.StartHttpServer(true)
+	defer testEnv.HttpServer.Stop()
+	thingTD := testEnv.CreateTestTD(12)
+
+	m := discovery_server.NewThingDiscoveryServer(testServiceID, testEnv.HttpServer, nil)
+	err := m.Start()
+	require.NoError(t, err)
+	defer m.Stop()
+
+	// Serve a TD published in the request chain.
+	// This should be handled by the discovery server.
+	// err = m.ServeThingTD(thingTD)
+	tdJson1 := td.MarshalTD(thingTD)
+	req := msg.NewRequestMessage(td.OpInvokeAction,
+		discovery.ThingDiscoveryServerCellType, discovery.ServeThingTDAction, tdJson1)
+	err = m.HandleRequest(req, req.NoReply)
+	require.NoError(t, err)
+
+	// discover the server
+	appEnv := api.NewHiveEnvironment("", false)
+	cl := discovery_client.NewDiscoveryClient(appEnv, false)
+	recs, err := cl.DiscoverThings(testServiceID, time.Second, nil)
+	// records, err := cl.DiscoverThings(testThingServiceID, time.Second, nil)
+	require.NoError(t, err)
+	require.NotEmpty(t, recs)
+	rec0 := recs[0]
+	assert.True(t, rec0.IsThing)
+
+	// require.NotZero(t, len(records), "no things discovered")
+	td2, tdJson2, err := cl.LoadTD(rec0.AsURL())
+	assert.NoError(t, err)
+	assert.Equal(t, tdJson1, tdJson2)
+	assert.Equal(t, thingTD.ID, td2.ID)
+	// assert.Equal(t, cl.GetDirectoryURL(), appEnv.ServerURL)
+}

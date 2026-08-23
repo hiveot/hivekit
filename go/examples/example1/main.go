@@ -9,8 +9,8 @@ import (
 
 	"github.com/hiveot/hivekit/go/api"
 
-	standalonerecipe "github.com/hiveot/hivekit/go/modules/factory/recipes/standalone"
-	factory_service "github.com/hiveot/hivekit/go/modules/factory/service"
+	standalonerecipe "github.com/hiveot/hivekit/go/cells/factory/recipes/standalone"
+	factory_service "github.com/hiveot/hivekit/go/cells/factory/service"
 	"github.com/hiveot/hivekit/go/testenv"
 )
 
@@ -22,16 +22,16 @@ var ExampleHome = path.Join(os.TempDir(), "hivekit-examples")
 
 // Demo stand-alone IoT device running the test counting device.
 //
-// This uses the "StandAloneDevice" factory recipe and inserts the test counter module
+// This uses the "StandAloneDevice" factory recipe and inserts the test counter service
 // into the app slot.
 //
-// The factory authn module factory creates an admin client certificate and auth token if
+// The factory authn service factory creates an admin client certificate and auth token if
 // not present.
 //
-// See the factory/recipes/StandAloneDeviceRecipe.go for the modules in the recipe.
+// See the factory/recipes/StandAloneDeviceRecipe.go for the cells in the recipe.
 // On start the device publishes its TD to the discovery server.
 func main() {
-	env := api.NewAppEnvironment(ExampleHome, true)
+	env := api.NewHiveEnvironment(ExampleHome, true)
 	env.RpcTimeout = time.Minute // for testing
 	env.HttpsPort = 9222         // for testing
 
@@ -39,10 +39,10 @@ func main() {
 		env.ClientID = api.DefaultAdminUserID
 	}
 
-	f := factory_service.NewModuleFactory(env, nil)
+	f := factory_service.NewCellFactory(env, nil)
 
-	// the device server recipe contains modules for running a server with certs and authn
-	// you can message the recipe as a module or via a client. Here we message directly.
+	// the device server recipe contains cells for running a server with certs and authn
+	// you can message the recipe as a service or via a client. Here we message directly.
 	r := standalonerecipe.NewStandAloneDeviceRecipe(f)
 	err := r.Start()
 	if err != nil {
@@ -50,25 +50,25 @@ func main() {
 		os.Exit(1)
 	}
 
-	// next start the app module
+	// next start the app service
 	cfg := &testenv.CounterConfig{
 		AutoIncrement: false,
 		ResetValue:    60,
 	}
-	appModule := testenv.NewCounterDevice("", cfg)
+	deviceCell := testenv.NewCounterDevice("", cfg)
 
-	// requests from the app module are passed to the modules in the chain
+	// requests from the counter device are passed to the cells in the chain
 	// intended to publish the TD. No other requests are expected.
-	appModule.SetRequestSink(r) // chain handles requests from the module
+	deviceCell.SetRequestSink(r) // chain handles requests from the device (operating as a consumer)
 	// notifications from the chain are passed to the app, eg connection established
 	// not much else to do here
-	r.SetNotificationSink(appModule)
-	// requests from the chain server are passed to the app module. This is the 'Thing' it serves.
-	r.SetRequestSink(appModule)
+	r.SetNotificationSink(deviceCell)
+	// requests from the chain are passed to the device. This is the 'Thing' it serves.
+	r.SetRequestSink(deviceCell)
 	// Property and event notifications published by the app are send to connected clients.
-	// the recipe HandleNotification passes it to the last module in the chain and up from there.
-	appModule.SetNotificationSink(r)
-	appModule.Start()
+	// the recipe HandleNotification passes it to the last cell in the chain and up from there.
+	deviceCell.SetNotificationSink(r)
+	deviceCell.Start()
 
 	fmt.Printf("main: homeDir: %s\n", env.HomeDir)
 	fmt.Printf("main: Counter is running and listening on '%s'\n", f.GetConnectURL())

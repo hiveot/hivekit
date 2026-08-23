@@ -1,0 +1,407 @@
+package digitwin_test
+
+import (
+	"fmt"
+	"log/slog"
+	"os"
+	"path/filepath"
+	"strings"
+	"sync/atomic"
+	"testing"
+	"time"
+
+	"github.com/hiveot/hivekit/go/api"
+	"github.com/hiveot/hivekit/go/api/msg"
+	"github.com/hiveot/hivekit/go/api/td"
+	"github.com/hiveot/hivekit/go/cells/authn"
+	"github.com/hiveot/hivekit/go/cells/digitwin"
+	"github.com/hiveot/hivekit/go/cells/digitwin/internal"
+	digitwin_service "github.com/hiveot/hivekit/go/cells/digitwin/service"
+	"github.com/hiveot/hivekit/go/cells/directory"
+	directory_client "github.com/hiveot/hivekit/go/cells/directory/client"
+	directory_service "github.com/hiveot/hivekit/go/cells/directory/service"
+	router_service "github.com/hiveot/hivekit/go/cells/router/service"
+	"github.com/hiveot/hivekit/go/cells/thing"
+	"github.com/hiveot/hivekit/go/testenv"
+	"github.com/hiveot/hivekit/go/utils"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+)
+
+var storageDir = filepath.Join(os.TempDir(), "hivekit", "digitwin-test")
+
+const rpcTimout = msg.DefaultRnRTimeout
+
+// TestMain setup logging and creates a test environment
+func TestMain(m *testing.M) {
+	utils.SetLogging("info", "")
+
+	result := m.Run()
+	if result != 0 {
+		println("Test failed with code:", result)
+	} else {
+	}
+
+	os.Exit(result)
+}
+
+// startService initializes a service and a client
+// This sets-up a chain with a server, directory, digitwin, vcache, and router
+func startService() (
+	testEnv *testenv.TestEnv,
+	dir directory.IDirectoryService,
+	dtw digitwin.IDigitwinService,
+	stopFn func()) {
+
+	os.RemoveAll(storageDir)
+	// testEnv,cancelFn = tptests.StartTestEnv(api.ProtocolSchemeWotWSS)
+	testEnv = testenv.NewTestEnv(true)
+
+	// a websocket server for RRN messaging
+	appServer := testEnv.StartTestServer("")
+
+	// the directory server that will contain digitwin Things
+	// digiDir := filepath.Join(storageDir, "digiDir.json")
+	dirThingID := directory.DefaultDirectoryThingID
+	servers := []api.ITransportServer{testEnv.Server}
+	// httpAPI := directorypkg.NewDirectoryHttpServer(testEnv.HttpServer)
+
+	dir = directory_service.NewDirectoryService(
+		dirThingID, storageDir, testEnv.HttpServer, servers)
+	err := dir.Start()
+	if err != nil {
+		panic("Failed to start directory server")
+	}
+	// the digitwin service to test, it will create its own vcache instance.
+	dtw = digitwin_service.NewDigitwinService(storageDir, dir, appServer.AddTDSecForms)
+	err = dtw.Start()
+	if err != nil {
+		panic("unable to start the digitwin service")
+	}
+	// callback to return available servers
+	getTps := func() []api.ITransportServer {
+		return []api.ITransportServer{appServer}
+	}
+	// The router uses the digitwin Thing Directory.
+	// getDeviceTD := dtw.GetDeviceDirectory().GetTD
+	clientID := testEnv.AppEnv.ClientID
+	rtr := router_service.NewRouterService(
+		storageDir, false, clientID, nil, //svc.clientCert, use SetClientCert if known
+		testEnv.CertBundle.RootCAs, rpcTimout,
+		dtw.GetDeviceTD,
+		getTps,
+	)
+	err = rtr.Start()
+	if err != nil {
+		panic("unable to start the router service")
+	}
+	// create a request chain server->directory->digitwin->router->server
+	appServer.SetRequestSink(dir)
+	dir.SetRequestSink(dtw)
+	dtw.SetRequestSink(rtr)
+	rtr.SetRequestSink(appServer)
+
+	// create a reverse notification chain server->router->digitwin->directory->server
+	appServer.SetNotificationSink(rtr)
+	rtr.SetNotificationSink(dtw)
+	dtw.SetNotificationSink(dir)
+	dir.SetNotificationSink(appServer)
+
+	slog.Info("--- digitwin test environment started ---")
+
+	return testEnv, dir, dtw, func() {
+		// give client connections time to close
+		time.Sleep(time.Millisecond)
+		slog.Info("--- digitwin test environment stopping ---")
+		dir.Stop()
+		dtw.Stop()
+		rtr.Stop()
+		appServer.Stop()
+		testEnv.HttpServer.Stop()
+	}
+}
+func TestStartStop(t *testing.T) {
+	t.Logf("---%s---\n", t.Name())
+
+	testEnv, dir, dtw, stopFn := startService()
+	defer stopFn()
+	_ = testEnv
+	_ = dir
+	_ = dtw
+}
+
+// Write a TD to the directory and verify a digital twin is created using the service API
+func TestCreateDigitwinTD(t *testing.T) {
+	t.Logf("---%s---\n", t.Name())
+	const deviceID = "device1"
+
+	testEnv, dir, dtw, stopFn := startService()
+	defer stopFn()
+
+	// pretent to be a device that writes a TD to the directory
+	td1 := testEnv.CreateTestTD(0)
+	td1Json := td.MarshalTD(td1)
+	err := dir.UpdateThing(deviceID, td1Json)
+
+	// 1. Retrieve the TD from the directory.
+	dtwList, err := dir.RetrieveAllThings(0, 0)
+	require.NoError(t, err)
+	require.Equal(t, 1, len(dtwList))
+	dtw1, err := td.UnmarshalTD(dtwList[0])
+	require.NoError(t, err)
+
+	// 2. The digitwin ID should have the dtw prefix
+	assert.True(t, strings.HasPrefix(dtw1.ID, digitwin.DigitwinIDPrefix))
+
+	// 3. check if properties, events and actions are still there
+	require.Less(t, len(td1.Properties), len(dtw1.Properties)) // digitwin added properties
+	require.Equal(t, len(td1.Events), len(dtw1.Events))
+	require.Equal(t, len(td1.Actions), len(dtw1.Actions))
+
+	// 4. check if the base form points to the server
+	require.NotEmpty(t, dtw1.Base, "Missing base in TD")
+	expectedBase := testEnv.Server.GetConnectURL()
+
+	assert.Equal(t, expectedBase, dtw1.Base)
+
+	// 5. check if the forms in the affordances are replaced
+	for _, aff := range dtw1.Properties {
+		require.NotEmpty(t, aff.Forms)
+		form0 := aff.Forms[0]
+		assert.NotEmpty(t, form0.GetOperations())
+		subprotocol, _ := form0.GetSubprotocol()
+		_ = subprotocol
+		// assert.Equal(t, subprotocol, expectedSubProtocol)
+	}
+	for _, aff := range dtw1.Events {
+		require.NotEmpty(t, aff.Forms)
+		assert.NotEmpty(t, aff.Forms[0].GetOperations())
+	}
+	for _, aff := range dtw1.Actions {
+		require.NotEmpty(t, aff.Forms)
+		assert.NotEmpty(t, aff.Forms[0].GetOperations())
+	}
+
+	require.NoError(t, err)
+	_ = dtw
+}
+
+// Read a property from the digital twin
+func TestReadDigitwinProperty(t *testing.T) {
+	t.Logf("---%s---\n", t.Name())
+	const deviceID = "device1"
+	const userID = "user1"
+	const prop1Name = "prop-0" // generated by test env
+	const prop1Value = "value1"
+	var rxPropValue atomic.Value
+
+	testEnv, dir, dtw, stopFn := startService()
+	_ = dtw
+	defer stopFn()
+
+	deviceTD1 := testEnv.CreateTestTD(0)
+
+	// the digital twin will receive the readproperty request.
+	// the digitwin service should forward the read property downstream to the actual device, as the property is unknown.
+	downstream := thing.NewExposedThing("", func(req *msg.RequestMessage, replyTo msg.ResponseHandler) error {
+		if req.Operation == td.OpReadProperty {
+			if req.ThingID == deviceTD1.ID && req.Name == prop1Name {
+				resp := req.CreateResponse(prop1Value, nil)
+				err := replyTo(resp)
+				return err
+			}
+		}
+		return fmt.Errorf("unknown request ")
+	})
+	dtw.SetRequestSink(downstream)
+
+	// 1: create a consumer that subscribes to notifications
+	co, cc1, _ := testEnv.NewConnectedConsumer(userID, authn.ClientRoleViewer)
+	err := co.ObserveProperty("", prop1Name)
+	require.NoError(t, err)
+	defer cc1.Stop()
+	// expect a digital twin notification from changing the device property
+	dtwThingID := internal.MakeDigitwinID(deviceID, deviceTD1.ID)
+	co.SetNotificationHook(func(notif *msg.NotificationMessage) {
+		if notif.Name == prop1Name {
+			// rxPropValue = notif.ToString(0)
+			rxPropValue.Store(notif.ToString(0))
+			require.NotEmpty(t, rxPropValue)
+			assert.Equal(t, dtwThingID, notif.ThingID)
+			slog.Info("*** Received notification",
+				"type", notif.AffordanceType, "thingID", notif.ThingID, "name", notif.Name)
+		}
+	})
+
+	// 2. pretent to be a device that writes a TD to the directory
+	td1Json := td.MarshalTD(deviceTD1)
+	err = dir.UpdateThing(deviceID, td1Json)
+	assert.NoError(t, err)
+
+	// 3. the device emits a property notification from the thing to the server
+	// in the test setup the directory is the first cell in the pipeline
+	ag, cc2, _ := testEnv.NewRCThing(deviceID, nil)
+	defer cc2.Close()
+
+	ag.PubProperty(deviceTD1.ID, prop1Name, prop1Value, false)
+	// let the communication proceed
+	time.Sleep(time.Millisecond * 10)
+
+	// The digital twin receives this thing notification and updates the
+	// digital twin property state.
+	assert.Equal(t, prop1Value, rxPropValue.Load())
+
+	// 4. the consumer reads the property value
+	var respValue string
+	err = co.ReadProperty(dtwThingID, prop1Name, &respValue)
+	require.NoError(t, err)
+	assert.Equal(t, prop1Value, respValue)
+}
+
+// Write a property via the digital twin
+func TestWriteDigitwinProperty(t *testing.T) {
+	t.Logf("---%s---\n", t.Name())
+	const deviceID = "device1"
+	const userID = "user1"
+	const prop1Name = "prop-0" // generated by test env
+	const prop1Value = "value1"
+	var txPropValue string
+
+	testEnv, dir, dtw, stopFn := startService()
+	_ = dtw
+	_ = dir
+	defer stopFn()
+
+	// 1: create a consumer that writes a property
+	co, cc1, _ := testEnv.NewConnectedConsumer(userID, authn.ClientRoleViewer)
+	err := co.ObserveProperty("", prop1Name)
+	require.NoError(t, err)
+	defer cc1.Stop()
+
+	// 2. create a reverse-connected device that receives the write request
+	ag, cc2, _ := testEnv.NewRCThing(deviceID, nil)
+	defer cc2.Close()
+	ag.SetAppRequestHook(func(req *msg.RequestMessage, replyTo msg.ResponseHandler) error {
+		if req.Operation == td.OpWriteProperty {
+			txPropValue = req.ToString(0)
+			resp := req.CreateResponse(nil, nil)
+
+			// write property sends a notification that is passed to the server
+			// and updates the digital twin.
+			go ag.PubProperty(req.ThingID, req.Name, txPropValue, false)
+
+			return replyTo(resp)
+		} else if req.ThingID == directory.DefaultDirectoryThingID {
+			// this is a request for the directory. Forward it
+			return ag.ForwardRequest(req, replyTo)
+		} else {
+			resp := req.CreateResponse(nil, fmt.Errorf("unexpected request"))
+			return replyTo(resp)
+		}
+	})
+
+	// 3. write a TD using the directory client
+	// normally the discovery process discovered the directory service service ID,
+	// but most likely it uses the default.
+	td1 := testEnv.CreateTestTD(0)
+	td1Json := td.MarshalTD(td1)
+	err = directory_service.UpdateTD(
+		directory.DefaultDirectoryThingID, td1Json, ag.ForwardRequest)
+	assert.NoError(t, err)
+
+	// check whether the td is now in the directory
+	dtwThing1ID := internal.MakeDigitwinID(deviceID, td1.ID)
+	td2Json, err := dir.RetrieveThing(dtwThing1ID)
+	require.NoError(t, err)
+	require.NotEmpty(t, td2Json)
+	// check whether the deviceID is set
+	tdi2, err := td.UnmarshalTD(td2Json)
+	require.NoError(t, err)
+	assert.Equal(t, deviceID, tdi2.RCID)
+
+	// 4. Consumer reads the TD with its own directory client
+	dirTDD, _ := dir.GetTDD()
+	dirCoCl := directory_client.NewDirectoryClient(dirTDD, co)
+	tdoc3, err := dirCoCl.RetrieveThing(dtwThing1ID)
+	require.NoError(t, err)
+	require.NotEmpty(t, tdoc3)
+
+	// 5. Consumer writes the property
+	err = co.WriteProperty(dtwThing1ID, prop1Name, prop1Value, true)
+	require.NoError(t, err)
+	assert.Equal(t, prop1Value, txPropValue)
+	// need some time for the device notification to update the digital twin value
+	time.Sleep(time.Millisecond * 10)
+
+	// 6. Consumer reads the property
+	var rxPropValue string
+	err = co.ReadProperty(dtwThing1ID, prop1Name, &rxPropValue)
+	require.NoError(t, err)
+	assert.Equal(t, prop1Value, rxPropValue)
+}
+
+// Invoke an action via the digital twin
+func TestInvokeDigitwinAction(t *testing.T) {
+	t.Logf("---%s---\n", t.Name())
+	const deviceID = "device1"
+	const userID = "user1"
+	const actionName = "action-0" // generated by test env
+	const actionInput = "value1"
+	const thingID = "thing1"
+	dtwThing1ID := internal.MakeDigitwinID(deviceID, thingID)
+
+	testEnv, dir, dtw, stopFn := startService()
+	_ = dtw
+	_ = dir
+	defer stopFn()
+
+	// 1: create a consumer
+	co, cc1, _ := testEnv.NewConnectedConsumer(userID, authn.ClientRoleViewer)
+	// the action will submit an event
+	err := co.Subscribe(dtwThing1ID, actionName)
+	require.NoError(t, err)
+	defer cc1.Stop()
+
+	// 2. create an RC device that receives the action request
+	ag, cc2, _ := testEnv.NewRCThing(deviceID, nil)
+	defer cc2.Close()
+	ag.SetAppRequestHook(func(req *msg.RequestMessage, replyTo msg.ResponseHandler) error {
+		// echo the input
+		if req.Operation == td.OpInvokeAction {
+			actionInput := req.ToString(0)
+			resp := req.CreateResponse(actionInput, nil)
+			// submit an event after the action
+			go ag.PubEvent(req.ThingID, req.Name, req.Input)
+			return replyTo(resp)
+		} else if req.ThingID == directory.DefaultDirectoryThingID {
+			// this is a request for the directory. Forward it
+			return ag.ForwardRequest(req, replyTo)
+		} else {
+			resp := req.CreateResponse(nil, fmt.Errorf("unexpected request"))
+			return replyTo(resp)
+		}
+	})
+
+	// 3. write a TD with this action
+	td1 := testEnv.CreateTestTD(0)
+	td1.ID = thingID
+	td1Json := td.MarshalTD(td1)
+	err = directory_service.UpdateTD(
+		directory.DefaultDirectoryThingID, td1Json, ag.ForwardRequest)
+	assert.NoError(t, err)
+
+	// 4. Consumer invokes the first action
+	// note that this doesnt use the TD. It should still work
+	var respValue string
+	err = co.InvokeAction(dtwThing1ID, actionName, actionInput, &respValue)
+	require.NoError(t, err)
+	// the handler above returns the input value
+	assert.Equal(t, actionInput, respValue)
+	// need some time for the event notification to update the digital twin value
+	time.Sleep(time.Millisecond * 10)
+
+	// 6. Consumer reads the event
+	rxEvent, err := co.ReadEvent(dtwThing1ID, actionName)
+	require.NoError(t, err)
+	assert.Equal(t, actionInput, rxEvent.Data)
+}

@@ -1,12 +1,12 @@
 # HiveKit - HiveOT Development Kit
 
-HiveKit provides modules for building lightweight IoT applications for integration with the Web of Things.
+HiveKit provides 'cells' for building lightweight IoT applications for integration with the Web of Things.
 
-Applications are build by combining modules that each provides a needed capability. Interactive modules define their capabilities using a W3C Thing Description (TD) document. Modules are linked in a chain, star or other configuration. Each module handles request messages directed at their thingID and forward requests for other Things. Modules emit notifications for events and property updates which are send to the linked upstream module.
+Applications are build by combining cells that each provides a needed capability. Interactive cells define their capabilities using a W3C Thing Description (TD) document. Cells are linked in a chain, star or other configuration. Each cell handles request messages directed at their thingID and forward requests for other Things. Cells emit notifications for events and property updates which are send to the linked upstream cell.
 
-The standard module has a simple interface: A handler for request messages with a replyTo callback, and a handler for notification messages. Modules are linked by setting a request sink to the next module in the chain. Similarly a notification sink is set to the upstream module.
+The standard cell has a simple interface: A handler for request messages with a replyTo callback, and a handler for notification messages. Cells are linked by setting a request sink to the next cell in the chain. Similarly a notification sink is set to the upstream cell.
 
-[![module](docs/hivekit-module.png)](#hivekit-modules)
+[![cell](docs/hivekit-cell.png)](#hivekit-cells)
 
 All interaction takes place using RRN (request-response-notification) messages. These contain an operation, Thing-ID, affordance name and optiona input and output payloads.
 
@@ -14,12 +14,12 @@ All interaction takes place using RRN (request-response-notification) messages. 
 
 HiveKit is in alpha development (June 2026).
 
-Most modules are implemented in golang. Javascript and Python integration is planned. Using transport modules it is easy to link Javascript, Python and golang modules with minimal overhead.
-Modules with a checkmark are functional but breaking changes can still be expected for those marked as alpha or beta.
+Most cells are implemented in golang. Javascript and Python integration is planned. Using transport cells it is easy to link Javascript, Python and golang cells with minimal overhead.
+Cells with a checkmark are functional but breaking changes can still be expected for those marked as alpha or beta.
 
-Core Service modules:
+Core Service cells:
 
-| status | module       | description                        | stage |
+| status | cell         | description                        | stage |
 | :----: | ------------ | ---------------------------------- | ----- |
 |   ✔️    | authn        | Client authentication              | alpha |
 |   ✔️    | authz        | Role based authorization           | alpha |
@@ -29,7 +29,7 @@ Core Service modules:
 |   ✔️    | digitwin     | Digital twin                       | alpha |
 |   ✔️    | directory    | Thing directory server & client    | alpha |
 |   ✔️    | exposedthing | Thing producing of IoT data        | alpha |
-|   ✔️    | factory      | Module factory                     | alpha |
+|   ✔️    | factory      | Cell factory                       | alpha |
 |   ✔️    | history      | Message history recorder           | alpha |
 |   ✔️    | logging      | Basic messaging logging            | alpha |
 |   ✔️    | reconnect    | Restore dropped client connections | alpha |
@@ -38,11 +38,11 @@ Core Service modules:
 |   ⬛    | jsscript     | Javascript based automation        | todo  |
 |   ⬛    | rules        | Rule based automation              | todo  |
 
-[Transport modules](docs/transport.md):
+[Transport cells](docs/transport.md):
 
-Transport modules come with a server and a client module.
+Transport cells come with a server and a client cell.
 
-| status | module              | description                           | stage |
+| status | cell                | description                           | stage |
 | :----: | ------------------- | ------------------------------------- | ----- |
 |   ✔️    | transport/discovery | WoT mDNS device discovery             | alpha |
 |   ✔️    | transport/grpc      | HiveOT gRPC fast message streaming    | alpha |
@@ -53,9 +53,9 @@ Transport modules come with a server and a client module.
 |   ✔️    | transport/wss       | WoT Websocket messaging protocol      | alpha |
 |   ⬛    | transport/mqtt      | WoT MQTT messaging protocol           | n/a   |
 
-Integration Binding Modules: (this will mobe to the HiveOT Hub)
+Integration Binding Cells: (this will mobe to the HiveOT Hub)
 
-| status | module   | description                     | stage |
+| status | cell     | description                     | stage |
 | :----: | -------- | ------------------------------- | ----- |
 |   ⬛    | ipnet    | IP Network monitor              | todo  |
 |   ⬛    | isy99x   | ISY 99 gateway binding          | todo  |
@@ -66,28 +66,28 @@ Integration Binding Modules: (this will mobe to the HiveOT Hub)
 |   ⬛    | canbus   | Canbus gateway binding          | todo  |
 |   ⬛    | ...      | and many more...                | todo  |
 
-## HiveKit Modules
+## HiveKit Cells
 
-HiveKit modules are building blocks for building devices and applications. Modules follow the separation of concerns paradigm where each module is performs a single task. Applications are build by combining modules. 
+HiveKit cells are building blocks for building devices and applications. Cells follow the separation of concerns paradigm where each cell is performs a single task. Applications are build by combining cells. 
 
-Individual modules are also Things and identified by their instance thing-ID. Where applicable, their capabilities can be described by a WoT TD (Thing Description) document that describes its properties, events and actions. Interaction takes place by creating a RequestMessage with an operation and the module ThingID and sending it to the module.
+Each cell has an instance ID that can be used as a thing-ID. Where applicable, their capabilities can be described by a WoT TD (Thing Description) document that describes its properties, events and actions. Interaction takes place by creating a RequestMessage with an operation and the cell-ID and sending it to the cell.
 
-A [HiveKit module](hivekit-module.png) MUST implement the IHiveModule interface. This interface governs the interaction with the module and enables the ability to add their functionality to a chain of modules.
+A [HiveKit cell](hivekit-cell.png) MUST implement the IHiveCell interface. This interface defines how to interact with the cell and enables the ability to add their functionality to a hive of cells.
 
-The IHiveModule interface describes how to link a module to the next module in the chain. The link consists of a request handler to pass request messages down the chain and respond with a response message, and a notification handler to pass notification messages up the chain. A 'HiveModuleBase' helper is available that implements this interface and supports linking of modules. HiveModuleBase is used by most HiveKit modules.
+The IHiveCell interface describes how to link a cell to another cell to form a chain or other configuration. The link consists of a request handler to pass request messages to the next cell and respond with a response message, and a notification handler to pass notification messages up the chain. A 'HiveCellBase' helper is available that implements this interface and supports linking of cells. HiveCellBase is used by most HiveKit cells.
 
-HiveKit modules interact using _RRN_ Request-Response and publish-subscribe Notification messages. HiveKit combines the strengths of these two messaging patterns into a simple and easy to use messaging framework for connecting modules. RRN messages define an envelope that describes a WoT operation, the Thing to address, the name of the message, and its payload, as described in the [W3C WoT Thing Description](https://www.w3.org/TR/wot-thing-description11/).
+HiveKit cells interact using _RRN_ Request-Response and publish-subscribe Notification messages. HiveKit combines the strengths of these two messaging patterns into a simple and easy to use messaging system for connecting cells. RRN messages define an envelope that describes a WoT operation, the Thing to address, the name of the message, and its payload, as described in the [W3C WoT Thing Description](https://www.w3.org/TR/wot-thing-description11/).
 
-### Module API
+### Cell API
 
-All modules support the HiveKit module API defined as IHiveModule. This API defines how to handle requests and responses.
+All cells support the HiveKit cell API defined as IHiveCell. This API defines how to handle requests and responses.
 
 
 ```go
-// The golang HiveOT module interface. The JS and Python implementation will offer something similar.
-type IHiveModule interface {
+// The golang HiveOT cell interface. The JS and Python implementation will offer something similar.
+type IHiveCell interface {
 
-	// GetThingID returns the module's instance ID.
+	// GetThingID returns the cell's instance ID.
 	GetThingID() string
 
 	// Handle the notification received from a producer.
@@ -97,59 +97,59 @@ type IHiveModule interface {
 	// HandleRequest processes or forwards a request downstream.
 	HandleRequest(request *RequestMessage, replyTo(resp *ResponseMessage)) error
 
-	// Set the handler of notifications emitted by this module
-	SetNotificationSink(consumer IHiveModule,thingIDs ...string)
+	// Set the handler of notifications emitted by this cell
+	SetNotificationSink(consumer IHiveCell,thingIDs ...string)
 
-	// SetRequestSink sets the handler of requests emitted by this module.
-	SetRequestSink(sink IHiveModule)
+	// SetRequestSink sets the handler of requests emitted by this cell.
+	SetRequestSink(sink IHiveCell)
 
-	// Start readies the module for use
+	// Start readies the cell for use
 	Start() error
 	Stop()
 }
 ```
 
-### Module Types
+### Cell Types
 
-There are two fundamental types of modules, producers and consumers of information. Producers handle requests and publish information while consumers publish requests and receive notifications. An IoT device is typically a producer while an end-user interacts using a consumer module. In between a producer and consumer there can be many other modules at work that act as a producer, consumer or both.
+There are two fundamental types of cells, producers and consumers of information. Producers handle requests and publish information while consumers publish requests and receive notifications. An IoT device is typically a producer while an end-user interacts using a consumer cell. In between a producer and consumer there can be many other cells at work that act as a producer, consumer or both.
 
 
-The following module categories can be distinguished:
+The following cell categories can be distinguished:
 
-1. Service modules are producers that offer a service, such as authentication, logging and routing. Service modules can be configured through properties and queried using actions.
+1. Service cells are producers that offer a service, such as authentication, logging and routing. Service cells can be configured through properties and queried using actions.
 
-The ExposedThing module helps writing producers. It provides methods for publishing notifications, tracking state and handle requests to read properties.
+The ExposedThing cell helps writing producers. It provides methods for publishing notifications, tracking state and handle requests to read properties.
 
-2. Middleware modules are a class of modules whose purpose is to analyze, filter and route messages. For example, logging, authorizing, routing are middleware tasks. These modules act as producers for consumers and consumers for producers.
+2. Middleware cells are a class of cells whose purpose is to analyze, filter and route messages. For example, logging, authorizing, routing are middleware tasks. These cells act as producers for consumers and consumers for producers.
 
-3. Transport modules role is to link modules over the network. They come in two flavors, a transport client and a transport server module. The client module sends requests to the server and the server module sends requests and notifications to the client. Client-Server module pairs are available for multiple protocols such as http-basic, websockets, gRPC and others. Server modules track event subscriptions and subscriptions to observe properties made via the client.
+3. Transport cells role is to link cells over the network. They come in two flavors, a transport client and a transport server cell. The client cell sends requests to the server and the server cell sends requests and notifications to the client. Client-Server cell pairs are available for multiple protocols such as http-basic, websockets, gRPC and others. Server cells track event subscriptions and subscriptions to observe properties made via the client.
 
-4. Consumer modules collect information from producers. Consumers publish requests for information and receive responses and notifications. Services that aggregate, transform or enrich information are consumers of that information. A user interface for example is a consumer that presents information. 
+4. Consumer cells collect information from producers. Consumers publish requests for information and receive responses and notifications. Services that aggregate, transform or enrich information are consumers of that information. A user interface for example is a consumer that presents information. 
    
-The 'Consumer' module implementation helps writing consumers by providing methods for publishing requests and subscribing to event and property notifications.
+The 'Consumer' cell implementation helps writing consumers by providing methods for publishing requests and subscribing to event and property notifications.
 
-## Linking Modules
+## Linking Cells
 
-A core capability of modules is the ability to chain them together. Chains offer application level functionality. A chain can operate on a single computer system or include modules across multiple computer systems linked by transport modules. This allows for creating a powerful distributed IoT solution with small lightweight modules that require few resources and are simple to maintain.
+A core capability of cells is the ability to chain them together. Chains offer application level functionality. A chain can operate on a single computer system or include cells across multiple computer systems linked by transport cells. This allows for creating a powerful distributed IoT solution with small lightweight cells that require few resources and are simple to maintain.
 
-Creating a module chain can be done manually by programatically linking modules, or dynamically by providing a recipe to the factory service. 
+Creating a cell chain can be done manually by programatically linking cells, or dynamically by providing a recipe to the factory service. 
 
-### Module Factory
+### Cell Factory
 
-Modules in HiveKit are not applications themselves but intended to construct an application. The [factory module](go/modules/factory/README.md) facilitates building applications by chaining modules defined in a recipe. This chaining aggregates functionality provided by each module. 
+Cells in HiveKit are not applications themselves but intended to construct an application. The [factory cell](go/cells/factory/README.md) facilitates building applications by chaining cells defined in a recipe. This chaining aggregates functionality provided by each cell. 
 
-Application specific logic can easily be incorporated using the hooks provided by the exposed-thing module, or by providing application logic as a module itself and adding this module to the recipe.
+Application specific logic can easily be incorporated using the hooks provided by the exposed-thing cell, or by providing application logic as a cell itself and adding this cell to the recipe.
 
-![module](docs/module-chain.png)
+![cell](docs/cell-chain.png)
 
 
-### Adding Modules
+### Adding Cells
 
-One of the goals of HiveKit is to make it easy to add compatible modules.
+One of the goals of HiveKit is to make it easy to add compatible cells.
 
-To develop a module implement its IHiveModule interface. The provided ModuleBase implements the little boilerplate that is needed. The HandleRequest method is the most important method to implement. Exposing a TM is recommended for IoT devices.
+To develop a cell implement its IHiveCell interface. The provided CellBase implements the little boilerplate that is needed. The HandleRequest method is the most important method to implement. Exposing a TM is recommended for IoT devices.
 
-To use a module connect it as the sink of the previous module in the chain. In case of an IoT device the previous module can be one of the messaging server modules. The server passes requests to the HandleRequest method which the module must implement, and responses are returned to the sender. Notifications emitted by the module are passed to the registered notification handler which is the server module.
+To use a cell connect it as the sink of the previous cell in the chain. In case of an IoT device the previous cell can be one of the messaging server cells. The server passes requests to the HandleRequest method which the cell must implement, and responses are returned to the sender. Notifications emitted by the cell are passed to the registered notification handler which is the server cell.
 
 
 ## About HiveOT
@@ -162,15 +162,15 @@ While HiveKit lets you build individual IoT devices that run their own server (p
 
 HiveOT aims to aid in improving security of the IoT ecosystem by:
 
-1. Not run a server on IoT devices. Instead IoT devices connect to a secured gateway or hub. These devices have the RC (reverse connection) capability which is readily supported by all HiveKit transport modules. Just swap a server module for its client counterpart.
-2. Offer an easy way to build a gateway or hub that supports RC capable devices. This is equivalent to building a server that forwards request to connected clients using the router module.
-3. Support an easy way to expand the application functionality with custom modules without having to be a security expert.
+1. Not run a server on IoT devices. Instead IoT devices connect to a secured gateway or hub. These devices have the RC (reverse connection) capability which is readily supported by all HiveKit transport cells. Just swap a server cell for its client counterpart.
+2. Offer an easy way to build a gateway or hub that supports RC capable devices. This is equivalent to building a server that forwards request to connected clients using the router cell.
+3. Support an easy way to expand the application functionality with custom cells without having to be a security expert.
 4. Support the W3C WoT standard for interacting with IoT devices including authentication, authorization, directory, history and other capabilities.
 5. Define a development commitment (see below) when using HiveOT software.
 
 HiveOT is based on the [W3C WoT TD 1.1 specification](https://www.w3.org/TR/wot-thing-description11/) for interaction between IoT devices and consumers. It aims to be compatible with this standard.
 
-Integration with 3rd party IoT protocols is supported through the use of protocol binding modules. These modules translate between the 3rd party IoT protocols and RRN (request/response/notification) messages. The RRN messages can be linked to a WoT protocol for interaction with WoT compatible clients using properties, events and actions.
+Integration with 3rd party IoT protocols is supported through the use of protocol binding cells. These cells translate between the 3rd party IoT protocols and RRN (request/response/notification) messages. The RRN messages can be linked to a WoT protocol for interaction with WoT compatible clients using properties, events and actions.
 
 ## Developer Commitment
 
@@ -196,6 +196,6 @@ To debug with vscode delve must be installed. To get the latest (on linux):
 
 ### Use
 
-The easiest way to get started is to use the factory module with one of the example recipes. There are recipes for constructing stand-alone IoT devices, a WoT compatible gateway, a digital twin hub, and client applications. [see factory for details](go/modules/factory/README.md)
+The easiest way to get started is to use the factory cell with one of the example recipes. There are recipes for constructing stand-alone IoT devices, a WoT compatible gateway, a digital twin hub, and client applications. [see factory for details](go/cells/factory/README.md)
 
 ... this section is under development...

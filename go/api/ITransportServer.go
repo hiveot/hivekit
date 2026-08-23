@@ -7,7 +7,7 @@ import (
 	"github.com/hiveot/hivekit/go/api/td"
 )
 
-// Transport server module definitions for use by transport protocols.
+// Transport server definitions for use by transport protocols.
 // This contains the protocol types, authentication handler, and interfaces for the shared http server and tls client.
 
 // notifications sent by transport servers to server side services
@@ -79,12 +79,12 @@ type ConnectionInfo struct {
 // or the client is not a valid and enabled client.
 type ValidateTokenHandler func(token string) (clientID string, validUntil time.Time, err error)
 
-// A transport server module is a server module with hooks for sending messages to remote clients.
+// A transport server cell is a server cell with hooks for sending messages to remote clients.
 type ITransportServer interface {
-	IHiveModule
+	IHiveCell
 
 	// AddTDSecForms updates the given Thing Description with security and forms for this
-	// transport module.
+	// transport cell.
 	// The security scheme in the TD is set by the authenticator used by the server.
 	AddTDSecForms(tdoc *td.TD, includeAffordances bool)
 
@@ -101,7 +101,7 @@ type ITransportServer interface {
 	// Return the server's TD.
 	// This TD describes the server itself and provides a base URL for its connection
 	// Primarily intended for testing. In most cases a server is run together with a
-	// device module whose TD is updated with forms from the server.
+	// device cell whose TD is updated with forms from the server.
 	GetTD() *td.TD
 
 	// HandleNotification sends the notification to subscribed clients using SendNotification.

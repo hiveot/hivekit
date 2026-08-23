@@ -1,0 +1,117 @@
+package authenticators_test
+
+import (
+	"os"
+	"path"
+	"testing"
+	"time"
+
+	"github.com/hiveot/hivekit/go/cells/authn"
+	"github.com/hiveot/hivekit/go/cells/authn/internal/authenticators"
+	authn_store "github.com/hiveot/hivekit/go/cells/authn/internal/store"
+	authnstore "github.com/hiveot/hivekit/go/cells/authn/internal/store"
+	"github.com/hiveot/hivekit/go/utils"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+)
+
+var authnStore authn_store.IAuthnStore
+var testDir = path.Join(os.TempDir(), "hivekit", "test-authn")
+var defaultHash = authn.PWHASH_ARGON2id
+
+func NewAuthenticator() (authn.IAuthnAuthenticator, authnstore.IAuthnStore) {
+	passwordFile := path.Join(testDir, "test.passwd")
+	authnStore = authn_store.NewAuthnFileStore(passwordFile, defaultHash)
+
+	// signingKey, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	// svc := authenticator.NewJWTAuthenticator(authnStore, signingKey, "")
+
+	signingPrivKey, _ := utils.NewEd25519Key()
+	svc := authenticators.NewPasetoAuthenticator(authnStore, signingPrivKey)
+	svc.SetAuthServerURI("/fake/server/endpoint")
+	return svc, authnStore
+}
+
+func TestCreateSessionToken(t *testing.T) {
+	t.Logf("---%s---\n", t.Name())
+
+	const clientID = "user1"
+	const pass1 = "pass1"
+	const role = "role1"
+	//const clientType = authn.ClientTypeConsumer
+
+	svc, clientStore := NewAuthenticator()
+	_ = clientStore.Add(authn.ClientProfile{
+		ClientID:    clientID,
+		Role:        role,
+		Disabled:    false,
+		DisplayName: "test",
+	})
+	err := authnStore.SetPassword(clientID, pass1)
+	require.NoError(t, err)
+
+	token1, validUntil, err := svc.CreateToken(clientID, time.Minute)
+	require.NoError(t, err)
+	assert.NotEmpty(t, token1)
+	assert.Greater(t, validUntil, time.Now())
+
+	// decode it
+	clientID2, issuedAt2, validUntil2, err := svc.DecodeToken(token1, "", "")
+	require.NoError(t, err)
+	assert.Less(t, issuedAt2, time.Now())
+	require.Equal(t, clientID, clientID2)
+	// require.LessOrEqual(t, validUntil, validUntil2)  // second is truncated
+
+	// create a persistent auth token
+	token2, validUntil, err := svc.CreateToken(clientID, time.Minute)
+	clientID4, iat2, validUntil2, err := svc.ValidateClient(clientID, token2)
+	require.NoError(t, err)
+	require.Equal(t, clientID, clientID4)
+	require.Equal(t, validUntil.Unix(), validUntil2.Unix())
+	require.Greater(t, validUntil.Unix(), iat2.Unix())
+
+}
+
+func TestBadTokens(t *testing.T) {
+	t.Logf("---%s---\n", t.Name())
+
+	const clientID = "user1"
+	const role = "role1"
+	//const clientType = authn.ClientTypeConsumer
+
+	svc, clientStore := NewAuthenticator()
+	_ = clientStore.Add(authn.ClientProfile{
+		ClientID:    clientID,
+		Role:        role,
+		Disabled:    false,
+		DisplayName: "test",
+	})
+
+	token1, validUntil, err := svc.CreateToken(clientID, time.Minute)
+	assert.NotEmpty(t, token1)
+	assert.Greater(t, validUntil, time.Now())
+
+	// bad token
+	badToken := token1 + "-bad"
+	_, _, _, err = svc.ValidateClient(clientID, badToken)
+	require.Error(t, err)
+
+	// expired
+	token2, _, err := svc.CreateToken(clientID, -1)
+	require.NoError(t, err)
+	clientID2, iat2, sid2, err := svc.ValidateClient(clientID, token2)
+	require.Error(t, err)
+	assert.Empty(t, clientID2)
+	assert.Empty(t, iat2)
+	assert.Empty(t, sid2)
+
+	// missing clientID
+	token2, _, err = svc.CreateToken("", 1)
+	require.Error(t, err)
+
+	// clientID doesnt match
+	token3, _, err := svc.CreateToken(clientID, 1)
+	require.NoError(t, err)
+	_, _, _, err = svc.ValidateClient("mismatchedClientID", token3)
+	require.Error(t, err)
+}

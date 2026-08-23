@@ -8,13 +8,13 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/hiveot/hivekit/go/api"
-	"github.com/hiveot/hivekit/go/modules"
+	"github.com/hiveot/hivekit/go/cells"
 )
 
 // A dummy transport server for testing
 // This implements IHttpServer and ITransportServer interfaces
 type TestHttpTransport struct {
-	*modules.HiveModuleBase
+	*cells.HiveCellBase
 
 	url       string
 	protRoute chi.Router
@@ -58,11 +58,11 @@ func NewDummyServer(url string) api.IHttpServer {
 	rootRouter := chi.NewRouter()
 	rootRouter.Use(middleware.Heartbeat(api.DefaultPingPath))
 	d := &TestHttpTransport{
-		HiveModuleBase: modules.NewHiveModuleBase("", 0),
-		url:            url,
-		protRoute:      rootRouter.With(),
-		pubRoute:       rootRouter.With(),
-		authr:          NewTestAuthenticator(),
+		HiveCellBase: cells.NewHiveCellBase("", 0),
+		url:          url,
+		protRoute:    rootRouter.With(),
+		pubRoute:     rootRouter.With(),
+		authr:        NewTestAuthenticator(),
 	}
 	return d
 }

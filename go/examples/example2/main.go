@@ -11,12 +11,12 @@ import (
 
 	"github.com/hiveot/hivekit/go/api"
 	"github.com/hiveot/hivekit/go/api/td"
+	"github.com/hiveot/hivekit/go/cells/directory"
+	consumerrecipe "github.com/hiveot/hivekit/go/cells/factory/recipes/consumer"
+	factory_service "github.com/hiveot/hivekit/go/cells/factory/service"
+	"github.com/hiveot/hivekit/go/cells/router"
+	"github.com/hiveot/hivekit/go/cells/transport/discovery"
 	"github.com/hiveot/hivekit/go/examples/example2/cliex"
-	"github.com/hiveot/hivekit/go/modules/directory"
-	consumerrecipe "github.com/hiveot/hivekit/go/modules/factory/recipes/consumer"
-	factory_service "github.com/hiveot/hivekit/go/modules/factory/service"
-	"github.com/hiveot/hivekit/go/modules/router"
-	"github.com/hiveot/hivekit/go/modules/transport/discovery"
 	"github.com/hiveot/hivekit/go/utils"
 )
 
@@ -73,7 +73,7 @@ func main() {
 	}
 
 	// Setup the environment after parsing the commandline
-	env := api.NewAppEnvironment(ExampleHome, true)
+	env := api.NewHiveEnvironment(ExampleHome, true)
 	if appConfig.Verbose {
 		env.LogLevel = "info"
 	}
@@ -102,19 +102,19 @@ func main() {
 	// Ignore the certificate check just for this example. Dont do this in your app.
 	http.DefaultTransport.(*http.Transport).TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
 
-	// Start the CLI recipe modules
-	f := factory_service.NewModuleFactory(env, nil)
+	// Start the CLI recipe cells
+	f := factory_service.NewCellFactory(env, nil)
 	r := consumerrecipe.NewConsumerRecipe(f, false)
 	err := r.Start()
 	if err != nil {
 		os.Exit(1)
 	}
 
-	// Set default credentials for connecting to devices with the router module.
+	// Set default credentials for connecting to devices with the router service.
 	// The router looks up the credentials for connecting to standalone devices using
 	// the device thingID and falls back to the "" thingID.
 	authToken, _ := env.GetAuthToken()
-	rtr := api.GetFactoryModule[router.IRouterService](f, router.RouterModuleType)
+	rtr := api.GetFactoryCell[router.IRouterService](f, router.RouterCellType)
 	if authToken != "" {
 		rtr.AddDeviceCredential("", env.ClientID, authToken, td.SecSchemeBearer)
 		fmt.Printf("Found auth token for login as '%s'\n", env.ClientID)
@@ -128,8 +128,8 @@ func main() {
 		fmt.Printf("No client Cert found.\n")
 	}
 
-	discoClient := api.GetFactoryModule[discovery.IDiscoveryClient](f, discovery.DiscoveryClientModuleType)
-	dirClient := api.GetFactoryModule[directory.IDirectoryClient](f, directory.DirectoryClientModuleType)
+	discoClient := api.GetFactoryCell[discovery.IDiscoveryClient](f, discovery.DiscoveryClientCellType)
+	dirClient := api.GetFactoryCell[directory.IDirectoryClient](f, directory.DirectoryClientCellType)
 	caCert, err := env.GetCACert()
 	app := cliex.NewCliex(appConfig, discoClient, dirClient, caCert)
 

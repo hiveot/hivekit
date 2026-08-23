@@ -12,18 +12,18 @@ import (
 	"github.com/hiveot/hivekit/go/api/msg"
 	"github.com/hiveot/hivekit/go/api/td"
 	"github.com/hiveot/hivekit/go/api/vocab"
-	"github.com/hiveot/hivekit/go/modules/authn"
-	certstest "github.com/hiveot/hivekit/go/modules/certs/test"
-	"github.com/hiveot/hivekit/go/modules/consumer"
-	reconnect_service "github.com/hiveot/hivekit/go/modules/reconnect/service"
-	"github.com/hiveot/hivekit/go/modules/thing"
-	"github.com/hiveot/hivekit/go/modules/transport/clients"
-	grpc_server "github.com/hiveot/hivekit/go/modules/transport/grpc/server"
-	httpbasic_server "github.com/hiveot/hivekit/go/modules/transport/httpbasic/server"
-	ssesc_server "github.com/hiveot/hivekit/go/modules/transport/ssesc/server"
-	"github.com/hiveot/hivekit/go/modules/transport/tlsserver"
-	tls_server "github.com/hiveot/hivekit/go/modules/transport/tlsserver/server"
-	wss_server "github.com/hiveot/hivekit/go/modules/transport/wss/server"
+	"github.com/hiveot/hivekit/go/cells/authn"
+	certstest "github.com/hiveot/hivekit/go/cells/certs/test"
+	"github.com/hiveot/hivekit/go/cells/consumer"
+	reconnect_service "github.com/hiveot/hivekit/go/cells/reconnect/service"
+	"github.com/hiveot/hivekit/go/cells/thing"
+	"github.com/hiveot/hivekit/go/cells/transport/clients"
+	grpc_server "github.com/hiveot/hivekit/go/cells/transport/grpc/server"
+	httpbasic_server "github.com/hiveot/hivekit/go/cells/transport/httpbasic/server"
+	ssesc_server "github.com/hiveot/hivekit/go/cells/transport/ssesc/server"
+	"github.com/hiveot/hivekit/go/cells/transport/tlsserver"
+	tls_server "github.com/hiveot/hivekit/go/cells/transport/tlsserver/server"
+	wss_server "github.com/hiveot/hivekit/go/cells/transport/wss/server"
 	"github.com/hiveot/hivekit/go/utils"
 )
 
@@ -80,10 +80,10 @@ var EventTypes = []string{vocab.PropElectricCurrent, vocab.PropElectricVoltage,
 var ActionTypes = []string{vocab.ActionDimmer, vocab.ActionSwitch,
 	vocab.ActionSwitchToggle, vocab.ActionValveOpen, vocab.ActionValveClose}
 
-// Test environment for testing modules
+// Test environment for testing cells
 type TestEnv struct {
 	// App test environment with directories
-	AppEnv *api.AppEnvironment
+	AppEnv *api.HiveEnvironment
 	// certificate bundle to use for this test environment
 	CertBundle certstest.TestCertBundle
 	// base http server
@@ -177,8 +177,8 @@ func (testEnv *TestEnv) NewConnectedClient(
 	return cl, token
 }
 
-// NewServerThing creates a new module that is a direct sink for the test server.
-// Additional modules can be chained by setting them as the sink of the previous modules.
+// NewServerThing creates an exposed thing that is a direct sink for the test server.
+// Additional cells can be chained by setting them as the sink of the previous cells.
 //
 // An account for the thing is created and the thing is set as the request sink for the
 // server.
@@ -189,7 +189,7 @@ func (testEnv *TestEnv) NewServerThing(thingID string) *thing.ExposedThing {
 	// Simple server side Thing. No account needed
 	m := thing.NewExposedThing(thingID, nil)
 
-	// the device module is the sink for the transport server
+	// the device is the request sink for the transport server
 	testEnv.Server.SetRequestSink(m)
 	m.SetNotificationSink(testEnv.Server)
 	return m
@@ -207,7 +207,7 @@ func (testEnv *TestEnv) NewServerThing(thingID string) *thing.ExposedThing {
 // and the Thing is set as the notification sink for the connection.
 // Not that the Thing should have an appRequest handler set to avoid request looping.
 //
-// This returns the Thing module, its connected client connection and the auth token.
+// This returns the exposed Thing, its connected client connection and the auth token.
 // This panics if a client cannot be created
 func (testEnv *TestEnv) NewRCThing(clientID string, appReqHandler msg.RequestHandler) (
 	ag *thing.ExposedThing, cc api.IConnection, authToken string) {
@@ -248,8 +248,8 @@ func (testEnv *TestEnv) NewConnectedConsumer(clientID string, role string) (
 	return co, cc, token
 }
 
-// NewReconnectedConsumer creates a new connected consumer with reconnect module.
-// The reconnect module is placed before client.
+// NewReconnectedConsumer creates a new connected consumer with the reconnect capability.
+// The reconnect service is placed before client.
 // The transport server must be started first so that connect can succeed.
 //
 // This uses the clientID as password
@@ -262,7 +262,7 @@ func (testEnv *TestEnv) NewReconnectedConsumer(clientID string, role string) (
 
 	cc, token = testEnv.NewConnectedClient(clientID, role)
 
-	// insert the reconnect module between consumer and client connection
+	// insert the reconnect service between consumer and client connection
 	rc := reconnect_service.NewReconnectService(cc)
 
 	co = consumer.NewConsumer(rc, nil)
@@ -325,13 +325,13 @@ func (testEnv *TestEnv) StartTestServer(protocol string) (srv api.ITransportServ
 		err = srv.Start()
 
 	default:
-		err = errors.New("unknown protocol name: " + protocol)
+		err = errors.New("StartTestServer: unknown protocol name: " + protocol)
 	}
 	// avoid unnecesary notification warnings as notifications created by the server can be ignored.
 	// srv.SetNotificationSink(func(*msg.NotificationMessage) { /*dummy*/ })
 
 	if err != nil {
-		panic("Unable to create transport server module: " + err.Error())
+		panic("StartTestServer: Unable to create transport server service: " + err.Error())
 	}
 	// dont override the first transport server in case multiple transports are used
 	if testEnv.Server == nil {
@@ -342,7 +342,7 @@ func (testEnv *TestEnv) StartTestServer(protocol string) (srv api.ITransportServ
 	return srv
 }
 
-// Start a http server module with default port, test certs and dummy authenticator
+// Start a http transport server with default port, test certs and dummy authenticator
 //
 // This server is needed for http-basic, websocket, hiveot-sse-sc subprotocols
 // Also used to serve http endpoints for the directory and authn users.
@@ -397,7 +397,7 @@ func NewTestEnv(clean bool) *TestEnv {
 		os.RemoveAll(TestHome)
 		os.MkdirAll(TestHome, 0750)
 	}
-	appEnv := api.NewAppEnvironment(TestHome, false)
+	appEnv := api.NewHiveEnvironment(TestHome, false)
 	appEnv.HttpsPort = TestServerHttpPort
 	// ensure the directories exist
 	os.MkdirAll(appEnv.BinDir, 0750)

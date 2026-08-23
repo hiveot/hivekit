@@ -10,7 +10,7 @@ import (
 	"github.com/hiveot/hivekit/go/api"
 	"github.com/hiveot/hivekit/go/api/msg"
 	"github.com/hiveot/hivekit/go/api/td"
-	"github.com/hiveot/hivekit/go/modules/thing"
+	"github.com/hiveot/hivekit/go/cells/thing"
 )
 
 // TM of the test device
@@ -69,8 +69,8 @@ const counterDeviceTM = `
 // auto-increment the counter
 const autoIncrementDelay = 10 * time.Second
 
-// Module type for use in the recipe
-const CounterDeviceModuleType = "counter-device"
+// Cell type for use in the recipe
+const CounterDeviceCellType = "counter-device"
 
 // thingID requests are directed to
 const DefaultCounterDeviceThingID = "counter1"
@@ -229,7 +229,7 @@ func (m *TestDevice) HandleWriteProperty(req *msg.RequestMessage, replyTo msg.Re
 	return err
 }
 
-// Start the test device module.
+// Start the test device.
 //
 // This publishes a write TD request to the sink.
 func (m *TestDevice) Start() error {
@@ -240,7 +240,7 @@ func (m *TestDevice) Start() error {
 	m.tdocJson = td.MarshalTD(tdoc)
 
 	// publish the device TD/TM
-	// the downstream modules must already be actived so writing the TD is
+	// the downstream cells must already be actived so writing the TD is
 	// send to discovery or directory.
 	go func() {
 		time.Sleep(time.Millisecond)
