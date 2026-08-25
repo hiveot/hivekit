@@ -7,9 +7,10 @@ import (
 	"github.com/hiveot/hivekit/go/cells/digitwin"
 )
 
-// Create a digital twin ID from the device client ID, thing ID and
-// the digitwin prefix.
-// This handles devices that host multiple Things.
+// Create a digital twin ID from the device client ID, thing ID and the digitwin prefix.
+//
+// clientID is needed to differentiate thingIDs from multiple devices without relying on
+// good behavior of these devices.
 func MakeDigitwinID(clientID string, thingID string) string {
 	digitwinThingID := fmt.Sprintf("%s%s:%s",
 		digitwin.DigitwinIDPrefix, clientID, thingID)

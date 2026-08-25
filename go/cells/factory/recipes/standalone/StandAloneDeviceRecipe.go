@@ -91,6 +91,6 @@ var StandAloneDeviceChain = []api.CellDefinition{
 func NewStandAloneDeviceRecipe(f api.ICellFactory) api.IRecipe {
 	chain := StandAloneDeviceChain
 
-	r := factory_service.NewChainRecipe(f, chain)
+	r := factory_service.NewChainFormation(f, chain)
 	return r
 }

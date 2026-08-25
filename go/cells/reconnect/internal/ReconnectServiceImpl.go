@@ -148,21 +148,25 @@ func (svc *ReconnectServiceImpl) handleConnectChange(
 	}
 }
 
-// Experimental: If no client is linked then monitor the notification for a disconnect
-// and send a reconnect request.
+// Forward notification received from the connected client.
+//
+// Experimental: Use messages to detect connection lost and request a reconnect
 func (svc *ReconnectServiceImpl) HandleNotification(notif *msg.NotificationMessage) {
 
-	if svc.conn == nil {
-		if notif.AffordanceType == msg.AffordanceTypeEvent &&
-			notif.Name == api.ClientConnectionStatusEvent &&
-			notif.Data.(api.ConnectionStatus) == api.StatusLost {
+	// if svc.conn == nil {
+	// 	//  If this is a 'connection lost' event, sent by the client, then send the client a request to
+	// 	// reconnect.
+	// 	if notif.AffordanceType == msg.AffordanceTypeEvent &&
+	// 		notif.Name == api.ClientConnectionStatusEvent &&
+	// 		notif.Data.(api.ConnectionStatus) == api.StatusLost {
 
-			// Send a connect request
-			req := msg.NewRequestMessage(
-				td.OpInvokeAction, notif.SenderID, api.ClientConnectAction, nil)
-			go svc.ForwardRequest(req, nil)
-		}
-	}
+	// 		// Send a connect request. This uses the notification senderID as the thingID of
+	// 		// the client that needs to reconnect.
+	// 		req := msg.NewRequestMessage(
+	// 			td.OpInvokeAction, notif.SenderID, api.ClientConnectAction, nil)
+	// 		go svc.ForwardRequest(req, nil)
+	// 	}
+	// }
 	svc.HiveCellBase.HandleNotification(notif)
 }
 
@@ -208,20 +212,17 @@ func (svc *ReconnectServiceImpl) SetRequestSink(requestSink api.IHiveCell) {
 //
 // This connects the provided client.
 func (svc *ReconnectServiceImpl) Start() error {
-	// if m.conn == nil {
-	// 	sink := m.GetRequestSink()
-	// 	if sink != nil {
-	// 		m.conn, _ = sink.(api.ITransportClient)
-	// 	}
-	// }
 	if svc.conn != nil {
-		// A failure to connect is not a failure of this service
-		// TBD - should this run DoReconnect instead?
-		// FIXME: how to report an authentication failure:
-		err := svc.conn.Start()
-		if err != nil {
-			slog.Warn("ReconnectClient.Start The linked client failed to start.",
-				"err", err.Error(), "client ID", svc.conn.GetThingID())
+		// if not currently connected/connecting then ask the sink to connect
+		status := svc.conn.GetConnectionStatus()
+		if status != api.StatusConnected && status != api.StatusConnecting {
+			// A failure to connect is not a failure of this service
+			// FIXME: how to report an authentication failure:
+			err := svc.conn.Start()
+			if err != nil {
+				slog.Warn("ReconnectClient.Start The linked client failed to start.",
+					"err", err.Error(), "client ID", svc.conn.GetThingID())
+			}
 		}
 	}
 	return nil
@@ -238,9 +239,16 @@ func (svc *ReconnectServiceImpl) Stop() {
 	svc.conn.Stop()
 }
 
-// NewReconnectServiceImpl creates a reconnect service for use with the given client.
+// NewReconnectServiceImpl creates a reconnect service for use with a transport client.
 //
-// # If cl is provided then it is registered as this service's sink
+// If a transport client is provided as the sink then make it the request sink for this service so
+// it can receive requests, and make this the notification sink for that client so notifications
+// are received and forwarded.
+//
+// The also registers the connection changed callback with the client to receive disconnect
+// notifications to trigger reconnect.
+// The client must have its authentication. Start will call Connect on this client if not yet
+// connected.
 //
 // This service uses the ReconnectCellType as its ID.
 //
@@ -259,7 +267,7 @@ func NewReconnectServiceImpl(sink api.ITransportClient) (svc *ReconnectServiceIm
 
 	// link between transport client and this service
 	if sink != nil {
-		svc.conn.SetConnectHandler(svc.handleConnectChange)
+		sink.SetConnectHandler(svc.handleConnectChange)
 
 		svc.SetRequestSink(sink)
 		sink.SetNotificationSink(svc)

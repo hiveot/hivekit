@@ -51,11 +51,11 @@ var AppGatewayRecipeCells = []api.CellDefinition{
 		Type:        api.HttpServerCellType,
 		Constructor: tls_server.NewTLSServerFactory,
 	},
-	// --- nested recipe with the servers in bus formation
+	// --- nested recipe with the servers operating in parallel
 	{
 		// requests are passed to all servers until one accepts
 		Type:        api.BusRecipeType,
-		Constructor: factory_service.NewBusRecipeFactory,
+		Constructor: factory_service.NewBusFactory,
 		Config: []api.CellDefinition{
 			{
 				// http-basic transport server
@@ -165,7 +165,7 @@ var AppGatewayRecipeCells = []api.CellDefinition{
 func NewGatewayDeviceRecipe(f api.ICellFactory, includeDigitwin bool) api.IRecipe {
 
 	chain := AppGatewayRecipeCells
-	r := factory_service.NewChainRecipe(f, chain)
+	r := factory_service.NewChainFormation(f, chain)
 
 	if includeDigitwin {
 		digitwinDef := api.CellDefinition{

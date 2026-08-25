@@ -195,7 +195,8 @@ func (svc *DigitwinServiceImpl) HandleNotification(notif *msg.NotificationMessag
 		return
 	}
 
-	// if the thingID is a digital twin then store its value in the vcache
+	// If the thingID is a digital twin then store its value in the vcache
+	// FIXME: can the dependency on SenderID be removed?
 	dtwThingID := MakeDigitwinID(notif.SenderID, notif.ThingID)
 	_, err := svc.directory.RetrieveThing(dtwThingID)
 	if err == nil {

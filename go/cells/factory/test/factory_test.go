@@ -148,7 +148,7 @@ func TestClientServerRecipe(t *testing.T) {
 	env.HttpsPort = testPort
 
 	serverFactory := factory_service.NewCellFactory(env, HiveKitCells)
-	serverChain := factory_service.NewChainRecipe(serverFactory, DeviceServerRecipe)
+	serverChain := factory_service.NewChainFormation(serverFactory, DeviceServerRecipe)
 	err := serverChain.Start()
 	require.NoError(t, err)
 	defer serverFactory.Stop()
@@ -168,7 +168,7 @@ func TestClientServerRecipe(t *testing.T) {
 
 	// the client sends requests and receives responses
 	clientFactory := factory_service.NewCellFactory(env, HiveKitCells)
-	clientChain := factory_service.NewChainRecipe(clientFactory, DeviceClientRecipe)
+	clientChain := factory_service.NewChainFormation(clientFactory, DeviceClientRecipe)
 	err = clientChain.Start()
 	require.NoError(t, err)
 	defer clientFactory.Stop()

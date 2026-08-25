@@ -60,7 +60,7 @@ func NewConsumerRecipe(f api.ICellFactory, withValueCache bool) api.IRecipe {
 
 	chain := ConsumerRecipeChain
 
-	r := factory_service.NewChainRecipe(f, chain)
+	r := factory_service.NewChainFormation(f, chain)
 	if withValueCache {
 		modDef := api.CellDefinition{
 			Type:        vcache.ValueCacheCellType,

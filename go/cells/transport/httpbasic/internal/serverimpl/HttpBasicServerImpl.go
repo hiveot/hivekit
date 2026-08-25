@@ -45,13 +45,6 @@ func (srv *HttpBasicServerImpl) GetTD() *td.TD {
 	return srv.serverTD
 }
 
-// Handle a notification this server (or downstream in the chain) subscribed to.
-// Notifications are forwarded to their upstream sink, which for a server is the
-// client.
-func (srv *HttpBasicServerImpl) HandleNotification(notif *msg.NotificationMessage) {
-	srv.SendNotification(notif)
-}
-
 // HandleRequest passes request messages to the API handler.
 // If the request isn't for this cell then this returns an error as the server
 // cannot deliver messages to the client.

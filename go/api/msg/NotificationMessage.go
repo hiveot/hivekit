@@ -53,13 +53,15 @@ type NotificationMessage struct {
 	// This field is required
 	Name string `json:"name"`
 
-	// Authenticated ID of the sender of the notification, set by the server.
-	// The protocol server MUST set this to the authenticated sender.
-	// Only available server side as WoT protocols do not carry this in the payload.
-	// HiveOT protocols do include this field.
+	// Client ID of the sender of the notification.
+	// Stand-alone devices set this to their own thingID.
+	// In case of RC connected devices the transport server MUST set it to the connection ID
+	// of the device.
+	// This field is only used server side as WoT protocols do not carry this in the payload.
+	// Intended for logging and debugging of RC devices that represent multiple Things.
 	SenderID string `json:"senderID"`
 
-	// ThingID of the thing this is a notification from.
+	// ThingID of the thing that generated this notification.
 	ThingID string `json:"thingID"`
 
 	// Timestamp the notification was created

@@ -113,16 +113,6 @@ func (req *RequestMessage) CreateResponse(value any, err error) (resp *ResponseM
 	return resp
 }
 
-// CreateNotification is a helper to easily create a status update of a running request.
-//
-//	data contains the payload to include in the notification
-// func (req *RequestMessage) CreateNotification() (notif *NotificationMessage) {
-// 	affType := AffordanceTypeAction
-// 	notif = NewNotificationMessage(req.SenderID, affType, req.ThingID, req.Name, nil)
-// 	notif.CorrelationID = req.CorrelationID
-// 	return notif
-// }
-
 // DecodeInput is a helper to easily convert the request input to an object
 func (req *RequestMessage) DecodeInput(input any) error {
 	return utils.DecodeAsObject(req.Input, &input)

@@ -104,22 +104,28 @@ type ITransportServer interface {
 	// device cell whose TD is updated with forms from the server.
 	GetTD() *td.TD
 
-	// HandleNotification sends the notification to subscribed clients using SendNotification.
-	// The remote clients are the notification sink from the server perspective.
+	// HandleNotification invokes SendNotification.
 	//
-	// Notifications received by the server are forwarded to the notification sink
-	// This returns an error if the notification is not handled or nil if at least one
-	// client subscribes.
+	// Unlike IHiveCell.HandleNotification, the notification is not forwarded to the
+	// registered notification sink. Instead, the remote clients are the notification
+	// sink from the server perspective.
+	//
 	HandleNotification(notif *msg.NotificationMessage)
+
+	// HandleRequest invokes SendRequest
+	//
+	// Unlike IHiveCell.HandleRequest, unhandled requests fail with an undeliverable
+	// error and not forwarded to the request sink. From the server perspective the
+	// chain continues at the remote client and if no client matches the chain ends.
+	HandleRequest(request *msg.RequestMessage, replyTo msg.ResponseHandler) error
 
 	// SendNotification [Thing] sends a notification over the connections to
 	// remote subscribed consumers.
-	// This returns an error if the notification has no subscribers.
 	SendNotification(notif *msg.NotificationMessage)
 
-	// SendRequest [consumer] sends a request to a connected Thing.
+	// SendRequest send a request to a connected Thing.
 	//
-	// Intended for use by consumers when Things are connected using connection reversal.
+	// Intended for sending requests to devices that are connected by connection reversal.
 	//
 	// clientID of the device's that hosts the Thing.
 	// responseHandler is the optional callback with the response.

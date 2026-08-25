@@ -17,7 +17,7 @@ const PropName_NrConnections = "nrConnections"
 
 // TransportServerBase implements the boilerplate of running a transport server as defined in
 // ITransportServer
-// - Implemenets IHiveCell so it can act as a sink itself.
+// - Implements IHiveCell so it can act as a sink itself.
 // - Manage incoming connections - see also ConnectionBase
 // - Send requests, responses and notifications to connected clients
 // - Aggregate messages from connections and send to Sink
@@ -248,7 +248,7 @@ func (srv *TransportServerBase) GetConnectionByClientID(clientID string) (c api.
 	return c
 }
 
-// Handle a notification this transport (or downstream in the chain) subscribed to.
+// HandleNotification invokes SendNotification.
 // Notifications are forwarded to their upstream sink, which for a server is the
 // client.
 func (m *TransportServerBase) HandleNotification(notif *msg.NotificationMessage) {
@@ -264,8 +264,12 @@ func (m *TransportServerBase) HandleNotification(notif *msg.NotificationMessage)
 // This returns an error when the destination for the request cannot be determined.
 // If multiple server protocols are used it is okay to try them one by one.
 //
-// Instead it is better to use the directory which tracks the device account ID that
-// uploaded a TD. Requests for the Thing are forwarded to this device.
+// Rather than brute force passing all requests here, it is more efficient to use
+// the directory which tracks the device account ID that uploaded a TD, and use
+// SendRequest instead.
+//
+// If the request thingID doesn't match a client connection then this returns a
+// no connection found error.
 func (m *TransportServerBase) HandleRequest(
 	req *msg.RequestMessage, replyTo msg.ResponseHandler) (err error) {
 

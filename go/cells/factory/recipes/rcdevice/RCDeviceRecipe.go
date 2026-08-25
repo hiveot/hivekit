@@ -68,6 +68,6 @@ func NewRCDeviceRecipe(
 	if appCellDef != nil {
 		chain = append(chain, *appCellDef)
 	}
-	r := factory_service.NewChainRecipe(f, chain)
+	r := factory_service.NewChainFormation(f, chain)
 	return r
 }

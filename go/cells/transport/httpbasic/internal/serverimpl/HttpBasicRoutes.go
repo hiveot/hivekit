@@ -134,7 +134,7 @@ func (srv *HttpBasicServerImpl) onHttpAffordanceOperation(w http.ResponseWriter,
 	if slices.Contains(thingLevelOperations, req.Operation) {
 	} else if slices.Contains(affordanceOperations, req.Operation) {
 	} else {
-		slog.Warn("Unsupported operation for http-basic",
+		slog.Warn("Unsupported operation for http-basic transports",
 			"method", r.Method, "URL", r.URL.String(),
 			"operation", req.Operation, "thingID", req.ThingID, "name", req.Name, "clientID", req.SenderID)
 		w.WriteHeader(http.StatusBadRequest)

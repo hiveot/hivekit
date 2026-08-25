@@ -14,7 +14,7 @@ The factory and recipe cells are in alpha. They are functional but breaking chan
 
 ## Summary
 
-The purpose of the factory is the simplify instantiation and linking of (golang) cells for a client or server applications along with the needed environment. It operates using a collection of registered cells. 3rd party cells can easily be added to the registry. 
+The purpose of the factory is the simplify instantiation and linking of cells for a client or server applications along with the needed environment. It operates using a collection of registered cells. 3rd party cells can easily be added to the registry. 
 
 To develop an application the application logic can be placed in a cell itself and linked to a recipe. The recipe handles the needed capabilities for discovery, communication, storage and much more.
 
@@ -28,9 +28,9 @@ The recipes folder contains a set of convenient cookie-cutter recipies for build
 
 Recipes are the quickest way to build a client or server application or plugin. They specify wich cells are used and how they are chained.
 
-A recipe contains a map of cell factory functions by their cell type, and a list of cells in the order they are linked. An application is instantiated by invoking recipe.Start(factoryInstance).
+A recipe contains a map of cells by their cell type, and a list of cells in the order used by their formation. A formation defines how cells are linked. Provided formations are a chain, star or bus. An application is instantiated by invoking recipe.Start(factoryInstance).
 
-Use of recipes is optional as a user can also just load cells with the factory using GetCell(cellType) and link them manually using SetRequestHandler and SetResponseHandler.
+Use of recipes and formations are optional, as a developer can also just load cells with the factory using GetCell(cellType) and link them manually using SetRequestHandler and SetResponseHandler.
 
 ### Inter-process and Multi-Language Recipes
 
@@ -126,9 +126,6 @@ If the server side uses the authn service for authentication (recommended) then 
 The cli and launcher mentioned above are applications build with HiveKit. See the go/apps directory for details.
 
 
-
-
-
 ## Application Example
 
 The easiest method to build an application is to use one of the predefined recipes and add the application specific cells. Below some pseudocode for illustration. See also the examples section.
@@ -164,3 +161,10 @@ func main(){
 ```
 This is all that is needed to include hivekit and other cells in your application. The developer only needs to provide 'appCell' which provides the application logic and interacts with request handler and notification handlers.
 
+
+
+## Future Ideas
+
+In theory it is possible to include all known modules and create a recipe dynamically from an uploaded configuration file. The end result is a single executable that can be configured at runtime as a consumer, device, gateway, hub, depending on the modules that are included. 
+
+The concept of cells can also be applied to a user interface where windows and widgets are dynamically incorporated. This would allow generating a user interface purely through configuration as long as the widget cells are included.

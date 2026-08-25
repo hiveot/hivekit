@@ -9,7 +9,7 @@ import (
 	"github.com/hiveot/hivekit/go/cells"
 )
 
-// The StarRecipe is a cell that links its cells in a star formation.
+// The StarFormation links its cells in a star formation.
 //
 // Incoming requests are forwarded to the cell that matches the request thingID.
 // There is no need for linking individual request handlers.
@@ -19,7 +19,7 @@ import (
 //
 // The star recipe itself is registered as the notification sink of the cells in the
 // star and will forward these notifications to its own registered notification sink.
-type StarRecipe struct {
+type StarFormation struct {
 	*cells.HiveCellBase
 	// cells in the order to instantiate and link
 	star []api.CellDefinition `yaml:"star"`
@@ -32,7 +32,7 @@ type StarRecipe struct {
 }
 
 // Receives notifications from downstream and send it to all cells
-func (r *StarRecipe) HandleNotification(notif *msg.NotificationMessage) {
+func (r *StarFormation) HandleNotification(notif *msg.NotificationMessage) {
 	for _, member := range r.instances {
 		member.HandleNotification(notif)
 	}
@@ -40,7 +40,7 @@ func (r *StarRecipe) HandleNotification(notif *msg.NotificationMessage) {
 
 // Requests sent to the star are passed on to the cell with the matching thingID.
 // If no cells match it is forwarded to the registered sink.
-func (r *StarRecipe) HandleRequest(req *msg.RequestMessage, replyTo msg.ResponseHandler) error {
+func (r *StarFormation) HandleRequest(req *msg.RequestMessage, replyTo msg.ResponseHandler) error {
 	ray, found := r.instances[req.ThingID]
 	if found {
 		return ray.HandleRequest(req, replyTo)
@@ -48,7 +48,7 @@ func (r *StarRecipe) HandleRequest(req *msg.RequestMessage, replyTo msg.Response
 	return r.HiveCellBase.HandleRequest(req, replyTo)
 }
 
-func (r *StarRecipe) SetSlot(slotID string, modDef api.CellDefinition) error {
+func (r *StarFormation) SetSlot(slotID string, modDef api.CellDefinition) error {
 	for i, md := range r.star {
 		if md.Type == slotID {
 			r.star[i] = modDef
@@ -59,7 +59,7 @@ func (r *StarRecipe) SetSlot(slotID string, modDef api.CellDefinition) error {
 }
 
 // Start the recipe
-func (r *StarRecipe) Start() error {
+func (r *StarFormation) Start() error {
 
 	// add the cell definitions to the factory
 	if r.star != nil {
@@ -92,15 +92,16 @@ func (r *StarRecipe) Start() error {
 	return nil
 }
 
-// Create a recipe instance for running cells in a star formation.
+// NewStarFormation returns a formation with cells linked in a star.
 // This returns the star recipe.
-func NewStarRecipe(
-	f api.ICellFactory, star []api.CellDefinition) api.IRecipe {
+func NewStarFormation(
+	f api.ICellFactory, members []api.CellDefinition) *StarFormation {
 
-	m := &StarRecipe{
+	r := &StarFormation{
 		HiveCellBase: cells.NewHiveCellBase("", 0),
 		f:            f,
-		star:         star,
+		star:         members,
 	}
-	return m
+	var _ api.IRecipe = r
+	return r
 }

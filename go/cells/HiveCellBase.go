@@ -66,8 +66,7 @@ func (m *HiveCellBase) ForwardNotification(notif *msg.NotificationMessage) {
 }
 
 // ForwardRequest passes the request to the sink's HandleRequest method.
-// If no sink os configured this returns an error
-// This assigns a request correlationID if none is set.
+// If no sink os configured this returns an not-deliverable error
 func (m *HiveCellBase) ForwardRequest(req *msg.RequestMessage, replyTo msg.ResponseHandler) (err error) {
 	if req.CorrelationID == "" {
 		req.CorrelationID = shortid.MustGenerate()
@@ -76,8 +75,9 @@ func (m *HiveCellBase) ForwardRequest(req *msg.RequestMessage, replyTo msg.Respo
 	sink := m.requestSink
 	m.mux.RUnlock()
 	if sink == nil {
-		return fmt.Errorf("ForwardRequest: no sink for request at '%s' for request '%s/%s' to thingID '%s'",
-			m.cellID, req.Operation, req.Name, req.ThingID)
+		// end of the line
+		return fmt.Errorf("ForwardRequest: request '%s/%s' to thingID '%s' is undeliverable by cell '%s'",
+			req.Operation, req.Name, req.ThingID, m.cellID)
 	}
 	if replyTo == nil {
 		slog.Warn("ForwardRequest: no replyTo handler provided",

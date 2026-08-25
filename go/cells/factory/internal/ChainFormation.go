@@ -9,7 +9,7 @@ import (
 	"github.com/hiveot/hivekit/go/cells"
 )
 
-// The ChainRecipe is a recipe that links its cells in a chain formation.
+// The ChainFormation links its cells in a chain formation.
 //
 // Incoming requests are forwarded to the first cell in the chain.
 // The last cell in the chain will have its request sink set to the sink of the
@@ -20,9 +20,9 @@ import (
 //
 // On start, all cells are loaded, started and linked in sequence.
 //
-// The ChainRecipe itself is registered as the notification sink of the first cell
+// The ChainFormation itself is registered as the notification sink of the first cell
 // in the chain and will forward these notifications to its registered notification sink.
-type ChainRecipe struct {
+type ChainFormation struct {
 	*cells.HiveCellBase
 	// Chain of cells in the order to instantiate and link
 	chain []api.CellDefinition `yaml:"chain"`
@@ -36,7 +36,7 @@ type ChainRecipe struct {
 
 // Recipe receives notifications from the application.
 // Send it up the recipe content chain, starting at the last cell.
-func (r *ChainRecipe) HandleNotification(notif *msg.NotificationMessage) {
+func (r *ChainFormation) HandleNotification(notif *msg.NotificationMessage) {
 	if len(r.modList) == 0 {
 		return
 	}
@@ -46,7 +46,7 @@ func (r *ChainRecipe) HandleNotification(notif *msg.NotificationMessage) {
 
 // Requests sent to the chain are passed on to the first cell in the chain.
 // If no cells are registered then this is an error.
-func (r *ChainRecipe) HandleRequest(req *msg.RequestMessage, replyTo msg.ResponseHandler) error {
+func (r *ChainFormation) HandleRequest(req *msg.RequestMessage, replyTo msg.ResponseHandler) error {
 	if len(r.modList) == 0 {
 		return fmt.Errorf("HandleRequest: recipe has no cells registered")
 	}
@@ -56,7 +56,7 @@ func (r *ChainRecipe) HandleRequest(req *msg.RequestMessage, replyTo msg.Respons
 
 // Set the sink for notifications from the chain
 // This sets the sink to the first cell in the chain. Call this after start.
-func (r *ChainRecipe) SetNotificationSink(sink api.IHiveCell, thingIDs ...string) {
+func (r *ChainFormation) SetNotificationSink(sink api.IHiveCell, thingIDs ...string) {
 	if len(r.modList) == 0 {
 		slog.Error("SetNotificationSink called but the chain is not started")
 		return
@@ -67,7 +67,7 @@ func (r *ChainRecipe) SetNotificationSink(sink api.IHiveCell, thingIDs ...string
 
 // Set the sink for requests from the chain
 // This sets the sink to the last cell in the chain. Call this after start.
-func (r *ChainRecipe) SetRequestSink(sink api.IHiveCell) {
+func (r *ChainFormation) SetRequestSink(sink api.IHiveCell) {
 	if len(r.modList) == 0 {
 		slog.Error("SetRequestSink called but the chain is not started")
 		return
@@ -80,7 +80,7 @@ func (r *ChainRecipe) SetRequestSink(sink api.IHiveCell) {
 // Use this before starting the chain.
 // Intended to create chain templates where the application cell needs to be placed
 // before some other cells.
-func (r *ChainRecipe) SetSlot(slotID string, modDef api.CellDefinition) error {
+func (r *ChainFormation) SetSlot(slotID string, modDef api.CellDefinition) error {
 	for i, md := range r.chain {
 		if md.Type == slotID {
 			r.chain[i] = modDef
@@ -103,7 +103,7 @@ func (r *ChainRecipe) SetSlot(slotID string, modDef api.CellDefinition) error {
 // * sending a notification to the chain passes it to the last cell, which makes it
 //
 //	way to the first cell and up to the linked notification handler.
-func (r *ChainRecipe) Start() error {
+func (r *ChainFormation) Start() error {
 
 	// register all cells with the factory
 	for _, cellDef := range r.chain {
@@ -146,13 +146,13 @@ func (r *ChainRecipe) Start() error {
 //	chain is a collection of cells in order of instantiation.
 //
 // This returns the chain recipe.
-func NewChainRecipe(f api.ICellFactory,
-	chain []api.CellDefinition) api.IRecipe {
+func NewChainFormation(f api.ICellFactory, chain []api.CellDefinition) *ChainFormation {
 
-	m := &ChainRecipe{
+	r := &ChainFormation{
 		HiveCellBase: cells.NewHiveCellBase("ChainRecipe", 0),
 		f:            f,
 		chain:        chain,
 	}
-	return m
+	var _ api.IRecipe = r
+	return r
 }

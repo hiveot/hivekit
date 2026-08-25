@@ -155,8 +155,6 @@ func (sc *ServerConnectionBase) OnNotification(
 	notif.SenderID = sc.GetClientID()
 
 	// we might add some counters or handle special notifications here in the future.
-	// sender is identified by the server, not the client
-	notif.SenderID = sc.GetClientID()
 	forwardTo(notif)
 }
 
