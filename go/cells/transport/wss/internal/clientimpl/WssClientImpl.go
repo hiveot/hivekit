@@ -91,7 +91,7 @@ func (cl *WssTransportClientImpl) _onWssClientMessage(raw []byte) {
 		if err == nil {
 			// client receives a request (using reverse connection)
 			// pass it on to the linked producer.
-			err = cl.ForwardRequest(req, func(resp *msg.ResponseMessage) error {
+			err = cl.EmitRequest(req, func(resp *msg.ResponseMessage) error {
 				// return the response to the caller
 				err2 := cl.SendResponse(resp)
 				return err2
@@ -226,8 +226,6 @@ func (cl *WssTransportClientImpl) Connect() error {
 // HandleNotification receives an incoming notification from a producer
 // and sends it to the server.
 func (m *WssTransportClientImpl) HandleNotification(notif *msg.NotificationMessage) {
-	// Can't use HiveCellBase.HandleNotification as it forwards the notification
-	// to the registered notification sink. Instead it should go to the server.
 	m.SendNotification(notif)
 }
 
@@ -259,6 +257,12 @@ func (cl *WssTransportClientImpl) SendNotification(notif *msg.NotificationMessag
 		slog.String("thingID", notif.ThingID),
 		slog.String("name", notif.Name),
 	)
+	connStatus := cl.GetConnectionStatus()
+	if connStatus != api.StatusConnected {
+		slog.Warn("SendNotification: not connected", "status", connStatus)
+		return
+	}
+
 	// convert the operation into a protocol message
 	wssMsg, err := cl.encoder.EncodeNotification(notif)
 	if err != nil {
@@ -283,6 +287,14 @@ func (cl *WssTransportClientImpl) SendRequest(
 		slog.String("thingID", req.ThingID),
 		slog.String("name", req.Name),
 	)
+
+	connStatus := cl.GetConnectionStatus()
+	if connStatus != api.StatusConnected {
+		err := fmt.Errorf("SendRequest: not connected to '%s'", cl.GetClientID())
+		slog.Warn("SendRequest: not connected",
+			"clientID", cl.GetClientID(), "status", connStatus)
+		return err
+	}
 
 	if req.CorrelationID == "" {
 		req.CorrelationID = shortid.MustGenerate()

@@ -121,11 +121,10 @@ type DigitwinServiceImpl struct {
 	storageDir string
 }
 
-// ForwardDigitalTwinRequest passes the request made to a digital twin to the
-// original device.
+// EmitDigitalTwinRequest sends request made to a digital twin to the original device.
 // This will restore the original thingID before forwarding the request to
 // the device itself.
-func (svc *DigitwinServiceImpl) ForwardDigitwinRequestToDevice(dtwReq *msg.RequestMessage, replyTo msg.ResponseHandler) (err error) {
+func (svc *DigitwinServiceImpl) EmitDigitwinRequestToDevice(dtwReq *msg.RequestMessage, replyTo msg.ResponseHandler) (err error) {
 	// reverse the digital twin thingID
 	clientID, thingID, err := SplitDigitwinID(dtwReq.ThingID)
 
@@ -134,10 +133,10 @@ func (svc *DigitwinServiceImpl) ForwardDigitwinRequestToDevice(dtwReq *msg.Reque
 	deviceReq := *dtwReq
 	deviceReq.ThingID = thingID
 
-	// forward the request to the sink, which is responsible for routing it to the
+	// Emit the request to the sink, which is responsible for routing it to the
 	// destination.
 	_ = clientID
-	err = svc.ForwardRequest(&deviceReq, func(resp *msg.ResponseMessage) error {
+	err = svc.EmitRequest(&deviceReq, func(resp *msg.ResponseMessage) error {
 		// put the digitwin thingID back into the response
 		resp.ThingID = dtwReq.ThingID
 		return replyTo(resp)
@@ -196,7 +195,7 @@ func (svc *DigitwinServiceImpl) HandleNotification(notif *msg.NotificationMessag
 	}
 
 	// If the thingID is a digital twin then store its value in the vcache
-	// FIXME: can the dependency on SenderID be removed?
+	// TODO: can the dependency on SenderID be removed?
 	dtwThingID := MakeDigitwinID(notif.SenderID, notif.ThingID)
 	_, err := svc.directory.RetrieveThing(dtwThingID)
 	if err == nil {
@@ -204,10 +203,10 @@ func (svc *DigitwinServiceImpl) HandleNotification(notif *msg.NotificationMessag
 		dtwNotif.ThingID = dtwThingID
 		svc.vcache.HandleNotification(&dtwNotif)
 		// emit this notification as a digital twin update
-		svc.ForwardNotification(&dtwNotif)
+		svc.EmitNotification(&dtwNotif)
 
 	} else {
-		// not a digital twin notification. Send it upstream to potential consumers
+		// not a digital twin notification. Forward it upstream to potential consumers
 		svc.ForwardNotification(notif)
 	}
 

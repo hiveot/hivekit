@@ -10,6 +10,7 @@ import (
 	"github.com/hiveot/hivekit/go/api"
 	gatewayrecipe "github.com/hiveot/hivekit/go/cells/factory/recipes/gateway"
 	factory_service "github.com/hiveot/hivekit/go/cells/factory/service"
+	"github.com/hiveot/hivekit/go/utils"
 )
 
 var ExampleHome = path.Join(os.TempDir(), "hivekit-examples")
@@ -24,6 +25,7 @@ func main() {
 
 	env := api.NewHiveEnvironment(ExampleHome, true)
 	env.RpcTimeout = time.Minute // for testing
+	utils.SetLogging(env.LogLevel, "")
 
 	f := factory_service.NewCellFactory(env, nil)
 	r := gatewayrecipe.NewGatewayDeviceRecipe(f, false)

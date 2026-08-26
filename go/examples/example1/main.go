@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/hiveot/hivekit/go/api"
+	"github.com/hiveot/hivekit/go/utils"
 
 	standalonerecipe "github.com/hiveot/hivekit/go/cells/factory/recipes/standalone"
 	factory_service "github.com/hiveot/hivekit/go/cells/factory/service"
@@ -34,10 +35,10 @@ func main() {
 	env := api.NewHiveEnvironment(ExampleHome, true)
 	env.RpcTimeout = time.Minute // for testing
 	env.HttpsPort = 9222         // for testing
-
 	if env.ClientID == "" {
 		env.ClientID = api.DefaultAdminUserID
 	}
+	utils.SetLogging(env.LogLevel, "")
 
 	f := factory_service.NewCellFactory(env, nil)
 

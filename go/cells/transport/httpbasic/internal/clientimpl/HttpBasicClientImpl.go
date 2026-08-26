@@ -108,15 +108,12 @@ func (cl *HttpBasicClientImpl) GetTlsClient() tlsclient.ITLSClient {
 	return cl.tlsClient
 }
 
-// HandleNotification receives an incoming notification from a producer
-// and sends it to the server.
+// HandleNotification sends an incoming notification to the server.
 func (m *HttpBasicClientImpl) HandleNotification(notif *msg.NotificationMessage) {
-	// Can't use HiveCellBase.HandleNotification as it forwards the notification
-	// to the registered notification sink.
 	m.SendNotification(notif)
 }
 
-// clients send requests to the server
+// HandleRequest sends the request to the server
 func (cl *HttpBasicClientImpl) HandleRequest(request *msg.RequestMessage, replyTo msg.ResponseHandler) error {
 	err := cl.SendRequest(request, replyTo)
 	return err

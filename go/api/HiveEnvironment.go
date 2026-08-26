@@ -471,7 +471,7 @@ func NewHiveEnvironment(homeDir string, withFlags bool) *HiveEnvironment {
 		}
 	}
 
-	utils.SetLogging(logLevel, "")
+	// utils.SetLogging(logLevel, "")
 
 	slog.Info("NewAppEnvironment",
 		slog.String("appID", appID),

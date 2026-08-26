@@ -152,17 +152,6 @@ func (m *DirectoryClientImpl) Start() (err error) {
 	return err
 }
 
-// Update a Thing TD in the directory and wait for confirmation
-// This retuns nil if success or an error if something went wrong.
-// func (cl *DirectoryMsgClient) UpdateTD(tdJson string) error {
-
-// 	req := msg.NewRequestMessage(
-// 		td.OpInvokeAction, cl.directoryID, directory.ActionUpdateThing, tdJson, "")
-// 	_, err := cl.ForwardRequestWait(req)
-
-// 	return err
-// }
-
 // NewDirectoryClientImpl creates a new DirectoryClient instance for consumers which
 // uses RRN messages for communicating with the directory server.
 //

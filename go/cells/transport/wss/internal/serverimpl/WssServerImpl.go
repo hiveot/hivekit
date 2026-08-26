@@ -90,7 +90,7 @@ func (srv *WssServerImpl) ServeWssConnection(w http.ResponseWriter, r *http.Requ
 
 	// the new server connection sends messages to the cell sink
 	c := NewWSSServerConnection(clientID, r, wssConn, srv.encoder,
-		srv.ForwardRequest, srv.ForwardNotification)
+		srv.EmitRequest, srv.EmitNotification)
 	c.SetTimeout(srv.respTimeout)
 	// add connection sends a notification
 	err = srv.AddConnection(c)

@@ -7,6 +7,7 @@ import (
 	standalonerecipe "github.com/hiveot/hivekit/go/cells/factory/recipes/standalone"
 	factory_service "github.com/hiveot/hivekit/go/cells/factory/service"
 	"github.com/hiveot/hivekit/go/testenv"
+	"github.com/hiveot/hivekit/go/utils"
 	"github.com/stretchr/testify/require"
 )
 
@@ -16,6 +17,7 @@ func TestServerRecipe(t *testing.T) {
 
 	env := api.NewHiveEnvironment(testDir, false)
 	env.HttpsPort = testPort
+	utils.SetLogging("info", "")
 
 	// run the cell chain for a standalone server
 	f := factory_service.NewCellFactory(env, nil)

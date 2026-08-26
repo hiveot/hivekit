@@ -35,7 +35,7 @@ func (svc *DirectoryServiceImpl) DeleteThing(senderID string, thingID string) (e
 
 		notif := msg.NewNotificationMessage(svc.GetThingID(), msg.AffordanceTypeEvent,
 			svc.GetThingID(), directory.ThingDeletedEvent, thingID)
-		svc.ForwardNotification(notif)
+		svc.EmitNotification(notif)
 	}
 	return err
 }
@@ -155,7 +155,7 @@ func (svc *DirectoryServiceImpl) UpdateThing(senderID string, tdJson string) err
 
 	notif := msg.NewNotificationMessage(svc.GetThingID(), msg.AffordanceTypeEvent,
 		svc.GetThingID(), directory.ThingUpdatedEvent, tdJson)
-	svc.ForwardNotification(notif)
+	svc.EmitNotification(notif)
 
 	return err
 

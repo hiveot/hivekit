@@ -25,7 +25,7 @@ import (
 // GrpcServerImpl is the transport server using gRPC connections.
 //
 // This implements both ITransportServer and IHiveCell interfaces.
-// The embedded TransportServerBase is used for managing connections and forwarding messages to sinks.
+// The embedded TransportServerBase is used for managing connections and emitting messages to sinks.
 type GrpcServerImpl struct {
 	*transport.TransportServerBase
 	// Authenticate
@@ -63,7 +63,7 @@ func (srv *GrpcServerImpl) ServeStreamConnection(
 
 	// Create a hiveot transport connection for this stream.
 	c := NewGrpcServerConnection(
-		clientID, cid, grpcStream, srv.ForwardRequest, srv.ForwardNotification)
+		clientID, cid, grpcStream, srv.EmitRequest, srv.EmitNotification)
 	c.SetTimeout(srv.respTimeout)
 
 	srv.AddConnection(c)

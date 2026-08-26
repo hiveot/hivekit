@@ -193,7 +193,7 @@ func (m *ExposedThing) PubActionProgress(req msg.RequestMessage, value any) {
 
 	m.GetState(req.ThingID).SetActionResponse(req.Name, status)
 
-	m.ForwardNotification(resp)
+	m.EmitNotification(resp)
 }
 
 // PubEvent helper for things to publish an event to the server.
@@ -218,7 +218,7 @@ func (m *ExposedThing) PubEvent(thingID string, name string, value any) {
 	)
 	m.GetState(thingID).SetEvent(name, notif)
 
-	m.ForwardNotification(notif)
+	m.EmitNotification(notif)
 }
 
 // PubProperty publishes a property change notification to observers,
@@ -257,7 +257,7 @@ func (m *ExposedThing) PubProperty(thingID string, propName string, propVal any,
 		)
 		tstate.SetProperty(propName, notif.Data)
 
-		m.ForwardNotification(notif)
+		m.EmitNotification(notif)
 	}
 }
 
@@ -322,16 +322,16 @@ func (m *ExposedThing) WriteTD(tdJson string) error {
 //	appReqHandler is the application handler invoked when receiving requests for this Thing.
 func NewExposedThing(thingID string, appReqHandler msg.RequestHandler) *ExposedThing {
 
-	m := &ExposedThing{
+	ething := &ExposedThing{
 		// Things dont send requests so no wait
 		HiveCellBase: cells.NewHiveCellBase(thingID, 0),
 		tstates:      make(map[string]*ThingState),
 	}
 
 	if appReqHandler != nil {
-		m.SetAppRequestHook(appReqHandler)
+		ething.SetAppRequestHook(appReqHandler)
 	}
-	return m
+	return ething
 }
 
 // Factory for creating an exposed Thing using the factory environment

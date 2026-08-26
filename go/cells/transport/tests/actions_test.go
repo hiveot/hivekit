@@ -86,7 +86,7 @@ func TestInvokeActionFromConsumerToServer(t *testing.T) {
 	// the response handler above will receive the result
 	// testOutput can be updated as an immediate result or via the callback message handler
 	req := msg.NewRequestMessage(td.OpInvokeAction, thingID, actionName, testMsg1)
-	err := co1.ForwardRequest(req, responseHandler)
+	err := co1.EmitRequest(req, responseHandler)
 
 	require.NoError(t, err)
 	<-ctx1.Done()

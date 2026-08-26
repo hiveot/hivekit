@@ -25,20 +25,24 @@ type IHiveCell interface {
 	// invokes replyTo with the response. ReplyTo is invoked asynchronously before
 	// or after returning.
 	//
-	// When the request is not for this cell then it is forwarded:
+	// When the request is not for this cell then it is forwarded if forwarding is enabled:
 	//
 	// 1. By default cell forward unhandled requests to their request sink.
+	//    This can be disabled with 'SetForwarding()'.
 	//    Flow: consumer -> cell -[rsink]-> producer
 	//
 	// 2. If the cell is a transport client: the request is transported to the server,
 	//    and the server passes it to the producer that is registered as its sink.
-	//    Flow: consumer -[rsink]-> tp-client -> tp-server -[rsink]-> producer
+	//    HandleRequest does not forward the request to the request sink. Instead,
+	//    received requests are passed to the request sink.
+	//    Flow: consumer -> client -> server -> producer
+	//    Flow: producer -> server -> client -> request sink
 	//
 	// 3. If the cell is a transport server or server connection then the request is
 	//    transported to the remote client. The client passes it to its registered sink.
 	//    This sink should be a producer that can handle the request.
 	//    (In this case the consumer is a process running on the server)
-	//    Flow: consumer -[rsink]-> tp-server -> tp-client -[rsink]-> producer
+	//    Flow: consumer -> server -> client -> request sink
 	//
 	//    Note this is the use-case where a device uses connection reversal to connect
 	//         to a server, like a hub or gateway, to serve IoT data. The gateway acts
@@ -57,10 +61,23 @@ type IHiveCell interface {
 
 	// Handle the notification received from a producer.
 	// The default behavior is to forward it upstream to the handler set with SetNotificationSink.
+	// Forwarding can be disabled with SetForwarding()
 	HandleNotification(notif *msg.NotificationMessage)
 
-	// Set the handler of notifications emitted by this cell.
+	// Set forwarding of notifications or requests to the configured sink.
+	//
+	// This does not affect notifications or requests emitted by this cell.
+	//
+	// The default is to forward both notifications and unhandled requests,
+	// except for transport clients and transport servers which always forward
+	// these messages to the remote side.
+	//
+	SetForwarding(forwardNotif bool, forwardReq bool)
+
+	// Set the handler of notifications emitted or forwarded by this cell.
 	// Intended to create a chain of notifications from producer to consumer.
+	//
+	// Forwarding can be disabled using SetForwarding.
 	//
 	// Optionally set additional notification handlers for specific ThingIDs.
 	// If a handler for a thingID already exists a warning will be logged and the existing

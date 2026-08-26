@@ -7,13 +7,13 @@ import (
 	"github.com/teris-io/shortid"
 )
 
-// ForwardRequestWait is a helper function to forward a request to the given handler
+// EmitRequestWait is a helper function to forward a request to the given handler
 // and waits for a response.
 //
 // This assigns a request correlationID if none is set.
 //
 // If the response contains an error, it is return as the error.
-func ForwardRequestWait(
+func EmitRequestWait(
 	req *RequestMessage, reqHandler RequestHandler, timeout time.Duration) (resp *ResponseMessage, err error) {
 
 	if req.CorrelationID == "" {

@@ -46,7 +46,7 @@ func (m *TestTransport) HandleRequest(
 // This would mean that the client's remote side receives a notification.
 // Since this doesn't do subscriptions, all notifications are received.
 func (m *TestTransport) SendNotification(notif *msg.NotificationMessage) {
-	m.ForwardNotification(notif)
+	m.EmitNotification(notif)
 }
 
 // SendRequest sends a request message via the transport to the producer.
@@ -55,7 +55,7 @@ func (m *TestTransport) SendNotification(notif *msg.NotificationMessage) {
 func (m *TestTransport) SendRequest(
 	clientID string, req *msg.RequestMessage, replyTo msg.ResponseHandler) (err error) {
 
-	err = m.ForwardRequest(req, replyTo)
+	err = m.EmitRequest(req, replyTo)
 	return err
 }
 

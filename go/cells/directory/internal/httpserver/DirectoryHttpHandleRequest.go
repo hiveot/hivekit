@@ -24,7 +24,7 @@ func (srv *DirectoryHttpServer) handleCreateThing(w http.ResponseWriter, r *http
 		req := msg.NewRequestMessage(
 			td.OpInvokeAction, srv.directoryThingID, directory.CreateThingAction, tdJson)
 		req.SenderID = rp.ClientID
-		_, err = srv.ForwardRequestWait(req)
+		_, err = srv.EmitRequestWait(req)
 	}
 	utils.WriteReply(w, true, nil, err) // 201
 }
@@ -37,7 +37,7 @@ func (srv *DirectoryHttpServer) handleDeleteThing(w http.ResponseWriter, r *http
 	req := msg.NewRequestMessage(
 		td.OpInvokeAction, srv.directoryThingID, directory.DeleteThingAction, thingID)
 	req.SenderID = rp.ClientID
-	_, err = srv.ForwardRequestWait(req)
+	_, err = srv.EmitRequestWait(req)
 
 	utils.WriteReply(w, true, nil, err) // 204
 }
@@ -51,7 +51,7 @@ func (srv *DirectoryHttpServer) handleRetrieveThing(w http.ResponseWriter, r *ht
 		req := msg.NewRequestMessage(
 			td.OpInvokeAction, srv.directoryThingID, directory.RetrieveThingAction, thingID)
 		req.SenderID = rp.ClientID
-		resp, err = srv.ForwardRequestWait(req)
+		resp, err = srv.EmitRequestWait(req)
 	}
 	if err != nil {
 		utils.WriteError(w, err, 0)
@@ -78,7 +78,7 @@ func (srv *DirectoryHttpServer) handleRetrieveAllThings(w http.ResponseWriter, r
 		req := msg.NewRequestMessage(
 			td.OpInvokeAction, srv.directoryThingID, directory.RetrieveAllThingsAction, args)
 		req.SenderID = rp.ClientID
-		resp, err = srv.ForwardRequestWait(req)
+		resp, err = srv.EmitRequestWait(req)
 	}
 	utils.WriteReply(w, true, resp.Output, err) // 200
 }
@@ -96,7 +96,7 @@ func (srv *DirectoryHttpServer) handleUpdateThing(w http.ResponseWriter, r *http
 		req := msg.NewRequestMessage(
 			td.OpInvokeAction, srv.directoryThingID, directory.UpdateThingAction, tdJson)
 		req.SenderID = rp.ClientID
-		resp, err = srv.ForwardRequestWait(req)
+		resp, err = srv.EmitRequestWait(req)
 		_ = resp
 	}
 	utils.WriteReply(w, true, nil, err) // 201

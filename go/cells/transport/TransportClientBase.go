@@ -177,7 +177,7 @@ func (cl *TransportClientBase) SetConnectionStatus(
 	evName := api.ClientConnectionStatusEvent
 	notif := msg.NewNotificationMessage(
 		cellID, msg.AffordanceTypeEvent, cellID, evName, newStatus)
-	cl.ForwardNotification(notif)
+	cl.EmitNotification(notif)
 
 	// invoke the callback after the notification so that the proper sequence is maintained
 	// if the callback tries to reconnect.

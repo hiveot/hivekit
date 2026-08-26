@@ -42,7 +42,7 @@ func (svc *DigitwinServiceImpl) HandleRequest(req *msg.RequestMessage, replyTo m
 			err = svc.vcache.HandleRequest(req, replyTo)
 			if err != nil {
 				// vcache didn't handle the request, so forward it
-				return svc.ForwardDigitwinRequestToDevice(req, replyTo)
+				return svc.EmitDigitwinRequestToDevice(req, replyTo)
 			}
 
 		// write requests are forwarded to the actual device after mapping
@@ -51,7 +51,7 @@ func (svc *DigitwinServiceImpl) HandleRequest(req *msg.RequestMessage, replyTo m
 			td.OpWriteMultipleProperties,
 			td.OpInvokeAction:
 
-			return svc.ForwardDigitwinRequestToDevice(req, replyTo)
+			return svc.EmitDigitwinRequestToDevice(req, replyTo)
 		}
 	}
 

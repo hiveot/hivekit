@@ -55,7 +55,7 @@ func (svc *ReconnectServiceImpl) applySubscription() (err error) {
 		slog.Int("subscriptions", len(svc.subscriptions)))
 	for k, req := range svc.subscriptions {
 		_ = k
-		_, err = svc.ForwardRequestWait(req)
+		_, err = svc.EmitRequestWait(req)
 		if err != nil {
 			break
 		}

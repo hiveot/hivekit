@@ -179,7 +179,7 @@ func (cl *SseScClientImpl) handleSseEvent(event gosse.Event) {
 		if err != nil {
 			return
 		}
-		go cl.ForwardNotification(notif)
+		go cl.EmitNotification(notif)
 	case msg.MessageTypeRequest:
 		var err error
 		req, err := cl.encoder.DecodeRequest("", []byte(event.Data))
@@ -187,7 +187,7 @@ func (cl *SseScClientImpl) handleSseEvent(event gosse.Event) {
 			return
 		}
 
-		err = cl.ForwardRequest(req, func(resp *msg.ResponseMessage) error {
+		err = cl.EmitRequest(req, func(resp *msg.ResponseMessage) error {
 			// return the response to the caller
 			err2 := cl.SendResponse(resp)
 			return err2
@@ -232,7 +232,7 @@ func (cl *SseScClientImpl) handleSseEvent(event gosse.Event) {
 			senderID, msg.AffordanceType(event.Type), "", "", event.Data)
 
 		// don't block the receiver flow
-		go cl.ForwardNotification(notif)
+		go cl.EmitNotification(notif)
 	}
 }
 

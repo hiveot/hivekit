@@ -42,13 +42,15 @@ var TestGrpcTcpURL = fmt.Sprintf("%s://localhost:%d", api.HiveotGrpcTcpScheme, T
 // var TestUDSPath = ":8899"
 // var TestUDSURL = "tcp://" + TestUDSPath
 
-// var DefaultProtocol = api.ProtocolTypeHiveotGrpc
+// var DefaultProtocol = api.HiveotWebsocketProtocolType
 
-// var DefaultProtocol = api.ProtocolTypeHiveotSsesc
-var DefaultProtocol = api.HiveotWebsocketProtocolType
+// var DefaultProtocol = api.HiveotGrpcTcpProtocolType
 
-// var DefaultProtocol = api.ProtocolTypeWotWebsocket
-// var DefaultProtocol = api.ProtocolTypeWotHttpBasic
+var DefaultProtocol = api.HiveotSseScProtocolType
+
+// var DefaultProtocol = api.WotWebsocketProtocolType
+
+// var DefaultProtocol = api.HttpBasicProtocolType
 
 // testTDs are a bunch of TD's for generating test data. The first 5 are predefined and always the same.
 // A higher number generates at random.
@@ -164,6 +166,9 @@ func (testEnv *TestEnv) NewConnectedClient(
 	form, _ := serverTD.GetConnectForm("", "")
 	cl, err = clients.NewTransportClientFromForm(serverTD, form, testEnv.CertBundle.RootCAs)
 
+	// disable forwarding. This should not make a difference unless Forward... is used instead of Emit...
+	// cl.SetForwarding(false, false)
+
 	if err == nil {
 		cl.SetTimeout(TestTimeout)
 		err = cl.SetAuthToken(clientID, token, td.SecSchemeBearer)
@@ -205,7 +210,7 @@ func (testEnv *TestEnv) NewServerThing(thingID string) *thing.ExposedThing {
 //
 // To allow Things to act as a consumer, its request sink is set to the client connection
 // and the Thing is set as the notification sink for the connection.
-// Not that the Thing should have an appRequest handler set to avoid request looping.
+// Note that the Thing should have an appRequest handler set to avoid request looping.
 //
 // This returns the exposed Thing, its connected client connection and the auth token.
 // This panics if a client cannot be created
@@ -216,19 +221,24 @@ func (testEnv *TestEnv) NewRCThing(clientID string, appReqHandler msg.RequestHan
 	// server and sends notifications to the server.
 	cl, authToken := testEnv.NewConnectedClient(clientID, authn.ClientRoleDevice)
 
-	// simple m, no application request handler yet
-	m := thing.NewExposedThing(clientID+"-thing", appReqHandler)
+	// simple ething, no application request handler yet
+	ething := thing.NewExposedThing(clientID+"-thing", appReqHandler)
 
 	// the client delivers requests to the thing and receives notifications from it
-	cl.SetRequestSink(m)
-	m.SetNotificationSink(cl)
+	cl.SetRequestSink(ething)
+	ething.SetNotificationSink(cl)
 
-	// When acting in a dual role as thing and consumer, the thing uses the client as
-	// the sink for requests and receives notifications passed to the client from the server.
-	m.SetRequestSink(cl)
-	cl.SetNotificationSink(m)
+	// When acting in a dual role as thing and consumer, the thing uses the client as the
+	// sink for requests and receives notifications passed to the client from the server.
+	// forwarding must be disabled to prevent received notifications to be sent back to the
+	// client.
+	ething.SetRequestSink(cl)
+	cl.SetNotificationSink(ething)
+	// disable forwarding to prevent received notifications to be forwarded back
+	// to the client.
+	ething.SetForwarding(false, false)
 
-	return m, cl, authToken
+	return ething, cl, authToken
 }
 
 // NewConnectedConsumer creates a new connected consumer.
@@ -398,6 +408,7 @@ func NewTestEnv(clean bool) *TestEnv {
 		os.MkdirAll(TestHome, 0750)
 	}
 	appEnv := api.NewHiveEnvironment(TestHome, false)
+	utils.SetLogging("info", "")
 	appEnv.HttpsPort = TestServerHttpPort
 	// ensure the directories exist
 	os.MkdirAll(appEnv.BinDir, 0750)

@@ -57,7 +57,7 @@ func (m *AuthnUserHttpService) onHttpGetProfile(w http.ResponseWriter, r *http.R
 		req := msg.NewRequestMessage(
 			td.OpInvokeAction, authn.AuthnUserServiceID, authn.UserActionGetProfile, nil)
 		req.SenderID = rp.ClientID
-		resp, err = m.ForwardRequestWait(req)
+		resp, err = m.EmitRequestWait(req)
 	}
 	if err != nil {
 		slog.Warn("onHttpGetProfile failed", "clientID", rp.ClientID, "err", err.Error())
@@ -84,7 +84,7 @@ func (m *AuthnUserHttpService) onHttpLogin(w http.ResponseWriter, r *http.Reques
 		req := msg.NewRequestMessage(
 			td.OpInvokeAction, authn.AuthnUserServiceID, authn.UserActionLogin, &args)
 		req.SenderID = args.UserName
-		resp, err = m.ForwardRequestWait(req)
+		resp, err = m.EmitRequestWait(req)
 
 		slog.Info("onHttpLogin", "clientID", args.UserName)
 	}
@@ -108,7 +108,7 @@ func (m *AuthnUserHttpService) onHttpLogout(w http.ResponseWriter, r *http.Reque
 		req := msg.NewRequestMessage(
 			td.OpInvokeAction, authn.AuthnUserServiceID, authn.UserActionLogout, nil)
 		req.SenderID = rp.ClientID
-		resp, err = m.ForwardRequestWait(req)
+		resp, err = m.EmitRequestWait(req)
 		_ = resp
 	} else {
 	}
@@ -131,7 +131,7 @@ func (m *AuthnUserHttpService) onHttpTokenRefresh(w http.ResponseWriter, r *http
 		req := msg.NewRequestMessage(
 			td.OpInvokeAction, authn.AuthnUserServiceID, authn.UserActionRefreshToken, oldToken)
 		req.SenderID = rp.ClientID
-		resp, err = m.ForwardRequestWait(req)
+		resp, err = m.EmitRequestWait(req)
 	}
 	if err != nil {
 		slog.Warn("onHttpTokenRefresh failed:", "err", err.Error())

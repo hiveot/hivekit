@@ -117,7 +117,9 @@ func startService() (
 		dtw.Stop()
 		rtr.Stop()
 		appServer.Stop()
-		testEnv.HttpServer.Stop()
+		if testEnv.HttpServer != nil {
+			testEnv.HttpServer.Stop()
+		}
 	}
 }
 func TestStartStop(t *testing.T) {
@@ -240,10 +242,11 @@ func TestReadDigitwinProperty(t *testing.T) {
 
 	// 3. the device emits a property notification from the thing to the server
 	// in the test setup the directory is the first cell in the pipeline
-	ag, cc2, _ := testEnv.NewRCThing(deviceID, nil)
+	// note that ething has forwarding disabled so it can also act as a consumer.
+	ething, cc2, _ := testEnv.NewRCThing(deviceID, nil)
 	defer cc2.Close()
 
-	ag.PubProperty(deviceTD1.ID, prop1Name, prop1Value, false)
+	ething.PubProperty(deviceTD1.ID, prop1Name, prop1Value, false)
 	// let the communication proceed
 	time.Sleep(time.Millisecond * 10)
 
@@ -279,21 +282,21 @@ func TestWriteDigitwinProperty(t *testing.T) {
 	defer cc1.Stop()
 
 	// 2. create a reverse-connected device that receives the write request
-	ag, cc2, _ := testEnv.NewRCThing(deviceID, nil)
+	ething, cc2, _ := testEnv.NewRCThing(deviceID, nil)
 	defer cc2.Close()
-	ag.SetAppRequestHook(func(req *msg.RequestMessage, replyTo msg.ResponseHandler) error {
+	ething.SetAppRequestHook(func(req *msg.RequestMessage, replyTo msg.ResponseHandler) error {
 		if req.Operation == td.OpWriteProperty {
 			txPropValue = req.ToString(0)
 			resp := req.CreateResponse(nil, nil)
 
 			// write property sends a notification that is passed to the server
 			// and updates the digital twin.
-			go ag.PubProperty(req.ThingID, req.Name, txPropValue, false)
+			go ething.PubProperty(req.ThingID, req.Name, txPropValue, false)
 
 			return replyTo(resp)
 		} else if req.ThingID == directory.DefaultDirectoryThingID {
 			// this is a request for the directory. Forward it
-			return ag.ForwardRequest(req, replyTo)
+			return ething.EmitRequest(req, replyTo)
 		} else {
 			resp := req.CreateResponse(nil, fmt.Errorf("unexpected request"))
 			return replyTo(resp)
@@ -306,7 +309,7 @@ func TestWriteDigitwinProperty(t *testing.T) {
 	td1 := testEnv.CreateTestTD(0)
 	td1Json := td.MarshalTD(td1)
 	err = directory_service.UpdateTD(
-		directory.DefaultDirectoryThingID, td1Json, ag.ForwardRequest)
+		directory.DefaultDirectoryThingID, td1Json, ething.EmitRequest)
 	assert.NoError(t, err)
 
 	// check whether the td is now in the directory
@@ -363,19 +366,20 @@ func TestInvokeDigitwinAction(t *testing.T) {
 	defer cc1.Stop()
 
 	// 2. create an RC device that receives the action request
-	ag, cc2, _ := testEnv.NewRCThing(deviceID, nil)
+	ething, cc2, _ := testEnv.NewRCThing(deviceID, nil)
 	defer cc2.Close()
-	ag.SetAppRequestHook(func(req *msg.RequestMessage, replyTo msg.ResponseHandler) error {
+	ething.SetAppRequestHook(func(req *msg.RequestMessage, replyTo msg.ResponseHandler) error {
 		// echo the input
 		if req.Operation == td.OpInvokeAction {
 			actionInput := req.ToString(0)
 			resp := req.CreateResponse(actionInput, nil)
 			// submit an event after the action
-			go ag.PubEvent(req.ThingID, req.Name, req.Input)
+			go ething.PubEvent(req.ThingID, req.Name, req.Input)
 			return replyTo(resp)
 		} else if req.ThingID == directory.DefaultDirectoryThingID {
-			// this is a request for the directory. Forward it
-			return ag.ForwardRequest(req, replyTo)
+			// this is a request for the directory. Send it.
+			// use emit instead of forward as forward can be disabled
+			return ething.EmitRequest(req, replyTo)
 		} else {
 			resp := req.CreateResponse(nil, fmt.Errorf("unexpected request"))
 			return replyTo(resp)
@@ -387,7 +391,7 @@ func TestInvokeDigitwinAction(t *testing.T) {
 	td1.ID = thingID
 	td1Json := td.MarshalTD(td1)
 	err = directory_service.UpdateTD(
-		directory.DefaultDirectoryThingID, td1Json, ag.ForwardRequest)
+		directory.DefaultDirectoryThingID, td1Json, ething.EmitRequest)
 	assert.NoError(t, err)
 
 	// 4. Consumer invokes the first action

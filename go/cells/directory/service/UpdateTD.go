@@ -22,7 +22,7 @@ func UpdateTD(directoryThingID string, tdJson string, reqHandler msg.RequestHand
 	req := msg.NewRequestMessage(
 		td.OpInvokeAction, directoryThingID, directory.UpdateThingAction, tdJson)
 
-	_, err := msg.ForwardRequestWait(req, reqHandler, msg.DefaultRnRTimeout)
+	_, err := msg.EmitRequestWait(req, reqHandler, msg.DefaultRnRTimeout)
 
 	return err
 }

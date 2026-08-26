@@ -117,7 +117,7 @@ func (srv *TransportServerBase) AddConnection(c api.IConnection) error {
 	thingID := senderID
 	notif := msg.NewNotificationMessage(senderID, msg.AffordanceTypeEvent, thingID,
 		api.ServerConnectedEvent, connectionInfo)
-	srv.ForwardNotification(notif)
+	srv.EmitNotification(notif)
 	return nil
 }
 
@@ -365,7 +365,7 @@ func (srv *TransportServerBase) RemoveConnection(c api.IConnection) {
 	thingID := senderID
 	notif := msg.NewNotificationMessage(senderID, msg.AffordanceTypeEvent, thingID,
 		api.ServerDisconnectedEvent, connectionInfo)
-	srv.ForwardNotification(notif)
+	srv.EmitNotification(notif)
 }
 
 // SendNotification [device] server sends a notification to its connected clients.

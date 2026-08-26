@@ -61,7 +61,7 @@ func (cl *GrpcClientImpl) _onGrpcClientMessage(raw []byte) {
 			// client receives a request (device with reverse connection)
 			go func() {
 				// pass it on to the linked producer.
-				err = cl.ForwardRequest(req, func(resp *msg.ResponseMessage) error {
+				err = cl.EmitRequest(req, func(resp *msg.ResponseMessage) error {
 					// return the response to the caller
 					err2 := cl.SendResponse(resp)
 					return err2
@@ -184,8 +184,8 @@ func (cl *GrpcClientImpl) Connect() (err error) {
 	return nil
 }
 
-// HandleNotification forwards notifications to the server instead of forwarding to their sink.
-// incoming notifications are forwarded to the sink.
+// HandleNotification sends notifications to the server.
+// Incoming notifications are emitted to the sink.
 func (cl *GrpcClientImpl) HandleNotification(notif *msg.NotificationMessage) {
 	cl.SendNotification(notif)
 }

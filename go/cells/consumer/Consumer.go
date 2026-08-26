@@ -241,7 +241,7 @@ func (co *Consumer) WriteProperty(thingID string, name string, input any, wait b
 	} else {
 		req := msg.NewRequestMessage(td.OpWriteProperty, thingID, name, input)
 		req.CorrelationID = correlationID
-		err = co.ForwardRequest(req, func(resp *msg.ResponseMessage) error {
+		err = co.EmitRequest(req, func(resp *msg.ResponseMessage) error {
 			// just ignore the result
 			return nil
 		})

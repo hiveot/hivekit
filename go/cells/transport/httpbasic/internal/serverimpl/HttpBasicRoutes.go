@@ -76,7 +76,7 @@ func (srv *HttpBasicServerImpl) EnableStatic(base string, staticRoot string) err
 	return nil
 }
 
-// onHttpNotification converts the http request to a notification message and forward
+// onHttpNotification converts the http request to a notification message and emits
 // it to the notification sink
 func (srv *HttpBasicServerImpl) onHttpNotification(w http.ResponseWriter, r *http.Request) {
 
@@ -98,7 +98,7 @@ func (srv *HttpBasicServerImpl) onHttpNotification(w http.ResponseWriter, r *htt
 		return
 	}
 	notif.SenderID = rp.ClientID
-	srv.ForwardNotification(notif)
+	srv.EmitNotification(notif)
 	utils.WriteReply(w, true, nil, nil)
 }
 
@@ -151,7 +151,7 @@ func (srv *HttpBasicServerImpl) onHttpAffordanceOperation(w http.ResponseWriter,
 	// before the timeout, otherwise this returns an error.
 	ctx, cancelFn := context.WithTimeout(context.Background(), srv.GetTimeout())
 	rx := utils.NewAsyncReceiver[*msg.ResponseMessage]()
-	err = srv.ForwardRequest(req, func(resp *msg.ResponseMessage) error {
+	err = srv.EmitRequest(req, func(resp *msg.ResponseMessage) error {
 		rx.SetResponse(resp)
 		cancelFn()
 		return nil

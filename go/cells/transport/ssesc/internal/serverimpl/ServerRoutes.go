@@ -63,14 +63,14 @@ func (srv *SseScServerImpl) onHttpNotificationMessage(w http.ResponseWriter, r *
 	}
 
 	// pass the notification to the sinks
-	srv.ForwardNotification(notif)
+	srv.EmitNotification(notif)
 
 	utils.WriteReply(w, true, nil, nil)
 }
 
 // onHttpRequestMessage handles request messages received over http.
 //
-// The request is forwarded to the registered request sink.
+// The request is emitted to the registered request sink.
 // If the message is processed immediately, a response is returned with the http request.
 // If the message is processed asynchronously, a response is returned via the replyTo
 // handler and returned via SSE.
@@ -117,9 +117,9 @@ func (srv *SseScServerImpl) onHttpRequestMessage(w http.ResponseWriter, r *http.
 		return
 	}
 
-	// 3. handle requests. Forward unhandled requests to the server sink.
+	// 3. handle requests. Emit unhandled requests to the server sink.
 	sc, _ := c.(*SseScServerConnection)
-	sc.OnRequest(req, srv.ForwardRequest)
+	sc.OnRequest(req, srv.EmitRequest)
 
 	// 4. The response is sent via SSE, just confirm the request is processed
 	utils.WriteReply(w, false, nil, err)
@@ -133,8 +133,8 @@ func (srv *SseScServerImpl) onHttpRequestMessage(w http.ResponseWriter, r *http.
 // This receives a ResponseMessage envelope and passes it to the corresponding
 // connection as if the connection received the response itself.
 //
-// Message flow: device POST response -> server forwards to -> connection ->
-// forwards to subscriber (which is the server again, or a consumer)
+// Message flow: device POST response -> server passes to -> connection ->
+// sends to subscriber (which is the server again, or a consumer)
 //
 // The message body is unmarshalled and included as the response.
 func (srv *SseScServerImpl) onHttpResponseMessage(w http.ResponseWriter, r *http.Request) {
@@ -196,7 +196,7 @@ func (srv *SseScServerImpl) onSseConnection(w http.ResponseWriter, r *http.Reque
 	// responses are received via http and passed to rnrChan handler.
 	c := NewSseScServerConnection(
 		rp.ClientID, rp.ConnectionID, r.RemoteAddr, r,
-		srv.ForwardRequest, srv.ForwardNotification)
+		srv.EmitRequest, srv.EmitNotification)
 	c.SetTimeout(srv.respTimeout)
 	err = srv.AddConnection(c)
 

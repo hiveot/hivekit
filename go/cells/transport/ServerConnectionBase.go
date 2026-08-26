@@ -206,10 +206,10 @@ func (sc *ServerConnectionBase) OnRemoteMessage(raw []byte) {
 //
 // This handles ping and subscription requests for the connection.
 //
-// All other requests are forwarded to the 'forwardRequest' handler.
+// All other requests are passed to the sink using the 'emitRequest' handler.
 // The reply is send back as a response message the sender.
 func (scb *ServerConnectionBase) OnRequest(
-	req *msg.RequestMessage, forwardRequest msg.RequestHandler) error {
+	req *msg.RequestMessage, emitRequest msg.RequestHandler) error {
 
 	var resp *msg.ResponseMessage
 	var err error
@@ -249,9 +249,8 @@ func (scb *ServerConnectionBase) OnRequest(
 		scb.UnobserveProperty(req.ThingID, req.Name)
 		resp = req.CreateResponse(nil, nil)
 	default:
-		// this is not a subscription to notifications so forward it to the cell sink
-		// response will be handled asynchronously
-		err = forwardRequest(req, func(reply *msg.ResponseMessage) error {
+		// this is not a subscription to notifications so pass it to the server sink.
+		err = emitRequest(req, func(reply *msg.ResponseMessage) error {
 			// the callback is async so handle it separately
 			if reply != nil {
 				return scb.SendResponse(reply)
