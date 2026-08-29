@@ -4,6 +4,7 @@ package clientimpl
 import (
 	"context"
 	"log/slog"
+	"strings"
 	"sync"
 	"time"
 
@@ -50,7 +51,13 @@ func DnsSDScan(instanceName string, serviceType string, waitTime time.Duration,
 	entries := make(chan *zeroconf.ServiceEntry)
 	go func(results <-chan *zeroconf.ServiceEntry) {
 		for entry := range results {
-			if instanceName == "" || instanceName == entry.Instance {
+			// caution: entry.Instance contains the instance and subtype when
+			// serviceType does not include the subtype.
+			// thus: when publishing: "abc._directory._sub._wot._tcp",
+			// and scanning for _wot._tcp, Instance will contain "abc._directory.sub",
+			// whereas when scanning for _directory._sub._wot._tcp, Instance will be "abc".
+			// if instanceName == "" || instanceName == entry.Instance {
+			if instanceName == "" || strings.HasPrefix(entry.Instance, instanceName) {
 				// dont let the main function return until this record is handled
 				mu.Lock()
 				if ctx.Err() != nil {

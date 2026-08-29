@@ -152,7 +152,9 @@ func TestClientServerRecipe(t *testing.T) {
 	err := serverChain.Start()
 	require.NoError(t, err)
 	defer serverFactory.Stop()
-	env.ServerURL = serverFactory.GetConnectURL()
+	serverURLs := serverFactory.GetConnectURLs()
+	require.NotEmpty(t, serverURLs)
+	env.ServerURL = serverURLs[0]
 
 	// the server exposed thing handles the server requests
 	mod, _ := serverFactory.StartCell(thing.ExposedThingCellType, true)

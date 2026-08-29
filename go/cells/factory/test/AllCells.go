@@ -70,12 +70,8 @@ var HiveKitCells = []api.CellDefinition{
 		Constructor: discovery_client.NewDiscoveryClientFactory,
 	},
 	{
-		Type:        discovery.DirectoryDiscoveryServerCellType,
-		Constructor: discovery_server.NewDirectoryDiscoveryServerFactory,
-	},
-	{
-		Type:        discovery.ThingDiscoveryServerCellType,
-		Constructor: discovery_server.NewThingDiscoveryServerFactory,
+		Type:        discovery.DiscoveryServerCellType,
+		Constructor: discovery_server.NewDiscoveryServerFactory,
 	},
 	// gRPC transport
 	{

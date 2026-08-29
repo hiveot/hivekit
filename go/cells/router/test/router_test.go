@@ -390,16 +390,16 @@ func TestSubscribeReconnectToDevice(t *testing.T) {
 
 	// publish a property should now succeed
 	testDevice.ExposedThing.PubProperty(deviceID, prop1Name, prop1Value2, false)
+	time.Sleep(time.Millisecond) // time to receive
 
 	values, err = co.ReadAllProperties(deviceID)
 	assert.NoError(t, err)
-
-	time.Sleep(time.Millisecond) // time to receive
 	assert.Equal(t, prop1Value2, values[prop1Name])
 
 	// on reconnect, subscription should remain intact and event should be received
+	// todo: should use channel with timeout as the time to receive varies.
 	testDevice.ExposedThing.PubEvent(deviceID, event1Name, event2Value)
-	time.Sleep(time.Millisecond) // time to receive
+	time.Sleep(time.Millisecond * 3) // time to receive
 	assert.Equal(t, event2Value, rxValue.Load())
 
 }

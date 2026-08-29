@@ -105,7 +105,7 @@ func (scb *ServerConnectionBase) HasSubscription(notif *msg.NotificationMessage)
 	case msg.AffordanceTypeEvent:
 		correlationID := scb.subscriptions.GetSubscription(notif.ThingID, notif.Name)
 		if correlationID != "" {
-			slog.Info("HasSubscription (event subscription)",
+			slog.Info("HasSubscription (event subscription) -> true",
 				slog.String("clientID", scb.ClientID),
 				slog.String("thingID", notif.ThingID),
 				slog.String("event name", notif.Name),
@@ -115,7 +115,7 @@ func (scb *ServerConnectionBase) HasSubscription(notif *msg.NotificationMessage)
 	case msg.AffordanceTypeProperty:
 		correlationID := scb.observations.GetSubscription(notif.ThingID, notif.Name)
 		if correlationID != "" {
-			slog.Info("HasSubscription (observed property(ies))",
+			slog.Info("HasSubscription (observed property(ies)) -> true",
 				slog.String("clientID", scb.ClientID),
 				slog.String("thingID", notif.ThingID),
 				slog.String("name", notif.Name),
@@ -124,7 +124,7 @@ func (scb *ServerConnectionBase) HasSubscription(notif *msg.NotificationMessage)
 		}
 	case msg.AffordanceTypeAction:
 		// action progress update, for original sender only
-		slog.Info("HasSubscription (action status)",
+		slog.Info("HasSubscription (action status) -> true",
 			slog.String("clientID", scb.ClientID),
 			slog.String("thingID", notif.ThingID),
 			slog.String("name", notif.Name),

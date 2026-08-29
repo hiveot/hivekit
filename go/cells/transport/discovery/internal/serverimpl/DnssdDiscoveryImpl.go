@@ -25,7 +25,7 @@ import (
 // oriented protocols such as websocket, sse-sc, mqtt, and others. The schema
 // identifies the protocol.
 //
-//	instanceName is the name of the server instance serving, like the cell ID or "hiveot" for its hub.
+//	instanceName is the name of the server instance serving, like the cellID or appID.
 //	  This can be used to search for a particular directory instance when multiple are available.
 //	  When omitted, the device hostname is used.
 //	tdURL is the URL the thing or directory TD is served at.
@@ -37,6 +37,7 @@ func ServeWotDiscovery(
 	instanceName string, tdURL string, isDirectory bool, endpoints map[string]string,
 ) (*zeroconf.Server, error) {
 
+	subType := "" // used for directory
 	parts, err := url.Parse(tdURL)
 	if err != nil {
 		return nil, err
@@ -73,6 +74,7 @@ func ServeWotDiscovery(
 	}
 	if isDirectory {
 		params["type"] = "Directory"
+		subType = discovery.WOT_DIRECTORY_SUB_TYPE
 	}
 	// add connection endpoints as parameters
 	for ep, epURL := range endpoints {
@@ -85,37 +87,33 @@ func ServeWotDiscovery(
 	)
 	// note that the only official service type is _wot._tcp
 	discoServer, err := ServeDnsSD(
-		instanceName, discovery.WOT_THING_SERVICE_TYPE,
-		address, portNr, params)
+		instanceName, subType, discovery.WOT_SERVICE_TYPE, address, portNr, params)
 
 	return discoServer, err
 }
 
 // ServeDnsSD publishes a service discovery record.
 //
-//	DNS-SD will publish this as _{instance}._{serviceName}._tcp
+// DNS-SD will publish this as _{instanceName}._{serviceName}._tcp
 //
-//	instanceID is the unique ID of the service instance, usually the plugin-ID
-//	serviceType is the discovery service type. Eg: _wot._tcp.
+//	instanceName is the name describing the service. Intended for including subtype or filtering.
+//	subType is optional subtype, eg _directory._sub (note: workaround for zeroconf bug)
+//	serviceType is the discovery service type. This defaults to _wot._tcp
 //	address service listening IP address
 //	port service listing port
 //	params is a map of key-value pairs to include in discovery, eg td, type and scheme in wot
 //
 // Returns the discovery service instance. Use Shutdown() when done.
-func ServeDnsSD(instanceID string, serviceType string,
+func ServeDnsSD(instanceName string, subType string, serviceType string,
 	address string, port int, params map[string]string) (*zeroconf.Server, error) {
 	var ips []string
 
 	slog.Info("ServeDnsSD",
-		slog.String("instanceID", instanceID),
-		slog.String("serviceType", serviceType),
+		slog.String("instanceName", instanceName),
+		slog.String("subType", subType),
 		slog.String("address", address),
 		slog.Int("port", port),
 		"params", params)
-	if serviceType == "" {
-		err := fmt.Errorf("Empty serviceType")
-		return nil, err
-	}
 
 	// only the local domain is supported
 	domain := "local."
@@ -146,8 +144,24 @@ func ServeDnsSD(instanceID string, serviceType string,
 	for k, v := range params {
 		textRecord = append(textRecord, fmt.Sprintf("%s=%s", k, v))
 	}
-	server, err := zeroconf.RegisterProxy(
-		instanceID, serviceType, domain, int(port), hostname, ips, textRecord, ifaces)
+	// zeroconf has a bug that subtypes are only properly published using the comma notation
+	// eg: need serviceType._protocol,_subType
+	if serviceType == "" {
+		serviceType = discovery.WOT_SERVICE_TYPE
+	}
+	if subType != "" {
+		// FIXME: this doesnt work!
+		serviceType = serviceType + "," + "_directory" //subType
+	}
+	// RegisterProxy fails to include subtypes
+	// server, err := zeroconf.RegisterProxy(
+	// 	instanceName, serviceType, domain, int(port), hostname, ips, textRecord, ifaces)
+
+	// no hostname and ip's?
+	_ = hostname
+	server, err := zeroconf.Register(
+		instanceName, serviceType, domain, int(port), textRecord, ifaces)
+
 	if err != nil {
 		slog.Error("ServeDnsSD: Failed to start the zeroconf server", "err", err)
 	}

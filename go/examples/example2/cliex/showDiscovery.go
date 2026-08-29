@@ -17,11 +17,15 @@ func ListThings(tdList []*td.TD) {
 	fmt.Printf("Thing ID                          Title                         #Props #Events #Actions  Modified (local)  base\n")
 	fmt.Printf("--------------------------------  ----------------------------  ------ ------- --------  ----------------  -----\n")
 	for _, tdoc := range tdList {
-		modified := dateparse.MustParse(tdoc.Modified).Local()
+		modifiedStr := "n/a"
+		modified, err := dateparse.ParseAny(tdoc.Modified)
+		if err == nil {
+			modifiedStr = modified.Local().Format("2006-01-02 15:04")
+		}
 
 		fmt.Printf("%-33s %-28.28s %6d %7d %8d   %-16s  %-20s\n",
 			tdoc.ID, tdoc.Title, len(tdoc.Properties), len(tdoc.Events), len(tdoc.Actions),
-			modified.Format("2006-01-02 15:04"), tdoc.Base)
+			modifiedStr, tdoc.Base)
 	}
 }
 
@@ -34,8 +38,8 @@ func (app *Cliex) ShowDiscovery() {
 
 	utils.SetLogging("warning", "")
 	fmt.Println("Discovered Things and Directories on the local network")
-	fmt.Printf("Type       Address    Port   Instance Name             Schema   ThingID                           TD URL   \n")
-	fmt.Printf("---------- ---------- -----  ------------------------  -------  --------------------------------  -------  \n")
+	fmt.Printf("Type       Address    Port   Hostname             Instance Name             Schema   ThingID                           TD URL   \n")
+	fmt.Printf("---------- ---------- -----  -------------------- ------------------------  -------  --------------------------------  -------  \n")
 
 	app.discoClient.DiscoverThings("", waitDuration, func(r *discovery.DiscoveryResult) bool {
 		// load the TD to present nr of affordances
@@ -55,8 +59,8 @@ func (app *Cliex) ShowDiscovery() {
 			}
 		}
 		// show the discovery record and the nr of affordances in the TD
-		fmt.Printf("%-10s %-10s %-5d  %-25s %-8s %-33s %s \n",
-			r.Type, r.Addr, r.Port, r.Instance, r.Schema, thingID, tdURL)
+		fmt.Printf("%-10s %-10s %-5d  %-20s %-25s %-8s %-33s %s \n",
+			r.Type, r.Addr, r.Port, r.Hostname, r.Instance, r.Schema, thingID, tdURL)
 
 		if app.config.Verbose {
 			fmt.Printf("Thing ID: %s\n", tdoc.ID)

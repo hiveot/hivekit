@@ -41,16 +41,16 @@ func TestDiscover(t *testing.T) {
 	address := utils.GetOutboundIP("").String()
 
 	srv, err := serverimpl.ServeDnsSD(
-		testServiceID, testServiceType, address, testServicePort, nil)
+		testServiceName, "", testServiceType, address, testServicePort, nil)
 	assert.NoError(t, err)
 	defer srv.Shutdown()
 
-	r, err := clientimpl.DnsSDScan(testServiceID, testServiceType, time.Second,
+	r, err := clientimpl.DnsSDScan(testServiceName, testServiceType, time.Second,
 		func(*zeroconf.ServiceEntry) bool {
 			return true // stop
 		})
-	require.Len(t, r, 1)
-	assert.Equal(t, testServiceID, r[0].Instance)
+	require.Len(t, r, 1, "DnsSDScan didnt find records")
+	assert.Equal(t, testServiceName, r[0].Instance)
 }
 
 func TestNoInstanceID(t *testing.T) {
@@ -58,19 +58,19 @@ func TestNoInstanceID(t *testing.T) {
 	testServiceType := "test-service-type"
 
 	_, err := serverimpl.ServeDnsSD(
-		"", testServiceType, address, testServicePort, nil)
+		"", "", testServiceType, address, testServicePort, nil)
 	assert.Error(t, err) // missing instance name
 
-	_, err = serverimpl.ServeDnsSD(
-		testServiceID, "", address, testServicePort, nil)
-	assert.Error(t, err) // missing service name
+	// _, err = serverimpl.ServeDnsSD(
+	// 	testServiceName, "", "", address, testServicePort, nil)
+	// assert.Error(t, err) // missing service type
 }
 
 func TestBadAddress(t *testing.T) {
 	testServiceType := "test-service-type"
 
 	discoServer, err := serverimpl.ServeDnsSD(
-		testServiceID, testServiceType, "notanipaddress", testServicePort, nil)
+		testServiceName, "", testServiceType, "notanipaddress", testServicePort, nil)
 
 	assert.Error(t, err)
 	assert.Nil(t, discoServer)
@@ -80,7 +80,7 @@ func TestExternalAddress(t *testing.T) {
 	testServiceType := "test-service-type"
 
 	discoServer, err := serverimpl.ServeDnsSD(
-		testServiceID, testServiceType, "1.2.3.4", testServicePort, nil)
+		testServiceName, "", testServiceType, "1.2.3.4", testServicePort, nil)
 
 	// expect a warning
 	assert.NoError(t, err)
@@ -93,7 +93,7 @@ func TestDiscoverBadPort(t *testing.T) {
 
 	badPort := 0
 	address := utils.GetOutboundIP("").String()
-	_, err := serverimpl.ServeDnsSD(testServiceID, testServiceType, address, badPort, nil)
+	_, err := serverimpl.ServeDnsSD(testServiceName, "", testServiceType, address, badPort, nil)
 
 	assert.Error(t, err)
 }

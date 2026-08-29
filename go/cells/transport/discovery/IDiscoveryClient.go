@@ -21,7 +21,8 @@ const (
 )
 
 type DiscoveryResult struct {
-	Addr        string // IP or hostname of the server
+	Addr        string // IP address of the server
+	Hostname    string // hostname
 	Port        int    // port the server listens on
 	Service     string // DNS-SD service field
 	IsDirectory bool   // URL is that of a Thing Directory
@@ -68,7 +69,7 @@ type IDiscoveryClient interface {
 
 	// DiscoverDirectory returns the discovery record of the first discovered directory
 	//
-	//	instanceName is the optional name of a specific service instance.
+	//	instanceName is the optional name of a specific service instance. "" for any.
 	//	maxWaitTime defaults to 3 seconds
 	//
 	//	This returns the record or nil if none was found within the search time.

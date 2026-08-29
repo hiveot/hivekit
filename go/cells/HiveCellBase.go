@@ -215,7 +215,7 @@ func (m *HiveCellBase) HandleRequest(req *msg.RequestMessage, replyTo msg.Respon
 // Rpc is a convenience function to create and send a request message and decode the a response.
 // This returns an error if the request fails or if the response contains an error
 //
-//	operation is the WoT operation to send
+//	operation is the WoT operation to send, eg td.OpInvokeAction
 //	thingID is the Thing to address
 //	name is the operation name as defined in the TD
 //	input are optional input parameters or nil if none

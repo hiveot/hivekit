@@ -47,10 +47,10 @@ func (cl *DiscoveryClientImpl) _dnssd_discover(
 
 	// run the scan to collect results
 	_, err := DnsSDScan(instanceName, serviceType, maxWaitTime,
-		func(rec *zeroconf.ServiceEntry) bool {
+		func(svcRec *zeroconf.ServiceEntry) bool {
 			var stop = false
 			// create a discovery record for the service entry
-			discoRecord := cl.ParseZeroconfServiceEntry(rec)
+			discoRecord := cl.ParseZeroconfServiceEntry(svcRec)
 			// when maxWaitTime is reached there can be a race with this callback
 			drList = append(drList, discoRecord)
 			if cb != nil {
@@ -69,9 +69,13 @@ func (cl *DiscoveryClientImpl) _dnssd_discover(
 func (cl *DiscoveryClientImpl) DiscoverDirectories(maxWaitTime time.Duration,
 	cb func(*discovery.DiscoveryResult) bool) ([]*discovery.DiscoveryResult, error) {
 
+	// serviceType := discovery.WOT_SERVICE_TYPE + "," + discovery.WOT_DIRECTORY_SUB_TYPE
+	// while a subtype offers filtering, the record determines whether
+	// it is a directory....might as welll not use the subtype in discovery.
+	serviceType := discovery.WOT_SERVICE_TYPE
 	dirRecs := make([]*discovery.DiscoveryResult, 0)
-	_, err := cl._dnssd_discover("",
-		discovery.WOT_THING_SERVICE_TYPE, maxWaitTime,
+
+	_, err := cl._dnssd_discover("", serviceType, maxWaitTime,
 		func(rec *discovery.DiscoveryResult) bool {
 			stop := false
 			// filter on directories
@@ -185,7 +189,7 @@ func (cl *DiscoveryClientImpl) DiscoverThings(
 	instanceName string, maxWaitTime time.Duration,
 	cb func(*discovery.DiscoveryResult) bool) ([]*discovery.DiscoveryResult, error) {
 
-	records, err := cl._dnssd_discover(instanceName, discovery.WOT_THING_SERVICE_TYPE, maxWaitTime, cb)
+	records, err := cl._dnssd_discover(instanceName, discovery.WOT_SERVICE_TYPE, maxWaitTime, cb)
 	result := records
 	return result, err
 }
@@ -284,6 +288,7 @@ func (cl *DiscoveryClientImpl) ParseZeroconfServiceEntry(
 	discoResult := discovery.DiscoveryResult{
 		Params:   make(map[string]string),
 		Instance: rec.Instance,
+		Hostname: rec.HostName,
 		Port:     rec.Port,
 		Service:  rec.Service,
 	}

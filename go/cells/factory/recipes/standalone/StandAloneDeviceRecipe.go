@@ -17,7 +17,7 @@ import (
 )
 
 // StandAloneDeviceChain is a template that defines the chain of cells for an IoT device
-// running a server.
+// running a server with thing discovery.
 //
 // Each of the cells can be obtained with api.GetFactoryCell[I{name}](f,cellType),
 //
@@ -45,8 +45,8 @@ var StandAloneDeviceChain = []api.CellDefinition{
 	},
 	{
 		// discovery server for publishing the device TD
-		Type:        discovery.ThingDiscoveryServerCellType,
-		Constructor: discovery_server.NewThingDiscoveryServerFactory,
+		Type:        discovery.DiscoveryServerCellType,
+		Constructor: discovery_server.NewDiscoveryServerFactory,
 	},
 
 	// B: handle incoming request from servers
@@ -59,6 +59,7 @@ var StandAloneDeviceChain = []api.CellDefinition{
 	{
 		// Websocket transport server for incoming connections
 		// This will be used later to update forms in the TD
+		// NOTE: todo: use BusFormation to support multiple protocols.
 		Type:        wss.WotWebsocketServerCellType,
 		Constructor: wss_server.NewWotWssServerFactory,
 	},

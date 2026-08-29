@@ -20,7 +20,7 @@ import (
 func NewBusFormation(
 	f api.ICellFactory, cells []api.CellDefinition) (api.IHiveCell, error) {
 
-	m := internal.NewBusFormation(cells)
+	m := internal.NewBusFormation(f, cells)
 	return m, nil
 }
 
@@ -32,7 +32,7 @@ func NewBusFactory(
 	if !ok {
 		return nil, fmt.Errorf("NewBusRecipeFactory: Config has no members")
 	}
-	m := internal.NewBusFormation(members)
+	m := internal.NewBusFormation(f, members)
 	return m, nil
 }
 

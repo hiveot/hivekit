@@ -12,6 +12,7 @@ import (
 	"github.com/hiveot/hivekit/go/cells"
 	"github.com/hiveot/hivekit/go/cells/directory"
 	"github.com/hiveot/hivekit/go/utils"
+	"github.com/teris-io/shortid"
 )
 
 const ExposedThingCellType = "exposed-thing"
@@ -335,8 +336,10 @@ func NewExposedThing(thingID string, appReqHandler msg.RequestHandler) *ExposedT
 }
 
 // Factory for creating an exposed Thing using the factory environment
+//
+// This uses the Cell Type name as the thingID prefix followed by shortid.
 func NewExposedThingFactory(f api.ICellFactory, md *api.CellDefinition) (api.IHiveCell, error) {
-	appID := f.GetEnvironment().AppID
-	c := NewExposedThing(appID, nil)
+	thingID := md.Type + "-" + shortid.MustGenerate()
+	c := NewExposedThing(thingID, nil)
 	return c, nil
 }

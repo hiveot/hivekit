@@ -16,7 +16,7 @@ import (
 )
 
 // serviceID is the service publishing the record, thing or directory
-const testDirServiceID = "hiveot-test"
+const testDirServiceName = "hiveot-test"
 
 // Test the directory discovery
 func TestDiscoverDirectory(t *testing.T) {
@@ -29,12 +29,12 @@ func TestDiscoverDirectory(t *testing.T) {
 	testEnv.StartHttpServer(true)
 	defer testEnv.HttpServer.Stop()
 
-	m := discovery_server.NewDirectoryDiscoveryServer(testDirServiceID, testEnv.HttpServer, endpoints)
+	m := discovery_server.NewDiscoveryServer(testDirServiceName, testEnv.HttpServer, "", endpoints)
 	err := m.Start()
 	require.NoError(t, err)
 	defer m.Stop()
 
-	err = m.ServeDirectoryTD(dirTdd)
+	err = m.ServeDirectoryTD(testDirServiceName, dirTdd)
 	require.NoError(t, err)
 
 	// Test if it is discovered on startup
@@ -43,10 +43,13 @@ func TestDiscoverDirectory(t *testing.T) {
 	assert.NoError(t, err)
 
 	// records, err := cl.DiscoverDirectories(testServiceID, time.Second, true, nil)
-	rec0, err := cl.DiscoverFirstDirectory(testDirServiceID, time.Second)
+	// rec0, err := cl.DiscoverFirstDirectory(testDirServiceName, time.Second)
+	recs, err := cl.DiscoverDirectories(time.Second*1, nil)
+	_ = recs
+	rec0, err := cl.DiscoverFirstDirectory(testDirServiceName, time.Second)
 	require.NoError(t, err)
 	require.NotEmpty(t, rec0)
-	assert.Equal(t, testDirServiceID, rec0.Instance)
+	assert.Equal(t, testDirServiceName, rec0.Instance)
 	assert.Equal(t, testServiceAddress, rec0.Addr)
 	assert.NotEmpty(t, rec0.TD)
 	assert.Equal(t, true, rec0.IsDirectory)
@@ -79,11 +82,11 @@ func TestDiscoverGetDirectoryTD(t *testing.T) {
 	// dirTDJson := td.MarshalTD(dirTD)
 
 	// run the discover server and expose the directory TDD
-	m := discovery_server.NewDirectoryDiscoveryServer(testDirServiceID, testEnv.HttpServer, nil)
+	m := discovery_server.NewDiscoveryServer(testDirServiceName, testEnv.HttpServer, "", nil)
 	err := m.Start()
 	require.NoError(t, err)
 	defer m.Stop()
-	err = m.ServeDirectoryTD(dirTDJson)
+	err = m.ServeDirectoryTD(testDirServiceName, dirTDJson)
 	require.NoError(t, err)
 
 	// discover and read the directory on start
@@ -110,15 +113,15 @@ func TestDiscoverNoDirectory(t *testing.T) {
 	cl := discovery_client.NewDiscoveryClient(testEnv.AppEnv, true)
 	err := cl.Start()
 	require.NoError(t, err)
-	dirTD2, _, err := cl.DiscoverFirstDirectoryTD(testDirServiceID, time.Second)
+	dirTD2, _, err := cl.DiscoverFirstDirectoryTD(testDirServiceName, time.Second)
 	assert.Nil(t, dirTD2)
 
 	// run the discover server without exposing the directory TDD
-	m := discovery_server.NewDirectoryDiscoveryServer(testDirServiceID, testHttpServer, nil)
+	m := discovery_server.NewDiscoveryServer(testDirServiceName, testHttpServer, "", nil)
 	err = m.Start()
 	require.NoError(t, err)
 	defer m.Stop()
-	err = m.ServeDirectoryTD("") // empty json
+	err = m.ServeDirectoryTD(testDirServiceName, "") // empty json
 	require.NoError(t, err)
 
 	// restart discovery client
@@ -127,7 +130,7 @@ func TestDiscoverNoDirectory(t *testing.T) {
 	require.NoError(t, err)
 
 	// no directory has been found
-	dirTD2, _, err = cl.DiscoverFirstDirectoryTD(testDirServiceID, time.Second)
+	dirTD2, _, err = cl.DiscoverFirstDirectoryTD(testDirServiceName, time.Second)
 	require.Error(t, err)
 	assert.Nil(t, dirTD2)
 }

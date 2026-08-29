@@ -33,6 +33,7 @@ var ExampleHome = path.Join(os.TempDir(), "hivekit-examples")
 // On start the device publishes its TD to the discovery server.
 func main() {
 	env := api.NewHiveEnvironment(ExampleHome, true)
+	env.AppID = "example-1"
 	env.RpcTimeout = time.Minute // for testing
 	env.HttpsPort = 9222         // for testing
 	if env.ClientID == "" {
@@ -58,13 +59,13 @@ func main() {
 	}
 	deviceCell := testenv.NewCounterDevice("", cfg)
 
-	// requests from the counter device are passed to the cells in the chain
-	// intended to publish the TD. No other requests are expected.
-	deviceCell.SetRequestSink(r) // chain handles requests from the device (operating as a consumer)
-	// notifications from the chain are passed to the app, eg connection established
-	// not much else to do here
+	// Requests from the counter device are passed to the cells in the chain.
+	// Intended to publish the TD. No other requests are expected.
+	deviceCell.SetRequestSink(r)
+	// Notifications from the chain are passed to the app, eg connection established.
+	// Not much else to do here.
 	r.SetNotificationSink(deviceCell)
-	// requests from the chain are passed to the device. This is the 'Thing' it serves.
+	// Requests from the chain are passed to the device. This is the 'Thing' it serves.
 	r.SetRequestSink(deviceCell)
 	// Property and event notifications published by the app are send to connected clients.
 	// the recipe HandleNotification passes it to the last cell in the chain and up from there.
@@ -72,7 +73,7 @@ func main() {
 	deviceCell.Start()
 
 	fmt.Printf("main: homeDir: %s\n", env.HomeDir)
-	fmt.Printf("main: Counter is running and listening on '%s'\n", f.GetConnectURL())
+	fmt.Printf("main: Counter is running and listening on '%v'\n", f.GetConnectURLs())
 	fmt.Printf("main: Use the cli from example 2 to read its status\n")
 	f.WaitForSignal(context.Background())
 	f.Stop()

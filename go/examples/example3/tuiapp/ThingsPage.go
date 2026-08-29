@@ -47,14 +47,19 @@ func (page *ThingsPage) Refresh(tdList []*td.TD) {
 			names = append(names, name)
 		}
 		// sec := utils.DecodeAsString(tdoc.Security, 20)
-		modified := dateparse.MustParse(tdoc.Modified).Local()
+		modifiedTime, err := dateparse.ParseAny(tdoc.Modified)
+		modifiedStr := ""
+		if err == nil {
+			modifiedTime = modifiedTime.Local()
+			modifiedStr = modifiedTime.Format("2006-01-02 15:04")
+		}
 
 		colData := []string{tdoc.ID, tdoc.Title}
 		colData = append(colData,
 			strconv.Itoa(len(tdoc.Properties)),
 			strconv.Itoa(len(tdoc.Events)),
 			strconv.Itoa(len(tdoc.Actions)),
-			modified.Format("2006-01-02 15:04"),
+			modifiedStr,
 			tdoc.Base)
 		page.SetTextRow(row, colData...)
 	}

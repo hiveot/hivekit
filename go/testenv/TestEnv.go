@@ -46,9 +46,9 @@ var TestGrpcTcpURL = fmt.Sprintf("%s://localhost:%d", api.HiveotGrpcTcpScheme, T
 
 // var DefaultProtocol = api.HiveotGrpcTcpProtocolType
 
-var DefaultProtocol = api.HiveotSseScProtocolType
+// var DefaultProtocol = api.HiveotSseScProtocolType
 
-// var DefaultProtocol = api.WotWebsocketProtocolType
+var DefaultProtocol = api.WotWebsocketProtocolType
 
 // var DefaultProtocol = api.HttpBasicProtocolType
 

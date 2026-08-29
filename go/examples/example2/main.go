@@ -74,6 +74,7 @@ func main() {
 
 	// Setup the environment after parsing the commandline
 	env := api.NewHiveEnvironment(ExampleHome, true)
+	env.AppID = "example-2"
 	if appConfig.Verbose {
 		env.LogLevel = "info"
 	}

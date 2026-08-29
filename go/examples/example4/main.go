@@ -24,6 +24,7 @@ var ExampleHome = path.Join(os.TempDir(), "hivekit-examples")
 func main() {
 
 	env := api.NewHiveEnvironment(ExampleHome, true)
+	env.AppID = "example-4"
 	env.RpcTimeout = time.Minute // for testing
 	utils.SetLogging(env.LogLevel, "")
 
@@ -34,12 +35,12 @@ func main() {
 
 	err := r.Start()
 	if err != nil {
-		fmt.Println("Startup failed: " + err.Error())
+		fmt.Println("Gateway startup failed: " + err.Error())
 		os.Exit(1)
 	}
 
 	fmt.Printf("main: homeDir: %s\n", env.HomeDir)
-	fmt.Printf("main: Counter is running and listening on '%s'\n", f.GetConnectURL())
+	fmt.Printf("main: Gateway is running and listening on '%v'\n", f.GetConnectURLs())
 	f.WaitForSignal(context.Background())
 	f.Stop()
 

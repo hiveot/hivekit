@@ -30,7 +30,7 @@ The discovery server needs a HTTP server to serve the exploration endpoint for T
 
 Ways to serve a TDD:
 1. Directly invoke ServeDirectoryTD on the service.
-2. Pass a request to the service request handler with operation invokeaction, action name ServeDirectoryTDAction (defined in the API), and the TDD JSON as the input.
+2. Pass an invokeaction request to the service with the action name ServeDirectoryTDAction (as defined in the API), and the TDD JSON as the input.
 
 ### Serving a Thing TD
 
@@ -43,6 +43,8 @@ The discovery server needs a HTTP server to serve the TD for download. This is p
 Ways to publish the device TD:
 1. Directly invoke ServeThingTD on the service.
 2. Pass a request to the service request handler with operation invokeaction, action name ServeThingTDAction (defined in the API), and the TD JSON as the input.
+3. Send an action request with the name UpdateThingAction or CreateThingAction. These
+   actions are published by an ExposedThing on startup, to write their TD into a directory, or publish it for discovery, whichever is available in the chain.
 
 
 ### Discover Directory TDDs

@@ -18,7 +18,7 @@ import (
 )
 
 // filter on test serviceID to avoid interference with running services
-const testServiceID = "hiveot-test"
+const testServiceName = "hiveot-test"
 const testServicePort = 9999
 
 var testTDJson string
@@ -32,18 +32,18 @@ func TestDiscoverThings(t *testing.T) {
 	testEnv.StartHttpServer(true)
 	defer testEnv.HttpServer.Stop()
 
-	m := discovery_server.NewThingDiscoveryServer(testServiceID, testEnv.HttpServer, nil)
+	m := discovery_server.NewDiscoveryServer(testDirServiceName, testEnv.HttpServer, "", nil)
 	err := m.Start()
 	require.NoError(t, err)
 	defer m.Stop()
-	err = m.ServeThingTD(testTDJson)
+	err = m.ServeThingTD(testServiceName, testTDJson)
 	require.NoError(t, err)
 
 	// Test if it is discovered
 	serverAddr := testEnv.HttpServer.GetConnectURL()
 	urlParts, _ := url.Parse(serverAddr)
 	cl := discovery_client.NewDiscoveryClient(nil, false)
-	records, err := cl.DiscoverThings(testServiceID, time.Second, nil)
+	records, err := cl.DiscoverThings(testServiceName, time.Second, nil)
 	require.NoError(t, err)
 	require.Equal(t, len(records), 1, "the test thing record was not discovered")
 	rec0 := records[0]
@@ -58,7 +58,7 @@ func TestDiscoverGetThingTD(t *testing.T) {
 	defer testEnv.HttpServer.Stop()
 	thingTD := testEnv.CreateTestTD(12)
 
-	m := discovery_server.NewThingDiscoveryServer(testServiceID, testEnv.HttpServer, nil)
+	m := discovery_server.NewDiscoveryServer(testDirServiceName, testEnv.HttpServer, "", nil)
 	err := m.Start()
 	require.NoError(t, err)
 	defer m.Stop()
@@ -68,14 +68,14 @@ func TestDiscoverGetThingTD(t *testing.T) {
 	// err = m.ServeThingTD(thingTD)
 	tdJson1 := td.MarshalTD(thingTD)
 	req := msg.NewRequestMessage(td.OpInvokeAction,
-		discovery.ThingDiscoveryServerCellType, discovery.ServeThingTDAction, tdJson1)
+		discovery.DiscoveryServerCellType, discovery.ServeThingTDAction, tdJson1)
 	err = m.HandleRequest(req, req.NoReply)
 	require.NoError(t, err)
 
 	// discover the server
 	appEnv := api.NewHiveEnvironment("", false)
 	cl := discovery_client.NewDiscoveryClient(appEnv, false)
-	recs, err := cl.DiscoverThings(testServiceID, time.Second, nil)
+	recs, err := cl.DiscoverThings(testServiceName, time.Second, nil)
 	// records, err := cl.DiscoverThings(testThingServiceID, time.Second, nil)
 	require.NoError(t, err)
 	require.NotEmpty(t, recs)

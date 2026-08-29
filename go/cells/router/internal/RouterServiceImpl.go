@@ -21,6 +21,7 @@ import (
 	"github.com/teris-io/shortid"
 )
 
+// Implementation of the router service
 type RouterServiceImpl struct {
 	*cells.HiveCellBase
 
@@ -30,11 +31,9 @@ type RouterServiceImpl struct {
 	// default ClientID if no credentials are set
 	clientID string
 
-	// The client certificate this service can use to connect to devices
+	// The client certificate this service can use to connect to stand-alone devices.
 	// NOTE: This has the limitation that these devices must recognize the CA that signed
 	//  the certificate.
-	// FIXME: determine if devices deny a connection if the auth token is valid but the client
-	// cert is not recognized?
 	clientCert *tls.Certificate
 
 	// The root CA certificates used to verify device connections
@@ -288,7 +287,10 @@ func (svc *RouterServiceImpl) RouteRequest(req *msg.RequestMessage, replyTo msg.
 	// the requested thingID must be known
 	tdoc := svc.getTD(req.ThingID)
 	if tdoc == nil {
-		// thingID not known, only option is to forward the request downstream
+		// thingID not known
+		// option 1: forward the request downstream
+		// option 2: try GetRCConnection using thingID. RC's use their thingID as clientID
+		//    this is a bit of a narrow use-case so don't bother for now.
 		err = svc.ForwardRequest(req, replyTo)
 		if err != nil {
 			err = fmt.Errorf("RouteRequest: TD not found for thing '%s' and forwarding request failed: %w",

@@ -3,6 +3,7 @@ package tuiapp
 import (
 	"fmt"
 	"log/slog"
+	"strconv"
 
 	"github.com/hiveot/hivekit/go/api/msg"
 	"github.com/hiveot/hivekit/go/api/td"
@@ -61,12 +62,14 @@ func (page *TDPage) Refresh(thingID string,
 	row := 0
 	tbl.SetTitleRow(row, fmt.Sprintf("Properties (%d)", len(tdoc.Properties)))
 	row++
-	tbl.SetTitleRow(row, "Name", "Title", "DataType", "Latest Value")
+	tbl.SetTitleRow(row, "Name", "Title", "DataType", "Writable", "Latest Value")
 	row++
-	// tbl.SetFixed(2, 0)
-	keys := utils.OrderedMapKeys(tdoc.Properties)
-	for _, name := range keys {
+	propKeys := utils.OrderedMapKeys(tdoc.Properties)
+	nrProps := 0
+	for _, name := range propKeys {
+		// try to get the value
 		aff := tdoc.Properties[name]
+		nrProps++
 		var propValue = "n/a"
 		if props != nil {
 			prop := props[name]
@@ -74,19 +77,14 @@ func (page *TDPage) Refresh(thingID string,
 				propValue = utils.DecodeAsString(props[name], 50)
 			}
 		}
-		tbl.SetTextRow(row, "."+name, aff.Title, aff.Type, propValue)
+		writable := !aff.ReadOnly
+		tbl.SetTextRow(row, "."+name, aff.Title, aff.Type, strconv.FormatBool(writable), propValue)
 		tbl.GetCell(row, 3).SetSelectable(true).SetTextColor(tbl.DataColor)
 		tbl.SetSelectableCell(row, 0, name).SetClickedFunc(
 			func() bool {
 				page.infoPanel.ShowPropAff(name, aff)
 				return false
 			})
-		// tbl.GetCell(row, 3).SetSelectable(true).SetClickedFunc(
-		// 	func() bool {
-		// 		// todo: send event to refresh property value
-		// 		return false
-		// 	})
-
 		row++
 	}
 
@@ -96,8 +94,8 @@ func (page *TDPage) Refresh(thingID string,
 	row++
 	tbl.SetTitleRow(row, "Name", "Title", "DataType", "Latest Value", "Updated")
 	row++
-	keys = utils.OrderedMapKeys(tdoc.Events)
-	for _, name := range keys {
+	eventKeys := utils.OrderedMapKeys(tdoc.Events)
+	for _, name := range eventKeys {
 		aff := tdoc.Events[name]
 		var evValue string = "n/a"
 		var evTimestamp string = "n/a"
@@ -132,8 +130,8 @@ func (page *TDPage) Refresh(thingID string,
 	row++
 	tbl.SetTitleRow(row, fmt.Sprintf("Actions (%d)", len(tdoc.Actions)))
 	row++
-	keys = utils.OrderedMapKeys(tdoc.Actions)
-	for _, name := range keys {
+	actionKeys := utils.OrderedMapKeys(tdoc.Actions)
+	for _, name := range actionKeys {
 		aff := tdoc.Actions[name]
 		tbl.SetSelectableCell(row, 0, name).SetClickedFunc(
 			func() bool {

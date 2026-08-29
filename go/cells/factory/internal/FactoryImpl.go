@@ -126,13 +126,17 @@ func (f *FactoryImpl) GetLastCell() api.IHiveCell {
 	return nil
 }
 
-// Return the connectURL of the first server
-func (f *FactoryImpl) GetConnectURL() string {
+// Return the connectURL of the servers
+func (f *FactoryImpl) GetConnectURLs() []string {
 	servers := f.GetTransportServers()
 	if len(servers) == 0 {
-		return ""
+		return nil
 	}
-	return servers[0].GetConnectURL()
+	urls := []string{}
+	for _, srv := range servers {
+		urls = append(urls, srv.GetConnectURL())
+	}
+	return urls
 }
 
 // Return a copy of the list with loaded transport servers.

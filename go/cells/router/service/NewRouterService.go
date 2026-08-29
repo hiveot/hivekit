@@ -15,6 +15,7 @@ import (
 
 // When factory instantiated the router can enable auto-reconnect for new connections.
 // See also SetAutoReconnect()
+// TODO: use config to set auto-reconnect. For now don't because it might hide auth problems.
 const DefaultRouterAutoConnect = false
 
 // NewRouterService creates a new instance of the router service with the default router typeID.
@@ -43,8 +44,8 @@ func NewRouterService(storageDir string,
 	return svc
 }
 
-// Create a router service instance using the factory environment
-// This loads the directory service to lookup a Thing TD
+// Create a router service instance using the factory environment.
+// This needs a directory client or service with a getTD method to lookup a Thing TD.
 func NewRouterServiceFactory(f api.ICellFactory, md *api.CellDefinition) (api.IHiveCell, error) {
 
 	var getTD func(string) *td.TD
@@ -67,7 +68,7 @@ func NewRouterServiceFactory(f api.ICellFactory, md *api.CellDefinition) (api.IH
 		}
 	}
 	if err != nil {
-		return nil, fmt.Errorf("NewRouterServiceFactory. Missing TD directory: %w", err)
+		return nil, fmt.Errorf("NewRouterServiceFactory. Missing directory client or service.")
 	}
 	// TODO: use config to set auto-reconnect. For now don't because it might hide auth problems.
 	autoReconnect := DefaultRouterAutoConnect

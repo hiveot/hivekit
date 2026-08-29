@@ -24,7 +24,8 @@ func (svc *DirectoryServiceImpl) HandleRequest(req *msg.RequestMessage, replyTo 
 		err := fmt.Errorf("missing senderID in request")
 		return err
 	}
-	if req.Operation == td.OpInvokeAction {
+	switch req.Operation {
+	case td.OpInvokeAction:
 		// directory specific operations
 		switch req.Name {
 		case directory.CreateThingAction:
@@ -42,10 +43,10 @@ func (svc *DirectoryServiceImpl) HandleRequest(req *msg.RequestMessage, replyTo 
 		default:
 			err = fmt.Errorf("Unknown request name '%s' for thingID '%s'", req.Name, req.ThingID)
 		}
-	} else if req.Operation == td.OpWriteProperty {
+	case td.OpWriteProperty:
 		// nothing to do here at the moment
 		err = fmt.Errorf("Property '%s' of Thing '%s' is invalid or not writable", req.Name, req.ThingID)
-	} else {
+	default:
 		err = fmt.Errorf("Unsupported operation '%s' for thingID '%s'", req.Operation, req.ThingID)
 	}
 	if resp != nil {

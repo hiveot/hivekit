@@ -95,7 +95,7 @@ var AppGatewayRecipeCells = []api.CellDefinition{
 		Constructor: logging_service.NewLoggingServiceFactory,
 	},
 	{
-		// Aerver authentication handler and service
+		// Authentication handler and service
 		Type:        authn.AuthnServiceCellType,
 		Constructor: authn_service.NewAuthnServiceFactory,
 	},
@@ -116,9 +116,9 @@ var AppGatewayRecipeCells = []api.CellDefinition{
 		Constructor: directory_service.NewDirectoryServiceFactory,
 	},
 	{
-		// discovery of the directory
-		Type:        discovery.DirectoryDiscoveryServerCellType,
-		Constructor: discovery_server.NewDirectoryDiscoveryServerFactory,
+		// discovery of the directory (must be placed after directory)
+		Type:        discovery.DiscoveryServerCellType,
+		Constructor: discovery_server.NewDiscoveryServerFactory,
 	},
 
 	{
@@ -127,6 +127,7 @@ var AppGatewayRecipeCells = []api.CellDefinition{
 	},
 	{
 		// Router service for routing requests to devices
+		// this requires a directory client or service.
 		Type:        router.RouterCellType,
 		Constructor: router_service.NewRouterServiceFactory,
 	},

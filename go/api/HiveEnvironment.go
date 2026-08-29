@@ -132,8 +132,10 @@ type HiveEnvironment struct {
 
 	//--- ID and credentials for running as a client or using reverse connections ---
 
-	// AppID is the application instance ID derived from the binary
-	// Used as the default clientID
+	// AppID is the application type ID derived from the binary name.
+	// This is not the instance ID.
+	// This can be used to load matching configuration yaml files, logfiles,
+	// and other application related configuration.
 	AppID string `yaml:"appID"`
 
 	// The clientID used to authenticate, in certificate file and token names.

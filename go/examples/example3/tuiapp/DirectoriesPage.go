@@ -34,8 +34,11 @@ func (v *DirectoriesPage) Refresh(dirList []*td.TD) {
 	for _, tdoc := range dirList {
 		row++
 		sec := utils.DecodeAsString(tdoc.Security, 20)
-		modified := dateparse.MustParse(tdoc.Modified).Local()
-		modString := modified.Format("2006-01-02 15:04")
+		modString := "n/a"
+		modified, err := dateparse.ParseAny(tdoc.Modified)
+		if err == nil {
+			modString = modified.Local().Format("2006-01-02 15:04")
+		}
 
 		v.SetTextRow(row, tdoc.ID, tdoc.Title, sec, tdoc.Base, modString)
 	}
