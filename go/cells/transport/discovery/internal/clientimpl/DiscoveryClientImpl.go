@@ -378,7 +378,7 @@ func (cl *DiscoveryClientImpl) Start() (err error) {
 			// validate the URL
 			parts, err := url.Parse(dirTD.Base)
 			_ = parts
-			if err != nil || parts.Host == "" {
+			if err != nil { // unix: has no Host || parts.Host == "" {
 				slog.Warn("Start: Directory found but its Base is not a valid URL",
 					"Base", dirTD.Base)
 			} else {

@@ -58,9 +58,8 @@ type ICellFactory interface {
 	// SetAuthenticator is called by the authn cell when it is created.
 	GetAuthenticator() IAuthenticator
 
-	// Get the connection URL of the loaded transport servers or nil if none.
-	// Primarily intended for testing. It is recommended to use a discovery server/client cell
-	// in the factory server/client chains to facilitate discovery of server by the client.
+	// Get the connection URLs of the loaded transport servers or nil if none.
+	// Primarily intended for discovery and testing.
 	GetConnectURLs() []string
 
 	// GetEnvironment returns the application environment used by the factory for

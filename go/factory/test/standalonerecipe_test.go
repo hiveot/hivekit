@@ -4,8 +4,8 @@ import (
 	"testing"
 
 	"github.com/hiveot/hivekit/go/api"
-	standalonerecipe "github.com/hiveot/hivekit/go/cells/factory/recipes/standalone"
-	factory_service "github.com/hiveot/hivekit/go/cells/factory/service"
+	standalonerecipe "github.com/hiveot/hivekit/go/factory/recipes/standalone"
+	factory_service "github.com/hiveot/hivekit/go/factory/service"
 	"github.com/hiveot/hivekit/go/testenv"
 	"github.com/hiveot/hivekit/go/utils"
 	"github.com/stretchr/testify/require"
@@ -13,7 +13,7 @@ import (
 
 // 1: setup a test chain
 
-func TestServerRecipe(t *testing.T) {
+func TestStandaloneRecipe(t *testing.T) {
 
 	env := api.NewHiveEnvironment(testDir, false)
 	env.HttpsPort = testPort
@@ -27,7 +27,7 @@ func TestServerRecipe(t *testing.T) {
 	defer deviceRecipe.Stop()
 
 	// run a test device
-	testDevice := testenv.NewCounterDevice("", nil)
+	testDevice := testenv.NewTestCounterThing("", nil)
 	err = testDevice.Start()
 	require.NoError(t, err)
 	defer testDevice.Stop()

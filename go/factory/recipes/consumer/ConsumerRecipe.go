@@ -4,13 +4,13 @@ import (
 	"github.com/hiveot/hivekit/go/api"
 	"github.com/hiveot/hivekit/go/cells/directory"
 	directoryclient "github.com/hiveot/hivekit/go/cells/directory/client"
-	factory_service "github.com/hiveot/hivekit/go/cells/factory/service"
 	"github.com/hiveot/hivekit/go/cells/router"
 	router_service "github.com/hiveot/hivekit/go/cells/router/service"
 	"github.com/hiveot/hivekit/go/cells/transport/discovery"
 	discovery_client "github.com/hiveot/hivekit/go/cells/transport/discovery/client"
 	"github.com/hiveot/hivekit/go/cells/vcache"
 	vcache_service "github.com/hiveot/hivekit/go/cells/vcache/service"
+	factory_service "github.com/hiveot/hivekit/go/factory/service"
 )
 
 const valueCacheSlot = "vcache-slot"

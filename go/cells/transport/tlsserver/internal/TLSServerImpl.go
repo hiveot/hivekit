@@ -185,7 +185,7 @@ func (m *TLSServerImpl) Stop() {
 
 	if m.httpServer != nil {
 		// note that this does not (cannot?) close existing client connections
-		ctx, cancelFn := context.WithTimeout(context.Background(), time.Second*30)
+		ctx, cancelFn := context.WithTimeout(context.Background(), time.Second*3)
 		err := m.httpServer.Shutdown(ctx)
 		if err != nil {
 			slog.Error("Stop: HTTP server graceful shutdown failed. Forcing Remove", "err", err.Error())

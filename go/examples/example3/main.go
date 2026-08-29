@@ -8,10 +8,10 @@ import (
 
 	"github.com/hiveot/hivekit/go/api"
 	"github.com/hiveot/hivekit/go/api/td"
-	consumer_recipe "github.com/hiveot/hivekit/go/cells/factory/recipes/consumer"
-	factory_service "github.com/hiveot/hivekit/go/cells/factory/service"
 	"github.com/hiveot/hivekit/go/cells/router"
 	"github.com/hiveot/hivekit/go/examples/example3/tuiapp"
+	consumer_recipe "github.com/hiveot/hivekit/go/factory/recipes/consumer"
+	factory_service "github.com/hiveot/hivekit/go/factory/service"
 	"github.com/hiveot/hivekit/go/utils"
 )
 

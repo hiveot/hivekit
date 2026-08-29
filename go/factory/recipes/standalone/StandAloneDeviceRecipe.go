@@ -6,7 +6,6 @@ import (
 	authn_service "github.com/hiveot/hivekit/go/cells/authn/service"
 	"github.com/hiveot/hivekit/go/cells/certs"
 	certs_service "github.com/hiveot/hivekit/go/cells/certs/service"
-	factory_service "github.com/hiveot/hivekit/go/cells/factory/service"
 	"github.com/hiveot/hivekit/go/cells/transport/addforms"
 	addforms_service "github.com/hiveot/hivekit/go/cells/transport/addforms/service"
 	"github.com/hiveot/hivekit/go/cells/transport/discovery"
@@ -14,6 +13,7 @@ import (
 	tls_server "github.com/hiveot/hivekit/go/cells/transport/tlsserver/server"
 	"github.com/hiveot/hivekit/go/cells/transport/wss"
 	wss_server "github.com/hiveot/hivekit/go/cells/transport/wss/server"
+	factory_service "github.com/hiveot/hivekit/go/factory/service"
 )
 
 // StandAloneDeviceChain is a template that defines the chain of cells for an IoT device

@@ -11,10 +11,11 @@ import (
 	"github.com/hiveot/hivekit/go/api/msg"
 	"github.com/hiveot/hivekit/go/api/td"
 	"github.com/hiveot/hivekit/go/cells/thing"
+	"github.com/teris-io/shortid"
 )
 
 // TM of the test device
-const counterDeviceTM = `
+const counterThingTM = `
 {
   "@context": [
     "https://www.w3.org/2022/wot/td/v1.1",
@@ -70,10 +71,10 @@ const counterDeviceTM = `
 const autoIncrementDelay = 10 * time.Second
 
 // Cell type for use in the recipe
-const CounterDeviceCellType = "counter-device"
+const CounterThingCellType = "counter-thing"
 
 // thingID requests are directed to
-const DefaultCounterDeviceThingID = "counter1"
+const DefaultTestCounterThingID = "counter1"
 
 // Affordance IDs
 const (
@@ -91,16 +92,16 @@ type CounterConfig struct {
 	ResetValue int
 }
 
-// Simple example of an IoT test device that tracks a counter.
-// The device uses Thing as a base. Things facilitate storing and querying properties
+// Simple example of an test counter 'Thing'.
+// The device uses ExposedThing as a base as it facilitates storing and querying properties,
 // so you dont have to.
 //
-// This implements the properties, events and actions listed in the device TM.
+// This Thing defines the properties, events and actions listed in the TM.
 //
-// To use this device it needs to be part of a chain:
-// A. RC hub (no forms):  TestDevice -> transport client (wss,sse,mqtt)
-// B. Standalone: http server -> transport server <-> authn service -> TestDevice -> discovery (TD)
-type TestDevice struct {
+// To use this Thing it needs to be linked to a transport client (RC) or server:
+// A. RC gateway (no forms needed):  CounterThing -> transport client (wss,sse,mqtt)
+// B. Standalone: http server -> transport server <-> authn service -> CounterThing -> discovery (TD)
+type TestCounterThing struct {
 	*thing.ExposedThing
 
 	config           *CounterConfig
@@ -111,7 +112,7 @@ type TestDevice struct {
 }
 
 // Run the counter in the background
-func (m *TestDevice) Background() {
+func (m *TestCounterThing) Background() {
 	for {
 		if m.backgroundCtx.Err() != nil {
 			return
@@ -127,7 +128,7 @@ func (m *TestDevice) Background() {
 }
 
 // Decrement the counter
-func (m *TestDevice) DoDecrement() error {
+func (m *TestCounterThing) DoDecrement() error {
 	oldValue := m.counter.Load()
 	newValue := oldValue - 1
 	m.counter.Store(newValue)
@@ -137,7 +138,7 @@ func (m *TestDevice) DoDecrement() error {
 }
 
 // Increment the counter
-func (m *TestDevice) DoIncrement() error {
+func (m *TestCounterThing) DoIncrement() error {
 	oldValue := m.counter.Load()
 	newValue := oldValue + 1
 	if oldValue >= int32(m.config.ResetValue) {
@@ -152,21 +153,21 @@ func (m *TestDevice) DoIncrement() error {
 // Return the TD of this device.
 // Forms should be added by the appropriate transport method used.
 // This is also written to the directory on start.
-func (m *TestDevice) GetTD() string {
+func (m *TestCounterThing) GetTD() string {
 	return m.tdocJson
 }
 
 // Receive notifications from the chain
 // * New connection to the server
 // * Any notifications send by connected clients - none are expected so ignore these
-func (m *TestDevice) HandleNotification(notif *msg.NotificationMessage) {
+func (m *TestCounterThing) HandleNotification(notif *msg.NotificationMessage) {
 	if notif.AffordanceType == msg.AffordanceTypeEvent && notif.Name == api.ClientConnectionStatusEvent {
 		slog.Info("HandleNotification: Client connection event", "data", notif.Data)
 	}
 	m.ForwardNotification(notif)
 }
 
-func (m *TestDevice) HandleRequest(req *msg.RequestMessage, replyTo msg.ResponseHandler) (err error) {
+func (m *TestCounterThing) HandleRequest(req *msg.RequestMessage, replyTo msg.ResponseHandler) (err error) {
 	if req.ThingID != m.GetThingID() {
 		return m.ForwardRequest(req, replyTo)
 	}
@@ -199,7 +200,7 @@ func (m *TestDevice) HandleRequest(req *msg.RequestMessage, replyTo msg.Response
 }
 
 // Change a property value
-func (m *TestDevice) HandleWriteProperty(req *msg.RequestMessage, replyTo msg.ResponseHandler) (err error) {
+func (m *TestCounterThing) HandleWriteProperty(req *msg.RequestMessage, replyTo msg.ResponseHandler) (err error) {
 
 	switch req.Name {
 	case CounterPropName:
@@ -232,15 +233,16 @@ func (m *TestDevice) HandleWriteProperty(req *msg.RequestMessage, replyTo msg.Re
 // Start the test device.
 //
 // This publishes a write TD request to the sink.
-func (m *TestDevice) Start() error {
+func (m *TestCounterThing) Start() error {
 	m.backgroundCtx, m.backgroundCancel = context.WithCancel(context.Background())
 
-	tdoc, _ := td.UnmarshalTD(counterDeviceTM)
+	// Make the TD available. Set its thingID with the provided ID.
+	tdoc, _ := td.UnmarshalTD(counterThingTM)
 	tdoc.ID = m.GetThingID()
 	m.tdocJson = td.MarshalTD(tdoc)
 
-	// publish the device TD/TM
-	// the downstream cells must already be actived so writing the TD is
+	// publish the device TD
+	// the downstream cells must already be started so writing the TD is
 	// send to discovery or directory.
 	go func() {
 		time.Sleep(time.Millisecond)
@@ -265,13 +267,13 @@ func (m *TestDevice) Start() error {
 }
 
 // stop the background process
-func (m *TestDevice) Stop() {
+func (m *TestCounterThing) Stop() {
 	slog.Info("Stopping counter")
 	m.backgroundCancel()
 }
 
 // Update the counter and send a notification
-func (m *TestDevice) Update(newValue int) {
+func (m *TestCounterThing) Update(newValue int) {
 	m.counter.Store(int32(newValue))
 	thingID := m.GetThingID()
 	// Send both a property update and event notification
@@ -279,22 +281,22 @@ func (m *TestDevice) Update(newValue int) {
 	m.PubEvent(thingID, CounterUpdatedEvent, m.counter.Load())
 }
 
-// Create a new counter exposed thing test device that starts counting at 42.
+// Create a new counter exposed-thing that starts counting at 42.
 //
-// the deviceID is the thingID or use "" for an auto generated ID
+// thingID is the thingID or use "" for an auto generated ID
 // config defines behavior of the Thing
-func NewCounterDevice(deviceID string, config *CounterConfig) *TestDevice {
+func NewTestCounterThing(thingID string, config *CounterConfig) *TestCounterThing {
 	if config == nil {
 		config = &CounterConfig{
 			AutoIncrement: false,
 			ResetValue:    1000,
 		}
 	}
-	if deviceID == "" {
-		deviceID = DefaultCounterDeviceThingID
+	if thingID == "" {
+		thingID = DefaultTestCounterThingID + "-" + shortid.MustGenerate()
 	}
-	m := &TestDevice{
-		ExposedThing: thing.NewExposedThing(deviceID, nil),
+	m := &TestCounterThing{
+		ExposedThing: thing.NewExposedThing(thingID, nil),
 		config:       config,
 	}
 	m.counter.Store(42)

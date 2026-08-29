@@ -10,8 +10,8 @@ import (
 	"github.com/hiveot/hivekit/go/api"
 	"github.com/hiveot/hivekit/go/utils"
 
-	standalonerecipe "github.com/hiveot/hivekit/go/cells/factory/recipes/standalone"
-	factory_service "github.com/hiveot/hivekit/go/cells/factory/service"
+	standalonerecipe "github.com/hiveot/hivekit/go/factory/recipes/standalone"
+	factory_service "github.com/hiveot/hivekit/go/factory/service"
 	"github.com/hiveot/hivekit/go/testenv"
 )
 
@@ -57,20 +57,20 @@ func main() {
 		AutoIncrement: false,
 		ResetValue:    60,
 	}
-	deviceCell := testenv.NewCounterDevice("", cfg)
+	counterThing := testenv.NewTestCounterThing(env.AppID, cfg)
 
-	// Requests from the counter device are passed to the cells in the chain.
+	// Requests from the counter thing are passed to the cells in the chain.
 	// Intended to publish the TD. No other requests are expected.
-	deviceCell.SetRequestSink(r)
-	// Notifications from the chain are passed to the app, eg connection established.
+	counterThing.SetRequestSink(r)
+	// Notifications from the counter are passed to the app, eg connection established.
 	// Not much else to do here.
-	r.SetNotificationSink(deviceCell)
+	r.SetNotificationSink(counterThing)
 	// Requests from the chain are passed to the device. This is the 'Thing' it serves.
-	r.SetRequestSink(deviceCell)
+	r.SetRequestSink(counterThing)
 	// Property and event notifications published by the app are send to connected clients.
 	// the recipe HandleNotification passes it to the last cell in the chain and up from there.
-	deviceCell.SetNotificationSink(r)
-	deviceCell.Start()
+	counterThing.SetNotificationSink(r)
+	counterThing.Start()
 
 	fmt.Printf("main: homeDir: %s\n", env.HomeDir)
 	fmt.Printf("main: Counter is running and listening on '%v'\n", f.GetConnectURLs())

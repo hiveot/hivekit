@@ -1,42 +1,49 @@
 # HiveKit Cell Factory
 
-The cell factory is intended to create a complete application out of cells using the provided environment. 
+The Cell Factory provides the cells to create an application using the provided environment. 
 
-While cells can be used stand-alone, use of factory recipes make it easy to construct an application while only needing to focus on the application logic itself. 
+While cells can be created and use on their own, use of *factory recipes* simplifies  construction of an application, as only the application specific logic itself needs to be added. Capabilities like discovery, communication, user management, storage and others are included using the matching recipe.
 
-Recipes are a companion to the factory that constructs a cell chain or star formation from a declared recipe. A recipe is a cell itself that passes requests to the cells in the recipe and returns notifications from the recipe cells. 
+Recipes are a companion to the factory that constructs a chain, star and/or bus formation from a declared recipe. A recipe is a cell itself that passes requests to the cells in the recipe and returns notifications from the recipe cells. Recipes can be nested.
 
-![chaining](../../../docs/cell-chain.png)
+![chaining](../../docs/cell-chain.png)
 
 ## Status
 
 The factory and recipe cells are in alpha. They are functional but breaking changes can be expected.
 
+Roadmap:
+* support launching and linking of cells and recipes written in javascript and python.
+* support for recipe upload for dynamic application reconfiguration.
+
+
 ## Summary
 
-The purpose of the factory is the simplify instantiation and linking of cells for a client or server applications along with the needed environment. It operates using a collection of registered cells. 3rd party cells can easily be added to the registry. 
+The purpose of the factory is to simplify instantiation and linking of cells for a client or server applications along with the needed environment. It operates using a collection of registered cells. 3rd party cells can easily be added to the registry. 
 
-To develop an application the application logic can be placed in a cell itself and linked to a recipe. The recipe handles the needed capabilities for discovery, communication, storage and much more.
+To develop an application using the factory, the application logic can be placed in a cell itself and linked to a recipe. The recipe handles the needed capabilities for discovery, communication, storage and much more.
 
 Each cell is registered using a cell type-name and a default implementation. The cell type identifies the interface of the cell implementation. Cells can be replaced with custom functionality as long as the replacement implements the interface for that cell type.
 
-Applications can instantiate a cell using 'GetCell(cellType)'. The cell uses the factory provided environment to obtain directory locations, certificates as needed. In case of clients the environment offers the server URL which can be set manually or by the discovery service.
+Applications can instantiate a cell using 'GetCell(cellType)'. The cell uses the factory provided environment for directory locations, certificates and auth info as needed. In case of clients the environment offers the server URL which can be set manually or by the discovery service.
 
-The recipes folder contains a set of convenient cookie-cutter recipies for building consumers, Things and gateways. See also the examples to see how they are used for creating a test device and a consumer cli.
+The recipes folder contains a set of convenient cookie-cutter recipies for building a consumer, Thing or gateway. See also the examples to see how they are used for creating a test device and a consumer cli.
 
 ### Recipe Creation
 
-Recipes are the quickest way to build a client or server application or plugin. They specify wich cells are used and how they are chained.
+Recipes are the quickest way to build a client or server application or plugin. They specify which cells are used and how they are linked.
 
-A recipe contains a map of cells by their cell type, and a list of cells in the order used by their formation. A formation defines how cells are linked. Provided formations are a chain, star or bus. An application is instantiated by invoking recipe.Start(factoryInstance).
+A recipe contains a map of used cells by their cell type, and a list of cells in the order used by their formation. A formation defines how cells are linked. Provided formations are a chain, star or bus. An application is instantiated by invoking recipe.Start(factoryInstance).
 
-Use of recipes and formations are optional, as a developer can also just load cells with the factory using GetCell(cellType) and link them manually using SetRequestHandler and SetResponseHandler.
+Recipes and formations can be used in combination with manually loading cells using the factory GetCell(cellType) method and link them manually using SetRequestHandler and SetResponseHandler. This is best done for linking to the start or end of the recipe.
 
 ### Inter-process and Multi-Language Recipes
 
-The factory is written in golang and can only instantiate cells running in the same process. Cells written in a different program language or running on a different host cannot be started.
+The factory is written in golang and can only instantiate cells running in the same process. Cells written in a different program language or running on a different host cannot be started directly.
 
-It is possible however to build an application consisting of cells on different platforms by connecting them through a transport client/server or by using an application gateway. The gateway recipe can be expanded to include local business logic and accept connections from javascript or python cells that run on the same or separate hosts. 
+A future feature is to include a launcher for javascript and python cells/recipes and link them through a client/server cell using one of the available transport protocols. 
+
+Alternatively, using the gateway recipe it can accept connections from javascript or python recipes that run on the same or separate hosts. 
 
 
 ### Including 3rd party cells
@@ -62,7 +69,7 @@ The homeDir is the root of application. This can follow two approaches, a user h
 When a user home directory is chosen this defines the following application folder structure (on Linux):
 
 ```
-~/bin/myapp
+~/bin/hiveot
         |- bin               Application binaries, cli and launcher
         |- plugins           Plugin binaries controlled by the launcher
         |- config            Service configuration yaml files
@@ -85,11 +92,11 @@ When a system home directory is chosen it should be a directory /opt/{appname}. 
 /var/lib/{appname}/{service}  Storage of service data
 ```
 
-A Windows directory structure can be accomodated by setting the paths directly.
+A Windows directory structure can be accomodated by setting the paths manually. A default structure still needs to be defined. (contributions are welcome)
 
 ### Commandline arguments
 
-When building an application it is not uncommon to be able to specify different directories from the commandline.
+When building an application it can be neccesary to specify different directories from the commandline.
 
 NewAppEnvironment uses the golang 'flag' library to allow overriding the directories with a corresponding flag:
 
@@ -108,22 +115,26 @@ NewAppEnvironment uses the golang 'flag' library to allow overriding the directo
 Servers need certificates and these certificates need to be created somehow. The environment expects certificates to exist in the configured 'certs' directory.
 If they don't exist during initialization a set of self-signed CA and server certificates will be created when a transport server is instantiated.
 
+A self-signed CA certificate is always generated and added to the system pool of available CA's. This is intended for issuing client certificates for authentication, and to create a self-signed server certificate if not provided. Names are standardized as per below. Keys and certificates are in PEM format.
+
 ```
-- caCert.pem     - the CA certificate.
-- caKey.pem      - the generated CA key for self-signed certificate.
-- serverCert.pem - the server x509 certificate in PEM format used by the transport.
-- serverKey.pem  - the server private key in PEM format.
+- caCert.pem         - the generated CA certificate.
+- caKey.pem          - the generated CA private key.
+- serverCert.pem     - the server x509 certificate in PEM format used by the transport.
+- serverKey.pem      - the server private key.
+- {clientID}Cert.pem - Client TLS certificate for client authentication.
 ```
 
-### Keys
+### Auth Tokens and Certificates
 
-Services that run stand-alone and connect to a server need keys (bearer tokens) to authenticate. These are also stored in the certs directory and are read-only to the user that runs the factory.
+Consumers need authentication (bearer) tokens to connect with HiveOT stand-alone devices and gateways. These tokens can be obtained using a login request send to the gateway/device. 
 
-The key file has the application-ID as the filename with ".key" as the suffix. The keys can be generated manually using a commandline utility or automatically through a launcher service if used. By default the application-ID is the name of the binary.
+If a server includes the authn service for authentication (recommended) then the tokens must be generated using this service. The issued tokens are session tokens and need to be renewed periodically. The consumer application can store them in the certs directory for re-use until they expire or are renewed. Note that if the authentication service restarts, sessions tokens become invalid and a re-login is required.
 
-If the server side uses the authn service for authentication (recommended) then the keys must be generated using this service.
 
-The cli and launcher mentioned above are applications build with HiveKit. See the go/apps directory for details.
+Services and admin user that run stand-alone and connect to a server need a client TLS certificate to authenticate. These are stored in the certs directory and are read-only to the user that runs the factory.
+
+The client cert file has the application-ID or client-ID as the filename with "Cert.pem" suffix. The client certificate can be generated manually using a commandline utility or automatically through a launcher service if used. 
 
 
 ## Application Example
@@ -160,7 +171,6 @@ func main(){
 }
 ```
 This is all that is needed to include hivekit and other cells in your application. The developer only needs to provide 'appCell' which provides the application logic and interacts with request handler and notification handlers.
-
 
 
 ## Future Ideas

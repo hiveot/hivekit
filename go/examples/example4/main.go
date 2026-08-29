@@ -8,8 +8,8 @@ import (
 	"time"
 
 	"github.com/hiveot/hivekit/go/api"
-	gatewayrecipe "github.com/hiveot/hivekit/go/cells/factory/recipes/gateway"
-	factory_service "github.com/hiveot/hivekit/go/cells/factory/service"
+	gatewayrecipe "github.com/hiveot/hivekit/go/factory/recipes/gateway"
+	factory_service "github.com/hiveot/hivekit/go/factory/service"
 	"github.com/hiveot/hivekit/go/utils"
 )
 

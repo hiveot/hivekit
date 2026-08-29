@@ -2,12 +2,12 @@ package rcdevicerecipe
 
 import (
 	"github.com/hiveot/hivekit/go/api"
-	factory_service "github.com/hiveot/hivekit/go/cells/factory/service"
 	"github.com/hiveot/hivekit/go/cells/reconnect"
 	reconnect_service "github.com/hiveot/hivekit/go/cells/reconnect/service"
 	"github.com/hiveot/hivekit/go/cells/transport/clients"
 	"github.com/hiveot/hivekit/go/cells/transport/discovery"
 	discovery_client "github.com/hiveot/hivekit/go/cells/transport/discovery/client"
+	factory_service "github.com/hiveot/hivekit/go/factory/service"
 )
 
 // Cell type name of the slot where to insert the 'exposed thing' application cell.

@@ -89,7 +89,7 @@ func TestDiscoverGetDirectoryTD(t *testing.T) {
 	err = m.ServeDirectoryTD(testDirServiceName, dirTDJson)
 	require.NoError(t, err)
 
-	// discover and read the directory on start
+	// discover and read the directory on start. This sets env.DirectoryURL
 	appEnv := api.NewHiveEnvironment("", false)
 	cl := discovery_client.NewDiscoveryClient(appEnv, true)
 	err = cl.Start()

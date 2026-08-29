@@ -42,6 +42,7 @@ func NewDirectoryServiceFactory(f api.ICellFactory, md *api.CellDefinition) (api
 	httpServer := f.GetHttpServer(false)
 	transportMods := f.GetTransportServers()
 
-	m := NewDirectoryService("", storageDir, httpServer, transportMods)
+	cellID := env.AppID + ":" + directory.DirectoryServiceCellType
+	m := NewDirectoryService(cellID, storageDir, httpServer, transportMods)
 	return m, nil
 }

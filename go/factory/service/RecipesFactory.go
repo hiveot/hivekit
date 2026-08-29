@@ -4,7 +4,7 @@ import (
 	"fmt"
 
 	"github.com/hiveot/hivekit/go/api"
-	"github.com/hiveot/hivekit/go/cells/factory/internal"
+	"github.com/hiveot/hivekit/go/factory/internal"
 )
 
 // NewBusFormation returns a collection of cells in a bus formation

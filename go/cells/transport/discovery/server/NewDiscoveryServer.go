@@ -35,8 +35,8 @@ func NewDiscoveryServer(serviceName string,
 // after the directory in the chain, so it can find the directory to get its TDD,
 // and prevent it from intercepting a CreateThing request send by services.
 //
-// This loads the http server.
-// This creates a list of endpoints for each loaded transport server
+// This loads the http server and creates a list of server endpoints to include in discovery.
+// The serviceName used is hostname:appid
 func NewDiscoveryServerFactory(f api.ICellFactory, md *api.CellDefinition) (api.IHiveCell, error) {
 	httpServer := f.GetHttpServer(true)
 	endpoints := make(map[string]string)
@@ -54,7 +54,8 @@ func NewDiscoveryServerFactory(f api.ICellFactory, md *api.CellDefinition) (api.
 	if found {
 		_, tddJSON = dirSvc.GetTDD()
 	}
-	serviceName, _ := os.Hostname() // use default
+	serviceName, _ := os.Hostname()
+	serviceName += ":" + f.GetEnvironment().AppID
 	srv := NewDiscoveryServer(serviceName, httpServer, tddJSON, endpoints)
 
 	return srv, nil

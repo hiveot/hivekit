@@ -55,7 +55,7 @@ var testProtocols = []string{
 // Intended for testing client side / router connections
 //
 // The deviceID is the thingID of the device
-func startTestServerDevice(deviceID string) (testDevice *testenv.TestDevice,
+func startTestServerDevice(deviceID string) (testDevice *testenv.TestCounterThing,
 	tdoc *td.TD, testEnv *testenv.TestEnv, stopFn func()) {
 
 	testEnv = testenv.NewTestEnv(true)
@@ -65,7 +65,7 @@ func startTestServerDevice(deviceID string) (testDevice *testenv.TestDevice,
 	transportServer := testEnv.StartTestServer(testProtocol)
 
 	// 2. Create the test device Thing and link it to the server so it receives requests
-	testDevice = testenv.NewCounterDevice(deviceID, nil)
+	testDevice = testenv.NewTestCounterThing(deviceID, nil)
 	testDevice.SetNotificationSink(transportServer)
 	transportServer.SetRequestSink(testDevice)
 	err := testDevice.Start()

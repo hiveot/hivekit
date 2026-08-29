@@ -12,7 +12,6 @@ import (
 	digitwin_service "github.com/hiveot/hivekit/go/cells/digitwin/service"
 	"github.com/hiveot/hivekit/go/cells/directory"
 	directory_service "github.com/hiveot/hivekit/go/cells/directory/service"
-	factory_service "github.com/hiveot/hivekit/go/cells/factory/service"
 	"github.com/hiveot/hivekit/go/cells/history"
 	history_service "github.com/hiveot/hivekit/go/cells/history/service"
 	"github.com/hiveot/hivekit/go/cells/logging"
@@ -30,6 +29,7 @@ import (
 	tls_server "github.com/hiveot/hivekit/go/cells/transport/tlsserver/server"
 	"github.com/hiveot/hivekit/go/cells/transport/wss"
 	wss_server "github.com/hiveot/hivekit/go/cells/transport/wss/server"
+	factory_service "github.com/hiveot/hivekit/go/factory/service"
 )
 
 // AppGatewayRecipe is a defines a cell chain of an application gateway.
