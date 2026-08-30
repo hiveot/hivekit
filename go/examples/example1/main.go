@@ -70,6 +70,7 @@ func main() {
 	// Property and event notifications published by the app are send to connected clients.
 	// the recipe HandleNotification passes it to the last cell in the chain and up from there.
 	counterThing.SetNotificationSink(r)
+	// Start after linking.
 	counterThing.Start()
 
 	fmt.Printf("main: homeDir: %s\n", env.HomeDir)

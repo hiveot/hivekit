@@ -29,6 +29,28 @@ type CertsServiceImpl struct {
 	provider certs.ICertProvider
 }
 
+// Create the admin client certificate if it doesn't exist
+func (svc *CertsServiceImpl) CreateAdminCert() error {
+	cfg := svc.config
+	// create an admin client cert if validation period is set and no exist cert exists
+	adminID := api.DefaultAdminUserID
+	certPath := filepath.Join(cfg.CertsDir, adminID+api.DefaultCertFileSuffix)
+	keyPath := filepath.Join(cfg.CertsDir, adminID+api.DefaultPrivKeyFileSuffix)
+	adminCert, err := utils.LoadTLSCert(certPath, keyPath)
+	_ = adminCert
+	if err != nil {
+		// admin client cert doesn't exist, create one
+		privKey, pubKey := utils.NewEd25519Key()
+		certValidity := time.Duration(cfg.AdminCertValidityDays) * 24 * time.Hour
+		adminX509, err2 := svc.CreateClientCert(
+			adminID, api.ClientOUAdmin, certValidity, pubKey)
+		err = err2
+		adminCert := utils.X509CertToTLS(adminX509, privKey)
+		utils.SaveTLSCert(adminCert, certPath, keyPath)
+	}
+	return err
+}
+
 // Create a client TLS cert. This requires having the CA cert and key.
 func (svc *CertsServiceImpl) CreateClientCert(
 	clientID string, ou string, validity time.Duration, clientPubKey crypto.PublicKey) (
@@ -194,21 +216,7 @@ func (svc *CertsServiceImpl) Start() (err error) {
 
 	// create an admin client cert if validation period is set and no exist cert exists
 	if cfg.AdminCertValidityDays > 0 {
-		adminID := api.DefaultAdminUserID
-		certPath := filepath.Join(cfg.CertsDir, adminID+api.DefaultCertFileSuffix)
-		keyPath := filepath.Join(cfg.CertsDir, adminID+api.DefaultPrivKeyFileSuffix)
-		adminCert, err := utils.LoadTLSCert(certPath, keyPath)
-		_ = adminCert
-		if err != nil {
-			// admin client cert doesn't exist, create one
-			privKey, pubKey := utils.NewEd25519Key()
-			certValidity := time.Duration(cfg.AdminCertValidityDays) * 24 * time.Hour
-			adminX509, err2 := svc.CreateClientCert(
-				adminID, api.ClientOUAdmin, certValidity, pubKey)
-			err = err2
-			adminCert := utils.X509CertToTLS(adminX509, privKey)
-			utils.SaveTLSCert(adminCert, certPath, keyPath)
-		}
+		err = svc.CreateAdminCert()
 	}
 
 	return err

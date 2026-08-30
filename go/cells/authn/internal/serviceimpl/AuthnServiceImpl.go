@@ -12,6 +12,7 @@ import (
 	"github.com/hiveot/hivekit/go/cells"
 	"github.com/hiveot/hivekit/go/cells/authn"
 	authnstore "github.com/hiveot/hivekit/go/cells/authn/internal/store"
+	directory_service "github.com/hiveot/hivekit/go/cells/directory/service"
 )
 
 // AuthnServiceImpl manages client accounts and issues authentication tokens.
@@ -45,6 +46,22 @@ func (svc *AuthnServiceImpl) AddClient(clientID string, displayName string, role
 	return svc.authnStore.Add(newProfile)
 }
 
+// Create the admin account if it doesn't exist and create a new auth token
+func (svc *AuthnServiceImpl) CreateAdminAccount() error {
+	_, err := svc.GetProfile(svc.config.AdminUserID)
+	if err != nil {
+		err = svc.AddClient(svc.config.AdminUserID, "Administrator", authn.ClientRoleAdmin)
+
+		if err == nil && svc.config.AdminTokenValidityDays > 0 {
+			validity := time.Duration(svc.config.AdminTokenValidityDays) * 24 * time.Hour
+			// create a new token for this session
+			adminToken, _, _ := svc.sessionManager.CreateToken(svc.config.AdminUserID, validity)
+			err = svc.SaveToken(svc.config.AdminUserID, adminToken)
+		}
+	}
+	return err
+}
+
 // GetProfile return the client's profile
 func (svc *AuthnServiceImpl) GetProfile(clientID string) (profile authn.ClientProfile, err error) {
 	return svc.authnStore.GetProfile(clientID)
@@ -71,6 +88,51 @@ func (svc *AuthnServiceImpl) HandleRequest(req *msg.RequestMessage, replyTo msg.
 		// forward
 		return svc.HiveCellBase.HandleRequest(req, replyTo)
 	}
+}
+
+// Publish the service admin and user service TDs to the directory.
+//
+// The real problem is in sending requests on start. This cant happen
+// until the chain is complete.
+//
+// FIXME: in a recipe the link isn't established yet
+//   - option 1: start in reverse order so cells have their sink ready
+//     pro!: services can publish requests on start
+//     con: might not be intuitive
+//     con: initialization functions should be at the end of the chain
+//   - option 2: cells in chains don't rely on messaging; use API instead
+//     pro: order independent
+//     con: services cant send request on start - is this going to be a rule?
+//     is this too limiting? - yes, especially when services are distributed.
+//     con: cant expect every cell with a TD to lookup APIs.
+//   - option 3: instantiate and link cells before starting them (in reverse order)
+//   - option 4: provide a callback hook to register a TD
+//     pro: order independent; inversion of control;
+//     con: yet another callback
+//     con: only covers this one use-case. What if other requests are issued on start?
+//   - option 5: change instantiation to:
+//      * being ready to be used, receive requests
+//      * linking completed
+//     while 'start' is ready to send requests.
+//     recipies first create and link all cells during, then invoke Start when
+//     start is called.
+//     con: is there any use-case that requires Start to do setup that cannot be
+//          done during instantiation?
+//
+// Preferance order:  5, 1, 3, 4
+
+func (svc *AuthnServiceImpl) PublishTD() error {
+	adminTM := authn.AuthnAdminTM
+	userTM := authn.AuthnUserTM
+	reqSink := svc.GetRequestSink()
+	if reqSink == nil {
+		return fmt.Errorf("PublishTD: No request sink set.")
+	}
+	err := directory_service.UpdateTD("", string(adminTM), reqSink.HandleRequest)
+	if err == nil {
+		err = directory_service.UpdateTD("", string(userTM), reqSink.HandleRequest)
+	}
+	return err
 }
 
 // Remove a client
@@ -112,7 +174,11 @@ func (svc *AuthnServiceImpl) SetRole(clientID string, role string) error {
 
 // Start the authentication service and handle for login and token refresh requests.
 //
-// This opens the password store and starts the session manager instance.
+// This:
+// 1. opens the password store
+// 2. starts the session manager instance
+// 3. add an admin account if the userID is configured
+// 4. publish the admin and user TD's for a downstream directory
 //
 // If a validity period is set for an administrator then create a new token file
 // for this administrator. {adminID}.token
@@ -130,18 +196,9 @@ func (svc *AuthnServiceImpl) Start() (err error) {
 	}
 	// ensure the administrator account exists
 	if svc.config.AdminUserID != "" {
-		_, err = svc.GetProfile(svc.config.AdminUserID)
-		if err != nil {
-			err = svc.AddClient(svc.config.AdminUserID, "Administrator", authn.ClientRoleAdmin)
-
-			if err == nil && svc.config.AdminTokenValidityDays > 0 {
-				validity := time.Duration(svc.config.AdminTokenValidityDays) * 24 * time.Hour
-				// create a new token for this session
-				adminToken, _, _ := svc.sessionManager.CreateToken(svc.config.AdminUserID, validity)
-				err = svc.SaveToken(svc.config.AdminUserID, adminToken)
-			}
-		}
+		err = svc.CreateAdminAccount()
 	}
+	svc.PublishTD()
 	return err
 }
 

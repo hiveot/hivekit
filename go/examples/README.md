@@ -12,7 +12,7 @@ or by building and running:
 This uses the "~/bin/hiveot" directory as home directory for config, certificates, and data storage. 
 
 
-## Simple Examples
+## Basic Examples
 
 These first few examples are kept simple on purpose. They use a single protocol and lacks authentication, authorization and offers no history.
 
@@ -62,7 +62,7 @@ This can be used with example 1, 2, 3 and 5.
 
 ### Example 5. RC Device (reverse connection) [todo]
 
-This example constructs a RC device that uses a reverse connection to a gateway. It contains a test device and a client for a gateway.
+This example constructs a RC device that uses a reverse connection to a gateway. It is the same device as in example 1 but instead of running a server it connects to a gateway.
 
 This is the preferred way to create and connect devices in hiveot. It does require the gateway from example 4. Note that the hiveot Hub is intended as an out-of-the-box gateway.
 

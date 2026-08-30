@@ -61,5 +61,18 @@
             // "console": "integratedTerminal",
             "console": "externalTerminal",
         },
+        {
+            "name": "Gateway",
+            "type": "go",
+            "request": "launch",
+            "mode": "debug",
+            "program": "${workspaceFolder}/go/examples/example4/main.go",
+            "cwd": "${workspaceFolder}/go/examples",
+            "showLog": false,
+            "env": {},
+            "args": ["-loglevel", "info"],
+            "logOutput": "rpc",
+            "console": "integratedTerminal",
+        },
     ]
 }

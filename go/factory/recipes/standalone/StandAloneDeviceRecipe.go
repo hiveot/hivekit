@@ -45,6 +45,7 @@ var StandAloneDeviceChain = []api.CellDefinition{
 	},
 	{
 		// discovery server for publishing the device TD
+		// this takes the place of a directory
 		Type:        discovery.DiscoveryServerCellType,
 		Constructor: discovery_server.NewDiscoveryServerFactory,
 	},

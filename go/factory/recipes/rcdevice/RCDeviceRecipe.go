@@ -29,7 +29,7 @@ var RCDeviceChain = []api.CellDefinition{
 	},
 	{
 		// connect a new client to the discovered server
-		// the server TD is set by discovery. (work in progress)
+		// the server TD is set by discovery.
 		Type:        clients.TransportClientCellType,
 		Constructor: clients.NewTransportClientFactory,
 	},

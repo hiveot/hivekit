@@ -70,7 +70,7 @@ func (dc *DirectoryCacheImpl) ImportTD(tdoc *td.TD) {
 func (dc *DirectoryCacheImpl) ImportTDJson(tdJson string) (*td.TD, error) {
 	tdoc, err := td.UnmarshalTD(tdJson)
 	if err != nil {
-		err = fmt.Errorf("UpdateTD: invalid TD JSON: %s", err.Error())
+		err = fmt.Errorf("ImportTDJson: invalid TD JSON: %s", err.Error())
 		return tdoc, err
 	}
 	dc.ImportTD(tdoc)

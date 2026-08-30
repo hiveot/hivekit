@@ -91,11 +91,7 @@ func (r *ChainFormation) SetSlot(slotID string, modDef api.CellDefinition) error
 }
 
 // Start the recipe.
-// This starts the cells in sequence.
-//
-// NOTE: The chain recipe must be started before linking to it, as setting the recipe request
-// sink sets it on the last cell in the chain. and setting the notification sink sets it
-// on the first cell of the chain:
+// This starts the cells in the defined order.
 //
 // * linking a request handler sets its as the sink of the last cell
 // * linking a notification handler sets it as the sink of the first cell
@@ -143,8 +139,7 @@ func (r *ChainFormation) Start() error {
 
 // Create a recipe instance for running cells in a chain formation.
 //
-// Use Start to instantiate and link the cells in the given order. This uses the factory
-// to create the cell instances.
+// Use Start to instantiate and link the cells in the defined order.
 //
 //	f is the cell factory that instantiates the cells
 //	chain is a collection of cells in order of instantiation.
