@@ -319,35 +319,30 @@ func (cl *HttpBasicClientImpl) SetRequestSink(sink api.IHiveCell) {
 	slog.Warn("SetRequestSink. HttpBasicClient cannot be a request sink.")
 }
 
-// start doesn't do anything. Use ConnectWith... to connect.
-// TBD: maybe this should connect using config?
-func (cl *HttpBasicClientImpl) Start() error {
-	return nil
-}
-
 // stop closes the connection
 func (cl *HttpBasicClientImpl) Stop() {
 	cl.Close()
 }
 
-// NewHttpBasicClientImpl creates a new instance of the WoT compatible http-basic
+// StartHttpBasicClientImpl creates a new instance of the WoT compatible http-basic
 // protocol binding client for use with the given TD.
 //
-// Users must use setAuthToken or SetClientCert to authenticate and Connect or Start
+// Users must use setAuthToken or SetClientCert to authenticate and invoke Connect
 // to establish the connection.
 //
 // This uses TD forms to perform an operation.
 //
 //	tdoc is the TD to use for operations.
 //	rootCAs to validate the server or nil to skip cert check
-func NewHttpBasicClientImpl(tdoc *td.TD, rootCAs *x509.CertPool) *HttpBasicClientImpl {
+func StartHttpBasicClientImpl(
+	tdoc *td.TD, rootCAs *x509.CertPool) (*HttpBasicClientImpl, error) {
 
 	// FIXME: TD spec says base is optional and can vary per operation
 	//
 	urlParts, err := url.Parse(tdoc.Base)
 	if err != nil {
-		slog.Error("Invalid URL")
-		return nil
+		slog.Error("Invalid Base in TD", "ThingID", tdoc.ID, "TD Base", tdoc.Base)
+		return nil, fmt.Errorf("StartHttpBasicClientImpl: invalid URL")
 	}
 	hostPort := urlParts.Host
 
@@ -355,19 +350,21 @@ func NewHttpBasicClientImpl(tdoc *td.TD, rootCAs *x509.CertPool) *HttpBasicClien
 	if rootCAs == nil {
 		tlsClient.SetSkipCertCheck(true)
 	}
-	cl := NewHttpBasicTLSClientImpl(tdoc, rootCAs, tlsClient)
+	cl, err := StartHttpBasicTLSClientImpl(tdoc, rootCAs, tlsClient)
 
-	return cl
+	return cl, err
 }
 
-// NewHttpBasicTlsClient creates a new instance of the WoT compatible http-basic
+// StartHttpBasicTLSClientImpl creates a new instance of the WoT compatible http-basic
 // protocol binding client using the given configured TLS client.
+//
+// The caller still needs to authenticate and call Connect()
 //
 //	tdoc describing server requests
 //	rootCAs used to verify client certificate authentication. nil when not using client cert.
 //	tlsClient TLS client to submit requests
-func NewHttpBasicTLSClientImpl(
-	tdoc *td.TD, rootCAs *x509.CertPool, tlsClient tlsclient.ITLSClient) *HttpBasicClientImpl {
+func StartHttpBasicTLSClientImpl(
+	tdoc *td.TD, rootCAs *x509.CertPool, tlsClient tlsclient.ITLSClient) (*HttpBasicClientImpl, error) {
 
 	timeout := tlsclient.DefaultClientTimeout
 	thingID := httpbasic.HttpBasicClientCellType + shortid.MustGenerate()
@@ -378,5 +375,5 @@ func NewHttpBasicTLSClientImpl(
 	}
 	var _ api.IConnection = cl // interface check
 	var _ api.IHiveCell = cl   // interface check
-	return cl
+	return cl, nil
 }

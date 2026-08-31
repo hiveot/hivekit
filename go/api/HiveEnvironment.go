@@ -126,7 +126,7 @@ type HiveEnvironment struct {
 
 	// The server certificate loaded from ServerCert|ServerKey.pem
 	// Intended for devices, gateway or hub that runs a server.
-	// Use NewInitFactoryCerts in the factory chain to ensure a self signed server
+	// Use RunInitFactoryCerts in the factory chain to ensure a self signed server
 	// cert is created if needed, or place a cert manually.
 	serverCert *tls.Certificate `yaml:"-"`
 

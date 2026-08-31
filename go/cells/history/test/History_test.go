@@ -67,14 +67,12 @@ func startHistoryService(clean bool) (
 
 	// create the history service and link it to the protocol server.
 	cfg := history.NewHistoryConfig(dataDir, historyStoreBackend)
-	histService = internal.NewHistoryServiceImpl(cfg)
-	testEnv.Server.SetRequestSink(histService)
-	histService.SetNotificationSink(testEnv.Server)
-
-	err := histService.Start()
+	histService, err := internal.StartHistoryServiceImpl(cfg)
 	if err != nil {
 		panic("Failed starting the history service: " + err.Error())
 	}
+	testEnv.Server.SetRequestSink(histService)
+	histService.SetNotificationSink(testEnv.Server)
 
 	return histService, func() {
 		// stop the history service, bucketstore and EThing cells
@@ -672,7 +670,7 @@ func TestPubEvents(t *testing.T) {
 	_ = names
 
 	// attach another device after the history service so its events are recorded
-	device1 := thing.NewExposedThing(device1ID, nil)
+	device1 := thing.StartExposedThing(device1ID, nil)
 	m.SetRequestSink(device1)
 	device1.SetNotificationSink(m)
 	defer device1.Start()

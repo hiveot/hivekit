@@ -95,27 +95,25 @@ func (svc *AuthnServiceImpl) HandleRequest(req *msg.RequestMessage, replyTo msg.
 // The real problem is in sending requests on start. This cant happen
 // until the chain is complete.
 //
-// FIXME: in a recipe the link isn't established yet
-//   - option 1: start in reverse order so cells have their sink ready
+//   + option 1: start in reverse order so cells have their sink ready
 //     pro!: services can publish requests on start
 //     con: might not be intuitive
-//     con: initialization functions should be at the end of the chain
-//   - option 2: cells in chains don't rely on messaging; use API instead
+//     con: initialization functions should be at the end of the chain?
+//   X option 2: cells in chains don't rely on messaging; use API instead
 //     pro: order independent
 //     con: services cant send request on start - is this going to be a rule?
 //     is this too limiting? - yes, especially when services are distributed.
 //     con: cant expect every cell with a TD to lookup APIs.
-//   - option 3: instantiate and link cells before starting them (in reverse order)
-//   - option 4: provide a callback hook to register a TD
-//     pro: order independent; inversion of control;
+//   + option 3: instantiate and link cells before starting them in reverse order
+//   ? option 4: provide a callback hook to register a TD
+//     pro: useful for every device; inversion of control;
 //     con: yet another callback
 //     con: only covers this one use-case. What if other requests are issued on start?
-//   - option 5: change instantiation to:
+//     con: still an order dependency
+//   + option 5: change instantiation to:
 //      * being ready to be used, receive requests
 //      * linking completed
 //     while 'start' is ready to send requests.
-//     recipies first create and link all cells during, then invoke Start when
-//     start is called.
 //     con: is there any use-case that requires Start to do setup that cannot be
 //          done during instantiation?
 //
@@ -184,22 +182,30 @@ func (svc *AuthnServiceImpl) SetRole(clientID string, role string) error {
 // for this administrator. {adminID}.token
 func (svc *AuthnServiceImpl) Start() (err error) {
 
-	slog.Info("Start: Starting authn")
-	err = svc.authnStore.Open()
-	if err != nil {
-		return err
-	}
+	// slog.Info("Start: Starting authn")
+	// err = svc.authnStore.Open()
+	// if err != nil {
+	// 	return err
+	// }
 
-	err = svc.sessionManager.Start()
-	if err != nil {
-		return err
-	}
+	// err = svc.sessionManager.Start()
+	// if err != nil {
+	// 	return err
+	// }
 	// ensure the administrator account exists
-	if svc.config.AdminUserID != "" {
-		err = svc.CreateAdminAccount()
-	}
-	svc.PublishTD()
+	// if svc.config.AdminUserID != "" {
+	// 	err = svc.CreateAdminAccount()
+	// }
+
+	// moved to SetSink
+	// svc.PublishTD()
 	return err
+}
+
+// publish the service TD after it is linked
+func (svc *AuthnServiceImpl) SetRequestSink(reqSink api.IHiveCell) {
+	svc.HiveCellBase.SetRequestSink(reqSink)
+	svc.PublishTD()
 }
 
 // Stop closes the client store and releases resources
@@ -236,12 +242,21 @@ func (svc *AuthnServiceImpl) UpdateProfile(senderID string, newProfile authn.Cli
 // Create a new authentication service.
 //
 // authnConfig contains the password storage and token management configuration
-func NewAuthnServiceImpl(authnConfig authn.AuthnConfig) *AuthnServiceImpl {
+func StartAuthnServiceImpl(authnConfig authn.AuthnConfig) (*AuthnServiceImpl, error) {
 
+	slog.Info("Start: Starting authn")
 	passwordFile := authnConfig.PasswordFile
 	encryption := authnConfig.Encryption
 	authnStore := authnstore.NewAuthnFileStore(passwordFile, encryption)
-	sessionManager := NewSessionManager(authnStore, authnConfig.KeysDir)
+	err := authnStore.Open()
+	if err != nil {
+		return nil, err
+	}
+
+	sessionManager, err := StartSessionManager(authnStore, authnConfig.KeysDir)
+	if err != nil {
+		return nil, err
+	}
 
 	// this service is a singleton that exposes multiple service things
 	thingID := authn.AuthnServiceCellType
@@ -252,7 +267,13 @@ func NewAuthnServiceImpl(authnConfig authn.AuthnConfig) *AuthnServiceImpl {
 		sessionManager: sessionManager,
 		// sessionStart: make(map[string]time.Time),
 	}
+
+	// ensure the administrator account exists
+	if svc.config.AdminUserID != "" {
+		err = svc.CreateAdminAccount()
+	}
+
 	var _ api.IHiveCell = svc       // interface check
 	var _ authn.IAuthnService = svc // interface check
-	return svc
+	return svc, err
 }

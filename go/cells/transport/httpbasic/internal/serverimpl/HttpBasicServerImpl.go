@@ -56,12 +56,18 @@ func (srv *HttpBasicServerImpl) HandleRequest(
 	return err
 }
 
-// Start readies the transport server for use.
+// Stop any running actions
+func (srv *HttpBasicServerImpl) Stop() {
+	slog.Info("Stop: Stopping httpbasic transport server")
+
+}
+
+// StartHttpBasicServerImpl starts a new WoT http-basic protocol binding and starts listening.
 //
-// Configurable:
-// - add public routes for ping
-// - add protected route for thing requests {op}/{thing}/{name}
-// - add protected route for affordance requests {op}/{thing}/{affordance}/{name}
+// This:
+// - adds a public routes for ping
+// - adds a protected route for thing requests {op}/{thing}/{name}
+// - adds a protected route for affordance requests {op}/{thing}/{affordance}/{name}
 //
 // Incoming requests are converted to the standard message format and passed to
 // the registered sinks.
@@ -72,27 +78,6 @@ func (srv *HttpBasicServerImpl) HandleRequest(
 // Since http is a unidirectional protocol, HandleNotification and HandleRequest messages
 // will not be passed to connected clients.
 //
-// yamlConfig tbd: use base path?
-func (srv *HttpBasicServerImpl) Start() (err error) {
-
-	slog.Info("Start: Starting httpbasic transport server")
-	srv.createRoutes()
-
-	// create a TD describing this server along with its connection URL
-	thingID := srv.GetThingID()
-	srv.serverTD = td.NewTD(thingID, "HTTP-Basic server", vocab.DeviceTypeService)
-	srv.AddTDSecForms(srv.serverTD, false)
-	return err
-}
-
-// Stop any running actions
-func (srv *HttpBasicServerImpl) Stop() {
-	slog.Info("Stop: Stopping httpbasic transport server")
-
-}
-
-// NewHttpBasicServerImpl creates a new WoT http-basic protocol binding.
-//
 // Intended as a last-resort server as this only handles consumer connections and
 // does not support subscription.
 // The onRequest handler only handles responses that are sent via replyTo in a short
@@ -100,18 +85,25 @@ func (srv *HttpBasicServerImpl) Stop() {
 //
 //	httpServer is the http server that listens for messages
 //	sink is the optional receiver of request, response and notification messages, nil to set later
-func NewHttpBasicServerImpl(httpServer api.IHttpServer) *HttpBasicServerImpl {
+func StartHttpBasicServerImpl(httpServer api.IHttpServer) (*HttpBasicServerImpl, error) {
+
+	slog.Info("Start: Starting httpbasic transport server")
 
 	thingID := httpbasic.HttpBasicServerCellType + "-" + shortid.MustGenerate()
 	connectURL := httpServer.GetConnectURL()
 	authenticator := httpServer.GetAuthenticator()
-	m := &HttpBasicServerImpl{
+	srv := &HttpBasicServerImpl{
 		TransportServerBase: transport.NewTransportServerBase(thingID, connectURL, authenticator),
 		httpServer:          httpServer,
 	}
+	// create a TD describing this server along with its connection URL
+	srv.serverTD = td.NewTD(thingID, "HTTP-Basic server", vocab.DeviceTypeService)
+	srv.AddTDSecForms(srv.serverTD, false)
 
-	var _ api.ITransportServer = m // interface check
-	var _ api.IHiveCell = m        // interface check
+	err := srv.createRoutes()
 
-	return m
+	var _ api.ITransportServer = srv // interface check
+	var _ api.IHiveCell = srv        // interface check
+
+	return srv, err
 }

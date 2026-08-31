@@ -35,7 +35,7 @@ var storageDir = path.Join(os.TempDir(), "hivekit", "router-test")
 const rpcTimeout = time.Minute * 3 // allow for debugging breakpoints
 const testConsumerID = "router1"
 
-var testProtocol = api.WotWebsocketProtocolType
+var testProtocol = api.HiveotGrpcTcpProtocolType
 
 var testProtocols = []string{
 	api.HiveotSseScProtocolType,
@@ -97,15 +97,14 @@ func SetupConsumerWithRouter(
 
 	// setup the consumer side: directory, router and consumer
 	// register the device TD in the directory for use by the router
-	dirSvc = directory_service.NewDirectoryService("", storageDir, nil, nil)
-	err := dirSvc.Start()
+	dirSvc, err := directory_service.StartDirectoryService("", storageDir, nil, nil)
 	if err != nil {
 		panic("SetupConsumerWithRouter: Directory.Start: " + err.Error())
 	}
 
 	// the router uses the TD to connect to the device.
 	// this doesn't actually need a directory. GetTD could also simply return the device TD.
-	routerSvc = router_service.NewRouterService(
+	routerSvc, err = router_service.StartRouterService(
 		storageDir, false, clientID, nil, rootCAs, rpcTimeout, dirSvc.GetTD, nil)
 
 	err = routerSvc.Start()
@@ -115,7 +114,7 @@ func SetupConsumerWithRouter(
 
 	// A consumer links to the router and subscribes to the device.
 	// For the purpose of this test the router runs client side.
-	co = consumer.NewConsumer(routerSvc, nil)
+	co = consumer.StartConsumer(routerSvc, nil)
 	co.SetTimeout(rpcTimeout)
 	err = co.Start()
 	if err != nil {
@@ -141,9 +140,9 @@ func TestMain(m *testing.M) {
 
 func TestConnectAllProtocols(t *testing.T) {
 	for _, testProtocol = range testProtocols {
-		t.Run("TestStartStop", TestStartStop)
-		t.Run("TestReadObserveDeviceProperties", TestReadObserveDeviceProperties)
-		t.Run("TestSubscribeReconnectToDevice", TestSubscribeReconnectToDevice)
+		t.Run("TestStartStop: "+testProtocol, TestStartStop)
+		t.Run("TestReadObserveDeviceProperties: "+testProtocol, TestReadObserveDeviceProperties)
+		t.Run("TestSubscribeReconnectToDevice: "+testProtocol, TestSubscribeReconnectToDevice)
 	}
 }
 
@@ -152,15 +151,13 @@ func TestStartStop(t *testing.T) {
 	slog.Warn(fmt.Sprintf("---Test: %s %s---\n", t.Name(), testProtocol))
 	const clientID = "testclient"
 
-	var testDirMod = directory_service.NewDirectoryService("", "", nil, nil)
-	err := testDirMod.Start()
+	testDirMod, err := directory_service.StartDirectoryService("", "", nil, nil)
 	require.NoError(t, err)
 	// test no cred store
-	m := router_service.NewRouterService(
+	svc, err := router_service.StartRouterService(
 		"", false, clientID, nil, nil, rpcTimeout, testDirMod.GetTD, nil)
-	err = m.Start()
 	require.NoError(t, err)
-	defer m.Stop()
+	defer svc.Stop()
 }
 
 func TestCredentialsStore(t *testing.T) {
@@ -174,30 +171,30 @@ func TestCredentialsStore(t *testing.T) {
 
 	// the router uses the TD to connect to the device.
 	// this doesn't actually need a directory. GetTD could also simply return the device TD.
-	routerMod := router_service.NewRouterService(
+	routerSvc, err := router_service.StartRouterService(
 		storageDir, false, clientID, nil, nil, rpcTimeout, nil, nil)
-	err := routerMod.Start()
+
 	require.NoError(t, err)
 
-	credType, hasCred := routerMod.HasThingCredentials(thingID1)
+	credType, hasCred := routerSvc.HasThingCredentials(thingID1)
 	assert.False(t, hasCred)
 	assert.Equal(t, "", credType)
 
-	routerMod.AddDeviceCredential(thingID1, clientID, clientCred, thingScheme)
+	routerSvc.AddDeviceCredential(thingID1, clientID, clientCred, thingScheme)
 
-	credType, hasCred = routerMod.HasThingCredentials(thingID1)
+	credType, hasCred = routerSvc.HasThingCredentials(thingID1)
 	assert.True(t, hasCred)
 	assert.Equal(t, thingScheme, credType)
 
-	routerMod.Stop()
+	routerSvc.Stop()
 
 	// restarting the router should retain the credentials
-	err = routerMod.Start()
+	err = routerSvc.Start()
 	require.NoError(t, err)
 
-	credType, hasCred = routerMod.HasThingCredentials(thingID1)
+	credType, hasCred = routerSvc.HasThingCredentials(thingID1)
 	assert.True(t, hasCred)
-	routerMod.Stop()
+	routerSvc.Stop()
 }
 
 // connect to a stand-alone test device and authenticate with client cert
@@ -323,34 +320,33 @@ func TestSubscribeReconnectToDevice(t *testing.T) {
 	// 2. setup the consumer side: directory, router and consumer
 	// register the device TD in the directory for use by the router
 	// See also the factory consumer recipes for this use-case that makes it easier.
-	var testDirMod = directory_service.NewDirectoryService("", "", nil, nil)
-	err := testDirMod.Start()
+	testDirSvc, err := directory_service.StartDirectoryService("", "", nil, nil)
 	require.NoError(t, err)
-	defer testDirMod.Stop()
+	defer testDirSvc.Stop()
 	deviceTDJson := td.MarshalTD(tdoc)
-	err = testDirMod.CreateThing(deviceID, deviceTDJson)
+	err = testDirSvc.CreateThing(deviceID, deviceTDJson)
 	require.NoError(t, err)
 
 	// the router uses the TD to connect to the device.
 	// this doesn't actually need a directory. GetTD could also simply return the device TD.
-	routerMod := router_service.NewRouterService(
+	routerSvc, err := router_service.StartRouterService(
 		storageDir, true, clientID,
 		testEnv.CertBundle.ClientCert,
 		testEnv.CertBundle.RootCAs,
-		rpcTimeout, testDirMod.GetTD, nil)
-	err = routerMod.Start()
+		rpcTimeout, testDirSvc.GetTD, nil)
+
 	require.NoError(t, err)
-	defer routerMod.Stop()
+	defer routerSvc.Stop()
 
 	// to connect to the device, consumer credentials are needed
 	testEnv.TestAuthn.AddClient(testConsumerID, "", authn.ClientRoleOperator)
 	token, _, _ := testEnv.TestAuthn.CreateToken(testConsumerID, rpcTimeout)
-	routerMod.AddDeviceCredential(deviceID, clientID, token, td.SecSchemeBearer)
+	routerSvc.AddDeviceCredential(deviceID, clientID, token, td.SecSchemeBearer)
 
 	ctx, cancelFn := context.WithTimeout(context.Background(), rpcTimeout)
 
 	// a consumer links to the router which connects to devices using device TDs
-	co := consumer.NewConsumer(routerMod, func(notif *msg.NotificationMessage) {
+	co := consumer.StartConsumer(routerSvc, func(notif *msg.NotificationMessage) {
 		if notif.Name == event1Name {
 			var v1 string
 			err = notif.Decode(&v1)

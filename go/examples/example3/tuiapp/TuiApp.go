@@ -356,7 +356,7 @@ func NewTuiApp(f api.ICellFactory) *TuiApp {
 	tview.Styles.TitleColor = tcell.ColorGreen
 	tview.Styles.TertiaryTextColor = tcell.ColorWhite
 
-	co := consumer.NewConsumer(nil, nil)
+	co := consumer.StartConsumer(nil, nil)
 
 	header := NewAppHeader()
 	header.View.SetBorderColor(tcell.ColorDarkGray)

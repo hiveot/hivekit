@@ -137,15 +137,6 @@ func (svc *LoggingServiceImpl) SetSink(sink api.IHiveCell) {
 	sink.SetNotificationSink(svc)
 }
 
-// Start opens the logging destination.
-func (svc *LoggingServiceImpl) Start() (err error) {
-	slog.Info("Start: Starting logging service")
-	// TBD: separate config for  notifications vs requests logs?
-	svc.requestLogger, svc.releaseFn = svc.NewLogger(&svc.Config)
-	svc.notificationLogger = svc.requestLogger
-	return nil
-}
-
 // Stop closes the logging destination.
 func (svc *LoggingServiceImpl) Stop() {
 	slog.Info("Stop: Stopping logging service")
@@ -155,15 +146,21 @@ func (svc *LoggingServiceImpl) Stop() {
 	}
 }
 
-// NewLoggingServiceImpl creates a new instance of the logging service.
+// StartLoggingServiceImpl creates a new instance of the logging service.
 //
 // config is the default service configuration.
-func NewLoggingServiceImpl(config logging.LoggingConfig) *LoggingServiceImpl {
+func StartLoggingServiceImpl(
+	config logging.LoggingConfig) (*LoggingServiceImpl, error) {
+
+	slog.Info("StartLoggingServiceImpl: Starting logging service")
 
 	svc := &LoggingServiceImpl{
 		HiveCellBase: cells.NewHiveCellBase(config.CellID, 0),
+		Config:       config,
 	}
-	svc.Config = config
+	// TBD: separate config for  notifications vs requests logs?
+	svc.requestLogger, svc.releaseFn = svc.NewLogger(&svc.Config)
+	svc.notificationLogger = svc.requestLogger
 
-	return svc
+	return svc, nil
 }

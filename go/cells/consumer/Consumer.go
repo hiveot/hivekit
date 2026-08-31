@@ -249,7 +249,7 @@ func (co *Consumer) WriteProperty(thingID string, name string, input any, wait b
 	return err
 }
 
-// NewConsumer returns a new instance of the WoT consumer.
+// StartConsumer starts and links a new instance of the WoT consumer.
 //
 // This provides the API for common WoT operations such as invoking actions and
 // supports RPC calls by waiting for a response.
@@ -258,9 +258,9 @@ func (co *Consumer) WriteProperty(thingID string, name string, input any, wait b
 // A notification handler can be provided or set with SetNotificationHook
 // Use SetTimeout to modify the default RPC timeout
 //
-//		sink, if provided, is the request sink and notification source
-//	 notificationHook is the optional application callback for incoming notifications
-func NewConsumer(sink api.IHiveCell, notificationHook msg.NotificationHandler) *Consumer {
+//	sink, if provided, is the request sink and notification source
+//	notificationHook is the optional application callback for incoming notifications
+func StartConsumer(sink api.IHiveCell, notificationHook msg.NotificationHandler) *Consumer {
 	thingID := ConsumerCellType + "-" + shortid.MustGenerate()
 	consumer := &Consumer{
 		HiveCellBase:        cells.NewHiveCellBase(thingID, msg.DefaultRnRTimeout),
@@ -276,7 +276,7 @@ func NewConsumer(sink api.IHiveCell, notificationHook msg.NotificationHandler) *
 
 // Factory for creating a consumer using the factory environment
 func NewConsumerFactory(f api.ICellFactory, md *api.CellDefinition) (api.IHiveCell, error) {
-	c := NewConsumer(nil, nil)
+	c := StartConsumer(nil, nil)
 	c.SetTimeout(f.GetEnvironment().RpcTimeout)
 	return c, nil
 }

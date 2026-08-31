@@ -51,7 +51,7 @@ func TestInvokeActionFromConsumerToServer(t *testing.T) {
 	defer cancelFn()
 
 	// the device will receive the action request and return an immediate result
-	ag := thing.NewExposedThing("", func(req *msg.RequestMessage, replyTo msg.ResponseHandler) error {
+	ag := thing.StartExposedThing("", func(req *msg.RequestMessage, replyTo msg.ResponseHandler) error {
 		var resp *msg.ResponseMessage
 		if req.Operation == td.OpInvokeAction {
 			inputVal.Store(req.Input)
@@ -213,7 +213,7 @@ func TestQueryActions(t *testing.T) {
 
 	// 2. register a device for receiving a request and link it to the server.
 	// Note that WoT doesn't cover this use-case so this uses hiveot vocabulary operation.
-	ag := thing.NewExposedThing("", func(req *msg.RequestMessage, replyTo msg.ResponseHandler) error {
+	ag := thing.StartExposedThing("", func(req *msg.RequestMessage, replyTo msg.ResponseHandler) error {
 		var resp *msg.ResponseMessage
 		assert.NotNil(t, replyTo)
 		assert.NotNil(t, req.CorrelationID)

@@ -163,21 +163,6 @@ func (m *DiscoveryServerImpl) ServeThingTD(serviceName string, tdJSON string) (e
 	return nil
 }
 
-// Start starts the discovery server.
-//
-// This waits until ServeDirectoryTD or ServeThingTD is called, or a cell up the
-// chain sends a corresponding ServeDirectoryTDAction or ServeThingTDAction request.
-func (m *DiscoveryServerImpl) Start() (err error) {
-
-	if m.tddJSON != "" {
-		slog.Info("Start: Starting discovery server - serving directory TD")
-		m.ServeDirectoryTD(m.serviceName, m.tddJSON)
-	} else {
-		slog.Info("Start: Starting discovery server - no TD served yet")
-	}
-	return nil
-}
-
 // Stop any running services and release resources
 func (m *DiscoveryServerImpl) Stop() {
 	m.mux.Lock()
@@ -192,7 +177,7 @@ func (m *DiscoveryServerImpl) Stop() {
 	}
 }
 
-// NewDiscoveryServerImpl creates a new discovery server instance.
+// StartDiscoveryServerImpl starts a new discovery server instance.
 //
 // The thingID is set to the cell type. Note that the ID in the TDD might differ.
 //
@@ -204,21 +189,30 @@ func (m *DiscoveryServerImpl) Stop() {
 //	httpServer is the server that serves the TD on the well-known endpoint.
 //	tddJSON is the optional directory TDD as JSON to serve.
 //	transports for TD security scheme, base URL and forms. Optional.
-func NewDiscoveryServerImpl(serviceName string,
+func StartDiscoveryServerImpl(serviceName string,
 	httpServer api.IHttpServer,
 	tddJSON string,
-	endpoints map[string]string) *DiscoveryServerImpl {
+	endpoints map[string]string) (*DiscoveryServerImpl, error) {
+	var err error
 
 	// thingID is defined in the TDD and should match HiveCell thingID
 	thingID := discovery.DiscoveryServerCellType
 
-	m := &DiscoveryServerImpl{
+	srv := &DiscoveryServerImpl{
 		HiveCellBase: cells.NewHiveCellBase(thingID, 0),
 		serviceName:  serviceName,
 		tddJSON:      tddJSON,
 		endpoints:    endpoints,
 		httpServer:   httpServer,
 	}
-	var _ discovery.IDiscoveryServer = m // interface check
-	return m
+
+	if tddJSON != "" {
+		slog.Info("Start: Starting discovery server - serving directory TD")
+		err = srv.ServeDirectoryTD(serviceName, tddJSON)
+	} else {
+		slog.Info("Start: Starting discovery server - no TD served yet")
+	}
+
+	var _ discovery.IDiscoveryServer = srv // interface check
+	return srv, err
 }

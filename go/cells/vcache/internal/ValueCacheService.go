@@ -150,11 +150,6 @@ func (m *ValueCacheService) ReadMultipleProperties(
 	return propMap, isCached
 }
 
-// Start opens the logging destination.
-func (m *ValueCacheService) Start() (err error) {
-	return err
-}
-
 // Stop closes the logging destination.
 func (m *ValueCacheService) Stop() {
 }
@@ -178,14 +173,14 @@ func (m *ValueCacheService) WriteProperty(notif *msg.NotificationMessage) {
 	m.store.WriteValue(notif)
 }
 
-// Create a new instance of the value cache service.
-func NewValueCacheService() *ValueCacheService {
+// Start a new instance of the value cache service.
+func StartValueCacheService() (*ValueCacheService, error) {
 
 	thingID := vcacheapi.ValueCacheCellType + "-" + shortid.MustGenerate()
-	m := &ValueCacheService{
+	svc := &ValueCacheService{
 		HiveCellBase: cells.NewHiveCellBase(thingID, 0),
 		store:        *NewVCacheStore(),
 	}
-	var _ vcacheapi.IValueCacheService = m // interface check
-	return m
+	var _ vcacheapi.IValueCacheService = svc // interface check
+	return svc, nil
 }

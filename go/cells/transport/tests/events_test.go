@@ -191,7 +191,7 @@ func TestPublishEventsByRCThing(t *testing.T) {
 
 	// 1. start the transport
 	// handler of notifications received on the server
-	co := consumer.NewConsumer(nil, func(msg *msg.NotificationMessage) {
+	co := consumer.StartConsumer(nil, func(msg *msg.NotificationMessage) {
 		// the server handler receives all notifications
 		if msg.ThingID == thingID {
 			evVal.Store(msg.Data)
@@ -226,7 +226,7 @@ func TestReadEvent(t *testing.T) {
 
 	// 1. start the device transport with the request handler
 	// in this case the consumer connects to the device (unlike when using a hub)
-	ag := thing.NewExposedThing("", func(req *msg.RequestMessage, replyTo msg.ResponseHandler) error {
+	ag := thing.StartExposedThing("", func(req *msg.RequestMessage, replyTo msg.ResponseHandler) error {
 		if req.Operation == td.HTOpReadEvent && req.ThingID == thingID && req.Name == eventKey {
 			evNotif := msg.NewNotificationMessage("device1", msg.AffordanceTypeEvent, thingID, req.Name, eventValue)
 			evNotif.Timestamp = timestamp

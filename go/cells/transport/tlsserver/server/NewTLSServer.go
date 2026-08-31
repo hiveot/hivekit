@@ -9,9 +9,9 @@ import (
 )
 
 // Create a new TLS server instance with the given configuration
-func NewTLSServer(cfg *tlsserver.TLSServerConfig, authenticator api.IAuthenticator) api.IHttpServer {
-	srv := internal.NewTLSServerImpl(cfg, authenticator)
-	return srv
+func NewTLSServer(
+	cfg *tlsserver.TLSServerConfig, authenticator api.IAuthenticator) (api.IHttpServer, error) {
+	return internal.StartTLSServerImpl(cfg, authenticator)
 }
 
 // Create a new http transport server instance for the provided factory environment.
@@ -28,6 +28,5 @@ func NewTLSServerFactory(
 	addr := ""
 	rootCAs := env.GetRootCAs()
 	cfg := tlsserver.NewTLSServerConfig(addr, env.HttpsPort, serverCert, rootCAs, true)
-	srv := internal.NewTLSServerImpl(cfg, f.GetAuthenticator())
-	return srv, nil
+	return internal.StartTLSServerImpl(cfg, f.GetAuthenticator())
 }

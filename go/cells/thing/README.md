@@ -15,7 +15,7 @@ This cell is in alpha. It is functional but breaking changes can still happen.
 ## Usage
 
 in short:  
-m := NewEThing(applicationID)
+m := StartExposedThing(applicationID)
 m.SetAppRequestHook(func(req,replyTo)error{
     application request handler code
 })

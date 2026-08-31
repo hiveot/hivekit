@@ -32,17 +32,16 @@ func TestDiscoverThings(t *testing.T) {
 	testEnv.StartHttpServer(true)
 	defer testEnv.HttpServer.Stop()
 
-	m := discovery_server.NewDiscoveryServer(testDirServiceName, testEnv.HttpServer, "", nil)
-	err := m.Start()
+	discoSrv, err := discovery_server.StartDiscoveryServer(testDirServiceName, testEnv.HttpServer, "", nil)
 	require.NoError(t, err)
-	defer m.Stop()
-	err = m.ServeThingTD(testServiceName, testTDJson)
+	defer discoSrv.Stop()
+	err = discoSrv.ServeThingTD(testServiceName, testTDJson)
 	require.NoError(t, err)
 
 	// Test if it is discovered
 	serverAddr := testEnv.HttpServer.GetConnectURL()
 	urlParts, _ := url.Parse(serverAddr)
-	cl := discovery_client.NewDiscoveryClient(nil, false)
+	cl, err := discovery_client.StartDiscoveryClient(nil, false)
 	records, err := cl.DiscoverThings(testServiceName, time.Second, nil)
 	require.NoError(t, err)
 	require.Equal(t, len(records), 1, "the test thing record was not discovered")
@@ -58,10 +57,9 @@ func TestDiscoverGetThingTD(t *testing.T) {
 	defer testEnv.HttpServer.Stop()
 	thingTD := testEnv.CreateTestTD(12)
 
-	m := discovery_server.NewDiscoveryServer(testDirServiceName, testEnv.HttpServer, "", nil)
-	err := m.Start()
+	discoSrv, err := discovery_server.StartDiscoveryServer(testDirServiceName, testEnv.HttpServer, "", nil)
 	require.NoError(t, err)
-	defer m.Stop()
+	defer discoSrv.Stop()
 
 	// Serve a TD published in the request chain.
 	// This should be handled by the discovery server.
@@ -69,12 +67,12 @@ func TestDiscoverGetThingTD(t *testing.T) {
 	tdJson1 := td.MarshalTD(thingTD)
 	req := msg.NewRequestMessage(td.OpInvokeAction,
 		discovery.DiscoveryServerCellType, discovery.ServeThingTDAction, tdJson1)
-	err = m.HandleRequest(req, req.NoReply)
+	err = discoSrv.HandleRequest(req, req.NoReply)
 	require.NoError(t, err)
 
 	// discover the server
 	appEnv := api.NewHiveEnvironment("", false)
-	cl := discovery_client.NewDiscoveryClient(appEnv, false)
+	cl, err := discovery_client.StartDiscoveryClient(appEnv, false)
 	recs, err := cl.DiscoverThings(testServiceName, time.Second, nil)
 	// records, err := cl.DiscoverThings(testThingServiceID, time.Second, nil)
 	require.NoError(t, err)

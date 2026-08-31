@@ -50,30 +50,6 @@ func (svc *HistoryServiceImpl) HandleNotification(notif *msg.NotificationMessage
 	svc.ForwardNotification(notif)
 }
 
-// Start the history service and open the store
-// this loads the filters
-func (svc *HistoryServiceImpl) Start() (err error) {
-	switch svc.config.Backend {
-	case bucketstore.BackendPebble:
-		svc.bucketStore = pebblestore.NewBucketStore(svc.config.StoreDirectory)
-		err = svc.bucketStore.Open()
-	case bucketstore.BackendKVBTree:
-		svc.bucketStore = kvbtreestore.NewBucketStore(svc.config.StoreDirectory)
-		err = svc.bucketStore.Open()
-	default:
-		err = fmt.Errorf("Start: Unknown bucket store backend type '%s'", svc.config.Backend)
-	}
-	if err != nil {
-		return err
-	}
-
-	slog.Info("Start: Starting history service with backend " + svc.config.Backend)
-	// Messaging API handler for reading the history
-	// m.readHistoryMsgHandler = NewReadHistoryMsgHandler(m)
-
-	return err
-}
-
 // Stop using the history service and release resources
 func (svc *HistoryServiceImpl) Stop() {
 	slog.Info("Stop: Stopping history service")
@@ -105,22 +81,42 @@ func (svc *HistoryServiceImpl) StoreRequest(req *msg.RequestMessage) error {
 	return err
 }
 
-// NewHistoryServiceImpl creates a new instance for the history service using the given
+// StartHistoryServiceImpl creates a new instance for the history service using the given
 // configuration.
 //
 // A configuration can be created using: config.NewHistoryConfig(storeDirectory, backend)
-func NewHistoryServiceImpl(config history.HistoryConfig) *HistoryServiceImpl {
+func StartHistoryServiceImpl(config history.HistoryConfig) (*HistoryServiceImpl, error) {
 
+	var bucketStore bucketstore.IBucketStore
+	var err error
 	thingID := history.DefaultHistoryThingID
+
+	switch config.Backend {
+	case bucketstore.BackendPebble:
+		bucketStore, err = pebblestore.OpenPebbleStore(config.StoreDirectory)
+	case bucketstore.BackendKVBTree:
+		bucketStore, err = kvbtreestore.OpenKVBTreeStore(config.StoreDirectory)
+	default:
+		err = fmt.Errorf("Start: Unknown bucket store backend type '%s'", config.Backend)
+	}
+	if err != nil {
+		return nil, err
+	}
+
+	slog.Info("Start: Starting history service with backend " + config.Backend)
+	// Messaging API handler for reading the history
+	// m.readHistoryMsgHandler = NewReadHistoryMsgHandler(m)
+
 	svc := &HistoryServiceImpl{
 		HiveCellBase:   cells.NewHiveCellBase(thingID, 0),
+		bucketStore:    bucketStore,
 		cursorLifespan: time.Minute,
-		cursorCache:    bucketstoreservice.NewCursorCache(),
+		cursorCache:    bucketstoreservice.StartCursorCache(),
 		config:         config,
 	}
 	// m.config = NewHistoryConfig()
 	// m.config = config.NewHistoryConfig(storeDirectory, backend)
 
 	var _ history.IHistoryService = svc // interface check
-	return svc
+	return svc, err
 }

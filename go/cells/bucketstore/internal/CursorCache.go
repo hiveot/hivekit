@@ -188,8 +188,8 @@ func (cc *CursorCache) Release(clientID string, cursorKey string) error {
 	return nil
 }
 
-// Start starts a background loop to remove expired cursors
-func (cc *CursorCache) Start() {
+// startCursorManagement starts a background loop to remove expired cursors
+func (cc *CursorCache) startCursorManagement() {
 	go func() {
 		for {
 			ctx, cancelFn := context.WithTimeout(context.Background(), time.Minute)
@@ -217,12 +217,13 @@ func (cc *CursorCache) Stop() {
 
 // CursorCache manages a set of cursors that can be addressed remotely by key.
 // Intended for servers that let remote clients iterate a cursor in the bucket store.
-func NewCursorCache() *CursorCache {
+func StartCursorCache() *CursorCache {
 	cc := CursorCache{
 		cursorsByKey:  make(map[string]*bucketstore.CursorInfo),
 		cursorCounter: 1,
 		mux:           sync.RWMutex{},
 		stopCh:        make(chan bool),
 	}
+	cc.startCursorManagement()
 	return &cc
 }

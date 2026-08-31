@@ -7,7 +7,6 @@ import (
 	"math/rand"
 	"os"
 	"path"
-	"path/filepath"
 	"testing"
 	"time"
 
@@ -80,12 +79,9 @@ func openNewStore(storeDir string) (store bucketstore.IBucketStore, err error) {
 		return nil, err
 	}
 	if testBackendType == bucketstore.BackendPebble {
-		store = pebblestore.NewBucketStore(storeDir)
+		store, err = pebblestore.OpenPebbleStore(storeDir)
 	} else {
-		store = kvbtreestore.NewBucketStore(storeDir)
-	}
-	if err == nil {
-		err = store.Open()
+		store, err = kvbtreestore.OpenKVBTreeStore(storeDir)
 	}
 	return store, err
 }
@@ -190,8 +186,7 @@ func addDocs(store bucketstore.IBucketStore, bucketID string, count int) error {
 }
 
 func startServer(t *testing.T) (bucketstore.IBucketStoreService, func(), error) {
-	m := bucketstore_service.NewBucketStoreService(storageLocation, testBackendType)
-	err := m.Start()
+	m, err := bucketstore_service.StartBucketStoreService(storageLocation, testBackendType)
 	require.NoError(t, err)
 	return m, func() {
 		m.Stop()
@@ -264,7 +259,7 @@ func TestWriteRead(t *testing.T) {
 	const id5 = "id5"
 	const id22 = "id22"
 
-	store, err := openNewStore(filepath.Join(storageLocation, "test.kvbtree"))
+	store, err := openNewStore(storageLocation)
 	assert.NoError(t, err)
 	err = addDocs(store, testBucketID, 3)
 
@@ -299,7 +294,12 @@ func TestWriteRead(t *testing.T) {
 	time.Sleep(time.Second)
 
 	// --- reopen ---
-	err = store.Open() // reopen
+	if testBackendType == bucketstore.BackendPebble {
+		store, err = pebblestore.OpenPebbleStore(storageLocation)
+	} else {
+		store, err = kvbtreestore.OpenKVBTreeStore(storageLocation)
+	}
+
 	require.NoError(t, err)
 	bucket = store.GetBucket(testBucketID)
 	assert.NotNil(t, bucket)
@@ -700,7 +700,7 @@ func TestGetSetMsgAPI(t *testing.T) {
 	require.NoError(t, err)
 	defer stopFn()
 	tp := testenv.NewTestTransport(clientID, m)
-	cl := bucketstore_client.NewBucketStoreMsgClient(tp, storeThingID)
+	cl := bucketstore_client.StartBucketStoreMsgClient(tp, storeThingID)
 	err = cl.Set(key1, val1)
 	require.NoError(t, err)
 

@@ -7,7 +7,7 @@ import (
 	clientimpl "github.com/hiveot/hivekit/go/cells/directory/internal/clientimpl"
 )
 
-// NewDirectoryClient creates a client for the Thing directory service.
+// StartDirectoryClient creates a client for the Thing directory service.
 //
 // This client can also be used stand-alone without a directory server. In this case
 // it can be configured to read TD's from the local file system. By copying TD JSON
@@ -64,17 +64,16 @@ import (
 //	See also the discovery client which supports this method.
 //
 // This returns a new instance of the directory client
-func NewDirectoryClient(dirTDD *td.TD, sink api.IHiveCell) directory.IDirectoryClient {
-	dirClient := clientimpl.NewDirectoryClientImpl(dirTDD, sink)
-	return dirClient
+func StartDirectoryClient(dirTDD *td.TD, sink api.IHiveCell) directory.IDirectoryClient {
+	return clientimpl.NewDirectoryClientImpl(dirTDD, sink)
 }
 
-// NewDirectoryClientFactory creates the directory client using the TDD from the app environment.
+// StartDirectoryClientFactory creates the directory client using the TDD from the app environment.
 // If no TDD is available then Start checks for an out-of-band stored TDD file.
-func NewDirectoryClientFactory(f api.ICellFactory, modDef *api.CellDefinition) (api.IHiveCell, error) {
+func StartDirectoryClientFactory(f api.ICellFactory, modDef *api.CellDefinition) (api.IHiveCell, error) {
+
 	appEnv := f.GetEnvironment()
-	dirClient := NewDirectoryClient(appEnv.DirTDD, nil)
-	return dirClient, nil
+	return StartDirectoryClient(appEnv.DirTDD, nil), nil
 }
 
 // // Create the new directory client for the http protocol as per spec

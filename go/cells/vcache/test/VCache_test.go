@@ -29,10 +29,9 @@ func TestMain(m *testing.M) {
 func TestStartStop(t *testing.T) {
 	t.Logf("---%s---\n", t.Name())
 
-	m := vcache_service.NewValueCacheService()
-	err := m.Start()
+	svc, err := vcache_service.StartValueCacheService()
 	require.NoError(t, err)
-	defer m.Stop()
+	defer svc.Stop()
 }
 
 // Capture property notifications and retrieving their value
@@ -46,33 +45,32 @@ func TestPropertyNotifications(t *testing.T) {
 	const prop1Value = "value1"
 	const prop2Value = "value2"
 
-	m := vcache_service.NewValueCacheService()
-	err := m.Start()
+	svc, err := vcache_service.StartValueCacheService()
 	require.NoError(t, err)
-	defer m.Stop()
+	defer svc.Stop()
 	// co := consumer.NewConsumer(m, func(n *msg.NotificationMessage) {
 	// 	slog.Info("received the notification")
 	// })
 
 	// Emit notification. A warning is logged as the service cannot forward the notification.
 	n1 := msg.NewNotificationMessage(sender1ID, msg.AffordanceTypeProperty, thing1ID, prop1Name, prop1Value)
-	m.HandleNotification(n1)
+	svc.HandleNotification(n1)
 	n2 := msg.NewNotificationMessage(sender1ID, msg.AffordanceTypeProperty, thing2ID, prop1Name, prop1Value)
-	m.HandleNotification(n2)
+	svc.HandleNotification(n2)
 	n3 := msg.NewNotificationMessage(sender1ID, msg.AffordanceTypeProperty, thing2ID, prop2Name, prop2Value)
-	m.HandleNotification(n3)
+	svc.HandleNotification(n3)
 
-	status := m.GetCacheStatus()
+	status := svc.GetCacheStatus()
 	assert.Equal(t, 2, status.NrThings)
 
 	// test 1: reading a single property
-	notif := m.ReadProperty(thing1ID, prop1Name)
+	notif := svc.ReadProperty(thing1ID, prop1Name)
 	require.NotNil(t, notif)
 	assert.Equal(t, prop1Value, notif.Data)
 
 	// test 2: Thing2 should have multiple values
 	prop12Names := []string{prop1Name, prop2Name}
-	valueMap, foundAll := m.ReadMultipleProperties(thing2ID, prop12Names)
+	valueMap, foundAll := svc.ReadMultipleProperties(thing2ID, prop12Names)
 	require.True(t, foundAll)
 	require.Equal(t, 2, len(valueMap))
 	assert.Equal(t, prop2Value, valueMap[prop2Name].Data)
@@ -80,7 +78,7 @@ func TestPropertyNotifications(t *testing.T) {
 	// test 3: a read property request should be answered from the cache
 	var respValue string
 	req := msg.NewRequestMessage(td.OpReadProperty, thing1ID, prop1Name, nil)
-	err = m.HandleRequest(req, func(resp *msg.ResponseMessage) error {
+	err = svc.HandleRequest(req, func(resp *msg.ResponseMessage) error {
 		err = resp.Decode(&respValue)
 		return err
 	})
@@ -90,7 +88,7 @@ func TestPropertyNotifications(t *testing.T) {
 	// test 4: a read multiple properties request should also be answered from the cache
 	var multiResp map[string]any
 	req = msg.NewRequestMessage(td.OpReadMultipleProperties, thing2ID, "", prop12Names)
-	err = m.HandleRequest(req, func(resp *msg.ResponseMessage) error {
+	err = svc.HandleRequest(req, func(resp *msg.ResponseMessage) error {
 		err = resp.Decode(&multiResp)
 		return err
 	})
@@ -110,33 +108,32 @@ func TestEventNotifications(t *testing.T) {
 	const ev1Value = "value1"
 	const ev2Value = "value2"
 
-	m := vcache_service.NewValueCacheService()
-	err := m.Start()
+	svc, err := vcache_service.StartValueCacheService()
 	require.NoError(t, err)
-	defer m.Stop()
+	defer svc.Stop()
 	// co := consumer.NewConsumer(m,func(n *msg.NotificationMessage) {
 	// 	slog.Info("received the notification")
 	// })
 
 	// Emit notification. A warning is logged as the service cannot forward the notification.
 	n1 := msg.NewNotificationMessage(sender1ID, msg.AffordanceTypeEvent, thing1ID, ev1Name, ev1Value)
-	m.HandleNotification(n1)
+	svc.HandleNotification(n1)
 	n2 := msg.NewNotificationMessage(sender1ID, msg.AffordanceTypeEvent, thing2ID, ev1Name, ev1Value)
-	m.HandleNotification(n2)
+	svc.HandleNotification(n2)
 	n3 := msg.NewNotificationMessage(sender1ID, msg.AffordanceTypeEvent, thing2ID, ev2Name, ev2Value)
-	m.HandleNotification(n3)
+	svc.HandleNotification(n3)
 
-	status := m.GetCacheStatus()
+	status := svc.GetCacheStatus()
 	assert.Equal(t, 2, status.NrThings)
 
 	// test 1: reading a single event notification
-	notif := m.ReadEvent(thing1ID, ev1Name)
+	notif := svc.ReadEvent(thing1ID, ev1Name)
 	require.NotNil(t, notif)
 	assert.Equal(t, ev1Value, notif.Data)
 
 	// test 2: RRN read request should return the value
 	req := msg.NewRequestMessage(td.HTOpReadEvent, thing1ID, ev1Name, nil)
-	err = m.HandleRequest(req, func(resp *msg.ResponseMessage) error {
+	err = svc.HandleRequest(req, func(resp *msg.ResponseMessage) error {
 		var ev msg.NotificationMessage
 		err = resp.Decode(&ev)
 		require.NoError(t, err)

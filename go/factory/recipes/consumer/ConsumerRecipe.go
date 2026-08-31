@@ -24,18 +24,18 @@ var ConsumerRecipeChain = []api.CellDefinition{
 	{
 		// use a directory client to read thing TDs
 		Type:        directory.DirectoryClientCellType,
-		Constructor: directoryclient.NewDirectoryClientFactory,
+		Constructor: directoryclient.StartDirectoryClientFactory,
 	},
 	{
 		// discover the server using DNS-SD
 		// app can retrieve it with f.GetCell(discovery.DiscoveryClientCellType)
 		Type:        discovery.DiscoveryClientCellType,
-		Constructor: discovery_client.NewDiscoveryClientFactory,
+		Constructor: discovery_client.StartDiscoveryClientFactory,
 	},
 	{
 		// the router manages client connections
 		Type:        router.RouterCellType,
-		Constructor: router_service.NewRouterServiceFactory,
+		Constructor: router_service.StartRouterServiceFactory,
 		// TODO: add configuration for using auto-reconnect
 		// TODO: add configuration for providing credentials
 	},
@@ -64,7 +64,7 @@ func NewConsumerRecipe(f api.ICellFactory, withValueCache bool) api.IRecipe {
 	if withValueCache {
 		modDef := api.CellDefinition{
 			Type:        vcache.ValueCacheCellType,
-			Constructor: vcache_service.NewValueCacheServiceFactory,
+			Constructor: vcache_service.StartValueCacheServiceFactory,
 		}
 		r.SetSlot(valueCacheSlot, modDef)
 	}

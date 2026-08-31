@@ -350,31 +350,21 @@ func (cl *SseScClientImpl) SendResponse(resp *msg.ResponseMessage) error {
 	return err
 }
 
-// Start the client and attempt to connect to the server if not already connected.
-// Intended for use by the factory as the factory provides a clientID/token or client
-// certificate.
-//
-// Most users will use Connect() instead.
-func (cl *SseScClientImpl) Start() error {
-
-	err := cl.Connect()
-	return err
-}
-
 // stop closes the connection
 func (cl *SseScClientImpl) Stop() {
 	cl.Close()
 }
 
-// NewSseScClientImpl creates a new instance of the hiveot http/sse-sc protocol binding client.
+// StartSseScClientImpl starts a new instance of the hiveot http/sse-sc protocol binding client.
 // This uses TD forms to perform operations.
+// Set authentication and call connect before use.
 //
 // For testing, or very slow networks, use SetTimeout to increase the wait time.
 //
 //	sseURL full connection URL of Hiveot SSE server and path
 //	rootCAs are CA certificates to validate the server certificate. nil for system CAs.
 //	ch is the connect/disconnect callback
-func NewSseScClientImpl(sseURL string, rootCAs *x509.CertPool) *SseScClientImpl {
+func StartSseScClientImpl(sseURL string, rootCAs *x509.CertPool) *SseScClientImpl {
 
 	urlParts, err := url.Parse(sseURL)
 	if err != nil {

@@ -97,7 +97,7 @@ func NewCliex(config CliexConfig,
 	caCert *x509.Certificate) *Cliex {
 
 	m := &Cliex{
-		Consumer:    consumer.NewConsumer(nil, nil),
+		Consumer:    consumer.StartConsumer(nil, nil),
 		caCert:      caCert,
 		config:      config,
 		discoClient: discoClient,

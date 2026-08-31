@@ -40,30 +40,27 @@ func (svc *AuthzServiceImpl) HandleRequest(req *msg.RequestMessage, replyTo msg.
 	return svc.HiveCellBase.HandleRequest(req, replyTo)
 }
 
-// start opens the store with authorization rules
-// currently the RBAC is hard coded so nothing to configure
-func (svc *AuthzServiceImpl) Start() (err error) {
-	slog.Info("Start: Starting authz")
-	if svc.getRoleHandler == nil {
-		slog.Warn("Start: no getRoleHandler provided, only read requests will be accepted")
-	}
-	return nil
-}
-
 // Stop closes the rules store and releases resources
 func (svc *AuthzServiceImpl) Stop() {
 	slog.Info("Stop: Stopping authz")
 }
 
-// Create a new instance of the authorization service.
+// Start a new instance of the authorization service.
 // The getRole handler is used to determine a client's role for RBAC
-func NewAuthzServiceImpl(getRoleHandler func(clientID string) (role string, err error)) *AuthzServiceImpl {
+func StartAuthzServiceImpl(getRoleHandler func(clientID string) (role string, err error)) *AuthzServiceImpl {
+	slog.Info("Starting authz")
 	// this service is a singleton that exposes multiple service things
 	thingID := authz.AuthzServiceCellType
 	svc := &AuthzServiceImpl{
 		HiveCellBase:   cells.NewHiveCellBase(thingID, 0),
 		getRoleHandler: getRoleHandler,
 	}
+	if getRoleHandler == nil {
+		slog.Warn("NewAuthzServiceImpl: no getRoleHandler provided, only read requests will be accepted")
+	}
+
+	// currently the RBAC is hard coded so nothing to configure
+
 	var _ api.IHiveCell = svc // check interface
 	return svc
 }

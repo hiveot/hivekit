@@ -14,7 +14,7 @@ import (
 // 	return internal.NewAddFormsServiceImpl(tpServers)
 // }
 
-func NewAddFormsServiceFactory(f api.ICellFactory, md *api.CellDefinition) (api.IHiveCell, error) {
-	m := internal.NewAddFormsServiceImpl(f.GetTransportServers)
-	return m, nil
+func StartAddFormsServiceFactory(f api.ICellFactory, md *api.CellDefinition) (api.IHiveCell, error) {
+	svc := internal.StartAddFormsServiceImpl(f.GetTransportServers)
+	return svc, nil
 }

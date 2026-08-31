@@ -50,7 +50,7 @@ func TestMain(m *testing.M) {
 func startService() (
 	testEnv *testenv.TestEnv,
 	dir directory.IDirectoryService,
-	dtw digitwin.IDigitwinService,
+	dtwSvc digitwin.IDigitwinService,
 	stopFn func()) {
 
 	os.RemoveAll(storageDir)
@@ -66,15 +66,13 @@ func startService() (
 	servers := []api.ITransportServer{testEnv.Server}
 	// httpAPI := directorypkg.NewDirectoryHttpServer(testEnv.HttpServer)
 
-	dir = directory_service.NewDirectoryService(
+	dir, err := directory_service.StartDirectoryService(
 		dirThingID, storageDir, testEnv.HttpServer, servers)
-	err := dir.Start()
 	if err != nil {
 		panic("Failed to start directory server")
 	}
 	// the digitwin service to test, it will create its own vcache instance.
-	dtw = digitwin_service.NewDigitwinService(storageDir, dir, appServer.AddTDSecForms)
-	err = dtw.Start()
+	dtwSvc, err = digitwin_service.StartDigitwinService(storageDir, dir, appServer.AddTDSecForms)
 	if err != nil {
 		panic("unable to start the digitwin service")
 	}
@@ -85,36 +83,35 @@ func startService() (
 	// The router uses the digitwin Thing Directory.
 	// getDeviceTD := dtw.GetDeviceDirectory().GetTD
 	clientID := testEnv.AppEnv.ClientID
-	rtr := router_service.NewRouterService(
+	rtr, err := router_service.StartRouterService(
 		storageDir, false, clientID, nil, //svc.clientCert, use SetClientCert if known
 		testEnv.CertBundle.RootCAs, rpcTimout,
-		dtw.GetDeviceTD,
+		dtwSvc.GetDeviceTD,
 		getTps,
 	)
-	err = rtr.Start()
 	if err != nil {
 		panic("unable to start the router service")
 	}
 	// create a request chain server->directory->digitwin->router->server
 	appServer.SetRequestSink(dir)
-	dir.SetRequestSink(dtw)
-	dtw.SetRequestSink(rtr)
+	dir.SetRequestSink(dtwSvc)
+	dtwSvc.SetRequestSink(rtr)
 	rtr.SetRequestSink(appServer)
 
 	// create a reverse notification chain server->router->digitwin->directory->server
 	appServer.SetNotificationSink(rtr)
-	rtr.SetNotificationSink(dtw)
-	dtw.SetNotificationSink(dir)
+	rtr.SetNotificationSink(dtwSvc)
+	dtwSvc.SetNotificationSink(dir)
 	dir.SetNotificationSink(appServer)
 
 	slog.Info("--- digitwin test environment started ---")
 
-	return testEnv, dir, dtw, func() {
+	return testEnv, dir, dtwSvc, func() {
 		// give client connections time to close
 		time.Sleep(time.Millisecond)
 		slog.Info("--- digitwin test environment stopping ---")
 		dir.Stop()
-		dtw.Stop()
+		dtwSvc.Stop()
 		rtr.Stop()
 		appServer.Stop()
 		if testEnv.HttpServer != nil {
@@ -205,7 +202,7 @@ func TestReadDigitwinProperty(t *testing.T) {
 
 	// the digital twin will receive the readproperty request.
 	// the digitwin service should forward the read property downstream to the actual device, as the property is unknown.
-	downstream := thing.NewExposedThing("", func(req *msg.RequestMessage, replyTo msg.ResponseHandler) error {
+	downstream := thing.StartExposedThing("", func(req *msg.RequestMessage, replyTo msg.ResponseHandler) error {
 		if req.Operation == td.OpReadProperty {
 			if req.ThingID == deviceTD1.ID && req.Name == prop1Name {
 				resp := req.CreateResponse(prop1Value, nil)
@@ -324,7 +321,7 @@ func TestWriteDigitwinProperty(t *testing.T) {
 
 	// 4. Consumer reads the TD with its own directory client
 	dirTDD, _ := dir.GetTDD()
-	dirCoCl := directory_client.NewDirectoryClient(dirTDD, co)
+	dirCoCl := directory_client.StartDirectoryClient(dirTDD, co)
 	tdoc3, err := dirCoCl.RetrieveThing(dtwThing1ID)
 	require.NoError(t, err)
 	require.NotEmpty(t, tdoc3)

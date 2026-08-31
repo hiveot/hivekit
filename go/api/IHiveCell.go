@@ -38,8 +38,8 @@ type IHiveCell interface {
 	//    Flow: consumer -> client -> server -> producer
 	//    Flow: producer -> server -> client -> request sink
 	//
-	// 3. If the cell is a transport server or server connection then the request is
-	//    transported to the remote client. The client passes it to its registered sink.
+	// 3. If the cell is a transport server then the request is transported
+	//    to the remote client. The client emits it to its registered sink.
 	//    This sink should be a producer that can handle the request.
 	//    (In this case the consumer is a process running on the server)
 	//    Flow: consumer -> server -> client -> request sink
@@ -68,10 +68,10 @@ type IHiveCell interface {
 	//
 	// This does not affect notifications or requests emitted by this cell.
 	//
-	// The default is to forward both notifications and unhandled requests,
-	// except for transport clients and transport servers which always forward
-	// these messages to the remote side.
+	// The default is to forward both notifications and unhandled requests.
 	//
+	// This does not affect forwarding in transport clients and servers as
+	// these always forward messages to the remote side.
 	SetForwarding(forwardNotif bool, forwardReq bool)
 
 	// Set the handler of notifications emitted or forwarded by this cell.
@@ -85,27 +85,45 @@ type IHiveCell interface {
 	//
 	// thingIDs are the things to handle the notifications for, or empty for all things
 	//
-	// This can be invoked before or after Start()
+	// This should be invoked before Start().
+	// It can also be invoked after start for live rewiring of the cell.
 	SetNotificationSink(consumer IHiveCell, thingIDs ...string)
 
 	// SetRequestSink sets the handler of requests emitted by this cell.
 	//
-	// This can be invoked before or after Start() to allow for live rewiring of the
-	// cell chain.
+	// This should be invoked before Start().
+	// It can also be invoked after start for live rewiring of the cell.
 	SetRequestSink(sink IHiveCell)
 
+	// Deprecated: Use the StartXyz() function to start
+	//
 	// Start readies the cell for use.
 	//
-	// Note that during Start cells might not yet be linked, so they must not send
-	// any requests until all cells have started.
+	// proposal:
+	//  1. eliminate Start. Instantiation implies Start.
+	//     cells cannot send requests during instantation.
+	//		pro: simpler, no tension between instantiation and start
+	//		con: can't have something else call start
+	//	2. Stop remains and must cleanup
+	//	3. SetRequestSink enables sending requests, after start.
+	//         or replace it with Start(requestSink,notifsink)
 	//
-	// If this is an issue then try to solve it by providing dependencies during
-	// instantiation, not during Start. When using the factory, other cells can be
-	// retrieved using f.GetCell(type).(interface), where f is the factory instance.
+	// Cells should be linked before calling Start. During Start cells can
+	// send requests and assume they get delivered.
+	//
+	// This implies that after instantiation cells are ready to be used
+	// and can receive notifications from linked cells that are started.
+	// Note that Stop() should always be called to release resources.
+	//
+	// If this is an issue then try to solve it by providing dependencies
+	// during instantiation, not during Start. When using the factory,
+	// other cells can be retrieved using f.GetCell(type).(interface),
+	// where f is the factory instance.
 	//
 	// If the cell cannot be used as intended then return an error.
 	Start() error
 
-	// Stop halts cell operation and releases resources.
+	// Stop halts cell operation and releases resources. This should
+	// be called to release resources even if Start was never called.
 	Stop()
 }

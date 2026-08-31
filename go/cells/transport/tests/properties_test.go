@@ -142,7 +142,7 @@ func TestPublishPropertyByThing(t *testing.T) {
 	var propValue1 = "value1"
 
 	// handler of property updates on the server
-	co := consumer.NewConsumer(nil, func(msg *msg.NotificationMessage) {
+	co := consumer.StartConsumer(nil, func(msg *msg.NotificationMessage) {
 		// the server receives all notifications, we only want matching thingID
 		if msg.ThingID == thingID {
 			evVal.Store(msg.Data.(string))
@@ -178,7 +178,7 @@ func TestReadProperty(t *testing.T) {
 
 	// 1. start the device transport with the request handler
 	// in this case the consumer connects to the device (unlike when using a hub)
-	ag := thing.NewExposedThing("", func(req *msg.RequestMessage, replyTo msg.ResponseHandler) error {
+	ag := thing.StartExposedThing("", func(req *msg.RequestMessage, replyTo msg.ResponseHandler) error {
 		var resp *msg.ResponseMessage
 		if req.Operation == td.OpReadProperty && req.ThingID == thingID && req.Name == propKey {
 			resp = req.CreateResponse(propValue, nil)
@@ -213,7 +213,7 @@ func TestReadAllProperties(t *testing.T) {
 
 	// 1. start the device transport with the request handler
 	// in this case the consumer connects to the device (unlike when using a hub)
-	ag := thing.NewExposedThing("", func(req *msg.RequestMessage, replyTo msg.ResponseHandler) error {
+	ag := thing.StartExposedThing("", func(req *msg.RequestMessage, replyTo msg.ResponseHandler) error {
 		var resp *msg.ResponseMessage
 		if req.Operation == td.OpReadAllProperties {
 			output := make(map[string]any)

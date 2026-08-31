@@ -43,7 +43,7 @@ var AppGatewayRecipeCells = []api.CellDefinition{
 		// If no CA certificate is found in the AppEnvironment then generate a CA.
 		// If no server certificate is found in the AppEnvironment then generate a self-signed certificate.
 		Type:        certs.InitFactoryCertsCellType,
-		Constructor: certs_service.NewInitFactoryCerts,
+		Constructor: certs_service.RunInitFactoryCerts,
 	},
 	{
 		// http server is needed by websocket transport server
@@ -60,7 +60,7 @@ var AppGatewayRecipeCells = []api.CellDefinition{
 			{
 				// http-basic transport server
 				Type:        httpbasic.HttpBasicServerCellType,
-				Constructor: httpbasic_server.NewHttpBasicServerFactory,
+				Constructor: httpbasic_server.StartHttpBasicServerFactory,
 			},
 			{
 				// Websocket transport server
@@ -70,12 +70,12 @@ var AppGatewayRecipeCells = []api.CellDefinition{
 			{
 				// Hiveot SSE
 				Type:        ssesc.SseScServerCellType,
-				Constructor: ssesc_server.NewSseScServerFactory,
+				Constructor: ssesc_server.StartSseScServerFactory,
 			},
 			{
 				// Hiveot gRPC
 				Type:        grpc.HiveotGrpcServerCellType,
-				Constructor: grpc_server.NewHiveotGrpcServerFactory,
+				Constructor: grpc_server.StartHiveotGrpcServerFactory,
 			},
 			// {
 			// 	// MQTT server
@@ -92,28 +92,28 @@ var AppGatewayRecipeCells = []api.CellDefinition{
 	{
 		// logging of requests
 		Type:        logging.LoggingServiceCellType,
-		Constructor: logging_service.NewLoggingServiceFactory,
+		Constructor: logging_service.StartLoggingServiceFactory,
 	},
 	{
 		// Authentication handler and service
 		Type:        authn.AuthnServiceCellType,
-		Constructor: authn_service.NewAuthnServiceFactory,
+		Constructor: authn_service.StartAuthnServiceFactory,
 	},
 	{
 		// Authorization
 		Type:        authz.AuthzServiceCellType,
-		Constructor: authz_service.NewAuthzServiceFactory,
+		Constructor: authz_service.StartAuthzServiceFactory,
 	},
 
 	{
 		// request and notification history storage
 		Type:        history.HistoryServiceCellType,
-		Constructor: history_service.NewHistoryServiceFactory,
+		Constructor: history_service.StartHistoryServiceFactory,
 	},
 	{
 		// Directory service
 		Type:        directory.DirectoryServiceCellType,
-		Constructor: directory_service.NewDirectoryServiceFactory,
+		Constructor: directory_service.StartDirectoryServiceFactory,
 	},
 	{
 		// discovery of the directory (must be placed after directory)
@@ -129,7 +129,7 @@ var AppGatewayRecipeCells = []api.CellDefinition{
 		// Router service for routing requests to devices
 		// this requires a directory client or service.
 		Type:        router.RouterCellType,
-		Constructor: router_service.NewRouterServiceFactory,
+		Constructor: router_service.StartRouterServiceFactory,
 	},
 
 	// todo: optional logging of requests
@@ -171,7 +171,7 @@ func NewGatewayDeviceRecipe(f api.ICellFactory, includeDigitwin bool) api.IRecip
 	if includeDigitwin {
 		digitwinDef := api.CellDefinition{
 			Type:        digitwin.DigitwinCellType,
-			Constructor: digitwin_service.NewDigitwinServiceFactory,
+			Constructor: digitwin_service.StartDigitwinServiceFactory,
 		}
 		r.SetSlot("digitwin-slot", digitwinDef)
 	}

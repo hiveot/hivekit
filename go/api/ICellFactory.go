@@ -122,7 +122,8 @@ type ICellFactory interface {
 	// If the cell factory function is nil then this is an empty slot which
 	// will be ignored.
 	//
-	// This does not link the cell to other cells. See also RunRecipe for creating a chain.
+	// This does not link the cell to other cells. Intended for applications
+	// that manually start services. Recipes use this to create cell instances and start them.
 	//
 	//  cellType identifies the type of the cell to get.
 	//	instantiate set to true to create an instance if one isnt loaded

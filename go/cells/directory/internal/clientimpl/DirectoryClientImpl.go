@@ -2,7 +2,6 @@ package clientimpl
 
 import (
 	"fmt"
-	"path"
 
 	"github.com/hiveot/hivekit/go/api"
 	"github.com/hiveot/hivekit/go/api/msg"
@@ -134,24 +133,6 @@ func (m *DirectoryClientImpl) SetTDD(tdd *td.TD) {
 	m.cache.ImportTD(tdd)
 }
 
-// Start the directory client and retrieve the TDD.
-//
-// For the directory client to function it needs a directory server TDD.
-// If non is provided on instantiation then check the filesystem for an out-of-band
-// configured TDD.
-//
-// Start fails if no TDD is found.
-func (m *DirectoryClientImpl) Start() (err error) {
-
-	if m.dirTDD == nil {
-		dirTDDPath := path.Join(m.configDir, directory.ConfigTDDFilename)
-		m.dirTDD, err = td.ReadTDFromFile(dirTDDPath)
-		// not having a TDD is not fatal
-		err = nil
-	}
-	return err
-}
-
 // NewDirectoryClientImpl creates a new DirectoryClient instance for consumers which
 // uses RRN messages for communicating with the directory server.
 //
@@ -172,7 +153,6 @@ func (m *DirectoryClientImpl) Start() (err error) {
 //	dirTDD is the optional directory TD from external source. Use SetTDD if not yet available.
 //	reqSink forwards requests to the directory server and returns notifications. nil to set manually.
 func NewDirectoryClientImpl(dirTDD *td.TD, reqSink api.IHiveCell) *DirectoryClientImpl {
-
 	thingID := directory.DirectoryClientCellType + "-" + shortid.MustGenerate()
 	cl := &DirectoryClientImpl{
 		HiveCellBase:     cells.NewHiveCellBase(thingID, 0),
@@ -185,6 +165,14 @@ func NewDirectoryClientImpl(dirTDD *td.TD, reqSink api.IHiveCell) *DirectoryClie
 		// notifications returned are passed to this client (if any subscriptions are made)
 		reqSink.SetNotificationSink(cl)
 	}
+
+	// TODO: support for a TDD cache?
+	// if dirTDD == nil {
+	// 	dirTDDPath := path.Join(configDir, directory.ConfigTDDFilename)
+	// 	dirTDD, err = td.ReadTDFromFile(dirTDDPath)
+	// 	// not having a TDD is not fatal
+	// 	err = nil
+	// }
 	var _ directory.IDirectoryClient = cl // interface check
 	return cl
 }

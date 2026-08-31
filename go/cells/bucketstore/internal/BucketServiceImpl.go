@@ -50,35 +50,6 @@ func (svc *BucketServiceImpl) HandleRequest(req *msg.RequestMessage, replyTo msg
 	return err
 }
 
-// Start readies the service for use using the given yaml configuration.
-//
-// This creates a bucket store in {storageDir} and enables the messaging request handler.
-func (svc *BucketServiceImpl) Start() (err error) {
-
-	slog.Info("Start: Starting bucketstore service")
-
-	// if a storage directory is provided then open a store
-	// otherwise create an in-memory store.
-	backend := svc.backend
-
-	// if no location so use the in-memory store
-	if svc.location == "" {
-		backend = bucketstore.BackendKVBTree
-	}
-	switch backend {
-	case bucketstore.BackendKVBTree:
-		svc.store = kvbtreestore.NewBucketStore(svc.location)
-	case bucketstore.BackendPebble:
-		svc.store = pebblestore.NewBucketStore(svc.location)
-	default:
-		// unknown storage type
-		err = fmt.Errorf("Start: unknown storage type '%s'", backend)
-		return err
-	}
-	err = svc.store.Open()
-	return err
-}
-
 // Stop any running actions
 func (svc *BucketServiceImpl) Stop() {
 	slog.Info("Stop: Stopping bucketstore service")
@@ -99,15 +70,37 @@ func (svc *BucketServiceImpl) Stop() {
 // or "" for testing with in-memory storage.
 //
 // location is the bucket storage file, directory or URL depending on the type
-func NewBucketServiceImpl(location string, storeType string) *BucketServiceImpl {
+func StartBucketServiceImpl(location string, storeType string) (svc *BucketServiceImpl, err error) {
+
+	slog.Info("Start: Starting bucketstore service")
+	var store bucketstore.IBucketStore
+
+	// if a storage directory is provided then open a store
+	// if no location for use of the in-memory store
+	if location == "" {
+		storeType = bucketstore.BackendKVBTree
+	}
+	switch storeType {
+	case bucketstore.BackendKVBTree:
+		store, err = kvbtreestore.OpenKVBTreeStore(location)
+	case bucketstore.BackendPebble:
+		store, err = pebblestore.OpenPebbleStore(location)
+	default:
+		// unknown storage type
+		err = fmt.Errorf("Start: unknown storage type '%s'", storeType)
+	}
+	if err != nil {
+		return nil, err
+	}
 
 	// this service is a singleton that exposes multiple service things
 	thingID := bucketstore.DefaultBucketStoreThingID
-	svc := &BucketServiceImpl{
+	svc = &BucketServiceImpl{
 		HiveCellBase: cells.NewHiveCellBase(thingID, 0),
 		location:     location,
 		backend:      storeType,
-		cursorCache:  NewCursorCache(),
+		store:        store,
+		cursorCache:  StartCursorCache(),
 
 		// StoreName:   defaultStoreName,
 		// bucketStore: bucketStore,
@@ -116,5 +109,5 @@ func NewBucketServiceImpl(location string, storeType string) *BucketServiceImpl 
 	var _ api.IHiveCell = svc                  // interface check
 	var _ bucketstore.IBucketStore = svc.store // interface check
 
-	return svc
+	return svc, err
 }

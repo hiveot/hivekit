@@ -6,13 +6,14 @@ import (
 	"github.com/hiveot/hivekit/go/cells/bucketstore/internal"
 )
 
-// NewBucketStoreService returns a new bucket store service
-// Intended to be used as a remote accessible storage facility.
+// StartBucketStoreService returns a new bucket store service
+// Intended to be used as a local or remote accessible storage facility.
+// See also StartCursorCache() to manage cursor lifecycle for remote use.
 //
 //	location is the storage directory
 //	storeType is the backend type, eg BackendInMemory, BackendKVBTree, BackendPebble,...
-func NewBucketStoreService(
-	location string, storeType string) bucketstore.IBucketStoreService {
+func StartBucketStoreService(
+	location string, storeType string) (bucketstore.IBucketStoreService, error) {
 
 	// if location == "" {
 	// 	backend = bucketstore.BackendKVBTree
@@ -28,22 +29,23 @@ func NewBucketStoreService(
 	// 	return nil, err
 	// }
 
-	m := internal.NewBucketServiceImpl(location, storeType)
-	return m
+	svc, err := internal.StartBucketServiceImpl(location, storeType)
+	return svc, err
 }
 
-// NewBucketStoreServiceFactory returns a new bucket store service using the factory environment
+// StartBucketStoreServiceFactory start a new bucket store service using the factory environment
 // This defaults to the kvbtree store which is a balance between speed and capacity.
-func NewBucketStoreServiceFactory(f api.ICellFactory, md *api.CellDefinition) (api.IHiveCell, error) {
+func StartBucketStoreServiceFactory(f api.ICellFactory, md *api.CellDefinition) (api.IHiveCell, error) {
 
 	location := f.GetEnvironment().GetStorageDir(bucketstore.BucketStoreCellType)
 	// TODO: support configuration of storage type (default is pebble)
-	m := NewBucketStoreService(location, bucketstore.BackendKVBTree)
-	return m, nil
+	svc, err := StartBucketStoreService(location, bucketstore.BackendKVBTree)
+	return svc, err
 }
 
-// CursorCache manages a set of cursors that can be addressed remotely by key.
+// StartCursorCache manages a set of cursors that can be addressed remotely by key.
 // Intended for servers that let remote clients iterate a cursor in the bucket store.
-func NewCursorCache() bucketstore.ICursorCache {
-	return internal.NewCursorCache()
+// Call Stop to end the background process and free resources.
+func StartCursorCache() bucketstore.ICursorCache {
+	return internal.StartCursorCache()
 }

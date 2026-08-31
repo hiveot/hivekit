@@ -5,8 +5,9 @@ import (
 	"github.com/hiveot/hivekit/go/cells/bucketstore/kvbtreestore/internal"
 )
 
-// NewBucketStore is the factory function that creates a new, unopened, instance of a bucketstore
+// OpenKVBTreeStore is the factory function that creates a new, unopened, instance of a bucketstore
 // using the kvbtree library.
+// Use Close() to release its resources.
 //
 // Intended for use by the bucketstore service and for cells that need embedded storage.
 //
@@ -14,8 +15,7 @@ import (
 // then it is better to create an instance of that backend directly to reduce compile size.
 //
 // location is the data directory or URL where the data persists. Use "" for an in-memory btree
-func NewBucketStore(location string) (store bucketstore.IBucketStore) {
+func OpenKVBTreeStore(location string) (store bucketstore.IBucketStore, err error) {
 
-	store = internal.NewKVBtreeStore(location)
-	return store
+	return internal.OpenKVBtreeStore(location)
 }

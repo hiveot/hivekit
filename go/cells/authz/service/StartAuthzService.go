@@ -11,14 +11,14 @@ import (
 
 const AuthzCellType = "authz"
 
-func NewAuthzService(getRoleHandler func(clientID string) (role string, err error)) authz.IAuthzService {
-	svc := internal.NewAuthzServiceImpl(getRoleHandler)
+func StartAuthzService(getRoleHandler func(clientID string) (role string, err error)) authz.IAuthzService {
+	svc := internal.StartAuthzServiceImpl(getRoleHandler)
 	return svc
 }
 
 // factory function for creating authz service instance.
 // This loads the authn service to use GetProfile to obtain the role.
-func NewAuthzServiceFactory(f api.ICellFactory, md *api.CellDefinition) (api.IHiveCell, error) {
+func StartAuthzServiceFactory(f api.ICellFactory, md *api.CellDefinition) (api.IHiveCell, error) {
 	m1, err := f.StartCell(authn.AuthnServiceCellType, true)
 	if err != nil {
 		return nil, err
@@ -29,7 +29,7 @@ func NewAuthzServiceFactory(f api.ICellFactory, md *api.CellDefinition) (api.IHi
 		return nil, err
 	}
 	// getrole uses the authn service to get the client profile
-	svc := internal.NewAuthzServiceImpl(func(clientID string) (string, error) {
+	svc := internal.StartAuthzServiceImpl(func(clientID string) (string, error) {
 		p, err := authn.GetProfile(clientID)
 		if err != nil {
 			return "", err

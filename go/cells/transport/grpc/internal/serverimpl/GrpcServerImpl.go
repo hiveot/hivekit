@@ -73,14 +73,11 @@ func (srv *GrpcServerImpl) ServeStreamConnection(
 	return nil
 }
 
-// Start the server with the given configuration.
+// start the server with the given configuration.
 // The server will listen on the configured URL and handle incoming connections.
 // This adapts the URL scheme "unix", "uds", or "tcp" to the appropriate network type for net.Listen
 // and update the connectURL to match the scheme used for listening.
-func (srv *GrpcServerImpl) Start() (err error) {
-
-	slog.Info("Start: Starting grpc transport server",
-		slog.String("connectURL", srv.GetConnectURL()))
+func (srv *GrpcServerImpl) startServing() (err error) {
 
 	address := srv.GetConnectURL()
 	network := "tcp"
@@ -147,9 +144,12 @@ func (srv *GrpcServerImpl) Stop() {
 //	caCert *x509.Certificate is the CA certificate to validate client auth. nil to ignore
 //	authn is the authenticator for verifying the client token
 //	respTimeout is the time the server waits for a response when sending requests. defaults to 3sec
-func NewGrpcServerImpl(
+func StartGrpcServerImpl(
 	address string, tlsCert *tls.Certificate, caCert *x509.Certificate,
-	authn api.IAuthenticator, respTimeout time.Duration) *GrpcServerImpl {
+	authn api.IAuthenticator, respTimeout time.Duration) (*GrpcServerImpl, error) {
+
+	slog.Info("startServing: Starting grpc transport server",
+		slog.String("address", address))
 
 	// cleanup the connect URL into one of these:
 	// UDS: unix://path/to/sock
@@ -205,5 +205,7 @@ func NewGrpcServerImpl(
 		serviceName:         grpctransport.GrpcTransportServiceName,
 		subprotocol:         subProtocol,
 	}
-	return srv
+
+	err := srv.startServing()
+	return srv, err
 }

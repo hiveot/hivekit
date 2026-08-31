@@ -28,11 +28,10 @@ func startService(t *testing.T) (certs.ICertsService, func(), error) {
 	// clear start
 	_ = os.RemoveAll(storageDir)
 	cfg := &certs.CertsConfig{CertsDir: storageDir}
-	m := certsservice.NewCertsService(cfg)
-	err := m.Start()
+	svc, err := certsservice.StartCertsService(cfg)
 	require.NoError(t, err)
-	return m, func() {
-		m.Stop()
+	return svc, func() {
+		svc.Stop()
 	}, err
 }
 
@@ -106,7 +105,9 @@ func TestCertClient(t *testing.T) {
 
 	// use a direct transport instead of running a client-server
 	tp := testenv.NewTestTransport(clientID, m)
-	cl := certsclient.NewCertsClient(tp, "")
+	cl := certsclient.StartCertsClient("")
+	cl.SetRequestSink(tp)
+	tp.SetNotificationSink(cl)
 
 	privKey, pubKey := utils.NewEd25519Key()
 	_ = privKey
@@ -137,7 +138,8 @@ func TestCreateCerts(t *testing.T) {
 	require.NotNil(t, serverChain)
 
 	// this needs completion
-	cl := certsclient.NewCertsClient(nil, "")
+	cl := certsclient.StartCertsClient("")
+
 	// var _ certs.ICertsService = cl // interface check
 	_ = cl
 }

@@ -23,8 +23,10 @@ type IRecipe interface {
 	SetSlot(slotID string, modDef CellDefinition) error
 
 	// Start all the cells in the recipe.
+	// Factory recipes instantiate and link cells before calling Start,
+	// then start the cells in reverse order so they can send requests.
 	Start() error
 
-	// Stop the factory used by this recipe
+	// Stop the factory used by this recipe in reverse order from Start.
 	Stop()
 }

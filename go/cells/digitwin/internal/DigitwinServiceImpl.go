@@ -217,43 +217,6 @@ func (svc *DigitwinServiceImpl) HandleNotification(notif *msg.NotificationMessag
 func (svc *DigitwinServiceImpl) SetDeviceStatus(clientID string, connected bool) {
 
 	svc.deviceStatus.Store(clientID, connected)
-
-}
-
-// Start the digital twin service and open its native thing backup
-// This subscribes to devices that have a digital twin in the directory.
-func (svc *DigitwinServiceImpl) Start() (err error) {
-
-	slog.Info("Start: Starting digitwin service")
-
-	// the vcache holds the cached notifications
-	// if it doesn't contain a value it should forward the request to the device
-	// note that the thingID is the digital twin ID, which needs to be converted
-	// back to the device thingID
-	svc.vcache = vcache_service.NewValueCacheService()
-	// don't set a sink
-	// m.vcache.SetRequestSink(m.ForwardDigitwinRequestToDevice)
-	svc.vcache.Start()
-	storageFile := filepath.Join(svc.storageDir, "deviceTD.kvbtree")
-	svc.deviceTDStore = kvbtreestore.NewBucketStore(storageFile)
-
-	err = svc.deviceTDStore.Open()
-	if err == nil {
-		thingID := svc.GetThingID()
-		svc.deviceTDBucket = svc.deviceTDStore.GetBucket(thingID)
-	}
-
-	svc.directory.SetTDHooks(svc.HandleWriteDirectory, svc.HandleDeleteTD)
-
-	// FIXME: Subscribe to devices.
-	// lets hope there aren't too many or this can take a while.
-	// how to support wildcard device subscriptions? flatten the list of devices?
-	// digitalTwins, err := m.directory.RetrieveAllThings(0, 0)
-
-	// FIXME: RC clients are subscribed to when they (re)connect,
-	// so subscribe to server 'connect' notifications.
-
-	return nil
 }
 
 // Stop the digital twin service and release the allocation resources
@@ -268,7 +231,7 @@ func (svc *DigitwinServiceImpl) Stop() {
 	// m.deviceDirectory.Stop()
 }
 
-// NewDigitwinServiceImpl creates a new digital twin service instance.
+// StartDigitwinServiceImpl starts a new digital twin service instance.
 //
 // This cells uses a directory to store the digital twin TD's and has an internal store
 // for hidden non-digitwin TDs used to pass requests to the actual devices.
@@ -277,19 +240,42 @@ func (svc *DigitwinServiceImpl) Stop() {
 //	thingDir is the directory service that holds exposed Thing TDs.
 //	addForms is a handler from a transport server for injecting forms in digital twin TDs
 //	that describe how to interact via the server protocols.
-func NewDigitwinServiceImpl(storageDir string,
+func StartDigitwinServiceImpl(storageDir string,
 	thingDir directory.IDirectoryService,
-	addforms func(tdoc *td.TD, includeAffordances bool)) *DigitwinServiceImpl {
+	addforms func(tdoc *td.TD, includeAffordances bool)) (*DigitwinServiceImpl, error) {
 
 	thingID := digitwin.DefaultDigitwinServiceID
+
+	// the vcache holds the cached notifications
+	// if it doesn't contain a value it should forward the request to the device
+	// note that the thingID is the digital twin ID, which needs to be converted
+	// back to the device thingID
+	vcache, err := vcache_service.StartValueCacheService()
+	if err != nil {
+		return nil, err
+	}
+
+	storageFile := filepath.Join(storageDir, "deviceTD.kvbtree")
+	deviceTDStore, err := kvbtreestore.OpenKVBTreeStore(storageFile)
+	if err != nil {
+		return nil, err
+	}
+	deviceTDBucket := deviceTDStore.GetBucket(thingID)
+
 	svc := &DigitwinServiceImpl{
 		HiveCellBase:           cells.NewHiveCellBase(thingID, 0),
 		addForms:               addforms,
 		directory:              thingDir,
 		storageDir:             storageDir,
+		deviceTDStore:          deviceTDStore,
+		deviceTDBucket:         deviceTDBucket,
 		includeAffordanceForms: true,
+		vcache:                 vcache,
 	}
 
+	// intercept directory writes to transform things into a digital twin
+	svc.directory.SetTDHooks(svc.HandleWriteDirectory, svc.HandleDeleteTD)
+
 	var _ digitwin.IDigitwinService = svc // interface check
-	return svc
+	return svc, err
 }

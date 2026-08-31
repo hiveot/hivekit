@@ -9,16 +9,17 @@ import (
 	"github.com/hiveot/hivekit/go/cells/transport/wss/internal/clientimpl"
 )
 
-// NewHiveotClient creates a new instance of the hiveot websocket client.
+// NewHiveotClient creates a new instance of the hiveot websocket client
+// but does not connect yet. Authenticate and call Connect before use.
 //
 // This uses the Hiveot passthrough message converter.
 //
 //	wssURL is the full websocket connection URL including path
 //	rootCAs are the CA's for TLS connection validation
 //	ch is the connect/disconnect callback. nil to ignore
-func NewHiveotWssClient(wssURL string, rootCAs *x509.CertPool) api.ITransportClient {
+func StartHiveotWssClient(wssURL string, rootCAs *x509.CertPool) api.ITransportClient {
 
-	return clientimpl.NewHiveotWssClientImpl(wssURL, rootCAs)
+	return clientimpl.StartHiveotWssClientImpl(wssURL, rootCAs)
 }
 
 // Create a websocket client for the given factory environment
@@ -27,32 +28,39 @@ func NewHiveotWssClient(wssURL string, rootCAs *x509.CertPool) api.ITransportCli
 // used to provision the client connection.
 //
 // This returns a transport client or an error if a valid authentication is missing
-func NewHiveotWssClientFactory(f api.ICellFactory, md *api.CellDefinition) (api.IHiveCell, error) {
+// Even with an error result authentication and 'Connect' can be called again.
+func StartHiveotWssClientFactory(
+	f api.ICellFactory, md *api.CellDefinition) (api.IHiveCell, error) {
+
 	var err error
 
 	env := f.GetEnvironment()
 	clientCert, _ := env.GetClientCert()
 	wssURL := env.ServerURL
-	m := NewHiveotWssClient(wssURL, env.GetRootCAs())
-	m.SetTimeout(env.RpcTimeout)
+	cl := StartHiveotWssClient(wssURL, env.GetRootCAs())
+	cl.SetTimeout(env.RpcTimeout)
 	if clientCert != nil {
-		err = m.SetClientCert(clientCert)
+		err = cl.SetClientCert(clientCert)
 	} else {
 		// if client certificate not available attempt auth token
 		clientID := env.ClientID
 		authToken, _ := env.GetAuthToken()
 
 		if clientID != "" && authToken != "" {
-			err = m.SetAuthToken(clientID, authToken, td.SecSchemeBearer)
+			err = cl.SetAuthToken(clientID, authToken, td.SecSchemeBearer)
+		}
+		if err == nil {
+			err = cl.Connect()
 		}
 	}
 	if err != nil {
 		slog.Error("NewWotWssClientFactory: " + err.Error())
 	}
-	return m, err
+	return cl, err
 }
 
-// NewWotWssClient creates a new instance of the WoT compatible websocket client.
+// StartWotWssClient creates a new instance of the WoT compatible websocket client
+// but does not connect yet. Authenticate and call Connect before use.
 //
 // messageConverter offers the ability to use any websocket message format that
 // can be mapped to a RequestMessage and ResponseMessage. It is used to support
@@ -65,18 +73,25 @@ func NewHiveotWssClientFactory(f api.ICellFactory, md *api.CellDefinition) (api.
 //	rootCAs are the server CA's for TLS connection validation
 //	timeout is the maximum connection wait time. 0 for default.
 //	ch is the connection callback handler, nil to ignore
-func NewWotWssClient(
+func StartWotWssClient(
 	wssURL string, rootCAs *x509.CertPool) api.ITransportClient {
-	return clientimpl.NewWotWssClientImpl(wssURL, rootCAs)
+
+	return clientimpl.StartWotWssClientImpl(wssURL, rootCAs)
 }
 
 // Create a websocket client for the given factory environment.
-// This attempts to obtain server URL and authentication credentials if available.
+//
+// This attempts to obtain server URL, authentication credentials if available and
+// attempts to connect.
 //
 // Intended for devices that use reverse connections or consumer applications that
 // use the factory. If the environment is setup with credentials then these are
 // used to provision the client connection.
-func NewWotWssClientFactory(f api.ICellFactory, md *api.CellDefinition) (api.IHiveCell, error) {
+//
+// This returns the client. If connection fails then this returns an error.
+// Even with an error result authentication and 'Connect' can be called again.
+func StartWotWssClientFactory(
+	f api.ICellFactory, md *api.CellDefinition) (api.IHiveCell, error) {
 
 	var err error
 
@@ -84,22 +99,25 @@ func NewWotWssClientFactory(f api.ICellFactory, md *api.CellDefinition) (api.IHi
 	clientCert, _ := env.GetClientCert()
 	serverURL := env.ServerURL
 
-	m := NewWotWssClient(serverURL, env.GetRootCAs())
-	m.SetTimeout(env.RpcTimeout)
+	cl := StartWotWssClient(serverURL, env.GetRootCAs())
+	cl.SetTimeout(env.RpcTimeout)
 	// if client certificate not available attempt auth token
 	if clientCert != nil {
-		err = m.SetClientCert(clientCert)
+		err = cl.SetClientCert(clientCert)
 	} else {
 		// must use token auth
 		clientID := env.ClientID
 		authToken, _ := env.GetAuthToken()
 
 		if clientID != "" && authToken != "" {
-			err = m.SetAuthToken(clientID, authToken, td.SecSchemeBearer)
+			err = cl.SetAuthToken(clientID, authToken, td.SecSchemeBearer)
+			if err == nil {
+				err = cl.Connect()
+			}
 		}
 	}
 	if err != nil {
 		slog.Error("NewWotWssClientFactory: " + err.Error())
 	}
-	return m, err
+	return cl, err
 }

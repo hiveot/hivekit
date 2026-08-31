@@ -280,68 +280,6 @@ func (store *KVBTreeStore) onBucketUpdated(bucket *KVBTreeBucket) {
 	atomic.AddInt32(&store.updateCount, 1)
 }
 
-// Open the store and start the background loop for saving changes
-func (store *KVBTreeStore) Open() error {
-	if store.storePath == "" {
-		slog.Debug("Opening in-memory kvbtree store")
-	} else {
-		slog.Debug("Opening kvbtree store", "path", store.storePath)
-	}
-	var err error
-	store.mutex.Lock()
-	defer store.mutex.Unlock()
-
-	if store.buckets != nil {
-		return fmt.Errorf("store already open")
-	}
-	// if storePath exists and points to a directory then modify it to a file in that directory
-	fileInfo, err := os.Stat(store.storePath)
-	if err == nil {
-		// store exists
-		if fileInfo.IsDir() {
-			store.storePath = filepath.Join(store.storePath, defaultStoreFileName)
-		} else {
-			// storePath is an existing file, just open it
-		}
-	} else {
-		// storePath doesn't exist. make sure its directory exists
-		storeDir := filepath.Dir(store.storePath)
-		os.MkdirAll(storeDir, 0750)
-	}
-
-	store.buckets, err = importStoreFile(store.storePath)
-	// recover from bad file. Missing file is okay.
-	if err != nil {
-		if os.IsNotExist(err) {
-			// store doesn't yet exist. This is okay
-		} else {
-			return fmt.Errorf("unknown error reading store '%s': %w", store.storePath, err)
-		}
-		// write an empty store to make sure the location is writable
-		store.buckets = make(map[string]*KVBTreeBucket)
-		dummy := make(map[string]map[string][]byte)
-		err = writeStoreFile(store.storePath, dummy)
-		if err != nil {
-			// unable to recover. Hitting a dead end
-			return fmt.Errorf("failed creating store file: '%w'", err)
-		}
-	}
-	// after loading set the handler for all buckets
-	for _, kvBucket := range store.buckets {
-		kvBucket.setUpdateHandler(store.onBucketUpdated)
-	}
-
-	store.backgroundLoopEnding = make(chan bool)
-	store.backgroundLoopEnded = make(chan bool)
-	if err == nil {
-		go store.autoSaveLoop()
-	}
-	// allow a context switch to start the autoSaveLoop to avoid problems
-	// if the store is closed immediately.
-	//time.Sleep(time.Millisecond)
-	return err
-}
-
 //// Size returns the number of items in the store
 //func (store *KVBTreeStore) Size(context.Context, *emptypb.Empty) (*svc.SizeResult, error) {
 //	store.mutex.RLock()
@@ -357,26 +295,78 @@ func (store *KVBTreeStore) SetWriteDelay(delay time.Duration) {
 	store.writeDelay = delay
 }
 
-// NewKVBtreeStore creates a store instance and load it with saved documents.
-// Run Start to start the background loop and Stop to end it.
+// OpenKVBtreeStore opens a store instance and load it with saved documents.
+// This starts the background loop. Use Close to end it.
 //
 // If storePath is an existing directory, a file named "kvbtree.json" is created there,
 // otherwise a file {storePath} will be created.
 //
 //	storeFile path to storage file or directory, or "" for in-memory only
-func NewKVBtreeStore(storePath string) (store *KVBTreeStore) {
+func OpenKVBtreeStore(storePath string) (*KVBTreeStore, error) {
+	var err error
 	writeDelay := time.Duration(3000) * time.Millisecond
 
-	store = &KVBTreeStore{
+	if storePath == "" {
+		slog.Debug("Opening in-memory kvbtree store")
+	} else {
+		slog.Debug("Opening kvbtree store", "path", storePath)
+	}
+
+	// if storePath exists and points to a directory then modify it to a file in that directory
+	fileInfo, err := os.Stat(storePath)
+	if err == nil {
+		// store exists. If it is a directory, use a file inside it.
+		if fileInfo.IsDir() {
+			storePath = filepath.Join(storePath, defaultStoreFileName)
+		} else {
+			// storePath is an existing file, just open it
+		}
+	} else {
+		// storePath doesn't exist. make sure its directory exists
+		storeDir := filepath.Dir(storePath)
+		os.MkdirAll(storeDir, 0750)
+	}
+
+	buckets, err := importStoreFile(storePath)
+	// recover from bad file. Missing file is okay.
+	if err != nil {
+		if os.IsNotExist(err) {
+			// store doesn't yet exist. This is okay
+		} else {
+			return nil, fmt.Errorf("unknown error reading store '%s': %w", storePath, err)
+		}
+		// write an empty store to make sure the location is writable
+		buckets = make(map[string]*KVBTreeBucket)
+		dummy := make(map[string]map[string][]byte)
+		err = writeStoreFile(storePath, dummy)
+		if err != nil {
+			// unable to recover. Hitting a dead end
+			return nil, fmt.Errorf("failed creating store file: '%w'", err)
+		}
+	}
+
+	store := &KVBTreeStore{
 		//jsonDocs:             make(map[string]string),
-		buckets:              nil, // will be set after open
+		buckets:              buckets,
 		storePath:            storePath,
-		backgroundLoopEnding: nil,
-		backgroundLoopEnded:  nil,
+		backgroundLoopEnding: make(chan bool),
+		backgroundLoopEnded:  make(chan bool),
 		mutex:                sync.RWMutex{},
 		writeDelay:           writeDelay,
 		//jsonCache:            make(map[string]interface{}),
 	}
+	// after loading set the handler for all buckets
+	for _, kvBucket := range buckets {
+		kvBucket.setUpdateHandler(store.onBucketUpdated)
+	}
+
+	// start the autosave loop in the background
+	go store.autoSaveLoop()
+
+	// allow a context switch to start the autoSaveLoop to avoid problems
+	// if the store is closed immediately.
+	//time.Sleep(time.Millisecond)
+
 	var _ bucketstore.IBucketStore = store // type check
-	return store
+	return store, err
 }

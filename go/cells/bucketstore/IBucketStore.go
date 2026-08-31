@@ -81,9 +81,6 @@ type IBucketStore interface {
 	// If the store is non-persistent this is empty.
 	GetLocation() string
 
-	// Open the store
-	Open() error
-
 	// Info returns bucket store information
 	//Info() *BucketStoreInfo
 }

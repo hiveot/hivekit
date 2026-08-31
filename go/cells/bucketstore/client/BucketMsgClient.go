@@ -64,12 +64,12 @@ func (cl *BucketMsgClient) SetMultiple(kv map[string]string) error {
 	return err
 }
 
-// NewBucketStoreMsgClient returns a client to access a remote bucket store.
+// StartBucketStoreMsgClient starts and links a client to access a remote bucket store.
 // Use the sink to attach the client to a transport cell.
 //
 //	sink is the cell that forwards requests. nil to do this manually.
 //	serviceID is the cell thingID of the remote bucket store service
-func NewBucketStoreMsgClient(sink api.IHiveCell, serviceID string) *BucketMsgClient {
+func StartBucketStoreMsgClient(sink api.IHiveCell, serviceID string) *BucketMsgClient {
 	cl := &BucketMsgClient{
 		storeServiceID: serviceID,
 		HiveCellBase:   cells.NewHiveCellBase("", 0),

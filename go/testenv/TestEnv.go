@@ -192,7 +192,7 @@ func (testEnv *TestEnv) NewConnectedClient(
 func (testEnv *TestEnv) NewServerThing(thingID string) *thing.ExposedThing {
 
 	// Simple server side Thing. No account needed
-	m := thing.NewExposedThing(thingID, nil)
+	m := thing.StartExposedThing(thingID, nil)
 
 	// the device is the request sink for the transport server
 	testEnv.Server.SetRequestSink(m)
@@ -222,7 +222,7 @@ func (testEnv *TestEnv) NewRCThing(clientID string, appReqHandler msg.RequestHan
 	cl, authToken := testEnv.NewConnectedClient(clientID, authn.ClientRoleDevice)
 
 	// simple ething, no application request handler yet
-	ething := thing.NewExposedThing(clientID+"-thing", appReqHandler)
+	ething := thing.StartExposedThing(clientID+"-thing", appReqHandler)
 
 	// the client delivers requests to the thing and receives notifications from it
 	cl.SetRequestSink(ething)
@@ -253,7 +253,7 @@ func (testEnv *TestEnv) NewConnectedConsumer(clientID string, role string) (
 	co *consumer.Consumer, cc api.ITransportClient, token string) {
 
 	cc, token = testEnv.NewConnectedClient(clientID, role)
-	co = consumer.NewConsumer(cc, nil)
+	co = consumer.StartConsumer(cc, nil)
 	co.SetTimeout(TestTimeout)
 	return co, cc, token
 }
@@ -273,9 +273,9 @@ func (testEnv *TestEnv) NewReconnectedConsumer(clientID string, role string) (
 	cc, token = testEnv.NewConnectedClient(clientID, role)
 
 	// insert the reconnect service between consumer and client connection
-	rc := reconnect_service.NewReconnectService(cc)
+	rc, _ := reconnect_service.StartReconnectService(cc)
 
-	co = consumer.NewConsumer(rc, nil)
+	co = consumer.StartConsumer(rc, nil)
 	co.SetTimeout(TestTimeout)
 
 	return co, cc, token
@@ -303,19 +303,19 @@ func (testEnv *TestEnv) StartTestServer(protocol string) (srv api.ITransportServ
 	case api.HiveotGrpcTcpProtocolType:
 		serverCert := testEnv.CertBundle.ServerCert
 		caCert := testEnv.CertBundle.CaCert
-		srv = grpc_server.NewHiveotGrpcServer(
+		srv, err = grpc_server.StartHiveotGrpcServer(
 			TestGrpcTcpURL, serverCert, caCert, testEnv.TestAuthn, TestTimeout)
 		err = srv.Start()
 	case api.HiveotGrpcUnixProtocolType:
 		serverCert := testEnv.CertBundle.ServerCert
 		caCert := testEnv.CertBundle.CaCert
-		srv = grpc_server.NewHiveotGrpcServer(
+		srv, err = grpc_server.StartHiveotGrpcServer(
 			TestGrpcUnixURL, serverCert, caCert, testEnv.TestAuthn, TestTimeout)
 		err = srv.Start()
 
 	case api.HiveotSseScProtocolType:
 		testEnv.StartHttpServer(false)
-		srv = ssesc_server.NewSseScServer(testEnv.HttpServer, TestTimeout)
+		srv = ssesc_server.StartSseScServer(testEnv.HttpServer, TestTimeout)
 		err = srv.Start()
 
 	case api.HiveotWebsocketProtocolType:
@@ -325,8 +325,7 @@ func (testEnv *TestEnv) StartTestServer(protocol string) (srv api.ITransportServ
 
 	case api.HttpBasicProtocolType:
 		testEnv.StartHttpServer(false)
-		srv = httpbasic_server.NewHttpBasicServer(testEnv.HttpServer)
-		err = srv.Start()
+		srv, err = httpbasic_server.StartHttpBasicServer(testEnv.HttpServer)
 		// http only, no subprotocol bindings
 
 	case api.WotWebsocketProtocolType:
@@ -361,6 +360,7 @@ func (testEnv *TestEnv) StartTestServer(protocol string) (srv api.ITransportServ
 // This returns the http server and its URL
 // This panic if the server cannot be started.
 func (testEnv *TestEnv) StartHttpServer(logging bool) (api.IHttpServer, string) {
+	var err error
 	if testEnv.HttpServer != nil {
 		return testEnv.HttpServer, testEnv.ServerURL
 	}
@@ -373,8 +373,7 @@ func (testEnv *TestEnv) StartHttpServer(logging bool) (api.IHttpServer, string) 
 
 	// cfg.Address = fmt.Sprintf("%s:%d", certBundle.ServerAddr, testServerHttpPort)
 
-	testEnv.HttpServer = tls_server.NewTLSServer(cfg, testEnv.TestAuthn)
-	err := testEnv.HttpServer.Start()
+	testEnv.HttpServer, err = tls_server.NewTLSServer(cfg, testEnv.TestAuthn)
 	if err != nil {
 		panic("unable to start TLS server: " + err.Error())
 	}

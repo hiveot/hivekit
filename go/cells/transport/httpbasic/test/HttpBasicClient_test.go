@@ -29,18 +29,18 @@ func TestConnect(t *testing.T) {
 	testAuthenticator := testenv.NewTestAuthenticator()
 	cfg := tlsserver.NewTLSServerConfig(
 		"localhost", serverPort, testCerts.ServerCert, testCerts.RootCAs, true)
-	srv := tls_server.NewTLSServer(cfg, testAuthenticator)
-	err := srv.Start()
+	srv, err := tls_server.NewTLSServer(cfg, testAuthenticator)
 
 	require.NoError(t, err)
-	m := httpbasic_server.NewHttpBasicServer(srv)
-	err = m.Start()
+	m, err := httpbasic_server.StartHttpBasicServer(srv)
+
 	// this could work if all servers have a TD
 	tdoc := m.GetTD()
 	require.NoError(t, err)
 
 	// get the client
-	cl := httpbasic_client.NewHttpBasicClient(tdoc, testCerts.RootCAs)
+	cl, err := httpbasic_client.StartHttpBasicClient(tdoc, testCerts.RootCAs)
+	require.NoError(t, err)
 	cl.SetTimeout(rpcTimeout)
 	err = cl.SetAuthToken(clientID, token, td.SecSchemeBearer)
 	require.NoError(t, err)

@@ -27,7 +27,7 @@ func TestMain(m *testing.M) {
 
 // Test starting and stopping authorization service
 func TestStartStop(t *testing.T) {
-	svc := authzservice.NewAuthzService(nil)
+	svc := authzservice.StartAuthzService(nil)
 	err := svc.Start()
 	require.NoError(t, err)
 	svc.Stop()
@@ -47,7 +47,7 @@ func TestHasPermission(t *testing.T) {
 		}
 		return "", fmt.Errorf("unknown client")
 	}
-	m := authzservice.NewAuthzService(getRole)
+	m := authzservice.StartAuthzService(getRole)
 	err := m.Start()
 	require.NoError(t, err)
 	defer m.Stop()

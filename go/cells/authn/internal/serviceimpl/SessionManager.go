@@ -168,28 +168,10 @@ func (sm *SessionManager) ValidateClient(claimedClientID string, token string) (
 	return clientID, issuedAt, validUntil, err
 }
 
-// Start a new session manager for client sessions
-func (sm *SessionManager) Start() error {
-
-	serviceID := "authn"
-
-	// store the signing key in: {keysDir}/authnKey.pem
-	keyFilename := filepath.Join(sm.keysDir, serviceID+api.DefaultPrivKeyFileSuffix)
-	signingPrivKey, _, err := utils.LoadCreateKeyPair(keyFilename, utils.KeyTypeED25519)
-	if err != nil {
-		return err
-	}
-
-	sm.authenticator = authenticators.NewPasetoAuthenticator(
-		sm.authnStore, signingPrivKey.(ed25519.PrivateKey))
-
-	return nil
-}
-
 // Create a new session manager for client sessions
-// Call Start() and Stop() to ...
-func NewSessionManager(
-	authnStore authnstore.IAuthnStore, keysDir string) *SessionManager {
+// Call Stop() to shut down
+func StartSessionManager(
+	authnStore authnstore.IAuthnStore, keysDir string) (*SessionManager, error) {
 
 	sm := &SessionManager{
 		keysDir:                   keysDir,
@@ -200,6 +182,18 @@ func NewSessionManager(
 		sessionStart:              make(map[string]time.Time),
 	}
 
+	serviceID := "authn"
+
+	// store the signing key in: {keysDir}/authnKey.pem
+	keyFilename := filepath.Join(sm.keysDir, serviceID+api.DefaultPrivKeyFileSuffix)
+	signingPrivKey, _, err := utils.LoadCreateKeyPair(keyFilename, utils.KeyTypeED25519)
+	if err != nil {
+		return nil, err
+	}
+
+	sm.authenticator = authenticators.NewPasetoAuthenticator(
+		sm.authnStore, signingPrivKey.(ed25519.PrivateKey))
+
 	var _ authn.ISessionManager = sm // interface check
-	return sm
+	return sm, nil
 }

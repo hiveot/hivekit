@@ -91,7 +91,7 @@ func TestConnectPing(t *testing.T) {
 
 	// connect a client
 	handleClientMessage := func(raw []byte) {}
-	cl = grpclib.NewGrpcServiceClient(
+	cl = grpclib.StartGrpcServiceClient(
 		clientURL, clientID, token, nil, certBundle.RootCAs,
 		time.Minute, grpcServiceName, handleClientMessage)
 	require.NoError(t, err)
@@ -132,7 +132,7 @@ func TestConnectPingClientCert(t *testing.T) {
 
 	// connect a client
 	handleClientMessage := func(raw []byte) {}
-	cl = grpclib.NewGrpcServiceClient(
+	cl = grpclib.StartGrpcServiceClient(
 		clientURL, clientID, authToken, certBundle.ClientCert, certBundle.RootCAs,
 		time.Minute, grpcServiceName, handleClientMessage)
 
@@ -221,7 +221,7 @@ func TestStreamMessages(t *testing.T) {
 		// rxMsg := string(raw)
 		assert.Equal(t, serverSendMsg, rxMsg)
 	}
-	cl := internal.NewGrpcServiceClient(
+	cl := internal.StartGrpcServiceClient(
 		clientURL, clientID, authToken, nil, certBundle.RootCAs,
 		time.Minute, serviceName, onClientMessage)
 

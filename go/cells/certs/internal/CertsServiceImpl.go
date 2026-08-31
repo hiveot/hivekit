@@ -188,40 +188,6 @@ func (svc *CertsServiceImpl) RefreshCA(minRemaining time.Duration) error {
 	return nil
 }
 
-// Start readies the certificate management service for use.
-//
-// If a self-signed CA isn't configured, it will be created.
-// If an AdminCertValidityDays is configured create its client certificate.
-//
-// This returns an error if a certsdir is not provided.
-func (svc *CertsServiceImpl) Start() (err error) {
-	slog.Info("Start: Starting certs service")
-
-	cfg := svc.config
-	if cfg.CertsDir == "" {
-		return fmt.Errorf("Start: Missing certificate directory")
-	}
-	if cfg.CaCert == nil {
-		cfg.CaCert, cfg.CaKey = LoadCACert(cfg.CertsDir)
-	}
-
-	// a self-signed CA is need for generating client certificates and
-	if cfg.CaKey == nil || cfg.CaCert == nil {
-		cfg.CaCert, cfg.CaKey, err = CreateSelfSignedCACert(cfg.CertsDir, cfg.CaKey, certs.DefaultCAValidityPeriod)
-	}
-
-	// include the CA in the certificate pool for verifying certificates
-	svc.caCertPool, _ = x509.SystemCertPool()
-	svc.caCertPool.AddCert(svc.config.CaCert)
-
-	// create an admin client cert if validation period is set and no exist cert exists
-	if cfg.AdminCertValidityDays > 0 {
-		err = svc.CreateAdminCert()
-	}
-
-	return err
-}
-
 // Stop any running actions
 func (svc *CertsServiceImpl) Stop() {
 	slog.Info("Stop: Stopping certs service")
@@ -255,15 +221,38 @@ func (svc *CertsServiceImpl) VerifyClientCert(clientID string, clientCert *x509.
 	return err
 }
 
-// Create a new self-signed certificate provider
-func NewCertsServiceImpl(config *certs.CertsConfig) *CertsServiceImpl {
+// Start a new self-signed certificate provider
+func StartCertsServiceImpl(config *certs.CertsConfig) (*CertsServiceImpl, error) {
+	var err error
 	thingID := certs.DefaultCertsServiceThingID
 
 	svc := &CertsServiceImpl{
 		HiveCellBase: cells.NewHiveCellBase(thingID, 0),
 		config:       config,
 	}
+	slog.Info("Start: Starting certs service")
 
+	if config.CertsDir == "" {
+		return nil, fmt.Errorf("Start: Missing certificate directory")
+	}
+	if config.CaCert == nil {
+		config.CaCert, config.CaKey = LoadCACert(config.CertsDir)
+	}
+
+	// a self-signed CA is need for generating client certificates and
+	if config.CaKey == nil || config.CaCert == nil {
+		config.CaCert, config.CaKey, err = CreateSelfSignedCACert(
+			config.CertsDir, config.CaKey, certs.DefaultCAValidityPeriod)
+	}
+
+	// include the CA in the certificate pool for verifying certificates
+	svc.caCertPool, _ = x509.SystemCertPool()
+	svc.caCertPool.AddCert(svc.config.CaCert)
+
+	// create an admin client cert if validation period is set and no exist cert exists
+	if config.AdminCertValidityDays > 0 {
+		err = svc.CreateAdminCert()
+	}
 	var _ certs.ICertsService = svc // api validation
-	return svc
+	return svc, err
 }

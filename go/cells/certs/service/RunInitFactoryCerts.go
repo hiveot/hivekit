@@ -8,7 +8,7 @@ import (
 	"github.com/hiveot/hivekit/go/cells/certs/internal"
 )
 
-// NewInitFactoryCerts if a factory initialization cell to ensure certificates needed
+// RunInitFactoryCerts if a factory initialization cell to ensure certificates needed
 // to run the servers or administrator exist.
 //
 // Intended to ensure all certs are in place before running the services.
@@ -22,7 +22,7 @@ import (
 //
 // This returns nil so it won't be included in request handling, just does some setup
 // at startup.
-func NewInitFactoryCerts(
+func RunInitFactoryCerts(
 	f api.ICellFactory, md *api.CellDefinition) (api.IHiveCell, error) {
 
 	var err error

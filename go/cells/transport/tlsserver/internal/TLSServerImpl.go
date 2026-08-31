@@ -107,11 +107,11 @@ func (m *TLSServerImpl) SetAuthenticator(authenticator api.IAuthenticator) {
 	m.authenticator = authenticator
 }
 
-// Start readies the server for use.
-// This starts a http server instance and sets-up a public and protected route.
+// startTLS configures and runs starts the TLS server,
+// including a public and protected route.
 //
 // Starts a HTTPS TLS service
-func (m *TLSServerImpl) Start() (err error) {
+func (m *TLSServerImpl) startTLS() (err error) {
 	var tlsConf *tls.Config
 	cfg := m.config
 	m.connectURL = fmt.Sprintf("https://%s:%d", cfg.Address, cfg.Port)
@@ -200,24 +200,27 @@ func (m *TLSServerImpl) Stop() {
 	time.Sleep(time.Millisecond)
 }
 
-// Create a new TLS server instance.
+// Start a new TLS server instance.
 //
 // config MUST have been configured with a CA and server certificate unless
 // NoTLS is set.
 // authenticator for http requests. nil for refusing all protected routes
-func NewTLSServerImpl(config *tlsserver.TLSServerConfig, authenticator api.IAuthenticator) *TLSServerImpl {
+func StartTLSServerImpl(
+	config *tlsserver.TLSServerConfig, authenticator api.IAuthenticator) (*TLSServerImpl, error) {
 
 	thingID := api.HttpServerCellType + "-" + shortid.MustGenerate()
-	m := &TLSServerImpl{
+	srv := &TLSServerImpl{
 		HiveCellBase:  cells.NewHiveCellBase(thingID, 0),
 		config:        config,
 		authenticator: authenticator,
 	}
 
-	if m.authRequestHandler == nil {
-		m.authRequestHandler = m.DefaultAuthRequest
+	if srv.authRequestHandler == nil {
+		srv.authRequestHandler = srv.DefaultAuthRequest
 	}
-	var _ api.IHttpServer = m // interface check
-	var _ api.IHiveCell = m
-	return m
+	err := srv.startTLS()
+
+	var _ api.IHttpServer = srv // interface check
+	var _ api.IHiveCell = srv
+	return srv, err
 }

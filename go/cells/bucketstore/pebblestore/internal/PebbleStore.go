@@ -50,22 +50,22 @@ import (
 // See https://pkg.go.dev/github.com/cockroachdb/pebble for Pebble's documentation.
 type PebbleStore struct {
 	storeDirectory string
-	db             *pebble.DB
+	pebbleDB       *pebble.DB
 }
 
 func (store *PebbleStore) Close() error {
-	if store.db == nil {
+	if store.pebbleDB == nil {
 		return nil
 	}
-	err := store.db.Close()
-	store.db = nil
+	err := store.pebbleDB.Close()
+	store.pebbleDB = nil
 	return err
 }
 
 // GetBucket returns a bucket with the given ID.
 // If the bucket doesn't yet exist it will be created.
 func (store *PebbleStore) GetBucket(bucketID string) (bucket bucketstore.IBucket) {
-	pb := NewPebbleBucket(bucketID, store.db)
+	pb := NewPebbleBucket(bucketID, store.pebbleDB)
 	return pb
 }
 
@@ -74,40 +74,46 @@ func (store *PebbleStore) GetLocation() string {
 	return store.storeDirectory
 }
 
-// Open the store
-func (store *PebbleStore) Open() (err error) {
+// OpenPebbleStore creates a storage database with bucket support.
+//
+//	storeDirectory is the directory  holding the database files
+func OpenPebbleStore(storeDirectory string) (*PebbleStore, error) {
+
 	options := &pebble.Options{}
 	// pebble.AddSession will panic if the store directory is readonly, so check ahead to return an error
-	stat, err := os.Stat(store.storeDirectory)
+	stat, err := os.Stat(storeDirectory)
 	// if the path exists, it must be a directory
 	if err == nil {
 		if !stat.IsDir() {
-			err = fmt.Errorf("can't open store. '%s' is not a directory", store.storeDirectory)
+			err = fmt.Errorf("can't open store. '%s' is not a directory", storeDirectory)
 		}
 	} else if errors.Is(err, os.ErrNotExist) {
 		// if the path doesn't exist, create a directory with mode 0700
-		err = os.MkdirAll(store.storeDirectory, 0700)
+		err = os.MkdirAll(storeDirectory, 0700)
 	}
 	// path must be writable to avoid a panic
 	if err == nil {
-		err = unix.Access(store.storeDirectory, unix.W_OK)
-	}
-	if err == nil {
-		store.db, err = pebble.Open(store.storeDirectory, options)
+		err = unix.Access(storeDirectory, unix.W_OK)
 	}
 	if err != nil {
-		slog.Error("failed to open bucket store", "directory", store.storeDirectory, "err", err)
+		return nil, err
+	}
+
+	pebbleDB, err := pebble.Open(storeDirectory, options)
+
+	if err != nil {
+		slog.Error("failed to open bucket store", "directory", storeDirectory, "err", err)
 	} else {
-		version := store.db.FormatMajorVersion()
-		metrics := store.db.Metrics()
+		version := pebbleDB.FormatMajorVersion()
+		metrics := pebbleDB.Metrics()
 		stats := pebble.CheckLevelsStats{}
-		err = store.db.CheckLevels(&stats)
+		err = pebbleDB.CheckLevels(&stats)
 		if err != nil {
 			slog.Error("PebbleStore.open DB.CheckLevels failed: ", "err", err.Error())
 		}
 		_ = err
 		slog.Info("pebble bucket store opened",
-			slog.String("path", store.storeDirectory),
+			slog.String("path", storeDirectory),
 			slog.Uint64("FormatMajorVersion", uint64(version)),
 			slog.Uint64("memtables size", metrics.MemTable.Size),
 			slog.Uint64("data size", metrics.WAL.Size),
@@ -116,15 +122,10 @@ func (store *PebbleStore) Open() (err error) {
 		// auto upgrade the database
 		//store.db.RatchetFormatMajorVersion()
 	}
-	return err
-}
-
-// NewPebbleStore creates a storage database with bucket support.
-//
-//	storeDirectory is the directory  holding the database files
-func NewPebbleStore(storeDirectory string) *PebbleStore {
-	srv := &PebbleStore{
+	store := &PebbleStore{
 		storeDirectory: storeDirectory,
+		pebbleDB:       pebbleDB,
 	}
-	return srv
+
+	return store, err
 }

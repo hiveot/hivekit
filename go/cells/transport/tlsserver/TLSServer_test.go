@@ -62,8 +62,7 @@ func TestStartStop(t *testing.T) {
 	t.Logf("---%s---\n", t.Name())
 	cfg := tlsserver.NewTLSServerConfig(
 		serverAddress, serverPort, testCerts.ServerCert, testCerts.RootCAs, true)
-	srv := tls_server.NewTLSServer(cfg, nil)
-	err := srv.Start()
+	srv, err := tls_server.NewTLSServer(cfg, nil)
 	assert.NoError(t, err)
 	srv.Stop()
 }
@@ -73,8 +72,7 @@ func TestNoServerCert(t *testing.T) {
 	cfg := tlsserver.NewTLSServerConfig(
 		serverAddress, serverPort, nil, testCerts.RootCAs, true)
 
-	srv := tls_server.NewTLSServer(cfg, nil)
-	err := srv.Start()
+	srv, err := tls_server.NewTLSServer(cfg, nil)
 	require.Error(t, err)
 	srv.Stop()
 }
@@ -88,9 +86,7 @@ func TestNoAuth(t *testing.T) {
 	cfg := tlsserver.NewTLSServerConfig(
 		serverAddress, serverPort, testCerts.ServerCert, testCerts.RootCAs, true)
 
-	srv := tls_server.NewTLSServer(cfg, nil)
-
-	err := srv.Start()
+	srv, err := tls_server.NewTLSServer(cfg, nil)
 	require.NoError(t, err)
 	defer srv.Stop()
 
@@ -130,8 +126,7 @@ func TestTokenAuth(t *testing.T) {
 	cfg := tlsserver.NewTLSServerConfig(
 		serverAddress, serverPort, testCerts.ServerCert, testCerts.RootCAs, true)
 
-	srv := tls_server.NewTLSServer(cfg, testAuth)
-	err := srv.Start()
+	srv, err := tls_server.NewTLSServer(cfg, testAuth)
 	require.NoError(t, err)
 	defer srv.Stop()
 
@@ -183,9 +178,7 @@ func TestClientCert(t *testing.T) {
 
 	cfg := tlsserver.NewTLSServerConfig(
 		serverAddress, serverPort, testCerts.ServerCert, testCerts.RootCAs, true)
-	srv := tls_server.NewTLSServer(cfg, nil)
-
-	err := srv.Start()
+	srv, err := tls_server.NewTLSServer(cfg, nil)
 	assert.NoError(t, err)
 	// handler can be added any time
 	routes := srv.GetPublicRoute()
@@ -268,9 +261,7 @@ func TestWriteResponse(t *testing.T) {
 
 	cfg := tlsserver.NewTLSServerConfig(
 		serverAddress, serverPort, testCerts.ServerCert, testCerts.RootCAs, true)
-	srv := tls_server.NewTLSServer(cfg, nil)
-
-	err := srv.Start()
+	srv, err := tls_server.NewTLSServer(cfg, nil)
 	assert.NoError(t, err)
 	defer srv.Stop()
 	router := srv.GetPublicRoute()
@@ -305,9 +296,7 @@ func TestBadPort(t *testing.T) {
 	cfg.Port = 1 // bad port
 	cfg.RootCAs = testCerts.RootCAs
 	cfg.ServerCert = testCerts.ServerCert
-	srv := tls_server.NewTLSServer(cfg, nil)
-
-	err := srv.Start()
+	srv, err := tls_server.NewTLSServer(cfg, nil)
 	defer srv.Stop()
 	assert.Error(t, err)
 }

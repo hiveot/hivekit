@@ -7,13 +7,13 @@ import (
 )
 
 // Create a new instance of the value cache service.
-func NewValueCacheService() vcacheapi.IValueCacheService {
-	m := internal.NewValueCacheService()
-	return m
+func StartValueCacheService() (vcacheapi.IValueCacheService, error) {
+	svc, err := internal.StartValueCacheService()
+	return svc, err
 }
 
 // Create a new instance of the value cache service using the Cell Factory environment.
-func NewValueCacheServiceFactory(f api.ICellFactory, md *api.CellDefinition) (api.IHiveCell, error) {
-	m := NewValueCacheService()
-	return m, nil
+func StartValueCacheServiceFactory(f api.ICellFactory, md *api.CellDefinition) (api.IHiveCell, error) {
+	svc, err := StartValueCacheService()
+	return svc, err
 }

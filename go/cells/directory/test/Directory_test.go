@@ -47,7 +47,7 @@ func TestMain(m *testing.M) {
 // Start a test environment with a directory service connected to the server.
 // withHttp means that Directory HTTP API is started for serving directory requests over http.
 func StartDirectoryService(withHttp bool) (
-	testEnv *testenv.TestEnv, m directory.IDirectoryService, cancelFn func()) {
+	testEnv *testenv.TestEnv, svc directory.IDirectoryService, cancelFn func()) {
 
 	var dirHttpServer directory.IDirectoryHttpServer
 
@@ -62,13 +62,12 @@ func StartDirectoryService(withHttp bool) (
 		dirHttpServer.Start()
 	}
 	// the transports are used to update the TDD forms and security
-	m = directory_service.NewDirectoryService("", storageDir, testEnv.HttpServer, transports)
-	err := m.Start()
+	svc, err := directory_service.StartDirectoryService("", storageDir, testEnv.HttpServer, transports)
 	if err != nil {
 		panic("StartDirectoryServer: failed to start the directory " + err.Error())
 	}
 	if withHttp {
-		dirHttpServer.SetRequestSink(m)
+		dirHttpServer.SetRequestSink(svc)
 	}
 
 	// http requests are passed as RRN messages to the directory server
@@ -76,14 +75,14 @@ func StartDirectoryService(withHttp bool) (
 	// httpAPI.SetRequestSink(m.HandleRequest)
 	// }
 	// RRN requests from the server are passed as RRN to the directory server
-	testEnv.Server.SetRequestSink(m)
+	testEnv.Server.SetRequestSink(svc)
 	// the server receives the notification and sends them to remote clients
-	m.SetNotificationSink(testEnv.Server)
-	return testEnv, m, func() {
+	svc.SetNotificationSink(testEnv.Server)
+	return testEnv, svc, func() {
 		if dirHttpServer != nil {
 			dirHttpServer.Stop()
 		}
-		m.Stop()
+		svc.Stop()
 		cancelTestEnv()
 	}
 }
@@ -92,17 +91,16 @@ func StartDirectoryService(withHttp bool) (
 func TestStartStop(t *testing.T) {
 	t.Logf("---%s---\n", t.Name())
 
-	m := directory_service.NewDirectoryService("", storageDir, nil, nil)
-	err := m.Start()
+	svc, err := directory_service.StartDirectoryService("", storageDir, nil, nil)
 	require.NoError(t, err)
-	defer m.Stop()
+	defer svc.Stop()
 
 	// add a thing
 	tdJson := directory.DirectoryTMJson
-	m.UpdateThing(defaultDeviceID, string(tdJson))
+	svc.UpdateThing(defaultDeviceID, string(tdJson))
 
 	// read all things
-	tdList, err := m.RetrieveAllThings(0, 10)
+	tdList, err := svc.RetrieveAllThings(0, 10)
 	assert.NoError(t, err)
 	assert.GreaterOrEqual(t, len(tdList), 1)
 }
@@ -110,27 +108,26 @@ func TestStartStop(t *testing.T) {
 func TestCreateTD(t *testing.T) {
 	thingID := "thing1"
 
-	m := directory_service.NewDirectoryService("", storageDir, nil, nil)
-	err := m.Start()
+	svc, err := directory_service.StartDirectoryService("", storageDir, nil, nil)
 	require.NoError(t, err)
-	defer m.Stop()
+	defer svc.Stop()
 
 	// add the directory itself
 	tdJson := directory.DirectoryTMJson
-	m.UpdateThing(defaultDeviceID, string(tdJson))
+	svc.UpdateThing(defaultDeviceID, string(tdJson))
 
 	// read all things, expect 1
-	tdList, err := m.RetrieveAllThings(0, 10)
+	tdList, err := svc.RetrieveAllThings(0, 10)
 	assert.NoError(t, err)
 	assert.Len(t, tdList, 1)
 
 	// add another TD
 	tdi1 := td.NewTD(thingID, "test thing", "test device")
 	td1Json := tdi1.ToString()
-	m.CreateThing(defaultDeviceID, td1Json)
+	svc.CreateThing(defaultDeviceID, td1Json)
 
 	// retrieve a thing by ID
-	td2Json, err := m.RetrieveThing(thingID)
+	td2Json, err := svc.RetrieveThing(thingID)
 	require.NoError(t, err)
 	tdi2, err := td.UnmarshalTD(td2Json)
 	assert.NoError(t, err)
@@ -138,7 +135,7 @@ func TestCreateTD(t *testing.T) {
 	assert.Equal(t, td1Json, td2Json)
 
 	// delete a thing
-	err = m.DeleteThing(defaultDeviceID, thingID)
+	err = svc.DeleteThing(defaultDeviceID, thingID)
 	assert.NoError(t, err)
 }
 
@@ -167,7 +164,7 @@ func TestCRUDUsingMsgAPI(t *testing.T) {
 
 	// read the new TD
 	dirTDD, _ := m.GetTDD()
-	dirClient := directory_client.NewDirectoryClient(dirTDD, tp)
+	dirClient := directory_client.StartDirectoryClient(dirTDD, tp)
 	tdi2, err := dirClient.RetrieveThing(thing1ID)
 	require.NoError(t, err)
 	assert.Equal(t, thing1ID, tdi2.ID)

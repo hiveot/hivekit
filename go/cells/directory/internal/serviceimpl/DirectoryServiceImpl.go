@@ -72,39 +72,6 @@ func (svc *DirectoryServiceImpl) SetTDHooks(
 	svc.writeTDHook = writeHandler
 }
 
-// Start readies the service for use.
-//
-// This:
-// - opens the bucket store using the configured name.
-// - enable the messaging request handler
-// - enable the http request handler using the given router
-// - updates the directory TDD in the store
-func (svc *DirectoryServiceImpl) Start() (err error) {
-
-	storagePath := svc.storageLoc
-	thingID := svc.GetThingID()
-	slog.Info("Start: Starting directory service")
-
-	// if no storageLoc is set, use the in-memory store
-	if svc.storageLoc != "" {
-		storagePath = filepath.Join(svc.storageLoc, thingID+".kvbtree")
-	}
-	svc.bucketStore = kvbtreestore.NewBucketStore(storagePath)
-
-	err = svc.bucketStore.Open()
-	if err == nil {
-		svc.tdBucketName = thingID
-		svc.tdBucket = svc.bucketStore.GetBucket(svc.tdBucketName)
-	}
-
-	if svc.httpServer != nil {
-		protRoute := svc.httpServer.GetProtectedRoute()
-		protRoute.Get(directory.WellKnownWoTPath, svc.serveReadTDD)
-	}
-
-	return err
-}
-
 // Stop any running actions
 func (svc *DirectoryServiceImpl) Stop() {
 	slog.Info("Stop: Stopping directory service")
@@ -119,6 +86,12 @@ func (svc *DirectoryServiceImpl) Stop() {
 // On start this opens or creates a directory store in {home}/{serviceID}.
 // Directory entries are stored in the 'directory' bucket.
 //
+// This:
+// - opens the bucket store using the thingID as the bucket name.
+// - enable the messaging request handler
+// - enable the http request handler using the given router
+// - include the directory TDD itself in the store
+//
 // The directory publishes a TD that describes how it can be reached. This TD needs
 // to include the security details and forms, which are transport specific.
 //
@@ -126,12 +99,14 @@ func (svc *DirectoryServiceImpl) Stop() {
 // Optionally include the list of other transport.
 //
 //	thingID is the instance ID of the directory server or "" for default
-//	location is the location where the service stores its data. Use "" for testing with an in-memory store.
+//	storageDir is the directory where the service stores its data. Use "" for testing with an in-memory store.
 //	httpServer is used to expose the directory TDD on the well-known path.
 //	transports is a list of transports that should be included in the TDD security and forms. nil to not include these.
-func NewDirectoryServiceImpl(
-	thingID string, location string, httpServer api.IHttpServer,
-	transports []api.ITransportServer) *DirectoryServiceImpl {
+func StartDirectoryServiceImpl(
+	thingID string, storageDir string, httpServer api.IHttpServer,
+	transports []api.ITransportServer) (*DirectoryServiceImpl, error) {
+
+	slog.Info("Start: Starting directory service")
 
 	if thingID == "" {
 		thingID = directory.DefaultDirectoryThingID
@@ -153,18 +128,36 @@ func NewDirectoryServiceImpl(
 			tp.AddTDSecForms(dirTDD, true)
 		}
 	}
-	// }
-	tddJson := td.MarshalTD(dirTDD)
+
+	// if a storageDir is set use the thingID as filename. Otherwise use the in-memory store
+	storageFile := ""
+	if storageDir != "" {
+		storageFile = filepath.Join(storageDir, thingID+".kvbtree")
+	}
+	bucketStore, err := kvbtreestore.OpenKVBTreeStore(storageFile)
+	if err != nil {
+		return nil, err
+	}
+	tdBucket := bucketStore.GetBucket(thingID)
+
 	svc := &DirectoryServiceImpl{
 		HiveCellBase: cells.NewHiveCellBase(thingID, 0),
+		bucketStore:  bucketStore,
 		httpServer:   httpServer,
-		storageLoc:   location,
+		storageLoc:   storageDir,
+		tdBucket:     tdBucket,
 		dirTDD:       dirTDD,
-		dirTDDJson:   tddJson,
+		dirTDDJson:   td.MarshalTD(dirTDD),
 		tdCache:      make(map[string]*td.TD),
+	}
+
+	// service the directory TDD on the well-known path
+	if httpServer != nil {
+		protRoute := httpServer.GetProtectedRoute()
+		protRoute.Get(directory.WellKnownWoTPath, svc.serveReadTDD)
 	}
 
 	var _ directory.IDirectoryService = svc // interface check
 
-	return svc
+	return svc, err
 }

@@ -8,17 +8,17 @@ import (
 	"github.com/hiveot/hivekit/go/cells/transport/httpbasic/internal/clientimpl"
 )
 
-// NewHttpBasicClient creates a new instance of the WoT compatible http-basic
+// StartHttpBasicClient creates a new instance of the WoT compatible http-basic
 // protocol binding client.
 //
 // Users must use SetAuthToken or SetClientCert to authenticate.
 //
-// This uses the given TD to connect and perform an operation.
+// This uses the given TD to determine the URLs to perform an operation.
 //
 //	baseURL of the http server. Used as the base for all further requests.
 //	caCert of the server to validate the server or nil to not check the server cert
-func NewHttpBasicClient(
-	tdoc *td.TD, rootCAs *x509.CertPool) api.ITransportClient {
+func StartHttpBasicClient(
+	tdoc *td.TD, rootCAs *x509.CertPool) (api.ITransportClient, error) {
 
-	return clientimpl.NewHttpBasicClientImpl(tdoc, rootCAs)
+	return clientimpl.StartHttpBasicClientImpl(tdoc, rootCAs)
 }

@@ -316,12 +316,12 @@ func (m *ExposedThing) WriteTD(tdJson string) error {
 	return err
 }
 
-// NewExposedThing creates a new exposed thing (producer) instance for serving requests and
+// StartExposedThing starts a new exposed thing (producer) instance for serving requests and
 // sending notifications.
 //
 //	thingID is the ID of the exposed Thing.
 //	appReqHandler is the application handler invoked when receiving requests for this Thing.
-func NewExposedThing(thingID string, appReqHandler msg.RequestHandler) *ExposedThing {
+func StartExposedThing(thingID string, appReqHandler msg.RequestHandler) *ExposedThing {
 
 	ething := &ExposedThing{
 		// Things dont send requests so no wait
@@ -338,8 +338,8 @@ func NewExposedThing(thingID string, appReqHandler msg.RequestHandler) *ExposedT
 // Factory for creating an exposed Thing using the factory environment
 //
 // This uses the Cell Type name as the thingID prefix followed by shortid.
-func NewExposedThingFactory(f api.ICellFactory, md *api.CellDefinition) (api.IHiveCell, error) {
+func StartExposedThingFactory(f api.ICellFactory, md *api.CellDefinition) (api.IHiveCell, error) {
 	thingID := md.Type + "-" + shortid.MustGenerate()
-	c := NewExposedThing(thingID, nil)
+	c := StartExposedThing(thingID, nil)
 	return c, nil
 }

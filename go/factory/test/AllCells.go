@@ -67,7 +67,7 @@ var HiveKitCells = []api.CellDefinition{
 	// discovery transport
 	{
 		Type:        discovery.DiscoveryClientCellType,
-		Constructor: discovery_client.NewDiscoveryClientFactory,
+		Constructor: discovery_client.StartDiscoveryClientFactory,
 	},
 	{
 		Type:        discovery.DiscoveryServerCellType,
@@ -76,11 +76,11 @@ var HiveKitCells = []api.CellDefinition{
 	// gRPC transport
 	{
 		Type:        grpctransport.HiveotGrpcClientCellType,
-		Constructor: grpc_client.NewHiveotGrpcClientFactory,
+		Constructor: grpc_client.StartHiveotGrpcClientFactory,
 	},
 	{
 		Type:        grpctransport.HiveotGrpcServerCellType,
-		Constructor: grpc_server.NewHiveotGrpcServerFactory,
+		Constructor: grpc_server.StartHiveotGrpcServerFactory,
 	},
 	// http server provider
 	{
@@ -94,21 +94,21 @@ var HiveKitCells = []api.CellDefinition{
 	// },
 	{
 		Type:        httpbasic.HttpBasicServerCellType,
-		Constructor: httpbasic_server.NewHttpBasicServerFactory,
+		Constructor: httpbasic_server.StartHttpBasicServerFactory,
 	},
 	// sse-sc transport
 	{
 		Type:        ssesc.SseScServerCellType,
-		Constructor: ssesc_server.NewSseScServerFactory,
+		Constructor: ssesc_server.StartSseScServerFactory,
 	},
 	{
 		Type:        ssesc.SseScClientCellType,
-		Constructor: ssesc_client.NewSseScClientFactory,
+		Constructor: ssesc_client.StartSseScClientFactory,
 	},
 	// wss transport for hiveot RRN messaging
 	{
 		Type:        wss.HiveotWebsocketClientCellType,
-		Constructor: wss_client.NewHiveotWssClientFactory,
+		Constructor: wss_client.StartHiveotWssClientFactory,
 	},
 	{
 		Type:        wss.HiveotWebsocketServerCellType,
@@ -117,7 +117,7 @@ var HiveKitCells = []api.CellDefinition{
 	// wss transport for WoT websocket messaging
 	{
 		Type:        wss.WotWebsocketClientCellType,
-		Constructor: wss_client.NewWotWssClientFactory,
+		Constructor: wss_client.StartWotWssClientFactory,
 	},
 	{
 		Type:        wss.WotWebsocketServerCellType,
@@ -129,39 +129,39 @@ var HiveKitCells = []api.CellDefinition{
 	// add forms to createTD or updateTD requests
 	{
 		Type:        addforms.AddFormsCellType,
-		Constructor: addforms_service.NewAddFormsServiceFactory,
+		Constructor: addforms_service.StartAddFormsServiceFactory,
 	},
 
 	// thing service helper
 	{
 		Type:        thing.ExposedThingCellType,
-		Constructor: thing.NewExposedThingFactory,
+		Constructor: thing.StartExposedThingFactory,
 	},
 
 	// client and session management provider
 	{
 		Type:        authnapi.AuthnServiceCellType,
-		Constructor: authn_service.NewAuthnServiceFactory,
+		Constructor: authn_service.StartAuthnServiceFactory,
 	},
 	// authorization provider
 	{
 		Type:        authz.AuthzServiceCellType,
-		Constructor: authz_service.NewAuthzServiceFactory,
+		Constructor: authz_service.StartAuthzServiceFactory,
 	},
 	// bucket store as a service
 	{
 		Type:        bucketstore.BucketStoreCellType,
-		Constructor: bucketstore_service.NewBucketStoreServiceFactory,
+		Constructor: bucketstore_service.StartBucketStoreServiceFactory,
 	},
 	// certs service
 	{
 		Type:        certs.CertsServiceCellType,
-		Constructor: certs_service.NewCertsServiceFactory,
+		Constructor: certs_service.StartCertsServiceFactory,
 	},
 	// InitFactoryCerts ensure the factory has certificates needed to run.
 	{
 		Type:        certs.InitFactoryCertsCellType,
-		Constructor: certs_service.NewInitFactoryCerts,
+		Constructor: certs_service.RunInitFactoryCerts,
 	},
 	// consumer helper
 	{
@@ -172,21 +172,21 @@ var HiveKitCells = []api.CellDefinition{
 	// digitwin service
 	{
 		Type:        digitwin.DigitwinCellType,
-		Constructor: digitwin_service.NewDigitwinServiceFactory,
+		Constructor: digitwin_service.StartDigitwinServiceFactory,
 	},
 	// directory service
 	{
 		Type:        directory.DirectoryServiceCellType,
-		Constructor: directory_service.NewDirectoryServiceFactory,
+		Constructor: directory_service.StartDirectoryServiceFactory,
 	},
 	{
 		Type:        directory.DirectoryClientCellType,
-		Constructor: directory_client.NewDirectoryClientFactory,
+		Constructor: directory_client.StartDirectoryClientFactory,
 	},
 	// history service provider
 	{
 		Type:        history.HistoryServiceCellType,
-		Constructor: history_service.NewHistoryServiceFactory,
+		Constructor: history_service.StartHistoryServiceFactory,
 	},
 	{
 		Type:        history.ReadHistoryClientCellType,
@@ -195,21 +195,21 @@ var HiveKitCells = []api.CellDefinition{
 	// logging service provider
 	{
 		Type:        logging.LoggingServiceCellType,
-		Constructor: logging_service.NewLoggingServiceFactory,
+		Constructor: logging_service.StartLoggingServiceFactory,
 	},
 	// auto-reconnect client
 	{
 		Type:        reconnect.ReconnectCellType,
-		Constructor: reconnect_service.NewReconnectFactory,
+		Constructor: reconnect_service.StartReconnectFactory,
 	},
 	// router service provider
 	{
 		Type:        router.RouterCellType,
-		Constructor: router_service.NewRouterServiceFactory,
+		Constructor: router_service.StartRouterServiceFactory,
 	},
 	// vcache server provider
 	{
 		Type:        vcache.ValueCacheCellType,
-		Constructor: vcache_service.NewValueCacheServiceFactory,
+		Constructor: vcache_service.StartValueCacheServiceFactory,
 	},
 }

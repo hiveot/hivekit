@@ -199,33 +199,24 @@ func (svc *ReconnectServiceImpl) SetRequestSink(requestSink api.IHiveCell) {
 	svc.HiveCellBase.SetRequestSink(requestSink)
 
 	// attempt to use the sink if no client is set yet
-	if svc.conn == nil {
-		cl, ok := requestSink.(api.ITransportClient)
-		if ok {
-			svc.conn = cl
-			svc.conn.SetConnectHandler(svc.handleConnectChange)
-		}
+	tpClient, ok := requestSink.(api.ITransportClient)
+	if !ok {
+		slog.Error("SetRequestSink: not a transport client. Continuing")
+		return
 	}
-}
+	svc.conn = tpClient
+	svc.conn.SetConnectHandler(svc.handleConnectChange)
 
-// Start the reconnect service.
-//
-// This connects the provided client.
-func (svc *ReconnectServiceImpl) Start() error {
-	if svc.conn != nil {
-		// if not currently connected/connecting then ask the sink to connect
-		status := svc.conn.GetConnectionStatus()
-		if status != api.StatusConnected && status != api.StatusConnecting {
-			// A failure to connect is not a failure of this service
-			// FIXME: how to report an authentication failure:
-			err := svc.conn.Start()
-			if err != nil {
-				slog.Warn("ReconnectClient.Start The linked client failed to start.",
-					"err", err.Error(), "client ID", svc.conn.GetThingID())
-			}
+	status := tpClient.GetConnectionStatus()
+	if status != api.StatusConnected && status != api.StatusConnecting {
+
+		// FIXME: how to report an authentication failure:
+		err := svc.conn.Connect()
+		if err != nil {
+			slog.Warn("StartReconnectServiceImpl. The linked client failed to start.",
+				"err", err.Error(), "client ID", tpClient.GetThingID())
 		}
 	}
-	return nil
 }
 
 // Stop the reconnect service and disconnect the client
@@ -239,7 +230,7 @@ func (svc *ReconnectServiceImpl) Stop() {
 	svc.conn.Stop()
 }
 
-// NewReconnectServiceImpl creates a reconnect service for use with a transport client.
+// StartReconnectServiceImpl creates a reconnect service for use with a transport client.
 //
 // If a transport client is provided as the sink then make it the request sink for this service so
 // it can receive requests, and make this the notification sink for that client so notifications
@@ -252,25 +243,37 @@ func (svc *ReconnectServiceImpl) Stop() {
 //
 // This service uses the ReconnectCellType as its ID.
 //
-//	sink is the transport client connection that is a sink for this service.
-func NewReconnectServiceImpl(sink api.ITransportClient) (svc *ReconnectServiceImpl) {
+//	tpClient is the connected transport client that is a sink for this service.
+//	  optional, if not provided SetRequestSink will set the handler.
+func StartReconnectServiceImpl(
+	tpClient api.ITransportClient) (svc *ReconnectServiceImpl, err error) {
 
 	svc = &ReconnectServiceImpl{
 		HiveCellBase: cells.NewHiveCellBase(reconnect.ReconnectCellType, 0),
 
 		maxBackoffTimeLimit: reconnect.DefaultBackoffLimit,
 
-		conn:                 sink,
+		conn:                 tpClient,
 		maxReconnectAttempts: reconnect.DefaultMaxReconnectAttempts,
 		subscriptions:        make(map[string]*msg.RequestMessage),
 	}
+	// link between transport client and this service, if provided.
+	if tpClient != nil {
 
-	// link between transport client and this service
-	if sink != nil {
-		sink.SetConnectHandler(svc.handleConnectChange)
+		svc.SetRequestSink(tpClient)
+		tpClient.SetNotificationSink(svc)
 
-		svc.SetRequestSink(sink)
-		sink.SetNotificationSink(svc)
+		// if the linked client is not connected/connecting then ask it to connect
+		// status := tpClient.GetConnectionStatus()
+		// if status != api.StatusConnected && status != api.StatusConnecting {
+		// 	// A failure to connect is not a failure of this service
+		// 	// FIXME: how to report an authentication failure:
+		// 	err2 := tpClient.Start()
+		// 	if err2 != nil {
+		// 		slog.Warn("StartReconnectServiceImpl. The linked client failed to start.",
+		// 			"err", err2.Error(), "client ID", tpClient.GetThingID())
+		// 	}
+		// }
 	}
-	return svc
+	return svc, err
 }

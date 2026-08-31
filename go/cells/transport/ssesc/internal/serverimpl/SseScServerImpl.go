@@ -45,23 +45,6 @@ func (srv *SseScServerImpl) GetTD() *td.TD {
 	return srv.serverTD
 }
 
-// Start readies the server for use.
-//
-// yamlConfig todo configure ssepath
-func (srv *SseScServerImpl) Start() (err error) {
-
-	slog.Info("Start: Starting ssesc transport server", "ssePath", srv.ssePath)
-
-	// Add the routes used in SSE connection and subscription requests
-	srv.CreateRoutes(srv.ssePath, srv.httpServer.GetProtectedRoute())
-
-	// create a TD describing this server along with its connection URL
-	thingID := srv.GetThingID()
-	srv.serverTD = td.NewTD(thingID, "SSE-SC server", vocab.DeviceTypeService)
-	srv.AddTDSecForms(srv.serverTD, false)
-	return err
-}
-
 // Stop any running actions
 func (srv *SseScServerImpl) Stop() {
 	slog.Info("Stop: Stopping ssesc transport server")
@@ -75,9 +58,10 @@ func (srv *SseScServerImpl) Stop() {
 //
 // Use SetRequestSink to set the handler for requests send by consumers
 // Use SetNotificationSink to set the handler for notifications send by Things.
-func NewSseScServerImpl(httpServer api.IHttpServer, respTimeout time.Duration) *SseScServerImpl {
+func StartSseScServerImpl(httpServer api.IHttpServer, respTimeout time.Duration) *SseScServerImpl {
 
 	ssePath := ssesc.SseScPath
+	slog.Info("Start: Starting ssesc transport server", "ssePath", ssePath)
 
 	httpAddr := httpServer.GetConnectURL()
 	urlParts, _ := url.Parse(httpAddr)
@@ -92,16 +76,24 @@ func NewSseScServerImpl(httpServer api.IHttpServer, respTimeout time.Duration) *
 
 	thingID := ssesc.SseScServerCellType + "-" + shortid.MustGenerate()
 	authenticator := httpServer.GetAuthenticator()
-	m := &SseScServerImpl{
+	serverTD := td.NewTD(thingID, "SSE-SC server", vocab.DeviceTypeService)
+
+	srv := &SseScServerImpl{
 		TransportServerBase: transport.NewTransportServerBase(thingID, connectURL, authenticator),
 		httpServer:          httpServer,
 		ssePath:             ssePath,
 		encoder:             encoder,
 		respTimeout:         respTimeout,
+		serverTD:            serverTD,
 	}
+	// Add the routes used in SSE connection and subscription requests
+	srv.CreateRoutes(srv.ssePath, srv.httpServer.GetProtectedRoute())
 
-	var _ api.IHiveCell = m        // interface check
-	var _ api.ITransportServer = m // interface check
+	// create a TD describing this server along with its connection URL
+	srv.AddTDSecForms(srv.serverTD, false)
 
-	return m
+	var _ api.IHiveCell = srv        // interface check
+	var _ api.ITransportServer = srv // interface check
+
+	return srv
 }

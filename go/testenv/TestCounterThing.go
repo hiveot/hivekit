@@ -296,7 +296,7 @@ func NewTestCounterThing(thingID string, config *CounterConfig) *TestCounterThin
 		thingID = DefaultTestCounterThingID + "-" + shortid.MustGenerate()
 	}
 	m := &TestCounterThing{
-		ExposedThing: thing.NewExposedThing(thingID, nil),
+		ExposedThing: thing.StartExposedThing(thingID, nil),
 		config:       config,
 	}
 	m.counter.Store(42)

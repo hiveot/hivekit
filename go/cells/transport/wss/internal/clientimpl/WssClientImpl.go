@@ -382,7 +382,7 @@ func (cl *WssTransportClientImpl) Stop() {
 //
 //	wssURL is the full websocket connection URL including path
 //	rootCAs are the CA's for TLS connection validation
-func NewHiveotWssClientImpl(
+func StartHiveotWssClientImpl(
 	wssURL string, rootCAs *x509.CertPool) *WssTransportClientImpl {
 
 	timeout := msg.DefaultRnRTimeout
@@ -408,7 +408,7 @@ func NewHiveotWssClientImpl(
 //	caCerootCAs are the CA's for TLS connection validation
 //	timeout is the maximum connection wait time. 0 for default.
 //	ch is the connection callback handler, nil to ignore
-func NewWotWssClientImpl(
+func StartWotWssClientImpl(
 	wssURL string, rootCAs *x509.CertPool) *WssTransportClientImpl {
 
 	timeout := msg.DefaultRnRTimeout

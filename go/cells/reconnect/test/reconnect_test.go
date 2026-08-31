@@ -63,7 +63,7 @@ func TestReconnect(t *testing.T) {
 
 	// this test device receives an action and returns the input
 	// it is intended to prove reconnect works.
-	ething := thing.NewExposedThing("", func(req *msg.RequestMessage, replyTo msg.ResponseHandler) error {
+	ething := thing.StartExposedThing("", func(req *msg.RequestMessage, replyTo msg.ResponseHandler) error {
 		slog.Info("Received request", "op", req.Operation)
 		var err error
 		// prove that the return channel is connected
@@ -100,7 +100,7 @@ func TestReconnect(t *testing.T) {
 	defer ctx1Cancel()
 
 	// server emits notification when a new connection is received
-	notifHandler := consumer.NewConsumer(nil, func(notif *msg.NotificationMessage) {
+	notifHandler := consumer.StartConsumer(nil, func(notif *msg.NotificationMessage) {
 		if notif.Name == api.ServerConnectedEvent {
 			// expect a connect-disconnect event
 			serverConnectEvents.Add(1)

@@ -34,14 +34,14 @@ var StandAloneDeviceChain = []api.CellDefinition{
 		// If no CA certificate is found in the AppEnvironment then generate a CA.
 		// If no server certificate is found in the AppEnvironment then generate a self-signed certificate.
 		Type:        certs.InitFactoryCertsCellType,
-		Constructor: certs_service.NewInitFactoryCerts,
+		Constructor: certs_service.RunInitFactoryCerts,
 	},
 
 	// A: handle outgoing request to write TD
 	{
 		// add forms to update the published TD with appropriate forms
 		Type:        addforms.AddFormsCellType,
-		Constructor: addforms_service.NewAddFormsServiceFactory,
+		Constructor: addforms_service.StartAddFormsServiceFactory,
 	},
 	{
 		// discovery server for publishing the device TD
@@ -68,7 +68,7 @@ var StandAloneDeviceChain = []api.CellDefinition{
 		// Register the transport server authentication handler, and handle requests
 		// to manage authentication configuration.
 		Type:        authn.AuthnServiceCellType,
-		Constructor: authn_service.NewAuthnServiceFactory,
+		Constructor: authn_service.StartAuthnServiceFactory,
 	},
 
 	// todo: optional logging of requests

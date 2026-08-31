@@ -341,73 +341,69 @@ func (cl *DiscoveryClientImpl) ParseZeroconfServiceEntry(
 	return &discoResult
 }
 
-// Start the discovery client.
+// startDiscovery the discovery process.
 //
 // If an application environment is provided and no directory URL is set,
 // then run a discovery to update the AppEnvironment directory URL and
 // Server URL. (if empty)
-func (cl *DiscoveryClientImpl) Start() (err error) {
+func (cl *DiscoveryClientImpl) startDiscovery() (err error) {
 
 	var rec0 *discovery.DiscoveryResult
 	var dirURL string
 	var tddURL string
 
-	// discover to populate the app env if needed
-	if cl.discoverOnStart && cl.env != nil && cl.env.DirectoryURL == "" {
-
-		// first obtain the directory exploration URL for downloading a TDD
-		rec0, err = cl.DiscoverFirstDirectory("", 0)
-		if rec0 != nil {
-			tddURL = rec0.AsURL()
-		}
-		if tddURL == "" {
-			slog.Warn("Start: No directories are discovered on the local network.")
-			return nil
-		}
-
-		// next, use it to load the directory TD from the exploration endpoint
-		dirTD, _, err := cl.LoadTD(tddURL)
-
-		if err != nil {
-			slog.Warn("Start: Directory is not available at the discovered URL",
-				"tddURL", tddURL,
-				"err", err.Error())
-			return nil // not fatal
-			// "directoryURL", dirURL, "err", err.Error())
-		} else {
-			// validate the URL
-			parts, err := url.Parse(dirTD.Base)
-			_ = parts
-			if err != nil { // unix: has no Host || parts.Host == "" {
-				slog.Warn("Start: Directory found but its Base is not a valid URL",
-					"Base", dirTD.Base)
-			} else {
-				// Base is a valid URL. Use it as the directory connection url.
-				// Technically, each action request can have a different URL for the directory
-				// subscription and each of the actions. Ignore this for now and use the TDD Base
-				// as the directory URL.
-				dirURL = dirTD.Base
-				slog.Info("Start: Directory found", "URL", dirURL)
-			}
-		}
-
-		// update the factory environment to share the results with other cells
-		if dirURL != "" {
-			if cl.env.DirectoryURL == "" {
-				cl.env.DirectoryURL = dirURL
-			}
-			// in case a gateway server is used the gateway server URL is the same as that of the directory.
-			if cl.env.ServerURL == "" {
-				cl.env.ServerURL = dirTD.Base
-			}
-		}
-		// TODO: if this is a valid Directory TDD then send a notification.
+	// first obtain the directory exploration URL for downloading a TDD
+	rec0, err = cl.DiscoverFirstDirectory("", 0)
+	if rec0 != nil {
+		tddURL = rec0.AsURL()
 	}
+	if tddURL == "" {
+		slog.Warn("Start: No directories are discovered on the local network.")
+		return nil
+	}
+
+	// next, use it to load the directory TD from the exploration endpoint
+	dirTD, _, err := cl.LoadTD(tddURL)
+
+	if err != nil {
+		slog.Warn("Start: Directory is not available at the discovered URL",
+			"tddURL", tddURL,
+			"err", err.Error())
+		return nil // not fatal
+		// "directoryURL", dirURL, "err", err.Error())
+	} else {
+		// validate the URL
+		parts, err := url.Parse(dirTD.Base)
+		_ = parts
+		if err != nil { // unix: has no Host || parts.Host == "" {
+			slog.Warn("Start: Directory found but its Base is not a valid URL",
+				"Base", dirTD.Base)
+		} else {
+			// Base is a valid URL. Use it as the directory connection url.
+			// Technically, each action request can have a different URL for the directory
+			// subscription and each of the actions. Ignore this for now and use the TDD Base
+			// as the directory URL.
+			dirURL = dirTD.Base
+			slog.Info("Start: Directory found", "URL", dirURL)
+		}
+	}
+
+	// update the factory environment to share the results with other cells
+	if dirURL != "" {
+		if cl.env.DirectoryURL == "" {
+			cl.env.DirectoryURL = dirURL
+		}
+		// in case a gateway server is used the gateway server URL is the same as that of the directory.
+		if cl.env.ServerURL == "" {
+			cl.env.ServerURL = dirTD.Base
+		}
+	}
+	// TODO: if this is a valid Directory TDD then send a notification.
 
 	return nil
 }
 
-// NewDiscoveryClientImpl creates a new instance of a discovery client.
+// StartDiscoveryClientImpl starts a new instance of a discovery client.
 //
 // If an appEnv is provided and its DirectoryURL is empty, and discoOnStart is enabled
 // then Start will run in initial directory discovery and update appEnv with the
@@ -415,7 +411,10 @@ func (cl *DiscoveryClientImpl) Start() (err error) {
 //
 // If appEnv is provided and discovery on Start is successful then update appEnv with
 // the discovered directory URL. The directory client can use this to connect to the directory.
-func NewDiscoveryClientImpl(appEnv *api.HiveEnvironment, discoOnStart bool) *DiscoveryClientImpl {
+func StartDiscoveryClientImpl(
+	appEnv *api.HiveEnvironment, discoOnStart bool) (*DiscoveryClientImpl, error) {
+	var err error
+
 	cl := &DiscoveryClientImpl{
 		HiveCellBase:    cells.NewHiveCellBase("", 0),
 		env:             appEnv,
@@ -424,6 +423,12 @@ func NewDiscoveryClientImpl(appEnv *api.HiveEnvironment, discoOnStart bool) *Dis
 	if appEnv != nil {
 		cl.rootCAs = appEnv.GetRootCAs()
 	}
+
+	// discover to populate the app env if needed
+	if cl.discoverOnStart && cl.env != nil && appEnv.DirectoryURL == "" {
+		err = cl.startDiscovery()
+	}
+
 	var _ discovery.IDiscoveryClient = cl // interface check
-	return cl
+	return cl, err
 }

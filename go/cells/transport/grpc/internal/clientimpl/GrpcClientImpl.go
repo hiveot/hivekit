@@ -140,7 +140,7 @@ func (cl *GrpcClientImpl) Connect() (err error) {
 	authToken, scheme := cl.GetAuthToken()
 	_ = scheme
 	clientID := cl.GetClientID()
-	cl.grpcSvcClient = internal.NewGrpcServiceClient(
+	cl.grpcSvcClient = internal.StartGrpcServiceClient(
 		cl.connectURL, clientID, authToken, clientCert, cl.rootCAs, cl.GetTimeout(),
 		grpctransport.GrpcTransportServiceName, cl._onGrpcClientMessage)
 
@@ -297,17 +297,19 @@ func (cl *GrpcClientImpl) SendResponse(resp *msg.ResponseMessage) error {
 //
 // Intended for use by the factory as the factory provides a clientID/token or client
 // certificate. This just calls Connect().
-func (cl *GrpcClientImpl) Start() error {
-	err := cl.Connect()
-	return err
-}
+// func (cl *GrpcClientImpl) Start() error {
+// 	err := cl.Connect()
+// 	return err
+// }
 
 // Stop the client instance
 func (cl *GrpcClientImpl) Stop() {
 	cl.Close()
 }
 
-// NewGrpcClientImpl creates a new instance of the Hiveot gRPC client.
+// StartGrpcClientImpl creates a new instance of the Hiveot gRPC client.
+//
+// To use, authenticate and call Connect.
 //
 // Note that go-gRPC uses the 'dns' scheme and does not support 'tcp'. In order
 // to remain consistent with the server, this client maps the 'tcp' scheme to 'dns'
@@ -319,7 +321,7 @@ func (cl *GrpcClientImpl) Stop() {
 // connectURL is the server URL, e.g.  unix://{/path.sock}, tcp://localhost:{port} or simply "address:port"
 // rootCAs contains the CA certificates to validate the server connection, or nil for UDS or insecure connections.
 // ch is the connect/disconnect callback
-func NewGrpcClientImpl(connectURL string, rootCAs *x509.CertPool) *GrpcClientImpl {
+func StartGrpcClientImpl(connectURL string, rootCAs *x509.CertPool) *GrpcClientImpl {
 
 	// gRPC does not support tcp scheme, but we want to allow users to specify it for consistency with the server.
 	connectURL = strings.TrimPrefix(connectURL, "tcp://")

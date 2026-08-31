@@ -246,15 +246,16 @@ func (cl *GrpcServiceClient) WaitUntilDisconnect(name string) error {
 	return err
 }
 
-// Create a client for the GRPC transport.
+// Start a client for the GRPC transport.
+// This still needs a call to authenticate and connect.
 //
 // Note that ipv4 scheme isnt supported by go-gRPC. Simply omit the scheme.
 //
-// > cl := NewGrpcServiceClient("unix:///var/app.sock", nil, time.Minute, "service1", onClientMessage)
+// > cl := StartGrpcServiceClient("unix:///var/app.sock", nil, time.Minute, "service1", onClientMessage)
 // or
-// > cl := NewGrpcServiceClient("dns:///address:8899", caCert, time.Minute, "service1", onClientMessage)
+// > cl := StartGrpcServiceClient("dns:///address:8899", caCert, time.Minute, "service1", onClientMessage)
 // or
-// > cl := NewGrpcServiceClient("127.0.0.1:8899", caCert, time.Minute, "service1", onClientMessage)
+// > cl := StartGrpcServiceClient("127.0.0.1:8899", caCert, time.Minute, "service1", onClientMessage)
 // >
 // > cl.SetAuthToken(clientID,authToken)
 // > cl.Connect()
@@ -267,7 +268,7 @@ func (cl *GrpcServiceClient) WaitUntilDisconnect(name string) error {
 // respTimeout is used when creating the buffered stream
 // serviceName is provided by the application and must match the server.
 // msgHandler is the callback with received messages
-func NewGrpcServiceClient(
+func StartGrpcServiceClient(
 	connectURI string,
 	clientID string, authToken string,
 	clientCert *tls.Certificate, rootCAs *x509.CertPool,

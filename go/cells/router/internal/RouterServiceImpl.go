@@ -61,8 +61,6 @@ type RouterServiceImpl struct {
 	// the preferred protocol to use when creating a new client connection
 	preferredProtocol string
 
-	// directory to store device accounts
-	storageDir string
 	// location of the device credentials store. "" for in-memory only.
 	storageFile string
 
@@ -195,17 +193,16 @@ func (svc *RouterServiceImpl) GetClientConnection(
 		}
 		if svc.autoReconnect {
 			// reconnect connects the client on start
-			rc := reconnect_service.NewReconnectService(c)
-			cl = rc
+			cl, err = reconnect_service.StartReconnectService(c)
 		} else {
+			// connect directly. Reconnect is not used.
+			err = c.Connect()
 			cl = c
 		}
 		svc.deviceConnections[newOrigin] = cl
 
 		// forward notifications to this service and up to its consumer
 		cl.SetNotificationSink(svc)
-		// last, Connect. If reconnect is used it will connect the client
-		err = cl.Start()
 	}
 
 	return cl, err
@@ -341,20 +338,6 @@ func (svc *RouterServiceImpl) SetClientCert(clientCert *tls.Certificate) {
 	svc.clientCert = clientCert
 }
 
-// Start the router service.
-// This loads to stored Thing credentials
-func (svc *RouterServiceImpl) Start() (err error) {
-	slog.Info("Start: Starting router service")
-	if svc.storageDir != "" {
-		fileName := "deviceCredentials.json"
-		svc.storageFile = filepath.Join(svc.storageDir, fileName)
-	}
-	svc.credStore = NewCredentialsStore(svc.storageFile)
-	err = svc.credStore.Open()
-
-	return err
-}
-
 // Stop the router service.
 // This closes all established client connections.
 func (svc *RouterServiceImpl) Stop() {
@@ -368,7 +351,7 @@ func (svc *RouterServiceImpl) Stop() {
 	svc.credStore.Close()
 }
 
-// NewRouterServiceImpl creates a new router service
+// StartRouterServiceImpl creates a new router service
 //
 // Use getSrv if routing requests to server RC connected device should be supported.
 // AutoReconnect will attempt to automatically reconnect failed client connections. Note that this
@@ -382,7 +365,7 @@ func (svc *RouterServiceImpl) Stop() {
 //	timeout is the maximum communication timeout with connect clients
 //	getTD  handler to lookup a TD for a thingID from a directory
 //	getSrv handler returning a list of transport servers that can contain RC devices.
-func NewRouterServiceImpl(
+func StartRouterServiceImpl(
 	storageDir string,
 	autoReconnect bool,
 	clientID string,
@@ -391,27 +374,39 @@ func NewRouterServiceImpl(
 	timeout time.Duration,
 	getTD func(thingID string) *td.TD,
 	getSrv func() []api.ITransportServer,
-) *RouterServiceImpl {
+) (*RouterServiceImpl, error) {
+
+	var storageFile string
+
+	slog.Info("Start: Starting router service")
 	if timeout == 0 {
 		timeout = msg.DefaultRnRTimeout
 	}
 
+	if storageDir != "" {
+		fileName := "deviceCredentials.json"
+		storageFile = filepath.Join(storageDir, fileName)
+	}
+	credStore := NewCredentialsStore(storageFile)
+	err := credStore.Open()
+
 	thingID := router.RouterCellType + "-" + shortid.MustGenerate()
-	m := &RouterServiceImpl{
+	svc := &RouterServiceImpl{
 		HiveCellBase:      cells.NewHiveCellBase(thingID, timeout),
 		autoReconnect:     autoReconnect,
 		clientID:          clientID,
 		clientCert:        clientCert,
+		credStore:         credStore,
 		rootCAs:           rootCAs,
 		getTD:             getTD,
 		preferredProtocol: api.WotWebsocketProtocolType,
-		storageDir:        storageDir,
+		storageFile:       storageFile,
 		getSrv:            getSrv,
 		deviceConnections: make(map[string]api.IHiveCell),
 		thingOrigins:      make(map[string]string),
 	}
 
-	var _ router.IRouterService = m // interface check
+	var _ router.IRouterService = svc // interface check
 
-	return m
+	return svc, err
 }

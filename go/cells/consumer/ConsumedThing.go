@@ -17,12 +17,8 @@ type ConsumedThing struct {
 	cells.HiveCellBase
 }
 
-// TODO: Start the consumed thing, subscribe, etc,etc
-func (ct *ConsumedThing) Start() error {
-	return fmt.Errorf("not yet implemented")
-}
-
-func NewConsumedThing(thingID string, sink api.IHiveCell) *ConsumedThing {
+// Start and link a consumed thing
+func StartConsumedThing(thingID string, sink api.IHiveCell) (*ConsumedThing, error) {
 	ct := &ConsumedThing{
 		HiveCellBase: *cells.NewHiveCellBase(thingID, 0),
 	}
@@ -30,5 +26,8 @@ func NewConsumedThing(thingID string, sink api.IHiveCell) *ConsumedThing {
 		ct.SetRequestSink(sink)
 		sink.SetNotificationSink(ct)
 	}
-	return ct
+	// TODO: Start the consumed thing, subscribe, etc,etc
+
+	// return ct
+	return ct, fmt.Errorf("not yet implemented")
 }

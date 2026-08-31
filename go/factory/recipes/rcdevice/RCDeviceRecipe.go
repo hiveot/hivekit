@@ -20,12 +20,12 @@ var RCDeviceChain = []api.CellDefinition{
 		// discover the server running the directory
 		// this sets the factory serverTD
 		Type:        discovery.DiscoveryClientCellType,
-		Constructor: discovery_client.NewDiscoveryClientFactory,
+		Constructor: discovery_client.StartDiscoveryClientFactory,
 	},
 	{
 		// enable auto-reconnect for the client
 		Type:        reconnect.ReconnectCellType,
-		Constructor: reconnect_service.NewReconnectFactory,
+		Constructor: reconnect_service.StartReconnectFactory,
 	},
 	{
 		// connect a new client to the discovered server

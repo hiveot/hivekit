@@ -25,6 +25,14 @@ type AddFormsServiceImpl struct {
 	getServers func() []api.ITransportServer
 }
 
+// Update the base-URL, security scheme and forms to the given TD
+func (m *AddFormsServiceImpl) AddTDSecForms(tdoc *td.TD, includeAffordances bool) {
+	tpServers := m.getServers()
+	for _, srv := range tpServers {
+		srv.AddTDSecForms(tdoc, includeAffordances)
+	}
+}
+
 // convert TDs provided with CreateThing and UpdateThing directory actions
 func (m *AddFormsServiceImpl) HandleRequest(req *msg.RequestMessage, replyTo msg.ResponseHandler) error {
 	if req.Operation != td.OpInvokeAction {
@@ -51,16 +59,8 @@ func (m *AddFormsServiceImpl) HandleRequest(req *msg.RequestMessage, replyTo msg
 	return m.ForwardRequest(&req2, replyTo)
 }
 
-// Update the base-URL, security scheme and forms to the given TD
-func (m *AddFormsServiceImpl) AddTDSecForms(tdoc *td.TD, includeAffordances bool) {
-	tpServers := m.getServers()
-	for _, srv := range tpServers {
-		srv.AddTDSecForms(tdoc, includeAffordances)
-	}
-}
-
-// NewAddFormsServiceImpl creates a new instance of the service
-func NewAddFormsServiceImpl(getServers func() []api.ITransportServer) *AddFormsServiceImpl {
+// StartAddFormsServiceImpl creates a new instance of the service
+func StartAddFormsServiceImpl(getServers func() []api.ITransportServer) *AddFormsServiceImpl {
 	thingID := addforms.AddFormsCellType + "-" + shortid.MustGenerate()
 	m := &AddFormsServiceImpl{
 		HiveCellBase:       *cells.NewHiveCellBase(thingID, 0),

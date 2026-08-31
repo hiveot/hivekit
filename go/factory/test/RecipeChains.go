@@ -22,7 +22,7 @@ var DeviceServerRecipe = []api.CellDefinition{
 	},
 	{
 		Type:        thing.ExposedThingCellType,
-		Constructor: thing.NewExposedThingFactory,
+		Constructor: thing.StartExposedThingFactory,
 	},
 }
 
@@ -34,6 +34,6 @@ var DeviceClientRecipe = []api.CellDefinition{
 	},
 	{
 		Type:        wss.WotWebsocketClientCellType,
-		Constructor: wss_client.NewWotWssClientFactory,
+		Constructor: wss_client.StartWotWssClientFactory,
 	},
 }

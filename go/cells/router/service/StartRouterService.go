@@ -18,7 +18,7 @@ import (
 // TODO: use config to set auto-reconnect. For now don't because it might hide auth problems.
 const DefaultRouterAutoConnect = false
 
-// NewRouterService creates a new instance of the router service with the default router typeID.
+// StartRouterService creates a new instance of the router service with the default router typeID.
 // Start must be called before usage.
 //
 //	storageDir location where the router stores its data
@@ -30,23 +30,22 @@ const DefaultRouterAutoConnect = false
 //	getTD  handler to lookup a TD for a thingID from a directory
 //	getSrv handler to return the running list of transport servers that can contain
 //	 reverse connections. nil to not support RCs.
-func NewRouterService(storageDir string,
+func StartRouterService(storageDir string,
 	autoReconnect bool,
 	clientID string,
 	clientCert *tls.Certificate,
 	rootCAs *x509.CertPool, timeout time.Duration,
 	getTD func(thingID string) *td.TD,
 	getSrv func() []api.ITransportServer,
-) router.IRouterService {
+) (router.IRouterService, error) {
 
-	svc := internal.NewRouterServiceImpl(storageDir, autoReconnect,
+	return internal.StartRouterServiceImpl(storageDir, autoReconnect,
 		clientID, clientCert, rootCAs, timeout, getTD, getSrv)
-	return svc
 }
 
 // Create a router service instance using the factory environment.
 // This needs a directory client or service with a getTD method to lookup a Thing TD.
-func NewRouterServiceFactory(f api.ICellFactory, md *api.CellDefinition) (api.IHiveCell, error) {
+func StartRouterServiceFactory(f api.ICellFactory, md *api.CellDefinition) (api.IHiveCell, error) {
 
 	var getTD func(string) *td.TD
 	env := f.GetEnvironment()
@@ -74,10 +73,10 @@ func NewRouterServiceFactory(f api.ICellFactory, md *api.CellDefinition) (api.IH
 	autoReconnect := DefaultRouterAutoConnect
 	timeout := f.GetEnvironment().RpcTimeout
 	clientCert, _ := env.GetClientCert()
-	svc := NewRouterService(
+	svc, err := StartRouterService(
 		storageDir, autoReconnect, env.ClientID, clientCert, env.GetRootCAs(),
 		timeout, getTD, f.GetTransportServers)
 	svc.SetTimeout(env.RpcTimeout)
 
-	return svc, nil
+	return svc, err
 }

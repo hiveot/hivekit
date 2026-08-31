@@ -23,10 +23,9 @@ func TestStartStop(t *testing.T) {
 
 	os.RemoveAll(filepath.Dir(LogFile))
 	cfg := logging.NewLoggingConfig(LogFile, logging.LoggingBackendFile)
-	m := logging_service.NewLoggingService(cfg)
-	err := m.Start()
+	svc, err := logging_service.StartLoggingService(cfg)
 	require.NoError(t, err)
-	m.Stop()
+	svc.Stop()
 }
 
 func TestLogNotification(t *testing.T) {
@@ -36,14 +35,13 @@ func TestLogNotification(t *testing.T) {
 	os.RemoveAll(filepath.Dir(LogFile))
 	cfg := logging.NewLoggingConfig(LogFile, logging.LoggingBackendFile)
 	cfg.Log2Stdout = true
-	m := logging_service.NewLoggingService(cfg)
-	err := m.Start()
+	svc, err := logging_service.StartLoggingService(cfg)
 	require.NoError(t, err)
-	defer m.Stop()
+	defer svc.Stop()
 
 	// pass events through the service and log them in a file destination
 	ev1 := msg.NewNotificationMessage("client1", msg.AffordanceTypeEvent, "thing1", "name1", nil)
-	m.HandleNotification(ev1)
+	svc.HandleNotification(ev1)
 
 	// wait for write to log to complete
 	time.Sleep(time.Millisecond * 10)

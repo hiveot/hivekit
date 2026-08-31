@@ -25,7 +25,7 @@ import (
 // handling a single endpoint for all operations. See HttpBasicThingOperationPath and
 // HttpBasicAffordanceOperationPath for the generic paths.
 // The paths are included in the thing level forms when invoking AddTDSecForms.
-func (srv *HttpBasicServerImpl) createRoutes() {
+func (srv *HttpBasicServerImpl) createRoutes() error {
 
 	//--- public routes do not require an authenticated session
 	pubRoutes := srv.httpServer.GetPublicRoute()
@@ -36,7 +36,7 @@ func (srv *HttpBasicServerImpl) createRoutes() {
 	//--- private routes that requires authentication (as published in the TD)
 	protRoutes := srv.httpServer.GetProtectedRoute()
 	if protRoutes == nil {
-		panic("no protected route available")
+		return fmt.Errorf("createRoutes: no protected route available")
 	}
 
 	// register generic handlers for operations on Thing and affordance level
@@ -48,7 +48,7 @@ func (srv *HttpBasicServerImpl) createRoutes() {
 		httpbasic.HttpBasicAffordanceOperationPath, srv.onHttpAffordanceOperation)
 	protRoutes.HandleFunc(
 		httpbasic.HttpBasicThingOperationPath, srv.onHttpThingOperation)
-
+	return nil
 }
 
 // EnableStatic adds a path to read files from the static directory. Auth required.
