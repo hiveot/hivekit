@@ -55,7 +55,7 @@ var StandAloneDeviceChain = []api.CellDefinition{
 		// http server is needed by websocket transport server
 		// It uses the factory registered authenticator.
 		Type:        api.HttpServerCellType,
-		Constructor: tls_server.NewTLSServerFactory,
+		Constructor: tls_server.StartTLSServerFactory,
 	},
 	{
 		// Websocket transport server for incoming connections

@@ -9,19 +9,20 @@ import (
 )
 
 // Create a new instance
-func NewDirectoryHttpServer(httpServer api.IHttpServer, respTimeout time.Duration) directory.IDirectoryHttpServer {
-	m := internal.NewDirectoryHttpServer(httpServer, respTimeout)
-	return m
+func StartDirectoryHttpServer(
+	httpServer api.IHttpServer, respTimeout time.Duration) (
+	directory.IDirectoryHttpServer, error) {
+
+	return internal.StartDirectoryHttpServer(httpServer, respTimeout)
 }
 
 // Factory for the directory http interface cell
 // Place this before the directory service in the chain and before middleware cells that log and
 // authorize requests.
-func NewDirectoryHttpServerFactory(f api.ICellFactory) api.IHiveCell {
+func StartDirectoryHttpServerFactory(f api.ICellFactory) (api.IHiveCell, error) {
 
 	rpcTimeout := f.GetEnvironment().RpcTimeout
 	httpServer, ok := f.GetCell(api.HttpServerCellType).(api.IHttpServer)
 	_ = ok
-	m := internal.NewDirectoryHttpServer(httpServer, rpcTimeout)
-	return m
+	return internal.StartDirectoryHttpServer(httpServer, rpcTimeout)
 }

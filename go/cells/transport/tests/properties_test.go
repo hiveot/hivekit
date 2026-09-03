@@ -59,9 +59,14 @@ func TestObservePropertyByConsumer(t *testing.T) {
 	defer cancelFn()
 
 	// 2. connect with two consumers
-	co1, cc1, _ := testEnv.NewConnectedConsumer(testClientID1, authn.ClientRoleViewer)
+	co1, cc1, _ := testEnv.NewTestConsumer(testClientID1, authn.ClientRoleViewer)
+	err := cc1.Connect()
+	require.NoError(t, err)
 	defer cc1.Close()
-	co2, cc2, _ := testEnv.NewConnectedConsumer(testClientID1, authn.ClientRoleViewer)
+
+	co2, cc2, _ := testEnv.NewTestConsumer(testClientID1, authn.ClientRoleViewer)
+	err = cc2.Connect()
+	require.NoError(t, err)
 	defer cc2.Close()
 
 	// set the handler for property updates and subscribe
@@ -82,7 +87,7 @@ func TestObservePropertyByConsumer(t *testing.T) {
 	})
 
 	// Client1 subscribes to one, client 2 to all property updates
-	err := co1.ObserveProperty(thingID, propertyKey1)
+	err = co1.ObserveProperty(thingID, propertyKey1)
 	require.NoError(t, err)
 	err = co2.ObserveProperty("", "")
 	require.NoError(t, err)
@@ -193,11 +198,13 @@ func TestReadProperty(t *testing.T) {
 	defer cancelFn()
 
 	// 2. connect as a consumer
-	co1, cc1, _ := testEnv.NewConnectedConsumer(testClientID1, authn.ClientRoleViewer)
+	co1, cc1, _ := testEnv.NewTestConsumer(testClientID1, authn.ClientRoleViewer)
+	err := cc1.Connect()
+	require.NoError(t, err)
 	defer cc1.Close()
 
 	var rxVal string
-	err := co1.ReadProperty(thingID, propKey, &rxVal)
+	err = co1.ReadProperty(thingID, propKey, &rxVal)
 	require.NoError(t, err)
 	assert.Equal(t, propValue, rxVal)
 }
@@ -230,7 +237,9 @@ func TestReadAllProperties(t *testing.T) {
 	defer cancelFn()
 
 	// 2. connect as a consumer
-	co1, cc1, _ := testEnv.NewConnectedConsumer(testClientID1, authn.ClientRoleViewer)
+	co1, cc1, _ := testEnv.NewTestConsumer(testClientID1, authn.ClientRoleViewer)
+	err := cc1.Connect()
+	require.NoError(t, err)
 	defer cc1.Close()
 
 	propMap, err := co1.ReadAllProperties(thingID)

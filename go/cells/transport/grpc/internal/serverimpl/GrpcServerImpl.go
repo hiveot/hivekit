@@ -62,7 +62,7 @@ func (srv *GrpcServerImpl) ServeStreamConnection(
 	// authentication???
 
 	// Create a hiveot transport connection for this stream.
-	c := NewGrpcServerConnection(
+	c := StartGrpcServerConnection(
 		clientID, cid, grpcStream, srv.EmitRequest, srv.EmitNotification)
 	c.SetTimeout(srv.respTimeout)
 

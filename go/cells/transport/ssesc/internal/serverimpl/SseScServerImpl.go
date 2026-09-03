@@ -58,7 +58,8 @@ func (srv *SseScServerImpl) Stop() {
 //
 // Use SetRequestSink to set the handler for requests send by consumers
 // Use SetNotificationSink to set the handler for notifications send by Things.
-func StartSseScServerImpl(httpServer api.IHttpServer, respTimeout time.Duration) *SseScServerImpl {
+func StartSseScServerImpl(
+	httpServer api.IHttpServer, respTimeout time.Duration) (*SseScServerImpl, error) {
 
 	ssePath := ssesc.SseScPath
 	slog.Info("Start: Starting ssesc transport server", "ssePath", ssePath)
@@ -95,5 +96,5 @@ func StartSseScServerImpl(httpServer api.IHttpServer, respTimeout time.Duration)
 	var _ api.IHiveCell = srv        // interface check
 	var _ api.ITransportServer = srv // interface check
 
-	return srv
+	return srv, nil
 }

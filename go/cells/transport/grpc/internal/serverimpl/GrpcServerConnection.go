@@ -51,12 +51,11 @@ func (sc *GrpcServerConnection) WaitUntilDisconnect() {
 	sc.bstrm.WaitUntilDisconnect()
 }
 
-// Create a transport server side connection of a grpc messaging stream.
+// Start a transport server side connection of a grpc messaging stream.
 // This implemements the IConnection interface.
 //
-// Use Close() to close the connection from the server end.
 // Run WaitUntilDisconnect() to block until the connection is closed by the client or server.
-func NewGrpcServerConnection(
+func StartGrpcServerConnection(
 	clientID string,
 	connectionID string,
 	grpcStream grpc.ServerStream,
@@ -76,13 +75,14 @@ func NewGrpcServerConnection(
 	c := &GrpcServerConnection{}
 	// the server connection base handles the generic portion of message handling
 	encoder := transport.NewRRNJsonEncoder()
+
 	c.ServerConnectionBase = transport.NewServerConnectionBase(
 		clientID, remoteAddr, connectionID,
 		encoder, c._sendRaw, reqHandler, notifHandler,
 	)
-
 	// use the same buffered stream as the client uses for sending and receiving messages
-	c.bstrm = grpclib.NewBufferedStream(grpcStream, nil, c.OnRemoteMessage, time.Minute)
+	// this can instantly receive a message so GrpcConnection must be ready.
+	c.bstrm = grpclib.OpenBufferedStream(grpcStream, nil, c.OnRemoteMessage, time.Minute)
 
 	var _ api.IConnection = c // interface check
 

@@ -9,7 +9,7 @@ import (
 	"github.com/hiveot/hivekit/go/cells/transport/wss/internal/serverimpl"
 )
 
-// NewHiveotWssServer creates a websocket transport using the HiveOT RRN messaging format.
+// StartHiveotWssServer creates a websocket transport using the HiveOT RRN messaging format.
 //
 // This uses the HiveOT RRN messages as the payload without conversions.
 //
@@ -18,16 +18,15 @@ import (
 //
 // Use SetRequestSink to set the handler for requests send by consumers.
 // Use SetNotificationSink to set the handler for notifications send by devices and services.
-func NewHiveotWssServer(
-	httpServer api.IHttpServer, respTimeout time.Duration) wss.IWssTransportServer {
+func StartHiveotWssServer(
+	httpServer api.IHttpServer, respTimeout time.Duration) (wss.IWssTransportServer, error) {
 
-	wssTransport := serverimpl.NewHiveotWssServerImpl(httpServer, respTimeout)
-	return wssTransport
+	return serverimpl.StartHiveotWssServerImpl(httpServer, respTimeout)
 }
 
 // Load the HiveOT websocket server using the factory environment
 // This loads the http server
-func NewHiveotWssServerFactory(
+func StartHiveotWssServerFactory(
 	f api.ICellFactory, md *api.CellDefinition) (api.IHiveCell, error) {
 
 	httpServer := f.GetHttpServer(true)
@@ -35,10 +34,10 @@ func NewHiveotWssServerFactory(
 		return nil, fmt.Errorf("NewHiveotWssServerFactory: missing http server")
 	}
 	timeout := f.GetEnvironment().RpcTimeout
-	return NewHiveotWssServer(httpServer, timeout), nil
+	return StartHiveotWssServer(httpServer, timeout)
 }
 
-// NewWotServer creates a websocket transport server using WoT Websocket messaging format.
+// StartWotWssServer starts a websocket transport server using WoT Websocket messaging format.
 //
 // This uses the WoT websocket protocol message converter to convert between
 // the standard RRN messages and the WoT websocket message format.
@@ -48,11 +47,10 @@ func NewHiveotWssServerFactory(
 //
 // Use SetRequestSink to set the handler for requests send by consumers
 // Use SetNotificationSink to set the handler for notifications send by device.
-func NewWotWssServer(
-	httpServer api.IHttpServer, respTimeout time.Duration) wss.IWssTransportServer {
+func StartWotWssServer(
+	httpServer api.IHttpServer, respTimeout time.Duration) (wss.IWssTransportServer, error) {
 
-	wssTransport := serverimpl.NewWotWssServerImpl(httpServer, respTimeout)
-	return wssTransport
+	return serverimpl.StartWotWssServerImpl(httpServer, respTimeout)
 }
 
 // Load the Wot websocket server using the factory environment
@@ -64,5 +62,5 @@ func NewWotWssServerFactory(f api.ICellFactory, md *api.CellDefinition) (api.IHi
 		return nil, fmt.Errorf("NewWotWssServerFactory: missing http server")
 	}
 	timeout := f.GetEnvironment().RpcTimeout
-	return NewWotWssServer(httpServer, timeout), nil
+	return StartWotWssServer(httpServer, timeout)
 }

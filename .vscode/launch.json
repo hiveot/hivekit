@@ -41,7 +41,7 @@
             "cwd": "${workspaceFolder}/go/examples",
             "showLog": false,
             "env": {},
-            "args": [ "-clientID", "admin", "disco"],
+            "args": [ "-clientID", "admin", "status", "authn:admin"],
             //  "args": [ "-clientID", "admin", "-loglevel", "-home", "~/bin/hiveot", "status", "dtw:zwavejs-cb:D0547D32.25"],
             //  "args": [ "-v", "-clientID", "admin",  "-home", "/tmp/hivekit-examples", "status", "counter1"],
             "logOutput": "rpc",

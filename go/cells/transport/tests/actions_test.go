@@ -65,9 +65,12 @@ func TestInvokeActionFromConsumerToServer(t *testing.T) {
 	})
 	testEnv.Server.SetRequestSink(ag)
 
-	// 2. connect a client
-	co1, cc1, token := testEnv.NewConnectedConsumer(testClientID1, authn.ClientRoleViewer)
+	// 2. connect a consumer with a linked client
+	co1, cc1, token := testEnv.NewTestConsumer(testClientID1, authn.ClientRoleViewer)
+	err := cc1.Connect()
+	assert.NoError(t, err)
 	defer cc1.Close()
+
 	require.NotEmpty(t, token)
 	ctx1, release1 := context.WithTimeout(context.Background(), time.Minute)
 	defer release1()
@@ -86,7 +89,7 @@ func TestInvokeActionFromConsumerToServer(t *testing.T) {
 	// the response handler above will receive the result
 	// testOutput can be updated as an immediate result or via the callback message handler
 	req := msg.NewRequestMessage(td.OpInvokeAction, thingID, actionName, testMsg1)
-	err := co1.EmitRequest(req, responseHandler)
+	err = co1.EmitRequest(req, responseHandler)
 
 	require.NoError(t, err)
 	<-ctx1.Done()
@@ -272,12 +275,14 @@ func TestQueryActions(t *testing.T) {
 	testEnv.Server.SetRequestSink(ag)
 
 	// 2. connect as a consumer
-	co1, cc1, _ := testEnv.NewConnectedConsumer(testClientID1, authn.ClientRoleViewer)
+	co1, cc1, _ := testEnv.NewTestConsumer(testClientID1, authn.ClientRoleViewer)
+	err := cc1.Connect()
+	assert.NoError(t, err)
 	defer cc1.Close()
 
 	// 3. Query action status
 	var status msg.ResponseMessage
-	status, err := co1.QueryAction(thingID, actionKey)
+	status, err = co1.QueryAction(thingID, actionKey)
 	// err := co1.Rpc(td.OpQueryAction, thingID, actionKey, nil, &status)
 	require.NoError(t, err)
 	require.Equal(t, thingID, status.ThingID)

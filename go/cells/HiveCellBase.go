@@ -295,9 +295,6 @@ func (m *HiveCellBase) SetTimeout(rpcTimeout time.Duration) {
 	m.rpcTimeout = rpcTimeout
 }
 
-// Start the cell .. owning struct must implement this
-func (co *HiveCellBase) Start() error { return nil }
-
 // Stop the cell .. owning struct must implement this
 func (co *HiveCellBase) Stop() {}
 

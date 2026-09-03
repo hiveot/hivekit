@@ -35,26 +35,30 @@ func StartHiveotWssClientFactory(
 	var err error
 
 	env := f.GetEnvironment()
-	clientCert, _ := env.GetClientCert()
 	wssURL := env.ServerURL
 	cl := StartHiveotWssClient(wssURL, env.GetRootCAs())
 	cl.SetTimeout(env.RpcTimeout)
+
+	// set client certificate if available
+	clientCert, _ := env.GetClientCert()
 	if clientCert != nil {
 		err = cl.SetClientCert(clientCert)
-	} else {
-		// if client certificate not available attempt auth token
-		clientID := env.ClientID
-		authToken, _ := env.GetAuthToken()
+	}
+	// set auth token if available
+	clientID := env.ClientID
+	authToken, _ := env.GetAuthToken()
 
-		if clientID != "" && authToken != "" {
-			err = cl.SetAuthToken(clientID, authToken, td.SecSchemeBearer)
-		}
-		if err == nil {
-			err = cl.Connect()
-		}
+	if clientID != "" && authToken != "" {
+		err = cl.SetAuthToken(clientID, authToken, td.SecSchemeBearer)
+	}
+	// connect
+	if err == nil {
+		err = cl.Connect()
 	}
 	if err != nil {
-		slog.Error("NewWotWssClientFactory: " + err.Error())
+		slog.Error("StartHiveotWssClientFactory: " + err.Error())
+	} else {
+		slog.Info("StartHiveotWssClientFactory: connected", "clientID", clientID)
 	}
 	return cl, err
 }
@@ -95,29 +99,30 @@ func StartWotWssClientFactory(
 
 	var err error
 
+	// create the client using the app env server URL
 	env := f.GetEnvironment()
-	clientCert, _ := env.GetClientCert()
 	serverURL := env.ServerURL
-
 	cl := StartWotWssClient(serverURL, env.GetRootCAs())
 	cl.SetTimeout(env.RpcTimeout)
-	// if client certificate not available attempt auth token
+
+	// set client certificate if available
+	clientCert, _ := env.GetClientCert()
 	if clientCert != nil {
 		err = cl.SetClientCert(clientCert)
-	} else {
-		// must use token auth
-		clientID := env.ClientID
-		authToken, _ := env.GetAuthToken()
+	}
+	// set auth token if available
+	clientID := env.ClientID
+	authToken, _ := env.GetAuthToken()
 
-		if clientID != "" && authToken != "" {
-			err = cl.SetAuthToken(clientID, authToken, td.SecSchemeBearer)
-			if err == nil {
-				err = cl.Connect()
-			}
-		}
+	if clientID != "" && authToken != "" {
+		err = cl.SetAuthToken(clientID, authToken, td.SecSchemeBearer)
+	}
+	// connect
+	if err == nil {
+		err = cl.Connect()
 	}
 	if err != nil {
-		slog.Error("NewWotWssClientFactory: " + err.Error())
+		slog.Error("StartWotWssClientFactory: " + err.Error())
 	}
 	return cl, err
 }

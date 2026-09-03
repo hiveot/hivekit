@@ -90,8 +90,8 @@ func (cliex *Cliex) FindTD(thingID string) (tdoc *td.TD) {
 	return tdoc
 }
 
-// Create a new instance of the CLI app
-func NewCliex(config CliexConfig,
+// Start a new instance of the CLI app
+func StartCliex(config CliexConfig,
 	discoClient discovery.IDiscoveryClient,
 	dirClient directory.IDirectoryClient,
 	caCert *x509.Certificate) *Cliex {

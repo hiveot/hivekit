@@ -293,15 +293,6 @@ func (cl *GrpcClientImpl) SendResponse(resp *msg.ResponseMessage) error {
 	return err
 }
 
-// Start the transport client and attempt to connect to the server if not already connected.
-//
-// Intended for use by the factory as the factory provides a clientID/token or client
-// certificate. This just calls Connect().
-// func (cl *GrpcClientImpl) Start() error {
-// 	err := cl.Connect()
-// 	return err
-// }
-
 // Stop the client instance
 func (cl *GrpcClientImpl) Stop() {
 	cl.Close()

@@ -149,10 +149,11 @@ func (svc *ReconnectServiceImpl) handleConnectChange(
 }
 
 // Forward notification received from the connected client.
-//
-// Experimental: Use messages to detect connection lost and request a reconnect
 func (svc *ReconnectServiceImpl) HandleNotification(notif *msg.NotificationMessage) {
 
+	// For now the reconnect is triggered by the callback, not notifications.
+	//
+	//
 	// if svc.conn == nil {
 	// 	//  If this is a 'connection lost' event, sent by the client, then send the client a request to
 	// 	// reconnect.
@@ -259,21 +260,10 @@ func StartReconnectServiceImpl(
 	}
 	// link between transport client and this service, if provided.
 	if tpClient != nil {
-
-		svc.SetRequestSink(tpClient)
+		// Get ready to receive connection notifications from the client.
 		tpClient.SetNotificationSink(svc)
-
-		// if the linked client is not connected/connecting then ask it to connect
-		// status := tpClient.GetConnectionStatus()
-		// if status != api.StatusConnected && status != api.StatusConnecting {
-		// 	// A failure to connect is not a failure of this service
-		// 	// FIXME: how to report an authentication failure:
-		// 	err2 := tpClient.Start()
-		// 	if err2 != nil {
-		// 		slog.Warn("StartReconnectServiceImpl. The linked client failed to start.",
-		// 			"err", err2.Error(), "client ID", tpClient.GetThingID())
-		// 	}
-		// }
+		// SetRequestSink will invoke Connect on the client if neccesary.
+		svc.SetRequestSink(tpClient)
 	}
 	return svc, err
 }

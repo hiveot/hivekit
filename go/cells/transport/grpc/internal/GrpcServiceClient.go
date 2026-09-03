@@ -165,7 +165,7 @@ func (cl *GrpcServiceClient) ConnectStream(name string) (*BufferedStream, error)
 	}
 
 	// use buffered stream for sending and receiving
-	bufferedStream := NewBufferedStream(stream, cancelFn, cl.recvHandler, cl.respTimeout)
+	bufferedStream := OpenBufferedStream(stream, cancelFn, cl.recvHandler, cl.respTimeout)
 
 	cl.mux.Lock()
 	defer cl.mux.Unlock()

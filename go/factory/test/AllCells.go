@@ -48,7 +48,7 @@ import (
 )
 
 // List hivekit available cells
-var HiveKitCells = []api.CellDefinition{
+var HiveKitAllCells = []api.CellDefinition{
 
 	//--- factory related cells
 
@@ -85,7 +85,7 @@ var HiveKitCells = []api.CellDefinition{
 	// http server provider
 	{
 		Type:        api.HttpServerCellType,
-		Constructor: tls_server.NewTLSServerFactory,
+		Constructor: tls_server.StartTLSServerFactory,
 	},
 	// http-basic transport
 	// {
@@ -112,7 +112,7 @@ var HiveKitCells = []api.CellDefinition{
 	},
 	{
 		Type:        wss.HiveotWebsocketServerCellType,
-		Constructor: wss_server.NewHiveotWssServerFactory,
+		Constructor: wss_server.StartHiveotWssServerFactory,
 	},
 	// wss transport for WoT websocket messaging
 	{

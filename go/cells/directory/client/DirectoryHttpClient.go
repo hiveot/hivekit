@@ -237,7 +237,7 @@ func NewDirectoryHttpClient(dirTD *td.TD, rootCAs *x509.CertPool) *DirectoryHttp
 		slog.Error("NewDirectoryHttpClient: TD has no invalid Base URL: " + err.Error())
 		return nil
 	}
-	tlsClient := tls_client.NewTLSClient(parts.Host, rootCAs)
+	tlsClient := tls_client.StartTLSClient(parts.Host, rootCAs)
 
 	cl := &DirectoryHttpClient{
 		HiveCellBase: cells.NewHiveCellBase("", 0),

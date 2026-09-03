@@ -30,7 +30,7 @@ func (app *Cliex) ShowStatus(thingID string, subscribe bool) {
 		println("Error reading properties: " + err.Error())
 		return
 	}
-	println("Properties:")
+	fmt.Printf("Properties (%d):\n", len(values))
 	for k, v := range values {
 		fmt.Printf(" %s: %v\n", k, v)
 	}
@@ -39,7 +39,7 @@ func (app *Cliex) ShowStatus(thingID string, subscribe bool) {
 		println("Error reading events: " + err.Error())
 		return
 	}
-	println("Events:")
+	fmt.Printf("Events (%d):\n", len(notifs))
 	for k, v := range notifs {
 		fmt.Printf(" %s: Submitted at %v: %s\n", k, v.Timestamp, v.ToString(100))
 	}

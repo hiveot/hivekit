@@ -123,7 +123,7 @@ func NewUserAuthnHttpClient(serverURL string, rootCAs *x509.CertPool) *AuthnUser
 		return nil
 	}
 
-	tlsClient := tls_client.NewTLSClient(parts.Host, rootCAs)
+	tlsClient := tls_client.StartTLSClient(parts.Host, rootCAs)
 	return &AuthnUserHttpClient{
 		tlsClient: tlsClient,
 	}

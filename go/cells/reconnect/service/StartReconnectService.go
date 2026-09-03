@@ -11,6 +11,8 @@ import (
 // If cl is not known at time of creation, then SetRequestSink is used to detect
 // if the sink is the client to apply reconnect to.
 //
+// If the client is not connected, Connect will be invoked on the client.
+//
 //	tpClient is the transport client connection instance and sink to use before connecting.
 func StartReconnectService(tpClient api.ITransportClient) (reconnect.IReconnect, error) {
 	return internal.StartReconnectServiceImpl(tpClient)

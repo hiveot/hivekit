@@ -62,7 +62,7 @@ func TestStartStop(t *testing.T) {
 	t.Logf("---%s---\n", t.Name())
 	cfg := tlsserver.NewTLSServerConfig(
 		serverAddress, serverPort, testCerts.ServerCert, testCerts.RootCAs, true)
-	srv, err := tls_server.NewTLSServer(cfg, nil)
+	srv, err := tls_server.StartTLSServer(cfg, nil)
 	assert.NoError(t, err)
 	srv.Stop()
 }
@@ -72,7 +72,7 @@ func TestNoServerCert(t *testing.T) {
 	cfg := tlsserver.NewTLSServerConfig(
 		serverAddress, serverPort, nil, testCerts.RootCAs, true)
 
-	srv, err := tls_server.NewTLSServer(cfg, nil)
+	srv, err := tls_server.StartTLSServer(cfg, nil)
 	require.Error(t, err)
 	srv.Stop()
 }
@@ -86,7 +86,7 @@ func TestNoAuth(t *testing.T) {
 	cfg := tlsserver.NewTLSServerConfig(
 		serverAddress, serverPort, testCerts.ServerCert, testCerts.RootCAs, true)
 
-	srv, err := tls_server.NewTLSServer(cfg, nil)
+	srv, err := tls_server.StartTLSServer(cfg, nil)
 	require.NoError(t, err)
 	defer srv.Stop()
 
@@ -101,7 +101,7 @@ func TestNoAuth(t *testing.T) {
 		path1Hit++
 	})
 
-	cl := tls_client.NewTLSClient(clientHostPort, testCerts.RootCAs)
+	cl := tls_client.StartTLSClient(clientHostPort, testCerts.RootCAs)
 	_, _, err = cl.Get(path1)
 	assert.NoError(t, err)
 	assert.Equal(t, 1, path1Hit)
@@ -126,7 +126,7 @@ func TestTokenAuth(t *testing.T) {
 	cfg := tlsserver.NewTLSServerConfig(
 		serverAddress, serverPort, testCerts.ServerCert, testCerts.RootCAs, true)
 
-	srv, err := tls_server.NewTLSServer(cfg, testAuth)
+	srv, err := tls_server.StartTLSServer(cfg, testAuth)
 	require.NoError(t, err)
 	defer srv.Stop()
 
@@ -150,7 +150,7 @@ func TestTokenAuth(t *testing.T) {
 	})
 
 	// create a client and login
-	cl := tls_client.NewTLSClient(clientHostPort, testCerts.RootCAs)
+	cl := tls_client.StartTLSClient(clientHostPort, testCerts.RootCAs)
 	require.NoError(t, err)
 	defer cl.Close()
 	cl.SetAuthToken(loginID1, token1)
@@ -178,7 +178,7 @@ func TestClientCert(t *testing.T) {
 
 	cfg := tlsserver.NewTLSServerConfig(
 		serverAddress, serverPort, testCerts.ServerCert, testCerts.RootCAs, true)
-	srv, err := tls_server.NewTLSServer(cfg, nil)
+	srv, err := tls_server.StartTLSServer(cfg, nil)
 	assert.NoError(t, err)
 	// handler can be added any time
 	routes := srv.GetPublicRoute()
@@ -202,7 +202,7 @@ func TestClientCert(t *testing.T) {
 		path1Hit++
 	})
 
-	cl := tls_client.NewTLSClient(clientHostPort, testCerts.RootCAs)
+	cl := tls_client.StartTLSClient(clientHostPort, testCerts.RootCAs)
 	cl.SetClientCert(testCerts.ClientCert)
 	_, status, err := cl.Get(path1)
 	assert.NoError(t, err)
@@ -261,7 +261,7 @@ func TestWriteResponse(t *testing.T) {
 
 	cfg := tlsserver.NewTLSServerConfig(
 		serverAddress, serverPort, testCerts.ServerCert, testCerts.RootCAs, true)
-	srv, err := tls_server.NewTLSServer(cfg, nil)
+	srv, err := tls_server.StartTLSServer(cfg, nil)
 	assert.NoError(t, err)
 	defer srv.Stop()
 	router := srv.GetPublicRoute()
@@ -277,7 +277,7 @@ func TestWriteResponse(t *testing.T) {
 		path2Hit++
 	})
 
-	cl := tls_client.NewTLSClient(clientHostPort, testCerts.RootCAs)
+	cl := tls_client.StartTLSClient(clientHostPort, testCerts.RootCAs)
 	require.NoError(t, err)
 	defer cl.Close()
 	reply, _, err := cl.Get(path2)
@@ -296,7 +296,7 @@ func TestBadPort(t *testing.T) {
 	cfg.Port = 1 // bad port
 	cfg.RootCAs = testCerts.RootCAs
 	cfg.ServerCert = testCerts.ServerCert
-	srv, err := tls_server.NewTLSServer(cfg, nil)
+	srv, err := tls_server.StartTLSServer(cfg, nil)
 	defer srv.Stop()
 	assert.Error(t, err)
 }

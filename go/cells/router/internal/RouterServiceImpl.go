@@ -136,14 +136,14 @@ func (svc *RouterServiceImpl) GetClientConnection(
 		}
 		_ = match
 		if form == nil {
-			return nil, fmt.Errorf("No matching form for connecting to Thing '%s'", tdoc.ID)
+			return nil, fmt.Errorf("GetClientConnection: No matching form for connecting to Thing '%s'", tdoc.ID)
 		}
 		// get the full URL for the operation
 		hrefURL, err = form.ResolveHRef(tdoc.Base, nil)
 
 		// if an href cannot be determined then this can't continue
 		if err != nil {
-			return nil, fmt.Errorf("No href for operation '%s' in TD '%s'", op, tdoc.ID)
+			return nil, fmt.Errorf("GetClientConnection: No href for operation '%s' in TD '%s'", op, tdoc.ID)
 		}
 		// determine the origin that identifies the client connection
 		newOrigin := fmt.Sprintf("%s://%s", hrefURL.Scheme, hrefURL.Host)

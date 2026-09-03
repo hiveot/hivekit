@@ -79,13 +79,16 @@ type IDiscoveryServer interface {
 	// this using DNS-SD discovery.
 	// Indended for use by things that run servers.
 	//
-	// The TD DNSSD service record is:
+	// The default TD DNSSD service record is:
 	//   _wot._tcp TXT td=/.well-known/wot; type=Thing;scheme=http
+	//
+	// When a instanceName is provided (required when serving multiple records),
+	// the the td path becomes: td=/.well-known/wot/{instanceName}
 	//
 	// This server also intercepts a directory updateTD request and publishes the TD
 	// using this ServeThingTD handler, acting as a single-TD directory.
 	//
-	//	instanceName is the name under which the TD is discoverable. Use "" for the default.
+	//	instanceName is the name under which the TD is discoverable. Use "" for the ThingID.
 	//	tdJSON is the Thing TD to make available in JSON format
 	//
 	// This fails if the http server isn't provided.

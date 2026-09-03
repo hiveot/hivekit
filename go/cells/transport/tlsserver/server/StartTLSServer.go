@@ -9,14 +9,14 @@ import (
 )
 
 // Create a new TLS server instance with the given configuration
-func NewTLSServer(
+func StartTLSServer(
 	cfg *tlsserver.TLSServerConfig, authenticator api.IAuthenticator) (api.IHttpServer, error) {
 	return internal.StartTLSServerImpl(cfg, authenticator)
 }
 
 // Create a new http transport server instance for the provided factory environment.
 // This uses the appp ID as the server and certificate name.
-func NewTLSServerFactory(
+func StartTLSServerFactory(
 	f api.ICellFactory, md *api.CellDefinition) (api.IHiveCell, error) {
 
 	env := f.GetEnvironment()

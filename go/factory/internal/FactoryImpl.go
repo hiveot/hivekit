@@ -157,11 +157,11 @@ func (f *FactoryImpl) HandleRequest(req *msg.RequestMessage, replyTo msg.Respons
 	return m.HandleRequest(req, replyTo)
 }
 
-// LoadCell loads an instance of a cell without starting it.
+// loadCell starts an instance of a cell.
 //
 // If the cell implements the ITransportServer interface it is added to the list of available
 // transport. See GetTransportServers() to obtain the collection of all loaded servers.
-func (f *FactoryImpl) LoadCell(cellType string) (m api.IHiveCell, isNew bool, err error) {
+func (f *FactoryImpl) loadCell(cellType string) (m api.IHiveCell, isNew bool, err error) {
 	f.mux.RLock()
 	m, ok := f.singletonCells[cellType]
 	f.mux.RUnlock()
@@ -171,30 +171,30 @@ func (f *FactoryImpl) LoadCell(cellType string) (m api.IHiveCell, isNew bool, er
 
 	def, ok := f.cellDefinitions[cellType]
 	if !ok {
-		err := fmt.Errorf("LoadCell: cell '%s' not found", cellType)
+		err := fmt.Errorf("loadCell: cell '%s' not found", cellType)
 		return nil, false, err
 	}
 	// ignore empty slots
 	if def.Constructor == nil {
 		return nil, false, nil
 	}
-	slog.Info("LoadCell loaded new cell instance", "cellType", cellType)
-	mod, err := def.Constructor(f, &def)
+	slog.Info("loadCell loaded new cell instance", "cellType", cellType)
+	cellInstance, err := def.Constructor(f, &def)
 
 	if err != nil {
 		return nil, false, err
 	}
 	// if nil is returned then nothing to do
 	// this can be valid for initialization cells
-	if mod == nil {
-		return mod, false, nil
+	if cellInstance == nil {
+		return cellInstance, false, nil
 	}
 
 	// store the singleton on successful start
 
 	f.mux.Lock()
-	f.singletonCells[cellType] = mod
-	tp, ok := mod.(api.ITransportServer)
+	f.singletonCells[cellType] = cellInstance
+	tp, ok := cellInstance.(api.ITransportServer)
 	if ok {
 		f.transportCells = append(f.transportCells, tp)
 	}
@@ -202,9 +202,9 @@ func (f *FactoryImpl) LoadCell(cellType string) (m api.IHiveCell, isNew bool, er
 
 	// add to the loaded list
 	f.mux.Lock()
-	f.loadedCells = append(f.loadedCells, mod)
+	f.loadedCells = append(f.loadedCells, cellInstance)
 	f.mux.Unlock()
-	return mod, true, nil
+	return cellInstance, true, nil
 }
 
 // RegisterCell registers a cell definition to the factory, making it available for creation.
@@ -250,29 +250,23 @@ func (f *FactoryImpl) Stop() {
 // This returns an error if instantiate is false and the cell is not yet loaded.
 func (f *FactoryImpl) StartCell(cellType string, instantiate bool) (api.IHiveCell, error) {
 	f.mux.RLock()
-	m, ok := f.singletonCells[cellType]
+	instance, ok := f.singletonCells[cellType]
 	f.mux.RUnlock()
 
 	// if the cell is already loaded, return it
 	// if not loaded and instantiate is false then this is an error
-	if m != nil && ok {
-		return m, nil
+	if instance != nil && ok {
+		return instance, nil
 	} else if !instantiate {
 		return nil, fmt.Errorf("StartCell: Cell '%s' not yet loaded and instantiate is false", cellType)
 	}
 
-	m, isNew, err := f.LoadCell(cellType)
+	instance, isNew, err := f.loadCell(cellType)
+	_ = isNew
 	if err != nil {
 		return nil, err
 	}
-	if isNew {
-		err = m.Start()
-		if err != nil {
-			slog.Error("GetCell. Cell loaded successfully but failed to start",
-				"cellType", cellType, "err", err.Error())
-		}
-	}
-	return m, err
+	return instance, err
 }
 
 // Wait for an OS signal or until the context is cancelled
@@ -290,12 +284,12 @@ func (f *FactoryImpl) WaitForSignal(ctx context.Context) {
 	}
 }
 
-// Create a new cell factory.
+// Start a new cell factory.
 // Cells can be nil if they are registered separately or if StartRecipe is used.
 //
 //	env is the application enviroment created with api.NewAppEnvironment
 //	cellDefs are the cell definitions available to GetCell(type)
-func NewCellFactoryImpl(
+func StartCellFactoryImpl(
 	env *api.HiveEnvironment, cellDefs []api.CellDefinition) api.ICellFactory {
 
 	cellDefMap := make(map[string]api.CellDefinition)

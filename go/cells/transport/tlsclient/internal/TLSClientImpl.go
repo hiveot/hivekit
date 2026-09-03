@@ -69,64 +69,6 @@ func (cl *TLSClientImpl) Close() {
 	}
 }
 
-// SetClientCert obtains the clientID from the certificate CommonName and
-// updates the TLS connection to use the client certificate.
-// The provided certificate must be signed by the server's CA.
-//
-//	clientCert client tls certificate containing x509 cert and private key
-//
-// Returns nil if successful, or an error if no CA is set or cert invalid
-func (cl *TLSClientImpl) SetClientCert(clientCert *tls.Certificate) (err error) {
-
-	// update the existing TLS configuration created during instantiation
-	tlsConfig := cl.http2Transport.TLSClientConfig
-
-	if tlsConfig.RootCAs == nil {
-		slog.Error("AuthenticateWithClientCert: a CA is required")
-		return fmt.Errorf("AuthenticateWithClientCert: No CA has been set")
-	}
-
-	// cl.clientCert = clientCert
-	tlsConfig.Certificates = []tls.Certificate{*clientCert}
-
-	//--- verify the client certificate against the CA and extract the clientID
-	// if a client cert is given then test if it is valid for our CA.
-	// this detects problems with certs that can be hard to track down
-	x509Cert, err := x509.ParseCertificate(clientCert.Certificate[0])
-	if err == nil {
-		// cert subject is clientID
-		cl.clientID = x509Cert.Subject.CommonName
-		cl.cid = shortid.MustGenerate()
-		// verify the validity of this certificate against the CA
-		// without this one can spend a long time figuring out why the connection fails.
-		opts := x509.VerifyOptions{
-			Roots:     tlsConfig.RootCAs,
-			KeyUsages: []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth},
-		}
-		_, err = x509Cert.Verify(opts)
-	}
-	if err != nil {
-		err = fmt.Errorf("AuthenticateWithClientCert: certificate not valid: %w.", err)
-		slog.Error(err.Error())
-	}
-	return err
-}
-
-// Connect the client to a server with the given clientID and token.
-//
-// This does not yet make any http calls, just sets the parameters used for
-// Send requests.
-//
-// This creates a unique connectionID for the header and places the token in
-// the authorization hedaer.
-func (cl *TLSClientImpl) SetAuthToken(clientID string, token string) error {
-	// ensure disconnected
-	cl.bearerToken = token
-	cl.clientID = clientID
-	cl.cid = shortid.MustGenerate()
-	return nil
-}
-
 // Create a new http request with all the headers including authorization.
 // The request can be cancelled with the given cancel function.
 //
@@ -430,6 +372,64 @@ func (cl *TLSClientImpl) SetHeader(name string, val string) {
 	}
 }
 
+// SetClientCert obtains the clientID from the certificate CommonName and
+// updates the TLS connection to use the client certificate.
+// The provided certificate must be signed by the server's CA.
+//
+//	clientCert client tls certificate containing x509 cert and private key
+//
+// Returns nil if successful, or an error if no CA is set or cert invalid
+func (cl *TLSClientImpl) SetClientCert(clientCert *tls.Certificate) (err error) {
+
+	// update the existing TLS configuration created during instantiation
+	tlsConfig := cl.http2Transport.TLSClientConfig
+
+	if tlsConfig.RootCAs == nil {
+		slog.Error("AuthenticateWithClientCert: a CA is required")
+		return fmt.Errorf("AuthenticateWithClientCert: No CA has been set")
+	}
+
+	// cl.clientCert = clientCert
+	tlsConfig.Certificates = []tls.Certificate{*clientCert}
+
+	//--- verify the client certificate against the CA and extract the clientID
+	// if a client cert is given then test if it is valid for our CA.
+	// this detects problems with certs that can be hard to track down
+	x509Cert, err := x509.ParseCertificate(clientCert.Certificate[0])
+	if err == nil {
+		// cert subject is clientID
+		cl.clientID = x509Cert.Subject.CommonName
+		cl.cid = shortid.MustGenerate()
+		// verify the validity of this certificate against the CA
+		// without this one can spend a long time figuring out why the connection fails.
+		opts := x509.VerifyOptions{
+			Roots:     tlsConfig.RootCAs,
+			KeyUsages: []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth},
+		}
+		_, err = x509Cert.Verify(opts)
+	}
+	if err != nil {
+		err = fmt.Errorf("AuthenticateWithClientCert: certificate not valid: %w.", err)
+		slog.Error(err.Error())
+	}
+	return err
+}
+
+// Connect the client to a server with the given clientID and token.
+//
+// This does not yet make any http calls, just sets the parameters used for
+// Send requests.
+//
+// This creates a unique connectionID for the header and places the token in
+// the authorization hedaer.
+func (cl *TLSClientImpl) SetAuthToken(clientID string, token string) error {
+	// ensure disconnected
+	cl.bearerToken = token
+	cl.clientID = clientID
+	cl.cid = shortid.MustGenerate()
+	return nil
+}
+
 // SetTimeout overrides the default timeout for connecting and sending messages
 func (cl *TLSClientImpl) SetTimeout(timeout time.Duration) {
 	cl.timeout = timeout
@@ -444,15 +444,16 @@ func (cl *TLSClientImpl) Trace(path string) (statusCode int, err error) {
 	return statusCode, err
 }
 
-// NewTLSClientImpl creates a new TLS Client instance.
+// StartTLSClientImpl starts a new TLS Client instance.
+//
 // This uses the system cert pool. Use the flag 'skipCertCheck' if the CA is unknown.
-// Use setup/Remove to open and close connections
+// Use SetAuthToken or SetClientCert before connecting.
 //
 //	hostPort is the server address in host:port format
 //	rootCAs with optional CA certifications. Default is the system pool
 //
 // returns TLS client for submitting requests
-func NewTLSClientImpl(hostPort string, rootCAs *x509.CertPool) *TLSClientImpl {
+func StartTLSClientImpl(hostPort string, rootCAs *x509.CertPool) *TLSClientImpl {
 
 	var clientID string
 	timeout := tlsclient.DefaultClientTimeout

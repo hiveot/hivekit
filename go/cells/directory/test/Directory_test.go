@@ -48,7 +48,7 @@ func TestMain(m *testing.M) {
 // withHttp means that Directory HTTP API is started for serving directory requests over http.
 func StartDirectoryService(withHttp bool) (
 	testEnv *testenv.TestEnv, svc directory.IDirectoryService, cancelFn func()) {
-
+	var err error
 	var dirHttpServer directory.IDirectoryHttpServer
 
 	proto := defaultProtocol
@@ -57,12 +57,12 @@ func StartDirectoryService(withHttp bool) (
 
 	if withHttp {
 		// add directory endpoints to the http server
-		dirHttpServer = directory_service.NewDirectoryHttpServer(testEnv.HttpServer, rpcTimeout)
+		dirHttpServer, err = directory_service.StartDirectoryHttpServer(testEnv.HttpServer, rpcTimeout)
+		_ = err
 		transports = append(transports, dirHttpServer)
-		dirHttpServer.Start()
 	}
 	// the transports are used to update the TDD forms and security
-	svc, err := directory_service.StartDirectoryService("", storageDir, testEnv.HttpServer, transports)
+	svc, err = directory_service.StartDirectoryService("", storageDir, testEnv.HttpServer, transports)
 	if err != nil {
 		panic("StartDirectoryServer: failed to start the directory " + err.Error())
 	}
@@ -193,12 +193,10 @@ func TestGetDirectoryTD(t *testing.T) {
 	hostPort := parts.Host
 	// Create a client account with token but don't use the client itself. This
 	// tests is specifically for using a basic http client to bootstrap discovery.
-	cl, token := testEnv.NewConnectedClient(userID, authn.ClientRoleViewer)
-	cl.Close()
-	// token, _, err := testEnv.CreateToken(userID, time.Minute)
-	// require.NoError(t, err)
+	cl, token := testEnv.NewTestClient(userID, authn.ClientRoleViewer)
+	_ = cl
 
-	httpClient := tls_client.NewTLSClient(hostPort, testEnv.CertBundle.RootCAs)
+	httpClient := tls_client.StartTLSClient(hostPort, testEnv.CertBundle.RootCAs)
 	httpClient.SetTimeout(testEnv.AppEnv.RpcTimeout)
 	err := httpClient.SetAuthToken(userID, token)
 	require.NoError(t, err)
@@ -230,8 +228,9 @@ func TestCRUDUsingRestAPI(t *testing.T) {
 	require.NotEmpty(t, dirTDDJson)
 
 	// create the client account
-	cl, authToken := testEnv.NewConnectedClient(clientID, authn.ClientRoleManager)
-	cl.Close()
+	cl, authToken := testEnv.NewTestClient(clientID, authn.ClientRoleManager)
+	_ = cl
+
 	// authToken, _, err := testEnv.CreateToken(clientID, time.Minute)
 	// require.NoError(t, err)
 

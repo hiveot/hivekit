@@ -64,7 +64,6 @@ func (svc *BucketServiceImpl) Stop() {
 }
 
 // Start a new bucket storage instance
-// Run Start() before use.
 //
 // If an embedded store is used then the history data is stored in the storageDir directory,
 // or "" for testing with in-memory storage.

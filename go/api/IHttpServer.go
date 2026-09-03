@@ -90,9 +90,6 @@ type IHttpServer interface {
 	// Note that the authn cell can provide this capability
 	// SetAuthenticator(authenticator IAuthenticator)
 
-	// Start the server and open the listening port
-	Start() error
-
 	// Stop the server and end listening
 	Stop()
 }

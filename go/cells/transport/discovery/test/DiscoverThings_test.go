@@ -21,12 +21,15 @@ import (
 const testServiceName = "hiveot-test"
 const testServicePort = 9999
 
-var testTDJson string
+// var testTDJson string
 
 // testTDD := testenv.NewTDD()
 
 // discover things
 func TestDiscoverThings(t *testing.T) {
+
+	testTDD := td.NewTD("testID", "title", "testdevice")
+	testTDJson := testTDD.ToString()
 
 	testEnv := testenv.NewTestEnv(true)
 	testEnv.StartHttpServer(true)
@@ -56,6 +59,7 @@ func TestDiscoverGetThingTD(t *testing.T) {
 	testEnv.StartHttpServer(true)
 	defer testEnv.HttpServer.Stop()
 	thingTD := testEnv.CreateTestTD(12)
+	thingTD.ID = testServiceName // servicename
 
 	discoSrv, err := discovery_server.StartDiscoveryServer(testDirServiceName, testEnv.HttpServer, "", nil)
 	require.NoError(t, err)

@@ -1,6 +1,7 @@
 package serviceimpl
 
 import (
+	"errors"
 	"fmt"
 	"log/slog"
 	"os"
@@ -9,17 +10,19 @@ import (
 
 	"github.com/hiveot/hivekit/go/api"
 	"github.com/hiveot/hivekit/go/api/msg"
-	"github.com/hiveot/hivekit/go/cells"
+	"github.com/hiveot/hivekit/go/api/td"
 	"github.com/hiveot/hivekit/go/cells/authn"
 	authnstore "github.com/hiveot/hivekit/go/cells/authn/internal/store"
 	directory_service "github.com/hiveot/hivekit/go/cells/directory/service"
+	"github.com/hiveot/hivekit/go/cells/thing"
+	"github.com/hiveot/hivekit/go/utils"
 )
 
 // AuthnServiceImpl manages client accounts and issues authentication tokens.
 //
 // This implements IHiveCell and IAuthn interfaces and is facade for the account store and authenticator.
 type AuthnServiceImpl struct {
-	*cells.HiveCellBase
+	*thing.ExposedThing
 
 	config authn.AuthnConfig
 
@@ -43,7 +46,11 @@ func (svc *AuthnServiceImpl) AddClient(clientID string, displayName string, role
 		DisplayName: displayName,
 		Role:        role,
 	}
-	return svc.authnStore.Add(newProfile)
+	err = svc.authnStore.Add(newProfile)
+	// last track props
+	svc.PubProperty(svc.GetThingID(), authn.AdminPropNrClients, svc.authnStore.Count(), false)
+
+	return err
 }
 
 // Create the admin account if it doesn't exist and create a new auth token
@@ -76,12 +83,69 @@ func (svc *AuthnServiceImpl) GetSessionManager() authn.ISessionManager {
 	return svc.sessionManager
 }
 
+// Handle the authn service administration requests
+// This should only be authorized for administrators.
+func (svc *AuthnServiceImpl) HandleServiceRequest(req *msg.RequestMessage, replyTo msg.ResponseHandler) error {
+	var output any
+	var err error
+
+	if req.Operation == td.OpInvokeAction {
+		switch req.Name {
+
+		case authn.AdminActionAddClient:
+			args := authn.AdminAddClientArgs{}
+			err = utils.DecodeAsObject(req.Input, &args)
+			if err == nil {
+				err = svc.AddClient(args.ClientID, args.DisplayName, args.Role)
+			}
+		case authn.AdminActionGetProfile:
+			var clientID string
+			err = utils.DecodeAsObject(req.Input, &clientID)
+			if err == nil {
+				output, err = svc.GetProfile(clientID)
+			}
+		case authn.AdminActionGetProfiles:
+			output, err = svc.GetProfiles()
+		case authn.AdminActionRemoveClient:
+			var clientID string
+			err = utils.DecodeAsObject(req.Input, &clientID)
+			if err == nil {
+				err = svc.RemoveClient(clientID)
+			}
+		case authn.AdminActionSetPassword:
+			var args authn.AdminSetPasswordArgs // same as user
+			err = utils.DecodeAsObject(req.Input, &args)
+			if err == nil {
+				err = svc.SetPassword(args.UserName, args.Password)
+			}
+		case authn.AdminActionUpdateProfile:
+			var profile authn.ClientProfile
+			err = utils.DecodeAsObject(req.Input, &profile)
+			if err == nil {
+				err = svc.UpdateProfile(req.SenderID, profile)
+			}
+		default:
+			err = errors.New("Unknown action '" + req.Name + "' for service '" + req.ThingID + "'")
+		}
+		resp := req.CreateResponse(output, err)
+		replyTo(resp)
+	} else {
+		// not an action. let the exposed thing base handle it
+		err = svc.ExposedThing.HandleRequest(req, replyTo)
+	}
+	return err
+}
+
 // Handle requests to cells of this service
 func (svc *AuthnServiceImpl) HandleRequest(req *msg.RequestMessage, replyTo msg.ResponseHandler) error {
 
+	// two TDs == two exposed thing services - one for admin-only
+	// option 1: implement as separate cells
+	// option 2: implement as a single cell with separate request handlers
+
 	switch req.ThingID {
 	case authn.AuthnAdminServiceID:
-		return HandleAuthnAdminRequest(svc, req, replyTo)
+		return svc.HandleServiceRequest(req, replyTo)
 	case authn.AuthnUserServiceID:
 		return HandleAuthnUserRequest(svc, req, replyTo)
 	default:
@@ -91,37 +155,9 @@ func (svc *AuthnServiceImpl) HandleRequest(req *msg.RequestMessage, replyTo msg.
 }
 
 // Publish the service admin and user service TDs to the directory.
-//
-// The real problem is in sending requests on start. This cant happen
-// until the chain is complete.
-//
-//   + option 1: start in reverse order so cells have their sink ready
-//     pro!: services can publish requests on start
-//     con: might not be intuitive
-//     con: initialization functions should be at the end of the chain?
-//   X option 2: cells in chains don't rely on messaging; use API instead
-//     pro: order independent
-//     con: services cant send request on start - is this going to be a rule?
-//     is this too limiting? - yes, especially when services are distributed.
-//     con: cant expect every cell with a TD to lookup APIs.
-//   + option 3: instantiate and link cells before starting them in reverse order
-//   ? option 4: provide a callback hook to register a TD
-//     pro: useful for every device; inversion of control;
-//     con: yet another callback
-//     con: only covers this one use-case. What if other requests are issued on start?
-//     con: still an order dependency
-//   + option 5: change instantiation to:
-//      * being ready to be used, receive requests
-//      * linking completed
-//     while 'start' is ready to send requests.
-//     con: is there any use-case that requires Start to do setup that cannot be
-//          done during instantiation?
-//
-// Preferance order:  5, 1, 3, 4
-
 func (svc *AuthnServiceImpl) PublishTD() error {
-	adminTM := authn.AuthnAdminTM
-	userTM := authn.AuthnUserTM
+	adminTM := authn.AuthnServiceTD
+	userTM := authn.AuthnUserTD
 	reqSink := svc.GetRequestSink()
 	if reqSink == nil {
 		return fmt.Errorf("PublishTD: No request sink set.")
@@ -170,39 +206,7 @@ func (svc *AuthnServiceImpl) SetRole(clientID string, role string) error {
 	return svc.authnStore.SetRole(clientID, role)
 }
 
-// Start the authentication service and handle for login and token refresh requests.
-//
-// This:
-// 1. opens the password store
-// 2. starts the session manager instance
-// 3. add an admin account if the userID is configured
-// 4. publish the admin and user TD's for a downstream directory
-//
-// If a validity period is set for an administrator then create a new token file
-// for this administrator. {adminID}.token
-func (svc *AuthnServiceImpl) Start() (err error) {
-
-	// slog.Info("Start: Starting authn")
-	// err = svc.authnStore.Open()
-	// if err != nil {
-	// 	return err
-	// }
-
-	// err = svc.sessionManager.Start()
-	// if err != nil {
-	// 	return err
-	// }
-	// ensure the administrator account exists
-	// if svc.config.AdminUserID != "" {
-	// 	err = svc.CreateAdminAccount()
-	// }
-
-	// moved to SetSink
-	// svc.PublishTD()
-	return err
-}
-
-// publish the service TD after it is linked
+// Set the request sink and publish the service TD
 func (svc *AuthnServiceImpl) SetRequestSink(reqSink api.IHiveCell) {
 	svc.HiveCellBase.SetRequestSink(reqSink)
 	svc.PublishTD()
@@ -240,6 +244,7 @@ func (svc *AuthnServiceImpl) UpdateProfile(senderID string, newProfile authn.Cli
 }
 
 // Create a new authentication service.
+// This uses thingID authn.AuthnAdminServiceID
 //
 // authnConfig contains the password storage and token management configuration
 func StartAuthnServiceImpl(authnConfig authn.AuthnConfig) (*AuthnServiceImpl, error) {
@@ -258,15 +263,15 @@ func StartAuthnServiceImpl(authnConfig authn.AuthnConfig) (*AuthnServiceImpl, er
 		return nil, err
 	}
 
-	// this service is a singleton that exposes multiple service things
-	thingID := authn.AuthnServiceCellType
+	// this service is the admin service that also exposes the user service service thing
 	svc := &AuthnServiceImpl{
-		HiveCellBase:   cells.NewHiveCellBase(thingID, 0),
+		ExposedThing:   thing.StartExposedThing(authn.AuthnAdminServiceID, nil),
 		config:         authnConfig,
 		authnStore:     authnStore,
 		sessionManager: sessionManager,
-		// sessionStart: make(map[string]time.Time),
 	}
+	// update the readable properties
+	svc.SetProperty(svc.GetThingID(), authn.AdminPropNrClients, authnStore.Count())
 
 	// ensure the administrator account exists
 	if svc.config.AdminUserID != "" {

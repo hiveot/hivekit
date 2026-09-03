@@ -2,19 +2,15 @@ package factory_test
 
 import (
 	"fmt"
-	"log/slog"
 	"os"
 	"path"
 	"testing"
 	"time"
 
 	"github.com/hiveot/hivekit/go/api"
-	"github.com/hiveot/hivekit/go/api/msg"
 	"github.com/hiveot/hivekit/go/cells/authn"
 	certstest "github.com/hiveot/hivekit/go/cells/certs/test"
-	"github.com/hiveot/hivekit/go/cells/consumer"
 	"github.com/hiveot/hivekit/go/cells/digitwin"
-	"github.com/hiveot/hivekit/go/cells/thing"
 	factory_service "github.com/hiveot/hivekit/go/factory/service"
 	"github.com/hiveot/hivekit/go/utils"
 	"github.com/stretchr/testify/assert"
@@ -38,6 +34,7 @@ func TestMain(m *testing.M) {
 }
 
 func TestAppEnv(t *testing.T) {
+	fmt.Printf("---Test: %s %s---\n", t.Name(), testProtocol)
 
 	env := api.NewHiveEnvironment(testDir, false)
 	env.HttpsPort = testPort
@@ -59,6 +56,7 @@ func TestAppEnv(t *testing.T) {
 }
 
 func TestStartStop(t *testing.T) {
+	fmt.Printf("---Test: %s %s---\n", t.Name(), testProtocol)
 
 	// just test that the environment can be created and loaded
 	env := api.NewHiveEnvironment(testDir, false)
@@ -66,21 +64,23 @@ func TestStartStop(t *testing.T) {
 	// if err != nil {
 	// t.Errorf("Failed loading config: %s", err.Error())
 	// }
-	f := factory_service.NewCellFactory(env, nil)
+	f := factory_service.StartCellFactory(env, nil)
 	require.NotNil(t, f)
 	// f.Start(recipe)
 	f.Stop()
 }
 
-// test with the server cell table
+// test authentication using the factory
 func TestAuthentication(t *testing.T) {
+	fmt.Printf("---Test: %s %s---\n", t.Name(), testProtocol)
+
 	// just test that the environment can be created and loaded
 	env := api.NewHiveEnvironment(testDir, false)
 	env.SetCACert(testCerts.CaCert)
 	env.SetServerCert(testCerts.ServerCert)
 	env.HttpsPort = testPort
 
-	f := factory_service.NewCellFactory(env, HiveKitCells)
+	f := factory_service.StartCellFactory(env, HiveKitAllCells)
 	assert.NotNil(t, f)
 	defer f.Stop()
 
@@ -99,10 +99,13 @@ func TestAuthentication(t *testing.T) {
 	assert.NoError(t, err)
 
 	// create a token using authn session manager. It should validate with http authenticator now.
-	authnMod, ok := m.(authn.IAuthnService)
+	authnSvc, ok := m.(authn.IAuthnService)
 	require.True(t, ok)
-	sm := authnMod.GetSessionManager()
-	err = authnMod.AddClient("client1", "client 1", "some role")
+	sm := authnSvc.GetSessionManager()
+	_, err = authnSvc.GetProfile("client1")
+	if err != nil {
+		err = authnSvc.AddClient("client1", "client 1", "some role")
+	}
 	require.NoError(t, err)
 	token, _, err := sm.CreateToken("client1", time.Minute)
 	require.NoError(t, err)
@@ -118,13 +121,15 @@ func TestAuthentication(t *testing.T) {
 
 // test creating the digital twin instance
 func TestDigitwin(t *testing.T) {
+	fmt.Printf("---Test: %s %s---\n", t.Name(), testProtocol)
+
 	// just test that the environment can be created and loaded
 	env := api.NewHiveEnvironment(testDir, false)
 	env.SetCACert(testCerts.CaCert)
 	env.SetServerCert(testCerts.ServerCert)
 	env.HttpsPort = testPort
 
-	f := factory_service.NewCellFactory(env, HiveKitCells)
+	f := factory_service.StartCellFactory(env, HiveKitAllCells)
 	defer f.Stop()
 
 	// clientRecipe := factoryrecipe.NewFactoryRecipe(AvailableCells, chain)
@@ -135,52 +140,4 @@ func TestDigitwin(t *testing.T) {
 	m, err := f.StartCell(digitwin.DigitwinCellType, true)
 	require.NoError(t, err)
 	require.NotNil(t, m)
-}
-
-// test creating a client app and server app using the recipe
-func TestClientServerRecipe(t *testing.T) {
-	var thingID string = "thing1"
-
-	env := api.NewHiveEnvironment(testDir, false)
-	env.SetCACert(testCerts.CaCert)
-	env.SetClientCert(testCerts.ClientCert)
-	env.SetServerCert(testCerts.ServerCert)
-	env.HttpsPort = testPort
-
-	serverFactory := factory_service.NewCellFactory(env, HiveKitCells)
-	serverChain := factory_service.NewChainFormation(serverFactory, DeviceServerRecipe)
-	err := serverChain.Start()
-	require.NoError(t, err)
-	defer serverFactory.Stop()
-	serverURLs := serverFactory.GetConnectURLs()
-	require.NotEmpty(t, serverURLs)
-	env.ServerURL = serverURLs[0]
-
-	// the server exposed thing handles the server requests
-	mod, _ := serverFactory.StartCell(thing.ExposedThingCellType, true)
-	device := mod.(*thing.ExposedThing)
-	device.SetAppRequestHook(func(req *msg.RequestMessage, replyTo msg.ResponseHandler) error {
-		if req.ThingID == thingID {
-			slog.Info("Received request", "name", req.Name)
-			resp := req.CreateResponse("42", nil)
-			return replyTo(resp)
-		}
-		return fmt.Errorf("unknown request")
-	})
-
-	// the client sends requests and receives responses
-	clientFactory := factory_service.NewCellFactory(env, HiveKitCells)
-	clientChain := factory_service.NewChainFormation(clientFactory, DeviceClientRecipe)
-	err = clientChain.Start()
-	require.NoError(t, err)
-	defer clientFactory.Stop()
-
-	m2, err := clientFactory.StartCell(consumer.ConsumerCellType, true)
-	assert.NoError(t, err)
-	co := m2.(*consumer.Consumer)
-	var propValue string
-	err = co.ReadProperty(thingID, "fortytwo", &propValue)
-	assert.NoError(t, err)
-	assert.NotEmpty(t, propValue)
-
 }

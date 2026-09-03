@@ -11,6 +11,7 @@ import (
 	"github.com/hiveot/hivekit/go/api/td"
 	"github.com/hiveot/hivekit/go/cells"
 	"github.com/hiveot/hivekit/go/cells/directory"
+	directory_service "github.com/hiveot/hivekit/go/cells/directory/service"
 	"github.com/hiveot/hivekit/go/utils"
 	"github.com/teris-io/shortid"
 )
@@ -84,8 +85,9 @@ func (m *ExposedThing) HandleReadRequests(req *msg.RequestMessage, replyTo msg.R
 	defer m.mux.RUnlock()
 	state, ok := m.tstates[req.ThingID]
 	if !ok {
-		// not handled
-		err = fmt.Errorf("Unknown thingID '%s' for cell '%s'", req.ThingID, m.GetThingID())
+		// no properties or events have been recorded;
+		// ething owner should use PubProperty or other method to create a tstate object.
+		err = fmt.Errorf("No properties for thingID '%s'", req.ThingID)
 		return err
 	}
 
@@ -146,10 +148,14 @@ func (m *ExposedThing) HandleReadRequests(req *msg.RequestMessage, replyTo msg.R
 	return err
 }
 
-// HandleRequest handles request with thingID set to this cellID.
+// HandleRequest handles exposed thing requests with thingID set to this cellID.
 //
 // If a request hook is set then pass the request to the hook. If the hook does not handle the
 // request then it MUST forward it using ForwardRequest.
+//
+// This handles all property and event read operations and serves values that
+// were published with PubProperty and PubEvent. Non-observable properties
+// can be included by using SetProperty instead of PubProperty.
 //
 // Applications can also embed this cell and override HandleRequest to handle requests themselves.
 //
@@ -277,6 +283,17 @@ func (m *ExposedThing) PubProperties(thingID string, propMap map[string]any, onl
 	}
 }
 
+// Publish the exposed thing's TD to the directory.
+// This sends the directory UpdateTD request message to the cell request sink.
+func (svc *ExposedThing) PublishTD(tdJSON string) error {
+	reqSink := svc.GetRequestSink()
+	if reqSink == nil {
+		return fmt.Errorf("PublishTD: No request sink set.")
+	}
+	err := directory_service.UpdateTD("", string(tdJSON), reqSink.HandleRequest)
+	return err
+}
+
 // Set the hook to invoke when requests are received by this cell.
 //
 // The handler is invoked when requests are received with the ThingID set to
@@ -292,6 +309,34 @@ func (m *ExposedThing) SetAppRequestHook(hook msg.RequestHandler) {
 	m.mux.Lock()
 	defer m.mux.Unlock()
 	m.appRequestHook = hook
+}
+
+// SetProperty updates the store property value so it can be read ReadProperty(ies).
+//
+// Intended for non-observable properties such as date/time and counters.
+// Use PubProperty for observable properties instead.
+//
+//	thingID is the thing whose propery value to update or "" for the cell itself.
+//	propName is the name of the property to set.
+//	propValue is the value of the property to set.
+//
+// This returns a flag whether the property value has changed
+func (m *ExposedThing) SetProperty(thingID string, propName string, propVal any) (changed bool) {
+
+	if thingID == "" {
+		thingID = m.GetThingID()
+	}
+	tstate := m.GetState(thingID)
+
+	// since most values are native types a simple compare should suffice
+	hasChanged := true
+	old, found := tstate.GetProperty(propName)
+	if found && old == propVal {
+		// if old != nil && reflect.DeepEqual(old, propVal) {
+		hasChanged = false
+	}
+	tstate.SetProperty(propName, propVal)
+	return hasChanged
 }
 
 // WriteTD publish a request downstream to write a TD to a directory or discovery service.
@@ -316,8 +361,14 @@ func (m *ExposedThing) WriteTD(tdJson string) error {
 	return err
 }
 
-// StartExposedThing starts a new exposed thing (producer) instance for serving requests and
-// sending notifications.
+// StartExposedThing starts a new exposed thing (device or service) instance for serving
+// requests and sending notifications.
+//
+// This handles publishing properties and events, tracks property values,
+// and handle property read requests.
+//
+// A request hook allows an application to use the ExposedThing as a Thing
+// and simply hook their request handler into it without embedding.
 //
 //	thingID is the ID of the exposed Thing.
 //	appReqHandler is the application handler invoked when receiving requests for this Thing.

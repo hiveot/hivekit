@@ -7,6 +7,6 @@ import (
 	"github.com/hiveot/hivekit/go/cells/transport/tlsclient/internal"
 )
 
-func NewTLSClient(hostPort string, rootCAs *x509.CertPool) tlsclient.ITLSClient {
-	return internal.NewTLSClientImpl(hostPort, rootCAs)
+func StartTLSClient(hostPort string, rootCAs *x509.CertPool) tlsclient.ITLSClient {
+	return internal.StartTLSClientImpl(hostPort, rootCAs)
 }

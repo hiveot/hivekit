@@ -151,10 +151,30 @@ func (srv *DirectoryHttpServer) SendResponse(
 	return fmt.Errorf("SendResposne: not supported")
 }
 
-// Register the directory endpoint with the http server
-func (srv *DirectoryHttpServer) Start() error {
+// Start a new Directory HTTP handler using the given http server.
+//
+// This panics if no http server is provided.
+//
+// Call Start to register the HTTP API with the router and serves its TD on the
+// .well-known/wot endpoint as per discovery specification.
+//
+//	httpServer to register with
+//	respTimeout is the maximum time the server waits for a response when forwarding directory requests
+//	 to the directory server.
+func StartDirectoryHttpServer(httpServer api.IHttpServer, respTimeout time.Duration) (*DirectoryHttpServer, error) {
 
-	protRoute := srv.httpServer.GetProtectedRoute()
+	if httpServer == nil {
+		err := fmt.Errorf("StartDirectoryHttpServer: httpserver is nil")
+		return nil, err
+	}
+
+	srv := &DirectoryHttpServer{
+		HiveCellBase:     cells.NewHiveCellBase("DirectoryHttpServer", respTimeout),
+		httpServer:       httpServer,
+		directoryThingID: directory.DefaultDirectoryThingID,
+	}
+
+	protRoute := httpServer.GetProtectedRoute()
 	// add secured routes
 	// protRoute.Get(directory.WellKnownWoTPath, srv.handleRetrieveTDD)
 
@@ -165,36 +185,6 @@ func (srv *DirectoryHttpServer) Start() error {
 	protRoute.Put(thingPath, srv.handleUpdateThing)
 	protRoute.Delete(thingPath, srv.handleDeleteThing)
 
-	// create a TD describing this server along with its connection URL
-	// thingID := srv.GetThingID()
-	// FIXME whose TD to update? this server or the directory itself? both?
-	// srv.serverTD = td.NewTD(thingID, "Directory HTTP server", vocab.DeviceTypeService)
-	// srv.AddTDSecForms(srv.serverTD, false)
-	return nil
-}
-
-// Create a new Directory HTTP handler using the given router
-//
-// This panics if no http server is provided.
-//
-// Call Start to register the HTTP API with the router and serves its TD on the
-// .well-known/wot endpoint as per discovery specification.
-//
-//	httpServer to register with
-//	respTimeout is the maximum time the server waits for a response when forwarding directory requests
-//	 to the directory server.
-func NewDirectoryHttpServer(httpServer api.IHttpServer, respTimeout time.Duration) *DirectoryHttpServer {
-
-	if httpServer == nil {
-		panic("NewDirectoryHttpServer: Missing http server")
-	}
-
-	srv := &DirectoryHttpServer{
-		HiveCellBase:     cells.NewHiveCellBase("DirectoryHttpServer", respTimeout),
-		httpServer:       httpServer,
-		directoryThingID: directory.DefaultDirectoryThingID,
-	}
-
 	var _ directory.IDirectoryHttpServer = srv
-	return srv
+	return srv, nil
 }

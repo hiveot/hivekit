@@ -142,32 +142,28 @@ func (m *AuthnUserHttpService) onHttpTokenRefresh(w http.ResponseWriter, r *http
 	utils.WriteReply(w, true, newToken, nil)
 }
 
-func (m *AuthnUserHttpService) Start() error {
-	// create routes
-	pubRoutes := m.httpServer.GetPublicRoute()
-	pubRoutes.Post(HttpPostLoginPath, m.onHttpLogin)
-
-	protRoutes := m.httpServer.GetProtectedRoute()
-	protRoutes.Post(HttpPostRefreshPath, m.onHttpTokenRefresh)
-	protRoutes.Post(HttpPostLogoutPath, m.onHttpLogout)
-	protRoutes.Get(HttpGetProfilePath, m.onHttpGetProfile)
-
-	return nil
-}
-
 func (m *AuthnUserHttpService) Stop() {
 	// todo remove registrations
 }
 
-// Create an authn handler for serving user requests over http
+// Start an authn handler for serving user requests over http
 // This converts http requests to RRN messages that are handled downstream.
-func NewAuthnUserHttpService(httpServer api.IHttpServer) *AuthnUserHttpService {
+func StartAuthnUserHttpService(httpServer api.IHttpServer) *AuthnUserHttpService {
 	if httpServer == nil {
 		panic("NewAuthnUserHttpHandler: missing http server")
 	}
-	handler := &AuthnUserHttpService{
+	svc := &AuthnUserHttpService{
 		HiveCellBase: cells.NewHiveCellBase("", 0),
 		httpServer:   httpServer,
 	}
-	return handler
+	// create routes
+	pubRoutes := httpServer.GetPublicRoute()
+	pubRoutes.Post(HttpPostLoginPath, svc.onHttpLogin)
+
+	protRoutes := httpServer.GetProtectedRoute()
+	protRoutes.Post(HttpPostRefreshPath, svc.onHttpTokenRefresh)
+	protRoutes.Post(HttpPostLogoutPath, svc.onHttpLogout)
+	protRoutes.Get(HttpGetProfilePath, svc.onHttpGetProfile)
+
+	return svc
 }

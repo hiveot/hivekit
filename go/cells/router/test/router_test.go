@@ -57,6 +57,7 @@ var testProtocols = []string{
 // The deviceID is the thingID of the device
 func startTestServerDevice(deviceID string) (testDevice *testenv.TestCounterThing,
 	tdoc *td.TD, testEnv *testenv.TestEnv, stopFn func()) {
+	var err error
 
 	testEnv = testenv.NewTestEnv(true)
 
@@ -65,13 +66,12 @@ func startTestServerDevice(deviceID string) (testDevice *testenv.TestCounterThin
 	transportServer := testEnv.StartTestServer(testProtocol)
 
 	// 2. Create the test device Thing and link it to the server so it receives requests
-	testDevice = testenv.NewTestCounterThing(deviceID, nil)
-	testDevice.SetNotificationSink(transportServer)
-	transportServer.SetRequestSink(testDevice)
-	err := testDevice.Start()
+	testDevice, err = testenv.StartTestCounterThing(deviceID, nil)
 	if err != nil {
 		panic("startTestServerDevice: failed starting test device")
 	}
+	testDevice.SetNotificationSink(transportServer)
+	transportServer.SetRequestSink(testDevice)
 
 	// Add the connection forms to the device TD
 	tdJson := testDevice.GetTD()
@@ -106,8 +106,6 @@ func SetupConsumerWithRouter(
 	// this doesn't actually need a directory. GetTD could also simply return the device TD.
 	routerSvc, err = router_service.StartRouterService(
 		storageDir, false, clientID, nil, rootCAs, rpcTimeout, dirSvc.GetTD, nil)
-
-	err = routerSvc.Start()
 	if err != nil {
 		panic("SetupConsumerWithRouter: Router.Start: " + err.Error())
 	}
@@ -116,10 +114,6 @@ func SetupConsumerWithRouter(
 	// For the purpose of this test the router runs client side.
 	co = consumer.StartConsumer(routerSvc, nil)
 	co.SetTimeout(rpcTimeout)
-	err = co.Start()
-	if err != nil {
-		panic("SetupConsumerWithRouter: Consumer.Start: " + err.Error())
-	}
 	return co, routerSvc, dirSvc
 }
 
@@ -189,12 +183,13 @@ func TestCredentialsStore(t *testing.T) {
 	routerSvc.Stop()
 
 	// restarting the router should retain the credentials
-	err = routerSvc.Start()
+	routerSvc2, err := router_service.StartRouterService(
+		storageDir, false, clientID, nil, nil, rpcTimeout, nil, nil)
 	require.NoError(t, err)
 
-	credType, hasCred = routerSvc.HasThingCredentials(thingID1)
+	credType, hasCred = routerSvc2.HasThingCredentials(thingID1)
 	assert.True(t, hasCred)
-	routerSvc.Stop()
+	routerSvc2.Stop()
 }
 
 // connect to a stand-alone test device and authenticate with client cert
@@ -357,8 +352,7 @@ func TestSubscribeReconnectToDevice(t *testing.T) {
 		}
 	})
 	co.SetTimeout(rpcTimeout)
-	err = co.Start()
-	assert.NoError(t, err)
+
 	// this should cause the router to connect to the device using the device TD
 	err = co.Subscribe(deviceID, "")
 	assert.NoError(t, err)

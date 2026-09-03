@@ -135,7 +135,7 @@ func (srv *GrpcServiceServer) Ping(ctx context.Context, input string) (result st
 
 	clientID, cid, err := srv.GetRequestParams(ctx)
 	_ = err
-	slog.Info("GrpcServiceServer.Ping: ping received from clientID '%s', cid='%s'", clientID, cid)
+	slog.Info("GrpcServiceServer.Ping: ping received", "clientID", clientID, "cid", cid)
 	result = input
 	if input == "" {
 		result = "pong"

@@ -35,7 +35,7 @@ func main() {
 	env.CreateDir(env.LogsDir, 0750)
 	utils.SetLogging(env.LogLevel, path.Join(env.LogsDir, "example3.log"))
 
-	f := factory_service.NewCellFactory(env, nil)
+	f := factory_service.StartCellFactory(env, nil)
 	// TODO: for now don't use reconnect as it hides authentication error
 	r := consumer_recipe.NewConsumerRecipe(f, false)
 	err := r.Start()

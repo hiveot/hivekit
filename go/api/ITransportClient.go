@@ -132,10 +132,4 @@ type ITransportClient interface {
 	// status changes.
 	// Intended for applications to handle reconnect and resubscription.
 	SetConnectHandler(h func(newStatus ConnectionStatus, c ITransportClient))
-
-	// Start calls connect.
-	// This is optional as calling AuthenticateWith... and Connect() can be used instead.
-	// Start is mainly intended for use by the factory.
-	// One of the 'AuthenticateWith...' must be invoked first.
-	Start() error
 }

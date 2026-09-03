@@ -115,22 +115,22 @@ func (srv *WssServerImpl) ServeWssConnection(w http.ResponseWriter, r *http.Requ
 
 // Start listening for incoming websocket connections
 //
-//	yamlConfig: todo, wssPath
-func (srv *WssServerImpl) Start() (err error) {
+// //	yamlConfig: todo, wssPath
+// func (srv *WssServerImpl) Start() (err error) {
 
-	connectURL := srv.httpServer.GetConnectURL()
-	slog.Info("Start: Starting websocket transport server, Listening on: " + connectURL)
+// 	connectURL := srv.httpServer.GetConnectURL()
+// 	slog.Info("Start: Starting websocket transport server, Listening on: " + connectURL)
 
-	// create routes
-	router := srv.httpServer.GetProtectedRoute()
-	router.Get(srv.wssPath, srv.ServeWssConnection)
+// 	// create routes
+// 	router := srv.httpServer.GetProtectedRoute()
+// 	router.Get(srv.wssPath, srv.ServeWssConnection)
 
-	// create a TD describing this server along with its connection URL
-	thingID := srv.GetThingID()
-	srv.serverTD = td.NewTD(thingID, srv.subprotocol+" Websocket server", vocab.DeviceTypeService)
-	srv.AddTDSecForms(srv.serverTD, false)
-	return err
-}
+// 	// create a TD describing this server along with its connection URL
+// 	thingID := srv.GetThingID()
+// 	srv.serverTD = td.NewTD(thingID, srv.subprotocol+" Websocket server", vocab.DeviceTypeService)
+// 	srv.AddTDSecForms(srv.serverTD, false)
+// 	return err
+// }
 
 // Stop disconnects clients and remove connection listening
 func (srv *WssServerImpl) Stop() {
@@ -140,39 +140,58 @@ func (srv *WssServerImpl) Stop() {
 	router.Delete(srv.wssPath, srv.ServeWssConnection)
 }
 
-// NewHiveotWssTransportServer creates a websocket transport server using serving HiveOT websocket
+// StartHiveotWssServerImpl starts a websocket server for serving HiveOT websocket
 // connections from consumers and devices.
 //
 // httpServer is the http server the websocket is using
 //
 // Use SetRequestSink to set the handler for requests send by consumers
 // Use SetNotificationSink to set the handler for notifications send by devices.
-func NewHiveotWssServerImpl(httpServer api.IHttpServer, respTimeout time.Duration) *WssServerImpl {
+func StartHiveotWssServerImpl(
+	httpServer api.IHttpServer, respTimeout time.Duration) (*WssServerImpl, error) {
 
+	if httpServer == nil {
+		err := fmt.Errorf("NewWotWssServerImpl: Http server is nil")
+		return nil, err
+	}
 	httpURL := httpServer.GetConnectURL()
 	urlParts, err := url.Parse(httpURL)
 	if err != nil {
-		panic("NewHiveotWssServerImpl: Http server has invalid URL")
+		err = fmt.Errorf("StartHiveotWssServerImpl: Http server has invalid URL: %w", err)
+		return nil, err
 	}
 
 	if respTimeout == 0 {
 		respTimeout = msg.DefaultRnRTimeout
 	}
 	thingID := wss.HiveotWebsocketServerCellType + "-" + shortid.MustGenerate()
+
 	connectURL := fmt.Sprintf("%s://%s%s",
 		api.HiveotWebsocketScheme, urlParts.Host, wss.HiveotWebsocketPath)
+
+	slog.Info("Start: Starting HiveOT websocket transport server, Listening on: " + connectURL)
+
+	serverTD := td.NewTD(thingID, "HiveOT Websocket server", vocab.DeviceTypeService)
 	authenticator := httpServer.GetAuthenticator()
-	m := &WssServerImpl{
+	srv := &WssServerImpl{
 		TransportServerBase: transport.NewTransportServerBase(thingID, connectURL, authenticator),
 
 		encoder:    transport.NewRRNJsonEncoder(),
 		httpServer: httpServer,
 		// connectHandler: nil,
 		respTimeout: respTimeout,
+		serverTD:    serverTD,
 		subprotocol: api.HiveotWebsocketSubprotocol,
 		wssPath:     wss.HiveotWebsocketPath,
 	}
-	return m
+
+	// create routes
+	router := httpServer.GetProtectedRoute()
+	router.Get(srv.wssPath, srv.ServeWssConnection)
+
+	// create a TD describing this server along with its connection URL
+	srv.AddTDSecForms(srv.serverTD, false)
+	return srv, err
 }
 
 // Create a websocket transport server using WoT messaging format.
@@ -184,33 +203,46 @@ func NewHiveotWssServerImpl(httpServer api.IHttpServer, respTimeout time.Duratio
 //
 // Use SetRequestSink to set the handler for requests send by consumers
 // Use SetNotificationSink to set the handler for notifications send by devices.
-func NewWotWssServerImpl(httpServer api.IHttpServer, respTimeout time.Duration) *WssServerImpl {
+func StartWotWssServerImpl(
+	httpServer api.IHttpServer, respTimeout time.Duration) (*WssServerImpl, error) {
+
 	if httpServer == nil {
-		panic("NewWotWssServerImpl: Http server is nil")
+		return nil, fmt.Errorf("StartWotWssServerImpl: Http server is nil")
 	}
 	httpURL := httpServer.GetConnectURL()
 	urlParts, err := url.Parse(httpURL)
 	if err != nil {
-		panic("NewWotWssServerImpl: Http server has invalid URL")
+		return nil, fmt.Errorf("StartWotWssServerImpl: Http server has invalid URL")
 	}
 	if respTimeout == 0 {
 		respTimeout = msg.DefaultRnRTimeout
 	}
 	thingID := wss.WotWebsocketServerCellType + "-" + shortid.MustGenerate()
+
 	connectURL := fmt.Sprintf("%s://%s%s", api.WotWebsocketScheme, urlParts.Host, wss.WotWebsocketPath)
+	slog.Info("StartWotWssServerImpl: Starting WoT websocket transport server, Listening on: " + connectURL)
+
+	serverTD := td.NewTD(thingID, "WoT Websocket server", vocab.DeviceTypeService)
 	authenticator := httpServer.GetAuthenticator()
-	m := &WssServerImpl{
+	srv := &WssServerImpl{
 		TransportServerBase: transport.NewTransportServerBase(thingID, connectURL, authenticator),
 
 		httpServer:  httpServer,
 		encoder:     internal.NewWotWssMsgEncoder(),
 		respTimeout: respTimeout,
+		serverTD:    serverTD,
 		wssPath:     wss.WotWebsocketPath,
 		subprotocol: api.WotWebsocketSubprotocol,
 	}
 
-	var _ api.IHiveCell = m        // interface check
-	var _ api.ITransportServer = m // interface check
+	// create routes
+	router := httpServer.GetProtectedRoute()
+	router.Get(srv.wssPath, srv.ServeWssConnection)
 
-	return m
+	// create a TD describing this server along with its connection URL
+	srv.AddTDSecForms(srv.serverTD, false)
+	var _ api.IHiveCell = srv        // interface check
+	var _ api.ITransportServer = srv // interface check
+
+	return srv, nil
 }

@@ -19,10 +19,9 @@ import (
 // Use SetRequestSink to set the handler for requests send by consumers
 // Use SetNotificationSink to set the handler for notifications send by devices.
 func StartSseScServer(
-	httpServer api.IHttpServer, respTimeout time.Duration) ssesc.ISseScTransportServer {
+	httpServer api.IHttpServer, respTimeout time.Duration) (ssesc.ISseScTransportServer, error) {
 
-	srv := serverimpl.StartSseScServerImpl(httpServer, respTimeout)
-	return srv
+	return serverimpl.StartSseScServerImpl(httpServer, respTimeout)
 }
 
 // Create a new instance of the Hiveot SSE-SC server using the factory environment
@@ -33,5 +32,5 @@ func StartSseScServerFactory(f api.ICellFactory, md *api.CellDefinition) (api.IH
 		return nil, fmt.Errorf("NewSseScServerFactory: missing http server")
 	}
 	timeout := f.GetEnvironment().RpcTimeout
-	return StartSseScServer(httpServer, timeout), nil
+	return StartSseScServer(httpServer, timeout)
 }

@@ -28,7 +28,7 @@ func main() {
 	env.RpcTimeout = time.Minute // for testing
 	utils.SetLogging(env.LogLevel, "")
 
-	f := factory_service.NewCellFactory(env, nil)
+	f := factory_service.StartCellFactory(env, nil)
 	r := gatewayrecipe.NewGatewayDeviceRecipe(f, false)
 
 	// the authn factory creates an admin token and client certificate for use by consumers

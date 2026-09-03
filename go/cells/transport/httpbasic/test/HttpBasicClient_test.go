@@ -29,7 +29,7 @@ func TestConnect(t *testing.T) {
 	testAuthenticator := testenv.NewTestAuthenticator()
 	cfg := tlsserver.NewTLSServerConfig(
 		"localhost", serverPort, testCerts.ServerCert, testCerts.RootCAs, true)
-	srv, err := tls_server.NewTLSServer(cfg, testAuthenticator)
+	srv, err := tls_server.StartTLSServer(cfg, testAuthenticator)
 
 	require.NoError(t, err)
 	m, err := httpbasic_server.StartHttpBasicServer(srv)

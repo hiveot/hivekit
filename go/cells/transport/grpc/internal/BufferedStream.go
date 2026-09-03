@@ -95,6 +95,7 @@ func (bs *BufferedStream) _recvLoop(recvHandler func(rawMsg []byte)) {
 			}
 		}
 		// received a valid message, pass it to the handler
+		// FIXME: should this be in sync or async?
 		recvHandler(rxMsg)
 	}
 	slog.Debug("service recvLoop: recvLoop ended")
@@ -198,6 +199,12 @@ func (bs *BufferedStream) Send(rawMsg []byte) (err error) {
 	}
 }
 
+// Start a new receive loop for the given handler.
+func (bs *BufferedStream) SetReceiveHandler(recvHandler func(rawMsg []byte)) {
+	go bs._recvLoop(recvHandler)
+
+}
+
 // WaitUntilDisconnect waits until the send or receive stream is closed.
 // Intended to be called by the (server) serve handler to avoid the stream from
 // closing on return.
@@ -208,7 +215,9 @@ func (bs *BufferedStream) WaitUntilDisconnect() {
 	}
 }
 
-// NewBufferedStream creates a concurrently safe buffered stream for a gRPC stream.
+// OpenBufferedStream opens a concurrently safe buffered stream for a gRPC stream.
+//
+// Call Close() to end. This will also call the provided stream context cancel method.
 //
 // This supports sending messages concurrently.
 //
@@ -218,14 +227,12 @@ func (bs *BufferedStream) WaitUntilDisconnect() {
 // Call WaitUntilDisconnect() after creating this instance to wait until the stream
 // is closed by the client or the server. Needed by the server serve handler.
 //
-// The buffer Close() method will also call the provided stream context cancel method.
-//
 //	msgStream is the raw grpc message stream
 //	cancelFn is the function to cancel the message stream context. nil if not applicable
-//	recvHandler is called when a new message is received from the stream.
+//	recvHandler is called when a new message is received from the stream. nil to set later.
 //	sendTimeout is the default timeout for sending messages on this stream
 //	 when the send buffer is full.
-func NewBufferedStream(
+func OpenBufferedStream(
 	msgStream IMsgStream, cancelFn func(), recvHandler func(rawMsg []byte), sendTimeout time.Duration,
 ) *BufferedStream {
 	strm := &BufferedStream{
@@ -243,8 +250,8 @@ func NewBufferedStream(
 		cancelChan: make(chan struct{}),
 	}
 	strm.isConnected.Store(true)
-	go strm._recvLoop(recvHandler)
 	go strm._sendLoop()
+	go strm._recvLoop(recvHandler)
 
 	return strm
 }

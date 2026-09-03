@@ -3,9 +3,11 @@ package testenv
 import (
 	"errors"
 	"fmt"
+	"log/slog"
 	"math/rand"
 	"os"
 	"path/filepath"
+	"runtime"
 	"time"
 
 	"github.com/hiveot/hivekit/go/api"
@@ -147,41 +149,6 @@ func (testEnv *TestEnv) CreateToken(clientID string, validity time.Duration) (to
 	return token, validUntil, err
 }
 
-// NewConnectedClient creates a new reverse-connected client with the given client ID.
-//
-// This creates an account and access token for the client if needed.
-//
-// This panics if a client cannot be created or cannot connect.
-func (testEnv *TestEnv) NewConnectedClient(
-	clientID string, role string) (cl api.ITransportClient, token string) {
-
-	// ensure the test client account exists
-	err := testEnv.TestAuthn.AddClient(clientID, clientID, role)
-	token, _, err = testEnv.CreateToken(clientID, time.Minute*10)
-	if err != nil {
-		panic("NewConnectedClient: createToken failed: " + err.Error())
-	}
-	// create a connection to the test server
-	serverTD := testEnv.Server.GetTD()
-	form, _ := serverTD.GetConnectForm("", "")
-	cl, err = clients.NewTransportClientFromForm(serverTD, form, testEnv.CertBundle.RootCAs)
-
-	// disable forwarding. This should not make a difference unless Forward... is used instead of Emit...
-	// cl.SetForwarding(false, false)
-
-	if err == nil {
-		cl.SetTimeout(TestTimeout)
-		err = cl.SetAuthToken(clientID, token, td.SecSchemeBearer)
-	}
-	if err == nil {
-		err = cl.Connect()
-	}
-	if err != nil {
-		panic("NewConnectedClient failed to connect:" + err.Error())
-	}
-	return cl, token
-}
-
 // NewServerThing creates an exposed thing that is a direct sink for the test server.
 // Additional cells can be chained by setting them as the sink of the previous cells.
 //
@@ -217,31 +184,40 @@ func (testEnv *TestEnv) NewServerThing(thingID string) *thing.ExposedThing {
 func (testEnv *TestEnv) NewRCThing(clientID string, appReqHandler msg.RequestHandler) (
 	ag *thing.ExposedThing, cc api.IConnection, authToken string) {
 
-	// cc is the client connection for the Thing that receives requests from the
+	// cl is the client connection for the Thing that receives requests from the
 	// server and sends notifications to the server.
-	cl, authToken := testEnv.NewConnectedClient(clientID, authn.ClientRoleDevice)
+	cl, authToken := testEnv.NewTestClient(clientID, authn.ClientRoleDevice)
 
-	// simple ething, no application request handler yet
-	ething := thing.StartExposedThing(clientID+"-thing", appReqHandler)
+	// simple exposed thing, no application request handler yet
+	expThing := thing.StartExposedThing(clientID+"-thing", appReqHandler)
 
 	// the client delivers requests to the thing and receives notifications from it
-	cl.SetRequestSink(ething)
-	ething.SetNotificationSink(cl)
+	cl.SetRequestSink(expThing)
+	expThing.SetNotificationSink(cl)
 
 	// When acting in a dual role as thing and consumer, the thing uses the client as the
 	// sink for requests and receives notifications passed to the client from the server.
 	// forwarding must be disabled to prevent received notifications to be sent back to the
 	// client.
-	ething.SetRequestSink(cl)
-	cl.SetNotificationSink(ething)
+	expThing.SetRequestSink(cl)
+	cl.SetNotificationSink(expThing)
 	// disable forwarding to prevent received notifications to be forwarded back
 	// to the client.
-	ething.SetForwarding(false, false)
+	expThing.SetForwarding(false, false)
 
-	return ething, cl, authToken
+	// Finally, connect
+	err := cl.Connect()
+	if err != nil {
+		panic("NewRCThing: test client fails to connect")
+	}
+
+	return expThing, cl, authToken
 }
 
-// NewConnectedConsumer creates a new connected consumer.
+// NewTestConsumer creates a new consumer linked to a transport client.
+//
+// Call cl.Connect() to start connecting.
+//
 // The transport server must be started first so the client can connect.
 //
 // This uses the clientID as password
@@ -249,33 +225,82 @@ func (testEnv *TestEnv) NewRCThing(clientID string, appReqHandler msg.RequestHan
 //
 //	clientID to use
 //	role of the client
-func (testEnv *TestEnv) NewConnectedConsumer(clientID string, role string) (
-	co *consumer.Consumer, cc api.ITransportClient, token string) {
+func (testEnv *TestEnv) NewTestConsumer(clientID string, role string) (
+	co *consumer.Consumer, cl api.ITransportClient, token string) {
 
-	cc, token = testEnv.NewConnectedClient(clientID, role)
-	co = consumer.StartConsumer(cc, nil)
+	// dont connect yet as the linking must be done before connecting,
+	// to allow reconnect and notification handlers to detect connect/reconnect.
+	cl, token = testEnv.NewTestClient(clientID, role)
+	co = consumer.StartConsumer(cl, nil)
 	co.SetTimeout(TestTimeout)
-	return co, cc, token
+
+	return co, cl, token
+}
+
+// NewClient creates a new client with the given client ID and created token,
+// using server TD forms.
+//
+// Call Connect() for it to connect.
+//
+// This creates an account and access token for the client if needed.
+//
+// This panics if a client cannot be created.
+func (testEnv *TestEnv) NewTestClient(
+	clientID string, role string) (cl api.ITransportClient, token string) {
+
+	// ensure the test client account exists
+	err := testEnv.TestAuthn.AddClient(clientID, clientID, role)
+	token, _, err = testEnv.CreateToken(clientID, time.Minute*10)
+	if err != nil {
+		panic("NewTestClient: createToken failed: " + err.Error())
+	}
+	// create a connection to the test server
+	serverTD := testEnv.Server.GetTD()
+	form, _ := serverTD.GetConnectForm("", "")
+	cl, err = clients.NewTransportClientFromForm(serverTD, form, testEnv.CertBundle.RootCAs)
+
+	// disable forwarding. This should not make a difference unless Forward... is used instead of Emit...
+	// cl.SetForwarding(false, false)
+
+	if err == nil {
+		cl.SetTimeout(TestTimeout)
+		err = cl.SetAuthToken(clientID, token, td.SecSchemeBearer)
+	}
+	// if err == nil {
+	// 	err = cl.Connect()
+	// }
+	// if err != nil {
+	// 	panic("NewTestClient failed to connect:" + err.Error())
+	// }
+	return cl, token
 }
 
 // NewReconnectedConsumer creates a new connected consumer with the reconnect capability.
 // The reconnect service is placed before client.
 // The transport server must be started first so that connect can succeed.
+// The notification handler
 //
 // This uses the clientID as password
 // This panics if a client cannot be created
 //
 //	clientID to use
 //	role of the client
-func (testEnv *TestEnv) NewReconnectedConsumer(clientID string, role string) (
+//	the notification sink to register before connecting
+func (testEnv *TestEnv) NewReconnectedConsumer(
+	clientID string, role string, handleNotif msg.NotificationHandler) (
 	co *consumer.Consumer, cc api.ITransportClient, token string) {
 
-	cc, token = testEnv.NewConnectedClient(clientID, role)
+	cc, token = testEnv.NewTestClient(clientID, role)
 
 	// insert the reconnect service between consumer and client connection
+	// the service will invoke Connect()
 	rc, _ := reconnect_service.StartReconnectService(cc)
 
-	co = consumer.StartConsumer(rc, nil)
+	// FIXME: there is a small time delay between starting the connection and
+	// registering the notification sink. This can cause the connection notification
+	// to be missed.
+	// option1: create consumer(reconnect), then link the client
+	co = consumer.StartConsumer(rc, handleNotif)
 	co.SetTimeout(TestTimeout)
 
 	return co, cc, token
@@ -293,7 +318,6 @@ func (testEnv *TestEnv) NewReconnectedConsumer(clientID string, role string) (
 // * ProtocolTypeHiveotSSE
 // * and more
 func (testEnv *TestEnv) StartTestServer(protocol string) (srv api.ITransportServer) {
-
 	var err error
 	if protocol == "" {
 		protocol = DefaultProtocol
@@ -305,23 +329,20 @@ func (testEnv *TestEnv) StartTestServer(protocol string) (srv api.ITransportServ
 		caCert := testEnv.CertBundle.CaCert
 		srv, err = grpc_server.StartHiveotGrpcServer(
 			TestGrpcTcpURL, serverCert, caCert, testEnv.TestAuthn, TestTimeout)
-		err = srv.Start()
+
 	case api.HiveotGrpcUnixProtocolType:
 		serverCert := testEnv.CertBundle.ServerCert
 		caCert := testEnv.CertBundle.CaCert
 		srv, err = grpc_server.StartHiveotGrpcServer(
 			TestGrpcUnixURL, serverCert, caCert, testEnv.TestAuthn, TestTimeout)
-		err = srv.Start()
 
 	case api.HiveotSseScProtocolType:
 		testEnv.StartHttpServer(false)
-		srv = ssesc_server.StartSseScServer(testEnv.HttpServer, TestTimeout)
-		err = srv.Start()
+		srv, err = ssesc_server.StartSseScServer(testEnv.HttpServer, TestTimeout)
 
 	case api.HiveotWebsocketProtocolType:
 		testEnv.StartHttpServer(false)
-		srv = wss_server.NewHiveotWssServer(testEnv.HttpServer, TestTimeout)
-		err = srv.Start()
+		srv, err = wss_server.StartHiveotWssServer(testEnv.HttpServer, TestTimeout)
 
 	case api.HttpBasicProtocolType:
 		testEnv.StartHttpServer(false)
@@ -330,8 +351,7 @@ func (testEnv *TestEnv) StartTestServer(protocol string) (srv api.ITransportServ
 
 	case api.WotWebsocketProtocolType:
 		testEnv.StartHttpServer(false)
-		srv = wss_server.NewWotWssServer(testEnv.HttpServer, TestTimeout)
-		err = srv.Start()
+		srv, err = wss_server.StartWotWssServer(testEnv.HttpServer, TestTimeout)
 
 	default:
 		err = errors.New("StartTestServer: unknown protocol name: " + protocol)
@@ -340,7 +360,12 @@ func (testEnv *TestEnv) StartTestServer(protocol string) (srv api.ITransportServ
 	// srv.SetNotificationSink(func(*msg.NotificationMessage) { /*dummy*/ })
 
 	if err != nil {
-		panic("StartTestServer: Unable to create transport server service: " + err.Error())
+		slog.Error("StartTestServer: Unable to create transport server service: ", "err", err.Error())
+
+		runtime.Breakpoint()
+		panic("StartTestServer failed")
+
+		// return nil, err
 	}
 	// dont override the first transport server in case multiple transports are used
 	if testEnv.Server == nil {
@@ -373,7 +398,7 @@ func (testEnv *TestEnv) StartHttpServer(logging bool) (api.IHttpServer, string) 
 
 	// cfg.Address = fmt.Sprintf("%s:%d", certBundle.ServerAddr, testServerHttpPort)
 
-	testEnv.HttpServer, err = tls_server.NewTLSServer(cfg, testEnv.TestAuthn)
+	testEnv.HttpServer, err = tls_server.StartTLSServer(cfg, testEnv.TestAuthn)
 	if err != nil {
 		panic("unable to start TLS server: " + err.Error())
 	}
@@ -434,6 +459,7 @@ func StartTestEnv(protocol string, clean bool) (testEnv *TestEnv, cancelFunc fun
 	testEnv = NewTestEnv(clean)
 	testEnv.StartHttpServer(true)
 	testEnv.Server = testEnv.StartTestServer(protocol)
+
 	return testEnv, func() {
 		// give connections time to close client side before forcing them to close server side
 		time.Sleep(time.Millisecond)

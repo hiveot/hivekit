@@ -14,7 +14,7 @@ import (
 var DeviceServerRecipe = []api.CellDefinition{
 	{
 		Type:        api.HttpServerCellType,
-		Constructor: tls_server.NewTLSServerFactory,
+		Constructor: tls_server.StartTLSServerFactory,
 	},
 	{
 		Type:        wss.WotWebsocketServerCellType,

@@ -8,13 +8,13 @@ import (
 
 // Embed admin service TM
 //
-//go:embed "authn-admin-tm.json"
-var AuthnAdminTM []byte
+//go:embed "authn-service-td.json"
+var AuthnServiceTD []byte
 
 // Embed user service TM
 //
-//go:embed "authn-user-tm.json"
-var AuthnUserTM []byte
+//go:embed "authn-user-td.json"
+var AuthnUserTD []byte
 
 // This service exposes two cells, one for administrator use and one for consumer use.
 // Currently only a single instance of the authn service is supported.

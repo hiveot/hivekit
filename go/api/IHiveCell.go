@@ -84,44 +84,10 @@ type IHiveCell interface {
 	// handler will be replaced.
 	//
 	// thingIDs are the things to handle the notifications for, or empty for all things
-	//
-	// This should be invoked before Start().
-	// It can also be invoked after start for live rewiring of the cell.
 	SetNotificationSink(consumer IHiveCell, thingIDs ...string)
 
 	// SetRequestSink sets the handler of requests emitted by this cell.
-	//
-	// This should be invoked before Start().
-	// It can also be invoked after start for live rewiring of the cell.
 	SetRequestSink(sink IHiveCell)
-
-	// Deprecated: Use the StartXyz() function to start
-	//
-	// Start readies the cell for use.
-	//
-	// proposal:
-	//  1. eliminate Start. Instantiation implies Start.
-	//     cells cannot send requests during instantation.
-	//		pro: simpler, no tension between instantiation and start
-	//		con: can't have something else call start
-	//	2. Stop remains and must cleanup
-	//	3. SetRequestSink enables sending requests, after start.
-	//         or replace it with Start(requestSink,notifsink)
-	//
-	// Cells should be linked before calling Start. During Start cells can
-	// send requests and assume they get delivered.
-	//
-	// This implies that after instantiation cells are ready to be used
-	// and can receive notifications from linked cells that are started.
-	// Note that Stop() should always be called to release resources.
-	//
-	// If this is an issue then try to solve it by providing dependencies
-	// during instantiation, not during Start. When using the factory,
-	// other cells can be retrieved using f.GetCell(type).(interface),
-	// where f is the factory instance.
-	//
-	// If the cell cannot be used as intended then return an error.
-	Start() error
 
 	// Stop halts cell operation and releases resources. This should
 	// be called to release resources even if Start was never called.

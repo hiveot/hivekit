@@ -90,8 +90,8 @@ func (r *ChainFormation) SetSlot(slotID string, modDef api.CellDefinition) error
 	return fmt.Errorf("SetSlot: slot '%s' not found", slotID)
 }
 
-// Start the recipe.
-// This starts the cells in the defined order.
+// Start the chain recipe.
+// This starts and links the cells in the defined order.
 //
 // * linking a request handler sets its as the sink of the last cell
 // * linking a notification handler sets it as the sink of the first cell

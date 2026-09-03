@@ -39,7 +39,11 @@ func (m *TreeMenu) Refresh(allDirs []*td.TD, thingCache directory.IDirectoryCach
 
 	m.dirNodes.ClearChildren()
 	for _, tdoc := range allDirs {
-		treeNode := tview.NewTreeNode(tdoc.Title)
+		label := tdoc.Title
+		if label == "" {
+			label = "(" + tdoc.ID + ")"
+		}
+		treeNode := tview.NewTreeNode(label)
 		treeNode.SetReference(tdoc.ID)
 		m.dirNodes.AddChild(treeNode)
 	}
@@ -47,7 +51,11 @@ func (m *TreeMenu) Refresh(allDirs []*td.TD, thingCache directory.IDirectoryCach
 	m.thingNodes.ClearChildren()
 	allThings := thingCache.GetAllThings(0, 0)
 	for _, tdoc := range allThings {
-		treeNode := tview.NewTreeNode(tdoc.Title)
+		label := tdoc.Title
+		if label == "" {
+			label = "(" + tdoc.ID + ")"
+		}
+		treeNode := tview.NewTreeNode(label)
 		treeNode.SetReference(tdoc.ID)
 		m.thingNodes.AddChild(treeNode)
 	}

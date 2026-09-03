@@ -66,11 +66,13 @@ func TestReadTDFromDevice(t *testing.T) {
 	ag1.SetAppRequestHook(deviceReqHandler)
 
 	// 4. create a consumer and verify the TD can be read by a client
-	co, cc, _ := testEnv.NewConnectedConsumer(consumerID, "somerole")
-	defer cc.Close()
+	co, cc1, _ := testEnv.NewTestConsumer(consumerID, "somerole")
+	err := cc1.Connect()
+	require.NoError(t, err)
+	defer cc1.Close()
 
 	var rxTDJson string
-	err := co.ReadPropertyAs(thingID, "td", &rxTDJson)
+	err = co.ReadPropertyAs(thingID, "td", &rxTDJson)
 	require.NoError(t, err)
 
 	rxTDoc, err := td.UnmarshalTD(rxTDJson)

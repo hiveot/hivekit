@@ -346,7 +346,7 @@ func StartHttpBasicClientImpl(
 	}
 	hostPort := urlParts.Host
 
-	tlsClient := tls_client.NewTLSClient(hostPort, rootCAs)
+	tlsClient := tls_client.StartTLSClient(hostPort, rootCAs)
 	if rootCAs == nil {
 		tlsClient.SetSkipCertCheck(true)
 	}

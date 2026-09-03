@@ -11,7 +11,6 @@ import (
 	authzservice "github.com/hiveot/hivekit/go/cells/authz/service"
 	"github.com/hiveot/hivekit/go/utils"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
 // TestMain creates a test environment
@@ -28,8 +27,6 @@ func TestMain(m *testing.M) {
 // Test starting and stopping authorization service
 func TestStartStop(t *testing.T) {
 	svc := authzservice.StartAuthzService(nil)
-	err := svc.Start()
-	require.NoError(t, err)
 	svc.Stop()
 }
 
@@ -48,8 +45,6 @@ func TestHasPermission(t *testing.T) {
 		return "", fmt.Errorf("unknown client")
 	}
 	m := authzservice.StartAuthzService(getRole)
-	err := m.Start()
-	require.NoError(t, err)
 	defer m.Stop()
 
 	// check missing clientID

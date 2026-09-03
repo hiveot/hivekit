@@ -63,9 +63,10 @@ func (m *DiscoveryServerImpl) HandleRequest(req *msg.RequestMessage, replyTo msg
 
 		case discovery.ServeThingTDAction:
 			tdJson := req.ToString(0)
-			err = m.ServeThingTD(m.serviceName, tdJson)
+			err = m.ServeThingTD("", tdJson)
 			resp := req.CreateResponse(nil, err)
 			return replyTo(resp)
+
 		case directory.UpdateThingAction, directory.CreateThingAction:
 			// When a device or service publishes their TD it is send as a create thing
 			// request.
@@ -74,7 +75,7 @@ func (m *DiscoveryServerImpl) HandleRequest(req *msg.RequestMessage, replyTo msg
 			// MUST be placed before the discovery service to avoid it intercepting of the
 			// request.
 			tdJson := req.ToString(0)
-			err = m.ServeThingTD(m.serviceName, tdJson)
+			err = m.ServeThingTD("", tdJson)
 			resp := req.CreateResponse(nil, err)
 			return replyTo(resp)
 		}
@@ -130,29 +131,36 @@ func (m *DiscoveryServerImpl) ServeDirectoryTD(serviceName string, tddJSON strin
 
 // ServeThingTD registers the given thing TD with the HTTP server and publishes
 // its provisioning endpoint using DNS-SD discovery.
-// Indended for use by stand-alone things that run servers.
+// Indended for use by Things that run servers.
 //
+// Since a device can publish multiple services, the serviceName is used
+// in the discovery path. .wellknown/wot/{serviceName}
+//
+//	serviceName is the instance name to publish under. "" to use the TD ID
 //	tdJSON is the Thing's TD in JSON format
-func (m *DiscoveryServerImpl) ServeThingTD(serviceName string, tdJSON string) (err error) {
+func (m *DiscoveryServerImpl) ServeThingTD(
+	serviceName string, tdJSON string) (err error) {
 
 	slog.Info("DiscoveryServer. Serving Thing TD")
 
-	if m.dnssdServer != nil {
-		return fmt.Errorf("ServiceThingTD: a TD is already served")
+	tdDoc, err := td.UnmarshalTD(tdJSON)
+	if err != nil {
+		return fmt.Errorf("ServeThingTD: Invalid TD: %w", err)
 	}
+	httpPath := directory.WellKnownWoTPath
 	if serviceName == "" {
-		serviceName = m.serviceName
+		serviceName = tdDoc.ID
+		httpPath = httpPath + "/" + serviceName
 	}
 
 	// serve the TD on the well-known http endpoint
 	publicRoute := m.httpServer.GetPublicRoute()
-	wellKnownPath := directory.WellKnownWoTPath
-	publicRoute.Get(wellKnownPath, func(w http.ResponseWriter, r *http.Request) {
+	publicRoute.Get(httpPath, func(w http.ResponseWriter, r *http.Request) {
 		_, _ = w.Write([]byte(tdJSON))
 	})
 
 	// publish a discovery record
-	thingTDURL, err := url.JoinPath(m.httpServer.GetConnectURL(), wellKnownPath)
+	thingTDURL, err := url.JoinPath(m.httpServer.GetConnectURL(), httpPath)
 	m.dnssdServer, err = ServeWotDiscovery(serviceName, thingTDURL, false, nil)
 	if err != nil {
 		slog.Error("Failed starting introduction server for DNS-SD",

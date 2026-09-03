@@ -56,7 +56,9 @@ func TestStartStop(t *testing.T) {
 	testEnv, cancelFn := testenv.StartTestEnv(testProtocol, true)
 
 	defer cancelFn()
-	co1, cc1, _ := testEnv.NewConnectedConsumer(testClientID1, authn.ClientRoleViewer)
+	co1, cc1, _ := testEnv.NewTestConsumer(testClientID1, authn.ClientRoleViewer)
+	err := cc1.Connect()
+	require.NoError(t, err)
 	defer cc1.Close()
 	assert.NotNil(t, co1)
 
@@ -65,7 +67,6 @@ func TestStartStop(t *testing.T) {
 
 	// time.Sleep(time.Millisecond)
 	// cc1.Close()
-
 }
 
 // Run a ping test to verify a client-server connection using the test protocol
@@ -74,11 +75,13 @@ func TestPing(t *testing.T) {
 
 	testEnv, cancelFn := testenv.StartTestEnv(testProtocol, true)
 	defer cancelFn()
-	// NewConsumerClient creates a client
-	co1, cc1, _ := testEnv.NewConnectedConsumer(testClientID1, authn.ClientRoleViewer)
+	// NewTestConsumer creates a client
+	co1, cc1, _ := testEnv.NewTestConsumer(testClientID1, authn.ClientRoleViewer)
+	err := cc1.Connect()
+	require.NoError(t, err)
 	defer cc1.Close()
 
-	err := co1.Ping()
+	err = co1.Ping()
 	require.NoError(t, err)
 }
 

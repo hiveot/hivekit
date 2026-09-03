@@ -98,7 +98,7 @@ func TestNoCA(t *testing.T) {
 	assert.NoError(t, err)
 
 	// certificate authentication but no CA should fail
-	cl := tls_client.NewTLSClient(testAddress, nil)
+	cl := tls_client.StartTLSClient(testAddress, nil)
 	err = cl.SetClientCert(authBundle.ClientCert)
 	assert.Error(t, err)
 
@@ -108,7 +108,7 @@ func TestNoCA(t *testing.T) {
 	cl.Close()
 
 	// No authentication
-	cl = tls_client.NewTLSClient(testAddress, authBundle.RootCAs)
+	cl = tls_client.StartTLSClient(testAddress, authBundle.RootCAs)
 
 	_, _, err = cl.Get(path1)
 	assert.NoError(t, err)
@@ -135,7 +135,7 @@ func TestAuthClientCert(t *testing.T) {
 		path1Hit++
 	})
 	//
-	cl := internal.NewTLSClientImpl(testAddress, authBundle.RootCAs)
+	cl := internal.StartTLSClientImpl(testAddress, authBundle.RootCAs)
 	cl.SetClientCert(authBundle.ClientCert)
 	assert.NoError(t, err)
 
@@ -173,13 +173,13 @@ func TestAuthClientCert(t *testing.T) {
 }
 
 func TestNotStarted(t *testing.T) {
-	cl := tls_client.NewTLSClient(testAddress, authBundle.RootCAs)
+	cl := tls_client.StartTLSClient(testAddress, authBundle.RootCAs)
 	_, _, err := cl.Get("/notstarted")
 	assert.Error(t, err)
 	cl.Close()
 }
 func TestNoClientCert(t *testing.T) {
-	cl := tls_client.NewTLSClient(testAddress, authBundle.RootCAs)
+	cl := tls_client.StartTLSClient(testAddress, authBundle.RootCAs)
 	cl.Close()
 }
 
@@ -187,7 +187,7 @@ func TestBadClientCert(t *testing.T) {
 	// use cert from a different CA
 	bundle2 := certstest.CreateTestCertBundle(TestKeyType)
 
-	cl := tls_client.NewTLSClient(testAddress, authBundle.RootCAs)
+	cl := tls_client.StartTLSClient(testAddress, authBundle.RootCAs)
 	err := cl.SetClientCert(bundle2.ServerCert)
 	assert.Error(t, err)
 	cl.Close()
@@ -196,7 +196,7 @@ func TestBadClientCert(t *testing.T) {
 func TestNoServer(t *testing.T) {
 	// setup server and client environm
 	//
-	cl := tls_client.NewTLSClient(testAddress, authBundle.RootCAs)
+	cl := tls_client.StartTLSClient(testAddress, authBundle.RootCAs)
 	err := cl.SetClientCert(authBundle.ClientCert)
 	assert.NoError(t, err)
 	_, _, err = cl.Get("/noserver")
@@ -208,7 +208,7 @@ func TestCert404(t *testing.T) {
 	srv, err := startTestServer(mux)
 	assert.NoError(t, err)
 
-	cl := tls_client.NewTLSClient(testAddress, authBundle.RootCAs)
+	cl := tls_client.StartTLSClient(testAddress, authBundle.RootCAs)
 	err = cl.SetClientCert(authBundle.ClientCert)
 	assert.NoError(t, err)
 
@@ -244,7 +244,7 @@ func TestTokenAuth(t *testing.T) {
 	assert.NoError(t, err)
 
 	// connect using the given token
-	cl := tls_client.NewTLSClient(testAddress, authBundle.RootCAs)
+	cl := tls_client.StartTLSClient(testAddress, authBundle.RootCAs)
 	err = cl.SetAuthToken(user1, authToken)
 	require.NoError(t, err)
 
@@ -274,7 +274,7 @@ func TestTokenFail(t *testing.T) {
 		resp.WriteHeader(http.StatusUnauthorized)
 	})
 	//
-	cl := tls_client.NewTLSClient(testAddress, authBundle.RootCAs)
+	cl := tls_client.StartTLSClient(testAddress, authBundle.RootCAs)
 	cl.SetAuthToken(clientID, "badtoken")
 	resp, _, err := cl.Post(pathHello1, []byte("test"))
 	assert.Empty(t, resp)

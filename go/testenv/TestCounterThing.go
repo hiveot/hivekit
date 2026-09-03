@@ -233,11 +233,11 @@ func (m *TestCounterThing) HandleWriteProperty(req *msg.RequestMessage, replyTo 
 // Start the test device.
 //
 // This publishes a write TD request to the sink.
-func (m *TestCounterThing) Start() error {
+func (m *TestCounterThing) startDevice() error {
 	m.backgroundCtx, m.backgroundCancel = context.WithCancel(context.Background())
 
 	// Make the TD available. Set its thingID with the provided ID.
-	tdoc, _ := td.UnmarshalTD(counterThingTM)
+	tdoc, err := td.UnmarshalTD(counterThingTM)
 	tdoc.ID = m.GetThingID()
 	m.tdocJson = td.MarshalTD(tdoc)
 
@@ -263,7 +263,7 @@ func (m *TestCounterThing) Start() error {
 	if m.config.AutoIncrement {
 		go m.Background()
 	}
-	return nil
+	return err
 }
 
 // stop the background process
@@ -285,7 +285,7 @@ func (m *TestCounterThing) Update(newValue int) {
 //
 // thingID is the thingID or use "" for an auto generated ID
 // config defines behavior of the Thing
-func NewTestCounterThing(thingID string, config *CounterConfig) *TestCounterThing {
+func StartTestCounterThing(thingID string, config *CounterConfig) (*TestCounterThing, error) {
 	if config == nil {
 		config = &CounterConfig{
 			AutoIncrement: false,
@@ -300,5 +300,7 @@ func NewTestCounterThing(thingID string, config *CounterConfig) *TestCounterThin
 		config:       config,
 	}
 	m.counter.Store(42)
-	return m
+
+	err := m.startDevice()
+	return m, err
 }

@@ -375,7 +375,7 @@ func StartSseScClientImpl(sseURL string, rootCAs *x509.CertPool) *SseScClientImp
 	ssePath := urlParts.Path
 	// use SetTimeout to change the default
 	timeout := msg.DefaultRnRTimeout
-	tlsClient := tls_client.NewTLSClient(hostPort, rootCAs)
+	tlsClient := tls_client.StartTLSClient(hostPort, rootCAs)
 
 	thingID := ssesc.SseScClientCellType + shortid.MustGenerate()
 	cl := &SseScClientImpl{

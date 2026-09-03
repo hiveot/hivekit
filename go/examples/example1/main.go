@@ -41,7 +41,7 @@ func main() {
 	}
 	utils.SetLogging(env.LogLevel, "")
 
-	f := factory_service.NewCellFactory(env, nil)
+	f := factory_service.StartCellFactory(env, nil)
 
 	// the device server recipe contains cells for running a server with certs and authn
 	// you can message the recipe as a service or via a client. Here we message directly.
@@ -57,7 +57,7 @@ func main() {
 		AutoIncrement: false,
 		ResetValue:    60,
 	}
-	counterThing := testenv.NewTestCounterThing(env.AppID, cfg)
+	counterThing, err := testenv.StartTestCounterThing(env.AppID, cfg)
 
 	// Requests from the counter thing are passed to the cells in the chain.
 	// Intended to publish the TD. No other requests are expected.
@@ -71,7 +71,6 @@ func main() {
 	// the recipe HandleNotification passes it to the last cell in the chain and up from there.
 	counterThing.SetNotificationSink(r)
 	// Start after linking.
-	counterThing.Start()
 
 	fmt.Printf("main: homeDir: %s\n", env.HomeDir)
 	fmt.Printf("main: Counter is running and listening on '%v'\n", f.GetConnectURLs())

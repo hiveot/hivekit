@@ -39,7 +39,6 @@ func TestReconnectAllProtocols(t *testing.T) {
 }
 
 // Reconnect the client using the 'ReconnectClient' service
-// TODO: move this as a test case of the Reconnect service)
 func TestReconnect(t *testing.T) {
 	slog.Warn(fmt.Sprintf("---Test: %s %s---\n", t.Name(), testProtocol))
 
@@ -64,7 +63,7 @@ func TestReconnect(t *testing.T) {
 	// this test device receives an action and returns the input
 	// it is intended to prove reconnect works.
 	ething := thing.StartExposedThing("", func(req *msg.RequestMessage, replyTo msg.ResponseHandler) error {
-		slog.Info("Received request", "op", req.Operation)
+		slog.Info("Received request", "op", req.Operation, "name", req.Name)
 		var err error
 		// prove that the return channel is connected
 		if req.Operation == td.OpInvokeAction {
@@ -100,28 +99,37 @@ func TestReconnect(t *testing.T) {
 	defer ctx1Cancel()
 
 	// server emits notification when a new connection is received
-	notifHandler := consumer.StartConsumer(nil, func(notif *msg.NotificationMessage) {
+	notifHandler := func(notif *msg.NotificationMessage) {
 		if notif.Name == api.ServerConnectedEvent {
 			// expect a connect-disconnect event
 			serverConnectEvents.Add(1)
-			slog.Info("TestReconnect: Connection notification by Server",
+			slog.Info("TestReconnect: Connected notification by Server",
 				slog.String("type", string(notif.AffordanceType)),
 				slog.String("thingID", notif.ThingID),
 				slog.String("name", notif.Name),
+				// should be at 2
+				slog.Int("serverConnectEvents", int(serverConnectEvents.Load())),
 			)
 			if serverConnectEvents.Load() == 2 {
 				ctx1Cancel()
 			}
 		}
-	})
-	testEnv.Server.SetNotificationSink(notifHandler)
+	}
+	// dont connect until notifications are linked
+	co := consumer.StartConsumer(nil, notifHandler)
+	testEnv.Server.SetNotificationSink(co)
 
 	// new consumer with reconnect client
-	co1, cc1, _ := testEnv.NewReconnectedConsumer(testClientID1, authn.ClientRoleViewer)
-	defer cc1.Close()
+	// FIXME: might not receive the first connected notification
 	// count nr of connection status changes
-	co1.SetNotificationHook(clientNotificationHook)
+	co1, cc1, _ := testEnv.NewReconnectedConsumer(
+		testClientID1, authn.ClientRoleViewer, clientNotificationHook)
+	defer cc1.Close()
+
+	// // FIXME: might not receive the first connected notification
+	time.Sleep(time.Millisecond)
 	assert.Equal(t, api.StatusConnected, cc1.GetConnectionStatus())
+	assert.Equal(t, 1, int(serverConnectEvents.Load()), "missing initial server connection notification")
 
 	// the client
 

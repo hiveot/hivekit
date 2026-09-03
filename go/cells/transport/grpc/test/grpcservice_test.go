@@ -188,7 +188,7 @@ func TestStreamMessages(t *testing.T) {
 		// todo test authentication?
 
 		// start the send and receive loop
-		bstrm := grpclib.NewBufferedStream(
+		bstrm := grpclib.OpenBufferedStream(
 			grpcStream, nil, handleStream2Message, time.Minute)
 
 		// send is dispatched after the stream is

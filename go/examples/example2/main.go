@@ -104,7 +104,7 @@ func main() {
 	http.DefaultTransport.(*http.Transport).TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
 
 	// Start the CLI recipe cells
-	f := factory_service.NewCellFactory(env, nil)
+	f := factory_service.StartCellFactory(env, nil)
 	r := consumerrecipe.NewConsumerRecipe(f, false)
 	err := r.Start()
 	if err != nil {
@@ -132,11 +132,10 @@ func main() {
 	discoClient := api.GetFactoryCell[discovery.IDiscoveryClient](f, discovery.DiscoveryClientCellType)
 	dirClient := api.GetFactoryCell[directory.IDirectoryClient](f, directory.DirectoryClientCellType)
 	caCert, err := env.GetCACert()
-	app := cliex.NewCliex(appConfig, discoClient, dirClient, caCert)
+	app := cliex.StartCliex(appConfig, discoClient, dirClient, caCert)
 
 	app.SetRequestSink(r)
 	r.SetNotificationSink(app)
-	err = app.Start()
 
 	switch cmd {
 	case CmdDiscover, "disco":
