@@ -193,6 +193,20 @@ func (svc *ReconnectServiceImpl) HandleRequest(req *msg.RequestMessage, replyTo 
 	return svc.HiveCellBase.HandleRequest(req, replyTo)
 }
 
+// Connect when ready
+func (svc *ReconnectServiceImpl) Ready() {
+	status := svc.conn.GetConnectionStatus()
+	if status != api.StatusConnected && status != api.StatusConnecting {
+
+		// FIXME: how to report an authentication failure:
+		err := svc.conn.Connect()
+		if err != nil {
+			slog.Warn("StartReconnectServiceImpl. The linked client failed to start.",
+				"err", err.Error(), "client ID", svc.conn.GetThingID())
+		}
+	}
+}
+
 // SetRequestSink registers the given sink as the client if one isn't set.
 // requestSink must implement the ITransportClient interface so it can be used to
 // register the connect callback.
@@ -208,16 +222,6 @@ func (svc *ReconnectServiceImpl) SetRequestSink(requestSink api.IHiveCell) {
 	svc.conn = tpClient
 	svc.conn.SetConnectHandler(svc.handleConnectChange)
 
-	status := tpClient.GetConnectionStatus()
-	if status != api.StatusConnected && status != api.StatusConnecting {
-
-		// FIXME: how to report an authentication failure:
-		err := svc.conn.Connect()
-		if err != nil {
-			slog.Warn("StartReconnectServiceImpl. The linked client failed to start.",
-				"err", err.Error(), "client ID", tpClient.GetThingID())
-		}
-	}
 }
 
 // Stop the reconnect service and disconnect the client

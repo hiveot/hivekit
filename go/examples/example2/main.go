@@ -105,8 +105,7 @@ func main() {
 
 	// Start the CLI recipe cells
 	f := factory_service.StartCellFactory(env, nil)
-	r := consumerrecipe.NewConsumerRecipe(f, false)
-	err := r.Start()
+	r, err := consumerrecipe.StartConsumerRecipe(f, false)
 	if err != nil {
 		os.Exit(1)
 	}

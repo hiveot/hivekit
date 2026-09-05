@@ -40,6 +40,11 @@ func (svc *AuthzServiceImpl) HandleRequest(req *msg.RequestMessage, replyTo msg.
 	return svc.HiveCellBase.HandleRequest(req, replyTo)
 }
 
+// publish the td when app is ready
+func (svc *AuthzServiceImpl) Ready() {
+	// svc.PublishTD()
+}
+
 // Stop closes the rules store and releases resources
 func (svc *AuthzServiceImpl) Stop() {
 	slog.Info("Stop: Stopping authz")

@@ -8,6 +8,8 @@ import (
 	authz_service "github.com/hiveot/hivekit/go/cells/authz/service"
 	"github.com/hiveot/hivekit/go/cells/certs"
 	certs_service "github.com/hiveot/hivekit/go/cells/certs/service"
+	"github.com/hiveot/hivekit/go/cells/digitwin"
+	digitwin_service "github.com/hiveot/hivekit/go/cells/digitwin/service"
 	"github.com/hiveot/hivekit/go/cells/directory"
 	directory_service "github.com/hiveot/hivekit/go/cells/directory/service"
 	"github.com/hiveot/hivekit/go/cells/history"
@@ -30,13 +32,15 @@ import (
 	factory_service "github.com/hiveot/hivekit/go/factory/service"
 )
 
-// GatewayRecipeCells defines a cell chain of an application gateway.
+// DigitwinGatewayRecipeCells defines a recipe for running a digital twin
+// gateway.
 //
 // # IN DEVELOPMENT - NOT READY YET
 //
-// The application gateway provides protocol servers, authentication, a directory,
-// a router for communication with connected devices, and more.
-var GatewayRecipeCells = []api.CellDefinition{
+// The digitwin gateway provides digital twin of devices include supporting
+// services such as transport protocol servers, authentication, a directory,
+// and a router for communication with connected devices.
+var DigitwinGatewayRecipeCells = []api.CellDefinition{
 	{
 		// If no CA certificate is found in the AppEnvironment then generate a CA.
 		// If no server certificate is found in the AppEnvironment then generate a self-signed certificate.
@@ -120,6 +124,10 @@ var GatewayRecipeCells = []api.CellDefinition{
 	},
 
 	{
+		Type:        digitwin.DigitwinCellType,
+		Constructor: digitwin_service.StartDigitwinServiceFactory,
+	},
+	{
 		// Router service for routing requests to devices
 		// this requires a directory client or service.
 		Type:        router.RouterCellType,
@@ -130,7 +138,8 @@ var GatewayRecipeCells = []api.CellDefinition{
 	// todo: optional authorization of requests
 }
 
-// StartGatewayDeviceRecipe creates a recipe for an IoT gateway.
+// StartDigitwinGatewayRecipe creates a recipe for an IoT gateway that
+// serves digital twins of devices.
 //
 // Intended as the central connection point for consumers, services, RC devices,
 // and external devices whose TD exists in the directory.
@@ -153,12 +162,14 @@ var GatewayRecipeCells = []api.CellDefinition{
 //		              -> history
 //			              -> directory
 //			                 -> discovery server
-//	    	                   -> router | reconnect | clients
+//			                    -> digitwin | vcache
+//		    	                   -> router | reconnect | clients
 //
 // This returns the recipe, which can be used like any other cell
-func StartGatewayDeviceRecipe(f api.ICellFactory) (api.IRecipe, error) {
+func StartDigitwinGatewayRecipe(f api.ICellFactory) (api.IRecipe, error) {
 
 	chain := DigitwinGatewayRecipeCells
 	r, err := factory_service.StartChainFormation(f, chain, nil)
+
 	return r, err
 }

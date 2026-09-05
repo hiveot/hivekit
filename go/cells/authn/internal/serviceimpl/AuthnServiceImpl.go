@@ -196,6 +196,11 @@ func (svc *AuthnServiceImpl) SaveToken(clientID string, token string) error {
 	return err
 }
 
+// publish the td when app is ready
+func (svc *AuthnServiceImpl) Ready() {
+	svc.PublishTD()
+}
+
 // Change the password of a client
 func (svc *AuthnServiceImpl) SetPassword(clientID string, password string) error {
 	return svc.authnStore.SetPassword(clientID, password)
@@ -204,12 +209,6 @@ func (svc *AuthnServiceImpl) SetPassword(clientID string, password string) error
 // Change the role of a client
 func (svc *AuthnServiceImpl) SetRole(clientID string, role string) error {
 	return svc.authnStore.SetRole(clientID, role)
-}
-
-// Set the request sink and publish the service TD
-func (svc *AuthnServiceImpl) SetRequestSink(reqSink api.IHiveCell) {
-	svc.HiveCellBase.SetRequestSink(reqSink)
-	svc.PublishTD()
 }
 
 // Stop closes the client store and releases resources

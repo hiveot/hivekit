@@ -29,11 +29,8 @@ func main() {
 	utils.SetLogging(env.LogLevel, "")
 
 	f := factory_service.StartCellFactory(env, nil)
-	r := gatewayrecipe.NewGatewayDeviceRecipe(f, false)
-
-	// the authn factory creates an admin token and client certificate for use by consumers
-
-	err := r.Start()
+	r, err := gatewayrecipe.StartGatewayDeviceRecipe(f)
+	_ = r
 	if err != nil {
 		fmt.Println("Gateway startup failed: " + err.Error())
 		os.Exit(1)

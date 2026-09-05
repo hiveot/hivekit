@@ -15,11 +15,6 @@ import (
 // The last cell in the chain will have its request sink set to the sink of the
 // chain itself, effectively forwarding requests to the request sink of the chain.
 //
-// NOTE: The chain recipe MUST be linked before start. On Start the last cell
-// of the chain is set to the linked request handler.
-//
-// On start, all cells are loaded, started and linked in sequence.
-//
 // The ChainFormation itself is registered as the notification sink of the first cell
 // in the chain and will forward these notifications to its registered notification sink.
 type ChainFormation struct {
@@ -32,6 +27,10 @@ type ChainFormation struct {
 
 	// loaded cells in order of the chain
 	instances []api.IHiveCell
+
+	// linkto provided on start.
+	// this will also receive the Ready call.
+	linkTo api.IHiveCell
 }
 
 // Recipe receives notifications from the application.
@@ -54,6 +53,16 @@ func (r *ChainFormation) HandleRequest(req *msg.RequestMessage, replyTo msg.Resp
 	return head.HandleRequest(req, replyTo)
 }
 
+// Invoke Ready on all members of this formation including the optional linkTo
+func (r *ChainFormation) Ready() {
+	for _, cell := range r.instances {
+		cell.Ready()
+	}
+	if r.linkTo != nil {
+		r.linkTo.Ready()
+	}
+}
+
 // Set the sink for notifications from the chain
 // This sets the sink to the first cell in the chain. Call this after start.
 func (r *ChainFormation) SetNotificationSink(sink api.IHiveCell, thingIDs ...string) {
@@ -65,11 +74,12 @@ func (r *ChainFormation) SetNotificationSink(sink api.IHiveCell, thingIDs ...str
 	head.SetNotificationSink(sink, thingIDs...)
 }
 
-// Set the sink for requests from the chain
-// This sets the sink to the last cell in the chain. Call this after start.
+// Set the sink for requests from the chain.
+// This sets the sink to the last cell in the chain.
+// Only needed if no LinkTo is provided in ChainFormation
 func (r *ChainFormation) SetRequestSink(sink api.IHiveCell) {
 	if len(r.instances) == 0 {
-		slog.Error("SetRequestSink called but the chain is not started")
+		slog.Error("SetRequestSink called but the chain has no members")
 		return
 	}
 	tail := r.instances[len(r.instances)-1]
@@ -77,29 +87,54 @@ func (r *ChainFormation) SetRequestSink(sink api.IHiveCell) {
 }
 
 // SetSlot sets the given cell definition in the chain at the position of the slot.
-// Use this before starting the chain.
 // Intended to create chain templates where the application cell needs to be placed
 // before some other cells.
-func (r *ChainFormation) SetSlot(slotID string, modDef api.CellDefinition) error {
+//
+//	slotID is the slot to replace
+//	cellDef is the cell to fill the slot with
+func (r *ChainFormation) SetSlot(slotID string, cellDef api.CellDefinition) error {
+	// locate the slit
 	for i, md := range r.chain {
 		if md.Type == slotID {
-			r.chain[i] = modDef
+			r.chain[i] = cellDef
+			// link
+
 			return nil
 		}
+
 	}
 	return fmt.Errorf("SetSlot: slot '%s' not found", slotID)
 }
 
-// Start the chain recipe.
-// This starts and links the cells in the defined order.
+// Start a chain formation recipe for running cells linked in a chain.
 //
-// * linking a request handler sets its as the sink of the last cell
-// * linking a notification handler sets it as the sink of the first cell
-// * sending a request to the chain passes it to the first cell of the chain
-// * sending a notification to the chain passes it to the last cell, which makes it
+// - HandleRequest will send the request to the first cell of the chain.
+// - HandleNotification passes it to the last cell, which makes its way up the chain.
+// - SetRequestSink is not needed if linkTo is provided
+// - SetNotificationSink sets the destination of notification that are passed up the chain.
 //
-//	way to the first cell and up to the linked notification handler.
-func (r *ChainFormation) Start() error {
+// Cells in the chain should not emit requests or notifications until the chain is
+// linked as intended. If all cells are reactive, eg respond to external requests and
+// notifications, this should not be an issue.
+//
+// Cells that publish a TD for updating a directory must wait with this until the
+// environment is ready.
+//
+//	f is the cell factory that instantiates the cells
+//	chain is a collection of cells in order of instantiation.
+//	linkTo is optional cell that handles requests and passes notifications to the chain.
+//		This can be used instead of SetRequestSink.
+//
+// This returns the chain recipe.
+func StartChainFormation(
+	f api.ICellFactory, chain []api.CellDefinition, linkTo api.IHiveCell) (*ChainFormation, error) {
+
+	r := &ChainFormation{
+		HiveCellBase: cells.NewHiveCellBase("ChainFormation", 0),
+		f:            f,
+		chain:        chain,
+		linkTo:       linkTo,
+	}
 
 	// register all cells with the factory
 	for _, cellDef := range r.chain {
@@ -109,49 +144,37 @@ func (r *ChainFormation) Start() error {
 	// start and link cells in the defined order
 	r.instances = make([]api.IHiveCell, 0, len(r.chain))
 	var prevCell api.IHiveCell
-	for _, cellDef := range r.chain {
-		// bus formation requires it is linked before start.
-		// option1: change factory to use create-link-start sequence
-		// option2: change bus to use a link proxy on start and update it with link
 
+	// Instantiate cells and link in the specified order.
+	for _, cellDef := range r.chain {
 		member, err := r.f.StartCell(cellDef.Type, true)
 		if err != nil {
 			slog.Error("Start: starting cell failed. Shutting down",
 				"cellType", cellDef.Type, "err", err.Error())
 			r.Stop()
-			return err
+			return nil, err
 		} else if member == nil {
 			// don't track 'one-shot' cells that are used to initialize the factory.
 			// These return nil without error.
 		} else {
+			// success
 			r.instances = append(r.instances, member)
-			// Link the cell to the previous cell in the list
 			if prevCell != nil {
-				prevCell.SetRequestSink(member)
+				// prevCell.SetRequestSink(member)
 				member.SetNotificationSink(prevCell)
+				prevCell.SetRequestSink(member)
 			}
 		}
 		prevCell = member
 	}
 
-	return nil
-}
-
-// Create a recipe instance for running cells in a chain formation.
-//
-// Use Start to instantiate and link the cells in the defined order.
-//
-//	f is the cell factory that instantiates the cells
-//	chain is a collection of cells in order of instantiation.
-//
-// This returns the chain recipe.
-func NewChainFormation(f api.ICellFactory, chain []api.CellDefinition) *ChainFormation {
-
-	r := &ChainFormation{
-		HiveCellBase: cells.NewHiveCellBase("ChainFormation", 0),
-		f:            f,
-		chain:        chain,
+	// The recipe tail links to the linkTo cell.
+	if linkTo != nil && len(r.instances) > 1 {
+		tail := r.instances[len(r.instances)-1]
+		linkTo.SetNotificationSink(tail)
+		tail.SetRequestSink(linkTo)
 	}
+
 	var _ api.IRecipe = r
-	return r
+	return r, nil
 }

@@ -20,13 +20,13 @@ type IRecipe interface {
 	// Originally intended for placing the application cell in the right spot in the chain.
 	//
 	// This returns an error if the recipe does not contain a slot with the given ID.
-	SetSlot(slotID string, modDef CellDefinition) error
+	// SetSlot(slotID string, modDef CellDefinition) error
 
 	// Start all the cells in the recipe.
 	// Factory recipes instantiate and link cells before calling Start,
 	// then start the cells in reverse order so they can send requests.
-	Start() error
+	// Start() error
 
 	// Stop the factory used by this recipe in reverse order from Start.
-	Stop()
+	// Stop()
 }

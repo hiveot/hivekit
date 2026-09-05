@@ -35,20 +35,9 @@ var RCDeviceChain = []api.CellDefinition{
 	},
 	// todo: add optional logging of requests
 	// todo: optional authorization of requests
-
-	// add and link your application cell, which will handle requests
-	// or use the app slot.
-	{
-		// Cell slot for the application cell.
-		// This place lets it publish its TD for discovery as it is placed before those cells.
-		// Use Chain.SetSlot(AppSlotType, cellDef)
-		Type: AppSlotType,
-	},
-	// Q: how does the device write its TD to the directory?
-	// A: Use directorypkg.UpdateTD(dirThingID, tdjson, recipe-as-sink)
 }
 
-// RCDeviceRecipe is a recipe for creating a reverse-connected devices.
+// StartRCDeviceRecipe starts a recipe for creating a reverse-connected devices.
 // Intended for IoT devices that use reverse connection to a gateway or Hub.
 //
 // * support AppEnvironment commandline options
@@ -62,12 +51,12 @@ var RCDeviceChain = []api.CellDefinition{
 //	appCellDef is the cell definition of the exposed thing to inject in the app slot.
 //
 // This returns the recipe, which can be used like any other cell
-func NewRCDeviceRecipe(
-	f api.ICellFactory, appCellDef *api.CellDefinition) api.IRecipe {
+func StartRCDeviceRecipe(
+	f api.ICellFactory, appCellDef *api.CellDefinition) (api.IRecipe, error) {
 	chain := RCDeviceChain
 	if appCellDef != nil {
 		chain = append(chain, *appCellDef)
 	}
-	r := factory_service.NewChainFormation(f, chain)
-	return r
+	r, err := factory_service.StartChainFormation(f, chain, nil)
+	return r, err
 }

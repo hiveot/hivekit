@@ -36,9 +36,7 @@ func main() {
 	utils.SetLogging(env.LogLevel, path.Join(env.LogsDir, "example3.log"))
 
 	f := factory_service.StartCellFactory(env, nil)
-	// TODO: for now don't use reconnect as it hides authentication error
-	r := consumer_recipe.NewConsumerRecipe(f, false)
-	err := r.Start()
+	r, err := consumer_recipe.StartConsumerRecipe(f, false)
 	if err != nil {
 		os.Exit(1)
 	}
@@ -54,6 +52,8 @@ func main() {
 	app := tuiapp.NewTuiApp(f)
 	app.SetRequestSink(r)
 	r.SetNotificationSink(app)
+	// signal the app is ready to go and all cells are linked
+	r.Ready()
 
 	app.Start()
 	if err != nil {

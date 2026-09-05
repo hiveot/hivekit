@@ -41,36 +41,25 @@ func main() {
 	}
 	utils.SetLogging(env.LogLevel, "")
 
-	f := factory_service.StartCellFactory(env, nil)
-
-	// the device server recipe contains cells for running a server with certs and authn
-	// you can message the recipe as a service or via a client. Here we message directly.
-	r := standalonerecipe.NewStandAloneDeviceRecipe(f)
-	err := r.Start()
-	if err != nil {
-		fmt.Println("Startup failed: " + err.Error())
-		os.Exit(1)
-	}
-
-	// next start the app service
+	// start the app service
 	cfg := &testenv.CounterConfig{
 		AutoIncrement: false,
 		ResetValue:    60,
 	}
 	counterThing, err := testenv.StartTestCounterThing(env.AppID, cfg)
 
-	// Requests from the counter thing are passed to the cells in the chain.
-	// Intended to publish the TD. No other requests are expected.
-	counterThing.SetRequestSink(r)
-	// Notifications from the counter are passed to the app, eg connection established.
-	// Not much else to do here.
-	r.SetNotificationSink(counterThing)
-	// Requests from the chain are passed to the device. This is the 'Thing' it serves.
-	r.SetRequestSink(counterThing)
-	// Property and event notifications published by the app are send to connected clients.
-	// the recipe HandleNotification passes it to the last cell in the chain and up from there.
-	counterThing.SetNotificationSink(r)
-	// Start after linking.
+	// link to it from the stand-alone recipe
+	// the stand-alone recipe contains cells for running a server with certs and authn
+	// you can message the recipe as a service or via a client. Here we message directly.
+	f := factory_service.StartCellFactory(env, nil)
+
+	r, err := standalonerecipe.StartStandAloneDeviceRecipe(f, counterThing)
+	if err != nil {
+		fmt.Println("Startup failed: " + err.Error())
+		os.Exit(1)
+	}
+	// signal the app is ready to go and all cells are linked
+	r.Ready()
 
 	fmt.Printf("main: homeDir: %s\n", env.HomeDir)
 	fmt.Printf("main: Counter is running and listening on '%v'\n", f.GetConnectURLs())

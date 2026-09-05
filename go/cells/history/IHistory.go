@@ -1,6 +1,7 @@
 package history
 
 import (
+	_ "embed"
 	"time"
 
 	"github.com/hiveot/hivekit/go/api"
@@ -16,6 +17,11 @@ const DefaultHistoryThingID = "history"
 
 // DefaultLimit nr items of none provided
 const DefaultLimit = 1000
+
+// Embed history service TD
+//
+//go:embed "history-td.json"
+var HistoryServiceTD []byte
 
 // IHistoryService defines the interface to the history service.
 // This is implemented in the service and the client api

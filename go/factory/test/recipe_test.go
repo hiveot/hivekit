@@ -46,18 +46,17 @@ func TestStandaloneDeviceRecipe(t *testing.T) {
 	env.HttpsPort = testPort
 	utils.SetLogging("info", "")
 
-	// Start the cell chain for a standalone server
-	f := factory_service.StartCellFactory(env, nil)
-	defer f.Stop()
-	deviceRecipe := standalonerecipe.NewStandAloneDeviceRecipe(f)
-	err := deviceRecipe.Start()
-	require.NoError(t, err)
-	defer deviceRecipe.Stop()
-
-	// run a test device
+	// run a test Thing that will receive requests
 	testDevice, err := testenv.StartTestCounterThing("", nil)
 	require.NoError(t, err)
 	defer testDevice.Stop()
+
+	// Start the cell chain with a standalone server that links to the test Thing
+	f := factory_service.StartCellFactory(env, nil)
+	defer f.Stop()
+	deviceRecipe, err := standalonerecipe.StartStandAloneDeviceRecipe(f, testDevice)
+	require.NoError(t, err)
+	defer deviceRecipe.Stop()
 
 }
 
@@ -74,8 +73,10 @@ func TestClientServerRecipes(t *testing.T) {
 	env.HttpsPort = testPort
 
 	serverFactory := factory_service.StartCellFactory(env, HiveKitAllCells)
-	serverChain := factory_service.NewChainFormation(serverFactory, DeviceServerRecipe)
-	err := serverChain.Start()
+	serverChain, err := factory_service.StartChainFormation(
+		serverFactory, DeviceServerRecipe, nil)
+
+	require.NotNil(t, serverChain)
 	require.NoError(t, err)
 	defer serverFactory.Stop()
 	serverURLs := serverFactory.GetConnectURLs()
@@ -84,8 +85,8 @@ func TestClientServerRecipes(t *testing.T) {
 
 	// the server exposed thing handles the server requests
 	mod, _ := serverFactory.StartCell(thing.ExposedThingCellType, true)
-	device := mod.(*thing.ExposedThing)
-	device.SetAppRequestHook(func(req *msg.RequestMessage, replyTo msg.ResponseHandler) error {
+	eThing := mod.(*thing.ExposedThing)
+	eThing.SetAppRequestHook(func(req *msg.RequestMessage, replyTo msg.ResponseHandler) error {
 		if req.ThingID == thingID {
 			slog.Info("Received request", "name", req.Name)
 			resp := req.CreateResponse("42", nil)
@@ -96,8 +97,10 @@ func TestClientServerRecipes(t *testing.T) {
 
 	// the client sends requests and receives responses
 	clientFactory := factory_service.StartCellFactory(env, HiveKitAllCells)
-	clientChain := factory_service.NewChainFormation(clientFactory, DeviceClientRecipe)
-	err = clientChain.Start()
+	clientChain, err := factory_service.StartChainFormation(
+		clientFactory, DeviceClientRecipe, nil)
+
+	require.NotNil(t, clientChain)
 	require.NoError(t, err)
 	defer clientFactory.Stop()
 

@@ -10,16 +10,17 @@ import (
 	discovery_client "github.com/hiveot/hivekit/go/cells/transport/discovery/client"
 	"github.com/hiveot/hivekit/go/cells/vcache"
 	vcache_service "github.com/hiveot/hivekit/go/cells/vcache/service"
+	"github.com/hiveot/hivekit/go/factory/recipes"
 	factory_service "github.com/hiveot/hivekit/go/factory/service"
 )
 
-const valueCacheSlot = "vcache-slot"
+const valueCacheSlotName = "vcache-slot"
 
 // ConsumerRecipeChain defines the cells for IoT consumers in order of instantiation.
 var ConsumerRecipeChain = []api.CellDefinition{
 	{
 		// optional value cache slot
-		Type: valueCacheSlot,
+		Type: valueCacheSlotName,
 	},
 	{
 		// use a directory client to read thing TDs
@@ -41,7 +42,7 @@ var ConsumerRecipeChain = []api.CellDefinition{
 	},
 }
 
-// ConsumerRecipe.go is a recipe for general consumers.
+// StartConsumerRecipe starts a recipe for general consumers.
 //
 // A value cache can be included to capture property updates and event notifications.
 //
@@ -56,17 +57,22 @@ var ConsumerRecipeChain = []api.CellDefinition{
 //	withValueCache set to include a value cache in the cell chain
 //
 // This returns the recipe, which can be used as a request sink to a consumer cell.
-func NewConsumerRecipe(f api.ICellFactory, withValueCache bool) api.IRecipe {
+func StartConsumerRecipe(
+	f api.ICellFactory, withValueCache bool) (api.IRecipe, error) {
 
-	chain := ConsumerRecipeChain
+	// copy the chain
+	chain := ConsumerRecipeChain[:]
 
-	r := factory_service.NewChainFormation(f, chain)
+	// support slots by inserting into the defined chain before starting the formation, not after.
 	if withValueCache {
 		modDef := api.CellDefinition{
 			Type:        vcache.ValueCacheCellType,
 			Constructor: vcache_service.StartValueCacheServiceFactory,
 		}
-		r.SetSlot(valueCacheSlot, modDef)
+		recipes.SetSlot(chain, valueCacheSlotName, modDef)
 	}
-	return r
+
+	// linkto doesnt apply to a consumer chain
+	r, err := factory_service.StartChainFormation(f, chain, nil)
+	return r, err
 }

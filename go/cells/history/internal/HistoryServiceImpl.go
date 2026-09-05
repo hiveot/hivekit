@@ -7,12 +7,12 @@ import (
 
 	"github.com/hiveot/hivekit/go/api/msg"
 	"github.com/hiveot/hivekit/go/api/td"
-	"github.com/hiveot/hivekit/go/cells"
 	"github.com/hiveot/hivekit/go/cells/bucketstore"
 	"github.com/hiveot/hivekit/go/cells/bucketstore/kvbtreestore"
 	"github.com/hiveot/hivekit/go/cells/bucketstore/pebblestore"
 	bucketstoreservice "github.com/hiveot/hivekit/go/cells/bucketstore/service"
 	"github.com/hiveot/hivekit/go/cells/history"
+	"github.com/hiveot/hivekit/go/cells/thing"
 )
 
 // HistoryServiceImpl provides storage for request and notification history.
@@ -25,7 +25,8 @@ import (
 // Each Thing has a bucket with events and actions.
 // This implements the IHistoryService and IHiveCell interface
 type HistoryServiceImpl struct {
-	*cells.HiveCellBase
+	// this is a service
+	*thing.ExposedThing
 
 	// The underlying bucketstore instance
 	bucketStore bucketstore.IBucketStore
@@ -48,6 +49,12 @@ func (svc *HistoryServiceImpl) HandleNotification(notif *msg.NotificationMessage
 		}
 	}()
 	svc.ForwardNotification(notif)
+}
+
+// Write TD when ready
+func (svc *HistoryServiceImpl) Ready() {
+	histTD := string(history.HistoryServiceTD)
+	svc.PublishTD(histTD)
 }
 
 // Stop using the history service and release resources
@@ -108,7 +115,7 @@ func StartHistoryServiceImpl(config history.HistoryConfig) (*HistoryServiceImpl,
 	// m.readHistoryMsgHandler = NewReadHistoryMsgHandler(m)
 
 	svc := &HistoryServiceImpl{
-		HiveCellBase:   cells.NewHiveCellBase(thingID, 0),
+		ExposedThing:   thing.StartExposedThing(thingID, nil),
 		bucketStore:    bucketStore,
 		cursorLifespan: time.Minute,
 		cursorCache:    bucketstoreservice.StartCursorCache(),

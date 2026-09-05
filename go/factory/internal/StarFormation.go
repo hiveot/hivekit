@@ -48,6 +48,13 @@ func (r *StarFormation) HandleRequest(req *msg.RequestMessage, replyTo msg.Respo
 	return r.HiveCellBase.HandleRequest(req, replyTo)
 }
 
+// Invoke Ready on all members of this formation
+func (r *StarFormation) Ready() {
+	for _, cell := range r.instances {
+		cell.Ready()
+	}
+}
+
 func (r *StarFormation) SetSlot(slotID string, modDef api.CellDefinition) error {
 	for i, md := range r.star {
 		if md.Type == slotID {
@@ -58,8 +65,19 @@ func (r *StarFormation) SetSlot(slotID string, modDef api.CellDefinition) error 
 	return fmt.Errorf("SetSlot: slot '%s' not found", slotID)
 }
 
-// Start the recipe
-func (r *StarFormation) Start() error {
+// StartStarFormation returns a formation with cells linked in a star.
+//
+// Call Ready when the application is ready to go. This calls Ready on all cells.
+//
+// This returns the star formation cell.
+func StartStarFormation(
+	f api.ICellFactory, members []api.CellDefinition) (*StarFormation, error) {
+
+	r := &StarFormation{
+		HiveCellBase: cells.NewHiveCellBase("", 0),
+		f:            f,
+		star:         members,
+	}
 
 	// add the cell definitions to the factory
 	if r.star != nil {
@@ -76,8 +94,8 @@ func (r *StarFormation) Start() error {
 			slog.Error("StartRecipe: starting cell failed. Shutting down",
 				"cellType", cellDef.Type, "err", err.Error())
 			r.Stop()
-			return err
-		} else if r == nil {
+			return nil, err
+		} else if member == nil {
 			// don't track 'one-shot' cells that are used to initialize the factory.
 			// These return nil without error.
 		} else {
@@ -89,19 +107,7 @@ func (r *StarFormation) Start() error {
 			member.SetNotificationSink(r)
 		}
 	}
-	return nil
-}
 
-// NewStarFormation returns a formation with cells linked in a star.
-// This returns the star recipe.
-func NewStarFormation(
-	f api.ICellFactory, members []api.CellDefinition) *StarFormation {
-
-	r := &StarFormation{
-		HiveCellBase: cells.NewHiveCellBase("", 0),
-		f:            f,
-		star:         members,
-	}
 	var _ api.IRecipe = r
-	return r
+	return r, nil
 }

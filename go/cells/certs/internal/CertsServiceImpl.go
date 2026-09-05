@@ -11,14 +11,14 @@ import (
 	"time"
 
 	"github.com/hiveot/hivekit/go/api"
-	"github.com/hiveot/hivekit/go/cells"
 	"github.com/hiveot/hivekit/go/cells/certs"
+	"github.com/hiveot/hivekit/go/cells/thing"
 	"github.com/hiveot/hivekit/go/utils"
 )
 
 // Implementation of the certificate management service
 type CertsServiceImpl struct {
-	*cells.HiveCellBase
+	*thing.ExposedThing
 
 	config *certs.CertsConfig
 
@@ -116,6 +116,12 @@ func (svc *CertsServiceImpl) GetServerCert(serverName string) (
 		serverCert, err = svc.provider.GetServerCert(serverName)
 	}
 	return serverCert, err
+}
+
+// publish the td when app is ready
+func (svc *CertsServiceImpl) Ready() {
+	tdJson := string(certs.CertsServiceTD)
+	svc.PublishTD(tdJson)
 }
 
 // Refresh the server certificate if needed.
@@ -227,7 +233,7 @@ func StartCertsServiceImpl(config *certs.CertsConfig) (*CertsServiceImpl, error)
 	thingID := certs.DefaultCertsServiceThingID
 
 	svc := &CertsServiceImpl{
-		HiveCellBase: cells.NewHiveCellBase(thingID, 0),
+		ExposedThing: thing.StartExposedThing(thingID, nil),
 		config:       config,
 	}
 	slog.Info("Start: Starting certs service")

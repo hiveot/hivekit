@@ -1,6 +1,7 @@
 package internal
 
 import (
+	"fmt"
 	"log/slog"
 
 	"github.com/hiveot/hivekit/go/api"
@@ -83,6 +84,13 @@ func (r *BusFormation) HandleRequest(req *msg.RequestMessage, replyTo msg.Respon
 	return r.ForwardRequest(req, replyTo)
 }
 
+// Invoke Ready on all members of this formation
+func (r *BusFormation) Ready() {
+	for _, cell := range r.instances {
+		cell.Ready()
+	}
+}
+
 // Update the member's sink for notifications from the bus.
 func (r *BusFormation) SetNotificationSink(sink api.IHiveCell, thingIDs ...string) {
 	for _, member := range r.instances {
@@ -99,9 +107,20 @@ func (r *BusFormation) SetRequestSink(sink api.IHiveCell) {
 	r.HiveCellBase.SetRequestSink(sink)
 }
 
-// Start the bus formation.
-// This links the sink to the members. When the sink is changed it will be updated.
-func (r *BusFormation) Start() error {
+// Set a named slot in the bus formation
+func (r *BusFormation) SetSlot(slotID string, modDef api.CellDefinition) error {
+	return fmt.Errorf("todo")
+}
+
+// Create a new bus formation with an array of cells
+func StartBusFormation(
+	f api.ICellFactory, modDefs []api.CellDefinition) (*BusFormation, error) {
+	thingID := "StartBusFormation-" + shortid.MustGenerate()
+	r := &BusFormation{
+		HiveCellBase: *cells.NewHiveCellBase(thingID, 0),
+		f:            f,
+		modDefs:      modDefs,
+	}
 
 	// add the cell definitions to the factory
 	if r.modDefs != nil {
@@ -114,6 +133,7 @@ func (r *BusFormation) Start() error {
 	busNotifSink := r.GetNotificationSink()
 	busReqSink := r.GetRequestSink()
 	r.instances = make([]api.IHiveCell, 0, len(r.modDefs))
+
 	for _, cellDef := range r.modDefs {
 		member, err := r.f.StartCell(cellDef.Type, true)
 		// cell cant be started. This is not fatal
@@ -150,17 +170,7 @@ func (r *BusFormation) Start() error {
 				"memberID", member.GetThingID())
 		}
 	}
-	return nil
-}
 
-// Create a new bus formation with an array of cells
-func NewBusFormation(f api.ICellFactory, modDefs []api.CellDefinition) *BusFormation {
-	thingID := "BusRecipe-" + shortid.MustGenerate()
-	r := &BusFormation{
-		HiveCellBase: *cells.NewHiveCellBase(thingID, 0),
-		f:            f,
-		modDefs:      modDefs,
-	}
 	var _ api.IHiveCell = r // api check
-	return r
+	return r, nil
 }

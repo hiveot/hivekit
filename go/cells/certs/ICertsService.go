@@ -3,6 +3,7 @@ package certs
 import (
 	"crypto"
 	"crypto/x509"
+	_ "embed"
 	"time"
 
 	"github.com/hiveot/hivekit/go/api"
@@ -18,6 +19,11 @@ const CertsServiceCellType = "certs"
 // DefaultCertsServiceThingID is the default thingID of the certs service.
 const DefaultCertsServiceThingID = "certs"
 
+// Embed history service TD
+//
+//go:embed "certsservice-td.json"
+var CertsServiceTD []byte
+
 // Default certificate validity periods
 const (
 	DefaultServerOU = ""
@@ -32,7 +38,7 @@ const SelfSignedProvider = "selfsigned"
 
 const LetsEncryptProvider = "letsencrypt"
 
-// RRN Actions
+// RRN ActionsEM
 const (
 	GetCACertAction = "getCACert"
 

@@ -22,8 +22,10 @@ type IHiveCell interface {
 	// HandleRequest processes or forwards the request.
 	//
 	// When the request is for this cell then the cell processes the request and
-	// invokes replyTo with the response. ReplyTo is invoked asynchronously before
-	// or after returning.
+	// invokes replyTo with the response. ReplyTo can be invoked (a)synchronously,
+	// before or after returning.
+	//
+	// Either replyTo must be called or an error returned. Not both.
 	//
 	// When the request is not for this cell then it is forwarded if forwarding is enabled:
 	//
@@ -32,22 +34,20 @@ type IHiveCell interface {
 	//    Flow: consumer -> cell -[rsink]-> producer
 	//
 	// 2. If the cell is a transport client: the request is transported to the server,
-	//    and the server passes it to the producer that is registered as its sink.
-	//    HandleRequest does not forward the request to the request sink. Instead,
-	//    received requests are passed to the request sink.
-	//    Flow: consumer -> client -> server -> producer
+	//    and the server emits it to its own registered request sink.
+	//	  Requests received from the server are emitted to the request sink of the
+	//    client cell. The term 'emitted' here means that messages are not affected by
+	//    SetForwarding.
+	//    Flow: consumer -> client -> server -> request sink
 	//    Flow: producer -> server -> client -> request sink
 	//
 	// 3. If the cell is a transport server then the request is transported
 	//    to the remote client. The client emits it to its registered sink.
 	//    This sink should be a producer that can handle the request.
-	//    (In this case the consumer is a process running on the server)
-	//    Flow: consumer -> server -> client -> request sink
 	//
 	//    Note this is the use-case where a device uses connection reversal to connect
-	//         to a server, like a hub or gateway, to serve IoT data. The gateway acts
-	//         as a consumer to the producer connected to the client.
-	//
+	//         to a server, like a hub or gateway, to serve IoT data. The gateway passes
+	//         requests from consumers to the device which is connected as a client.
 	//
 	// A middleware cell can intercept the response by forwarding the request downstream
 	// while providing its own handler as the replyTo. This handler then forwards the response
@@ -63,6 +63,22 @@ type IHiveCell interface {
 	// The default behavior is to forward it upstream to the handler set with SetNotificationSink.
 	// Forwarding can be disabled with SetForwarding()
 	HandleNotification(notif *msg.NotificationMessage)
+
+	// Ready notifies the cell that the application environment is ready to go.
+	//
+	// Intended as 'initialization phase 2' where all cells are properly linked
+	// and messages will find their destination.
+	//
+	// Implementing a Ready handler is optional. It is intended for cells to
+	// start autonomous operation, such as background tasks, writing a TD,
+	// start publishing events, and property updates.
+	//
+	// Cells must be fully functional and handle requests and notifications even
+	// if Ready is not yet called. Messages are only received after the environment
+	// is ready and is busy invoking Ready on other cells.
+	//
+	// By default this does nothing.
+	Ready()
 
 	// Set forwarding of notifications or requests to the configured sink.
 	//

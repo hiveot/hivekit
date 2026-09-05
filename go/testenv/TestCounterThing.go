@@ -230,27 +230,15 @@ func (m *TestCounterThing) HandleWriteProperty(req *msg.RequestMessage, replyTo 
 	return err
 }
 
-// Start the test device.
-//
-// This publishes a write TD request to the sink.
-func (m *TestCounterThing) startDevice() error {
-	m.backgroundCtx, m.backgroundCancel = context.WithCancel(context.Background())
+// Publish the TD and properties when the app is ready
+func (m *TestCounterThing) Ready() {
 
-	// Make the TD available. Set its thingID with the provided ID.
-	tdoc, err := td.UnmarshalTD(counterThingTM)
-	tdoc.ID = m.GetThingID()
-	m.tdocJson = td.MarshalTD(tdoc)
+	err := m.WriteTD(m.tdocJson)
+	if err != nil {
+		slog.Error("Ready: Unable to write the TD")
+		return
+	}
 
-	// publish the device TD
-	// the downstream cells must already be started so writing the TD is
-	// send to discovery or directory.
-	go func() {
-		time.Sleep(time.Millisecond)
-		// write TD to the directory or discovery
-		// ignore the error if no directory/discovery exists in the chain
-		err := m.WriteTD(m.tdocJson)
-		_ = err
-	}()
 	// publish the latest property values
 	props := map[string]any{
 		AutoIncrementPropName: m.config.AutoIncrement,
@@ -259,11 +247,6 @@ func (m *TestCounterThing) startDevice() error {
 	thingID := m.GetThingID()
 	m.PubProperties(thingID, props, true)
 	m.PubEvent(thingID, CounterUpdatedEvent, m.counter.Load())
-
-	if m.config.AutoIncrement {
-		go m.Background()
-	}
-	return err
 }
 
 // stop the background process
@@ -300,7 +283,15 @@ func StartTestCounterThing(thingID string, config *CounterConfig) (*TestCounterT
 		config:       config,
 	}
 	m.counter.Store(42)
+	m.backgroundCtx, m.backgroundCancel = context.WithCancel(context.Background())
 
-	err := m.startDevice()
+	// Make the TD available. Set its thingID with the provided ID.
+	tdoc, err := td.UnmarshalTD(counterThingTM)
+	tdoc.ID = m.GetThingID()
+	m.tdocJson = td.MarshalTD(tdoc)
+
+	if m.config.AutoIncrement {
+		go m.Background()
+	}
 	return m, err
 }

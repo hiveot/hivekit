@@ -74,9 +74,14 @@ var StandAloneDeviceChain = []api.CellDefinition{
 	// todo: optional logging of requests
 	// todo: optional authorization of requests
 
+	// link to device cell
+	// chain requests (CreateTD) should be passed to the chain start which links
+	// them to discovery. Any CreateTD request generated in the changes are passed
+	// to the discovery server.
+	//
 }
 
-// NewStandAloneDeviceRecipe creates a recipe for standalone IOT devices running a server.
+// StartStandAloneDeviceRecipe creates a recipe for standalone IOT devices running a server.
 //
 // 1. load CA and server certificate
 // 2. Intercept updateTD and add forms to the published TD/TM
@@ -87,12 +92,20 @@ var StandAloneDeviceChain = []api.CellDefinition{
 // 5. Run the authentication server for authenticate requests and manage clients
 // 6. Run a websocket server for receiving requests
 //
-// f is the cell factory to use to use.
+//	f is the cell factory to use to use.
+//	eThing is the optional Exposed Thing of the application.
+//		A call to Ready and Stop will also be passed to the eThing.
 //
 // This returns the recipe, which can be used like any other cells
-func NewStandAloneDeviceRecipe(f api.ICellFactory) api.IRecipe {
+// Call 'Ready' on the recipe to start autonomous operation and Stop to end them.
+func StartStandAloneDeviceRecipe(f api.ICellFactory, eThing api.IHiveCell) (api.IRecipe, error) {
 	chain := StandAloneDeviceChain
 
-	r := factory_service.NewChainFormation(f, chain)
-	return r
+	r, err := factory_service.StartChainFormation(f, chain, eThing)
+
+	// forward device requests back to the chain so requests from chain members
+	// are passed back to the server. eg CreateTD.
+	eThing.SetRequestSink(r)
+	// linkTo.SetNotificationSink(r)
+	return r, err
 }
