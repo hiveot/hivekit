@@ -212,16 +212,14 @@ func (base *HiveCellBase) HandleRequest(req *msg.RequestMessage, replyTo msg.Res
 	return base.ForwardRequest(req, replyTo)
 }
 
-// Ready notifies the cell that the application environment is ready to go.
-// Intended for cells to start autonomous operation, such as writing a TD, publishing
-// events, properties.
+// Start autonomous operation, such as writing a TD, publishing events and properties.
 //
-// If Ready is not yet called, cells can already react to requests and emit requests
+// If Start is not yet called, cells can already react to requests and emit requests
 // and notifications in response, since these are only received after the environment
-// is ready and cells are starting to receive the Ready call.
+// is ready and cells are starting to receive the Run call.
 //
 // By default this does nothing.
-func (base *HiveCellBase) Ready() {
+func (base *HiveCellBase) Start() {
 }
 
 // Rpc is a convenience function to create and send a request message and decode the a response.

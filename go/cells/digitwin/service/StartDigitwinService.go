@@ -11,7 +11,7 @@ import (
 	"github.com/hiveot/hivekit/go/cells/directory"
 )
 
-// StartDigitwinService creates a new instance of the digital twin service.
+// NewDigitwinService creates a ready-to-use instance of the digital twin service.
 // This service needs the directory that will receive TD's from devices and are queried
 // by consumers for available TDs.
 // The service will substitute the TDs with the digital twin and substitute forms with
@@ -20,23 +20,23 @@ import (
 //	storageDir is the directory where the service stores its data
 //	dirService is the directory service to hook into to intercept writes, or "" for in-memory testing
 //	addForms is the handler to invoke to add forms to a TD
-func StartDigitwinService(storageDir string, dirSvc directory.IDirectoryService,
+func NewDigitwinService(storageDir string, dirSvc directory.IDirectoryService,
 	addForms func(tdi *td.TD, includeAffordances bool)) (digitwin.IDigitwinService, error) {
 
-	svc, err := internal.StartDigitwinServiceImpl(storageDir, dirSvc, addForms)
+	svc, err := internal.NewDigitwinServiceImpl(storageDir, dirSvc, addForms)
 	return svc, err
 }
 
 // Create a new digitwin service using the factory
 // This loads the directory service and hooks itself into it to intercept directory writes.
-func StartDigitwinServiceFactory(f api.ICellFactory, md *api.CellDefinition) (api.IHiveCell, error) {
+func NewDigitwinServiceFactory(f api.ICellFactory, md *api.CellDefinition) (api.IHiveCell, error) {
 	env := f.GetEnvironment()
 
 	// data is stored in a subdir
 	storageDir := filepath.Join(env.StoresDir, digitwin.DigitwinCellType)
 
 	// the directory used to intercept directory writes to create digital twins of
-	svc, err := f.StartCell(directory.DirectoryServiceCellType, true)
+	svc, err := f.NewCell(directory.DirectoryServiceCellType, true)
 	if err != nil {
 		return nil, err
 	}
@@ -44,6 +44,6 @@ func StartDigitwinServiceFactory(f api.ICellFactory, md *api.CellDefinition) (ap
 	if !ok {
 		return nil, fmt.Errorf("NewDigitwinServiceFactory: directory cell is wrong type")
 	}
-	svc, err = StartDigitwinService(storageDir, dirSvc, f.AddTDSecForms)
+	svc, err = NewDigitwinService(storageDir, dirSvc, f.AddTDSecForms)
 	return svc, err
 }

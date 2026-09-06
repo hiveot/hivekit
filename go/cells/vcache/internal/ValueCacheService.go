@@ -173,8 +173,8 @@ func (m *ValueCacheService) WriteProperty(notif *msg.NotificationMessage) {
 	m.store.WriteValue(notif)
 }
 
-// Start a new instance of the value cache service.
-func StartValueCacheService() (*ValueCacheService, error) {
+// NewValueCacheService creates a ready-to-use instance of the value cache service.
+func NewValueCacheService() (*ValueCacheService, error) {
 
 	thingID := vcacheapi.ValueCacheCellType + "-" + shortid.MustGenerate()
 	svc := &ValueCacheService{

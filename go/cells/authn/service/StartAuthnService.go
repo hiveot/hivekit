@@ -19,7 +19,7 @@ const DefaultAdminTokenValidityDays = 366
 func StartAuthnService(
 	authnConfig authn.AuthnConfig) (authn.IAuthnService, error) {
 
-	svc, err := serviceimpl.StartAuthnServiceImpl(authnConfig)
+	svc, err := serviceimpl.NewAuthnServiceImpl(authnConfig)
 	return svc, err
 }
 

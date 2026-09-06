@@ -101,7 +101,7 @@ func (f *FactoryImpl) GetHttpServer(instantiate bool) api.IHttpServer {
 	if !instantiate {
 		return nil
 	}
-	m, err := f.StartCell(api.HttpServerCellType, instantiate)
+	m, err := f.NewCell(api.HttpServerCellType, instantiate)
 	if err != nil {
 		slog.Warn("GetHttpServer: no http server is registered")
 		return nil
@@ -158,7 +158,7 @@ func (f *FactoryImpl) HandleRequest(req *msg.RequestMessage, replyTo msg.Respons
 	return m.HandleRequest(req, replyTo)
 }
 
-// loadCell starts an instance of a cell.
+// loadCell returns an existing instance of the cell or loads a new instance.
 //
 // If the cell implements the ITransportServer interface it is added to the list of available
 // transport. See GetTransportServers() to obtain the collection of all loaded servers.
@@ -208,6 +208,34 @@ func (f *FactoryImpl) loadCell(cellType string) (m api.IHiveCell, isNew bool, er
 	return cellInstance, true, nil
 }
 
+// NewCell loads an instance of a cell by its type.
+// If the cell is already loaded then it is returned as-is.
+//
+// This can return nil without error if the cell is a 'one-shot' cell whose
+// factory function returns nil. Intended for initializing the factory environment.
+//
+// This returns an error if instantiate is false and the cell is not yet loaded.
+func (f *FactoryImpl) NewCell(cellType string, instantiate bool) (api.IHiveCell, error) {
+	f.mux.RLock()
+	instance, ok := f.singletonCells[cellType]
+	f.mux.RUnlock()
+
+	// if the cell is already loaded, return it
+	// if not loaded and instantiate is false then this is an error
+	if instance != nil && ok {
+		return instance, nil
+	} else if !instantiate {
+		return nil, fmt.Errorf("StartCell: Cell '%s' not yet loaded and instantiate is false", cellType)
+	}
+
+	instance, isNew, err := f.loadCell(cellType)
+	_ = isNew
+	if err != nil {
+		return nil, err
+	}
+	return instance, err
+}
+
 // RegisterCell registers a cell definition to the factory, making it available for creation.
 // Used for registring recipe cells and support for 3rd party cells.
 //
@@ -231,6 +259,14 @@ func (f *FactoryImpl) SetAuthenticator(impl api.IAuthenticator) {
 	f.authProxy.SetAuthenticator(impl)
 }
 
+// Invoke Start on all loaded cells.
+// Intended to be used after all cells have been created and linked.
+func (f *FactoryImpl) Start() {
+	for _, cell := range f.loadedCells {
+		cell.Start()
+	}
+}
+
 // Stop all cells in reverse order
 func (f *FactoryImpl) Stop() {
 	n := len(f.loadedCells)
@@ -240,34 +276,6 @@ func (f *FactoryImpl) Stop() {
 		m.Stop()
 	}
 	f.loadedCells = make([]api.IHiveCell, 0)
-}
-
-// Startcell loads and starts an instance of a cell by its type.
-// If the cell is already started then it is returned as-is.
-//
-// This can return nil without error if the cell is a 'one-shot' cell whose
-// factory function returns nil. Intended for initializing the factory environment.
-//
-// This returns an error if instantiate is false and the cell is not yet loaded.
-func (f *FactoryImpl) StartCell(cellType string, instantiate bool) (api.IHiveCell, error) {
-	f.mux.RLock()
-	instance, ok := f.singletonCells[cellType]
-	f.mux.RUnlock()
-
-	// if the cell is already loaded, return it
-	// if not loaded and instantiate is false then this is an error
-	if instance != nil && ok {
-		return instance, nil
-	} else if !instantiate {
-		return nil, fmt.Errorf("StartCell: Cell '%s' not yet loaded and instantiate is false", cellType)
-	}
-
-	instance, isNew, err := f.loadCell(cellType)
-	_ = isNew
-	if err != nil {
-		return nil, err
-	}
-	return instance, err
 }
 
 // Wait for an OS signal or until the context is cancelled
@@ -285,12 +293,11 @@ func (f *FactoryImpl) WaitForSignal(ctx context.Context) {
 	}
 }
 
-// Start a new cell factory.
-// Cells can be nil if they are registered separately or if StartRecipe is used.
+// Return a ready-to-use instance of the cell factory.
 //
 //	env is the application enviroment created with api.NewAppEnvironment
 //	cellDefs are the cell definitions available to GetCell(type)
-func StartCellFactoryImpl(
+func NewCellFactoryImpl(
 	env *api.HiveEnvironment, cellDefs []api.CellDefinition) api.ICellFactory {
 
 	cellDefMap := make(map[string]api.CellDefinition)

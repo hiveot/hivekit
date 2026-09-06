@@ -79,18 +79,18 @@ func (cl *AuthnAdminClient) UpdateClientProfile(clientProfile authnapi.ClientPro
 	return
 }
 
-// Start and link a new instance of the authentication administration messaging client
+// Create and link a new instance of the authentication administration messaging client
 //
 // sink is the optional request handler this will forward requests to the authn service.
 // This will also set this client as the notification sink for all authn generated notifications.
-func StartAuthnAdminClient(sink api.IHiveCell) *AuthnAdminClient {
-	m := &AuthnAdminClient{
+func NewAuthnAdminClient(sink api.IHiveCell) *AuthnAdminClient {
+	cl := &AuthnAdminClient{
 		serviceID:    authnapi.DefaultAdminServiceID,
 		HiveCellBase: cells.NewHiveCellBase("", 0),
 	}
 	if sink != nil {
-		m.SetRequestSink(sink)
-		sink.SetNotificationSink(m, m.serviceID)
+		cl.SetRequestSink(sink)
+		sink.SetNotificationSink(cl, cl.serviceID)
 	}
-	return m
+	return cl
 }

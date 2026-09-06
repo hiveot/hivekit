@@ -30,17 +30,19 @@ The 'Consumer' cell implementation helps writing consumers by providing methods 
 
 ## Linking Cells
 
-A core capability of cells is the ability to chain them together. Chains offer application level functionality. A chain can operate on a single computer system or include cells across multiple computer systems linked by transport cells. This allows for creating a powerful distributed IoT solution with small lightweight cells that require few resources and are simple to maintain.
+A core capability of cells is the ability to link them together. A cell chain can operate on a single computer system or include cells across multiple computer systems linked by transport cells. This allows for creating a distributed IoT solution with small lightweight cells that require few resources and are simple to maintain.
 
 Creating a cell chain can be done manually by programatically linking cells, or dynamically by providing a recipe to the factory service. 
 
 ## Cell Factory
 
-Cells in HiveKit are not applications themselves but intended to construct an application. The [factory cell](go/cells/factory/README.md) facilitates building applications by chaining cells defined in a recipe. This chaining aggregates functionality provided by each cell. 
+Cells in HiveKit are not applications themselves but intended to construct an application. The [factory cell](go/cells/factory/README.md) facilitates building applications by linking cells defined in a recipe. This linking aggregates functionality provided by each cell. 
 
 Application specific logic can easily be incorporated using the hooks provided by the exposed-thing cell, or by providing application logic as a cell itself and adding this cell to the recipe.
 
 ![cell](docs/cell-chain.png)
+
+When created, cells can be used immediately. The 'Start' method of a cell can be called afterwards, once all cells in the application are linked. This ensures that requests and notifications from autonomous operations can be delivered to their intended destination. Invoking Start on the factory will invoke it on all cells. The recommended approach is therefore to create and link all cells first using the factory, and run Start on the factory to start running the application.
 
 
 ## Adding Cells

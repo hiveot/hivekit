@@ -46,9 +46,9 @@ var testProtocols = []string{
 	// api.HttpBasicProtocolType,  // can't subscribe
 }
 
-// create a chain with a virtual test device, a server and authenticator:
+// create a chain with a virtual test device with a server and authenticator:
 //
-//	> authn -> http server - protocol server -> testdevice -> discovery server
+//	protocol server -> testdevice
 //
 // This device handles read requests and publishes notifications.
 //
@@ -64,14 +64,16 @@ func startTestServerDevice(deviceID string) (testDevice *testenv.TestCounterThin
 	// 1. Start the server to use for the test protocol
 	slog.Info("startTestServerDevice", "deviceID", deviceID, "serverType", testProtocol)
 	transportServer := testEnv.StartTestServer(testProtocol)
+	transportServer.Start()
 
 	// 2. Create the test device Thing and link it to the server so it receives requests
-	testDevice, err = testenv.StartTestCounterThing(deviceID, nil)
+	testDevice, err = testenv.NewTestCounterThing(deviceID, nil)
 	if err != nil {
 		panic("startTestServerDevice: failed starting test device")
 	}
 	testDevice.SetNotificationSink(transportServer)
 	transportServer.SetRequestSink(testDevice)
+	testDevice.Start()
 
 	// Add the connection forms to the device TD
 	tdJson := testDevice.GetTD()
@@ -97,14 +99,14 @@ func SetupConsumerWithRouter(
 
 	// setup the consumer side: directory, router and consumer
 	// register the device TD in the directory for use by the router
-	dirSvc, err := directory_service.StartDirectoryService("", storageDir, nil, nil)
+	dirSvc, err := directory_service.NewDirectoryService("", storageDir, nil, nil)
 	if err != nil {
 		panic("SetupConsumerWithRouter: Directory.Start: " + err.Error())
 	}
 
 	// the router uses the TD to connect to the device.
 	// this doesn't actually need a directory. GetTD could also simply return the device TD.
-	routerSvc, err = router_service.StartRouterService(
+	routerSvc, err = router_service.NewRouterService(
 		storageDir, false, clientID, nil, rootCAs, rpcTimeout, dirSvc.GetTD, nil)
 	if err != nil {
 		panic("SetupConsumerWithRouter: Router.Start: " + err.Error())
@@ -112,8 +114,12 @@ func SetupConsumerWithRouter(
 
 	// A consumer links to the router and subscribes to the device.
 	// For the purpose of this test the router runs client side.
-	co = consumer.StartConsumer(routerSvc, nil)
+	co = consumer.NewConsumer(routerSvc, nil)
 	co.SetTimeout(rpcTimeout)
+
+	dirSvc.Start()
+	routerSvc.Start()
+	co.Start()
 	return co, routerSvc, dirSvc
 }
 
@@ -145,10 +151,10 @@ func TestStartStop(t *testing.T) {
 	slog.Warn(fmt.Sprintf("---Test: %s %s---\n", t.Name(), testProtocol))
 	const clientID = "testclient"
 
-	testDirMod, err := directory_service.StartDirectoryService("", "", nil, nil)
+	testDirMod, err := directory_service.NewDirectoryService("", "", nil, nil)
 	require.NoError(t, err)
 	// test no cred store
-	svc, err := router_service.StartRouterService(
+	svc, err := router_service.NewRouterService(
 		"", false, clientID, nil, nil, rpcTimeout, testDirMod.GetTD, nil)
 	require.NoError(t, err)
 	defer svc.Stop()
@@ -165,7 +171,7 @@ func TestCredentialsStore(t *testing.T) {
 
 	// the router uses the TD to connect to the device.
 	// this doesn't actually need a directory. GetTD could also simply return the device TD.
-	routerSvc, err := router_service.StartRouterService(
+	routerSvc, err := router_service.NewRouterService(
 		storageDir, false, clientID, nil, nil, rpcTimeout, nil, nil)
 
 	require.NoError(t, err)
@@ -183,7 +189,7 @@ func TestCredentialsStore(t *testing.T) {
 	routerSvc.Stop()
 
 	// restarting the router should retain the credentials
-	routerSvc2, err := router_service.StartRouterService(
+	routerSvc2, err := router_service.NewRouterService(
 		storageDir, false, clientID, nil, nil, rpcTimeout, nil, nil)
 	require.NoError(t, err)
 
@@ -315,7 +321,7 @@ func TestSubscribeReconnectToDevice(t *testing.T) {
 	// 2. setup the consumer side: directory, router and consumer
 	// register the device TD in the directory for use by the router
 	// See also the factory consumer recipes for this use-case that makes it easier.
-	testDirSvc, err := directory_service.StartDirectoryService("", "", nil, nil)
+	testDirSvc, err := directory_service.NewDirectoryService("", "", nil, nil)
 	require.NoError(t, err)
 	defer testDirSvc.Stop()
 	deviceTDJson := td.MarshalTD(tdoc)
@@ -324,7 +330,7 @@ func TestSubscribeReconnectToDevice(t *testing.T) {
 
 	// the router uses the TD to connect to the device.
 	// this doesn't actually need a directory. GetTD could also simply return the device TD.
-	routerSvc, err := router_service.StartRouterService(
+	routerSvc, err := router_service.NewRouterService(
 		storageDir, true, clientID,
 		testEnv.CertBundle.ClientCert,
 		testEnv.CertBundle.RootCAs,
@@ -341,7 +347,7 @@ func TestSubscribeReconnectToDevice(t *testing.T) {
 	ctx, cancelFn := context.WithTimeout(context.Background(), rpcTimeout)
 
 	// a consumer links to the router which connects to devices using device TDs
-	co := consumer.StartConsumer(routerSvc, func(notif *msg.NotificationMessage) {
+	co := consumer.NewConsumer(routerSvc, func(notif *msg.NotificationMessage) {
 		if notif.Name == event1Name {
 			var v1 string
 			err = notif.Decode(&v1)

@@ -200,12 +200,12 @@ func (m *TLSServerImpl) Stop() {
 	time.Sleep(time.Millisecond)
 }
 
-// Start a new TLS server instance.
+// NewTLSServerImpl creates a ready to use TLS server instance.
 //
 // config MUST have been configured with a CA and server certificate unless
 // NoTLS is set.
 // authenticator for http requests. nil for refusing all protected routes
-func StartTLSServerImpl(
+func NewTLSServerImpl(
 	config *tlsserver.TLSServerConfig, authenticator api.IAuthenticator) (*TLSServerImpl, error) {
 
 	thingID := api.HttpServerCellType + "-" + shortid.MustGenerate()

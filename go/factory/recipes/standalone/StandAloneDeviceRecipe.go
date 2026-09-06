@@ -55,7 +55,7 @@ var StandAloneDeviceChain = []api.CellDefinition{
 		// http server is needed by websocket transport server
 		// It uses the factory registered authenticator.
 		Type:        api.HttpServerCellType,
-		Constructor: tls_server.StartTLSServerFactory,
+		Constructor: tls_server.NewTLSServerFactory,
 	},
 	{
 		// Websocket transport server for incoming connections
@@ -83,6 +83,8 @@ var StandAloneDeviceChain = []api.CellDefinition{
 
 // StartStandAloneDeviceRecipe creates a recipe for standalone IOT devices running a server.
 //
+// Invoke Start on the factory to run the application.
+//
 // 1. load CA and server certificate
 // 2. Intercept updateTD and add forms to the published TD/TM
 // 3. Run a service discovery server to publish the TD using the discovery specification.
@@ -94,14 +96,14 @@ var StandAloneDeviceChain = []api.CellDefinition{
 //
 //	f is the cell factory to use to use.
 //	eThing is the optional Exposed Thing of the application.
-//		A call to Ready and Stop will also be passed to the eThing.
+//		A call to Start and Stop will also be passed to the eThing.
 //
 // This returns the recipe, which can be used like any other cells
 // Call 'Ready' on the recipe to start autonomous operation and Stop to end them.
 func StartStandAloneDeviceRecipe(f api.ICellFactory, eThing api.IHiveCell) (api.IRecipe, error) {
 	chain := StandAloneDeviceChain
 
-	r, err := factory_service.StartChainFormation(f, chain, eThing)
+	r, err := factory_service.NewChainFormation(f, chain, eThing)
 
 	// forward device requests back to the chain so requests from chain members
 	// are passed back to the server. eg CreateTD.

@@ -196,11 +196,6 @@ func (svc *AuthnServiceImpl) SaveToken(clientID string, token string) error {
 	return err
 }
 
-// publish the td when app is ready
-func (svc *AuthnServiceImpl) Ready() {
-	svc.PublishTD()
-}
-
 // Change the password of a client
 func (svc *AuthnServiceImpl) SetPassword(clientID string, password string) error {
 	return svc.authnStore.SetPassword(clientID, password)
@@ -209,6 +204,11 @@ func (svc *AuthnServiceImpl) SetPassword(clientID string, password string) error
 // Change the role of a client
 func (svc *AuthnServiceImpl) SetRole(clientID string, role string) error {
 	return svc.authnStore.SetRole(clientID, role)
+}
+
+// publish the td when app is ready
+func (svc *AuthnServiceImpl) Start() {
+	svc.PublishTD()
 }
 
 // Stop closes the client store and releases resources
@@ -242,13 +242,15 @@ func (svc *AuthnServiceImpl) UpdateProfile(senderID string, newProfile authn.Cli
 	return svc.authnStore.UpdateProfile(newProfile)
 }
 
-// Create a new authentication service.
+// Create a ready-to-use authentication service.
+//
 // This uses thingID authn.AuthnAdminServiceID
+// Call Start() to publish its TD.
 //
 // authnConfig contains the password storage and token management configuration
-func StartAuthnServiceImpl(authnConfig authn.AuthnConfig) (*AuthnServiceImpl, error) {
+func NewAuthnServiceImpl(authnConfig authn.AuthnConfig) (*AuthnServiceImpl, error) {
 
-	slog.Info("Start: Starting authn")
+	slog.Info("NewAuthnServiceImpl: creating authn service")
 	passwordFile := authnConfig.PasswordFile
 	encryption := authnConfig.Encryption
 	authnStore := authnstore.NewAuthnFileStore(passwordFile, encryption)
@@ -264,7 +266,7 @@ func StartAuthnServiceImpl(authnConfig authn.AuthnConfig) (*AuthnServiceImpl, er
 
 	// this service is the admin service that also exposes the user service service thing
 	svc := &AuthnServiceImpl{
-		ExposedThing:   thing.StartExposedThing(authn.AuthnAdminServiceID, nil),
+		ExposedThing:   thing.NewExposedThing(authn.AuthnAdminServiceID, nil),
 		config:         authnConfig,
 		authnStore:     authnStore,
 		sessionManager: sessionManager,

@@ -29,7 +29,7 @@ func TestDiscoverDirectory(t *testing.T) {
 	testEnv.StartHttpServer(true)
 	defer testEnv.HttpServer.Stop()
 
-	discoSrv, err := discovery_server.StartDiscoveryServer(testDirServiceName, testEnv.HttpServer, "", endpoints)
+	discoSrv, err := discovery_server.NewDiscoveryServer(testDirServiceName, testEnv.HttpServer, "", endpoints)
 	require.NoError(t, err)
 	defer discoSrv.Stop()
 
@@ -70,7 +70,7 @@ func TestDiscoverGetDirectoryTD(t *testing.T) {
 
 	// run a directory that will be discoverable
 	tpList := []api.ITransportServer{tpServer}
-	dirSvc, err := directory_service.StartDirectoryService("", "", testHttpServer, tpList)
+	dirSvc, err := directory_service.NewDirectoryService("", "", testHttpServer, tpList)
 	dirThingID := dirSvc.GetThingID()
 	dirTD, dirTDJson := dirSvc.GetTDD()
 	_ = dirTD
@@ -79,7 +79,7 @@ func TestDiscoverGetDirectoryTD(t *testing.T) {
 	// dirTDJson := td.MarshalTD(dirTD)
 
 	// run the discover server and expose the directory TDD
-	discoSvc, err := discovery_server.StartDiscoveryServer(testDirServiceName, testEnv.HttpServer, "", nil)
+	discoSvc, err := discovery_server.NewDiscoveryServer(testDirServiceName, testEnv.HttpServer, "", nil)
 	require.NoError(t, err)
 	defer discoSvc.Stop()
 	err = discoSvc.ServeDirectoryTD(testDirServiceName, dirTDJson)
@@ -112,7 +112,7 @@ func TestDiscoverNoDirectory(t *testing.T) {
 	assert.Nil(t, dirTD2)
 
 	// run the discover server without exposing the directory TDD
-	discoSrv, err := discovery_server.StartDiscoveryServer(testDirServiceName, testHttpServer, "", nil)
+	discoSrv, err := discovery_server.NewDiscoveryServer(testDirServiceName, testHttpServer, "", nil)
 	require.NoError(t, err)
 	defer discoSrv.Stop()
 	err = discoSrv.ServeDirectoryTD(testDirServiceName, "") // empty json

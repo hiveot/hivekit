@@ -133,7 +133,7 @@ func (m *DirectoryClientImpl) SetTDD(tdd *td.TD) {
 	m.cache.ImportTD(tdd)
 }
 
-// NewDirectoryClientImpl creates a new DirectoryClient instance for consumers which
+// NewDirectoryClientImpl creates a ready-to-use DirectoryClient instance for consumers which
 // uses RRN messages for communicating with the directory server.
 //
 // Use the sink to link to a transport client for delivering the request. Note that

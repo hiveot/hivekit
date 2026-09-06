@@ -134,16 +134,7 @@ func TestSubscribeReconnect(t *testing.T) {
 	defer cancelFn()
 
 	// 2. connect a consumer with reconnect capability
-	co1, cc1, _ := testEnv.NewReconnectedConsumer(
-		testClientID1, authn.ClientRoleViewer, nil)
-	// err := cc1.Connect()
-	// require.NoError(t, err)
-	defer cc1.Close()
-
-	// Consumer subscribes to events.
-	err := co1.Subscribe("", "")
-	assert.NoError(t, err)
-	co1.SetNotificationHook(func(notif *msg.NotificationMessage) {
+	coNotifHook := func(notif *msg.NotificationMessage) {
 		// receive event, tests whether devices work as a consumer
 		slog.Info("consumer receives event",
 			"name", notif.Name, "data", notif.ToString(0))
@@ -152,7 +143,16 @@ func TestSubscribeReconnect(t *testing.T) {
 			notif.Data.(api.ConnectionStatus) == api.StatusConnected {
 			connectedCh <- true
 		}
-	})
+	}
+	co1, rc1, _ := testEnv.NewReconnectConsumer(
+		testClientID1, authn.ClientRoleViewer, coNotifHook)
+	defer rc1.Stop()
+
+	// the consumer side is now ready to run
+	err := co1.Subscribe("", "")
+	assert.NoError(t, err)
+	rc1.Start()
+
 	// 3. Server sends event to consumers
 	time.Sleep(time.Millisecond * 10)
 	notif1 := msg.NewNotificationMessage(
@@ -198,7 +198,7 @@ func TestPublishEventsByRCThing(t *testing.T) {
 
 	// 1. start the transport
 	// handler of notifications received on the server
-	co := consumer.StartConsumer(nil, func(msg *msg.NotificationMessage) {
+	co := consumer.NewConsumer(nil, func(msg *msg.NotificationMessage) {
 		// the server handler receives all notifications
 		if msg.ThingID == thingID {
 			evVal.Store(msg.Data)
@@ -233,7 +233,7 @@ func TestReadEvent(t *testing.T) {
 
 	// 1. start the device transport with the request handler
 	// in this case the consumer connects to the device (unlike when using a hub)
-	ag := thing.StartExposedThing("", func(req *msg.RequestMessage, replyTo msg.ResponseHandler) error {
+	ag := thing.NewExposedThing("", func(req *msg.RequestMessage, replyTo msg.ResponseHandler) error {
 		if req.Operation == td.HTOpReadEvent && req.ThingID == thingID && req.Name == eventKey {
 			evNotif := msg.NewNotificationMessage("device1", msg.AffordanceTypeEvent, thingID, req.Name, eventValue)
 			evNotif.Timestamp = timestamp

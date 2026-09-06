@@ -136,21 +136,21 @@ func NewTransportClientFromForm(
 	switch protocolType {
 	case api.HiveotGrpcTcpProtocolType:
 		// gRPC only needs a connect href. All operations use this connection.
-		cl = grpc_client.StartHiveotGrpcClient(href, rootCAs)
+		cl = grpc_client.NewHiveotGrpcClient(href, rootCAs)
 
 	case api.HiveotGrpcUnixProtocolType:
 		// gRPC only needs a connect href. All operations use this connection.
-		cl = grpc_client.StartHiveotGrpcClient(href, rootCAs)
+		cl = grpc_client.NewHiveotGrpcClient(href, rootCAs)
 
 	case api.HiveotSseScProtocolType:
 		// SSE-SC has one full href to connect with SSE and 3 well-known relative paths to
 		// receive requests, response and notification messages. The SSE channel
 		// passes these in reverse direction.
-		cl = ssesc_client.StartSseScClient(tdoc.Base, rootCAs)
+		cl = ssesc_client.NewSseScClient(tdoc.Base, rootCAs)
 
 	case api.HiveotWebsocketProtocolType:
 		// websockets only needs a connect href. All operations use this connection.
-		cl = wss_client.StartHiveotWssClient(href, rootCAs)
+		cl = wss_client.NewHiveotWssClient(href, rootCAs)
 
 	case api.WotWebsocketProtocolType:
 		// websockets only needs a connect href. All operations use this connection.
@@ -158,7 +158,7 @@ func NewTransportClientFromForm(
 
 	case api.HttpBasicProtocolType:
 		// http-basic needs the TD to get a href per operation.
-		cl, err = httpbasic_client.StartHttpBasicClient(tdoc, rootCAs)
+		cl, err = httpbasic_client.NewHttpBasicClient(tdoc, rootCAs)
 
 		//case api.ProtocolTypeWotMQTTWSS:
 		// mqtt needs the TD for href to connect and mkv:topic field for topics per operation
@@ -186,13 +186,13 @@ func NewFallbackTransportClient(serverURL string, rootCAs *x509.CertPool) (
 
 	switch parts.Scheme {
 	case api.HiveotGrpcUnixScheme:
-		cl = grpc_client.StartHiveotGrpcClient(serverURL, rootCAs)
+		cl = grpc_client.NewHiveotGrpcClient(serverURL, rootCAs)
 
 	case api.HiveotGrpcTcpScheme:
-		cl = grpc_client.StartHiveotGrpcClient(serverURL, rootCAs)
+		cl = grpc_client.NewHiveotGrpcClient(serverURL, rootCAs)
 
 	case api.HiveotSseScScheme:
-		cl = ssesc_client.StartSseScClient(serverURL, rootCAs)
+		cl = ssesc_client.NewSseScClient(serverURL, rootCAs)
 
 	case api.WotWebsocketScheme:
 		cl = wss_client.StartWotWssClient(serverURL, rootCAs)

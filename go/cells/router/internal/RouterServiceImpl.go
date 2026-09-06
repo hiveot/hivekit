@@ -193,16 +193,17 @@ func (svc *RouterServiceImpl) GetClientConnection(
 		}
 		if svc.autoReconnect {
 			// reconnect connects the client on start
-			cl, err = reconnect_service.StartReconnectService(c)
+			cl, err = reconnect_service.NewReconnectService(c)
 		} else {
 			// connect directly. Reconnect is not used.
-			err = c.Connect()
+			// err = c.Connect()
 			cl = c
 		}
 		svc.deviceConnections[newOrigin] = cl
 
 		// forward notifications to this service and up to its consumer
 		cl.SetNotificationSink(svc)
+		cl.Start()
 	}
 
 	return cl, err
@@ -351,7 +352,7 @@ func (svc *RouterServiceImpl) Stop() {
 	svc.credStore.Close()
 }
 
-// StartRouterServiceImpl creates a new router service
+// NewRouterServiceImpl creates a new router service
 //
 // Use getSrv if routing requests to server RC connected device should be supported.
 // AutoReconnect will attempt to automatically reconnect failed client connections. Note that this
@@ -365,7 +366,7 @@ func (svc *RouterServiceImpl) Stop() {
 //	timeout is the maximum communication timeout with connect clients
 //	getTD  handler to lookup a TD for a thingID from a directory
 //	getSrv handler returning a list of transport servers that can contain RC devices.
-func StartRouterServiceImpl(
+func NewRouterServiceImpl(
 	storageDir string,
 	autoReconnect bool,
 	clientID string,

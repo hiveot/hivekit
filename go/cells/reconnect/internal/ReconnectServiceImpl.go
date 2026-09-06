@@ -126,6 +126,9 @@ func (svc *ReconnectServiceImpl) DoReconnect() {
 }
 
 func (svc *ReconnectServiceImpl) GetConnectionStatus() api.ConnectionStatus {
+	if svc.conn == nil {
+		return api.StatusNew
+	}
 	return svc.conn.GetConnectionStatus()
 }
 
@@ -193,20 +196,6 @@ func (svc *ReconnectServiceImpl) HandleRequest(req *msg.RequestMessage, replyTo 
 	return svc.HiveCellBase.HandleRequest(req, replyTo)
 }
 
-// Connect when ready
-func (svc *ReconnectServiceImpl) Ready() {
-	status := svc.conn.GetConnectionStatus()
-	if status != api.StatusConnected && status != api.StatusConnecting {
-
-		// FIXME: how to report an authentication failure:
-		err := svc.conn.Connect()
-		if err != nil {
-			slog.Warn("StartReconnectServiceImpl. The linked client failed to start.",
-				"err", err.Error(), "client ID", svc.conn.GetThingID())
-		}
-	}
-}
-
 // SetRequestSink registers the given sink as the client if one isn't set.
 // requestSink must implement the ITransportClient interface so it can be used to
 // register the connect callback.
@@ -224,6 +213,20 @@ func (svc *ReconnectServiceImpl) SetRequestSink(requestSink api.IHiveCell) {
 
 }
 
+// Start the reconnection process
+func (svc *ReconnectServiceImpl) Start() {
+	status := svc.conn.GetConnectionStatus()
+	if status != api.StatusConnected && status != api.StatusConnecting {
+
+		// FIXME: how to report an authentication failure:
+		err := svc.conn.Connect()
+		if err != nil {
+			slog.Warn("StartReconnectServiceImpl. The linked client failed to start.",
+				"err", err.Error(), "client ID", svc.conn.GetThingID())
+		}
+	}
+}
+
 // Stop the reconnect service and disconnect the client
 func (svc *ReconnectServiceImpl) Stop() {
 	svc.mux.Lock()
@@ -235,7 +238,7 @@ func (svc *ReconnectServiceImpl) Stop() {
 	svc.conn.Stop()
 }
 
-// StartReconnectServiceImpl creates a reconnect service for use with a transport client.
+// NewReconnectServiceImpl creates a reconnect service for use with a transport client.
 //
 // If a transport client is provided as the sink then make it the request sink for this service so
 // it can receive requests, and make this the notification sink for that client so notifications
@@ -243,14 +246,15 @@ func (svc *ReconnectServiceImpl) Stop() {
 //
 // The also registers the connection changed callback with the client to receive disconnect
 // notifications to trigger reconnect.
-// The client must have its authentication. Start will call Connect on this client if not yet
-// connected.
+// The client must have its authentication set.
+//
+// Use Start to start the reconnect process.
 //
 // This service uses the ReconnectCellType as its ID.
 //
 //	tpClient is the connected transport client that is a sink for this service.
 //	  optional, if not provided SetRequestSink will set the handler.
-func StartReconnectServiceImpl(
+func NewReconnectServiceImpl(
 	tpClient api.ITransportClient) (svc *ReconnectServiceImpl, err error) {
 
 	svc = &ReconnectServiceImpl{

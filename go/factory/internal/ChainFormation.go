@@ -53,16 +53,6 @@ func (r *ChainFormation) HandleRequest(req *msg.RequestMessage, replyTo msg.Resp
 	return head.HandleRequest(req, replyTo)
 }
 
-// Invoke Ready on all members of this formation including the optional linkTo
-func (r *ChainFormation) Ready() {
-	for _, cell := range r.instances {
-		cell.Ready()
-	}
-	if r.linkTo != nil {
-		r.linkTo.Ready()
-	}
-}
-
 // Set the sink for notifications from the chain
 // This sets the sink to the first cell in the chain. Call this after start.
 func (r *ChainFormation) SetNotificationSink(sink api.IHiveCell, thingIDs ...string) {
@@ -106,19 +96,15 @@ func (r *ChainFormation) SetSlot(slotID string, cellDef api.CellDefinition) erro
 	return fmt.Errorf("SetSlot: slot '%s' not found", slotID)
 }
 
-// Start a chain formation recipe for running cells linked in a chain.
+// Return a ready-to-use formation recipe for running cells linked in a chain.
 //
 // - HandleRequest will send the request to the first cell of the chain.
 // - HandleNotification passes it to the last cell, which makes its way up the chain.
 // - SetRequestSink is not needed if linkTo is provided
 // - SetNotificationSink sets the destination of notification that are passed up the chain.
 //
-// Cells in the chain should not emit requests or notifications until the chain is
-// linked as intended. If all cells are reactive, eg respond to external requests and
-// notifications, this should not be an issue.
-//
-// Cells that publish a TD for updating a directory must wait with this until the
-// environment is ready.
+// Cells in the chain should not emit requests or notifications until all cells are
+// properly linked and Start is called.
 //
 //	f is the cell factory that instantiates the cells
 //	chain is a collection of cells in order of instantiation.
@@ -126,7 +112,7 @@ func (r *ChainFormation) SetSlot(slotID string, cellDef api.CellDefinition) erro
 //		This can be used instead of SetRequestSink.
 //
 // This returns the chain recipe.
-func StartChainFormation(
+func NewChainFormation(
 	f api.ICellFactory, chain []api.CellDefinition, linkTo api.IHiveCell) (*ChainFormation, error) {
 
 	r := &ChainFormation{
@@ -141,15 +127,15 @@ func StartChainFormation(
 		r.f.RegisterCell(cellDef)
 	}
 
-	// start and link cells in the defined order
+	// create and link cells in the defined order
 	r.instances = make([]api.IHiveCell, 0, len(r.chain))
 	var prevCell api.IHiveCell
 
-	// Instantiate cells and link in the specified order.
+	// create cells and link in the specified order.
 	for _, cellDef := range r.chain {
-		member, err := r.f.StartCell(cellDef.Type, true)
+		member, err := r.f.NewCell(cellDef.Type, true)
 		if err != nil {
-			slog.Error("Start: starting cell failed. Shutting down",
+			slog.Error("NewChainFormation: creating cell failed. Shutting down",
 				"cellType", cellDef.Type, "err", err.Error())
 			r.Stop()
 			return nil, err

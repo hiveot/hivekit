@@ -82,8 +82,8 @@ func (svc *DirectoryServiceImpl) Stop() {
 	svc.bucketStore.Close()
 }
 
-// Start a new thing directory service instance.
-// On start this opens or creates a directory store in {home}/{serviceID}.
+// Create a ready-to-use thing directory service instance.
+//
 // Directory entries are stored in the 'directory' bucket.
 //
 // This:
@@ -102,11 +102,11 @@ func (svc *DirectoryServiceImpl) Stop() {
 //	storageDir is the directory where the service stores its data. Use "" for testing with an in-memory store.
 //	httpServer is used to expose the directory TDD on the well-known path.
 //	transports is a list of transports that should be included in the TDD security and forms. nil to not include these.
-func StartDirectoryServiceImpl(
+func NewDirectoryServiceImpl(
 	thingID string, storageDir string, httpServer api.IHttpServer,
 	transports []api.ITransportServer) (*DirectoryServiceImpl, error) {
 
-	slog.Info("Start: Starting directory service")
+	slog.Info("NewDirectoryServiceImpl running the directory service")
 
 	if thingID == "" {
 		thingID = directory.DefaultDirectoryThingID
@@ -123,7 +123,7 @@ func StartDirectoryServiceImpl(
 	// if len(transports) > 0 {
 	for _, tp := range transports {
 		if tp == nil {
-			slog.Error("NewDirectoryService: Transports has a nil transport")
+			slog.Error("NewDirectoryServiceImpl: Transports has a nil transport")
 		} else {
 			tp.AddTDSecForms(dirTDD, true)
 		}

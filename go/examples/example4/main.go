@@ -28,14 +28,14 @@ func main() {
 	env.RpcTimeout = time.Minute // for testing
 	utils.SetLogging(env.LogLevel, "")
 
-	f := factory_service.StartCellFactory(env, nil)
+	f := factory_service.NewCellFactory(env, nil)
 	r, err := gatewayrecipe.StartGatewayDeviceRecipe(f)
 	_ = r
 	if err != nil {
 		fmt.Println("Gateway startup failed: " + err.Error())
 		os.Exit(1)
 	}
-
+	f.Start()
 	fmt.Printf("main: homeDir: %s\n", env.HomeDir)
 	fmt.Printf("main: Gateway is running and listening on '%v'\n", f.GetConnectURLs())
 	f.WaitForSignal(context.Background())

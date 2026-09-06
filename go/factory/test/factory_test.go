@@ -64,7 +64,7 @@ func TestStartStop(t *testing.T) {
 	// if err != nil {
 	// t.Errorf("Failed loading config: %s", err.Error())
 	// }
-	f := factory_service.StartCellFactory(env, nil)
+	f := factory_service.NewCellFactory(env, nil)
 	require.NotNil(t, f)
 	// f.Start(recipe)
 	f.Stop()
@@ -80,7 +80,7 @@ func TestAuthentication(t *testing.T) {
 	env.SetServerCert(testCerts.ServerCert)
 	env.HttpsPort = testPort
 
-	f := factory_service.StartCellFactory(env, HiveKitAllCells)
+	f := factory_service.NewCellFactory(env, HiveKitAllCells)
 	assert.NotNil(t, f)
 	defer f.Stop()
 
@@ -94,7 +94,7 @@ func TestAuthentication(t *testing.T) {
 	assert.NotNil(t, httpAuth)
 
 	// loading the authn service switches the factory to use it as authenticator
-	m, err := f.StartCell(authn.AuthnServiceCellType, true)
+	m, err := f.NewCell(authn.AuthnServiceCellType, true)
 	require.NotNil(t, m)
 	assert.NoError(t, err)
 
@@ -129,7 +129,7 @@ func TestDigitwin(t *testing.T) {
 	env.SetServerCert(testCerts.ServerCert)
 	env.HttpsPort = testPort
 
-	f := factory_service.StartCellFactory(env, HiveKitAllCells)
+	f := factory_service.NewCellFactory(env, HiveKitAllCells)
 	defer f.Stop()
 
 	// clientRecipe := factoryrecipe.NewFactoryRecipe(AvailableCells, chain)
@@ -137,7 +137,7 @@ func TestDigitwin(t *testing.T) {
 
 	// load the digitwin service
 	// this should start the directory and http server
-	m, err := f.StartCell(digitwin.DigitwinCellType, true)
+	m, err := f.NewCell(digitwin.DigitwinCellType, true)
 	require.NoError(t, err)
 	require.NotNil(t, m)
 }

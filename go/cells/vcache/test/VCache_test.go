@@ -29,7 +29,7 @@ func TestMain(m *testing.M) {
 func TestStartStop(t *testing.T) {
 	t.Logf("---%s---\n", t.Name())
 
-	svc, err := vcache_service.StartValueCacheService()
+	svc, err := vcache_service.NewValueCacheService()
 	require.NoError(t, err)
 	defer svc.Stop()
 }
@@ -45,7 +45,7 @@ func TestPropertyNotifications(t *testing.T) {
 	const prop1Value = "value1"
 	const prop2Value = "value2"
 
-	svc, err := vcache_service.StartValueCacheService()
+	svc, err := vcache_service.NewValueCacheService()
 	require.NoError(t, err)
 	defer svc.Stop()
 	// co := consumer.NewConsumer(m, func(n *msg.NotificationMessage) {
@@ -108,7 +108,7 @@ func TestEventNotifications(t *testing.T) {
 	const ev1Value = "value1"
 	const ev2Value = "value2"
 
-	svc, err := vcache_service.StartValueCacheService()
+	svc, err := vcache_service.NewValueCacheService()
 	require.NoError(t, err)
 	defer svc.Stop()
 	// co := consumer.NewConsumer(m,func(n *msg.NotificationMessage) {

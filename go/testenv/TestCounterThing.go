@@ -112,67 +112,67 @@ type TestCounterThing struct {
 }
 
 // Run the counter in the background
-func (m *TestCounterThing) Background() {
+func (svc *TestCounterThing) Background() {
 	for {
-		if m.backgroundCtx.Err() != nil {
+		if svc.backgroundCtx.Err() != nil {
 			return
 		}
-		ctx, cancelFn := context.WithTimeout(m.backgroundCtx, autoIncrementDelay)
+		ctx, cancelFn := context.WithTimeout(svc.backgroundCtx, autoIncrementDelay)
 		<-ctx.Done()
 		cancelFn()
-		slog.Info("Incrementing counter (in background)", "value", m.counter.Load())
-		if m.config.AutoIncrement {
-			go m.Update(int(m.counter.Load() + 1))
+		slog.Info("Incrementing counter (in background)", "value", svc.counter.Load())
+		if svc.config.AutoIncrement {
+			go svc.Update(int(svc.counter.Load() + 1))
 		}
 	}
 }
 
 // Decrement the counter
-func (m *TestCounterThing) DoDecrement() error {
-	oldValue := m.counter.Load()
+func (svc *TestCounterThing) DoDecrement() error {
+	oldValue := svc.counter.Load()
 	newValue := oldValue - 1
-	m.counter.Store(newValue)
-	m.PubProperty("", CounterPropName, newValue, true)
-	m.PubEvent("", CounterUpdatedEvent, newValue)
+	svc.counter.Store(newValue)
+	svc.PubProperty("", CounterPropName, newValue, true)
+	svc.PubEvent("", CounterUpdatedEvent, newValue)
 	return nil
 }
 
 // Increment the counter
-func (m *TestCounterThing) DoIncrement() error {
-	oldValue := m.counter.Load()
+func (svc *TestCounterThing) DoIncrement() error {
+	oldValue := svc.counter.Load()
 	newValue := oldValue + 1
-	if oldValue >= int32(m.config.ResetValue) {
+	if oldValue >= int32(svc.config.ResetValue) {
 		newValue = 0
 	}
-	m.counter.Store(newValue)
-	m.PubProperty("", CounterPropName, newValue, true)
-	m.PubEvent("", CounterUpdatedEvent, newValue)
+	svc.counter.Store(newValue)
+	svc.PubProperty("", CounterPropName, newValue, true)
+	svc.PubEvent("", CounterUpdatedEvent, newValue)
 	return nil
 }
 
 // Return the TD of this device.
 // Forms should be added by the appropriate transport method used.
 // This is also written to the directory on start.
-func (m *TestCounterThing) GetTD() string {
-	return m.tdocJson
+func (svc *TestCounterThing) GetTD() string {
+	return svc.tdocJson
 }
 
 // Receive notifications from the chain
 // * New connection to the server
 // * Any notifications send by connected clients - none are expected so ignore these
-func (m *TestCounterThing) HandleNotification(notif *msg.NotificationMessage) {
+func (svc *TestCounterThing) HandleNotification(notif *msg.NotificationMessage) {
 	if notif.AffordanceType == msg.AffordanceTypeEvent && notif.Name == api.ClientConnectionStatusEvent {
 		slog.Info("HandleNotification: Client connection event", "data", notif.Data)
 	}
-	m.ForwardNotification(notif)
+	svc.ForwardNotification(notif)
 }
 
-func (m *TestCounterThing) HandleRequest(req *msg.RequestMessage, replyTo msg.ResponseHandler) (err error) {
-	if req.ThingID != m.GetThingID() {
-		return m.ForwardRequest(req, replyTo)
+func (svc *TestCounterThing) HandleRequest(req *msg.RequestMessage, replyTo msg.ResponseHandler) (err error) {
+	if req.ThingID != svc.GetThingID() {
+		return svc.ForwardRequest(req, replyTo)
 	}
 	// use Thing base to handle read properties/events/action requests
-	err = m.HandleReadRequests(req, replyTo)
+	err = svc.HandleReadRequests(req, replyTo)
 	if err == nil {
 		return nil
 	}
@@ -185,14 +185,14 @@ func (m *TestCounterThing) HandleRequest(req *msg.RequestMessage, replyTo msg.Re
 
 		switch req.Name {
 		case DecrementActionName:
-			err = m.DoDecrement()
+			err = svc.DoDecrement()
 		case IncrementActionName:
-			err = m.DoIncrement()
+			err = svc.DoIncrement()
 		}
 		resp := req.CreateResponse(output, err)
 		err = replyTo(resp)
 	case td.OpWriteProperty:
-		return m.HandleWriteProperty(req, replyTo)
+		return svc.HandleWriteProperty(req, replyTo)
 	default:
 		err = fmt.Errorf("Unhandled operation '%s'", req.Operation)
 	}
@@ -200,23 +200,23 @@ func (m *TestCounterThing) HandleRequest(req *msg.RequestMessage, replyTo msg.Re
 }
 
 // Change a property value
-func (m *TestCounterThing) HandleWriteProperty(req *msg.RequestMessage, replyTo msg.ResponseHandler) (err error) {
+func (svc *TestCounterThing) HandleWriteProperty(req *msg.RequestMessage, replyTo msg.ResponseHandler) (err error) {
 
 	switch req.Name {
 	case CounterPropName:
 		var newValue int
 		err = req.DecodeInput(&newValue)
 		if err == nil {
-			m.counter.Store(int32(newValue))
+			svc.counter.Store(int32(newValue))
 			// PubProperty makes the last value available via HandleReadRequests
-			m.PubProperty(req.ThingID, req.Name, newValue, true)
+			svc.PubProperty(req.ThingID, req.Name, newValue, true)
 		}
 	case AutoIncrementPropName:
 		var newValue bool
 		err = req.DecodeInput(&newValue)
-		m.config.AutoIncrement = newValue
+		svc.config.AutoIncrement = newValue
 		// PubProperty makes the last value available via HandleReadRequests
-		m.PubProperty(req.ThingID, req.Name, newValue, true)
+		svc.PubProperty(req.ThingID, req.Name, newValue, true)
 	}
 
 	resp := req.CreateResponse(nil, err)
@@ -225,50 +225,58 @@ func (m *TestCounterThing) HandleWriteProperty(req *msg.RequestMessage, replyTo 
 	}
 	if err == nil {
 		// PubEvent makes the last event available via HandleReadRequests
-		m.PubEvent(req.ThingID, CounterUpdatedEvent, m.counter.Load())
+		svc.PubEvent(req.ThingID, CounterUpdatedEvent, svc.counter.Load())
 	}
 	return err
 }
 
 // Publish the TD and properties when the app is ready
-func (m *TestCounterThing) Ready() {
+func (svc *TestCounterThing) Start() {
 
-	err := m.WriteTD(m.tdocJson)
+	err := svc.WriteTD(svc.tdocJson)
 	if err != nil {
-		slog.Error("Ready: Unable to write the TD")
+		slog.Warn("Start: Unable to write the TD", "err", err.Error())
 		return
 	}
 
 	// publish the latest property values
 	props := map[string]any{
-		AutoIncrementPropName: m.config.AutoIncrement,
-		CounterPropName:       m.counter.Load(),
+		AutoIncrementPropName: svc.config.AutoIncrement,
+		CounterPropName:       svc.counter.Load(),
 	}
-	thingID := m.GetThingID()
-	m.PubProperties(thingID, props, true)
-	m.PubEvent(thingID, CounterUpdatedEvent, m.counter.Load())
+	thingID := svc.GetThingID()
+	svc.PubProperties(thingID, props, true)
+	svc.PubEvent(thingID, CounterUpdatedEvent, svc.counter.Load())
+
+	if svc.config.AutoIncrement {
+		go svc.Background()
+	}
 }
 
 // stop the background process
-func (m *TestCounterThing) Stop() {
+func (svc *TestCounterThing) Stop() {
 	slog.Info("Stopping counter")
-	m.backgroundCancel()
+	if svc.backgroundCancel != nil {
+		svc.backgroundCancel()
+	}
 }
 
 // Update the counter and send a notification
-func (m *TestCounterThing) Update(newValue int) {
-	m.counter.Store(int32(newValue))
-	thingID := m.GetThingID()
+func (svc *TestCounterThing) Update(newValue int) {
+	svc.counter.Store(int32(newValue))
+	thingID := svc.GetThingID()
 	// Send both a property update and event notification
-	m.PubProperty(thingID, CounterPropName, m.counter.Load(), true)
-	m.PubEvent(thingID, CounterUpdatedEvent, m.counter.Load())
+	svc.PubProperty(thingID, CounterPropName, svc.counter.Load(), true)
+	svc.PubEvent(thingID, CounterUpdatedEvent, svc.counter.Load())
 }
 
 // Create a new counter exposed-thing that starts counting at 42.
 //
+// Call Start to start auto-counting and publish the TD.
+//
 // thingID is the thingID or use "" for an auto generated ID
 // config defines behavior of the Thing
-func StartTestCounterThing(thingID string, config *CounterConfig) (*TestCounterThing, error) {
+func NewTestCounterThing(thingID string, config *CounterConfig) (*TestCounterThing, error) {
 	if config == nil {
 		config = &CounterConfig{
 			AutoIncrement: false,
@@ -279,7 +287,7 @@ func StartTestCounterThing(thingID string, config *CounterConfig) (*TestCounterT
 		thingID = DefaultTestCounterThingID + "-" + shortid.MustGenerate()
 	}
 	m := &TestCounterThing{
-		ExposedThing: thing.StartExposedThing(thingID, nil),
+		ExposedThing: thing.NewExposedThing(thingID, nil),
 		config:       config,
 	}
 	m.counter.Store(42)
@@ -290,8 +298,5 @@ func StartTestCounterThing(thingID string, config *CounterConfig) (*TestCounterT
 	tdoc.ID = m.GetThingID()
 	m.tdocJson = td.MarshalTD(tdoc)
 
-	if m.config.AutoIncrement {
-		go m.Background()
-	}
 	return m, err
 }

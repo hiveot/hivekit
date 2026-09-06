@@ -95,7 +95,7 @@ func startTestAuthnService(encryption string) (tp api.IHttpServer, authnSvc auth
 		"localhost", serverPort,
 		testCerts.ServerCert, testCerts.RootCAs, true)
 
-	httpServer, err := tls_server.StartTLSServer(cfg, authenticator)
+	httpServer, err := tls_server.NewTLSServer(cfg, authenticator)
 
 	if err != nil {
 		panic("Unable to start http server: " + err.Error())

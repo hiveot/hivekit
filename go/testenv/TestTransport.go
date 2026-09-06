@@ -31,31 +31,31 @@ func (srv *TestTransport) GetTD() *td.TD {
 }
 
 // Receive a notification from the sink and sends it to the client.
-func (m *TestTransport) HandleNotification(notif *msg.NotificationMessage) {
-	m.SendNotification(notif)
+func (srv *TestTransport) HandleNotification(notif *msg.NotificationMessage) {
+	srv.SendNotification(notif)
 }
 
 // Receive a request and forward it on to the sinks.
-func (m *TestTransport) HandleRequest(
+func (srv *TestTransport) HandleRequest(
 	req *msg.RequestMessage, replyTo msg.ResponseHandler) (err error) {
-	req.SenderID = m.GetThingID()
-	return m.ForwardRequest(req, replyTo)
+	req.SenderID = srv.GetThingID()
+	return srv.ForwardRequest(req, replyTo)
 }
 
 // SendNotification sends a notification message to the consumer.
 // This would mean that the client's remote side receives a notification.
 // Since this doesn't do subscriptions, all notifications are received.
-func (m *TestTransport) SendNotification(notif *msg.NotificationMessage) {
-	m.EmitNotification(notif)
+func (srv *TestTransport) SendNotification(notif *msg.NotificationMessage) {
+	srv.EmitNotification(notif)
 }
 
 // SendRequest sends a request message via the transport to the producer.
 // In a direct transport this is the registered sink, pretending to be the remote server.
 // Note this only has a single connection.
-func (m *TestTransport) SendRequest(
+func (srv *TestTransport) SendRequest(
 	clientID string, req *msg.RequestMessage, replyTo msg.ResponseHandler) (err error) {
 
-	err = m.EmitRequest(req, replyTo)
+	err = srv.EmitRequest(req, replyTo)
 	return err
 }
 
@@ -71,21 +71,8 @@ func (m *TestTransport) SendRequest(
 // }
 
 // assign the authenticator of incoming connections
-func (m *TestTransport) SetAuthenticationHandler(h api.ValidateTokenHandler) {
+func (srv *TestTransport) SetAuthenticationHandler(h api.ValidateTokenHandler) {
 	_ = h
-}
-
-// assign the handler of new incoming connections
-// func (m *DirectClientTransport) SetConnectionHandler(h transport.ConnectionHandler) {
-// 	_ = h
-// }
-
-func (m *TestTransport) Start() (err error) {
-	return nil
-}
-
-// Stop disconnects clients and remove connection listening
-func (m *TestTransport) Stop() {
 }
 
 // NewTestTransport returns a transport cell that passes messages from a consumer to a producer

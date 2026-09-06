@@ -350,21 +350,35 @@ func (cl *SseScClientImpl) SendResponse(resp *msg.ResponseMessage) error {
 	return err
 }
 
+// Start connects the client.
+//
+// Intended for use by the factory as the factory provides a clientID/token or client
+// certificate.
+//
+// Most users will use Connect()
+func (cl *SseScClientImpl) Start() {
+	err := cl.Connect()
+	if err != nil {
+		slog.Error("Start: Connect error", "err", err.Error)
+	}
+}
+
 // stop closes the connection
 func (cl *SseScClientImpl) Stop() {
 	cl.Close()
 }
 
-// StartSseScClientImpl starts a new instance of the hiveot http/sse-sc protocol binding client.
+// NewSseScClientImpl creates a ready-to-use hiveot http/sse-sc protocol binding client.
 // This uses TD forms to perform operations.
-// Set authentication and call connect before use.
+//
+// Set authentication and call Connect or Start before use.
 //
 // For testing, or very slow networks, use SetTimeout to increase the wait time.
 //
 //	sseURL full connection URL of Hiveot SSE server and path
 //	rootCAs are CA certificates to validate the server certificate. nil for system CAs.
 //	ch is the connect/disconnect callback
-func StartSseScClientImpl(sseURL string, rootCAs *x509.CertPool) *SseScClientImpl {
+func NewSseScClientImpl(sseURL string, rootCAs *x509.CertPool) *SseScClientImpl {
 
 	urlParts, err := url.Parse(sseURL)
 	if err != nil {
@@ -375,7 +389,7 @@ func StartSseScClientImpl(sseURL string, rootCAs *x509.CertPool) *SseScClientImp
 	ssePath := urlParts.Path
 	// use SetTimeout to change the default
 	timeout := msg.DefaultRnRTimeout
-	tlsClient := tls_client.StartTLSClient(hostPort, rootCAs)
+	tlsClient := tls_client.NewTLSClient(hostPort, rootCAs)
 
 	thingID := ssesc.SseScClientCellType + shortid.MustGenerate()
 	cl := &SseScClientImpl{

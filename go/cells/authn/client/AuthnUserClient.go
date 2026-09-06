@@ -55,7 +55,7 @@ func (m *AuthnUserClient) UpdateProfile(password string) (err error) {
 	return
 }
 
-// Create a new instance of the authn user client
+// Create a new ready to use instance of the authn user client
 //
 // sink is the chain containing the user's transport client
 func NewAuthnUserClient(sink api.IHiveCell) *AuthnUserClient {

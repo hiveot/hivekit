@@ -63,13 +63,13 @@ func (svc *BucketServiceImpl) Stop() {
 	}
 }
 
-// Start a new bucket storage instance
+// NewBucketServiceImpl creates a ready-to-use bucket storage instance.
 //
 // If an embedded store is used then the history data is stored in the storageDir directory,
 // or "" for testing with in-memory storage.
 //
 // location is the bucket storage file, directory or URL depending on the type
-func StartBucketServiceImpl(location string, storeType string) (svc *BucketServiceImpl, err error) {
+func NewBucketServiceImpl(location string, storeType string) (svc *BucketServiceImpl, err error) {
 
 	slog.Info("Start: Starting bucketstore service")
 	var store bucketstore.IBucketStore
@@ -99,7 +99,7 @@ func StartBucketServiceImpl(location string, storeType string) (svc *BucketServi
 		location:     location,
 		backend:      storeType,
 		store:        store,
-		cursorCache:  StartCursorCache(),
+		cursorCache:  NewCursorCache(),
 
 		// StoreName:   defaultStoreName,
 		// bucketStore: bucketStore,

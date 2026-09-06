@@ -151,7 +151,7 @@ func (srv *DirectoryHttpServer) SendResponse(
 	return fmt.Errorf("SendResposne: not supported")
 }
 
-// Start a new Directory HTTP handler using the given http server.
+// Return a ready-to-use Directory HTTP handler using the given http server.
 //
 // This panics if no http server is provided.
 //
@@ -161,10 +161,10 @@ func (srv *DirectoryHttpServer) SendResponse(
 //	httpServer to register with
 //	respTimeout is the maximum time the server waits for a response when forwarding directory requests
 //	 to the directory server.
-func StartDirectoryHttpServer(httpServer api.IHttpServer, respTimeout time.Duration) (*DirectoryHttpServer, error) {
+func NewDirectoryHttpServer(httpServer api.IHttpServer, respTimeout time.Duration) (*DirectoryHttpServer, error) {
 
 	if httpServer == nil {
-		err := fmt.Errorf("StartDirectoryHttpServer: httpserver is nil")
+		err := fmt.Errorf("NewDirectoryHttpServer: httpserver is nil")
 		return nil, err
 	}
 

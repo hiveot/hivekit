@@ -17,6 +17,7 @@ import (
 	"github.com/hiveot/hivekit/go/cells/authn"
 	certstest "github.com/hiveot/hivekit/go/cells/certs/test"
 	"github.com/hiveot/hivekit/go/cells/consumer"
+	"github.com/hiveot/hivekit/go/cells/reconnect"
 	reconnect_service "github.com/hiveot/hivekit/go/cells/reconnect/service"
 	"github.com/hiveot/hivekit/go/cells/thing"
 	"github.com/hiveot/hivekit/go/cells/transport/clients"
@@ -159,7 +160,7 @@ func (testEnv *TestEnv) CreateToken(clientID string, validity time.Duration) (to
 func (testEnv *TestEnv) NewServerThing(thingID string) *thing.ExposedThing {
 
 	// Simple server side Thing. No account needed
-	m := thing.StartExposedThing(thingID, nil)
+	m := thing.NewExposedThing(thingID, nil)
 
 	// the device is the request sink for the transport server
 	testEnv.Server.SetRequestSink(m)
@@ -189,7 +190,7 @@ func (testEnv *TestEnv) NewRCThing(clientID string, appReqHandler msg.RequestHan
 	cl, authToken := testEnv.NewTestClient(clientID, authn.ClientRoleDevice)
 
 	// simple exposed thing, no application request handler yet
-	expThing := thing.StartExposedThing(clientID+"-thing", appReqHandler)
+	expThing := thing.NewExposedThing(clientID+"-thing", appReqHandler)
 
 	// the client delivers requests to the thing and receives notifications from it
 	cl.SetRequestSink(expThing)
@@ -231,7 +232,7 @@ func (testEnv *TestEnv) NewTestConsumer(clientID string, role string) (
 	// dont connect yet as the linking must be done before connecting,
 	// to allow reconnect and notification handlers to detect connect/reconnect.
 	cl, token = testEnv.NewTestClient(clientID, role)
-	co = consumer.StartConsumer(cl, nil)
+	co = consumer.NewConsumer(cl, nil)
 	co.SetTimeout(TestTimeout)
 
 	return co, cl, token
@@ -275,35 +276,31 @@ func (testEnv *TestEnv) NewTestClient(
 	return cl, token
 }
 
-// NewReconnectedConsumer creates a new connected consumer with the reconnect capability.
-// The reconnect service is placed before client.
-// The transport server must be started first so that connect can succeed.
-// The notification handler
+// NewReconnectConsumer creates a new consumer with the reconnect capability
+// and a client with authentication credentials already set.
+//
+// Call rc.Run() to start the reconnect process and establish a connection.
 //
 // This uses the clientID as password
 // This panics if a client cannot be created
 //
 //	clientID to use
 //	role of the client
-//	the notification sink to register before connecting
-func (testEnv *TestEnv) NewReconnectedConsumer(
-	clientID string, role string, handleNotif msg.NotificationHandler) (
-	co *consumer.Consumer, cc api.ITransportClient, token string) {
+//	notifHook is the hook that receives notification passing through the consumer
+func (testEnv *TestEnv) NewReconnectConsumer(
+	clientID string, role string, notifHook msg.NotificationHandler) (
+	co *consumer.Consumer, rc reconnect.IReconnect, token string) {
 
-	cc, token = testEnv.NewTestClient(clientID, role)
+	cc, token := testEnv.NewTestClient(clientID, role)
 
-	// insert the reconnect service between consumer and client connection
-	// the service will invoke Connect()
-	rc, _ := reconnect_service.StartReconnectService(cc)
+	// Include the reconnect service between consumer and client connection
+	// the service will invoke Connect() whenStart() is invoked.
+	rc, _ = reconnect_service.NewReconnectService(cc)
 
-	// FIXME: there is a small time delay between starting the connection and
-	// registering the notification sink. This can cause the connection notification
-	// to be missed.
-	// option1: create consumer(reconnect), then link the client
-	co = consumer.StartConsumer(rc, handleNotif)
+	co = consumer.NewConsumer(rc, notifHook)
 	co.SetTimeout(TestTimeout)
 
-	return co, cc, token
+	return co, rc, token
 }
 
 // Create a new running test transport server .
@@ -327,13 +324,13 @@ func (testEnv *TestEnv) StartTestServer(protocol string) (srv api.ITransportServ
 	case api.HiveotGrpcTcpProtocolType:
 		serverCert := testEnv.CertBundle.ServerCert
 		caCert := testEnv.CertBundle.CaCert
-		srv, err = grpc_server.StartHiveotGrpcServer(
+		srv, err = grpc_server.NewHiveotGrpcServer(
 			TestGrpcTcpURL, serverCert, caCert, testEnv.TestAuthn, TestTimeout)
 
 	case api.HiveotGrpcUnixProtocolType:
 		serverCert := testEnv.CertBundle.ServerCert
 		caCert := testEnv.CertBundle.CaCert
-		srv, err = grpc_server.StartHiveotGrpcServer(
+		srv, err = grpc_server.NewHiveotGrpcServer(
 			TestGrpcUnixURL, serverCert, caCert, testEnv.TestAuthn, TestTimeout)
 
 	case api.HiveotSseScProtocolType:
@@ -346,7 +343,7 @@ func (testEnv *TestEnv) StartTestServer(protocol string) (srv api.ITransportServ
 
 	case api.HttpBasicProtocolType:
 		testEnv.StartHttpServer(false)
-		srv, err = httpbasic_server.StartHttpBasicServer(testEnv.HttpServer)
+		srv, err = httpbasic_server.NewHttpBasicServer(testEnv.HttpServer)
 		// http only, no subprotocol bindings
 
 	case api.WotWebsocketProtocolType:
@@ -376,7 +373,7 @@ func (testEnv *TestEnv) StartTestServer(protocol string) (srv api.ITransportServ
 	return srv
 }
 
-// Start a http transport server with default port, test certs and dummy authenticator
+// StartHttpServer starts a http transport server with default port, test certs and dummy authenticator
 //
 // This server is needed for http-basic, websocket, hiveot-sse-sc subprotocols
 // Also used to serve http endpoints for the directory and authn users.
@@ -398,7 +395,7 @@ func (testEnv *TestEnv) StartHttpServer(logging bool) (api.IHttpServer, string) 
 
 	// cfg.Address = fmt.Sprintf("%s:%d", certBundle.ServerAddr, testServerHttpPort)
 
-	testEnv.HttpServer, err = tls_server.StartTLSServer(cfg, testEnv.TestAuthn)
+	testEnv.HttpServer, err = tls_server.NewTLSServer(cfg, testEnv.TestAuthn)
 	if err != nil {
 		panic("unable to start TLS server: " + err.Error())
 	}
@@ -459,6 +456,7 @@ func StartTestEnv(protocol string, clean bool) (testEnv *TestEnv, cancelFunc fun
 	testEnv = NewTestEnv(clean)
 	testEnv.StartHttpServer(true)
 	testEnv.Server = testEnv.StartTestServer(protocol)
+	testEnv.Server.Start()
 
 	return testEnv, func() {
 		// give connections time to close client side before forcing them to close server side

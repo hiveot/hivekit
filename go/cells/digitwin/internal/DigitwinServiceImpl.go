@@ -231,7 +231,7 @@ func (svc *DigitwinServiceImpl) Stop() {
 	// m.deviceDirectory.Stop()
 }
 
-// StartDigitwinServiceImpl starts a new digital twin service instance.
+// NewDigitwinServiceImpl creates a ready-to-use new digital twin service instance.
 //
 // This cells uses a directory to store the digital twin TD's and has an internal store
 // for hidden non-digitwin TDs used to pass requests to the actual devices.
@@ -240,7 +240,7 @@ func (svc *DigitwinServiceImpl) Stop() {
 //	thingDir is the directory service that holds exposed Thing TDs.
 //	addForms is a handler from a transport server for injecting forms in digital twin TDs
 //	that describe how to interact via the server protocols.
-func StartDigitwinServiceImpl(storageDir string,
+func NewDigitwinServiceImpl(storageDir string,
 	thingDir directory.IDirectoryService,
 	addforms func(tdoc *td.TD, includeAffordances bool)) (*DigitwinServiceImpl, error) {
 
@@ -250,7 +250,7 @@ func StartDigitwinServiceImpl(storageDir string,
 	// if it doesn't contain a value it should forward the request to the device
 	// note that the thingID is the digital twin ID, which needs to be converted
 	// back to the device thingID
-	vcache, err := vcache_service.StartValueCacheService()
+	vcache, err := vcache_service.NewValueCacheService()
 	if err != nil {
 		return nil, err
 	}

@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/hiveot/hivekit/go/api/td"
@@ -17,6 +18,7 @@ type TestAuthenticator struct {
 	// flag whether sessions are valid for this client
 	inSession     map[string]string
 	authServerURI string
+	mux           sync.RWMutex
 }
 
 // AddClient adds a test client and return an auth token
@@ -25,6 +27,8 @@ func (d *TestAuthenticator) AddClient(clientID string, displayName string, role 
 
 	token, validUntil, err := d.CreateToken(clientID, 0)
 	_ = validUntil
+	d.mux.Lock()
+	defer d.mux.Unlock()
 	d.inSession[clientID] = token
 	return err
 }
@@ -56,6 +60,8 @@ func (d *TestAuthenticator) CreateToken(
 		validity = time.Minute
 	}
 
+	d.mux.Lock()
+	defer d.mux.Unlock()
 	_, isClient := d.passwords[clientID]
 	if !isClient {
 		return "", validUntil, fmt.Errorf("Unknown client %s", clientID)
@@ -87,10 +93,14 @@ func (d *TestAuthenticator) GetAlg() (string, string) {
 func (d *TestAuthenticator) Login(
 	clientID string, password string) (token string, validUntil time.Time, err error) {
 
+	d.mux.Lock()
 	currPass, isClient := d.passwords[clientID]
+	d.mux.Unlock()
 	if isClient && currPass == password {
 		token, validUntil, _ = d.CreateToken(clientID, 0)
+		defer d.mux.Lock()
 		d.inSession[clientID] = token
+		defer d.mux.Unlock()
 		return token, validUntil, nil
 	}
 	return "", validUntil, fmt.Errorf("invalid login")
@@ -101,6 +111,8 @@ func (d *TestAuthenticator) Logout(clientID string) {
 }
 
 func (d *TestAuthenticator) ValidatePassword(clientID string, password string) (err error) {
+	d.mux.Lock()
+	defer d.mux.Unlock()
 	currPass, isClient := d.passwords[clientID]
 	if isClient && currPass == password {
 		return nil
@@ -141,6 +153,8 @@ func (d *TestAuthenticator) ValidateClient(claimedClientID string, token string)
 	clientID = parts[0]
 
 	// simulate a session by checking if a recent token was issued
+	d.mux.Lock()
+	defer d.mux.Unlock()
 	_, found := d.inSession[clientID]
 	if !found {
 		err = errors.New("no active session")

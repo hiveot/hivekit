@@ -146,10 +146,10 @@ func (svc *LoggingServiceImpl) Stop() {
 	}
 }
 
-// StartLoggingServiceImpl creates a new instance of the logging service.
+// NewLoggingServiceImpl creates a ready-to-use instance of the logging service.
 //
 // config is the default service configuration.
-func StartLoggingServiceImpl(
+func NewLoggingServiceImpl(
 	config logging.LoggingConfig) (*LoggingServiceImpl, error) {
 
 	slog.Info("StartLoggingServiceImpl: Starting logging service")

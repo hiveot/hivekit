@@ -25,7 +25,7 @@ var ConsumerRecipeChain = []api.CellDefinition{
 	{
 		// use a directory client to read thing TDs
 		Type:        directory.DirectoryClientCellType,
-		Constructor: directoryclient.StartDirectoryClientFactory,
+		Constructor: directoryclient.NewDirectoryClientFactory,
 	},
 	{
 		// discover the server using DNS-SD
@@ -36,13 +36,15 @@ var ConsumerRecipeChain = []api.CellDefinition{
 	{
 		// the router manages client connections
 		Type:        router.RouterCellType,
-		Constructor: router_service.StartRouterServiceFactory,
+		Constructor: router_service.NewRouterServiceFactory,
 		// TODO: add configuration for using auto-reconnect
 		// TODO: add configuration for providing credentials
 	},
 }
 
 // StartConsumerRecipe starts a recipe for general consumers.
+//
+// Invoke Start on the factory to run the application.
 //
 // A value cache can be included to capture property updates and event notifications.
 //
@@ -73,6 +75,6 @@ func StartConsumerRecipe(
 	}
 
 	// linkto doesnt apply to a consumer chain
-	r, err := factory_service.StartChainFormation(f, chain, nil)
+	r, err := factory_service.NewChainFormation(f, chain, nil)
 	return r, err
 }

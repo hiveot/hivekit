@@ -33,9 +33,12 @@ The recipes folder contains a set of convenient cookie-cutter recipies for build
 
 Recipes are the quickest way to build a client or server application or plugin. They specify which cells are used and how they are linked.
 
-A recipe contains a map of used cells by their cell type, and a list of cells in the order used by their formation. A formation defines how cells are linked. Provided formations are a chain, star or bus. An application is instantiated by invoking recipe.Start(factoryInstance).
+A recipe contains a list of cells in the order used by their formation. A formation defines how cells are linked. Provided formations are a chain, star or bus. 
 
-Recipes and formations can be used in combination with manually loading cells using the factory GetCell(cellType) method and link them manually using SetRequestHandler and SetResponseHandler. This is best done for linking to the start or end of the recipe.
+Recipes and formations can be used in combination with manually loading cells using the factory GetCell(cellType) method and link them manually using SetRequestHandler and SetResponseHandler. 
+
+Finally, to Start all cells, invoke Start on the factory. This will start autonomous processes that depend on the linking to be completed. 
+
 
 ### Inter-process and Multi-Language Recipes
 

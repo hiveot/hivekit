@@ -1,4 +1,4 @@
-package internal
+package serverimpl
 
 import (
 	"context"
@@ -12,6 +12,7 @@ import (
 
 	"github.com/hiveot/hivekit/go/api"
 	"github.com/hiveot/hivekit/go/api/msg"
+	"github.com/hiveot/hivekit/go/cells/transport/grpc/internal"
 	"github.com/hiveot/hivekit/go/utils"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
@@ -200,7 +201,7 @@ func (srv *GrpcServiceServer) Stop() {
 	srv.lis.Close()
 }
 
-// Create the GRPC server, register a ping handler and listen for incoming connections.
+// Returns a ready-to-use GRPC server, register a ping handler and listen for incoming connections.
 //
 // Example usage:
 //
@@ -242,7 +243,7 @@ func NewGrpcServiceServer(
 	// !The incoming request content-type header must match the codec name.
 	// or force it using grpc.ForceServerCodec()
 	// note: registration applies to all client and servers
-	encoding.RegisterCodec(JsonCodec{})
+	encoding.RegisterCodec(internal.JsonCodec{})
 
 	// var _ IGrpcServiceServer = srv // interface check
 

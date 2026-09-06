@@ -25,7 +25,7 @@ var RCDeviceChain = []api.CellDefinition{
 	{
 		// enable auto-reconnect for the client
 		Type:        reconnect.ReconnectCellType,
-		Constructor: reconnect_service.StartReconnectFactory,
+		Constructor: reconnect_service.NewReconnectServiceFactory,
 	},
 	{
 		// connect a new client to the discovered server
@@ -39,6 +39,8 @@ var RCDeviceChain = []api.CellDefinition{
 
 // StartRCDeviceRecipe starts a recipe for creating a reverse-connected devices.
 // Intended for IoT devices that use reverse connection to a gateway or Hub.
+//
+// Invoke Start on the factory to run the application.
 //
 // * support AppEnvironment commandline options
 // * load CA and client certificate, and auth token if found
@@ -57,6 +59,6 @@ func StartRCDeviceRecipe(
 	if appCellDef != nil {
 		chain = append(chain, *appCellDef)
 	}
-	r, err := factory_service.StartChainFormation(f, chain, nil)
+	r, err := factory_service.NewChainFormation(f, chain, nil)
 	return r, err
 }

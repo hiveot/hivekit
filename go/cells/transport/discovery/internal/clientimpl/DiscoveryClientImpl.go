@@ -266,7 +266,7 @@ func (cl *DiscoveryClientImpl) LoadTD(tdURL string) (tdoc *td.TD, tdJSON string,
 	if strings.ToLower(parts.Scheme) != "https" {
 		return nil, "", fmt.Errorf("Unknown scheme '%s', only http is supported", parts.Scheme)
 	}
-	httpCl := tls_client.StartTLSClient(parts.Host, cl.rootCAs)
+	httpCl := tls_client.NewTLSClient(parts.Host, cl.rootCAs)
 	resp, statusCode, err := httpCl.Get(parts.Path)
 	_ = statusCode
 	if err != nil {
@@ -403,7 +403,9 @@ func (cl *DiscoveryClientImpl) startDiscovery() (err error) {
 	return nil
 }
 
-// StartDiscoveryClientImpl starts a new instance of a discovery client.
+// NewDiscoveryClientImpl starts a new instance of a discovery client.
+//
+// Call DiscoverThings or DiscoverDirectories to start the discovery process.
 //
 // If an appEnv is provided and its DirectoryURL is empty, and discoOnStart is enabled
 // then Start will run in initial directory discovery and update appEnv with the
@@ -411,7 +413,7 @@ func (cl *DiscoveryClientImpl) startDiscovery() (err error) {
 //
 // If appEnv is provided and discovery on Start is successful then update appEnv with
 // the discovered directory URL. The directory client can use this to connect to the directory.
-func StartDiscoveryClientImpl(
+func NewDiscoveryClientImpl(
 	appEnv *api.HiveEnvironment, discoOnStart bool) (*DiscoveryClientImpl, error) {
 	var err error
 

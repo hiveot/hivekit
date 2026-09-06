@@ -19,14 +19,13 @@ Proposed solution: HiveOT uses the convention that thingIDs contain the device c
 
 If the TD is to be published in an internet based directory, the clientID must be globally unique and the forms must be updated to externally reachable addresses. In HiveOT this is not a concern of devices. Instead a gateway must handle external exposure and security.
 
-2: How to prevent thingID collisions? There is no mechanism to guarantee uniquenes between devices. One option is to use UUIDs. Another is to use namespaces in the ID.
+2: How to prevent thingID collisions? There is no mechanism to guarantee uniquenes between devices. One suggested solution is to use UUIDs. The problem is that it doesnt protect against ThingID hijacking by a bad actor.
 
 Current solution, same as above. ThingIDs have the clientID prefix.
 
 3: The directory http client should not be needed. Just use the messaging client with a
 http-basic client. The directory server TD with forms should be sufficient.
-The main issue is that the generic http-basic server uses different paths, is 
-this valid or are the paths in the spec mandatory. For now assume paths are not fixed.
+The main issue is that the generic http-basic server uses different paths, is this valid or are the paths in the spec mandatory. For now assume paths are not fixed.
 
 This needs testing that it works as intended.
 

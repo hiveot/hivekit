@@ -104,7 +104,7 @@ func main() {
 	http.DefaultTransport.(*http.Transport).TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
 
 	// Start the CLI recipe cells
-	f := factory_service.StartCellFactory(env, nil)
+	f := factory_service.NewCellFactory(env, nil)
 	r, err := consumerrecipe.StartConsumerRecipe(f, false)
 	if err != nil {
 		os.Exit(1)
@@ -135,6 +135,7 @@ func main() {
 
 	app.SetRequestSink(r)
 	r.SetNotificationSink(app)
+	f.Start()
 
 	switch cmd {
 	case CmdDiscover, "disco":

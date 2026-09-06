@@ -13,4 +13,7 @@ const DefaultBackoffLimit = time.Minute * 5
 
 type IReconnect interface {
 	api.IHiveCell
+
+	// Get the connection status of the linked transport client
+	GetConnectionStatus() api.ConnectionStatus
 }

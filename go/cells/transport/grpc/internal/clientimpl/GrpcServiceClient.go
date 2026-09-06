@@ -1,4 +1,4 @@
-package internal
+package clientimpl
 
 import (
 	"context"
@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/hiveot/hivekit/go/api"
+	"github.com/hiveot/hivekit/go/cells/transport/grpc/internal"
 	"github.com/teris-io/shortid"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
@@ -63,7 +64,7 @@ type GrpcServiceClient struct {
 	serviceDesc grpc.ServiceDesc
 
 	// buffered stream wrapper around the gRPC streams by stream name (from serviceDesc)
-	streams map[string]*BufferedStream
+	streams map[string]*internal.BufferedStream
 
 	// If a certificate was provided then this contains the caCert and optionally the clientCert
 	tlsConfig *tls.Config
@@ -116,7 +117,7 @@ func (cl *GrpcServiceClient) Connect() (err error) {
 	// this is a codec per-call, hence use WithDefaultCallOptions
 	// TODO: for use with http2 see also https://github.com/grpc/grpc/blob/master/doc/PROTOCOL-HTTP2.md#requests
 	// which seems to want base64 encoding. Not a concern right now.
-	codec := JsonCodec{}
+	codec := internal.JsonCodec{}
 	encoding.RegisterCodec(codec) // FIXME: race condition?
 
 	codecOption := grpc.WithDefaultCallOptions(grpc.CallContentSubtype(codec.Name()))
@@ -137,7 +138,7 @@ func (cl *GrpcServiceClient) Connect() (err error) {
 // 'name' is the registered server stream name (eg, 'notification', or 'request/response')
 //
 // This returns the buffered stream or an error if failed
-func (cl *GrpcServiceClient) ConnectStream(name string) (*BufferedStream, error) {
+func (cl *GrpcServiceClient) ConnectStream(name string) (*internal.BufferedStream, error) {
 
 	// Create the messaging stream
 	ctx, cancelFn := context.WithCancel(context.Background())
@@ -165,7 +166,7 @@ func (cl *GrpcServiceClient) ConnectStream(name string) (*BufferedStream, error)
 	}
 
 	// use buffered stream for sending and receiving
-	bufferedStream := OpenBufferedStream(stream, cancelFn, cl.recvHandler, cl.respTimeout)
+	bufferedStream := internal.OpenBufferedStream(stream, cancelFn, cl.recvHandler, cl.respTimeout)
 
 	cl.mux.Lock()
 	defer cl.mux.Unlock()
@@ -184,7 +185,7 @@ func (cl *GrpcServiceClient) GetRequestMetadata(ctx context.Context, uri ...stri
 }
 
 // GetStream returns the stream with the given name or an error if not found
-func (cl *GrpcServiceClient) GetStream(name string) (*BufferedStream, error) {
+func (cl *GrpcServiceClient) GetStream(name string) (*internal.BufferedStream, error) {
 	cl.mux.RLock()
 	defer cl.mux.RUnlock()
 	strm, _ := cl.streams[name]
@@ -246,16 +247,17 @@ func (cl *GrpcServiceClient) WaitUntilDisconnect(name string) error {
 	return err
 }
 
-// Start a client for the GRPC transport.
-// This still needs a call to authenticate and connect.
+// Return a ready-to-use client for the GRPC transport.
+//
+// This still needs a call to authenticate and Connect or Start.
 //
 // Note that ipv4 scheme isnt supported by go-gRPC. Simply omit the scheme.
 //
-// > cl := StartGrpcServiceClient("unix:///var/app.sock", nil, time.Minute, "service1", onClientMessage)
+// > cl := NewGrpcServiceClient("unix:///var/app.sock", nil, time.Minute, "service1", onClientMessage)
 // or
-// > cl := StartGrpcServiceClient("dns:///address:8899", caCert, time.Minute, "service1", onClientMessage)
+// > cl := NewGrpcServiceClient("dns:///address:8899", caCert, time.Minute, "service1", onClientMessage)
 // or
-// > cl := StartGrpcServiceClient("127.0.0.1:8899", caCert, time.Minute, "service1", onClientMessage)
+// > cl := NewGrpcServiceClient("127.0.0.1:8899", caCert, time.Minute, "service1", onClientMessage)
 // >
 // > cl.SetAuthToken(clientID,authToken)
 // > cl.Connect()
@@ -268,7 +270,7 @@ func (cl *GrpcServiceClient) WaitUntilDisconnect(name string) error {
 // respTimeout is used when creating the buffered stream
 // serviceName is provided by the application and must match the server.
 // msgHandler is the callback with received messages
-func StartGrpcServiceClient(
+func NewGrpcServiceClient(
 	connectURI string,
 	clientID string, authToken string,
 	clientCert *tls.Certificate, rootCAs *x509.CertPool,
@@ -328,7 +330,7 @@ func StartGrpcServiceClient(
 		recvHandler:  msgHandler,
 		respTimeout:  respTimeout,
 		serviceDesc:  serviceDesc,
-		streams:      make(map[string]*BufferedStream),
+		streams:      make(map[string]*internal.BufferedStream),
 	}
 	return cl
 }

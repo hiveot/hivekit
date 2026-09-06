@@ -6,13 +6,13 @@ import (
 	"github.com/hiveot/hivekit/go/cells/bucketstore/internal"
 )
 
-// StartBucketStoreService returns a new bucket store service
+// NewBucketStoreService returns a new ready-to-use bucket store service
 // Intended to be used as a local or remote accessible storage facility.
 // See also StartCursorCache() to manage cursor lifecycle for remote use.
 //
 //	location is the storage directory
 //	storeType is the backend type, eg BackendInMemory, BackendKVBTree, BackendPebble,...
-func StartBucketStoreService(
+func NewBucketStoreService(
 	location string, storeType string) (bucketstore.IBucketStoreService, error) {
 
 	// if location == "" {
@@ -29,7 +29,7 @@ func StartBucketStoreService(
 	// 	return nil, err
 	// }
 
-	svc, err := internal.StartBucketServiceImpl(location, storeType)
+	svc, err := internal.NewBucketServiceImpl(location, storeType)
 	return svc, err
 }
 
@@ -39,13 +39,14 @@ func StartBucketStoreServiceFactory(f api.ICellFactory, md *api.CellDefinition) 
 
 	location := f.GetEnvironment().GetStorageDir(bucketstore.BucketStoreCellType)
 	// TODO: support configuration of storage type (default is pebble)
-	svc, err := StartBucketStoreService(location, bucketstore.BackendKVBTree)
+	svc, err := NewBucketStoreService(location, bucketstore.BackendKVBTree)
 	return svc, err
 }
 
-// StartCursorCache manages a set of cursors that can be addressed remotely by key.
+// NewCursorCache returns a ready-to-use cache for managing a set of cursors that can be
+// addressed remotely by key.
 // Intended for servers that let remote clients iterate a cursor in the bucket store.
 // Call Stop to end the background process and free resources.
-func StartCursorCache() bucketstore.ICursorCache {
-	return internal.StartCursorCache()
+func NewCursorCache() bucketstore.ICursorCache {
+	return internal.NewCursorCache()
 }

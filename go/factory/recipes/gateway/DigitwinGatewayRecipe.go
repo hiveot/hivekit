@@ -51,7 +51,7 @@ var DigitwinGatewayRecipeCells = []api.CellDefinition{
 		// http server is needed by websocket transport server
 		// It uses the factory registered authenticator.
 		Type:        api.HttpServerCellType,
-		Constructor: tls_server.StartTLSServerFactory,
+		Constructor: tls_server.NewTLSServerFactory,
 	},
 	// --- nested recipe with the servers operating in parallel
 	{
@@ -62,7 +62,7 @@ var DigitwinGatewayRecipeCells = []api.CellDefinition{
 			{
 				// http-basic transport server
 				Type:        httpbasic.HttpBasicServerCellType,
-				Constructor: httpbasic_server.StartHttpBasicServerFactory,
+				Constructor: httpbasic_server.NewHttpBasicServerFactory,
 			},
 			{
 				// Websocket transport server
@@ -77,7 +77,7 @@ var DigitwinGatewayRecipeCells = []api.CellDefinition{
 			{
 				// Hiveot gRPC
 				Type:        grpc.HiveotGrpcServerCellType,
-				Constructor: grpc_server.StartHiveotGrpcServerFactory,
+				Constructor: grpc_server.NewHiveotGrpcServerFactory,
 			},
 			// {
 			// 	// MQTT server
@@ -94,7 +94,7 @@ var DigitwinGatewayRecipeCells = []api.CellDefinition{
 	{
 		// logging of requests
 		Type:        logging.LoggingServiceCellType,
-		Constructor: logging_service.StartLoggingServiceFactory,
+		Constructor: logging_service.NewLoggingServiceFactory,
 	},
 	{
 		// Authentication handler and service
@@ -104,13 +104,13 @@ var DigitwinGatewayRecipeCells = []api.CellDefinition{
 	{
 		// Authorization
 		Type:        authz.AuthzServiceCellType,
-		Constructor: authz_service.StartAuthzServiceFactory,
+		Constructor: authz_service.NewAuthzServiceFactory,
 	},
 
 	{
 		// request and notification history storage
 		Type:        history.HistoryServiceCellType,
-		Constructor: history_service.StartHistoryServiceFactory,
+		Constructor: history_service.NewHistoryServiceFactory,
 	},
 	{
 		// Directory service
@@ -125,13 +125,13 @@ var DigitwinGatewayRecipeCells = []api.CellDefinition{
 
 	{
 		Type:        digitwin.DigitwinCellType,
-		Constructor: digitwin_service.StartDigitwinServiceFactory,
+		Constructor: digitwin_service.NewDigitwinServiceFactory,
 	},
 	{
 		// Router service for routing requests to devices
 		// this requires a directory client or service.
 		Type:        router.RouterCellType,
-		Constructor: router_service.StartRouterServiceFactory,
+		Constructor: router_service.NewRouterServiceFactory,
 	},
 
 	// todo: optional logging of requests
@@ -140,6 +140,8 @@ var DigitwinGatewayRecipeCells = []api.CellDefinition{
 
 // StartDigitwinGatewayRecipe creates a recipe for an IoT gateway that
 // serves digital twins of devices.
+//
+// Invoke Start on the factory to run the application.
 //
 // Intended as the central connection point for consumers, services, RC devices,
 // and external devices whose TD exists in the directory.
@@ -169,7 +171,7 @@ var DigitwinGatewayRecipeCells = []api.CellDefinition{
 func StartDigitwinGatewayRecipe(f api.ICellFactory) (api.IRecipe, error) {
 
 	chain := DigitwinGatewayRecipeCells
-	r, err := factory_service.StartChainFormation(f, chain, nil)
+	r, err := factory_service.NewChainFormation(f, chain, nil)
 
 	return r, err
 }

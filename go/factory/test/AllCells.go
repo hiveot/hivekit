@@ -76,16 +76,16 @@ var HiveKitAllCells = []api.CellDefinition{
 	// gRPC transport
 	{
 		Type:        grpctransport.HiveotGrpcClientCellType,
-		Constructor: grpc_client.StartHiveotGrpcClientFactory,
+		Constructor: grpc_client.NewHiveotGrpcClientFactory,
 	},
 	{
 		Type:        grpctransport.HiveotGrpcServerCellType,
-		Constructor: grpc_server.StartHiveotGrpcServerFactory,
+		Constructor: grpc_server.NewHiveotGrpcServerFactory,
 	},
 	// http server provider
 	{
 		Type:        api.HttpServerCellType,
-		Constructor: tls_server.StartTLSServerFactory,
+		Constructor: tls_server.NewTLSServerFactory,
 	},
 	// http-basic transport
 	// {
@@ -94,7 +94,7 @@ var HiveKitAllCells = []api.CellDefinition{
 	// },
 	{
 		Type:        httpbasic.HttpBasicServerCellType,
-		Constructor: httpbasic_server.StartHttpBasicServerFactory,
+		Constructor: httpbasic_server.NewHttpBasicServerFactory,
 	},
 	// sse-sc transport
 	{
@@ -103,12 +103,12 @@ var HiveKitAllCells = []api.CellDefinition{
 	},
 	{
 		Type:        ssesc.SseScClientCellType,
-		Constructor: ssesc_client.StartSseScClientFactory,
+		Constructor: ssesc_client.NewSseScClientFactory,
 	},
 	// wss transport for hiveot RRN messaging
 	{
 		Type:        wss.HiveotWebsocketClientCellType,
-		Constructor: wss_client.StartHiveotWssClientFactory,
+		Constructor: wss_client.NewHiveotWssClientFactory,
 	},
 	{
 		Type:        wss.HiveotWebsocketServerCellType,
@@ -146,7 +146,7 @@ var HiveKitAllCells = []api.CellDefinition{
 	// authorization provider
 	{
 		Type:        authz.AuthzServiceCellType,
-		Constructor: authz_service.StartAuthzServiceFactory,
+		Constructor: authz_service.NewAuthzServiceFactory,
 	},
 	// bucket store as a service
 	{
@@ -156,7 +156,7 @@ var HiveKitAllCells = []api.CellDefinition{
 	// certs service
 	{
 		Type:        certs.CertsServiceCellType,
-		Constructor: certs_service.StartCertsServiceFactory,
+		Constructor: certs_service.NewCertsServiceFactory,
 	},
 	// InitFactoryCerts ensure the factory has certificates needed to run.
 	{
@@ -172,7 +172,7 @@ var HiveKitAllCells = []api.CellDefinition{
 	// digitwin service
 	{
 		Type:        digitwin.DigitwinCellType,
-		Constructor: digitwin_service.StartDigitwinServiceFactory,
+		Constructor: digitwin_service.NewDigitwinServiceFactory,
 	},
 	// directory service
 	{
@@ -181,12 +181,12 @@ var HiveKitAllCells = []api.CellDefinition{
 	},
 	{
 		Type:        directory.DirectoryClientCellType,
-		Constructor: directory_client.StartDirectoryClientFactory,
+		Constructor: directory_client.NewDirectoryClientFactory,
 	},
 	// history service provider
 	{
 		Type:        history.HistoryServiceCellType,
-		Constructor: history_service.StartHistoryServiceFactory,
+		Constructor: history_service.NewHistoryServiceFactory,
 	},
 	{
 		Type:        history.ReadHistoryClientCellType,
@@ -195,17 +195,17 @@ var HiveKitAllCells = []api.CellDefinition{
 	// logging service provider
 	{
 		Type:        logging.LoggingServiceCellType,
-		Constructor: logging_service.StartLoggingServiceFactory,
+		Constructor: logging_service.NewLoggingServiceFactory,
 	},
 	// auto-reconnect client
 	{
 		Type:        reconnect.ReconnectCellType,
-		Constructor: reconnect_service.StartReconnectFactory,
+		Constructor: reconnect_service.NewReconnectServiceFactory,
 	},
 	// router service provider
 	{
 		Type:        router.RouterCellType,
-		Constructor: router_service.StartRouterServiceFactory,
+		Constructor: router_service.NewRouterServiceFactory,
 	},
 	// vcache server provider
 	{

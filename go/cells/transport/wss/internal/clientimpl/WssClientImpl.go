@@ -358,15 +358,17 @@ func (cl *WssTransportClientImpl) SendResponse(resp *msg.ResponseMessage) error 
 	return err
 }
 
-// Start the client but do not yet connect.
+// Start connects the client.
 //
 // Intended for use by the factory as the factory provides a clientID/token or client
 // certificate.
 //
 // Most users will use Connect()
-func (cl *WssTransportClientImpl) Start() error {
+func (cl *WssTransportClientImpl) Start() {
 	err := cl.Connect()
-	return err
+	if err != nil {
+		slog.Error("Start: Connect error", "err", err.Error)
+	}
 }
 
 // Stop the client and disconnect if connected
@@ -374,15 +376,15 @@ func (cl *WssTransportClientImpl) Stop() {
 	cl.Close()
 }
 
-// NewHiveotWssTransportClient creates a new instance of the hiveot websocket client.
+// NewHiveotWssTransportClient creates a ready-to-use instance of the hiveot websocket client.
 //
 // This uses the highly efficient Hiveot passthrough message converter.
-// Users must use setAuthToken or SetClientCert to authenticate and Connect or Start
-// to establish the connection.
+// Users must use setAuthToken or SetClientCert to authenticate and Connect or Start to
+// establish the connection.
 //
 //	wssURL is the full websocket connection URL including path
 //	rootCAs are the CA's for TLS connection validation
-func StartHiveotWssClientImpl(
+func NewHiveotWssClientImpl(
 	wssURL string, rootCAs *x509.CertPool) *WssTransportClientImpl {
 
 	timeout := msg.DefaultRnRTimeout
@@ -399,10 +401,10 @@ func StartHiveotWssClientImpl(
 	return &cl
 }
 
-// NewWotWssTransportClient creates a new instance of the WoT compatible websocket client.
+// NewWotWssTransportClient creates a ready-to-use instance of the WoT compatible websocket client.
 //
-// Users must use setAuthToken or SetClientCert to authenticate and Connect or Start
-// to establish the connection.
+// Users must use setAuthToken or SetClientCert to authenticate and Connect or Start to establish
+// the connection.
 //
 //	wssURL is the full websocket connection URL
 //	caCerootCAs are the CA's for TLS connection validation

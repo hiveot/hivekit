@@ -17,7 +17,7 @@ import (
 func StartDiscoveryClient(
 	appEnv *api.HiveEnvironment, discoOnStart bool) (discovery.IDiscoveryClient, error) {
 
-	return clientimpl.StartDiscoveryClientImpl(appEnv, discoOnStart)
+	return clientimpl.NewDiscoveryClientImpl(appEnv, discoOnStart)
 }
 
 // StartDiscoveryClientFactory creates a new instance of a discovery client for

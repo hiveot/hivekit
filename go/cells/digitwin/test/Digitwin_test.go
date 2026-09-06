@@ -66,13 +66,13 @@ func startService() (
 	servers := []api.ITransportServer{testEnv.Server}
 	// httpAPI := directorypkg.NewDirectoryHttpServer(testEnv.HttpServer)
 
-	dir, err := directory_service.StartDirectoryService(
+	dir, err := directory_service.NewDirectoryService(
 		dirThingID, storageDir, testEnv.HttpServer, servers)
 	if err != nil {
 		panic("Failed to start directory server")
 	}
 	// the digitwin service to test, it will create its own vcache instance.
-	dtwSvc, err = digitwin_service.StartDigitwinService(storageDir, dir, appServer.AddTDSecForms)
+	dtwSvc, err = digitwin_service.NewDigitwinService(storageDir, dir, appServer.AddTDSecForms)
 	if err != nil {
 		panic("unable to start the digitwin service")
 	}
@@ -83,7 +83,7 @@ func startService() (
 	// The router uses the digitwin Thing Directory.
 	// getDeviceTD := dtw.GetDeviceDirectory().GetTD
 	clientID := testEnv.AppEnv.ClientID
-	rtr, err := router_service.StartRouterService(
+	rtr, err := router_service.NewRouterService(
 		storageDir, false, clientID, nil, //svc.clientCert, use SetClientCert if known
 		testEnv.CertBundle.RootCAs, rpcTimout,
 		dtwSvc.GetDeviceTD,
@@ -202,7 +202,7 @@ func TestReadDigitwinProperty(t *testing.T) {
 
 	// the digital twin will receive the readproperty request.
 	// the digitwin service should forward the read property downstream to the actual device, as the property is unknown.
-	downstream := thing.StartExposedThing("", func(req *msg.RequestMessage, replyTo msg.ResponseHandler) error {
+	downstream := thing.NewExposedThing("", func(req *msg.RequestMessage, replyTo msg.ResponseHandler) error {
 		if req.Operation == td.OpReadProperty {
 			if req.ThingID == deviceTD1.ID && req.Name == prop1Name {
 				resp := req.CreateResponse(prop1Value, nil)
@@ -326,7 +326,7 @@ func TestWriteDigitwinProperty(t *testing.T) {
 
 	// 4. Consumer reads the TD with its own directory client
 	dirTDD, _ := dir.GetTDD()
-	dirCoCl := directory_client.StartDirectoryClient(dirTDD, co)
+	dirCoCl := directory_client.NewDirectoryClient(dirTDD, co)
 	tdoc3, err := dirCoCl.RetrieveThing(dtwThing1ID)
 	require.NoError(t, err)
 	require.NotEmpty(t, tdoc3)

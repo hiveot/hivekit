@@ -127,7 +127,7 @@ func TestPingClientCert(t *testing.T) {
 
 // Test client returns UnauthorizedError when not authorized
 func TestUnauthorizedError(t *testing.T) {
-	fmt.Sprintf("---Test: %s %s---\n", t.Name(), testProtocol)
+	fmt.Printf("---Test: %s %s---\n", t.Name(), testProtocol)
 
 	testEnv, cancelFn := testenv.StartTestEnv(testProtocol, true)
 	defer cancelFn()
@@ -173,7 +173,7 @@ func TestUnauthorizedError(t *testing.T) {
 
 // Test getting server URL
 func TestServerURL(t *testing.T) {
-	fmt.Sprintf("---Test: %s %s---\n", t.Name(), testProtocol)
+	fmt.Printf("---Test: %s %s---\n", t.Name(), testProtocol)
 
 	testEnv, cancelFn := testenv.StartTestEnv(testProtocol, true)
 	defer cancelFn()
@@ -182,7 +182,7 @@ func TestServerURL(t *testing.T) {
 }
 
 func TestServerTD(t *testing.T) {
-	fmt.Sprintf("---Test: %s %s---\n", t.Name(), testProtocol)
+	fmt.Printf("---Test: %s %s---\n", t.Name(), testProtocol)
 
 	testEnv, cancelFn := testenv.StartTestEnv(testProtocol, true)
 	defer cancelFn()

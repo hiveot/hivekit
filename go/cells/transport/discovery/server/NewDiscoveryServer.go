@@ -10,9 +10,9 @@ import (
 	"github.com/hiveot/hivekit/go/cells/transport/discovery/internal/serverimpl"
 )
 
-// StartDiscoveryServer creates a new discovery server instance.
+// NewDiscoveryServer returns a ready-to-use discovery server instance.
 //
-// The optional instanceID is used both as the ThingID and as the instanceID
+// The optional serviceName is used both as the ThingID and as the instanceID
 // in the discovery record.
 //
 //	serviceName is the DNS-SD
@@ -20,15 +20,15 @@ import (
 //	tddJSON is the optional directory TDD as JSON to serve.
 //	endpoints are optional additional URLS to include in the DNS-SD discovery record
 //		 where key is the schema "http", "wss", "sse-sc" and value the URL.
-func StartDiscoveryServer(serviceName string,
+func NewDiscoveryServer(serviceName string,
 	httpServer api.IHttpServer,
 	tddJSON string,
 	endpoints map[string]string) (discovery.IDiscoveryServer, error) {
 
-	return serverimpl.StartDiscoveryServerImpl(serviceName, httpServer, tddJSON, endpoints)
+	return serverimpl.NewDiscoveryServerImpl(serviceName, httpServer, tddJSON, endpoints)
 }
 
-// Create a new instance of the discovery server using the factory environment.
+// Return a ready-to-use discovery server using the factory environment.
 //
 // When used in a cell chain together with a directory, this service must be placed
 // after the directory in the chain, so it can find the directory to get its TDD,
@@ -55,5 +55,5 @@ func NewDiscoveryServerFactory(f api.ICellFactory, md *api.CellDefinition) (api.
 	}
 	serviceName, _ := os.Hostname()
 	serviceName += ":" + f.GetEnvironment().AppID
-	return StartDiscoveryServer(serviceName, httpServer, tddJSON, endpoints)
+	return NewDiscoveryServer(serviceName, httpServer, tddJSON, endpoints)
 }

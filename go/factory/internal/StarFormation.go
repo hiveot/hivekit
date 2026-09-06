@@ -48,13 +48,6 @@ func (r *StarFormation) HandleRequest(req *msg.RequestMessage, replyTo msg.Respo
 	return r.HiveCellBase.HandleRequest(req, replyTo)
 }
 
-// Invoke Ready on all members of this formation
-func (r *StarFormation) Ready() {
-	for _, cell := range r.instances {
-		cell.Ready()
-	}
-}
-
 func (r *StarFormation) SetSlot(slotID string, modDef api.CellDefinition) error {
 	for i, md := range r.star {
 		if md.Type == slotID {
@@ -65,12 +58,12 @@ func (r *StarFormation) SetSlot(slotID string, modDef api.CellDefinition) error 
 	return fmt.Errorf("SetSlot: slot '%s' not found", slotID)
 }
 
-// StartStarFormation returns a formation with cells linked in a star.
+// NewStarFormation returns a ready-to-use formation with cells linked in a star.
 //
-// Call Ready when the application is ready to go. This calls Ready on all cells.
+// Call Start when the application is ready to go. This calls Start on all cells.
 //
 // This returns the star formation cell.
-func StartStarFormation(
+func NewStarFormation(
 	f api.ICellFactory, members []api.CellDefinition) (*StarFormation, error) {
 
 	r := &StarFormation{
@@ -86,12 +79,12 @@ func StartStarFormation(
 			r.f.RegisterCell(modDef)
 		}
 	}
-	// start cells in the defined order and link their notifications
+	// create cells in the defined order and link their notifications
 	for _, cellDef := range r.star {
-		member, err := r.f.StartCell(cellDef.Type, true)
-		// cell cant be started. This is fatal
+		member, err := r.f.NewCell(cellDef.Type, true)
+		// cell cant be created. This is fatal
 		if err != nil {
-			slog.Error("StartRecipe: starting cell failed. Shutting down",
+			slog.Error("NewStarFormation: creating cell failed. Shutting down",
 				"cellType", cellDef.Type, "err", err.Error())
 			r.Stop()
 			return nil, err

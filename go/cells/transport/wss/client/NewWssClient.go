@@ -9,34 +9,35 @@ import (
 	"github.com/hiveot/hivekit/go/cells/transport/wss/internal/clientimpl"
 )
 
-// NewHiveotClient creates a new instance of the hiveot websocket client
-// but does not connect yet. Authenticate and call Connect before use.
+// NewHiveotClient creates a ready-to-use hiveot websocket client but does not connect yet.
+// Authenticate and call Connect before use.
 //
 // This uses the Hiveot passthrough message converter.
 //
 //	wssURL is the full websocket connection URL including path
 //	rootCAs are the CA's for TLS connection validation
 //	ch is the connect/disconnect callback. nil to ignore
-func StartHiveotWssClient(wssURL string, rootCAs *x509.CertPool) api.ITransportClient {
+func NewHiveotWssClient(wssURL string, rootCAs *x509.CertPool) api.ITransportClient {
 
-	return clientimpl.StartHiveotWssClientImpl(wssURL, rootCAs)
+	return clientimpl.NewHiveotWssClientImpl(wssURL, rootCAs)
 }
 
-// Create a websocket client for the given factory environment
+// Create a ready-to-use websocket client for the given factory environment
+//
 // Intended for devices that use reverse connections or consumer applications that
 // use the factory. If the environment is setup with credentials then these are
 // used to provision the client connection.
 //
 // This returns a transport client or an error if a valid authentication is missing
 // Even with an error result authentication and 'Connect' can be called again.
-func StartHiveotWssClientFactory(
+func NewHiveotWssClientFactory(
 	f api.ICellFactory, md *api.CellDefinition) (api.IHiveCell, error) {
 
 	var err error
 
 	env := f.GetEnvironment()
 	wssURL := env.ServerURL
-	cl := StartHiveotWssClient(wssURL, env.GetRootCAs())
+	cl := NewHiveotWssClient(wssURL, env.GetRootCAs())
 	cl.SetTimeout(env.RpcTimeout)
 
 	// set client certificate if available

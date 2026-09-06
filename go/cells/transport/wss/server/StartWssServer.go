@@ -21,7 +21,7 @@ import (
 func StartHiveotWssServer(
 	httpServer api.IHttpServer, respTimeout time.Duration) (wss.IWssTransportServer, error) {
 
-	return serverimpl.StartHiveotWssServerImpl(httpServer, respTimeout)
+	return serverimpl.NewHiveotWssServerImpl(httpServer, respTimeout)
 }
 
 // Load the HiveOT websocket server using the factory environment
@@ -50,7 +50,7 @@ func StartHiveotWssServerFactory(
 func StartWotWssServer(
 	httpServer api.IHttpServer, respTimeout time.Duration) (wss.IWssTransportServer, error) {
 
-	return serverimpl.StartWotWssServerImpl(httpServer, respTimeout)
+	return serverimpl.NewWotWssServerImpl(httpServer, respTimeout)
 }
 
 // Load the Wot websocket server using the factory environment

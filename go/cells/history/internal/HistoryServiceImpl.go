@@ -52,7 +52,7 @@ func (svc *HistoryServiceImpl) HandleNotification(notif *msg.NotificationMessage
 }
 
 // Write TD when ready
-func (svc *HistoryServiceImpl) Ready() {
+func (svc *HistoryServiceImpl) Start() {
 	histTD := string(history.HistoryServiceTD)
 	svc.PublishTD(histTD)
 }
@@ -88,11 +88,11 @@ func (svc *HistoryServiceImpl) StoreRequest(req *msg.RequestMessage) error {
 	return err
 }
 
-// StartHistoryServiceImpl creates a new instance for the history service using the given
-// configuration.
+// NewHistoryServiceImpl creates a ready-to-use instance for the history service using the given
+// configuration. Call Start to publish the TD.
 //
 // A configuration can be created using: config.NewHistoryConfig(storeDirectory, backend)
-func StartHistoryServiceImpl(config history.HistoryConfig) (*HistoryServiceImpl, error) {
+func NewHistoryServiceImpl(config history.HistoryConfig) (*HistoryServiceImpl, error) {
 
 	var bucketStore bucketstore.IBucketStore
 	var err error
@@ -104,21 +104,21 @@ func StartHistoryServiceImpl(config history.HistoryConfig) (*HistoryServiceImpl,
 	case bucketstore.BackendKVBTree:
 		bucketStore, err = kvbtreestore.OpenKVBTreeStore(config.StoreDirectory)
 	default:
-		err = fmt.Errorf("Start: Unknown bucket store backend type '%s'", config.Backend)
+		err = fmt.Errorf("NewHistoryServiceImpl: Unknown bucket store backend type '%s'", config.Backend)
 	}
 	if err != nil {
 		return nil, err
 	}
 
-	slog.Info("Start: Starting history service with backend " + config.Backend)
+	slog.Info("NewHistoryServiceImpl: Starting history service with backend " + config.Backend)
 	// Messaging API handler for reading the history
 	// m.readHistoryMsgHandler = NewReadHistoryMsgHandler(m)
 
 	svc := &HistoryServiceImpl{
-		ExposedThing:   thing.StartExposedThing(thingID, nil),
+		ExposedThing:   thing.NewExposedThing(thingID, nil),
 		bucketStore:    bucketStore,
 		cursorLifespan: time.Minute,
-		cursorCache:    bucketstoreservice.StartCursorCache(),
+		cursorCache:    bucketstoreservice.NewCursorCache(),
 		config:         config,
 	}
 	// m.config = NewHistoryConfig()

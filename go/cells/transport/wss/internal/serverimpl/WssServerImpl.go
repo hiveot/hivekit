@@ -140,14 +140,15 @@ func (srv *WssServerImpl) Stop() {
 	router.Delete(srv.wssPath, srv.ServeWssConnection)
 }
 
-// StartHiveotWssServerImpl starts a websocket server for serving HiveOT websocket
-// connections from consumers and devices.
+// NewHiveotWssServerImpl starts a ready-to-use websocket server for serving
+// HiveOT websocket connections from consumers and devices.
 //
-// httpServer is the http server the websocket is using
+// httpServer is the http server the websocket is using.
+// This immediately starts listening for connections.
 //
 // Use SetRequestSink to set the handler for requests send by consumers
 // Use SetNotificationSink to set the handler for notifications send by devices.
-func StartHiveotWssServerImpl(
+func NewHiveotWssServerImpl(
 	httpServer api.IHttpServer, respTimeout time.Duration) (*WssServerImpl, error) {
 
 	if httpServer == nil {
@@ -194,16 +195,20 @@ func StartHiveotWssServerImpl(
 	return srv, err
 }
 
-// Create a websocket transport server using WoT messaging format.
+// NewWotWssServerImpl starts a ready-to-use websocket transport server using WoT
+// messaging format.
+//
 // This uses the WoT websocket protocol message converter to convert between
 // the standard RRN messages and the WoT websocket message format.
+//
+// This immediately starts listening for connections.
 //
 // httpServer is the http server the websocket is using
 // respTimeout is the time the server waits for a response when receiving requests. defaults to 3sec
 //
 // Use SetRequestSink to set the handler for requests send by consumers
 // Use SetNotificationSink to set the handler for notifications send by devices.
-func StartWotWssServerImpl(
+func NewWotWssServerImpl(
 	httpServer api.IHttpServer, respTimeout time.Duration) (*WssServerImpl, error) {
 
 	if httpServer == nil {

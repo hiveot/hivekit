@@ -8,7 +8,7 @@ import (
 	"github.com/hiveot/hivekit/go/cells/transport/grpc/internal/clientimpl"
 )
 
-// StartHiveotGrpcClient creates a hiveot gRPC transport client.
+// NewHiveotGrpcClient returns a ready-to-use hiveot gRPC transport client.
 //
 // Authenticate and call Connect before use.
 //
@@ -18,14 +18,15 @@ import (
 // Use SetTimeout to change the default response timeout
 // Use SetRequestSink to set the handler for requests send by consumers
 // Use SetNotificationSink to set the handler for notifications send by exposed things.
-func StartHiveotGrpcClient(
+func NewHiveotGrpcClient(
 	addr string, rootCAs *x509.CertPool) api.ITransportClient {
 
-	return clientimpl.StartGrpcClientImpl(addr, rootCAs)
+	return clientimpl.NewGrpcClientImpl(addr, rootCAs)
 }
 
-// Create a hiveot gRPC client using the factory
-func StartHiveotGrpcClientFactory(
+// NewHiveotGrpcClientFactory returns a ready-to-use hiveot gRPC client using
+// the cell factory for the client ID and auth certificate or auth token.
+func NewHiveotGrpcClientFactory(
 	f api.ICellFactory, md *api.CellDefinition) (api.IHiveCell, error) {
 
 	var err error
@@ -34,7 +35,7 @@ func StartHiveotGrpcClientFactory(
 	clientCert, _ := env.GetClientCert()
 	serverURL := env.ServerURL
 
-	m := StartHiveotGrpcClient(serverURL, env.GetRootCAs())
+	m := NewHiveotGrpcClient(serverURL, env.GetRootCAs())
 	m.SetTimeout(env.RpcTimeout)
 
 	// if client certificate not available attempt auth token

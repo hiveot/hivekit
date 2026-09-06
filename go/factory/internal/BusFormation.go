@@ -84,13 +84,6 @@ func (r *BusFormation) HandleRequest(req *msg.RequestMessage, replyTo msg.Respon
 	return r.ForwardRequest(req, replyTo)
 }
 
-// Invoke Ready on all members of this formation
-func (r *BusFormation) Ready() {
-	for _, cell := range r.instances {
-		cell.Ready()
-	}
-}
-
 // Update the member's sink for notifications from the bus.
 func (r *BusFormation) SetNotificationSink(sink api.IHiveCell, thingIDs ...string) {
 	for _, member := range r.instances {
@@ -112,8 +105,11 @@ func (r *BusFormation) SetSlot(slotID string, modDef api.CellDefinition) error {
 	return fmt.Errorf("todo")
 }
 
-// Create a new bus formation with an array of cells
-func StartBusFormation(
+// Return a ready-to-use bus formation with an array of cells.
+// Call Start() on the factory to activate autonomous processes and publications.
+//
+// If cells fail to be created then this continues without the failed cell.
+func NewBusFormation(
 	f api.ICellFactory, modDefs []api.CellDefinition) (*BusFormation, error) {
 	thingID := "StartBusFormation-" + shortid.MustGenerate()
 	r := &BusFormation{
@@ -129,16 +125,16 @@ func StartBusFormation(
 			r.f.RegisterCell(modDef)
 		}
 	}
-	// start and link cells in the defined order
+	// create and link cells in the defined order
 	busNotifSink := r.GetNotificationSink()
 	busReqSink := r.GetRequestSink()
 	r.instances = make([]api.IHiveCell, 0, len(r.modDefs))
 
 	for _, cellDef := range r.modDefs {
-		member, err := r.f.StartCell(cellDef.Type, true)
-		// cell cant be started. This is not fatal
+		member, err := r.f.NewCell(cellDef.Type, true)
+		// cell cant be created. This is not fatal in a bus.
 		if err != nil {
-			slog.Error("BusRecipe: starting cell failed. Not fatal but this might not work as expected",
+			slog.Error("NewBusFormation: creating cell failed. Not fatal but this might not work as expected",
 				"cellType", cellDef.Type, "err", err.Error())
 			// m.Stop()
 			// return err

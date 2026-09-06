@@ -35,7 +35,7 @@ func main() {
 	env.CreateDir(env.LogsDir, 0750)
 	utils.SetLogging(env.LogLevel, path.Join(env.LogsDir, "example3.log"))
 
-	f := factory_service.StartCellFactory(env, nil)
+	f := factory_service.NewCellFactory(env, nil)
 	r, err := consumer_recipe.StartConsumerRecipe(f, false)
 	if err != nil {
 		os.Exit(1)
@@ -53,7 +53,7 @@ func main() {
 	app.SetRequestSink(r)
 	r.SetNotificationSink(app)
 	// signal the app is ready to go and all cells are linked
-	r.Ready()
+	f.Start()
 
 	app.Start()
 	if err != nil {

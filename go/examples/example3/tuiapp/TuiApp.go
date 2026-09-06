@@ -12,6 +12,7 @@ import (
 	"github.com/hiveot/hivekit/go/api/td"
 	"github.com/hiveot/hivekit/go/cells/consumer"
 	"github.com/hiveot/hivekit/go/cells/directory"
+	directory_client "github.com/hiveot/hivekit/go/cells/directory/client"
 	"github.com/hiveot/hivekit/go/cells/transport/discovery"
 	"github.com/hiveot/hivekit/go/cells/vcache"
 	"github.com/hiveot/hivekit/go/utils"
@@ -41,6 +42,15 @@ const (
 	MenuEvQuit            = "quit"
 )
 
+// DirInfo is the discovered directory information
+type DirectoryInfo struct {
+	thingID string
+	title   string
+	tdd     *td.TD
+	// the client/cache with directory content, if any
+	dirClient directory.IDirectoryClient
+}
+
 // The main application view with panels for header, menu main view and footer
 // - header shows the current status
 // - menu shows quick actions for discovery and viewing TDs
@@ -51,17 +61,24 @@ type TuiApp struct {
 	*consumer.Consumer // for linking
 
 	co *consumer.Consumer
+
+	// client for discovery
+	discoClient discovery.IDiscoveryClient
+	// discovered directories by directory ThingID
+	discoDirs []DirectoryInfo
 	// cache for discovered things
-	dirCl   directory.IDirectoryClient
-	discoCl discovery.IDiscoveryClient
-	vcache  vcache.IValueCacheService
+	discoThings map[string]*td.TD
+	// cache with TDs of all things, including discovered things and directories
+	allThings directory.IDirectoryClient
+	// cache for read values
+	vcache vcache.IValueCacheService
 
 	// discovered directories
-	dirTDs []*td.TD
+	// dirTDs []*td.TD
 	// dirRecs   []*discovery.DiscoveryResult
 	// thingRecs []*discovery.DiscoveryResult
 
-	// View pages
+	//--- View pages
 	menu *TreeMenu
 
 	pages *tview.Pages
@@ -92,19 +109,19 @@ func (tuiApp *TuiApp) handleEvent(args ...string) {
 		tuiApp.ShowDiscovery()
 		tuiApp.StartDiscovery()
 
-	case MenuEvListTDs:
-		allThings := tuiApp.dirCl.Cache().GetAllThings(0, 100)
-		// if len(tui.allThings) > 0 {
-		tuiApp.thingsPage.Refresh(allThings)
-		tuiApp.QueueSwitchToPage(PageThings)
-		// }
+	// case MenuEvListTDs:
+	// 	allThings := tuiApp.dirCl.Cache().GetAllThings(0, 100)
+	// 	// if len(tui.allThings) > 0 {
+	// 	tuiApp.thingsPage.Refresh(allThings)
+	// 	tuiApp.QueueSwitchToPage(PageThings)
+	// 	// }
 
-	case MenuEvNextPage:
-		allThings := tuiApp.dirCl.Cache().GetAllThings(0, 100)
-		if len(allThings) > 0 {
-			tuiApp.NextPage()
-			tuiApp.SetFocus(tuiApp.pages)
-		}
+	// case MenuEvNextPage:
+	// 	allThings := tuiApp.dirCl.Cache().GetAllThings(0, 100)
+	// 	if len(allThings) > 0 {
+	// 		tuiApp.NextPage()
+	// 		tuiApp.SetFocus(tuiApp.pages)
+	// 	}
 
 	case MenuEvShowDiscovered:
 		tuiApp.ShowDiscovery()
@@ -210,8 +227,12 @@ func (tuiApp *TuiApp) SelectTD(thingID string) {
 }
 
 func (tuiApp *TuiApp) ShowDirectories() {
+	dirTDs := make([]*td.TD, 0, len(tuiApp.discoDirs))
+
 	tuiApp.mux.RLock()
-	dirTDs := tuiApp.dirTDs
+	for _, dirInfo := range tuiApp.discoDirs {
+		dirTDs = append(dirTDs, dirInfo.tdd)
+	}
 	tuiApp.mux.RUnlock()
 
 	tuiApp.directoriesPage.Refresh(dirTDs)
@@ -233,11 +254,25 @@ func (tuiApp *TuiApp) ShowError(err error) {
 }
 
 // Show the TD page with the thingID details
-// This subscribes to properties and events
+// This reads and subscribes to properties and events
 func (tuiApp *TuiApp) ShowTD(thingID string) {
 	tuiApp.QueueSwitchToPage(PageTD)
 
-	tdoc := tuiApp.dirCl.Cache().GetThing(thingID)
+	// locate the TD from discovered things and directories
+	tdoc := tuiApp.allThings.Cache().GetThing(thingID)
+	if tdoc == nil {
+		for _, dirInfo := range tuiApp.discoDirs {
+			if dirInfo.thingID == thingID {
+				tdoc = dirInfo.tdd
+				break
+			}
+		}
+	}
+	if tdoc == nil {
+		err := fmt.Errorf("TD document not found for Thing '%s'", thingID)
+		tuiApp.ShowError(err)
+		return
+	}
 	props, err := tuiApp.co.ReadAllProperties(thingID)
 	if err != nil {
 		tuiApp.tdPage.Refresh(thingID, tdoc, nil, nil)
@@ -254,9 +289,10 @@ func (tuiApp *TuiApp) ShowTD(thingID string) {
 
 // Show the loaded things in the main view
 func (tuiApp *TuiApp) ShowThings() {
-	allThings := tuiApp.dirCl.Cache().GetAllThings(0, 100)
+	// convert map to list
+	allTDs := tuiApp.allThings.Cache().GetAllThings(0, 1000)
 
-	tuiApp.thingsPage.Refresh(allThings)
+	tuiApp.thingsPage.Refresh(allTDs)
 	tuiApp.QueueSwitchToPage(PageThings)
 }
 
@@ -271,44 +307,53 @@ func (tuiApp *TuiApp) StartDiscovery() {
 
 		// TODO use a callback to update UI as results come in
 		dirRecs, dirTDs, deviceRecs, deviceTDs :=
-			tuiApp.discoCl.DiscoverThingTDs("", time.Second*2, nil)
+			tuiApp.discoClient.DiscoverThingTDs("", time.Second*2, nil)
 
-		// add all device TDs to the directory client cache
+		// add all local device TDs to the Thing cache
 		for _, tdoc := range deviceTDs {
 			if tdoc != nil {
-				tuiApp.dirCl.Cache().ImportTD(tdoc)
+				tuiApp.allThings.Cache().ImportTD(tdoc)
+				tuiApp.discoThings[tdoc.ID] = tdoc
 			}
 		}
-		// update the directory and discover things
-		if len(dirTDs) > 0 {
-			tuiApp.dirCl.SetTDD(dirTDs[0])
-		}
+		// update discovered directories and load their TD
 		for _, dirTD := range dirTDs {
-			if dirTD != nil {
-				tuiApp.dirCl.SetTDD(dirTD)
-				tuiApp.dirCl.RetrieveAllThings(0, 100)
+			dirInfo := DirectoryInfo{
+				thingID:   dirTD.ID,
+				title:     dirTD.Title,
+				tdd:       dirTD,
+				dirClient: directory_client.NewDirectoryClient(dirTD, tuiApp),
 			}
+			tuiApp.allThings.Cache().ImportTD(dirTD)
+			tuiApp.discoDirs = append(tuiApp.discoDirs, dirInfo)
+			// try to load the directory content
+			dirThings, _ := dirInfo.dirClient.RetrieveAllThings(0, 100)
+			for _, tdoc := range dirThings {
+				tuiApp.allThings.Cache().ImportTD(tdoc)
+			}
+
 		}
 
-		tuiApp.mux.Lock()
-		tuiApp.dirTDs = dirTDs
-		tuiApp.mux.Unlock()
+		// tuiApp.mux.Lock()
+		// tuiApp.dirTDs = dirTDs
+		// tuiApp.mux.Unlock()
 
-		allThings := tuiApp.dirCl.Cache().GetAllThings(0, 100)
+		allTDs := tuiApp.allThings.Cache().GetAllThings(0, 1000)
+
 		tuiApp.QueueUpdateDraw(func() {
-			tuiApp.header.Refresh(dirRecs, allThings)
-			tuiApp.footer.Refresh(allThings)
+			tuiApp.header.Refresh(dirRecs, allTDs)
+			tuiApp.footer.Refresh(allTDs)
 			tuiApp.discoPage.Refresh(dirRecs, deviceRecs)
-			tuiApp.menu.Refresh(dirTDs, tuiApp.dirCl.Cache())
-			tuiApp.thingsPage.Refresh(allThings)
+			tuiApp.menu.Refresh(tuiApp.discoDirs, tuiApp.discoThings)
+			tuiApp.thingsPage.Refresh(allTDs)
 			tuiApp.directoriesPage.Refresh(dirTDs)
 
 		})
 	}()
 }
 
-// Start the application
-func (tuiApp *TuiApp) Start() error {
+// Run the application autonomous processes
+func (tuiApp *TuiApp) Start() {
 
 	// vcache collects received notifications
 	// tuiApp.vcache = tuiApp.GetVCache()
@@ -345,18 +390,18 @@ func (tuiApp *TuiApp) Start() error {
 	go tuiApp.StartDiscovery()
 	tuiApp.ShowDiscovery()
 
-	err := tuiApp.Application.Run()
-	return err
+	tuiApp.Application.Run()
 }
 
-// Create a new instance of the tui app
+// Return a new instance of the tui app.
+// Call Start to run.
 func NewTuiApp(f api.ICellFactory) *TuiApp {
 
 	// adjust color scheme
 	tview.Styles.TitleColor = tcell.ColorGreen
 	tview.Styles.TertiaryTextColor = tcell.ColorWhite
 
-	co := consumer.StartConsumer(nil, nil)
+	co := consumer.NewConsumer(nil, nil)
 
 	header := NewAppHeader()
 	header.View.SetBorderColor(tcell.ColorDarkGray)
@@ -386,17 +431,24 @@ func NewTuiApp(f api.ICellFactory) *TuiApp {
 		AddItem(pages, 1, 1, 1, 1, 0, 0, true).
 		AddItem(footer.View, 2, 0, 1, 2, 0, 0, false)
 
-	discoCl := api.GetFactoryCell[discovery.IDiscoveryClient](
+	discoClient := api.GetFactoryCell[discovery.IDiscoveryClient](
 		f, discovery.DiscoveryClientCellType)
+	// allThings will hold *all* discovered and loaded TDs
 	dirCl := api.GetFactoryCell[directory.IDirectoryClient](
 		f, directory.DirectoryClientCellType)
+	_ = dirCl // this might not be needed?
 
 	tuiApp := &TuiApp{
 		Application: *tview.NewApplication(),
 		Consumer:    co,
 		co:          co,
-		discoCl:     discoCl,
-		dirCl:       dirCl,
+		discoClient: discoClient,
+		// cache of discovered directories
+		discoDirs: make([]DirectoryInfo, 0),
+		// cache of locally discovered things
+		discoThings: make(map[string]*td.TD),
+		// cache of all discovered and directory things
+		allThings: dirCl,
 
 		// grid layout
 		grid:   grid,

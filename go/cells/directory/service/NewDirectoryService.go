@@ -6,7 +6,7 @@ import (
 	"github.com/hiveot/hivekit/go/cells/directory/internal/serviceimpl"
 )
 
-// StartDirectoryService starts a new Thing directory service instance.
+// NewDirectoryService returns a ready-to-use Thing directory service instance.
 // This opens or creates a directory in the provided storage directory.
 //
 // To expose the http API create the DirectoryHttpHandler and include it as the first transport
@@ -16,11 +16,11 @@ import (
 //	location is the location where the service stores its data. Use "" for testing with an in-memory store.
 //	httpServer is used to expose the directory TDD on the well-known path.
 //	transports is a list of transports that should be included in the TDD security and forms
-func StartDirectoryService(
+func NewDirectoryService(
 	thingID string, storageDir string, httpServer api.IHttpServer,
 	transports []api.ITransportServer) (directory.IDirectoryService, error) {
 
-	svc, err := serviceimpl.StartDirectoryServiceImpl(
+	svc, err := serviceimpl.NewDirectoryServiceImpl(
 		thingID, storageDir, httpServer, transports)
 
 	return svc, err
@@ -43,6 +43,6 @@ func StartDirectoryServiceFactory(f api.ICellFactory, md *api.CellDefinition) (a
 	transportMods := f.GetTransportServers()
 
 	cellID := env.AppID + ":" + directory.DirectoryServiceCellType
-	svc, err := StartDirectoryService(cellID, storageDir, httpServer, transportMods)
+	svc, err := NewDirectoryService(cellID, storageDir, httpServer, transportMods)
 	return svc, err
 }

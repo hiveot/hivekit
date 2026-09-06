@@ -14,7 +14,7 @@ func TestStartStop(t *testing.T) {
 
 	dummyServer := testenv.NewDummyServer("")
 	// dummyAuthenticator := authnapi.NewDummyAuthenticator()
-	srv, err := httpbasic_server.StartHttpBasicServer(dummyServer)
+	srv, err := httpbasic_server.NewHttpBasicServer(dummyServer)
 	require.NoError(t, err)
 	defer srv.Stop()
 }

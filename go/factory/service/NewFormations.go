@@ -7,9 +7,9 @@ import (
 	"github.com/hiveot/hivekit/go/factory/internal"
 )
 
-// StartBusFormation creates and starts cells in a bus formation.
+// NewBusFormation creates and starts cells in a bus formation.
 //
-// Members should not emit requests until Ready is invoked.
+// Members should not emit requests autonomously until after Start is invoked.
 //
 // Members will have their 'forward' capability disabled.
 //
@@ -20,16 +20,16 @@ import (
 //   - A notification sent to the recipe is passed to all members concurrently.
 //     Servers do not forward notifications to their sink but to the remote connections instead.
 //   - A notification received by members is passed to the recipe's notification sink.
-func StartBusFormation(
+func NewBusFormation(
 	f api.ICellFactory, cellDefs []api.CellDefinition) (api.IRecipe, error) {
 
-	bus, err := internal.StartBusFormation(f, cellDefs)
+	bus, err := internal.NewBusFormation(f, cellDefs)
 	return bus, err
 }
 
 // StartBusFormationFactory starts a new bus formation.
 //
-// Cells should not emit requests until Ready is invoked.
+// Cells should not emit requests autonomously until after Start is invoked.
 //
 // * Both requests and notifications sent to the bus will be passed to all
 // the members
@@ -44,24 +44,24 @@ func StartBusFormationFactory(
 	if !ok {
 		return nil, fmt.Errorf("NewBusRecipeFactory: Config has no members")
 	}
-	bus, err := StartBusFormation(f, members)
+	bus, err := NewBusFormation(f, members)
 	return bus, err
 }
 
-// StartChainFormation returns a collection of cells linked in a chain formation.
-// Cells are started in the provided order.
+// NewChainFormation returns a collection of cells linked in a chain formation.
+// Cells are created in the provided order.
 //
-// Cells should not emit requests until Ready is invoked.
+// Members should not emit requests autonomously until after Start is invoked.
 //
 //	f is the cell factory that instantiates the cells
 //	cells is a collection of cells in order of instantiation.
 //	linkTo is the optional request sink of this chain, and source of notifications.
-//		A call to Ready and Stop will also be passed to the linkTo cell.
+//		A call to Start and Stop will also be passed to the linkTo cell.
 //
 // This returns the chain formation as a recipe instance.
-func StartChainFormation(
+func NewChainFormation(
 	f api.ICellFactory, cellDefs []api.CellDefinition, linkTo api.IHiveCell) (api.IRecipe, error) {
 
-	chain, err := internal.StartChainFormation(f, cellDefs, linkTo)
+	chain, err := internal.NewChainFormation(f, cellDefs, linkTo)
 	return chain, err
 }

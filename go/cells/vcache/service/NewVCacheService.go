@@ -6,14 +6,14 @@ import (
 	"github.com/hiveot/hivekit/go/cells/vcache/internal"
 )
 
-// Create a new instance of the value cache service.
-func StartValueCacheService() (vcacheapi.IValueCacheService, error) {
-	svc, err := internal.StartValueCacheService()
+// Create a ready-to-use value cache service.
+func NewValueCacheService() (vcacheapi.IValueCacheService, error) {
+	svc, err := internal.NewValueCacheService()
 	return svc, err
 }
 
-// Create a new instance of the value cache service using the Cell Factory environment.
+// Create a ready-to-use instance of the value cache service using the Cell Factory environment.
 func StartValueCacheServiceFactory(f api.ICellFactory, md *api.CellDefinition) (api.IHiveCell, error) {
-	svc, err := StartValueCacheService()
+	svc, err := NewValueCacheService()
 	return svc, err
 }

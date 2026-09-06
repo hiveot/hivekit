@@ -62,7 +62,7 @@ func (srv *HttpBasicServerImpl) Stop() {
 
 }
 
-// StartHttpBasicServerImpl starts a new WoT http-basic protocol binding and starts listening.
+// NewHttpBasicServerImpl returns a ready-to-use WoT http-basic protocol binding and starts listening.
 //
 // This:
 // - adds a public routes for ping
@@ -85,9 +85,9 @@ func (srv *HttpBasicServerImpl) Stop() {
 //
 //	httpServer is the http server that listens for messages
 //	sink is the optional receiver of request, response and notification messages, nil to set later
-func StartHttpBasicServerImpl(httpServer api.IHttpServer) (*HttpBasicServerImpl, error) {
+func NewHttpBasicServerImpl(httpServer api.IHttpServer) (*HttpBasicServerImpl, error) {
 
-	slog.Info("Start: Starting httpbasic transport server")
+	slog.Info("NewHttpBasicServerImpl: Starting httpbasic transport server")
 
 	thingID := httpbasic.HttpBasicServerCellType + "-" + shortid.MustGenerate()
 	connectURL := httpServer.GetConnectURL()

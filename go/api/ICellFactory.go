@@ -93,6 +93,32 @@ type ICellFactory interface {
 	// Return the list of available transport servers
 	GetTransportServers() []ITransportServer
 
+	// NewCell creates a ready-to-use instance of a cell by its type.
+	//
+	// Some cells require Start() to be called so they can publish their TD and run
+	// background processes. NewCell does not call Start but otherwise the cell
+	// is fully functional and ready to use.
+	//
+	// If the cell is already created, the existing cell instance is returned.
+	//
+	// If the cell factory function is nil then this is an empty slot which
+	// will be ignored.
+	//
+	// This does not link the cell to other cells. Intended for applications
+	// that manually start services. Recipes use this to create cell instances
+	// and link them.
+	//
+	// Call Start() after all cells have been created and linked.
+	//
+	//  cellType identifies the type of the cell to get.
+	//	instantiate set to true to create an instance if one isnt loaded
+	//
+	// This returns an error if no cell with the given type is found, or when
+	// starting the cell fails.
+	// This returns nil with no error if the cell factory is a 'one-shot'
+	// initialization function where its factory handler returns nil.
+	NewCell(cellType string, instantiate bool) (IHiveCell, error)
+
 	// RegisterCell adds a cell to the factory, making it available for instantiation
 	// and for running recipes.
 	//
@@ -115,24 +141,9 @@ type ICellFactory interface {
 	// Setting a nil authenticator disables authentication.
 	SetAuthenticator(a IAuthenticator)
 
-	// StartCell creates and starts an instance of a cell by its type.
-	//
-	// If the cell is already started, the existing cell instance is returned.
-	//
-	// If the cell factory function is nil then this is an empty slot which
-	// will be ignored.
-	//
-	// This does not link the cell to other cells. Intended for applications
-	// that manually start services. Recipes use this to create cell instances and start them.
-	//
-	//  cellType identifies the type of the cell to get.
-	//	instantiate set to true to create an instance if one isnt loaded
-	//
-	// This returns an error if no cell with the given type is found, or when
-	// starting the cell fails.
-	// This returns nil with no error if the cell factory is a 'one-shot'
-	// initialization function where its factory handler returns nil.
-	StartCell(cellType string, instantiate bool) (IHiveCell, error)
+	// Invoke Start on all loaded cells.
+	// Intended to be used after all cells have been created and linked.
+	Start()
 
 	// Stop all loaded cells in reverse order of loading.
 	// Intended for graceful shutdown.

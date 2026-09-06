@@ -47,12 +47,12 @@ func TestStandaloneDeviceRecipe(t *testing.T) {
 	utils.SetLogging("info", "")
 
 	// run a test Thing that will receive requests
-	testDevice, err := testenv.StartTestCounterThing("", nil)
+	testDevice, err := testenv.NewTestCounterThing("", nil)
 	require.NoError(t, err)
 	defer testDevice.Stop()
 
 	// Start the cell chain with a standalone server that links to the test Thing
-	f := factory_service.StartCellFactory(env, nil)
+	f := factory_service.NewCellFactory(env, nil)
 	defer f.Stop()
 	deviceRecipe, err := standalonerecipe.StartStandAloneDeviceRecipe(f, testDevice)
 	require.NoError(t, err)
@@ -72,8 +72,8 @@ func TestClientServerRecipes(t *testing.T) {
 	env.SetServerCert(testCerts.ServerCert)
 	env.HttpsPort = testPort
 
-	serverFactory := factory_service.StartCellFactory(env, HiveKitAllCells)
-	serverChain, err := factory_service.StartChainFormation(
+	serverFactory := factory_service.NewCellFactory(env, HiveKitAllCells)
+	serverChain, err := factory_service.NewChainFormation(
 		serverFactory, DeviceServerRecipe, nil)
 
 	require.NotNil(t, serverChain)
@@ -84,7 +84,7 @@ func TestClientServerRecipes(t *testing.T) {
 	env.ServerURL = serverURLs[0]
 
 	// the server exposed thing handles the server requests
-	mod, _ := serverFactory.StartCell(thing.ExposedThingCellType, true)
+	mod, _ := serverFactory.NewCell(thing.ExposedThingCellType, true)
 	eThing := mod.(*thing.ExposedThing)
 	eThing.SetAppRequestHook(func(req *msg.RequestMessage, replyTo msg.ResponseHandler) error {
 		if req.ThingID == thingID {
@@ -96,15 +96,15 @@ func TestClientServerRecipes(t *testing.T) {
 	})
 
 	// the client sends requests and receives responses
-	clientFactory := factory_service.StartCellFactory(env, HiveKitAllCells)
-	clientChain, err := factory_service.StartChainFormation(
+	clientFactory := factory_service.NewCellFactory(env, HiveKitAllCells)
+	clientChain, err := factory_service.NewChainFormation(
 		clientFactory, DeviceClientRecipe, nil)
 
 	require.NotNil(t, clientChain)
 	require.NoError(t, err)
 	defer clientFactory.Stop()
 
-	m2, err := clientFactory.StartCell(consumer.ConsumerCellType, true)
+	m2, err := clientFactory.NewCell(consumer.ConsumerCellType, true)
 	assert.NoError(t, err)
 	co := m2.(*consumer.Consumer)
 	var propValue string

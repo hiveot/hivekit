@@ -185,7 +185,9 @@ func (m *DiscoveryServerImpl) Stop() {
 	}
 }
 
-// StartDiscoveryServerImpl starts a new discovery server instance.
+// NewDiscoveryServerImpl returns a ready-to-use discovery server instance.
+//
+// Call ServeThingTD or ServeDirectoryTD to serve a DNS-SD record.
 //
 // The thingID is set to the cell type. Note that the ID in the TDD might differ.
 //
@@ -197,7 +199,7 @@ func (m *DiscoveryServerImpl) Stop() {
 //	httpServer is the server that serves the TD on the well-known endpoint.
 //	tddJSON is the optional directory TDD as JSON to serve.
 //	transports for TD security scheme, base URL and forms. Optional.
-func StartDiscoveryServerImpl(serviceName string,
+func NewDiscoveryServerImpl(serviceName string,
 	httpServer api.IHttpServer,
 	tddJSON string,
 	endpoints map[string]string) (*DiscoveryServerImpl, error) {

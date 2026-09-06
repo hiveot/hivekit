@@ -46,20 +46,22 @@ func main() {
 		AutoIncrement: false,
 		ResetValue:    60,
 	}
-	counterThing, err := testenv.StartTestCounterThing(env.AppID, cfg)
+	counterThing, err := testenv.NewTestCounterThing(env.AppID, cfg)
 
 	// link to it from the stand-alone recipe
 	// the stand-alone recipe contains cells for running a server with certs and authn
 	// you can message the recipe as a service or via a client. Here we message directly.
-	f := factory_service.StartCellFactory(env, nil)
+	f := factory_service.NewCellFactory(env, nil)
 
 	r, err := standalonerecipe.StartStandAloneDeviceRecipe(f, counterThing)
+	_ = r
 	if err != nil {
 		fmt.Println("Startup failed: " + err.Error())
 		os.Exit(1)
 	}
 	// signal the app is ready to go and all cells are linked
-	r.Ready()
+	f.Start()
+	counterThing.Start()
 
 	fmt.Printf("main: homeDir: %s\n", env.HomeDir)
 	fmt.Printf("main: Counter is running and listening on '%v'\n", f.GetConnectURLs())

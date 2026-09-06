@@ -13,7 +13,7 @@ const (
 )
 
 // Experimental: notification that the client connect status has changed.
-// the payload is the new connection status.
+// the payload contains a string with the new connection status.
 // The notification thingID is the client's cell-id.
 // Note that connection status events are never transmitted to and from the server.
 const ClientConnectionStatusEvent = "connectionStatus"

@@ -64,22 +64,6 @@ type IHiveCell interface {
 	// Forwarding can be disabled with SetForwarding()
 	HandleNotification(notif *msg.NotificationMessage)
 
-	// Ready notifies the cell that the application environment is ready to go.
-	//
-	// Intended as 'initialization phase 2' where all cells are properly linked
-	// and messages will find their destination.
-	//
-	// Implementing a Ready handler is optional. It is intended for cells to
-	// start autonomous operation, such as background tasks, writing a TD,
-	// start publishing events, and property updates.
-	//
-	// Cells must be fully functional and handle requests and notifications even
-	// if Ready is not yet called. Messages are only received after the environment
-	// is ready and is busy invoking Ready on other cells.
-	//
-	// By default this does nothing.
-	Ready()
-
 	// Set forwarding of notifications or requests to the configured sink.
 	//
 	// This does not affect notifications or requests emitted by this cell.
@@ -104,6 +88,26 @@ type IHiveCell interface {
 
 	// SetRequestSink sets the handler of requests emitted by this cell.
 	SetRequestSink(sink IHiveCell)
+
+	// Start the cell autonomous processes.
+	//
+	// Intended as 'initialization phase 2' after all cells are properly linked
+	// and messages will find their destination.
+	//
+	// Implementing Start is optional. It is intended for cells to start
+	// autonomous operation, such as background tasks, writing a TD, publishing
+	// events, and property updates.
+	//
+	// Cells must already be fully functional and handle requests and notifications
+	// on creation, before Start is called. A cell only receive requests after it is properly
+	// linked and the appplication environment is ready, even if Start hasn't been
+	// called yet. This is expected behavior and Start will be called shortly after.
+	//
+	// Start can be called multiple times in rare occasions. Cells must be able to handle
+	// this gracefully.
+	//
+	// By default this does nothing. Note that Stop must always be called when shutting down.
+	Start()
 
 	// Stop halts cell operation and releases resources. This should
 	// be called to release resources even if Start was never called.

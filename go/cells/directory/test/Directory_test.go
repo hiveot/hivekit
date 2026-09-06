@@ -57,12 +57,12 @@ func StartDirectoryService(withHttp bool) (
 
 	if withHttp {
 		// add directory endpoints to the http server
-		dirHttpServer, err = directory_service.StartDirectoryHttpServer(testEnv.HttpServer, rpcTimeout)
+		dirHttpServer, err = directory_service.NewDirectoryHttpServer(testEnv.HttpServer, rpcTimeout)
 		_ = err
 		transports = append(transports, dirHttpServer)
 	}
 	// the transports are used to update the TDD forms and security
-	svc, err = directory_service.StartDirectoryService("", storageDir, testEnv.HttpServer, transports)
+	svc, err = directory_service.NewDirectoryService("", storageDir, testEnv.HttpServer, transports)
 	if err != nil {
 		panic("StartDirectoryServer: failed to start the directory " + err.Error())
 	}
@@ -91,7 +91,7 @@ func StartDirectoryService(withHttp bool) (
 func TestStartStop(t *testing.T) {
 	t.Logf("---%s---\n", t.Name())
 
-	svc, err := directory_service.StartDirectoryService("", storageDir, nil, nil)
+	svc, err := directory_service.NewDirectoryService("", storageDir, nil, nil)
 	require.NoError(t, err)
 	defer svc.Stop()
 
@@ -108,7 +108,7 @@ func TestStartStop(t *testing.T) {
 func TestCreateTD(t *testing.T) {
 	thingID := "thing1"
 
-	svc, err := directory_service.StartDirectoryService("", storageDir, nil, nil)
+	svc, err := directory_service.NewDirectoryService("", storageDir, nil, nil)
 	require.NoError(t, err)
 	defer svc.Stop()
 
@@ -164,7 +164,7 @@ func TestCRUDUsingMsgAPI(t *testing.T) {
 
 	// read the new TD
 	dirTDD, _ := m.GetTDD()
-	dirClient := directory_client.StartDirectoryClient(dirTDD, tp)
+	dirClient := directory_client.NewDirectoryClient(dirTDD, tp)
 	tdi2, err := dirClient.RetrieveThing(thing1ID)
 	require.NoError(t, err)
 	assert.Equal(t, thing1ID, tdi2.ID)
@@ -196,7 +196,7 @@ func TestGetDirectoryTD(t *testing.T) {
 	cl, token := testEnv.NewTestClient(userID, authn.ClientRoleViewer)
 	_ = cl
 
-	httpClient := tls_client.StartTLSClient(hostPort, testEnv.CertBundle.RootCAs)
+	httpClient := tls_client.NewTLSClient(hostPort, testEnv.CertBundle.RootCAs)
 	httpClient.SetTimeout(testEnv.AppEnv.RpcTimeout)
 	err := httpClient.SetAuthToken(userID, token)
 	require.NoError(t, err)

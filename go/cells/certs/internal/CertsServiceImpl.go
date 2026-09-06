@@ -118,12 +118,6 @@ func (svc *CertsServiceImpl) GetServerCert(serverName string) (
 	return serverCert, err
 }
 
-// publish the td when app is ready
-func (svc *CertsServiceImpl) Ready() {
-	tdJson := string(certs.CertsServiceTD)
-	svc.PublishTD(tdJson)
-}
-
 // Refresh the server certificate if needed.
 // The certificate is updated when its remaining validity is below minRemaining.
 func (svc *CertsServiceImpl) Refresh(
@@ -194,6 +188,12 @@ func (svc *CertsServiceImpl) RefreshCA(minRemaining time.Duration) error {
 	return nil
 }
 
+// Start publishes the td when app is ready
+func (svc *CertsServiceImpl) Start() {
+	tdJson := string(certs.CertsServiceTD)
+	svc.PublishTD(tdJson)
+}
+
 // Stop any running actions
 func (svc *CertsServiceImpl) Stop() {
 	slog.Info("Stop: Stopping certs service")
@@ -227,13 +227,14 @@ func (svc *CertsServiceImpl) VerifyClientCert(clientID string, clientCert *x509.
 	return err
 }
 
-// Start a new self-signed certificate provider
-func StartCertsServiceImpl(config *certs.CertsConfig) (*CertsServiceImpl, error) {
+// Create a ready-to-use self-signed certificate provider
+// Call Start to publish its TD.
+func NewCertsServiceImpl(config *certs.CertsConfig) (*CertsServiceImpl, error) {
 	var err error
 	thingID := certs.DefaultCertsServiceThingID
 
 	svc := &CertsServiceImpl{
-		ExposedThing: thing.StartExposedThing(thingID, nil),
+		ExposedThing: thing.NewExposedThing(thingID, nil),
 		config:       config,
 	}
 	slog.Info("Start: Starting certs service")

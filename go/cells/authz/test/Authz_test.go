@@ -26,7 +26,7 @@ func TestMain(m *testing.M) {
 
 // Test starting and stopping authorization service
 func TestStartStop(t *testing.T) {
-	svc := authzservice.StartAuthzService(nil)
+	svc := authzservice.NewAuthzService(nil)
 	svc.Stop()
 }
 
@@ -44,7 +44,7 @@ func TestHasPermission(t *testing.T) {
 		}
 		return "", fmt.Errorf("unknown client")
 	}
-	m := authzservice.StartAuthzService(getRole)
+	m := authzservice.NewAuthzService(getRole)
 	defer m.Stop()
 
 	// check missing clientID

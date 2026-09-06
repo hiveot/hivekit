@@ -16,7 +16,6 @@ import (
 	"github.com/hiveot/hivekit/go/api/vocab"
 	"github.com/hiveot/hivekit/go/cells/transport"
 	grpctransport "github.com/hiveot/hivekit/go/cells/transport/grpc"
-	grpclib "github.com/hiveot/hivekit/go/cells/transport/grpc/internal"
 	"github.com/hiveot/hivekit/go/utils"
 	"github.com/teris-io/shortid"
 	"google.golang.org/grpc"
@@ -35,7 +34,7 @@ type GrpcServerImpl struct {
 
 	caCert *x509.Certificate
 
-	grpcService *grpclib.GrpcServiceServer
+	grpcService *GrpcServiceServer
 
 	respTimeout time.Duration
 
@@ -104,8 +103,8 @@ func (srv *GrpcServerImpl) startServing() (err error) {
 	if err != nil {
 		return err
 	}
-	grpcAuthn := grpclib.NewGrpcAuthenticator(srv.authenticator)
-	srv.grpcService = grpclib.NewGrpcServiceServer(
+	grpcAuthn := NewGrpcAuthenticator(srv.authenticator)
+	srv.grpcService = NewGrpcServiceServer(
 		lis, srv.tlsCert, srv.caCert, srv.serviceName, grpcAuthn, time.Minute)
 
 	srv.grpcService.CreateStream(grpctransport.StreamNameNotification, srv.ServeStreamConnection)
@@ -131,7 +130,7 @@ func (srv *GrpcServerImpl) Stop() {
 	srv.grpcService.Stop()
 }
 
-// GRPC server using UDS or TCP sockets.
+// Return a ready-to-use GRPC server using UDS or TCP sockets.
 //
 // Server side listening uses net.Listen This accepts a scheme that is "unix" for UDS
 // sockets or "tcp" for TCP sockets.

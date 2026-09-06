@@ -21,7 +21,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-var testProtocol = api.WotWebsocketProtocolType
+var testProtocol = api.HiveotSseScProtocolType
 
 var testProtocols = []string{
 	api.HiveotSseScProtocolType,
@@ -47,22 +47,12 @@ func TestReconnect(t *testing.T) {
 	const deviceID = "device1"
 	var serverConnectEvents atomic.Int32
 	var clientConnectEvents atomic.Int32
+	utils.SetLogging("info", "")
 
-	// check if the connection status notification is received
-	// The notification is experimental, reconnect uses the client callback which
-	// comes after the notification.
-	clientNotificationHook := func(notif *msg.NotificationMessage) {
-		if notif.Name == api.ClientConnectionStatusEvent {
-			status := notif.Data.(api.ConnectionStatus)
-			slog.Info("TestReconnect: client connection notification",
-				"status", status)
-			clientConnectEvents.Add(1)
-		}
-	}
-
+	// 1. Create an exposed-thing server side
 	// this test device receives an action and returns the input
 	// it is intended to prove reconnect works.
-	ething := thing.StartExposedThing("", func(req *msg.RequestMessage, replyTo msg.ResponseHandler) error {
+	reqHandler := func(req *msg.RequestMessage, replyTo msg.ResponseHandler) error {
 		slog.Info("Received request", "op", req.Operation, "name", req.Name)
 		var err error
 		// prove that the return channel is connected
@@ -85,20 +75,20 @@ func TestReconnect(t *testing.T) {
 		// err = c.SendResponse(resp)
 		err = replyTo(resp)
 		return err
-	})
+	}
+	eThing := thing.NewExposedThing("", reqHandler)
 
-	// start the servers and handle a request
+	// 2. start the test server and link requests to the exposed thing
 	testEnv, cancelFn := testenv.StartTestEnv(testProtocol, true)
 	defer cancelFn()
+	testEnv.Server.SetRequestSink(eThing)
 
-	utils.SetLogging("info", "")
-	testEnv.Server.SetRequestSink(ething)
-
+	// 3. Create a server side consumer just to count the connection notifications.
 	// wait max 10 sec or until nr of '(re)connected' events is reached is 2
 	ctx1, ctx1Cancel := context.WithTimeout(context.Background(), time.Second*10)
 	defer ctx1Cancel()
 
-	// server emits notification when a new connection is received
+	// Detect when server emits a connected event
 	notifHandler := func(notif *msg.NotificationMessage) {
 		if notif.Name == api.ServerConnectedEvent {
 			// expect a connect-disconnect event
@@ -115,20 +105,37 @@ func TestReconnect(t *testing.T) {
 			}
 		}
 	}
-	// dont connect until notifications are linked
-	co := consumer.StartConsumer(nil, notifHandler)
-	testEnv.Server.SetNotificationSink(co)
+	// Dont connect until notifications are linked
+	coServer := consumer.NewConsumer(nil, notifHandler)
+	testEnv.Server.SetNotificationSink(coServer)
 
-	// new consumer with reconnect client
-	// FIXME: might not receive the first connected notification
+	// 4. The server side is now ready to receive connections.
+	eThing.Start()
+	testEnv.Server.Start()
+
+	// 5. Create a client side consumer that will count client connection events
+	// The notification is just for counting. The Reconnect service uses the client
+	// callback instead.
+	clientNotificationHook := func(notif *msg.NotificationMessage) {
+		if notif.Name == api.ClientConnectionStatusEvent {
+			status := notif.Data.(api.ConnectionStatus)
+			slog.Info("TestReconnect: client connection notification",
+				"status", status)
+			clientConnectEvents.Add(1)
+		}
+	}
+	// The testenv creates a consumer with a reconnect cell and client connection
+	// it also sets the authentication clientID and auth token.
 	// count nr of connection status changes
-	co1, cc1, _ := testEnv.NewReconnectedConsumer(
+	co1, rc1, _ := testEnv.NewReconnectConsumer(
 		testClientID1, authn.ClientRoleViewer, clientNotificationHook)
-	defer cc1.Close()
+	defer rc1.Stop()
+	// 6. The consumer is now ready and the reconnect process can start.
+	rc1.Start()
 
 	// // FIXME: might not receive the first connected notification
 	time.Sleep(time.Millisecond)
-	assert.Equal(t, api.StatusConnected, cc1.GetConnectionStatus())
+	assert.Equal(t, api.StatusConnected, rc1.GetConnectionStatus())
 	assert.Equal(t, 1, int(serverConnectEvents.Load()), "missing initial server connection notification")
 
 	// the client

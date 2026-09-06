@@ -18,7 +18,7 @@ import (
 // TODO: use config to set auto-reconnect. For now don't because it might hide auth problems.
 const DefaultRouterAutoConnect = false
 
-// StartRouterService creates a new instance of the router service with the default router typeID.
+// NewRouterService creates a ready-to-use instance of the router service with the default router typeID.
 // Start must be called before usage.
 //
 //	storageDir location where the router stores its data
@@ -30,7 +30,7 @@ const DefaultRouterAutoConnect = false
 //	getTD  handler to lookup a TD for a thingID from a directory
 //	getSrv handler to return the running list of transport servers that can contain
 //	 reverse connections. nil to not support RCs.
-func StartRouterService(storageDir string,
+func NewRouterService(storageDir string,
 	autoReconnect bool,
 	clientID string,
 	clientCert *tls.Certificate,
@@ -39,27 +39,27 @@ func StartRouterService(storageDir string,
 	getSrv func() []api.ITransportServer,
 ) (router.IRouterService, error) {
 
-	return internal.StartRouterServiceImpl(storageDir, autoReconnect,
+	return internal.NewRouterServiceImpl(storageDir, autoReconnect,
 		clientID, clientCert, rootCAs, timeout, getTD, getSrv)
 }
 
 // Create a router service instance using the factory environment.
 // This needs a directory client or service with a getTD method to lookup a Thing TD.
-func StartRouterServiceFactory(f api.ICellFactory, md *api.CellDefinition) (api.IHiveCell, error) {
+func NewRouterServiceFactory(f api.ICellFactory, md *api.CellDefinition) (api.IHiveCell, error) {
 
 	var getTD func(string) *td.TD
 	env := f.GetEnvironment()
 	storageDir := env.GetStorageDir(router.RouterCellType)
 
 	// The router can be used with a directory server or client. Try both.
-	m, err := f.StartCell(directory.DirectoryServiceCellType, true)
+	m, err := f.NewCell(directory.DirectoryServiceCellType, true)
 	if err == nil {
 		if dirMod, ok := m.(directory.IDirectoryService); ok {
 			getTD = dirMod.GetTD
 		}
 	} else {
 		// maybe directory client?
-		m, err = f.StartCell(directory.DirectoryClientCellType, true)
+		m, err = f.NewCell(directory.DirectoryClientCellType, true)
 		if err == nil {
 			if dirMod, ok := m.(directory.IDirectoryClient); ok {
 				getTD = dirMod.Cache().GetThing
@@ -73,7 +73,7 @@ func StartRouterServiceFactory(f api.ICellFactory, md *api.CellDefinition) (api.
 	autoReconnect := DefaultRouterAutoConnect
 	timeout := f.GetEnvironment().RpcTimeout
 	clientCert, _ := env.GetClientCert()
-	svc, err := StartRouterService(
+	svc, err := NewRouterService(
 		storageDir, autoReconnect, env.ClientID, clientCert, env.GetRootCAs(),
 		timeout, getTD, f.GetTransportServers)
 	svc.SetTimeout(env.RpcTimeout)

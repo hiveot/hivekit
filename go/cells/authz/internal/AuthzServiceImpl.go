@@ -40,8 +40,8 @@ func (svc *AuthzServiceImpl) HandleRequest(req *msg.RequestMessage, replyTo msg.
 	return svc.HiveCellBase.HandleRequest(req, replyTo)
 }
 
-// publish the td when app is ready
-func (svc *AuthzServiceImpl) Ready() {
+// publish the TD when app is ready
+func (svc *AuthzServiceImpl) Start() {
 	// svc.PublishTD()
 }
 
@@ -50,10 +50,10 @@ func (svc *AuthzServiceImpl) Stop() {
 	slog.Info("Stop: Stopping authz")
 }
 
-// Start a new instance of the authorization service.
+// Create a new instance of the authorization service.
 // The getRole handler is used to determine a client's role for RBAC
-func StartAuthzServiceImpl(getRoleHandler func(clientID string) (role string, err error)) *AuthzServiceImpl {
-	slog.Info("Starting authz")
+func NewAuthzServiceImpl(getRoleHandler func(clientID string) (role string, err error)) *AuthzServiceImpl {
+	slog.Info("NewAuthzServiceImpl")
 	// this service is a singleton that exposes multiple service things
 	thingID := authz.AuthzServiceCellType
 	svc := &AuthzServiceImpl{

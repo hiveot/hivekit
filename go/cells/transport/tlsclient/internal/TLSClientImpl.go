@@ -444,7 +444,7 @@ func (cl *TLSClientImpl) Trace(path string) (statusCode int, err error) {
 	return statusCode, err
 }
 
-// StartTLSClientImpl starts a new TLS Client instance.
+// NewTLSClientImpl returns a ready-to-use TLS Client instance.
 //
 // This uses the system cert pool. Use the flag 'skipCertCheck' if the CA is unknown.
 // Use SetAuthToken or SetClientCert before connecting.
@@ -453,7 +453,7 @@ func (cl *TLSClientImpl) Trace(path string) (statusCode int, err error) {
 //	rootCAs with optional CA certifications. Default is the system pool
 //
 // returns TLS client for submitting requests
-func StartTLSClientImpl(hostPort string, rootCAs *x509.CertPool) *TLSClientImpl {
+func NewTLSClientImpl(hostPort string, rootCAs *x509.CertPool) *TLSClientImpl {
 
 	var clientID string
 	timeout := tlsclient.DefaultClientTimeout
