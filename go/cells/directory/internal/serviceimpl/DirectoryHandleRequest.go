@@ -21,8 +21,10 @@ func (svc *DirectoryServiceImpl) HandleRequest(req *msg.RequestMessage, replyTo 
 	if req.ThingID != svc.GetThingID() {
 		return svc.HiveCellBase.HandleRequest(req, replyTo)
 	} else if req.SenderID == "" {
-		err := fmt.Errorf("missing senderID in request")
-		return err
+		// NOTE: local services can publish their ID without senderID
+		//
+		// 	err := fmt.Errorf("missing senderID in request")
+		// 	return err
 	}
 	switch req.Operation {
 	case td.OpInvokeAction:

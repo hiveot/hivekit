@@ -13,7 +13,6 @@ import (
 	"github.com/hiveot/hivekit/go/api/td"
 	"github.com/hiveot/hivekit/go/cells/authn"
 	authnstore "github.com/hiveot/hivekit/go/cells/authn/internal/store"
-	directory_service "github.com/hiveot/hivekit/go/cells/directory/service"
 	"github.com/hiveot/hivekit/go/cells/thing"
 	"github.com/hiveot/hivekit/go/utils"
 )
@@ -154,21 +153,6 @@ func (svc *AuthnServiceImpl) HandleRequest(req *msg.RequestMessage, replyTo msg.
 	}
 }
 
-// Publish the service admin and user service TDs to the directory.
-func (svc *AuthnServiceImpl) PublishTD() error {
-	adminTM := authn.AuthnServiceTD
-	userTM := authn.AuthnUserTD
-	reqSink := svc.GetRequestSink()
-	if reqSink == nil {
-		return fmt.Errorf("PublishTD: No request sink set.")
-	}
-	err := directory_service.UpdateTD("", string(adminTM), reqSink.HandleRequest)
-	if err == nil {
-		err = directory_service.UpdateTD("", string(userTM), reqSink.HandleRequest)
-	}
-	return err
-}
-
 // Remove a client
 func (svc *AuthnServiceImpl) RemoveClient(clientID string) error {
 	return svc.authnStore.Remove(clientID)
@@ -206,9 +190,22 @@ func (svc *AuthnServiceImpl) SetRole(clientID string, role string) error {
 	return svc.authnStore.SetRole(clientID, role)
 }
 
-// publish the td when app is ready
+// Start publishes the service admin and user service TDs to the directory.
 func (svc *AuthnServiceImpl) Start() {
-	svc.PublishTD()
+	// Publish the service admin and user service TDs to the directory.
+	adminTM := authn.AuthnServiceTD
+	userTM := authn.AuthnUserTD
+	reqSink := svc.GetRequestSink()
+	if reqSink == nil {
+		// not a fatal error
+		slog.Warn("Start: No request sink set, cant publish TD.")
+		return
+	}
+	err := svc.PublishTD(string(adminTM))
+	if err == nil {
+		err = svc.PublishTD(string(userTM))
+	}
+
 }
 
 // Stop closes the client store and releases resources

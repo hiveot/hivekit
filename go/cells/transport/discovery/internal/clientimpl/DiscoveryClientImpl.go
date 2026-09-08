@@ -403,7 +403,7 @@ func (cl *DiscoveryClientImpl) startDiscovery() (err error) {
 	return nil
 }
 
-// NewDiscoveryClientImpl starts a new instance of a discovery client.
+// NewDiscoveryClientImpl returns a ready-to-use discovery client.
 //
 // Call DiscoverThings or DiscoverDirectories to start the discovery process.
 //

@@ -40,7 +40,7 @@ Also included is a stream buffer that adds these features:
 No need for protobuf magic and types and stuff. Simply add the stream on the server and connect to it on the client.
 This registers the 'jsonCodec' in case of complex objects. Or the user can simply send and receive string or []byte arrays and use their own marshalling codec.
 
-Overhead is negligable. On an intel i5 4570S, 2.9GHz this transfers 300K 300byte messages/sec or 250K 1K messages/sec using unix sockets.
+Overhead is very low. On an intel i5 4570S, 2.9GHz this transfers 300K 300byte messages/sec or 250K 1K messages/sec using unix sockets.
 
 Server gist:
 

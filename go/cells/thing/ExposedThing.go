@@ -285,11 +285,14 @@ func (m *ExposedThing) PubProperties(thingID string, propMap map[string]any, onl
 
 // Publish the exposed thing's TD to the directory.
 // This sends the directory UpdateTD request message to the cell request sink.
+// This uses the exposed thing ThingID as the senderID.
 func (svc *ExposedThing) PublishTD(tdJSON string) error {
 	reqSink := svc.GetRequestSink()
 	if reqSink == nil {
 		return fmt.Errorf("PublishTD: No request sink set.")
 	}
+	// can't set the sender ID as this is the client accountID and not known
+	//senderID := svc.GetClientID()
 	err := directory_service.UpdateTD("", string(tdJSON), reqSink.HandleRequest)
 	return err
 }

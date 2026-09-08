@@ -31,7 +31,7 @@ var ConsumerRecipeChain = []api.CellDefinition{
 		// discover the server using DNS-SD
 		// app can retrieve it with f.GetCell(discovery.DiscoveryClientCellType)
 		Type:        discovery.DiscoveryClientCellType,
-		Constructor: discovery_client.StartDiscoveryClientFactory,
+		Constructor: discovery_client.NewDiscoveryClientFactory,
 	},
 	{
 		// the router manages client connections
@@ -69,7 +69,7 @@ func StartConsumerRecipe(
 	if withValueCache {
 		modDef := api.CellDefinition{
 			Type:        vcache.ValueCacheCellType,
-			Constructor: vcache_service.StartValueCacheServiceFactory,
+			Constructor: vcache_service.NewValueCacheServiceFactory,
 		}
 		recipes.SetSlot(chain, valueCacheSlotName, modDef)
 	}

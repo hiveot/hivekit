@@ -12,12 +12,12 @@ import (
 // NOTE this is intended for use by devices, while the DirectoryClient methods are intended
 // for use by consumers.
 //
-//	directoryServiceID is the thing ID of the directory service instance. Defaults to DirectoryServiceCellType.
+//	directoryThingID is the thing ID of the directory service instance. Defaults to DefaultDirectoryThingID.
 //	tdJson is the TD in JSON to update in the directory.
 //	reqHandler is the request handler of the connection to send the request through.
 func UpdateTD(directoryThingID string, tdJson string, reqHandler msg.RequestHandler) error {
 	if directoryThingID == "" {
-		directoryThingID = directory.DirectoryServiceCellType
+		directoryThingID = directory.DefaultDirectoryThingID
 	}
 	req := msg.NewRequestMessage(
 		td.OpInvokeAction, directoryThingID, directory.UpdateThingAction, tdJson)

@@ -24,7 +24,7 @@ import (
 
 const PingMethodName = "ping"
 
-// GRPC server handler of protobuf defined methods.
+// GRPC server
 // This currently only implements the Ping and MsgStream methods.
 type GrpcServiceServer struct {
 	grpcAuthn *GrpcAuthenticator
@@ -144,7 +144,7 @@ func (srv *GrpcServiceServer) Ping(ctx context.Context, input string) (result st
 	return result, nil
 }
 
-// register the stream server and start listening
+// register the internal stream server and start listening
 func (srv *GrpcServiceServer) Start() error {
 
 	var grpcServer *grpc.Server

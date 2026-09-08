@@ -425,10 +425,10 @@ func NewTuiApp(f api.ICellFactory) *TuiApp {
 
 	grid := tview.NewGrid().
 		SetRows(3, 0, 1).
-		SetColumns(30, 0).
+		SetColumns(40, 0).
 		AddItem(header.View, 0, 0, 1, 2, 0, 0, false).
 		AddItem(menu, 1, 0, 1, 1, 0, 0, true).
-		AddItem(pages, 1, 1, 1, 1, 0, 0, true).
+		AddItem(pages, 1, 1, 1, 1, 0, 0, false).
 		AddItem(footer.View, 2, 0, 1, 2, 0, 0, false)
 
 	discoClient := api.GetFactoryCell[discovery.IDiscoveryClient](

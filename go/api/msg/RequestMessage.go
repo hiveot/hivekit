@@ -76,7 +76,8 @@ type RequestMessage struct {
 	Operation string `json:"operation"`
 
 	// SenderID is the authenticated ID of the client sending the request.
-	// The protocol server MUST set this to the authenticated client.
+	// This is empty until the server receives it.
+	// The protocol server MUST set this to the authenticated clientID.
 	// Intended for services that need the clientID such as authentication.
 	SenderID string `json:"senderID,omitempty"`
 

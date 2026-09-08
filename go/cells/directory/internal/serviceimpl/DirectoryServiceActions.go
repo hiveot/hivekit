@@ -107,13 +107,6 @@ func (svc *DirectoryServiceImpl) RetrieveThing(thingID string) (tdJSON string, e
 	return tdJSON, err
 }
 
-// Stop the service and close the storage bucket
-// The bucketStore itself is not closed on Stop.
-// func (svc *DirectoryService) Stop() error {
-// 	err := svc.bucket.Close()
-// 	return err
-// }
-
 // UpdateThing replaces the TD in the store.
 // If the thing doesn't exist in the store it is added.
 //

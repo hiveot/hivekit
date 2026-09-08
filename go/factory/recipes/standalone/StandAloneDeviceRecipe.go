@@ -37,7 +37,8 @@ var StandAloneDeviceChain = []api.CellDefinition{
 		Constructor: certs_service.RunInitFactoryCerts,
 	},
 
-	// A: handle outgoing request to write TD
+	// A: handle outgoing request to write device TD
+	// alt: use slot for the device Thing and put this behind it.
 	{
 		// add forms to update the published TD with appropriate forms
 		Type:        addforms.AddFormsCellType,
@@ -68,7 +69,7 @@ var StandAloneDeviceChain = []api.CellDefinition{
 		// Register the transport server authentication handler, and handle requests
 		// to manage authentication configuration.
 		Type:        authn.AuthnServiceCellType,
-		Constructor: authn_service.StartAuthnServiceFactory,
+		Constructor: authn_service.NewAuthnServiceFactory,
 	},
 
 	// todo: optional logging of requests

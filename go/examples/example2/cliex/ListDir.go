@@ -27,7 +27,7 @@ func (app *Cliex) ListDir(thingID string) {
 		fmt.Printf("ERROR: Read directory '%s' failed: %s\n", dirTD.ID, err.Error())
 	} else {
 		ListThings(tdList)
-		fmt.Printf("Found %d Things\n", len(tdList))
+		fmt.Printf("Directory '%s' contains %d Things\n", dirTD.ID, len(tdList))
 	}
 
 }

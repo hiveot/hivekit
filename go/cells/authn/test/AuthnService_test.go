@@ -81,7 +81,7 @@ func startTestAuthnService(encryption string) (tp api.IHttpServer, authnSvc auth
 	// authnConfig.DeviceTokenValidityDays = 1
 	authnConfig.Encryption = encryption
 
-	authnSvc, err := authn_service.StartAuthnService(authnConfig)
+	authnSvc, err := authn_service.NewAuthnService(authnConfig)
 	if err != nil {
 		panic("Error starting authn admin service:" + err.Error())
 	}
@@ -100,7 +100,7 @@ func startTestAuthnService(encryption string) (tp api.IHttpServer, authnSvc auth
 	if err != nil {
 		panic("Unable to start http server: " + err.Error())
 	}
-	authnHttpMod := authn_service.StartAuthnUserHttpService(httpServer)
+	authnHttpMod := authn_service.NewAuthnUserHttpService(httpServer)
 	authnHttpMod.SetRequestSink(authnSvc)
 
 	return httpServer, authnSvc, func() {

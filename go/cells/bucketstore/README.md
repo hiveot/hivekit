@@ -81,8 +81,7 @@ Create a kvbtree store
 
 ```go
     // storageDir with path to the bucket storage directory or "" for in-memory storage.
-	store := kvbtreestore.NewBucketStore(storageDir)
-	err := store.Open()
+	store := kvbtreestore.OpenKVBTreeStore(storageDir)
 
     bucket := store.GetBucket(name)
     // do stuff with the bucket
@@ -98,11 +97,11 @@ Start a service instance and obtain the bucket store:
 ```go
     // create a local instance
     // storageDir with path to the bucket storage directory
-	m := bucketstoreservice.NewBucketStoreService(storageDir, storeType)
-	err := m.Start()
+	svc := bucketstore_service.NewBucketStoreService(storageDir, storeType)
+	err := svc.Start()
 
     // direct access to the bucketstore service
-    store := m.GetBucket(name)
+    store := svc.GetBucket(name)
     // do stuff with the bucket
 
     // end

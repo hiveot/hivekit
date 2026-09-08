@@ -37,7 +37,7 @@ func TestDiscoverDirectory(t *testing.T) {
 	require.NoError(t, err)
 
 	// Test if it is discovered on startup
-	cl, err := discovery_client.StartDiscoveryClient(nil, true)
+	cl, err := discovery_client.NewDiscoveryClient(nil, true)
 	assert.NoError(t, err)
 
 	// records, err := cl.DiscoverDirectories(testServiceID, time.Second, true, nil)
@@ -87,7 +87,7 @@ func TestDiscoverGetDirectoryTD(t *testing.T) {
 
 	// discover and read the directory on start. This sets env.DirectoryURL
 	appEnv := api.NewHiveEnvironment("", false)
-	cl, err := discovery_client.StartDiscoveryClient(appEnv, true)
+	cl, err := discovery_client.NewDiscoveryClient(appEnv, true)
 	require.NoError(t, err)
 	assert.NotEmpty(t, appEnv.DirectoryURL)
 
@@ -106,7 +106,7 @@ func TestDiscoverNoDirectory(t *testing.T) {
 	defer testEnv.HttpServer.Stop()
 
 	// start discovery client
-	cl, err := discovery_client.StartDiscoveryClient(testEnv.AppEnv, true)
+	cl, err := discovery_client.NewDiscoveryClient(testEnv.AppEnv, true)
 	require.NoError(t, err)
 	dirTD2, _, err := cl.DiscoverFirstDirectoryTD(testDirServiceName, time.Second)
 	assert.Nil(t, dirTD2)

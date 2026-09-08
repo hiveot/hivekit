@@ -700,7 +700,7 @@ func TestGetSetMsgAPI(t *testing.T) {
 	require.NoError(t, err)
 	defer stopFn()
 	tp := testenv.NewTestTransport(clientID, m)
-	cl := bucketstore_client.StartBucketStoreMsgClient(tp, storeThingID)
+	cl := bucketstore_client.NewBucketStoreMsgClient(tp, storeThingID)
 	err = cl.Set(key1, val1)
 	require.NoError(t, err)
 

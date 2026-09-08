@@ -67,7 +67,7 @@ var HiveKitAllCells = []api.CellDefinition{
 	// discovery transport
 	{
 		Type:        discovery.DiscoveryClientCellType,
-		Constructor: discovery_client.StartDiscoveryClientFactory,
+		Constructor: discovery_client.NewDiscoveryClientFactory,
 	},
 	{
 		Type:        discovery.DiscoveryServerCellType,
@@ -141,7 +141,7 @@ var HiveKitAllCells = []api.CellDefinition{
 	// client and session management provider
 	{
 		Type:        authnapi.AuthnServiceCellType,
-		Constructor: authn_service.StartAuthnServiceFactory,
+		Constructor: authn_service.NewAuthnServiceFactory,
 	},
 	// authorization provider
 	{
@@ -210,6 +210,6 @@ var HiveKitAllCells = []api.CellDefinition{
 	// vcache server provider
 	{
 		Type:        vcache.ValueCacheCellType,
-		Constructor: vcache_service.StartValueCacheServiceFactory,
+		Constructor: vcache_service.NewValueCacheServiceFactory,
 	},
 }

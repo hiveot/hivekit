@@ -99,7 +99,7 @@ func NewBucketServiceImpl(location string, storeType string) (svc *BucketService
 		location:     location,
 		backend:      storeType,
 		store:        store,
-		cursorCache:  NewCursorCache(),
+		cursorCache:  StartCursorCache(),
 
 		// StoreName:   defaultStoreName,
 		// bucketStore: bucketStore,

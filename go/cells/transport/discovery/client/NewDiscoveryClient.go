@@ -6,7 +6,9 @@ import (
 	"github.com/hiveot/hivekit/go/cells/transport/discovery/internal/clientimpl"
 )
 
-// StartDiscoveryClient creates a new instance of a discovery client
+// NewDiscoveryClient returns a ready-to-use instance of a discovery client
+//
+// Call DiscoverThings or DiscoverDirectories to start the discovery process.
 //
 // If an appEnv is provided and its DirectoryURL is empty, and discoOnStart is enabled
 // then Start will run in initial directory discovery and update appEnv with the
@@ -14,17 +16,17 @@ import (
 //
 // This provides automatic discovery of a directory for a consumer that uses this client,
 // while still be able to provide a commandline override of the directory URL.
-func StartDiscoveryClient(
+func NewDiscoveryClient(
 	appEnv *api.HiveEnvironment, discoOnStart bool) (discovery.IDiscoveryClient, error) {
 
 	return clientimpl.NewDiscoveryClientImpl(appEnv, discoOnStart)
 }
 
-// StartDiscoveryClientFactory creates a new instance of a discovery client for
-// use by the factory.
+// NewDiscoveryClientFactory returns a ready-to-use instance of a discovery client
+// for use by the factory.
 //
 // Intended to be used by a client side factory recipe to automatically discover devices.
-func StartDiscoveryClientFactory(f api.ICellFactory, md *api.CellDefinition) (api.IHiveCell, error) {
+func NewDiscoveryClientFactory(f api.ICellFactory, md *api.CellDefinition) (api.IHiveCell, error) {
 	appEnv := f.GetEnvironment()
-	return StartDiscoveryClient(appEnv, false)
+	return NewDiscoveryClient(appEnv, false)
 }

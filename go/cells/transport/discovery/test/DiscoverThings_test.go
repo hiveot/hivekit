@@ -44,7 +44,7 @@ func TestDiscoverThings(t *testing.T) {
 	// Test if it is discovered
 	serverAddr := testEnv.HttpServer.GetConnectURL()
 	urlParts, _ := url.Parse(serverAddr)
-	cl, err := discovery_client.StartDiscoveryClient(nil, false)
+	cl, err := discovery_client.NewDiscoveryClient(nil, false)
 	records, err := cl.DiscoverThings(testServiceName, time.Second, nil)
 	require.NoError(t, err)
 	require.Equal(t, len(records), 1, "the test thing record was not discovered")
@@ -76,7 +76,7 @@ func TestDiscoverGetThingTD(t *testing.T) {
 
 	// discover the server
 	appEnv := api.NewHiveEnvironment("", false)
-	cl, err := discovery_client.StartDiscoveryClient(appEnv, false)
+	cl, err := discovery_client.NewDiscoveryClient(appEnv, false)
 	recs, err := cl.DiscoverThings(testServiceName, time.Second, nil)
 	// records, err := cl.DiscoverThings(testThingServiceID, time.Second, nil)
 	require.NoError(t, err)

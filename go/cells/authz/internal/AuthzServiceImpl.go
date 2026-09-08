@@ -42,7 +42,9 @@ func (svc *AuthzServiceImpl) HandleRequest(req *msg.RequestMessage, replyTo msg.
 
 // publish the TD when app is ready
 func (svc *AuthzServiceImpl) Start() {
-	// svc.PublishTD()
+	// TBD: any use-case for remote access? properties, events?
+	// authzTD := authz.AuthzServiceTD
+	// svc.PublishTD(string(authzTD))
 }
 
 // Stop closes the rules store and releases resources

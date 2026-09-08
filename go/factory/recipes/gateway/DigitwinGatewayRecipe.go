@@ -99,7 +99,7 @@ var DigitwinGatewayRecipeCells = []api.CellDefinition{
 	{
 		// Authentication handler and service
 		Type:        authn.AuthnServiceCellType,
-		Constructor: authn_service.StartAuthnServiceFactory,
+		Constructor: authn_service.NewAuthnServiceFactory,
 	},
 	{
 		// Authorization

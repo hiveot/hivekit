@@ -48,5 +48,5 @@ func StartBucketStoreServiceFactory(f api.ICellFactory, md *api.CellDefinition) 
 // Intended for servers that let remote clients iterate a cursor in the bucket store.
 // Call Stop to end the background process and free resources.
 func NewCursorCache() bucketstore.ICursorCache {
-	return internal.NewCursorCache()
+	return internal.StartCursorCache()
 }

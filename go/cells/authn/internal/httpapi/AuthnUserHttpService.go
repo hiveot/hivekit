@@ -146,9 +146,9 @@ func (m *AuthnUserHttpService) Stop() {
 	// todo remove registrations
 }
 
-// Start an authn handler for serving user requests over http
+// Return a ready-to-use authn handler for serving user requests over http
 // This converts http requests to RRN messages that are handled downstream.
-func StartAuthnUserHttpService(httpServer api.IHttpServer) *AuthnUserHttpService {
+func NewAuthnUserHttpService(httpServer api.IHttpServer) *AuthnUserHttpService {
 	if httpServer == nil {
 		panic("NewAuthnUserHttpHandler: missing http server")
 	}

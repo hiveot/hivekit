@@ -13,7 +13,7 @@ func NewValueCacheService() (vcacheapi.IValueCacheService, error) {
 }
 
 // Create a ready-to-use instance of the value cache service using the Cell Factory environment.
-func StartValueCacheServiceFactory(f api.ICellFactory, md *api.CellDefinition) (api.IHiveCell, error) {
+func NewValueCacheServiceFactory(f api.ICellFactory, md *api.CellDefinition) (api.IHiveCell, error) {
 	svc, err := NewValueCacheService()
 	return svc, err
 }

@@ -262,6 +262,7 @@ func (f *FactoryImpl) SetAuthenticator(impl api.IAuthenticator) {
 // Invoke Start on all loaded cells.
 // Intended to be used after all cells have been created and linked.
 func (f *FactoryImpl) Start() {
+	slog.Info("Start, starting all cells")
 	for _, cell := range f.loadedCells {
 		cell.Start()
 	}

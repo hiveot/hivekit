@@ -16,6 +16,8 @@ import (
 	logging_service "github.com/hiveot/hivekit/go/cells/logging/service"
 	"github.com/hiveot/hivekit/go/cells/router"
 	router_service "github.com/hiveot/hivekit/go/cells/router/service"
+	"github.com/hiveot/hivekit/go/cells/transport/addforms"
+	addforms_service "github.com/hiveot/hivekit/go/cells/transport/addforms/service"
 	"github.com/hiveot/hivekit/go/cells/transport/discovery"
 	discovery_server "github.com/hiveot/hivekit/go/cells/transport/discovery/server"
 	grpc "github.com/hiveot/hivekit/go/cells/transport/grpc"
@@ -93,14 +95,14 @@ var GatewayRecipeCells = []api.CellDefinition{
 		Constructor: logging_service.NewLoggingServiceFactory,
 	},
 	{
-		// Authentication handler and service
-		Type:        authn.AuthnServiceCellType,
-		Constructor: authn_service.StartAuthnServiceFactory,
-	},
-	{
-		// Authorization
+		// Authorization of remote requests
 		Type:        authz.AuthzServiceCellType,
 		Constructor: authz_service.NewAuthzServiceFactory,
+	},
+	{
+		// Authentication handler and service
+		Type:        authn.AuthnServiceCellType,
+		Constructor: authn_service.NewAuthnServiceFactory,
 	},
 
 	{
@@ -108,6 +110,15 @@ var GatewayRecipeCells = []api.CellDefinition{
 		Type:        history.HistoryServiceCellType,
 		Constructor: history_service.NewHistoryServiceFactory,
 	},
+
+	// all TDs added to the gateway will have their address/security/base updated
+	// to the gateway itself.
+	{
+		// add forms to update the published TD with appropriate forms
+		Type:        addforms.AddFormsCellType,
+		Constructor: addforms_service.StartAddFormsServiceFactory,
+	},
+
 	{
 		// Directory service
 		Type:        directory.DirectoryServiceCellType,
@@ -150,17 +161,16 @@ var GatewayRecipeCells = []api.CellDefinition{
 //	 -> init certs
 //		  -> server group [http, wss, sse, mqtt]
 //		     -> logging
-//		        -> authn
-//		           -> authz
-//		              -> history
-//			              -> directory
-//			                 -> discovery server
-//	    	                   -> router | reconnect | clients
+//	           -> authz
+//		          -> authn
+//		             -> history
+//		                -> directory
+//		                   -> discovery server
+//	                         -> router | reconnect | clients
 //
 // This returns the recipe, which can be used like any other cell
 func StartGatewayDeviceRecipe(f api.ICellFactory) (api.IRecipe, error) {
 
-	chain := DigitwinGatewayRecipeCells
-	r, err := factory_service.NewChainFormation(f, chain, nil)
+	r, err := factory_service.NewChainFormation(f, GatewayRecipeCells, nil)
 	return r, err
 }
