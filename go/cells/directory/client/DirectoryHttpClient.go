@@ -127,6 +127,11 @@ func (cl *DirectoryHttpClient) DeleteThing(thingID string) error {
 	return err
 }
 
+// get the TDD of the directory server
+func (cl *DirectoryHttpClient) GetTDD() *td.TD {
+	return cl.dirTD
+}
+
 // RetrieveAllThings retrieves a list of things to update the local directory
 // This follows: https://w3c.github.io/wot-discovery/#exploration-directory-api-things-listing
 // which requires the http get at /things?limit=...

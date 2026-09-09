@@ -42,52 +42,48 @@ type Cliex struct {
 	config CliexConfig
 }
 
-// locate a TD through the directory or discovery
+// locate a TD through the directory or discovery.
 // This takes the following steps:
 // 1. checks if the TD is known to the directory client
-// 2. check if the Thing is found by Thing discovery
-// 3. locate a directory service
-// 4. ask the directory service
+// 2. if no remote directory is set then discover a directory
+// 3. check the directory client again.
 func (cliex *Cliex) FindTD(thingID string) (tdoc *td.TD) {
+	var err error
 	var maxWaitTime = time.Second * 1
-	var tdd *td.TD
+	var tddURL string
 
-	// 1. ask the directory client.
+	// 1. Ask the directory client.
 	// It might not be in the cache yet so continue if not found.
 	tdoc, _ = cliex.dirClient.RetrieveThing(thingID)
 	if tdoc != nil {
 		return tdoc
 	}
-	// 2. attempt thing discovery or directory discovery
+
+	// 2. make sure the directory client has a directory to talk to and try again.
+	dirTDD := cliex.dirClient.GetTDD()
+	if dirTDD == nil {
+		dirTDD, tddURL, _, err = cliex.discoClient.DiscoverFirstDirectoryTD("", maxWaitTime)
+		_ = tddURL
+		if err == nil {
+			cliex.dirClient.SetTDD(dirTDD)
+			tdoc, _ = cliex.dirClient.RetrieveThing(thingID)
+			if tdoc != nil {
+				return tdoc
+			}
+		}
+	}
+
+	// 3. not in the directory. attempt thing discovery
 	cliex.discoClient.DiscoverThingTDs("", maxWaitTime, func(discoTD *td.TD) bool {
 		if discoTD.ID == thingID {
 			tdoc = discoTD
 			return true
 		}
-		// while we're looking, capture a directory for the next step
-		if discoTD.IsDirectory() {
-			tdd = discoTD
-		}
 		return false
 	})
-	if tdoc != nil {
-		return tdoc
-	}
 
-	// 3. Device not found so trying by locating a directory
-	if tdd == nil {
-		return nil
-	}
-	// 4. A directory was found, try to read it.
-	// Update the directory client with the newly found TDD so the router can
-	// forward requests to it.
-	// Reading a directory typically requires authentication credentials.
-	cliex.dirClient.SetTDD(tdd)
-	tdoc, err := cliex.dirClient.RetrieveThing(thingID)
-	if err != nil {
-		slog.Warn("FindTD. No access to directory", "err", err.Error)
-	}
-	return tdoc
+	slog.Warn("FindTD. No TD found", "thingID", thingID)
+	return nil
 }
 
 // Start a new instance of the CLI app

@@ -79,13 +79,14 @@ type IDiscoveryClient interface {
 	// DiscoverFirstDirectoryTD returns the TD of the first discovered directory
 	// This optional filters on thingID, not the dicovery record instanceName.
 	//
-	//	thingID is an optional filter name of a specific directory thing, or "" for any.
+	//	searchID is an optional filter name of a specific discovery instance name or
+	//    directory thingID.  "" for any.
 	//	maxWaitTime defaults to 3 seconds
 	//
-	//	This returns the TD, its JSON, if found
+	//	This returns the TDD, its URL its JSON, if found
 	//	This returns an error if it wasn't possible to run discovery.
-	DiscoverFirstDirectoryTD(
-		thingID string, maxWaitTime time.Duration) (tdoc *td.TD, tddJson string, err error)
+	DiscoverFirstDirectoryTD(searchID string, maxWaitTime time.Duration) (
+		tdoc *td.TD, tddURL string, tddJson string, err error)
 
 	// DiscoverThings returns a list of all discovery records of all WoT compatible devices,
 	// including Things, Directories and Gateways.

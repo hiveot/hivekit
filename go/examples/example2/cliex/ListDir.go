@@ -11,7 +11,8 @@ import (
 func (app *Cliex) ListDir(thingID string) {
 	var waitTime = time.Second
 
-	dirTD, rec0, err := app.discoClient.DiscoverFirstDirectoryTD(thingID, waitTime)
+	dirTD, tddURL, rec0, err := app.discoClient.DiscoverFirstDirectoryTD(thingID, waitTime)
+	_ = tddURL
 	_ = rec0
 
 	if err != nil || dirTD == nil {

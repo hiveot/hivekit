@@ -36,17 +36,17 @@ type DirectoryClientImpl struct {
 // Send a request to the directory server.
 //
 // Use the TDD ThingID if known. Otherwise fall back to the default directory ThingID.
-func (m *DirectoryClientImpl) _sendServerRequest(
+func (cl *DirectoryClientImpl) _sendServerRequest(
 	op string, action string, input any, output any) error {
 
 	var dirID = directory.DefaultDirectoryThingID
 
-	if m.dirTDD != nil {
-		dirID = m.dirTDD.ID
+	if cl.dirTDD != nil {
+		dirID = cl.dirTDD.ID
 	}
 	// this assumes that the chain knows how to reach the directory server.
 	// This is not a concern of this cell though.
-	err := m.Rpc(op, dirID, action, input, output)
+	err := cl.Rpc(op, dirID, action, input, output)
 	if err != nil {
 		return fmt.Errorf("RetrieveAllThings: op '%s' failed: %w", op, err)
 	}
@@ -54,34 +54,39 @@ func (m *DirectoryClientImpl) _sendServerRequest(
 }
 
 // Return the local cache of Things
-func (m *DirectoryClientImpl) Cache() directory.IDirectoryCache {
-	return m.cache
+func (cl *DirectoryClientImpl) Cache() directory.IDirectoryCache {
+	return cl.cache
 }
 
 // Send request to delete a TD
 // If no TDD is set then this removes the TD from the cache and an error is returned.
-func (m *DirectoryClientImpl) DeleteThing(thingID string) (err error) {
-	m.cache.RemoveTD(thingID)
+func (cl *DirectoryClientImpl) DeleteThing(thingID string) (err error) {
+	cl.cache.RemoveTD(thingID)
 
 	// This client doesnt make assumptions on how it is connected.
 	// If the cell downstream is connected to a gateway then this will work, otherwise it a TDD is required.
-	err = m._sendServerRequest(td.OpInvokeAction, directory.DeleteThingAction, thingID, nil)
+	err = cl._sendServerRequest(td.OpInvokeAction, directory.DeleteThingAction, thingID, nil)
 	return err
+}
+
+// Get the directory TD to client is using to talk to the remote directory
+func (cl *DirectoryClientImpl) GetTDD() *td.TD {
+	return cl.dirTDD
 }
 
 // Receive notifications from the directory service to update the directory
 // TODO:
 // 1. update TD from directory events
 // 2. handle TDD discovery notification and subscribe to the directory server
-func (m *DirectoryClientImpl) HandleNotification(notif *msg.NotificationMessage) {
-	m.HiveCellBase.HandleNotification(notif)
+func (cl *DirectoryClientImpl) HandleNotification(notif *msg.NotificationMessage) {
+	cl.HiveCellBase.HandleNotification(notif)
 }
 
 // Retrieve a Thing TD from the cache or remote
-func (m *DirectoryClientImpl) RetrieveThing(thingID string) (tdoc *td.TD, err error) {
+func (cl *DirectoryClientImpl) RetrieveThing(thingID string) (tdoc *td.TD, err error) {
 
 	// first try the cache
-	tdoc = m.cache.GetThing(thingID)
+	tdoc = cl.cache.GetThing(thingID)
 	if tdoc != nil {
 		return tdoc, nil
 	}
@@ -89,18 +94,18 @@ func (m *DirectoryClientImpl) RetrieveThing(thingID string) (tdoc *td.TD, err er
 	// This client doesnt make assumptions on how it is connected.
 	// If the cell downstream is connected to a gateway then this will work, otherwise it a TDD is required.
 	var tdJson string
-	err = m._sendServerRequest(
+	err = cl._sendServerRequest(
 		td.OpInvokeAction, directory.RetrieveThingAction, thingID, &tdJson)
 	if err != nil {
 		return nil, err
 	}
-	tdoc, err = m.cache.ImportTDJson(tdJson)
+	tdoc, err = cl.cache.ImportTDJson(tdJson)
 	return tdoc, err
 }
 
 // Retrieve all things in the directory
 // This fails if the TDD is not set.
-func (m *DirectoryClientImpl) RetrieveAllThings(offset int, limit int) (tdList []*td.TD, err error) {
+func (cl *DirectoryClientImpl) RetrieveAllThings(offset int, limit int) (tdList []*td.TD, err error) {
 
 	// This client doesnt make assumptions on how it is connected.
 	// If the cell downstream is connected to a gateway then this will work, otherwise it a TDD is required.
@@ -110,7 +115,7 @@ func (m *DirectoryClientImpl) RetrieveAllThings(offset int, limit int) (tdList [
 		Limit:  limit,
 	}
 	var tdJsonList []string
-	err = m._sendServerRequest(
+	err = cl._sendServerRequest(
 		td.OpInvokeAction, directory.RetrieveAllThingsAction, args, &tdJsonList) //&tdJsonList)
 	if err != nil {
 		return nil, err
@@ -119,7 +124,7 @@ func (m *DirectoryClientImpl) RetrieveAllThings(offset int, limit int) (tdList [
 	// import them into the cache
 	tdList = make([]*td.TD, 0, len(tdJsonList))
 	for _, tdJson := range tdJsonList {
-		tdoc, err := m.cache.ImportTDJson(tdJson)
+		tdoc, err := cl.cache.ImportTDJson(tdJson)
 		if err == nil {
 			tdList = append(tdList, tdoc)
 		}
@@ -128,9 +133,9 @@ func (m *DirectoryClientImpl) RetrieveAllThings(offset int, limit int) (tdList [
 }
 
 // Set the directory TD to use and include it in the local cache
-func (m *DirectoryClientImpl) SetTDD(tdd *td.TD) {
-	m.dirTDD = tdd
-	m.cache.ImportTD(tdd)
+func (cl *DirectoryClientImpl) SetTDD(tdd *td.TD) {
+	cl.dirTDD = tdd
+	cl.cache.ImportTD(tdd)
 }
 
 // NewDirectoryClientImpl creates a ready-to-use DirectoryClient instance for consumers which

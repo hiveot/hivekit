@@ -36,8 +36,8 @@ type DiscoveryServerImpl struct {
 	// the well-known exploration URL.
 	endpoints map[string]string
 
-	// service discovery using mDNS
-	dnssdServer *zeroconf.Server
+	// service discovery using mDNS per thingID
+	dnssdServers map[string]*zeroconf.Server
 
 	// the http server that servers the exploration endpoint.
 	httpServer api.IHttpServer
@@ -57,8 +57,8 @@ func (m *DiscoveryServerImpl) HandleRequest(req *msg.RequestMessage, replyTo msg
 		switch req.Name {
 		case discovery.ServeDirectoryTDAction:
 			tddJson := req.ToString(0)
-			err = m.ServeDirectoryTD(m.serviceName, tddJson)
-			resp := req.CreateResponse(nil, err)
+			tddURL, err := m.ServeDirectoryTD(m.serviceName, tddJson)
+			resp := req.CreateResponse(tddURL, err)
 			return replyTo(resp)
 
 		case discovery.ServeThingTDAction:
@@ -96,14 +96,13 @@ func (m *DiscoveryServerImpl) HandleRequest(req *msg.RequestMessage, replyTo msg
 //
 // This aims to be compliant with https://w3c.github.io/wot-discovery/#exploration-server
 //
-// This fails if the http server isn't provided.
-func (m *DiscoveryServerImpl) ServeDirectoryTD(serviceName string, tddJSON string) (err error) {
+// This returns the TDD URL or fails if the http server isn't provided.
+func (m *DiscoveryServerImpl) ServeDirectoryTD(
+	serviceName string, tddJSON string) (tddURL string, err error) {
 	// map of endpoints by scheme (wss, sse, ...)
 
-	if m.dnssdServer != nil {
-		return fmt.Errorf("ServeDirectoryTD: a TD is already served")
-	} else if m.httpServer == nil {
-		return fmt.Errorf("ServeDirectoryTD: missing http server")
+	if m.httpServer == nil {
+		return "", fmt.Errorf("ServeDirectoryTD: missing http server")
 	}
 	if serviceName == "" {
 		serviceName = m.serviceName
@@ -116,17 +115,19 @@ func (m *DiscoveryServerImpl) ServeDirectoryTD(serviceName string, tddJSON strin
 		w.Header().Add("Content-Type", "application/td+json")
 		_, _ = w.Write([]byte(tddJSON))
 	})
-	tddURL, err := url.JoinPath(m.httpServer.GetConnectURL(), wellKnownPath)
+	tddURL, err = url.JoinPath(m.httpServer.GetConnectURL(), wellKnownPath)
 
-	m.dnssdServer, err = ServeWotDiscovery(serviceName, tddURL, true, m.endpoints)
+	// FIXME: server multiples?
+	dnsSrv, err := ServeWotDiscovery(serviceName, tddURL, true, m.endpoints)
 
 	if err != nil {
 		slog.Error("Failed starting introduction server for DNS-SD",
 			"TDD URL", tddURL,
 			"err", err.Error())
-		return err
+		return tddURL, err
 	}
-	return nil
+	m.dnssdServers[serviceName] = dnsSrv
+	return tddURL, nil
 }
 
 // ServeThingTD registers the given thing TD with the HTTP server and publishes
@@ -160,14 +161,15 @@ func (m *DiscoveryServerImpl) ServeThingTD(
 	})
 
 	// publish a discovery record
-	thingTDURL, err := url.JoinPath(m.httpServer.GetConnectURL(), httpPath)
-	m.dnssdServer, err = ServeWotDiscovery(serviceName, thingTDURL, false, nil)
+	thingTDURL, _ := url.JoinPath(m.httpServer.GetConnectURL(), httpPath)
+	dnsSrv, err := ServeWotDiscovery(serviceName, thingTDURL, false, nil)
 	if err != nil {
 		slog.Error("Failed starting introduction server for DNS-SD",
 			"Thing TD URL", thingTDURL,
 			"err", err.Error())
 		return err
 	}
+	m.dnssdServers[serviceName] = dnsSrv
 	return nil
 }
 
@@ -175,10 +177,12 @@ func (m *DiscoveryServerImpl) ServeThingTD(
 func (m *DiscoveryServerImpl) Stop() {
 	m.mux.Lock()
 	defer m.mux.Unlock()
-	slog.Info("Stop: Stopping discovery transport server")
-	if m.dnssdServer != nil {
-		m.dnssdServer.Shutdown()
-		m.dnssdServer = nil
+	slog.Info("Stop: Stopping discovery transport servers", "count", len(m.dnssdServers))
+	if m.dnssdServers != nil {
+		for _, dnsSrv := range m.dnssdServers {
+			dnsSrv.Shutdown()
+		}
+		m.dnssdServers = nil
 		// the DNS server takes a wee bit of time to really stop
 		// Wait this wee bit to prevent a race running tests
 		time.Sleep(time.Millisecond)
@@ -214,11 +218,12 @@ func NewDiscoveryServerImpl(serviceName string,
 		tddJSON:      tddJSON,
 		endpoints:    endpoints,
 		httpServer:   httpServer,
+		dnssdServers: make(map[string]*zeroconf.Server),
 	}
 
 	if tddJSON != "" {
 		slog.Info("Start: Starting discovery server - serving directory TD")
-		err = srv.ServeDirectoryTD(serviceName, tddJSON)
+		_, err = srv.ServeDirectoryTD(serviceName, tddJSON)
 	} else {
 		slog.Info("Start: Starting discovery server - no TD served yet")
 	}

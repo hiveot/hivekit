@@ -4,7 +4,6 @@ import (
 	"crypto/x509"
 	"fmt"
 	"log/slog"
-	"net/url"
 	"strings"
 	"sync"
 	"time"
@@ -15,7 +14,6 @@ import (
 	"github.com/hiveot/hivekit/go/api/td"
 	"github.com/hiveot/hivekit/go/cells"
 	"github.com/hiveot/hivekit/go/cells/transport/discovery"
-	tls_client "github.com/hiveot/hivekit/go/cells/transport/tlsclient/client"
 )
 
 // Client for discovery of WoT devices and directories
@@ -103,7 +101,7 @@ func (cl *DiscoveryClientImpl) DiscoverDirectoryTDs(
 	for _, rec := range recs {
 		dirURL := rec.AsURL()
 		if dirURL != "" {
-			dirTD, _, err := cl.LoadTD(dirURL)
+			dirTD, _, err := LoadTD(dirURL, cl.rootCAs)
 			if err == nil {
 				tddList = append(tddList, dirTD)
 			}
@@ -135,34 +133,34 @@ func (cl *DiscoveryClientImpl) DiscoverFirstDirectory(
 	return first, nil
 }
 
-// Discover the first directory TD and return the result or an error
+// Discover the first directory TDD and return the result or an error
 //
-// If a directory URL is known then load the TDD from the URL, otherwise do a DNS-SD search
-// for the directory to get the URL.
-//
-// This updates this client's directory TD and returns the TDD and its loaded JSON.
-// If no TDD is found this responds with an error.
-//
-// If multiple requests are send then each will update the directory TDD if found.
+//	searchID optionally filters on a specific instance name or directory thingID
 func (cl *DiscoveryClientImpl) DiscoverFirstDirectoryTD(
-	thingID string, maxWaitTime time.Duration) (dirTD *td.TD, tddJSON string, err error) {
+	searchID string, maxWaitTime time.Duration) (
+	dirTD *td.TD, tddURL string, tddJSON string, err error) {
 
-	var dirURL string
 	// stop on the first matching result
 	_, err = cl.DiscoverDirectories(maxWaitTime, func(rec *discovery.DiscoveryResult) bool {
 		// keep looking until a matching TD is found
-		dirURL = rec.AsURL()
-		if dirURL == "" {
+		tddURL = rec.AsURL()
+		if tddURL == "" {
 			return false
 		}
-		recTD, recTddJSON, err := cl.LoadTD(dirURL)
+		recTD, recTddJSON, err := LoadTD(tddURL, cl.rootCAs)
 		if err != nil || recTD == nil {
 			return false
 		}
-		if thingID != "" && thingID != recTD.ID {
+		if searchID != "" {
+			if searchID == recTD.ID || searchID == rec.Instance {
+				dirTD = recTD
+				tddJSON = recTddJSON
+				return true
+			}
+			// keep looking
 			return false
 		}
-		// found a matching TD
+		// any TDD will do
 		dirTD = recTD
 		tddJSON = recTddJSON
 		return true
@@ -173,7 +171,7 @@ func (cl *DiscoveryClientImpl) DiscoverFirstDirectoryTD(
 	} else {
 		err = nil
 	}
-	return dirTD, tddJSON, err
+	return dirTD, tddURL, tddJSON, err
 }
 
 // DiscoverThings returns discovery records of all wot Things that publish themselves on the network.
@@ -219,7 +217,7 @@ func (cl *DiscoveryClientImpl) DiscoverThingTDs(
 		tdURL := rec.AsURL()
 		var tdoc *td.TD
 		if tdURL != "" {
-			tdoc, _, _ = cl.LoadTD(tdURL)
+			tdoc, _, _ = LoadTD(tdURL, cl.rootCAs)
 		}
 		if rec.IsDirectory {
 			dirTDs = append(dirTDs, tdoc)
@@ -241,7 +239,7 @@ func (cl *DiscoveryClientImpl) HandleRequest(
 	req *msg.RequestMessage, replyTo msg.ResponseHandler) error {
 
 	if req.Operation == td.OpInvokeAction && req.Name == discovery.DiscoverDirectoryAction {
-		_, tddJson, err := cl.DiscoverFirstDirectoryTD("", 0)
+		_, _, tddJson, err := cl.DiscoverFirstDirectoryTD("", 0)
 		resp := req.CreateResponse(tddJson, err)
 		return replyTo(resp)
 	}
@@ -257,28 +255,7 @@ func (cl *DiscoveryClientImpl) HandleRequest(
 //
 // This returns the TD, its JSON or an error if none is found
 func (cl *DiscoveryClientImpl) LoadTD(tdURL string) (tdoc *td.TD, tdJSON string, err error) {
-
-	slog.Info("DownloadTD", "url", tdURL)
-	parts, err := url.Parse(tdURL)
-	if err != nil {
-		return nil, "", err
-	}
-	if strings.ToLower(parts.Scheme) != "https" {
-		return nil, "", fmt.Errorf("Unknown scheme '%s', only http is supported", parts.Scheme)
-	}
-	httpCl := tls_client.NewTLSClient(parts.Host, cl.rootCAs)
-	resp, statusCode, err := httpCl.Get(parts.Path)
-	_ = statusCode
-	if err != nil {
-		return nil, "", fmt.Errorf("DownloadTD: download failed: %w", err)
-	}
-	tdJSON = string(resp)
-	tdDoc, err := td.UnmarshalTD(tdJSON)
-	if err != nil {
-		err = fmt.Errorf("LoadTD: TD loaded from '%s' but it doesn't appear to be valid json: %w",
-			parts.Host+"/"+parts.Path, err)
-	}
-	return tdDoc, tdJSON, err
+	return LoadTD(tdURL, cl.rootCAs)
 }
 
 // Convert a zeroconf result to a hiveot discovery record
@@ -341,66 +318,31 @@ func (cl *DiscoveryClientImpl) ParseZeroconfServiceEntry(
 	return &discoResult
 }
 
-// startDiscovery the discovery process.
+// locateDirectoryToUse attempts to locate a directory and returns its TDD.
 //
-// If an application environment is provided and no directory URL is set,
-// then run a discovery to update the AppEnvironment directory URL and
-// Server URL. (if empty)
-func (cl *DiscoveryClientImpl) startDiscovery() (err error) {
-
-	var rec0 *discovery.DiscoveryResult
-	var dirURL string
+// If a TDD URL is offered then first try to load the TDD from that URL. If this
+// fails then return an error.
+//
+// If no URL is offered then search for a directory and return its TDD and URL.
+//
+// If no TDD can be found then return nil
+func (cl *DiscoveryClientImpl) locateDirectoryToUse(offeredURL string, maxWaitTime time.Duration) (*td.TD, string) {
 	var tddURL string
 
-	// first obtain the directory exploration URL for downloading a TDD
-	rec0, err = cl.DiscoverFirstDirectory("", 0)
-	if rec0 != nil {
-		tddURL = rec0.AsURL()
-	}
-	if tddURL == "" {
-		slog.Warn("Start: No directories are discovered on the local network.")
-		return nil
-	}
-
-	// next, use it to load the directory TD from the exploration endpoint
-	dirTD, _, err := cl.LoadTD(tddURL)
-
-	if err != nil {
-		slog.Warn("Start: Directory is not available at the discovered URL",
-			"tddURL", tddURL,
-			"err", err.Error())
-		return nil // not fatal
-		// "directoryURL", dirURL, "err", err.Error())
-	} else {
-		// validate the URL
-		parts, err := url.Parse(dirTD.Base)
-		_ = parts
-		if err != nil { // unix: has no Host || parts.Host == "" {
-			slog.Warn("Start: Directory found but its Base is not a valid URL",
-				"Base", dirTD.Base)
-		} else {
-			// Base is a valid URL. Use it as the directory connection url.
-			// Technically, each action request can have a different URL for the directory
-			// subscription and each of the actions. Ignore this for now and use the TDD Base
-			// as the directory URL.
-			dirURL = dirTD.Base
-			slog.Info("Start: Directory found", "URL", dirURL)
+	// if a URL is offered then work with it.
+	if offeredURL != "" {
+		dirTDD, _, err := LoadTD(tddURL, cl.rootCAs)
+		if err != nil {
+			slog.Warn("discoverDirectory: Directory is not available at the discovered URL",
+				"tddURL", tddURL,
+				"err", err.Error())
 		}
+		return dirTDD, offeredURL
 	}
+	// no directory URL offered so go find one that can be read.
+	dirTDD, tddURL, _, _ := cl.DiscoverFirstDirectoryTD("", maxWaitTime)
 
-	// update the factory environment to share the results with other cells
-	if dirURL != "" {
-		if cl.env.DirectoryURL == "" {
-			cl.env.DirectoryURL = dirURL
-		}
-		// in case a gateway server is used the gateway server URL is the same as that of the directory.
-		if cl.env.ServerURL == "" {
-			cl.env.ServerURL = dirTD.Base
-		}
-	}
-	// TODO: if this is a valid Directory TDD then send a notification.
-
-	return nil
+	return dirTDD, tddURL
 }
 
 // NewDiscoveryClientImpl returns a ready-to-use discovery client.
@@ -426,9 +368,19 @@ func NewDiscoveryClientImpl(
 		cl.rootCAs = appEnv.GetRootCAs()
 	}
 
-	// discover to populate the app env if needed
-	if cl.discoverOnStart && cl.env != nil && appEnv.DirectoryURL == "" {
-		err = cl.startDiscovery()
+	// discover a directory
+	if cl.discoverOnStart && cl.env != nil && appEnv.DirTDD == nil {
+		dirTDD, tddURL := cl.locateDirectoryToUse(appEnv.TDDURL, time.Second)
+
+		if dirTDD == nil {
+			slog.Warn("NewDiscoveryClientImpl. Downloading the directory TDD failed",
+				"tddURL", appEnv.TDDURL)
+		} else {
+			slog.Info("NewDiscoveryClientImpl. Directory TDD downloaded successfully",
+				"tddURL", tddURL)
+			appEnv.DirTDD = dirTDD
+			appEnv.TDDURL = tddURL
+		}
 	}
 
 	var _ discovery.IDiscoveryClient = cl // interface check

@@ -72,8 +72,8 @@ type IDiscoveryServer interface {
 	//	instanceName is the name under which the TDD is discoverable. Use "" for the default.
 	//	tddJSON is the directory TD to make available in JSON format
 	//
-	// This fails if the http server isn't provided.
-	ServeDirectoryTD(instanceName string, tddJSON string) (err error)
+	// This returns the URL the tdd can be obtained at, or an err if no http server is set.
+	ServeDirectoryTD(instanceName string, tddJSON string) (tddURL string, err error)
 
 	// ServeThingTD serves the given thing TD on http at the well-known endpoint, and publishes
 	// this using DNS-SD discovery.

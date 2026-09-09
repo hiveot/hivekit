@@ -79,12 +79,9 @@ type HiveEnvironment struct {
 	LogLevel  string `yaml:"logLevel,omitempty"`  // logging level: error, warning, info, debug
 	StoresDir string `yaml:"storesDir,omitempty"` // Root of the service stores
 
-	// The provided URL of the directory for a direct connection. This is not the
-	// exploration http endpoint but the directory server itself. This endpoint will
-	// accept requests for reading the directory using action names from the directory
-	// specification. See also the directory.IDirectory api for these method names.
-	// This is empty if a directory is not available.
-	DirectoryURL string `yaml:"directoryURL,omitempty"`
+	// The provided URL of the directory TDD. Needed if the directory is not local or
+	// cannot be discovered.
+	TDDURL string `yaml:"tddURL,omitempty"`
 
 	// The self-signed CA private key if available
 	// CaKey crypto.Signer `yaml:"-"`
@@ -370,7 +367,7 @@ func NewHiveEnvironment(homeDir string, withFlags bool) *HiveEnvironment {
 	var logsDir string
 	// var pluginsDir string
 	var storesDir string
-	var directoryURL string
+	var tddURL string
 	var serverURL string
 	var rpcTimeout time.Duration = msg.DefaultRnRTimeout
 
@@ -404,7 +401,7 @@ func NewHiveEnvironment(homeDir string, withFlags bool) *HiveEnvironment {
 		// flag.StringVar(&pluginsDir, "plugins", pluginsDir, "Plugins directory")
 		flag.StringVar(&clientID, "clientID", clientID, "clientID to authenticate with")
 		flag.StringVar(&logLevel, "loglevel", logLevel, "logging level: debug, warning, info, error")
-		flag.StringVar(&directoryURL, "directoryURL", directoryURL, "url of directory TD")
+		flag.StringVar(&tddURL, "tddURL", tddURL, "url where to download the directory TDD")
 		flag.StringVar(&serverURL, "serverURL", serverURL, "server connection url for consumers")
 		if flag.Usage == nil {
 			flag.Usage = func() {
@@ -486,15 +483,15 @@ func NewHiveEnvironment(homeDir string, withFlags bool) *HiveEnvironment {
 	)
 
 	env := &HiveEnvironment{
-		BinDir:       binDir,
-		AppID:        appID,
-		ClientID:     clientID,
-		ConfigDir:    configDir,
-		CertsDir:     certsDir,
-		DirectoryURL: directoryURL,
-		HomeDir:      homeDir,
-		LogsDir:      logsDir,
-		LogLevel:     logLevel,
+		BinDir:    binDir,
+		AppID:     appID,
+		ClientID:  clientID,
+		ConfigDir: configDir,
+		CertsDir:  certsDir,
+		TDDURL:    tddURL,
+		HomeDir:   homeDir,
+		LogsDir:   logsDir,
+		LogLevel:  logLevel,
 		// PluginsDir:   pluginsDir,
 		RpcTimeout: rpcTimeout,
 		ServerURL:  serverURL,

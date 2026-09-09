@@ -66,8 +66,8 @@ type IDirectoryClient interface {
 	// These TD's are cached so successive requests do not parse the json each time.
 	// GetTD(thingID string) *td.TD
 
-	// Return the Directory TD and its json from the local cache (TBD whether this is needed)
-	// GetTDD() (*td.TD, string)
+	// Return the Directory TD the client is using.
+	GetTDD() *td.TD
 
 	// RetrieveAllThings loads a batch of TD JSON documents from the directory server
 	// and updates the local cache.
