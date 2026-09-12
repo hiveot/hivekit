@@ -73,7 +73,7 @@ func NewDirectoryClient(dirTDD *td.TD, sink api.IHiveCell) directory.IDirectoryC
 func NewDirectoryClientFactory(f api.ICellFactory, modDef *api.CellDefinition) (api.IHiveCell, error) {
 
 	appEnv := f.GetEnvironment()
-	return NewDirectoryClient(appEnv.DirTDD, nil), nil
+	return NewDirectoryClient(appEnv.DirTD, nil), nil
 }
 
 // // Create the new directory client for the http protocol as per spec

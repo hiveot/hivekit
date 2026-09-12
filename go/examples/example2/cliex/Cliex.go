@@ -23,11 +23,6 @@ type CliexConfig struct {
 // The CLI example consumer.
 type Cliex struct {
 	// this is a consumer for chaining cells and sending Thing operations.
-	*consumer.Consumer
-
-	// the consumer this app is linked to
-	// right now the choice is to make the app itself the consumer.
-	// This allows the option to change that if needed.
 	co *consumer.Consumer
 
 	// The discovery client to use for discovering directories and devices
@@ -81,24 +76,31 @@ func (cliex *Cliex) FindTD(thingID string) (tdoc *td.TD) {
 		}
 		return false
 	})
-
-	slog.Warn("FindTD. No TD found", "thingID", thingID)
-	return nil
+	if tdoc == nil {
+		slog.Warn("FindTD. No TD found", "thingID", thingID)
+	}
+	return tdoc
 }
 
-// Start a new instance of the CLI app
-func StartCliex(config CliexConfig,
+// Create a new instance of the CLI app
+//
+//	config is the CLI configuration
+//	co is the consumer helper for publishing requests
+//	discoClient is the discovery client
+//	dirClient is the client for contacting a discovered directory
+//	caCert is the application environment CA
+func NewCliex(config CliexConfig,
+	co *consumer.Consumer,
 	discoClient discovery.IDiscoveryClient,
 	dirClient directory.IDirectoryClient,
 	caCert *x509.Certificate) *Cliex {
 
 	m := &Cliex{
-		Consumer:    consumer.NewConsumer(nil, nil),
+		co:          co,
 		caCert:      caCert,
 		config:      config,
 		discoClient: discoClient,
 		dirClient:   dirClient,
 	}
-	m.co = m.Consumer
 	return m
 }

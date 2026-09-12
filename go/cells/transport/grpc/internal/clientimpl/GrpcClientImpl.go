@@ -12,6 +12,7 @@ import (
 	"github.com/hiveot/hivekit/go/api/td"
 	"github.com/hiveot/hivekit/go/cells/transport"
 	grpctransport "github.com/hiveot/hivekit/go/cells/transport/grpc"
+	"github.com/hiveot/hivekit/go/utils"
 	"github.com/teris-io/shortid"
 )
 
@@ -152,6 +153,9 @@ func (cl *GrpcClientImpl) Connect() (err error) {
 	if err != nil {
 		slog.Error(err.Error(), "url", cl.connectURL)
 		cl._setConnectionStatus(api.StatusLost, err)
+		if strings.Contains(err.Error(), "Unauthorized") {
+			err = utils.UnauthorizedError
+		}
 		return err
 	}
 

@@ -10,7 +10,6 @@ import (
 
 	"github.com/grandcat/zeroconf"
 	"github.com/hiveot/hivekit/go/api"
-	"github.com/hiveot/hivekit/go/api/msg"
 	"github.com/hiveot/hivekit/go/api/td"
 	"github.com/hiveot/hivekit/go/cells"
 	"github.com/hiveot/hivekit/go/cells/transport/discovery"
@@ -60,10 +59,11 @@ func (cl *DiscoveryClientImpl) _dnssd_discover(
 	return result, err
 }
 
-// discoverDirectories invokes a callback on each directory discovered
-// The callback can return true to stop the process.
-// This is using the _wot._tcp service type. Note that _directory._sub._wot._tcp
-// not a defined specification.
+// discoverDirectories invokes a callback on each discovered directory.
+//
+// The callback returns true to stop the process or false to continue.
+// This is using the _wot._tcp service type, not _directory._sub._wot._tcp,
+// as a directory record is identified by the "Type" field.
 func (cl *DiscoveryClientImpl) DiscoverDirectories(maxWaitTime time.Duration,
 	cb func(*discovery.DiscoveryResult) bool) ([]*discovery.DiscoveryResult, error) {
 
@@ -234,17 +234,17 @@ func (cl *DiscoveryClientImpl) DiscoverThingTDs(
 	return dirRecs, dirTDs, deviceRecs, deviceTDs
 }
 
-// Handle requests to discover directory TD.
-func (cl *DiscoveryClientImpl) HandleRequest(
-	req *msg.RequestMessage, replyTo msg.ResponseHandler) error {
+// // Handle requests to discover directory TD.
+// func (cl *DiscoveryClientImpl) HandleRequest(
+// 	req *msg.RequestMessage, replyTo msg.ResponseHandler) error {
 
-	if req.Operation == td.OpInvokeAction && req.Name == discovery.DiscoverDirectoryAction {
-		_, _, tddJson, err := cl.DiscoverFirstDirectoryTD("", 0)
-		resp := req.CreateResponse(tddJson, err)
-		return replyTo(resp)
-	}
-	return cl.ForwardRequest(req, replyTo)
-}
+// 	if req.Operation == td.OpInvokeAction && req.Name == discovery.DiscoverDirectoryAction {
+// 		_, _, tddJson, err := cl.DiscoverFirstDirectoryTD("", 0)
+// 		resp := req.CreateResponse(tddJson, err)
+// 		return replyTo(resp)
+// 	}
+// 	return cl.ForwardRequest(req, replyTo)
+// }
 
 // LoadTD a TD document from a discovery result.
 //
@@ -368,8 +368,8 @@ func NewDiscoveryClientImpl(
 		cl.rootCAs = appEnv.GetRootCAs()
 	}
 
-	// discover a directory
-	if cl.discoverOnStart && cl.env != nil && appEnv.DirTDD == nil {
+	// discover a directory for the app environment
+	if cl.discoverOnStart && cl.env != nil && appEnv.DirTD == nil {
 		dirTDD, tddURL := cl.locateDirectoryToUse(appEnv.TDDURL, time.Second)
 
 		if dirTDD == nil {
@@ -378,7 +378,7 @@ func NewDiscoveryClientImpl(
 		} else {
 			slog.Info("NewDiscoveryClientImpl. Directory TDD downloaded successfully",
 				"tddURL", tddURL)
-			appEnv.DirTDD = dirTDD
+			appEnv.DirTD = dirTDD
 			appEnv.TDDURL = tddURL
 		}
 	}

@@ -21,7 +21,7 @@ import (
 const testDeviceID1 = "device1"
 const testClientID1 = "client1"
 
-var testProtocol = api.HiveotSseScProtocolType
+var testProtocol = api.HiveotWebsocketProtocolType
 
 var testProtocols = []string{
 	api.HiveotSseScProtocolType,
@@ -102,15 +102,14 @@ func TestPingClientCert(t *testing.T) {
 	// 	testEnv.ServerProtocol, testEnv.ServerURL, testEnv.CertBundle.CaCert)
 	cl, err := clients.NewTransportClient(serverTD, td.HTOpPing, "", testEnv.CertBundle.RootCAs)
 	require.NoError(t, err)
-	cl.SetTimeout(time.Minute)
+	cl.SetTimeout(testEnv.AppEnv.RpcTimeout)
+
 	err = cl.SetClientCert(testEnv.CertBundle.ClientCert)
 	require.NoError(t, err)
 	err = cl.Connect()
 	require.NoError(t, err)
 	status := cl.GetConnectionStatus()
 	require.Equal(t, api.StatusConnected, status)
-
-	cl.SetTimeout(time.Minute)
 	defer cl.Close()
 
 	// all hiveot transport handle a ping message
@@ -133,7 +132,7 @@ func TestUnauthorizedError(t *testing.T) {
 	defer cancelFn()
 
 	tdoc := testEnv.Server.GetTD()
-	connectForm, _ := tdoc.GetConnectForm("", "")
+	connectForm, _ := tdoc.GetForm("", "", "", "")
 	rootCAs := testEnv.AppEnv.GetRootCAs()
 
 	// ensure the test client account exists
@@ -142,7 +141,8 @@ func TestUnauthorizedError(t *testing.T) {
 
 	// first make sure connection does validate
 	cl, err := clients.NewTransportClientFromForm(tdoc, connectForm, rootCAs)
-	assert.NoError(t, err)
+	require.NoError(t, err)
+	cl.SetTimeout(testEnv.AppEnv.RpcTimeout)
 	err = cl.SetAuthToken(testClientID1, token, td.SecSchemeBearer)
 	assert.NoError(t, err)
 	err = cl.Connect()

@@ -20,10 +20,6 @@ import (
 	"github.com/hiveot/hivekit/go/utils"
 )
 
-// Deprecated: this client should not be needed. TD Forms should contain all the
-// information needed to map requests from the regular directory client to http
-// requests.
-
 // The DirectoryHttpClient is a client for the Directory service using the REST API.
 // It can be used to connect to a directory service and read its content.
 //

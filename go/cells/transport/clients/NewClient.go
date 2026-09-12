@@ -143,9 +143,9 @@ func NewTransportClientFromForm(
 		cl = grpc_client.NewHiveotGrpcClient(href, rootCAs)
 
 	case api.HiveotSseScProtocolType:
-		// SSE-SC has one full href to connect with SSE and 3 well-known relative paths to
-		// receive requests, response and notification messages. The SSE channel
-		// passes these in reverse direction.
+		// SSE-SC defines the SSE connect URL in 'base' and specifies 3 relative paths
+		// to send requests, response and notification messages to the server over http.
+		// The server sends these messages over the SSE channel.
 		cl = ssesc_client.NewSseScClient(tdoc.Base, rootCAs)
 
 	case api.HiveotWebsocketProtocolType:
@@ -160,9 +160,9 @@ func NewTransportClientFromForm(
 		// http-basic needs the TD to get a href per operation.
 		cl, err = httpbasic_client.NewHttpBasicClient(tdoc, rootCAs)
 
-		//case api.ProtocolTypeWotMQTTWSS:
-		// mqtt needs the TD for href to connect and mkv:topic field for topics per operation
-		// cl = mqtt_client.NewMqttsClient(tdoc, caCert)
+	// case api.WotMqttProtocolType:
+	// mqtt needs the TD for href to connect and mkv:topic field for topics per operation
+	// cl = mqtt_client.NewMqttsClient(tdoc, caCert)
 
 	default:
 		err = fmt.Errorf("NewTransportClient. Unsupported protocol type '%s'", protocolType)
@@ -219,7 +219,7 @@ func NewTransportClientFactory(
 	// the server url is set through commandline, or useing a discovery client
 	if tdoc != nil {
 		// prefer the wot websocket if available
-		form, _ := tdoc.GetConnectForm(api.WotWebsocketScheme, api.WotWebsocketSubprotocol)
+		form, _ := tdoc.GetForm("", "", api.WotWebsocketScheme, api.WotWebsocketSubprotocol)
 
 		// there is no op or name to use so this requires the TD to have a 'base' URL
 		cl, err = NewTransportClientFromForm(tdoc, form, env.GetRootCAs())

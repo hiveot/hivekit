@@ -5,8 +5,8 @@ The objective of the router is to deliver request messages to Things that are ad
 ## Status
 
 This service is in alpha. Both routing to connected RC devices and stand-alone Thing devices is supported based on the TD.
-Authentication with client devices works for bearer tokens. Additional security schemes should be implemented in the 'Authenticate' method of the client implementations.
 
+Authentication with client devices works for bearer tokens. Additional security schemes should be implemented in the 'Authenticate' method of the client implementations. 
 
 
 ## Summary
@@ -30,6 +30,27 @@ HiveOT also supports reverse connections by IoT devices. This is intended for us
 Since RC devices don't run servers, the TD they write to the directory does not need to contain forms to connect with. Instead, the router uses the directory to lookup the  device account ID associated with the Thing and forwards requests to the server to whom the device is connected. If successful the request is forwarded to the device Thing which will handle the request or forward it to the nested Thing that is addressed in the request.
 
 If no destination can be found, the requests fail and the sender will receive an error.
+
+### Authentication
+
+When the router handles a request for a Thing it first establishes the connection needed to reach that Thing. Connecting to a Thing often requires credentials. These can be set using SetCredentials providing the TD of the thing to connect to.
+
+Why the TD and not the ThingID?
+
+Devices can serve multiple Things using the same connection. Gateways and Hubs especially can serve many Things over a single connection. Setting the same credentials for every single Thing reachable via the same gateway is a waste of resources and counter productive. 
+
+Credentials are therefore needed for connections, not individual Things. The router stores credentials by connection URL, not ThingID. Credentials only need to be set for one Thing reachable via the gateway for it to apply for all Things reachable via that gateway. Note that a stand-alone device serving two things is also considered a gateway for these two things.
+
+What is this connection URL? This depends on the protocol used. 
+
+Connection based protocols such as websockets, UDS and mqtt require the full URL. If the TD defines this in the 'base' field then this is used. If 'base' is empty then the first Thing level form is used to determe the URL for the preferred protocol. 
+
+The HTTP-Basic protocol can use a different URL per operation. If a Base field is provided it is used. If base is empty then the origin of the first thing level form is used. Eg: https://host:port/. If a proxy server hosts multiple devices on different URLs then it is assumed that the proxy server handles the authentication.
+
+This approach has the limitation that it assumes that all operations on a Thing can use the same connection URL. This is considered 'good enough' until a valid use-case shows it isn't. 
+
+As for preferred protocol. The default order is: UDS, websockets, mqtt and http-basic last.
+
 
 ### Reconnecting Client Connections 
 

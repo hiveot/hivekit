@@ -316,37 +316,6 @@ func (tdoc *TD) GetAction(actionName string) *ActionAffordance {
 	return actionAffordance
 }
 
-// Experimental: GetConnectForm returns the form that best represents a device connection.
-//
-// This attempts to pick the thing level operation that has the preferred scheme and subprotocol.
-// this returns a match flag if the preferred scheme/subprotocol matches
-//
-// Intended to be able to get a form to connect a client with connection based or a connectionless protocol.
-// Normally an operation is known but for establishing a connection this isnt the case.
-// Ideally this isn't needed so the intent is to make this function unnecesary.
-func (tdoc *TD) GetConnectForm(prefScheme, prefSubprotocol string) (form *Form, match bool) {
-	// use the first thing level forms that matches the preferred protocol
-	forms := tdoc.Forms
-	if prefScheme == "" && prefSubprotocol == "" {
-		return &tdoc.Forms[0], true
-	}
-	// locate the preferred form if any
-	for _, form := range forms {
-		hrefURL, _ := form.ResolveHRef(tdoc.Base, nil)
-		scheme := strings.ToLower(hrefURL.Scheme)
-		subprotocol, _ := form.GetSubprotocol()
-		if prefScheme == "" || scheme == prefScheme {
-			if prefSubprotocol == "" || subprotocol == prefSubprotocol {
-				return &form, true
-			}
-		}
-	}
-	// todo: prefer other subprotocols?
-
-	// preferred form not found so just take the first one
-	return &forms[0], false
-}
-
 // GetEvent returns the Schema for the event or nil if the event doesn't exist
 func (tdoc *TD) GetEvent(eventName string) *EventAffordance {
 	//tdoc.updateMutex.RLock()
@@ -368,12 +337,13 @@ func (tdoc *TD) GetEvent(eventName string) *EventAffordance {
 //  1. Narrow down the available forms by matching operation
 //     If a name is provided then collect the forms of the affordance.
 //     Add the thing level forms with the matching operation.
-//  2. If no preferred scheme/subprotocol is provided then return the first one.
-//  3. If a subprotocol is provided then for each form check the 'subprotocol' field.
+//  2. If no forms are found but a base is set, then create a dummy form with href from base.
+//  3. If no preferred scheme/subprotocol is provided then return the first one.
+//  4. If a subprotocol is provided then for each form check the 'subprotocol' field.
 //     If the subprotocol matches, return the form. The scheme is less specific so it can be ignored.
-//     If no form matches the preferred subprotocol then use the first available form.
-//  4. Without a subprotocol, try to match the scheme.
-//  5. If no scheme matches then return the first available form.
+//     If no form matches the preferred subprotocol then match the scheme.
+//  5. If a preferred scheme is provided try to find a match on scheme.
+//  6. If no scheme matches then return the first available form.
 //
 // To determine the href of each form both the 'base' field and the form 'href' field must be
 // considered:
@@ -386,18 +356,23 @@ func (tdoc *TD) GetEvent(eventName string) *EventAffordance {
 //
 //  4. If form href is empty then use TD 'base'.
 //
-//     operation is the operation as defined in TD forms. Required.
+//     op is the operation as defined in TD forms. Use "" for only considering thing level forms.
 //     name is the optional name of property, event or action affordance, or "" for thing level operations.
 //     prefScheme is the preferred scheme to match
 //     prefSubprotocol is the preferred subprotocol name. This overrides the scheme check.
 //
 // This returns the form and a flag if preferred scheme/protocol matched
-func (tdoc *TD) GetForm(operation string, name string, prefScheme, prefSubprotocol string) (form *Form, match bool) {
+func (tdoc *TD) GetForm(op string, name string, prefScheme, prefSubprotocol string) (form *Form, match bool) {
 	// 1. get the forms that match the operation
-	forms := tdoc.GetForms(operation, name)
+	forms := tdoc.GetForms(op, name)
 	if len(forms) == 0 {
-		// no match for the operation
-		return nil, false
+		if tdoc.Base == "" {
+			// no match for the operation
+			return nil, false
+		}
+		// no forms but a base is provided. Return a dummy form.
+		dummy := NewForm("", tdoc.Base)
+		return &dummy, false
 	}
 
 	// 2. if no preferred protocol is provided then return the first form in the list
@@ -405,7 +380,7 @@ func (tdoc *TD) GetForm(operation string, name string, prefScheme, prefSubprotoc
 		return &forms[0], true
 	}
 
-	// 3. attempt a subprotocol match
+	// 3. attempt the provided a subprotocol match
 	if prefSubprotocol != "" {
 		for _, form := range forms {
 			subp, _ := form.GetSubprotocol()
@@ -413,16 +388,16 @@ func (tdoc *TD) GetForm(operation string, name string, prefScheme, prefSubprotoc
 				return &form, true
 			}
 		}
-		// no match, no need to continue
-		return &forms[0], false
 	}
 
-	// last match href scheme
-	for _, form := range forms {
-		hrefURL, err := form.ResolveHRef(tdoc.Base, nil)
-		if err == nil {
-			if hrefURL.Scheme == prefScheme {
-				return &form, true
+	// last, attempt to match href scheme
+	if prefScheme != "" {
+		for _, form := range forms {
+			hrefURL, err := form.ResolveHRef(tdoc.Base, nil)
+			if err == nil {
+				if hrefURL.Scheme == prefScheme {
+					return &form, true
+				}
 			}
 		}
 	}
@@ -459,12 +434,15 @@ func (tdoc *TD) GetForm(operation string, name string, prefScheme, prefSubprotoc
 // This first checks for forms in the requested operation by affordance name, and appends the global forms.
 // If no operation is given then this returns the Thing level forms.
 //
+// If no operation is provided then this returns the thing level forms.
+//
 //	operation is the operation as defined in TD forms
 //	name is the name of property, event or action whose form to get or "" for the TD level operations
 func (tdoc *TD) GetForms(operation string, name string) []Form {
 
 	var availableForms = make([]Form, 0)
 	var opForms []Form = make([]Form, 0)
+
 	if operation == "" {
 		return tdoc.Forms
 	}
@@ -500,7 +478,7 @@ func (tdoc *TD) GetForms(operation string, name string) []Form {
 		}
 	}
 
-	// add the top level forms as fallback
+	// add the thing level forms as fallback
 	if tdoc.Forms != nil {
 		availableForms = append(availableForms, tdoc.Forms...)
 	}

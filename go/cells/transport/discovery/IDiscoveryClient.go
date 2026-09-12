@@ -29,14 +29,16 @@ type DiscoveryResult struct {
 	IsThing     bool   // URL is of a Thing
 	Instance    string
 	// predefined WoT discovery parameters
-	Schema string // Schema part of the URL
-	Type   string // Thing or Directory
-	TD     string // absolute pathname of the TD or TDD
-	// hiveot connection endpoints
-	AuthEndpoint string            // authentication service endpoint
-	SSEEndpoint  string            // Http/SSE-SC transport protocol
-	WSSEndpoint  string            // Websocket transport
-	Params       map[string]string // optional parameters
+	Schema string            // Schema part of the URL
+	Type   string            // Thing or Directory
+	TD     string            // absolute pathname of the TD or TDD
+	Params map[string]string // optional parameters
+
+	// Experimental: additional hiveot connection endpoints
+	// These are intended for discovering gateways
+	AuthEndpoint string // authentication service endpoint
+	SSEEndpoint  string // Http/SSE-SC transport protocol
+	WSSEndpoint  string // Websocket transport
 }
 
 // Return the URL contained in the discovery record.
@@ -77,7 +79,8 @@ type IDiscoveryClient interface {
 	DiscoverFirstDirectory(instanceName string, maxWaitTime time.Duration) (rec0 *DiscoveryResult, err error)
 
 	// DiscoverFirstDirectoryTD returns the TD of the first discovered directory
-	// This optional filters on thingID, not the dicovery record instanceName.
+	//
+	// This optional filters on thingID or isntance name if provided.
 	//
 	//	searchID is an optional filter name of a specific discovery instance name or
 	//    directory thingID.  "" for any.
@@ -86,7 +89,7 @@ type IDiscoveryClient interface {
 	//	This returns the TDD, its URL its JSON, if found
 	//	This returns an error if it wasn't possible to run discovery.
 	DiscoverFirstDirectoryTD(searchID string, maxWaitTime time.Duration) (
-		tdoc *td.TD, tddURL string, tddJson string, err error)
+		tdoc *td.TD, tddURL string, tddJSON string, err error)
 
 	// DiscoverThings returns a list of all discovery records of all WoT compatible devices,
 	// including Things, Directories and Gateways.

@@ -36,7 +36,7 @@ func main() {
 	utils.SetLogging(env.LogLevel, path.Join(env.LogsDir, "example3.log"))
 
 	f := factory_service.NewCellFactory(env, nil)
-	r, err := consumer_recipe.StartConsumerRecipe(f, false)
+	r, err := consumer_recipe.NewConsumerRecipe(f, false)
 	if err != nil {
 		os.Exit(1)
 	}
@@ -46,7 +46,7 @@ func main() {
 	// the device thingID and falls back to the "" thingID.
 	authToken, _ := env.GetAuthToken()
 	rtr := api.GetFactoryCell[router.IRouterService](f, router.RouterCellType)
-	rtr.AddDeviceCredential("", env.ClientID, authToken, td.SecSchemeBearer)
+	rtr.AddCredentials("", env.ClientID, authToken, td.SecSchemeBearer)
 	fmt.Printf("Using '%s' as login ID\n", env.ClientID)
 
 	app := tuiapp.NewTuiApp(f)

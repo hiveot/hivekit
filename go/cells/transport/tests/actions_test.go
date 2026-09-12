@@ -65,7 +65,7 @@ func TestInvokeActionFromConsumerToServer(t *testing.T) {
 	})
 	testEnv.Server.SetRequestSink(ag)
 
-	// 2. connect a consumer with a linked client
+	// 2. create a consumer with a linked client and a TD for the server
 	co1, cc1, token := testEnv.NewTestConsumer(testClientID1, authn.ClientRoleViewer)
 	err := cc1.Connect()
 	assert.NoError(t, err)

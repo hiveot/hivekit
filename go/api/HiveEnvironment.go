@@ -141,7 +141,7 @@ type HiveEnvironment struct {
 
 	// The directory TD for bootstrapping a client.
 	// This can be provided by discovery or set manually.
-	DirTDD *td.TD `yaml:"-"`
+	DirTD *td.TD `yaml:"-"`
 
 	// The gateway server TD for bootstrapping a client.
 	// This can be provided by discovery or set manually.

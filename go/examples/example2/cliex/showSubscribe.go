@@ -31,7 +31,9 @@ func (app *Cliex) ShowSubscribe(thingID string) {
 	}
 	app.co.SetNotificationHook(func(notif *msg.NotificationMessage) {
 		ts := time.Now().Local().Format(time.TimeOnly)
-		fmt.Printf("%s: Received notification '%s %s': %s\n", ts, notif.AffordanceType, notif.Name, notif.ToString(20))
+		fmt.Printf("%s: Received notification '%s %s': %s\n",
+			ts, notif.AffordanceType, notif.Name,
+			notif.ToString(20))
 	})
 
 	// FIXME: Consumer to detect a disconnect and resubscribe

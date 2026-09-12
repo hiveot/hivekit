@@ -24,19 +24,35 @@ func (app *Cliex) ShowActions(thingID string, actionName string) {
 	// 2. import the TD into the directory client cache
 	app.dirClient.Cache().ImportTD(tdoc)
 
-	// 3. check for invoking an action
-	if actionName != "" && tdoc.Actions[actionName] != nil {
-		// invoke the action
-		println("Invoking action: ", actionName)
-		err := app.co.InvokeAction(thingID, actionName, nil, nil)
-		if err != nil {
-			fmt.Printf("InvokeAction '%s' returned error: %s", actionName, err.Error())
-		}
-	} else {
+	// 3. check for listing actions
+	if actionName == "" {
 		// show the action
 		println("Actions:")
 		for k, aff := range tdoc.Actions {
 			fmt.Printf("  %s: %v\n", k, aff.Title)
 		}
+		return
+	}
+	aff := tdoc.Actions[actionName]
+	if aff == nil {
+		fmt.Printf("Action '%s' does not exist on thing '%s'", actionName, thingID)
+		return
+	}
+	// check for input
+	if aff.Input != nil {
+		fmt.Printf("Sorry, capturing input for action '%s' is not yet supported.\n", actionName)
+		return
+	}
+	// invoke the action
+	fmt.Printf("Invoking action '%s' on '%s', thingID '%s'\n", actionName, tdoc.Title, thingID)
+	var input any
+	var output any
+
+	//
+	err := app.co.InvokeAction(thingID, actionName, input, &output)
+	if err != nil {
+		fmt.Printf("InvokeAction '%s' returned error: %s\n", actionName, err.Error())
+	} else {
+		fmt.Printf("InvokeAction '%s' success. output: %v\n", actionName, output)
 	}
 }

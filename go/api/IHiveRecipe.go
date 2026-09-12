@@ -24,7 +24,7 @@ type IRecipe interface {
 
 	// Start all the cells in the recipe.
 	// Factory recipes instantiate and link cells before calling Start,
-	Start()
+	// Start()
 
 	// Stop the factory used by this recipe in reverse order from Start.
 	// Stop()

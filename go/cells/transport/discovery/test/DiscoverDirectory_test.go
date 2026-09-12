@@ -27,7 +27,7 @@ func TestDiscoverDirectory(t *testing.T) {
 
 	testEnv := testenv.NewTestEnv(true)
 	testEnv.StartHttpServer(true)
-	defer testEnv.HttpServer.Stop()
+	defer testEnv.Stop()
 
 	discoSrv, err := discovery_server.NewDiscoveryServer(testDirServiceName, testEnv.HttpServer, "", endpoints)
 	require.NoError(t, err)
@@ -63,7 +63,7 @@ func TestDiscoverGetDirectoryTD(t *testing.T) {
 	testEnv := testenv.NewTestEnv(true)
 	testHttpServer, httpServerURL := testEnv.StartHttpServer(true)
 	_ = httpServerURL
-	defer testEnv.HttpServer.Stop()
+	defer testEnv.Stop()
 
 	// the transport server for reading the directory
 	// This is needed to set the connection information in the directory TDD.
@@ -110,7 +110,7 @@ func TestDiscoverNoDirectory(t *testing.T) {
 	testEnv := testenv.NewTestEnv(true)
 	testHttpServer, httpServerURL := testEnv.StartHttpServer(true)
 	_ = httpServerURL
-	defer testEnv.HttpServer.Stop()
+	defer testEnv.Stop()
 
 	// start discovery client
 	cl, err := discovery_client.NewDiscoveryClient(testEnv.AppEnv, true)

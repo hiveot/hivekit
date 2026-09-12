@@ -13,6 +13,7 @@ import (
 	"github.com/hiveot/hivekit/go/api"
 	"github.com/hiveot/hivekit/go/cells/transport/ssesc"
 	"github.com/hiveot/hivekit/go/cells/transport/tlsclient"
+	"github.com/hiveot/hivekit/go/utils"
 	gosse "github.com/tmaxmax/go-sse"
 )
 
@@ -78,7 +79,8 @@ func ConnectSSE(
 		onConnect(api.StatusConnected, nil)
 		waitConnectCancelFn()
 	})
-	var sseConnErr atomic.Pointer[gosse.ConnectionError]
+	// var sseConnErr atomic.Pointer[gosse.ConnectionError]
+	var sseConnErr atomic.Pointer[error]
 	go func() {
 		// connect and wait until the connection ends
 		// and report an error if connection ends due to reason other than context cancelled
@@ -100,7 +102,7 @@ func ConnectSSE(
 					"err", err.Error())
 				status = api.StatusLost
 			}
-			sseConnErr.Store(connError)
+			sseConnErr.Store(&utils.UnauthorizedError)
 			//err = fmt.Errorf("connect Failed: %w", connError.Err) //connError.Err
 			waitConnectCancelFn()
 		} else if errors.Is(err, context.Canceled) {
@@ -120,7 +122,7 @@ func ConnectSSE(
 		slog.Warn(err.Error())
 		sseCancelFn()
 	} else if sseConnErr.Load() != nil {
-		err = sseConnErr.Load()
+		err = *sseConnErr.Load()
 		// something else went wrong
 		slog.Warn("ConnectSSE: error" + err.Error())
 	}

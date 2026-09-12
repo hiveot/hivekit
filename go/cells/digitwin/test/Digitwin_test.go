@@ -114,9 +114,7 @@ func startService() (
 		dtwSvc.Stop()
 		rtr.Stop()
 		appServer.Stop()
-		if testEnv.HttpServer != nil {
-			testEnv.HttpServer.Stop()
-		}
+		testEnv.Stop()
 	}
 }
 func TestStartStop(t *testing.T) {

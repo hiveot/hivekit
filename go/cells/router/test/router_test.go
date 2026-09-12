@@ -64,7 +64,6 @@ func startTestServerDevice(deviceID string) (testDevice *testenv.TestCounterThin
 	// 1. Start the server to use for the test protocol
 	slog.Info("startTestServerDevice", "deviceID", deviceID, "serverType", testProtocol)
 	transportServer := testEnv.StartTestServer(testProtocol)
-	transportServer.Start()
 
 	// 2. Create the test device Thing and link it to the server so it receives requests
 	testDevice, err = testenv.NewTestCounterThing(deviceID, nil)
@@ -151,11 +150,11 @@ func TestStartStop(t *testing.T) {
 	slog.Warn(fmt.Sprintf("---Test: %s %s---\n", t.Name(), testProtocol))
 	const clientID = "testclient"
 
-	testDirMod, err := directory_service.NewDirectoryService("", "", nil, nil)
+	testDirSvc, err := directory_service.NewDirectoryService("", "", nil, nil)
 	require.NoError(t, err)
 	// test no cred store
 	svc, err := router_service.NewRouterService(
-		"", false, clientID, nil, nil, rpcTimeout, testDirMod.GetTD, nil)
+		"", false, clientID, nil, nil, rpcTimeout, testDirSvc.GetTD, nil)
 	require.NoError(t, err)
 	defer svc.Stop()
 }
@@ -168,21 +167,34 @@ func TestCredentialsStore(t *testing.T) {
 	const thingScheme = td.SecSchemeBearer
 
 	os.RemoveAll(storageDir)
+	testEnv := testenv.NewTestEnv(true)
+	// a server is needed to include forms in testenv TDs to determine connectURL
+	_ = testEnv.StartTestServer(testProtocol)
+	defer testEnv.Stop()
+
+	testDirSvc, err := directory_service.NewDirectoryService("", "", nil, nil)
+	require.NoError(t, err)
+
+	// FIXME: these tests now require a proper TD with forms as credentials are stored
+	// per connectionURL, not thingID.
+	testTD := testEnv.CreateTestTD(1)
+	testTD.ID = thingID1
+	testDirSvc.CreateThing(thingID1, testTD.ToString())
 
 	// the router uses the TD to connect to the device.
 	// this doesn't actually need a directory. GetTD could also simply return the device TD.
 	routerSvc, err := router_service.NewRouterService(
-		storageDir, false, clientID, nil, nil, rpcTimeout, nil, nil)
+		storageDir, false, clientID, nil, nil, rpcTimeout, testDirSvc.GetTD, nil)
 
 	require.NoError(t, err)
 
-	credType, hasCred := routerSvc.HasThingCredentials(thingID1)
+	credType, hasCred := routerSvc.HasCredentials(thingID1)
 	assert.False(t, hasCred)
 	assert.Equal(t, "", credType)
 
-	routerSvc.AddDeviceCredential(thingID1, clientID, clientCred, thingScheme)
+	routerSvc.AddCredentials(thingID1, clientID, clientCred, thingScheme)
 
-	credType, hasCred = routerSvc.HasThingCredentials(thingID1)
+	credType, hasCred = routerSvc.HasCredentials(thingID1)
 	assert.True(t, hasCred)
 	assert.Equal(t, thingScheme, credType)
 
@@ -190,10 +202,10 @@ func TestCredentialsStore(t *testing.T) {
 
 	// restarting the router should retain the credentials
 	routerSvc2, err := router_service.NewRouterService(
-		storageDir, false, clientID, nil, nil, rpcTimeout, nil, nil)
+		storageDir, false, clientID, nil, nil, rpcTimeout, testDirSvc.GetTD, nil)
 	require.NoError(t, err)
 
-	credType, hasCred = routerSvc2.HasThingCredentials(thingID1)
+	credType, hasCred = routerSvc2.HasCredentials(thingID1)
 	assert.True(t, hasCred)
 	routerSvc2.Stop()
 }
@@ -276,7 +288,7 @@ func TestReadObserveDeviceProperties(t *testing.T) {
 	testAuthn.AddClient(testConsumerID, "", authn.ClientRoleOperator)
 	token, _, err := testAuthn.CreateToken(testConsumerID, rpcTimeout)
 	assert.NoError(t, err)
-	routerMod.AddDeviceCredential(deviceID, clientID, token, td.SecSchemeBearer)
+	routerMod.AddCredentials(deviceID, clientID, token, td.SecSchemeBearer)
 
 	// 5. Send a request, which causes the router to connect to the device
 	values, err := co.ReadAllProperties(deviceID)
@@ -342,7 +354,7 @@ func TestSubscribeReconnectToDevice(t *testing.T) {
 	// to connect to the device, consumer credentials are needed
 	testEnv.TestAuthn.AddClient(testConsumerID, "", authn.ClientRoleOperator)
 	token, _, _ := testEnv.TestAuthn.CreateToken(testConsumerID, rpcTimeout)
-	routerSvc.AddDeviceCredential(deviceID, clientID, token, td.SecSchemeBearer)
+	routerSvc.AddCredentials(deviceID, clientID, token, td.SecSchemeBearer)
 
 	ctx, cancelFn := context.WithTimeout(context.Background(), rpcTimeout)
 

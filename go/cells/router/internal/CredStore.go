@@ -38,7 +38,7 @@ type ThingCredentials struct {
 type CredentialsStore struct {
 	mux sync.RWMutex
 
-	// credentials by device thingID
+	// credentials by connectURL
 	thingCredentials map[string]ThingCredentials
 	//
 	storageFile string
@@ -78,6 +78,9 @@ func (store *CredentialsStore) DeleteCredentials(thingID string) {
 }
 
 // GetCredentials returns the account credentials for connecting to a Thing.
+//
+// Note: Credentials are for connections so the thingID must be mapped to the
+// connectURL which links to the credentials.
 //
 // If no credentials are set for the given thingID then try the default credentials
 // for thingID "".
@@ -207,7 +210,8 @@ func NewCredentialsStore(storageDir string) *CredentialsStore {
 		storageFile = filepath.Join(storageDir, CredStoreFilename)
 	}
 	store := &CredentialsStore{
-		storageFile: storageFile,
+		storageFile:      storageFile,
+		thingCredentials: make(map[string]ThingCredentials),
 	}
 	return store
 }

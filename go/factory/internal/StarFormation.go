@@ -19,6 +19,8 @@ import (
 //
 // The star recipe itself is registered as the notification sink of the cells in the
 // star and will forward these notifications to its own registered notification sink.
+//
+// Star members will have forwarding disabled to avoid multiple notifications and requests.
 type StarFormation struct {
 	*cells.HiveCellBase
 	// cells in the order to instantiate and link
@@ -60,8 +62,6 @@ func (r *StarFormation) SetSlot(slotID string, modDef api.CellDefinition) error 
 
 // NewStarFormation returns a ready-to-use formation with cells linked in a star.
 //
-// Call Start when the application is ready to go. This calls Start on all cells.
-//
 // This returns the star formation cell.
 func NewStarFormation(
 	f api.ICellFactory, members []api.CellDefinition) (*StarFormation, error) {
@@ -82,12 +82,10 @@ func NewStarFormation(
 	// create cells in the defined order and link their notifications
 	for _, cellDef := range r.star {
 		member, err := r.f.NewCell(cellDef.Type, true)
-		// cell cant be created. This is fatal
+		// cell that cant be created are ignored. This is non-fatal
 		if err != nil {
-			slog.Error("NewStarFormation: creating cell failed. Shutting down",
+			slog.Warn("NewStarFormation: creating cell failed. Shutting down",
 				"cellType", cellDef.Type, "err", err.Error())
-			r.Stop()
-			return nil, err
 		} else if member == nil {
 			// don't track 'one-shot' cells that are used to initialize the factory.
 			// These return nil without error.

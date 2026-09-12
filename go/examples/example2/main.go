@@ -11,9 +11,7 @@ import (
 
 	"github.com/hiveot/hivekit/go/api"
 	"github.com/hiveot/hivekit/go/api/td"
-	"github.com/hiveot/hivekit/go/cells/directory"
 	"github.com/hiveot/hivekit/go/cells/router"
-	"github.com/hiveot/hivekit/go/cells/transport/discovery"
 	"github.com/hiveot/hivekit/go/examples/example2/cliex"
 	consumerrecipe "github.com/hiveot/hivekit/go/factory/recipes/consumer"
 	factory_service "github.com/hiveot/hivekit/go/factory/service"
@@ -83,7 +81,7 @@ func main() {
 		env.ClientID = DefaultClientID
 	}
 
-	env.RpcTimeout = time.Minute * 6 // for testing
+	env.RpcTimeout = time.Minute * 3 // for testing
 	args := flag.Args()
 	if len(args) == 0 {
 		flag.Usage()
@@ -91,6 +89,7 @@ func main() {
 	}
 	cmd := args[0]
 
+	// helper when an arg is expected.
 	getThingID := func() string {
 		if len(args) > 1 {
 			return args[1]
@@ -103,20 +102,19 @@ func main() {
 	// Ignore the certificate check just for this example. Dont do this in your app.
 	http.DefaultTransport.(*http.Transport).TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
 
-	// Start the CLI recipe cells
+	// Start the CLI consumer recipe cells
 	f := factory_service.NewCellFactory(env, nil)
-	r, err := consumerrecipe.StartConsumerRecipe(f, false)
+	r, err := consumerrecipe.NewConsumerRecipe(f, false)
 	if err != nil {
 		os.Exit(1)
 	}
 
-	// Set default credentials for connecting to devices with the router service.
-	// The router looks up the credentials for connecting to standalone devices using
-	// the device thingID and falls back to the "" thingID.
-	authToken, _ := env.GetAuthToken()
+	// Set default credentials for connecting to devices using the router.
+	// For demonstration purpose only. Normally you'd set per-device credentials.
+	defaultAuthToken, _ := env.GetAuthToken()
 	rtr := api.GetFactoryCell[router.IRouterService](f, router.RouterCellType)
-	if authToken != "" {
-		rtr.AddDeviceCredential("", env.ClientID, authToken, td.SecSchemeBearer)
+	if defaultAuthToken != "" {
+		rtr.AddCredentials("", env.ClientID, defaultAuthToken, td.SecSchemeBearer)
 		fmt.Printf("Found auth token for login as '%s'\n", env.ClientID)
 	} else {
 		fmt.Printf("No auth token. Using '%s' as login ID\n", env.ClientID)
@@ -128,13 +126,11 @@ func main() {
 		fmt.Printf("No client Cert found.\n")
 	}
 
-	discoClient := api.GetFactoryCell[discovery.IDiscoveryClient](f, discovery.DiscoveryClientCellType)
-	dirClient := api.GetFactoryCell[directory.IDirectoryClient](f, directory.DirectoryClientCellType)
 	caCert, err := env.GetCACert()
-	app := cliex.StartCliex(appConfig, discoClient, dirClient, caCert)
+	discoClient := r.GetDiscovery()
+	dirClient := r.GetDirectory()
+	app := cliex.NewCliex(appConfig, r.Consumer, discoClient, dirClient, caCert)
 
-	app.SetRequestSink(r)
-	r.SetNotificationSink(app)
 	f.Start()
 
 	switch cmd {
@@ -146,7 +142,7 @@ func main() {
 		if len(args) > 1 {
 			thingID = args[1]
 		}
-		app.ListDir(thingID)
+		app.ListDir(env, thingID)
 	case CmdShowActions:
 		thingID := getThingID()
 		actionName := ""

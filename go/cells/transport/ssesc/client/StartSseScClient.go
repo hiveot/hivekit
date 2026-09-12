@@ -12,7 +12,7 @@ import (
 //
 // Set the authentication credentials and call Connect() or Start().
 //
-//	sseURL is the full websocket connection URL including path
+//	sseURL is the full SSE connection URL including path
 //	rootCAs are CA certificates to validate the server certificate. nil for system CAs.
 //	ch is the connect/disconnect callback. nil to ignore
 func NewSseScClient(sseURL string, rootCAs *x509.CertPool) api.ITransportClient {

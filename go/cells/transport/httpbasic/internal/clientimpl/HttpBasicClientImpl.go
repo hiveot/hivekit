@@ -166,6 +166,7 @@ func (cl *HttpBasicClientImpl) SendRequest(
 	var method string
 	var hrefPath string
 	var form *td.Form
+	var match bool
 	var thingID = req.ThingID
 	var name = req.Name
 
@@ -194,13 +195,11 @@ func (cl *HttpBasicClientImpl) SendRequest(
 		td.UriVarName:      name,
 		td.UriVarOperation: req.Operation}
 
-	// the getTD callback provides the method and URL to invoke for this operation.
-	// use the hiveot fallback if not available
 	// If the TD has no matching form then fall back to default well-known http basic href.
 	if cl.tdoc != nil {
-		form, _ = cl.tdoc.GetForm(req.Operation, req.Name, api.HttpBasicScheme, api.HttpBasicSubprotocol)
+		form, match = cl.tdoc.GetForm(req.Operation, req.Name, api.HttpBasicScheme, api.HttpBasicSubprotocol)
 	}
-	if form != nil {
+	if form != nil && match {
 		hrefURL, _ := form.ResolveHRef(cl.tdoc.Base, uriVars)
 		hrefPath = hrefURL.Path
 		method, _ = form.GetMethodName()

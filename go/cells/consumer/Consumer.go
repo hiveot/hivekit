@@ -20,7 +20,7 @@ const ConsumerCellType = "consumer"
 // Usage:
 //
 //	This cell can be used as a base for service clients that like to use the
-//	ready-to-use API for sending requests and querying properties.
+//	ready-to-use API for sending requests and querying properties and events.
 //
 //	To use this consumer it needs to be linked to a transport client in order to deliver requests
 //	and receive notifications using the router or one of the available transport protocols.
@@ -274,7 +274,7 @@ func NewConsumer(sink api.IHiveCell, notificationHook msg.NotificationHandler) *
 	return consumer
 }
 
-// Factory for creating a consumer using the factory environment
+// NewConsumerFactory is the method for creating a consumer using the factory environment
 func NewConsumerFactory(f api.ICellFactory, md *api.CellDefinition) (api.IHiveCell, error) {
 	c := NewConsumer(nil, nil)
 	c.SetTimeout(f.GetEnvironment().RpcTimeout)

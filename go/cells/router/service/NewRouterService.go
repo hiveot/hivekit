@@ -27,7 +27,7 @@ const DefaultRouterAutoConnect = false
 //	clientCert optional client certificate to use for mutual authentication - overrides clientID
 //	rootCAs are the CA certificates used to verify device connections
 //	timeout is the maximum wait time for sending requests to clients.
-//	getTD  handler to lookup a TD for a thingID from a directory
+//	getTD  handler to lookup a TD for a thingID from a directory. Required.
 //	getSrv handler to return the running list of transport servers that can contain
 //	 reverse connections. nil to not support RCs.
 func NewRouterService(storageDir string,
@@ -44,6 +44,10 @@ func NewRouterService(storageDir string,
 }
 
 // Create a router service instance using the factory environment.
+//
+// If the factory environment contains a client certificate then include it for
+// authentication to devices and services.
+//
 // This needs a directory client or service with a getTD method to lookup a Thing TD.
 func NewRouterServiceFactory(f api.ICellFactory, md *api.CellDefinition) (api.IHiveCell, error) {
 

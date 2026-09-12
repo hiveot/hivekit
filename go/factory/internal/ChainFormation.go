@@ -20,7 +20,7 @@ import (
 type ChainFormation struct {
 	*cells.HiveCellBase
 	// Chain of cells in the order to instantiate and link
-	chain []api.CellDefinition `yaml:"chain"`
+	chain []api.CellDefinition
 
 	// The factory to use
 	f api.ICellFactory
@@ -28,8 +28,7 @@ type ChainFormation struct {
 	// loaded cells in order of the chain
 	instances []api.IHiveCell
 
-	// linkto provided on start.
-	// this will also receive the Ready call.
+	//
 	linkTo api.IHiveCell
 }
 
@@ -47,17 +46,17 @@ func (r *ChainFormation) HandleNotification(notif *msg.NotificationMessage) {
 // If no cells are registered then this is an error.
 func (r *ChainFormation) HandleRequest(req *msg.RequestMessage, replyTo msg.ResponseHandler) error {
 	if len(r.instances) == 0 {
-		return fmt.Errorf("HandleRequest: recipe has no cells registered")
+		return fmt.Errorf("HandleRequest: chain has no members")
 	}
 	head := r.instances[0]
 	return head.HandleRequest(req, replyTo)
 }
 
 // Set the sink for notifications from the chain
-// This sets the sink to the first cell in the chain. Call this after start.
+// This sets the sink as the notification destination of the head of the chain.
 func (r *ChainFormation) SetNotificationSink(sink api.IHiveCell, thingIDs ...string) {
 	if len(r.instances) == 0 {
-		slog.Error("SetNotificationSink called but the chain is not started")
+		slog.Error("SetNotificationSink: chain has no members")
 		return
 	}
 	head := r.instances[0]
@@ -69,7 +68,7 @@ func (r *ChainFormation) SetNotificationSink(sink api.IHiveCell, thingIDs ...str
 // Only needed if no LinkTo is provided in ChainFormation
 func (r *ChainFormation) SetRequestSink(sink api.IHiveCell) {
 	if len(r.instances) == 0 {
-		slog.Error("SetRequestSink called but the chain has no members")
+		slog.Error("SetRequestSink: chain has no members")
 		return
 	}
 	tail := r.instances[len(r.instances)-1]
@@ -96,15 +95,17 @@ func (r *ChainFormation) SetSlot(slotID string, cellDef api.CellDefinition) erro
 	return fmt.Errorf("SetSlot: slot '%s' not found", slotID)
 }
 
-// Return a ready-to-use formation recipe for running cells linked in a chain.
+// NewChainFormation returns a ready-to-use formation recipe for running cells linked in a chain.
 //
 // - HandleRequest will send the request to the first cell of the chain.
 // - HandleNotification passes it to the last cell, which makes its way up the chain.
 // - SetRequestSink is not needed if linkTo is provided
 // - SetNotificationSink sets the destination of notification that are passed up the chain.
 //
-// Cells in the chain should not emit requests or notifications until all cells are
-// properly linked and Start is called.
+// Cells in the chain should not emit requests or notifications autonomously until all
+// cells are properly linked and Start is called.
+//
+// If a cell fails creation then the chain fails.
 //
 //	f is the cell factory that instantiates the cells
 //	chain is a collection of cells in order of instantiation.

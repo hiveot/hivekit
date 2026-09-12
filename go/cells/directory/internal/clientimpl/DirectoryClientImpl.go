@@ -14,9 +14,14 @@ import (
 
 // Implementation of the directory client
 //
-// TODO:
-// 1. import tds from discovery
-// 2. load tdd from file
+// Tip: This client can be used as a directory cache for the Router so the router
+// can determine how to connect to remote things. Manually: Provide the router
+// with the GetTD method provided by this directory. Factory: use a recipe that
+// includes the directory service or client. The router factory function will
+// look for a either cell (DirectoryServiceCellType or DirectoryClientCellType).
+//
+// This client is intended for consumers. Devices should use the standalone UpdateTD
+// method to publish their TD(s) to the discovery or directory server.
 type DirectoryClientImpl struct {
 	*cells.HiveCellBase
 
@@ -144,14 +149,6 @@ func (cl *DirectoryClientImpl) SetTDD(tdd *td.TD) {
 // Use the sink to link to a transport client for delivering the request. Note that
 // the transport client must be provided the directory instance to be able to get the
 // TDs of the destination.
-//
-// Tip: This client can be used as a directory cache for the Router. Set the router
-// as the sink (or somewhere else downstream) and provide this instance when
-// creating the router. Last, add the directory TDD with LoadTD(tdd) so that the
-// router knows how to connect to the directory server when receiving a request.
-//
-// Devices should use the UpdateTD function to publish their TD(s) to the discovery
-// or directory server.
 //
 // This listens for directory notifications from the sink to receive directory updates.
 //

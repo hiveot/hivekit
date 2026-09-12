@@ -36,17 +36,15 @@ type RouterServiceImpl struct {
 	//  the certificate.
 	clientCert *tls.Certificate
 
-	// The root CA certificates used to verify device connections
-	rootCAs *x509.CertPool
-
-	// handler that provides a TD for the given thingID
-	getTD func(thingID string) *td.TD
-
-	// device credentials store
-	credStore *CredentialsStore
-
 	// mutex for access to deviceConnections
 	cmux sync.RWMutex
+
+	// Cache of thingID to connect URL
+	// Used to quickly find the connection of a device.
+	connectURLByThingID map[string]string
+
+	// connection credentials store
+	credStore *CredentialsStore
 
 	// established device connections by origin (schema://host:port)
 	// when connecting to individual things, thingID could be used, however when a device manages
@@ -54,24 +52,29 @@ type RouterServiceImpl struct {
 	// The only thing they have in common is the href origin.
 	deviceConnections map[string]api.IHiveCell
 
-	// Cache of thingID to origin
-	// Used to quickly find the connection of a device.
-	thingOrigins map[string]string
-
-	// the preferred protocol to use when creating a new client connection
-	preferredProtocol string
-
-	// location of the device credentials store. "" for in-memory only.
-	storageFile string
+	// handler that provides a TD for the given thingID.
+	// Required for setting credentials and connecting to clients.
+	getTD func(thingID string) *td.TD
 
 	// handler to get available transport servers for forwarding to RC clients.
 	// nil to not support RC.
 	getSrv func() []api.ITransportServer
+
+	// the preferred protocol to use when creating a new client connection
+	preferredProtocol string
+
+	// The root CA certificates used to verify device connections
+	rootCAs *x509.CertPool
+
+	// location of the device credentials store. "" for in-memory only.
+	storageFile string
 }
 
 // Add the secret to access a Thing.
-// if thingID is empty then the credentials are used for all unknown devices.
-func (svc *RouterServiceImpl) AddDeviceCredential(
+//
+// if thingID is empty then the credentials are used for all devices for which
+// no credentials are set. Use with care as it exposes the token to these devices.
+func (svc *RouterServiceImpl) AddCredentials(
 	thingID string, clientID string, secret string, credType string) {
 
 	creds := ThingCredentials{
@@ -79,27 +82,107 @@ func (svc *RouterServiceImpl) AddDeviceCredential(
 		Secret:   secret,
 		CredType: credType,
 	}
-	svc.credStore.AddCredentials(thingID, creds)
+
+	// Set as default credentials if no thingID is provided.
+	if thingID == "" {
+		svc.credStore.AddCredentials("", creds)
+		return
+	}
+
+	// determine the connectURL for this thing
+	tdoc := svc.getTD(thingID)
+	if tdoc == nil {
+		slog.Error("AddDeviceCredential: Cant add credentials. TD for thingID not found", "thingID", thingID)
+	} else {
+		connectURL, _, err := svc.GetConnectURL(tdoc, "", "")
+		if err == nil {
+			svc.credStore.AddCredentials(connectURL, creds)
+		}
+	}
+	// also store the credentials by thingID .. might need it to recover later
+	// svc.credStore.AddCredentials(thingID, creds)
 }
 
 // Remove the secret to access a Thing
-func (svc *RouterServiceImpl) DeleteThingCredential(thingID string) {
-	svc.credStore.DeleteCredentials(thingID)
+func (svc *RouterServiceImpl) DeleteCredentials(thingID string) {
+	// determine the connectURL for this thing
+	tdoc := svc.getTD(thingID)
+	if tdoc == nil {
+		slog.Warn("DeleteCredentials: Cant delete credentials. TD for thingID not found", "thingID", thingID)
+		return
+	}
+	connectURL, _, err := svc.GetConnectURL(tdoc, "", "")
+	if err != nil {
+		slog.Warn("DeleteCredentials: TD has no connection information", "thingID", thingID)
+		return
+	}
+	svc.credStore.DeleteCredentials(connectURL)
+	// svc.credStore.DeleteCredentials(thingID)
+}
+
+// Determine the connection URL from the Thing TD and operation
+// In order of preference: websocket first
+//
+//	tdoc is the TD to get the URL from
+//	op is the operation to use
+//	name is the optional affordance name
+//
+// This returns the connect URL, the form used or an error
+func (svc *RouterServiceImpl) GetConnectURL(
+	tdoc *td.TD, op string, name string) (connectURL string, form *td.Form, err error) {
+	var hrefURL *url.URL
+	var match bool
+
+	prefScheme := api.WotWebsocketScheme
+	prefSubprotocol := api.WotWebsocketSubprotocol
+
+	protocolParts := strings.Split(svc.preferredProtocol, ":")
+	if len(protocolParts) > 1 {
+		prefScheme = protocolParts[0]
+		prefSubprotocol = protocolParts[1]
+	}
+	// Attempt to find a form matching the preferred protocol
+	form, match = tdoc.GetForm(op, name, prefScheme, prefSubprotocol)
+
+	_ = match
+	if form == nil {
+		return "", nil, fmt.Errorf("GetConnectURL: No matching form for connecting to Thing '%s'", tdoc.ID)
+	}
+	// get the full URL for the operation
+	hrefURL, err = form.ResolveHRef(tdoc.Base, nil)
+
+	// if an href cannot be determined then this can't continue
+	if err != nil {
+		return "", nil, fmt.Errorf("GetConnectURL: No href for operation '%s' in TD '%s'", op, tdoc.ID)
+	}
+	// determine the connectURL that identifies the client connection
+	urlScheme := strings.ToLower(hrefURL.Scheme)
+	if urlScheme == "https" {
+		// ignore the path as it differs per operation/name but can use the same client
+		connectURL = fmt.Sprintf("%s://%s", hrefURL.Scheme, hrefURL.Host)
+	} else {
+		// use the full URL as the connection endpoint
+		connectURL = hrefURL.String()
+	}
+	return connectURL, form, nil
 }
 
 // GetClientConnection returns a client for sending requests to the server with
 // the given TD. If a connection doesn't exists then create it.
 //
-// Previous connections are re-used. This uses schema://host:port (origin) to identify
-// the connection. For each TD its origin is cached to avoid repeated lookup of forms.
-// Origin lookup can be disabled in case TDs have multiple origins.
+// Previous connections are re-used. This uses the connect URL to identify
+// the connection. For each requested thingID, the connectURL is calculated and
+// cached.
+//
+// Caching of connectURL can be disabled in case TDs are used with different
+// connect URLs.
 //
 // If the 'reconnect' option is configured then this returns a Reconnect client
 // that automatically reconnects and resubscribes if the connection fails.
 //
 // The caller must check if the connection is established before sending a message.
 //
-//	tdoc is the TD of the device to connect to
+//	tdoc is the TD of the device to connect to.
 //	op is the operation to perform
 //	name is the optional affordance name for the operation. "" for thing level operations.
 func (svc *RouterServiceImpl) GetClientConnection(
@@ -107,66 +190,30 @@ func (svc *RouterServiceImpl) GetClientConnection(
 
 	var c api.ITransportClient
 	var form *td.Form
-	var match bool
 
-	// 1. locate the existing connection using TD's origin
-	// this lock should really be per device
+	// 1. First, determine the connectURL from the TD. Start with the cache.
 	svc.cmux.Lock()
-	thingOrigin, found := svc.thingOrigins[tdoc.ID]
-	if found {
-		cl, found = svc.deviceConnections[thingOrigin]
+	connectURL, found := svc.connectURLByThingID[tdoc.ID]
+	if connectURL == "" {
+		// first request for this Thing.
+		// Determine the connectURL from the TD and store it.
+		connectURL, form, err = svc.GetConnectURL(tdoc, op, name)
+		if err != nil {
+			slog.Warn("GetClientConnection: Unable to determine a connectURL",
+				"thingID", tdoc.ID, "op", op, "name", name)
+			return nil, err
+		}
+		// cache the connectURL for fast lookup on the next request
+		svc.connectURLByThingID[tdoc.ID] = connectURL
 	}
+	// load the client connection if it exists
+	cl, found = svc.deviceConnections[connectURL]
 	defer svc.cmux.Unlock()
 
-	// 2. If a valid connection was not found. Redetermine origin and reconnect
+	// 2. If a valid connection does not yet exist, establish one.
 	if !found {
-		var hrefURL *url.URL
-		prefScheme := api.WotWebsocketScheme
-		prefSubprotocol := api.WotWebsocketSubprotocol
-		protocolParts := strings.Split(svc.preferredProtocol, ":")
-		if len(protocolParts) > 1 {
-			prefScheme = protocolParts[0]
-			prefSubprotocol = protocolParts[1]
-		}
-		//
-		if op == "" {
-			form, match = tdoc.GetConnectForm(prefScheme, prefSubprotocol)
-		} else {
-			form, match = tdoc.GetForm(op, name, prefScheme, prefSubprotocol)
-		}
-		_ = match
-		if form == nil {
-			return nil, fmt.Errorf("GetClientConnection: No matching form for connecting to Thing '%s'", tdoc.ID)
-		}
-		// get the full URL for the operation
-		hrefURL, err = form.ResolveHRef(tdoc.Base, nil)
 
-		// if an href cannot be determined then this can't continue
-		if err != nil {
-			return nil, fmt.Errorf("GetClientConnection: No href for operation '%s' in TD '%s'", op, tdoc.ID)
-		}
-		// determine the origin that identifies the client connection
-		newOrigin := fmt.Sprintf("%s://%s", hrefURL.Scheme, hrefURL.Host)
-		urlScheme := strings.ToLower(hrefURL.Scheme)
-		if urlScheme == "unix" || urlScheme == "wss" || urlScheme == "sse" {
-			// Origin on UDS, websockets, sse must use the full path as each path is a
-			// different connection.
-			newOrigin = hrefURL.String()
-		} else {
-			// mqtt and http clients share connections
-		}
-		// store the Thing's origin for future quick lookup
-		svc.thingOrigins[tdoc.ID] = newOrigin
-		// guard against orphan connection if the origin changed after a TD update and it already has a connection
-		if thingOrigin != "" && newOrigin != thingOrigin {
-			cl, found = svc.deviceConnections[newOrigin]
-			if found {
-				slog.Error("GetClientConnection: found existing connection after unexpected change in TD origin. Closing old connection.")
-				cl.Stop()
-			}
-		}
-
-		// 3. Create a new client for the origin
+		// 3. Create a new client for the connect URL
 		c, err = clients.NewTransportClientFromForm(tdoc, form, svc.rootCAs)
 		if err != nil {
 			return nil, err
@@ -179,9 +226,16 @@ func (svc *RouterServiceImpl) GetClientConnection(
 			err = c.SetClientCert(svc.clientCert)
 		}
 
-		// Note that while the TD form contains authentication instructions, the
+		// Note-1: that while the TD form contains authentication instructions, the
 		// available credentials determine the format used.
-		clientID, secret, secScheme, found := svc.credStore.GetCredentials(tdoc.ID)
+		//
+		// Note-2: when connecting to a gateway with multiple devices, this requires
+		// that the same credentials are set for every single thingID the device
+		// offers, even though they all have the same origin and use the same
+		// connection.
+		// The credentials are therefore set per connectURL, not the thingID.
+		//
+		clientID, secret, secScheme, found := svc.credStore.GetCredentials(connectURL)
 		if !found {
 			clientID = svc.clientID
 		}
@@ -196,10 +250,10 @@ func (svc *RouterServiceImpl) GetClientConnection(
 			cl, err = reconnect_service.NewReconnectService(c)
 		} else {
 			// connect directly. Reconnect is not used.
-			// err = c.Connect()
+			// TODO: without reconnect, should the connection be discarded?
 			cl = c
 		}
-		svc.deviceConnections[newOrigin] = cl
+		svc.deviceConnections[connectURL] = cl
 
 		// forward notifications to this service and up to its consumer
 		cl.SetNotificationSink(svc)
@@ -253,8 +307,19 @@ func (svc *RouterServiceImpl) HandleRequest(req *msg.RequestMessage, replyTo msg
 }
 
 // HasDeviceCredentials returns a flag if credentials are set for a Thing
-func (svc *RouterServiceImpl) HasThingCredentials(thingID string) (credType string, found bool) {
-	return svc.credStore.HasCredentials(thingID)
+func (svc *RouterServiceImpl) HasCredentials(thingID string) (credType string, found bool) {
+	// determine the connectURL for this thing
+	tdoc := svc.getTD(thingID)
+	if tdoc == nil {
+		slog.Warn("DeleteCredentials: Cant delete credentials. TD for thingID not found", "thingID", thingID)
+		return "", false
+	}
+	connectURL, _, err := svc.GetConnectURL(tdoc, "", "")
+	if err != nil {
+		return "", false
+	}
+
+	return svc.credStore.HasCredentials(connectURL)
 }
 
 // Determine if the thing is reachable by the router.
@@ -364,7 +429,7 @@ func (svc *RouterServiceImpl) Stop() {
 //	clientCert optional client certificate to connect to devices with - overrides clientID
 //	rootCAs are the CA's used to verify TLS connections to devices
 //	timeout is the maximum communication timeout with connect clients
-//	getTD  handler to lookup a TD for a thingID from a directory
+//	getTD  handler to lookup a TD for a thingID from a directory. Required.
 //	getSrv handler returning a list of transport servers that can contain RC devices.
 func NewRouterServiceImpl(
 	storageDir string,
@@ -378,6 +443,9 @@ func NewRouterServiceImpl(
 ) (*RouterServiceImpl, error) {
 
 	var storageFile string
+	if getTD == nil {
+		return nil, fmt.Errorf("NewRouterServiceImpl: missing getTD provider")
+	}
 
 	slog.Info("Start: Starting router service")
 	if timeout == 0 {
@@ -403,8 +471,9 @@ func NewRouterServiceImpl(
 		preferredProtocol: api.WotWebsocketProtocolType,
 		storageFile:       storageFile,
 		getSrv:            getSrv,
-		deviceConnections: make(map[string]api.IHiveCell),
-		thingOrigins:      make(map[string]string),
+		// connections by connectURL
+		deviceConnections:   make(map[string]api.IHiveCell),
+		connectURLByThingID: make(map[string]string),
 	}
 
 	var _ router.IRouterService = svc // interface check

@@ -14,13 +14,19 @@ const RouterCellType = "router"
 type IRouterService interface {
 	api.IHiveCell
 
-	// Add the secret to access one or more Things on a device.
+	// Add the secret to access one or more Things.
+	//
+	// This stores the credentials using the connect URL, eg all Things that use
+	// the same connection endpoint.
+	//
+	// If no thingID is provided then use these credentials as the default. Intended
+	// for testing only as this exposes the token to all servers it tries connecting to.
 	//
 	// If it already exists then it is replaced.
 	// Used in combination with the Thing TD that describes how the secret is used to
 	// authenticate with the device.
 	//
-	// deviceID is the thingID of the device connected to.
+	// thingID is the thingID of the device connecting to.
 	// clientID is the ID the router service uses to identify itself as when connecting to the device.
 	// secret is the auth token or cert tls PEM used to authenticate as the clientID.
 	// secScheme indicates the type of credentials stored: SecSchemeBearer, ...
@@ -29,13 +35,15 @@ type IRouterService interface {
 	//
 	// When routing a request to a Thing device, this secret is used to authenticate
 	// when creating a new connection. This is typically bearer token or client cert.
-	AddDeviceCredential(deviceID string, clientID string, secret string, secScheme string)
+	AddCredentials(thingID string, clientID string, secret string, secScheme string)
 
-	// Remove the secret to access a Thing
-	DeleteThingCredential(thingID string)
+	// Remove the secret to access a Thing.
+	// The TD of the thing has to be available.
+	DeleteCredentials(thingID string)
 
 	// Return a flag indicating whether the credentials are set for a Thing
-	HasThingCredentials(thingID string) (credType string, found bool)
+	// The TD of the thing has to be available.
+	HasCredentials(thingID string) (credType string, found bool)
 
 	// Set the default client certificate the router can use to authenticate new
 	// client connections.

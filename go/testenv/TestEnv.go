@@ -104,6 +104,7 @@ type TestEnv struct {
 
 // CreateTestTD returns a test TD with ID "thing-{i}", and a variable
 // number of properties, events and actions.
+// This TD includes forms to connect to the testenv server, if set.
 //
 //	properties are named "prop-{j}
 //	events are named "event-{j}
@@ -120,6 +121,11 @@ func (testEnv *TestEnv) CreateTestTD(i int) (tdi *td.TD) {
 	}
 
 	tdi = td.NewTD(ttd.ID, ttd.Title, ttd.DeviceType)
+	// add forms
+	if testEnv.Server != nil {
+		testEnv.Server.AddTDSecForms(tdi, false)
+	}
+
 	// add random properties
 	for n := 0; n < ttd.NrProps; n++ {
 		propName := fmt.Sprintf("prop-%d", n)
@@ -233,7 +239,7 @@ func (testEnv *TestEnv) NewTestConsumer(clientID string, role string) (
 	// to allow reconnect and notification handlers to detect connect/reconnect.
 	cl, token = testEnv.NewTestClient(clientID, role)
 	co = consumer.NewConsumer(cl, nil)
-	co.SetTimeout(TestTimeout)
+	co.SetTimeout(testEnv.AppEnv.RpcTimeout)
 
 	return co, cl, token
 }
@@ -257,14 +263,14 @@ func (testEnv *TestEnv) NewTestClient(
 	}
 	// create a connection to the test server
 	serverTD := testEnv.Server.GetTD()
-	form, _ := serverTD.GetConnectForm("", "")
+	form, _ := serverTD.GetForm("", "", "", "")
 	cl, err = clients.NewTransportClientFromForm(serverTD, form, testEnv.CertBundle.RootCAs)
 
 	// disable forwarding. This should not make a difference unless Forward... is used instead of Emit...
 	// cl.SetForwarding(false, false)
 
 	if err == nil {
-		cl.SetTimeout(TestTimeout)
+		cl.SetTimeout(testEnv.AppEnv.RpcTimeout)
 		err = cl.SetAuthToken(clientID, token, td.SecSchemeBearer)
 	}
 	// if err == nil {
@@ -298,12 +304,12 @@ func (testEnv *TestEnv) NewReconnectConsumer(
 	rc, _ = reconnect_service.NewReconnectService(cc)
 
 	co = consumer.NewConsumer(rc, notifHook)
-	co.SetTimeout(TestTimeout)
+	co.SetTimeout(testEnv.AppEnv.RpcTimeout)
 
 	return co, rc, token
 }
 
-// Create a new running test transport server .
+// Start a new test transport server .
 //
 // This can be called multiple times to support multiple servers. However, only the
 // first server will be stored in the 'TestEnv.Server' property.
@@ -319,27 +325,27 @@ func (testEnv *TestEnv) StartTestServer(protocol string) (srv api.ITransportServ
 	if protocol == "" {
 		protocol = DefaultProtocol
 	}
-
+	timeout := testEnv.AppEnv.RpcTimeout
 	switch protocol {
 	case api.HiveotGrpcTcpProtocolType:
 		serverCert := testEnv.CertBundle.ServerCert
 		caCert := testEnv.CertBundle.CaCert
 		srv, err = grpc_server.NewHiveotGrpcServer(
-			TestGrpcTcpURL, serverCert, caCert, testEnv.TestAuthn, TestTimeout)
+			TestGrpcTcpURL, serverCert, caCert, testEnv.TestAuthn, timeout)
 
 	case api.HiveotGrpcUnixProtocolType:
 		serverCert := testEnv.CertBundle.ServerCert
 		caCert := testEnv.CertBundle.CaCert
 		srv, err = grpc_server.NewHiveotGrpcServer(
-			TestGrpcUnixURL, serverCert, caCert, testEnv.TestAuthn, TestTimeout)
+			TestGrpcUnixURL, serverCert, caCert, testEnv.TestAuthn, timeout)
 
 	case api.HiveotSseScProtocolType:
 		testEnv.StartHttpServer(false)
-		srv, err = ssesc_server.StartSseScServer(testEnv.HttpServer, TestTimeout)
+		srv, err = ssesc_server.StartSseScServer(testEnv.HttpServer, timeout)
 
 	case api.HiveotWebsocketProtocolType:
 		testEnv.StartHttpServer(false)
-		srv, err = wss_server.StartHiveotWssServer(testEnv.HttpServer, TestTimeout)
+		srv, err = wss_server.StartHiveotWssServer(testEnv.HttpServer, timeout)
 
 	case api.HttpBasicProtocolType:
 		testEnv.StartHttpServer(false)
@@ -348,7 +354,7 @@ func (testEnv *TestEnv) StartTestServer(protocol string) (srv api.ITransportServ
 
 	case api.WotWebsocketProtocolType:
 		testEnv.StartHttpServer(false)
-		srv, err = wss_server.StartWotWssServer(testEnv.HttpServer, TestTimeout)
+		srv, err = wss_server.StartWotWssServer(testEnv.HttpServer, timeout)
 
 	default:
 		err = errors.New("StartTestServer: unknown protocol name: " + protocol)
@@ -454,6 +460,7 @@ func NewTestEnv(clean bool) *TestEnv {
 // if clean is set then delete the content of the home folder for a clean start.
 func StartTestEnv(protocol string, clean bool) (testEnv *TestEnv, cancelFunc func()) {
 	testEnv = NewTestEnv(clean)
+	testEnv.AppEnv.RpcTimeout = TestTimeout
 	testEnv.StartHttpServer(true)
 	testEnv.Server = testEnv.StartTestServer(protocol)
 	testEnv.Server.Start()

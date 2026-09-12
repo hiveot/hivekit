@@ -156,10 +156,16 @@ func (svc *WotWssMsgEncoder) DecodeNotification(senderID string, raw []byte) (*m
 	} else if slices.Contains(ActionAffOps, wssNotif.Operation) {
 		affType = msg.AffordanceTypeAction
 	}
+	// WoT uses 'data' for events and 'value' for properties. HiveOT just calls it 'data'.
+	data := wssNotif.Data
+	if data == nil && wssNotif.Value != nil {
+		data = wssNotif.Value
+	}
+
 	notif := &msg.NotificationMessage{
 		AffordanceType: affType,
 		CorrelationID:  wssNotif.CorrelationID,
-		Data:           wssNotif.Data,
+		Data:           data,
 		MessageID:      wssNotif.MessageID,
 		MessageType:    wssNotif.MessageType,
 		Name:           wssNotif.Name,

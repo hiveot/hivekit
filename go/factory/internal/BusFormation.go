@@ -53,7 +53,8 @@ type BusFormation struct {
 	// cells in the order to instantiate and link
 	modDefs []api.CellDefinition `yaml:"star"`
 
-	instances []api.IHiveCell
+	// members of the bus
+	members []api.IHiveCell
 
 	// The factory to use
 	f api.ICellFactory
@@ -62,7 +63,7 @@ type BusFormation struct {
 // Pass notifications to bus members and up the notification chain.
 // bus members are set to not forward notifications.
 func (r *BusFormation) HandleNotification(notif *msg.NotificationMessage) {
-	for _, member := range r.instances {
+	for _, member := range r.members {
 		// members are configured to not forward notifications
 		member.HandleNotification(notif)
 	}
@@ -74,7 +75,7 @@ func (r *BusFormation) HandleNotification(notif *msg.NotificationMessage) {
 // If no cells succeed then forward it down the chain.
 func (r *BusFormation) HandleRequest(req *msg.RequestMessage, replyTo msg.ResponseHandler) error {
 	var err error
-	for _, member := range r.instances {
+	for _, member := range r.members {
 		err = member.HandleRequest(req, replyTo)
 		if err == nil {
 			// request was handled by a group member
@@ -86,7 +87,7 @@ func (r *BusFormation) HandleRequest(req *msg.RequestMessage, replyTo msg.Respon
 
 // Update the member's sink for notifications from the bus.
 func (r *BusFormation) SetNotificationSink(sink api.IHiveCell, thingIDs ...string) {
-	for _, member := range r.instances {
+	for _, member := range r.members {
 		member.SetNotificationSink(sink, thingIDs...)
 	}
 	r.HiveCellBase.SetNotificationSink(sink, thingIDs...)
@@ -94,7 +95,7 @@ func (r *BusFormation) SetNotificationSink(sink api.IHiveCell, thingIDs ...strin
 
 // Set the sink for requests from the bus
 func (r *BusFormation) SetRequestSink(sink api.IHiveCell) {
-	for _, member := range r.instances {
+	for _, member := range r.members {
 		member.SetRequestSink(sink)
 	}
 	r.HiveCellBase.SetRequestSink(sink)
@@ -105,33 +106,38 @@ func (r *BusFormation) SetSlot(slotID string, modDef api.CellDefinition) error {
 	return fmt.Errorf("todo")
 }
 
-// Return a ready-to-use bus formation with an array of cells.
+// NewBusFormation returns a ready-to-use bus formation for running cells in parallel.
+//
+// This disables forwarding on the bus members to prevent multiple requests and
+// notifications to be passed to the bus sinks.
+//
 // Call Start() on the factory to activate autonomous processes and publications.
 //
-// If cells fail to be created then this continues without the failed cell.
+// Use SetNotificationSink and SetRequestSink before calling Start on the factory.
+//
+// If a cell fail to be created then this continues without the failed cell.
 func NewBusFormation(
 	f api.ICellFactory, modDefs []api.CellDefinition) (*BusFormation, error) {
-	thingID := "StartBusFormation-" + shortid.MustGenerate()
-	r := &BusFormation{
+	thingID := "NewBusFormation-" + shortid.MustGenerate()
+
+	bus := &BusFormation{
 		HiveCellBase: *cells.NewHiveCellBase(thingID, 0),
 		f:            f,
 		modDefs:      modDefs,
 	}
 
 	// add the cell definitions to the factory
-	if r.modDefs != nil {
+	if bus.modDefs != nil {
 		// register all cells
-		for _, modDef := range r.modDefs {
-			r.f.RegisterCell(modDef)
+		for _, modDef := range bus.modDefs {
+			bus.f.RegisterCell(modDef)
 		}
 	}
 	// create and link cells in the defined order
-	busNotifSink := r.GetNotificationSink()
-	busReqSink := r.GetRequestSink()
-	r.instances = make([]api.IHiveCell, 0, len(r.modDefs))
+	bus.members = make([]api.IHiveCell, 0, len(bus.modDefs))
 
-	for _, cellDef := range r.modDefs {
-		member, err := r.f.NewCell(cellDef.Type, true)
+	for _, cellDef := range bus.modDefs {
+		member, err := bus.f.NewCell(cellDef.Type, true)
 		// cell cant be created. This is not fatal in a bus.
 		if err != nil {
 			slog.Error("NewBusFormation: creating cell failed. Not fatal but this might not work as expected",
@@ -142,31 +148,23 @@ func NewBusFormation(
 			// don't track 'one-shot' cells that are used to initialize the factory.
 			// These return nil without error.
 		} else {
-			r.instances = append(r.instances, member)
+			bus.members = append(bus.members, member)
 		}
+
 		// Members MUST not forward unhandled requests otherwise the same request
-		// can arrive multiple times, one for each member. This currently only works for servers
-		// as per specification they send requests to remote clients or ignore them.
+		// can arrive multiple times, one for each member. Similarly, members should
+		// not forward notifications otherwise the same notification will be forwarded
+		// multiple times.
 		member.SetForwarding(false, false)
 
-		// pass member notifications directly to the bus notification sink
-		// note this requires that the bus has a sink set before starting it.
-		// possible improvement is to create a helper sink instead that forwards it.
-		// member.SetNotificationSink(r.handleMemberNotification)
-		member.SetNotificationSink(busNotifSink)
-
-		// similarly, set the member request sink to the bus request sink. link before start.
-		// Thus, requests emitted by members are passed to the bus request sink.
-		//
-		member.SetRequestSink(busReqSink)
-		_, isServer := member.(api.ITransportServer)
-		if !isServer {
-			slog.Error("Start: Bus members must be a transport server, otherwise "+
-				"requests/notifications multiply",
-				"memberID", member.GetThingID())
-		}
+		// _, isServer := member.(api.ITransportServer)
+		// if !isServer {
+		// 	slog.Error("NewBusFormation: Bus members must be a transport server, otherwise "+
+		// 		"requests/notifications multiply",
+		// 		"memberID", member.GetThingID())
+		// }
 	}
 
-	var _ api.IHiveCell = r // api check
-	return r, nil
+	var _ api.IHiveCell = bus // api check
+	return bus, nil
 }

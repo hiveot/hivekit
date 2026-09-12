@@ -2,6 +2,8 @@ package consumerrecipe
 
 import (
 	"github.com/hiveot/hivekit/go/api"
+	"github.com/hiveot/hivekit/go/api/td"
+	"github.com/hiveot/hivekit/go/cells/consumer"
 	"github.com/hiveot/hivekit/go/cells/directory"
 	directoryclient "github.com/hiveot/hivekit/go/cells/directory/client"
 	"github.com/hiveot/hivekit/go/cells/router"
@@ -42,9 +44,46 @@ var ConsumerRecipeChain = []api.CellDefinition{
 	},
 }
 
-// StartConsumerRecipe starts a recipe for general consumers.
+// A consumer recipe is a consumer that includes directory and discovery clients
+// with a router to connect to devices and gateways.
+type ConsumerRecipe struct {
+	*consumer.Consumer
+	f         api.ICellFactory
+	formation api.IRecipe
+}
+
+// Return the discovery client from this recipe
+func (r *ConsumerRecipe) GetDiscovery() discovery.IDiscoveryClient {
+	discoClient := api.GetFactoryCell[discovery.IDiscoveryClient](r.f, discovery.DiscoveryClientCellType)
+	return discoClient
+}
+
+// Return the directory client from this recipe
+func (r *ConsumerRecipe) GetDirectory() directory.IDirectoryClient {
+	dirClient := api.GetFactoryCell[directory.IDirectoryClient](r.f, directory.DirectoryClientCellType)
+	return dirClient
+}
+
+// Set the credentials to use for connecting to devices/services
+// This updates the router with the credentials for the given deviceID.
 //
-// Invoke Start on the factory to run the application.
+// deviceID is the thingID of the device connecting to.
+// In case of a gateway this is the gateway server thingID.
+//
+// This is useful for setting device specific credentials.
+func (r *ConsumerRecipe) SetCredentials(
+	deviceID string, clientID string, token string) {
+
+	rtr := api.GetFactoryCell[router.IRouterService](r.f, router.RouterCellType)
+	if token != "" {
+		rtr.AddCredentials(deviceID, clientID, token, td.SecSchemeBearer)
+	}
+}
+
+// NewConsumerRecipe returns a ready to use recipe usable as a consumer.
+//
+// The resulting consumer is the start of the recipe chain.
+// Invoke Start on the provided factory to run the application.
 //
 // A value cache can be included to capture property updates and event notifications.
 //
@@ -58,9 +97,8 @@ var ConsumerRecipeChain = []api.CellDefinition{
 //	f is the factory to use.
 //	withValueCache set to include a value cache in the cell chain
 //
-// This returns the recipe, which can be used as a request sink to a consumer cell.
-func StartConsumerRecipe(
-	f api.ICellFactory, withValueCache bool) (api.IRecipe, error) {
+// This returns the consumer recipe, which can be used as a consumer for applications.
+func NewConsumerRecipe(f api.ICellFactory, withValueCache bool) (*ConsumerRecipe, error) {
 
 	// copy the chain
 	chain := ConsumerRecipeChain[:]
@@ -74,7 +112,16 @@ func StartConsumerRecipe(
 		recipes.SetSlot(chain, valueCacheSlotName, modDef)
 	}
 
-	// linkto doesnt apply to a consumer chain
-	r, err := factory_service.NewChainFormation(f, chain, nil)
+	formation, err := factory_service.NewChainFormation(f, chain, nil)
+	co := consumer.NewConsumer(formation, nil)
+
+	r := &ConsumerRecipe{
+		Consumer:  co,
+		f:         f,
+		formation: formation,
+	}
+
+	var _ api.IRecipe = r
+	var _ *consumer.Consumer = r.Consumer // interface checks
 	return r, err
 }

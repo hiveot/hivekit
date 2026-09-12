@@ -43,6 +43,7 @@ func TestDiscover(t *testing.T) {
 	srv, err := serverimpl.ServeDnsSD(
 		testServiceName, "", testServiceType, address, testServicePort, nil)
 	assert.NoError(t, err)
+	// note: had a data race on zeroconf shutdown in testing once
 	defer srv.Shutdown()
 
 	r, err := clientimpl.DnsSDScan(testServiceName, testServiceType, time.Second,

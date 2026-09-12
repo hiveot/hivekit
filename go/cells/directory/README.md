@@ -15,19 +15,21 @@ This service is in alpha. It is functional but breaking changes might still happ
 There are some notable issues for which there is no standardization:
 1: For security reasons, a device TD should only be updatable by the owning device. How to determine who this is?
 
-Proposed solution: HiveOT uses the convention that thingIDs contain the device clientID prefix separated by a colon. The format for thingID is: "{deviceID}:{thingID}", where {thingID} is the ID of the Thing managed by the device.
+Option 1: prepend the accountID of the client that uploaded the TD in the ThingID. A device with accountID 'device1' and thingID 'thing1' would be stored as the ThingID "device1:thingID". This provide scopes to thingIDs and handles multiple things on the same device. This should only apply to TDs uploaded by devices themselves, which is an edge case, not admin users. However, messing with ThingIDs is probably not something everyone will agree with. 
 
-If the TD is to be published in an internet based directory, the clientID must be globally unique and the forms must be updated to externally reachable addresses. In HiveOT this is not a concern of devices. Instead a gateway must handle external exposure and security.
+Option 2: (HiveOT solution) store the accountID of the client that uploads the TD in the directory/TD. Only this client is allowed to update the TD, except for admin users.
 
-2: How to prevent thingID collisions? There is no mechanism to guarantee uniquenes between devices. One suggested solution is to use UUIDs. The problem is that it doesnt protect against ThingID hijacking by a bad actor.
+2: How to prevent thingID collisions? There is no mechanism to guarantee uniquenes between devices. One suggested solution is to use UUIDs but this is harder to use.
 
-Current solution, same as above. ThingIDs have the clientID prefix.
+Option 1: Use option 1 from above. Prepend the clientID to the ThingID.
 
-3: The directory http client should not be needed. Just use the messaging client with a
-http-basic client. The directory server TD with forms should be sufficient.
+3: The directory http client should not be needed. Just use the http-basic client. The directory server TD with forms should be sufficient.
+
 The main issue is that the generic http-basic server uses different paths, is this valid or are the paths in the spec mandatory. For now assume paths are not fixed.
 
 This needs testing that it works as intended.
+
+
 
 ## Summary
 
