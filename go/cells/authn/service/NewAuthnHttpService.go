@@ -2,7 +2,7 @@ package authn_service
 
 import (
 	"github.com/hiveot/hivekit/go/api"
-	"github.com/hiveot/hivekit/go/cells/authn/internal/httpapi"
+	"github.com/hiveot/hivekit/go/cells/authn/service/internal/httpapi"
 )
 
 // Start the service for handling authn requests over HTTP.

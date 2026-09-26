@@ -2,7 +2,7 @@ package factory_service
 
 import (
 	"github.com/hiveot/hivekit/go/api"
-	"github.com/hiveot/hivekit/go/factory/internal"
+	"github.com/hiveot/hivekit/go/factory/service/internal"
 )
 
 // NewCellFactory returns a new cell factory.

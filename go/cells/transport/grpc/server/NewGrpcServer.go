@@ -7,7 +7,7 @@ import (
 
 	"github.com/hiveot/hivekit/go/api"
 	"github.com/hiveot/hivekit/go/cells/transport/grpc"
-	"github.com/hiveot/hivekit/go/cells/transport/grpc/internal/serverimpl"
+	"github.com/hiveot/hivekit/go/cells/transport/grpc/server/internal"
 )
 
 // NewHiveotGrpcServer returns a ready-to-use hiveot gRPC transport server.
@@ -27,7 +27,7 @@ func NewHiveotGrpcServer(
 	connectURL string, tlsCert *tls.Certificate, caCert *x509.Certificate,
 	authn api.IAuthenticator, respTimeout time.Duration) (grpc.IGrpcTransportServer, error) {
 
-	return serverimpl.StartGrpcServerImpl(connectURL, tlsCert, caCert, authn, respTimeout)
+	return internal.StartGrpcServerImpl(connectURL, tlsCert, caCert, authn, respTimeout)
 }
 
 // Returns a ready-to-use hiveot gRPC server using the factory environment

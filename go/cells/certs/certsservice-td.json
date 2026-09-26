@@ -15,7 +15,7 @@
   "created": "2026-01-00T00:00:00.000Z",
   "modified": "2026-01-00T00:00:00.000Z",
   "support": "https://www.github.com/hiveot/hivekit",
-  "base": "{{DIRECTORY_BASE_URL}}",
+  "base": "",
   "allow": ["admin"],
 
   "schemaDefinitions": {},

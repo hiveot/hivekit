@@ -4,7 +4,7 @@ import (
 	"fmt"
 
 	"github.com/hiveot/hivekit/go/api"
-	"github.com/hiveot/hivekit/go/factory/internal"
+	"github.com/hiveot/hivekit/go/factory/service/internal"
 )
 
 // NewBusFormation creates and starts cells in a bus formation.

@@ -5,7 +5,7 @@ import (
 	"log/slog"
 
 	"github.com/hiveot/hivekit/go/api"
-	"github.com/hiveot/hivekit/go/cells/transport/ssesc/internal/clientimpl"
+	"github.com/hiveot/hivekit/go/cells/transport/ssesc/client/internal"
 )
 
 // NewSseScClient creates a ready-to-use instance of the hiveot SSE-SC client.
@@ -17,7 +17,7 @@ import (
 //	ch is the connect/disconnect callback. nil to ignore
 func NewSseScClient(sseURL string, rootCAs *x509.CertPool) api.ITransportClient {
 
-	return clientimpl.NewSseScClientImpl(sseURL, rootCAs)
+	return internal.NewSseScClientImpl(sseURL, rootCAs)
 }
 
 // Create a ready-to-use HTTP/SSE-SC client using the application environment to set

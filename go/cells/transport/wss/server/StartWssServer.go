@@ -6,7 +6,7 @@ import (
 
 	"github.com/hiveot/hivekit/go/api"
 	"github.com/hiveot/hivekit/go/cells/transport/wss"
-	"github.com/hiveot/hivekit/go/cells/transport/wss/internal/serverimpl"
+	"github.com/hiveot/hivekit/go/cells/transport/wss/server/internal"
 )
 
 // StartHiveotWssServer creates a websocket transport using the HiveOT RRN messaging format.
@@ -21,7 +21,7 @@ import (
 func StartHiveotWssServer(
 	httpServer api.IHttpServer, respTimeout time.Duration) (wss.IWssTransportServer, error) {
 
-	return serverimpl.NewHiveotWssServerImpl(httpServer, respTimeout)
+	return internal.NewHiveotWssServerImpl(httpServer, respTimeout)
 }
 
 // Load the HiveOT websocket server using the factory environment
@@ -50,7 +50,7 @@ func StartHiveotWssServerFactory(
 func StartWotWssServer(
 	httpServer api.IHttpServer, respTimeout time.Duration) (wss.IWssTransportServer, error) {
 
-	return serverimpl.NewWotWssServerImpl(httpServer, respTimeout)
+	return internal.NewWotWssServerImpl(httpServer, respTimeout)
 }
 
 // Load the Wot websocket server using the factory environment

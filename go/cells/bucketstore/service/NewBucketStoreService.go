@@ -3,7 +3,7 @@ package bucketstore_service
 import (
 	"github.com/hiveot/hivekit/go/api"
 	"github.com/hiveot/hivekit/go/cells/bucketstore"
-	"github.com/hiveot/hivekit/go/cells/bucketstore/internal"
+	"github.com/hiveot/hivekit/go/cells/bucketstore/service/internal"
 )
 
 // NewBucketStoreService returns a new ready-to-use bucket store service

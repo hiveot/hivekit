@@ -85,7 +85,7 @@ func BenchmarkAddEvents(b *testing.B) {
 
 					for i := 0; i < tbl.nrSets; i++ {
 						ev := testData[i]
-						err := m.AddValue(&ev)
+						err := m.StoreNotification(&ev)
 						require.NoError(b, err)
 					}
 
@@ -98,7 +98,7 @@ func BenchmarkAddEvents(b *testing.B) {
 				bulk := testData[0:tbl.nrSets]
 				for n := 0; n < b.N; n++ {
 					for _, v := range bulk {
-						err := m.AddValue(&v)
+						err := m.StoreNotification(&v)
 						require.NoError(b, err)
 					}
 				}

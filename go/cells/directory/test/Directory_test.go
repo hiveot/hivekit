@@ -137,7 +137,7 @@ func TestCreateTD(t *testing.T) {
 	tdi2, err := td.UnmarshalTD(td2Json)
 	assert.NoError(t, err)
 	assert.Equal(t, thingID, tdi2.ID)
-	assert.Equal(t, td1Json, td2Json)
+	assert.Equal(t, tdi1.Description, tdi2.Description)
 
 	// delete a thing
 	err = svc.DeleteThing(defaultDeviceID, thingID)

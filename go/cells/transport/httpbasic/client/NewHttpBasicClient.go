@@ -5,7 +5,7 @@ import (
 
 	"github.com/hiveot/hivekit/go/api"
 	"github.com/hiveot/hivekit/go/api/td"
-	"github.com/hiveot/hivekit/go/cells/transport/httpbasic/internal/clientimpl"
+	"github.com/hiveot/hivekit/go/cells/transport/httpbasic/client/internal"
 )
 
 // NewHttpBasicClient creates a new instance of the WoT compatible http-basic
@@ -21,5 +21,5 @@ import (
 func NewHttpBasicClient(
 	tdoc *td.TD, rootCAs *x509.CertPool) (api.ITransportClient, error) {
 
-	return clientimpl.NewHttpBasicClientImpl(tdoc, rootCAs)
+	return internal.NewHttpBasicClientImpl(tdoc, rootCAs)
 }

@@ -3,7 +3,7 @@ package vcache_service
 import (
 	"github.com/hiveot/hivekit/go/api"
 	vcacheapi "github.com/hiveot/hivekit/go/cells/vcache"
-	"github.com/hiveot/hivekit/go/cells/vcache/internal"
+	"github.com/hiveot/hivekit/go/cells/vcache/service/internal"
 )
 
 // Create a ready-to-use value cache service.

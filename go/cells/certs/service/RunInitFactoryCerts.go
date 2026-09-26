@@ -5,7 +5,7 @@ import (
 
 	"github.com/hiveot/hivekit/go/api"
 	"github.com/hiveot/hivekit/go/cells/certs"
-	"github.com/hiveot/hivekit/go/cells/certs/internal"
+	"github.com/hiveot/hivekit/go/cells/certs/service/internal"
 )
 
 // RunInitFactoryCerts if a factory initialization cell to ensure certificates needed

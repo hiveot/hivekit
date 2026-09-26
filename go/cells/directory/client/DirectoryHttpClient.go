@@ -9,7 +9,7 @@ import (
 	"github.com/hiveot/hivekit/go/api"
 	"github.com/hiveot/hivekit/go/api/td"
 	"github.com/hiveot/hivekit/go/cells/directory"
-	clientimpl "github.com/hiveot/hivekit/go/cells/directory/internal/clientimpl"
+	clientimpl "github.com/hiveot/hivekit/go/cells/directory/client/internal"
 	httpbasic_client "github.com/hiveot/hivekit/go/cells/transport/httpbasic/client"
 )
 

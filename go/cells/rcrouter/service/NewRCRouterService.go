@@ -7,7 +7,7 @@ import (
 	"github.com/hiveot/hivekit/go/api/td"
 	"github.com/hiveot/hivekit/go/cells/directory"
 	"github.com/hiveot/hivekit/go/cells/rcrouter"
-	"github.com/hiveot/hivekit/go/cells/rcrouter/internal"
+	"github.com/hiveot/hivekit/go/cells/rcrouter/service/internal"
 )
 
 // NewRCRouterService creates a ready-to-use instance of the reverse connection

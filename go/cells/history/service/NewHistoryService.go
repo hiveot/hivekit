@@ -3,7 +3,7 @@ package history_service
 import (
 	"github.com/hiveot/hivekit/go/api"
 	"github.com/hiveot/hivekit/go/cells/history"
-	"github.com/hiveot/hivekit/go/cells/history/internal"
+	"github.com/hiveot/hivekit/go/cells/history/service/internal"
 )
 
 // NewHistoryService creates a ready-to-use history tracking service.

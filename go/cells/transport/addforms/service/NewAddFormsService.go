@@ -2,7 +2,7 @@ package addforms_service
 
 import (
 	"github.com/hiveot/hivekit/go/api"
-	"github.com/hiveot/hivekit/go/cells/transport/addforms/internal"
+	"github.com/hiveot/hivekit/go/cells/transport/addforms/service/internal"
 )
 
 // AddFormsService intercepts and modifies TD's written to a directory.

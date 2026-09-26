@@ -9,7 +9,7 @@ import (
 	"github.com/hiveot/hivekit/go/api/td"
 	"github.com/hiveot/hivekit/go/cells/directory"
 	"github.com/hiveot/hivekit/go/cells/router"
-	"github.com/hiveot/hivekit/go/cells/router/internal"
+	"github.com/hiveot/hivekit/go/cells/router/service/internal"
 )
 
 // When factory instantiated the router can enable auto-reconnect for new connections.

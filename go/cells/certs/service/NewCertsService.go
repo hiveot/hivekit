@@ -3,7 +3,7 @@ package certs_service
 import (
 	"github.com/hiveot/hivekit/go/api"
 	"github.com/hiveot/hivekit/go/cells/certs"
-	"github.com/hiveot/hivekit/go/cells/certs/internal"
+	"github.com/hiveot/hivekit/go/cells/certs/service/internal"
 )
 
 // Start a new instance of the default certs service.

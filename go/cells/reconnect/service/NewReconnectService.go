@@ -3,7 +3,7 @@ package reconnect_service
 import (
 	"github.com/hiveot/hivekit/go/api"
 	"github.com/hiveot/hivekit/go/cells/reconnect"
-	"github.com/hiveot/hivekit/go/cells/reconnect/internal"
+	"github.com/hiveot/hivekit/go/cells/reconnect/service/internal"
 )
 
 // NewReconnectService creates the reconnect service for use with a transport client.

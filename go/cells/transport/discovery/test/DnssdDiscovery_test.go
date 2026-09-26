@@ -7,22 +7,22 @@ import (
 
 	"github.com/grandcat/zeroconf"
 
-	"github.com/hiveot/hivekit/go/cells/transport/discovery/internal/clientimpl"
-	"github.com/hiveot/hivekit/go/cells/transport/discovery/internal/serverimpl"
+	discovery_client "github.com/hiveot/hivekit/go/cells/transport/discovery/client"
+	discovery_server "github.com/hiveot/hivekit/go/cells/transport/discovery/server"
 	"github.com/hiveot/hivekit/go/utils"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
-// serviceID is the service publishing the record, thing or directory
-// const testServiceID = "hiveot-test"
 // const testServicePort = 9999
+// serviceName is the service publishing the record, thing or directory
+// const testServiceName = "hiveot-test"
 
 func TestDNSSDScan(t *testing.T) {
 	var count atomic.Int32
 
-	r, err := clientimpl.DnsSDScan("", "", time.Second*2,
+	r, err := discovery_client.DnsSDScan("", "", time.Second*2,
 		func(_ *zeroconf.ServiceEntry) bool {
 			count.Add(1)
 			return false
@@ -40,13 +40,13 @@ func TestDiscover(t *testing.T) {
 	testServiceType := "_discovery.test-type._tcp"
 	address := utils.GetOutboundIP("").String()
 
-	srv, err := serverimpl.ServeDnsSD(
+	srv, err := discovery_server.ServeDnsSD(
 		testServiceName, "", testServiceType, address, testServicePort, nil)
 	assert.NoError(t, err)
 	// note: had a data race on zeroconf shutdown in testing once
 	defer srv.Shutdown()
 
-	r, err := clientimpl.DnsSDScan(testServiceName, testServiceType, time.Second,
+	r, err := discovery_client.DnsSDScan(testServiceName, testServiceType, time.Second,
 		func(*zeroconf.ServiceEntry) bool {
 			return true // stop
 		})
@@ -58,7 +58,7 @@ func TestNoInstanceID(t *testing.T) {
 	address := utils.GetOutboundIP("").String()
 	testServiceType := "test-service-type"
 
-	_, err := serverimpl.ServeDnsSD(
+	_, err := discovery_server.ServeDnsSD(
 		"", "", testServiceType, address, testServicePort, nil)
 	assert.Error(t, err) // missing instance name
 
@@ -70,7 +70,7 @@ func TestNoInstanceID(t *testing.T) {
 func TestBadAddress(t *testing.T) {
 	testServiceType := "test-service-type"
 
-	discoServer, err := serverimpl.ServeDnsSD(
+	discoServer, err := discovery_server.ServeDnsSD(
 		testServiceName, "", testServiceType, "notanipaddress", testServicePort, nil)
 
 	assert.Error(t, err)
@@ -80,7 +80,7 @@ func TestBadAddress(t *testing.T) {
 func TestExternalAddress(t *testing.T) {
 	testServiceType := "test-service-type"
 
-	discoServer, err := serverimpl.ServeDnsSD(
+	discoServer, err := discovery_server.ServeDnsSD(
 		testServiceName, "", testServiceType, "1.2.3.4", testServicePort, nil)
 
 	// expect a warning
@@ -94,7 +94,7 @@ func TestDiscoverBadPort(t *testing.T) {
 
 	badPort := 0
 	address := utils.GetOutboundIP("").String()
-	_, err := serverimpl.ServeDnsSD(testServiceName, "", testServiceType, address, badPort, nil)
+	_, err := discovery_server.ServeDnsSD(testServiceName, "", testServiceType, address, badPort, nil)
 
 	assert.Error(t, err)
 }

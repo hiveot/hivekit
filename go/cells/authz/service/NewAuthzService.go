@@ -6,7 +6,7 @@ import (
 	"github.com/hiveot/hivekit/go/api"
 	"github.com/hiveot/hivekit/go/cells/authn"
 	"github.com/hiveot/hivekit/go/cells/authz"
-	"github.com/hiveot/hivekit/go/cells/authz/internal"
+	"github.com/hiveot/hivekit/go/cells/authz/service/internal"
 )
 
 const AuthzCellType = "authz"

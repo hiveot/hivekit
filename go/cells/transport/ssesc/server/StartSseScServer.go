@@ -6,7 +6,7 @@ import (
 
 	"github.com/hiveot/hivekit/go/api"
 	"github.com/hiveot/hivekit/go/cells/transport/ssesc"
-	"github.com/hiveot/hivekit/go/cells/transport/ssesc/internal/serverimpl"
+	"github.com/hiveot/hivekit/go/cells/transport/ssesc/server/internal"
 )
 
 // StartSseScServer creates a hiveot SSE-SC transport.
@@ -21,7 +21,7 @@ import (
 func StartSseScServer(
 	httpServer api.IHttpServer, respTimeout time.Duration) (ssesc.ISseScTransportServer, error) {
 
-	return serverimpl.StartSseScServerImpl(httpServer, respTimeout)
+	return internal.StartSseScServerImpl(httpServer, respTimeout)
 }
 
 // Create a new instance of the Hiveot SSE-SC server using the factory environment

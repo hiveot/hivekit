@@ -24,7 +24,6 @@ const DefaultLimit = 1000
 var HistoryServiceTD []byte
 
 // IHistoryService defines the interface to the history service.
-// This is implemented in the service and the client api
 //
 // The history persists values stored per ThingID. Values are ordered by timestamp and
 // the affordance they belong to. The affordance the name used in the property, event and action
@@ -132,4 +131,7 @@ type IHistoryService interface {
 	// This returns an error if the cursor is not valid.
 	Seek(clientID string, cursorKey string, ts time.Time) (
 		value *msg.NotificationMessage, valid bool, err error)
+
+	// internal use. intended for testing
+	StoreNotification(notif *msg.NotificationMessage) error
 }

@@ -6,7 +6,7 @@ import (
 
 	"github.com/hiveot/hivekit/go/api"
 	"github.com/hiveot/hivekit/go/api/td"
-	"github.com/hiveot/hivekit/go/cells/transport/wss/internal/clientimpl"
+	"github.com/hiveot/hivekit/go/cells/transport/wss/client/internal"
 )
 
 // NewHiveotClient creates a ready-to-use hiveot websocket client but does not connect yet.
@@ -19,7 +19,7 @@ import (
 //	ch is the connect/disconnect callback. nil to ignore
 func NewHiveotWssClient(wssURL string, rootCAs *x509.CertPool) api.ITransportClient {
 
-	return clientimpl.NewHiveotWssClientImpl(wssURL, rootCAs)
+	return internal.NewHiveotWssClientImpl(wssURL, rootCAs)
 }
 
 // Create a ready-to-use websocket client for the given factory environment
@@ -80,7 +80,7 @@ func NewHiveotWssClientFactory(
 func NewWotWssClient(
 	wssURL string, rootCAs *x509.CertPool) api.ITransportClient {
 
-	return clientimpl.NewWotWssClientImpl(wssURL, rootCAs)
+	return internal.NewWotWssClientImpl(wssURL, rootCAs)
 }
 
 // Create a websocket client for the given factory environment.

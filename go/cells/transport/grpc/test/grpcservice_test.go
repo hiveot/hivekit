@@ -11,9 +11,7 @@ import (
 	"time"
 
 	certstest "github.com/hiveot/hivekit/go/cells/certs/test"
-	"github.com/hiveot/hivekit/go/cells/transport/grpc/internal"
-	"github.com/hiveot/hivekit/go/cells/transport/grpc/internal/clientimpl"
-	"github.com/hiveot/hivekit/go/cells/transport/grpc/internal/serverimpl"
+	"github.com/hiveot/hivekit/go/cells/transport/grpc/grpclib"
 	"github.com/hiveot/hivekit/go/testenv"
 	"github.com/hiveot/hivekit/go/utils"
 	"github.com/stretchr/testify/assert"
@@ -59,7 +57,7 @@ func TestMain(m *testing.M) {
 }
 
 // start a server with authentication
-func startServer() (*serverimpl.GrpcServiceServer, *testenv.TestAuthenticator, error) {
+func startServer() (*grpclib.GrpcServiceServer, *testenv.TestAuthenticator, error) {
 
 	lis, err := net.Listen(serverNetwork, serverAddress)
 	if err != nil {
@@ -67,8 +65,8 @@ func startServer() (*serverimpl.GrpcServiceServer, *testenv.TestAuthenticator, e
 	}
 	// include TLS and authentication support
 	authn := testenv.NewTestAuthenticator()
-	grpcAuthn := serverimpl.NewGrpcAuthenticator(authn)
-	srv := serverimpl.NewGrpcServiceServer(
+	grpcAuthn := grpclib.NewGrpcAuthenticator(authn)
+	srv := grpclib.NewGrpcServiceServer(
 		lis, certBundle.ServerCert, certBundle.CaCert, grpcServiceName, grpcAuthn, time.Minute)
 	err = srv.Start()
 
@@ -80,7 +78,7 @@ func TestConnectPing(t *testing.T) {
 	// test connect/disconnect with ping
 	t.Logf("---%s---\n", t.Name())
 	var clientID = "client1"
-	var cl *clientimpl.GrpcServiceClient
+	var cl *grpclib.GrpcServiceClient
 
 	srv, authn, err := startServer()
 	require.NoError(t, err)
@@ -92,7 +90,7 @@ func TestConnectPing(t *testing.T) {
 
 	// connect a client
 	handleClientMessage := func(raw []byte) {}
-	cl = clientimpl.NewGrpcServiceClient(
+	cl = grpclib.NewGrpcServiceClient(
 		clientURL, clientID, token, nil, certBundle.RootCAs,
 		time.Minute, grpcServiceName, handleClientMessage)
 	require.NoError(t, err)
@@ -121,7 +119,7 @@ func TestConnectPingClientCert(t *testing.T) {
 	// test connect/disconnect with ping
 	t.Logf("---%s---\n", t.Name())
 	var clientID = "client1"
-	var cl *clientimpl.GrpcServiceClient
+	var cl *grpclib.GrpcServiceClient
 
 	srv, authn, err := startServer()
 	require.NoError(t, err)
@@ -133,7 +131,7 @@ func TestConnectPingClientCert(t *testing.T) {
 
 	// connect a client
 	handleClientMessage := func(raw []byte) {}
-	cl = clientimpl.NewGrpcServiceClient(
+	cl = grpclib.NewGrpcServiceClient(
 		clientURL, clientID, authToken, certBundle.ClientCert, certBundle.RootCAs,
 		time.Minute, grpcServiceName, handleClientMessage)
 
@@ -189,7 +187,7 @@ func TestStreamMessages(t *testing.T) {
 		// todo test authentication?
 
 		// start the send and receive loop
-		bstrm := internal.OpenBufferedStream(
+		bstrm := grpclib.OpenBufferedStream(
 			grpcStream, nil, handleStream2Message, time.Minute)
 
 		// send is dispatched after the stream is
@@ -206,7 +204,7 @@ func TestStreamMessages(t *testing.T) {
 	// certBundle.ServerCert = nil
 	// certBundle.CaCert = nil
 
-	srv := serverimpl.NewGrpcServiceServer(
+	srv := grpclib.NewGrpcServiceServer(
 		lis, certBundle.ServerCert, certBundle.CaCert, serviceName, nil, time.Minute)
 	srv.CreateStream(streamName, serveStream2)
 
@@ -222,7 +220,7 @@ func TestStreamMessages(t *testing.T) {
 		// rxMsg := string(raw)
 		assert.Equal(t, serverSendMsg, rxMsg)
 	}
-	cl := clientimpl.NewGrpcServiceClient(
+	cl := grpclib.NewGrpcServiceClient(
 		clientURL, clientID, authToken, nil, certBundle.RootCAs,
 		time.Minute, serviceName, onClientMessage)
 

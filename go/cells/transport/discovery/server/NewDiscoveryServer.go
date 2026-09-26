@@ -3,11 +3,12 @@ package discovery_server
 import (
 	"strings"
 
+	"github.com/grandcat/zeroconf"
 	"github.com/hiveot/hivekit/go/api"
 	"github.com/hiveot/hivekit/go/api/td"
 	"github.com/hiveot/hivekit/go/cells/directory"
 	"github.com/hiveot/hivekit/go/cells/transport/discovery"
-	"github.com/hiveot/hivekit/go/cells/transport/discovery/internal/serverimpl"
+	"github.com/hiveot/hivekit/go/cells/transport/discovery/server/internal"
 )
 
 // NewDiscoveryServer returns a ready-to-use discovery server instance.
@@ -22,7 +23,7 @@ import (
 func NewDiscoveryServer(
 	httpServer api.IHttpServer, tdd *td.TD, endpoints map[string]string) (discovery.IDiscoveryServer, error) {
 
-	return serverimpl.NewDiscoveryServerImpl(httpServer, tdd, endpoints)
+	return internal.NewDiscoveryServerImpl(httpServer, tdd, endpoints)
 }
 
 // Return a ready-to-use discovery server using the factory environment.
@@ -57,4 +58,10 @@ func NewDiscoveryServerFactory(
 		f.AddTDSecForms(tdd, true)
 	}
 	return NewDiscoveryServer(httpServer, tdd, endpoints)
+}
+
+// for testing
+func ServeDnsSD(instanceName string, subType string, serviceType string,
+	address string, port int, params map[string]string) (*zeroconf.Server, error) {
+	return internal.ServeDnsSD(instanceName, subType, serviceType, address, port, params)
 }

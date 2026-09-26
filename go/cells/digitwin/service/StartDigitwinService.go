@@ -7,7 +7,7 @@ import (
 	"github.com/hiveot/hivekit/go/api"
 	"github.com/hiveot/hivekit/go/api/td"
 	"github.com/hiveot/hivekit/go/cells/digitwin"
-	"github.com/hiveot/hivekit/go/cells/digitwin/internal"
+	"github.com/hiveot/hivekit/go/cells/digitwin/service/internal"
 	"github.com/hiveot/hivekit/go/cells/directory"
 )
 

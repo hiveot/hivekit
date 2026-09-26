@@ -1,9 +1,12 @@
 package discovery_client
 
 import (
+	"time"
+
+	"github.com/grandcat/zeroconf"
 	"github.com/hiveot/hivekit/go/api"
 	"github.com/hiveot/hivekit/go/cells/transport/discovery"
-	"github.com/hiveot/hivekit/go/cells/transport/discovery/internal/clientimpl"
+	"github.com/hiveot/hivekit/go/cells/transport/discovery/client/internal"
 )
 
 // NewDiscoveryClient returns a ready-to-use instance of a discovery client
@@ -19,7 +22,7 @@ import (
 func NewDiscoveryClient(
 	env *api.HiveEnvironment, discoOnStart bool) (discovery.IDiscoveryClient, error) {
 
-	return clientimpl.NewDiscoveryClientImpl(env, discoOnStart)
+	return internal.NewDiscoveryClientImpl(env, discoOnStart)
 }
 
 // NewDiscoveryClientFactory returns a ready-to-use instance of a discovery client
@@ -29,4 +32,22 @@ func NewDiscoveryClient(
 func NewDiscoveryClientFactory(f api.ICellFactory, md *api.CellDefinition) (api.IHiveCell, error) {
 	env := f.GetEnvironment()
 	return NewDiscoveryClient(env, true)
+}
+
+// DnsSDScan scans zeroconf publications on local domain
+//
+// The zeroconf library does not support browsing of all services, but a workaround is
+// to search the service types with "_services._dns-sd._udp" then query each of the service types.
+//
+// The provided callback is concurrent safe. The scan does not return while the callback is invoked.
+//
+// results are handled through a callback until the waitTime ends or the callback returns stop=true
+//
+//	instanceName to look for, or "" for all possible instances
+//	serviceType to look for in format "_{serviceName}._tcp", or "" to discover all service types (not all services)
+//	waitTime with duration to wait while collecting results. Default is 3 seconds
+//	cb is the optional callback invoked when a result is found
+func DnsSDScan(instanceName string, serviceType string, waitTime time.Duration,
+	cb func(*zeroconf.ServiceEntry) (stop bool)) (records []*zeroconf.ServiceEntry, err error) {
+	return internal.DnsSDScan(instanceName, serviceType, waitTime, cb)
 }

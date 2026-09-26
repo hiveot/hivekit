@@ -5,7 +5,7 @@ import (
 
 	"github.com/hiveot/hivekit/go/api"
 	"github.com/hiveot/hivekit/go/api/td"
-	"github.com/hiveot/hivekit/go/cells/transport/grpc/internal/clientimpl"
+	"github.com/hiveot/hivekit/go/cells/transport/grpc/client/internal"
 )
 
 // NewHiveotGrpcClient returns a ready-to-use hiveot gRPC transport client.
@@ -20,7 +20,7 @@ import (
 func NewHiveotGrpcClient(
 	addr string, rootCAs *x509.CertPool) api.ITransportClient {
 
-	return clientimpl.NewGrpcClientImpl(addr, rootCAs)
+	return internal.NewGrpcClientImpl(addr, rootCAs)
 }
 
 // NewHiveotGrpcClientFactory returns a ready-to-use hiveot gRPC client using

@@ -5,12 +5,12 @@ import (
 
 	"github.com/hiveot/hivekit/go/api"
 	"github.com/hiveot/hivekit/go/cells/transport/httpbasic"
-	"github.com/hiveot/hivekit/go/cells/transport/httpbasic/internal/serverimpl"
+	"github.com/hiveot/hivekit/go/cells/transport/httpbasic/server/internal"
 )
 
 // NewHttpBasicServer returns a ready-to-use  WoT server supporting the http-basic protocol
 func NewHttpBasicServer(httpServer api.IHttpServer) (httpbasic.IHttpBasicServer, error) {
-	return serverimpl.NewHttpBasicServerImpl(httpServer)
+	return internal.NewHttpBasicServerImpl(httpServer)
 }
 
 // NewHttpBasicServerFactory returns a ready-to-use HTTP-Basic server using the

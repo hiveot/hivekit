@@ -3,7 +3,7 @@ package authn_service
 import (
 	"github.com/hiveot/hivekit/go/api"
 	"github.com/hiveot/hivekit/go/cells/authn"
-	"github.com/hiveot/hivekit/go/cells/authn/internal/serviceimpl"
+	"github.com/hiveot/hivekit/go/cells/authn/service/internal/serviceimpl"
 )
 
 // admin auth validity

@@ -18,7 +18,7 @@ import (
 	"github.com/hiveot/hivekit/go/cells/bucketstore"
 	"github.com/hiveot/hivekit/go/cells/history"
 	history_client "github.com/hiveot/hivekit/go/cells/history/client"
-	"github.com/hiveot/hivekit/go/cells/history/internal"
+	history_service "github.com/hiveot/hivekit/go/cells/history/service"
 	"github.com/hiveot/hivekit/go/cells/thing"
 	"github.com/hiveot/hivekit/go/testenv"
 	"github.com/hiveot/hivekit/go/utils"
@@ -56,7 +56,7 @@ func TestMain(m *testing.M) {
 // This starts the protocol server and links it to the history service as sink.
 // Use clean to start with an empty history.
 func startHistoryService(clean bool) (
-	histService *internal.HistoryServiceImpl, stopFn func()) {
+	histService history.IHistoryService, stopFn func()) {
 
 	dataDir := filepath.Join(
 		testEnv.Env.StoresDir, history.HistoryServiceCellType)
@@ -67,7 +67,7 @@ func startHistoryService(clean bool) (
 
 	// create the history service and link it to the protocol server.
 	cfg := history.NewHistoryConfig(dataDir, historyStoreBackend)
-	histService, err := internal.NewHistoryServiceImpl(cfg)
+	histService, err := history_service.NewHistoryService(cfg)
 	if err != nil {
 		panic("Failed starting the history service: " + err.Error())
 	}
@@ -134,7 +134,7 @@ func makeValueBatch(deviceID string, nrValues, nrThings, timespanSec int) (
 }
 
 // add some history to the store. This bypasses the check for thingID to exist.
-func addBulkHistory(m *internal.HistoryServiceImpl, deviceID string, count int, nrThings int,
+func addBulkHistory(svc history.IHistoryService, deviceID string, count int, nrThings int,
 	timespanSec int) (highest map[string]msg.NotificationMessage) {
 
 	var batchSize = 1000
@@ -150,7 +150,7 @@ func addBulkHistory(m *internal.HistoryServiceImpl, deviceID string, count int, 
 		start := batchSize * i
 		end := batchSize * (i + 1)
 		for j := start; j < end; j++ {
-			err := m.AddValue(&evBatch[j])
+			err := svc.StoreNotification(&evBatch[j])
 			if err != nil {
 				slog.Error("Problem adding events.", "err", err)
 			}

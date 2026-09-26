@@ -4,7 +4,7 @@ import (
 	"github.com/hiveot/hivekit/go/api"
 	"github.com/hiveot/hivekit/go/api/td"
 	"github.com/hiveot/hivekit/go/cells/directory"
-	clientimpl "github.com/hiveot/hivekit/go/cells/directory/internal/clientimpl"
+	"github.com/hiveot/hivekit/go/cells/directory/client/internal"
 )
 
 // NewDirectoryClient creates a client for the Thing directory service.
@@ -66,7 +66,7 @@ import (
 // This returns a new instance of the directory client
 func NewDirectoryClient(
 	dirTDD *td.TD, sink api.IHiveCell) directory.IDirectoryClient {
-	return clientimpl.NewDirectoryClientImpl(dirTDD, sink)
+	return internal.NewDirectoryClientImpl(dirTDD, sink)
 }
 
 // NewDirectoryClientFactory creates the directory client using the TD from the

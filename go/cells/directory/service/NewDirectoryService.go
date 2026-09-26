@@ -3,7 +3,7 @@ package directory_service
 import (
 	"github.com/hiveot/hivekit/go/api"
 	"github.com/hiveot/hivekit/go/cells/directory"
-	"github.com/hiveot/hivekit/go/cells/directory/internal/serviceimpl"
+	"github.com/hiveot/hivekit/go/cells/directory/service/internal/serviceimpl"
 )
 
 // NewDirectoryService returns a ready-to-use Thing directory service instance.

@@ -1,0 +1,254 @@
+package serviceimpl
+
+import (
+	"crypto/ed25519"
+	"fmt"
+	"log/slog"
+	"os"
+	"path/filepath"
+	"time"
+
+	"github.com/hiveot/hivekit/go/api"
+	"github.com/hiveot/hivekit/go/api/td"
+	"github.com/hiveot/hivekit/go/cells/authn"
+	"github.com/hiveot/hivekit/go/cells/authn/service/internal/authenticators"
+	authnstore "github.com/hiveot/hivekit/go/cells/authn/service/internal/store"
+	"github.com/hiveot/hivekit/go/utils"
+)
+
+// Session manager for authenticating users.
+// This implements the IAuthenticator and IAuthnAuthenticator interfaces
+type SessionManager struct {
+	// Auth token validity for consumers in days
+	ConsumerTokenValidityDays int `yaml:"consumerTokenValidityDays,omitempty"`
+	// Auth token validity for devices in days
+	DeviceTokenValidityDays int `yaml:"deviceTokenValidityDays,omitempty"`
+	// Auth token validity for services in days
+	ServiceTokenValidityDays int `yaml:"serviceTokenValidityDays,omitempty"`
+
+	// storage for clients and authentication data
+	authnStore authnstore.IAuthnStore
+
+	// The client authenticator, eg the session manager
+	authenticator authn.IAuthnAuthenticator
+
+	// directory where the signing key is stored
+	keysDir string
+
+	// track session start, used in validation
+	sessionStart map[string]time.Time
+}
+
+// AddSecurityScheme adds the authenticator's security scheme to the given TD.
+func (sm *SessionManager) AddSecurityScheme(tdoc *td.TD) {
+	sm.authenticator.AddSecurityScheme(tdoc)
+}
+
+// CreateToken creates a new session token for the client using the configured authenticator.
+//
+// This creates a session that is valid until logout.
+//
+//	clientID is the account ID of a known client
+//	validity is the token validity period. 0 for default.
+//
+// This returns the token
+func (sm *SessionManager) CreateToken(clientID string, validity time.Duration) (
+	token string, validUntil time.Time, err error) {
+
+	prof, err := sm.authnStore.GetProfile(clientID)
+	if err != nil {
+		return "", validUntil, err
+	}
+	if validity == 0 {
+		var validityDays int
+		switch prof.Role {
+		case authn.ClientRoleDevice:
+			validityDays = sm.DeviceTokenValidityDays
+		case authn.ClientRoleService:
+			validityDays = sm.ServiceTokenValidityDays
+		default: // viewer, manager, operator, admin all consumer tokens
+			validityDays = sm.ConsumerTokenValidityDays
+		}
+		validity = time.Duration(validityDays) * 24 * time.Hour
+	}
+	//
+	createdTime := time.Now()
+	sm.sessionStart[clientID] = createdTime.Add(-time.Second)
+	// use the configured authenticator for token creation
+	token, validUntil, err = sm.authenticator.CreateToken(clientID, validity)
+	return
+}
+
+// DecodeToken decodes the given token using the configured authenticator.
+// optionally verify the signed nonce using the client's public key.
+// This returns the auth info stored in the token.
+func (sm *SessionManager) DecodeToken(token string, signedNonce string, nonce string) (
+	clientID string, issuedAt time.Time, validUntil time.Time, err error) {
+	return sm.authenticator.DecodeToken(token, signedNonce, nonce)
+}
+
+// Login with password and generate a session token
+// Intended for end-users that want to establish a session.
+//
+//	clientID is the client to log in
+//	password to verify
+//
+// This returns a session token, its session ID, or an error if failed
+func (sm *SessionManager) Login(
+	clientID string, password string) (token string, validUntil time.Time, err error) {
+
+	// a user login always creates a session token
+	err = sm.ValidatePassword(clientID, password)
+	if err != nil {
+		return "", validUntil, err
+	}
+
+	// If a session start time does not exist yet, then record this as the session start.
+	sessionStart, found := sm.sessionStart[clientID]
+	if !found {
+		sessionStart = time.Now().Add(-time.Second) // prevent comparison with token iat failing
+		sm.sessionStart[clientID] = sessionStart
+	}
+
+	// create the session to allow token refresh
+	validity := time.Hour * time.Duration(24*sm.ConsumerTokenValidityDays)
+	token, validUntil, _ = sm.authenticator.CreateToken(clientID, validity)
+
+	return token, validUntil, err
+}
+
+// Load a previously saved token from the keys directory under the name {clientID}.token
+//
+// The intended configuration is to match this with AppEnvironment.
+//
+// Intended for storing tokens for core services and admin user.
+func (svc *SessionManager) LoadToken(clientID string) (string, error) {
+
+	tokenFile := filepath.Join(svc.keysDir, clientID+api.DefaultTokenFileSuffix)
+	token, err := os.ReadFile(tokenFile)
+
+	return string(token), err
+}
+
+// Logout removes the client session
+func (sm *SessionManager) Logout(clientID string) {
+	_, found := sm.sessionStart[clientID]
+	if found {
+		delete(sm.sessionStart, clientID)
+	}
+}
+
+// RefreshToken requests a new token based on the old token
+// This requires that the existing session is still valid
+func (sm *SessionManager) RefreshToken(senderID string, oldToken string) (
+	newToken string, validUntil time.Time, err error) {
+
+	var validityDays int
+
+	// validation only succeeds if there is an active session
+	tokenClientID, _, _, err := sm.ValidateClient(senderID, oldToken)
+	if err != nil || senderID != tokenClientID {
+		return newToken, validUntil, fmt.Errorf("Invalid token or senderID mismatch")
+	}
+	// must still be a valid client
+	prof, err := sm.authnStore.GetProfile(senderID)
+	_ = prof
+	if err != nil || prof.Disabled {
+		return newToken, validUntil, fmt.Errorf("Unknown or disabled client '%s'", senderID)
+	}
+	switch prof.Role {
+	case authn.ClientRoleDevice:
+		validityDays = sm.DeviceTokenValidityDays
+	case authn.ClientRoleService:
+		validityDays = sm.ServiceTokenValidityDays
+	default: // viewer, manager, operator, admin all consumer tokens
+		validityDays = sm.ConsumerTokenValidityDays
+	}
+	validity := time.Duration(validityDays) * 24 * time.Hour
+	newToken, validUntil, err = sm.authenticator.CreateToken(senderID, validity)
+	return newToken, validUntil, err
+}
+
+// Save the token to the keys directory under the name {clientID}.token
+//
+// Intended for storing tokens for core services and admin user.
+func (svc *SessionManager) SaveToken(clientID string, token string) error {
+	tokenFile := filepath.Join(svc.keysDir, clientID+api.DefaultTokenFileSuffix)
+
+	err := os.MkdirAll(svc.keysDir, 0700)
+	if err != nil {
+		slog.Error("SaveToken can't ensure directory exist.",
+			"keysdir", svc.keysDir, "err", err.Error())
+	}
+	// the old token can't be overwritten
+	_ = os.Remove(tokenFile)
+	err = os.WriteFile(tokenFile, []byte(token), 0400)
+	if err != nil {
+		slog.Error("SaveToken failed", "err", err.Error())
+	}
+
+	return err
+}
+
+// validate if the password is valid to login with
+func (sm *SessionManager) ValidatePassword(clientID, password string) (err error) {
+	clientProfile, err := sm.authnStore.VerifyPassword(clientID, password)
+	_ = clientProfile
+	return err
+}
+
+// ValidateClient verifies the token and client are valid.
+func (sm *SessionManager) ValidateClient(claimedClientID string, token string) (
+	clientID string, issuedAt time.Time, validUntil time.Time, err error) {
+
+	clientID, issuedAt, validUntil, err = sm.authenticator.ValidateClient(claimedClientID, token)
+	if err != nil {
+		return
+	}
+
+	// check the token is of an active client
+	// this is set during CreateToken and Login
+	sessionStart, found := sm.sessionStart[clientID]
+	if !found {
+		slog.Warn("ValidateToken. No valid session found for client", "clientID", clientID)
+		return clientID, issuedAt, validUntil, fmt.Errorf("Session is no longer valid")
+	}
+	// the session must have started before the token was issued
+	// this allows a session restart to invalidate all old tokens
+	if issuedAt.Before(sessionStart) {
+		slog.Warn("ValidateToken. The token session is no longer valid", "clientID", clientID)
+		return clientID, issuedAt, validUntil, fmt.Errorf("Session is no longer valid")
+	}
+
+	return clientID, issuedAt, validUntil, err
+}
+
+// Create a new session manager for client sessions
+// Call Stop() to shut down
+func StartSessionManager(
+	authnStore authnstore.IAuthnStore, keysDir string) (*SessionManager, error) {
+
+	sm := &SessionManager{
+		keysDir:                   keysDir,
+		authnStore:                authnStore,
+		DeviceTokenValidityDays:   authn.DefaultDeviceTokenValidityDays,
+		ServiceTokenValidityDays:  authn.DefaultServiceTokenValidityDays,
+		ConsumerTokenValidityDays: authn.DefaultConsumerTokenValidityDays,
+		sessionStart:              make(map[string]time.Time),
+	}
+
+	serviceID := "authn"
+
+	// store the signing key in: {keysDir}/authnKey.pem
+	keyFilename := filepath.Join(sm.keysDir, serviceID+api.DefaultPrivKeyFileSuffix)
+	signingPrivKey, _, err := utils.LoadCreateKeyPair(keyFilename, utils.KeyTypeED25519)
+	if err != nil {
+		return nil, err
+	}
+
+	sm.authenticator = authenticators.NewPasetoAuthenticator(
+		sm.authnStore, signingPrivKey.(ed25519.PrivateKey))
+
+	var _ authn.ISessionManager = sm // interface check
+	return sm, nil
+}

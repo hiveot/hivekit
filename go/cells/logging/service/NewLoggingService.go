@@ -5,7 +5,7 @@ import (
 
 	"github.com/hiveot/hivekit/go/api"
 	"github.com/hiveot/hivekit/go/cells/logging"
-	"github.com/hiveot/hivekit/go/cells/logging/internal"
+	"github.com/hiveot/hivekit/go/cells/logging/service/internal"
 )
 
 // NewLoggingService creates a ready-to-use instance of the logging service.
