@@ -62,12 +62,21 @@ type IDirectoryClient interface {
 	// This returns an error on insufficient permissions.
 	DeleteThing(thingID string) error
 
+	// Return the TD of the given Thing ID.
+	//
+	// Intended for use by the router service to find if the client is able
+	// to get a TD for forwarding requests. This differs from RetrieveThing
+	// by its API.
+	//
+	// This returns nil if not found.
+	GetTD(thingID string) *td.TD
+
 	// Return an instance of a TD from the local cache. (TBD whether this is needed)
 	// These TD's are cached so successive requests do not parse the json each time.
 	// GetTD(thingID string) *td.TD
 
 	// Return the Directory TD the client is using.
-	GetTDD() *td.TD
+	// GetTDD() *td.TD
 
 	// RetrieveAllThings loads a batch of TD JSON documents from the directory server
 	// and updates the local cache.

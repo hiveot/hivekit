@@ -10,7 +10,16 @@ import (
 	"github.com/teris-io/shortid"
 )
 
-// AddFormsServiceImpl modifies TD's sent with directory update and create commands with base, security, and form information from the configured transports.
+// AddFormsServiceImpl is a small cell that modifies TD's sent with directory update and
+// create commands with base, security, and form information from the configured
+// transports.
+//
+// Intended to be used when TD's need to be modified to add the forms for protocols,
+// using provided servers. Use cases:
+// 1. In a stand-alone server after the exposed thing and before directory client or discovery server
+// 2. In a digital twin gateway where requests for all devices must be redirected to the digital twin.
+//
+// alternative: add a hook to exposed thing used by the publishTD method to add forms.
 type AddFormsServiceImpl struct {
 	cells.HiveCellBase
 
@@ -26,44 +35,45 @@ type AddFormsServiceImpl struct {
 }
 
 // Update the base-URL, security scheme and forms to the given TD
-func (m *AddFormsServiceImpl) AddTDSecForms(tdoc *td.TD, includeAffordances bool) {
-	tpServers := m.getServers()
+func (svc *AddFormsServiceImpl) AddTDSecForms(tdoc *td.TD, includeAffordances bool) {
+	tpServers := svc.getServers()
 	for _, srv := range tpServers {
 		srv.AddTDSecForms(tdoc, includeAffordances)
 	}
 }
 
 // convert TDs provided with CreateThing and UpdateThing directory actions
-func (m *AddFormsServiceImpl) HandleRequest(req *msg.RequestMessage, replyTo msg.ResponseHandler) error {
+func (svc *AddFormsServiceImpl) HandleRequest(req *msg.RequestMessage, replyTo msg.ResponseHandler) error {
 	if req.Operation != td.OpInvokeAction {
-		return m.ForwardRequest(req, replyTo)
+		return svc.ForwardRequest(req, replyTo)
 	}
 	if req.Name != directory.CreateThingAction && req.Name != directory.UpdateThingAction {
-		return m.ForwardRequest(req, replyTo)
+		return svc.ForwardRequest(req, replyTo)
 	}
-	// if a serviceID is provides it must match that of the request
-	if m.dirServiceID != "" && m.dirServiceID != req.ThingID {
-		return m.ForwardRequest(req, replyTo)
+	// if the service thingID is set, it must match that of the request
+	// without it, thingIDs are ignored.
+	if svc.dirServiceID != "" && svc.dirServiceID != req.ThingID {
+		return svc.ForwardRequest(req, replyTo)
 	}
 	tdoc, err := td.UnmarshalTD(req.ToString(0))
 	if err != nil {
-		return m.ForwardRequest(req, replyTo)
+		return svc.ForwardRequest(req, replyTo)
 	}
 
-	m.AddTDSecForms(tdoc, m.includeAffordances)
+	svc.AddTDSecForms(tdoc, svc.includeAffordances)
 
 	newInput := td.MarshalTD(tdoc)
 	// shallow copy of the request before changing the input
 	req2 := *req
 	req2.Input = newInput
-	return m.ForwardRequest(&req2, replyTo)
+	return svc.ForwardRequest(&req2, replyTo)
 }
 
-// StartAddFormsServiceImpl creates a new instance of the service
-func StartAddFormsServiceImpl(getServers func() []api.ITransportServer) *AddFormsServiceImpl {
+// NewAddFormsServiceImpl creates a new instance of the service
+func NewAddFormsServiceImpl(getServers func() []api.ITransportServer) *AddFormsServiceImpl {
 	thingID := addforms.AddFormsCellType + "-" + shortid.MustGenerate()
 	m := &AddFormsServiceImpl{
-		HiveCellBase:       *cells.NewHiveCellBase(thingID, 0),
+		HiveCellBase:       *cells.NewHiveCellBase(thingID),
 		includeAffordances: true,
 		getServers:         getServers,
 	}

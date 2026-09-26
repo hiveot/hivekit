@@ -178,7 +178,7 @@ func NewValueCacheService() (*ValueCacheService, error) {
 
 	thingID := vcacheapi.ValueCacheCellType + "-" + shortid.MustGenerate()
 	svc := &ValueCacheService{
-		HiveCellBase: cells.NewHiveCellBase(thingID, 0),
+		HiveCellBase: cells.NewHiveCellBase(thingID),
 		store:        *NewVCacheStore(),
 	}
 	var _ vcacheapi.IValueCacheService = svc // interface check

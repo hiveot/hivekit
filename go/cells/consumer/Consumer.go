@@ -256,14 +256,13 @@ func (co *Consumer) WriteProperty(thingID string, name string, input any, wait b
 //
 // Provide a sink for forwarding requests and receiving notifications. Use nil to do this manually.
 // A notification hook can be provided or set with SetNotificationHook
-// Use SetTimeout to modify the default RPC timeout
 //
 //	sink, if provided, is the request sink and notification source
 //	notificationHook is the optional application callback for incoming notifications
 func NewConsumer(sink api.IHiveCell, notificationHook msg.NotificationHandler) *Consumer {
 	thingID := ConsumerCellType + "-" + shortid.MustGenerate()
 	consumer := &Consumer{
-		HiveCellBase:        cells.NewHiveCellBase(thingID, msg.DefaultRnRTimeout),
+		HiveCellBase:        cells.NewHiveCellBase(thingID),
 		appNotificationHook: notificationHook,
 	}
 	if sink != nil {
@@ -277,6 +276,5 @@ func NewConsumer(sink api.IHiveCell, notificationHook msg.NotificationHandler) *
 // NewConsumerFactory is the method for creating a consumer using the factory environment
 func NewConsumerFactory(f api.ICellFactory, md *api.CellDefinition) (api.IHiveCell, error) {
 	c := NewConsumer(nil, nil)
-	c.SetTimeout(f.GetEnvironment().RpcTimeout)
 	return c, nil
 }

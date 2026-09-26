@@ -28,13 +28,12 @@ func NewSseScClientFactory(f api.ICellFactory, md *api.CellDefinition) (api.IHiv
 	// do clients use onconnectionchanged? -> yes, show connection status
 	// how do they get informed? -> client submits an event
 	clientCert, _ := env.GetClientCert()
-	m := NewSseScClient(env.ServerURL, env.GetRootCAs())
+	m := NewSseScClient(env.GetServerURL(), env.GetRootCAs())
 	if clientCert != nil {
 		err := m.SetClientCert(clientCert)
 		if err != nil {
 			slog.Error("NewSseScClientFactory. Failed: " + err.Error())
 		}
 	}
-	m.SetTimeout(env.RpcTimeout)
 	return m, nil
 }

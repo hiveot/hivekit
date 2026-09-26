@@ -10,7 +10,7 @@ import (
 	"github.com/hiveot/hivekit/go/api"
 	"github.com/hiveot/hivekit/go/utils"
 
-	standalonerecipe "github.com/hiveot/hivekit/go/factory/recipes/standalone"
+	sadevice_recipe "github.com/hiveot/hivekit/go/factory/recipes/sadevice"
 	factory_service "github.com/hiveot/hivekit/go/factory/service"
 	"github.com/hiveot/hivekit/go/testenv"
 )
@@ -29,7 +29,7 @@ var ExampleHome = path.Join(os.TempDir(), "hivekit-examples")
 // The factory authn service factory creates an admin client certificate and auth token if
 // not present.
 //
-// See the factory/recipes/StandAloneDeviceRecipe.go for the cells in the recipe.
+// See the factory/recipes/standalone/StandAloneDeviceRecipe.go for the cells in the recipe.
 // On start the device publishes its TD to the discovery server.
 func main() {
 	env := api.NewHiveEnvironment(ExampleHome, true)
@@ -49,11 +49,10 @@ func main() {
 	counterThing, err := testenv.NewTestCounterThing(env.AppID, cfg)
 
 	// link to it from the stand-alone recipe
-	// the stand-alone recipe contains cells for running a server with certs and authn
-	// you can message the recipe as a service or via a client. Here we message directly.
+	// the stand-alone recipe contains cells for running a server with certs and authn.
 	f := factory_service.NewCellFactory(env, nil)
 
-	r, err := standalonerecipe.StartStandAloneDeviceRecipe(f, counterThing)
+	r, err := sadevice_recipe.NewStandAloneDeviceRecipe(f, counterThing)
 	_ = r
 	if err != nil {
 		fmt.Println("Startup failed: " + err.Error())

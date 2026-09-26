@@ -46,7 +46,7 @@ type FactoryImpl struct {
 // This invokes all singletonCells that implement the ITransportServer interface
 func (f *FactoryImpl) AddTDSecForms(tdoc *td.TD, includeAffordances bool) {
 	f.mux.RLock()
-	tpList := []api.ITransportServer{}
+	tpList := make([]api.ITransportServer, len(f.transportCells))
 	copy(tpList, f.transportCells)
 	f.mux.RUnlock()
 	for _, tp := range tpList {
@@ -159,6 +159,7 @@ func (f *FactoryImpl) HandleRequest(req *msg.RequestMessage, replyTo msg.Respons
 }
 
 // loadCell returns an existing instance of the cell or loads a new instance.
+// This sets the messaging timeout of the cell to that of the factory.
 //
 // If the cell implements the ITransportServer interface it is added to the list of available
 // transport. See GetTransportServers() to obtain the collection of all loaded servers.
@@ -188,10 +189,12 @@ func (f *FactoryImpl) loadCell(cellType string) (m api.IHiveCell, isNew bool, er
 	// if nil is returned then nothing to do
 	// this can be valid for initialization cells
 	if cellInstance == nil {
-		return cellInstance, false, nil
+		return nil, false, nil
 	}
 
 	// store the singleton on successful start
+	// give it the application environment timeout
+	cellInstance.SetTimeout(f.GetTimeout())
 
 	f.mux.Lock()
 	f.singletonCells[cellType] = cellInstance
@@ -307,12 +310,14 @@ func NewCellFactoryImpl(
 	}
 	thingID := "factory"
 	f := &FactoryImpl{
-		HiveCellBase:    cells.NewHiveCellBase(thingID, env.RpcTimeout),
+		HiveCellBase:    cells.NewHiveCellBase(thingID),
 		authProxy:       NewAuthenticatorProxy(),
 		env:             env,
 		cellDefinitions: cellDefMap,
 		singletonCells:  make(map[string]api.IHiveCell),
 	}
+	// this timeout is applied on all created cells
+	f.SetTimeout(env.RpcTimeout)
 	var _ api.ICellFactory = f // API check
 	return f
 }

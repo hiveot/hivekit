@@ -34,6 +34,6 @@ var DeviceClientRecipe = []api.CellDefinition{
 	},
 	{
 		Type:        wss.WotWebsocketClientCellType,
-		Constructor: wss_client.StartWotWssClientFactory,
+		Constructor: wss_client.NewWotWssClientFactory,
 	},
 }

@@ -29,12 +29,12 @@ import (
 //	  This can be used to search for a particular directory instance when multiple are available.
 //	  When omitted, the device hostname is used.
 //	tdURL is the URL the thing or directory TD is served at.
-//	isDirectory true if tdURL points to a directory
+//	thingType discovery subtype, one of DISCO_TYPE_THING|DIRECTORY|GATEWAY
 //	endpoints contains a map of additional {scheme:connection} connection URLs
 //
 // Returns the discovery service instance. Use Shutdown() when done.
 func ServeWotDiscovery(
-	instanceName string, tdURL string, isDirectory bool, endpoints map[string]string,
+	instanceName string, tdURL string, thingType string, endpoints map[string]string,
 ) (*zeroconf.Server, error) {
 
 	subType := "" // used for directory
@@ -72,9 +72,11 @@ func ServeWotDiscovery(
 		"scheme": scheme,
 		"type":   "Thing",
 	}
-	if isDirectory {
-		params["type"] = "Directory"
+	params["type"] = thingType
+	if thingType == discovery.DISCO_TYPE_DIRECTORY {
 		subType = discovery.WOT_DIRECTORY_SUB_TYPE
+	} else if thingType == discovery.DISCO_TYPE_GATEWAY {
+		subType = discovery.HIVEOT_GATEWAY_SUB_TYPE
 	}
 	// add connection endpoints as parameters
 	for ep, epURL := range endpoints {

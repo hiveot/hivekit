@@ -1,7 +1,7 @@
 package main
 
 import (
-	"fmt"
+	"log/slog"
 	"os"
 	"path"
 	"time"
@@ -9,9 +9,8 @@ import (
 	"github.com/hiveot/hivekit/go/api"
 	"github.com/hiveot/hivekit/go/api/td"
 	"github.com/hiveot/hivekit/go/cells/router"
-	"github.com/hiveot/hivekit/go/examples/example3/tuiapp"
+	"github.com/hiveot/hivekit/go/examples/tui/tuiapp"
 	consumer_recipe "github.com/hiveot/hivekit/go/factory/recipes/consumer"
-	factory_service "github.com/hiveot/hivekit/go/factory/service"
 	"github.com/hiveot/hivekit/go/utils"
 )
 
@@ -26,7 +25,7 @@ func main() {
 	env.AppID = "example-3"
 	env.RpcTimeout = time.Second * 60 // avoid comm timeout during debugging
 	// FIXME: for a different clientID when running with go run, instead of the APP ID
-	if env.ClientID == "main" {
+	if env.ClientID == "" {
 		env.ClientID = "admin"
 	}
 
@@ -35,8 +34,7 @@ func main() {
 	env.CreateDir(env.LogsDir, 0750)
 	utils.SetLogging(env.LogLevel, path.Join(env.LogsDir, "example3.log"))
 
-	f := factory_service.NewCellFactory(env, nil)
-	r, err := consumer_recipe.NewConsumerRecipe(f, false)
+	r, f, err := consumer_recipe.NewConsumerRecipe(env, false)
 	if err != nil {
 		os.Exit(1)
 	}
@@ -46,15 +44,18 @@ func main() {
 	// the device thingID and falls back to the "" thingID.
 	authToken, _ := env.GetAuthToken()
 	rtr := api.GetFactoryCell[router.IRouterService](f, router.RouterCellType)
-	rtr.AddCredentials("", env.ClientID, authToken, td.SecSchemeBearer)
-	fmt.Printf("Using '%s' as login ID\n", env.ClientID)
-
+	if authToken != "" {
+		slog.Info("Found auth token", "clientID", env.ClientID)
+		rtr.AddCredentials("", env.ClientID, authToken, td.SecSchemeBearer)
+	} else {
+		slog.Info("No auth token.\n", "loginID", env.ClientID)
+	}
 	app := tuiapp.NewTuiApp(f)
 	app.SetRequestSink(r)
 	r.SetNotificationSink(app)
+
 	// signal the app is ready to go and all cells are linked
 	f.Start()
-
 	app.Start()
 	if err != nil {
 		println("Tui failed to start: ", err.Error())

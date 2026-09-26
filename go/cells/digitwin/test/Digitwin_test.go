@@ -10,7 +10,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/hiveot/hivekit/go/api"
 	"github.com/hiveot/hivekit/go/api/msg"
 	"github.com/hiveot/hivekit/go/api/td"
 	"github.com/hiveot/hivekit/go/cells/authn"
@@ -20,6 +19,7 @@ import (
 	"github.com/hiveot/hivekit/go/cells/directory"
 	directory_client "github.com/hiveot/hivekit/go/cells/directory/client"
 	directory_service "github.com/hiveot/hivekit/go/cells/directory/service"
+	rcrouter_service "github.com/hiveot/hivekit/go/cells/rcrouter/service"
 	router_service "github.com/hiveot/hivekit/go/cells/router/service"
 	"github.com/hiveot/hivekit/go/cells/thing"
 	"github.com/hiveot/hivekit/go/testenv"
@@ -28,9 +28,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-var storageDir = filepath.Join(os.TempDir(), "hivekit", "digitwin-test")
-
-const rpcTimout = msg.DefaultRnRTimeout
+const dirThingID = "test-directory"
 
 // TestMain setup logging and creates a test environment
 func TestMain(m *testing.M) {
@@ -53,21 +51,16 @@ func startService() (
 	dtwSvc digitwin.IDigitwinService,
 	stopFn func()) {
 
-	os.RemoveAll(storageDir)
 	// testEnv,cancelFn = tptests.StartTestEnv(api.ProtocolSchemeWotWSS)
 	testEnv = testenv.NewTestEnv(true)
+	storageDir := filepath.Join(testEnv.Env.StoresDir, "digitwin-test")
 
 	// a websocket server for RRN messaging
 	appServer := testEnv.StartTestServer("")
 
-	// the directory server that will contain digitwin Things
-	// digiDir := filepath.Join(storageDir, "digiDir.json")
-	dirThingID := directory.DefaultDirectoryThingID
-	servers := []api.ITransportServer{testEnv.Server}
-	// httpAPI := directorypkg.NewDirectoryHttpServer(testEnv.HttpServer)
+	// servers := []api.ITransportServer{appServer}
 
-	dir, err := directory_service.NewDirectoryService(
-		dirThingID, storageDir, testEnv.HttpServer, servers)
+	dir, err := directory_service.NewDirectoryService(dirThingID, storageDir, testEnv.HttpServer)
 	if err != nil {
 		panic("Failed to start directory server")
 	}
@@ -76,29 +69,36 @@ func startService() (
 	if err != nil {
 		panic("unable to start the digitwin service")
 	}
-	// callback to return available servers
-	getTps := func() []api.ITransportServer {
-		return []api.ITransportServer{appServer}
-	}
+	dtwSvc.SetTimeout(testEnv.Env.RpcTimeout)
 	// The router uses the digitwin Thing Directory.
 	// getDeviceTD := dtw.GetDeviceDirectory().GetTD
-	clientID := testEnv.AppEnv.ClientID
+	clientID := testEnv.Env.ClientID
 	rtr, err := router_service.NewRouterService(
 		storageDir, false, clientID, nil, //svc.clientCert, use SetClientCert if known
-		testEnv.CertBundle.RootCAs, rpcTimout,
+		testEnv.CertBundle.RootCAs,
 		dtwSvc.GetDeviceTD,
-		getTps,
 	)
 	if err != nil {
 		panic("unable to start the router service")
 	}
-	// create a request chain server->directory->digitwin->router->server
+	rtr.SetTimeout(testEnv.Env.RpcTimeout)
+
+	// attach the rc-router
+	rcr, err := rcrouter_service.NewRCRouterService(
+		dtwSvc.GetDeviceTD, testEnv.GetTpServers)
+
+	rcr.SetTimeout(testEnv.Env.RpcTimeout)
+
+	// create a request chain:
+	//  server->directory->digitwin->router->rcrouter->server
 	appServer.SetRequestSink(dir)
 	dir.SetRequestSink(dtwSvc)
 	dtwSvc.SetRequestSink(rtr)
-	rtr.SetRequestSink(appServer)
+	rtr.SetRequestSink(rcr)
+	rcr.SetRequestSink(appServer)
 
-	// create a reverse notification chain server->router->digitwin->directory->server
+	// create a reverse notification chain:
+	//  server->router->digitwin->directory->server
 	appServer.SetNotificationSink(rtr)
 	rtr.SetNotificationSink(dtwSvc)
 	dtwSvc.SetNotificationSink(dir)
@@ -136,7 +136,7 @@ func TestCreateDigitwinTD(t *testing.T) {
 	defer stopFn()
 
 	// pretent to be a device that writes a TD to the directory
-	td1 := testEnv.CreateTestTD(0)
+	td1 := testEnv.CreateTestTD(0, false)
 	td1Json := td.MarshalTD(td1)
 	err := dir.UpdateThing(deviceID, td1Json)
 
@@ -196,11 +196,11 @@ func TestReadDigitwinProperty(t *testing.T) {
 	_ = dtw
 	defer stopFn()
 
-	deviceTD1 := testEnv.CreateTestTD(0)
+	deviceTD1 := testEnv.CreateTestTD(0, false)
 
 	// the digital twin will receive the readproperty request.
-	// the digitwin service should forward the read property downstream to the actual device, as the property is unknown.
-	downstream := thing.NewExposedThing("", func(req *msg.RequestMessage, replyTo msg.ResponseHandler) error {
+	// the digitwin service should forward the read property et1 to the actual device, as the property is unknown.
+	et1 := thing.NewExposedThing("digitwin-test-ething", func(req *msg.RequestMessage, replyTo msg.ResponseHandler) error {
 		if req.Operation == td.OpReadProperty {
 			if req.ThingID == deviceTD1.ID && req.Name == prop1Name {
 				resp := req.CreateResponse(prop1Value, nil)
@@ -210,7 +210,8 @@ func TestReadDigitwinProperty(t *testing.T) {
 		}
 		return fmt.Errorf("unknown request ")
 	})
-	dtw.SetRequestSink(downstream)
+	et1.SetTimeout(testEnv.Env.RpcTimeout)
+	dtw.SetRequestSink(et1)
 
 	// 1: create a consumer that subscribes to notifications
 	co, cc1, _ := testEnv.NewTestConsumer(userID, authn.ClientRoleViewer)
@@ -229,7 +230,8 @@ func TestReadDigitwinProperty(t *testing.T) {
 			require.NotEmpty(t, rxPropValue)
 			assert.Equal(t, dtwThingID, notif.ThingID)
 			slog.Info("*** Received notification",
-				"type", notif.AffordanceType, "thingID", notif.ThingID, "name", notif.Name)
+				"type", notif.AffordanceType, "thingID", notif.ThingID,
+				"name", notif.Name)
 		}
 	})
 
@@ -268,9 +270,8 @@ func TestWriteDigitwinProperty(t *testing.T) {
 	const prop1Value = "value1"
 	var txPropValue string
 
-	testEnv, dir, dtw, stopFn := startService()
+	testEnv, dirSvc, dtw, stopFn := startService()
 	_ = dtw
-	_ = dir
 	defer stopFn()
 
 	// 1: create a consumer that writes a property
@@ -294,7 +295,7 @@ func TestWriteDigitwinProperty(t *testing.T) {
 			go ething.PubProperty(req.ThingID, req.Name, txPropValue, false)
 
 			return replyTo(resp)
-		} else if req.ThingID == directory.DefaultDirectoryThingID {
+		} else if req.ThingID == dirThingID {
 			// this is a request for the directory. Forward it
 			return ething.EmitRequest(req, replyTo)
 		} else {
@@ -303,27 +304,29 @@ func TestWriteDigitwinProperty(t *testing.T) {
 		}
 	})
 
-	// 3. write a TD using the directory client
-	// normally the discovery process discovered the directory service service ID,
-	// but most likely it uses the default.
-	td1 := testEnv.CreateTestTD(0)
+	// 3. Exposed thing writes a TD.
+
+	td1 := testEnv.CreateTestTD(0, false)
 	td1Json := td.MarshalTD(td1)
+
+	// An ExposedThing can publish its TD without knowing the thingID of the directory.
+	// The directory service reacts on any 'invokeaction updateTD' requests.
 	err = directory_service.UpdateTD(
-		directory.DefaultDirectoryThingID, td1Json, ething.EmitRequest)
+		"", td1Json, ething.EmitRequest, testEnv.Env.RpcTimeout)
 	assert.NoError(t, err)
 
 	// check whether the td is now in the directory
 	dtwThing1ID := internal.MakeDigitwinID(deviceID, td1.ID)
-	td2Json, err := dir.RetrieveThing(dtwThing1ID)
+	td2Json, err := dirSvc.RetrieveThing(dtwThing1ID)
 	require.NoError(t, err)
 	require.NotEmpty(t, td2Json)
 	// check whether the deviceID is set
 	tdi2, err := td.UnmarshalTD(td2Json)
 	require.NoError(t, err)
-	assert.Equal(t, deviceID, tdi2.RCID)
+	assert.Equal(t, deviceID, tdi2.SenderID)
 
 	// 4. Consumer reads the TD with its own directory client
-	dirTDD, _ := dir.GetTDD()
+	dirTDD := dirSvc.GetTDD()
 	dirCoCl := directory_client.NewDirectoryClient(dirTDD, co)
 	tdoc3, err := dirCoCl.RetrieveThing(dtwThing1ID)
 	require.NoError(t, err)
@@ -378,7 +381,7 @@ func TestInvokeDigitwinAction(t *testing.T) {
 			// submit an event after the action
 			go ething.PubEvent(req.ThingID, req.Name, req.Input)
 			return replyTo(resp)
-		} else if req.ThingID == directory.DefaultDirectoryThingID {
+		} else if req.ThingID == dirThingID {
 			// this is a request for the directory. Send it.
 			// use emit instead of forward as forward can be disabled
 			return ething.EmitRequest(req, replyTo)
@@ -389,11 +392,10 @@ func TestInvokeDigitwinAction(t *testing.T) {
 	})
 
 	// 3. write a TD with this action
-	td1 := testEnv.CreateTestTD(0)
+	td1 := testEnv.CreateTestTD(0, false)
 	td1.ID = thingID
 	td1Json := td.MarshalTD(td1)
-	err = directory_service.UpdateTD(
-		directory.DefaultDirectoryThingID, td1Json, ething.EmitRequest)
+	err = directory_service.UpdateTD("", td1Json, ething.EmitRequest, testEnv.Env.RpcTimeout)
 	assert.NoError(t, err)
 
 	// 4. Consumer invokes the first action

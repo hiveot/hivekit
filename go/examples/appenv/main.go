@@ -56,7 +56,7 @@ func main() {
 		fmt.Printf(" - valid until: %s\n", cert.NotAfter)
 	}
 	fmt.Printf(" clientID:         %s\n", appenv.ClientID)
-	fmt.Printf(" serverURL:        %s\n", appenv.ServerURL)
+	fmt.Printf(" serverURL:        %s\n", appenv.GetServerURL())
 	fmt.Printf(" rpcTimeout:       %d msec\n", appenv.RpcTimeout/time.Millisecond)
 
 }

@@ -92,6 +92,7 @@ type ITransportClient interface {
 	// credentials are invalid.
 	//
 	// Connect does not restore subscriptions.
+	// Use Close() to close the connection.
 	//
 	// An error is return if unable to connect for any reason.
 	// The error is utils.UnauthorizedError if credentials are invalid.
@@ -99,6 +100,16 @@ type ITransportClient interface {
 
 	// Return the connecting status
 	GetConnectionStatus() ConnectionStatus
+
+	// Rpc creates and sends a request message to the server, and decodes the response.
+	// This returns an error if the request fails or if the response contains an error.
+	//
+	//	operation is the WoT operation to send, eg td.OpInvokeAction
+	//	thingID is the Thing to address
+	//	name is the operation name as defined in the TD
+	//	input are optional input parameters or nil if none
+	//	output is a pointer to the  struct where the result will be decoded
+	Rpc(operation, thingID, name string, input any, output any) error
 
 	// SetAuthToken sets the authentication credentials to a supported the token based
 	// security scheme. See also td.SecScheme...

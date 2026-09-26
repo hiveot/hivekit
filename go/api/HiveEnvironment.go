@@ -69,9 +69,14 @@ const (
 // Intended for devices, services, or client applications.
 // This contains folder locations, CA certificate and application clientID
 type HiveEnvironment struct {
+	// AppID is the application type ID derived from the binary name.
+	// This is not the instance ID.
+	// This can be used to load matching configuration yaml files, logfiles,
+	// and other application related configuration.
+	AppID string `yaml:"appID"`
+
 	// Directories
-	BinDir string `yaml:"binDir,omitempty"` // Application binary folder, e.g. launcher, cli, ...
-	// PluginsDir string `yaml:"pluginsDir,omitempty"` // Plugin folder
+	BinDir    string `yaml:"binDir,omitempty"`    // Application binary folder, e.g. launcher, cli, ...
 	HomeDir   string `yaml:"homeDir,omitempty"`   // Home folder, default this is the parent of bin, config, certs and logs
 	ConfigDir string `yaml:"configDir,omitempty"` // config folder with application and configuration files
 	CertsDir  string `yaml:"certsDir,omitempty"`  // Certificates and keys location
@@ -79,29 +84,56 @@ type HiveEnvironment struct {
 	LogLevel  string `yaml:"logLevel,omitempty"`  // logging level: error, warning, info, debug
 	StoresDir string `yaml:"storesDir,omitempty"` // Root of the service stores
 
-	// The provided URL of the directory TDD. Needed if the directory is not local or
-	// cannot be discovered.
-	TDDURL string `yaml:"tddURL,omitempty"`
-
-	// The self-signed CA private key if available
-	// CaKey crypto.Signer `yaml:"-"`
-
-	// The grpc URL used for the grpc server instantiation - part of grpc config
-	// eg: "unix:///path/to/sock"  (yes triple slash)
-	// GrpcURL string `yaml:"grpcURL"`
-
 	// Override the https port used for the http server instantiation
 	HttpsPort int `yaml:"httpsPort"`
 
 	// RpcTimeout is the communication timeout for use by transport client and server cells
 	RpcTimeout time.Duration
 
-	// For clients: forced server to connect to: scheme://host/path, or "" for auto.
-	// This can be useful to point to a gateway if the directory can't be discovered
-	// or runs on a different server.
-	ServerURL string `yaml:"serverURL,omitempty"`
+	//--- Client specific settings ---
 
-	//--- loaded and generated data
+	// The clientID used in authentication.
+	// Intended for authenticating with servers along with auth token or client cert.
+	ClientID string `yaml:"clientID,omitempty"`
+
+	// Optional directory TD for connecting a directory client to a directory server.
+	//
+	// A discovery client sets this when DirTDURL is determined.
+	DirTD *td.TD `yaml:"-"`
+
+	// Optional directory TD URL for downloading a specific directory TD.
+	//
+	// A discovery client can set this to a locally discovered directory, or
+	// it can be provided manually to select a specific local or remote directory.
+	DirTDURL string `yaml:"dirTDURL,omitempty"`
+
+	// Optional gateway TD for direct connection to a gateway or hub that
+	// forwards requests for all devices.
+	// GatewayTD *td.TD `yaml:"-"`
+
+	// Optional gateway URL for direct connection to a gateway or hub that
+	// forwards requests for all devices.
+	// The protocol is determined by the URL scheme.
+	//
+	// The URL scheme is used to identify the protocol.
+	// This can be used as a fallback if the serverTD is not available.
+	//
+	// Intended to point to a specific gateway.
+	GatewayURL string `yaml:"gatewayURL,omitempty"`
+
+	// Optional server TD for direct connection to a device or gateway server.
+	// The TD is used to identify the protocol.
+	//
+	// Intended to point to a specific gateway or device.
+	// A discovery client can set this to a discovered device TD.
+	ServerTD *td.TD `yaml:"-"`
+
+	// The provided URL of the TD. Needed if the TD cannot be discovered locally.
+	// This can be a file or http URL and provided by discovery or set manually.
+	// This can point to a directory or a device TD.
+	ServerTDURL string `yaml:"serverTDURL,omitempty"`
+
+	//--- loaded or generated settings. See the Get... methods.
 
 	// AuthToken contains the client authentication token for connecting to the server.
 	// This can be set manually or loaded with GetAuthToken()
@@ -126,26 +158,6 @@ type HiveEnvironment struct {
 	// Use RunInitFactoryCerts in the factory chain to ensure a self signed server
 	// cert is created if needed, or place a cert manually.
 	serverCert *tls.Certificate `yaml:"-"`
-
-	//--- ID and credentials for running as a client or using reverse connections ---
-
-	// AppID is the application type ID derived from the binary name.
-	// This is not the instance ID.
-	// This can be used to load matching configuration yaml files, logfiles,
-	// and other application related configuration.
-	AppID string `yaml:"appID"`
-
-	// The clientID used to authenticate, in certificate file and token names.
-	// Can be provided with the --clientID commandline option or set manually.
-	ClientID string `yaml:"clientID,omitempty"`
-
-	// The directory TD for bootstrapping a client.
-	// This can be provided by discovery or set manually.
-	DirTD *td.TD `yaml:"-"`
-
-	// The gateway server TD for bootstrapping a client.
-	// This can be provided by discovery or set manually.
-	ServerTD *td.TD `yaml:"-"`
 }
 
 // Create all missing directories
@@ -190,6 +202,11 @@ func (env *HiveEnvironment) CreateDir(path string, mode os.FileMode) error {
 }
 
 // GetAuthToken returns the application authentication token.
+//
+// By default this is compatible with the authn session manager Save/LoadToken
+// so that tokens created with the session manager can be loaded, if sufficient
+// permissions exist.
+//
 // If no auth token is set then this is loaded from {clientID}.token.
 // This returns an error if the token isn't set and the file cant be loaded.
 func (env *HiveEnvironment) GetAuthToken() (string, error) {
@@ -263,6 +280,27 @@ func (env *HiveEnvironment) GetServerCert() (cert *tls.Certificate, err error) {
 	keyPath := filepath.Join(env.CertsDir, "Server"+DefaultPrivKeyFileSuffix)
 	env.serverCert, err = utils.LoadTLSCert(certPath, keyPath)
 	return env.serverCert, err
+}
+
+// GetServerURL returns the server connection URL if available.
+// This uses the gateway URL if set. If no gateway URL is set then use the
+// serverTD if provided.
+// This is primarily intended for clients that are part of a recipe, where the
+// connection endpoint is known at startup, such as a gateway.
+func (env *HiveEnvironment) GetServerURL() string {
+	// gateway has the highest precedence
+	if env.GatewayURL != "" {
+		return env.GatewayURL
+	}
+	// second choice, the serverTD
+	if env.ServerTD != nil {
+		form, _ := env.ServerTD.GetForm("", "", WotWebsocketScheme, WotWebsocketSubprotocol)
+		serverURL, _ := form.ResolveHRef(env.ServerTD.Base, nil)
+		if serverURL != nil {
+			return serverURL.String()
+		}
+	}
+	return ""
 }
 
 // Return the directory where a cell stores its data.
@@ -359,53 +397,49 @@ func (env *HiveEnvironment) SetServerCert(cert *tls.Certificate) {
 //	homeDir to override the auto-detected or commandline paths. Use "" for defaults.
 //	withFlags parse the commandline flags for -home and -clientID
 func NewHiveEnvironment(homeDir string, withFlags bool) *HiveEnvironment {
-	var binDir string
-	var certsDir string
-	var clientID string
-	var configDir string
-	var logLevel string
-	var logsDir string
-	// var pluginsDir string
-	var storesDir string
-	var tddURL string
-	var serverURL string
-	var rpcTimeout time.Duration = msg.DefaultRnRTimeout
+
+	env := &HiveEnvironment{
+		HomeDir:  homeDir,
+		LogLevel: "warn",
+		// PluginsDir:   pluginsDir,
+		RpcTimeout: msg.DefaultRnRTimeout,
+	}
 
 	// The default appID is the binary name. This allows for multiple instances
 	// by linking instance IDs to the binary.
-	appID := path.Base(os.Args[0])
-	logLevel = os.Getenv("LOGLEVEL")
-	if logLevel == "" {
-		logLevel = "warn"
+	env.AppID = path.Base(os.Args[0])
+	logLevel := os.Getenv("LOGLEVEL")
+	if logLevel != "" {
+		env.LogLevel = logLevel
 	}
 
 	// TODO: get default config from environment
 	os.Environ()
 
 	// default home folder is the parent of the core or plugin binary
-	if homeDir == "" {
-		binDir = filepath.Dir(os.Args[0])
+	if env.HomeDir == "" {
+		binDir := filepath.Dir(os.Args[0])
 		if !path.IsAbs(binDir) {
 			cwd, _ := os.Getwd()
 			binDir = path.Join(cwd, binDir)
 		}
-		homeDir = filepath.Join(binDir, "..")
+		env.HomeDir = filepath.Join(binDir, "..")
 	}
 
+	// commandline options to set env manually
 	if withFlags {
 		// handle commandline options
-		flag.StringVar(&homeDir, "home", homeDir, "Application home directory")
-		flag.StringVar(&certsDir, "certs", certsDir, "Certificate and keys directory")
-		flag.StringVar(&configDir, "config", configDir, "Configuration directory")
-		// flag.StringVar(&configFile, "configfile", configFile, "Configuration file")
-		// flag.StringVar(&pluginsDir, "plugins", pluginsDir, "Plugins directory")
-		flag.StringVar(&clientID, "clientID", clientID, "clientID to authenticate with")
-		flag.StringVar(&logLevel, "loglevel", logLevel, "logging level: debug, warning, info, error")
-		flag.StringVar(&tddURL, "tddURL", tddURL, "url where to download the directory TDD")
-		flag.StringVar(&serverURL, "serverURL", serverURL, "server connection url for consumers")
+		flag.StringVar(&env.HomeDir, "home", env.HomeDir, "Application home directory")
+		flag.StringVar(&env.CertsDir, "certs", env.CertsDir, "Certificate and keys directory")
+		flag.StringVar(&env.ConfigDir, "config", env.ConfigDir, "Configuration directory")
+		flag.StringVar(&env.ClientID, "clientID", env.ClientID, "clientID to authenticate with")
+		flag.StringVar(&env.LogLevel, "loglevel", env.LogLevel, "logging level: debug, warning, info, error")
+		flag.StringVar(&env.DirTDURL, "dirURL", env.DirTDURL, "url where to download the directory TD")
+		flag.StringVar(&env.ServerTDURL, "tdURL", env.ServerTDURL, "url where to download the device TD")
+		flag.StringVar(&env.GatewayURL, "gwURL", env.GatewayURL, "gateway direct connection url")
 		if flag.Usage == nil {
 			flag.Usage = func() {
-				fmt.Println("Usage: " + appID + " [options] ")
+				fmt.Println("Usage: " + env.AppID + " [options] ")
 				fmt.Println()
 				fmt.Println("Options:")
 				flag.PrintDefaults()
@@ -431,71 +465,58 @@ func NewHiveEnvironment(homeDir string, withFlags bool) *HiveEnvironment {
 
 	if useSystem {
 		homeDir = filepath.Join("/var", "lib", "hiveot")
-		if binDir == "" {
-			binDir = filepath.Join("/opt", "hiveot")
+		if env.BinDir == "" {
+			env.BinDir = filepath.Join("/opt", "hiveot")
 		}
 		// if pluginsDir == "" {
 		// pluginsDir = filepath.Join(binDir, "plugins")
 		// }
-		if configDir == "" {
-			configDir = filepath.Join("/etc", "hiveot", "conf.d")
+		if env.ConfigDir == "" {
+			env.ConfigDir = filepath.Join("/etc", "hiveot", "conf.d")
 		}
-		if certsDir == "" {
-			certsDir = filepath.Join("/etc", "hiveot", "certs")
+		if env.CertsDir == "" {
+			env.CertsDir = filepath.Join("/etc", "hiveot", "certs")
 		}
-		if logsDir == "" {
-			logsDir = filepath.Join("/var", "log", "hiveot")
+		if env.LogsDir == "" {
+			env.LogsDir = filepath.Join("/var", "log", "hiveot")
 		}
-		if storesDir == "" {
-			storesDir = filepath.Join("/var", "lib", "hiveot")
+		if env.StoresDir == "" {
+			env.StoresDir = filepath.Join("/var", "lib", "hiveot")
 		}
 	} else { // use application user dir under ~/bin/hiveot
-		if binDir == "" {
-			binDir = filepath.Join(homeDir, "bin")
+		if env.BinDir == "" {
+			env.BinDir = filepath.Join(homeDir, "bin")
 		}
 		// if pluginsDir == "" {
 		// pluginsDir = filepath.Join(homeDir, "plugins")
 		// }
-		if certsDir == "" {
-			certsDir = filepath.Join(homeDir, "certs")
+		if env.CertsDir == "" {
+			env.CertsDir = filepath.Join(homeDir, "certs")
 		}
-		if logsDir == "" {
-			logsDir = filepath.Join(homeDir, "logs")
+		if env.LogsDir == "" {
+			env.LogsDir = filepath.Join(homeDir, "logs")
 		}
-		if storesDir == "" {
-			storesDir = filepath.Join(homeDir, "stores")
+		if env.StoresDir == "" {
+			env.StoresDir = filepath.Join(homeDir, "stores")
 		}
-		if configDir == "" {
-			configDir = filepath.Join(homeDir, "config")
+		if env.ConfigDir == "" {
+			env.ConfigDir = filepath.Join(homeDir, "config")
 		}
 	}
 
 	// utils.SetLogging(logLevel, "")
 
 	slog.Info("NewAppEnvironment",
-		slog.String("appID", appID),
-		slog.String("clientID", clientID),
-		slog.String("home", homeDir),
-		slog.String("certsDir", certsDir),
-		slog.String("configDir", configDir),
-		// slog.String("pluginsDir", pluginsDir),
-		slog.String("serverURL", serverURL),
+		slog.String("appID", env.AppID),
+		slog.String("clientID", env.ClientID),
+		slog.String("certsDir", env.CertsDir),
+		slog.String("configDir", env.ConfigDir),
+		slog.String("dirTDURL", env.DirTDURL),
+		slog.String("gatewayURL", env.GatewayURL),
+		slog.String("home", env.HomeDir),
+		slog.Int("rpcTimeout (msec)", int(env.RpcTimeout/time.Millisecond)),
+		slog.String("serverTDURL", env.ServerTDURL),
 	)
 
-	env := &HiveEnvironment{
-		BinDir:    binDir,
-		AppID:     appID,
-		ClientID:  clientID,
-		ConfigDir: configDir,
-		CertsDir:  certsDir,
-		TDDURL:    tddURL,
-		HomeDir:   homeDir,
-		LogsDir:   logsDir,
-		LogLevel:  logLevel,
-		// PluginsDir:   pluginsDir,
-		RpcTimeout: rpcTimeout,
-		ServerURL:  serverURL,
-		StoresDir:  storesDir,
-	}
 	return env
 }

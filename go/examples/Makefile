@@ -1,16 +1,34 @@
 # Makefile for building examples
 DIST_FOLDER=./dist
+# optimize binary. Reduces size by about 30%.
+# to reduce further, checkout 'upx'
+OPTS=-ldflags="-s -w" -trimpath
+CGO="0"
 
 .FORCE: 
 
-example1: .FORCE
-	go build -o $(DIST_FOLDER)/$@ $@/main.go
+all: appenv sadevice cli tui gateway rcdevice
 
-example2: .FORCE
-	go build -o $(DIST_FOLDER)/$@ $@/main.go
+# show app environment being used
+appenv: .FORCE
+	CGO_ENABLED=$(CGO) go build $(OPTS) -o $(DIST_FOLDER)/$@ $@/main.go
 
-example3: .FORCE
-	go build -o $(DIST_FOLDER)/$@ $@/main.go
+# stand-alone device with server
+sadevice: .FORCE
+	CGO_ENABLED=$(CGO) go build $(OPTS) -o $(DIST_FOLDER)/$@ $@/main.go
 
+# CLI for exploring devices
+cli: .FORCE
+	CGO_ENABLED=$(CGO) go build $(OPTS) -o $(DIST_FOLDER)/$@ $@/main.go
 
-all: example1 example2 example3
+# text-ui for exploring devices
+tui: .FORCE
+	CGO_ENABLED=$(CGO) go build $(OPTS) -o $(DIST_FOLDER)/$@ $@/main.go
+
+# gateway with servers, auth and router  
+gateway: .FORCE
+	CGO_ENABLED=$(CGO) go build $(OPTS) -o $(DIST_FOLDER)/$@ $@/main.go
+
+# reverse connection device, connecting to the gateway
+rcdevice: .FORCE
+	CGO_ENABLED=$(CGO) go build $(OPTS) -o $(DIST_FOLDER)/$@ $@/main.go

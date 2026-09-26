@@ -2,6 +2,7 @@ package certs
 
 import (
 	"crypto"
+	"crypto/tls"
 	"crypto/x509"
 	_ "embed"
 	"time"
@@ -110,7 +111,36 @@ type ICertProvider interface {
 type ICertsService interface {
 	api.IHiveCell
 
-	// Create a new server certificate chain
+	// Create a self-signed client certificate using the given client public key.
+	//
+	// Intended for devices and consumers to support authentication with a server
+	// using a client certificate. The country, province, locality fields are set
+	// to hiveot's default from the service configuration.
+	//
+	// To use this certificate for authentication, the administrator must have
+	// created an account for the client.
+	//
+	// Use utils.X509CertToTLS to convert it to a TLS certificate.
+	//
+	//	clientID identifies the authentication accountID of the client
+	//  ou is intended to identify the client as a device, consumer or service
+	//	validity is the time the certificate is valid for
+	//	pubKey is the client's public key to include in the certificate.
+	CreateClientCert(clientID string, ou string, validity time.Duration,
+		pubKey crypto.PublicKey) (*x509.Certificate, error)
+
+	// Create and save a new TLS certificate and key
+	// Intended for local certificate management and testing.
+	//
+	// To use this certificate for authentication, the administrator must have
+	// created an account for the client.
+	//
+	// See also LoadClientTLSCert for loading the stored certificate.
+	// By default this matches then naming and location in the hive environment.
+	CreateClientTLSCert(clientID string, ou string, validity time.Duration,
+	) (*tls.Certificate, error)
+
+	// Create and save a new server certificate chain.
 	//
 	// This includes localhost and 127.0.0.1 in the certificate SAN names.
 	// A server private key can be provided or will be created when omitted.
@@ -132,21 +162,6 @@ type ICertsService interface {
 		validity time.Duration, pubKey crypto.PublicKey) (
 		[]*x509.Certificate, error)
 
-	// Create a self-signed client certificate using the given client public key.
-	//
-	// Intended for devices and consumers to support authentication with a server
-	// using a client certificate. The country, province, locality fields are set
-	// to hiveot's default from the service configuration.
-	//
-	// Use utils.X509CertToTLS to convert it to a TLS certificate.
-	//
-	//	clientID identifies the authentication accountID of the client
-	//  ou is intended to identify the client as a device, consumer or service
-	//	validity is the time the certificate is valid for
-	//	pubKey is the client's public key needed to authenticate.
-	CreateClientCert(clientID string, ou string, validity time.Duration,
-		pubKey crypto.PublicKey) (*x509.Certificate, error)
-
 	// GetCACert returns the service self-signed CA certificate.
 	GetCACert() *x509.Certificate
 
@@ -155,6 +170,10 @@ type ICertsService interface {
 	// certs directory.
 	// If no certificate was found then check with the configured providers.
 	GetServerCert(serverName string) ([]*x509.Certificate, error)
+
+	// Load the previously saved client TLS certificate for the given clientID.
+	// Intended for local management of clients.
+	GetClientTLSCert(clientID string) (*tls.Certificate, error)
 
 	// Refresh the server certificate if needed.
 	// The certificate is updated when its remaining validity is below minRemaining

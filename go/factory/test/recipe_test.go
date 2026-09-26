@@ -4,12 +4,17 @@ import (
 	"fmt"
 	"log/slog"
 	"testing"
+	"time"
 
 	"github.com/hiveot/hivekit/go/api"
 	"github.com/hiveot/hivekit/go/api/msg"
+	"github.com/hiveot/hivekit/go/cells/authn"
 	"github.com/hiveot/hivekit/go/cells/consumer"
 	"github.com/hiveot/hivekit/go/cells/thing"
-	standalonerecipe "github.com/hiveot/hivekit/go/factory/recipes/standalone"
+	consumer_recipe "github.com/hiveot/hivekit/go/factory/recipes/consumer"
+	gatewayrecipe "github.com/hiveot/hivekit/go/factory/recipes/gateway"
+	rcdevice_recipe "github.com/hiveot/hivekit/go/factory/recipes/rcdevice"
+	standalonerecipe "github.com/hiveot/hivekit/go/factory/recipes/sadevice"
 	factory_service "github.com/hiveot/hivekit/go/factory/service"
 	"github.com/hiveot/hivekit/go/testenv"
 	"github.com/hiveot/hivekit/go/utils"
@@ -54,7 +59,7 @@ func TestStandaloneDeviceRecipe(t *testing.T) {
 	// Start the cell chain with a standalone server that links to the test Thing
 	f := factory_service.NewCellFactory(env, nil)
 	defer f.Stop()
-	deviceRecipe, err := standalonerecipe.StartStandAloneDeviceRecipe(f, testDevice)
+	deviceRecipe, err := standalonerecipe.NewStandAloneDeviceRecipe(f, testDevice)
 	require.NoError(t, err)
 	defer deviceRecipe.Stop()
 
@@ -81,7 +86,8 @@ func TestClientServerRecipes(t *testing.T) {
 	defer serverFactory.Stop()
 	serverURLs := serverFactory.GetConnectURLs()
 	require.NotEmpty(t, serverURLs)
-	env.ServerURL = serverURLs[0]
+	// use the gateway URL for a direct connection without forms
+	env.GatewayURL = serverURLs[0]
 
 	// the server exposed thing handles the server requests
 	mod, _ := serverFactory.NewCell(thing.ExposedThingCellType, true)
@@ -112,4 +118,85 @@ func TestClientServerRecipes(t *testing.T) {
 	assert.NoError(t, err)
 	assert.NotEmpty(t, propValue)
 
+}
+
+// Test the gateway recipe with rcdevice and consumer recipes.
+// This starts the gateway, connects an RC device, and let a consumer read its properties.
+// TODO: use slots to use different protocols
+func TestGatewayRecipe(t *testing.T) {
+	fmt.Printf("---Test: %s %s---\n", t.Name(), testProtocol)
+	const managerClientID = "consumer1"
+	const rcdeviceClientID = "rc1"
+
+	// 1. Create the gateway recipe and add consumer and rc accounts
+	gwenv := api.NewHiveEnvironment(testDir, false)
+	gwenv.RpcTimeout = time.Minute * 3
+	gwenv.HttpsPort = testPort
+	gw, gwFactory, err := gatewayrecipe.NewGatewayRecipe(gwenv)
+	require.NoError(t, err)
+	gw.Start()
+	defer gw.Stop()
+
+	// 2. Create a manager and connect using token auth
+	caCert, _ := gwenv.GetCACert()
+	_, _, err = gw.AddAccount(managerClientID, "Manager 1", authn.ClientRoleManager, true, false)
+	require.NoError(t, err)
+	// env will load the client auth token
+	coenv := api.NewHiveEnvironment(testDir, false)
+	coenv.RpcTimeout = time.Minute * 3
+	coenv.SetCACert(caCert)
+	coenv.ClientID = managerClientID
+	// force direct connection with the server
+	coenv.GatewayURL = gwFactory.GetConnectURLs()[0]
+	cor, _, err := consumer_recipe.NewConsumerRecipe(coenv, false)
+	require.NoError(t, err)
+	cor.Start()
+	defer cor.Stop()
+
+	// 3. Create a device using the RC device recipe using client certificate for auth
+	_, _, err = gw.AddAccount(rcdeviceClientID, "device 1", authn.ClientRoleDevice, false, true)
+	require.NoError(t, err)
+	rcenv := api.NewHiveEnvironment(testDir, false)
+	// no discovery, point to the server
+	rcenv.RpcTimeout = time.Minute * 3
+	rcenv.SetCACert(caCert)
+	rcenv.GatewayURL = gwFactory.GetConnectURLs()[0]
+	rcenv.ClientID = rcdeviceClientID
+	// device configuration
+	cfg := &testenv.CounterConfig{
+		AutoIncrement: false,
+		ResetValue:    60,
+	}
+	counterThing, err := testenv.NewTestCounterThing("", cfg)
+	counterThing.SetTimeout(rcenv.RpcTimeout)
+	rcr, _, err := rcdevice_recipe.NewRCDeviceRecipe(rcenv, counterThing)
+	require.NoError(t, err)
+	rcr.Start()
+	counterThing.Start()
+	defer counterThing.Stop()
+	defer rcr.Stop()
+
+	// 4. Consumers discovers devices on the gateway: TODO
+	// FIXME: consumer router should attempt to read the thing TD from the directory
+
+	// 5. consumer reads test device properties
+	// FIXME: consumer router queries the counter TD to deliver the request.
+	// The router calls GetTD to obtain it from the directory client;
+	// The directory client sends a request to the directory server but doesn't have the
+	//  directory server TDD, so can't get its TD.
+	//  The directory client sends the request without Directory ThingID. This goes back to
+	//  the router, which calls GetTD again,
+	//  this repeats itself in an endless loop.
+	//
+	// 1. the gateway URL is ignored. The router can just sends the request to the gateway connection.
+	// 2. the looping should not happen. How?
+	//
+	//
+	// does the device publish its TD?
+	// does it reach the gateway directory?
+	props, err := cor.ReadAllProperties(counterThing.GetThingID())
+	require.NoError(t, err)
+	assert.NotEmpty(t, props)
+
+	// 6. done
 }

@@ -210,7 +210,7 @@ func NewTLSServerImpl(
 
 	thingID := api.HttpServerCellType + "-" + shortid.MustGenerate()
 	srv := &TLSServerImpl{
-		HiveCellBase:  cells.NewHiveCellBase(thingID, 0),
+		HiveCellBase:  cells.NewHiveCellBase(thingID),
 		config:        config,
 		authenticator: authenticator,
 	}

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"os"
 	"path/filepath"
 	"sync"
 
@@ -86,7 +87,7 @@ func (svc *DirectoryServiceImpl) DeleteThing(senderID string, thingID string) (e
 	return err
 }
 
-// Return an instance of the thing TD if avaialable.
+// Return an instance of the thing TD if available.
 // These instances are cached so successive requests are efficient.
 func (svc *DirectoryServiceImpl) GetTD(thingID string) *td.TD {
 	svc.tdCacheMux.RLock()
@@ -109,8 +110,9 @@ func (svc *DirectoryServiceImpl) GetTD(thingID string) *td.TD {
 }
 
 // Return the directory TDD and its json itself
-func (svc *DirectoryServiceImpl) GetTDD() (*td.TD, string) {
-	return svc.dirTDD, svc.dirTDDJson
+// This has forms included for the servers provided during creation.
+func (svc *DirectoryServiceImpl) GetTDD() *td.TD {
+	return svc.dirTDD
 }
 
 //func (svc *DirectoryService) QueryThings(
@@ -172,6 +174,11 @@ func (svc *DirectoryServiceImpl) SetTDHooks(
 	svc.writeTDHook = writeHandler
 }
 
+// Start generates and publishes the directory TD
+func (svc *DirectoryServiceImpl) Start() {
+	slog.Info("Starting DirectoryService", "ThingID", svc.GetThingID())
+}
+
 // Stop any running actions
 func (svc *DirectoryServiceImpl) Stop() {
 	slog.Info("Stop: Stopping directory service")
@@ -192,6 +199,10 @@ func (svc *DirectoryServiceImpl) UpdateThing(senderID string, tdJson string) err
 	// should the thingID have the sender prefix so it can't be hi-jacked by
 	// others?
 
+	if senderID == "" {
+		return fmt.Errorf("UpdateThing: Missing sender")
+	}
+
 	// validate the TD
 	tdoc, err := td.UnmarshalTD(tdJson)
 	if err != nil {
@@ -199,8 +210,17 @@ func (svc *DirectoryServiceImpl) UpdateThing(senderID string, tdJson string) err
 			slog.String("senderID", senderID), "err", err.Error())
 		return err
 	}
+	if tdoc.ID == "" {
+		err = fmt.Errorf("TD is missing an ID. Title='%s'", tdoc.Title)
+		slog.Error("UpdateThing. TD is missing an ID",
+			slog.String("senderID", senderID), "title", tdoc.Title, "err", err.Error())
+		return err
+	}
 	slog.Info("UpdateThing",
 		slog.String("senderID", senderID), slog.String("thingID", tdoc.ID))
+
+	// record who wrote the TD into the directory
+	tdoc.SetSenderID(senderID)
 
 	// The hook can modify the TD or cancel the write
 	if svc.writeTDHook != nil {
@@ -213,12 +233,17 @@ func (svc *DirectoryServiceImpl) UpdateThing(senderID string, tdJson string) err
 		}
 		// replace the TD with the one provided by the hook
 		tdJson = td.MarshalTD(tdi2)
+	} else {
+		// the td was updated with the senderID
+		// do not update the 'Modified' time as this update is not made
+		// by the device.
+		tdJson = td.MarshalTD(tdoc)
 	}
 
 	err = svc.tdBucket.Set(tdoc.ID, []byte(tdJson))
-	// reload the td instance next time someone asks
+	// update the cached td instance as well
 	svc.tdCacheMux.Lock()
-	delete(svc.tdCache, tdoc.ID)
+	svc.tdCache[tdoc.ID] = tdoc
 	svc.tdCacheMux.Unlock()
 
 	notif := msg.NewNotificationMessage(svc.GetThingID(), msg.AffordanceTypeEvent,
@@ -235,8 +260,7 @@ func (svc *DirectoryServiceImpl) UpdateThing(senderID string, tdJson string) err
 //
 // This:
 // - opens the bucket store using the thingID as the bucket name.
-// - enable the messaging request handler
-// - enable the http request handler using the given router
+// - enable the TDD download handler using the given http server
 // - include the directory TDD itself in the store
 //
 // The directory publishes a TD that describes how it can be reached. This TD needs
@@ -245,36 +269,35 @@ func (svc *DirectoryServiceImpl) UpdateThing(senderID string, tdJson string) err
 // To expose the http API create the DirectoryHttpHandler provide it here.
 // Optionally include the list of other transport.
 //
-//	thingID is the instance ID of the directory server or "" for default
+// To modify the TDD with available transports, provide the getTransports callback.
+//
+//	thingID is the instance ID of the directory server or "" for the default {host}:directory
 //	storageDir is the directory where the service stores its data. Use "" for testing with an in-memory store.
 //	httpServer is used to expose the directory TDD on the well-known path.
-//	transports is a list of transports that should be included in the TDD security and forms. nil to not include these.
 func NewDirectoryServiceImpl(
 	thingID string, storageDir string, httpServer api.IHttpServer,
-	transports []api.ITransportServer) (*DirectoryServiceImpl, error) {
+) (*DirectoryServiceImpl, error) {
 
 	slog.Info("NewDirectoryServiceImpl running the directory service")
 
 	if thingID == "" {
-		thingID = directory.DefaultDirectoryThingID
+		hostname, _ := os.Hostname()
+		thingID = hostname + ":directory"
 	}
 
-	// Use the transports to generate a tdd from the tm
-	// option 2: use transport of sender
-	tm := string(directory.DirectoryTMJson)
-	dirTDD, _ := td.UnmarshalTD(tm)
-	if thingID != "" {
-		dirTDD.ID = thingID
-	}
+	// create the TD from the json file
+	tdoc := string(directory.DirectoryTDJson)
+	dirTDD, _ := td.UnmarshalTD(tdoc)
+	dirTDD.ID = thingID
+
 	// add the forms for additional endpoints
-	// if len(transports) > 0 {
-	for _, tp := range transports {
-		if tp == nil {
-			slog.Error("NewDirectoryServiceImpl: Transports has a nil transport")
-		} else {
-			tp.AddTDSecForms(dirTDD, true)
-		}
-	}
+	// for _, tp := range transports {
+	// 	if tp == nil {
+	// 		slog.Error("NewDirectoryServiceImpl: Transports has a nil transport")
+	// 	} else {
+	// 		tp.AddTDSecForms(dirTDD, true)
+	// 	}
+	// }
 
 	// if a storageDir is set use the thingID as filename. Otherwise use the in-memory store
 	storageFile := ""
@@ -288,7 +311,7 @@ func NewDirectoryServiceImpl(
 	tdBucket := bucketStore.GetBucket(thingID)
 
 	svc := &DirectoryServiceImpl{
-		HiveCellBase: cells.NewHiveCellBase(thingID, 0),
+		HiveCellBase: cells.NewHiveCellBase(thingID),
 		bucketStore:  bucketStore,
 		httpServer:   httpServer,
 		storageLoc:   storageDir,
@@ -299,6 +322,7 @@ func NewDirectoryServiceImpl(
 	}
 
 	// service the directory TDD on the well-known path
+	// FIXME: this should be moved to discovery
 	if httpServer != nil {
 		protRoute := httpServer.GetProtectedRoute()
 		protRoute.Get(directory.WellKnownWoTPath, svc.serveReadTDD)

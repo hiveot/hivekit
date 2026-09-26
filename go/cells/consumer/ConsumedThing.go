@@ -20,7 +20,7 @@ type ConsumedThing struct {
 // Start and link a consumed thing
 func StartConsumedThing(thingID string, sink api.IHiveCell) (*ConsumedThing, error) {
 	ct := &ConsumedThing{
-		HiveCellBase: *cells.NewHiveCellBase(thingID, 0),
+		HiveCellBase: *cells.NewHiveCellBase(thingID),
 	}
 	if sink != nil {
 		ct.SetRequestSink(sink)

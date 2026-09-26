@@ -94,16 +94,11 @@ type TD struct {
 	// All properties-based interaction affordances of the things
 	Properties map[string]*PropertyAffordance `json:"properties"`
 
-	// RCID is a hiveot extension containing the reverse-connection client ID of
-	// device that provided this TD.
-	// Intended for supporting reverse connections instead of forms.
-	//
-	// This RCID is used by the router if no forms exist. The router uses this
-	// reverse-connection ID to send requests to.
-	//
-	// FIXME: Should this be stored in the TD? Maybe the directory is a better place?
-	RCID string `json:"hiveot:rcid,omitempty"`
+	// SenderID is a hiveot extension containing the ID of the client that
+	// write the TD. Intended for supporting reverse connections on a gateway.
+	SenderID string `json:"hiveot:senderid,omitempty"`
 
+	// Data schema definitions used in this TD.
 	SchemaDefinitions map[string]DataSchema `json:"schemaDefinitions,omitempty"`
 
 	// Security is a string or array of strings, chosen from those defined in securityDefinitions.
@@ -525,15 +520,6 @@ func (tdoc *TD) GetPropertyOfVocabType(vocabType string) (string, *PropertyAffor
 	return "", nil
 }
 
-// GetRCClientID returns the reverse-connection client ID of the publisher of the
-// TD, if set.
-//
-// It is used by a gateway to identify the client that will handle TD requests
-// and is only used when Things are reachable through a reverse connection.
-func (tdoc *TD) GetRCClientID() string {
-	return tdoc.RCID
-}
-
 // Get the security scheme for connecting to this device.
 //
 // NOTE: this is a convenience function that returns a single security scheme.
@@ -563,6 +549,16 @@ func (tdoc *TD) GetSecurityScheme() (scheme SecurityScheme, hasMultiple bool, er
 		return scheme, hasMultiple, nil
 	}
 	return scheme, false, fmt.Errorf("unsupported security scheme in this TD")
+}
+
+// GetSenderID returns the clientID of the publisher of the TD.
+//
+// The senderID is a HiveOT extension to the WoT TD and only used on a gateway.
+//
+// It is intended for use by a gateway to identify the client that will handle
+// TD requests if no forms are present.
+func (tdoc *TD) GetSenderID() string {
+	return tdoc.SenderID
 }
 
 // IsDirectory returns true if the TD represents a directory
@@ -620,6 +616,11 @@ func (tdoc *TD) SetForms(formList []Form) {
 	//tdoc.updateMutex.Lock()
 	//defer tdoc.updateMutex.Unlock()
 	tdoc.Forms = formList
+}
+
+// Set the clientID of the sender that published this TD to the directory.
+func (tdoc *TD) SetSenderID(id string) {
+	tdoc.SenderID = id
 }
 
 // Substitute substitutes the variables in a string
@@ -719,11 +720,10 @@ func (tdoc *TD) UpdateTitleDescription(title string, description string) {
 //			     properties: {name: TDProperty, ...}
 //			}
 //
-//	 deviceID is the unique ID of the device
-//		title to include in the TD
-//	 deviceType is the optional @type identifying the device
-func NewTD(deviceID string, title string, deviceType string) *TD {
-	var thingID = deviceID
+//	thingID is the unique ID of the device
+//	title to include in the TD
+//	deviceType is the optional @type identifying the device
+func NewTD(thingID string, title string, deviceType string) *TD {
 	thingID = strings.ReplaceAll(thingID, " ", "-")
 
 	td := TD{

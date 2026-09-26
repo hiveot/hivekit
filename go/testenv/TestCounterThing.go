@@ -24,7 +24,7 @@ const counterThingTM = `
     }
   ],
   "@type": "Service",
-  "base": "{{server}}",
+  "base": "",
   "id": "url:counter",
   "title": "A simple counter",
   "description": "HiveKit test Thing that exposes a counter",
@@ -233,7 +233,7 @@ func (svc *TestCounterThing) HandleWriteProperty(req *msg.RequestMessage, replyT
 // Publish the TD and properties when the app is ready
 func (svc *TestCounterThing) Start() {
 
-	err := svc.WriteTD(svc.tdocJson)
+	err := svc.PublishTD(svc.tdocJson)
 	if err != nil {
 		slog.Warn("Start: Unable to write the TD", "err", err.Error())
 		return

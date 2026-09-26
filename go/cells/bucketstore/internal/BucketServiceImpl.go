@@ -95,7 +95,7 @@ func NewBucketServiceImpl(location string, storeType string) (svc *BucketService
 	// this service is a singleton that exposes multiple service things
 	thingID := bucketstore.DefaultBucketStoreThingID
 	svc = &BucketServiceImpl{
-		HiveCellBase: cells.NewHiveCellBase(thingID, 0),
+		HiveCellBase: cells.NewHiveCellBase(thingID),
 		location:     location,
 		backend:      storeType,
 		store:        store,

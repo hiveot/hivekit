@@ -68,6 +68,10 @@ func (cl *GrpcClientImpl) _onGrpcClientMessage(raw []byte) {
 				})
 				// an error means the request could not be delivered
 				if err != nil {
+
+					slog.Warn("_onGrpcClientMessage: unable to deliver received request",
+						"clientID", cl.GetClientID())
+
 					resp := req.CreateErrorResponse(err)
 					_ = cl.SendResponse(resp)
 				}
@@ -323,8 +327,6 @@ func (cl *GrpcClientImpl) Stop() {
 // when needed.
 // The ipv4 scheme is not supported.
 //
-// Use SetTimeout to change the timeout for testing purposes.
-//
 // connectURL is the server URL, e.g.  unix://{/path.sock}, tcp://localhost:{port} or simply "address:port"
 // rootCAs contains the CA certificates to validate the server connection, or nil for UDS or insecure connections.
 // ch is the connect/disconnect callback
@@ -333,15 +335,15 @@ func NewGrpcClientImpl(connectURL string, rootCAs *x509.CertPool) *GrpcClientImp
 	// gRPC does not support tcp scheme, but we want to allow users to specify it for consistency with the server.
 	connectURL = strings.TrimPrefix(connectURL, "tcp://")
 	thingID := "grpc-client-" + shortid.MustGenerate()
-	timeout := msg.DefaultRnRTimeout
 
 	cl := &GrpcClientImpl{
-		TransportClientBase: transport.NewTransportClientBase(thingID, rootCAs, timeout),
+		TransportClientBase: transport.NewTransportClientBase(thingID, rootCAs),
 		rootCAs:             rootCAs,
 		connectURL:          connectURL,
 		encoder:             transport.NewRRNJsonEncoder(),
 		rnrChan:             msg.NewRnRChan(),
 	}
+	cl.SetTransportClient(cl) // for use by Rpc
 
 	var _ api.ITransportClient = cl // check interface implementation
 	return cl

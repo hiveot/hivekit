@@ -60,20 +60,26 @@ import (
 //
 // When not using the factory, the TDD can be obtained using discovery.
 //
-//	dirTDD is the directory TD from external source on start.
+//	dirTDD is the directory TD from external source.
 //	See also the discovery client which supports this method.
 //
 // This returns a new instance of the directory client
-func NewDirectoryClient(dirTDD *td.TD, sink api.IHiveCell) directory.IDirectoryClient {
+func NewDirectoryClient(
+	dirTDD *td.TD, sink api.IHiveCell) directory.IDirectoryClient {
 	return clientimpl.NewDirectoryClientImpl(dirTDD, sink)
 }
 
-// NewDirectoryClientFactory creates the directory client using the TDD from the app environment.
-// If no TDD is available then Start checks for an out-of-band stored TDD file.
-func NewDirectoryClientFactory(f api.ICellFactory, modDef *api.CellDefinition) (api.IHiveCell, error) {
+// NewDirectoryClientFactory creates the directory client using the TD from the
+// app environment.
+//
+// If no directory TD is provided in the environment then the application can use
+// SetTDD on the directory client to provide one manually.
+func NewDirectoryClientFactory(
+	f api.ICellFactory, modDef *api.CellDefinition) (api.IHiveCell, error) {
 
-	appEnv := f.GetEnvironment()
-	return NewDirectoryClient(appEnv.DirTD, nil), nil
+	env := f.GetEnvironment()
+	cl := NewDirectoryClient(env.ServerTD, nil)
+	return cl, nil
 }
 
 // // Create the new directory client for the http protocol as per spec

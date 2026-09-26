@@ -155,7 +155,7 @@ func NewLoggingServiceImpl(
 	slog.Info("StartLoggingServiceImpl: Starting logging service")
 
 	svc := &LoggingServiceImpl{
-		HiveCellBase: cells.NewHiveCellBase(config.CellID, 0),
+		HiveCellBase: cells.NewHiveCellBase(config.CellID),
 		Config:       config,
 	}
 	// TBD: separate config for  notifications vs requests logs?

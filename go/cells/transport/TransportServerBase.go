@@ -171,6 +171,15 @@ func (srv *TransportServerBase) CloseAll() {
 // in the thingID of the TDs they publish. For example: "device1:thing1". This is a
 // convention but it is not required by the WoT specifications.
 func (m *TransportServerBase) DetermineRCConnection(thingID string) (api.IConnection, error) {
+
+	// This is the alternative RC device routing approach that prefixes thingID with
+	// clientID and ':'. It is deprecated in favor of storing deviceID in the
+	// TD senderID field.
+	//
+	// If a deviceID is the thingID then this will still work to forward the request
+	// to the device, so keep it around as a poor mans RC router fallback.
+	//
+	// Link the rcrouter cell before or after the router cell.
 	parts := strings.Split(thingID, ":")
 	deviceID := parts[0]
 
@@ -434,7 +443,7 @@ func NewTransportServerBase(
 	thingID, connectURL string, authenticator api.IAuthenticator) *TransportServerBase {
 
 	base := &TransportServerBase{
-		HiveCellBase: cells.NewHiveCellBase(thingID, 0),
+		HiveCellBase: cells.NewHiveCellBase(thingID),
 
 		authenticator: authenticator,
 		connectURL:    connectURL,

@@ -3,6 +3,7 @@ package internal
 import (
 	"crypto"
 	"crypto/rand"
+	"crypto/tls"
 	"crypto/x509"
 	"fmt"
 	"log/slog"
@@ -29,7 +30,7 @@ type CertsServiceImpl struct {
 	provider certs.ICertProvider
 }
 
-// Create the admin client certificate if it doesn't exist
+// Create and save the admin client certificate if it doesn't exist
 func (svc *CertsServiceImpl) CreateAdminCert() error {
 	cfg := svc.config
 	// create an admin client cert if validation period is set and no exist cert exists
@@ -51,7 +52,7 @@ func (svc *CertsServiceImpl) CreateAdminCert() error {
 	return err
 }
 
-// Create a client TLS cert. This requires having the CA cert and key.
+// Create a self-signed client cert. This requires having the CA cert and public key.
 func (svc *CertsServiceImpl) CreateClientCert(
 	clientID string, ou string, validity time.Duration, clientPubKey crypto.PublicKey) (
 	x509Cert *x509.Certificate, err error) {
@@ -66,7 +67,32 @@ func (svc *CertsServiceImpl) CreateClientCert(
 	return clientCert, err
 }
 
-// Create a new server cert.
+// Create and save a self-signed client cert. This requires having the CA cert and key.
+func (svc *CertsServiceImpl) CreateClientTLSCert(
+	clientID string, ou string, validity time.Duration) (
+	tlsCert *tls.Certificate, err error) {
+
+	cfg := svc.config
+	privKey, pubKey := utils.NewEd25519Key()
+	// just a sinmple wrapper around the library
+	x509Cert, err := utils.CreateClientCert(
+		clientID, ou,
+		cfg.Country, cfg.Province, cfg.Locality, cfg.Org,
+		validity, pubKey, cfg.CaCert, cfg.CaKey)
+
+	if err != nil {
+		return nil, err
+	}
+	tlsCert = utils.X509CertToTLS(x509Cert, privKey)
+
+	certPath := path.Join(cfg.CertsDir, clientID+api.DefaultCertFileSuffix)
+	keyPath := path.Join(cfg.CertsDir, clientID+api.DefaultPrivKeyFileSuffix)
+	utils.SaveTLSCert(tlsCert, certPath, keyPath)
+
+	return tlsCert, err
+}
+
+// Create and save a new server cert.
 // If a provider is configured then ask the provider for a certificate, otherwise
 // create a self-signed certificate.
 func (svc *CertsServiceImpl) CreateServerCert(
@@ -86,13 +112,14 @@ func (svc *CertsServiceImpl) CreateServerCert(
 			serverName, certs.DefaultServerOU,
 			cfg.Country, cfg.Province, cfg.Locality, cfg.Org,
 			names, validity, serverPubKey, cfg.CaCert, cfg.CaKey)
+		serverCert = []*x509.Certificate{x509Cert}
 		err = err2
-		if err == nil {
-			serverCert = []*x509.Certificate{x509Cert}
-			certPath := path.Join(cfg.CertsDir, serverName+api.DefaultCertFileSuffix)
-			err = utils.SaveX509CertChain(serverCert, certPath)
-		}
 	}
+	if err == nil {
+		certPath := path.Join(cfg.CertsDir, serverName+api.DefaultCertFileSuffix)
+		err = utils.SaveX509CertChain(serverCert, certPath)
+	}
+
 	return serverCert, err
 }
 
@@ -109,13 +136,23 @@ func (svc *CertsServiceImpl) GetServerCert(serverName string) (
 
 	// saved certs can be provider out-of-band so always check for it.
 	if svc.config.CertsDir != "" {
-		serverCertPath := path.Join(svc.config.CertsDir, serverName+"Cert.pem")
+		serverCertPath := path.Join(svc.config.CertsDir, serverName+api.DefaultCertFileSuffix)
 		serverCert, err = utils.LoadX509Cert(serverCertPath)
 	}
 	if serverCert == nil && svc.provider != nil {
 		serverCert, err = svc.provider.GetServerCert(serverName)
 	}
 	return serverCert, err
+}
+
+// Load the previously saved TLS certificate for the given clientID.
+// Intended for local management of clients.
+func (svc *CertsServiceImpl) GetClientTLSCert(clientID string) (*tls.Certificate, error) {
+	certPath := path.Join(svc.config.CertsDir, clientID+api.DefaultCertFileSuffix)
+	keyPath := path.Join(svc.config.CertsDir, clientID+api.DefaultPrivKeyFileSuffix)
+
+	tlsCert, err := utils.LoadTLSCert(certPath, keyPath)
+	return tlsCert, err
 }
 
 // Refresh the server certificate if needed.

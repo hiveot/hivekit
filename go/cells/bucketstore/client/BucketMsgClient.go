@@ -72,7 +72,7 @@ func (cl *BucketMsgClient) SetMultiple(kv map[string]string) error {
 func NewBucketStoreMsgClient(sink api.IHiveCell, serviceID string) *BucketMsgClient {
 	cl := &BucketMsgClient{
 		storeServiceID: serviceID,
-		HiveCellBase:   cells.NewHiveCellBase("", 0),
+		HiveCellBase:   cells.NewHiveCellBase(""),
 	}
 	// link to the sink.
 	if sink != nil {

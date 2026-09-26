@@ -11,26 +11,32 @@ import (
 type ISessionManager interface {
 	api.IAuthenticator
 
-	// DecodeToken decodes the given token using the configured authenticator.
-	// DecodeToken(token string, signedNonce string, nonce string) (
-	// 	clientID string, issuedAt time.Time, validUntil time.Time, err error)
-
-	// CreateToken creates a signed authentication token for a client.
+	// CreateToken creates a signed session authentication token for a client.
 	//
 	// The client must be a known client.
 	//
 	// If no session has started, a new one will be created. This is intended for
 	// issuing connection tokens (devices, services) where login is not applicable.
 	//
-	// Note that accidentally created tokens can be invalidated by invoking Logout.
+	// Tokens can be invalidated by invoking Logout(clientID). A service restart
+	// invalidates all tokens.
+	//
 	// The authenticator tracks a sessionStart time and only tokens created
 	// after the sessionStart times are valid.
 	//
 	//	clientID identifies the client
-	//	validity is the duration of the token starting
+	//	validity is the duration of the token starting. 0 for default.
 	//
 	// This returns an error if clientID is missing or validity is 0
 	CreateToken(clientID string, validity time.Duration) (token string, validUntil time.Time, err error)
+
+	// Load a previously saved token.
+	// By default this is compatible with the hive environment GetAuthToken.
+	LoadToken(clientID string) (string, error)
+
+	// DecodeToken decodes the given token using the configured authenticator.
+	// DecodeToken(token string, signedNonce string, nonce string) (
+	// 	clientID string, issuedAt time.Time, validUntil time.Time, err error)
 
 	// GetAlg returns the supported security format and authentication algorithm.
 	// This uses the vocabulary as defined in the TD.
@@ -59,6 +65,9 @@ type ISessionManager interface {
 	// This returns the token and the validity time before it must be refreshed,
 	// If the clientID is unknown or oldToken is no longer valid this returns an error
 	RefreshToken(clientID string, oldToken string) (newToken string, validUntil time.Time, err error)
+
+	// Save the token to the configured directory using the filename {clientID}.token
+	SaveToken(clientID string, token string) error
 
 	// ValidatePassword checks if the given password is valid for the client
 	ValidatePassword(clientID string, password string) (err error)

@@ -1,4 +1,4 @@
-package gatewayrecipe
+package gateway_recipe
 
 import (
 	"github.com/hiveot/hivekit/go/api"
@@ -115,7 +115,7 @@ var DigitwinGatewayRecipeCells = []api.CellDefinition{
 	{
 		// Directory service
 		Type:        directory.DirectoryServiceCellType,
-		Constructor: directory_service.StartDirectoryServiceFactory,
+		Constructor: directory_service.NewDirectoryServiceFactory,
 	},
 	{
 		// discovery of the directory (must be placed after directory)
@@ -141,7 +141,7 @@ var DigitwinGatewayRecipeCells = []api.CellDefinition{
 // StartDigitwinGatewayRecipe creates a recipe for an IoT gateway that
 // serves digital twins of devices.
 //
-// Invoke Start on the factory to run the application.
+// Invoke Start on the recipe to run the application.
 //
 // Intended as the central connection point for consumers, services, RC devices,
 // and external devices whose TD exists in the directory.

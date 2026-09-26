@@ -9,7 +9,6 @@ import (
 
 	"github.com/hiveot/hivekit/go/api"
 	gatewayrecipe "github.com/hiveot/hivekit/go/factory/recipes/gateway"
-	factory_service "github.com/hiveot/hivekit/go/factory/service"
 	"github.com/hiveot/hivekit/go/utils"
 )
 
@@ -20,7 +19,7 @@ var ExampleHome = path.Join(os.TempDir(), "hivekit-examples")
 // The authn service factory creates a new admin auth token if not present.
 // The certs service factory creates a new admin client cert if not present.
 //
-// See the factory/recipes/GatewayRecipe.go for the cells in the recipe.
+// See the factory/recipes/gateway/GatewayRecipe.go for the cells in the recipe.
 func main() {
 
 	env := api.NewHiveEnvironment(ExampleHome, true)
@@ -28,17 +27,15 @@ func main() {
 	env.RpcTimeout = time.Minute // for testing
 	utils.SetLogging(env.LogLevel, "")
 
-	f := factory_service.NewCellFactory(env, nil)
-	r, err := gatewayrecipe.StartGatewayDeviceRecipe(f)
-	_ = r
+	r, f, err := gatewayrecipe.NewGatewayRecipe(env)
 	if err != nil {
 		fmt.Println("Gateway startup failed: " + err.Error())
 		os.Exit(1)
 	}
-	f.Start()
+	r.Start()
 	fmt.Printf("main: homeDir: %s\n", env.HomeDir)
 	fmt.Printf("main: Gateway is running and listening on '%v'\n", f.GetConnectURLs())
 	f.WaitForSignal(context.Background())
-	f.Stop()
+	r.Stop()
 
 }

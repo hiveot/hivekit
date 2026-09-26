@@ -58,7 +58,7 @@ func NewDummyServer(url string) api.IHttpServer {
 	rootRouter := chi.NewRouter()
 	rootRouter.Use(middleware.Heartbeat(api.DefaultPingPath))
 	d := &TestHttpTransport{
-		HiveCellBase: cells.NewHiveCellBase("", 0),
+		HiveCellBase: cells.NewHiveCellBase(""),
 		url:          url,
 		protRoute:    rootRouter.With(),
 		pubRoute:     rootRouter.With(),

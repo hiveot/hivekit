@@ -88,7 +88,7 @@ var ActionTypes = []string{vocab.ActionDimmer, vocab.ActionSwitch,
 // Test environment for testing cells
 type TestEnv struct {
 	// App test environment with directories
-	AppEnv *api.HiveEnvironment
+	Env *api.HiveEnvironment
 	// certificate bundle to use for this test environment
 	CertBundle certstest.TestCertBundle
 	// base http server
@@ -104,7 +104,7 @@ type TestEnv struct {
 
 // CreateTestTD returns a test TD with ID "thing-{i}", and a variable
 // number of properties, events and actions.
-// This TD includes forms to connect to the testenv server, if set.
+// Use withForms to include forms to connect to the testenv server, if set.
 //
 //	properties are named "prop-{j}
 //	events are named "event-{j}
@@ -112,7 +112,7 @@ type TestEnv struct {
 //
 // The first 10 are predefined and always the same. A higher number generates at random.
 // i is the index.
-func (testEnv *TestEnv) CreateTestTD(i int) (tdi *td.TD) {
+func (testEnv *TestEnv) CreateTestTD(i int, withForms bool) (tdi *td.TD) {
 	ttd := testTDs[0]
 	if i < len(testTDs) {
 		ttd = testTDs[i]
@@ -122,7 +122,7 @@ func (testEnv *TestEnv) CreateTestTD(i int) (tdi *td.TD) {
 
 	tdi = td.NewTD(ttd.ID, ttd.Title, ttd.DeviceType)
 	// add forms
-	if testEnv.Server != nil {
+	if withForms && testEnv.Server != nil {
 		testEnv.Server.AddTDSecForms(tdi, false)
 	}
 
@@ -156,6 +156,16 @@ func (testEnv *TestEnv) CreateToken(clientID string, validity time.Duration) (to
 	return token, validUntil, err
 }
 
+// Return the transport servers in the test environment
+// Intended for use in routers
+func (testEnv *TestEnv) GetTpServers() []api.ITransportServer {
+	var tpServers = []api.ITransportServer{}
+	if testEnv.Server != nil {
+		tpServers = append(tpServers, testEnv.Server)
+	}
+	return tpServers
+}
+
 // NewServerThing creates an exposed thing that is a direct sink for the test server.
 // Additional cells can be chained by setting them as the sink of the previous cells.
 //
@@ -166,12 +176,13 @@ func (testEnv *TestEnv) CreateToken(clientID string, validity time.Duration) (to
 func (testEnv *TestEnv) NewServerThing(thingID string) *thing.ExposedThing {
 
 	// Simple server side Thing. No account needed
-	m := thing.NewExposedThing(thingID, nil)
+	eThing := thing.NewExposedThing(thingID, nil)
+	eThing.SetTimeout(testEnv.Env.RpcTimeout)
 
 	// the device is the request sink for the transport server
-	testEnv.Server.SetRequestSink(m)
-	m.SetNotificationSink(testEnv.Server)
-	return m
+	testEnv.Server.SetRequestSink(eThing)
+	eThing.SetNotificationSink(testEnv.Server)
+	return eThing
 }
 
 // NewRCThing creates a new reverse-connection thing with the given ID.
@@ -193,10 +204,12 @@ func (testEnv *TestEnv) NewRCThing(clientID string, appReqHandler msg.RequestHan
 
 	// cl is the client connection for the Thing that receives requests from the
 	// server and sends notifications to the server.
-	cl, authToken := testEnv.NewTestClient(clientID, authn.ClientRoleDevice)
+	cl, authToken := testEnv.NewTestClient(
+		clientID, authn.ClientRoleDevice)
 
 	// simple exposed thing, no application request handler yet
 	expThing := thing.NewExposedThing(clientID+"-thing", appReqHandler)
+	expThing.SetTimeout(testEnv.Env.RpcTimeout)
 
 	// the client delivers requests to the thing and receives notifications from it
 	cl.SetRequestSink(expThing)
@@ -239,7 +252,7 @@ func (testEnv *TestEnv) NewTestConsumer(clientID string, role string) (
 	// to allow reconnect and notification handlers to detect connect/reconnect.
 	cl, token = testEnv.NewTestClient(clientID, role)
 	co = consumer.NewConsumer(cl, nil)
-	co.SetTimeout(testEnv.AppEnv.RpcTimeout)
+	co.SetTimeout(testEnv.Env.RpcTimeout)
 
 	return co, cl, token
 }
@@ -270,7 +283,7 @@ func (testEnv *TestEnv) NewTestClient(
 	// cl.SetForwarding(false, false)
 
 	if err == nil {
-		cl.SetTimeout(testEnv.AppEnv.RpcTimeout)
+		cl.SetTimeout(testEnv.Env.RpcTimeout)
 		err = cl.SetAuthToken(clientID, token, td.SecSchemeBearer)
 	}
 	// if err == nil {
@@ -304,7 +317,7 @@ func (testEnv *TestEnv) NewReconnectConsumer(
 	rc, _ = reconnect_service.NewReconnectService(cc)
 
 	co = consumer.NewConsumer(rc, notifHook)
-	co.SetTimeout(testEnv.AppEnv.RpcTimeout)
+	co.SetTimeout(testEnv.Env.RpcTimeout)
 
 	return co, rc, token
 }
@@ -325,7 +338,7 @@ func (testEnv *TestEnv) StartTestServer(protocol string) (srv api.ITransportServ
 	if protocol == "" {
 		protocol = DefaultProtocol
 	}
-	timeout := testEnv.AppEnv.RpcTimeout
+	timeout := testEnv.Env.RpcTimeout
 	switch protocol {
 	case api.HiveotGrpcTcpProtocolType:
 		serverCert := testEnv.CertBundle.ServerCert
@@ -394,7 +407,7 @@ func (testEnv *TestEnv) StartHttpServer(logging bool) (api.IHttpServer, string) 
 	}
 	// cert uses localhost
 	cfg := tlsserver.NewTLSServerConfig(
-		testEnv.CertBundle.ServerAddr, testEnv.AppEnv.HttpsPort,
+		testEnv.CertBundle.ServerAddr, testEnv.Env.HttpsPort,
 		testEnv.CertBundle.ServerCert,
 		testEnv.CertBundle.RootCAs,
 		logging)
@@ -435,6 +448,7 @@ func NewTestEnv(clean bool) *TestEnv {
 		os.MkdirAll(TestHome, 0750)
 	}
 	appEnv := api.NewHiveEnvironment(TestHome, false)
+	appEnv.RpcTimeout = TestTimeout
 	utils.SetLogging("info", "")
 	appEnv.HttpsPort = TestServerHttpPort
 	// ensure the directories exist
@@ -447,7 +461,7 @@ func NewTestEnv(clean bool) *TestEnv {
 	certBundle := certstest.CreateTestCertBundle(utils.KeyTypeED25519)
 	appEnv.SetCACert(certBundle.CaCert)
 	testEnv := &TestEnv{
-		AppEnv:     appEnv,
+		Env:        appEnv,
 		CertBundle: certBundle,
 		TestAuthn:  NewTestAuthenticator(),
 	}
@@ -460,7 +474,6 @@ func NewTestEnv(clean bool) *TestEnv {
 // if clean is set then delete the content of the home folder for a clean start.
 func StartTestEnv(protocol string, clean bool) (testEnv *TestEnv, cancelFunc func()) {
 	testEnv = NewTestEnv(clean)
-	testEnv.AppEnv.RpcTimeout = TestTimeout
 	testEnv.StartHttpServer(true)
 	testEnv.Server = testEnv.StartTestServer(protocol)
 	testEnv.Server.Start()

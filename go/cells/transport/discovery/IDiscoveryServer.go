@@ -1,6 +1,9 @@
 package discovery
 
-import "github.com/hiveot/hivekit/go/api"
+import (
+	"github.com/hiveot/hivekit/go/api"
+	"github.com/hiveot/hivekit/go/api/td"
+)
 
 // The discovery cell types
 const (
@@ -19,10 +22,15 @@ const (
 	WOT_DIRECTORY_SUB_TYPE = "_directory._sub"
 
 	// WoT doesnt define gateways in their discovery spec so use our own.
-	// HIVEOT_GATEWAY_SUB_TYPE = "_gateway._sub"
+	HIVEOT_GATEWAY_SUB_TYPE = "_gateway._sub"
 
 	// DNS-SD general service type for all things
 	WOT_SERVICE_TYPE = "_wot._tcp"
+
+	// TXT Type field of a discovery record
+	DISCO_TYPE_DIRECTORY = "Directory"
+	DISCO_TYPE_GATEWAY   = "Gateway" // HiveOT extension
+	DISCO_TYPE_THING     = "Thing"
 )
 
 // additional fields in the discovery records
@@ -70,14 +78,18 @@ type IDiscoveryServer interface {
 	//   _directory._sub._wot._tcp TXT td=/.well-known/wot; type=Directory;scheme=http
 	//
 	//	instanceName is the name under which the TDD is discoverable. Use "" for the default.
-	//	tddJSON is the directory TD to make available in JSON format
+	//	tdoc is the directory TD to make available in JSON format
 	//
-	// This returns the URL the tdd can be obtained at, or an err if no http server is set.
-	ServeDirectoryTD(instanceName string, tddJSON string) (tddURL string, err error)
+	// This returns the URL the td can be obtained at, or an error.
+	ServeDirectoryTD(instanceName string, tdoc *td.TD) (tdURL string, err error)
+
+	// ServeGatewayTD serves the given TD as a gateway
+	// This returns the URL the td can be obtained at, or an error.
+	ServeGatewayTD(instanceName string, tdoc *td.TD) (tdURL string, err error)
 
 	// ServeThingTD serves the given thing TD on http at the well-known endpoint, and publishes
 	// this using DNS-SD discovery.
-	// Indended for use by things that run servers.
+	// Indended for use by stand-alone things that run servers.
 	//
 	// The default TD DNSSD service record is:
 	//   _wot._tcp TXT td=/.well-known/wot; type=Thing;scheme=http
@@ -89,8 +101,8 @@ type IDiscoveryServer interface {
 	// using this ServeThingTD handler, acting as a single-TD directory.
 	//
 	//	instanceName is the name under which the TD is discoverable. Use "" for the ThingID.
-	//	tdJSON is the Thing TD to make available in JSON format
+	//	tdoc is the Thing TD to make available in JSON format
 	//
-	// This fails if the http server isn't provided.
-	ServeThingTD(instanceName string, tdJSON string) (err error)
+	// This returns the URL the td can be obtained at, or an error.
+	ServeThingTD(instanceName string, tdoc *td.TD) (tdURL string, err error)
 }

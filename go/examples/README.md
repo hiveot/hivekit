@@ -3,89 +3,75 @@
 These examples demonstrate how to build an ecosystem of IoT devices and services using HiveKit. The examples can be used on their own or together.
 
 The examples can be run directly using:
-> go run example1/main.go ---home ~/bin/hiveot 
+> go run sadevice/main.go -home=~/bin/hiveot 
 
 or by building and running:
-> make examples
-> dist/example1 --home ~/bin/hiveot
+> make 
+> dist/sadevice -home=~/bin/hiveot
 
 This uses the "~/bin/hiveot" directory as home directory for config, certificates, and data storage. 
 
 
 ## Basic Examples
 
-These first few examples are kept simple on purpose. They use a single protocol and lacks authentication, authorization and offers no history.
+These are basic examples, intended to demonstrate how to build an application using HiveKit cells. They are not intended as production-ready applications. They do however help in getting started.  
 
-### Example 1: Run a Standalone Counter Device
+These examples use two types of authentication, an 'admin' client account with an admin.token file in the certs directory, and an admin client certificate, signed by the self-signed CA. The standalone and gateway example add this client. The cli and tui examples expect either the admin.token or adminCert/Key.pem files to exist in the certs directory.
 
-Example 1 creates a standalone IoT device that runs a simple counter. It has a property with the current value, sends an event when it changes and has actions for increment and decrement.
+### sadevice: Run a Standalone Counter Device
 
-- This uses a factory recipe to create a server and link it to the counter service.
-- This publishes an event each time the counter value changes.
-- This offers actions for incrementing and decrementing the counter.
-- This serves Thing discovery of the service TD and can be discovered with example 2.
+Sadevice creates a standalone IoT device that runs a simple counter. It has a property with the current value, sends an event when it changes and has actions for increment and decrement.
 
-usage: go run example1/main.go --home ~/bin/hiveot
+This uses the StandaloneDeviceRecipe factory recipe to create a discoverable server and link it to the counter service. It includes authentication for an admin user. A CLI (next example) can be used to discover and read the device.
 
-### Example 2. Discovery CLI
+The 'ExposedThing' cell is used to create a counter example that can receive requests and emit notifications. The counter example device:
+- Provide a websocket server for connecting to the device.
+- Publishes an event each time the counter value changes.
+- Provide actions for incrementing and decrementing the counter.
+- Serves discovery of the device TD.
+- Authenticate requests
 
-A simple commandline utility to discover Things and Directories on the network and optionally show their TD. Use -h to view available filter and display options.
+usage: go run sadevice/main.go --home ~/bin/hiveot
 
-usage: go run example2/main.go [-h] -home ~/bin/hiveot 
+### cli: Discovery CLI
 
-This shows the supported commands including discovery and status.
+A simple commandline consumer utility to discover Things and Directories on the network and optionally show their TD. Use -h to view available filter and display options.
 
-### Example 3. Browser TUI
+usage: go run cli/main.go [-h] -home ~/bin/hiveot 
 
-Example 3 is a text UI shows discovered devices and their TD.
+This shows the supported commands including discovery and thing status. 
+Thing actions can be invoked. Capturing input parameters is not supported.
 
-usage: go run example3/main.go -home ~/bin/hiveot
 
-This displays a menu with options. Commands:
+### tui: Console Text UI
 
-- discover devices and directories
-- list discovered TDs
-- show details of a selected TD
-- when client cert or token authentication is available :
-   - view device status with property and latest event values
-   - invoke actions (no input yet)
+tui is a text UI consumer showing discovered devices and their TD.
+
+usage: go run tui/main.go -home ~/bin/hiveot
+
+This starts with discovery of directories and devices on the network and lists a tree of the available Things. Selecting a Thing shows its TD with property values, if the credentials are available.
  
 
-### Example 4. Gateway Server
+### gateway: Gateway Server
 
-The gateway server runs a server that consumers connect to for access to standalone and RC devices. It uses the gateway recipe that includes a discovery server; a directory with discovered and registered devices; a router to forward requests from consumer to standandalone and RC devices, and the authn service for authentication of consumers and RC devices. 
+The gateway server runs multiple protocol servers that consumers connect to for access to standalone and RC devices. It uses the gateway recipe that includes a group of transport servers, a discovery server, a directory, and a router to forward requests from consumer to standandalone and RC devices. The authn service authenticates request from consumers. 
+Supported transport protocols include: WoT websocket, HiveOT websocket, HiveOT SSE-SC and HiveOT gRPC.
 
-
-This can be used with example 1, 2, 3 and 5.
-
-
-
-### Example 5. RC Device (reverse connection) [todo]
-
-This example constructs a RC device that uses a reverse connection to a gateway. It is the same device as in example 1 but instead of running a server it connects to a gateway.
-
-This is the preferred way to create and connect devices in hiveot. It does require the gateway from example 4. Note that the hiveot Hub is intended as an out-of-the-box gateway.
+This works with the cli and tui consumers, and the rcdevice examples.
 
 
-## Usage
+### rcdevice: RC Device (reverse connection) [todo]
 
-Simply start ./dist/example1 to run it. Press Ctrl-C to terminate.
+The rcdevice is the same device as the 'sadevice', but instead of running a server it connects to the gateway using reverse connection.
 
-To view the commandline options:
+Since rc devices dont run servers, they are the simplest way to construct a device. They don't need servers, authentication and routing. Instead a reconnect cell automatically tries to reconnect the transport client.
 
-> ./dist/example1 -h
+This is the preferred way to create and connect devices in HiveOT. 
 
-HiveKit looks for certificates and keys in the {home}/certs directory which defaults to ~/bin/hiveot/certs.
-A different home directory can be passed using -home=/path/to/my/home.
+### appenv: show the application environment 
 
-If no CA or server certificate exists, a self-signed certificate will be created. This is kept in-memory only so in order to have the client and server of these examples recognize the same certificate.
 
-To create a self-signed CA certificate in the certs directory run: (todo)
 
-> dist/example3 createca
+## What is a recipe?
 
-To create a server certificate:
-
-> dist/example3 createservercert
-
-Support for lets-encrypt is planned for the future.
+A recipe is a list of cells organized in a chain, bus or star formation. It makes it 

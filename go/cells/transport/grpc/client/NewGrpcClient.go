@@ -15,7 +15,6 @@ import (
 // addr is the UDS path or tcp connection to connect with
 // caCert of the CA used for tcp URL's
 //
-// Use SetTimeout to change the default response timeout
 // Use SetRequestSink to set the handler for requests send by consumers
 // Use SetNotificationSink to set the handler for notifications send by exposed things.
 func NewHiveotGrpcClient(
@@ -33,10 +32,9 @@ func NewHiveotGrpcClientFactory(
 
 	env := f.GetEnvironment()
 	clientCert, _ := env.GetClientCert()
-	serverURL := env.ServerURL
+	serverURL := env.GetServerURL()
 
-	m := NewHiveotGrpcClient(serverURL, env.GetRootCAs())
-	m.SetTimeout(env.RpcTimeout)
+	cl := NewHiveotGrpcClient(serverURL, env.GetRootCAs())
 
 	// if client certificate not available attempt auth token
 	if clientCert == nil {
@@ -45,8 +43,8 @@ func NewHiveotGrpcClientFactory(
 		authToken, err := env.GetAuthToken()
 
 		if err == nil && clientID != "" && authToken != "" {
-			err = m.SetAuthToken(clientID, authToken, td.SecSchemeBearer)
+			err = cl.SetAuthToken(clientID, authToken, td.SecSchemeBearer)
 		}
 	}
-	return m, err
+	return cl, err
 }

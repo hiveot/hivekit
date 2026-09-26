@@ -36,9 +36,8 @@ func NewHiveotWssClientFactory(
 	var err error
 
 	env := f.GetEnvironment()
-	wssURL := env.ServerURL
+	wssURL := env.GetServerURL()
 	cl := NewHiveotWssClient(wssURL, env.GetRootCAs())
-	cl.SetTimeout(env.RpcTimeout)
 
 	// set client certificate if available
 	clientCert, _ := env.GetClientCert()
@@ -64,7 +63,7 @@ func NewHiveotWssClientFactory(
 	return cl, err
 }
 
-// StartWotWssClient creates a new instance of the WoT compatible websocket client
+// NewWotWssClient creates a new instance of the WoT compatible websocket client
 // but does not connect yet. Authenticate and call Connect before use.
 //
 // messageConverter offers the ability to use any websocket message format that
@@ -78,10 +77,10 @@ func NewHiveotWssClientFactory(
 //	rootCAs are the server CA's for TLS connection validation
 //	timeout is the maximum connection wait time. 0 for default.
 //	ch is the connection callback handler, nil to ignore
-func StartWotWssClient(
+func NewWotWssClient(
 	wssURL string, rootCAs *x509.CertPool) api.ITransportClient {
 
-	return clientimpl.StartWotWssClientImpl(wssURL, rootCAs)
+	return clientimpl.NewWotWssClientImpl(wssURL, rootCAs)
 }
 
 // Create a websocket client for the given factory environment.
@@ -95,16 +94,15 @@ func StartWotWssClient(
 //
 // This returns the client. If connection fails then this returns an error.
 // Even with an error result authentication and 'Connect' can be called again.
-func StartWotWssClientFactory(
+func NewWotWssClientFactory(
 	f api.ICellFactory, md *api.CellDefinition) (api.IHiveCell, error) {
 
 	var err error
 
 	// create the client using the app env server URL
 	env := f.GetEnvironment()
-	serverURL := env.ServerURL
-	cl := StartWotWssClient(serverURL, env.GetRootCAs())
-	cl.SetTimeout(env.RpcTimeout)
+	serverURL := env.GetServerURL()
+	cl := NewWotWssClient(serverURL, env.GetRootCAs())
 
 	// set client certificate if available
 	clientCert, _ := env.GetClientCert()

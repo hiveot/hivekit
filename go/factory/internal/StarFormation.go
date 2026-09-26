@@ -66,22 +66,23 @@ func (r *StarFormation) SetSlot(slotID string, modDef api.CellDefinition) error 
 func NewStarFormation(
 	f api.ICellFactory, members []api.CellDefinition) (*StarFormation, error) {
 
-	r := &StarFormation{
-		HiveCellBase: cells.NewHiveCellBase("", 0),
+	star := &StarFormation{
+		HiveCellBase: cells.NewHiveCellBase(""),
 		f:            f,
 		star:         members,
 	}
+	star.SetTimeout(f.GetEnvironment().RpcTimeout)
 
 	// add the cell definitions to the factory
-	if r.star != nil {
+	if star.star != nil {
 		// register all cells
-		for _, modDef := range r.star {
-			r.f.RegisterCell(modDef)
+		for _, modDef := range star.star {
+			star.f.RegisterCell(modDef)
 		}
 	}
 	// create cells in the defined order and link their notifications
-	for _, cellDef := range r.star {
-		member, err := r.f.NewCell(cellDef.Type, true)
+	for _, cellDef := range star.star {
+		member, err := star.f.NewCell(cellDef.Type, true)
 		// cell that cant be created are ignored. This is non-fatal
 		if err != nil {
 			slog.Warn("NewStarFormation: creating cell failed. Shutting down",
@@ -90,15 +91,15 @@ func NewStarFormation(
 			// don't track 'one-shot' cells that are used to initialize the factory.
 			// These return nil without error.
 		} else {
-			r.instances[member.GetThingID()] = member
+			star.instances[member.GetThingID()] = member
 			// requests send by the members will be forwarded to the recipe, which
 			// passes it to the member with the matching thingID. See HandleRequest.
-			member.SetRequestSink(r)
+			member.SetRequestSink(star)
 			// all notifications from the rays will be forwarded to the star. See HandleNotification.
-			member.SetNotificationSink(r)
+			member.SetNotificationSink(star)
 		}
 	}
 
-	var _ api.IRecipe = r
-	return r, nil
+	var _ api.IRecipe = star
+	return star, nil
 }

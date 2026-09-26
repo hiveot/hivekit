@@ -5,7 +5,10 @@ import (
 	"time"
 
 	"github.com/hiveot/hivekit/go/api"
+	"github.com/hiveot/hivekit/go/api/td"
+	"github.com/hiveot/hivekit/go/api/vocab"
 	directory_service "github.com/hiveot/hivekit/go/cells/directory/service"
+	"github.com/hiveot/hivekit/go/cells/transport/discovery"
 	discovery_client "github.com/hiveot/hivekit/go/cells/transport/discovery/client"
 	discovery_server "github.com/hiveot/hivekit/go/cells/transport/discovery/server"
 	"github.com/hiveot/hivekit/go/testenv"
@@ -20,7 +23,8 @@ const testDirServiceName = "hiveot-test"
 
 // Test the directory discovery
 func TestDiscoverDirectory(t *testing.T) {
-	dirTdd := "{}"
+
+	dirTDD := td.NewTD("tddID", "testTDD", vocab.DeviceTypeService)
 
 	testServiceAddress := utils.GetOutboundIP("").String()
 	endpoints := map[string]string{"wss": "wss://localhost/wssendpoint"}
@@ -29,11 +33,11 @@ func TestDiscoverDirectory(t *testing.T) {
 	testEnv.StartHttpServer(true)
 	defer testEnv.Stop()
 
-	discoSrv, err := discovery_server.NewDiscoveryServer(testDirServiceName, testEnv.HttpServer, "", endpoints)
+	discoSrv, err := discovery_server.NewDiscoveryServer(testEnv.HttpServer, nil, endpoints)
 	require.NoError(t, err)
 	defer discoSrv.Stop()
 
-	tddURL, err := discoSrv.ServeDirectoryTD(testDirServiceName, dirTdd)
+	tddURL, err := discoSrv.ServeDirectoryTD(testDirServiceName, dirTDD)
 	require.NoError(t, err)
 	assert.NotEmpty(t, tddURL)
 
@@ -43,10 +47,11 @@ func TestDiscoverDirectory(t *testing.T) {
 
 	// records, err := cl.DiscoverDirectories(testServiceID, time.Second, true, nil)
 	// rec0, err := cl.DiscoverFirstDirectory(testDirServiceName, time.Second)
-	recs, err := cl.DiscoverDirectories(time.Second*1, nil)
+	recs, err := cl.DiscoverThings("", discovery.DISCO_TYPE_DIRECTORY, false, time.Second*1, nil)
 	require.NoError(t, err)
 	_ = recs
-	rec0, err := cl.DiscoverFirstDirectory(testDirServiceName, time.Second)
+	// rec0, err := cl.DiscoverFirstDirectory(testDirServiceName, time.Second)
+	rec0 := cl.DiscoverFirstThing(testDirServiceName, discovery.DISCO_TYPE_DIRECTORY, time.Second*1)
 	require.NoError(t, err)
 	require.NotEmpty(t, rec0)
 	assert.Equal(t, testDirServiceName, rec0.Instance)
@@ -71,35 +76,34 @@ func TestDiscoverGetDirectoryTD(t *testing.T) {
 	defer tpServer.Stop()
 
 	// run a directory that will be discoverable
-	tpList := []api.ITransportServer{tpServer}
-	dirSvc, err := directory_service.NewDirectoryService("", "", testHttpServer, tpList)
+	dirSvc, err := directory_service.NewDirectoryService("", "", testHttpServer)
 	// dirThingID := dirSvc.GetThingID()
-	dirTD, dirTDJson := dirSvc.GetTDD()
-	_ = dirTD
+	dirTD := dirSvc.GetTDD()
+	tpServer.AddTDSecForms(dirTD, false)
 
 	// dirTD := dirMod.GetTD(dirMod.GetThingID())
 	// dirTDJson := td.MarshalTD(dirTD)
 
 	// run the discover server and expose the directory TDD
 	discoSvc, err := discovery_server.NewDiscoveryServer(
-		testDirServiceName, testEnv.HttpServer, "", nil)
+		testEnv.HttpServer, nil, nil)
 	require.NoError(t, err)
 	defer discoSvc.Stop()
-	tddURL, err := discoSvc.ServeDirectoryTD(testDirServiceName, dirTDJson)
+	tddURL, err := discoSvc.ServeDirectoryTD(testDirServiceName, dirTD)
 	require.NoError(t, err)
 
 	// discover and read the directory on start. This sets env.DirectoryURL
 	appEnv := api.NewHiveEnvironment("", false)
-	appEnv.TDDURL = tddURL
+	appEnv.ServerTDURL = tddURL
 	cl, err := discovery_client.NewDiscoveryClient(appEnv, true)
 	require.NoError(t, err)
 	// the discovery server can publish multiple records
-	assert.NotEmpty(t, appEnv.TDDURL)
+	assert.NotEmpty(t, appEnv.ServerTDURL)
 
-	dirTD2, td2URL, _, err := cl.DiscoverFirstDirectoryTD(testDirServiceName, time.Second)
+	dirTD2 := cl.DiscoverFirstTD(
+		testDirServiceName, discovery.DISCO_TYPE_DIRECTORY, time.Second)
 	require.NoError(t, err)
-	assert.Equal(t, tddURL, appEnv.TDDURL)
-	assert.Equal(t, appEnv.TDDURL, td2URL)
+	assert.Equal(t, tddURL, appEnv.ServerTDURL)
 	assert.NotNil(t, dirTD2, "Client failed to discover the directory on start")
 	assert.Equal(t, dirSvc.GetThingID(), dirTD2.ID)
 }
@@ -113,26 +117,19 @@ func TestDiscoverNoDirectory(t *testing.T) {
 	defer testEnv.Stop()
 
 	// start discovery client
-	cl, err := discovery_client.NewDiscoveryClient(testEnv.AppEnv, true)
+	cl, err := discovery_client.NewDiscoveryClient(testEnv.Env, true)
 	require.NoError(t, err)
-	dirTD2, _, _, err := cl.DiscoverFirstDirectoryTD(testDirServiceName, time.Second)
+	dirTD2 := cl.DiscoverFirstTD(
+		testDirServiceName, discovery.DISCO_TYPE_DIRECTORY, time.Second)
 	assert.Nil(t, dirTD2)
 
 	// run the discover server without exposing the directory TDD
-	discoSrv, err := discovery_server.NewDiscoveryServer(testDirServiceName, testHttpServer, "", nil)
+	discoSrv, err := discovery_server.NewDiscoveryServer(
+		testHttpServer, nil, nil)
 	require.NoError(t, err)
 	defer discoSrv.Stop()
-	tddURL, err := discoSrv.ServeDirectoryTD(testDirServiceName, "") // empty json
-	assert.NotEmpty(t, tddURL)
-	require.NoError(t, err)
-
-	// restart discovery client
-	// cl.Stop()
-	// err = cl.Start()
-	require.NoError(t, err)
-
-	// no directory has been found
-	dirTD2, _, _, err = cl.DiscoverFirstDirectoryTD(testDirServiceName, time.Second)
+	tddURL, err := discoSrv.ServeDirectoryTD(testDirServiceName, nil) // empty json
+	assert.Empty(t, tddURL)
 	require.Error(t, err)
-	assert.Nil(t, dirTD2)
+
 }

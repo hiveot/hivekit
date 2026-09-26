@@ -141,7 +141,7 @@ func (page *TDPage) Refresh(thingID string,
 
 		tbl.SetTextCell(row, 1, aff.Title)
 		if aff.Input != nil {
-			tbl.SetTitleCell(row, 2, "Input: ", aff.Input.Type)
+			tbl.SetTitleCell(row, 2, "Input: "+aff.Input.Type, "")
 		} else {
 			tbl.SetSelectableCell(row, 2, "[red]run").SetClickedFunc(func() bool {
 				page.invokeActionCb(thingID, name, nil)

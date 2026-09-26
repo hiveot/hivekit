@@ -2,19 +2,17 @@ package router
 
 import (
 	"crypto/tls"
-	"time"
 
 	"github.com/hiveot/hivekit/go/api"
 )
 
 const RouterCellType = "router"
 
-// The instance ThingID of the router. This must match its TD (if any)
-
+// Interface of the stand-alone device router service.
 type IRouterService interface {
 	api.IHiveCell
 
-	// Add the secret to access one or more Things.
+	// AddCredentials adds the secret to access one or more Things.
 	//
 	// This stores the credentials using the connect URL, eg all Things that use
 	// the same connection endpoint.
@@ -52,7 +50,4 @@ type IRouterService interface {
 
 	// Enable/disable auto reconnect for new connections
 	SetAutoReconnect(enable bool)
-
-	// Set the communication timeout that is applied to new connections made by this service
-	SetTimeout(time.Duration)
 }

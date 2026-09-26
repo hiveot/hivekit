@@ -9,8 +9,8 @@ import (
 
 // Embed the directory TM
 //
-//go:embed "directory-tm.json"
-var DirectoryTMJson []byte
+//go:embed "directory-td.json"
+var DirectoryTDJson []byte
 
 // two cells, the service and optional http server
 const (
@@ -22,8 +22,8 @@ const (
 	DirectoryHttpCellType = "directory-http"
 )
 
-// The thingID this directory identifies as for messaging. Must match the TD ID.
-const DefaultDirectoryThingID = "thingDirectory"
+// The TD @type identifies the TD as that of a directory
+const DirectoryAtType = "ThingDirectory"
 
 // The http path that provides the TD of the service
 // in case of the directory this provide the directory TD path
@@ -113,8 +113,8 @@ type IDirectoryService interface {
 	// These TD's are cached so successive requests do not parse the json each time.
 	GetTD(thingID string) *td.TD
 
-	// Return the Directory TD and its json
-	GetTDD() (*td.TD, string)
+	// Return the Directory TD
+	GetTDD() *td.TD
 
 	// RetrieveThing returns a JSON encoded TD document
 	RetrieveThing(thingID string) (tdJSON string, err error)

@@ -41,6 +41,12 @@ func (svc *AuthzServiceImpl) HasPermission(req *msg.RequestMessage) (hasPermissi
 			role == authn.ClientRoleService {
 			return true
 		}
+		// devices can update their TD;
+		// TODO: each service needs to set permissions for roles.
+		// FIXME: devices can't send other requests
+		if role == authn.ClientRoleDevice {
+			return true
+		}
 	// 3. managers, administrators and services can also write configuration
 	case td.OpWriteProperty, td.OpWriteMultipleProperties:
 		if role == authn.ClientRoleManager ||
@@ -48,7 +54,7 @@ func (svc *AuthzServiceImpl) HasPermission(req *msg.RequestMessage) (hasPermissi
 			role == authn.ClientRoleService {
 			return true
 		}
-		// 4. administrators and services can do everything else
+	// 4. administrators and services can do everything else
 	default:
 		if role == authn.ClientRoleAdmin || role == authn.ClientRoleService {
 			return true

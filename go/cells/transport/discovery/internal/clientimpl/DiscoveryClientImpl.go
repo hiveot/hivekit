@@ -2,7 +2,6 @@ package clientimpl
 
 import (
 	"crypto/x509"
-	"fmt"
 	"log/slog"
 	"strings"
 	"sync"
@@ -13,9 +12,10 @@ import (
 	"github.com/hiveot/hivekit/go/api/td"
 	"github.com/hiveot/hivekit/go/cells"
 	"github.com/hiveot/hivekit/go/cells/transport/discovery"
+	"github.com/teris-io/shortid"
 )
 
-// Client for discovery of WoT devices and directories
+// Client for discovery of WoT device, service, gateway or directory TD.
 //
 // When launched through the cell factory this auto-discovers a directory TDD and
 // a gateway TD (if available) on Start.
@@ -59,145 +59,76 @@ func (cl *DiscoveryClientImpl) _dnssd_discover(
 	return result, err
 }
 
-// discoverDirectories invokes a callback on each discovered directory.
-//
-// The callback returns true to stop the process or false to continue.
-// This is using the _wot._tcp service type, not _directory._sub._wot._tcp,
-// as a directory record is identified by the "Type" field.
-func (cl *DiscoveryClientImpl) DiscoverDirectories(maxWaitTime time.Duration,
-	cb func(*discovery.DiscoveryResult) bool) ([]*discovery.DiscoveryResult, error) {
+// Return the first discovered TD that matches the searchID and type.
+func (cl *DiscoveryClientImpl) DiscoverFirstTD(
+	searchID string, thingType string, maxWaitTime time.Duration) (
+	td *td.TD) {
+	_, dirList, _, thingList := cl.DiscoverTDs(searchID, thingType, true, maxWaitTime, nil)
 
-	// serviceType := discovery.WOT_SERVICE_TYPE + "," + discovery.WOT_DIRECTORY_SUB_TYPE
-	// while a subtype offers filtering, the record determines whether
-	// it is a directory....might as welll not use the subtype in discovery.
-	serviceType := discovery.WOT_SERVICE_TYPE
-	dirRecs := make([]*discovery.DiscoveryResult, 0)
-
-	_, err := cl._dnssd_discover("", serviceType, maxWaitTime,
-		func(rec *discovery.DiscoveryResult) bool {
-			stop := false
-			// filter on directories
-			if strings.ToLower(rec.Type) != "directory" {
-				return false
-			}
-			dirRecs = append(dirRecs, rec)
-			if cb != nil {
-				stop = cb(rec)
-			}
-			return stop
-		})
-
-	return dirRecs, err
-}
-
-// Discover all directories on the local network and return their TDs.
-// If the TD cannot be downloaded then it is ignored in the result.
-func (cl *DiscoveryClientImpl) DiscoverDirectoryTDs(
-	searchTime time.Duration) (recs []*discovery.DiscoveryResult, tddList []*td.TD) {
-
-	tddList = make([]*td.TD, 0, len(recs))
-	recs, _ = cl.DiscoverDirectories(searchTime, nil)
-
-	for _, rec := range recs {
-		dirURL := rec.AsURL()
-		if dirURL != "" {
-			dirTD, _, err := LoadTD(dirURL, cl.rootCAs)
-			if err == nil {
-				tddList = append(tddList, dirTD)
-			}
-		}
+	combined := append(dirList, thingList...)
+	if len(combined) == 0 {
+		return nil
 	}
-	return recs, tddList
+	return combined[0]
 }
 
-// DiscoverDirectory returns the first discovered record for a directory
-//
-// This returns nil with no error if discovery ran successful but no record was found.
-func (cl *DiscoveryClientImpl) DiscoverFirstDirectory(
-	instanceName string, maxWaitTime time.Duration) (first *discovery.DiscoveryResult, err error) {
-
-	// stop on the first result
-	_, err = cl.DiscoverDirectories(
-		maxWaitTime, func(rec *discovery.DiscoveryResult) bool {
-			if instanceName == "" || instanceName == rec.Instance {
-				first = rec
-				return true
-			}
-			return false
-		})
-
-	if first == nil {
-		return nil, fmt.Errorf("DiscoverFirstDirectory: No directory was found")
+// Return the discovery record of the first thing that matches the searchID and type.
+func (cl *DiscoveryClientImpl) DiscoverFirstThing(
+	instanceName string, thingType string, maxWaitTime time.Duration) *discovery.DiscoveryResult {
+	recs, _ := cl.DiscoverThings(instanceName, thingType, true, maxWaitTime, nil)
+	if len(recs) == 0 {
+		return nil
 	}
-
-	return first, nil
+	return recs[0]
 }
 
-// Discover the first directory TDD and return the result or an error
-//
-//	searchID optionally filters on a specific instance name or directory thingID
-func (cl *DiscoveryClientImpl) DiscoverFirstDirectoryTD(
-	searchID string, maxWaitTime time.Duration) (
-	dirTD *td.TD, tddURL string, tddJSON string, err error) {
-
-	// stop on the first matching result
-	_, err = cl.DiscoverDirectories(maxWaitTime, func(rec *discovery.DiscoveryResult) bool {
-		// keep looking until a matching TD is found
-		tddURL = rec.AsURL()
-		if tddURL == "" {
-			return false
-		}
-		recTD, recTddJSON, err := LoadTD(tddURL, cl.rootCAs)
-		if err != nil || recTD == nil {
-			return false
-		}
-		if searchID != "" {
-			if searchID == recTD.ID || searchID == rec.Instance {
-				dirTD = recTD
-				tddJSON = recTddJSON
-				return true
-			}
-			// keep looking
-			return false
-		}
-		// any TDD will do
-		dirTD = recTD
-		tddJSON = recTddJSON
-		return true
-	})
-
-	if dirTD == nil {
-		err = fmt.Errorf("No directory was discovered")
-	} else {
-		err = nil
-	}
-	return dirTD, tddURL, tddJSON, err
-}
-
-// DiscoverThings returns discovery records of all wot Things that publish themselves on the network.
-//
-// Intended for environments where things run servers themselves (instead of using a hub/gateway).
+// DiscoverThings returns discovery records of WoT Things that publish themselves on the network.
 //
 //	instanceName is optional and intended to search for a particular instance by name, such as 'hub'.
-//	duration is the time to search for.
+//	thingType is optional TXT type record or "" for all WoT records
+//	first, flag, stop on first matching result
+//	maxWaitTime is maximum time to wait for search to complete
 //	cb is the callback to invoke when a match is found. Returns true to stop.
 //
 // This returns a list of all discoveries
 func (cl *DiscoveryClientImpl) DiscoverThings(
-	instanceName string, maxWaitTime time.Duration,
+	instanceName string, thingType string, first bool, maxWaitTime time.Duration,
 	cb func(*discovery.DiscoveryResult) bool) ([]*discovery.DiscoveryResult, error) {
 
-	records, err := cl._dnssd_discover(instanceName, discovery.WOT_SERVICE_TYPE, maxWaitTime, cb)
-	result := records
-	return result, err
+	recs := make([]*discovery.DiscoveryResult, 0)
+
+	thingTypeLower := strings.ToLower(thingType)
+	_, err := cl._dnssd_discover(
+		instanceName, discovery.WOT_SERVICE_TYPE, maxWaitTime,
+		func(rec *discovery.DiscoveryResult) bool {
+			stop := false
+			// filter on thing Type (Thing, Directory or Gateway)
+			if thingTypeLower != "" && strings.ToLower(rec.Type) != thingTypeLower {
+				return false
+			}
+			recs = append(recs, rec)
+			if cb != nil {
+				stop = cb(rec)
+			}
+			return stop || first
+		})
+	return recs, err
 }
 
-// Discover all things and download their TD
+// Discover things and download their TD.
+//
 // This separates directories from devices
-// NOTE: If a TD cannot be read this includes nil in the result so the
+// NOTE: If a TD cannot be read this includes nil in the TD results so the
 // records table matches the TD table.
-func (cl *DiscoveryClientImpl) DiscoverThingTDs(
-	instanceName string, maxWaitTime time.Duration,
+//
+//	searchID optionally filters on a specific instance name or directory thingID
+//	thingType, THING_TYPE_THING|DIRECTORY|GATEWAY
+//	first stops on first valid result
+//	maxWaitTime is maximum time to wait for search to complete
+//
+// This returns the matching directory, gateway and thing TDs
+func (cl *DiscoveryClientImpl) DiscoverTDs(
+	searchID string, thingType string, first bool, maxWaitTime time.Duration,
 	cb func(*td.TD) bool) (
 	dirRecs []*discovery.DiscoveryResult, dirTDs []*td.TD,
 	deviceRecs []*discovery.DiscoveryResult, deviceTDs []*td.TD) {
@@ -207,44 +138,46 @@ func (cl *DiscoveryClientImpl) DiscoverThingTDs(
 
 	dirTDs = make([]*td.TD, 0)
 	deviceTDs = make([]*td.TD, 0)
-	cl.DiscoverThings(instanceName, maxWaitTime, func(rec *discovery.DiscoveryResult) bool {
-		stop := false
-		if rec.IsDirectory {
-			dirRecs = append(dirRecs, rec)
-		} else {
-			deviceRecs = append(deviceRecs, rec)
-		}
-		tdURL := rec.AsURL()
-		var tdoc *td.TD
-		if tdURL != "" {
-			tdoc, _, _ = LoadTD(tdURL, cl.rootCAs)
-		}
-		if rec.IsDirectory {
-			dirTDs = append(dirTDs, tdoc)
-		} else {
-			deviceTDs = append(deviceTDs, tdoc)
-		}
-		// invoke the callback if a TD was successfully loaded
-		if tdoc != nil && cb != nil {
-			stop = cb(tdoc)
-		}
-		return stop
-	})
+	cl.DiscoverThings("", thingType, false, maxWaitTime,
+		func(rec *discovery.DiscoveryResult) bool {
+			stop := false
+			if rec.IsDirectory {
+				dirRecs = append(dirRecs, rec)
+			} else {
+				deviceRecs = append(deviceRecs, rec)
+			}
+			// ignore records without a valid TD URL
+			tdURL := rec.AsURL()
+			if tdURL == "" {
+				return false
+			}
+			tdoc, tdJSON, err := LoadTD(tdURL, cl.rootCAs)
+			_ = tdJSON
+			if err != nil || tdoc == nil {
+				return false
+			}
+			// filter on records that don't have the searchID in either instance name
+			// or as the thingID.
+			if searchID != "" {
+				if searchID != tdoc.ID && searchID != rec.Instance {
+					// keep looking
+					return false
+				}
+			}
+			if rec.IsDirectory {
+				dirTDs = append(dirTDs, tdoc)
+			} else {
+				deviceTDs = append(deviceTDs, tdoc)
+			}
+			// invoke the callback if a TD was successfully loaded
+			if tdoc != nil && cb != nil {
+				stop = cb(tdoc)
+			}
+			return stop || first
+		})
 
 	return dirRecs, dirTDs, deviceRecs, deviceTDs
 }
-
-// // Handle requests to discover directory TD.
-// func (cl *DiscoveryClientImpl) HandleRequest(
-// 	req *msg.RequestMessage, replyTo msg.ResponseHandler) error {
-
-// 	if req.Operation == td.OpInvokeAction && req.Name == discovery.DiscoverDirectoryAction {
-// 		_, _, tddJson, err := cl.DiscoverFirstDirectoryTD("", 0)
-// 		resp := req.CreateResponse(tddJson, err)
-// 		return replyTo(resp)
-// 	}
-// 	return cl.ForwardRequest(req, replyTo)
-// }
 
 // LoadTD a TD document from a discovery result.
 //
@@ -318,68 +251,109 @@ func (cl *DiscoveryClientImpl) ParseZeroconfServiceEntry(
 	return &discoResult
 }
 
-// locateDirectoryToUse attempts to locate a directory and returns its TDD.
+// locateTDToUse attempts to locate a directory and returns its TDD.
 //
-// If a TDD URL is offered then first try to load the TDD from that URL. If this
-// fails then return an error.
+// If a TD URL is offered then try to load the TD from that URL regardless
+// if it is a device or directory. If this fails then return an error.
 //
-// If no URL is offered then search for a directory and return its TDD and URL.
+// If no URL is offered then search for a directory and return its TD.
 //
 // If no TDD can be found then return nil
-func (cl *DiscoveryClientImpl) locateDirectoryToUse(offeredURL string, maxWaitTime time.Duration) (*td.TD, string) {
-	var tddURL string
+func (cl *DiscoveryClientImpl) locateDirectory(tdURL string, maxWaitTime time.Duration) *td.TD {
 
 	// if a URL is offered then work with it.
-	if offeredURL != "" {
-		dirTDD, _, err := LoadTD(tddURL, cl.rootCAs)
+	if tdURL != "" {
+		tdoc, _, err := LoadTD(tdURL, cl.rootCAs)
 		if err != nil {
-			slog.Warn("discoverDirectory: Directory is not available at the discovered URL",
-				"tddURL", tddURL,
+			slog.Warn("discoverDirectory: TD is not available at the provided URL",
+				"tdURL", tdURL,
 				"err", err.Error())
 		}
-		return dirTDD, offeredURL
+		return tdoc
 	}
-	// no directory URL offered so go find one that can be read.
-	dirTDD, tddURL, _, _ := cl.DiscoverFirstDirectoryTD("", maxWaitTime)
+	// no TD URL offered, so try to find a directory.
+	tdoc := cl.DiscoverFirstTD("", discovery.DISCO_TYPE_DIRECTORY, maxWaitTime)
 
-	return dirTDD, tddURL
+	return tdoc
+}
+
+// Locate the gateway TD to use.
+// This uses thing discovery to search for a record of type "gateway".
+// WoT doesn't specify the use of gateways so this is HiveOT only.
+func (cl *DiscoveryClientImpl) locateGateway(maxWaitTime time.Duration) (gwTD *td.TD) {
+
+	// if a TD URL is offered then work with it.
+	// no URL offered or it doesn't work so go find one that can be read.
+	gwTD = cl.DiscoverFirstTD("", discovery.DISCO_TYPE_GATEWAY, maxWaitTime)
+	return gwTD
 }
 
 // NewDiscoveryClientImpl returns a ready-to-use discovery client.
 //
 // Call DiscoverThings or DiscoverDirectories to start the discovery process.
 //
-// If an appEnv is provided and its DirectoryURL is empty, and discoOnStart is enabled
-// then Start will run in initial directory discovery and update appEnv with the
-// resulting directory.
-//
-// If appEnv is provided and discovery on Start is successful then update appEnv with
-// the discovered directory URL. The directory client can use this to connect to the directory.
+// If a server TDURL is provided then try to load the TD and set the serverURL.
+// If no TD is found but a serverURL is provided then use the server URL without TD.
+// Last, if no serverURL is known and discoOnStart is enabled, then try to locate
+// a directory or gateway server TD using DNS-SD discovery and update the app env.
 func NewDiscoveryClientImpl(
-	appEnv *api.HiveEnvironment, discoOnStart bool) (*DiscoveryClientImpl, error) {
+	env *api.HiveEnvironment, discoOnStart bool) (*DiscoveryClientImpl, error) {
 	var err error
 
+	thingID := discovery.DiscoveryClientCellType + "-" + shortid.MustGenerate()
 	cl := &DiscoveryClientImpl{
-		HiveCellBase:    cells.NewHiveCellBase("", 0),
-		env:             appEnv,
+		HiveCellBase:    cells.NewHiveCellBase(thingID),
+		env:             env,
 		discoverOnStart: discoOnStart,
 	}
-	if appEnv != nil {
-		cl.rootCAs = appEnv.GetRootCAs()
+	// obtaining a server TD requires env for reading URLs and storing the TD
+	if env == nil {
+		return cl, nil
 	}
 
-	// discover a directory for the app environment
-	if cl.discoverOnStart && cl.env != nil && appEnv.DirTD == nil {
-		dirTDD, tddURL := cl.locateDirectoryToUse(appEnv.TDDURL, time.Second)
+	cl.rootCAs = env.GetRootCAs()
 
-		if dirTDD == nil {
-			slog.Warn("NewDiscoveryClientImpl. Downloading the directory TDD failed",
-				"tddURL", appEnv.TDDURL)
+	// in order of precedence:
+	//  1. serverTD
+	//  2. TDURL second, so it can download a serverTD
+	//  3. server URL
+	//
+	// If a TD URL is provided, download its TD.
+	if env.ServerTD == nil && env.ServerTDURL != "" {
+		tdoc, _, err := LoadTD(env.ServerTDURL, cl.rootCAs)
+		if err == nil {
+			env.ServerTD = tdoc
+		}
+	} else if env.GatewayURL != "" {
+		// if a server URL is provided, use it for direct connections. No discovery needed.
+	} else if cl.discoverOnStart {
+		// no TD URL offered, so try to find a directory.
+		tdoc := cl.DiscoverFirstTD("", discovery.DISCO_TYPE_DIRECTORY, time.Second)
+		if tdoc != nil {
+			slog.Info("NewDiscoveryClientImpl. Directory TD downloaded successfully",
+				"thingID", tdoc.ID)
+			env.ServerTD = tdoc
+			// appEnv.DirTDURL = tddURL
 		} else {
-			slog.Info("NewDiscoveryClientImpl. Directory TDD downloaded successfully",
-				"tddURL", tddURL)
-			appEnv.DirTD = dirTDD
-			appEnv.TDDURL = tddURL
+			// try to find a gateway
+			// RC connected devices need the gateway connection, not the directory
+			gwTD := cl.DiscoverFirstTD("", discovery.DISCO_TYPE_GATEWAY, time.Second)
+			if gwTD != nil {
+				slog.Info("NewDiscoveryClientImpl. Gateway TD downloaded successfully",
+					"thingID", tdoc.ID)
+				env.ServerTD = gwTD
+			} else {
+				slog.Warn("NewDiscoveryClientImpl. No directory or gateway discovered")
+			}
+		}
+
+		// discover a gateway TD from the app environment
+		if env.ServerTD == nil {
+			tdoc := cl.locateGateway(time.Second)
+			if tdoc != nil {
+				slog.Warn("NewDiscoveryClientImpl: found gateway TD")
+				env.ServerTD = tdoc
+			}
 		}
 	}
 

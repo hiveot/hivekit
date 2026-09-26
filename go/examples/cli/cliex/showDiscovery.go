@@ -41,7 +41,7 @@ func (app *Cliex) ShowDiscovery() {
 	fmt.Printf("Type       Address    Port   Hostname             Instance Name             Schema   ThingID                           TD URL   \n")
 	fmt.Printf("---------- ---------- -----  -------------------- ------------------------  -------  --------------------------------  -------  \n")
 
-	app.discoClient.DiscoverThings("", waitDuration, func(r *discovery.DiscoveryResult) bool {
+	app.discoClient.DiscoverThings("", "", false, waitDuration, func(r *discovery.DiscoveryResult) bool {
 		// load the TD to present nr of affordances
 		tdURL := r.AsURL()
 		var tdoc *td.TD

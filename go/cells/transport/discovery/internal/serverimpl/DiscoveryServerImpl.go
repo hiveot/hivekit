@@ -1,10 +1,11 @@
 package serverimpl
 
 import (
-	"fmt"
+	"errors"
 	"log/slog"
 	"net/http"
 	"net/url"
+	"os"
 	"sync"
 	"time"
 
@@ -30,7 +31,7 @@ type DiscoveryServerImpl struct {
 	*cells.HiveCellBase
 
 	// The optional directory TD to serve on start
-	tddJSON string
+	tdd *td.TD
 
 	// optional additional endpoints to publish in the discovery record in addition to
 	// the well-known exploration URL.
@@ -43,28 +44,25 @@ type DiscoveryServerImpl struct {
 	httpServer api.IHttpServer
 
 	mux sync.RWMutex
-
-	// optional name under which to serve the TD(D). "" for DNS-SD provided default .
-	serviceName string
 }
 
 // Handle request to serve a directory or Thing TD.
 // Intended for use in a cell chain where a device or directory publishes its TD for discovery.
-func (m *DiscoveryServerImpl) HandleRequest(req *msg.RequestMessage, replyTo msg.ResponseHandler) (err error) {
+func (srv *DiscoveryServerImpl) HandleRequest(req *msg.RequestMessage, replyTo msg.ResponseHandler) (err error) {
 
 	// no need to check the discovery thingID, the action name in this chain is sufficient.
 	if req.Operation == td.OpInvokeAction {
 		switch req.Name {
 		case discovery.ServeDirectoryTDAction:
-			tddJson := req.ToString(0)
-			tddURL, err := m.ServeDirectoryTD(m.serviceName, tddJson)
+			tdoc, _ := td.UnmarshalTD(req.ToString(0))
+			tddURL, err := srv.ServeDirectoryTD(tdoc.ID, tdoc)
 			resp := req.CreateResponse(tddURL, err)
 			return replyTo(resp)
 
 		case discovery.ServeThingTDAction:
-			tdJson := req.ToString(0)
-			err = m.ServeThingTD("", tdJson)
-			resp := req.CreateResponse(nil, err)
+			tdoc, _ := td.UnmarshalTD(req.ToString(0))
+			tdURL, err := srv.ServeThingTD(tdoc.ID, tdoc)
+			resp := req.CreateResponse(tdURL, err)
 			return replyTo(resp)
 
 		case directory.UpdateThingAction, directory.CreateThingAction:
@@ -74,13 +72,70 @@ func (m *DiscoveryServerImpl) HandleRequest(req *msg.RequestMessage, replyTo msg
 			// discovery record. If the chain also contains a directory then the directory
 			// MUST be placed before the discovery service to avoid it intercepting of the
 			// request.
-			tdJson := req.ToString(0)
-			err = m.ServeThingTD("", tdJson)
-			resp := req.CreateResponse(nil, err)
+			tdoc, _ := td.UnmarshalTD(req.ToString(0))
+			tdURL, err := srv.ServeThingTD("", tdoc)
+			resp := req.CreateResponse(tdURL, err)
 			return replyTo(resp)
 		}
 	}
-	return m.HiveCellBase.HandleRequest(req, replyTo)
+	return srv.HiveCellBase.HandleRequest(req, replyTo)
+}
+
+// ServeTD serves the TD using DNS-SD.
+//
+// This registers the download URL with the configured http server on the
+// 'well-known' endpoint included in the discovery record.
+//
+// An instanceName of "" results in using the WoT well-known download path and a
+// service name of hostname:thingID
+//
+// If multiple records should be served then provide a instanceName. It will be added to
+// the download path, eg: http://.well-known/wot/{instanceName} and to the
+// service record instance as "{hostname}:{instanceName}"
+//
+// Users must call Release on the zeroconf DNS server when done.
+//
+//	instanceName is the instance name to publish the TD with.
+//	discoType is one of DISCO_TYPE_DIRECTORY|GATEWAY|THING
+//	tdoc is the Thing's TD to serve
+//	isGateway flag, this device is a gateway
+//
+// This returns the TD download URL or an error
+func (srv *DiscoveryServerImpl) ServeTD(
+	instanceName string, discoType string, tdoc *td.TD) (tdURL string, err error) {
+
+	var httpPath string
+	hostName, _ := os.Hostname()
+
+	if tdoc == nil {
+		return "", errors.New("Missing tdoc argument")
+	}
+
+	if instanceName == "" {
+		httpPath = directory.WellKnownWoTPath
+		instanceName = hostName + ":" + tdoc.ID
+	} else {
+		httpPath = directory.WellKnownWoTPath + "/" + instanceName
+	}
+	tdJSON := tdoc.ToString()
+
+	// serve the TD on the well-known http endpoint
+	publicRoute := srv.httpServer.GetPublicRoute()
+	publicRoute.Get(httpPath, func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte(tdJSON))
+	})
+
+	// publish a discovery record
+	tdURL, _ = url.JoinPath(srv.httpServer.GetConnectURL(), httpPath)
+	dnsSrv, err := ServeWotDiscovery(instanceName, tdURL, discoType, nil)
+	if err != nil {
+		slog.Error("ServeTD: Failed starting introduction server for DNS-SD",
+			"tdURL", tdURL,
+			"err", err.Error())
+		return tdURL, err
+	}
+	srv.dnssdServers[instanceName] = dnsSrv
+	return tdURL, nil
 }
 
 // ServeDirectoryTD registers the given directory TD with the http server
@@ -88,7 +143,7 @@ func (m *DiscoveryServerImpl) HandleRequest(req *msg.RequestMessage, replyTo msg
 //
 // This can be invoked directly of via a ServeDirectoryTDAction request.
 //
-//	serviceName is optional for searching for specific directory instances
+//	serviceName is the DNS record name, required for multiple instances. Use "" for hostname.
 //	tddJSON must be provided by a directory that implements the affordances.
 //
 // If a list of transports is available this updates the TD security scheme,
@@ -96,93 +151,79 @@ func (m *DiscoveryServerImpl) HandleRequest(req *msg.RequestMessage, replyTo msg
 //
 // This aims to be compliant with https://w3c.github.io/wot-discovery/#exploration-server
 //
-// This returns the TDD URL or fails if the http server isn't provided.
-func (m *DiscoveryServerImpl) ServeDirectoryTD(
-	serviceName string, tddJSON string) (tddURL string, err error) {
-	// map of endpoints by scheme (wss, sse, ...)
-
-	if m.httpServer == nil {
-		return "", fmt.Errorf("ServeDirectoryTD: missing http server")
+// This returns the TD download URL or an error
+func (srv *DiscoveryServerImpl) ServeDirectoryTD(
+	serviceName string, tdoc *td.TD) (tdURL string, err error) {
+	if tdoc == nil {
+		return "", errors.New("Missing TD")
 	}
-	if serviceName == "" {
-		serviceName = m.serviceName
+	slog.Info("ServeDirectoryTD. Serving Directory TD",
+		"serviceName", serviceName, "thingID", tdoc.ID)
+	return srv.ServeTD(serviceName, discovery.DISCO_TYPE_DIRECTORY, tdoc)
+
+}
+
+// ServeGatewayTD registers the given thing TD as a gateway.
+//
+// This sets the ThingType to DISCO_TYPE_GATEWAY, which identifies
+// the device as a gateway. This is not a WoT recognized discovery type
+// as WoT does not support gateways.
+//
+// Since a device can publish multiple services, the serviceName is used
+// in the discovery path. .wellknown/wot/{serviceName}
+//
+//	serviceName is the DNS record name, required for multiple instances. Use "" for hostname.
+//	tdoc is the Thing's TD
+//
+// This returns the TD download URL or an error
+func (srv *DiscoveryServerImpl) ServeGatewayTD(
+	serviceName string, tdoc *td.TD) (tdURL string, err error) {
+
+	// serviceName = tdoc.ID
+
+	if tdoc == nil {
+		return "", errors.New("Missing TD")
 	}
-	publicRoute := m.httpServer.GetPublicRoute()
-	// TBD: support for base path?
-	wellKnownPath := directory.WellKnownWoTPath
+	slog.Info("ServeGatewayTD. Serving Gateway TD",
+		"serviceName", serviceName, "thingID", tdoc.ID)
 
-	publicRoute.Get(wellKnownPath, func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Add("Content-Type", "application/td+json")
-		_, _ = w.Write([]byte(tddJSON))
-	})
-	tddURL, err = url.JoinPath(m.httpServer.GetConnectURL(), wellKnownPath)
-
-	// FIXME: server multiples?
-	dnsSrv, err := ServeWotDiscovery(serviceName, tddURL, true, m.endpoints)
-
-	if err != nil {
-		slog.Error("Failed starting introduction server for DNS-SD",
-			"TDD URL", tddURL,
-			"err", err.Error())
-		return tddURL, err
-	}
-	m.dnssdServers[serviceName] = dnsSrv
-	return tddURL, nil
+	return srv.ServeTD(serviceName, discovery.DISCO_TYPE_GATEWAY, tdoc)
 }
 
 // ServeThingTD registers the given thing TD with the HTTP server and publishes
 // its provisioning endpoint using DNS-SD discovery.
 // Indended for use by Things that run servers.
 //
-// Since a device can publish multiple services, the serviceName is used
-// in the discovery path. .wellknown/wot/{serviceName}
+// The default provisioning endpoint is the well-known discovery path
+// "/.well-known/wot". If a serviceName is provided then this is added to the
+// path in order to support multiple devices.
 //
-//	serviceName is the instance name to publish under. "" to use the TD ID
-//	tdJSON is the Thing's TD in JSON format
-func (m *DiscoveryServerImpl) ServeThingTD(
-	serviceName string, tdJSON string) (err error) {
+//	instanceName is the DNS record name, required for multiple instances
+//	  this defaults to the TD ID.
+//	tdoc is the Thing's TD to serve
+//
+// This returns the TD download URL or an error
+func (srv *DiscoveryServerImpl) ServeThingTD(
+	instanceName string, tdoc *td.TD) (tdURL string, err error) {
 
-	slog.Info("DiscoveryServer. Serving Thing TD")
-
-	tdDoc, err := td.UnmarshalTD(tdJSON)
-	if err != nil {
-		return fmt.Errorf("ServeThingTD: Invalid TD: %w", err)
+	if tdoc == nil {
+		return "", errors.New("Missing TD")
 	}
-	httpPath := directory.WellKnownWoTPath
-	if serviceName == "" {
-		serviceName = tdDoc.ID
-		httpPath = httpPath + "/" + serviceName
-	}
-
-	// serve the TD on the well-known http endpoint
-	publicRoute := m.httpServer.GetPublicRoute()
-	publicRoute.Get(httpPath, func(w http.ResponseWriter, r *http.Request) {
-		_, _ = w.Write([]byte(tdJSON))
-	})
-
-	// publish a discovery record
-	thingTDURL, _ := url.JoinPath(m.httpServer.GetConnectURL(), httpPath)
-	dnsSrv, err := ServeWotDiscovery(serviceName, thingTDURL, false, nil)
-	if err != nil {
-		slog.Error("Failed starting introduction server for DNS-SD",
-			"Thing TD URL", thingTDURL,
-			"err", err.Error())
-		return err
-	}
-	m.dnssdServers[serviceName] = dnsSrv
-	return nil
+	slog.Info("ServeThingTD. Serving Thing TD",
+		"serviceName", instanceName, "thingID", tdoc.ID)
+	return srv.ServeTD(instanceName, discovery.DISCO_TYPE_THING, tdoc)
 }
 
 // Stop any running services and release resources
-func (m *DiscoveryServerImpl) Stop() {
-	m.mux.Lock()
-	defer m.mux.Unlock()
-	slog.Info("Stop: Stopping discovery transport servers", "count", len(m.dnssdServers))
-	if m.dnssdServers != nil {
-		for _, dnsSrv := range m.dnssdServers {
+func (srv *DiscoveryServerImpl) Stop() {
+	srv.mux.Lock()
+	defer srv.mux.Unlock()
+	slog.Info("Stop: Stopping discovery transport servers", "count", len(srv.dnssdServers))
+	if srv.dnssdServers != nil {
+		for _, dnsSrv := range srv.dnssdServers {
 			dnsSrv.Shutdown()
 		}
-		m.dnssdServers = nil
+		srv.dnssdServers = nil
 		// the DNS server takes a wee bit of time to really stop
 		// Wait this wee bit to prevent a race running tests
 		time.Sleep(time.Millisecond)
@@ -199,31 +240,25 @@ func (m *DiscoveryServerImpl) Stop() {
 // after the directory in the chain, so it can find the directory to get its TDD,
 // and any prevent it from intercepting a CreateThing request send by services.
 //
-//	serviceName is the default name under which to serve the discovery record.
 //	httpServer is the server that serves the TD on the well-known endpoint.
-//	tddJSON is the optional directory TDD as JSON to serve.
+//	tdd is the optional directory TDD to serve.
 //	transports for TD security scheme, base URL and forms. Optional.
-func NewDiscoveryServerImpl(serviceName string,
-	httpServer api.IHttpServer,
-	tddJSON string,
-	endpoints map[string]string) (*DiscoveryServerImpl, error) {
+func NewDiscoveryServerImpl(
+	httpServer api.IHttpServer, tdd *td.TD, endpoints map[string]string) (*DiscoveryServerImpl, error) {
 	var err error
 
 	// thingID is defined in the TDD and should match HiveCell thingID
 	thingID := discovery.DiscoveryServerCellType
 
 	srv := &DiscoveryServerImpl{
-		HiveCellBase: cells.NewHiveCellBase(thingID, 0),
-		serviceName:  serviceName,
-		tddJSON:      tddJSON,
+		HiveCellBase: cells.NewHiveCellBase(thingID),
+		tdd:          tdd,
 		endpoints:    endpoints,
 		httpServer:   httpServer,
 		dnssdServers: make(map[string]*zeroconf.Server),
 	}
-
-	if tddJSON != "" {
-		slog.Info("Start: Starting discovery server - serving directory TD")
-		_, err = srv.ServeDirectoryTD(serviceName, tddJSON)
+	if tdd != nil {
+		_, err = srv.ServeDirectoryTD(tdd.ID, tdd)
 	} else {
 		slog.Info("Start: Starting discovery server - no TD served yet")
 	}

@@ -94,7 +94,7 @@ func TestAddForms(t *testing.T) {
 
 	// 2. Create a TD
 	// tdi := td.NewTD(thingID, "My gadget", DeviceTypeSensor)
-	tdi := testEnv.CreateTestTD(1)
+	tdi := testEnv.CreateTestTD(1, false)
 	tdi.ID = thingID
 
 	// 3. add forms

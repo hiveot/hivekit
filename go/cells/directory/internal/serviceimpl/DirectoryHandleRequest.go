@@ -18,14 +18,22 @@ import (
 // If the request is for this service but invalid, an error is returned
 func (svc *DirectoryServiceImpl) HandleRequest(req *msg.RequestMessage, replyTo msg.ResponseHandler) (err error) {
 	var resp *msg.ResponseMessage
-	if req.ThingID != svc.GetThingID() {
-		return svc.HiveCellBase.HandleRequest(req, replyTo)
-	} else if req.SenderID == "" {
-		// NOTE: local services can publish their ID without senderID
-		//
-		// 	err := fmt.Errorf("missing senderID in request")
-		// 	return err
+
+	myThingID := svc.GetThingID()
+
+	// Devices don't need to know which directory they are linked to to publish their TD.
+	if req.Name == directory.CreateThingAction || req.Name == directory.UpdateThingAction {
+		resp = svc.handleUpdateThing(req)
+		err = replyTo(resp)
+		return err
 	}
+
+	// other requests not directed at the directory are forwarded
+	if req.ThingID != myThingID {
+		return svc.HiveCellBase.HandleRequest(req, replyTo)
+	}
+
+	// this is a request addressed to this service
 	switch req.Operation {
 	case td.OpInvokeAction:
 		// directory specific operations
@@ -88,7 +96,8 @@ func (svc *DirectoryServiceImpl) handleRetrieveAllThings(req *msg.RequestMessage
 // Intended for retrieving the TDD using RRN messaging
 // Output: tddJSON
 func (svc *DirectoryServiceImpl) handleRetrieveTDD(req *msg.RequestMessage) (resp *msg.ResponseMessage) {
-	_, tddJSON := svc.GetTDD()
+	tdd := svc.GetTDD()
+	tddJSON := tdd.ToString()
 	resp = req.CreateResponse(tddJSON, nil)
 	return resp
 }

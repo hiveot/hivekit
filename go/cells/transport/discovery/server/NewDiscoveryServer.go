@@ -1,10 +1,10 @@
 package discovery_server
 
 import (
-	"os"
 	"strings"
 
 	"github.com/hiveot/hivekit/go/api"
+	"github.com/hiveot/hivekit/go/api/td"
 	"github.com/hiveot/hivekit/go/cells/directory"
 	"github.com/hiveot/hivekit/go/cells/transport/discovery"
 	"github.com/hiveot/hivekit/go/cells/transport/discovery/internal/serverimpl"
@@ -12,31 +12,33 @@ import (
 
 // NewDiscoveryServer returns a ready-to-use discovery server instance.
 //
-// The optional serviceName is used both as the ThingID and as the instanceID
-// in the discovery record.
+// The optional instanceName must be unique for all discovery records as it
+// is used in the download URL. Use "" for the default instance.
 //
-//	serviceName is the DNS-SD
 //	httpServer is the server that serves the TD on the well-known endpoint.
-//	tddJSON is the optional directory TDD as JSON to serve.
+//	tdd is the optional directory TD to serve. nil to wait for ServeDirectoryTD()
 //	endpoints are optional additional URLS to include in the DNS-SD discovery record
 //		 where key is the schema "http", "wss", "sse-sc" and value the URL.
-func NewDiscoveryServer(serviceName string,
-	httpServer api.IHttpServer,
-	tddJSON string,
-	endpoints map[string]string) (discovery.IDiscoveryServer, error) {
+func NewDiscoveryServer(
+	httpServer api.IHttpServer, tdd *td.TD, endpoints map[string]string) (discovery.IDiscoveryServer, error) {
 
-	return serverimpl.NewDiscoveryServerImpl(serviceName, httpServer, tddJSON, endpoints)
+	return serverimpl.NewDiscoveryServerImpl(httpServer, tdd, endpoints)
 }
 
 // Return a ready-to-use discovery server using the factory environment.
 //
 // When used in a cell chain together with a directory, this service must be placed
-// after the directory in the chain, so it can find the directory to get its TDD,
-// and prevent it from intercepting a CreateThing request send by services.
+// behind the directory in the chain, so createTD requests from services will be
+// handled by the directory and not be served by discovery.
 //
-// This loads the http server and creates a list of server endpoints to include in discovery.
-// The serviceName used is hostname:appid
-func NewDiscoveryServerFactory(f api.ICellFactory, md *api.CellDefinition) (api.IHiveCell, error) {
+// This loads the http server and get a list of server endpoints from the factory, to include
+// in discovery.
+//
+// If a directory cell is available in the factory, its TDD will be retrieved and served as a
+// directory record using the "{hostname}:directory" service name.
+func NewDiscoveryServerFactory(
+	f api.ICellFactory, md *api.CellDefinition) (api.IHiveCell, error) {
+
 	httpServer := f.GetHttpServer(true)
 	endpoints := make(map[string]string)
 	tps := f.GetTransportServers()
@@ -47,13 +49,12 @@ func NewDiscoveryServerFactory(f api.ICellFactory, md *api.CellDefinition) (api.
 		scheme := parts[0]
 		endpoints[scheme] = connectURL
 	}
-	// Optionally serve the directory TDD if found. See also ServeDirectoryTD()
-	tddJSON := ""
+	// Optionally serve the directory TD if found. See also ServeDirectoryTD()
+	var tdd *td.TD
 	dirSvc, found := f.GetCell(directory.DirectoryServiceCellType).(directory.IDirectoryService)
 	if found {
-		_, tddJSON = dirSvc.GetTDD()
+		tdd = dirSvc.GetTDD()
+		f.AddTDSecForms(tdd, true)
 	}
-	serviceName, _ := os.Hostname()
-	serviceName += ":" + f.GetEnvironment().AppID
-	return NewDiscoveryServer(serviceName, httpServer, tddJSON, endpoints)
+	return NewDiscoveryServer(httpServer, tdd, endpoints)
 }

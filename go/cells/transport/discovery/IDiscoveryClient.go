@@ -30,7 +30,7 @@ type DiscoveryResult struct {
 	Instance    string
 	// predefined WoT discovery parameters
 	Schema string            // Schema part of the URL
-	Type   string            // Thing or Directory
+	Type   string            // Thing, Directory or Gateway
 	TD     string            // absolute pathname of the TD or TDD
 	Params map[string]string // optional parameters
 
@@ -53,43 +53,33 @@ func (dr *DiscoveryResult) AsURL() string {
 type IDiscoveryClient interface {
 	api.IHiveCell
 
-	// DiscoverDirectories supports introduction mechanisms to bootstrap the WoT discovery
-	// process and returns a list of discovered directory TD URLs with the wot service name.
+	// Return the first discovered TD that matches the searchID and type.
 	//
-	// Intended for clients that need to find one or more WoT directories.
-	//
-	//	searchTime is the time to search for.
-	//	cb is the optional callback to call for each discovered thing. It should
-	//  return true to stop or false to continue searching up until the searchTime.
-	//
-	// This returns a list of all discoveries or an error if discovery was unable to run
-	DiscoverDirectories(searchTime time.Duration, cb func(*DiscoveryResult) bool) ([]*DiscoveryResult, error)
+	//	searchID optional filter on a specific instance name or directory thingID
+	//	thingType optional filter DISCO_TYPE_THING|DIRECTORY|GATEWAY
+	DiscoverFirstTD(
+		searchID string, thingType string, maxWaitTime time.Duration) *td.TD
 
-	// Discover directories and load their TD's
-	// If a TD cannot be downloaded it is ignored.
-	DiscoverDirectoryTDs(searchTime time.Duration) ([]*DiscoveryResult, []*td.TD)
+	// Return the discovery record of the first thing that matches the searchID and type.
+	DiscoverFirstThing(
+		instanceName string, thingType string, maxWaitTime time.Duration) *DiscoveryResult
 
-	// DiscoverDirectory returns the discovery record of the first discovered directory
+	// Discover Things and download their TD.
 	//
-	//	instanceName is the optional name of a specific service instance. "" for any.
-	//	maxWaitTime defaults to 3 seconds
+	// This separates directories from devices.
+	// If a TD cannot be read this includes nil in the TD results so the
+	// records table matches the TD table.
 	//
-	//	This returns the record or nil if none was found within the search time.
-	//	This returns an error if it wasn't possible to run discovery.
-	DiscoverFirstDirectory(instanceName string, maxWaitTime time.Duration) (rec0 *DiscoveryResult, err error)
-
-	// DiscoverFirstDirectoryTD returns the TD of the first discovered directory
+	//	searchID optionally filters on a specific instance name or directory thingID
+	//	thingType optional filter DISCO_TYPE_THING|DIRECTORY|GATEWAY
+	//	first stops on first valid result
+	//	maxWaitTime is maximum time to wait for search to complete
 	//
-	// This optional filters on thingID or isntance name if provided.
-	//
-	//	searchID is an optional filter name of a specific discovery instance name or
-	//    directory thingID.  "" for any.
-	//	maxWaitTime defaults to 3 seconds
-	//
-	//	This returns the TDD, its URL its JSON, if found
-	//	This returns an error if it wasn't possible to run discovery.
-	DiscoverFirstDirectoryTD(searchID string, maxWaitTime time.Duration) (
-		tdoc *td.TD, tddURL string, tddJSON string, err error)
+	// This returns the matching directory, gateway and thing TDs
+	DiscoverTDs(instanceName string, thingType string, first bool, searchTime time.Duration,
+		cb func(*td.TD) bool) (
+		dirs []*DiscoveryResult, dirTDs []*td.TD,
+		things []*DiscoveryResult, thingTDs []*td.TD)
 
 	// DiscoverThings returns a list of all discovery records of all WoT compatible devices,
 	// including Things, Directories and Gateways.
@@ -97,27 +87,20 @@ type IDiscoveryClient interface {
 	// This uses the service type WOT_DEVICE_SERVICE_TYPE (_wot._tcp)
 	//
 	//	instanceName is an optional filter name of a specific thing instance, or "" for default.
+	//	thingType, DISCO_TYPE_THING|DIRECTORY|GATEWAY
 	//	searchTime defaults to 3 seconds
 	//	cb is the optional callback to call for each discovered thing. It should
 	//  return true to stop or false to continue searching up until the searchTime.
 	//
 	//	This returns a list of the records
 	//	This returns an error if it wasn't possible to run discovery.
-	DiscoverThings(instanceName string, searchTime time.Duration,
+	DiscoverThings(instanceName string, thingType string, first bool, searchTime time.Duration,
 		cb func(*DiscoveryResult) bool) (recs []*DiscoveryResult, err error)
-
-	// Discover all Things and download their TD.
-	// This returns both the discovery record and corresponding TD
-	// If a TD cannot be downloaded or is invalid a nil value is returned.
-	DiscoverThingTDs(instanceName string, searchTime time.Duration,
-		cb func(*td.TD) bool) (
-		dirs []*DiscoveryResult, dirTDs []*td.TD,
-		things []*DiscoveryResult, thingTDs []*td.TD)
 
 	// DownloadTD a TD document from a discovery record.
 	// Intended to obtain the TD of a discovered directory or thing.
 	//
-	// tdURL points to the discovery spec http well-known endpoint address.
+	// tdURL points to the download URL of the TD document
 	//
 	// This returns the TD, its JSON or an error if none is found
 	LoadTD(tdURL string) (tdoc *td.TD, tdJSON string, err error)

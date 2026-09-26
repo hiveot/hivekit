@@ -39,7 +39,6 @@ func (svc *DigitwinServiceImpl) HandleWriteDirectory(senderID string, tdi *td.TD
 	}
 
 	// 2. store the original TD and its clientID for retrieval by the router
-	tdi.RCID = senderID
 	tdJson, _ := jsoniter.Marshal(tdi)
 	svc.deviceTDBucket.Set(tdi.ID, tdJson)
 

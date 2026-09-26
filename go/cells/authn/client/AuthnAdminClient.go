@@ -86,7 +86,7 @@ func (cl *AuthnAdminClient) UpdateClientProfile(clientProfile authnapi.ClientPro
 func NewAuthnAdminClient(sink api.IHiveCell) *AuthnAdminClient {
 	cl := &AuthnAdminClient{
 		serviceID:    authnapi.DefaultAdminServiceID,
-		HiveCellBase: cells.NewHiveCellBase("", 0),
+		HiveCellBase: cells.NewHiveCellBase(""),
 	}
 	if sink != nil {
 		cl.SetRequestSink(sink)

@@ -117,7 +117,7 @@ var HiveKitAllCells = []api.CellDefinition{
 	// wss transport for WoT websocket messaging
 	{
 		Type:        wss.WotWebsocketClientCellType,
-		Constructor: wss_client.StartWotWssClientFactory,
+		Constructor: wss_client.NewWotWssClientFactory,
 	},
 	{
 		Type:        wss.WotWebsocketServerCellType,
@@ -129,7 +129,7 @@ var HiveKitAllCells = []api.CellDefinition{
 	// add forms to createTD or updateTD requests
 	{
 		Type:        addforms.AddFormsCellType,
-		Constructor: addforms_service.StartAddFormsServiceFactory,
+		Constructor: addforms_service.NewAddFormsServiceFactory,
 	},
 
 	// thing service helper
@@ -177,7 +177,7 @@ var HiveKitAllCells = []api.CellDefinition{
 	// directory service
 	{
 		Type:        directory.DirectoryServiceCellType,
-		Constructor: directory_service.StartDirectoryServiceFactory,
+		Constructor: directory_service.NewDirectoryServiceFactory,
 	},
 	{
 		Type:        directory.DirectoryClientCellType,

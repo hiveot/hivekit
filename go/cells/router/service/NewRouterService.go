@@ -4,7 +4,6 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"fmt"
-	"time"
 
 	"github.com/hiveot/hivekit/go/api"
 	"github.com/hiveot/hivekit/go/api/td"
@@ -26,24 +25,23 @@ const DefaultRouterAutoConnect = false
 //	clientID default clientID to connect if no other credentials are known
 //	clientCert optional client certificate to use for mutual authentication - overrides clientID
 //	rootCAs are the CA certificates used to verify device connections
-//	timeout is the maximum wait time for sending requests to clients.
 //	getTD  handler to lookup a TD for a thingID from a directory. Required.
-//	getSrv handler to return the running list of transport servers that can contain
-//	 reverse connections. nil to not support RCs.
 func NewRouterService(storageDir string,
 	autoReconnect bool,
 	clientID string,
 	clientCert *tls.Certificate,
-	rootCAs *x509.CertPool, timeout time.Duration,
+	rootCAs *x509.CertPool,
 	getTD func(thingID string) *td.TD,
-	getSrv func() []api.ITransportServer,
 ) (router.IRouterService, error) {
 
 	return internal.NewRouterServiceImpl(storageDir, autoReconnect,
-		clientID, clientCert, rootCAs, timeout, getTD, getSrv)
+		clientID, clientCert, rootCAs, getTD)
 }
 
 // Create a router service instance using the factory environment.
+//
+// If the factory environment contains a directory client or server, use its getTD
+// provider of TD's.
 //
 // If the factory environment contains a client certificate then include it for
 // authentication to devices and services.
@@ -66,21 +64,34 @@ func NewRouterServiceFactory(f api.ICellFactory, md *api.CellDefinition) (api.IH
 		m, err = f.NewCell(directory.DirectoryClientCellType, true)
 		if err == nil {
 			if dirMod, ok := m.(directory.IDirectoryClient); ok {
-				getTD = dirMod.Cache().GetThing
+				getTD = dirMod.GetTD
 			}
 		}
 	}
 	if err != nil {
 		return nil, fmt.Errorf("NewRouterServiceFactory. Missing directory client or service.")
 	}
+
+	// configure the direct gateway endpoint
+	if env.GatewayURL != "" {
+		// default route is the gateway instead of creating client connections
+
+		// if the router is used in a gateway then this forwards requests to another gateway
+		// TODO: check on start if this gateway is not the router's server itself
+		//  that would cause an endless loop.
+		// TODO: should a gateway client be used in a separate recipe
+		//  or should consumers be able to use both a router and gateway in parallel?
+	}
+
 	// TODO: use config to set auto-reconnect. For now don't because it might hide auth problems.
 	autoReconnect := DefaultRouterAutoConnect
-	timeout := f.GetEnvironment().RpcTimeout
 	clientCert, _ := env.GetClientCert()
 	svc, err := NewRouterService(
-		storageDir, autoReconnect, env.ClientID, clientCert, env.GetRootCAs(),
-		timeout, getTD, f.GetTransportServers)
-	svc.SetTimeout(env.RpcTimeout)
+		storageDir, autoReconnect,
+		env.ClientID, clientCert,
+		env.GetRootCAs(),
+		getTD,
+	)
 
 	return svc, err
 }

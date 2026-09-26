@@ -14,12 +14,6 @@ type IAuthenticator interface {
 	// AddSecurityScheme adds the wot securityscheme that describes this authenticator to the given TD
 	AddSecurityScheme(tdoc *td.TD)
 
-	// ValidateDigest checks if the given password digest is valid for the client
-	// ValidateDigest(clientID string, digest string) (err error)
-
-	// ValidatePassword checks if the given password is valid for the client
-	// ValidatePassword(clientID string, password string) (err error)
-
 	// ValidateClient verifies the secret is valid for the claimed clientID.
 	//
 	// This returns the validated clientID and the time the secret was issued and is valid for.

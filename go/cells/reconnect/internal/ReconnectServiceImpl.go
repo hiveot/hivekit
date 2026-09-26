@@ -221,7 +221,7 @@ func (svc *ReconnectServiceImpl) Start() {
 		// FIXME: how to report an authentication failure:
 		err := svc.conn.Connect()
 		if err != nil {
-			slog.Warn("StartReconnectServiceImpl. The linked client failed to start.",
+			slog.Error("StartReconnectServiceImpl. The linked client failed to start.",
 				"err", err.Error(), "client ID", svc.conn.GetThingID())
 		}
 	}
@@ -245,20 +245,19 @@ func (svc *ReconnectServiceImpl) Stop() {
 // are received and forwarded.
 //
 // The also registers the connection changed callback with the client to receive disconnect
-// notifications to trigger reconnect.
-// The client must have its authentication set.
+// notifications to trigger reconnect. The client must have its authentication set.
 //
 // Use Start to start the reconnect process.
 //
 // This service uses the ReconnectCellType as its ID.
 //
 //	tpClient is the connected transport client that is a sink for this service.
-//	  optional, if not provided SetRequestSink will set the handler.
+//	  optional, if not provided SetRequestSink should be used to set the handler.
 func NewReconnectServiceImpl(
 	tpClient api.ITransportClient) (svc *ReconnectServiceImpl, err error) {
 
 	svc = &ReconnectServiceImpl{
-		HiveCellBase: cells.NewHiveCellBase(reconnect.ReconnectCellType, 0),
+		HiveCellBase: cells.NewHiveCellBase(reconnect.ReconnectCellType),
 
 		maxBackoffTimeLimit: reconnect.DefaultBackoffLimit,
 

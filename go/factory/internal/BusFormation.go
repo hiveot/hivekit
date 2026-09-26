@@ -121,10 +121,11 @@ func NewBusFormation(
 	thingID := "NewBusFormation-" + shortid.MustGenerate()
 
 	bus := &BusFormation{
-		HiveCellBase: *cells.NewHiveCellBase(thingID, 0),
+		HiveCellBase: *cells.NewHiveCellBase(thingID),
 		f:            f,
 		modDefs:      modDefs,
 	}
+	bus.SetTimeout(f.GetEnvironment().RpcTimeout)
 
 	// add the cell definitions to the factory
 	if bus.modDefs != nil {

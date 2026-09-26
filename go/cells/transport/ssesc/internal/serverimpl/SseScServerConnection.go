@@ -176,11 +176,6 @@ func (sc *SseScServerConnection) Serve(w http.ResponseWriter, r *http.Request) {
 	)
 }
 
-// SetTimeout set the timeout sending requests
-// func (sc *SseScServerConnection) SetTimeout(timeout time.Duration) {
-// 	sc.respTimeout = timeout
-// }
-
 // NewSseScServerConnection creates a new SSE 1-way connection instance.
 // This implements the IConnection interface.
 //

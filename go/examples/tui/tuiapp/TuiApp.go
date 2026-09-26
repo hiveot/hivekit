@@ -307,7 +307,7 @@ func (tuiApp *TuiApp) StartDiscovery() {
 
 		// TODO use a callback to update UI as results come in
 		dirRecs, dirTDs, deviceRecs, deviceTDs :=
-			tuiApp.discoClient.DiscoverThingTDs("", time.Second*2, nil)
+			tuiApp.discoClient.DiscoverTDs("", "", false, time.Second*2, nil)
 
 		// add all local device TDs to the Thing cache
 		for _, tdoc := range deviceTDs {

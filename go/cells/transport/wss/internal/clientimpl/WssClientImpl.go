@@ -3,6 +3,7 @@ package clientimpl
 import (
 	"context"
 	"crypto/x509"
+	"errors"
 	"fmt"
 	"log/slog"
 	"net/url"
@@ -208,6 +209,10 @@ func (cl *WssTransportClientImpl) Connect() error {
 	clientCert := cl.GetClientCert()
 	bearerToken, secScheme := cl.GetAuthToken()
 	_ = secScheme
+	if clientID == "" && clientCert == nil {
+		slog.Error("Connect: Missing clientID and no client cert")
+		return errors.New("Connect, missing clientID")
+	}
 	hostPort := urlParts.Host
 	wssCancelFn, wssConn, err := ConnectWSS(
 		clientID, hostPort, urlParts.Path, cid,
@@ -324,12 +329,11 @@ func (cl *WssTransportClientImpl) SendRequest(
 			"err", err.Error())
 		return err
 	}
-	// FIXME: should this run async in the background?
 	hasResponse, resp := cl.rnrChan.WaitForResponse(req.CorrelationID, cl.GetTimeout())
 	if hasResponse {
 		err = replyTo(resp)
 	} else {
-		err = fmt.Errorf("No response received")
+		err = fmt.Errorf("SendRequest: No response received")
 	}
 	return err
 }
@@ -387,18 +391,19 @@ func (cl *WssTransportClientImpl) Stop() {
 func NewHiveotWssClientImpl(
 	wssURL string, rootCAs *x509.CertPool) *WssTransportClientImpl {
 
-	timeout := msg.DefaultRnRTimeout
 	thingID := wss.HiveotWebsocketClientCellType + shortid.MustGenerate()
 
-	cl := WssTransportClientImpl{
-		TransportClientBase: transport.NewTransportClientBase(thingID, rootCAs, timeout),
+	cl := &WssTransportClientImpl{
+		TransportClientBase: transport.NewTransportClientBase(thingID, rootCAs),
 		rootCAs:             rootCAs,
 		// hiveot uses its own standardized RRN messages
 		encoder: transport.NewRRNJsonEncoder(),
 		rnrChan: msg.NewRnRChan(),
 		wssURL:  wssURL,
 	}
-	return &cl
+	cl.SetTransportClient(cl)       // for use by Rpc
+	var _ api.ITransportClient = cl // interface check
+	return cl
 }
 
 // NewWotWssTransportClient creates a ready-to-use instance of the WoT compatible websocket client.
@@ -407,22 +412,20 @@ func NewHiveotWssClientImpl(
 // the connection.
 //
 //	wssURL is the full websocket connection URL
-//	caCerootCAs are the CA's for TLS connection validation
-//	timeout is the maximum connection wait time. 0 for default.
-//	ch is the connection callback handler, nil to ignore
-func StartWotWssClientImpl(
+//	rootCAs are the CA's for TLS connection validation
+func NewWotWssClientImpl(
 	wssURL string, rootCAs *x509.CertPool) *WssTransportClientImpl {
 
-	timeout := msg.DefaultRnRTimeout
-	thingID := wss.HiveotWebsocketClientCellType + shortid.MustGenerate()
+	thingID := wss.HiveotWebsocketClientCellType + "-" + shortid.MustGenerate()
 
 	cl := &WssTransportClientImpl{
-		TransportClientBase: transport.NewTransportClientBase(thingID, rootCAs, timeout),
+		TransportClientBase: transport.NewTransportClientBase(thingID, rootCAs),
 		rootCAs:             rootCAs,
 		encoder:             internal.NewWotWssMsgEncoder(),
 		rnrChan:             msg.NewRnRChan(),
 		wssURL:              wssURL,
 	}
+	cl.SetTransportClient(cl)
 	var _ api.ITransportClient = cl // interface check
 	return cl
 }

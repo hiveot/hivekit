@@ -100,12 +100,9 @@ func (base *HiveCellBase) EmitRequest(req *msg.RequestMessage, replyTo msg.Respo
 func (base *HiveCellBase) EmitRequestWait(req *msg.RequestMessage) (
 	resp *msg.ResponseMessage, err error) {
 
-	if req.CorrelationID == "" {
-		req.CorrelationID = shortid.MustGenerate()
-	}
-	ar := utils.NewAsyncReceiver[*msg.ResponseMessage]()
+	arx := utils.NewAsyncReceiver[*msg.ResponseMessage]()
 	err = base.EmitRequest(req, func(r *msg.ResponseMessage) error {
-		ar.SetResponse(r)
+		arx.SetResponse(r)
 		return nil
 	})
 	if err != nil {
@@ -115,7 +112,7 @@ func (base *HiveCellBase) EmitRequestWait(req *msg.RequestMessage) (
 	if timeout == 0 {
 		timeout = msg.DefaultRnRTimeout
 	}
-	resp, err = ar.WaitForResponse(timeout)
+	resp, err = arx.WaitForResponse(timeout)
 	if err == nil {
 		err = resp.AsError()
 	} else {
@@ -167,6 +164,10 @@ func (base *HiveCellBase) ForwardRequest(req *msg.RequestMessage, replyTo msg.Re
 				"cellID", base.cellID, "req.Sender", req.SenderID, "req.ThingID", req.ThingID)
 		}
 		err = sink.HandleRequest(req, replyTo)
+	} else {
+		// forwarding is disabled
+		err = fmt.Errorf("ForwardRequest: forwarding is disabled. request '%s/%s' to thingID '%s' is undeliverable by cell '%s'",
+			req.Operation, req.Name, req.ThingID, base.cellID)
 	}
 	return err
 }
@@ -210,16 +211,6 @@ func (base *HiveCellBase) HandleNotification(notif *msg.NotificationMessage) {
 // This is just the default implementation that forwards the request downstream.
 func (base *HiveCellBase) HandleRequest(req *msg.RequestMessage, replyTo msg.ResponseHandler) (err error) {
 	return base.ForwardRequest(req, replyTo)
-}
-
-// Start autonomous operation, such as writing a TD, publishing events and properties.
-//
-// If Start is not yet called, cells can already react to requests and emit requests
-// and notifications in response, since these are only received after the environment
-// is ready and cells are starting to receive the Run call.
-//
-// By default this does nothing.
-func (base *HiveCellBase) Start() {
 }
 
 // Rpc is a convenience function to create and send a request message and decode the a response.
@@ -298,11 +289,21 @@ func (base *HiveCellBase) SetRequestSink(requestSink api.IHiveCell) {
 	base.requestSink = requestSink
 }
 
-// // SetTimeout changes the timeout when waiting for result.
+// SetTimeout changes the timeout when waiting for result.
 func (base *HiveCellBase) SetTimeout(rpcTimeout time.Duration) {
 	base.mux.Lock()
 	defer base.mux.Unlock()
 	base.rpcTimeout = rpcTimeout
+}
+
+// Start autonomous operation, such as writing a TD, publishing events and properties.
+//
+// If Start is not yet called, cells can already react to requests and emit requests
+// and notifications in response, since these are only received after the environment
+// is ready and cells are starting to receive the Run call.
+//
+// By default this does nothing.
+func (base *HiveCellBase) Start() {
 }
 
 // Stop the cell .. owning struct must implement this
@@ -312,17 +313,14 @@ func (base *HiveCellBase) Stop() {}
 //
 //	cellID is the instance ID of the cell. "" to auto generate.
 //	timeout for forwarding request and waiting for the result
-func NewHiveCellBase(cellID string, rpcTimeout time.Duration) *HiveCellBase {
-	if rpcTimeout == 0 {
-		rpcTimeout = msg.DefaultRnRTimeout
-	}
+func NewHiveCellBase(cellID string) *HiveCellBase {
 	if cellID == "" {
 		cellID = "thing-" + shortid.MustGenerate()
 	}
 	base := &HiveCellBase{
 		mux:               sync.RWMutex{},
 		cellID:            cellID,
-		rpcTimeout:        rpcTimeout,
+		rpcTimeout:        msg.DefaultRnRTimeout,
 		notificationSinks: make(map[string]api.IHiveCell),
 	}
 	base.forwardNotifications.Store(true)

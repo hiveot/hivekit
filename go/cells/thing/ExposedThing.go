@@ -10,7 +10,6 @@ import (
 	"github.com/hiveot/hivekit/go/api/msg"
 	"github.com/hiveot/hivekit/go/api/td"
 	"github.com/hiveot/hivekit/go/cells"
-	"github.com/hiveot/hivekit/go/cells/directory"
 	directory_service "github.com/hiveot/hivekit/go/cells/directory/service"
 	"github.com/hiveot/hivekit/go/utils"
 	"github.com/teris-io/shortid"
@@ -285,15 +284,18 @@ func (m *ExposedThing) PubProperties(thingID string, propMap map[string]any, onl
 
 // Publish the exposed thing's TD to the directory.
 // This sends the directory UpdateTD request message to the cell request sink.
-// This uses the exposed thing ThingID as the senderID.
+//
+// The directory thingID is optional, as the ET might not know the instance
+// that is going to handle it. Instead, directories accept the updateTD action
+// request if no thingID is known.
+//
+//	tdJSON is the TD to write.
 func (svc *ExposedThing) PublishTD(tdJSON string) error {
 	reqSink := svc.GetRequestSink()
 	if reqSink == nil {
 		return fmt.Errorf("PublishTD: No request sink set.")
 	}
-	// can't set the sender ID as this is the client accountID and not known
-	//senderID := svc.GetClientID()
-	err := directory_service.UpdateTD("", string(tdJSON), reqSink.HandleRequest)
+	err := directory_service.UpdateTD("", string(tdJSON), reqSink.HandleRequest, svc.GetTimeout())
 	return err
 }
 
@@ -342,28 +344,6 @@ func (m *ExposedThing) SetProperty(thingID string, propName string, propVal any)
 	return hasChanged
 }
 
-// WriteTD publish a request downstream to write a TD to a directory or discovery service.
-//
-// This addresses the request to the DefaultDirectoryThingID. The directory service
-// and the discovery service can both handle the request.
-//
-// If the application utilizes a reverse connection to a gateway. The request will
-// be passed to the gateway where it is routed to the default directory. The TD
-// can be a TM as the forms and auth info are not applicable.
-//
-// If the application runs its own server then it should place a discovery server behind
-// this cell so it can publish the TD. The TD should contain the auth and form info for
-// connecting to the server.
-func (m *ExposedThing) WriteTD(tdJson string) error {
-
-	err := m.Rpc(td.OpInvokeAction,
-		directory.DefaultDirectoryThingID,
-		directory.CreateThingAction,
-		tdJson, nil)
-
-	return err
-}
-
 // NewExposedThing creates a ready to use exposed thing (device or service) instance
 // for serving requests and sending notifications.
 //
@@ -379,7 +359,7 @@ func NewExposedThing(thingID string, appReqHandler msg.RequestHandler) *ExposedT
 
 	ething := &ExposedThing{
 		// Things dont send requests so no wait
-		HiveCellBase: cells.NewHiveCellBase(thingID, 0),
+		HiveCellBase: cells.NewHiveCellBase(thingID),
 		tstates:      make(map[string]*ThingState),
 	}
 
@@ -392,8 +372,8 @@ func NewExposedThing(thingID string, appReqHandler msg.RequestHandler) *ExposedT
 // Factory for creating an exposed Thing using the factory environment
 //
 // This uses the Cell Type name as the thingID prefix followed by shortid.
-func StartExposedThingFactory(f api.ICellFactory, md *api.CellDefinition) (api.IHiveCell, error) {
-	thingID := md.Type + "-" + shortid.MustGenerate()
+func StartExposedThingFactory(f api.ICellFactory, def *api.CellDefinition) (api.IHiveCell, error) {
+	thingID := def.Type + "-" + shortid.MustGenerate()
 	c := NewExposedThing(thingID, nil)
 	return c, nil
 }

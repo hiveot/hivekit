@@ -154,7 +154,7 @@ func NewTransportClientFromForm(
 
 	case api.WotWebsocketProtocolType:
 		// websockets only needs a connect href. All operations use this connection.
-		cl = wss_client.StartWotWssClient(href, rootCAs)
+		cl = wss_client.NewWotWssClient(href, rootCAs)
 
 	case api.HttpBasicProtocolType:
 		// http-basic needs the TD to get a href per operation.
@@ -170,16 +170,12 @@ func NewTransportClientFromForm(
 	return cl, err
 }
 
-// NewFallbackTransportClient returns a new transport client instance ready to
+// NewTransportClientFromURL returns a new transport client instance ready to
 // connect to a transport server using the URL scheme.
-//
-// Note that this does not support http-basic or mqtt as these protocols need
-// a TD to determine the href per operation.
-// This does work for wot websockets, hiveot grpc connections and sse-sc connections
 //
 // Note-1: if a scheme has multiple subprotocols then the most generic protocol
 // will be chosen. This is a last-resort way to create a client.
-func NewFallbackTransportClient(serverURL string, rootCAs *x509.CertPool) (
+func NewTransportClientFromURL(serverURL string, rootCAs *x509.CertPool) (
 	cl api.ITransportClient, err error) {
 
 	parts, err := url.Parse(serverURL)
@@ -191,11 +187,14 @@ func NewFallbackTransportClient(serverURL string, rootCAs *x509.CertPool) (
 	case api.HiveotGrpcTcpScheme:
 		cl = grpc_client.NewHiveotGrpcClient(serverURL, rootCAs)
 
+	// case api.HttpBasicScheme:
+	// cl = tls_client.NewTLSClient(serverURL, rootCAs)
+
 	case api.HiveotSseScScheme:
 		cl = ssesc_client.NewSseScClient(serverURL, rootCAs)
 
 	case api.WotWebsocketScheme:
-		cl = wss_client.StartWotWssClient(serverURL, rootCAs)
+		cl = wss_client.NewWotWssClient(serverURL, rootCAs)
 
 	default:
 		err = fmt.Errorf("NewTransportClient. Unsupported protocol for URL '%s'", serverURL)
@@ -205,29 +204,53 @@ func NewFallbackTransportClient(serverURL string, rootCAs *x509.CertPool) (
 
 // Create a new client instance using the factory app environment.
 //
-// This requires the app environment server TD. This can be provided manually or through client discovery.
+// Intended for connecting to a 'known' endpoint such as a device or gateway server.
+//
+// The provided app environment should contain a server TD or gateway URL. These can be
+// provided manually or through client discovery. Include the DiscoveryClientFactory
+// in the chain for discovering a gateway on the local network.
+//
 // If no Server TD is set in the app environment, try the server URL as fallback.
+// If no serverURL is available then give up and return nil, which will lead to
+// this cell being ignored by the factory.
 //
 // Intended for RC and consumer recipes that connect to a gateway, or a consumer of a single device
 // without using a directory.
+//
+// If the HiveEnvironment contains client token or cert then apply it to the client.
 func NewTransportClientFactory(
 	f api.ICellFactory, md *api.CellDefinition) (cl api.IHiveCell, err error) {
 
 	env := f.GetEnvironment()
-	tdoc := env.ServerTD
+	serverTD := env.ServerTD
+	serverURL := env.GetServerURL()
+	var tpcl api.ITransportClient
 
-	// the server url is set through commandline, or useing a discovery client
-	if tdoc != nil {
+	// the server url is set through commandline, or using a discovery client
+	// if a server TD is available, use it.
+	if serverTD != nil {
 		// prefer the wot websocket if available
-		form, _ := tdoc.GetForm("", "", api.WotWebsocketScheme, api.WotWebsocketSubprotocol)
+		form, _ := serverTD.GetForm("", "", api.WotWebsocketScheme, api.WotWebsocketSubprotocol)
 
 		// there is no op or name to use so this requires the TD to have a 'base' URL
-		cl, err = NewTransportClientFromForm(tdoc, form, env.GetRootCAs())
-	} else if env.ServerURL != "" {
-		cl, err = NewFallbackTransportClient(env.ServerURL, env.GetRootCAs())
+		tpcl, err = NewTransportClientFromForm(serverTD, form, env.GetRootCAs())
+	} else if serverURL != "" {
+		// connect to the server URL without TD, use URL scheme.
+		tpcl, err = NewTransportClientFromURL(serverURL, env.GetRootCAs())
 	} else {
-		// TODO: use discovered server TD
+		// give up, no instructions on where to connect to.
 		err = fmt.Errorf("NewTransportClientFactory: no server TD or URL is available")
 	}
-	return cl, err
+	// set auth token and cert, when available
+	if tpcl != nil {
+		token, _ := env.GetAuthToken()
+		if token != "" {
+			err = tpcl.SetAuthToken(env.ClientID, token, td.SecSchemeBearer)
+		}
+		clientCert, _ := env.GetClientCert()
+		if clientCert != nil {
+			tpcl.SetClientCert(clientCert)
+		}
+	}
+	return tpcl, err
 }

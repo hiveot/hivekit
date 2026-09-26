@@ -17,9 +17,9 @@ import (
 // This provides automatic discovery of a directory for a consumer that uses this client,
 // while still be able to provide a commandline override of the directory URL.
 func NewDiscoveryClient(
-	appEnv *api.HiveEnvironment, discoOnStart bool) (discovery.IDiscoveryClient, error) {
+	env *api.HiveEnvironment, discoOnStart bool) (discovery.IDiscoveryClient, error) {
 
-	return clientimpl.NewDiscoveryClientImpl(appEnv, discoOnStart)
+	return clientimpl.NewDiscoveryClientImpl(env, discoOnStart)
 }
 
 // NewDiscoveryClientFactory returns a ready-to-use instance of a discovery client
@@ -27,6 +27,6 @@ func NewDiscoveryClient(
 //
 // Intended to be used by a client side factory recipe to automatically discover devices.
 func NewDiscoveryClientFactory(f api.ICellFactory, md *api.CellDefinition) (api.IHiveCell, error) {
-	appEnv := f.GetEnvironment()
-	return NewDiscoveryClient(appEnv, false)
+	env := f.GetEnvironment()
+	return NewDiscoveryClient(env, true)
 }

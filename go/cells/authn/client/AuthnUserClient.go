@@ -60,7 +60,7 @@ func (m *AuthnUserClient) UpdateProfile(password string) (err error) {
 // sink is the chain containing the user's transport client
 func NewAuthnUserClient(sink api.IHiveCell) *AuthnUserClient {
 	cl := &AuthnUserClient{
-		HiveCellBase: cells.NewHiveCellBase("", 0),
+		HiveCellBase: cells.NewHiveCellBase(""),
 	}
 	if sink != nil {
 		cl.SetRequestSink(sink)

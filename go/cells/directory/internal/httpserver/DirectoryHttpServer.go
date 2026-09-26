@@ -12,8 +12,6 @@ import (
 	"github.com/hiveot/hivekit/go/cells/directory"
 )
 
-const ThingIDURIVar = "thingID"
-
 // DirectoryHttpServer is the service that handles directory requests over http.
 // This converts the request to RRN messages and sends it downstream to the directory service.
 // It is recommended to place this before the authorization service.
@@ -28,8 +26,11 @@ type DirectoryHttpServer struct {
 	serverTD *td.TD
 }
 
-// AddTDSecForms updates the given Thing Description with security and forms for this
-// http endpoint.
+// AddTDSecForms updates the given Thing Description with security and forms for
+// this http endpoint.
+//
+//	tdoc the TD to update
+//	includeAffordances is ignored
 func (srv *DirectoryHttpServer) AddTDSecForms(tdoc *td.TD, includeAffordances bool) {
 	base := srv.GetConnectURL()
 
@@ -37,6 +38,8 @@ func (srv *DirectoryHttpServer) AddTDSecForms(tdoc *td.TD, includeAffordances bo
 	// TODO: if this Thing supports multiple protocols it might conflict with
 	// the base. In that case base cannot be used and all hrefs must be absolute?
 	// tdoc.Base = base
+
+	// FIXME: this only needs to add forms to the directory TD, not any others.
 
 	// 2. Set the security scheme used by the authenticator.
 	authenticator := srv.httpServer.GetAuthenticator()
@@ -76,7 +79,7 @@ func (srv *DirectoryHttpServer) AddTDSecForms(tdoc *td.TD, includeAffordances bo
 
 	// action: retrieveAllThings
 	aff = tdoc.GetAction(directory.RetrieveAllThingsAction)
-	href = fmt.Sprintf("%s/things", base)
+	href = fmt.Sprintf("%s/things?limit={limit}&offset={offset}", base)
 	f = aff.AddForm(td.OpInvokeAction, href, http.MethodGet, nil)
 	f["response"] = map[string]any{
 		"description":         "Success with response",
@@ -153,15 +156,14 @@ func (srv *DirectoryHttpServer) SendResponse(
 
 // Return a ready-to-use Directory HTTP handler using the given http server.
 //
-// This panics if no http server is provided.
+// This converts directory http requests to RRN messages.
 //
-// Call Start to register the HTTP API with the router and serves its TD on the
-// .well-known/wot endpoint as per discovery specification.
-//
-//	httpServer to register with
+//	dirThingID ThingID of the directory service
+//	httpServer to serve the directory http requests
 //	respTimeout is the maximum time the server waits for a response when forwarding directory requests
 //	 to the directory server.
-func NewDirectoryHttpServer(httpServer api.IHttpServer, respTimeout time.Duration) (*DirectoryHttpServer, error) {
+func NewDirectoryHttpServer(
+	dirThingID string, httpServer api.IHttpServer, respTimeout time.Duration) (*DirectoryHttpServer, error) {
 
 	if httpServer == nil {
 		err := fmt.Errorf("NewDirectoryHttpServer: httpserver is nil")
@@ -169,9 +171,9 @@ func NewDirectoryHttpServer(httpServer api.IHttpServer, respTimeout time.Duratio
 	}
 
 	srv := &DirectoryHttpServer{
-		HiveCellBase:     cells.NewHiveCellBase("DirectoryHttpServer", respTimeout),
+		HiveCellBase:     cells.NewHiveCellBase("DirectoryHttpServer"),
 		httpServer:       httpServer,
-		directoryThingID: directory.DefaultDirectoryThingID,
+		directoryThingID: dirThingID,
 	}
 
 	protRoute := httpServer.GetProtectedRoute()
@@ -179,7 +181,7 @@ func NewDirectoryHttpServer(httpServer api.IHttpServer, respTimeout time.Duratio
 	// protRoute.Get(directory.WellKnownWoTPath, srv.handleRetrieveTDD)
 
 	protRoute.Get("/things", srv.handleRetrieveAllThings)
-	thingPath := fmt.Sprintf("/things/{%s}", ThingIDURIVar)
+	thingPath := fmt.Sprintf("/things/{%s}", td.UriVarThingID)
 	protRoute.Post(thingPath, srv.handleCreateThing)
 	protRoute.Get(thingPath, srv.handleRetrieveThing)
 	protRoute.Put(thingPath, srv.handleUpdateThing)

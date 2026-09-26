@@ -6,11 +6,9 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/hiveot/hivekit/go/api"
 	"golang.org/x/net/http2"
 )
-
-// The default wait timeout for connecting. Use SetTimeout() to override.
-const DefaultClientTimeout = time.Second * 60
 
 // ITLSClient interface for generic http/tls client.
 //
@@ -24,6 +22,7 @@ const DefaultClientTimeout = time.Second * 60
 // Most protocol clients simply use this interface which allows the use of a
 // replacement implementation.
 type ITLSClient interface {
+	api.IHiveCell
 
 	// Close the connection and release resources
 	Close()

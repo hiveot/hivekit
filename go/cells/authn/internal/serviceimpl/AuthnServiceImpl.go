@@ -4,8 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
-	"os"
-	"path/filepath"
 	"time"
 
 	"github.com/hiveot/hivekit/go/api"
@@ -62,7 +60,7 @@ func (svc *AuthnServiceImpl) CreateAdminAccount() error {
 			validity := time.Duration(svc.config.AdminTokenValidityDays) * 24 * time.Hour
 			// create a new token for this session
 			adminToken, _, _ := svc.sessionManager.CreateToken(svc.config.AdminUserID, validity)
-			err = svc.SaveToken(svc.config.AdminUserID, adminToken)
+			err = svc.sessionManager.SaveToken(svc.config.AdminUserID, adminToken)
 		}
 	}
 	return err
@@ -156,28 +154,6 @@ func (svc *AuthnServiceImpl) HandleRequest(req *msg.RequestMessage, replyTo msg.
 // Remove a client
 func (svc *AuthnServiceImpl) RemoveClient(clientID string) error {
 	return svc.authnStore.Remove(clientID)
-}
-
-// Save the token to the keys directory under the name {clientID}.token
-//
-// Intended for storing tokens for core services and admin user.
-// For internal use only. This might change in the future
-func (svc *AuthnServiceImpl) SaveToken(clientID string, token string) error {
-	tokenFile := filepath.Join(svc.config.KeysDir, clientID+api.DefaultTokenFileSuffix)
-
-	err := os.MkdirAll(svc.config.KeysDir, 0700)
-	if err != nil {
-		slog.Error("SaveToken can't ensure directory exist.",
-			"keysdir", svc.config.KeysDir, "err", err.Error())
-	}
-	// the old token can't be overwritten
-	_ = os.Remove(tokenFile)
-	err = os.WriteFile(tokenFile, []byte(token), 0400)
-	if err != nil {
-		slog.Error("SaveToken failed", "err", err.Error())
-	}
-
-	return err
 }
 
 // Change the password of a client

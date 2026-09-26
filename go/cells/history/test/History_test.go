@@ -59,7 +59,7 @@ func startHistoryService(clean bool) (
 	histService *internal.HistoryServiceImpl, stopFn func()) {
 
 	dataDir := filepath.Join(
-		testEnv.AppEnv.StoresDir, history.HistoryServiceCellType)
+		testEnv.Env.StoresDir, history.HistoryServiceCellType)
 	if clean {
 		os.RemoveAll(dataDir)
 	}
@@ -71,6 +71,7 @@ func startHistoryService(clean bool) (
 	if err != nil {
 		panic("Failed starting the history service: " + err.Error())
 	}
+	histService.SetTimeout(testEnv.Env.RpcTimeout)
 	testEnv.Server.SetRequestSink(histService)
 	histService.SetNotificationSink(testEnv.Server)
 

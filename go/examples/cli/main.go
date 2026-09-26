@@ -12,9 +12,8 @@ import (
 	"github.com/hiveot/hivekit/go/api"
 	"github.com/hiveot/hivekit/go/api/td"
 	"github.com/hiveot/hivekit/go/cells/router"
-	"github.com/hiveot/hivekit/go/examples/example2/cliex"
+	"github.com/hiveot/hivekit/go/examples/cli/cliex"
 	consumerrecipe "github.com/hiveot/hivekit/go/factory/recipes/consumer"
-	factory_service "github.com/hiveot/hivekit/go/factory/service"
 	"github.com/hiveot/hivekit/go/utils"
 )
 
@@ -103,8 +102,8 @@ func main() {
 	http.DefaultTransport.(*http.Transport).TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
 
 	// Start the CLI consumer recipe cells
-	f := factory_service.NewCellFactory(env, nil)
-	r, err := consumerrecipe.NewConsumerRecipe(f, false)
+	// the env must have a clientID set and a named auth token or client cert.
+	r, f, err := consumerrecipe.NewConsumerRecipe(env, false)
 	if err != nil {
 		os.Exit(1)
 	}

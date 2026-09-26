@@ -263,7 +263,7 @@ func NewDigitwinServiceImpl(storageDir string,
 	deviceTDBucket := deviceTDStore.GetBucket(thingID)
 
 	svc := &DigitwinServiceImpl{
-		HiveCellBase:           cells.NewHiveCellBase(thingID, 0),
+		HiveCellBase:           cells.NewHiveCellBase(thingID),
 		addForms:               addforms,
 		directory:              thingDir,
 		storageDir:             storageDir,

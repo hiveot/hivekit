@@ -1,4 +1,4 @@
-package standalonerecipe
+package sadevice_recipe
 
 import (
 	"github.com/hiveot/hivekit/go/api"
@@ -18,17 +18,6 @@ import (
 
 // StandAloneDeviceChain is a template that defines the chain of cells for an IoT device
 // running a server with thing discovery.
-//
-// Each of the cells can be obtained with api.GetFactoryCell[I{name}](f,cellType),
-//
-//	where I{name} is the defined interface of the cell,
-//	f is the factory instance.
-//	cellType is the registration name of the cell.
-//
-// To make the app discoverable:
-// After the chain has started, the app can send an invokeaction request with the name
-// 'ServeThingTDAction' and the TD/TM as the payload. The chain will update the forms with the
-// server information and serve a discovery record using DNS-SD.
 var StandAloneDeviceChain = []api.CellDefinition{
 	{
 		// If no CA certificate is found in the AppEnvironment then generate a CA.
@@ -42,7 +31,7 @@ var StandAloneDeviceChain = []api.CellDefinition{
 	{
 		// add forms to update the published TD with appropriate forms
 		Type:        addforms.AddFormsCellType,
-		Constructor: addforms_service.StartAddFormsServiceFactory,
+		Constructor: addforms_service.NewAddFormsServiceFactory,
 	},
 	{
 		// discovery server for publishing the device TD
@@ -61,7 +50,7 @@ var StandAloneDeviceChain = []api.CellDefinition{
 	{
 		// Websocket transport server for incoming connections
 		// This will be used later to update forms in the TD
-		// NOTE: todo: use BusFormation to support multiple protocols.
+		// Tip: use BusFormation to support multiple protocols. See gateway recipe.
 		Type:        wss.WotWebsocketServerCellType,
 		Constructor: wss_server.NewWotWssServerFactory,
 	},
@@ -72,19 +61,25 @@ var StandAloneDeviceChain = []api.CellDefinition{
 		Constructor: authn_service.NewAuthnServiceFactory,
 	},
 
-	// todo: optional logging of requests
-	// todo: optional authorization of requests
+	// consider adding logging of requests
+	// consider authorization of requests
 
-	// link to device cell
-	// chain requests (CreateTD) should be passed to the chain start which links
-	// them to discovery. Any CreateTD request generated in the changes are passed
-	// to the discovery server.
-	//
+	// exposed-things are linked at the end of the chain.
 }
 
-// StartStandAloneDeviceRecipe creates a recipe for standalone IOT devices running a server.
+// NewStandAloneDeviceRecipe creates a recipe for standalone IOT devices running a server.
 //
-// Invoke Start on the factory to run the application.
+// To receive requests from the recipe, provide an exposed-thing cell that handles
+// the device requests and emits notifications for property updates and events.
+//
+// The ExposedThing cell contains the logic for publishing events, updating properties,
+// and handling read requests for properties. Use of ExposedThing is optional.
+//
+// To publish a device TD send a createThing request to the head of the recipe,
+// which forwards it to the discovery server. If an Exposed Thing is provided, its
+// request sink is linked back to the chain so its PublishTD method will do this for you.
+//
+// Invoke Start on the recipe to run the device.
 //
 // 1. load CA and server certificate
 // 2. Intercept updateTD and add forms to the published TD/TM
@@ -96,19 +91,23 @@ var StandAloneDeviceChain = []api.CellDefinition{
 // 6. Run a websocket server for receiving requests
 //
 //	f is the cell factory to use to use.
-//	eThing is the optional Exposed Thing of the application.
+//	eThing is the optional Exposed Thing of the application. Forwarding will be disbled.
 //		A call to Start and Stop will also be passed to the eThing.
 //
-// This returns the recipe, which can be used like any other cells
-// Call 'Ready' on the recipe to start autonomous operation and Stop to end them.
-func StartStandAloneDeviceRecipe(f api.ICellFactory, eThing api.IHiveCell) (api.IRecipe, error) {
+// This returns the recipe, which can be used like any other cell.
+// Call Stop to end the application.
+func NewStandAloneDeviceRecipe(f api.ICellFactory, eThing api.IHiveCell) (api.IRecipe, error) {
 	chain := StandAloneDeviceChain
 
 	r, err := factory_service.NewChainFormation(f, chain, eThing)
 
-	// forward device requests back to the chain so requests from chain members
-	// are passed back to the server. eg CreateTD.
-	eThing.SetRequestSink(r)
-	// linkTo.SetNotificationSink(r)
+	// Send requests from the exposed-thing  back to the chain server, to support
+	// publishing a TD to the discovery server. This disables request forwarding
+	// on the eThing as unhandled requests would otherwise loop back to the chain.
+	if eThing != nil {
+		eThing.SetForwarding(true, false)
+		eThing.SetRequestSink(r)
+	}
+
 	return r, err
 }

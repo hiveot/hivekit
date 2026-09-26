@@ -195,13 +195,22 @@ func (cl *HttpBasicClientImpl) SendRequest(
 		td.UriVarName:      name,
 		td.UriVarOperation: req.Operation}
 
+	// If the request holds a K-V map of values, make them available as variables
+	var inputVars map[string]string
+	if err := req.DecodeInput(&inputVars); err == nil {
+		for k, v := range inputVars {
+			uriVars[k] = v
+		}
+	}
+
 	// If the TD has no matching form then fall back to default well-known http basic href.
 	if cl.tdoc != nil {
 		form, match = cl.tdoc.GetForm(req.Operation, req.Name, api.HttpBasicScheme, api.HttpBasicSubprotocol)
 	}
 	if form != nil && match {
 		hrefURL, _ := form.ResolveHRef(cl.tdoc.Base, uriVars)
-		hrefPath = hrefURL.Path
+		// hrefPath = hrefURL.Path
+		hrefPath = hrefURL.RequestURI()
 		method, _ = form.GetMethodName()
 	} else {
 		// fall back to the 'well known' hiveot request URL using uri variables
@@ -210,9 +219,10 @@ func (cl *HttpBasicClientImpl) SendRequest(
 		hrefPath = httpbasic.HttpBasicAffordanceOperationPath
 
 		hrefPath = utils.Substitute(hrefPath, uriVars)
+	}
+	if req.Input != nil {
 		inputJSON, _ = jsoniter.MarshalToString(req.Input)
 	}
-
 	contentType := "application/JSON"
 
 	// send the request
@@ -342,9 +352,10 @@ func (cl *HttpBasicClientImpl) Stop() {
 // Users must use setAuthToken or SetClientCert to authenticate and invoke Connect
 // or Start() to establish the connection.
 //
-// This uses TD forms to perform an operation.
+// The tdoc must provide a Base field with the server host and port. Forms are
+// used to perform operations.
 //
-//	tdoc is the TD to use for operations.
+//	tdoc is the TD to use for operations. Must have a base URL.
 //	rootCAs to validate the server or nil to skip cert check
 func NewHttpBasicClientImpl(
 	tdoc *td.TD, rootCAs *x509.CertPool) (*HttpBasicClientImpl, error) {
@@ -362,7 +373,7 @@ func NewHttpBasicClientImpl(
 	if rootCAs == nil {
 		tlsClient.SetSkipCertCheck(true)
 	}
-	cl, err := NewHttpBasicTLSClientImpl(tdoc, rootCAs, tlsClient)
+	cl := NewHttpBasicTLSClientImpl(tdoc, rootCAs, tlsClient)
 
 	return cl, err
 }
@@ -376,16 +387,16 @@ func NewHttpBasicClientImpl(
 //	rootCAs used to verify client certificate authentication. nil when not using client cert.
 //	tlsClient TLS client to submit requests
 func NewHttpBasicTLSClientImpl(
-	tdoc *td.TD, rootCAs *x509.CertPool, tlsClient tlsclient.ITLSClient) (*HttpBasicClientImpl, error) {
+	tdoc *td.TD, rootCAs *x509.CertPool, tlsClient tlsclient.ITLSClient) *HttpBasicClientImpl {
 
-	timeout := tlsclient.DefaultClientTimeout
 	thingID := httpbasic.HttpBasicClientCellType + shortid.MustGenerate()
 	cl := &HttpBasicClientImpl{
-		TransportClientBase: transport.NewTransportClientBase(thingID, rootCAs, timeout),
+		TransportClientBase: transport.NewTransportClientBase(thingID, rootCAs),
 		tdoc:                tdoc,
 		tlsClient:           tlsClient,
 	}
+	cl.SetTransportClient(cl)  // for use by Rpc
 	var _ api.IConnection = cl // interface check
 	var _ api.IHiveCell = cl   // interface check
-	return cl, nil
+	return cl
 }

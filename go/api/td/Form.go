@@ -94,8 +94,8 @@ func (f Form) GetSubprotocol() (subp string, found bool) {
 	return "", found
 }
 
-// ResolveHRef resolves the form's URL merging it with the provided base according to RFC3986
-// and optionally merged with URI variables.
+// ResolveHRef resolves the form's URL merging it with the provided base according
+// to RFC3986 and optionally merged with URI variables and query parameters.
 // This returns an error if the url cannot be parsed
 func (f Form) ResolveHRef(base string, uriVars map[string]string) (
 	hrefURL *url.URL, err error) {
@@ -110,7 +110,18 @@ func (f Form) ResolveHRef(base string, uriVars map[string]string) (
 		}
 	}
 	if uriVars != nil {
+		// handle path variables
 		hrefURL.Path = utils.Substitute(hrefURL.Path, uriVars)
+		// handle query parameters
+		qp := hrefURL.Query()
+		for k, v := range uriVars {
+			if qp.Has(k) {
+				qp.Set(k, v)
+			}
+		}
+		if len(qp) > 0 {
+			hrefURL.RawQuery = qp.Encode()
+		}
 	}
 	return hrefURL, err
 }

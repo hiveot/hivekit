@@ -86,10 +86,6 @@ type ICellFactory interface {
 	// This returns nil if no httpserver cell is registered.
 	GetHttpServer(instantiate bool) IHttpServer
 
-	// Obtain the directory TD.
-	// Intended for bootstrapping the directory client.
-	// GetTDD() *td.TD
-
 	// Return the list of available transport servers
 	GetTransportServers() []ITransportServer
 

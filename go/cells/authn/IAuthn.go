@@ -102,7 +102,13 @@ type IAuthnService interface {
 	api.IHiveCell
 
 	// AddClient add a new client account. This fails if the client already exists.
-	// Use authenticator's SetPassword or CreateToken to obtain a token to connect with.
+	//
+	// Use session authenticator's SetPassword or CreateToken to obtain a session
+	// token to connect with.
+	//
+	//	clientID is the account ID of the client
+	//	displayName is the friendly name of the client
+	//	role is the client role, eg ClientRoleViewer, ... ClientRoleDevice
 	AddClient(clientID string, displayName string, role string) error
 
 	// GetProfile Get the client profile

@@ -116,36 +116,37 @@ func (r *ChainFormation) SetSlot(slotID string, cellDef api.CellDefinition) erro
 func NewChainFormation(
 	f api.ICellFactory, chain []api.CellDefinition, linkTo api.IHiveCell) (*ChainFormation, error) {
 
-	r := &ChainFormation{
-		HiveCellBase: cells.NewHiveCellBase("ChainFormation", 0),
+	formation := &ChainFormation{
+		HiveCellBase: cells.NewHiveCellBase("ChainFormation"),
 		f:            f,
 		chain:        chain,
 		linkTo:       linkTo,
 	}
+	formation.SetTimeout(f.GetEnvironment().RpcTimeout)
 
 	// register all cells with the factory
-	for _, cellDef := range r.chain {
-		r.f.RegisterCell(cellDef)
+	for _, cellDef := range formation.chain {
+		formation.f.RegisterCell(cellDef)
 	}
 
 	// create and link cells in the defined order
-	r.instances = make([]api.IHiveCell, 0, len(r.chain))
+	formation.instances = make([]api.IHiveCell, 0, len(formation.chain))
 	var prevCell api.IHiveCell
 
 	// create cells and link in the specified order.
-	for _, cellDef := range r.chain {
-		member, err := r.f.NewCell(cellDef.Type, true)
+	for _, cellDef := range formation.chain {
+		member, err := formation.f.NewCell(cellDef.Type, true)
 		if err != nil {
 			slog.Error("NewChainFormation: creating cell failed. Shutting down",
 				"cellType", cellDef.Type, "err", err.Error())
-			r.Stop()
+			formation.Stop()
 			return nil, err
 		} else if member == nil {
 			// don't track 'one-shot' cells that are used to initialize the factory.
 			// These return nil without error.
 		} else {
 			// success
-			r.instances = append(r.instances, member)
+			formation.instances = append(formation.instances, member)
 			if prevCell != nil {
 				// prevCell.SetRequestSink(member)
 				member.SetNotificationSink(prevCell)
@@ -156,12 +157,12 @@ func NewChainFormation(
 	}
 
 	// The recipe tail links to the linkTo cell.
-	if linkTo != nil && len(r.instances) > 1 {
-		tail := r.instances[len(r.instances)-1]
+	if linkTo != nil && len(formation.instances) > 1 {
+		tail := formation.instances[len(formation.instances)-1]
 		linkTo.SetNotificationSink(tail)
 		tail.SetRequestSink(linkTo)
 	}
 
-	var _ api.IRecipe = r
-	return r, nil
+	var _ api.IRecipe = formation
+	return formation, nil
 }

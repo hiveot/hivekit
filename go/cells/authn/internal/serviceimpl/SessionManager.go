@@ -4,6 +4,7 @@ import (
 	"crypto/ed25519"
 	"fmt"
 	"log/slog"
+	"os"
 	"path/filepath"
 	"time"
 
@@ -48,16 +49,32 @@ func (sm *SessionManager) AddSecurityScheme(tdoc *td.TD) {
 // This creates a session that is valid until logout.
 //
 //	clientID is the account ID of a known client
-//	validity is the token validity period.
+//	validity is the token validity period. 0 for default.
 //
 // This returns the token
 func (sm *SessionManager) CreateToken(clientID string, validity time.Duration) (
 	token string, validUntil time.Time, err error) {
 
+	prof, err := sm.authnStore.GetProfile(clientID)
+	if err != nil {
+		return "", validUntil, err
+	}
+	if validity == 0 {
+		var validityDays int
+		switch prof.Role {
+		case authn.ClientRoleDevice:
+			validityDays = sm.DeviceTokenValidityDays
+		case authn.ClientRoleService:
+			validityDays = sm.ServiceTokenValidityDays
+		default: // viewer, manager, operator, admin all consumer tokens
+			validityDays = sm.ConsumerTokenValidityDays
+		}
+		validity = time.Duration(validityDays) * 24 * time.Hour
+	}
 	//
 	createdTime := time.Now()
 	sm.sessionStart[clientID] = createdTime.Add(-time.Second)
-
+	// use the configured authenticator for token creation
 	token, validUntil, err = sm.authenticator.CreateToken(clientID, validity)
 	return
 }
@@ -100,6 +117,19 @@ func (sm *SessionManager) Login(
 	return token, validUntil, err
 }
 
+// Load a previously saved token from the keys directory under the name {clientID}.token
+//
+// The intended configuration is to match this with AppEnvironment.
+//
+// Intended for storing tokens for core services and admin user.
+func (svc *SessionManager) LoadToken(clientID string) (string, error) {
+
+	tokenFile := filepath.Join(svc.keysDir, clientID+api.DefaultTokenFileSuffix)
+	token, err := os.ReadFile(tokenFile)
+
+	return string(token), err
+}
+
 // Logout removes the client session
 func (sm *SessionManager) Logout(clientID string) {
 	_, found := sm.sessionStart[clientID]
@@ -113,6 +143,8 @@ func (sm *SessionManager) Logout(clientID string) {
 func (sm *SessionManager) RefreshToken(senderID string, oldToken string) (
 	newToken string, validUntil time.Time, err error) {
 
+	var validityDays int
+
 	// validation only succeeds if there is an active session
 	tokenClientID, _, _, err := sm.ValidateClient(senderID, oldToken)
 	if err != nil || senderID != tokenClientID {
@@ -122,17 +154,40 @@ func (sm *SessionManager) RefreshToken(senderID string, oldToken string) (
 	prof, err := sm.authnStore.GetProfile(senderID)
 	_ = prof
 	if err != nil || prof.Disabled {
-		return newToken, validUntil, fmt.Errorf("Profile for '%s' is disabled", senderID)
+		return newToken, validUntil, fmt.Errorf("Unknown or disabled client '%s'", senderID)
 	}
-	validityDays := sm.ConsumerTokenValidityDays
-	if prof.Role == authn.ClientRoleDevice {
+	switch prof.Role {
+	case authn.ClientRoleDevice:
 		validityDays = sm.DeviceTokenValidityDays
-	} else if prof.Role == authn.ClientRoleService {
+	case authn.ClientRoleService:
 		validityDays = sm.ServiceTokenValidityDays
+	default: // viewer, manager, operator, admin all consumer tokens
+		validityDays = sm.ConsumerTokenValidityDays
 	}
 	validity := time.Duration(validityDays) * 24 * time.Hour
 	newToken, validUntil, err = sm.authenticator.CreateToken(senderID, validity)
 	return newToken, validUntil, err
+}
+
+// Save the token to the keys directory under the name {clientID}.token
+//
+// Intended for storing tokens for core services and admin user.
+func (svc *SessionManager) SaveToken(clientID string, token string) error {
+	tokenFile := filepath.Join(svc.keysDir, clientID+api.DefaultTokenFileSuffix)
+
+	err := os.MkdirAll(svc.keysDir, 0700)
+	if err != nil {
+		slog.Error("SaveToken can't ensure directory exist.",
+			"keysdir", svc.keysDir, "err", err.Error())
+	}
+	// the old token can't be overwritten
+	_ = os.Remove(tokenFile)
+	err = os.WriteFile(tokenFile, []byte(token), 0400)
+	if err != nil {
+		slog.Error("SaveToken failed", "err", err.Error())
+	}
+
+	return err
 }
 
 // validate if the password is valid to login with

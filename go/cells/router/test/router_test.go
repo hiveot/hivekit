@@ -98,7 +98,7 @@ func SetupConsumerWithRouter(
 
 	// setup the consumer side: directory, router and consumer
 	// register the device TD in the directory for use by the router
-	dirSvc, err := directory_service.NewDirectoryService("", storageDir, nil, nil)
+	dirSvc, err := directory_service.NewDirectoryService("", storageDir, nil)
 	if err != nil {
 		panic("SetupConsumerWithRouter: Directory.Start: " + err.Error())
 	}
@@ -106,10 +106,11 @@ func SetupConsumerWithRouter(
 	// the router uses the TD to connect to the device.
 	// this doesn't actually need a directory. GetTD could also simply return the device TD.
 	routerSvc, err = router_service.NewRouterService(
-		storageDir, false, clientID, nil, rootCAs, rpcTimeout, dirSvc.GetTD, nil)
+		storageDir, false, clientID, nil, rootCAs, dirSvc.GetTD)
 	if err != nil {
 		panic("SetupConsumerWithRouter: Router.Start: " + err.Error())
 	}
+	routerSvc.SetTimeout(rpcTimeout)
 
 	// A consumer links to the router and subscribes to the device.
 	// For the purpose of this test the router runs client side.
@@ -150,12 +151,13 @@ func TestStartStop(t *testing.T) {
 	slog.Warn(fmt.Sprintf("---Test: %s %s---\n", t.Name(), testProtocol))
 	const clientID = "testclient"
 
-	testDirSvc, err := directory_service.NewDirectoryService("", "", nil, nil)
+	testDirSvc, err := directory_service.NewDirectoryService("", "", nil)
 	require.NoError(t, err)
 	// test no cred store
 	svc, err := router_service.NewRouterService(
-		"", false, clientID, nil, nil, rpcTimeout, testDirSvc.GetTD, nil)
+		"", false, clientID, nil, nil, testDirSvc.GetTD)
 	require.NoError(t, err)
+	svc.SetTimeout(rpcTimeout)
 	defer svc.Stop()
 }
 
@@ -172,21 +174,21 @@ func TestCredentialsStore(t *testing.T) {
 	_ = testEnv.StartTestServer(testProtocol)
 	defer testEnv.Stop()
 
-	testDirSvc, err := directory_service.NewDirectoryService("", "", nil, nil)
+	testDirSvc, err := directory_service.NewDirectoryService("", "", nil)
 	require.NoError(t, err)
 
-	// FIXME: these tests now require a proper TD with forms as credentials are stored
+	// these tests now require a proper TD with forms as credentials are stored
 	// per connectionURL, not thingID.
-	testTD := testEnv.CreateTestTD(1)
+	testTD := testEnv.CreateTestTD(1, true)
 	testTD.ID = thingID1
 	testDirSvc.CreateThing(thingID1, testTD.ToString())
 
 	// the router uses the TD to connect to the device.
 	// this doesn't actually need a directory. GetTD could also simply return the device TD.
 	routerSvc, err := router_service.NewRouterService(
-		storageDir, false, clientID, nil, nil, rpcTimeout, testDirSvc.GetTD, nil)
-
+		storageDir, false, clientID, nil, nil, testDirSvc.GetTD)
 	require.NoError(t, err)
+	routerSvc.SetTimeout(rpcTimeout)
 
 	credType, hasCred := routerSvc.HasCredentials(thingID1)
 	assert.False(t, hasCred)
@@ -202,8 +204,9 @@ func TestCredentialsStore(t *testing.T) {
 
 	// restarting the router should retain the credentials
 	routerSvc2, err := router_service.NewRouterService(
-		storageDir, false, clientID, nil, nil, rpcTimeout, testDirSvc.GetTD, nil)
+		storageDir, false, clientID, nil, nil, testDirSvc.GetTD)
 	require.NoError(t, err)
+	routerSvc2.SetTimeout(rpcTimeout)
 
 	credType, hasCred = routerSvc2.HasCredentials(thingID1)
 	assert.True(t, hasCred)
@@ -333,7 +336,7 @@ func TestSubscribeReconnectToDevice(t *testing.T) {
 	// 2. setup the consumer side: directory, router and consumer
 	// register the device TD in the directory for use by the router
 	// See also the factory consumer recipes for this use-case that makes it easier.
-	testDirSvc, err := directory_service.NewDirectoryService("", "", nil, nil)
+	testDirSvc, err := directory_service.NewDirectoryService("", "", nil)
 	require.NoError(t, err)
 	defer testDirSvc.Stop()
 	deviceTDJson := td.MarshalTD(tdoc)
@@ -346,9 +349,10 @@ func TestSubscribeReconnectToDevice(t *testing.T) {
 		storageDir, true, clientID,
 		testEnv.CertBundle.ClientCert,
 		testEnv.CertBundle.RootCAs,
-		rpcTimeout, testDirSvc.GetTD, nil)
+		testDirSvc.GetTD)
 
 	require.NoError(t, err)
+	routerSvc.SetTimeout(rpcTimeout)
 	defer routerSvc.Stop()
 
 	// to connect to the device, consumer credentials are needed

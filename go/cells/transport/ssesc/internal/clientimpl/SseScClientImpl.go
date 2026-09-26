@@ -373,8 +373,6 @@ func (cl *SseScClientImpl) Stop() {
 //
 // Set authentication and call Connect or Start before use.
 //
-// For testing, or very slow networks, use SetTimeout to increase the wait time.
-//
 //	sseURL full connection URL of Hiveot SSE server and path
 //	rootCAs are CA certificates to validate the server certificate. nil for system CAs.
 //	ch is the connect/disconnect callback
@@ -387,18 +385,17 @@ func NewSseScClientImpl(sseURL string, rootCAs *x509.CertPool) *SseScClientImpl 
 	}
 	hostPort := urlParts.Host
 	ssePath := urlParts.Path
-	// use SetTimeout to change the default
-	timeout := msg.DefaultRnRTimeout
 	tlsClient := tls_client.NewTLSClient(hostPort, rootCAs)
 
 	thingID := ssesc.SseScClientCellType + shortid.MustGenerate()
 	cl := &SseScClientImpl{
-		TransportClientBase: transport.NewTransportClientBase(thingID, rootCAs, timeout),
+		TransportClientBase: transport.NewTransportClientBase(thingID, rootCAs),
 		encoder:             transport.NewRRNJsonEncoder(),
 		rnrChan:             msg.NewRnRChan(),
 		ssePath:             ssePath,
 		tlsClient:           tlsClient,
 	}
+	cl.SetTransportClient(cl)       // for use by Rpc
 	var _ api.IHiveCell = cl        // interface check
 	var _ api.ITransportClient = cl // interface check
 	return cl

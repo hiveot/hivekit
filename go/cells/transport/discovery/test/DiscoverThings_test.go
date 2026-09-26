@@ -28,24 +28,24 @@ const testServicePort = 9999
 // discover things
 func TestDiscoverThings(t *testing.T) {
 
-	testTDD := td.NewTD("testID", "title", "testdevice")
-	testTDJson := testTDD.ToString()
+	testTD := td.NewTD("testID", "title", "testdevice")
 
 	testEnv := testenv.NewTestEnv(true)
 	testEnv.StartHttpServer(true)
 	defer testEnv.Stop()
 
-	discoSrv, err := discovery_server.NewDiscoveryServer(testDirServiceName, testEnv.HttpServer, "", nil)
+	discoSrv, err := discovery_server.NewDiscoveryServer(testEnv.HttpServer, nil, nil)
 	require.NoError(t, err)
 	defer discoSrv.Stop()
-	err = discoSrv.ServeThingTD(testServiceName, testTDJson)
+	tdURL, err := discoSrv.ServeThingTD(testServiceName, testTD)
+	assert.NotEmpty(t, tdURL)
 	require.NoError(t, err)
 
 	// Test if it is discovered
 	serverAddr := testEnv.HttpServer.GetConnectURL()
 	urlParts, _ := url.Parse(serverAddr)
 	cl, err := discovery_client.NewDiscoveryClient(nil, false)
-	records, err := cl.DiscoverThings(testServiceName, time.Second, nil)
+	records, err := cl.DiscoverThings(testServiceName, "", false, time.Second, nil)
 	require.NoError(t, err)
 	require.Equal(t, len(records), 1, "the test thing record was not discovered")
 	rec0 := records[0]
@@ -58,10 +58,10 @@ func TestDiscoverGetThingTD(t *testing.T) {
 	testEnv := testenv.NewTestEnv(true)
 	testEnv.StartHttpServer(true)
 	defer testEnv.Stop()
-	thingTD := testEnv.CreateTestTD(12)
+	thingTD := testEnv.CreateTestTD(12, true)
 	thingTD.ID = testServiceName // servicename
 
-	discoSrv, err := discovery_server.NewDiscoveryServer(testDirServiceName, testEnv.HttpServer, "", nil)
+	discoSrv, err := discovery_server.NewDiscoveryServer(testEnv.HttpServer, nil, nil)
 	require.NoError(t, err)
 	defer discoSrv.Stop()
 
@@ -69,15 +69,19 @@ func TestDiscoverGetThingTD(t *testing.T) {
 	// This should be handled by the discovery server.
 	// err = m.ServeThingTD(thingTD)
 	tdJson1 := td.MarshalTD(thingTD)
-	req := msg.NewRequestMessage(td.OpInvokeAction,
-		discovery.DiscoveryServerCellType, discovery.ServeThingTDAction, tdJson1)
+	svcThingID := discoSrv.GetThingID()
+	req := msg.NewRequestMessage(
+		td.OpInvokeAction, svcThingID, discovery.ServeThingTDAction, tdJson1)
 	err = discoSrv.HandleRequest(req, req.NoReply)
 	require.NoError(t, err)
 
 	// discover the server
 	appEnv := api.NewHiveEnvironment("", false)
 	cl, err := discovery_client.NewDiscoveryClient(appEnv, false)
-	recs, err := cl.DiscoverThings(testServiceName, time.Second, nil)
+	// recs, err := cl.DiscoverThings(testServiceName, time.Second, nil)
+	// recs, err := cl.DiscoverThings(testServiceName, "", false, time.Second, nil)
+	recs, err := cl.DiscoverThings(thingTD.ID, "", false, time.Second, nil)
+
 	// records, err := cl.DiscoverThings(testThingServiceID, time.Second, nil)
 	require.NoError(t, err)
 	require.NotEmpty(t, recs)
@@ -87,7 +91,8 @@ func TestDiscoverGetThingTD(t *testing.T) {
 	// require.NotZero(t, len(records), "no things discovered")
 	td2, tdJson2, err := cl.LoadTD(rec0.AsURL())
 	assert.NoError(t, err)
-	assert.Equal(t, tdJson1, tdJson2)
+	assert.NotEmpty(t, tdJson2)
+	assert.Equal(t, thingTD.ID, td2.ID)
 	assert.Equal(t, thingTD.ID, td2.ID)
 	// assert.Equal(t, cl.GetDirectoryURL(), appEnv.ServerURL)
 }

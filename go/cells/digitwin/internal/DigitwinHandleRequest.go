@@ -44,20 +44,28 @@ func (svc *DigitwinServiceImpl) HandleRequest(req *msg.RequestMessage, replyTo m
 				// vcache didn't handle the request, so forward it
 				return svc.EmitDigitwinRequestToDevice(req, replyTo)
 			}
+			return nil
 
-		// write requests are forwarded to the actual device after mapping
-		// the thingID back to that of the device
+		// actions and write requests are forwarded to the actual device after
+		// mapping the thingID back to that of the device
 		case td.OpWriteProperty,
 			td.OpWriteMultipleProperties,
 			td.OpInvokeAction:
 
 			return svc.EmitDigitwinRequestToDevice(req, replyTo)
+
+		default:
+			// TBD: should 'extended' operations be forwarded to the device as well?
+			return fmt.Errorf("Unknown operation '%s' for digitwin service", req.Operation)
 		}
 	}
 
-	// Handle requests for this service
+	// Last, only handle requests for this service
 	if req.ThingID != svc.GetThingID() {
-		return nil
+		// TBD: forward other requests to sink or is digitwin the end of the line?
+		err := fmt.Errorf("unable to handle request '%s(%s)' for thingID '%s'",
+			req.Operation, req.Name, req.ThingID)
+		return err
 	} else if req.SenderID == "" {
 		err := fmt.Errorf("missing senderID in request")
 		return err

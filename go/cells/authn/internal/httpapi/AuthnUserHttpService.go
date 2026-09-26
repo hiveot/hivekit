@@ -153,7 +153,7 @@ func NewAuthnUserHttpService(httpServer api.IHttpServer) *AuthnUserHttpService {
 		panic("NewAuthnUserHttpHandler: missing http server")
 	}
 	svc := &AuthnUserHttpService{
-		HiveCellBase: cells.NewHiveCellBase("", 0),
+		HiveCellBase: cells.NewHiveCellBase(""),
 		httpServer:   httpServer,
 	}
 	// create routes

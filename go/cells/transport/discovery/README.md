@@ -1,12 +1,12 @@
 # Discovery
 
-The discovery service offers ways to publish and discover WoT Things and directory following the WoT discovery specification.
+The discovery service offers ways to publish and discover WoT Things, directories or gateways, following the WoT discovery specification.
 
 Objectives:
 
-1. Serve Thing or directory TDs using WoT mDNS compatible protocols
-1. Discover Thing and Directory TDs using WoT mDNS compatible protocols .
-1. Seamless integration with the directory in a cell chain.
+1. Serve Thing, directory or gateway TDs using WoT mDNS compatible protocols
+1. Discover Thing, directory or gateway TDs using WoT mDNS compatible protocols .
+1. Seamless integration with the directory service or client in a cell chain.
 
 ## Status
 
@@ -14,11 +14,15 @@ This service is alpha. It is functional and can be used stand alone and in a cel
 
 While care has been taken to be compliant with the WoT discovery specification, this has not been testes with 3rd party discovery clients or servers.
 
+
 TODO: emit notifications of discovered TDs and TDDs.
 
 ## Summary
 
-The discovery service provides both a client and server for device and directory discovery. It integrates with the directory in a chain by emitting notifications of discovered Things. It provides the following capabilities:
+The discovery service provides both a client and server for device, directory and gateway discovery. It integrates with the directory in a chain by emitting notifications of discovered Things. It provides the following capabilities:
+
+Gateways are not specified in the WoT discovery specification. HiveOT extends the use of the TXT record 'Type' field with the 'Gateway' type.
+
 
 ### Serving a Directory TDD
 

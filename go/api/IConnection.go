@@ -1,8 +1,6 @@
 package api
 
 import (
-	"time"
-
 	"github.com/hiveot/hivekit/go/api/msg"
 )
 
@@ -58,7 +56,4 @@ type IConnection interface {
 	// SendResponse [Thing] sends an asynchronous response over the connection to a consumer.
 	// This returns an error if the response could not be delivered.
 	SendResponse(response *msg.ResponseMessage) error
-
-	// Change the default timeout for sending messages
-	SetTimeout(timeout time.Duration)
 }

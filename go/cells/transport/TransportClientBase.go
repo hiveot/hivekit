@@ -6,11 +6,11 @@ import (
 	"fmt"
 	"log/slog"
 	"sync"
-	"time"
 
 	"github.com/hiveot/hivekit/go/api"
 	"github.com/hiveot/hivekit/go/api/msg"
 	"github.com/hiveot/hivekit/go/cells"
+	"github.com/hiveot/hivekit/go/utils"
 	"github.com/teris-io/shortid"
 )
 
@@ -90,6 +90,48 @@ func (cl *TransportClientBase) GetConnectionStatus() api.ConnectionStatus {
 	defer cl.mux.RUnlock()
 	stat := cl.connectStatus
 	return stat
+}
+
+// Rpc is a convenience function to create and send a request message
+// to the server and decode the response.
+// This returns an error if the request fails or if the response contains an error
+//
+//	operation is the WoT operation to send, eg td.OpInvokeAction
+//	thingID is the Thing to address
+//	name is the operation name as defined in the TD
+//	input are optional input parameters or nil if none
+//	output is a pointer to the  struct where the result will be decoded
+func (cl *TransportClientBase) Rpc(
+	operation, thingID, name string, input any, output any) error {
+
+	var resp *msg.ResponseMessage
+	req := msg.NewRequestMessage(operation, thingID, name, input)
+
+	arx := utils.NewAsyncReceiver[*msg.ResponseMessage]()
+
+	// The actual transport that sends the request to the remote side, instead
+	// of passing it to the request sink.
+	err := cl.transportClient.SendRequest(req, func(r *msg.ResponseMessage) error {
+		arx.SetResponse(r)
+		return nil
+	})
+	if err != nil {
+		return err
+	}
+	timeout := cl.GetTimeout()
+	if timeout == 0 {
+		timeout = msg.DefaultRnRTimeout
+	}
+	resp, err = arx.WaitForResponse(timeout)
+
+	if err == nil && resp != nil {
+		err = resp.Decode(output)
+		if err != nil {
+			err = fmt.Errorf("Rpc: Received response for op/thing/name '%s/%s/%s' but can't decode it: %w",
+				operation, thingID, name, err)
+		}
+	}
+	return err
 }
 
 // SetAuthToken sets the token credentials to use in Connect.
@@ -194,8 +236,8 @@ func (cl *TransportClientBase) SetConnectHandler(
 	cl.connectHandler = h
 }
 
-// SetTransportClient sets the transport implementation to pass with connection callbacks
-// For use by the transport implementation during creation.
+// SetTransportClient sets the transport implementation that does the actual
+// sending. Needed as the base is instantiated first as part of the transport client.
 func (cl *TransportClientBase) SetTransportClient(c api.ITransportClient) {
 	cl.mux.Lock()
 	defer cl.mux.Unlock()
@@ -203,13 +245,13 @@ func (cl *TransportClientBase) SetTransportClient(c api.ITransportClient) {
 }
 
 // NewTransportClientBase creates a new instance of the base for client connection
+// Call SetTransportClient(instance) to allow the use of Rpc() for sending requests.
 //
 //	thingID is the instance thingID of this cell. "" to auto generate.
 //	rootCAs root CA pool used to verify client auth certificate. It can be nil to ignore client cert validation.
-//	rpcTimeout to use for messaging
-func NewTransportClientBase(thingID string, rootCAs *x509.CertPool, rpcTimeout time.Duration) *TransportClientBase {
+func NewTransportClientBase(thingID string, rootCAs *x509.CertPool) *TransportClientBase {
 	m := &TransportClientBase{
-		HiveCellBase: *cells.NewHiveCellBase(thingID, rpcTimeout),
+		HiveCellBase: *cells.NewHiveCellBase(thingID),
 		cid:          shortid.MustGenerate(),
 		rootCAs:      rootCAs,
 	}

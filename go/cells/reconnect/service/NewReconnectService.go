@@ -20,8 +20,6 @@ func NewReconnectService(tpClient api.ITransportClient) (reconnect.IReconnect, e
 
 // Factory for creating a service using the factory environment
 func NewReconnectServiceFactory(f api.ICellFactory, md *api.CellDefinition) (api.IHiveCell, error) {
-	// env := f.GetEnvironment()
-
-	// option: on start check if the next in the chain is a transport client and register the callback
-	return NewReconnectService(nil)
+	svc, err := NewReconnectService(nil)
+	return svc, err
 }

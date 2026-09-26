@@ -1,6 +1,8 @@
 package api
 
 import (
+	"time"
+
 	"github.com/hiveot/hivekit/go/api/msg"
 )
 
@@ -64,6 +66,16 @@ type IHiveCell interface {
 	// Forwarding can be disabled with SetForwarding()
 	HandleNotification(notif *msg.NotificationMessage)
 
+	// Rpc is a convenience function to create and send a request message and decode the response.
+	// This returns an error if the request fails or if the response contains an error.
+	//
+	//	operation is the WoT operation to send, eg td.OpInvokeAction
+	//	thingID is the Thing to address
+	//	name is the operation name as defined in the TD
+	//	input are optional input parameters or nil if none
+	//	output is a pointer to the  struct where the result will be decoded
+	Rpc(operation, thingID, name string, input any, output any) error
+
 	// Set forwarding of notifications or requests to the configured sink.
 	//
 	// This does not affect notifications or requests emitted by this cell.
@@ -88,6 +100,9 @@ type IHiveCell interface {
 
 	// SetRequestSink sets the handler of requests emitted by this cell.
 	SetRequestSink(sink IHiveCell)
+
+	// Change the default timeout for sending messages
+	SetTimeout(time.Duration)
 
 	// Start the cell autonomous processes.
 	//

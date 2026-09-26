@@ -32,7 +32,7 @@ func (srv *DirectoryHttpServer) handleCreateThing(w http.ResponseWriter, r *http
 func (srv *DirectoryHttpServer) handleDeleteThing(w http.ResponseWriter, r *http.Request) {
 	// A thingID is provided otherwise this handler would not have been called
 	rp, err := srv.httpServer.GetRequestParams(r)
-	thingID := chi.URLParam(r, ThingIDURIVar)
+	thingID := chi.URLParam(r, td.UriVarThingID)
 
 	req := msg.NewRequestMessage(
 		td.OpInvokeAction, srv.directoryThingID, directory.DeleteThingAction, thingID)
@@ -45,7 +45,7 @@ func (srv *DirectoryHttpServer) handleDeleteThing(w http.ResponseWriter, r *http
 func (srv *DirectoryHttpServer) handleRetrieveThing(w http.ResponseWriter, r *http.Request) {
 	var resp *msg.ResponseMessage
 	// A thingID is provided otherwise this handler would not have been called
-	thingID := chi.URLParam(r, ThingIDURIVar)
+	thingID := chi.URLParam(r, td.UriVarThingID)
 	rp, err := srv.httpServer.GetRequestParams(r)
 	if err == nil {
 		req := msg.NewRequestMessage(

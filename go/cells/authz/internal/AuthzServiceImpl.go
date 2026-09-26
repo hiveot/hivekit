@@ -59,7 +59,7 @@ func NewAuthzServiceImpl(getRoleHandler func(clientID string) (role string, err 
 	// this service is a singleton that exposes multiple service things
 	thingID := authz.AuthzServiceCellType
 	svc := &AuthzServiceImpl{
-		HiveCellBase:   cells.NewHiveCellBase(thingID, 0),
+		HiveCellBase:   cells.NewHiveCellBase(thingID),
 		getRoleHandler: getRoleHandler,
 	}
 	if getRoleHandler == nil {
