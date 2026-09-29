@@ -287,8 +287,10 @@ func (svc *RouterServiceImpl) GetClientConnection(
 // HandleRequest handles requests or routes the request to its destination
 func (svc *RouterServiceImpl) HandleRequest(req *msg.RequestMessage, replyTo msg.ResponseHandler) (err error) {
 	var resp *msg.ResponseMessage
-
-	if req.ThingID != svc.GetThingID() {
+	if req.ThingID == "" {
+		// unable to route, pass it on
+		return svc.ForwardRequest(req, replyTo)
+	} else if req.ThingID != svc.GetThingID() {
 		return svc.RouteRequest(req, replyTo)
 	}
 	// handle requests for router itself

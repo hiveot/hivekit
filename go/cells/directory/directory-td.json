@@ -73,7 +73,7 @@
       "hiveot:allow": ["admin"],
       "comment": "only admin can remove TDs",
       "input": {
-        "title": "dThing ID",
+        "title": "Thing ID",
         "type": "string"
       }
     },

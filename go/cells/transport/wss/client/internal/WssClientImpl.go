@@ -323,7 +323,7 @@ func (cl *WssTransportClientImpl) SendRequest(
 	if err != nil {
 		cl.rnrChan.Close(req.CorrelationID)
 		slog.Warn("SendRequest ->: error in sending request",
-			"dThingID", req.ThingID,
+			"thingID", req.ThingID,
 			"name", req.Name,
 			"correlationID", req.CorrelationID,
 			"err", err.Error())
@@ -371,7 +371,7 @@ func (cl *WssTransportClientImpl) SendResponse(resp *msg.ResponseMessage) error 
 func (cl *WssTransportClientImpl) Start() {
 	err := cl.Connect()
 	if err != nil {
-		slog.Error("Start: Connect error", "err", err.Error)
+		slog.Error("Start: Connect error", "err", err.Error())
 	}
 }
 

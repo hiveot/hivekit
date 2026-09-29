@@ -5,6 +5,7 @@ package clients
 import (
 	"crypto/x509"
 	"fmt"
+	"log/slog"
 	"net/url"
 	"strings"
 
@@ -202,7 +203,7 @@ func NewTransportClientFromURL(serverURL string, rootCAs *x509.CertPool) (
 	return cl, err
 }
 
-// Create a new client instance using the factory app environment.
+// Create a new client instance using the factory senvironment.
 //
 // Intended for connecting to a 'known' endpoint such as a device or gateway server.
 //
@@ -211,35 +212,42 @@ func NewTransportClientFromURL(serverURL string, rootCAs *x509.CertPool) (
 // in the chain for discovering a gateway on the local network.
 //
 // If no Server TD is set in the app environment, try the server URL as fallback.
-// If no serverURL is available then give up and return nil, which will lead to
-// this cell being ignored by the factory.
+// If no serverURL is available then give up and return nil without error, which will
+// leads to this cell being ignored by the factory.
 //
-// Intended for RC and consumer recipes that connect to a gateway, or a consumer of a single device
-// without using a directory.
+// Intended for RC and consumer recipes for supporting a gateway connection, or a consumer
+// of a single device without using a directory. Follow it with a router cell to fall
+// back to a generic client.
+//
+// This cell is only useful together with a server TD or gateway URL in the environment
+// because it needs to know the protocol type and destination. If these are not set then
+// this cell is ignored.
+//
+// This cell can be followed in the chain with a router cell to support connecting to a
+// gateway and fallback to the router for stand-alone devices.
 //
 // If the HiveEnvironment contains client token or cert then apply it to the client.
 func NewTransportClientFactory(
 	f api.ICellFactory, md *api.CellDefinition) (cl api.IHiveCell, err error) {
 
-	env := f.GetEnvironment()
-	serverTD := env.ServerTD
-	serverURL := env.GetServerURL()
 	var tpcl api.ITransportClient
+	env := f.GetEnvironment()
+	serverTD := env.GetServerTD()
+	gatewayURL := env.GatewayURL
 
-	// the server url is set through commandline, or using a discovery client
-	// if a server TD is available, use it.
-	if serverTD != nil {
+	// the gateway URL takes precedence
+	if env.GatewayURL != "" {
+		tpcl, err = NewTransportClientFromURL(gatewayURL, env.GetRootCAs())
+	} else if serverTD != nil {
 		// prefer the wot websocket if available
 		form, _ := serverTD.GetForm("", "", api.WotWebsocketScheme, api.WotWebsocketSubprotocol)
 
 		// there is no op or name to use so this requires the TD to have a 'base' URL
 		tpcl, err = NewTransportClientFromForm(serverTD, form, env.GetRootCAs())
-	} else if serverURL != "" {
-		// connect to the server URL without TD, use URL scheme.
-		tpcl, err = NewTransportClientFromURL(serverURL, env.GetRootCAs())
 	} else {
 		// give up, no instructions on where to connect to.
-		err = fmt.Errorf("NewTransportClientFactory: no server TD or URL is available")
+		// assume this is intentional
+		slog.Info("NewTransportClientFactory: no server TD or URL set so this cell is not activated")
 	}
 	// set auth token and cert, when available
 	if tpcl != nil {

@@ -61,7 +61,7 @@ func (cl *DirectoryHttpClient) GetTD(thingID string) *td.TD {
 // RetrieveAllThings retrieves a list of things to update the local directory
 // This follows: https://w3c.github.io/wot-discovery/#exploration-directory-api-things-listing
 // which requires the http get at /things?limit=...
-func (cl *DirectoryHttpClient) RetrieveAllThings(offset int, limit int) ([]*td.TD, error) {
+func (cl *DirectoryHttpClient) RetrieveAllThings(offset int, limit int) ([]*td.TD, bool) {
 
 	var tdList []*td.TD
 
@@ -73,19 +73,19 @@ func (cl *DirectoryHttpClient) RetrieveAllThings(offset int, limit int) ([]*td.T
 
 	err := cl.Rpc(
 		td.OpInvokeAction, "", directory.RetrieveAllThingsAction, args, &output)
-	if err != nil {
-		return nil, err
-	}
-
-	tdList = make([]*td.TD, 0, len(output))
-	for _, tdJson := range output {
-		tdoc, err := cl.cache.ImportTDJson(tdJson)
-		if err == nil {
-			tdList = append(tdList, tdoc)
+	if err == nil {
+		tdList = make([]*td.TD, 0, len(output))
+		for _, tdJson := range output {
+			tdoc, err := cl.cache.ImportTDJson(tdJson)
+			if err == nil {
+				tdList = append(tdList, tdoc)
+			}
 		}
 	}
+	cacheOnly := err != nil
+	tdList = cl.cache.GetAllThings(offset, limit)
 
-	return tdList, err
+	return tdList, cacheOnly
 }
 
 // RetrieveThing loads the TD from the directory.

@@ -72,7 +72,7 @@ func (r *RCDeviceRecipe) Stop() {
 // To add the device the the gateway directory, it should publish its TD on Start.
 // Invoke Start on the recipe to run the device.
 //
-// * support AppEnvironment commandline options
+// * support HiveEnvironment commandline options
 // * load CA and client certificate, and auth token if found
 // * auto-discovery gateway/hub server URL if not provided
 // * use gateway TD if available, fallback to serverURL scheme for protocol

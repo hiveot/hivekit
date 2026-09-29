@@ -22,7 +22,7 @@ var DeviceServerRecipe = []api.CellDefinition{
 	},
 	{
 		Type:        thing.ExposedThingCellType,
-		Constructor: thing.StartExposedThingFactory,
+		Constructor: thing.NewExposedThingFactory,
 	},
 }
 

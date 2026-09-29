@@ -78,15 +78,22 @@ type IDirectoryClient interface {
 	// Return the Directory TD the client is using.
 	// GetTDD() *td.TD
 
-	// RetrieveAllThings loads a batch of TD JSON documents from the directory server
-	// and updates the local cache.
+	// RetrieveAllThings loads a batch of TD JSON documents from the directory and
+	// updates the local cache.
 	//
-	// This returns a list of TD JSON documents
-	RetrieveAllThings(offset int, limit int) (tdList []*td.TD, err error)
+	// If the directory server isnt reachable then return the content of the local
+	// cache.
+	//
+	// This returns a list of TD JSON documents and a flag if this is cache only.
+	RetrieveAllThings(offset int, limit int) (tdList []*td.TD, cacheOnly bool)
 
-	// RetrieveThing loads a TD document from the directory server and updates the local cache.
+	// RetrieveThing loads a TD document from the directory server and updates the
+	// local cache.
 	//
-	// If the TD already exists in the local cache then it is returned instead.
+	// If the TD already exists in the local cache then it is returned otherwise
+	// it is downloaded from the directory server. This requires that either the
+	// directory TDD is known, or a gateway connection exists. If neither are
+	// true then this returns an error.
 	//
 	// This updates the TD in the local cache and returns the server provided JSON document.
 	RetrieveThing(thingID string) (tdoc *td.TD, err error)

@@ -51,14 +51,11 @@ import (
 // Once the recipe has been started. the consumer can locate the directory client
 // in the factory and use it to determine available Things.
 //
-// The directory client is essential for bootstrapping the client as it provides the TD's
+// The directory client is essential for bootstrapping the client as it provides the TD
 // of devices to interact with. This bootstrap process requires a TDD of the directory
 // server. This can be set manually or using discovery.
 //
-// Since its so essential for WoT interaction, the factory has a field that holds the
-// TDD that is used when this client is instantiated through the factory.
-//
-// When not using the factory, the TDD can be obtained using discovery.
+// The TDD can be set manually or obtained using discovery.
 //
 //	dirTDD is the directory TD from external source.
 //	See also the discovery client which supports this method.
@@ -78,7 +75,7 @@ func NewDirectoryClientFactory(
 	f api.ICellFactory, modDef *api.CellDefinition) (api.IHiveCell, error) {
 
 	env := f.GetEnvironment()
-	cl := NewDirectoryClient(env.ServerTD, nil)
+	cl := NewDirectoryClient(env.GetDirTD(), nil)
 	return cl, nil
 }
 

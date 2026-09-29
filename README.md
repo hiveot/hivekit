@@ -2,57 +2,80 @@
 
 HiveKit is the HiveOT development kit for building lightweight IoT applications that integrates with the Web of Things. HiveKit is based on specifications from the W3C Web of Things (WoT).
 
-Applications are build by linking '[cells](docs/cells.md)' that each provides a needed capability. Interactive cells define their capabilities using a W3C Thing Description (TD) document. Cells can be linked in a chain, star, or bus formation. Each cell handles request messages directed at their cell-ID and forward requests for other Things. Cells emit notifications for events and property updates which are send to the linked upstream cell. 
+HiveKit provides [*cells*](docs/cells.md) that provide desired capabilities, ranging from communication to data storage. Each cell provides a single capability following the [separation of concern principle](https://en.wikipedia.org/wiki/Separation_of_concerns). Cells can be used on their own, or linked together.
+
+Applications are build by linking cells. Interactive cells are 'Things' that define their capabilities using a W3C Thing Description (TD) document. Cells can be linked in a chain, star, or bus *formation*. Cells can handle request messages or forward them downstream to the linked cell. Cells emit notifications for events and property updates which are forwarded to the linked upstream cell. 
+
+
+## Getting Started
+
+This project uses golang 1.25 or newer.
+
+Make sure you understand the concepts of cells, linking, factory and recipes, as described in [cells](docs/cells.md). 
+
+An application can be constructed by linking one or more individual cells to your application. However, the quickest way to construct an application is to use the cell factory or one of the factory recipes. The [examples](go/examples) section provides working examples of each of the recipes:
+
+* [example1](go/examples/sadevice): build a stand-alone IoT device
+* [example2](go/examples/cli): build a commandline interface (CLI)
+* [example3](go/examples/tui): build a text UI 
+* [example4](go/examples/gateway): build an IoT gateway
+* [example5](go/examples/rcdevice): build a secure RC (reverse connection) IoT device
+* [appenv](go/examples/appenv): show the application environment of cells.
+
+Each of these examples use one of the factory recipes for constructing the example. [See the factory for details.](go/factory/README.md)
+
+
 
 
 ## Project Status
 
-HiveKit is in alpha development (August 2026).
+HiveKit is in alpha development (September 2026). 
 
-Most cells are implemented in Golang. Javascript and Python integration is planned. Transport cells are an easy way to link between Javascript, Python and Golang cells.
+Below a list of available cells and their status. Most cells are implemented in Golang. Javascript and Python integration is planned. 
 
-Cells with a checkmark are functional but breaking changes can still be expected for those marked as alpha or beta.
+Cells with a checkmark are functional. Breaking changes can still be expected for those marked as alpha. Cells in beta are unlikely to have breaking changes. Versioned cells remain backwards compatible.
 
-Core service cells and client companion:
+### Core service cells and client companion
 
-| status | cells       | description                        | stage |
-| :----: | ----------- | ---------------------------------- | ----- |
-|   ✔️    | authn       | Authentication service             | alpha |
-|   ✔️    | authz       | Role based authorization           | alpha |
-|   ✔️    | bucketstore | Key-value data storage             | alpha |
-|   ✔️    | certs       | Certificate management             | alpha |
-|   ✔️    | consumer    | Consumer and ConsumedThing         | alpha |
-|   ✔️    | digitwin    | Digital twins of Things            | alpha |
-|   ✔️    | directory   | Thing directory server & client    | alpha |
-|   ✔️    | thing       | Exposed Thing base                 | alpha |
-|   ✔️    | factory     | Cell factory                       | alpha |
-|   ✔️    | history     | Message history recorder           | alpha |
-|   ✔️    | logging     | Basic messaging logging            | alpha |
-|   ✔️    | reconnect   | Restore dropped client connections | alpha |
-|   ✔️    | router      | Message routing to remote devices  | alpha |
-|   ✔️    | vcache      | Value cache                        | alpha |
-|   ⬛    | jsscript    | Javascript based automation        | todo  |
-|   ⬛    | launcher    | Launch stand-alone cells           | todo  |
-|   ⬛    | rules       | Rule based automation              | todo  |
+| status | cells       | description                                  | stage |
+| :----: | ----------- | -------------------------------------------- | ----- |
+|   ✔️    | authn       | Authentication service                       | alpha |
+|   ✔️    | authz       | Role based authorization                     | alpha |
+|   ✔️    | bucketstore | Key-value data storage                       | alpha |
+|   ✔️    | certs       | Certificate management                       | alpha |
+|   ✔️    | consumer    | Consumer and ConsumedThing                   | alpha |
+|   ✔️    | digitwin    | Digital twins of Things                      | alpha |
+|   ✔️    | directory   | Thing directory server & client              | alpha |
+|   ✔️    | thing       | Exposed Thing base                           | alpha |
+|   ✔️    | factory     | Cell factory                                 | alpha |
+|   ✔️    | history     | Message history recorder                     | alpha |
+|   ✔️    | logging     | Basic messaging logging                      | alpha |
+|   ✔️    | reconnect   | Restore dropped client connections           | alpha |
+|   ✔️    | router      | Message routing to remote devices            | alpha |
+|   ✔️    | rcrouter    | Message routing to reverse-connected devices | alpha |
+|   ✔️    | vcache      | Value cache                                  | alpha |
+|   ⬛    | jsscript    | Javascript based automation                  | todo  |
+|   ⬛    | launcher    | Launch cell recipes                          | todo  |
+|   ⬛    | rules       | Rule based automation                        | todo  |
 
-[Transport cells](docs/transport.md):
+### [Message Transport Cells](docs/transport.md)
 
 Transport cells come with a server and a client cell.
 
 | status | cell                | description                               | stage |
 | :----: | ------------------- | ----------------------------------------- | ----- |
+|   ⬛    | transport/canbus    | Canbus message transport protocol         |       |
 |   ✔️    | transport/discovery | WoT mDNS device discovery                 | alpha |
 |   ✔️    | transport/grpc      | HiveOT gRPC fast message streaming        | alpha |
-|   ✔️    | transport/httpbasic | WoT HTTP basic messaging protocol         | alpha |
+|   ✔️    | transport/httpbasic | WoT HTTP basic message transport          | alpha |
+|   ⬛    | transport/lorawan   | LoRaWan message transport                 |       |
+|   ⬛    | transport/mqtt      | WoT MQTT client/server transport protocol |       |
 |   ✔️    | transport/tlsclient | HTTP client for sub-protocols             | alpha |
 |   ✔️    | transport/tlsserver | HTTP server for sub-protocols             | alpha |
-|   ✔️    | transport/ssesc     | HiveOT HTTP/SSE-SC messaging protocol     | alpha |
-|   ✔️    | transport/wss       | WoT Websocket messaging protocol          | alpha |
-|   ⬛    | transport/mqtt      | WoT MQTT client/server messaging protocol | n/a   |
-|   ⬛    | transport/lorawan   | LoRaWan protocol binding                  | todo  |
-|   ⬛    | transport/canbus    | Canbus protocol binding                   | todo  |
+|   ✔️    | transport/ssesc     | HiveOT HTTP/SSE-SC message transport      | alpha |
+|   ✔️    | transport/wss       | WoT Websocket message transport           | alpha |
 
-Integration Binding Cells: (this will mobe to the HiveOT Hub)
+### Integration Binding Cells (this will move to the HiveOT Hub)
 
 | status | cell     | description                     | stage |
 | :----: | -------- | ------------------------------- | ----- |
@@ -82,7 +105,7 @@ HiveOT aims to aid in improving security of the IoT ecosystem by:
 
 HiveOT is based on the [W3C WoT TD 1.1 specification](https://www.w3.org/TR/wot-thing-description11/) for interaction between IoT devices and consumers. It aims to be compatible with this standard.
 
-Integration with 3rd party IoT protocols is supported through the use of protocol binding cells. These cells translate between the 3rd party IoT protocols and RRN (request/response/notification) messages. The RRN messages can be linked to a WoT protocol for interaction with WoT compatible clients using properties, events and actions.
+Integration with 3rd party IoT protocols is supported through the use of protocol binding cells. These cells translate between the 3rd party IoT protocols and RRN (request/response/notification) messages. The RRN messages can be linked to a WoT message transport for interaction with WoT compatible clients using properties, events and actions.
 
 ## Developer Commitment
 
@@ -90,21 +113,7 @@ This project is aimed at software developers for building secure IoT solutions. 
 
 1. Support the security mandate that individual IoT devices should remain isolated from the internet. See above for the motivation and rational of this critical aspect.
 2. Support the use of RC (reverse connection) enabled devices that connect to a secured gateway or hub. When possible, promote this with the WoT working group when you agree to this approach.
-3. Agree to regularly provide security fixes with firmware updates if needed.
+3. Agree to regularly provide security fixes with firmware updates of your product if needed.
 
 This probably needs a modified MIT license but that is beyond the scope of this project.
-
-## Getting Started
-
-This project uses golang 1.25 or newer.
-
-The easiest way to get started is to look at one of the [examples](go/examples):
-* [example1](go/examples/example1): build a stand-alone IoT device
-* [example2](go/examples/example2): build a commandline interface (CLI)
-* [example3](go/examples/example3): build a text UI 
-* [example4](go/examples/example4): build an IoT gateway
-* [example5](go/examples/example5): build a secure RC (reverse connection) IoT device
-
-Each of these examples use one of the factory recipes for constructing the example. [See the factory for details.](go/factory/README.md)
-
 

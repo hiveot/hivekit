@@ -135,7 +135,7 @@ var HiveKitAllCells = []api.CellDefinition{
 	// thing service helper
 	{
 		Type:        thing.ExposedThingCellType,
-		Constructor: thing.StartExposedThingFactory,
+		Constructor: thing.NewExposedThingFactory,
 	},
 
 	// client and session management provider

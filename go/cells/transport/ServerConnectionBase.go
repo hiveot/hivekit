@@ -140,8 +140,8 @@ func (scb *ServerConnectionBase) IsConnected() bool {
 	return scb.isConnected.Load()
 }
 
-func (scb *ServerConnectionBase) ObserveProperty(dThingID, name string, corrID string) {
-	scb.observations.Subscribe(dThingID, name, corrID)
+func (scb *ServerConnectionBase) ObserveProperty(thingID, name string, corrID string) {
+	scb.observations.Subscribe(thingID, name, corrID)
 }
 
 // OnNotification receives a notification from remote client (producer).
@@ -391,14 +391,14 @@ func (sc *ServerConnectionBase) SetTimeout(timeout time.Duration) {
 }
 
 // Subscribe to an event.
-func (scb *ServerConnectionBase) SubscribeEvent(dThingID, name string, corrID string) {
-	scb.subscriptions.Subscribe(dThingID, name, corrID)
+func (scb *ServerConnectionBase) SubscribeEvent(thingID, name string, corrID string) {
+	scb.subscriptions.Subscribe(thingID, name, corrID)
 }
-func (scb *ServerConnectionBase) UnsubscribeEvent(dThingID, name string) {
-	scb.subscriptions.Unsubscribe(dThingID, name)
+func (scb *ServerConnectionBase) UnsubscribeEvent(thingID, name string) {
+	scb.subscriptions.Unsubscribe(thingID, name)
 }
-func (scb *ServerConnectionBase) UnobserveProperty(dThingID, name string) {
-	scb.observations.Unsubscribe(dThingID, name)
+func (scb *ServerConnectionBase) UnobserveProperty(thingID, name string) {
+	scb.observations.Unsubscribe(thingID, name)
 }
 
 // NewServerConnectionBase creates a server connection base that implements most of the

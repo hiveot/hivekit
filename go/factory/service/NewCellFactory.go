@@ -8,7 +8,7 @@ import (
 // NewCellFactory returns a new cell factory.
 // Cells can be nil if they are registered separately or if StartRecipe is used.
 //
-//	env is the application enviroment created with api.NewAppEnvironment
+//	env is the application enviroment created with api.NewHiveEnvironment
 //	cellDefs are the cell definitions available to GetCell(type)
 func NewCellFactory(
 	env *api.HiveEnvironment,

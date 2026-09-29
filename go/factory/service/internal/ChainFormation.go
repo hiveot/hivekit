@@ -105,7 +105,7 @@ func (r *ChainFormation) SetSlot(slotID string, cellDef api.CellDefinition) erro
 // Cells in the chain should not emit requests or notifications autonomously until all
 // cells are properly linked and Start is called.
 //
-// If a cell fails creation then the chain fails.
+// If a cell fails creation then it is ignored.
 //
 //	f is the cell factory that instantiates the cells
 //	chain is a collection of cells in order of instantiation.
@@ -137,10 +137,8 @@ func NewChainFormation(
 	for _, cellDef := range formation.chain {
 		member, err := formation.f.NewCell(cellDef.Type, true)
 		if err != nil {
-			slog.Error("NewChainFormation: creating cell failed. Shutting down",
+			slog.Warn("NewChainFormation: creating cell failed. Cell ignored",
 				"cellType", cellDef.Type, "err", err.Error())
-			formation.Stop()
-			return nil, err
 		} else if member == nil {
 			// don't track 'one-shot' cells that are used to initialize the factory.
 			// These return nil without error.
@@ -152,8 +150,8 @@ func NewChainFormation(
 				member.SetNotificationSink(prevCell)
 				prevCell.SetRequestSink(member)
 			}
+			prevCell = member
 		}
-		prevCell = member
 	}
 
 	// The recipe tail links to the linkTo cell.

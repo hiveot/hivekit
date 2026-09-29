@@ -1,12 +1,10 @@
 # HiveKit Examples
 
-This is under heavy development and will be offering concrete examples on building IoT applications using HiveKit and 3rd party cells.
+The examples section offers concrete examples on building IoT applications using HiveKit recipes and 3rd party cells.
 
-We're not there yet so for now this explains the concepts.
+## Constructing a stand-alone IoT Sensor or Actuator
 
-## Concepts and Usage Examples
-
-### Constructing a Basic IoT Sensor or Actuator
+See the [sadevice](../go/examples/sadevice) example.
 
 Most IoT devices have in common that they contain logic to read their current state and update writable state such as configuration or actuator value.
 
@@ -32,9 +30,16 @@ WoT capable cells can export a TD describing its capabilities, although this can
 
 Other potential capabilities of IoT devices are authorization, rate control, connection reversal, publishing a TD in a discovered directory, and more.
 
+## Constructing a RC (reverse-connection) IoT Device
+
+See the [rcdevice](../go/examples/rcdevice) example.
+
 IoT devices can be simplified by using connection reversal. The device connects to a gateway or hub instead of the other way around. Once connected the gateway subscribes to updates and passes requests from consumers to the device. There is no need to run a server on the device, nor to manage clients, which greatly improves security and reduces required resources at the same time. The device management shifts to the hub which provides a consistent interface for all the devices it manages.
 
-### Constructing a Consumer
+
+## Constructing a Consumer
+
+See the [cli](../go/examples/cli) example.
 
 Consumers in the form of a commandline or web client can simply invoke a sensor's API using the WoT protocol to retrieve status or invoke commands. They can also be much more complex like for example the Home Assistant system.
 
@@ -65,7 +70,9 @@ The cells used here are:
 - [router]: The router provides the capability to establish multiple connections to one or more devices. It can also include the capability to re-use an existing connection if multiple devices can be reached through that one connection. This enables presentation to connect to more than one device.
 - [device client]: The client cell connects to a device to read status and to subscribe to updates. HiveKit WoT clients are available for multiple protocols to connect with.
 
-### Constructing a Gateway
+## Constructing a Gateway
+
+See the [gateway](../go/examples/gateway) example.
 
 A gateway is useful when using multiple IoT devices of different protocols, when devices are hidden on their own subnet, or simply when a single endpoint is desired that provides its own directory. Such a gateway can be constructed with cells from this Kit.
 
@@ -118,7 +125,9 @@ Where,
 - requests to read the directory are routed to the directory server
 - requests for clients are passed to the multi-client which establishes client connections to connect to devices
 
-### Constructing a Digital Twin Hub
+## Constructing a Digital Twin Hub
+
+See the [digital-twin](../go/examples/digitaltwin) example. (todo)
 
 A digital twin hub takes the gateway to the next level. Instead of consumers interacting with devices via a gateway, they interact directly with a digital twin that represents the device. This:
 

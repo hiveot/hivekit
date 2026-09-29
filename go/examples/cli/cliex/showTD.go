@@ -11,7 +11,7 @@ func (app *Cliex) ShowTD(thingID string) {
 
 	tdoc := app.FindTD(thingID)
 	if tdoc == nil {
-		fmt.Println("ShowTD TD for thing not found")
+		fmt.Printf("ShowTD TD '%s' not found\n", thingID)
 		return
 	}
 

@@ -14,7 +14,7 @@ This uses the "~/bin/hiveot" directory as home directory for config, certificate
 
 ## Basic Examples
 
-These are basic examples, intended to demonstrate how to build an application using HiveKit cells. They are not intended as production-ready applications. They do however help in getting started.  
+These examples are intended to demonstrate how to build an application using HiveKit cells. They are not intended as production-ready applications. They do however help in getting started.  
 
 These examples use two types of authentication, an 'admin' client account with an admin.token file in the certs directory, and an admin client certificate, signed by the self-signed CA. The standalone and gateway example add this client. The cli and tui examples expect either the admin.token or adminCert/Key.pem files to exist in the certs directory.
 

@@ -20,8 +20,8 @@ import (
 // running a server with thing discovery.
 var StandAloneDeviceChain = []api.CellDefinition{
 	{
-		// If no CA certificate is found in the AppEnvironment then generate a CA.
-		// If no server certificate is found in the AppEnvironment then generate a self-signed certificate.
+		// If no CA certificate is found in the HiveEnvironment then generate a CA.
+		// If no server certificate is found in the HiveEnvironment then generate a self-signed certificate.
 		Type:        certs.InitFactoryCertsCellType,
 		Constructor: certs_service.RunInitFactoryCerts,
 	},

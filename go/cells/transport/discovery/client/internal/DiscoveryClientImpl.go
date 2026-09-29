@@ -292,10 +292,10 @@ func (cl *DiscoveryClientImpl) locateGateway(maxWaitTime time.Duration) (gwTD *t
 //
 // Call DiscoverThings or DiscoverDirectories to start the discovery process.
 //
-// If a server TDURL is provided then try to load the TD and set the serverURL.
-// If no TD is found but a serverURL is provided then use the server URL without TD.
-// Last, if no serverURL is known and discoOnStart is enabled, then try to locate
-// a directory or gateway server TD using DNS-SD discovery and update the app env.
+// If env has a directory TD URL then attempt to load this TD into the environment.
+//
+// If discoOnStart is enabled and no directory TD is known then attempt to discover
+// a directory and update the application environment with the first directory found.
 func NewDiscoveryClientImpl(
 	env *api.HiveEnvironment, discoOnStart bool) (*DiscoveryClientImpl, error) {
 	var err error
@@ -313,47 +313,34 @@ func NewDiscoveryClientImpl(
 
 	cl.rootCAs = env.GetRootCAs()
 
-	// in order of precedence:
-	//  1. serverTD
-	//  2. TDURL second, so it can download a serverTD
-	//  3. server URL
-	//
-	// If a TD URL is provided, download its TD.
-	if env.ServerTD == nil && env.ServerTDURL != "" {
-		tdoc, _, err := LoadTD(env.ServerTDURL, cl.rootCAs)
+	// 1. If a directory TD URL is provided, download the TD
+	dirTD := env.GetDirTD()
+	if dirTD == nil && env.DirTDURL != "" {
+		dirTD, _, err = LoadTD(env.DirTDURL, cl.rootCAs)
 		if err == nil {
-			env.ServerTD = tdoc
-		}
-	} else if env.GatewayURL != "" {
-		// if a server URL is provided, use it for direct connections. No discovery needed.
-	} else if cl.discoverOnStart {
-		// no TD URL offered, so try to find a directory.
-		tdoc := cl.DiscoverFirstTD("", discovery.DISCO_TYPE_DIRECTORY, time.Second)
-		if tdoc != nil {
 			slog.Info("NewDiscoveryClientImpl. Directory TD downloaded successfully",
-				"thingID", tdoc.ID)
-			env.ServerTD = tdoc
-			// appEnv.DirTDURL = tddURL
-		} else {
-			// try to find a gateway
-			// RC connected devices need the gateway connection, not the directory
-			gwTD := cl.DiscoverFirstTD("", discovery.DISCO_TYPE_GATEWAY, time.Second)
-			if gwTD != nil {
-				slog.Info("NewDiscoveryClientImpl. Gateway TD downloaded successfully",
-					"thingID", tdoc.ID)
-				env.ServerTD = gwTD
-			} else {
-				slog.Warn("NewDiscoveryClientImpl. No directory or gateway discovered")
-			}
+				"dirURL", env.DirTDURL, "thingID", dirTD.ID)
+			env.SetDirTD(dirTD)
 		}
+	}
+	// 2. If no directory is provided but discoOnStart is set, then go look for one.
+	if dirTD == nil && discoOnStart {
+		dirTD = cl.DiscoverFirstTD("", discovery.DISCO_TYPE_DIRECTORY, time.Second)
+		if dirTD != nil {
+			slog.Info("NewDiscoveryClientImpl. Directory TD discovered successfully",
+				"thingID", dirTD.ID)
+			env.SetDirTD(dirTD)
+		}
+	}
 
-		// discover a gateway TD from the app environment
-		if env.ServerTD == nil {
-			tdoc := cl.locateGateway(time.Second)
-			if tdoc != nil {
-				slog.Warn("NewDiscoveryClientImpl: found gateway TD")
-				env.ServerTD = tdoc
-			}
+	// 3. If a server TD URL is provided download it
+	serverTD := env.GetServerTD()
+	if serverTD == nil && env.ServerTDURL != "" {
+		serverTD, _, err := LoadTD(env.ServerTDURL, cl.rootCAs)
+		if err == nil {
+			env.SetServerTD(serverTD)
+			slog.Info("NewDiscoveryClientImpl. Server TD downloaded successfully",
+				"thingID", serverTD.ID)
 		}
 	}
 

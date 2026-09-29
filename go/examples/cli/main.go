@@ -81,11 +81,15 @@ func main() {
 	}
 
 	env.RpcTimeout = time.Minute * 3 // for testing
+	env.Print(env.Verbose)
+
 	args := flag.Args()
 	if len(args) == 0 {
+		env.Print(0)
 		flag.Usage()
 		return
 	}
+
 	cmd := args[0]
 
 	// helper when an arg is expected.
@@ -101,8 +105,10 @@ func main() {
 	// Ignore the certificate check just for this example. Dont do this in your app.
 	http.DefaultTransport.(*http.Transport).TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
 
-	// Start the CLI consumer recipe cells
+	// Start the CLI consumer recipe cells.
 	// the env must have a clientID set and a named auth token or client cert.
+
+	// FIXME: chain breaks if client cannot find a  serverURL
 	r, f, err := consumerrecipe.NewConsumerRecipe(env, false)
 	if err != nil {
 		os.Exit(1)
@@ -114,17 +120,7 @@ func main() {
 	rtr := api.GetFactoryCell[router.IRouterService](f, router.RouterCellType)
 	if defaultAuthToken != "" {
 		rtr.AddCredentials("", env.ClientID, defaultAuthToken, td.SecSchemeBearer)
-		fmt.Printf("Found auth token for login as '%s'\n", env.ClientID)
-	} else {
-		fmt.Printf("No auth token. Using '%s' as login ID\n", env.ClientID)
 	}
-	clientCert, _ := env.GetClientCert()
-	if clientCert != nil {
-		fmt.Printf("Found Client cert with clientID '%s'\n", clientCert.Leaf.Subject.CommonName)
-	} else {
-		fmt.Printf("No client Cert found.\n")
-	}
-
 	caCert, err := env.GetCACert()
 	discoClient := r.GetDiscovery()
 	dirClient := r.GetDirectory()

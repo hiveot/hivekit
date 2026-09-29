@@ -10,7 +10,7 @@ import (
 type Subscriptions struct {
 
 	// map of subscriptions to correlationID
-	// subscriptions of this connection in the form {dThingID}.{name}
+	// subscriptions of this connection in the form {thingID}.{name}
 	// not many are expected.
 	subscriptions map[string]string
 
@@ -73,15 +73,15 @@ func (s *Subscriptions) Subscribe(thingID string, name string, correlationID str
 }
 
 // Unsubscribe removes a subscription for a thing event/property
-func (s *Subscriptions) Unsubscribe(dThingID string, name string) {
+func (s *Subscriptions) Unsubscribe(thingID string, name string) {
 	s.mux.Lock()
 	defer s.mux.Unlock()
-	if dThingID == "" {
-		dThingID = "+"
+	if thingID == "" {
+		thingID = "+"
 	}
 	if name == "" {
 		name = "+"
 	}
-	subKey := dThingID + "." + name
+	subKey := thingID + "." + name
 	delete(s.subscriptions, subKey)
 }

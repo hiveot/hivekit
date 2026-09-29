@@ -29,6 +29,8 @@ import (
 	discovery_server "github.com/hiveot/hivekit/go/cells/transport/discovery/server"
 	grpc "github.com/hiveot/hivekit/go/cells/transport/grpc"
 	grpc_server "github.com/hiveot/hivekit/go/cells/transport/grpc/server"
+	"github.com/hiveot/hivekit/go/cells/transport/httpbasic"
+	httpbasic_server "github.com/hiveot/hivekit/go/cells/transport/httpbasic/server"
 	tls_server "github.com/hiveot/hivekit/go/cells/transport/tlsserver/server"
 	"github.com/hiveot/hivekit/go/cells/transport/wss"
 	wss_server "github.com/hiveot/hivekit/go/cells/transport/wss/server"
@@ -43,8 +45,8 @@ import (
 // a router for communication with connected devices, and more.
 var GatewayRecipeCells = []api.CellDefinition{
 	{
-		// If no CA certificate is found in the AppEnvironment then generate a CA.
-		// If no server certificate is found in the AppEnvironment then generate a self-signed certificate.
+		// If no CA certificate is found in the HiveEnvironment then generate a CA.
+		// If no server certificate is found in the HiveEnvironment then generate a self-signed certificate.
 		Type:        certs.InitFactoryCertsCellType,
 		Constructor: certs_service.RunInitFactoryCerts,
 	},
@@ -54,42 +56,42 @@ var GatewayRecipeCells = []api.CellDefinition{
 		Type:        api.HttpServerCellType,
 		Constructor: tls_server.NewTLSServerFactory,
 	},
-	// --- nested recipe with the servers operating in parallel
+	// --- nested formation with the servers operating in parallel
 	{
 		// requests are passed to all servers until one accepts
 		Type:        api.BusRecipeType,
-		Constructor: factory_service.StartBusFormationFactory,
+		Constructor: factory_service.NewBusFormationFactory,
 		Config: []api.CellDefinition{
-			// {
-			// 	// http-basic transport server
-			// 	Type:        httpbasic.HttpBasicServerCellType,
-			// 	Constructor: httpbasic_server.NewHttpBasicServerFactory,
-			// },
 			{
-				// Websocket transport server
+				// Websocket transport server is the preferred transport
 				Type:        wss.WotWebsocketServerCellType,
 				Constructor: wss_server.NewWotWssServerFactory,
 			},
 			// {
-			// 	// Hiveot SSE
+			// 	// Hiveot SSE is a theoretical option, but why bother
 			// 	Type:        ssesc.SseScServerCellType,
 			// 	Constructor: ssesc_server.StartSseScServerFactory,
 			// },
 			{
-				// Hiveot gRPC
+				// Hiveot gRPC for fast inter-process connections
 				Type:        grpc.HiveotGrpcServerCellType,
 				Constructor: grpc_server.NewHiveotGrpcServerFactory,
 			},
 			// {
-			// 	// MQTT server
+			// 	// MQTT server todo
 			// 	Type:        mqtt.MqttServerCellType,
 			// 	Constructor: mqttpkg.NewMqttServerFactory,
 			// },
 			// {
-			// 	// MQTT client
+			// 	// MQTT client todo
 			// 	Type:        mqttgw.MqttClientCellType,
 			// 	Constructor: mqttgwpkg.NewMqttClientFactory,
 			// },
+			{
+				// Last, the gateway supports http-basic
+				Type:        httpbasic.HttpBasicServerCellType,
+				Constructor: httpbasic_server.NewHttpBasicServerFactory,
+			},
 		},
 	},
 	{
@@ -120,35 +122,30 @@ var GatewayRecipeCells = []api.CellDefinition{
 		Constructor: history_service.NewHistoryServiceFactory,
 	},
 
-	// not in a gateway. The gateway stores the TD's as-is and uses them to forward
-	// requests locally.
-	// all TDs added to the gateway will have their address/security/base updated
-	// to the gateway itself.
-	// {
-	// 	// add forms to update the published TD with appropriate forms
-	// 	Type:        addforms.AddFormsCellType,
-	// 	Constructor: addforms_service.NewAddFormsServiceFactory,
-	// },
-
 	{
 		// Directory service
 		Type:        directory.DirectoryServiceCellType,
 		Constructor: directory_service.NewDirectoryServiceFactory,
 	},
+
 	{
-		// discovery of the directory (must be placed after directory)
+		// discovery of the directory
+		// This must be placed behind directory so createTD requests from Things
+		// will be handled by the directory and not be served by discovery.
 		Type:        discovery.DiscoveryServerCellType,
 		Constructor: discovery_server.NewDiscoveryServerFactory,
 	},
 
 	{
-		// Router service for routing requests to devices
-		// this requires a directory client or service.
+		// Router service for routing requests to stand-alone devices.
+		// this uses the directory to lookup thing TDs.
 		Type:        router.RouterCellType,
 		Constructor: router_service.NewRouterServiceFactory,
 	},
 	{
 		// RC service for routing requests to reverse connections.
+		// RC devices do not include forms in their TD. This cell locates
+		// the connection the device is using and forwards requests to it.
 		Type:        rcrouter.RCRouterCellType,
 		Constructor: rcrouter_service.NewRCRouterServiceFactory,
 	},
@@ -166,7 +163,7 @@ var GatewayRecipeCells = []api.CellDefinition{
 // ignore the forms in the TD. They only need a gateway connection
 // and send requests using one of the supported protocols.
 //
-// The gateway publishes its own discovery record of type Gateway.
+// The gateway publishes its own WoT discovery record of type Gateway.
 //
 // This recipe can be modified to use an external directory by replacing
 // the directory service cell with a directory client cell and configuring
@@ -178,6 +175,7 @@ type GatewayRecipe struct {
 }
 
 // Add an account for connecting to the gateway.
+//
 // This is a convenience function that locates the authn and certs services and
 // creates an account, optional token and optional key and TLS certificate.
 //
@@ -203,7 +201,7 @@ func (r *GatewayRecipe) AddAccount(
 		err = authnSvc.GetSessionManager().SaveToken(clientID, token)
 	}
 	if withCert {
-		certSvc := r.f.GetCell(certs.CertsServiceCellType).(certs.ICertsService)
+		certSvc := r.GetCertsSvc()
 		validity := time.Hour * 24 * 365
 		tlsCert, err = certSvc.CreateClientTLSCert(clientID, role, validity)
 		if err != nil {
@@ -258,15 +256,16 @@ func (r *GatewayRecipe) Stop() {
 //
 // Cell chain:
 //
-//	 -> init certs
-//		  -> server group [http, wss, sse, mqtt]
-//		     -> logging
-//	           -> authz
-//		          -> authn
-//		             -> history
-//		                -> directory
-//		                   -> discovery server
-//	                         -> router | reconnect | clients
+//		 -> init certs
+//			  -> server group [http, wss, sse, mqtt]
+//			     -> logging
+//		           -> authz
+//			          -> authn
+//			             -> history
+//			                -> directory
+//			                   -> discovery server
+//		                         -> router | reconnect | clients
+//	                               -> rcrouter
 //
 // This returns the recipe which can be used like any other cell, along with the
 // factory used to create the recipe or an error.

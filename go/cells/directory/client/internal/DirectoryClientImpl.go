@@ -9,7 +9,6 @@ import (
 	"github.com/hiveot/hivekit/go/api/td"
 	"github.com/hiveot/hivekit/go/cells"
 	"github.com/hiveot/hivekit/go/cells/directory"
-	"github.com/hiveot/hivekit/go/cells/transport/discovery"
 	"github.com/teris-io/shortid"
 )
 
@@ -32,37 +31,38 @@ type DirectoryClientImpl struct {
 	// TBD: should the directory cache support the filesystem for out-of-band TDs?
 	cache *DirectoryCacheImpl
 
-	// discoveryThingID ThingID of the directory service instance.
-	discoveryThingID string
+	// The directory thingID
+	dirThingID string
 
-	// the directory TD used to connect to the directory server
+	// the directory TD used to connect to the directory server.
+	// not needed if a gateway connection exists and dirThingID is known.
 	dirTD *td.TD
 }
 
 // Send a request to the directory server.
 //
+// This requires that the directory thingID is known.
 // If no TDD is set then just send the request without it. In case of a gateway
 // connection, it goes straight to the directory service.
 //
 // Use the TDD ThingID if known. Otherwise fall back to the default directory ThingID.
 func (cl *DirectoryClientImpl) _sendServerRequest(
-	op string, action string, input any, output any) error {
+	op string, action string, input any, output any) (err error) {
 
-	var dirThingID string
-
-	if cl.dirTD != nil {
-		dirThingID = cl.dirTD.ID
-	} else {
+	if cl.dirThingID == "" {
 		// this is only going to work if the chain leads to the directory service
-		slog.Info("_sendServerRequest. Directory client has no TDD. Forwarding request anyways",
-			"op", op, "action", action)
-	}
+		err = fmt.Errorf("Directory thingID is not known.")
+	} else {
 
-	// this assumes that the chain knows how to reach the directory server.
-	// This is not a concern of this cell though.
-	err := cl.Rpc(op, dirThingID, action, input, output)
+		// this assumes that the chain knows how to reach the directory server.
+		// This is not a concern of this cell though.
+		err = cl.Rpc(op, cl.dirThingID, action, input, output)
+	}
 	if err != nil {
-		return fmt.Errorf("RetrieveAllThings: op '%s' failed: %w", op, err)
+		err = fmt.Errorf("_sendServerRequest to '%s': op '%s/%s' failed: %w",
+			cl.dirThingID, op, action, err)
+		// this is not an error as the thingID might simply not exist
+		slog.Info(err.Error())
 	}
 	return err
 }
@@ -116,17 +116,26 @@ func (cl *DirectoryClientImpl) HandleNotification(notif *msg.NotificationMessage
 // Retrieve a Thing TD from the cache or remote
 func (cl *DirectoryClientImpl) RetrieveThing(thingID string) (tdoc *td.TD, err error) {
 
+	if thingID == "" {
+		return nil, fmt.Errorf("RetrieveThing: no thingID provided")
+	}
 	// first try the cache
 	tdoc = cl.cache.GetThing(thingID)
 	if tdoc != nil {
 		return tdoc, nil
 	}
 
-	// This client doesnt make assumptions on how it is connected.
-	// If the cell downstream is connected to a gateway then this will work, otherwise it a TDD is required.
+	// This requires a TDD or a gateway connection
 	var tdJson string
-	err = cl._sendServerRequest(
-		td.OpInvokeAction, directory.RetrieveThingAction, thingID, &tdJson)
+	if cl.dirTD != nil {
+		err = cl._sendServerRequest(
+			td.OpInvokeAction, directory.RetrieveThingAction, thingID, &tdJson)
+	} else {
+		// If a gateway connection exists then this should reach the server
+		// without it, this fails.
+		err = cl._sendServerRequest(
+			td.OpInvokeAction, directory.RetrieveThingAction, thingID, &tdJson)
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -134,9 +143,12 @@ func (cl *DirectoryClientImpl) RetrieveThing(thingID string) (tdoc *td.TD, err e
 	return tdoc, err
 }
 
-// Retrieve all things in the directory
-// This fails if the TDD is not set.
-func (cl *DirectoryClientImpl) RetrieveAllThings(offset int, limit int) (tdList []*td.TD, err error) {
+// Retrieve all things in the directory.
+//
+// This loads all things from the remote directory. If the directory is
+// not reachable, fall back to the local cache.
+// This fails if the Directory ThingID is not set.
+func (cl *DirectoryClientImpl) RetrieveAllThings(offset int, limit int) (tdList []*td.TD, cacheOnly bool) {
 
 	// This client doesnt make assumptions on how it is connected.
 	// If the cell downstream is connected to a gateway then this will work, otherwise it a TDD is required.
@@ -146,30 +158,40 @@ func (cl *DirectoryClientImpl) RetrieveAllThings(offset int, limit int) (tdList 
 		Limit:  limit,
 	}
 	var tdJsonList []string
-	err = cl._sendServerRequest(
+	err := cl._sendServerRequest(
 		td.OpInvokeAction, directory.RetrieveAllThingsAction, args, &tdJsonList) //&tdJsonList)
-	if err != nil {
-		return nil, err
-	}
-
-	// import them into the cache
-	tdList = make([]*td.TD, 0, len(tdJsonList))
-	for _, tdJson := range tdJsonList {
-		tdoc, err := cl.cache.ImportTDJson(tdJson)
-		if err == nil {
-			tdList = append(tdList, tdoc)
+	if err == nil {
+		// import them into the cache
+		tdList = make([]*td.TD, 0, len(tdJsonList))
+		for _, tdJson := range tdJsonList {
+			tdoc, err := cl.cache.ImportTDJson(tdJson)
+			if err == nil {
+				tdList = append(tdList, tdoc)
+			}
 		}
 	}
-	return tdList, err
+	tdList = cl.cache.GetAllThings(offset, limit)
+	cacheOnly = err != nil
+	return tdList, cacheOnly
 }
 
 // Set the directory TD to use and include it in the local cache
 func (cl *DirectoryClientImpl) SetTDD(tdd *td.TD) {
 	cl.dirTD = tdd
+	cl.dirThingID = tdd.ID
 	cl.cache.ImportTD(tdd)
 }
 
-// Update a Thing in the directory
+// Start subscribes to update notifications from the server
+// This requires the directory server thingID
+func (cl *DirectoryClientImpl) Start() {
+	if cl.dirThingID != "" {
+		err := cl._sendServerRequest(td.OpSubscribeAllEvents, "", nil, nil)
+		_ = err
+	}
+}
+
+// Update a Thing in the directory and in the local cache.
 func (cl *DirectoryClientImpl) UpdateThing(tdJson string) (err error) {
 	_, err = cl.cache.ImportTDJson(tdJson)
 	if err != nil {
@@ -184,21 +206,18 @@ func (cl *DirectoryClientImpl) UpdateThing(tdJson string) (err error) {
 //
 // Use the sink to link to a transport client for delivering directory requests.
 //
-// Note that the transport client needs a TD to establish a connection, or an
-// existing connection to forward directory requests.
+// Call Start to subscribe to directory notifications from the server.
 //
-// This listens for directory notifications from the sink to receive directory updates.
-//
-//	dirTD is the required directory TD from external source. Use SetTDD if not yet available.
+//	dirTD is the directory TD from external source. Use SetTDD if not yet available.
 //	reqSink forwards requests to the directory server and returns notifications. nil to set manually.
 func NewDirectoryClientImpl(
 	dirTD *td.TD, reqSink api.IHiveCell) *DirectoryClientImpl {
 	thingID := directory.DirectoryClientCellType + "-" + shortid.MustGenerate()
 	cl := &DirectoryClientImpl{
-		HiveCellBase:     cells.NewHiveCellBase(thingID),
-		cache:            NewDirectoryCacheImpl(),
-		dirTD:            dirTD,
-		discoveryThingID: discovery.DiscoveryClientCellType,
+		HiveCellBase: cells.NewHiveCellBase(thingID),
+		cache:        NewDirectoryCacheImpl(),
+		dirTD:        dirTD,
+		dirThingID:   "",
 	}
 	if dirTD != nil {
 		cl.SetTDD(dirTD)

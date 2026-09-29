@@ -1,16 +1,13 @@
-# HiveKit Cell Factory
+# Cell Factory
 
-The Cell Factory provides the cells to create an application using the provided environment. 
+The cell factory manages cell instantiation to create an application using the provided environment along with a recipe. 
+A recipe is defined as a collection of cells with a formation on how they are linked. 
 
-While cells can be created and use on their own, use of *factory recipes* simplifies  construction of an application, as only the application specific logic itself needs to be added. Capabilities like discovery, communication, user management, storage and others are included using the matching recipe.
-
-Recipes are a companion to the factory that constructs a chain, star and/or bus formation from a declared recipe. A recipe is a cell itself that passes requests to the cells in the recipe and returns notifications from the recipe cells. Recipes can be nested.
-
-![chaining](../../docs/cell-chain.png)
+![recipe](../../docs/cell-factory-formation.svg)
 
 ## Status
 
-The factory and recipe cells are in alpha. They are functional but breaking changes can be expected.
+The factory and recipes are in alpha. They are functional but breaking changes can be expected.
 
 Roadmap:
 * support launching and linking of cells and recipes written in javascript and python.
@@ -19,13 +16,13 @@ Roadmap:
 
 ## Summary
 
-The purpose of the factory is to simplify instantiation and linking of cells for a client or server applications along with the needed environment. It operates using a collection of registered cells. 3rd party cells can easily be added to the registry. 
+The purpose of the factory is to simplify instantiation and lookup of cells for a client or server applications along with the needed environment. It operates using a collection of registered cells. Custom 3rd party cells can easily be registered with the factory. 
+
+Cells are registered using a cell type-name and a constructor. The cell type represents the API of the cell, while the constructor instantiates the implementation using the application environment. Cells can be replaced with custom functionality as long as the replacement implements the API for that cell type.
 
 To develop an application using the factory, the application logic can be placed in a cell itself and linked to a recipe. The recipe handles the needed capabilities for discovery, communication, storage and much more.
 
-Each cell is registered using a cell type-name and a default implementation. The cell type identifies the interface of the cell implementation. Cells can be replaced with custom functionality as long as the replacement implements the interface for that cell type.
-
-Applications can instantiate a cell using 'GetCell(cellType)'. The cell uses the factory provided environment for directory locations, certificates and auth info as needed. In case of clients the environment offers the server URL which can be set manually or by the discovery service.
+Applications can instantiate a cell using 'GetCell(cellType)'. The cell uses the factory provided environment for directory locations, certificates and auth info as needed. 
 
 The recipes folder contains a set of convenient cookie-cutter recipies for building a consumer, Thing or gateway. See also the examples to see how they are used for creating a test device and a consumer cli.
 
@@ -51,7 +48,7 @@ Alternatively, using the gateway recipe it can accept connections from javascrip
 
 ### Including 3rd party cells
 
-3rd party cells can be included if they are written in golang. For 3rd party cells written in different languages it is better to define them as plugins. A javascript and python implementation of the factory is planned to simplify writing IoT applications and plugins in those languages.
+3rd party cells can be directly be included if they are written in golang. For 3rd party cells written in different languages it is better to define them as plugins. A javascript and python implementation of the factory is planned to simplify writing IoT applications and plugins in those languages.
 
 ## Application Environment
 
@@ -59,7 +56,7 @@ Since many cells operate in an environment that uses files, credentials or netwo
 
 The first step is therefore to setup the environment:
 
-> env := api.NewAppEnvironment(homedir, withFlags)
+> env := api.NewHiveEnvironment(homedir, withFlags)
 
 Where 'withFlags' allows control of the home and other directories uses commandline flags.
 
@@ -101,16 +98,16 @@ A Windows directory structure can be accomodated by setting the paths manually. 
 
 When building an application it can be neccesary to specify different directories from the commandline.
 
-NewAppEnvironment uses the golang 'flag' library to allow overriding the directories with a corresponding flag:
+NewHiveEnvironment uses the golang 'flag' library to allow overriding the directories with a corresponding flag:
 
 ```
 -home         select a different application home directory
 -config       select a different configuration file directory
--configFile   select the primary configuration file that holds all cell configurations
 -logLevel     logging level, debug, info, warn (default), error
 -clientID     application clientID when authenticating with a server (for clients)
--serverURL    select a different server (for clients)
-
+-dirTD        URL of the directory TD (for clients)
+-gwURL        URL of the gateway to connect to (for clients)
+-
 ```
 
 ### Certificates
@@ -147,7 +144,7 @@ The easiest method to build an application is to use one of the predefined recip
 ```go (tenative)
 func main(){
     // collect the cells to include. Predefined recipes already contain the cells for common use-cases.
-	env := api.NewAppEnvironment("~/bin/hiveot", true)
+	env := api.NewHiveEnvironment("~/bin/hiveot", true)
 	f := factory_service.NewCellFactory(env, nil)
     recipe := NewStandAloneDeviceRecipe(f)
     // register the recipe cells with the factory and start them.

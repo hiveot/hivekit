@@ -119,7 +119,7 @@ func (sm *SessionManager) Login(
 
 // Load a previously saved token from the keys directory under the name {clientID}.token
 //
-// The intended configuration is to match this with AppEnvironment.
+// The intended configuration is to match this with HiveEnvironment.
 //
 // Intended for storing tokens for core services and admin user.
 func (svc *SessionManager) LoadToken(clientID string) (string, error) {

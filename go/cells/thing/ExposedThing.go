@@ -372,7 +372,7 @@ func NewExposedThing(thingID string, appReqHandler msg.RequestHandler) *ExposedT
 // Factory for creating an exposed Thing using the factory environment
 //
 // This uses the Cell Type name as the thingID prefix followed by shortid.
-func StartExposedThingFactory(f api.ICellFactory, def *api.CellDefinition) (api.IHiveCell, error) {
+func NewExposedThingFactory(f api.ICellFactory, def *api.CellDefinition) (api.IHiveCell, error) {
 	thingID := def.Type + "-" + shortid.MustGenerate()
 	c := NewExposedThing(thingID, nil)
 	return c, nil

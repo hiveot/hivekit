@@ -27,7 +27,7 @@ func NewBusFormation(
 	return bus, err
 }
 
-// StartBusFormationFactory starts a new bus formation.
+// NewBusFormationFactory starts a new bus formation.
 //
 // Cells should not emit requests autonomously until after Start is invoked.
 //
@@ -37,7 +37,7 @@ func NewBusFormation(
 // * Notifications received from the bus will be forwarded to the bus notification sink.
 //
 // cellDef contains a list of CellDefinitions with the bus members.
-func StartBusFormationFactory(
+func NewBusFormationFactory(
 	f api.ICellFactory, cellDef *api.CellDefinition) (api.IHiveCell, error) {
 
 	members, ok := cellDef.Config.([]api.CellDefinition)
@@ -63,5 +63,11 @@ func NewChainFormation(
 	f api.ICellFactory, cellDefs []api.CellDefinition, linkTo api.IHiveCell) (api.IRecipe, error) {
 
 	chain, err := internal.NewChainFormation(f, cellDefs, linkTo)
-	return chain, err
+	// warning, chain is a pointer, returning it as an interface when the pointer is nil
+	// no longer evaluates to nil after returning as IRecipe. The reason is that the interface is
+	// still intact even though the intstance is nil.
+	if err != nil {
+		return nil, err
+	}
+	return chain, nil
 }

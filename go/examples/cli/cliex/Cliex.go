@@ -38,40 +38,25 @@ type Cliex struct {
 }
 
 // locate a TD through the directory or discovery.
-// This takes the following steps:
-// 1. checks if the TD is known to the directory client
-// 2. if no remote directory is set then discover a directory
-// 3. check the directory client again.
+// This searches in the following sequence:
+//  1. checks if the TD is known to the directory client
+//  2. search using the discovery client
+//  3. if no remote directory is set then discover a directory,
+//     and check the directory client again.
 func (cliex *Cliex) FindTD(thingID string) (tdoc *td.TD) {
 	// var err error
 	var maxWaitTime = time.Second * 1
 	// var tddURL string
 
-	// 1. Ask the directory client.
-	// It might not be in the cache yet so continue if not found.
-	tdoc, _ = cliex.dirClient.RetrieveThing(thingID)
-	if tdoc != nil {
-		return tdoc
-	}
-
-	// 2. make sure the directory client has a directory to talk to and try again.
-	// recipe should have discovered a directory and placed it in env
-	// dirTDD := cliex.dirClient.GetTDD()
-	// if dirTDD == nil {
-	// 	dirTDD, tddURL, _, err = cliex.discoClient.DiscoverFirstDirectoryTD("", maxWaitTime)
-	// 	_ = tddURL
-	// 	if err == nil {
-	// 		cliex.dirClient.SetTDD(dirTDD)
-	tdoc, _ = cliex.dirClient.RetrieveThing(thingID)
-	if tdoc != nil {
-		return tdoc
-	}
-	// 	}
-	// }
-
-	// 3. not in the directory. attempt thing discovery
-
+	// 1. search using discovery
 	tdoc = cliex.discoClient.DiscoverFirstTD(thingID, "", maxWaitTime)
+	if tdoc != nil {
+		cliex.dirClient.Cache().ImportTD(tdoc)
+		return tdoc
+	}
+
+	// 2. Ask the directory client.
+	tdoc, _ = cliex.dirClient.RetrieveThing(thingID)
 	if tdoc == nil {
 		slog.Warn("FindTD. No TD found", "thingID", thingID)
 	}

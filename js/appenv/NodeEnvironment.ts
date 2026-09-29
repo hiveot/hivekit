@@ -12,7 +12,7 @@ const slog = new Logger({ name: "zwavejs" })
 const DEFAULT_CA_CERT_FILE = "caCert.pem"
 
 
-// AppEnvironment holds the running environment naming conventions.
+// HiveEnvironment holds the running environment naming conventions.
 // Intended for services and plugins.
 // This contains folder locations, CA certificate and application clientID
 export default class NodeEnvironment extends Object {

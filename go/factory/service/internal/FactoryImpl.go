@@ -299,7 +299,7 @@ func (f *FactoryImpl) WaitForSignal(ctx context.Context) {
 
 // Return a ready-to-use instance of the cell factory.
 //
-//	env is the application enviroment created with api.NewAppEnvironment
+//	env is the application enviroment created with api.NewHiveEnvironment
 //	cellDefs are the cell definitions available to GetCell(type)
 func NewCellFactoryImpl(
 	env *api.HiveEnvironment, cellDefs []api.CellDefinition) api.ICellFactory {

@@ -85,4 +85,4 @@ Since reverse connections and gateway discovery are not defined in the WoT speci
    
 This use-case is supported by the directory server and router cells. 
 
-Alternatively, AppEnvironment supports a commandline option to provide a server URL to connect to, bypassing discovery altogether.
+Alternatively, HiveEnvironment supports a commandline option to provide a server URL to connect to, bypassing discovery altogether.

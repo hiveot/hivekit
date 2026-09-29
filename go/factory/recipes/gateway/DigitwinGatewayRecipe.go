@@ -42,8 +42,8 @@ import (
 // and a router for communication with connected devices.
 var DigitwinGatewayRecipeCells = []api.CellDefinition{
 	{
-		// If no CA certificate is found in the AppEnvironment then generate a CA.
-		// If no server certificate is found in the AppEnvironment then generate a self-signed certificate.
+		// If no CA certificate is found in the HiveEnvironment then generate a CA.
+		// If no server certificate is found in the HiveEnvironment then generate a self-signed certificate.
 		Type:        certs.InitFactoryCertsCellType,
 		Constructor: certs_service.RunInitFactoryCerts,
 	},
@@ -57,7 +57,7 @@ var DigitwinGatewayRecipeCells = []api.CellDefinition{
 	{
 		// requests are passed to all servers until one accepts
 		Type:        api.BusRecipeType,
-		Constructor: factory_service.StartBusFormationFactory,
+		Constructor: factory_service.NewBusFormationFactory,
 		Config: []api.CellDefinition{
 			{
 				// http-basic transport server

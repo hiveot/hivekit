@@ -13,7 +13,7 @@ This service is in alpha. It has basic functionality but breaking changes can be
 
 ## Summary
 
-To function securely, HiveKit transport servers need a valid server TLS certificate, signed by a trusted CA. HiveKit standardizes access to these certificates through its application environment (AppEnvironment). This environment implements default rules for obtaining these certificates. By using the app environment certificates, cells can directly run a server or connect to one without the need for additional code to manage certificates.
+To function securely, HiveKit transport servers need a valid server TLS certificate, signed by a trusted CA. HiveKit standardizes access to these certificates through its application environment (HiveEnvironment). This environment implements default rules for obtaining these certificates. By using the app environment certificates, cells can directly run a server or connect to one without the need for additional code to manage certificates.
 
 HiveKit expects applications to use the application environment for loading certificates. The application environment only loads certificates from the configured 'certs' directory. It does not create certificates. 
 

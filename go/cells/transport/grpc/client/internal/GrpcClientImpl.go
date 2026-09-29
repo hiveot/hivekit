@@ -269,7 +269,7 @@ func (cl *GrpcClientImpl) SendRequest(
 	if err != nil {
 		cl.rnrChan.Close(req.CorrelationID)
 		slog.Warn("SendRequest ->: error in sending request",
-			"dThingID", req.ThingID,
+			"thingID", req.ThingID,
 			"name", req.Name,
 			"correlationID", req.CorrelationID,
 			"err", err.Error())

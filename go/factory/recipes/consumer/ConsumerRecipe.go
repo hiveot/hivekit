@@ -50,15 +50,15 @@ var ConsumerRecipeChain = []api.CellDefinition{
 		Type: valueCacheSlotName,
 	},
 	{
-		// use a directory client to read thing TDs
-		Type:        directory.DirectoryClientCellType,
-		Constructor: directoryclient.NewDirectoryClientFactory,
-	},
-	{
-		// discover the server using DNS-SD
+		// discover the directory or server using DNS-SD
 		// app can retrieve it with f.GetCell(discovery.DiscoveryClientCellType)
 		Type:        discovery.DiscoveryClientCellType,
 		Constructor: discovery_client.NewDiscoveryClientFactory,
+	},
+	{
+		// use a directory client to read thing TDs
+		Type:        directory.DirectoryClientCellType,
+		Constructor: directoryclient.NewDirectoryClientFactory,
 	},
 	{
 		// If a gateway or server URL is provided then connect directly to it.
@@ -129,7 +129,7 @@ func (r *ConsumerRecipe) SetCredentials(
 // A value cache can be included to capture property updates and event notifications.
 //
 // This:
-// * support AppEnvironment commandline options
+// * support HiveEnvironment commandline options
 // * load CA and client certificate, and auth token if found
 // * directory client for access to discovered devices
 // * discovery client for locating devices and directories

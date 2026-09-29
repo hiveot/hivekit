@@ -267,8 +267,8 @@ func TestCRUDUsingRestAPI(t *testing.T) {
 	assert.Equal(t, thing1ID, tdi2.ID)
 
 	// read the new TD
-	tdiList, err := dirClient.RetrieveAllThings(0, 20)
-	require.NoError(t, err)
+	tdiList, cacheOnly := dirClient.RetrieveAllThings(0, 20)
+	require.False(t, cacheOnly)
 	assert.NotEmpty(t, tdiList)
 	assert.Equal(t, thing1ID, tdi2.ID)
 

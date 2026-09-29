@@ -18,7 +18,7 @@ func (app *Cliex) ListDir(env *api.HiveEnvironment, thingID string) {
 	var err error
 
 	tdURL := env.ServerTDURL
-	serverTD := env.ServerTD
+	serverTD := env.GetServerTD()
 	if serverTD == nil && tdURL != "" {
 		serverTD, _, err = app.discoClient.LoadTD(tdURL)
 		if err != nil {
@@ -46,9 +46,10 @@ func (app *Cliex) ListDir(env *api.HiveEnvironment, thingID string) {
 
 	// for now just show up to the first 100 entries
 	app.dirClient.SetTDD(serverTD)
-	tdList, err := app.dirClient.RetrieveAllThings(0, 100)
-	if err != nil {
-		fmt.Printf("ERROR: Read directory '%s' failed: %s\n", serverTD.ID, err.Error())
+	tdList, cacheOnly := app.dirClient.RetrieveAllThings(0, 100)
+	if cacheOnly {
+		ListThings(tdList)
+		fmt.Printf("ERROR: Read directory '%s' failed. Used cached TDs\n", serverTD.ID)
 	} else {
 		ListThings(tdList)
 		fmt.Printf("Directory '%s' contains %d Things\n", serverTD.ID, len(tdList))
