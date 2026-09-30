@@ -75,7 +75,7 @@
             "cwd": "${workspaceFolder}/go/examples",
             "showLog": false,
             "env": {},
-            "args": ["-loglevel", "info"],
+            "args": ["-loglevel", "info", "-home", "~/bin/hiveot"],
             // "logOutput": "rpc",
             // "console": "integratedTerminal",
         },

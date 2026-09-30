@@ -61,19 +61,22 @@ func (svc *RCRouterServiceImpl) HandleRequest(req *msg.RequestMessage, replyTo m
 func (svc *RCRouterServiceImpl) RouteRequest(req *msg.RequestMessage, replyTo msg.ResponseHandler) (err error) {
 
 	tdoc := svc.getTD(req.ThingID)
+
 	//  look for a reverse connection using the TD senderID.
 	//
 	// TODO: if an admin uploads a bunch of TDs without forms then requests for those
 	// TDs will go to the admin user. This is obviously not intended.
-	rcClientID := tdoc.GetSenderID()
-	if rcClientID != "" {
-		c := svc.GetRCConnection(rcClientID)
-		if c == nil {
-			err = fmt.Errorf("RouteRequest: device '%s' isnt connected", rcClientID)
-		} else {
-			err = c.SendRequest(req, replyTo)
+	if tdoc != nil {
+		rcClientID := tdoc.GetSenderID()
+		if rcClientID != "" {
+			c := svc.GetRCConnection(rcClientID)
+			if c == nil {
+				err = fmt.Errorf("RouteRequest: device '%s' isnt connected", rcClientID)
+			} else {
+				err = c.SendRequest(req, replyTo)
+			}
+			return err
 		}
-		return err
 	}
 
 	// unable to route request. Forward it to the next cell.
