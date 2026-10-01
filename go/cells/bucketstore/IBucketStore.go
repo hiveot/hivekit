@@ -52,6 +52,9 @@ type BucketStoreInfo struct {
 	// NrRecords holds the number of records in the store or bucket.
 	// -1 if not available.
 	NrRecords int64
+
+	// The data version
+	Version string
 }
 
 // IBucketStore defines the interface to a simple key-value embedded bucket store.
@@ -82,7 +85,7 @@ type IBucketStore interface {
 	GetLocation() string
 
 	// Info returns bucket store information
-	//Info() *BucketStoreInfo
+	Info() BucketStoreInfo
 }
 
 // IBucket defines the interface to a store key-value bucket
@@ -114,7 +117,7 @@ type IBucket interface {
 	ID() string
 
 	// Info returns the bucket information, when available
-	Info() *BucketStoreInfo
+	Info() BucketStoreInfo
 
 	// Set sets a document with the given key
 	// This stores a copy of value.

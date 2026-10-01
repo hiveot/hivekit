@@ -12,6 +12,13 @@ import (
 //go:embed "directory-td.json"
 var DirectoryTDJson []byte
 
+// property, event and action names
+const (
+	// Property names
+	PropDataSize = "dataSize"
+	PropNrThings = "nrThings"
+)
+
 // two cells, the service and optional http server
 const (
 	// DirectoryServiceCellType identifies the directory service implementation

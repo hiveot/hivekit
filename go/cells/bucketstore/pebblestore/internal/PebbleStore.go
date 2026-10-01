@@ -51,6 +51,7 @@ import (
 type PebbleStore struct {
 	storeDirectory string
 	pebbleDB       *pebble.DB
+	info           bucketstore.BucketStoreInfo
 }
 
 func (store *PebbleStore) Close() error {
@@ -74,10 +75,29 @@ func (store *PebbleStore) GetLocation() string {
 	return store.storeDirectory
 }
 
+// Info returns bucket information
+func (store *PebbleStore) Info() bucketstore.BucketStoreInfo {
+	// 	// 1. Retrieve the current internal layout/metadata of the DB
+	totalEntries := uint64(0)
+	tables, _ := store.pebbleDB.SSTables()
+	for _, level := range tables {
+		for _, table := range level {
+			if table.Properties != nil {
+				totalEntries += table.Properties.NumEntries
+			}
+		}
+	}
+	metrics := store.pebbleDB.Metrics()
+	store.info.DataSize = int64(metrics.DiskSpaceUsage())
+	store.info.NrRecords = int64(totalEntries)
+	return store.info
+}
+
 // OpenPebbleStore creates a storage database with bucket support.
 //
 //	storeDirectory is the directory  holding the database files
 func OpenPebbleStore(storeDirectory string) (*PebbleStore, error) {
+	var dataSize int64
 
 	options := &pebble.Options{}
 	// pebble.AddSession will panic if the store directory is readonly, so check ahead to return an error
@@ -103,29 +123,39 @@ func OpenPebbleStore(storeDirectory string) (*PebbleStore, error) {
 
 	if err != nil {
 		slog.Error("failed to open bucket store", "directory", storeDirectory, "err", err)
-	} else {
-		version := pebbleDB.FormatMajorVersion()
-		metrics := pebbleDB.Metrics()
-		stats := pebble.CheckLevelsStats{}
-		err = pebbleDB.CheckLevels(&stats)
-		if err != nil {
-			slog.Error("PebbleStore.open DB.CheckLevels failed: ", "err", err.Error())
-		}
-		_ = err
-		slog.Info("pebble bucket store opened",
-			slog.String("path", storeDirectory),
-			slog.Uint64("FormatMajorVersion", uint64(version)),
-			slog.Uint64("memtables size", metrics.MemTable.Size),
-			slog.Uint64("data size", metrics.WAL.Size),
-		)
-
-		// auto upgrade the database
-		//store.db.RatchetFormatMajorVersion()
+		return nil, err
 	}
+	version := pebbleDB.FormatMajorVersion()
+	metrics := pebbleDB.Metrics()
+	stats := pebble.CheckLevelsStats{}
+	err = pebbleDB.CheckLevels(&stats)
+	if err != nil {
+		slog.Error("PebbleStore.open DB.CheckLevels failed: ", "err", err.Error())
+	}
+	dataSize = int64(metrics.WAL.Size)
+	_ = err
+	slog.Info("pebble bucket store opened",
+		slog.String("path", storeDirectory),
+		slog.Uint64("FormatMajorVersion", uint64(version)),
+		slog.Uint64("memtables size", metrics.MemTable.Size),
+		slog.Int64("data size", dataSize),
+	)
+
+	// auto upgrade the database
+	//store.db.RatchetFormatMajorVersion()
+
 	store := &PebbleStore{
 		storeDirectory: storeDirectory,
 		pebbleDB:       pebbleDB,
+		info: bucketstore.BucketStoreInfo{
+			Id:        "",
+			Engine:    bucketstore.BackendPebble,
+			DataSize:  dataSize,
+			NrRecords: -1,
+			Version:   version.String(),
+		},
 	}
+	var _ bucketstore.IBucketStore = store // interface check
 
 	return store, err
 }

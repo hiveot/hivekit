@@ -4,7 +4,7 @@ import (
 	"fmt"
 
 	"github.com/gdamore/tcell/v2"
-	"github.com/hiveot/hivekit/go/cells/transport/discovery"
+	"github.com/hiveot/hivekit/go/cells/discovery"
 	"github.com/rivo/tview"
 )
 

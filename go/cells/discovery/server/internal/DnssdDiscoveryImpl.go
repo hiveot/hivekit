@@ -10,7 +10,7 @@ import (
 	"strings"
 
 	"github.com/grandcat/zeroconf"
-	"github.com/hiveot/hivekit/go/cells/transport/discovery"
+	"github.com/hiveot/hivekit/go/cells/discovery"
 	"github.com/hiveot/hivekit/go/utils"
 )
 

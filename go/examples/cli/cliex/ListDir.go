@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/hiveot/hivekit/go/api"
-	"github.com/hiveot/hivekit/go/cells/transport/discovery"
+	"github.com/hiveot/hivekit/go/cells/discovery"
 )
 
 // Show the content of a remote directory.

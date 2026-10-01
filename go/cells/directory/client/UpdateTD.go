@@ -1,4 +1,4 @@
-package directory_service
+package directory_client
 
 import (
 	"time"

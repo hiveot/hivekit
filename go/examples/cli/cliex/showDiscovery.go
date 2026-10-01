@@ -8,7 +8,7 @@ import (
 
 	"github.com/araddon/dateparse"
 	"github.com/hiveot/hivekit/go/api/td"
-	"github.com/hiveot/hivekit/go/cells/transport/discovery"
+	"github.com/hiveot/hivekit/go/cells/discovery"
 	"github.com/hiveot/hivekit/go/utils"
 )
 

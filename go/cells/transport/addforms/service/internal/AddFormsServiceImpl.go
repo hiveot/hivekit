@@ -71,7 +71,9 @@ func (svc *AddFormsServiceImpl) HandleRequest(req *msg.RequestMessage, replyTo m
 
 // NewAddFormsServiceImpl creates a new instance of the service
 func NewAddFormsServiceImpl(getServers func() []api.ITransportServer) *AddFormsServiceImpl {
+
 	thingID := addforms.AddFormsCellType + "-" + shortid.MustGenerate()
+
 	m := &AddFormsServiceImpl{
 		HiveCellBase:       *cells.NewHiveCellBase(thingID),
 		includeAffordances: true,

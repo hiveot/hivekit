@@ -161,6 +161,6 @@ func NewChainFormation(
 		tail.SetRequestSink(linkTo)
 	}
 
-	var _ api.IRecipe = formation
+	var _ api.IHiveCell = formation // interface check
 	return formation, nil
 }

@@ -5,11 +5,11 @@ import (
 
 	"github.com/hiveot/hivekit/go/api"
 	"github.com/hiveot/hivekit/go/cells"
+	"github.com/hiveot/hivekit/go/cells/discovery"
+	discovery_client "github.com/hiveot/hivekit/go/cells/discovery/client"
 	"github.com/hiveot/hivekit/go/cells/reconnect"
 	reconnect_service "github.com/hiveot/hivekit/go/cells/reconnect/service"
 	"github.com/hiveot/hivekit/go/cells/transport/clients"
-	"github.com/hiveot/hivekit/go/cells/transport/discovery"
-	discovery_client "github.com/hiveot/hivekit/go/cells/transport/discovery/client"
 	factory_service "github.com/hiveot/hivekit/go/factory/service"
 )
 
@@ -52,7 +52,7 @@ var RCDeviceChain = []api.CellDefinition{
 type RCDeviceRecipe struct {
 	*cells.HiveCellBase
 	f         api.ICellFactory
-	formation api.IRecipe
+	formation api.IHiveCell
 }
 
 // Start the recipe and factory.

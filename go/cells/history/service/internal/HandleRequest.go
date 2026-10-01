@@ -61,11 +61,15 @@ func (svc *HistoryServiceImpl) HandleRequest(req *msg.RequestMessage, replyTo ms
 			resp, err = svc.handleSeek(req)
 		case history.ReadHistoryMethod:
 			resp, err = svc.handleReadHistory(req)
+		default:
 		}
 		if err != nil {
 			return err
+		} else if resp != nil {
+			return replyTo(resp)
+		} else {
+			return svc.ExposedThing.HandleRequest(req, replyTo)
 		}
-		return replyTo(resp)
 	}
 }
 

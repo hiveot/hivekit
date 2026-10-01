@@ -6,10 +6,10 @@ import (
 	authn_service "github.com/hiveot/hivekit/go/cells/authn/service"
 	"github.com/hiveot/hivekit/go/cells/certs"
 	certs_service "github.com/hiveot/hivekit/go/cells/certs/service"
+	"github.com/hiveot/hivekit/go/cells/discovery"
+	discovery_server "github.com/hiveot/hivekit/go/cells/discovery/server"
 	"github.com/hiveot/hivekit/go/cells/transport/addforms"
 	addforms_service "github.com/hiveot/hivekit/go/cells/transport/addforms/service"
-	"github.com/hiveot/hivekit/go/cells/transport/discovery"
-	discovery_server "github.com/hiveot/hivekit/go/cells/transport/discovery/server"
 	tls_server "github.com/hiveot/hivekit/go/cells/transport/tlsserver/server"
 	"github.com/hiveot/hivekit/go/cells/transport/wss"
 	wss_server "github.com/hiveot/hivekit/go/cells/transport/wss/server"
@@ -96,7 +96,7 @@ var StandAloneDeviceChain = []api.CellDefinition{
 //
 // This returns the recipe, which can be used like any other cell.
 // Call Stop to end the application.
-func NewStandAloneDeviceRecipe(f api.ICellFactory, eThing api.IHiveCell) (api.IRecipe, error) {
+func NewStandAloneDeviceRecipe(f api.ICellFactory, eThing api.IHiveCell) (api.IHiveCell, error) {
 	chain := StandAloneDeviceChain
 
 	r, err := factory_service.NewChainFormation(f, chain, eThing)

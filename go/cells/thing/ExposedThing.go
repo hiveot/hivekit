@@ -10,7 +10,7 @@ import (
 	"github.com/hiveot/hivekit/go/api/msg"
 	"github.com/hiveot/hivekit/go/api/td"
 	"github.com/hiveot/hivekit/go/cells"
-	directory_service "github.com/hiveot/hivekit/go/cells/directory/service"
+	"github.com/hiveot/hivekit/go/cells/directory"
 	"github.com/hiveot/hivekit/go/utils"
 	"github.com/teris-io/shortid"
 )
@@ -285,17 +285,16 @@ func (m *ExposedThing) PubProperties(thingID string, propMap map[string]any, onl
 // Publish the exposed thing's TD to the directory.
 // This sends the directory UpdateTD request message to the cell request sink.
 //
-// The directory thingID is optional, as the ET might not know the instance
-// that is going to handle it. Instead, directories accept the updateTD action
-// request if no thingID is known.
-//
 //	tdJSON is the TD to write.
 func (svc *ExposedThing) PublishTD(tdJSON string) error {
 	reqSink := svc.GetRequestSink()
 	if reqSink == nil {
 		return fmt.Errorf("PublishTD: No request sink set.")
 	}
-	err := directory_service.UpdateTD("", string(tdJSON), reqSink.HandleRequest, svc.GetTimeout())
+	// FIXME: how to get the directory TD or thingID?.
+	//  Only needed if no connection exists and a router is present.
+	directoryThingID := ""
+	err := svc.Rpc(td.OpInvokeAction, directoryThingID, directory.UpdateThingAction, tdJSON, nil)
 	return err
 }
 
@@ -369,7 +368,7 @@ func NewExposedThing(thingID string, appReqHandler msg.RequestHandler) *ExposedT
 	return ething
 }
 
-// Factory for creating an exposed Thing using the factory environment
+// Factory for creating an exposed Thing using the factory environment.
 //
 // This uses the Cell Type name as the thingID prefix followed by shortid.
 func NewExposedThingFactory(f api.ICellFactory, def *api.CellDefinition) (api.IHiveCell, error) {

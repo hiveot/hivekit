@@ -310,7 +310,7 @@ func TestWriteDigitwinProperty(t *testing.T) {
 
 	// An ExposedThing can publish its TD without knowing the thingID of the directory.
 	// The directory service reacts on any 'invokeaction updateTD' requests.
-	err = directory_service.UpdateTD(
+	err = directory_client.UpdateTD(
 		"", td1Json, ething.EmitRequest, testEnv.Env.RpcTimeout)
 	assert.NoError(t, err)
 
@@ -394,7 +394,7 @@ func TestInvokeDigitwinAction(t *testing.T) {
 	td1 := testEnv.CreateTestTD(0, false)
 	td1.ID = thingID
 	td1Json := td.MarshalTD(td1)
-	err = directory_service.UpdateTD("", td1Json, ething.EmitRequest, testEnv.Env.RpcTimeout)
+	err = directory_client.UpdateTD("", td1Json, ething.EmitRequest, testEnv.Env.RpcTimeout)
 	assert.NoError(t, err)
 
 	// 4. Consumer invokes the first action

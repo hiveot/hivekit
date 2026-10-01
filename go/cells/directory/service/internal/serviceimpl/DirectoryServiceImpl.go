@@ -9,12 +9,11 @@ import (
 	"sync"
 
 	"github.com/hiveot/hivekit/go/api"
-	"github.com/hiveot/hivekit/go/api/msg"
 	"github.com/hiveot/hivekit/go/api/td"
-	"github.com/hiveot/hivekit/go/cells"
 	"github.com/hiveot/hivekit/go/cells/bucketstore"
 	"github.com/hiveot/hivekit/go/cells/bucketstore/kvbtreestore"
 	"github.com/hiveot/hivekit/go/cells/directory"
+	"github.com/hiveot/hivekit/go/cells/thing"
 )
 
 // DirectoryServiceImpl serves a WoT Thing directory.
@@ -31,7 +30,8 @@ import (
 //
 // This uses the fast and lightweight kvbtree bucket store to persist TD documents.
 type DirectoryServiceImpl struct {
-	*cells.HiveCellBase
+	// *cells.HiveCellBase
+	*thing.ExposedThing
 
 	// tdBucket store with TD's by thingID
 	tdBucket     bucketstore.IBucket
@@ -80,9 +80,7 @@ func (svc *DirectoryServiceImpl) DeleteThing(senderID string, thingID string) (e
 		delete(svc.tdCache, thingID)
 		svc.tdCacheMux.Unlock()
 
-		notif := msg.NewNotificationMessage(svc.GetThingID(), msg.AffordanceTypeEvent,
-			svc.GetThingID(), directory.ThingDeletedEvent, thingID)
-		svc.EmitNotification(notif)
+		svc.PubEvent(svc.GetThingID(), directory.ThingDeletedEvent, thingID)
 	}
 	return err
 }
@@ -177,6 +175,10 @@ func (svc *DirectoryServiceImpl) SetTDHooks(
 // Start generates and publishes the directory TD
 func (svc *DirectoryServiceImpl) Start() {
 	slog.Info("Starting DirectoryService", "ThingID", svc.GetThingID())
+	// initialize the nr records prop
+	bucketInfo := svc.tdBucket.Info()
+	svc.PubProperty(svc.GetThingID(), directory.PropNrThings, bucketInfo.NrRecords, true)
+
 }
 
 // Stop any running actions
@@ -198,9 +200,13 @@ func (svc *DirectoryServiceImpl) UpdateThing(senderID string, tdJson string) err
 	// FIXME: verify that the sender owns the TD.
 	// should the thingID have the sender prefix so it can't be hi-jacked by
 	// others?
-
+	//
 	if senderID == "" {
-		return fmt.Errorf("UpdateThing: Missing sender")
+		// a missing senderID means the update was submitted in the same process
+		// any reason this is a problem?
+		//  issue 1: this TD has no forms the services are unreachable.
+		//    if the request is sent to the gateway, the service should intercept.
+		// return fmt.Errorf("UpdateThing: Missing sender")
 	}
 
 	// validate the TD
@@ -245,10 +251,11 @@ func (svc *DirectoryServiceImpl) UpdateThing(senderID string, tdJson string) err
 	svc.tdCacheMux.Lock()
 	svc.tdCache[tdoc.ID] = tdoc
 	svc.tdCacheMux.Unlock()
+	svc.PubEvent(svc.GetThingID(), directory.ThingUpdatedEvent, tdJson)
 
-	notif := msg.NewNotificationMessage(svc.GetThingID(), msg.AffordanceTypeEvent,
-		svc.GetThingID(), directory.ThingUpdatedEvent, tdJson)
-	svc.EmitNotification(notif)
+	// update the nr records prop
+	bucketInfo := svc.tdBucket.Info()
+	svc.PubProperty(svc.GetThingID(), directory.PropNrThings, bucketInfo.NrRecords, true)
 
 	return err
 
@@ -311,7 +318,8 @@ func NewDirectoryServiceImpl(
 	tdBucket := bucketStore.GetBucket(thingID)
 
 	svc := &DirectoryServiceImpl{
-		HiveCellBase: cells.NewHiveCellBase(thingID),
+		// HiveCellBase: cells.NewHiveCellBase(thingID),
+		ExposedThing: thing.NewExposedThing(thingID, nil),
 		bucketStore:  bucketStore,
 		httpServer:   httpServer,
 		storageLoc:   storageDir,

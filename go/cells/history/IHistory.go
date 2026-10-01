@@ -18,6 +18,12 @@ const DefaultHistoryThingID = "history"
 // DefaultLimit nr items of none provided
 const DefaultLimit = 1000
 
+// property, event and action names
+const (
+	// Property names
+	PropNrRecords = "nrRecords"
+)
+
 // Embed history service TD
 //
 //go:embed "history-td.json"

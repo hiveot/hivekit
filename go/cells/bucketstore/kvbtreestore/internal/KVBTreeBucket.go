@@ -243,15 +243,15 @@ func (kvb *KVBTreeBucket) incrRefCounter() {
 }
 
 // Info returns the bucket info
-func (kvb *KVBTreeBucket) Info() (info *bucketstore.BucketStoreInfo) {
-	info = &bucketstore.BucketStoreInfo{}
+func (kvb *KVBTreeBucket) Info() bucketstore.BucketStoreInfo {
+	info := bucketstore.BucketStoreInfo{}
 	// are these are full store sizes
 	info.NrRecords = int64(kvb.kvtree.Len())
 	info.DataSize = -1
 	//
 	info.Engine = bucketstore.BackendKVBTree
 	info.Id = kvb.BucketID
-	return
+	return info
 }
 
 // Set writes a document to the store. If the document exists it is replaced.

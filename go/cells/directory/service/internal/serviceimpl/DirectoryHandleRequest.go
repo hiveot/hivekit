@@ -57,7 +57,7 @@ func (svc *DirectoryServiceImpl) HandleRequest(req *msg.RequestMessage, replyTo 
 		// nothing to do here at the moment
 		err = fmt.Errorf("Property '%s' of Thing '%s' is invalid or not writable", req.Name, req.ThingID)
 	default:
-		err = fmt.Errorf("Unsupported operation '%s' for thingID '%s'", req.Operation, req.ThingID)
+		err = svc.ExposedThing.HandleRequest(req, replyTo)
 	}
 	if resp != nil {
 		err = replyTo(resp)

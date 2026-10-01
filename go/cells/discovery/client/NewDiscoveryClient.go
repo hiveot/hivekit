@@ -5,8 +5,8 @@ import (
 
 	"github.com/grandcat/zeroconf"
 	"github.com/hiveot/hivekit/go/api"
-	"github.com/hiveot/hivekit/go/cells/transport/discovery"
-	"github.com/hiveot/hivekit/go/cells/transport/discovery/client/internal"
+	"github.com/hiveot/hivekit/go/cells/discovery"
+	"github.com/hiveot/hivekit/go/cells/discovery/client/internal"
 )
 
 // NewDiscoveryClient returns a ready-to-use instance of a discovery client

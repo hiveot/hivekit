@@ -7,8 +7,8 @@ import (
 	"github.com/hiveot/hivekit/go/api"
 	"github.com/hiveot/hivekit/go/api/td"
 	"github.com/hiveot/hivekit/go/cells/directory"
-	"github.com/hiveot/hivekit/go/cells/transport/discovery"
-	"github.com/hiveot/hivekit/go/cells/transport/discovery/server/internal"
+	"github.com/hiveot/hivekit/go/cells/discovery"
+	"github.com/hiveot/hivekit/go/cells/discovery/server/internal"
 )
 
 // NewDiscoveryServer returns a ready-to-use discovery server instance.

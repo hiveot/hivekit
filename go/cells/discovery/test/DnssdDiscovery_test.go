@@ -7,8 +7,8 @@ import (
 
 	"github.com/grandcat/zeroconf"
 
-	discovery_client "github.com/hiveot/hivekit/go/cells/transport/discovery/client"
-	discovery_server "github.com/hiveot/hivekit/go/cells/transport/discovery/server"
+	discovery_client "github.com/hiveot/hivekit/go/cells/discovery/client"
+	discovery_server "github.com/hiveot/hivekit/go/cells/discovery/server"
 	"github.com/hiveot/hivekit/go/utils"
 
 	"github.com/stretchr/testify/assert"

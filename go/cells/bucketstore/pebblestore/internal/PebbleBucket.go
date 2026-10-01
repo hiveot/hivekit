@@ -125,7 +125,7 @@ func (bucket *PebbleBucket) ID() string {
 
 // Info returns bucket information
 // FIXME: Unable to determine the number of records in a bucket (or even in the DB)
-func (bucket *PebbleBucket) Info() (info *bucketstore.BucketStoreInfo) {
+func (bucket *PebbleBucket) Info() bucketstore.BucketStoreInfo {
 
 	//metrics := bucket.db.Metrics()
 	// bucket key range
@@ -140,7 +140,7 @@ func (bucket *PebbleBucket) Info() (info *bucketstore.BucketStoreInfo) {
 	//	}
 	//}
 
-	info = &bucketstore.BucketStoreInfo{
+	info := bucketstore.BucketStoreInfo{
 		Id:     bucket.bucketID,
 		Engine: bucketstore.BackendPebble,
 		// TODO: get bucket metrics

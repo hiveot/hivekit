@@ -13,7 +13,7 @@ import (
 	"github.com/hiveot/hivekit/go/cells/consumer"
 	"github.com/hiveot/hivekit/go/cells/directory"
 	directory_client "github.com/hiveot/hivekit/go/cells/directory/client"
-	"github.com/hiveot/hivekit/go/cells/transport/discovery"
+	"github.com/hiveot/hivekit/go/cells/discovery"
 	"github.com/hiveot/hivekit/go/cells/vcache"
 	"github.com/hiveot/hivekit/go/utils"
 	"github.com/rivo/tview"

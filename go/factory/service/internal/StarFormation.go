@@ -12,10 +12,15 @@ import (
 // The StarFormation links its cells in a star formation.
 //
 // Incoming requests are forwarded to the cell that matches the request thingID.
-// There is no need for linking individual request handlers.
+// If no member matches the request thingID then the request is forwarded to the
+// formation sink.
 //
-// If a request is received for a thingID not in the star, it is forwarded to the
-// star recipe registered sink.
+// This is intended for grouping services where there is no need to pass requests
+// through each service. Only the addressed service receives the request.
+// Functionally a chain formation behaves the same but is less efficient.
+//
+// If a request is received for a thingID not in the formation, it is forwarded to the
+// formation registered sink.
 //
 // The star recipe itself is registered as the notification sink of the cells in the
 // star and will forward these notifications to its own registered notification sink.
@@ -24,18 +29,18 @@ import (
 type StarFormation struct {
 	*cells.HiveCellBase
 	// cells in the order to instantiate and link
-	star []api.CellDefinition `yaml:"star"`
+	cellDefs []api.CellDefinition `yaml:"star"`
 
 	// The factory to use
 	f api.ICellFactory
 
-	// cell instances by their ThingID
-	instances map[string]api.IHiveCell
+	// cell members by their ThingID
+	members map[string]api.IHiveCell
 }
 
 // Receives notifications from downstream and send it to all cells
 func (r *StarFormation) HandleNotification(notif *msg.NotificationMessage) {
-	for _, member := range r.instances {
+	for _, member := range r.members {
 		member.HandleNotification(notif)
 	}
 }
@@ -43,17 +48,33 @@ func (r *StarFormation) HandleNotification(notif *msg.NotificationMessage) {
 // Requests sent to the star are passed on to the cell with the matching thingID.
 // If no cells match it is forwarded to the registered sink.
 func (r *StarFormation) HandleRequest(req *msg.RequestMessage, replyTo msg.ResponseHandler) error {
-	ray, found := r.instances[req.ThingID]
+	cell, found := r.members[req.ThingID]
 	if found {
-		return ray.HandleRequest(req, replyTo)
+		return cell.HandleRequest(req, replyTo)
 	}
 	return r.HiveCellBase.HandleRequest(req, replyTo)
 }
 
+// Update the member's sink for notifications from the formation.
+func (r *StarFormation) SetNotificationSink(sink api.IHiveCell, thingIDs ...string) {
+	for _, member := range r.members {
+		member.SetNotificationSink(sink, thingIDs...)
+	}
+	r.HiveCellBase.SetNotificationSink(sink, thingIDs...)
+}
+
+// Set the sink for requests from the formation members
+func (r *StarFormation) SetRequestSink(sink api.IHiveCell) {
+	for _, member := range r.members {
+		member.SetRequestSink(sink)
+	}
+	r.HiveCellBase.SetRequestSink(sink)
+}
+
 func (r *StarFormation) SetSlot(slotID string, modDef api.CellDefinition) error {
-	for i, md := range r.star {
+	for i, md := range r.cellDefs {
 		if md.Type == slotID {
-			r.star[i] = modDef
+			r.cellDefs[i] = modDef
 			return nil
 		}
 	}
@@ -64,24 +85,25 @@ func (r *StarFormation) SetSlot(slotID string, modDef api.CellDefinition) error 
 //
 // This returns the star formation cell.
 func NewStarFormation(
-	f api.ICellFactory, members []api.CellDefinition) (*StarFormation, error) {
+	f api.ICellFactory, cellDefs []api.CellDefinition) (*StarFormation, error) {
 
 	star := &StarFormation{
 		HiveCellBase: cells.NewHiveCellBase(""),
 		f:            f,
-		star:         members,
+		cellDefs:     cellDefs,
+		members:      make(map[string]api.IHiveCell),
 	}
 	star.SetTimeout(f.GetEnvironment().RpcTimeout)
 
 	// add the cell definitions to the factory
-	if star.star != nil {
+	if star.cellDefs != nil {
 		// register all cells
-		for _, modDef := range star.star {
+		for _, modDef := range star.cellDefs {
 			star.f.RegisterCell(modDef)
 		}
 	}
 	// create cells in the defined order and link their notifications
-	for _, cellDef := range star.star {
+	for _, cellDef := range star.cellDefs {
 		member, err := star.f.NewCell(cellDef.Type, true)
 		// cell that cant be created are ignored. This is non-fatal
 		if err != nil {
@@ -91,15 +113,17 @@ func NewStarFormation(
 			// don't track 'one-shot' cells that are used to initialize the factory.
 			// These return nil without error.
 		} else {
-			star.instances[member.GetThingID()] = member
-			// requests send by the members will be forwarded to the recipe, which
-			// passes it to the member with the matching thingID. See HandleRequest.
-			member.SetRequestSink(star)
-			// all notifications from the rays will be forwarded to the star. See HandleNotification.
-			member.SetNotificationSink(star)
+			// Members MUST not forward unhandled requests nor notifications,
+			// otherwise the same message will be received multiple times.
+			member.SetForwarding(false, false)
+			star.members[member.GetThingID()] = member
+			// // requests emitted by the members are forwarded to the formation sink.
+			// member.SetRequestSink(star.GetRequestSink())
+			// // notifications emitted by the cells are forwarded to the star notification sink.
+			// member.SetNotificationSink(star.GetNotificationSink())
 		}
 	}
 
-	var _ api.IRecipe = star
+	var _ api.IHiveCell = star // interface check
 	return star, nil
 }

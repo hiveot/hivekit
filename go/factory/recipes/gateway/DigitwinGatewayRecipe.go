@@ -12,14 +12,14 @@ import (
 	digitwin_service "github.com/hiveot/hivekit/go/cells/digitwin/service"
 	"github.com/hiveot/hivekit/go/cells/directory"
 	directory_service "github.com/hiveot/hivekit/go/cells/directory/service"
+	"github.com/hiveot/hivekit/go/cells/discovery"
+	discovery_server "github.com/hiveot/hivekit/go/cells/discovery/server"
 	"github.com/hiveot/hivekit/go/cells/history"
 	history_service "github.com/hiveot/hivekit/go/cells/history/service"
 	"github.com/hiveot/hivekit/go/cells/logging"
 	logging_service "github.com/hiveot/hivekit/go/cells/logging/service"
 	"github.com/hiveot/hivekit/go/cells/router"
 	router_service "github.com/hiveot/hivekit/go/cells/router/service"
-	"github.com/hiveot/hivekit/go/cells/transport/discovery"
-	discovery_server "github.com/hiveot/hivekit/go/cells/transport/discovery/server"
 	grpc "github.com/hiveot/hivekit/go/cells/transport/grpc"
 	grpc_server "github.com/hiveot/hivekit/go/cells/transport/grpc/server"
 	"github.com/hiveot/hivekit/go/cells/transport/httpbasic"
@@ -56,7 +56,7 @@ var DigitwinGatewayRecipeCells = []api.CellDefinition{
 	// --- nested recipe with the servers operating in parallel
 	{
 		// requests are passed to all servers until one accepts
-		Type:        api.BusRecipeType,
+		Type:        api.BusFormationType,
 		Constructor: factory_service.NewBusFormationFactory,
 		Config: []api.CellDefinition{
 			{
@@ -168,7 +168,7 @@ var DigitwinGatewayRecipeCells = []api.CellDefinition{
 //		    	                   -> router | reconnect | clients
 //
 // This returns the recipe, which can be used like any other cell
-func StartDigitwinGatewayRecipe(f api.ICellFactory) (api.IRecipe, error) {
+func StartDigitwinGatewayRecipe(f api.ICellFactory) (api.IHiveCell, error) {
 
 	chain := DigitwinGatewayRecipeCells
 	r, err := factory_service.NewChainFormation(f, chain, nil)

@@ -12,11 +12,8 @@ import (
 
 // The BusFormation is a formation where cells operate in parallel.
 //
-// This is experimental. Members should not forward provided requests and
-// notifications to their sink to prevent looping. This is accomplished
-// by disable the cell forwarding.
-//
-// Note that the bus req/notif sink must be set before calling start.
+// Requests are passed to each member in turn until one accepts. It is
+// intended for cells that can handle requests for multiple things.
 //
 // Flow:
 //  1. req -> bus -> [all members until one accepts]
@@ -51,7 +48,7 @@ import (
 type BusFormation struct {
 	cells.HiveCellBase
 	// cells in the order to instantiate and link
-	modDefs []api.CellDefinition `yaml:"star"`
+	cellDefs []api.CellDefinition `yaml:"star"`
 
 	// members of the bus
 	members []api.IHiveCell
@@ -85,7 +82,7 @@ func (r *BusFormation) HandleRequest(req *msg.RequestMessage, replyTo msg.Respon
 	return r.ForwardRequest(req, replyTo)
 }
 
-// Update the member's sink for notifications from the bus.
+// Update the member's sink for notifications from the formation.
 func (r *BusFormation) SetNotificationSink(sink api.IHiveCell, thingIDs ...string) {
 	for _, member := range r.members {
 		member.SetNotificationSink(sink, thingIDs...)
@@ -117,27 +114,26 @@ func (r *BusFormation) SetSlot(slotID string, modDef api.CellDefinition) error {
 //
 // If a cell fail to be created then this continues without the failed cell.
 func NewBusFormation(
-	f api.ICellFactory, modDefs []api.CellDefinition) (*BusFormation, error) {
+	f api.ICellFactory, cellDefs []api.CellDefinition) (*BusFormation, error) {
 	thingID := "NewBusFormation-" + shortid.MustGenerate()
 
 	bus := &BusFormation{
 		HiveCellBase: *cells.NewHiveCellBase(thingID),
 		f:            f,
-		modDefs:      modDefs,
+		cellDefs:     cellDefs,
+		members:      make([]api.IHiveCell, 0, len(cellDefs)),
 	}
 	bus.SetTimeout(f.GetEnvironment().RpcTimeout)
 
 	// add the cell definitions to the factory
-	if bus.modDefs != nil {
+	if bus.cellDefs != nil {
 		// register all cells
-		for _, modDef := range bus.modDefs {
+		for _, modDef := range bus.cellDefs {
 			bus.f.RegisterCell(modDef)
 		}
 	}
 	// create and link cells in the defined order
-	bus.members = make([]api.IHiveCell, 0, len(bus.modDefs))
-
-	for _, cellDef := range bus.modDefs {
+	for _, cellDef := range bus.cellDefs {
 		member, err := bus.f.NewCell(cellDef.Type, true)
 		// cell cant be created. This is not fatal in a bus.
 		if err != nil {

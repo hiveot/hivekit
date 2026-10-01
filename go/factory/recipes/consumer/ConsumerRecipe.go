@@ -6,11 +6,11 @@ import (
 	"github.com/hiveot/hivekit/go/cells/consumer"
 	"github.com/hiveot/hivekit/go/cells/directory"
 	directoryclient "github.com/hiveot/hivekit/go/cells/directory/client"
+	"github.com/hiveot/hivekit/go/cells/discovery"
+	discovery_client "github.com/hiveot/hivekit/go/cells/discovery/client"
 	"github.com/hiveot/hivekit/go/cells/router"
 	router_service "github.com/hiveot/hivekit/go/cells/router/service"
 	"github.com/hiveot/hivekit/go/cells/transport/clients"
-	"github.com/hiveot/hivekit/go/cells/transport/discovery"
-	discovery_client "github.com/hiveot/hivekit/go/cells/transport/discovery/client"
 	"github.com/hiveot/hivekit/go/cells/vcache"
 	vcache_service "github.com/hiveot/hivekit/go/cells/vcache/service"
 	"github.com/hiveot/hivekit/go/factory/recipes"
@@ -80,7 +80,7 @@ var ConsumerRecipeChain = []api.CellDefinition{
 type ConsumerRecipe struct {
 	*consumer.Consumer
 	f         api.ICellFactory
-	formation api.IRecipe
+	formation api.IHiveCell
 }
 
 // Return the discovery client from this recipe
@@ -163,7 +163,7 @@ func NewConsumerRecipe(env *api.HiveEnvironment, withValueCache bool) (
 		formation: formation,
 	}
 
-	var _ api.IRecipe = r
+	var _ api.IHiveCell = r
 	var _ *consumer.Consumer = r.Consumer // interface checks
 	return r, f, err
 }

@@ -17,6 +17,8 @@ import (
 	certs_service "github.com/hiveot/hivekit/go/cells/certs/service"
 	"github.com/hiveot/hivekit/go/cells/directory"
 	directory_service "github.com/hiveot/hivekit/go/cells/directory/service"
+	"github.com/hiveot/hivekit/go/cells/discovery"
+	discovery_server "github.com/hiveot/hivekit/go/cells/discovery/server"
 	"github.com/hiveot/hivekit/go/cells/history"
 	history_service "github.com/hiveot/hivekit/go/cells/history/service"
 	"github.com/hiveot/hivekit/go/cells/logging"
@@ -25,8 +27,8 @@ import (
 	rcrouter_service "github.com/hiveot/hivekit/go/cells/rcrouter/service"
 	"github.com/hiveot/hivekit/go/cells/router"
 	router_service "github.com/hiveot/hivekit/go/cells/router/service"
-	"github.com/hiveot/hivekit/go/cells/transport/discovery"
-	discovery_server "github.com/hiveot/hivekit/go/cells/transport/discovery/server"
+	"github.com/hiveot/hivekit/go/cells/transport/addforms"
+	addforms_service "github.com/hiveot/hivekit/go/cells/transport/addforms/service"
 	grpc "github.com/hiveot/hivekit/go/cells/transport/grpc"
 	grpc_server "github.com/hiveot/hivekit/go/cells/transport/grpc/server"
 	"github.com/hiveot/hivekit/go/cells/transport/httpbasic"
@@ -59,7 +61,7 @@ var GatewayRecipeCells = []api.CellDefinition{
 	// --- nested formation with the servers operating in parallel
 	{
 		// requests are passed to all servers until one accepts
-		Type:        api.BusRecipeType,
+		Type:        api.BusFormationType,
 		Constructor: factory_service.NewBusFormationFactory,
 		Config: []api.CellDefinition{
 			{
@@ -94,60 +96,66 @@ var GatewayRecipeCells = []api.CellDefinition{
 			},
 		},
 	},
-	{
-		// logging of requests
+	{ // logging of requests
 		Type:        logging.LoggingServiceCellType,
 		Constructor: logging_service.NewLoggingServiceFactory,
 	},
-	{
-		// Authorization of remote requests
+	{ // Authorization of remote requests
 		Type:        authz.AuthzServiceCellType,
 		Constructor: authz_service.NewAuthzServiceFactory,
 	},
-	{
-		// Authentication handler and service
-		Type:        authn.AuthnServiceCellType,
-		Constructor: authn_service.NewAuthnServiceFactory,
-	},
-
-	{
-		// Certificate management
-		Type:        certs.CertsServiceCellType,
-		Constructor: certs_service.NewCertsServiceFactory,
-	},
-
-	{
-		// request and notification history storage
+	{ // Store request and notification history
 		Type:        history.HistoryServiceCellType,
 		Constructor: history_service.NewHistoryServiceFactory,
 	},
 
+	// --- star formation with local services
+	// requests are directed to the service matching the request thingID
 	{
-		// Directory service
+		Type:        api.StarFormationType,
+		Constructor: factory_service.NewStarFormationFactory,
+		Config: []api.CellDefinition{
+			{ // Authentication handler and service
+				Type:        authn.AuthnServiceCellType,
+				Constructor: authn_service.NewAuthnServiceFactory,
+			},
+			{ // Certificate management
+				Type:        certs.CertsServiceCellType,
+				Constructor: certs_service.NewCertsServiceFactory,
+			},
+			// other embedded services can be added here
+		},
+	},
+
+	//-- updateTD requests might not have a directory thingID when send by local services and RC devices
+
+	{ // add forms to create/updateTD requests from devices and services that are missing forms.
+		Type:        addforms.AddFormsCellType,
+		Constructor: addforms_service.NewAddFormsServiceFactory,
+	},
+	{ // Directory service, this also handles updateTD request without directory thingID
 		Type:        directory.DirectoryServiceCellType,
 		Constructor: directory_service.NewDirectoryServiceFactory,
 	},
-
-	{
-		// discovery of the directory
-		// This must be placed behind directory so createTD requests from Things
-		// will be handled by the directory and not be served by discovery.
+	{ // Publish discovery of the directory
+		// This must be placed behind directory so updateTD requests from Things will be handled
+		// by the directory and updateTD from the directory is served by discovery.
 		Type:        discovery.DiscoveryServerCellType,
 		Constructor: discovery_server.NewDiscoveryServerFactory,
 	},
 
-	{
-		// Router service for routing requests to stand-alone devices.
-		// this uses the directory to lookup thing TDs.
-		Type:        router.RouterCellType,
-		Constructor: router_service.NewRouterServiceFactory,
-	},
 	{
 		// RC service for routing requests to reverse connections.
 		// RC devices do not include forms in their TD. This cell locates
 		// the connection the device is using and forwards requests to it.
 		Type:        rcrouter.RCRouterCellType,
 		Constructor: rcrouter_service.NewRCRouterServiceFactory,
+	},
+	{
+		// Router service for routing requests to stand-alone devices.
+		// this uses the directory to lookup thing TDs.
+		Type:        router.RouterCellType,
+		Constructor: router_service.NewRouterServiceFactory,
 	},
 
 	// todo: optional logging of requests
@@ -171,7 +179,7 @@ var GatewayRecipeCells = []api.CellDefinition{
 type GatewayRecipe struct {
 	*cells.HiveCellBase
 	f         api.ICellFactory
-	formation api.IRecipe
+	formation api.IHiveCell
 }
 
 // Add an account for connecting to the gateway.
@@ -289,6 +297,6 @@ func NewGatewayRecipe(env *api.HiveEnvironment) (
 		formation:    formation,
 	}
 	r.SetTimeout(env.RpcTimeout)
-	var _ api.IRecipe = r // interface checks
+	var _ api.IHiveCell = r // interface checks
 	return r, f, err
 }

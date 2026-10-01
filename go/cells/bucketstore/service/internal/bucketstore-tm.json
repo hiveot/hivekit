@@ -5,7 +5,7 @@
       "hiveot": "https://www.hiveot.net/vocab/v0.1"
     }
   ],
-  "@type": ["tm:ThingModel", "BucketStore"],
+  "@type": ["Service"],
   "id": "BucketStore",
   "title": "Bucket Store",
   "description": "HiveOT bucket key-value store",

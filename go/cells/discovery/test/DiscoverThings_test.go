@@ -8,9 +8,9 @@ import (
 	"github.com/hiveot/hivekit/go/api"
 	"github.com/hiveot/hivekit/go/api/msg"
 	"github.com/hiveot/hivekit/go/api/td"
-	"github.com/hiveot/hivekit/go/cells/transport/discovery"
-	discovery_client "github.com/hiveot/hivekit/go/cells/transport/discovery/client"
-	discovery_server "github.com/hiveot/hivekit/go/cells/transport/discovery/server"
+	"github.com/hiveot/hivekit/go/cells/discovery"
+	discovery_client "github.com/hiveot/hivekit/go/cells/discovery/client"
+	discovery_server "github.com/hiveot/hivekit/go/cells/discovery/server"
 	"github.com/hiveot/hivekit/go/testenv"
 
 	"github.com/stretchr/testify/assert"

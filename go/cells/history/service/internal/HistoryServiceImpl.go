@@ -11,6 +11,7 @@ import (
 	"github.com/hiveot/hivekit/go/cells/bucketstore/kvbtreestore"
 	"github.com/hiveot/hivekit/go/cells/bucketstore/pebblestore"
 	bucketstoreservice "github.com/hiveot/hivekit/go/cells/bucketstore/service"
+	"github.com/hiveot/hivekit/go/cells/directory"
 	"github.com/hiveot/hivekit/go/cells/history"
 	"github.com/hiveot/hivekit/go/cells/thing"
 )
@@ -55,6 +56,11 @@ func (svc *HistoryServiceImpl) HandleNotification(notif *msg.NotificationMessage
 func (svc *HistoryServiceImpl) Start() {
 	histTD := string(history.HistoryServiceTD)
 	svc.PublishTD(histTD)
+
+	// todo: regular updates
+	info := svc.bucketStore.Info()
+	svc.PubProperty(svc.GetThingID(), directory.PropNrThings, info.NrRecords, true)
+	svc.PubProperty(svc.GetThingID(), directory.PropDataSize, info.DataSize, true)
 }
 
 // Stop using the history service and release resources

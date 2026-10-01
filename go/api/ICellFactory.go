@@ -6,6 +6,13 @@ import (
 	"github.com/hiveot/hivekit/go/api/td"
 )
 
+// formation types that can be used in cell definitions
+const (
+	BusFormationType   = "bus"
+	ChainFormationType = "chain"
+	StarFormationType  = "star"
+)
+
 // the constructor function to create an instance of the cell using the given environment
 // The recommended cellID is auto-generated. The cell can decide to override if needed.
 // type CellFactoryFn func(f ICellFactory) api.IHiveCell

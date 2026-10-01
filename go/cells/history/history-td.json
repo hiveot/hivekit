@@ -6,15 +6,15 @@
       "hiveot": "https://www.hiveot.net/vocab/v0.1"
     }
   ],
-  "@type": ["tm:ThingModel", "history"],
+  "@type": "Service",
   "id": "history",
   "title": "History Service",
   "description": "HiveOT history service",
   "version": {
     "instance": "1.0.0"
   },
-  "created": "2026-01-00T00:00:00.000Z",
-  "modified": "2026-01-00T00:00:00.000Z",
+  "created": "2026-09-01T00:00:00.000Z",
+  "modified": "2026-09-01T00:00:00.000Z",
   "support": "https://www.github.com/hiveot/hivekit",
   "deny": ["none"],
 
@@ -58,8 +58,20 @@
     }
   },
 
-  "properties": {},
-
+  "properties": {
+    "nrRecords": {
+      "title": "Nr Records",
+      "description": "Number of Records in the history store",
+      "type": "integer",
+      "readOnly": true
+    },
+    "dataSize": {
+      "title": "Data Size",
+      "description": "Database space used in bytes",
+      "type": "integer",
+      "readOnly": true
+    }
+  },
   "events": {},
 
   "actions": {

@@ -63,25 +63,24 @@ type KVBTreeStore struct {
 	backgroundLoopEnded  chan bool
 	backgroundLoopEnding chan bool
 	writeDelay           time.Duration // delay before writing changes
-	// cache for parsed json strings for faster query
-	//jsonCache map[string]interface{}
+	info                 bucketstore.BucketStoreInfo
 }
 
 // importStoreFile loads the store content into a map and converts it to a map of buckets
 // returns an error if the file does not exist
 // not concurrent safe
-func importStoreFile(storePath string) (docs map[string]*KVBTreeBucket, err error) {
-	imported, err := readStoreFile(storePath)
+func importStoreFile(storePath string) (docs map[string]*KVBTreeBucket, size int64, err error) {
+	imported, size, err := readStoreFile(storePath)
 	docs = make(map[string]*KVBTreeBucket)
 	if err != nil {
-		return nil, err
+		return nil, -1, err
 	}
 	for bucketID, bucketData := range imported {
 		bucket := NewKVMemBucketFromMap(bucketID, bucketData)
 		docs[bucketID] = bucket
 	}
 	// if the store didn't exist it must be writable successfully in order to continue
-	return docs, err
+	return docs, size, err
 }
 
 // readStoreFile loads the store JSON content into a map
@@ -91,11 +90,13 @@ func importStoreFile(storePath string) (docs map[string]*KVBTreeBucket, err erro
 // Returns empty data if storePath is "" (eg an memory-only store)
 // Returns the OS error if loading fails
 // not concurrent safe
-func readStoreFile(storePath string) (docs map[string]map[string][]byte, err error) {
+func readStoreFile(
+	storePath string) (docs map[string]map[string][]byte, size int64, err error) {
+
 	//docs = make(map[string]*KVBTreeBucket)
 	docs = make(map[string]map[string][]byte)
 	if storePath == "" {
-		return docs, nil
+		return docs, 0, nil
 	}
 	storeFile := storePath
 	if storePathStat, statErr := os.Stat(storePath); statErr == nil {
@@ -104,6 +105,12 @@ func readStoreFile(storePath string) (docs map[string]map[string][]byte, err err
 			storeFile = path.Join(storePath, "kvbtree_store.json")
 		}
 	}
+	fileStat, err := os.Stat(storePath)
+	if err != nil {
+		return nil, -1, err
+	}
+	size = fileStat.Size()
+
 	var rawData []byte
 	rawData, err = os.ReadFile(storeFile)
 	if err == nil {
@@ -118,7 +125,7 @@ func readStoreFile(storePath string) (docs map[string]map[string][]byte, err err
 			slog.Warn("failed read store. Recover with an empty store. Sorry.", "storeFile", storeFile, "err", err)
 		}
 	}
-	return docs, err
+	return docs, size, err
 }
 
 // writeStoreFile writes the store to file.
@@ -273,6 +280,20 @@ func (store *KVBTreeStore) GetLocation() string {
 	return store.storePath
 }
 
+// Info returns bucket information
+func (store *KVBTreeStore) Info() bucketstore.BucketStoreInfo {
+	totalEntries := int64(0)
+
+	// 	// 1. Retrieve the current internal layout/metadata of the DB
+	for _, b := range store.buckets {
+		z := b.kvtree
+		totalEntries += int64(z.Len())
+	}
+
+	store.info.NrRecords = totalEntries
+	return store.info
+}
+
 // callback handler for notification that a bucket has been modified
 func (store *KVBTreeStore) onBucketUpdated(bucket *KVBTreeBucket) {
 	// at this point we don't need the bucket but this might change with more fine grained update tracking
@@ -327,9 +348,10 @@ func OpenKVBtreeStore(storePath string) (*KVBTreeStore, error) {
 		os.MkdirAll(storeDir, 0750)
 	}
 
-	buckets, err := importStoreFile(storePath)
+	buckets, size, err := importStoreFile(storePath)
 	// recover from bad file. Missing file is okay.
 	if err != nil {
+		size = 0
 		if os.IsNotExist(err) {
 			// store doesn't yet exist. This is okay
 		} else {
@@ -354,6 +376,11 @@ func OpenKVBtreeStore(storePath string) (*KVBTreeStore, error) {
 		mutex:                sync.RWMutex{},
 		writeDelay:           writeDelay,
 		//jsonCache:            make(map[string]interface{}),
+		info: bucketstore.BucketStoreInfo{
+			DataSize: size,
+			Engine:   bucketstore.BackendKVBTree,
+			Version:  "1.8.1", // just the package version
+		},
 	}
 	// after loading set the handler for all buckets
 	for _, kvBucket := range buckets {
@@ -367,6 +394,6 @@ func OpenKVBtreeStore(storePath string) (*KVBTreeStore, error) {
 	// if the store is closed immediately.
 	//time.Sleep(time.Millisecond)
 
-	var _ bucketstore.IBucketStore = store // type check
+	var _ bucketstore.IBucketStore = store // interface check
 	return store, err
 }

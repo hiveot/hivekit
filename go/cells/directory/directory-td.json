@@ -19,14 +19,11 @@
   "deny": ["none"],
 
   "properties": {
-    "things": {
-      "description": "Retrieve all Thing Descriptions",
-      "comment": "Define for spec compatibility. An action (retrieveAllThings) should be used instead.",
-      "type": "array",
-      "items": {
-        "description": "Thing Description",
-        "type": "object"
-      }
+    "nrThings": {
+      "title": "Nr Things",
+      "description": "Number of Things in the directory",
+      "type": "integer",
+      "readOnly": true
     }
   },
 

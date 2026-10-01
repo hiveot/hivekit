@@ -165,7 +165,7 @@ func TestCRUDUsingMsgAPI(t *testing.T) {
 	tp := testenv.NewTestTransport(clientID, dirSvc)
 
 	// err := dirClient.CreateThing(tdi1Json)
-	err := directory_service.UpdateTD(
+	err := directory_client.UpdateTD(
 		directoryID, tdi1Json, tp.HandleRequest, rpcTimeout)
 	require.NoError(t, err)
 
