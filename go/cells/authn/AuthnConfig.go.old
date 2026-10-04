@@ -23,7 +23,7 @@ const (
 // DefaultPasswordFile is the default password filename for user account storage
 const DefaultPasswordFile = "hiveot.passwd"
 
-// AuthnConfig contains the auth service configuration
+// AuthnConfig contains the authn service configuration
 type AuthnConfig struct {
 	// PasswordFile with the file based password store.
 	// Use a relative path for using the default $HOME/stores/authn location

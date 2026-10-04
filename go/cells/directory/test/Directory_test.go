@@ -61,7 +61,7 @@ func StartDirectoryService(withHttp bool) (
 
 	// the transports must be known to update the TDD
 	if withHttp {
-		dirThingID := svc.GetThingID()
+		dirThingID := svc.GetID()
 		// add directory endpoints to the http server
 		dirHttpServer, err = directory_service.NewDirectoryHttpServer(
 			dirThingID, testEnv.HttpServer, testEnv.Env.RpcTimeout)
@@ -154,7 +154,7 @@ func TestCRUDUsingMsgAPI(t *testing.T) {
 
 	defer cancelFn()
 
-	directoryID := dirSvc.GetThingID()
+	directoryID := dirSvc.GetID()
 	thing1ID := clientID + ":thing1"
 
 	// test create a TD
@@ -217,7 +217,7 @@ func TestGetDirectoryTD(t *testing.T) {
 
 	err = jsoniter.Unmarshal(respBody, &dirTD)
 	require.NoError(t, err)
-	assert.Equal(t, dirSvc.GetThingID(), dirTD.ID)
+	assert.Equal(t, dirSvc.GetID(), dirTD.ID)
 }
 
 // Read the directory using the http api

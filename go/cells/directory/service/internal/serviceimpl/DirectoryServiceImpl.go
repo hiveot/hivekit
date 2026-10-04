@@ -80,7 +80,7 @@ func (svc *DirectoryServiceImpl) DeleteThing(senderID string, thingID string) (e
 		delete(svc.tdCache, thingID)
 		svc.tdCacheMux.Unlock()
 
-		svc.PubEvent(svc.GetThingID(), directory.ThingDeletedEvent, thingID)
+		svc.PubEvent(svc.GetID(), directory.ThingDeletedEvent, thingID)
 	}
 	return err
 }
@@ -174,10 +174,10 @@ func (svc *DirectoryServiceImpl) SetTDHooks(
 
 // Start generates and publishes the directory TD
 func (svc *DirectoryServiceImpl) Start() {
-	slog.Info("Starting DirectoryService", "ThingID", svc.GetThingID())
+	slog.Info("Starting DirectoryService", "ThingID", svc.GetID())
 	// initialize the nr records prop
 	bucketInfo := svc.tdBucket.Info()
-	svc.PubProperty(svc.GetThingID(), directory.PropNrThings, bucketInfo.NrRecords, true)
+	svc.PubProperty(svc.GetID(), directory.PropNrThings, bucketInfo.NrRecords, true)
 
 }
 
@@ -251,11 +251,11 @@ func (svc *DirectoryServiceImpl) UpdateThing(senderID string, tdJson string) err
 	svc.tdCacheMux.Lock()
 	svc.tdCache[tdoc.ID] = tdoc
 	svc.tdCacheMux.Unlock()
-	svc.PubEvent(svc.GetThingID(), directory.ThingUpdatedEvent, tdJson)
+	svc.PubEvent(svc.GetID(), directory.ThingUpdatedEvent, tdJson)
 
 	// update the nr records prop
 	bucketInfo := svc.tdBucket.Info()
-	svc.PubProperty(svc.GetThingID(), directory.PropNrThings, bucketInfo.NrRecords, true)
+	svc.PubProperty(svc.GetID(), directory.PropNrThings, bucketInfo.NrRecords, true)
 
 	return err
 

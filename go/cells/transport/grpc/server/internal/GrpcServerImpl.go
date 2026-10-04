@@ -118,7 +118,7 @@ func (srv *GrpcServerImpl) startServing() (err error) {
 	}
 
 	// create a TD describing this server along with its connection URL
-	thingID := srv.GetThingID()
+	thingID := srv.GetID()
 	srv.serverTD = td.NewTD(thingID, "gRPC server", vocab.DeviceTypeService)
 	srv.AddTDSecForms(srv.serverTD, false)
 	return err

@@ -61,7 +61,7 @@ func (svc *DigitwinServiceImpl) HandleRequest(req *msg.RequestMessage, replyTo m
 	}
 
 	// Last, only handle requests for this service
-	if req.ThingID != svc.GetThingID() {
+	if req.ThingID != svc.GetID() {
 		// TBD: forward other requests to sink or is digitwin the end of the line?
 		err := fmt.Errorf("unable to handle request '%s(%s)' for thingID '%s'",
 			req.Operation, req.Name, req.ThingID)

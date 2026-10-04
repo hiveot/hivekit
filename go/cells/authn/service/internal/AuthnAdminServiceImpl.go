@@ -1,37 +1,30 @@
-package serviceimpl
+package internal
 
 import (
 	"errors"
 	"fmt"
 	"log/slog"
-	"time"
 
 	"github.com/hiveot/hivekit/go/api"
 	"github.com/hiveot/hivekit/go/api/msg"
 	"github.com/hiveot/hivekit/go/api/td"
 	"github.com/hiveot/hivekit/go/cells/authn"
-	authnstore "github.com/hiveot/hivekit/go/cells/authn/service/internal/store"
 	"github.com/hiveot/hivekit/go/cells/thing"
 	"github.com/hiveot/hivekit/go/utils"
 )
 
-// AuthnServiceImpl manages client accounts and issues authentication tokens.
+// AuthnAdminServiceImpl manages client accounts and issues authentication tokens.
 //
 // This implements IHiveCell and IAuthn interfaces and is facade for the account store and authenticator.
-type AuthnServiceImpl struct {
+type AuthnAdminServiceImpl struct {
 	*thing.ExposedThing
 
-	config authn.AuthnConfig
-
-	authnStore authnstore.IAuthnStore
-
-	// Creation and validation of session tokens
-	sessionManager *SessionManager
+	authnStore authn.IAuthnStore
 }
 
 // AddClient adds a client. This fails if the client already exists
 // This should only be usable by administrators.
-func (svc *AuthnServiceImpl) AddClient(clientID string, displayName string, role string) error {
+func (svc *AuthnAdminServiceImpl) AddClient(clientID string, displayName string, role string) error {
 
 	_, err := svc.authnStore.GetProfile(clientID)
 	if err == nil {
@@ -45,46 +38,29 @@ func (svc *AuthnServiceImpl) AddClient(clientID string, displayName string, role
 	}
 	err = svc.authnStore.Add(newProfile)
 	// last track props
-	svc.PubProperty(svc.GetThingID(), authn.AdminPropNrClients, svc.authnStore.Count(), false)
+	svc.PubProperty(svc.GetID(), authn.AdminPropNrClients, svc.authnStore.Count(), false)
 
-	return err
-}
-
-// Create the admin account if it doesn't exist and create a new auth token
-func (svc *AuthnServiceImpl) CreateAdminAccount() error {
-	_, err := svc.GetProfile(svc.config.AdminUserID)
-	if err != nil {
-		err = svc.AddClient(svc.config.AdminUserID, "Administrator", authn.ClientRoleAdmin)
-
-		if err == nil && svc.config.AdminTokenValidityDays > 0 {
-			validity := time.Duration(svc.config.AdminTokenValidityDays) * 24 * time.Hour
-			// create a new token for this session
-			adminToken, _, _ := svc.sessionManager.CreateToken(svc.config.AdminUserID, validity)
-			err = svc.sessionManager.SaveToken(svc.config.AdminUserID, adminToken)
-		}
-	}
 	return err
 }
 
 // GetProfile return the client's profile
-func (svc *AuthnServiceImpl) GetProfile(clientID string) (profile authn.ClientProfile, err error) {
+func (svc *AuthnAdminServiceImpl) GetProfile(clientID string) (profile authn.ClientProfile, err error) {
 	return svc.authnStore.GetProfile(clientID)
 }
 
 // GetProfile return a list of client profiles
-func (svc *AuthnServiceImpl) GetProfiles() (profiles []authn.ClientProfile, err error) {
+func (svc *AuthnAdminServiceImpl) GetProfiles() (profiles []authn.ClientProfile, err error) {
 	return svc.authnStore.GetProfiles()
 }
 
-func (svc *AuthnServiceImpl) GetSessionManager() authn.ISessionManager {
-	return svc.sessionManager
-}
-
-// Handle the authn service administration requests
-// This should only be authorized for administrators.
-func (svc *AuthnServiceImpl) HandleServiceRequest(req *msg.RequestMessage, replyTo msg.ResponseHandler) error {
+// Handle requests to cells of this service
+func (svc *AuthnAdminServiceImpl) HandleRequest(req *msg.RequestMessage, replyTo msg.ResponseHandler) error {
 	var output any
 	var err error
+
+	if req.ThingID != svc.GetID() {
+		return svc.ForwardRequest(req, replyTo)
+	}
 
 	if req.Operation == td.OpInvokeAction {
 		switch req.Name {
@@ -133,66 +109,38 @@ func (svc *AuthnServiceImpl) HandleServiceRequest(req *msg.RequestMessage, reply
 	return err
 }
 
-// Handle requests to cells of this service
-func (svc *AuthnServiceImpl) HandleRequest(req *msg.RequestMessage, replyTo msg.ResponseHandler) error {
-
-	// two TDs == two exposed thing services - one for admin-only
-	// option 1: implement as separate cells
-	// option 2: implement as a single cell with separate request handlers
-
-	switch req.ThingID {
-	case authn.AuthnAdminServiceID:
-		return svc.HandleServiceRequest(req, replyTo)
-	case authn.AuthnUserServiceID:
-		return HandleAuthnUserRequest(svc, req, replyTo)
-	default:
-		// forward
-		return svc.HiveCellBase.HandleRequest(req, replyTo)
-	}
-}
-
 // Remove a client
-func (svc *AuthnServiceImpl) RemoveClient(clientID string) error {
+func (svc *AuthnAdminServiceImpl) RemoveClient(clientID string) error {
 	return svc.authnStore.Remove(clientID)
 }
 
 // Change the password of a client
-func (svc *AuthnServiceImpl) SetPassword(clientID string, password string) error {
+func (svc *AuthnAdminServiceImpl) SetPassword(clientID string, password string) error {
 	return svc.authnStore.SetPassword(clientID, password)
 }
 
 // Change the role of a client
-func (svc *AuthnServiceImpl) SetRole(clientID string, role string) error {
+func (svc *AuthnAdminServiceImpl) SetRole(clientID string, role string) error {
 	return svc.authnStore.SetRole(clientID, role)
 }
 
-// Start publishes the service admin and user service TDs to the directory.
-func (svc *AuthnServiceImpl) Start() {
-	// Publish the service admin and user service TDs to the directory.
-	adminTM := authn.AuthnServiceTD
-	userTM := authn.AuthnUserTD
-	reqSink := svc.GetRequestSink()
-	if reqSink == nil {
-		// not a fatal error
-		slog.Warn("Start: No request sink set, cant publish TD.")
-		return
-	}
-	err := svc.PublishTD(string(adminTM))
-	if err == nil {
-		err = svc.PublishTD(string(userTM))
-	}
-
+// Start publishes the service admin service TDs to the directory or discovery.
+func (svc *AuthnAdminServiceImpl) Start() {
+	tdoc, _ := td.UnmarshalTD(string(authn.AuthnAdminTD))
+	tdoc.ID = authn.AuthnAdminServiceThingID
+	tdoc.SetType(authn.AuthnAdminServiceThingID)
+	_ = svc.PublishTD(tdoc.ToString())
 }
 
 // Stop closes the client store and releases resources
-func (svc *AuthnServiceImpl) Stop() {
+func (svc *AuthnAdminServiceImpl) Stop() {
 	slog.Info("Stop: Stopping authn")
 	svc.authnStore.Close()
 }
 
 // UpdateProfile update the client profile
 // only administrators are allowed to update the role
-func (svc *AuthnServiceImpl) UpdateProfile(senderID string, newProfile authn.ClientProfile) error {
+func (svc *AuthnAdminServiceImpl) UpdateProfile(senderID string, newProfile authn.ClientProfile) error {
 	senderProf, err := svc.authnStore.GetProfile(senderID)
 	if err != nil {
 		return fmt.Errorf("Unknown sender '%s'", senderID)
@@ -220,39 +168,31 @@ func (svc *AuthnServiceImpl) UpdateProfile(senderID string, newProfile authn.Cli
 // This uses thingID authn.AuthnAdminServiceID
 // Call Start() to publish its TD.
 //
-// authnConfig contains the password storage and token management configuration
-func NewAuthnServiceImpl(authnConfig authn.AuthnConfig) (*AuthnServiceImpl, error) {
+//	authUserSvc user services including storage and session management
+//	createAdminAcct set to create a default admin user and token
+func NewAuthnAdminServiceImpl(authnStore authn.IAuthnStore, createAdminAcct bool) (*AuthnAdminServiceImpl, error) {
+	var err error
 
 	slog.Info("NewAuthnServiceImpl: creating authn service")
-	passwordFile := authnConfig.PasswordFile
-	encryption := authnConfig.Encryption
-	authnStore := authnstore.NewAuthnFileStore(passwordFile, encryption)
-	err := authnStore.Open()
-	if err != nil {
-		return nil, err
-	}
-
-	sessionManager, err := StartSessionManager(authnStore, authnConfig.KeysDir)
-	if err != nil {
-		return nil, err
-	}
 
 	// this service is the admin service that also exposes the user service service thing
-	svc := &AuthnServiceImpl{
-		ExposedThing:   thing.NewExposedThing(authn.AuthnAdminServiceID, nil),
-		config:         authnConfig,
-		authnStore:     authnStore,
-		sessionManager: sessionManager,
+	svc := &AuthnAdminServiceImpl{
+		ExposedThing: thing.NewExposedThing(authn.AuthnAdminServiceThingID, nil),
+		authnStore:   authnStore,
 	}
 	// update the readable properties
-	svc.SetProperty(svc.GetThingID(), authn.AdminPropNrClients, authnStore.Count())
+	svc.SetProperty(svc.GetID(), authn.AdminPropNrClients, authnStore.Count())
 
 	// ensure the administrator account exists
-	if svc.config.AdminUserID != "" {
-		err = svc.CreateAdminAccount()
+	if createAdminAcct {
+		adminID := api.DefaultAdminUserID
+		_, err = svc.GetProfile(adminID)
+		if err != nil {
+			err = svc.AddClient(adminID, "Administrator", authn.ClientRoleAdmin)
+		}
 	}
 
-	var _ api.IHiveCell = svc       // interface check
-	var _ authn.IAuthnService = svc // interface check
+	var _ api.IHiveCell = svc            // interface check
+	var _ authn.IAuthnAdminService = svc // interface check
 	return svc, err
 }

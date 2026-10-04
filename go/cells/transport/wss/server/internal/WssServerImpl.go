@@ -108,29 +108,8 @@ func (srv *WssServerImpl) ServeWssConnection(w http.ResponseWriter, r *http.Requ
 	_ = err
 	// finally cleanup the connection
 	srv.RemoveConnection(c)
-	// if m.connectHandler != nil {
-	// m.connectHandler(false, c, nil)
-	// }
+
 }
-
-// Start listening for incoming websocket connections
-//
-// //	yamlConfig: todo, wssPath
-// func (srv *WssServerImpl) Start() (err error) {
-
-// 	connectURL := srv.httpServer.GetConnectURL()
-// 	slog.Info("Start: Starting websocket transport server, Listening on: " + connectURL)
-
-// 	// create routes
-// 	router := srv.httpServer.GetProtectedRoute()
-// 	router.Get(srv.wssPath, srv.ServeWssConnection)
-
-// 	// create a TD describing this server along with its connection URL
-// 	thingID := srv.GetThingID()
-// 	srv.serverTD = td.NewTD(thingID, srv.subprotocol+" Websocket server", vocab.DeviceTypeService)
-// 	srv.AddTDSecForms(srv.serverTD, false)
-// 	return err
-// }
 
 // Stop disconnects clients and remove connection listening
 func (srv *WssServerImpl) Stop() {

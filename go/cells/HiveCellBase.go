@@ -116,7 +116,7 @@ func (base *HiveCellBase) EmitRequestWait(req *msg.RequestMessage) (
 	if err == nil {
 		err = resp.AsError()
 	} else {
-		slog.Error("EmitRequestWait failed", "me", base.GetThingID(),
+		slog.Error("EmitRequestWait failed", "me", base.GetID(),
 			"op", req.Operation,
 			"thingID", req.ThingID,
 			"name", req.Name, "err", err.Error())
@@ -188,8 +188,8 @@ func (base *HiveCellBase) GetRequestSink() api.IHiveCell {
 	return base.requestSink
 }
 
-// GetThingID returns the cell's thingID
-func (base *HiveCellBase) GetThingID() string {
+// GetID returns the cell's thingID
+func (base *HiveCellBase) GetID() string {
 	return base.cellID
 }
 
@@ -284,7 +284,7 @@ func (base *HiveCellBase) SetRequestSink(requestSink api.IHiveCell) {
 	// to be determined if there is a use-case for replacing the sink
 	if base.requestSink != nil {
 		slog.Warn("SetRequestSink: Overriding existing request sink",
-			"cellID", base.GetThingID())
+			"cellID", base.GetID())
 	}
 	base.requestSink = requestSink
 }
@@ -315,7 +315,7 @@ func (base *HiveCellBase) Stop() {}
 //	timeout for forwarding request and waiting for the result
 func NewHiveCellBase(cellID string) *HiveCellBase {
 	if cellID == "" {
-		cellID = "thing-" + shortid.MustGenerate()
+		cellID = "cell-" + shortid.MustGenerate()
 	}
 	base := &HiveCellBase{
 		mux:               sync.RWMutex{},

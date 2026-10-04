@@ -3,8 +3,8 @@
     "https://www.w3.org/2022/wot/td/v1.1",
     { "hiveot": "https://www.hiveot.net/vocab/v0.1" }
   ],
-  "@type": "Service",
-  "id": "authn:admin",
+  "@type": "",
+  "id": "",
   "title": "Authentication Administration Service",
   "description": "HiveOT client administration",
   "version": {

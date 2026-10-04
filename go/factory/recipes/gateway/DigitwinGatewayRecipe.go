@@ -24,8 +24,6 @@ import (
 	grpc_server "github.com/hiveot/hivekit/go/cells/transport/grpc/server"
 	"github.com/hiveot/hivekit/go/cells/transport/httpbasic"
 	httpbasic_server "github.com/hiveot/hivekit/go/cells/transport/httpbasic/server"
-	"github.com/hiveot/hivekit/go/cells/transport/ssesc"
-	ssesc_server "github.com/hiveot/hivekit/go/cells/transport/ssesc/server"
 	tls_server "github.com/hiveot/hivekit/go/cells/transport/tlsserver/server"
 	"github.com/hiveot/hivekit/go/cells/transport/wss"
 	wss_server "github.com/hiveot/hivekit/go/cells/transport/wss/server"
@@ -60,20 +58,15 @@ var DigitwinGatewayRecipeCells = []api.CellDefinition{
 		Constructor: factory_service.NewBusFormationFactory,
 		Config: []api.CellDefinition{
 			{
-				// http-basic transport server
-				Type:        httpbasic.HttpBasicServerCellType,
-				Constructor: httpbasic_server.NewHttpBasicServerFactory,
-			},
-			{
-				// Websocket transport server
+				// Websocket transport server is the preferred transport
 				Type:        wss.WotWebsocketServerCellType,
 				Constructor: wss_server.NewWotWssServerFactory,
 			},
-			{
-				// Hiveot SSE
-				Type:        ssesc.SseScServerCellType,
-				Constructor: ssesc_server.StartSseScServerFactory,
-			},
+			// {
+			// 	// Hiveot SSE
+			// 	Type:        ssesc.SseScServerCellType,
+			// 	Constructor: ssesc_server.StartSseScServerFactory,
+			// },
 			{
 				// Hiveot gRPC
 				Type:        grpc.HiveotGrpcServerCellType,
@@ -84,34 +77,45 @@ var DigitwinGatewayRecipeCells = []api.CellDefinition{
 			// 	Type:        mqtt.MqttServerCellType,
 			// 	Constructor: mqttpkg.NewMqttServerFactory,
 			// },
-			// {
-			// 	// MQTT client
-			// 	Type:        mqttgw.MqttClientCellType,
-			// 	Constructor: mqttgwpkg.NewMqttClientFactory,
-			// },
+			{
+				// http-basic transport server
+				Type:        httpbasic.HttpBasicServerCellType,
+				Constructor: httpbasic_server.NewHttpBasicServerFactory,
+			},
 		},
 	},
-	{
-		// logging of requests
+	{ // logging of requests
 		Type:        logging.LoggingServiceCellType,
 		Constructor: logging_service.NewLoggingServiceFactory,
 	},
-	{
-		// Authentication handler and service
-		Type:        authn.AuthnServiceCellType,
-		Constructor: authn_service.NewAuthnServiceFactory,
-	},
-	{
-		// Authorization
+	{ // Authorization of remote requests
 		Type:        authz.AuthzServiceCellType,
 		Constructor: authz_service.NewAuthzServiceFactory,
 	},
-
-	{
-		// request and notification history storage
+	{ // Store request and notification history
 		Type:        history.HistoryServiceCellType,
 		Constructor: history_service.NewHistoryServiceFactory,
 	},
+	{ // Authentication user handler and service
+		Type:        authn.AuthnServiceCellType,
+		Constructor: authn_service.NewAuthnServiceFactory,
+	},
+
+	// --- star formation with local services
+	// requests are directed to the service matching the cell with the request thingID
+	// This doesn't work for cells that provide multiple services.
+	{
+		Type:        api.StarFormationType,
+		Constructor: factory_service.NewStarFormationFactory,
+		Config: []api.CellDefinition{
+			{ // Certificate management
+				Type:        certs.CertsServiceCellType,
+				Constructor: certs_service.NewCertsServiceFactory,
+			},
+			// other embedded services can be added here
+		},
+	},
+
 	{
 		// Directory service
 		Type:        directory.DirectoryServiceCellType,

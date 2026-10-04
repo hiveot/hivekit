@@ -160,10 +160,10 @@ func TestRnRCloseAll(t *testing.T) {
 func TestRnRDoubleOpen(t *testing.T) {
 	corrID := "123"
 	rnrChan := msg.NewRnRChan()
-	rnrChan.Open(corrID)
-	assert.Panics(t, func() {
-		rnrChan.Open(corrID)
-	})
+	err := rnrChan.Open(corrID)
+	require.NoError(t, err)
+	err = rnrChan.Open(corrID)
+	require.Error(t, err)
 	rnrChan.Close(corrID)
 }
 

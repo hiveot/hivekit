@@ -97,6 +97,7 @@ func TestService(t *testing.T) {
 
 func TestCertClient(t *testing.T) {
 	const clientID = "clientID"
+	var certsThingID string
 
 	m, cancelFn, err := startService(t)
 	_ = m
@@ -104,8 +105,9 @@ func TestCertClient(t *testing.T) {
 	defer cancelFn()
 
 	// use a direct transport instead of running a client-server
+	certsThingID = m.GetID()
 	tp := testenv.NewTestTransport(clientID, m)
-	cl := certsclient.NewCertsClient("", tp)
+	cl := certsclient.NewCertsClient(certsThingID, tp)
 
 	privKey, pubKey := utils.NewEd25519Key()
 	_ = privKey
@@ -136,7 +138,7 @@ func TestCreateCerts(t *testing.T) {
 	require.NotNil(t, serverChain)
 
 	// this needs completion
-	cl := certsclient.NewCertsClient("", nil)
+	cl := certsclient.NewCertsClient(m.GetID(), nil)
 
 	// var _ certs.ICertsService = cl // interface check
 	_ = cl

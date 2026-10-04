@@ -125,7 +125,7 @@ func TestClientServerRecipes(t *testing.T) {
 // TODO: use slots to use different protocols
 func TestGatewayRecipe(t *testing.T) {
 	fmt.Printf("---Test: %s %s---\n", t.Name(), testProtocol)
-	const managerClientID = "consumer1"
+	const managerClientID = "manager1"
 	const rcdeviceClientID = "rc1"
 
 	// 1. Create the gateway recipe and add consumer and rc accounts
@@ -194,7 +194,7 @@ func TestGatewayRecipe(t *testing.T) {
 	//
 	// does the device publish its TD?
 	// does it reach the gateway directory?
-	props, err := cor.ReadAllProperties(counterThing.GetThingID())
+	props, err := cor.ReadAllProperties(counterThing.GetID())
 	require.NoError(t, err)
 	assert.NotEmpty(t, props)
 

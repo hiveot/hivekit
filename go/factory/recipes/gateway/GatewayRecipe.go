@@ -84,11 +84,6 @@ var GatewayRecipeCells = []api.CellDefinition{
 			// 	Type:        mqtt.MqttServerCellType,
 			// 	Constructor: mqttpkg.NewMqttServerFactory,
 			// },
-			// {
-			// 	// MQTT client todo
-			// 	Type:        mqttgw.MqttClientCellType,
-			// 	Constructor: mqttgwpkg.NewMqttClientFactory,
-			// },
 			{
 				// Last, the gateway supports http-basic
 				Type:        httpbasic.HttpBasicServerCellType,
@@ -109,16 +104,17 @@ var GatewayRecipeCells = []api.CellDefinition{
 		Constructor: history_service.NewHistoryServiceFactory,
 	},
 
+	{ // Authentication user handler and service
+		Type:        authn.AuthnServiceCellType,
+		Constructor: authn_service.NewAuthnServiceFactory,
+	},
+
 	// --- star formation with local services
 	// requests are directed to the service matching the request thingID
 	{
 		Type:        api.StarFormationType,
 		Constructor: factory_service.NewStarFormationFactory,
 		Config: []api.CellDefinition{
-			{ // Authentication handler and service
-				Type:        authn.AuthnServiceCellType,
-				Constructor: authn_service.NewAuthnServiceFactory,
-			},
 			{ // Certificate management
 				Type:        certs.CertsServiceCellType,
 				Constructor: certs_service.NewCertsServiceFactory,
@@ -202,11 +198,13 @@ func (r *GatewayRecipe) AddAccount(
 
 	authnSvc := r.f.GetCell(authn.AuthnServiceCellType).(authn.IAuthnService)
 	// ensure the client exists
-	_ = authnSvc.AddClient(clientID, name, role)
+	adminSvc := authnSvc.GetAdminService()
+	_ = adminSvc.AddClient(clientID, name, role)
 	if withToken {
+		userSvc := authnSvc.GetUserService()
 		// use the default validation period
-		token, _, err = authnSvc.GetSessionManager().CreateToken(clientID, 0)
-		err = authnSvc.GetSessionManager().SaveToken(clientID, token)
+		token, _, err = userSvc.GetSessionManager().CreateToken(clientID, 0)
+		err = userSvc.GetSessionManager().SaveToken(clientID, token)
 	}
 	if withCert {
 		certSvc := r.GetCertsSvc()
@@ -233,12 +231,12 @@ func (r *GatewayRecipe) Start() {
 	r.f.Start()
 
 	// TODO: add gateway as device with props and events
-	tdoc := td.NewTD(r.GetThingID(), "HiveOT Gateway", vocab.DeviceNetGateway)
+	tdoc := td.NewTD(r.GetID(), "HiveOT Gateway", vocab.DeviceNetGateway)
 	r.f.AddTDSecForms(tdoc, false)
 
 	discoSrv := api.GetFactoryCell[discovery.IDiscoveryServer](
 		r.f, discovery.DiscoveryServerCellType)
-	instanceName := r.GetThingID()
+	instanceName := r.GetID()
 	discoSrv.ServeGatewayTD(instanceName, tdoc)
 }
 

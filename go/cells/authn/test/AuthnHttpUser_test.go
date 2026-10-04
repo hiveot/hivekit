@@ -1,6 +1,7 @@
 package authn_test
 
 import (
+	"fmt"
 	"log/slog"
 	"testing"
 	"time"
@@ -12,13 +13,15 @@ import (
 )
 
 func TestBadRefreshHttp(t *testing.T) {
-	t.Logf("---%s---\n", t.Name())
+	fmt.Printf("---%s---\n", t.Name())
 
-	httpServer, svc, cancelFn := startTestAuthnService(defaultHash)
+	httpServer, authnSvc, cancelFn := startTestAuthnServices(defaultHash)
+	adminSvc := authnSvc.GetAdminService()
+	userSvc := authnSvc.GetUserService()
 	defer cancelFn()
 
-	err := svc.AddClient(testClientID1, "client 1", authn.ClientRoleViewer)
-	sm := svc.GetSessionManager()
+	err := adminSvc.AddClient(testClientID1, "client 1", authn.ClientRoleViewer)
+	sm := userSvc.GetSessionManager()
 	token1, _, err := sm.CreateToken(testClientID1, time.Minute)
 	assert.NoError(t, err)
 
@@ -36,7 +39,7 @@ func TestBadRefreshHttp(t *testing.T) {
 	assert.NotEmpty(t, token2)
 	assert.NoError(t, err)
 
-	t.Log("*** Expecting SetBearerToken('bad-token') to fail ***")
+	slog.Error("--- Expecting SetBearerToken('bad-token') to fail ---")
 	token3, err := authCl.RefreshToken("badToken")
 	assert.Error(t, err)
 	assert.Empty(t, token3)
@@ -46,11 +49,13 @@ func TestBadRefreshHttp(t *testing.T) {
 func TestLogoutHttp(t *testing.T) {
 	t.Logf("---%s---\n", t.Name())
 
-	httpServer, svc, cancelFn := startTestAuthnService(defaultHash)
+	httpServer, authnSvc, cancelFn := startTestAuthnServices(defaultHash)
+	adminSvc := authnSvc.GetAdminService()
+	userSvc := authnSvc.GetUserService()
 	defer cancelFn()
 
-	err := svc.AddClient(testClientID1, "client 1", authn.ClientRoleViewer)
-	sm := svc.GetSessionManager()
+	err := adminSvc.AddClient(testClientID1, "client 1", authn.ClientRoleViewer)
+	sm := userSvc.GetSessionManager()
 	token1, _, err := sm.CreateToken(testClientID1, time.Minute)
 	require.NoError(t, err)
 
@@ -81,11 +86,12 @@ func TestLogoutHttp(t *testing.T) {
 // Test certificate based authentication
 func TestAuthClientCertHttp(t *testing.T) {
 
-	httpServer, svc, cancelFn := startTestAuthnService(defaultHash)
+	httpServer, authnSvc, cancelFn := startTestAuthnServices(defaultHash)
+	adminSvc := authnSvc.GetAdminService()
 	defer cancelFn()
 
 	// add user to test with. don't set the public key yet
-	err := svc.AddClient(testCerts.ClientID, "user 1", authn.ClientRoleViewer)
+	err := adminSvc.AddClient(testCerts.ClientID, "user 1", authn.ClientRoleViewer)
 	require.NoError(t, err)
 	serverURL := httpServer.GetConnectURL()
 

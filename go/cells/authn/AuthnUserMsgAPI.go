@@ -1,9 +1,6 @@
 // package authn with messaging definitions for the authn user service
 package authn
 
-// AuthnUserThingID is the Thing instance ID of the user facing auth service.
-const AuthnUserServiceID = "authn:user"
-
 // RRN Thing property, event and action affordance names
 const (
 	// Property names

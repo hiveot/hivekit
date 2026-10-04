@@ -400,29 +400,6 @@ func (tdoc *TD) GetForm(op string, name string, prefScheme, prefSubprotocol stri
 	return &forms[0], false
 }
 
-// GetFormHRef is a helper that first obtains the matching form then
-// extracts the href.
-//
-// This injects href uriVars if provided.
-// func (tdoc *TD) GetFormHRef(
-// 	op, name string, prefScheme, prefSubprotocol string, uriVars map[string]string) (
-// 	f *Form, href string, err error) {
-// 	var match bool
-
-// 	f, match = tdoc.GetForm(op, name, prefScheme, prefSubprotocol)
-// 	if f == nil {
-// 		return nil, "", fmt.Errorf("No form found for the requested operation")
-// 	}
-
-// 	hrefURL, err := f.ResolveHRef(tdoc.Base, uriVars)
-// 	if err != nil {
-// 		return f, "", err
-// 	}
-// 	href = hrefURL.String()
-// 	_ = match
-// 	return f, href, err
-// }
-
 // GetForms returns the forms for the requested operation.
 // The caller still has to find the matching protocol based on url and subprotocol field.
 //
@@ -561,6 +538,17 @@ func (tdoc *TD) GetSenderID() string {
 	return tdoc.SenderID
 }
 
+// GetTypes returns the Thing @type fields of this TD.
+// This returns an array with at least one element.
+func (tdoc *TD) GetTypes() []string {
+	typeList, valid := tdoc.AtType.([]string)
+	if valid {
+		return typeList
+	}
+	val, _ := tdoc.AtType.(string)
+	return []string{val}
+}
+
 // IsDirectory returns true if the TD represents a directory
 // Directories are identified by the @type "ThingDirectory" keyword.
 func (tdoc *TD) IsDirectory() bool {
@@ -621,6 +609,24 @@ func (tdoc *TD) SetForms(formList []Form) {
 // Set the clientID of the sender that published this TD to the directory.
 func (tdoc *TD) SetSenderID(id string) {
 	tdoc.SenderID = id
+}
+
+// SetType adds the given type to the @type field.
+// If the @type field is empty then set the value as a string
+// If the @type field already has a value then add the value as a list
+// If the same value already exists then do nothing.
+func (tdoc *TD) SetType(atType string) {
+	if tdoc.AtType == "" || tdoc.AtType == nil {
+		tdoc.AtType = atType
+		return
+	}
+	typeList := tdoc.GetTypes()
+	if slices.Contains(typeList, atType) {
+		// dont add a duplicate
+		return
+	}
+	typeList = append(typeList, atType)
+	tdoc.AtType = typeList
 }
 
 // Substitute substitutes the variables in a string

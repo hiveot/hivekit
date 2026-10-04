@@ -113,7 +113,7 @@ func (srv *TransportServerBase) AddConnection(c api.IConnection) error {
 		ConnectionID: cid,
 	}
 	// publish a notification for those interested
-	senderID := srv.GetThingID()
+	senderID := srv.GetID()
 	thingID := senderID
 	notif := msg.NewNotificationMessage(senderID, msg.AffordanceTypeEvent, thingID,
 		api.ServerConnectedEvent, connectionInfo)
@@ -282,12 +282,12 @@ func (m *TransportServerBase) HandleNotification(notif *msg.NotificationMessage)
 func (m *TransportServerBase) HandleRequest(
 	req *msg.RequestMessage, replyTo msg.ResponseHandler) (err error) {
 
-	if req.ThingID == m.GetThingID() {
+	if req.ThingID == m.GetID() {
 		if m.appRequestHook != nil {
 			return m.appRequestHook(req, replyTo)
 		} else {
 			return fmt.Errorf("HandleRequest: no request handler set for this transport server '%s'",
-				m.GetThingID())
+				m.GetID())
 		}
 	}
 
@@ -370,7 +370,7 @@ func (srv *TransportServerBase) RemoveConnection(c api.IConnection) {
 		ClientID:     c.GetClientID(),
 		ConnectionID: c.GetConnectionID(),
 	}
-	senderID := srv.GetThingID()
+	senderID := srv.GetID()
 	thingID := senderID
 	notif := msg.NewNotificationMessage(senderID, msg.AffordanceTypeEvent, thingID,
 		api.ServerDisconnectedEvent, connectionInfo)

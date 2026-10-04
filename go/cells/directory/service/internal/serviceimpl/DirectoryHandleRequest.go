@@ -19,7 +19,7 @@ import (
 func (svc *DirectoryServiceImpl) HandleRequest(req *msg.RequestMessage, replyTo msg.ResponseHandler) (err error) {
 	var resp *msg.ResponseMessage
 
-	myThingID := svc.GetThingID()
+	myThingID := svc.GetID()
 
 	// Devices don't need to know which directory they are linked to to publish their TD.
 	if req.Name == directory.CreateThingAction || req.Name == directory.UpdateThingAction {
@@ -30,7 +30,7 @@ func (svc *DirectoryServiceImpl) HandleRequest(req *msg.RequestMessage, replyTo 
 
 	// other requests not directed at the directory are forwarded
 	if req.ThingID != myThingID {
-		return svc.HiveCellBase.HandleRequest(req, replyTo)
+		return svc.ForwardRequest(req, replyTo)
 	}
 
 	// this is a request addressed to this service

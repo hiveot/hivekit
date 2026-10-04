@@ -25,7 +25,7 @@ import (
 func (svc *HistoryServiceImpl) HandleRequest(req *msg.RequestMessage, replyTo msg.ResponseHandler) (err error) {
 	var resp *msg.ResponseMessage
 
-	if req.ThingID != svc.GetThingID() {
+	if req.ThingID != svc.GetID() {
 		// if the request is not for this service, store it and forward.
 		go func() {
 			if svc.config.RequestFilter.AcceptRequest(req) {

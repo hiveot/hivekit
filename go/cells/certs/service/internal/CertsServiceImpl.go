@@ -7,11 +7,13 @@ import (
 	"crypto/x509"
 	"fmt"
 	"log/slog"
+	"os"
 	"path"
 	"path/filepath"
 	"time"
 
 	"github.com/hiveot/hivekit/go/api"
+	"github.com/hiveot/hivekit/go/api/td"
 	"github.com/hiveot/hivekit/go/cells/certs"
 	"github.com/hiveot/hivekit/go/cells/thing"
 	"github.com/hiveot/hivekit/go/utils"
@@ -228,7 +230,13 @@ func (svc *CertsServiceImpl) RefreshCA(minRemaining time.Duration) error {
 // Start publishes the td when app is ready
 func (svc *CertsServiceImpl) Start() {
 	tdJson := string(certs.CertsServiceTD)
-	svc.PublishTD(tdJson)
+	tdoc, err := td.UnmarshalTD(tdJson)
+	if err == nil {
+		tdoc.SetType(certs.CertsServiceCellType)
+		tdoc.ID = svc.GetID()
+		tdJson = td.MarshalTD(tdoc)
+		svc.PublishTD(tdJson)
+	}
 }
 
 // Stop any running actions
@@ -268,7 +276,9 @@ func (svc *CertsServiceImpl) VerifyClientCert(clientID string, clientCert *x509.
 // Call Start to publish its TD.
 func NewCertsServiceImpl(config *certs.CertsConfig) (*CertsServiceImpl, error) {
 	var err error
-	thingID := certs.DefaultCertsServiceThingID
+
+	hostname, _ := os.Hostname()
+	thingID := hostname + ":certs"
 
 	svc := &CertsServiceImpl{
 		ExposedThing: thing.NewExposedThing(thingID, nil),

@@ -78,7 +78,7 @@ func (srv *DiscoveryServerImpl) HandleRequest(req *msg.RequestMessage, replyTo m
 			return replyTo(resp)
 		}
 	}
-	return srv.HiveCellBase.HandleRequest(req, replyTo)
+	return srv.ForwardRequest(req, replyTo)
 }
 
 // ServeTD serves the TD using DNS-SD.

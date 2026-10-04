@@ -38,7 +38,7 @@ func (srv *TestTransport) HandleNotification(notif *msg.NotificationMessage) {
 // Receive a request and forward it on to the sinks.
 func (srv *TestTransport) HandleRequest(
 	req *msg.RequestMessage, replyTo msg.ResponseHandler) (err error) {
-	req.SenderID = srv.GetThingID()
+	req.SenderID = srv.GetID()
 	return srv.ForwardRequest(req, replyTo)
 }
 

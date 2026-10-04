@@ -1,4 +1,4 @@
-package serviceimpl
+package internal
 
 import (
 	"crypto/ed25519"
@@ -11,8 +11,7 @@ import (
 	"github.com/hiveot/hivekit/go/api"
 	"github.com/hiveot/hivekit/go/api/td"
 	"github.com/hiveot/hivekit/go/cells/authn"
-	"github.com/hiveot/hivekit/go/cells/authn/service/internal/authenticators"
-	authnstore "github.com/hiveot/hivekit/go/cells/authn/service/internal/store"
+	authn_authenticators "github.com/hiveot/hivekit/go/cells/authn/authenticators"
 	"github.com/hiveot/hivekit/go/utils"
 )
 
@@ -27,13 +26,13 @@ type SessionManager struct {
 	ServiceTokenValidityDays int `yaml:"serviceTokenValidityDays,omitempty"`
 
 	// storage for clients and authentication data
-	authnStore authnstore.IAuthnStore
+	authnStore authn.IAuthnStore
 
 	// The client authenticator, eg the session manager
 	authenticator authn.IAuthnAuthenticator
 
-	// directory where the signing key is stored
-	keysDir string
+	// directory where the tokens are stored
+	tokensDir string
 
 	// track session start, used in validation
 	sessionStart map[string]time.Time
@@ -117,14 +116,15 @@ func (sm *SessionManager) Login(
 	return token, validUntil, err
 }
 
-// Load a previously saved token from the keys directory under the name {clientID}.token
+// Load a previously saved token from the tokensDir directory under the name
+// {clientID}.token.
 //
 // The intended configuration is to match this with HiveEnvironment.
 //
 // Intended for storing tokens for core services and admin user.
 func (svc *SessionManager) LoadToken(clientID string) (string, error) {
 
-	tokenFile := filepath.Join(svc.keysDir, clientID+api.DefaultTokenFileSuffix)
+	tokenFile := filepath.Join(svc.tokensDir, clientID+api.DefaultTokenFileSuffix)
 	token, err := os.ReadFile(tokenFile)
 
 	return string(token), err
@@ -169,16 +169,16 @@ func (sm *SessionManager) RefreshToken(senderID string, oldToken string) (
 	return newToken, validUntil, err
 }
 
-// Save the token to the keys directory under the name {clientID}.token
+// Save the token to the tokensDir directory under the name {clientID}.token
 //
 // Intended for storing tokens for core services and admin user.
 func (svc *SessionManager) SaveToken(clientID string, token string) error {
-	tokenFile := filepath.Join(svc.keysDir, clientID+api.DefaultTokenFileSuffix)
+	tokenFile := filepath.Join(svc.tokensDir, clientID+api.DefaultTokenFileSuffix)
 
-	err := os.MkdirAll(svc.keysDir, 0700)
+	err := os.MkdirAll(svc.tokensDir, 0700)
 	if err != nil {
 		slog.Error("SaveToken can't ensure directory exist.",
-			"keysdir", svc.keysDir, "err", err.Error())
+			"tokensDir", svc.tokensDir, "err", err.Error())
 	}
 	// the old token can't be overwritten
 	_ = os.Remove(tokenFile)
@@ -226,10 +226,10 @@ func (sm *SessionManager) ValidateClient(claimedClientID string, token string) (
 // Create a new session manager for client sessions
 // Call Stop() to shut down
 func StartSessionManager(
-	authnStore authnstore.IAuthnStore, keysDir string) (*SessionManager, error) {
+	authnStore authn.IAuthnStore, tokensDir string) (*SessionManager, error) {
 
 	sm := &SessionManager{
-		keysDir:                   keysDir,
+		tokensDir:                 tokensDir,
 		authnStore:                authnStore,
 		DeviceTokenValidityDays:   authn.DefaultDeviceTokenValidityDays,
 		ServiceTokenValidityDays:  authn.DefaultServiceTokenValidityDays,
@@ -239,15 +239,15 @@ func StartSessionManager(
 
 	serviceID := "authn"
 
-	// store the signing key in: {keysDir}/authnKey.pem
-	keyFilename := filepath.Join(sm.keysDir, serviceID+api.DefaultPrivKeyFileSuffix)
+	// store the signing key in: {tokensDir}/authnKey.pem
+	keyFilename := filepath.Join(sm.tokensDir, serviceID+api.DefaultPrivKeyFileSuffix)
 	signingPrivKey, _, err := utils.LoadCreateKeyPair(keyFilename, utils.KeyTypeED25519)
 	if err != nil {
 		return nil, err
 	}
 
-	sm.authenticator = authenticators.NewPasetoAuthenticator(
-		sm.authnStore, signingPrivKey.(ed25519.PrivateKey))
+	sm.authenticator = authn_authenticators.NewPasetoAuthenticator(
+		sm.authnStore, signingPrivKey.(ed25519.PrivateKey), "")
 
 	var _ authn.ISessionManager = sm // interface check
 	return sm, nil

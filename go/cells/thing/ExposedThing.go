@@ -57,18 +57,18 @@ type ExposedThing struct {
 // thingID is the ID of a nested Thing or "" for the cell's Thing itself.
 //
 // If no entry for thingID yet exists, one is created.
-func (m *ExposedThing) GetState(thingID string) *ThingState {
+func (svc *ExposedThing) GetState(thingID string) *ThingState {
 	if thingID == "" {
-		thingID = m.GetThingID()
+		thingID = svc.GetID()
 	}
-	m.mux.RLock()
-	state, ok := m.tstates[thingID]
-	m.mux.RUnlock()
+	svc.mux.RLock()
+	state, ok := svc.tstates[thingID]
+	svc.mux.RUnlock()
 	if !ok {
-		m.mux.Lock()
+		svc.mux.Lock()
 		state = NewThingState(thingID)
-		m.tstates[thingID] = state
-		defer m.mux.Unlock()
+		svc.tstates[thingID] = state
+		defer svc.mux.Unlock()
 	}
 	return state
 }
@@ -76,13 +76,13 @@ func (m *ExposedThing) GetState(thingID string) *ThingState {
 // HandleReadRequests handles reading of actions, events, and properties for a nested thing.
 // This returns nil if the request was handled or an error if this is not a valid read request
 // or the thingID is unknown.
-func (m *ExposedThing) HandleReadRequests(req *msg.RequestMessage, replyTo msg.ResponseHandler) (err error) {
+func (svc *ExposedThing) HandleReadRequests(req *msg.RequestMessage, replyTo msg.ResponseHandler) (err error) {
 	var found bool
 	var output any
 
-	m.mux.RLock()
-	defer m.mux.RUnlock()
-	state, ok := m.tstates[req.ThingID]
+	svc.mux.RLock()
+	defer svc.mux.RUnlock()
+	state, ok := svc.tstates[req.ThingID]
 	if !ok {
 		// no properties or events have been recorded;
 		// ething owner should use PubProperty or other method to create a tstate object.
@@ -161,22 +161,22 @@ func (m *ExposedThing) HandleReadRequests(req *msg.RequestMessage, replyTo msg.R
 // Cells that override HandleRequest should first handle the request itself and
 // only hand it over to this base method when there is nothing for them to do. This method
 // simply forwards the request if no request handler hook is set.
-func (m *ExposedThing) HandleRequest(req *msg.RequestMessage, replyTo msg.ResponseHandler) (err error) {
+func (svc *ExposedThing) HandleRequest(req *msg.RequestMessage, replyTo msg.ResponseHandler) (err error) {
 
 	// application can set a hook for handling all requests
-	m.mux.RLock()
-	handler := m.appRequestHook
-	m.mux.RUnlock()
+	svc.mux.RLock()
+	handler := svc.appRequestHook
+	svc.mux.RUnlock()
 
 	// invoke registered hook
 	if handler != nil {
 		err = handler(req, replyTo)
 		return err
 	}
-	if req.ThingID == m.GetThingID() {
-		err = m.HandleReadRequests(req, replyTo)
+	if req.ThingID == svc.GetID() {
+		err = svc.HandleReadRequests(req, replyTo)
 	} else {
-		err = m.ForwardRequest(req, replyTo)
+		err = svc.ForwardRequest(req, replyTo)
 	}
 	return err
 }
@@ -184,22 +184,22 @@ func (m *ExposedThing) HandleRequest(req *msg.RequestMessage, replyTo msg.Respon
 // PubActionProgress helper for things to send a 'running' ActionStatus notification
 //
 // This sends an ResponseMessage message with status of running.
-func (m *ExposedThing) PubActionProgress(req msg.RequestMessage, value any) {
+func (svc *ExposedThing) PubActionProgress(req msg.RequestMessage, value any) {
 	status := &msg.ResponseMessage{
 		Name:      req.Name,
 		Output:    value,
-		SenderID:  m.GetThingID(),
+		SenderID:  svc.GetID(),
 		Status:    msg.StatusRunning,
 		ThingID:   req.ThingID,
 		Timestamp: utils.FormatNowUTCMilli(),
 	}
 
 	resp := msg.NewNotificationMessage(
-		m.GetThingID(), msg.AffordanceTypeAction, req.ThingID, req.Name, status)
+		svc.GetID(), msg.AffordanceTypeAction, req.ThingID, req.Name, status)
 
-	m.GetState(req.ThingID).SetActionResponse(req.Name, status)
+	svc.GetState(req.ThingID).SetActionResponse(req.Name, status)
 
-	m.EmitNotification(resp)
+	svc.EmitNotification(resp)
 }
 
 // PubEvent helper for things to publish an event to the server.
@@ -207,24 +207,24 @@ func (m *ExposedThing) PubActionProgress(req msg.RequestMessage, value any) {
 //	thingID is the thing for which the cell publishes the properties or "" for the cell Thing itself.
 //	name is the name of the event to publish.
 //	value is the value of the event to publish, if any
-func (m *ExposedThing) PubEvent(thingID string, name string, value any) {
+func (svc *ExposedThing) PubEvent(thingID string, name string, value any) {
 
 	if thingID == "" {
-		thingID = m.GetThingID()
+		thingID = svc.GetID()
 	}
 
 	// This is a response to subscription request.
 	// for now assume this is a hub connection and the hub wants all events
 	notif := msg.NewNotificationMessage(
-		m.GetThingID(), msg.AffordanceTypeEvent, thingID, name, value)
+		svc.GetID(), msg.AffordanceTypeEvent, thingID, name, value)
 	slog.Info("PubEvent",
 		"thingID", thingID,
 		"name", name,
 		"value", notif.ToString(50),
 	)
-	m.GetState(thingID).SetEvent(name, notif)
+	svc.GetState(thingID).SetEvent(name, notif)
 
-	m.EmitNotification(notif)
+	svc.EmitNotification(notif)
 }
 
 // PubProperty publishes a property change notification to observers,
@@ -236,12 +236,12 @@ func (m *ExposedThing) PubEvent(thingID string, name string, value any) {
 //	propName is the name of the property to publish.
 //	propValue is the value of the property to publish.
 //	onlyChanges flag only publish changed values.
-func (m *ExposedThing) PubProperty(thingID string, propName string, propVal any, onlyChanges bool) {
+func (svc *ExposedThing) PubProperty(thingID string, propName string, propVal any, onlyChanges bool) {
 
 	if thingID == "" {
-		thingID = m.GetThingID()
+		thingID = svc.GetID()
 	}
-	tstate := m.GetState(thingID)
+	tstate := svc.GetState(thingID)
 	hasChanged := true
 	if onlyChanges {
 		// since most values are native types a simple compare should suffice
@@ -255,7 +255,7 @@ func (m *ExposedThing) PubProperty(thingID string, propName string, propVal any,
 		// This is a response to an observation request.
 		// send the property update as a response to the observe request
 		notif := msg.NewNotificationMessage(
-			m.GetThingID(), msg.AffordanceTypeProperty, thingID, propName, propVal)
+			svc.GetID(), msg.AffordanceTypeProperty, thingID, propName, propVal)
 		slog.Info("PubProperty",
 			"thingID", thingID,
 			"name", notif.Name,
@@ -263,7 +263,7 @@ func (m *ExposedThing) PubProperty(thingID string, propName string, propVal any,
 		)
 		tstate.SetProperty(propName, notif.Data)
 
-		m.EmitNotification(notif)
+		svc.EmitNotification(notif)
 	}
 }
 
@@ -273,12 +273,12 @@ func (m *ExposedThing) PubProperty(thingID string, propName string, propVal any,
 //	thingID is the thing for which the cell publishes the properties, or "" for the cell itself
 //	propMap is the map of properties to handle
 //	onlyChanges flag only publish changed values
-func (m *ExposedThing) PubProperties(thingID string, propMap map[string]any, onlyChanges bool) {
+func (svc *ExposedThing) PubProperties(thingID string, propMap map[string]any, onlyChanges bool) {
 	if thingID == "" {
-		thingID = m.GetThingID()
+		thingID = svc.GetID()
 	}
 	for propName, propVal := range propMap {
-		m.PubProperty(thingID, propName, propVal, onlyChanges)
+		svc.PubProperty(thingID, propName, propVal, onlyChanges)
 	}
 }
 
@@ -309,10 +309,10 @@ func (svc *ExposedThing) PublishTD(tdJSON string) error {
 // The hook MUST either call replyTo with the result or return an error.
 // Failure to do so results in the request being lost and the caller waiting
 // for a response until timeout.
-func (m *ExposedThing) SetAppRequestHook(hook msg.RequestHandler) {
-	m.mux.Lock()
-	defer m.mux.Unlock()
-	m.appRequestHook = hook
+func (svc *ExposedThing) SetAppRequestHook(hook msg.RequestHandler) {
+	svc.mux.Lock()
+	defer svc.mux.Unlock()
+	svc.appRequestHook = hook
 }
 
 // SetProperty updates the store property value so it can be read ReadProperty(ies).
@@ -325,12 +325,12 @@ func (m *ExposedThing) SetAppRequestHook(hook msg.RequestHandler) {
 //	propValue is the value of the property to set.
 //
 // This returns a flag whether the property value has changed
-func (m *ExposedThing) SetProperty(thingID string, propName string, propVal any) (changed bool) {
+func (svc *ExposedThing) SetProperty(thingID string, propName string, propVal any) (changed bool) {
 
 	if thingID == "" {
-		thingID = m.GetThingID()
+		thingID = svc.GetID()
 	}
-	tstate := m.GetState(thingID)
+	tstate := svc.GetState(thingID)
 
 	// since most values are native types a simple compare should suffice
 	hasChanged := true

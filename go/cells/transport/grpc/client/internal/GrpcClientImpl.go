@@ -261,8 +261,10 @@ func (cl *GrpcClientImpl) SendRequest(
 	}
 
 	// a response handler is provided, callback when the response is received
-	cl.rnrChan.Open(req.CorrelationID)
-	err = cl.grpcSvcClient.Send(grpctransport.StreamNameNotification, raw)
+	err = cl.rnrChan.Open(req.CorrelationID)
+	if err == nil {
+		err = cl.grpcSvcClient.Send(grpctransport.StreamNameNotification, raw)
+	}
 	// FIXME: make dual stream work
 	// err = cl.grpcClient.Send(grpcapi.StreamNameRequestResponse, raw)
 

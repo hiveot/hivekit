@@ -15,17 +15,19 @@ func TestLoginRefresh(t *testing.T) {
 	var user1ID = "user1ID"
 	var tu1Pass = "tu1Pass"
 
-	_, svc, stopFn := startTestAuthnService(defaultHash)
+	_, authnSvc, stopFn := startTestAuthnServices(defaultHash)
+	adminSvc := authnSvc.GetAdminService()
+	userSvc := authnSvc.GetUserService()
 	defer stopFn()
 
 	// add user to test with
-	err := svc.AddClient(user1ID, testClientID1, authn.ClientRoleViewer)
+	err := adminSvc.AddClient(user1ID, testClientID1, authn.ClientRoleViewer)
 	require.NoError(t, err)
-	err = svc.SetPassword(user1ID, tu1Pass)
+	err = userSvc.SetPassword(user1ID, tu1Pass)
 	require.NoError(t, err)
 
 	// first test the login/refresh natively
-	sm := svc.GetSessionManager()
+	sm := userSvc.GetSessionManager()
 	token1, validUntil, err := sm.Login(user1ID, tu1Pass)
 	require.NoError(t, err)
 	require.Greater(t, validUntil, time.Now())
@@ -51,9 +53,10 @@ func TestUpdatePassword(t *testing.T) {
 	var user1ID = "user1ID"
 	var tu1Name = "test user 1"
 
-	httpServer, svc, cancelFn := startTestAuthnService(defaultHash)
-	_ = httpServer
-	defer cancelFn()
+	_, authnSvc, stopFn := startTestAuthnServices(defaultHash)
+	adminSvc := authnSvc.GetAdminService()
+	userSvc := authnSvc.GetUserService()
+	defer stopFn()
 
 	// tp := testenv.NewTestTransport(user1ID, svc)
 
@@ -61,17 +64,17 @@ func TestUpdatePassword(t *testing.T) {
 	// authCl := authnpkg.NewAuthnUserMsgClient()
 	// authCl.SetRequestSink(tp.HandleRequest)
 
-	err := svc.AddClient(user1ID, tu1Name, authn.ClientRoleViewer)
-	svc.SetPassword(user1ID, "oldpass")
+	err := adminSvc.AddClient(user1ID, tu1Name, authn.ClientRoleViewer)
+	adminSvc.SetPassword(user1ID, "oldpass")
 	require.NoError(t, err)
 
 	// login should succeed
-	sm := svc.GetSessionManager()
+	sm := userSvc.GetSessionManager()
 	_, _, err = sm.Login(user1ID, "oldpass")
 	require.NoError(t, err)
 
 	// change password
-	err = svc.SetPassword(user1ID, "newpass")
+	err = adminSvc.SetPassword(user1ID, "newpass")
 	require.NoError(t, err)
 
 	// login with old password should now fail
@@ -86,11 +89,11 @@ func TestUpdatePassword(t *testing.T) {
 
 func TestUpdatePasswordFail(t *testing.T) {
 	var user1ID = "user1ID"
-	httpServer, m, cancelFn := startTestAuthnService(defaultHash)
-	_ = httpServer
-	defer cancelFn()
+	_, authnSvc, stopFn := startTestAuthnServices(defaultHash)
+	userSvc := authnSvc.GetUserService()
+	defer stopFn()
 
-	err := m.SetPassword(user1ID, "newpass")
+	err := userSvc.SetPassword(user1ID, "newpass")
 	assert.Error(t, err)
 }
 
@@ -100,23 +103,25 @@ func TestUpdateName(t *testing.T) {
 	var tu1Name = "test user 1"
 	var tu2Name = "test user 1"
 
-	httpServer, m, cancelFn := startTestAuthnService(defaultHash)
-	_ = httpServer
+	_, authnSvc, cancelFn := startTestAuthnServices(defaultHash)
+	adminSvc := authnSvc.GetAdminService()
+	userSvc := authnSvc.GetUserService()
+
 	defer cancelFn()
 
 	// add user to test with
-	err := m.AddClient(user1ID, tu1Name, authn.ClientRoleViewer)
-	m.SetPassword(user1ID, "oldpass")
+	err := adminSvc.AddClient(user1ID, tu1Name, authn.ClientRoleViewer)
+	userSvc.SetPassword(user1ID, "oldpass")
 	require.NoError(t, err)
 
-	profile, err := m.GetProfile(user1ID)
+	profile, err := userSvc.GetProfile(user1ID)
 	require.NoError(t, err)
 	assert.Equal(t, tu1Name, profile.DisplayName)
 
 	profile.DisplayName = tu2Name
-	err = m.UpdateProfile(user1ID, profile)
+	err = userSvc.UpdateProfile(user1ID, profile)
 	require.NoError(t, err)
-	profile2, err := m.GetProfile(user1ID)
+	profile2, err := userSvc.GetProfile(user1ID)
 	require.NoError(t, err)
 
 	assert.Equal(t, tu2Name, profile2.DisplayName)
@@ -125,14 +130,16 @@ func TestUpdateName(t *testing.T) {
 func TestClientUpdatePubKey(t *testing.T) {
 	var user1ID = "user1ID"
 
-	httpServer, m, cancelFn := startTestAuthnService(defaultHash)
+	httpServer, authnSvc, cancelFn := startTestAuthnServices(defaultHash)
 	_ = httpServer
+	adminSvc := authnSvc.GetAdminService()
+	userSvc := authnSvc.GetUserService()
 	defer cancelFn()
 
 	// add user to test with. don't set the public key yet
-	err := m.AddClient(user1ID, user1ID, authn.ClientRoleViewer)
-	m.SetPassword(user1ID, "user1")
-	profile, err := m.GetProfile(user1ID)
+	err := adminSvc.AddClient(user1ID, user1ID, authn.ClientRoleViewer)
+	userSvc.SetPassword(user1ID, "user1")
+	profile, err := userSvc.GetProfile(user1ID)
 	require.NoError(t, err)
 	assert.Equal(t, user1ID, profile.ClientID)
 	assert.Equal(t, user1ID, profile.DisplayName)
@@ -142,15 +149,15 @@ func TestClientUpdatePubKey(t *testing.T) {
 	privKey, pubKey := utils.NewKey(utils.KeyTypeECDSA)
 	pubKeyPem := utils.PublicKeyToPem(pubKey)
 	_ = privKey
-	profile2, err := m.GetProfile(user1ID)
+	profile2, err := userSvc.GetProfile(user1ID)
 	assert.Equal(t, user1ID, profile2.ClientID)
 	require.NoError(t, err)
 	profile2.PubKeyPem = pubKeyPem
-	err = m.UpdateProfile(user1ID, profile2)
+	err = userSvc.UpdateProfile(user1ID, profile2)
 	assert.NoError(t, err)
 
 	// check result
-	profile3, err := m.GetProfile(user1ID)
+	profile3, err := userSvc.GetProfile(user1ID)
 	require.NoError(t, err)
 	assert.Equal(t, user1ID, profile3.ClientID)
 	assert.Equal(t, pubKeyPem, profile3.PubKeyPem)

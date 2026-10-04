@@ -1,4 +1,4 @@
-package authn_store
+package internal
 
 import (
 	"encoding/json"
@@ -17,12 +17,12 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
-// AuthnFileStore stores client data, including users, devices and services.
+// AuthnFileStoreImpl stores client data, including users, devices and services.
 // User passwords are stored using ARGON2id hash
 // It includes a file watcher to automatically reload on update.
-type AuthnFileStore struct {
-	entries           map[string]AuthnEntry
-	storageFile       string
+type AuthnFileStoreImpl struct {
+	entries           map[string]authn.AuthnEntry
+	passwdFile        string
 	hashAlgo          string // hashing algorithm PWHASH_ARGON2id
 	minPasswordLength int
 	watcher           *fsnotify.Watcher
@@ -32,7 +32,7 @@ type AuthnFileStore struct {
 // Add a new client.
 // clientID is required, the rest is optional.
 // This fails if the client already exists.
-func (store *AuthnFileStore) Add(profile authn.ClientProfile) error {
+func (store *AuthnFileStoreImpl) Add(profile authn.ClientProfile) error {
 
 	store.mutex.Lock()
 	defer store.mutex.Unlock()
@@ -48,7 +48,7 @@ func (store *AuthnFileStore) Add(profile authn.ClientProfile) error {
 		return err
 	}
 	slog.Info("Add: New client " + profile.ClientID)
-	entry = AuthnEntry{ClientProfile: profile}
+	entry = authn.AuthnEntry{ClientProfile: profile}
 
 	entry.TimeUpdated = utils.FormatNowUTCMilli()
 
@@ -59,7 +59,7 @@ func (store *AuthnFileStore) Add(profile authn.ClientProfile) error {
 }
 
 // Close the store
-func (store *AuthnFileStore) Close() {
+func (store *AuthnFileStoreImpl) Close() {
 	store.mutex.Lock()
 	defer store.mutex.Unlock()
 	if store.watcher != nil {
@@ -69,7 +69,7 @@ func (store *AuthnFileStore) Close() {
 }
 
 // Count nr of entries in the store
-func (store *AuthnFileStore) Count() int {
+func (store *AuthnFileStoreImpl) Count() int {
 	store.mutex.RLock()
 	defer store.mutex.RUnlock()
 
@@ -77,7 +77,7 @@ func (store *AuthnFileStore) Count() int {
 }
 
 // GetProfile returns the client's profile
-func (store *AuthnFileStore) GetProfile(
+func (store *AuthnFileStoreImpl) GetProfile(
 	clientID string) (profile authn.ClientProfile, err error) {
 
 	store.mutex.RLock()
@@ -91,7 +91,7 @@ func (store *AuthnFileStore) GetProfile(
 }
 
 // GetProfiles returns a list of all client profiles in the store
-func (store *AuthnFileStore) GetProfiles() (profiles []authn.ClientProfile, err error) {
+func (store *AuthnFileStoreImpl) GetProfiles() (profiles []authn.ClientProfile, err error) {
 	store.mutex.RLock()
 	defer store.mutex.RUnlock()
 	profiles = make([]authn.ClientProfile, 0, len(store.entries))
@@ -103,7 +103,7 @@ func (store *AuthnFileStore) GetProfiles() (profiles []authn.ClientProfile, err 
 
 // GetRole returns the client's stored role.
 // This returns an error if the client is disabled.
-func (store *AuthnFileStore) GetRole(clientID string) (role string, err error) {
+func (store *AuthnFileStoreImpl) GetRole(clientID string) (role string, err error) {
 	store.mutex.RLock()
 	defer store.mutex.RUnlock()
 	// user must exist
@@ -120,10 +120,10 @@ func (store *AuthnFileStore) GetRole(clientID string) (role string, err error) {
 }
 
 // GetEntries returns a list of all profiles with their hashed passwords
-func (store *AuthnFileStore) GetEntries() (entries []AuthnEntry) {
+func (store *AuthnFileStoreImpl) GetEntries() (entries []authn.AuthnEntry) {
 	store.mutex.RLock()
 	defer store.mutex.RUnlock()
-	entries = make([]AuthnEntry, 0, len(store.entries))
+	entries = make([]authn.AuthnEntry, 0, len(store.entries))
 	for _, entry := range store.entries {
 		entries = append(entries, entry)
 	}
@@ -132,15 +132,15 @@ func (store *AuthnFileStore) GetEntries() (entries []AuthnEntry) {
 
 // Open the store
 // This reads the password file and subscribes to file changes
-func (store *AuthnFileStore) Open() (err error) {
+func (store *AuthnFileStoreImpl) Open() (err error) {
 	if store.watcher != nil {
-		err = fmt.Errorf("password file store '%s' is already open", store.storageFile)
+		err = fmt.Errorf("password file store '%s' is already open", store.passwdFile)
 	}
 	if err == nil {
 		err = store.Reload()
 	}
 	if err == nil {
-		store.watcher, err = utils.WatchFile(store.storageFile, store.Reload)
+		store.watcher, err = utils.WatchFile(store.passwdFile, store.Reload)
 	}
 	if err != nil {
 		err = fmt.Errorf("AddSession failed %w", err)
@@ -152,12 +152,12 @@ func (store *AuthnFileStore) Open() (err error) {
 //
 // If the file does not exist, it will be created.
 // Returns an error if the file could not be opened/created.
-func (store *AuthnFileStore) Reload() error {
+func (store *AuthnFileStoreImpl) Reload() error {
 	store.mutex.Lock()
 	defer store.mutex.Unlock()
 
-	entries := make(map[string]AuthnEntry)
-	dataBytes, err := os.ReadFile(store.storageFile)
+	entries := make(map[string]authn.AuthnEntry)
+	dataBytes, err := os.ReadFile(store.passwdFile)
 	if errors.Is(err, os.ErrNotExist) {
 		err = store.save()
 	} else if err != nil {
@@ -178,7 +178,7 @@ func (store *AuthnFileStore) Reload() error {
 }
 
 // Remove a client from the store
-func (store *AuthnFileStore) Remove(clientID string) (err error) {
+func (store *AuthnFileStoreImpl) Remove(clientID string) (err error) {
 	store.mutex.Lock()
 	defer store.mutex.Unlock()
 
@@ -193,9 +193,9 @@ func (store *AuthnFileStore) Remove(clientID string) (err error) {
 // save the password data to file
 // if the storage folder doesn't exist it will be created
 // not concurrent save
-func (store *AuthnFileStore) save() error {
+func (store *AuthnFileStoreImpl) save() error {
 
-	folder := path.Dir(store.storageFile)
+	folder := path.Dir(store.passwdFile)
 	// ensure the location exists
 	err := os.MkdirAll(folder, 0700)
 	if err != nil {
@@ -207,7 +207,7 @@ func (store *AuthnFileStore) save() error {
 		return err
 	}
 
-	err = os.Rename(tmpPath, store.storageFile)
+	err = os.Rename(tmpPath, store.passwdFile)
 	if err != nil {
 		err = fmt.Errorf("rename to password file failed: %w", err)
 		return err
@@ -217,7 +217,7 @@ func (store *AuthnFileStore) save() error {
 
 // SetPasswordHash adds/updates the password hash for the given login ID
 // Intended for clients to update their own password
-func (store *AuthnFileStore) SetPasswordHash(loginID string, hash string) (err error) {
+func (store *AuthnFileStoreImpl) SetPasswordHash(loginID string, hash string) (err error) {
 	store.mutex.Lock()
 	defer store.mutex.Unlock()
 
@@ -234,7 +234,7 @@ func (store *AuthnFileStore) SetPasswordHash(loginID string, hash string) (err e
 }
 
 // SetRole changes the client's default role
-func (store *AuthnFileStore) SetRole(clientID string, role string) error {
+func (store *AuthnFileStoreImpl) SetRole(clientID string, role string) error {
 	store.mutex.Lock()
 	defer store.mutex.Unlock()
 	entry, found := store.entries[clientID]
@@ -252,7 +252,7 @@ func (store *AuthnFileStore) SetRole(clientID string, role string) error {
 //
 // The hash used is argon2id or bcrypt based on the 'hashAlgo' setting.
 // bcrypt limits max password length to 72 bytes.
-func (store *AuthnFileStore) SetPassword(loginID string, password string) (err error) {
+func (store *AuthnFileStoreImpl) SetPassword(loginID string, password string) (err error) {
 	var hash string
 	if len(password) < store.minPasswordLength {
 		return fmt.Errorf("password too short (%d chars)", len(password))
@@ -280,7 +280,7 @@ func (store *AuthnFileStore) SetPassword(loginID string, password string) (err e
 //
 // This does not update the role. Use SetRole for updating the role instead.
 // SetRole is an admin function while clients can update their own profile.
-func (store *AuthnFileStore) UpdateProfile(profile authn.ClientProfile) error {
+func (store *AuthnFileStoreImpl) UpdateProfile(profile authn.ClientProfile) error {
 	store.mutex.Lock()
 	defer store.mutex.Unlock()
 
@@ -306,7 +306,7 @@ func (store *AuthnFileStore) UpdateProfile(profile authn.ClientProfile) error {
 
 // VerifyPassword verifies the given password with the stored hash
 // This returns the matching user's entry or an error if the password doesn't match
-func (store *AuthnFileStore) VerifyPassword(
+func (store *AuthnFileStoreImpl) VerifyPassword(
 	loginID, password string) (profile authn.ClientProfile, err error) {
 	isValid := false
 	store.mutex.Lock()
@@ -332,7 +332,7 @@ func (store *AuthnFileStore) VerifyPassword(
 // WritePasswordsToTempFile write the given entries to temp file in the given folder
 // This returns the name of the new temp file.
 func WritePasswordsToTempFile(
-	folder string, entries map[string]AuthnEntry) (tempFileName string, err error) {
+	folder string, entries map[string]authn.AuthnEntry) (tempFileName string, err error) {
 
 	file, err := os.CreateTemp(folder, "hive-tmp-pwfile")
 
@@ -352,26 +352,26 @@ func WritePasswordsToTempFile(
 	return tempFileName, err
 }
 
-// NewAuthnFileStore creates a new instance of a file based identity store.
+// NewAuthnFileStoreImpl creates a new instance of a file based identity store.
 // Call Open/Close to start/stop using this store.
 // Note: this store is intended for one writer and many readers.
 // Multiple concurrent writes are not supported and might lead to one write being ignored.
 //
-//	filepath location of the file store. See also DefaultPasswordFile for the recommended name.
+//	passwdFile location of the file store. See also DefaultPasswordFile for the recommended name.
 //	hashAlgo PWHASH_ARGON2id (default) or PWHASH_BCRYPT
-func NewAuthnFileStore(storageFile string, hashAlgo string) *AuthnFileStore {
+func NewAuthnFileStoreImpl(passwdFile string, hashAlgo string) *AuthnFileStoreImpl {
 	if hashAlgo == "" {
 		hashAlgo = authn.PWHASH_ARGON2id
 	}
 	if hashAlgo != authn.PWHASH_ARGON2id && hashAlgo != authn.PWHASH_BCRYPT {
 		slog.Error("unknown hash algorithm. Falling back to argon2id", "hashAlgo", hashAlgo)
 	}
-	store := &AuthnFileStore{
-		storageFile:       storageFile,
+	store := &AuthnFileStoreImpl{
+		passwdFile:        passwdFile,
 		hashAlgo:          hashAlgo,
 		minPasswordLength: 5,
-		entries:           make(map[string]AuthnEntry),
+		entries:           make(map[string]authn.AuthnEntry),
 	}
-	var _ IAuthnStore = store // interface check
+	var _ authn.IAuthnStore = store // interface check
 	return store
 }

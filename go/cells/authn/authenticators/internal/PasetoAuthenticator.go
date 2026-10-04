@@ -1,4 +1,4 @@
-package authenticators
+package internal
 
 import (
 	"crypto/ed25519"
@@ -9,19 +9,18 @@ import (
 	"aidanwoods.dev/go-paseto"
 	"github.com/hiveot/hivekit/go/api/td"
 	"github.com/hiveot/hivekit/go/cells/authn"
-	authnstore "github.com/hiveot/hivekit/go/cells/authn/service/internal/store"
 )
 
-// PasetoAuthenticator for generating and validating session tokens.
+// PasetoAuthenticatorImpl for generating and validating session tokens.
 // This implements the IAuthenticator interface
 //
 // Sessions are stored in-memory by their 'sessionStart' time.
-type PasetoAuthenticator struct {
+type PasetoAuthenticatorImpl struct {
 	// key used to create and verify session tokens
 	signingKey ed25519.PrivateKey
 
 	// authentication store for login verification
-	clientStore authnstore.IAuthnStore
+	clientStore authn.IAuthnStore
 
 	// The URI of the authentication service that provides paseto tokens
 	authServerURI             string
@@ -33,7 +32,7 @@ type PasetoAuthenticator struct {
 // AddSecurityScheme adds this authenticator's security scheme to the given TD.
 // This authenticator uses paseto tokens as bearer tokens that can be obtained from
 // the login authentication service.
-func (srv *PasetoAuthenticator) AddSecurityScheme(tdoc *td.TD) {
+func (srv *PasetoAuthenticatorImpl) AddSecurityScheme(tdoc *td.TD) {
 
 	// bearer security scheme for authenticating http and subprotocol connections
 	format, alg := srv.GetAlg()
@@ -58,7 +57,7 @@ func (srv *PasetoAuthenticator) AddSecurityScheme(tdoc *td.TD) {
 //	validity is the token validity period.
 //
 // This returns the token
-func (svc *PasetoAuthenticator) CreateToken(clientID string, validity time.Duration) (
+func (svc *PasetoAuthenticatorImpl) CreateToken(clientID string, validity time.Duration) (
 	token string, validUntil time.Time, err error) {
 
 	profile, err := svc.clientStore.GetProfile(clientID)
@@ -107,7 +106,7 @@ func (svc *PasetoAuthenticator) CreateToken(clientID string, validity time.Durat
 // token is the token string containing a session token
 // This returns the authenticated clientID stored in the token and its expiry time,
 // or an error if invalid.
-func (svc *PasetoAuthenticator) DecodeToken(
+func (svc *PasetoAuthenticatorImpl) DecodeToken(
 	sessionKey string, signedNonce string, nonce string) (
 	clientID string, issuedAt time.Time, validUntil time.Time, err error) {
 	var pToken *paseto.Token
@@ -132,13 +131,13 @@ func (svc *PasetoAuthenticator) DecodeToken(
 }
 
 // GetAlg returns the authentication scheme and algorithm
-func (svc *PasetoAuthenticator) GetAlg() (string, string) {
+func (svc *PasetoAuthenticatorImpl) GetAlg() (string, string) {
 	return "paseto", "public"
 }
 
 // SetAuthServerURI this sets the server endpoint starting the authorization flow.
 // This is included when adding the TD security scheme in AddSecurityScheme()
-func (svc *PasetoAuthenticator) SetAuthServerURI(serverURI string) {
+func (svc *PasetoAuthenticatorImpl) SetAuthServerURI(serverURI string) {
 	svc.authServerURI = serverURI
 }
 
@@ -154,7 +153,7 @@ func (svc *PasetoAuthenticator) SetAuthServerURI(serverURI string) {
 // }
 
 // ValidateClient verifies the token and client are valid.
-func (svc *PasetoAuthenticator) ValidateClient(claimedClientID string, token string) (
+func (svc *PasetoAuthenticatorImpl) ValidateClient(claimedClientID string, token string) (
 	clientID string, issuedAt time.Time, validUntil time.Time, err error) {
 
 	clientID, issuedAt, validUntil, err = svc.DecodeToken(token, "", "")
@@ -175,18 +174,17 @@ func (svc *PasetoAuthenticator) ValidateClient(claimedClientID string, token str
 	return clientID, issuedAt, validUntil, nil
 }
 
-// NewPasetoAuthenticator returns a new instance of a Paseto token authenticator using the given signing key
+// NewPasetoAuthenticatorImpl returns a new instance of a Paseto token authenticator using the given signing key
 // the session manager is used
-func NewPasetoAuthenticator(
-	authnStore authnstore.IAuthnStore,
-	signingKey ed25519.PrivateKey) *PasetoAuthenticator {
+func NewPasetoAuthenticatorImpl(
+	authnStore authn.IAuthnStore, signingKey ed25519.PrivateKey, authServerURI string) *PasetoAuthenticatorImpl {
 
 	paseto.NewV4AsymmetricSecretKey()
 
-	svc := &PasetoAuthenticator{
-		signingKey:  signingKey,
-		clientStore: authnStore,
-		//authServerURI: authServerURI, use SetAuthServerURI
+	svc := &PasetoAuthenticatorImpl{
+		signingKey:    signingKey,
+		clientStore:   authnStore,
+		authServerURI: authServerURI, // or use SetAuthServerURI
 		// validity can be changed by user of this service
 		DeviceTokenValidityDays:   authn.DefaultDeviceTokenValidityDays,
 		ConsumerTokenValidityDays: authn.DefaultConsumerTokenValidityDays,

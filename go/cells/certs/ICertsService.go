@@ -15,10 +15,8 @@ import (
 const InitFactoryCertsCellType = "initFactoryCerts"
 
 // certs service cell type for factory. Must implement ICertsService
+// this matches the TD @type field.
 const CertsServiceCellType = "certs"
-
-// DefaultCertsServiceThingID is the default thingID of the certs service.
-const DefaultCertsServiceThingID = "certs"
 
 // Embed history service TD
 //

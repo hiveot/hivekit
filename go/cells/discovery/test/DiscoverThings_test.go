@@ -69,7 +69,7 @@ func TestDiscoverGetThingTD(t *testing.T) {
 	// This should be handled by the discovery server.
 	// err = m.ServeThingTD(thingTD)
 	tdJson1 := td.MarshalTD(thingTD)
-	svcThingID := discoSrv.GetThingID()
+	svcThingID := discoSrv.GetID()
 	req := msg.NewRequestMessage(
 		td.OpInvokeAction, svcThingID, discovery.ServeThingTDAction, tdJson1)
 	err = discoSrv.HandleRequest(req, req.NoReply)

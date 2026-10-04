@@ -42,7 +42,7 @@ func (svc *BucketServiceImpl) GetService() bucketstore.IBucketStore {
 
 // HandleRequest passes the request messages to the service.
 func (svc *BucketServiceImpl) HandleRequest(req *msg.RequestMessage, replyTo msg.ResponseHandler) (err error) {
-	if req.ThingID == svc.GetThingID() {
+	if req.ThingID == svc.GetID() {
 		err = svc.handleBucketStoreRequest(req, replyTo)
 	} else {
 		err = svc.HiveCellBase.HandleRequest(req, replyTo)

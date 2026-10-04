@@ -214,7 +214,7 @@ func (cl *TransportClientBase) SetConnectionStatus(
 	cl.mux.Unlock()
 
 	// notify upstream of status change
-	cellID := cl.GetThingID()
+	cellID := cl.GetID()
 	// cid := cl.GetConnectionID()
 	evName := api.ClientConnectionStatusEvent
 	notif := msg.NewNotificationMessage(

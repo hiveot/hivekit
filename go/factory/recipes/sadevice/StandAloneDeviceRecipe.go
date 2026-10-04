@@ -55,8 +55,7 @@ var StandAloneDeviceChain = []api.CellDefinition{
 		Constructor: wss_server.NewWotWssServerFactory,
 	},
 	{
-		// Register the transport server authentication handler, and handle requests
-		// to manage authentication configuration.
+		// Register the transport server authentication handler.
 		Type:        authn.AuthnServiceCellType,
 		Constructor: authn_service.NewAuthnServiceFactory,
 	},

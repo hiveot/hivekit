@@ -25,7 +25,7 @@ func NewDirectoryHttpServerFactory(f api.ICellFactory) (api.IHiveCell, error) {
 
 	// Need to know who to forward directory requests to.
 	dirSvc := f.GetCell(directory.DirectoryServiceCellType)
-	dirThingID := dirSvc.GetThingID()
+	dirThingID := dirSvc.GetID()
 
 	rpcTimeout := f.GetEnvironment().RpcTimeout
 	httpServer, ok := f.GetCell(api.HttpServerCellType).(api.IHttpServer)

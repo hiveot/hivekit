@@ -87,7 +87,7 @@ func (svc *ReconnectServiceImpl) Connect(ctx context.Context) error {
 				return nil
 			}
 			// request a reconnect with the last known parameters
-			slog.Info("Connect; client attempt connection", "client cell", svc.conn.GetThingID())
+			slog.Info("Connect; client attempt connection", "client cell", svc.conn.GetID())
 			err := svc.conn.Connect()
 			if err == nil {
 				// success,
@@ -222,7 +222,7 @@ func (svc *ReconnectServiceImpl) Start() {
 		err := svc.conn.Connect()
 		if err != nil {
 			slog.Error("StartReconnectServiceImpl. The linked client failed to start.",
-				"err", err.Error(), "client ID", svc.conn.GetThingID())
+				"err", err.Error(), "client ID", svc.conn.GetID())
 		}
 	}
 }

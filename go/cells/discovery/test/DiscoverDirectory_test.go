@@ -77,12 +77,8 @@ func TestDiscoverGetDirectoryTD(t *testing.T) {
 
 	// run a directory that will be discoverable
 	dirSvc, err := directory_service.NewDirectoryService("", "", testHttpServer)
-	// dirThingID := dirSvc.GetThingID()
 	dirTD := dirSvc.GetTDD()
 	tpServer.AddTDSecForms(dirTD, false)
-
-	// dirTD := dirMod.GetTD(dirMod.GetThingID())
-	// dirTDJson := td.MarshalTD(dirTD)
 
 	// run the discover server and expose the directory TDD
 	discoSvc, err := discovery_server.NewDiscoveryServer(
@@ -105,7 +101,7 @@ func TestDiscoverGetDirectoryTD(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, tddURL, appEnv.ServerTDURL)
 	assert.NotNil(t, dirTD2, "Client failed to discover the directory on start")
-	assert.Equal(t, dirSvc.GetThingID(), dirTD2.ID)
+	assert.Equal(t, dirSvc.GetID(), dirTD2.ID)
 }
 
 func TestDiscoverNoDirectory(t *testing.T) {

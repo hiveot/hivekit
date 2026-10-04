@@ -1,4 +1,4 @@
-package authenticators
+package internal
 
 import (
 	"crypto/ecdsa"
@@ -11,20 +11,18 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/hiveot/hivekit/go/api/td"
 	"github.com/hiveot/hivekit/go/cells/authn"
-	authnstore "github.com/hiveot/hivekit/go/cells/authn/service/internal/store"
 )
 
-// JWTAuthenticator for generating and validating session tokens.
+// JWTAuthenticatorImpl for generating and validating session tokens.
 // This implements the IAuthenticator interface
 //
 // Sessions are stored in-memory by their 'sessionStart' time.
-type JWTAuthenticator struct {
-	AuthenticatorBase
+type JWTAuthenticatorImpl struct {
 
 	// key used to create and verify session tokens
 	signingKey *ecdsa.PrivateKey
 	// client store for account verification
-	clientStore authnstore.IAuthnStore
+	clientStore authn.IAuthnStore
 	//
 	authServerURI string
 	//
@@ -59,7 +57,7 @@ type JWTAuthenticator struct {
 // AddSecurityScheme adds the security scheme that this authenticator supports.
 // http supports bearer tokens for request authentication, basic and digest authentication
 // for logging in.
-func (srv *JWTAuthenticator) AddSecurityScheme(tdoc *td.TD) {
+func (srv *JWTAuthenticatorImpl) AddSecurityScheme(tdoc *td.TD) {
 
 	// bearer security scheme for authenticating http and subprotocol connections
 	format, alg := srv.GetAlg()
@@ -92,7 +90,7 @@ func (srv *JWTAuthenticator) AddSecurityScheme(tdoc *td.TD) {
 //	validity is the token validity period.
 //
 // This returns the token.
-func (svc *JWTAuthenticator) CreateToken(
+func (svc *JWTAuthenticatorImpl) CreateToken(
 	clientID string, validity time.Duration) (token string, validUntil time.Time, err error) {
 
 	profile, err := svc.clientStore.GetProfile(clientID)
@@ -142,7 +140,7 @@ func (svc *JWTAuthenticator) CreateToken(
 // token is the jwt token string containing a session token
 // This returns the authenticated clientID stored in the token and its expiry time,
 // or an error if invalid.
-func (svc *JWTAuthenticator) DecodeToken(token string, signedNonce string, nonce string) (
+func (svc *JWTAuthenticatorImpl) DecodeToken(token string, signedNonce string, nonce string) (
 	clientID string, issuedAt time.Time, validUntil time.Time, err error) {
 
 	signingKeyPub, _ := x509.MarshalPKIXPublicKey(&svc.signingKey.PublicKey)
@@ -185,13 +183,13 @@ func (svc *JWTAuthenticator) DecodeToken(token string, signedNonce string, nonce
 }
 
 // GetAlg returns the authentication scheme (jwt) and algorithm
-func (svc *JWTAuthenticator) GetAlg() (string, string) {
+func (svc *JWTAuthenticatorImpl) GetAlg() (string, string) {
 	return "jwt", svc.signingMethod.Alg()
 }
 
 // SetAuthServerURI this sets the server endpoint needed to login.
 // This is included when adding the TD security scheme in AddSecurityScheme()
-func (svc *JWTAuthenticator) SetAuthServerURI(serverURI string) {
+func (svc *JWTAuthenticatorImpl) SetAuthServerURI(serverURI string) {
 	svc.authServerURI = serverURI
 }
 
@@ -207,7 +205,7 @@ func (svc *JWTAuthenticator) SetAuthServerURI(serverURI string) {
 // }
 
 // ValidateClient verifies the token and client are valid.
-func (svc *JWTAuthenticator) ValidateClient(claimedClientID string, token string) (
+func (svc *JWTAuthenticatorImpl) ValidateClient(claimedClientID string, token string) (
 	clientID string, issuedAt time.Time, validUntil time.Time, err error) {
 
 	clientID, issuedAt, validUntil, err = svc.DecodeToken(token, "", "")
@@ -241,10 +239,14 @@ func (svc *JWTAuthenticator) ValidateClient(claimedClientID string, token string
 	return clientID, issuedAt, validUntil, nil
 }
 
-// NewJWTAuthenticator returns a new instance of a JWT token authenticator
-func NewJWTAuthenticator(
-	authnStore authnstore.IAuthnStore, signingKey *ecdsa.PrivateKey, authServerURI string) *JWTAuthenticator {
-	svc := &JWTAuthenticator{
+// NewJWTAuthenticatorImpl returns a new instance of a JWT token authenticator
+//
+//	authnStore is the storage for the tokens
+//	signingKey is the key the tokens are signed with
+//	authServerURI is the login endpoint URI (optional)
+func NewJWTAuthenticatorImpl(
+	authnStore authn.IAuthnStore, signingKey *ecdsa.PrivateKey, authServerURI string) *JWTAuthenticatorImpl {
+	svc := &JWTAuthenticatorImpl{
 		signingKey:    signingKey,
 		clientStore:   authnStore,
 		authServerURI: authServerURI,

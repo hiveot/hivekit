@@ -1,4 +1,4 @@
-package authenticators_test
+package authn_test
 
 import (
 	"os"
@@ -7,28 +7,26 @@ import (
 	"time"
 
 	"github.com/hiveot/hivekit/go/cells/authn"
-	"github.com/hiveot/hivekit/go/cells/authn/service/internal/authenticators"
-	authn_store "github.com/hiveot/hivekit/go/cells/authn/service/internal/store"
-	authnstore "github.com/hiveot/hivekit/go/cells/authn/service/internal/store"
+	authn_authenticators "github.com/hiveot/hivekit/go/cells/authn/authenticators"
+	authn_filestore "github.com/hiveot/hivekit/go/cells/authn/filestore"
 	"github.com/hiveot/hivekit/go/utils"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
-var authnStore authn_store.IAuthnStore
+var authnStore authn.IAuthnStore
 var testDir = path.Join(os.TempDir(), "hivekit", "test-authn")
-var defaultHash = authn.PWHASH_ARGON2id
 
-func NewAuthenticator() (authn.IAuthnAuthenticator, authnstore.IAuthnStore) {
+func NewAuthenticator() (authn.IAuthnAuthenticator, authn.IAuthnStore) {
 	passwordFile := path.Join(testDir, "test.passwd")
-	authnStore = authn_store.NewAuthnFileStore(passwordFile, defaultHash)
+	authnStore, _ = authn_filestore.OpenAuthnFileStore(passwordFile, defaultHash)
 
 	// signingKey, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	// svc := authenticator.NewJWTAuthenticator(authnStore, signingKey, "")
 
 	signingPrivKey, _ := utils.NewEd25519Key()
-	svc := authenticators.NewPasetoAuthenticator(authnStore, signingPrivKey)
-	svc.SetAuthServerURI("/fake/server/endpoint")
+	svc := authn_authenticators.NewPasetoAuthenticator(
+		authnStore, signingPrivKey, "/fake/server/endpoint")
 	return svc, authnStore
 }
 

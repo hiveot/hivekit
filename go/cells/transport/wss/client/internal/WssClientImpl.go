@@ -195,11 +195,6 @@ func (cl *WssTransportClientImpl) Connect() error {
 		return fmt.Errorf("Busy connecting")
 	}
 
-	// differentiate connections from the same client
-	// if cl.cid == "" {
-	// 	cl.cid = cl.GetThingID()
-	// }
-
 	urlParts, err := url.Parse(cl.wssURL)
 	if err != nil {
 		return err
@@ -238,7 +233,7 @@ func (m *WssTransportClientImpl) HandleNotification(notif *msg.NotificationMessa
 // - reconnect actions are handled here
 // - other requests (like subscribe) are send to the server
 func (cl *WssTransportClientImpl) HandleRequest(request *msg.RequestMessage, replyTo msg.ResponseHandler) error {
-	if request.ThingID == cl.GetThingID() {
+	if request.ThingID == cl.GetID() {
 		if request.Operation == td.OpInvokeAction && request.Name == api.ClientConnectAction {
 			err := cl.Connect()
 			resp := request.CreateResponse(cl.GetConnectionStatus(), err)
@@ -317,9 +312,14 @@ func (cl *WssTransportClientImpl) SendRequest(
 	}
 
 	// a response handler is provided, callback when the response is received
-	cl.rnrChan.Open(req.CorrelationID)
-	err = cl._send(wssMsg)
+	err = cl.rnrChan.Open(req.CorrelationID)
+	if err != nil {
+		// do not close the channel as it is still active
+		// recover gracefully.
+		return err
+	}
 
+	err = cl._send(wssMsg)
 	if err != nil {
 		cl.rnrChan.Close(req.CorrelationID)
 		slog.Warn("SendRequest ->: error in sending request",

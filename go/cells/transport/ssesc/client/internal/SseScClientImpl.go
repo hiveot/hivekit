@@ -144,7 +144,7 @@ func (m *SseScClientImpl) HandleNotification(notif *msg.NotificationMessage) {
 // - reconnect actions are handled here
 // - other requests (like subscribe) are send to the server
 func (cl *SseScClientImpl) HandleRequest(request *msg.RequestMessage, replyTo msg.ResponseHandler) error {
-	if request.ThingID == cl.GetThingID() {
+	if request.ThingID == cl.GetID() {
 		if request.Operation == td.OpInvokeAction && request.Name == api.ClientConnectAction {
 			err := cl.Connect()
 			status := cl.GetConnectionStatus()
@@ -267,7 +267,9 @@ func (cl *SseScClientImpl) SendNotification(msg *msg.NotificationMessage) {
 // a single SSE return channel that the WoT specification doesn't (yet) support.
 func (cl *SseScClientImpl) SendRequest(
 	req *msg.RequestMessage, replyTo msg.ResponseHandler) error {
-
+	var outputRaw []byte
+	var code int
+	var err error
 	// a correlationID is required
 	if req.CorrelationID == "" {
 		req.CorrelationID = shortid.MustGenerate()
@@ -278,7 +280,7 @@ func (cl *SseScClientImpl) SendRequest(
 	// If no replyTo is provided then just sent the request. The response will
 	// be received async via SSE.
 	if replyTo == nil {
-		outputRaw, code, err := cl.tlsClient.Post(
+		outputRaw, code, err = cl.tlsClient.Post(
 			ssesc.PostSseScRequestPath, []byte(outputJSON))
 		_ = code
 		_ = outputRaw
@@ -289,11 +291,11 @@ func (cl *SseScClientImpl) SendRequest(
 	// A response handler is provided. Invoke replyTo when the response is received
 	// via sse.
 	slog.Debug("HiveotSseClient.Sendrequest. Adding to RNR", "correlationID", req.CorrelationID)
-	cl.rnrChan.Open(req.CorrelationID)
-
-	outputRaw, code, err := cl.tlsClient.Post(
-		ssesc.PostSseScRequestPath, []byte(outputJSON))
-
+	err = cl.rnrChan.Open(req.CorrelationID)
+	if err == nil {
+		outputRaw, code, err = cl.tlsClient.Post(
+			ssesc.PostSseScRequestPath, []byte(outputJSON))
+	}
 	if err != nil {
 		cl.rnrChan.Close(req.CorrelationID)
 		slog.Warn("SendRequest ->: error in sending request",

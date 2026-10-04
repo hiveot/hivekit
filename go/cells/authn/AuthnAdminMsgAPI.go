@@ -1,9 +1,6 @@
 // package authn with admin service messaging definitions
 package authn
 
-// AuthnAdminServiceID is the default thingID of the admin service.
-const AuthnAdminServiceID = "authn:admin"
-
 // property, event and action names
 const (
 	// Property names

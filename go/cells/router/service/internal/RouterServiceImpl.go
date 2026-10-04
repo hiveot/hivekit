@@ -290,7 +290,7 @@ func (svc *RouterServiceImpl) HandleRequest(req *msg.RequestMessage, replyTo msg
 	if req.ThingID == "" {
 		// unable to route, pass it on
 		return svc.ForwardRequest(req, replyTo)
-	} else if req.ThingID != svc.GetThingID() {
+	} else if req.ThingID != svc.GetID() {
 		return svc.RouteRequest(req, replyTo)
 	}
 	// handle requests for router itself
@@ -352,6 +352,9 @@ func (svc *RouterServiceImpl) RouteRequest(req *msg.RequestMessage, replyTo msg.
 	// 2. the connection URL is needed for establishing a device connection
 	connectURL, connectForm, err := svc.GetConnectURL(tdoc, req.Operation, req.Name)
 	if connectURL != "" {
+		// FIXME: if the connect URL is that of the gateway that runs this router then this will
+		// cause a nested loop call, resulting in a crash.
+
 		c, err2 := svc.GetClientConnection(tdoc, connectURL, connectForm)
 		if c == nil {
 			slog.Warn("RouteRequest: Unable to establish a connection to client", "err", err2)

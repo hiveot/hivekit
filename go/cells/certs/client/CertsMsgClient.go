@@ -7,7 +7,6 @@ import (
 	"github.com/hiveot/hivekit/go/api/td"
 	"github.com/hiveot/hivekit/go/cells"
 	"github.com/hiveot/hivekit/go/cells/certs"
-	certsapi "github.com/hiveot/hivekit/go/cells/certs"
 	"github.com/hiveot/hivekit/go/utils"
 )
 
@@ -43,14 +42,11 @@ func (cl *CertsClient) VerifyClientCert(clientID string, clientCert *x509.Certif
 // NewCertsClient creates a ready-to-use CertsClient instance.
 // Use the sink to attach a transport client
 //
-//	certServiceID is the certificate service instance thingID, "" to select default.
+//	thingID is the certificate service instance thingID.
 //	sink is the optional cell that passes request to the transport client.
-func NewCertsClient(svcThingID string, sink api.IHiveCell) *CertsClient {
-	if svcThingID == "" {
-		svcThingID = certsapi.DefaultCertsServiceThingID
-	}
+func NewCertsClient(thingID string, sink api.IHiveCell) *CertsClient {
 	cl := &CertsClient{
-		certServiceID: svcThingID,
+		certServiceID: thingID,
 	}
 	if sink != nil {
 		cl.SetRequestSink(sink)

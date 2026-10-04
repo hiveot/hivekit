@@ -7,6 +7,7 @@ import (
 
 	"github.com/hiveot/hivekit/go/api"
 	"github.com/hiveot/hivekit/go/api/td"
+	"github.com/hiveot/hivekit/go/api/vocab"
 	"github.com/stretchr/testify/require"
 
 	"github.com/stretchr/testify/assert"
@@ -85,6 +86,17 @@ func TestMissingAffordance(t *testing.T) {
 
 	ev := tdoc.GetEvent("event1")
 	assert.Nil(t, ev)
+}
+
+func TestAtType(t *testing.T) {
+	tdoc := td.NewTD(thing1ID, "test TD", deviceTypeThingSensor)
+	at1 := tdoc.GetTypes()
+	assert.Equal(t, deviceTypeThingSensor, at1[0])
+	tdoc.SetType(vocab.DeviceActuator)
+
+	at2 := tdoc.GetTypes()
+	assert.IsType(t, []string{}, at2)
+	assert.Len(t, at2, 2)
 }
 
 func TestAddProp(t *testing.T) {

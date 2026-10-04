@@ -120,21 +120,30 @@ func (rnr *RnRChan) Len() int {
 // This returns a reply channel on which the data is received. Use
 // WaitForResponse(rChan)
 //
-// If the correlationID already exists then this logs an error and panics.
-func (rnr *RnRChan) Open(correlationID string) {
+// If the correlationID already exists then this returns an error.
+// The request should be denied.
+func (rnr *RnRChan) Open(correlationID string) error {
 	//slog.Info("opening channel. ", "correlationID", correlationID)
 	// this needs to be able to buffer 1 response in case completed and pending
 	// are received out of order.
 	rnr.mux.Lock()
 	defer rnr.mux.Unlock()
-	if _, found := rnr.correlData[correlationID]; found {
-		// Attempt to recover but a correlationID should never be used twice at the same time.
-		err := fmt.Errorf("RnRChan.Open: correlationID '%s' already exists. Recovered by returning its channel.", correlationID)
+	if rChan, found := rnr.correlData[correlationID]; found {
+
+		// A correlationID should never be used twice at the same time. Request should fail.
+		err := fmt.Errorf("RnRChan.Open: message looping or duplicate correlationID '%s'.", correlationID)
 		slog.Error(err.Error())
-		panic(err.Error())
+
+		// try to recover by sending an error response
+		errResp := NewResponseMessage("", "", "", nil, err, "", correlationID)
+		rChan <- errResp
+
+		// panic(err.Error())
+		return err
 	}
 	rChan := make(chan *ResponseMessage, 1)
 	rnr.correlData[correlationID] = rChan
+	return nil
 }
 
 // WaitForResponse blocks and waits for an answer received on the reply channel.
@@ -185,7 +194,7 @@ func (rnr *RnRChan) WaitForResponse(
 // The channel is automatically closed on response or timeout.
 //
 // This immediately returns while waiting in the background.
-// If a timeout occurs an error is logged
+// If a timeout occurs or the correlationID is not unique then an error is logged and returned
 func (rnr *RnRChan) WaitWithCallback(correlationID string, timeout time.Duration, handler func(msg *ResponseMessage) error) {
 
 	if timeout == 0 {
@@ -197,7 +206,7 @@ func (rnr *RnRChan) WaitWithCallback(correlationID string, timeout time.Duration
 	rnr.mux.RUnlock()
 	if !found {
 		// open a new channel
-		rnr.Open(correlationID)
+		_ = rnr.Open(correlationID)
 	}
 
 	go func() {

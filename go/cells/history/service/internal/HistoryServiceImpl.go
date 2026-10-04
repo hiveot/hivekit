@@ -59,8 +59,8 @@ func (svc *HistoryServiceImpl) Start() {
 
 	// todo: regular updates
 	info := svc.bucketStore.Info()
-	svc.PubProperty(svc.GetThingID(), directory.PropNrThings, info.NrRecords, true)
-	svc.PubProperty(svc.GetThingID(), directory.PropDataSize, info.DataSize, true)
+	svc.PubProperty(svc.GetID(), directory.PropNrThings, info.NrRecords, true)
+	svc.PubProperty(svc.GetID(), directory.PropDataSize, info.DataSize, true)
 }
 
 // Stop using the history service and release resources

@@ -15,6 +15,12 @@ import (
 // If no member matches the request thingID then the request is forwarded to the
 // formation sink.
 //
+// NOTE: Cells that embed multiple Things cannot be used in the star formation
+// since the star formation matches the cell's ID. The cell's ID does not provide
+// the ThingID's of the embedded services.
+// A possible future solution, if this becomes a bigger issue, is to add a
+// HasID() method to the cell interface.
+//
 // This is intended for grouping services where there is no need to pass requests
 // through each service. Only the addressed service receives the request.
 // Functionally a chain formation behaves the same but is less efficient.
@@ -116,11 +122,7 @@ func NewStarFormation(
 			// Members MUST not forward unhandled requests nor notifications,
 			// otherwise the same message will be received multiple times.
 			member.SetForwarding(false, false)
-			star.members[member.GetThingID()] = member
-			// // requests emitted by the members are forwarded to the formation sink.
-			// member.SetRequestSink(star.GetRequestSink())
-			// // notifications emitted by the cells are forwarded to the star notification sink.
-			// member.SetNotificationSink(star.GetNotificationSink())
+			star.members[member.GetID()] = member
 		}
 	}
 

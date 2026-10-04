@@ -19,7 +19,7 @@ type AuthnUserClient struct {
 // UserGetProfile client method - Get Client Profile.
 func (m *AuthnUserClient) GetProfile() (resp authn.ClientProfile, err error) {
 	err = m.Rpc(td.OpInvokeAction,
-		authn.AuthnUserServiceID, authn.UserActionGetProfile, nil, &resp)
+		m.authnServiceID, authn.UserActionGetProfile, nil, &resp)
 	return
 }
 
@@ -35,7 +35,7 @@ func (m *AuthnUserClient) GetProfile() (resp authn.ClientProfile, err error) {
 func (m *AuthnUserClient) Logout() (err error) {
 
 	err = m.Rpc(td.OpInvokeAction,
-		authn.AuthnUserServiceID, authn.UserActionLogout, nil, nil)
+		m.authnServiceID, authn.UserActionLogout, nil, nil)
 	return
 }
 
@@ -43,7 +43,7 @@ func (m *AuthnUserClient) Logout() (err error) {
 func (m *AuthnUserClient) RefreshToken(oldToken string) (newToken string, err error) {
 
 	err = m.Rpc(td.OpInvokeAction,
-		authn.AuthnUserServiceID, authn.UserActionRefreshToken, &oldToken, &newToken)
+		m.authnServiceID, authn.UserActionRefreshToken, &oldToken, &newToken)
 	return
 }
 
@@ -51,16 +51,18 @@ func (m *AuthnUserClient) RefreshToken(oldToken string) (newToken string, err er
 // Request changing the password of the current client
 func (m *AuthnUserClient) UpdateProfile(password string) (err error) {
 	err = m.Rpc(td.OpInvokeAction,
-		authn.AuthnUserServiceID, authn.UserActionSetPassword, &password, nil)
+		m.authnServiceID, authn.UserActionSetPassword, &password, nil)
 	return
 }
 
 // Create a new ready to use instance of the authn user client
 //
-// sink is the chain containing the user's transport client
-func NewAuthnUserClient(sink api.IHiveCell) *AuthnUserClient {
+//	authnServiceID is the thingID of the authn user service
+//	sink is the chain containing the user's transport client
+func NewAuthnUserClient(authnServiceID string, sink api.IHiveCell) *AuthnUserClient {
 	cl := &AuthnUserClient{
-		HiveCellBase: cells.NewHiveCellBase(""),
+		HiveCellBase:   cells.NewHiveCellBase(""),
+		authnServiceID: authnServiceID,
 	}
 	if sink != nil {
 		cl.SetRequestSink(sink)

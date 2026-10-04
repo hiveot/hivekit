@@ -168,7 +168,7 @@ func (svc *TestCounterThing) HandleNotification(notif *msg.NotificationMessage) 
 }
 
 func (svc *TestCounterThing) HandleRequest(req *msg.RequestMessage, replyTo msg.ResponseHandler) (err error) {
-	if req.ThingID != svc.GetThingID() {
+	if req.ThingID != svc.GetID() {
 		return svc.ForwardRequest(req, replyTo)
 	}
 	// use Thing base to handle read properties/events/action requests
@@ -244,7 +244,7 @@ func (svc *TestCounterThing) Start() {
 		AutoIncrementPropName: svc.config.AutoIncrement,
 		CounterPropName:       svc.counter.Load(),
 	}
-	thingID := svc.GetThingID()
+	thingID := svc.GetID()
 	svc.PubProperties(thingID, props, true)
 	svc.PubEvent(thingID, CounterUpdatedEvent, svc.counter.Load())
 
@@ -264,7 +264,7 @@ func (svc *TestCounterThing) Stop() {
 // Update the counter and send a notification
 func (svc *TestCounterThing) Update(newValue int) {
 	svc.counter.Store(int32(newValue))
-	thingID := svc.GetThingID()
+	thingID := svc.GetID()
 	// Send both a property update and event notification
 	svc.PubProperty(thingID, CounterPropName, svc.counter.Load(), true)
 	svc.PubEvent(thingID, CounterUpdatedEvent, svc.counter.Load())
@@ -295,7 +295,7 @@ func NewTestCounterThing(thingID string, config *CounterConfig) (*TestCounterThi
 
 	// Make the TD available. Set its thingID with the provided ID.
 	tdoc, err := td.UnmarshalTD(counterThingTM)
-	tdoc.ID = m.GetThingID()
+	tdoc.ID = m.GetID()
 	m.tdocJson = td.MarshalTD(tdoc)
 
 	return m, err

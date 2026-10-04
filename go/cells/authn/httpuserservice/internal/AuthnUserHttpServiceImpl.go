@@ -1,4 +1,4 @@
-package httpapi
+package internal
 
 import (
 	"io"
@@ -23,13 +23,14 @@ const (
 	HttpGetProfilePath  = "/authn/profile"
 )
 
-// AuthnUserHttpService offers the REST api for handling user requests such as login, logout,
+// AuthnUserHttpServiceImpl offers the REST api for handling user requests such as login, logout,
 // refresh over http.
 //
 // This converts http to RRN requests that are handled downstream
-type AuthnUserHttpService struct {
+type AuthnUserHttpServiceImpl struct {
 	*cells.HiveCellBase
-	httpServer api.IHttpServer
+	httpServer    api.IHttpServer
+	userServiceID string
 }
 
 // GetConnectURL returns the URI of the authentication server with protocol to include
@@ -42,20 +43,20 @@ type AuthnUserHttpService struct {
 // Note that web browsers do not directly access the runtime endpoints.
 // Instead a web server (hiveoview or other) provides the user interface.
 // Including the auth endpoint here is currently just a hint. How to integrate this?
-func (m *AuthnUserHttpService) GetConnectURL() (uri string, protocolType string) {
+func (m *AuthnUserHttpServiceImpl) GetConnectURL() (uri string, protocolType string) {
 	baseURL := m.httpServer.GetConnectURL()
 	loginURL, _ := url.JoinPath(baseURL, HttpPostLoginPath)
 	return loginURL, api.HttpBasicProtocolType
 }
 
 // onHttpGetProfile returns the client's profile
-func (m *AuthnUserHttpService) onHttpGetProfile(w http.ResponseWriter, r *http.Request) {
+func (m *AuthnUserHttpServiceImpl) onHttpGetProfile(w http.ResponseWriter, r *http.Request) {
 	var resp *msg.ResponseMessage
 	rp, err := m.httpServer.GetRequestParams(r)
 
 	if err == nil {
 		req := msg.NewRequestMessage(
-			td.OpInvokeAction, authn.AuthnUserServiceID, authn.UserActionGetProfile, nil)
+			td.OpInvokeAction, m.userServiceID, authn.UserActionGetProfile, nil)
 		req.SenderID = rp.ClientID
 		resp, err = m.EmitRequestWait(req)
 	}
@@ -70,7 +71,7 @@ func (m *AuthnUserHttpService) onHttpGetProfile(w http.ResponseWriter, r *http.R
 // Body contains {"username":name, "password":pass} format
 // This is the only unprotected route supported.
 // This uses the configured session authenticator.
-func (m *AuthnUserHttpService) onHttpLogin(w http.ResponseWriter, r *http.Request) {
+func (m *AuthnUserHttpServiceImpl) onHttpLogin(w http.ResponseWriter, r *http.Request) {
 	var resp *msg.ResponseMessage
 	var args authn.UserLoginArgs
 
@@ -82,7 +83,7 @@ func (m *AuthnUserHttpService) onHttpLogin(w http.ResponseWriter, r *http.Reques
 		// the login is handled in-house and has an immediate return
 
 		req := msg.NewRequestMessage(
-			td.OpInvokeAction, authn.AuthnUserServiceID, authn.UserActionLogin, &args)
+			td.OpInvokeAction, m.userServiceID, authn.UserActionLogin, &args)
 		req.SenderID = args.UserName
 		resp, err = m.EmitRequestWait(req)
 
@@ -99,14 +100,14 @@ func (m *AuthnUserHttpService) onHttpLogin(w http.ResponseWriter, r *http.Reques
 }
 
 // onHttpLogout ends the session and closes all client connections
-func (m *AuthnUserHttpService) onHttpLogout(w http.ResponseWriter, r *http.Request) {
+func (m *AuthnUserHttpServiceImpl) onHttpLogout(w http.ResponseWriter, r *http.Request) {
 	var resp *msg.ResponseMessage
 	// use the authenticator
 	rp, err := m.httpServer.GetRequestParams(r)
 	if err == nil {
 		slog.Info("onHttpLogout", slog.String("clientID", rp.ClientID))
 		req := msg.NewRequestMessage(
-			td.OpInvokeAction, authn.AuthnUserServiceID, authn.UserActionLogout, nil)
+			td.OpInvokeAction, m.userServiceID, authn.UserActionLogout, nil)
 		req.SenderID = rp.ClientID
 		resp, err = m.EmitRequestWait(req)
 		_ = resp
@@ -119,7 +120,7 @@ func (m *AuthnUserHttpService) onHttpLogout(w http.ResponseWriter, r *http.Reque
 // onHttpAuthRefresh refreshes the auth token using the session authenticator.
 // The session authenticator is that of the authn service. This allows testing with a dummy
 // authenticator without having to run the authn service.
-func (m *AuthnUserHttpService) onHttpTokenRefresh(w http.ResponseWriter, r *http.Request) {
+func (m *AuthnUserHttpServiceImpl) onHttpTokenRefresh(w http.ResponseWriter, r *http.Request) {
 	var resp *msg.ResponseMessage
 	var oldToken string
 	rp, err := m.httpServer.GetRequestParams(r)
@@ -129,7 +130,7 @@ func (m *AuthnUserHttpService) onHttpTokenRefresh(w http.ResponseWriter, r *http
 		slog.Info("onHttpTokenRefresh", "clientID", rp.ClientID)
 
 		req := msg.NewRequestMessage(
-			td.OpInvokeAction, authn.AuthnUserServiceID, authn.UserActionRefreshToken, oldToken)
+			td.OpInvokeAction, m.userServiceID, authn.UserActionRefreshToken, oldToken)
 		req.SenderID = rp.ClientID
 		resp, err = m.EmitRequestWait(req)
 	}
@@ -142,19 +143,23 @@ func (m *AuthnUserHttpService) onHttpTokenRefresh(w http.ResponseWriter, r *http
 	utils.WriteReply(w, true, newToken, nil)
 }
 
-func (m *AuthnUserHttpService) Stop() {
+func (m *AuthnUserHttpServiceImpl) Stop() {
 	// todo remove registrations
 }
 
 // Return a ready-to-use authn handler for serving user requests over http
 // This converts http requests to RRN messages that are handled downstream.
-func NewAuthnUserHttpService(httpServer api.IHttpServer) *AuthnUserHttpService {
+//
+//	userServiceID is the authentication user services thingID
+//	httpServer is the server to register the endpoints with
+func NewAuthnUserHttpServiceImpl(userServiceID string, httpServer api.IHttpServer) *AuthnUserHttpServiceImpl {
 	if httpServer == nil {
 		panic("NewAuthnUserHttpHandler: missing http server")
 	}
-	svc := &AuthnUserHttpService{
-		HiveCellBase: cells.NewHiveCellBase(""),
-		httpServer:   httpServer,
+	svc := &AuthnUserHttpServiceImpl{
+		HiveCellBase:  cells.NewHiveCellBase(""),
+		httpServer:    httpServer,
+		userServiceID: userServiceID,
 	}
 	// create routes
 	pubRoutes := httpServer.GetPublicRoute()

@@ -45,7 +45,7 @@ func (svc *RCRouterServiceImpl) GetRCConnection(clientID string) (c api.IConnect
 // HandleRequest handles requests or routes the request to its destination
 func (svc *RCRouterServiceImpl) HandleRequest(req *msg.RequestMessage, replyTo msg.ResponseHandler) error {
 
-	if req.ThingID != svc.GetThingID() {
+	if req.ThingID != svc.GetID() {
 		return svc.RouteRequest(req, replyTo)
 	}
 	// This service doesn't define any requests.
@@ -64,8 +64,6 @@ func (svc *RCRouterServiceImpl) RouteRequest(req *msg.RequestMessage, replyTo ms
 
 	//  look for a reverse connection using the TD senderID.
 	//
-	// TODO: if an admin uploads a bunch of TDs without forms then requests for those
-	// TDs will go to the admin user. This is obviously not intended.
 	if tdoc != nil {
 		rcClientID := tdoc.GetSenderID()
 		if rcClientID != "" {

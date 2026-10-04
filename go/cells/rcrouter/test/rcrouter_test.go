@@ -114,7 +114,7 @@ func TestReadRCDeviceProperties(t *testing.T) {
 
 	// 2. connect a device to the server - eg connection reversal - and publish a TD
 	ething, deviceConn1, _ := testEnv.NewRCThing(deviceID, nil)
-	eThingID = ething.GetThingID()
+	eThingID = ething.GetID()
 	defer deviceConn1.Close()
 	tdoc := td.NewTD(eThingID, "test device", vocab.DeviceSensor)
 	tdoc.AddProperty("", prop1Name, td.DataTypeString, prop1Value)

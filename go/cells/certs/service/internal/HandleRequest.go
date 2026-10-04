@@ -60,7 +60,7 @@ func (svc *CertsServiceImpl) handleVerifyClientCert(req *msg.RequestMessage) (re
 func (svc *CertsServiceImpl) HandleRequest(
 	req *msg.RequestMessage, replyTo msg.ResponseHandler) (err error) {
 
-	if req.ThingID != svc.GetThingID() {
+	if req.ThingID != svc.GetID() {
 		return svc.ForwardRequest(req, replyTo)
 	}
 
@@ -81,7 +81,8 @@ func (svc *CertsServiceImpl) HandleRequest(
 			err = fmt.Errorf("Unknown request name '%s' for thingID '%s'", req.Name, req.ThingID)
 		}
 	} else {
-		err = fmt.Errorf("Unsupported operation '%s' for thingID '%s'", req.Operation, req.ThingID)
+		err = svc.ExposedThing.HandleRequest(req, replyTo)
+		// err = fmt.Errorf("Unsupported operation '%s' for thingID '%s'", req.Operation, req.ThingID)
 	}
 	if resp != nil {
 		err = replyTo(resp)

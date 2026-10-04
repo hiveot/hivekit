@@ -6,22 +6,33 @@ import (
 	"github.com/hiveot/hivekit/go/api"
 )
 
-// Embed admin service TM
+// admin tokens last longer
+const AdminTokenValidityDays = 365
+
+// Session token validity for client types
+const (
+	DefaultConsumerTokenValidityDays = 30
+	DefaultDeviceTokenValidityDays   = 90
+	DefaultServiceTokenValidityDays  = 365
+)
+
+// Embed admin service TD
 //
-//go:embed "authn-service-td.json"
-var AuthnServiceTD []byte
+//go:embed "authn-admin-td.json"
+var AuthnAdminTD []byte
 
 // Embed user service TM
 //
 //go:embed "authn-user-td.json"
 var AuthnUserTD []byte
 
-// This service exposes two cells, one for administrator use and one for consumer use.
-// Currently only a single instance of the authn service is supported.
+// This service exposes two services in this cell, one for administrator use, one for consumer use
+// and one for user storage.
+// The cell type is also the instance ID as these are singletons
 const (
-	AuthnServiceCellType  = "authn-service"
-	DefaultAdminServiceID = "authnAdmin"
-	DefaultUserServiceID  = "authnUser"
+	AuthnServiceCellType     = "authn"
+	AuthnAdminServiceThingID = "authn:admin"
+	AuthnUserServiceThingID  = "authn:user"
 )
 
 // Predefined roles of a client
@@ -96,10 +107,17 @@ type ClientProfile struct {
 	TimeUpdated string `json:"updated,omitempty"`
 }
 
-// Interface of the authentication server cell for managing clients and provide
-// the session manager and authenticator.
+// Interface of the authentication service
+// This supports both the admin and user management services
 type IAuthnService interface {
 	api.IHiveCell
+	GetAdminService() IAuthnAdminService
+	GetUserService() IAuthnUserService
+}
+
+// Interface of the authentication admin service for managing clients and provide
+// the session manager and authenticator.
+type IAuthnAdminService interface {
 
 	// AddClient add a new client account. This fails if the client already exists.
 	//
@@ -118,9 +136,6 @@ type IAuthnService interface {
 	// Get a list of all client profiles
 	GetProfiles() (profiles []ClientProfile, err error)
 
-	// obtain the session manager for authentication use by transport cells
-	GetSessionManager() ISessionManager
-
 	// RemoveClient removes client account
 	RemoveClient(clientID string) error
 
@@ -133,5 +148,22 @@ type IAuthnService interface {
 
 	// UpdateProfile changes a client's profile.
 	// Only administrators can update the role. (senderID has role admin or service)
+	UpdateProfile(senderID string, profile ClientProfile) error
+}
+
+// Interface of the user self-management service for login, logout and edit profile.
+type IAuthnUserService interface {
+
+	// GetProfile Get the sender's profile
+	GetProfile(senderID string) (profile ClientProfile, err error)
+
+	// obtain the session manager for authentication use by users
+	GetSessionManager() ISessionManager
+
+	// SetPassword sets a sender's password for use with Login()
+	SetPassword(senderID string, password string) error
+
+	// UpdateProfile changes a sender's profile.
+	// The profile role cannot be updated.
 	UpdateProfile(senderID string, profile ClientProfile) error
 }

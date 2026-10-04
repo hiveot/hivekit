@@ -146,20 +146,12 @@ func NewBusFormation(
 			// These return nil without error.
 		} else {
 			bus.members = append(bus.members, member)
+			// Members MUST not forward unhandled requests otherwise the same request
+			// can arrive multiple times, one for each member. Similarly, members should
+			// not forward notifications otherwise the same notification will be forwarded
+			// multiple times.
+			member.SetForwarding(false, false)
 		}
-
-		// Members MUST not forward unhandled requests otherwise the same request
-		// can arrive multiple times, one for each member. Similarly, members should
-		// not forward notifications otherwise the same notification will be forwarded
-		// multiple times.
-		member.SetForwarding(false, false)
-
-		// _, isServer := member.(api.ITransportServer)
-		// if !isServer {
-		// 	slog.Error("NewBusFormation: Bus members must be a transport server, otherwise "+
-		// 		"requests/notifications multiply",
-		// 		"memberID", member.GetThingID())
-		// }
 	}
 
 	var _ api.IHiveCell = bus // api check

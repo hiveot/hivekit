@@ -97,14 +97,15 @@ func TestAuthentication(t *testing.T) {
 	m, err := f.NewCell(authn.AuthnServiceCellType, true)
 	require.NotNil(t, m)
 	assert.NoError(t, err)
+	authnSvc := m.(authn.IAuthnService)
 
 	// create a token using authn session manager. It should validate with http authenticator now.
-	authnSvc, ok := m.(authn.IAuthnService)
-	require.True(t, ok)
-	sm := authnSvc.GetSessionManager()
-	_, err = authnSvc.GetProfile("client1")
+	authnAdminSvc := authnSvc.GetAdminService()
+	authnUserSvc := authnSvc.GetUserService()
+	sm := authnUserSvc.GetSessionManager()
+	_, err = authnUserSvc.GetProfile("client1")
 	if err != nil {
-		err = authnSvc.AddClient("client1", "client 1", "some role")
+		err = authnAdminSvc.AddClient("client1", "client 1", "some role")
 	}
 	require.NoError(t, err)
 	token, _, err := sm.CreateToken("client1", time.Minute)

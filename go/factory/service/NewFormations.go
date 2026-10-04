@@ -109,7 +109,13 @@ func NewStarFormation(
 
 // NewStarFormationFactory starts a new star formation.
 //
-// This formation is a cell that directs requests to the matching thingID.
+// NOTE: the limitation of this formation is that it assumes each cell has
+// only a single ThingID.
+//
+//	option1: instead of GetID(), introduce a 'HasID()' that can match multiple IDs
+//	option2: don't use this
+//
+// This formation is a cell that directs requests to the cell with matching thingID.
 //
 // * Notifications of cells are passed to the formation notification handler.
 // * Notifications received by the formation are passed to all cells.
