@@ -1,4 +1,4 @@
-package serviceimpl
+package internal
 
 import (
 	_ "embed"
@@ -97,7 +97,7 @@ func (svc *DirectoryServiceImpl) handleRetrieveAllThings(req *msg.RequestMessage
 // Output: tddJSON
 func (svc *DirectoryServiceImpl) handleRetrieveTDD(req *msg.RequestMessage) (resp *msg.ResponseMessage) {
 	tdd := svc.GetTDD()
-	tddJSON := tdd.ToString()
+	tddJSON := tdd.ToJSON()
 	resp = req.CreateResponse(tddJSON, nil)
 	return resp
 }

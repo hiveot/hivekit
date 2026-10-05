@@ -54,7 +54,9 @@ func (svc *HistoryServiceImpl) HandleNotification(notif *msg.NotificationMessage
 
 // Write TD when ready
 func (svc *HistoryServiceImpl) Start() {
-	histTD := string(history.HistoryServiceTD)
+	histTD, _ := td.UnmarshalTD(string(history.HistoryServiceTD))
+	histTD.ID = svc.GetID()
+	histTD.SetType(history.HistoryServiceCellType)
 	svc.PublishTD(histTD)
 
 	// todo: regular updates

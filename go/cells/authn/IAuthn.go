@@ -30,9 +30,11 @@ var AuthnUserTD []byte
 // and one for user storage.
 // The cell type is also the instance ID as these are singletons
 const (
-	AuthnServiceCellType     = "authn"
-	AuthnAdminServiceThingID = "authn:admin"
-	AuthnUserServiceThingID  = "authn:user"
+	AuthnServiceCellType            = "authn"
+	AuthnAdminServiceDefaultThingID = "authn:admin"
+	AuthnUserServiceDefaultThingID  = "authn:user"
+	AuthnAdminServiceType           = "authn:admin"
+	AuthnUserServiceType            = "authn:user"
 )
 
 // Predefined roles of a client

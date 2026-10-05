@@ -32,6 +32,7 @@ type TestAuthenticator struct {
 }
 
 func (ta *TestAuthenticator) AddSecurityScheme(tdoc *td.TD) {}
+func (ta *TestAuthenticator) GetRole(string) string         { return "" }
 
 func (ta *TestAuthenticator) ValidateClient(claimedClientID string, bearerToken string) (
 	clientID string, issuedAt time.Time, validUntil time.Time, err error) {

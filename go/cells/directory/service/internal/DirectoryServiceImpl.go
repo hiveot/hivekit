@@ -1,10 +1,9 @@
-package serviceimpl
+package internal
 
 import (
 	"fmt"
 	"log/slog"
 	"net/http"
-	"os"
 	"path/filepath"
 	"sync"
 
@@ -172,7 +171,7 @@ func (svc *DirectoryServiceImpl) SetTDHooks(
 	svc.writeTDHook = writeHandler
 }
 
-// Start generates and publishes the directory TD
+// Start publishes the directory TD
 func (svc *DirectoryServiceImpl) Start() {
 	slog.Info("Starting DirectoryService", "ThingID", svc.GetID())
 	// initialize the nr records prop
@@ -288,14 +287,14 @@ func NewDirectoryServiceImpl(
 	slog.Info("NewDirectoryServiceImpl running the directory service")
 
 	if thingID == "" {
-		hostname, _ := os.Hostname()
-		thingID = hostname + ":directory"
+		thingID = directory.DirectoryServiceDefaultThingID
 	}
 
 	// create the TD from the json file
 	tdoc := string(directory.DirectoryTDJson)
 	dirTDD, _ := td.UnmarshalTD(tdoc)
 	dirTDD.ID = thingID
+	dirTDD.SetType(directory.DirectoryServiceCellType)
 
 	// add the forms for additional endpoints
 	// for _, tp := range transports {

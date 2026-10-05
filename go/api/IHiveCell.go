@@ -19,11 +19,9 @@ type IHiveCell interface {
 
 	// GetID returns the cell's instance ID.
 	//
-	// The recommended format in HiveOT is: "urn:{celltype}:{instance}", where:
+	// The recommended format in HiveOT is: "urn:{celltype}:{shortID}", where:
 	// * {celltype} is the cell's registration type, or @type in a TD.
-	//      Using {type} is intended to facilitate in troubleshooting.
-	// * {instance} is the instance ID. This can be a hostname, serial nr, UUID.
-	//   Instance IDs that are used in TD's must persist between restarts.
+	// * {shortID} is a short UUID. This must persist between restarts.
 	GetID() string
 
 	// HandleRequest processes or forwards the request.

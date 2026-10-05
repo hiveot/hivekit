@@ -15,7 +15,7 @@ import (
 )
 
 // TM of the test device
-const counterThingTM = `
+const counterThingTD = `
 {
   "@context": [
     "https://www.w3.org/2022/wot/td/v1.1",
@@ -23,7 +23,7 @@ const counterThingTM = `
       "hiveot": "https://www.hiveot.net/vocab/v0.1"
     }
   ],
-  "@type": "Service",
+  "@type": "",
   "base": "",
   "id": "url:counter",
   "title": "A simple counter",
@@ -71,7 +71,7 @@ const counterThingTM = `
 const autoIncrementDelay = 10 * time.Second
 
 // Cell type for use in the recipe
-const CounterThingCellType = "counter-thing"
+const CounterThingCellType = "counter"
 
 // thingID requests are directed to
 const DefaultTestCounterThingID = "counter1"
@@ -108,7 +108,6 @@ type TestCounterThing struct {
 	counter          atomic.Int32
 	backgroundCtx    context.Context
 	backgroundCancel func()
-	tdocJson         string
 }
 
 // Run the counter in the background
@@ -153,8 +152,12 @@ func (svc *TestCounterThing) DoIncrement() error {
 // Return the TD of this device.
 // Forms should be added by the appropriate transport method used.
 // This is also written to the directory on start.
-func (svc *TestCounterThing) GetTD() string {
-	return svc.tdocJson
+func (svc *TestCounterThing) GetTD() *td.TD {
+	// Make the TD available. Set its thingID with the cell ID.
+	tdoc, _ := td.UnmarshalTD(counterThingTD)
+	tdoc.ID = svc.GetID()
+	tdoc.SetType(CounterThingCellType)
+	return tdoc
 }
 
 // Receive notifications from the chain
@@ -233,7 +236,9 @@ func (svc *TestCounterThing) HandleWriteProperty(req *msg.RequestMessage, replyT
 // Publish the TD and properties when the app is ready
 func (svc *TestCounterThing) Start() {
 
-	err := svc.PublishTD(svc.tdocJson)
+	// Make the TD available. Set its thingID with the cell ID.
+	tdoc := svc.GetTD()
+	err := svc.PublishTD(tdoc)
 	if err != nil {
 		slog.Warn("Start: Unable to write the TD", "err", err.Error())
 		return
@@ -293,10 +298,5 @@ func NewTestCounterThing(thingID string, config *CounterConfig) (*TestCounterThi
 	m.counter.Store(42)
 	m.backgroundCtx, m.backgroundCancel = context.WithCancel(context.Background())
 
-	// Make the TD available. Set its thingID with the provided ID.
-	tdoc, err := td.UnmarshalTD(counterThingTM)
-	tdoc.ID = m.GetID()
-	m.tdocJson = td.MarshalTD(tdoc)
-
-	return m, err
+	return m, nil
 }

@@ -16,7 +16,10 @@ const InitFactoryCertsCellType = "initFactoryCerts"
 
 // certs service cell type for factory. Must implement ICertsService
 // this matches the TD @type field.
-const CertsServiceCellType = "certs"
+const CertsServiceCellType = "hiveot:certs"
+
+// The default thingID
+const CertsServiceDefaultThingID = "hiveot:certs"
 
 // Embed history service TD
 //
@@ -53,6 +56,9 @@ const (
 // CertsConfig defines certificate service configuration.
 // This can also be provided through the factory function
 type CertsConfig struct {
+	// ThingID in case of multiple instances; this defaults to the cell type.
+	ThingID string `yaml:"thingID"`
+
 	// On start create a client certificate for the admin account in CertsDir
 	// 0 to not create an admin client cert.
 	AdminCertValidityDays int `yaml:"adminCertValidityDays,omitempty"`

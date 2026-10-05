@@ -18,20 +18,14 @@ RC devices can also write their TD and the TD's of the Things they manage to the
 
 Since RC devices don't run servers, the TD's they write to the directory do not contain forms, security information and base URL that the stand-alone devices include in their TD. 
 
-When the rc-router receives a request, it looks up the TD of the device. If the TD does not contain any forms then this identifies it as a RC device. The rc-router uses the 'senderID' field in the TD to determine the client connection to forward the request to. The senderID field is added to the TD by the directory when a TD is written. 
+When the rc-router receives a request, it looks up the TD of the destination device. The rc-router uses the 'senderID' field in the TD to determine the client connection to forward the request to, and identify this as a RC device. The senderID field is added to the TD by the directory when a TD is written. 
 
 Consumers don't need to see any of this and don't need to know how the Thing is connected to the gateway. Consumers simply pass all Thing requests to the gateway. 
-
-### Authentication
-
-The rc-router does not establish new connections, so no authentication is needed. 
-
-
 
 
 ## Usage
 
-To create an instance of this service, a list of transport servers and a directory instance is required. 
+To create an instance of this service, a list of transport servers, a TD lookup callback, and a role lookup callback are required. 
 
 The rc-router is best used in a chain of cells, as provided in the gateway recipe. It is typically placed in a chain before the stand-alone device router.
 

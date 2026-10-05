@@ -75,7 +75,7 @@ func startTestAuthnServices(encryption string) (
 		panic("Unable to start http server: " + err.Error())
 	}
 	authnHttpMod := authn_httpuserservice.NewAuthnUserHttpService(
-		authn.AuthnUserServiceThingID, httpServer)
+		authn.AuthnUserServiceDefaultThingID, httpServer)
 	authnHttpMod.SetRequestSink(authnSvc)
 
 	return httpServer, authnSvc, func() {

@@ -75,8 +75,7 @@ func startTestServerDevice(deviceID string) (testDevice *testenv.TestCounterThin
 	testDevice.Start()
 
 	// Add the connection forms to the device TD
-	tdJson := testDevice.GetTD()
-	tdoc, _ = td.UnmarshalTD(tdJson)
+	tdoc = testDevice.GetTD()
 	transportServer.AddTDSecForms(tdoc, false)
 
 	// tdoc describes how the router can connect to the testDevice
@@ -181,7 +180,7 @@ func TestCredentialsStore(t *testing.T) {
 	// per connectionURL, not thingID.
 	testTD := testEnv.CreateTestTD(1, true)
 	testTD.ID = thingID1
-	testDirSvc.CreateThing(thingID1, testTD.ToString())
+	testDirSvc.CreateThing(thingID1, testTD.ToJSON())
 
 	// the router uses the TD to connect to the device.
 	// this doesn't actually need a directory. GetTD could also simply return the device TD.

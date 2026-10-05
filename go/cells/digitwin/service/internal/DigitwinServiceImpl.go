@@ -244,7 +244,7 @@ func NewDigitwinServiceImpl(storageDir string,
 	thingDir directory.IDirectoryService,
 	addforms func(tdoc *td.TD, includeAffordances bool)) (*DigitwinServiceImpl, error) {
 
-	thingID := digitwin.DefaultDigitwinServiceID
+	thingID := digitwin.DigitwinServiceDefaultThingID
 
 	// the vcache holds the cached notifications
 	// if it doesn't contain a value it should forward the request to the device

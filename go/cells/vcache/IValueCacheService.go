@@ -6,6 +6,7 @@ import (
 )
 
 const ValueCacheCellType = "valuecache"
+const ValueCacheDefaultThingID = "valuecache"
 
 // The default thingID of this vcache for messaging (if any)
 // const DefaultVCacheThingID = "vcache"  - does not handle requests for itself

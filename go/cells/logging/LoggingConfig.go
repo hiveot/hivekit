@@ -22,8 +22,8 @@ type LoggingConfig struct {
 	// logging time format. Defaults to "Jan _2 15:04:05.0000"
 	TimeFormat string `yaml:"timeFormat"`
 
-	// optional ID override for multiple instances
-	CellID string `yaml:"cellID"`
+	// optional thingID override for multiple instances
+	ThingID string `yaml:"thingID"`
 
 	// optional filter for logging notifications. If not provided all notifications are logged.
 	NotificationFilter msg.MessageFilter `yaml:"notifications,omitempty"`
@@ -44,7 +44,7 @@ func NewLoggingConfig(logDestination string, backend string) LoggingConfig {
 
 	}
 	cfg := LoggingConfig{
-		CellID:         LoggingServiceCellType,
+		// ThingID:         "",
 		Backend:        backend,
 		LogDestination: logDestination,
 		TimeFormat:     "Jan _2 15:04:05.0000",

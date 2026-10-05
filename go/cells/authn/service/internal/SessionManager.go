@@ -86,6 +86,11 @@ func (sm *SessionManager) DecodeToken(token string, signedNonce string, nonce st
 	return sm.authenticator.DecodeToken(token, signedNonce, nonce)
 }
 
+// GetRole returns the client's authenticated role
+func (svc *SessionManager) GetRole(clientID string) string {
+	return svc.authenticator.GetRole(clientID)
+}
+
 // Login with password and generate a session token
 // Intended for end-users that want to establish a session.
 //

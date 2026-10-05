@@ -11,8 +11,9 @@ type HistoryConfig struct {
 	// kvbtree, pebble (default), bbolt. See IBucketStore for details.
 	Backend string `yaml:"backend"`
 
-	// optional service instance ID override for multiple instances
-	CellID string `yaml:"cellID"`
+	// optional service thingID override for multiple instances
+	// This defaults to {cellType}
+	ThingID string `yaml:"thingID"`
 
 	// Bucketstore location where to store the history
 	StoreDirectory string `yaml:"storeDirectory"`
@@ -33,7 +34,7 @@ func NewHistoryConfig(storeDirectory string, backend string) HistoryConfig {
 		backend = bucketstore.BackendPebble
 	}
 	cfg := HistoryConfig{
-		CellID:         HistoryServiceCellType,
+		ThingID:        HistoryServiceCellType,
 		Backend:        backend,
 		StoreDirectory: storeDirectory,
 	}

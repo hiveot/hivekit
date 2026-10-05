@@ -17,7 +17,6 @@ import (
 	reconnect_service "github.com/hiveot/hivekit/go/cells/reconnect/service"
 	"github.com/hiveot/hivekit/go/cells/router"
 	"github.com/hiveot/hivekit/go/cells/transport/clients"
-	"github.com/teris-io/shortid"
 )
 
 // for caching connection URLs with related form used.
@@ -435,7 +434,7 @@ func NewRouterServiceImpl(
 	credStore := NewCredentialsStore(storageFile)
 	err := credStore.Open()
 
-	thingID := router.RouterCellType + "-" + shortid.MustGenerate()
+	thingID := router.RouterDefaultThingID
 	svc := &RouterServiceImpl{
 		HiveCellBase:      cells.NewHiveCellBase(thingID),
 		autoReconnect:     autoReconnect,

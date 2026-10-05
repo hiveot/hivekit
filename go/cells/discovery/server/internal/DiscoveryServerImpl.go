@@ -117,7 +117,7 @@ func (srv *DiscoveryServerImpl) ServeTD(
 	} else {
 		httpPath = directory.WellKnownWoTPath + "/" + instanceName
 	}
-	tdJSON := tdoc.ToString()
+	tdJSON := tdoc.ToJSON()
 
 	// serve the TD on the well-known http endpoint
 	publicRoute := srv.httpServer.GetPublicRoute()
@@ -248,7 +248,7 @@ func NewDiscoveryServerImpl(
 	var err error
 
 	// thingID is defined in the TDD and should match HiveCell thingID
-	thingID := discovery.DiscoveryServerCellType
+	thingID := discovery.DiscoveryServerDefaultThingID
 
 	srv := &DiscoveryServerImpl{
 		HiveCellBase: cells.NewHiveCellBase(thingID),

@@ -14,6 +14,9 @@ type IAuthenticator interface {
 	// AddSecurityScheme adds the wot securityscheme that describes this authenticator to the given TD
 	AddSecurityScheme(tdoc *td.TD)
 
+	// Return the role of the client
+	GetRole(clientID string) string
+
 	// ValidateClient verifies the secret is valid for the claimed clientID.
 	//
 	// This returns the validated clientID and the time the secret was issued and is valid for.

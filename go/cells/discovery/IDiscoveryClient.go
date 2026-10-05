@@ -10,7 +10,7 @@ import (
 
 const (
 	// The discovery client cell type for including in a cell chain
-	DiscoveryClientCellType = "discovery-client"
+	DiscoveryClientCellType = "hiveot:discovery-client"
 
 	// Action request to discover a directory TDD.
 	// Output: JSON with directory TD.

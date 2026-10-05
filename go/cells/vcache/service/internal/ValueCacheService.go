@@ -9,7 +9,6 @@ import (
 	"github.com/hiveot/hivekit/go/cells/vcache"
 	vcacheapi "github.com/hiveot/hivekit/go/cells/vcache"
 	"github.com/hiveot/hivekit/go/utils"
-	"github.com/teris-io/shortid"
 )
 
 // ValueCacheService is the value-cache service implementation
@@ -176,7 +175,7 @@ func (m *ValueCacheService) WriteProperty(notif *msg.NotificationMessage) {
 // NewValueCacheService creates a ready-to-use instance of the value cache service.
 func NewValueCacheService() (*ValueCacheService, error) {
 
-	thingID := vcacheapi.ValueCacheCellType + "-" + shortid.MustGenerate()
+	thingID := vcacheapi.ValueCacheDefaultThingID
 	svc := &ValueCacheService{
 		HiveCellBase: cells.NewHiveCellBase(thingID),
 		store:        *NewVCacheStore(),

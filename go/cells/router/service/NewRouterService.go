@@ -20,7 +20,7 @@ const DefaultRouterAutoConnect = false
 // NewRouterService creates a ready-to-use instance of the router service with the default router typeID.
 // Start must be called before usage.
 //
-//	storageDir location where the router stores its data
+//	storageDir for the credentials storage directory, "" for in-memory testing
 //	autoReconnect to enable auto-reconnecting of dropped client connections, restoring subscriptions.
 //	clientID default clientID to connect if no other credentials are known
 //	clientCert optional client certificate to use for mutual authentication - overrides clientID

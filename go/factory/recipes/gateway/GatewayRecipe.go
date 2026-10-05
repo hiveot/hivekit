@@ -2,7 +2,6 @@ package gateway_recipe
 
 import (
 	"crypto/tls"
-	"os"
 	"time"
 
 	"github.com/hiveot/hivekit/go/api"
@@ -40,8 +39,6 @@ import (
 )
 
 // GatewayRecipeCells defines a cell chain of an application gateway.
-//
-// # IN DEVELOPMENT - NOT READY YET
 //
 // The application gateway provides protocol servers, authentication, a directory,
 // a router for communication with connected devices, and more.
@@ -125,7 +122,7 @@ var GatewayRecipeCells = []api.CellDefinition{
 
 	//-- updateTD requests might not have a directory thingID when send by local services and RC devices
 
-	{ // add forms to create/updateTD requests from devices and services that are missing forms.
+	{ // add forms to create/updateTD requests to TD's that are missing forms, eg local services and RC devices.
 		Type:        addforms.AddFormsCellType,
 		Constructor: addforms_service.NewAddFormsServiceFactory,
 	},
@@ -141,9 +138,8 @@ var GatewayRecipeCells = []api.CellDefinition{
 	},
 
 	{
-		// RC service for routing requests to reverse connections.
-		// RC devices do not include forms in their TD. This cell locates
-		// the connection the device is using and forwards requests to it.
+		// RC router service for routing requests to reverse connections.
+		// This routes the request to the client that send the TD update.
 		Type:        rcrouter.RCRouterCellType,
 		Constructor: rcrouter_service.NewRCRouterServiceFactory,
 	},
@@ -287,8 +283,7 @@ func NewGatewayRecipe(env *api.HiveEnvironment) (
 		return nil, nil, err
 	}
 
-	hostname, _ := os.Hostname()
-	thingID := hostname + ":gateway"
+	thingID := "hiveot:gateway"
 	r = &GatewayRecipe{
 		HiveCellBase: cells.NewHiveCellBase(thingID),
 		f:            f,

@@ -7,6 +7,7 @@ import (
 )
 
 const RouterCellType = "router"
+const RouterDefaultThingID = "router"
 
 // Interface of the stand-alone device router service.
 type IRouterService interface {

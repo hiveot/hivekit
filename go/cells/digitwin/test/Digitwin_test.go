@@ -84,7 +84,7 @@ func startService() (
 
 	// attach the rc-router
 	rcr, err := rcrouter_service.NewRCRouterService(
-		dtwSvc.GetDeviceTD, testEnv.GetTpServers)
+		dtwSvc.GetDeviceTD, testEnv.GetTpServers, testEnv.TestAuthn.GetRole)
 
 	rcr.SetTimeout(testEnv.Env.RpcTimeout)
 

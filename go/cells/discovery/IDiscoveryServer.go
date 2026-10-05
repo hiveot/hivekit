@@ -7,7 +7,8 @@ import (
 
 // The discovery cell types
 const (
-	DiscoveryServerCellType = "discovery-server"
+	DiscoveryServerCellType       = "hiveot:discovery-server"
+	DiscoveryServerDefaultThingID = "hiveot:discovery"
 )
 
 // DNS-SD service IDs

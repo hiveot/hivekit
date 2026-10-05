@@ -15,6 +15,7 @@ import (
 // This implements the IAuthenticator interface.
 type TestAuthenticator struct {
 	passwords map[string]string
+	roles     map[string]string
 	// flag whether sessions are valid for this client
 	inSession     map[string]string
 	authServerURI string
@@ -24,6 +25,7 @@ type TestAuthenticator struct {
 // AddClient adds a test client and return an auth token
 func (d *TestAuthenticator) AddClient(clientID string, displayName string, role string) error {
 	d.passwords[clientID] = ""
+	d.roles[clientID] = role
 
 	token, validUntil, err := d.CreateToken(clientID, 0)
 	_ = validUntil
@@ -34,10 +36,10 @@ func (d *TestAuthenticator) AddClient(clientID string, displayName string, role 
 }
 
 // AddSecurityScheme adds the security scheme that this authenticator supports.
-func (srv *TestAuthenticator) AddSecurityScheme(tdoc *td.TD) {
+func (d *TestAuthenticator) AddSecurityScheme(tdoc *td.TD) {
 
 	// bearer security scheme for authenticating http and subprotocol connections
-	format, alg := srv.GetAlg()
+	format, alg := d.GetAlg()
 
 	tdoc.AddSecurityScheme("bearer", td.SecurityScheme{
 		//AtType:        nil,
@@ -45,7 +47,7 @@ func (srv *TestAuthenticator) AddSecurityScheme(tdoc *td.TD) {
 		//Descriptions:  nil,
 		//Proxy:         "",
 		Scheme:        "bearer", // nosec, basic, digest, bearer, psk, oauth2, apikey or auto
-		Authorization: srv.authServerURI,
+		Authorization: d.authServerURI,
 		Name:          "authorization",
 		Alg:           alg,
 		Format:        format,   // jwe, cwt, jws, jwt, paseto
@@ -88,6 +90,12 @@ func (d *TestAuthenticator) DecodeToken(token string, signedNonce string, nonce 
 // GetAlg pretend to use jwt
 func (d *TestAuthenticator) GetAlg() (string, string) {
 	return "jwt", "es256"
+}
+
+// GetRole returns the client's authenticated role
+func (d *TestAuthenticator) GetRole(clientID string) string {
+	role, _ := d.roles[clientID]
+	return role
 }
 
 func (d *TestAuthenticator) Login(
@@ -171,6 +179,7 @@ func NewTestAuthenticator() *TestAuthenticator {
 	d := &TestAuthenticator{
 		passwords: make(map[string]string),
 		inSession: make(map[string]string),
+		roles:     make(map[string]string),
 	}
 	// var _ transport.IAuthValidator = d // interface check
 	return d

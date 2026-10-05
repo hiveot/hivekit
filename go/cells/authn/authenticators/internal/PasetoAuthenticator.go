@@ -135,6 +135,12 @@ func (svc *PasetoAuthenticatorImpl) GetAlg() (string, string) {
 	return "paseto", "public"
 }
 
+// GetRole returns the client's authenticated role
+func (svc *PasetoAuthenticatorImpl) GetRole(clientID string) string {
+	role, _ := svc.clientStore.GetRole(clientID)
+	return role
+}
+
 // SetAuthServerURI this sets the server endpoint starting the authorization flow.
 // This is included when adding the TD security scheme in AddSecurityScheme()
 func (svc *PasetoAuthenticatorImpl) SetAuthServerURI(serverURI string) {

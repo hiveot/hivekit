@@ -47,7 +47,9 @@ func startService() (testEnv *testenv.TestEnv, stopFn func()) {
 	rcrouter, _ := rcrouter_service.NewRCRouterService(testDirSvc.GetTD,
 		func() []api.ITransportServer {
 			return []api.ITransportServer{transportServer}
-		})
+		},
+		testEnv.TestAuthn.GetRole,
+	)
 	rcrouter.SetTimeout(testEnv.Env.RpcTimeout)
 
 	// chain server->director->rcrouter
@@ -125,7 +127,7 @@ func TestReadRCDeviceProperties(t *testing.T) {
 	// This writes the TD over the RC-connection.
 
 	// FIXME: who sets the senderID
-	err := ething.PublishTD(tdoc.ToString())
+	err := ething.PublishTD(tdoc)
 	require.NoError(t, err)
 
 	// 3. connect a consumer

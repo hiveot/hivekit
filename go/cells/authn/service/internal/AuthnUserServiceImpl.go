@@ -107,10 +107,9 @@ func (svc *AuthnUserServiceImpl) SetPassword(clientID string, password string) e
 // Start publishes the service TD to the directory or discovery.
 func (svc *AuthnUserServiceImpl) Start() {
 	tdoc, _ := td.UnmarshalTD(string(authn.AuthnUserTD))
-	tdoc.ID = authn.AuthnUserServiceThingID
-	tdoc.SetType(authn.AuthnUserServiceThingID)
-	userTD := tdoc.ToString()
-	_ = svc.PublishTD(userTD)
+	tdoc.ID = authn.AuthnUserServiceDefaultThingID
+	tdoc.SetType(authn.AuthnUserServiceType)
+	_ = svc.PublishTD(tdoc)
 }
 
 // Stop closes the client store and releases resources
@@ -165,7 +164,7 @@ func NewAuthnUserServiceImpl(
 
 	// this service is the admin service that also exposes the user service service thing
 	svc := &AuthnUserServiceImpl{
-		ExposedThing:   thing.NewExposedThing(authn.AuthnUserServiceThingID, nil),
+		ExposedThing:   thing.NewExposedThing(authn.AuthnUserServiceDefaultThingID, nil),
 		authnStore:     authnStore,
 		sessionManager: sessionManager,
 	}

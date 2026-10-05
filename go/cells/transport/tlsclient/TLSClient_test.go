@@ -62,14 +62,12 @@ func TestMain(m *testing.M) {
 	utils.SetLogging("info", "")
 	slog.Info("------ TestMain of httpauthhandler ------")
 	testAddress = "127.0.0.1:9888"
-	// hostnames := []string{testAddress}
 
 	authBundle = certstest.CreateTestCertBundle(TestKeyType)
 
 	caCertPool := x509.NewCertPool()
 	caCertPool.AddCert(authBundle.CaCert)
 
-	// serverTLSCert := testenv.X509ToTLS(certsclient.ServerCert, nil)
 	serverTLSConf = &tls.Config{
 		Certificates:       []tls.Certificate{*authBundle.ServerCert},
 		ClientAuth:         tls.VerifyClientCertIfGiven,

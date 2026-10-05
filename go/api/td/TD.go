@@ -95,7 +95,7 @@ type TD struct {
 	Properties map[string]*PropertyAffordance `json:"properties"`
 
 	// SenderID is a hiveot extension containing the ID of the client that
-	// write the TD. Intended for supporting reverse connections on a gateway.
+	// wrote the TD. Intended for supporting reverse connections on a gateway.
 	SenderID string `json:"hiveot:senderid,omitempty"`
 
 	// Data schema definitions used in this TD.
@@ -639,8 +639,8 @@ func (tdoc *TD) SetType(atType string) {
 // 	return s
 // }
 
-// ToString returns the JSON representation of the TD
-func (tdoc *TD) ToString() string {
+// ToJSON returns the JSON representation of the TD
+func (tdoc *TD) ToJSON() string {
 	tdJson, _ := jsoniter.Marshal(tdoc)
 	return string(tdJson)
 }

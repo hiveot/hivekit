@@ -253,11 +253,11 @@ func (svc *ReconnectServiceImpl) Stop() {
 //
 //	tpClient is the connected transport client that is a sink for this service.
 //	  optional, if not provided SetRequestSink should be used to set the handler.
-func NewReconnectServiceImpl(
-	tpClient api.ITransportClient) (svc *ReconnectServiceImpl, err error) {
+func NewReconnectServiceImpl(tpClient api.ITransportClient) (svc *ReconnectServiceImpl, err error) {
 
+	thingID := reconnect.ReconnectDefaultThingID
 	svc = &ReconnectServiceImpl{
-		HiveCellBase: cells.NewHiveCellBase(reconnect.ReconnectCellType),
+		HiveCellBase: cells.NewHiveCellBase(thingID),
 
 		maxBackoffTimeLimit: reconnect.DefaultBackoffLimit,
 

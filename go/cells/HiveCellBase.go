@@ -311,7 +311,7 @@ func (base *HiveCellBase) Stop() {}
 
 // Create a new cell base
 //
-//	cellID is the instance ID of the cell. "" to auto generate.
+//	cellID is the instance ID of the cell. "" to auto generate a dynamic ID.
 //	timeout for forwarding request and waiting for the result
 func NewHiveCellBase(cellID string) *HiveCellBase {
 	if cellID == "" {

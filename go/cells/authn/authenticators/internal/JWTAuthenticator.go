@@ -187,6 +187,12 @@ func (svc *JWTAuthenticatorImpl) GetAlg() (string, string) {
 	return "jwt", svc.signingMethod.Alg()
 }
 
+// GetRole returns the client's authenticated role
+func (svc *JWTAuthenticatorImpl) GetRole(clientID string) string {
+	role, _ := svc.clientStore.GetRole(clientID)
+	return role
+}
+
 // SetAuthServerURI this sets the server endpoint needed to login.
 // This is included when adding the TD security scheme in AddSecurityScheme()
 func (svc *JWTAuthenticatorImpl) SetAuthServerURI(serverURI string) {

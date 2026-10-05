@@ -1,11 +1,11 @@
-package directory_service
+package dirhttp_service
 
 import (
 	"time"
 
 	"github.com/hiveot/hivekit/go/api"
 	"github.com/hiveot/hivekit/go/cells/directory"
-	"github.com/hiveot/hivekit/go/cells/directory/service/internal/httpserverimpl"
+	"github.com/hiveot/hivekit/go/cells/directory/dirhttpserver/internal"
 )
 
 // Returns a ready-to-use directory http handler with the given http server.
@@ -13,7 +13,7 @@ func NewDirectoryHttpServer(
 	dirThingID string, httpServer api.IHttpServer, respTimeout time.Duration) (
 	directory.IDirectoryHttpServer, error) {
 
-	return httpserverimpl.NewDirectoryHttpServerImpl(dirThingID, httpServer, respTimeout)
+	return internal.NewDirectoryHttpServerImpl(dirThingID, httpServer, respTimeout)
 }
 
 // Factory for the directory http interface cell

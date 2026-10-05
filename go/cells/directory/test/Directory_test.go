@@ -15,6 +15,7 @@ import (
 	"github.com/hiveot/hivekit/go/cells/authn"
 	"github.com/hiveot/hivekit/go/cells/directory"
 	directory_client "github.com/hiveot/hivekit/go/cells/directory/client"
+	dirhttp_service "github.com/hiveot/hivekit/go/cells/directory/dirhttpserver"
 	directory_service "github.com/hiveot/hivekit/go/cells/directory/service"
 	tls_client "github.com/hiveot/hivekit/go/cells/transport/tlsclient/client"
 	"github.com/hiveot/hivekit/go/testenv"
@@ -63,7 +64,7 @@ func StartDirectoryService(withHttp bool) (
 	if withHttp {
 		dirThingID := svc.GetID()
 		// add directory endpoints to the http server
-		dirHttpServer, err = directory_service.NewDirectoryHttpServer(
+		dirHttpServer, err = dirhttp_service.NewDirectoryHttpServer(
 			dirThingID, testEnv.HttpServer, testEnv.Env.RpcTimeout)
 		_ = err
 		dirHttpServer.AddTDSecForms(tdd, false)
@@ -101,7 +102,7 @@ func TestStartStop(t *testing.T) {
 	defer svc.Stop()
 
 	// add a thing
-	tdJson := directory.DirectoryTDJson
+	tdJson := svc.GetTDD().ToJSON()
 	svc.UpdateThing(defaultDeviceID, string(tdJson))
 
 	// read all things
@@ -128,7 +129,7 @@ func TestCreateTD(t *testing.T) {
 
 	// add another TD
 	tdi1 := td.NewTD(thingID, "test thing", "test device")
-	td1Json := tdi1.ToString()
+	td1Json := tdi1.ToJSON()
 	svc.CreateThing(defaultDeviceID, td1Json)
 
 	// retrieve a thing by ID
@@ -159,7 +160,7 @@ func TestCRUDUsingMsgAPI(t *testing.T) {
 
 	// test create a TD
 	tdi1 := td.NewTD(thing1ID, "thing 1", "device")
-	tdi1Json := tdi1.ToString()
+	tdi1Json := tdi1.ToJSON()
 
 	// use a direct transport to the directory as the sink for the client
 	tp := testenv.NewTestTransport(clientID, dirSvc)

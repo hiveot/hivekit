@@ -7,7 +7,6 @@ import (
 	"crypto/x509"
 	"fmt"
 	"log/slog"
-	"os"
 	"path"
 	"path/filepath"
 	"time"
@@ -232,10 +231,9 @@ func (svc *CertsServiceImpl) Start() {
 	tdJson := string(certs.CertsServiceTD)
 	tdoc, err := td.UnmarshalTD(tdJson)
 	if err == nil {
-		tdoc.SetType(certs.CertsServiceCellType)
 		tdoc.ID = svc.GetID()
-		tdJson = td.MarshalTD(tdoc)
-		svc.PublishTD(tdJson)
+		tdoc.SetType(certs.CertsServiceCellType)
+		svc.PublishTD(tdoc)
 	}
 }
 
@@ -277,8 +275,10 @@ func (svc *CertsServiceImpl) VerifyClientCert(clientID string, clientCert *x509.
 func NewCertsServiceImpl(config *certs.CertsConfig) (*CertsServiceImpl, error) {
 	var err error
 
-	hostname, _ := os.Hostname()
-	thingID := hostname + ":certs"
+	thingID := certs.CertsServiceDefaultThingID
+	if config.ThingID != "" {
+		thingID = config.ThingID
+	}
 
 	svc := &CertsServiceImpl{
 		ExposedThing: thing.NewExposedThing(thingID, nil),

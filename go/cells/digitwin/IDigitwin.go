@@ -6,10 +6,10 @@ import (
 )
 
 // The default instance ID of the digital twin service
-const DigitwinCellType = "digitwin"
+const DigitwinCellType = "hiveot:digitwin"
 
 // the default digital twin service (thing) ID for handling digitwin requests
-const DefaultDigitwinServiceID = "digitwin"
+const DigitwinServiceDefaultThingID = "hiveot:digitwin"
 
 // the prefix used for digital twins
 const DigitwinIDPrefix = "dtw:"

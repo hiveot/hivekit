@@ -6,8 +6,8 @@
       "hiveot": "https://www.hiveot.net/vocab/v0.1"
     }
   ],
-  "@type": "Service",
-  "id": "history",
+  "@type": "hiveot:history",
+  "id": "hiveot:history",
   "title": "History Service",
   "description": "HiveOT history service",
   "version": {

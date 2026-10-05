@@ -6,8 +6,6 @@ import (
 	"github.com/hiveot/hivekit/go/api/td"
 	"github.com/hiveot/hivekit/go/cells"
 	"github.com/hiveot/hivekit/go/cells/directory"
-	"github.com/hiveot/hivekit/go/cells/transport/addforms"
-	"github.com/teris-io/shortid"
 )
 
 // AddFormsServiceImpl is a small cell that modifies TD's sent with directory update and
@@ -72,10 +70,8 @@ func (svc *AddFormsServiceImpl) HandleRequest(req *msg.RequestMessage, replyTo m
 // NewAddFormsServiceImpl creates a new instance of the service
 func NewAddFormsServiceImpl(getServers func() []api.ITransportServer) *AddFormsServiceImpl {
 
-	thingID := addforms.AddFormsCellType + "-" + shortid.MustGenerate()
-
 	m := &AddFormsServiceImpl{
-		HiveCellBase:       *cells.NewHiveCellBase(thingID),
+		HiveCellBase:       *cells.NewHiveCellBase(""),
 		includeAffordances: true,
 		getServers:         getServers,
 	}

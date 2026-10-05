@@ -13,27 +13,16 @@ This service is not a full blow stand-alone application but simply offers the di
 This service is in alpha. It is functional but breaking changes might still happen.
 
 There are some notable issues for which there is no standardization:
-1: For security reasons, a device TD should only be updatable by the owning device. How to determine who this is?
 
-Option 1: prepend the accountID of the client that uploaded the TD in the ThingID. A device with accountID 'device1' and thingID 'thing1' would be stored as the ThingID "device1:thingID". This provide scopes to thingIDs and handles multiple things on the same device. This should only apply to TDs uploaded by devices themselves, which is an edge case, not admin users. However, messing with ThingIDs is probably not something everyone will agree with. 
+1: For security reasons, a device TD should only be updatable by its owner. How to determine who this is?
 
-Option 2: (HiveOT solution) store the accountID of the client that uploads the TD in the directory/TD. Only this client is allowed to update the TD, except for admin users.
-
-2: How to prevent thingID collisions? There is no mechanism to guarantee uniquenes between devices. One suggested solution is to use UUIDs but this is harder to use.
-
-Option 1: Use option 1 from above. Prepend the clientID to the ThingID.
-
-3: The directory http client should not be needed. Just use the http-basic client. The directory server TD with forms should be sufficient.
-
-The main issue is that the generic http-basic server uses different paths, is this valid or are the paths in the spec mandatory. For now assume paths are not fixed.
-
-This needs testing that it works as intended.
+HiveOT's solution is to store the accountID of the client that uploads the TD in the directory/TD. This client and anyone with the admin role is allowed to update the TD.
 
 
 
 ## Summary
 
-The WoT discovery specification defines the directory service API for storing and retrieving TD information. This service exports a TM that matches the description provided in the specification.
+The WoT discovery specification defines the directory service API for storing and retrieving TD information. This service exports a TD that matches the description provided in the specification.
 
 The directory package contains these cells: the directory service, its http API server, a messaging client, and an HTTP client. These can be used as any other cell, and operate client side or server side. Typically, the directory server is linked to a transport server to receive requests and publish notifications. Similarly the directory client service can be used by applications to query the TDs of the available Things.
 
@@ -83,7 +72,7 @@ Examples of creating an instance of the directory.
 
 There are several use-cases for updating the directory with TD from Things. At this moment it isn't clear if there is a preferred way. HiveOT is leaning towards option 3 and 4 as HiveOT devices do not run servers.
 
-1. Stand-alone devices can use discovery to publish their TD or TDD in case there are multiple. Someone need to get the TD and add it to the directory. Who?
+1. Stand-alone devices can use discovery to publish their TD or TDD in case there are multiple. The directory service itself polls the network and adds the TDs.
 2. A stand-alone device discovers a directory and write its TD to it.
 3. Devices with reverse connection to a hub or gateway can write the TDs they manage to the its directory.
 4. An administrator can manually upload TDs to the directory import location. This is not yet supported (but seems like a good idea)

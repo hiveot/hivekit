@@ -284,13 +284,12 @@ func (svc *ExposedThing) PubProperties(thingID string, propMap map[string]any, o
 
 // Publish the exposed thing's TD to the directory.
 // This sends the directory UpdateTD request message to the cell request sink.
-//
-//	tdJSON is the TD to write.
-func (svc *ExposedThing) PublishTD(tdJSON string) error {
+func (svc *ExposedThing) PublishTD(tdoc *td.TD) error {
 	reqSink := svc.GetRequestSink()
 	if reqSink == nil {
 		return fmt.Errorf("PublishTD: No request sink set.")
 	}
+	tdJSON := tdoc.ToJSON()
 	// FIXME: how to get the directory TD or thingID?.
 	//  Only needed if no connection exists and a router is present.
 	directoryThingID := ""

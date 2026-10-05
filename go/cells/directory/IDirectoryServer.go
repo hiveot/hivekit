@@ -21,16 +21,17 @@ const (
 
 // two cells, the service and optional http server
 const (
-	// DirectoryServiceCellType identifies the directory service implementation
-	DirectoryServiceCellType = "DirectoryService"
+	// DirectoryServiceCellType identifies the directory service type
+	// for cells and @type in its TD.
+	// Note that the TD also includes the "ThingDirectory" in @type as per specification.
+	DirectoryServiceCellType = "hiveot:directory"
+
+	DirectoryServiceDefaultThingID = "hiveot:directory"
 
 	// DirectoryHttpCellType identifies the http API for the directory service
 	// Place this service before any middleware so that requests are logged and authorized.
 	DirectoryHttpCellType = "directory-http"
 )
-
-// The TD @type identifies the TD as that of a directory
-const DirectoryAtType = "ThingDirectory"
 
 // The http path that provides the TD of the service
 // in case of the directory this provide the directory TD path

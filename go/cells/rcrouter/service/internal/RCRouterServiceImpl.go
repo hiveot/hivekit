@@ -8,8 +8,8 @@ import (
 	"github.com/hiveot/hivekit/go/api/msg"
 	"github.com/hiveot/hivekit/go/api/td"
 	"github.com/hiveot/hivekit/go/cells"
+	"github.com/hiveot/hivekit/go/cells/authn"
 	"github.com/hiveot/hivekit/go/cells/rcrouter"
-	"github.com/teris-io/shortid"
 )
 
 // Implementation of the rc-router service.
@@ -17,6 +17,9 @@ import (
 // This routes requests to reverse-connected devices. Intended for use in gateways.
 type RCRouterServiceImpl struct {
 	*cells.HiveCellBase
+
+	// Return the role of the client
+	getRole func(clientID string) string
 
 	// handler that provides a TD for the given thingID.
 	// Required for determining the connection clientID that serves a Thing.
@@ -27,11 +30,18 @@ type RCRouterServiceImpl struct {
 }
 
 // Return the reverse-client connection to a device, if it exists.
-// This returns nil if the clientID does not have an existing connection.
+// This returns nil if the clientID does not have an existing connection or doesnt have a device role.
 func (svc *RCRouterServiceImpl) GetRCConnection(clientID string) (c api.IConnection) {
-	if svc.getSrv == nil {
+
+	if clientID == "" || svc.getSrv == nil || svc.getRole == nil {
 		return nil
 	}
+
+	role := svc.getRole(clientID)
+	if role != authn.ClientRoleDevice {
+		return nil
+	}
+
 	serverList := svc.getSrv()
 	for _, tp := range serverList {
 		c := tp.GetConnectionByClientID(clientID)
@@ -92,6 +102,7 @@ func (svc *RCRouterServiceImpl) RouteRequest(req *msg.RequestMessage, replyTo ms
 func NewRCRouterServiceImpl(
 	getTD func(thingID string) *td.TD,
 	getSrv func() []api.ITransportServer,
+	getRole func(clientID string) string,
 ) (*RCRouterServiceImpl, error) {
 
 	if getTD == nil || getSrv == nil {
@@ -99,12 +110,12 @@ func NewRCRouterServiceImpl(
 	}
 
 	slog.Info("NewRCRouterServiceImpl: Starting RC-Router service")
-
-	thingID := rcrouter.RCRouterCellType + "-" + shortid.MustGenerate()
+	thingID := rcrouter.RCRouterDefaultThingID
 	svc := &RCRouterServiceImpl{
 		HiveCellBase: cells.NewHiveCellBase(thingID),
 		getTD:        getTD,
 		getSrv:       getSrv,
+		getRole:      getRole,
 	}
 
 	var _ rcrouter.IRCRouterService = svc // interface check

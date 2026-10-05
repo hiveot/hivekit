@@ -54,7 +54,7 @@ func TestReadTDFromDevice(t *testing.T) {
 	deviceReqHandler := func(req *msg.RequestMessage, replyTo msg.ResponseHandler) error {
 		t.Log("Received request: " + req.Operation)
 		if req.Operation == td.OpReadProperty && req.Name == "td" {
-			tdJSON := td1.ToString()
+			tdJSON := td1.ToJSON()
 			resp := req.CreateResponse(tdJSON, nil)
 			return replyTo(resp)
 		} else {

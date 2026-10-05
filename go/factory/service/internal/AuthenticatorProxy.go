@@ -26,6 +26,14 @@ func (ap *AuthenticatorProxy) AddSecurityScheme(tdoc *td.TD) {
 	}
 }
 
+func (ap *AuthenticatorProxy) GetRole(clientID string) string {
+	if ap.impl != nil {
+		return ap.impl.GetRole(clientID)
+	} else {
+		return ""
+	}
+}
+
 // Set the authenticator implementation
 // If nil is provided then disable authentication
 func (ap *AuthenticatorProxy) SetAuthenticator(actual api.IAuthenticator) {

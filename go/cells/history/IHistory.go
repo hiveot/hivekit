@@ -9,11 +9,12 @@ import (
 )
 
 // The type of cell that implements the IHistoryService interface
-const HistoryServiceCellType = "history"
+// This must match the TD @type
+const HistoryServiceCellType = "hiveot:history"
 
 // The default ThingID of this history service instance for messaging.
-// This must match the ID in the TD.
-const DefaultHistoryThingID = "history"
+// This must match the TD thingID.
+const DefaultHistoryThingID = "hiveot:history"
 
 // DefaultLimit nr items of none provided
 const DefaultLimit = 1000
