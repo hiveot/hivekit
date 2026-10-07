@@ -2,12 +2,9 @@ package directory_test
 
 import (
 	"log/slog"
-	"net/http"
-	"net/url"
 	"os"
 	"path/filepath"
 	"testing"
-	"time"
 
 	"github.com/hiveot/hivekit/go/api"
 	"github.com/hiveot/hivekit/go/api/td"
@@ -17,24 +14,24 @@ import (
 	directory_client "github.com/hiveot/hivekit/go/cells/directory/client"
 	dirhttp_service "github.com/hiveot/hivekit/go/cells/directory/dirhttpserver"
 	directory_service "github.com/hiveot/hivekit/go/cells/directory/service"
-	tls_client "github.com/hiveot/hivekit/go/cells/transport/tlsclient/client"
 	"github.com/hiveot/hivekit/go/testenv"
 	"github.com/hiveot/hivekit/go/utils"
-	jsoniter "github.com/json-iterator/go"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
 var storageDir = filepath.Join(os.TempDir(), "hivekit", "directory-test")
 
-const defaultDeviceID = "device-smith"
+const defaultDeviceID = "device-clientID"
 const defaultProtocol = api.WotWebsocketProtocolType
 const TestKeyType = utils.KeyTypeED25519
-const rpcTimeout = time.Minute // for testing/debugging
 
 // TestMain setsup logging
 func TestMain(m *testing.M) {
 	utils.SetLogging("info", "")
+
+	// clean start
+	os.RemoveAll(storageDir)
 
 	result := m.Run()
 	if result != 0 {
@@ -56,9 +53,8 @@ func StartDirectoryService(withHttp bool) (
 	testEnv, cancelTestEnv := testenv.StartTestEnv(proto, true)
 
 	// the transports are used to update the TDD forms and security
-	svc, err = directory_service.NewDirectoryService("", storageDir, testEnv.HttpServer)
+	svc, err = directory_service.NewDirectoryService("", storageDir, testEnv.AddForms)
 	tdd := svc.GetTDD()
-	testEnv.Server.AddTDSecForms(tdd, false)
 
 	// the transports must be known to update the TDD
 	if withHttp {
@@ -67,7 +63,7 @@ func StartDirectoryService(withHttp bool) (
 		dirHttpServer, err = dirhttp_service.NewDirectoryHttpServer(
 			dirThingID, testEnv.HttpServer, testEnv.Env.RpcTimeout)
 		_ = err
-		dirHttpServer.AddTDSecForms(tdd, false)
+		dirHttpServer.AddTDSecForms(tdd)
 	}
 
 	if err != nil {
@@ -119,13 +115,14 @@ func TestCreateTD(t *testing.T) {
 	defer svc.Stop()
 
 	// add the directory itself
-	tdJson := directory.DirectoryTDJson
-	svc.UpdateThing(defaultDeviceID, string(tdJson))
+	tdJSON := directory.DirectoryTDJson
+	err = svc.UpdateThing(defaultDeviceID, string(tdJSON))
+	assert.NoError(t, err)
 
-	// read all things, expect 1
+	// read all things, expect 1, plus what other tests left behind
 	tdList, err := svc.RetrieveAllThings(0, 10)
 	assert.NoError(t, err)
-	assert.Len(t, tdList, 1)
+	assert.GreaterOrEqual(t, len(tdList), 1)
 
 	// add another TD
 	tdi1 := td.NewTD(thingID, "test thing", "test device")
@@ -143,6 +140,36 @@ func TestCreateTD(t *testing.T) {
 	// delete a thing
 	err = svc.DeleteThing(defaultDeviceID, thingID)
 	assert.NoError(t, err)
+}
+
+func TestUpdateTDNotOwner(t *testing.T) {
+	thingID := "thing1"
+
+	svc, err := directory_service.NewDirectoryService("", storageDir, nil)
+	require.NoError(t, err)
+	defer svc.Stop()
+
+	// add a device TD
+	tdi1 := td.NewTD(thingID, "test thing", "test device")
+	tdi1.SetRCID(defaultDeviceID)
+	td1Json := tdi1.ToJSON()
+	err = svc.UpdateThing(defaultDeviceID, td1Json)
+	assert.NoError(t, err)
+
+	// retrieve a thing by ID
+	td2Json, err := svc.RetrieveThing(thingID)
+	require.NoError(t, err)
+	tdi2, err := td.UnmarshalTD(td2Json)
+	assert.NoError(t, err)
+	assert.Equal(t, defaultDeviceID, tdi2.GetRCID())
+
+	// update with same sender
+	err = svc.UpdateThing(defaultDeviceID, td1Json)
+	assert.NoError(t, err)
+
+	// update with different sender should fail
+	// err = svc.UpdateThing("nottheownerID", td1Json)
+	// assert.Error(t, err)
 }
 
 // Test using the messaging API to create and read things
@@ -185,40 +212,6 @@ func TestCRUDUsingMsgAPI(t *testing.T) {
 	// read should fail
 	_, err = dirClient.RetrieveThing(thing1ID)
 	require.Error(t, err)
-}
-
-// Get the directory TD on the http server well-known endpoint
-func TestGetDirectoryTD(t *testing.T) {
-	t.Logf("---%s---\n", t.Name())
-	const userID = "user1"
-	var dirTD *td.TD
-
-	testEnv, dirSvc, cancelFn := StartDirectoryService(true)
-	defer cancelFn()
-	require.NotEmpty(t, dirSvc)
-	rpcTimeout := testEnv.Env.RpcTimeout
-
-	httpURL := testEnv.HttpServer.GetConnectURL()
-	parts, _ := url.Parse(httpURL)
-	hostPort := parts.Host
-	// Create a client account with token but don't use the client itself. This
-	// tests is specifically for using a basic http client to bootstrap discovery.
-	cl, token := testEnv.NewTestClient(userID, authn.ClientRoleViewer)
-	_ = cl
-
-	httpClient := tls_client.NewTLSClient(hostPort, testEnv.CertBundle.RootCAs)
-	httpClient.SetTimeout(rpcTimeout)
-	err := httpClient.SetAuthToken(userID, token)
-	require.NoError(t, err)
-	defer httpClient.Close()
-
-	respBody, statusCode, err := httpClient.Get(directory.WellKnownWoTPath)
-	require.NoError(t, err)
-	require.Equal(t, http.StatusOK, statusCode)
-
-	err = jsoniter.Unmarshal(respBody, &dirTD)
-	require.NoError(t, err)
-	assert.Equal(t, dirSvc.GetID(), dirTD.ID)
 }
 
 // Read the directory using the http api

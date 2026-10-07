@@ -14,7 +14,7 @@ import (
 //  4. Set affordance level forms for property, event and actions if includeAffordance is true
 //
 // Since content-Type is the default 'application/json' it is omitted as per spec.
-func (srv *GrpcServerImpl) AddTDSecForms(tdoc *td.TD, includeAffordances bool) {
+func (srv *GrpcServerImpl) AddTDSecForms(tdoc *td.TD) {
 	// 1. Add the base connection endpoint
 	// TODO: if this Thing supports multiple protocols it might conflict with
 	// the base. In that case base cannot be used and all hrefs must be absolute?
@@ -43,7 +43,7 @@ func (srv *GrpcServerImpl) AddTDSecForms(tdoc *td.TD, includeAffordances bool) {
 
 	// 4. Add forms to all affordances to be compliant with the specifications.
 	// This does uses the same href to prevent conflict with multiple protocols
-	if includeAffordances {
+	if srv.includeAffordances {
 
 		for _, aff := range tdoc.Actions {
 			form := aff.AddForm("", href, "", nil)

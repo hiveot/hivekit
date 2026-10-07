@@ -23,6 +23,7 @@ import (
 // https://w3c.github.io/wot-discovery/#exploration-directory-api
 type DirectoryHttpServerImpl struct {
 	*cells.HiveCellBase
+
 	httpServer       api.IHttpServer
 	directoryThingID string
 	// the TD describing this server
@@ -31,10 +32,12 @@ type DirectoryHttpServerImpl struct {
 
 // AddTDSecForms updates the given Thing Description with security and forms for
 // this http endpoint.
+// Since this endpoint is for using the TDD, not accessing other TDs, only the dirTDD will have
+// its tdoc updated.
 //
 //	tdoc the TD to update
 //	includeAffordances is ignored
-func (srv *DirectoryHttpServerImpl) AddTDSecForms(tdoc *td.TD, includeAffordances bool) {
+func (srv *DirectoryHttpServerImpl) AddTDSecForms(tdoc *td.TD) {
 	base := srv.GetConnectURL()
 
 	// 1. Add the base connection endpoint
@@ -42,7 +45,9 @@ func (srv *DirectoryHttpServerImpl) AddTDSecForms(tdoc *td.TD, includeAffordance
 	// the base. In that case base cannot be used and all hrefs must be absolute?
 	// tdoc.Base = base
 
-	// FIXME: this only needs to add forms to the directory TD, not any others.
+	if tdoc.ID != srv.directoryThingID {
+		return
+	}
 
 	// 2. Set the security scheme used by the authenticator.
 	authenticator := srv.httpServer.GetAuthenticator()

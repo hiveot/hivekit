@@ -26,8 +26,6 @@ import (
 	rcrouter_service "github.com/hiveot/hivekit/go/cells/rcrouter/service"
 	"github.com/hiveot/hivekit/go/cells/router"
 	router_service "github.com/hiveot/hivekit/go/cells/router/service"
-	"github.com/hiveot/hivekit/go/cells/transport/addforms"
-	addforms_service "github.com/hiveot/hivekit/go/cells/transport/addforms/service"
 	grpc "github.com/hiveot/hivekit/go/cells/transport/grpc"
 	grpc_server "github.com/hiveot/hivekit/go/cells/transport/grpc/server"
 	"github.com/hiveot/hivekit/go/cells/transport/httpbasic"
@@ -122,10 +120,6 @@ var GatewayRecipeCells = []api.CellDefinition{
 
 	//-- updateTD requests might not have a directory thingID when send by local services and RC devices
 
-	{ // add forms to create/updateTD requests to TD's that are missing forms, eg local services and RC devices.
-		Type:        addforms.AddFormsCellType,
-		Constructor: addforms_service.NewAddFormsServiceFactory,
-	},
 	{ // Directory service, this also handles updateTD request without directory thingID
 		Type:        directory.DirectoryServiceCellType,
 		Constructor: directory_service.NewDirectoryServiceFactory,
@@ -228,7 +222,7 @@ func (r *GatewayRecipe) Start() {
 
 	// TODO: add gateway as device with props and events
 	tdoc := td.NewTD(r.GetID(), "HiveOT Gateway", vocab.DeviceNetGateway)
-	r.f.AddTDSecForms(tdoc, false)
+	r.f.AddTDSecForms(tdoc)
 
 	discoSrv := api.GetFactoryCell[discovery.IDiscoveryServer](
 		r.f, discovery.DiscoveryServerCellType)

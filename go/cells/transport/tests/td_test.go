@@ -98,7 +98,7 @@ func TestAddForms(t *testing.T) {
 	tdi.ID = thingID
 
 	// 3. add forms
-	testEnv.Server.AddTDSecForms(tdi, true)
+	testEnv.Server.AddTDSecForms(tdi)
 
 	// 4. Check that at least 1 form are present
 	assert.GreaterOrEqual(t, len(tdi.Forms), 1)

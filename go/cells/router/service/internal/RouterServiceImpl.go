@@ -343,8 +343,16 @@ func (svc *RouterServiceImpl) RouteRequest(req *msg.RequestMessage, replyTo msg.
 			err = fmt.Errorf(
 				"RouteRequest: TD not found for thing '%s' and forwarding request failed: %w",
 				req.ThingID, err)
-			slog.Warn("RouteRequest", "err", err.Error())
+			slog.Warn(err.Error())
 		}
+		return err
+	}
+
+	// 2. this is a RC device. Can't connect to it. Should not have come here.
+	rcid := tdoc.GetRCID()
+	if rcid != "" {
+		err := fmt.Errorf("RouteRequest: invalid attempt to connect to a RC device '%s'. Should not have come here.", rcid)
+		slog.Error(err.Error())
 		return err
 	}
 
@@ -352,7 +360,8 @@ func (svc *RouterServiceImpl) RouteRequest(req *msg.RequestMessage, replyTo msg.
 	connectURL, connectForm, err := svc.GetConnectURL(tdoc, req.Operation, req.Name)
 	if connectURL != "" {
 		// FIXME: if the connect URL is that of the gateway that runs this router then this will
-		// cause a nested loop call, resulting in a crash.
+		// cause a nested loop call, resulting in a failed request since RnR for request already
+		// exists.
 
 		c, err2 := svc.GetClientConnection(tdoc, connectURL, connectForm)
 		if c == nil {

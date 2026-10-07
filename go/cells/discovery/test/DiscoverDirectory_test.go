@@ -68,6 +68,7 @@ func TestDiscoverGetDirectoryTD(t *testing.T) {
 	testEnv := testenv.NewTestEnv(true)
 	testHttpServer, httpServerURL := testEnv.StartHttpServer(true)
 	_ = httpServerURL
+	_ = testHttpServer
 	defer testEnv.Stop()
 
 	// the transport server for reading the directory
@@ -76,17 +77,28 @@ func TestDiscoverGetDirectoryTD(t *testing.T) {
 	defer tpServer.Stop()
 
 	// run a directory that will be discoverable
-	dirSvc, err := directory_service.NewDirectoryService("", "", testHttpServer)
+	dirSvc, err := directory_service.NewDirectoryService("", "", testEnv.AddForms)
 	dirTD := dirSvc.GetTDD()
-	tpServer.AddTDSecForms(dirTD, false)
 
 	// run the discover server and expose the directory TDD
 	discoSvc, err := discovery_server.NewDiscoveryServer(
 		testEnv.HttpServer, nil, nil)
 	require.NoError(t, err)
 	defer discoSvc.Stop()
+	// testDirServiceName is appended to the well-known path
 	tddURL, err := discoSvc.ServeDirectoryTD(testDirServiceName, dirTD)
 	require.NoError(t, err)
+
+	// download the TDD from the well known endpoint
+	// httpClient := tls_client.NewTLSClient(httpServerURL, testEnv.CertBundle.RootCAs)
+	// httpClient.SetTimeout(testEnv.Env.RpcTimeout)
+	// defer httpClient.Close()
+	// respBody, statusCode, err := httpClient.Get(discovery.WellKnownHttpPath)
+	// require.NoError(t, err)
+	// require.Equal(t, http.StatusOK, statusCode)
+	// err = jsoniter.Unmarshal(respBody, &dirTD)
+	// require.NoError(t, err)
+	// assert.Equal(t, dirSvc.GetID(), dirTD.ID)
 
 	// discover and read the directory on start. This sets env.DirectoryURL
 	appEnv := api.NewHiveEnvironment("", false)
@@ -99,8 +111,8 @@ func TestDiscoverGetDirectoryTD(t *testing.T) {
 	dirTD2 := cl.DiscoverFirstTD(
 		testDirServiceName, discovery.DISCO_TYPE_DIRECTORY, time.Second)
 	require.NoError(t, err)
+	require.NotNil(t, dirTD2, "Client failed to discover the directory on start")
 	assert.Equal(t, tddURL, appEnv.ServerTDURL)
-	assert.NotNil(t, dirTD2, "Client failed to discover the directory on start")
 	assert.Equal(t, dirSvc.GetID(), dirTD2.ID)
 }
 

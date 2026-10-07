@@ -86,7 +86,7 @@ type ITransportServer interface {
 	// AddTDSecForms updates the given Thing Description with security and forms for this
 	// transport cell.
 	// The security scheme in the TD is set by the authenticator used by the server.
-	AddTDSecForms(tdoc *td.TD, includeAffordances bool)
+	AddTDSecForms(tdoc *td.TD)
 
 	// CloseAll closes all client connections. Mainly intended for testing.
 	CloseAll()

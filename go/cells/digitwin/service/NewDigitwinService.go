@@ -21,7 +21,7 @@ import (
 //	dirService is the directory service to hook into to intercept writes, or "" for in-memory testing
 //	addForms is the handler to invoke to add forms to a TD
 func NewDigitwinService(storageDir string, dirSvc directory.IDirectoryService,
-	addForms func(tdi *td.TD, includeAffordances bool)) (digitwin.IDigitwinService, error) {
+	addForms func(tdi *td.TD)) (digitwin.IDigitwinService, error) {
 
 	svc, err := internal.NewDigitwinServiceImpl(storageDir, dirSvc, addForms)
 	return svc, err

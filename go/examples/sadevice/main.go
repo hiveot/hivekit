@@ -48,10 +48,9 @@ func main() {
 	}
 	counterThing, err := testenv.NewTestCounterThing(env.AppID, cfg)
 
-	// link to it from the stand-alone recipe
-	// the stand-alone recipe contains cells for running a server with certs and authn.
+	// Link the stand-alone recipe to the counter device.
+	// The recipe contains cells for running a server with certs and authn.
 	f := factory_service.NewCellFactory(env, nil)
-
 	r, err := sadevice_recipe.NewStandAloneDeviceRecipe(f, counterThing)
 	_ = r
 	if err != nil {

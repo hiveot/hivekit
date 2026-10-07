@@ -7,7 +7,7 @@
     }
   ],
   "@type": "ThingDirectory",
-  "id": "",
+  "id": "ThingDirectory",
   "title": "Directory Service",
   "description": "HiveOT directory service",
   "version": {

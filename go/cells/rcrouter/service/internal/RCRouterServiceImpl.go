@@ -8,7 +8,6 @@ import (
 	"github.com/hiveot/hivekit/go/api/msg"
 	"github.com/hiveot/hivekit/go/api/td"
 	"github.com/hiveot/hivekit/go/cells"
-	"github.com/hiveot/hivekit/go/cells/authn"
 	"github.com/hiveot/hivekit/go/cells/rcrouter"
 )
 
@@ -30,18 +29,15 @@ type RCRouterServiceImpl struct {
 }
 
 // Return the reverse-client connection to a device, if it exists.
-// This returns nil if the clientID does not have an existing connection or doesnt have a device role.
+// This returns nil if the clientID does not have an existing connection or doesnt have a
+// device role.
 func (svc *RCRouterServiceImpl) GetRCConnection(clientID string) (c api.IConnection) {
 
 	if clientID == "" || svc.getSrv == nil || svc.getRole == nil {
 		return nil
 	}
 
-	role := svc.getRole(clientID)
-	if role != authn.ClientRoleDevice {
-		return nil
-	}
-
+	// if this client has a connection then send it the request
 	serverList := svc.getSrv()
 	for _, tp := range serverList {
 		c := tp.GetConnectionByClientID(clientID)
@@ -72,11 +68,13 @@ func (svc *RCRouterServiceImpl) RouteRequest(req *msg.RequestMessage, replyTo ms
 
 	tdoc := svc.getTD(req.ThingID)
 
-	//  look for a reverse connection using the TD senderID.
+	//  look for a reverse connection using the TD RCID.
 	//
 	if tdoc != nil {
-		rcClientID := tdoc.GetSenderID()
+		rcClientID := tdoc.GetRCID()
+
 		if rcClientID != "" {
+
 			c := svc.GetRCConnection(rcClientID)
 			if c == nil {
 				err = fmt.Errorf("RouteRequest: device '%s' isnt connected", rcClientID)

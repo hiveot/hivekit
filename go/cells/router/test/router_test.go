@@ -76,7 +76,7 @@ func startTestServerDevice(deviceID string) (testDevice *testenv.TestCounterThin
 
 	// Add the connection forms to the device TD
 	tdoc = testDevice.GetTD()
-	transportServer.AddTDSecForms(tdoc, false)
+	transportServer.AddTDSecForms(tdoc)
 
 	// tdoc describes how the router can connect to the testDevice
 	return testDevice, tdoc, testEnv, func() {
@@ -85,8 +85,8 @@ func startTestServerDevice(deviceID string) (testDevice *testenv.TestCounterThin
 	}
 }
 
-// Setup a consumer that uses the router and directory to connect to devices
-// The router has a credentials store for authentication
+// Setup a consumer that uses the router and directory to connect to devices.
+// The router has a credentials store for authentication.
 func SetupConsumerWithRouter(
 	rootCAs *x509.CertPool) (
 	co *consumer.Consumer,
@@ -173,7 +173,7 @@ func TestCredentialsStore(t *testing.T) {
 	_ = testEnv.StartTestServer(testProtocol)
 	defer testEnv.Stop()
 
-	testDirSvc, err := directory_service.NewDirectoryService("", "", nil)
+	testDirSvc, err := directory_service.NewDirectoryService("", "", testEnv.AddForms)
 	require.NoError(t, err)
 
 	// these tests now require a proper TD with forms as credentials are stored

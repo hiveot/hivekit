@@ -55,7 +55,7 @@ type ICellFactory interface {
 	// Intended for devices to add forms before exporting a TD.
 	// This passes the request to all server instances that have been created using
 	// this factory.
-	AddTDSecForms(tdoc *td.TD, includeAffordances bool)
+	AddTDSecForms(tdoc *td.TD)
 
 	// Provide the means to authenticate incoming connections.
 	// Intended for transport server cells.

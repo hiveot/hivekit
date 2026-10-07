@@ -8,8 +8,6 @@ import (
 	certs_service "github.com/hiveot/hivekit/go/cells/certs/service"
 	"github.com/hiveot/hivekit/go/cells/discovery"
 	discovery_server "github.com/hiveot/hivekit/go/cells/discovery/server"
-	"github.com/hiveot/hivekit/go/cells/transport/addforms"
-	addforms_service "github.com/hiveot/hivekit/go/cells/transport/addforms/service"
 	tls_server "github.com/hiveot/hivekit/go/cells/transport/tlsserver/server"
 	"github.com/hiveot/hivekit/go/cells/transport/wss"
 	wss_server "github.com/hiveot/hivekit/go/cells/transport/wss/server"
@@ -28,11 +26,6 @@ var StandAloneDeviceChain = []api.CellDefinition{
 
 	// A: handle outgoing request to write device TD
 	// alt: use slot for the device Thing and put this behind it.
-	{
-		// add forms to update the published TD with appropriate forms
-		Type:        addforms.AddFormsCellType,
-		Constructor: addforms_service.NewAddFormsServiceFactory,
-	},
 	{
 		// discovery server for publishing the device TD
 		// this takes the place of a directory
@@ -74,20 +67,11 @@ var StandAloneDeviceChain = []api.CellDefinition{
 // The ExposedThing cell contains the logic for publishing events, updating properties,
 // and handling read requests for properties. Use of ExposedThing is optional.
 //
-// To publish a device TD send a createThing request to the head of the recipe,
+// To publish a device TD send an updateThing request to the head of the recipe,
 // which forwards it to the discovery server. If an Exposed Thing is provided, its
 // request sink is linked back to the chain so its PublishTD method will do this for you.
 //
 // Invoke Start on the recipe to run the device.
-//
-// 1. load CA and server certificate
-// 2. Intercept updateTD and add forms to the published TD/TM
-// 3. Run a service discovery server to publish the TD using the discovery specification.
-//
-// Service message handling
-// 4. Run a http server to publish the device TD
-// 5. Run the authentication server for authenticate requests and manage clients
-// 6. Run a websocket server for receiving requests
 //
 //	f is the cell factory to use to use.
 //	eThing is the optional Exposed Thing of the application. Forwarding will be disbled.
@@ -98,13 +82,14 @@ var StandAloneDeviceChain = []api.CellDefinition{
 func NewStandAloneDeviceRecipe(f api.ICellFactory, eThing api.IHiveCell) (api.IHiveCell, error) {
 	chain := StandAloneDeviceChain
 
+	// this adds eThing at the end of the chain
 	r, err := factory_service.NewChainFormation(f, chain, eThing)
 
 	// Send requests from the exposed-thing  back to the chain server, to support
-	// publishing a TD to the discovery server. This disables request forwarding
-	// on the eThing as unhandled requests would otherwise loop back to the chain.
+	// publishing a TD to the discovery server.
 	if eThing != nil {
-		eThing.SetForwarding(true, false)
+		eThing.SetForwarding(true, true)
+		// requests from the eThing are passed back to the beginning of the formation.
 		eThing.SetRequestSink(r)
 	}
 

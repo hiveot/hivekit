@@ -3,6 +3,7 @@ package td_test
 import (
 	"testing"
 
+	"github.com/cstockton/go-conv"
 	"github.com/hiveot/hivekit/go/api/td"
 	jsoniter "github.com/json-iterator/go"
 
@@ -50,7 +51,9 @@ func TestObjectSchema(t *testing.T) {
 	err = jsoniter.Unmarshal(enc1, &as)
 	assert.NoError(t, err)
 
-	assert.Equal(t, 10, int(as.Properties["intProp"].Minimum))
+	minVal := as.Properties["intProp"].Minimum
+	minInt, err := conv.Int(minVal)
+	assert.Equal(t, 10, minInt)
 
 	atType2 := as.GetAtTypeString()
 	assert.Equal(t, atType, atType2)

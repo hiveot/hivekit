@@ -94,8 +94,7 @@ func NewAuthnServiceImpl(tokensDir string, storageDir string, createAdmin bool) 
 		return nil, err
 	}
 	// the authn service wraps the nested services and acts as their proxy
-	// FIXME: The ThingID of this cell is dynamic. Can't use this in a star formation...
-	// option 1: use admin svc or user svc as ID
+	// Note: Since this cell has no fixed thingID it cant be used in a star formation.
 	authnSvc := &AuthnServiceImpl{
 		ExposedThing: thing.NewExposedThing("", nil),
 		authnStore:   authnStore,

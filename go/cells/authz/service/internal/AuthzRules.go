@@ -7,8 +7,9 @@ import (
 )
 
 // ValidateAuthorization verifies that the sender is authorized for the request.
-// Currently this is a hard coded RBAC based on the client role. Services must
-// handle exceptions to permissions for their own devices/services if needed.
+// Currently this is a simple hard coded RBAC based on the client role.
+// Services must handle exceptions to permissions for their own devices/services
+// if needed.
 //
 // This currently hard-codes a basic set of rules:
 // 1. viewers can read properties and subscribe to events
@@ -26,7 +27,6 @@ func (svc *AuthzServiceImpl) HasPermission(req *msg.RequestMessage) (hasPermissi
 		return false // unknown sender
 	}
 
-	// TODO: can the messagefilter be used for configurable rules?
 	switch req.Operation {
 
 	// 1. everyone can read properties and subscribe to events
@@ -42,8 +42,6 @@ func (svc *AuthzServiceImpl) HasPermission(req *msg.RequestMessage) (hasPermissi
 			return true
 		}
 		// devices can update their TD;
-		// TODO: each service needs to set permissions for roles.
-		// FIXME: devices can't send other requests
 		if role == authn.ClientRoleDevice {
 			return true
 		}

@@ -94,9 +94,9 @@ type TD struct {
 	// All properties-based interaction affordances of the things
 	Properties map[string]*PropertyAffordance `json:"properties"`
 
-	// SenderID is a hiveot extension containing the ID of the client that
-	// wrote the TD. Intended for supporting reverse connections on a gateway.
-	SenderID string `json:"hiveot:senderid,omitempty"`
+	// RCID is a hiveot extension containing the ID of the client that wrote the TD.
+	// Intended for supporting reverse connections on a gateway.
+	RCID string `json:"hiveot:rcid,omitempty"`
 
 	// Data schema definitions used in this TD.
 	SchemaDefinitions map[string]DataSchema `json:"schemaDefinitions,omitempty"`
@@ -528,14 +528,14 @@ func (tdoc *TD) GetSecurityScheme() (scheme SecurityScheme, hasMultiple bool, er
 	return scheme, false, fmt.Errorf("unsupported security scheme in this TD")
 }
 
-// GetSenderID returns the clientID of the publisher of the TD.
+// GetRCID returns the clientID of the device that manages the Thing.
 //
-// The senderID is a HiveOT extension to the WoT TD and only used on a gateway.
+// The reverse-connection ID is a HiveOT extension to the WoT TD and only used on a gateway.
 //
-// It is intended for use by a gateway to identify the client that will handle
-// TD requests if no forms are present.
-func (tdoc *TD) GetSenderID() string {
-	return tdoc.SenderID
+// It is intended for use by a gateway to identify the reverse-connected client that will handle
+// requests for this thing.
+func (tdoc *TD) GetRCID() string {
+	return tdoc.RCID
 }
 
 // GetTypes returns the Thing @type fields of this TD.
@@ -606,9 +606,10 @@ func (tdoc *TD) SetForms(formList []Form) {
 	tdoc.Forms = formList
 }
 
-// Set the clientID of the sender that published this TD to the directory.
-func (tdoc *TD) SetSenderID(id string) {
-	tdoc.SenderID = id
+// Set the clientID of the RC device that published this TD to the directory.
+// Intended for use in gateways to facilitate routing of requests to reverse-connected devices.
+func (tdoc *TD) SetRCID(id string) {
+	tdoc.RCID = id
 }
 
 // SetType adds the given type to the @type field.

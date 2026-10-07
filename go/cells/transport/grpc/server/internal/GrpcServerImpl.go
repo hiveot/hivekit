@@ -28,6 +28,10 @@ import (
 // The embedded TransportServerBase is used for managing connections and emitting messages to sinks.
 type GrpcServerImpl struct {
 	*transport.TransportServerBase
+
+	// flag, include affordances when adding forms
+	includeAffordances bool
+
 	// Authenticate
 	authenticator api.IAuthenticator
 
@@ -120,7 +124,7 @@ func (srv *GrpcServerImpl) startServing() (err error) {
 	// create a TD describing this server along with its connection URL
 	thingID := srv.GetID()
 	srv.serverTD = td.NewTD(thingID, "gRPC server", vocab.DeviceTypeService)
-	srv.AddTDSecForms(srv.serverTD, false)
+	srv.AddTDSecForms(srv.serverTD)
 	return err
 }
 

@@ -69,7 +69,7 @@ func (svc *DigitwinServiceImpl) HandleWriteDirectory(senderID string, tdi *td.TD
 
 	// 6. populate the TD with forms and security definitions of the available transports
 	if svc.addForms != nil {
-		svc.addForms(dtwTD, svc.includeAffordanceForms)
+		svc.addForms(dtwTD)
 	}
 
 	return dtwTD, nil

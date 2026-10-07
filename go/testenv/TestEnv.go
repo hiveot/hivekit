@@ -102,6 +102,14 @@ type TestEnv struct {
 	TestAuthn *TestAuthenticator
 }
 
+// Update the TD base with top level forms and security info
+func (testEnv *TestEnv) AddForms(tdoc *td.TD) {
+	tpServers := testEnv.GetTpServers()
+	for _, srv := range tpServers {
+		srv.AddTDSecForms(tdoc)
+	}
+}
+
 // CreateTestTD returns a test TD with ID "thing-{i}", and a variable
 // number of properties, events and actions.
 // Use withForms to include forms to connect to the testenv server, if set.
@@ -123,7 +131,7 @@ func (testEnv *TestEnv) CreateTestTD(i int, withForms bool) (tdi *td.TD) {
 	tdi = td.NewTD(ttd.ID, ttd.Title, ttd.DeviceType)
 	// add forms
 	if withForms && testEnv.Server != nil {
-		testEnv.Server.AddTDSecForms(tdi, false)
+		testEnv.Server.AddTDSecForms(tdi)
 	}
 
 	// add random properties

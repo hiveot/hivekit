@@ -34,7 +34,7 @@ var affordanceOperations = []string{
 //     Where {op} and {id} are replaced with the operation, thingID and affordance name
 //
 // Since content-Type is the default 'application/json' it is omitted as per spec.
-func (srv *HttpBasicServerImpl) AddTDSecForms(tdoc *td.TD, includeAffordances bool) {
+func (srv *HttpBasicServerImpl) AddTDSecForms(tdoc *td.TD) {
 
 	base := srv.GetConnectURL()
 	vars := map[string]string{
@@ -65,7 +65,7 @@ func (srv *HttpBasicServerImpl) AddTDSecForms(tdoc *td.TD, includeAffordances bo
 	}
 
 	// 4. add forms for each affordance
-	if includeAffordances {
+	if srv.includeAffordances {
 		affHref := httpbasictransport.HttpBasicAffordanceOperationPath
 		for name, aff := range tdoc.Actions {
 			vars[td.UriVarName] = name

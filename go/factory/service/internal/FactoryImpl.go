@@ -44,13 +44,13 @@ type FactoryImpl struct {
 
 // Add forms to the TD for all running transport servers
 // This invokes all singletonCells that implement the ITransportServer interface
-func (f *FactoryImpl) AddTDSecForms(tdoc *td.TD, includeAffordances bool) {
+func (f *FactoryImpl) AddTDSecForms(tdoc *td.TD) {
 	f.mux.RLock()
 	tpList := make([]api.ITransportServer, len(f.transportCells))
 	copy(tpList, f.transportCells)
 	f.mux.RUnlock()
 	for _, tp := range tpList {
-		tp.AddTDSecForms(tdoc, includeAffordances)
+		tp.AddTDSecForms(tdoc)
 	}
 }
 

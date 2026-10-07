@@ -34,7 +34,7 @@ func LoadTD(tdURL string, rootCAs *x509.CertPool) (tdoc *td.TD, tdJSON string, e
 	}
 	scheme := strings.ToLower(parts.Scheme)
 	if scheme == "https" {
-		httpCl := tls_client.NewTLSClient(parts.Host, rootCAs)
+		httpCl := tls_client.NewTLSClient(tdURL, rootCAs)
 		resp, statusCode, err := httpCl.Get(parts.RequestURI())
 		_ = statusCode
 		if err != nil {

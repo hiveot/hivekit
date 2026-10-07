@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
-	"net/url"
 	"sync"
 
 	"github.com/hiveot/hivekit/go/api"
@@ -360,22 +359,18 @@ func (cl *HttpBasicClientImpl) Stop() {
 func NewHttpBasicClientImpl(
 	tdoc *td.TD, rootCAs *x509.CertPool) (*HttpBasicClientImpl, error) {
 
-	// FIXME: TD spec says base is optional and can vary per operation
-	//
-	urlParts, err := url.Parse(tdoc.Base)
-	if err != nil {
+	serverURL := tdoc.Base
+	if serverURL == "" {
 		slog.Error("NewHttpBasicClientImpl: Invalid Base in TD", "ThingID", tdoc.ID, "TD Base", tdoc.Base)
 		return nil, fmt.Errorf("NewHttpBasicClientImpl: invalid URL")
 	}
-	hostPort := urlParts.Host
-
-	tlsClient := tls_client.NewTLSClient(hostPort, rootCAs)
+	tlsClient := tls_client.NewTLSClient(serverURL, rootCAs)
 	if rootCAs == nil {
 		tlsClient.SetSkipCertCheck(true)
 	}
 	cl := NewHttpBasicTLSClientImpl(tdoc, rootCAs, tlsClient)
 
-	return cl, err
+	return cl, nil
 }
 
 // NewHttpBasicTLSClientImpl creates a ready-to-use WoT compatible http-basic

@@ -29,8 +29,6 @@ import (
 	"github.com/hiveot/hivekit/go/cells/router"
 	router_service "github.com/hiveot/hivekit/go/cells/router/service"
 	"github.com/hiveot/hivekit/go/cells/thing"
-	"github.com/hiveot/hivekit/go/cells/transport/addforms"
-	addforms_service "github.com/hiveot/hivekit/go/cells/transport/addforms/service"
 	grpctransport "github.com/hiveot/hivekit/go/cells/transport/grpc"
 	grpc_client "github.com/hiveot/hivekit/go/cells/transport/grpc/client"
 	grpc_server "github.com/hiveot/hivekit/go/cells/transport/grpc/server"
@@ -125,12 +123,6 @@ var HiveKitAllCells = []api.CellDefinition{
 	},
 
 	//--- services ---
-
-	// add forms to createTD or updateTD requests
-	{
-		Type:        addforms.AddFormsCellType,
-		Constructor: addforms_service.NewAddFormsServiceFactory,
-	},
 
 	// thing service helper
 	{

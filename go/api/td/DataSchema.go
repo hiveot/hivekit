@@ -83,21 +83,14 @@ type DataSchema struct {
 	// This Subclass is indicated by the value boolean assigned to type in DataSchema instances.
 	// nothing added
 
-	// NumberSchema with metadata describing data of type number.
+	// NumberSchema/IntegerSchema with metadata describing data of type number.
 	// This Subclass is indicated by the value number assigned to type in DataSchema instances.
 	// Maximum specifies a maximum numeric value representing an upper limit
-	// FIXME: both number and integer schemas have a minimum and maximum field.
-	// Different types of course. How to flatten ?
-	Maximum float64 `json:"maximum,omitempty"`
+	// Note that both the 'number' and 'integer' schemas use different types, so
+	// please use the 'conv' package to decode to the desired type.
+	Maximum any `json:"maximum,omitempty"`
 	// Minimum specifies a minimum numeric value representing a lower limit
-	Minimum float64 `json:"minimum,omitempty"`
-
-	// IntegerSchema with metadata describing data of type integer.
-	// This Subclass is indicated by the value integer assigned to type in DataSchema instances.
-	// Maximum specifies a maximum integer value representing an upper limit
-	//IntegerMaximum int `json:"maximum,omitempty"`
-	// Minimum specifies a minimum integer value representing a lower limit
-	//IntegerMinimum int `json:"minimum,omitempty"`
+	Minimum any `json:"minimum,omitempty"`
 
 	// ObjectSchema with metadata describing data of type Object.
 	// This Subclass is indicated by the value object assigned to type in DataSchema instances.

@@ -41,7 +41,7 @@ func startService() (testEnv *testenv.TestEnv, stopFn func()) {
 	slog.Info("startTestServerDevice", "serverType", testProtocol)
 	transportServer := testEnv.StartTestServer(testProtocol)
 
-	testDirSvc, _ := directory_service.NewDirectoryService("", "", nil)
+	testDirSvc, _ := directory_service.NewDirectoryService("", "", testEnv.AddForms)
 	testDirSvc.SetTimeout(testEnv.Env.RpcTimeout)
 
 	rcrouter, _ := rcrouter_service.NewRCRouterService(testDirSvc.GetTD,

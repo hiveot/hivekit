@@ -43,7 +43,8 @@ func (bucket *PebbleBucket) Close() (err error) {
 //	return err
 //}
 
-// Cursor provides an iterator for the bucket using a pebble iterator with prefix bounds
+// Cursor provides an iterator for the bucket using a pebble iterator
+// with prefix bounds. Use Release to close.
 //
 //	optional name for use by application
 func (bucket *PebbleBucket) Cursor() (bucketstore.IBucketCursor, error) {
@@ -123,30 +124,23 @@ func (bucket *PebbleBucket) ID() string {
 	return bucket.bucketID
 }
 
-// Info returns bucket information
-// FIXME: Unable to determine the number of records in a bucket (or even in the DB)
+// Info returns bucket information.
 func (bucket *PebbleBucket) Info() bucketstore.BucketStoreInfo {
-
-	//metrics := bucket.db.Metrics()
-	// bucket key range
-	//size, _ := bucket.db.EstimateDiskUsage([]byte(bucket.rangeStart), []byte(bucket.rangeEnd))
-	//size = uint64(0)
-	//sstables, err := bucket.db.SSTables()
-	//if err == nil {
-	//	for _, tblList := range sstables {
-	//		for _, tbl := range tblList {
-	//			size += tbl.Size
-	//		}
-	//	}
-	//}
-
+	nrRecords := int64(0)
+	cursor, err := bucket.Cursor()
+	if err == nil {
+		defer cursor.Release()
+		for _, _, valid := cursor.First(); valid; _, _, valid = cursor.Next() {
+			nrRecords++
+		}
+	}
+	version := bucket.db.FormatMajorVersion().String()
 	info := bucketstore.BucketStoreInfo{
-		Id:     bucket.bucketID,
-		Engine: bucketstore.BackendPebble,
-		// TODO: get bucket metrics
-		DataSize:  -1, //int64(metrics.WAL.Size),
-		NrRecords: -1,
-		//Size: size,
+		Id:        bucket.bucketID,
+		Engine:    bucketstore.BackendPebble,
+		DataSize:  -1,
+		NrRecords: nrRecords,
+		Version:   version,
 	}
 
 	return info

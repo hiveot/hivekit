@@ -29,6 +29,9 @@ const (
 type HttpBasicServerImpl struct {
 	*transport.TransportServerBase
 
+	// flag, include affordances when adding forms
+	includeAffordances bool
+
 	// actual httpServer exposing routes
 	httpServer api.IHttpServer
 
@@ -95,10 +98,12 @@ func NewHttpBasicServerImpl(httpServer api.IHttpServer) (*HttpBasicServerImpl, e
 	srv := &HttpBasicServerImpl{
 		TransportServerBase: transport.NewTransportServerBase(thingID, connectURL, authenticator),
 		httpServer:          httpServer,
+		// http-basic specification requires forms per affordance
+		includeAffordances: true,
 	}
 	// create a TD describing this server along with its connection URL
 	srv.serverTD = td.NewTD(thingID, "HTTP-Basic server", vocab.DeviceTypeService)
-	srv.AddTDSecForms(srv.serverTD, false)
+	srv.AddTDSecForms(srv.serverTD)
 
 	err := srv.createRoutes()
 

@@ -29,9 +29,9 @@ var testBucketID = "default"
 var storageLocation = path.Join(os.TempDir(), "hivekit", "bucketstore-test")
 
 // pick the backend to run the tests on: kvbtre vs pebble
-var testBackendType = bucketstore.BackendPebble
+// var testBackendType = bucketstore.BackendPebble
 
-// var testBackendType = bucketstore.BackendKVBTree
+var testBackendType = bucketstore.BackendKVBTree
 
 const (
 	doc1ID                    = "doc1"
@@ -320,6 +320,12 @@ func TestWriteRead(t *testing.T) {
 	if assert.NotNil(t, resp) {
 		assert.Equal(t, td5json, resp)
 	}
+
+	bucketInfo := bucket.Info()
+	assert.NotEmpty(t, bucketInfo.DataSize)
+	storeInfo := store.Info()
+	assert.NotEmpty(t, storeInfo.DataSize)
+
 	// Delete
 	err = bucket.Delete(id1)
 	assert.NoError(t, err)
@@ -498,7 +504,7 @@ func TestPrevNextN(t *testing.T) {
 	// test NextN
 	cursor, err := bucket.Cursor()
 	require.NoError(t, err)
-	// FIXME: during testing this sometimes returns a buffer filled with FF's. Can't reproduce.
+	// TBD: 2026-01 during testing this sometimes returns a buffer filled with FF's. Can't reproduce.
 	k1, v1, valid := cursor.First()
 	assert.True(t, valid)
 	assert.NotEmpty(t, v1)

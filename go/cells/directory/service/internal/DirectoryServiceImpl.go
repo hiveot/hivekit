@@ -3,11 +3,9 @@ package internal
 import (
 	"fmt"
 	"log/slog"
-	"net/http"
 	"path/filepath"
 	"sync"
 
-	"github.com/hiveot/hivekit/go/api"
 	"github.com/hiveot/hivekit/go/api/td"
 	"github.com/hiveot/hivekit/go/cells/bucketstore"
 	"github.com/hiveot/hivekit/go/cells/bucketstore/kvbtreestore"
@@ -37,21 +35,22 @@ type DirectoryServiceImpl struct {
 	tdBucketName string
 	bucketStore  bucketstore.IBucketStore
 
-	// the http server to expose the TDD on the .well-known/wot path. nil to ignore
-	httpServer api.IHttpServer
-
 	// data storage directory
 	storageLoc string
 
+	// the directory TDD
+	dirTDD *td.TD
+
 	// cache of used TDs and the mutex to access it
-	dirTDDJson string
-	dirTDD     *td.TD
 	tdCache    map[string]*td.TD
 	tdCacheMux sync.RWMutex
 
-	// hook to invoke before deleting a TD into the store
+	// optional hook to add forms for when TDs dont have any.
+	addFormsHook func(*td.TD)
+
+	// optional hook to invoke before deleting a TD into the store
 	deleteTDHook directory.DeleteTDHook
-	// hook to invoke before writing a TD into the store
+	// optional hook to invoke before writing a TD into the store
 	writeTDHook directory.WriteTDHook
 }
 
@@ -157,12 +156,6 @@ func (svc *DirectoryServiceImpl) RetrieveThing(thingID string) (tdJSON string, e
 	return tdJSON, err
 }
 
-// Serve reading the directory TDD over http on the well-known path
-func (svc *DirectoryServiceImpl) serveReadTDD(w http.ResponseWriter, r *http.Request) {
-	_, _ = w.Write([]byte(svc.dirTDDJson))
-	// utils.WriteReply(w, true, m.tddJson, nil)
-}
-
 // SetTDHooks set the callbacks that are invoked before writing and deleting the TD
 // to the directory store.
 func (svc *DirectoryServiceImpl) SetTDHooks(
@@ -193,23 +186,20 @@ func (svc *DirectoryServiceImpl) Stop() {
 // UpdateThing replaces the TD in the store.
 // If the thing doesn't exist in the store it is added.
 //
-// senderID is the clientID updating the TD
-func (svc *DirectoryServiceImpl) UpdateThing(senderID string, tdJson string) error {
-
-	// FIXME: verify that the sender owns the TD.
-	// should the thingID have the sender prefix so it can't be hi-jacked by
-	// others?
-	//
-	if senderID == "" {
-		// a missing senderID means the update was submitted in the same process
-		// any reason this is a problem?
-		//  issue 1: this TD has no forms the services are unreachable.
-		//    if the request is sent to the gateway, the service should intercept.
-		// return fmt.Errorf("UpdateThing: Missing sender")
-	}
+// If the given TD has no forms then it is either a local service (no senderID),
+// or an RC device. In both cases forms need to be added to ensure the device is
+// reachable. If this is the TD of an RC device then set the 'RCID' of the TD to
+// the senderID.
+//
+// This invokes the writeTDHook to support updating the TD before it is added
+// to the directory. Intended for digital twin, validation and filtering use-cases.
+//
+//	senderID is the authenticated clientID updating the TD. "" when local.
+//	tdJSON contains the TD to update in the directory store.
+func (svc *DirectoryServiceImpl) UpdateThing(senderID string, tdJSON string) error {
 
 	// validate the TD
-	tdoc, err := td.UnmarshalTD(tdJson)
+	tdoc, err := td.UnmarshalTD(tdJSON)
 	if err != nil {
 		slog.Error("UpdateThing. Error unmarshalling TD",
 			slog.String("senderID", senderID), "err", err.Error())
@@ -224,8 +214,31 @@ func (svc *DirectoryServiceImpl) UpdateThing(senderID string, tdJson string) err
 	slog.Info("UpdateThing",
 		slog.String("senderID", senderID), slog.String("thingID", tdoc.ID))
 
-	// record who wrote the TD into the directory
-	tdoc.SetSenderID(senderID)
+	// if the document has no forms this is either a local service or an RC device.
+	if tdoc.Base == "" && len(tdoc.Forms) == 0 {
+		if svc.addFormsHook != nil {
+			svc.addFormsHook(tdoc)
+		}
+		// A missing senderID means the update was submitted locally, not via a server.
+		if senderID != "" {
+			// this is an RC connected device that can be reached via its connection
+			tdoc.SetRCID(senderID)
+		}
+	}
+	// TODO: verify ownership of TDs
+	// get the old TD to verify the sender is the same
+	// oldTDJSON, err := svc.tdBucket.Get(tdoc.ID)
+	// if err == nil {
+	// 	oldTD, err2 := td.UnmarshalTD(string(oldTDJSON))
+	// 	if err2 == nil {
+	// 		oldRCID := oldTD.GetRCID()
+	// 		if oldRCID != "" && oldRCID != senderID {
+	// 			err := fmt.Errorf("UpdateThing: Sender '%s' for TD '%s' is not the owner", senderID, tdoc.ID)
+	// 			slog.Warn(err.Error())
+	// 			return err
+	// 		}
+	// 	}
+	// }
 
 	// The hook can modify the TD or cancel the write
 	if svc.writeTDHook != nil {
@@ -237,20 +250,20 @@ func (svc *DirectoryServiceImpl) UpdateThing(senderID string, tdJson string) err
 			return fmt.Errorf("UpdateThing: Internal error, the writeTDHook returns a nil TD")
 		}
 		// replace the TD with the one provided by the hook
-		tdJson = td.MarshalTD(tdi2)
+		tdJSON = td.MarshalTD(tdi2)
 	} else {
 		// the td was updated with the senderID
 		// do not update the 'Modified' time as this update is not made
 		// by the device.
-		tdJson = td.MarshalTD(tdoc)
+		tdJSON = td.MarshalTD(tdoc)
 	}
 
-	err = svc.tdBucket.Set(tdoc.ID, []byte(tdJson))
+	err = svc.tdBucket.Set(tdoc.ID, []byte(tdJSON))
 	// update the cached td instance as well
 	svc.tdCacheMux.Lock()
 	svc.tdCache[tdoc.ID] = tdoc
 	svc.tdCacheMux.Unlock()
-	svc.PubEvent(svc.GetID(), directory.ThingUpdatedEvent, tdJson)
+	svc.PubEvent(svc.GetID(), directory.ThingUpdatedEvent, tdJSON)
 
 	// update the nr records prop
 	bucketInfo := svc.tdBucket.Info()
@@ -279,9 +292,9 @@ func (svc *DirectoryServiceImpl) UpdateThing(senderID string, tdJson string) err
 //
 //	thingID is the instance ID of the directory server or "" for the default {host}:directory
 //	storageDir is the directory where the service stores its data. Use "" for testing with an in-memory store.
-//	httpServer is used to expose the directory TDD on the well-known path.
+//	addForms optional hook to add forms to TDs that dont have any.
 func NewDirectoryServiceImpl(
-	thingID string, storageDir string, httpServer api.IHttpServer,
+	thingID string, storageDir string, addForms func(*td.TD),
 ) (*DirectoryServiceImpl, error) {
 
 	slog.Info("NewDirectoryServiceImpl running the directory service")
@@ -290,20 +303,14 @@ func NewDirectoryServiceImpl(
 		thingID = directory.DirectoryServiceDefaultThingID
 	}
 
-	// create the TD from the json file
+	// create the directory TD from the json file
 	tdoc := string(directory.DirectoryTDJson)
 	dirTDD, _ := td.UnmarshalTD(tdoc)
 	dirTDD.ID = thingID
 	dirTDD.SetType(directory.DirectoryServiceCellType)
-
-	// add the forms for additional endpoints
-	// for _, tp := range transports {
-	// 	if tp == nil {
-	// 		slog.Error("NewDirectoryServiceImpl: Transports has a nil transport")
-	// 	} else {
-	// 		tp.AddTDSecForms(dirTDD, true)
-	// 	}
-	// }
+	if addForms != nil {
+		addForms(dirTDD)
+	}
 
 	// if a storageDir is set use the thingID as filename. Otherwise use the in-memory store
 	storageFile := ""
@@ -317,22 +324,13 @@ func NewDirectoryServiceImpl(
 	tdBucket := bucketStore.GetBucket(thingID)
 
 	svc := &DirectoryServiceImpl{
-		// HiveCellBase: cells.NewHiveCellBase(thingID),
 		ExposedThing: thing.NewExposedThing(thingID, nil),
 		bucketStore:  bucketStore,
-		httpServer:   httpServer,
+		dirTDD:       dirTDD,
+		addFormsHook: addForms,
 		storageLoc:   storageDir,
 		tdBucket:     tdBucket,
-		dirTDD:       dirTDD,
-		dirTDDJson:   td.MarshalTD(dirTDD),
 		tdCache:      make(map[string]*td.TD),
-	}
-
-	// service the directory TDD on the well-known path
-	// FIXME: this should be moved to discovery
-	if httpServer != nil {
-		protRoute := httpServer.GetProtectedRoute()
-		protRoute.Get(directory.WellKnownWoTPath, svc.serveReadTDD)
 	}
 
 	var _ directory.IDirectoryService = svc // interface check

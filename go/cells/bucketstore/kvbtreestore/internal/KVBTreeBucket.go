@@ -208,7 +208,7 @@ func (kvb *KVBTreeBucket) GetMultiple(keys []string) (docs map[string][]byte, er
 //	validDocs := jpExpr.Get(docsToQuery)
 //
 //	// return the json docs instead of the interface.
-//	// FIXME: Unfortunately that means marshalling again as we lost the orderedKeys... :(
+//	// TODO: Unfortunately that means marshalling again as we lost the orderedKeys... :(
 //	cursorMap := make(map[string][]byte, 0)
 //	cursorKeys := make([]string, len(validDocs))
 //	for i, validDoc := range validDocs {
@@ -245,12 +245,12 @@ func (kvb *KVBTreeBucket) incrRefCounter() {
 // Info returns the bucket info
 func (kvb *KVBTreeBucket) Info() bucketstore.BucketStoreInfo {
 	info := bucketstore.BucketStoreInfo{}
-	// are these are full store sizes
 	info.NrRecords = int64(kvb.kvtree.Len())
 	info.DataSize = -1
 	//
 	info.Engine = bucketstore.BackendKVBTree
 	info.Id = kvb.BucketID
+	info.Version = package_version
 	return info
 }
 

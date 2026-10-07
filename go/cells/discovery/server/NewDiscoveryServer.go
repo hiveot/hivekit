@@ -16,14 +16,19 @@ import (
 // The optional instanceName must be unique for all discovery records as it
 // is used in the download URL. Use "" for the default instance.
 //
+// This supports updating TD's with forms to connect, if the TD has no base and no forms.
+//
 //	httpServer is the server that serves the TD on the well-known endpoint.
 //	tdd is the optional directory TD to serve. nil to wait for ServeDirectoryTD()
 //	endpoints are optional additional URLS to include in the DNS-SD discovery record
 //		 where key is the schema "http", "wss", "sse-sc" and value the URL.
+//	addForms is a hook to add missing forms to published TDs
 func NewDiscoveryServer(
-	httpServer api.IHttpServer, tdd *td.TD, endpoints map[string]string) (discovery.IDiscoveryServer, error) {
+	httpServer api.IHttpServer, tdd *td.TD,
+	endpoints map[string]string,
+	addForms func(*td.TD)) (discovery.IDiscoveryServer, error) {
 
-	return internal.NewDiscoveryServerImpl(httpServer, tdd, endpoints)
+	return internal.NewDiscoveryServerImpl(httpServer, tdd, endpoints, addForms)
 }
 
 // Return a ready-to-use discovery server using the factory environment.
@@ -55,9 +60,8 @@ func NewDiscoveryServerFactory(
 	dirSvc, found := f.GetCell(directory.DirectoryServiceCellType).(directory.IDirectoryService)
 	if found {
 		tdd = dirSvc.GetTDD()
-		f.AddTDSecForms(tdd, true)
 	}
-	return NewDiscoveryServer(httpServer, tdd, endpoints)
+	return NewDiscoveryServer(httpServer, tdd, endpoints, f.AddTDSecForms)
 }
 
 // for testing

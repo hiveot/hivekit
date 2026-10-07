@@ -311,7 +311,6 @@ func (cl *TLSClientImpl) Send(
 		urlParts.Scheme = "https"
 		urlParts.Host = cl.hostPort
 		fullURL = urlParts.String()
-		// fullURL = fmt.Sprintf("https://%s%s", cl.hostPort, urlPath)
 	}
 	httpRequest := cl.CreateRequest(ctx, method, fullURL, qParams, body, contentType)
 	// _ = cancelFn
@@ -354,7 +353,7 @@ func (cl *TLSClientImpl) Send(
 func (cl *TLSClientImpl) SetSkipCertCheck(skip bool) {
 	cl.tlsConfig.InsecureSkipVerify = skip
 	if skip {
-		slog.Info("NewTLSClient:  InsecureSkipVerify used",
+		slog.Info("SetSkipCertCheck:  InsecureSkipVerify used",
 			slog.String("destination", cl.hostPort))
 	}
 }
@@ -441,15 +440,24 @@ func (cl *TLSClientImpl) Trace(path string) (statusCode int, err error) {
 // This uses the system cert pool. Use the flag 'skipCertCheck' if the CA is unknown.
 // Use SetAuthToken or SetClientCert before connecting.
 //
-//	hostPort is the server address in host:port format
+//	serverURL is the server address in scheme://host:port format
 //	rootCAs with optional CA certifications. Default is the system pool
 //
 // returns TLS client for submitting requests
-func NewTLSClientImpl(hostPort string, rootCAs *x509.CertPool) *TLSClientImpl {
+func NewTLSClientImpl(serverURL string, rootCAs *x509.CertPool) *TLSClientImpl {
 
 	var clientID string
+	var serverName string // without port
+	var hostPort string
 
-	serverName := strings.Split(hostPort, ":")[0]
+	urlParts, err := url.Parse(serverURL)
+	if err != nil {
+		hostPort = serverURL
+		serverName = strings.Split(serverURL, ":")[0]
+	} else {
+		hostPort = urlParts.Host
+		serverName = urlParts.Hostname()
+	}
 	if rootCAs == nil {
 		rootCAs, _ = x509.SystemCertPool()
 	}

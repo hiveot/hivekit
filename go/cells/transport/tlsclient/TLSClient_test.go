@@ -5,6 +5,7 @@ import (
 	"crypto/x509"
 	"log/slog"
 	"net/http"
+	"net/url"
 	"os"
 	"testing"
 	"time"
@@ -39,8 +40,9 @@ var serverTLSConf *tls.Config
 
 func startTestServer(mux *http.ServeMux) (*http.Server, error) {
 	var err error
+	urlParts, _ := url.Parse(testAddress)
 	httpServer := &http.Server{
-		Addr: testAddress,
+		Addr: urlParts.Host,
 		// ReadTimeout:  5 * time.Minute, // 5 min to allow for delays when testing
 		// WriteTimeout: 10 * time.Second,
 		// Handler:   srv.router,
@@ -61,7 +63,7 @@ func startTestServer(mux *http.ServeMux) (*http.Server, error) {
 func TestMain(m *testing.M) {
 	utils.SetLogging("info", "")
 	slog.Info("------ TestMain of httpauthhandler ------")
-	testAddress = "127.0.0.1:9888"
+	testAddress = "https://127.0.0.1:9888"
 
 	authBundle = certstest.CreateTestCertBundle(TestKeyType)
 

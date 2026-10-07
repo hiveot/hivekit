@@ -75,21 +75,22 @@ func (store *PebbleStore) GetLocation() string {
 	return store.storeDirectory
 }
 
-// Info returns bucket information
+// Info returns bucket information.
+// This iterates over the store to count the records, so use with care.
 func (store *PebbleStore) Info() bucketstore.BucketStoreInfo {
 	// 	// 1. Retrieve the current internal layout/metadata of the DB
-	totalEntries := uint64(0)
-	tables, _ := store.pebbleDB.SSTables()
-	for _, level := range tables {
-		for _, table := range level {
-			if table.Properties != nil {
-				totalEntries += table.Properties.NumEntries
-			}
+	nrRecords := int64(0)
+	iter, err := store.pebbleDB.NewIter(nil)
+	if err == nil {
+		defer iter.Close()
+		for valid := iter.First(); valid; valid = iter.Next() {
+			nrRecords++
 		}
 	}
+
 	metrics := store.pebbleDB.Metrics()
 	store.info.DataSize = int64(metrics.DiskSpaceUsage())
-	store.info.NrRecords = int64(totalEntries)
+	store.info.NrRecords = int64(nrRecords)
 	return store.info
 }
 

@@ -33,10 +33,6 @@ const (
 	DirectoryHttpCellType = "directory-http"
 )
 
-// The http path that provides the TD of the service
-// in case of the directory this provide the directory TD path
-const WellKnownWoTPath = "/.well-known/wot"
-
 // Default limit in retrieving things
 const DefaultLimit = 300
 

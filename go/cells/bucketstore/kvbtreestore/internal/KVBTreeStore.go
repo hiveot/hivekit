@@ -15,6 +15,7 @@ import (
 )
 
 const defaultStoreFileName = "kvbtree.json"
+const package_version = "1.8.1" // there is no api for the version
 
 // KVBTreeStore is a lightweight, embedded, in-memory, ordered, key-value bucket store
 // with optional persistence to disk using JSON serialization.
@@ -134,9 +135,9 @@ func readStoreFile(
 //
 // storePath is the full path to the directory or file or "" when ignored
 // docs contains an object map of the store objects
-func writeStoreFile(storePath string, docs map[string]map[string][]byte) error {
+func writeStoreFile(storePath string, docs map[string]map[string][]byte) (int64, error) {
 	if storePath == "" {
-		return nil
+		return 0, nil
 	}
 	storeDir := filepath.Dir(storePath)
 	storeDirStat, err := os.Stat(storeDir)
@@ -151,7 +152,7 @@ func writeStoreFile(storePath string, docs map[string]map[string][]byte) error {
 	// If something went wrong, we're dead in the water
 	if err != nil {
 		err = fmt.Errorf("unable to create the store at '%s': %w", storePath, err)
-		return err
+		return 0, err
 	}
 
 	// serialize the data to json for writing. Use indent for testing and debugging
@@ -161,8 +162,9 @@ func writeStoreFile(storePath string, docs map[string]map[string][]byte) error {
 		// yeah this is pretty fatal too
 		err = fmt.Errorf("unable to marshal documents while saving store to %s: %w", storePath, err)
 		slog.Error(err.Error())
-		return err
+		return 0, err
 	}
+	dataSize := int64(len(rawData))
 	// First write content to temp file
 	// The temp file is opened with 0600 permissions
 	tmpName := storePath + ".tmp"
@@ -171,7 +173,7 @@ func writeStoreFile(storePath string, docs map[string]map[string][]byte) error {
 		// ouch, wth?
 		err = fmt.Errorf("error while creating tempfile for jsonstore: %w", err)
 		slog.Error(err.Error())
-		return err
+		return dataSize, err
 	}
 
 	// move the temp file to the final store file.
@@ -180,12 +182,12 @@ func writeStoreFile(storePath string, docs map[string]map[string][]byte) error {
 	if err != nil {
 		err = fmt.Errorf("error while moving tempfile to jsonstore '%s': %w", storePath, err)
 		slog.Error(err.Error())
-		return err
+		return 0, err
 	}
-	return nil
+	return dataSize, nil
 }
 
-// autoSaveLoop periodically saves changes to the store
+// autoSaveLoop periodically saves changes to the store and updates the size
 func (store *KVBTreeStore) autoSaveLoop() {
 	slog.Debug("auto-save loop started")
 
@@ -206,7 +208,8 @@ func (store *KVBTreeStore) autoSaveLoop() {
 
 				// the store is a single file
 				// nothing we can do here. error is already logged
-				_ = writeStoreFile(store.storePath, exportedCopy)
+				dataSize, _ := writeStoreFile(store.storePath, exportedCopy)
+				store.info.DataSize = dataSize
 			} else {
 				//store.mutex.Unlock()
 			}
@@ -233,7 +236,7 @@ func (store *KVBTreeStore) Close() error {
 	if atomic.LoadInt32(&store.updateCount) > int32(0) {
 		// note Export does an rlock
 		exportedCopy := store.Export()
-		err = writeStoreFile(store.storePath, exportedCopy)
+		_, err = writeStoreFile(store.storePath, exportedCopy)
 	}
 	store.buckets = nil
 	slog.Debug("store close completed. Background loop ended", "storePath", store.storePath)
@@ -280,7 +283,7 @@ func (store *KVBTreeStore) GetLocation() string {
 	return store.storePath
 }
 
-// Info returns bucket information
+// Info returns store information
 func (store *KVBTreeStore) Info() bucketstore.BucketStoreInfo {
 	totalEntries := int64(0)
 
@@ -360,11 +363,12 @@ func OpenKVBtreeStore(storePath string) (*KVBTreeStore, error) {
 		// write an empty store to make sure the location is writable
 		buckets = make(map[string]*KVBTreeBucket)
 		dummy := make(map[string]map[string][]byte)
-		err = writeStoreFile(storePath, dummy)
+		size, err = writeStoreFile(storePath, dummy)
 		if err != nil {
 			// unable to recover. Hitting a dead end
 			return nil, fmt.Errorf("failed creating store file: '%w'", err)
 		}
+
 	}
 
 	store := &KVBTreeStore{
@@ -377,9 +381,10 @@ func OpenKVBtreeStore(storePath string) (*KVBTreeStore, error) {
 		writeDelay:           writeDelay,
 		//jsonCache:            make(map[string]interface{}),
 		info: bucketstore.BucketStoreInfo{
+			// datasize is available during load and save
 			DataSize: size,
 			Engine:   bucketstore.BackendKVBTree,
-			Version:  "1.8.1", // just the package version
+			Version:  package_version,
 		},
 	}
 	// after loading set the handler for all buckets

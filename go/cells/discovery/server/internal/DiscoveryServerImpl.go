@@ -30,6 +30,9 @@ import (
 type DiscoveryServerImpl struct {
 	*cells.HiveCellBase
 
+	// hook to add forms to the given TD
+	addFormsHook func(tdoc *td.TD)
+
 	// The optional directory TD to serve on start
 	tdd *td.TD
 
@@ -73,7 +76,16 @@ func (srv *DiscoveryServerImpl) HandleRequest(req *msg.RequestMessage, replyTo m
 			// MUST be placed before the discovery service to avoid it intercepting of the
 			// request.
 			tdoc, _ := td.UnmarshalTD(req.ToString(0))
-			tdURL, err := srv.ServeThingTD("", tdoc)
+			// add forms if missing
+			if tdoc.Base == "" && len(tdoc.Forms) == 0 {
+				if srv.addFormsHook != nil {
+					srv.addFormsHook(tdoc)
+				}
+			}
+			// this is a Thing, so an instance name is needed to differentiate
+			// between things.
+			instanceName := tdoc.ID
+			tdURL, err := srv.ServeThingTD(instanceName, tdoc)
 			resp := req.CreateResponse(tdURL, err)
 			return replyTo(resp)
 		}
@@ -112,16 +124,18 @@ func (srv *DiscoveryServerImpl) ServeTD(
 	}
 
 	if instanceName == "" {
-		httpPath = directory.WellKnownWoTPath
+		httpPath = discovery.WellKnownHttpPath
 		instanceName = hostName + ":" + tdoc.ID
 	} else {
-		httpPath = directory.WellKnownWoTPath + "/" + instanceName
+		httpPath = discovery.WellKnownHttpPath + "/" + instanceName
 	}
 	tdJSON := tdoc.ToJSON()
 
 	// serve the TD on the well-known http endpoint
 	publicRoute := srv.httpServer.GetPublicRoute()
 	publicRoute.Get(httpPath, func(w http.ResponseWriter, r *http.Request) {
+		_ = tdoc
+		_ = tdJSON
 		_, _ = w.Write([]byte(tdJSON))
 	})
 
@@ -198,8 +212,8 @@ func (srv *DiscoveryServerImpl) ServeGatewayTD(
 // "/.well-known/wot". If a serviceName is provided then this is added to the
 // path in order to support multiple devices.
 //
-//	instanceName is the DNS record name, required for multiple instances
-//	  this defaults to the TD ID.
+//	instanceName is the DNS record name, required for multiple instances.
+//	  Use "" for serving the TD on the default .well-known discovery path.
 //	tdoc is the Thing's TD to serve
 //
 // This returns the TD download URL or an error
@@ -243,8 +257,11 @@ func (srv *DiscoveryServerImpl) Stop() {
 //	httpServer is the server that serves the TD on the well-known endpoint.
 //	tdd is the optional directory TDD to serve.
 //	transports for TD security scheme, base URL and forms. Optional.
+//	addForms is an optional hook to add missing forms to published TDs
 func NewDiscoveryServerImpl(
-	httpServer api.IHttpServer, tdd *td.TD, endpoints map[string]string) (*DiscoveryServerImpl, error) {
+	httpServer api.IHttpServer, tdd *td.TD,
+	endpoints map[string]string,
+	addForms func(*td.TD)) (*DiscoveryServerImpl, error) {
 	var err error
 
 	// thingID is defined in the TDD and should match HiveCell thingID
@@ -252,10 +269,11 @@ func NewDiscoveryServerImpl(
 
 	srv := &DiscoveryServerImpl{
 		HiveCellBase: cells.NewHiveCellBase(thingID),
-		tdd:          tdd,
+		addFormsHook: addForms,
+		dnssdServers: make(map[string]*zeroconf.Server),
 		endpoints:    endpoints,
 		httpServer:   httpServer,
-		dnssdServers: make(map[string]*zeroconf.Server),
+		tdd:          tdd,
 	}
 	if tdd != nil {
 		_, err = srv.ServeDirectoryTD(tdd.ID, tdd)

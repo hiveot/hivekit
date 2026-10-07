@@ -22,7 +22,7 @@ type TestTransport struct {
 }
 
 // AddTDSecForms does nothing for a direct connection
-func (srv *TestTransport) AddTDSecForms(tdi *td.TD, includeAffordances bool) {
+func (srv *TestTransport) AddTDSecForms(tdi *td.TD) {
 }
 
 // GetTD returns the server TD, containing connection and authentication information

@@ -43,7 +43,8 @@ func TestMain(m *testing.M) {
 }
 
 // startService initializes a service and a client
-// This sets-up a chain with a server, directory, digitwin, vcache, and router
+// This sets-up a chain with:
+// * server -> directory -> digitwin -> vcache -> router
 func startService() (
 	testEnv *testenv.TestEnv,
 	dir directory.IDirectoryService,
@@ -59,7 +60,7 @@ func startService() (
 
 	// servers := []api.ITransportServer{appServer}
 
-	dir, err := directory_service.NewDirectoryService(dirThingID, storageDir, testEnv.HttpServer)
+	dir, err := directory_service.NewDirectoryService(dirThingID, storageDir, testEnv.AddForms)
 	if err != nil {
 		panic("Failed to start directory server")
 	}
@@ -89,12 +90,12 @@ func startService() (
 	rcr.SetTimeout(testEnv.Env.RpcTimeout)
 
 	// create a request chain:
-	//  server->directory->digitwin->router->rcrouter->server
+	//  server->directory->digitwin->rcrouter->router->server
 	appServer.SetRequestSink(dir)
 	dir.SetRequestSink(dtwSvc)
-	dtwSvc.SetRequestSink(rtr)
-	rtr.SetRequestSink(rcr)
-	rcr.SetRequestSink(appServer)
+	dtwSvc.SetRequestSink(rcr)
+	rcr.SetRequestSink(rtr)
+	rtr.SetRequestSink(appServer)
 
 	// create a reverse notification chain:
 	//  server->router->digitwin->directory->server
@@ -159,24 +160,6 @@ func TestCreateDigitwinTD(t *testing.T) {
 	expectedBase := testEnv.Server.GetConnectURL()
 
 	assert.Equal(t, expectedBase, dtw1.Base)
-
-	// 5. check if the forms in the affordances are replaced
-	for _, aff := range dtw1.Properties {
-		require.NotEmpty(t, aff.Forms)
-		form0 := aff.Forms[0]
-		assert.NotEmpty(t, form0.GetOperations())
-		subprotocol, _ := form0.GetSubprotocol()
-		_ = subprotocol
-		// assert.Equal(t, subprotocol, expectedSubProtocol)
-	}
-	for _, aff := range dtw1.Events {
-		require.NotEmpty(t, aff.Forms)
-		assert.NotEmpty(t, aff.Forms[0].GetOperations())
-	}
-	for _, aff := range dtw1.Actions {
-		require.NotEmpty(t, aff.Forms)
-		assert.NotEmpty(t, aff.Forms[0].GetOperations())
-	}
 
 	require.NoError(t, err)
 	_ = dtw
@@ -282,21 +265,21 @@ func TestWriteDigitwinProperty(t *testing.T) {
 	defer cc1.Stop()
 
 	// 2. create a reverse-connected device that receives the write request
-	ething, cc2, _ := testEnv.NewRCThing(deviceID, nil)
+	eThing, cc2, _ := testEnv.NewRCThing(deviceID, nil)
 	defer cc2.Close()
-	ething.SetAppRequestHook(func(req *msg.RequestMessage, replyTo msg.ResponseHandler) error {
+	eThing.SetAppRequestHook(func(req *msg.RequestMessage, replyTo msg.ResponseHandler) error {
 		if req.Operation == td.OpWriteProperty {
 			txPropValue = req.ToString(0)
 			resp := req.CreateResponse(nil, nil)
 
 			// write property sends a notification that is passed to the server
 			// and updates the digital twin.
-			go ething.PubProperty(req.ThingID, req.Name, txPropValue, false)
+			go eThing.PubProperty(req.ThingID, req.Name, txPropValue, false)
 
 			return replyTo(resp)
 		} else if req.ThingID == dirThingID {
 			// this is a request for the directory. Forward it
-			return ething.EmitRequest(req, replyTo)
+			return eThing.EmitRequest(req, replyTo)
 		} else {
 			resp := req.CreateResponse(nil, fmt.Errorf("unexpected request"))
 			return replyTo(resp)
@@ -306,12 +289,13 @@ func TestWriteDigitwinProperty(t *testing.T) {
 	// 3. Exposed thing writes a TD.
 
 	td1 := testEnv.CreateTestTD(0, false)
+	// td1.SetRCID(deviceID)
 	td1Json := td.MarshalTD(td1)
 
 	// An ExposedThing can publish its TD without knowing the thingID of the directory.
 	// The directory service reacts on any 'invokeaction updateTD' requests.
 	err = directory_client.UpdateTD(
-		"", td1Json, ething.EmitRequest, testEnv.Env.RpcTimeout)
+		"", td1Json, eThing.EmitRequest, testEnv.Env.RpcTimeout)
 	assert.NoError(t, err)
 
 	// check whether the td is now in the directory
@@ -319,10 +303,10 @@ func TestWriteDigitwinProperty(t *testing.T) {
 	td2Json, err := dirSvc.RetrieveThing(dtwThing1ID)
 	require.NoError(t, err)
 	require.NotEmpty(t, td2Json)
-	// check whether the deviceID is set
+	// check whether the deviceID is set as the rcid
 	tdi2, err := td.UnmarshalTD(td2Json)
 	require.NoError(t, err)
-	assert.Equal(t, deviceID, tdi2.SenderID)
+	assert.Equal(t, deviceID, tdi2.GetRCID())
 
 	// 4. Consumer reads the TD with its own directory client
 	dirTDD := dirSvc.GetTDD()

@@ -385,9 +385,8 @@ func NewSseScClientImpl(sseURL string, rootCAs *x509.CertPool) *SseScClientImpl 
 		slog.Error("Invalid URL")
 		return nil
 	}
-	hostPort := urlParts.Host
 	ssePath := urlParts.Path
-	tlsClient := tls_client.NewTLSClient(hostPort, rootCAs)
+	tlsClient := tls_client.NewTLSClient(sseURL, rootCAs)
 
 	thingID := ssesc.SseScClientCellType + shortid.MustGenerate()
 	cl := &SseScClientImpl{

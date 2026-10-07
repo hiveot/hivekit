@@ -108,7 +108,7 @@ func main() {
 	// Start the CLI consumer recipe cells.
 	// the env must have a clientID set and a named auth token or client cert.
 
-	// FIXME: chain breaks if client cannot find a  serverURL
+	// FIXME: not all commands need a consumer connection
 	r, f, err := consumerrecipe.NewConsumerRecipe(env, false)
 	if err != nil {
 		os.Exit(1)

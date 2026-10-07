@@ -91,7 +91,7 @@ type DigitwinServiceImpl struct {
 	deviceStatus sync.Map
 
 	// hook to server to add secforms to a TD for interacting with affordances
-	addForms func(tdoc *td.TD, includeAffordances bool)
+	addForms func(*td.TD)
 
 	// internal storage with the original hidden device TDs
 	deviceTDBucket bucketstore.IBucket
@@ -110,9 +110,6 @@ type DigitwinServiceImpl struct {
 
 	// the store that holds the digital twin TDs and value
 	digitwinStore bucketstore.IBucketStore
-
-	// configuration to add forms to all the affordances of a TD
-	includeAffordanceForms bool
 
 	// notification cache holding device property and events values
 	vcache vcache.IValueCacheService
@@ -170,7 +167,8 @@ func (svc *DigitwinServiceImpl) GetDeviceTD(thingID string) *td.TD {
 func (svc *DigitwinServiceImpl) HandleNotification(notif *msg.NotificationMessage) {
 
 	// track online status of devices - this needs tracking of devices
-	// FIXME: how to know if senderID is a device?
+	// TODO: how to know if senderID is a device?
+	// A: get its role - see rcrouter
 	if notif.Name == api.ServerConnectedEvent {
 
 		// if the sender is an device or service instead of a consumer then its things are now online.
@@ -240,9 +238,9 @@ func (svc *DigitwinServiceImpl) Stop() {
 //	thingDir is the directory service that holds exposed Thing TDs.
 //	addForms is a handler from a transport server for injecting forms in digital twin TDs
 //	that describe how to interact via the server protocols.
-func NewDigitwinServiceImpl(storageDir string,
-	thingDir directory.IDirectoryService,
-	addforms func(tdoc *td.TD, includeAffordances bool)) (*DigitwinServiceImpl, error) {
+func NewDigitwinServiceImpl(
+	storageDir string, thingDir directory.IDirectoryService, addforms func(*td.TD)) (
+	*DigitwinServiceImpl, error) {
 
 	thingID := digitwin.DigitwinServiceDefaultThingID
 
@@ -263,14 +261,13 @@ func NewDigitwinServiceImpl(storageDir string,
 	deviceTDBucket := deviceTDStore.GetBucket(thingID)
 
 	svc := &DigitwinServiceImpl{
-		HiveCellBase:           cells.NewHiveCellBase(thingID),
-		addForms:               addforms,
-		directory:              thingDir,
-		storageDir:             storageDir,
-		deviceTDStore:          deviceTDStore,
-		deviceTDBucket:         deviceTDBucket,
-		includeAffordanceForms: true,
-		vcache:                 vcache,
+		HiveCellBase:   cells.NewHiveCellBase(thingID),
+		addForms:       addforms,
+		directory:      thingDir,
+		storageDir:     storageDir,
+		deviceTDStore:  deviceTDStore,
+		deviceTDBucket: deviceTDBucket,
+		vcache:         vcache,
 	}
 
 	// intercept directory writes to transform things into a digital twin
