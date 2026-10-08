@@ -65,7 +65,7 @@ func NewDiscoveryServerFactory(
 }
 
 // for testing
-func ServeDnsSD(instanceName string, subType string, serviceType string,
+func ServeDnsSD(instanceName string, serviceType string,
 	address string, port int, params map[string]string) (*zeroconf.Server, error) {
-	return internal.ServeDnsSD(instanceName, subType, serviceType, address, port, params)
+	return internal.ServeDnsSD(instanceName, serviceType, address, port, params)
 }

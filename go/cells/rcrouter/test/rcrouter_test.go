@@ -126,7 +126,6 @@ func TestReadRCDeviceProperties(t *testing.T) {
 	// publish the device TD to update the directory on the server.
 	// This writes the TD over the RC-connection.
 
-	// FIXME: who sets the senderID
 	err := ething.PublishTD(tdoc)
 	require.NoError(t, err)
 

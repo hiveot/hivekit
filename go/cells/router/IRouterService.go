@@ -34,11 +34,11 @@ type IRouterService interface {
 	//
 	// When routing a request to a Thing device, this secret is used to authenticate
 	// when creating a new connection. This is typically bearer token or client cert.
-	AddCredentials(thingID string, clientID string, secret string, secScheme string)
+	AddCredentials(thingID string, clientID string, secret string, secScheme string) error
 
 	// Remove the secret to access a Thing.
 	// The TD of the thing has to be available.
-	DeleteCredentials(thingID string)
+	DeleteCredentials(thingID string) error
 
 	// Return a flag indicating whether the credentials are set for a Thing
 	// The TD of the thing has to be available.

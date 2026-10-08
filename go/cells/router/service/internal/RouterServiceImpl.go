@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"log/slog"
 	"net/url"
-	"path/filepath"
 	"strings"
 	"sync"
 
@@ -84,7 +83,7 @@ type RouterServiceImpl struct {
 	rootCAs *x509.CertPool
 
 	// location of the device credentials store. "" for in-memory only.
-	storageFile string
+	storageDir string
 }
 
 // Add the secret to access a Thing.
@@ -92,7 +91,7 @@ type RouterServiceImpl struct {
 // if thingID is empty then the credentials are used for all devices for which
 // no credentials are set. Use with care as it exposes the token to these devices.
 func (svc *RouterServiceImpl) AddCredentials(
-	thingID string, clientID string, secret string, credType string) {
+	thingID string, clientID string, secret string, credType string) (err error) {
 
 	creds := ThingCredentials{
 		ClientID: clientID,
@@ -102,7 +101,7 @@ func (svc *RouterServiceImpl) AddCredentials(
 
 	// Set as default credentials if no thingID is provided.
 	if thingID == "" {
-		svc.credStore.AddCredentials("", creds)
+		err = svc.credStore.AddCredentials("", creds)
 		return
 	}
 
@@ -113,28 +112,27 @@ func (svc *RouterServiceImpl) AddCredentials(
 	} else {
 		connectURL, _, err := svc.GetConnectURL(tdoc, "", "")
 		if err == nil {
-			svc.credStore.AddCredentials(connectURL, creds)
+			err = svc.credStore.AddCredentials(connectURL, creds)
 		}
 	}
-	// also store the credentials by thingID .. might need it to recover later
-	// svc.credStore.AddCredentials(thingID, creds)
+	return err
 }
 
 // Remove the secret to access a Thing
-func (svc *RouterServiceImpl) DeleteCredentials(thingID string) {
+func (svc *RouterServiceImpl) DeleteCredentials(thingID string) error {
 	// determine the connectURL for this thing
 	tdoc := svc.getTD(thingID)
 	if tdoc == nil {
-		slog.Warn("DeleteCredentials: Cant delete credentials. TD for thingID not found", "thingID", thingID)
-		return
+		err := fmt.Errorf("DeleteCredentials: Cant delete credentials. TD for thingID '%s' not found", thingID)
+		return err
 	}
 	connectURL, _, err := svc.GetConnectURL(tdoc, "", "")
 	if err != nil {
-		slog.Warn("DeleteCredentials: TD has no connection information", "thingID", thingID)
-		return
+		err = fmt.Errorf("DeleteCredentials: TD '%s' has no connection information", thingID)
+		return err
 	}
-	svc.credStore.DeleteCredentials(connectURL)
-	// svc.credStore.DeleteCredentials(thingID)
+	err = svc.credStore.DeleteCredentials(connectURL)
+	return err
 }
 
 // Determine the connection URL from the Thing TD and operation
@@ -429,18 +427,13 @@ func NewRouterServiceImpl(
 	getTD func(thingID string) *td.TD,
 ) (*RouterServiceImpl, error) {
 
-	var storageFile string
 	if getTD == nil {
 		return nil, fmt.Errorf("NewRouterServiceImpl: missing getTD provider")
 	}
 
 	slog.Info("NewRouterServiceImpl: Starting router service")
 
-	if storageDir != "" {
-		fileName := "deviceCredentials.json"
-		storageFile = filepath.Join(storageDir, fileName)
-	}
-	credStore := NewCredentialsStore(storageFile)
+	credStore := NewCredentialsStore(storageDir)
 	err := credStore.Open()
 
 	thingID := router.RouterDefaultThingID
@@ -453,7 +446,7 @@ func NewRouterServiceImpl(
 		rootCAs:           rootCAs,
 		getTD:             getTD,
 		preferredProtocol: api.WotWebsocketProtocolType,
-		storageFile:       storageFile,
+		storageDir:        storageDir,
 		// connections by connectURL
 		deviceConnections:   make(map[string]api.IHiveCell),
 		connectURLByThingID: make(map[string]connectURLForm),

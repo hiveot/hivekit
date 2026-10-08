@@ -133,7 +133,7 @@ func TestReconnect(t *testing.T) {
 	// 6. The consumer is now ready and the reconnect process can start.
 	rc1.Start()
 
-	// // FIXME: might not receive the first connected notification
+	// should receive the first connected notification
 	time.Sleep(time.Millisecond)
 	assert.Equal(t, api.StatusConnected, rc1.GetConnectionStatus())
 	assert.Equal(t, 1, int(serverConnectEvents.Load()), "missing initial server connection notification")

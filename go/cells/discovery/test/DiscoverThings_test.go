@@ -34,7 +34,7 @@ func TestDiscoverThings(t *testing.T) {
 	testEnv.StartHttpServer(true)
 	defer testEnv.Stop()
 
-	discoSrv, err := discovery_server.NewDiscoveryServer(testEnv.HttpServer, nil, nil)
+	discoSrv, err := discovery_server.NewDiscoveryServer(testEnv.HttpServer, nil, nil, testEnv.AddForms)
 	require.NoError(t, err)
 	defer discoSrv.Stop()
 	tdURL, err := discoSrv.ServeThingTD(testServiceName, testTD)
@@ -61,7 +61,7 @@ func TestDiscoverGetThingTD(t *testing.T) {
 	thingTD := testEnv.CreateTestTD(12, true)
 	thingTD.ID = testServiceName // servicename
 
-	discoSrv, err := discovery_server.NewDiscoveryServer(testEnv.HttpServer, nil, nil)
+	discoSrv, err := discovery_server.NewDiscoveryServer(testEnv.HttpServer, nil, nil, testEnv.AddForms)
 	require.NoError(t, err)
 	defer discoSrv.Stop()
 

@@ -33,7 +33,7 @@ func TestDiscoverDirectory(t *testing.T) {
 	testEnv.StartHttpServer(true)
 	defer testEnv.Stop()
 
-	discoSrv, err := discovery_server.NewDiscoveryServer(testEnv.HttpServer, nil, endpoints)
+	discoSrv, err := discovery_server.NewDiscoveryServer(testEnv.HttpServer, nil, endpoints, nil)
 	require.NoError(t, err)
 	defer discoSrv.Stop()
 
@@ -82,7 +82,7 @@ func TestDiscoverGetDirectoryTD(t *testing.T) {
 
 	// run the discover server and expose the directory TDD
 	discoSvc, err := discovery_server.NewDiscoveryServer(
-		testEnv.HttpServer, nil, nil)
+		testEnv.HttpServer, nil, nil, testEnv.AddForms)
 	require.NoError(t, err)
 	defer discoSvc.Stop()
 	// testDirServiceName is appended to the well-known path
@@ -133,7 +133,7 @@ func TestDiscoverNoDirectory(t *testing.T) {
 
 	// run the discover server without exposing the directory TDD
 	discoSrv, err := discovery_server.NewDiscoveryServer(
-		testHttpServer, nil, nil)
+		testHttpServer, nil, nil, testEnv.AddForms)
 	require.NoError(t, err)
 	defer discoSrv.Stop()
 	tddURL, err := discoSrv.ServeDirectoryTD(testDirServiceName, nil) // empty json

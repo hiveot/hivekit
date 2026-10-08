@@ -181,14 +181,12 @@ func (svc *ReconnectServiceImpl) HandleRequest(req *msg.RequestMessage, replyTo 
 	case td.OpSubscribeAllEvents, td.OpSubscribeEvent,
 		td.OpObserveAllProperties, td.OpObserveMultipleProperties, td.OpObserveProperty:
 
-		// TBD: this doesn't differentiate between event/property affordance or single or multiple
 		key := fmt.Sprintf("%s-%s-%s", req.Operation, req.ThingID, req.Name)
 		svc.subscriptions[key] = req
 
 	case td.OpUnobserveAllProperties, td.OpUnobserveMultipleProperties, td.OpUnobserveProperty,
 		td.OpUnsubscribeAllEvents, td.OpUnsubscribeEvent:
-		// remove the recorded subscription request
-		// FIXME: map the unsubscribe/unobserve to the stored operation
+		// remove the previously recorded subscription request
 		key := fmt.Sprintf("%s-%s-%s", req.Operation, req.ThingID, req.Name)
 		delete(svc.subscriptions, key)
 	}
@@ -218,10 +216,9 @@ func (svc *ReconnectServiceImpl) Start() {
 	status := svc.conn.GetConnectionStatus()
 	if status != api.StatusConnected && status != api.StatusConnecting {
 
-		// FIXME: how to report an authentication failure:
 		err := svc.conn.Connect()
 		if err != nil {
-			slog.Error("StartReconnectServiceImpl. The linked client failed to start.",
+			slog.Error("Start. The linked client failed to start.",
 				"err", err.Error(), "client ID", svc.conn.GetID())
 		}
 	}

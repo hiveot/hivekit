@@ -1,16 +1,21 @@
 package internal
 
 import (
+	"crypto/rand"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"sync"
 
+	"github.com/hiveot/hivekit/go/utils"
 	jsoniter "github.com/json-iterator/go"
 )
 
+const CredKeyFilename = "credstore.key"
 const CredStoreFilename = "credstore.data"
 
 // Login credentials for known devices
@@ -40,8 +45,12 @@ type CredentialsStore struct {
 
 	// credentials by connectURL
 	thingCredentials map[string]ThingCredentials
-	//
+	// filepaths for encryption key and data storage
+	keyFile     string
 	storageFile string
+
+	// the data file encryption key
+	encKey string
 
 	// The cache of client certificates.
 	// Populated if a thing credential is used and a client cert is present.
@@ -55,10 +64,12 @@ type CredentialsStore struct {
 //
 // thingID for which the credentials apply
 // creds credentials to authenticate with.
-func (store *CredentialsStore) AddCredentials(thingID string, creds ThingCredentials) {
+func (store *CredentialsStore) AddCredentials(thingID string, creds ThingCredentials) error {
 	store.mux.Lock()
 	defer store.mux.Unlock()
 	store.thingCredentials[thingID] = creds
+	err := store.save()
+	return err
 }
 
 // Close the store.
@@ -67,14 +78,17 @@ func (store *CredentialsStore) Close() {
 	store.mux.Lock()
 	defer store.mux.Unlock()
 
-	store.save()
+	// store.save()
 }
 
 // Remove the secret to access a Thing
-func (store *CredentialsStore) DeleteCredentials(thingID string) {
+func (store *CredentialsStore) DeleteCredentials(thingID string) error {
 	store.mux.Lock()
 	defer store.mux.Unlock()
 	delete(store.thingCredentials, thingID)
+	err := store.save()
+	return err
+
 }
 
 // GetCredentials returns the account credentials for connecting to a Thing.
@@ -118,21 +132,39 @@ func (store *CredentialsStore) HasCredentials(thingID string) (credType string, 
 func (store *CredentialsStore) load() (err error) {
 	thingCredentials := make(map[string]ThingCredentials)
 
+	var encKey []byte
+
+	// a key file must exist
+	if store.keyFile != "" {
+		encKey, err = os.ReadFile(store.keyFile)
+		if errors.Is(err, os.ErrNotExist) {
+			// nothing to load
+			return nil
+		} else if err != nil {
+			return err
+		}
+		store.encKey = string(encKey)
+	}
+
 	// only load if the filename is set
 	if store.storageFile != "" {
-		dataBytes, err := os.ReadFile(store.storageFile)
+		encryptedData, err := os.ReadFile(store.storageFile)
 		if errors.Is(err, os.ErrNotExist) {
 			// nothing to load
 			err = nil
 		} else if err != nil {
 			err = fmt.Errorf("error reading Thing credentials file: %w", err)
 			return err
-		} else if len(dataBytes) == 0 {
+		} else if len(encryptedData) == 0 {
 			// nothing to do
 		} else {
-			err = jsoniter.Unmarshal(dataBytes, &thingCredentials)
+			dataBytes, err := utils.Decrypt(string(encryptedData), encKey)
+			if err == nil {
+				err = jsoniter.Unmarshal(dataBytes, &thingCredentials)
+			}
 			if err != nil {
-				err = fmt.Errorf("error while parsing password file: %w", err)
+				err = fmt.Errorf("error while parsing credentials file: %w", err)
+				slog.Error(err.Error())
 			}
 		}
 	}
@@ -154,16 +186,34 @@ func (store *CredentialsStore) Open() (err error) {
 
 // save the credentials to file.
 // if the storage folder doesn't exist it will be created.
-// FIXME: this file should be encrypted!
-func (store *CredentialsStore) save() error {
+func (store *CredentialsStore) save() (err error) {
 	// only save if the filename is set
-	if store.storageFile == "" {
+	if store.storageFile == "" || store.keyFile == "" {
 		return nil
 	}
 
-	// ensure the location exists
+	// ensure the key exists
+	if store.encKey == "" {
+		storageDir := filepath.Dir(store.keyFile)
+		err = os.MkdirAll(storageDir, 0700)
+		if err != nil {
+			return err
+		}
+
+		newKey := make([]byte, 24)
+		_, _ = rand.Read(newKey)
+		store.encKey = base64.StdEncoding.EncodeToString(newKey)
+		// if the key file exists, it is replaced
+		_ = os.Remove(store.keyFile)
+		err = os.WriteFile(store.keyFile, []byte(store.encKey), 0400)
+		if err != nil {
+			slog.Error("save: Unable to save credentials key", "err", err.Error())
+			return err
+		}
+	}
+
 	storageDir := filepath.Dir(store.storageFile)
-	err := os.MkdirAll(storageDir, 0700)
+	err = os.MkdirAll(storageDir, 0700)
 	if err != nil {
 		return err
 	}
@@ -197,7 +247,12 @@ func (store *CredentialsStore) writeToTempFile(storageDir string) (tempFileName 
 	defer file.Close()
 	pwData, err := json.Marshal(store.thingCredentials)
 	if err == nil {
-		_, err = file.Write(pwData)
+		var encData string
+		encData, err = utils.Encrypt(pwData, []byte(store.encKey))
+
+		if err == nil {
+			_, err = file.Write([]byte(encData))
+		}
 	}
 
 	return tempFileName, err
@@ -205,11 +260,14 @@ func (store *CredentialsStore) writeToTempFile(storageDir string) (tempFileName 
 
 // Create a new credentials store
 func NewCredentialsStore(storageDir string) *CredentialsStore {
+	keyFile := ""
 	storageFile := ""
 	if storageDir != "" {
 		storageFile = filepath.Join(storageDir, CredStoreFilename)
+		keyFile = filepath.Join(storageDir, CredKeyFilename)
 	}
 	store := &CredentialsStore{
+		keyFile:          keyFile,
 		storageFile:      storageFile,
 		thingCredentials: make(map[string]ThingCredentials),
 	}

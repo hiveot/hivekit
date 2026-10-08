@@ -24,52 +24,49 @@ requests:
   properties:
     retain: true
 
-# FIXME: these should be derived from the vocabulary
-# default event names to retain.
 # see the vocab package for property/event names
-
 # a template for names that can be used - not currently used
-templates:
-  names1:
-    - name: alarm
-    - name: atmosphericPressure
-    - name: battery
-    - name: coLevel
-    - name: oDetector
-    - name: co2Level
-    - name: cpuLevel
-    - name: current
-    - name: dewpoint
-    - name: dimmer
-    - name: energy
-    - name: errors
-    - name: hostname
-    - name: heatindex
-    - name: humidity
-    - name: latency
-    - name: latitude
-    - name: latlon
-    - name: longitude
-    - name: lock
-    - name: location
-    - name: luminance
-    - name: memory
-    - name: motion
-    - name: power
-    - name: pushButton
-    - name: rain
-    - name: relay
-    - name: signalStrength
-    - name: smokeDetector
-    - name: soundDetector
-    - name: snow
-    - name: switch
-    - name: temperature
-    - name: value
-    - name: vibration
-    - name: voltage
-    - name: volume
-    - name: waterLevel
-    - name: weather
-    - name: windHeading
-    - name: windSpeed
+# templates:
+#   names1:
+#     - name: alarm
+#     - name: atmosphericPressure
+#     - name: battery
+#     - name: coLevel
+#     - name: oDetector
+#     - name: co2Level
+#     - name: cpuLevel
+#     - name: current
+#     - name: dewpoint
+#     - name: dimmer
+#     - name: energy
+#     - name: errors
+#     - name: hostname
+#     - name: heatindex
+#     - name: humidity
+#     - name: latency
+#     - name: latitude
+#     - name: latlon
+#     - name: longitude
+#     - name: lock
+#     - name: location
+#     - name: luminance
+#     - name: memory
+#     - name: motion
+#     - name: power
+#     - name: pushButton
+#     - name: rain
+#     - name: relay
+#     - name: signalStrength
+#     - name: smokeDetector
+#     - name: soundDetector
+#     - name: snow
+#     - name: switch
+#     - name: temperature
+#     - name: value
+#     - name: vibration
+#     - name: voltage
+#     - name: volume
+#     - name: waterLevel
+#     - name: weather
+#     - name: windHeading
+#     - name: windSpeed

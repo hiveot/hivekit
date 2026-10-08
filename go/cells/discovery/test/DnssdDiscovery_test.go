@@ -41,7 +41,7 @@ func TestDiscover(t *testing.T) {
 	address := utils.GetOutboundIP("").String()
 
 	srv, err := discovery_server.ServeDnsSD(
-		testServiceName, "", testServiceType, address, testServicePort, nil)
+		testServiceName, testServiceType, address, testServicePort, nil)
 	assert.NoError(t, err)
 	// note: had a data race on zeroconf shutdown in testing once
 	defer srv.Shutdown()
@@ -59,7 +59,7 @@ func TestNoInstanceID(t *testing.T) {
 	testServiceType := "test-service-type"
 
 	_, err := discovery_server.ServeDnsSD(
-		"", "", testServiceType, address, testServicePort, nil)
+		"", testServiceType, address, testServicePort, nil)
 	assert.Error(t, err) // missing instance name
 
 	// _, err = serverimpl.ServeDnsSD(
@@ -71,7 +71,7 @@ func TestBadAddress(t *testing.T) {
 	testServiceType := "test-service-type"
 
 	discoServer, err := discovery_server.ServeDnsSD(
-		testServiceName, "", testServiceType, "notanipaddress", testServicePort, nil)
+		testServiceName, testServiceType, "notanipaddress", testServicePort, nil)
 
 	assert.Error(t, err)
 	assert.Nil(t, discoServer)
@@ -81,7 +81,7 @@ func TestExternalAddress(t *testing.T) {
 	testServiceType := "test-service-type"
 
 	discoServer, err := discovery_server.ServeDnsSD(
-		testServiceName, "", testServiceType, "1.2.3.4", testServicePort, nil)
+		testServiceName, testServiceType, "1.2.3.4", testServicePort, nil)
 
 	// expect a warning
 	assert.NoError(t, err)
@@ -94,7 +94,7 @@ func TestDiscoverBadPort(t *testing.T) {
 
 	badPort := 0
 	address := utils.GetOutboundIP("").String()
-	_, err := discovery_server.ServeDnsSD(testServiceName, "", testServiceType, address, badPort, nil)
+	_, err := discovery_server.ServeDnsSD(testServiceName, testServiceType, address, badPort, nil)
 
 	assert.Error(t, err)
 }

@@ -37,7 +37,6 @@ func ServeWotDiscovery(
 	instanceName string, tdURL string, thingType string, endpoints map[string]string,
 ) (*zeroconf.Server, error) {
 
-	subType := "" // used for directory
 	parts, err := url.Parse(tdURL)
 	if err != nil {
 		return nil, err
@@ -73,10 +72,11 @@ func ServeWotDiscovery(
 		"type":   "Thing",
 	}
 	params["type"] = thingType
+	serviceType := discovery.WOT_SERVICE_TYPE
 	if thingType == discovery.DISCO_TYPE_DIRECTORY {
-		subType = discovery.WOT_DIRECTORY_SUB_TYPE
+		serviceType = discovery.WOT_DIRECTORY_SUB_TYPE + serviceType
 	} else if thingType == discovery.DISCO_TYPE_GATEWAY {
-		subType = discovery.HIVEOT_GATEWAY_SUB_TYPE
+		serviceType = discovery.HIVEOT_GATEWAY_SUB_TYPE + serviceType
 	}
 	// add connection endpoints as parameters
 	for ep, epURL := range endpoints {
@@ -89,7 +89,7 @@ func ServeWotDiscovery(
 	)
 	// note that the only official service type is _wot._tcp
 	discoServer, err := ServeDnsSD(
-		instanceName, subType, discovery.WOT_SERVICE_TYPE, address, portNr, params)
+		instanceName, discovery.WOT_SERVICE_TYPE, address, portNr, params)
 
 	return discoServer, err
 }
@@ -99,20 +99,19 @@ func ServeWotDiscovery(
 // DNS-SD will publish this as _{instanceName}._{serviceName}._tcp
 //
 //	instanceName is the name describing the service. Intended for including subtype or filtering.
-//	subType is optional subtype, eg _directory._sub (note: workaround for zeroconf bug)
 //	serviceType is the discovery service type. This defaults to _wot._tcp
 //	address service listening IP address
 //	port service listing port
 //	params is a map of key-value pairs to include in discovery, eg td, type and scheme in wot
 //
 // Returns the discovery service instance. Use Shutdown() when done.
-func ServeDnsSD(instanceName string, subType string, serviceType string,
+func ServeDnsSD(instanceName string, serviceType string,
 	address string, port int, params map[string]string) (*zeroconf.Server, error) {
 	var ips []string
 
 	slog.Info("ServeDnsSD",
 		slog.String("instanceName", instanceName),
-		slog.String("subType", subType),
+		slog.String("serviceType", serviceType),
 		slog.String("address", address),
 		slog.Int("port", port),
 		"params", params)
@@ -151,10 +150,7 @@ func ServeDnsSD(instanceName string, subType string, serviceType string,
 	if serviceType == "" {
 		serviceType = discovery.WOT_SERVICE_TYPE
 	}
-	if subType != "" {
-		// FIXME: this doesnt work!
-		serviceType = serviceType + "," + "_directory" //subType
-	}
+
 	// RegisterProxy fails to include subtypes
 	// server, err := zeroconf.RegisterProxy(
 	// 	instanceName, serviceType, domain, int(port), hostname, ips, textRecord, ifaces)
