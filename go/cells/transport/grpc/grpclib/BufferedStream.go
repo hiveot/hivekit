@@ -95,7 +95,8 @@ func (bs *BufferedStream) _recvLoop(recvHandler func(rawMsg []byte)) {
 			}
 		}
 		// received a valid message, pass it to the handler
-		// FIXME: should this be in sync or async?
+		// Note: requests are handled one at a time. There is room for performance improvements
+		// if they can be handled concurrently.
 		recvHandler(rxMsg)
 	}
 	slog.Debug("service recvLoop: recvLoop ended")

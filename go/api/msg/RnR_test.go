@@ -30,8 +30,8 @@ func TestRnRWaitAfterOpen(t *testing.T) {
 	handled := rnrChan.HandleResponse(resp, DefaultResponseTimeout)
 	require.True(t, handled)
 
-	hasResponse, rx := rnrChan.WaitForResponse(corrID, DefaultResponseTimeout)
-	require.True(t, hasResponse)
+	rx, err := rnrChan.WaitForResponse(corrID, DefaultResponseTimeout)
+	require.NoError(t, err)
 	require.NotEmpty(t, rx)
 	require.Equal(t, corrID, rx.CorrelationID)
 	require.Equal(t, resp.ThingID, rx.ThingID)
@@ -48,8 +48,8 @@ func TestRnRWaitNoOpenFails(t *testing.T) {
 	handled := rnrChan.HandleResponse(resp, DefaultResponseTimeout)
 	require.False(t, handled)
 	// should fail immediately as corrID doesn't exist
-	hasResponse, rx := rnrChan.WaitForResponse(corrID, DefaultResponseTimeout)
-	require.False(t, hasResponse)
+	rx, err := rnrChan.WaitForResponse(corrID, DefaultResponseTimeout)
+	require.Error(t, err)
 	require.Empty(t, rx)
 
 	rnrChan.Close(corrID)
@@ -124,8 +124,8 @@ func TestRnRTimeout(t *testing.T) {
 	// use a short timeout for this test
 	timeout := time.Second
 
-	hasResponse, rx := rnrChan.WaitForResponse(corrID, timeout)
-	assert.False(t, hasResponse)
+	rx, err := rnrChan.WaitForResponse(corrID, timeout)
+	require.Error(t, err)
 	assert.Empty(t, rx)
 
 	// try again with callback

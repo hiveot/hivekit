@@ -413,6 +413,7 @@ func (testEnv *TestEnv) StartHttpServer(logging bool) (api.IHttpServer, string) 
 	if testEnv.HttpServer != nil {
 		return testEnv.HttpServer, testEnv.ServerURL
 	}
+
 	// cert uses localhost
 	cfg := tlsserver.NewTLSServerConfig(
 		testEnv.CertBundle.ServerAddr, testEnv.Env.HttpsPort,

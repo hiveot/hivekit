@@ -51,17 +51,17 @@ func (arx *AsyncReceiver[T]) WaitForResponse(timeout time.Duration) (T, error) {
 	select {
 	case arx.data, ok = <-arx.rChan:
 		if !ok {
-			err = errors.New("Request was cancelled")
+			err = errors.New("WaitForResponse: Request was cancelled")
 		}
 		break
 	case <-ctx.Done():
-		err = errors.New("timeout")
+		err = errors.New("WaitForResponse: timeout")
 	}
 	return arx.data, err
 }
 
 // Create a new receiver of async messages.
-// FIXME: this should take a context that can be cancelled.
+// TODO: this should take a context that can be cancelled.
 func NewAsyncReceiver[T comparable]() AsyncReceiver[T] {
 	r := AsyncReceiver[T]{
 		// use a buffer of 1 to allow setting response before waiting

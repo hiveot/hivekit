@@ -276,7 +276,8 @@ func (cl *WssTransportClientImpl) SendNotification(notif *msg.NotificationMessag
 	}
 }
 
-// SendRequest send a request message over websockets
+// SendRequest send a request message over websockets and returns immediately.
+// When a response is received the given replyTo handler is invoked.
 // This transforms the request to the protocol message and sends it to the server.
 func (cl *WssTransportClientImpl) SendRequest(
 	req *msg.RequestMessage, replyTo msg.ResponseHandler) error {
@@ -314,8 +315,6 @@ func (cl *WssTransportClientImpl) SendRequest(
 	// a response handler is provided, callback when the response is received
 	err = cl.rnrChan.Open(req.CorrelationID)
 	if err != nil {
-		// do not close the channel as it is still active
-		// recover gracefully.
 		return err
 	}
 
@@ -329,12 +328,14 @@ func (cl *WssTransportClientImpl) SendRequest(
 			"err", err.Error())
 		return err
 	}
-	hasResponse, resp := cl.rnrChan.WaitForResponse(req.CorrelationID, cl.GetTimeout())
-	if hasResponse {
-		err = replyTo(resp)
-	} else {
-		err = fmt.Errorf("SendRequest: No response received")
-	}
+	go func() {
+		resp, err2 := cl.rnrChan.WaitForResponse(req.CorrelationID, cl.GetTimeout())
+		if err2 != nil {
+			err2 = fmt.Errorf("SendRequest timeout: %w", err2)
+			resp = req.CreateErrorResponse(err2)
+		}
+		_ = replyTo(resp)
+	}()
 	return err
 }
 

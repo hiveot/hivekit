@@ -12,7 +12,6 @@ import (
 // Show the content of a remote directory.
 // if a thingID is not provided, discover it first
 // This first discovers the directory then attempts to read it.
-// FIXME: listDir should use the provided environment tddURL if provided
 func (app *Cliex) ListDir(env *api.HiveEnvironment, thingID string) {
 	var waitTime = time.Second
 	var err error

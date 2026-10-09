@@ -28,15 +28,15 @@ const timespanYear = timespanDay * 365
 //                                                                                          --- WOT protocol bindings (reading) ---
 //                                      ---------------  MQTT/NATS BROKER --------------      HTTP/SSE-SC         WSS          gRPC
 //	DBSize #Things                      kvbtree (msec)    pebble (msec)     bbolt (msec)      pebble (msec)     pebble        pebble
-//	 10K      10    add 1K single (*)       2.5             4.7             4600/4600             5.3              5.4          5.2
-//	 10K      10    add 1K batch (*)        1.2             2.4               76/72               5.4              5.4          5.2
-//	 10K      10    get 1K single         330/125         324/130            300/130            240              220          130
-//	 10K      10    get 1K batch          5.5/4.3           7                5.5/4.3             17               27           16
+//	 10K      10    add 1K single (*)       2.5             4.7             4600/4600             3.8              3.8          3.7
+//	 10K      10    add 1K batch (*)        1.2             2.4               76/72               3.8              3.8          3.8
+//	 10K      10    get 1K single         330/125         324/130            300/130            250              170          160
+//	 10K      10    get 1K batch          5.5/4.3           7                5.5/4.3             14               18           12
 //
-//	100K      10    add 1K single (*)       2.9             4.3             4900/4900             3.8              3.9          3.9
-//	100K      10    add 1K batch (*)        1.4             2.4               84/82               3.9              3.9          3.9
-//	100K      10    get 1K single         340/130         320/128            325/130            230              220          130
-//	100K      10    get 1K batch          6.0/4.2           7                5.2/4.3             19               25           19
+//	100K      10    add 1K single (*)       2.9             4.3             4900/4900             3.8              3.8          3.7
+//	100K      10    add 1K batch (*)        1.4             2.4               84/82               3.8              3.8          3.7
+//	100K      10    get 1K single         340/130         320/128            325/130            230              170          160
+//	100K      10    get 1K batch          6.0/4.2           7                5.2/4.3             12               17           12
 //
 //	  1M     100    add 1K single (*)       2.9             5.7             5500
 //	  1M     100    add 1K batch (*)        1.4             3.1              580

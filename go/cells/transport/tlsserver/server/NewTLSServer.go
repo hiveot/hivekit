@@ -28,7 +28,8 @@ func NewTLSServerFactory(
 	}
 	addr := ""
 	rootCAs := env.GetRootCAs()
+	showLogging := env.LogLevel == "info" || env.LogLevel == "debug"
 	cfg := tlsserver.NewTLSServerConfig(
-		addr, env.HttpsPort, serverCert, rootCAs, true)
+		addr, env.HttpsPort, serverCert, rootCAs, showLogging)
 	return internal.NewTLSServerImpl(cfg, f.GetAuthenticator())
 }

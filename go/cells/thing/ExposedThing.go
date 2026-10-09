@@ -290,8 +290,10 @@ func (svc *ExposedThing) PublishTD(tdoc *td.TD) error {
 		return fmt.Errorf("PublishTD: No request sink set.")
 	}
 	tdJSON := tdoc.ToJSON()
-	// FIXME: how to get the directory TD or thingID?.
-	//  Only needed if no connection exists and a router is present.
+	// NOTE: if the directory thingID is unknown, leave it empty. If the connection exists then
+	// the update request will be passed down the chain of cells to the directory, which recognizes
+	// the request.
+	// Only if the router needs to route it, must the thingID be known.
 	directoryThingID := ""
 	err := svc.Rpc(td.OpInvokeAction, directoryThingID, directory.UpdateThingAction, tdJSON, nil)
 	return err

@@ -19,7 +19,7 @@ const CredKeyFilename = "credstore.key"
 const CredStoreFilename = "credstore.data"
 
 // Login credentials for known devices
-type ThingCredentials struct {
+type ConnectCredentials struct {
 	ClientID string `json:"clientID"`
 
 	// Secret password or token
@@ -44,7 +44,7 @@ type CredentialsStore struct {
 	mux sync.RWMutex
 
 	// credentials by connectURL
-	thingCredentials map[string]ThingCredentials
+	connectCredentials map[string]ConnectCredentials
 	// filepaths for encryption key and data storage
 	keyFile     string
 	storageFile string
@@ -59,15 +59,15 @@ type CredentialsStore struct {
 
 // Add the secret to access a Thing.
 //
-// use "" for thingID to set the default credentials.
+// use "" for connectURL to set the default credentials.
 // When credType is Cert then secret must include the TLS certificate in PEM format
 //
-// thingID for which the credentials apply
+// connectURL for which the credentials apply
 // creds credentials to authenticate with.
-func (store *CredentialsStore) AddCredentials(thingID string, creds ThingCredentials) error {
+func (store *CredentialsStore) AddCredentials(connectURL string, creds ConnectCredentials) error {
 	store.mux.Lock()
 	defer store.mux.Unlock()
-	store.thingCredentials[thingID] = creds
+	store.connectCredentials[connectURL] = creds
 	err := store.save()
 	return err
 }
@@ -82,45 +82,45 @@ func (store *CredentialsStore) Close() {
 }
 
 // Remove the secret to access a Thing
-func (store *CredentialsStore) DeleteCredentials(thingID string) error {
+func (store *CredentialsStore) DeleteCredentials(connectURL string) error {
 	store.mux.Lock()
 	defer store.mux.Unlock()
-	delete(store.thingCredentials, thingID)
+	delete(store.connectCredentials, connectURL)
 	err := store.save()
 	return err
 
 }
 
-// GetCredentials returns the account credentials for connecting to a Thing.
+// GetCredentials returns the credentials for connecting to a Thing.
 //
 // Note: Credentials are for connections so the thingID must be mapped to the
 // connectURL which links to the credentials.
 //
-// If no credentials are set for the given thingID then try the default credentials
-// for thingID "".
-// If no credentials are found this returns an error
-func (store *CredentialsStore) GetCredentials(thingID string) (
+// If no credentials are set for the given connectURL then try the default credentials
+// for connectURL "".
+// If no credentials are found this returns found = false
+func (store *CredentialsStore) GetCredentials(connectURL string) (
 	clientID string, token string, credType string, found bool) {
 
 	store.mux.RLock()
 	defer store.mux.RUnlock()
-	cred, found := store.thingCredentials[thingID]
+	cred, found := store.connectCredentials[connectURL]
 	// fallback to the default credentials if available
 	if !found {
-		cred, found = store.thingCredentials[""]
+		cred, found = store.connectCredentials[""]
 	}
 	return cred.ClientID, cred.Secret, cred.CredType, found
 }
 
 // HasDeviceCredentials checks if credentials for a device exists.
 // This returns the credential type and a flag is found or not found.
-func (store *CredentialsStore) HasCredentials(thingID string) (credType string, found bool) {
+func (store *CredentialsStore) HasCredentials(connectURL string) (credType string, found bool) {
 	store.mux.RLock()
 	defer store.mux.RUnlock()
-	cred, found := store.thingCredentials[thingID]
+	cred, found := store.connectCredentials[connectURL]
 	if !found {
 		// try the fallback credentials
-		cred, found = store.thingCredentials[""]
+		cred, found = store.connectCredentials[""]
 	}
 	return cred.CredType, found
 }
@@ -130,7 +130,7 @@ func (store *CredentialsStore) HasCredentials(thingID string) (credType string, 
 //
 // Returns an error if the file could not be opened.
 func (store *CredentialsStore) load() (err error) {
-	thingCredentials := make(map[string]ThingCredentials)
+	credentials := make(map[string]ConnectCredentials)
 
 	var encKey []byte
 
@@ -160,7 +160,7 @@ func (store *CredentialsStore) load() (err error) {
 		} else {
 			dataBytes, err := utils.Decrypt(string(encryptedData), encKey)
 			if err == nil {
-				err = jsoniter.Unmarshal(dataBytes, &thingCredentials)
+				err = jsoniter.Unmarshal(dataBytes, &credentials)
 			}
 			if err != nil {
 				err = fmt.Errorf("error while parsing credentials file: %w", err)
@@ -169,7 +169,7 @@ func (store *CredentialsStore) load() (err error) {
 		}
 	}
 	if err == nil {
-		store.thingCredentials = thingCredentials
+		store.connectCredentials = credentials
 	}
 	return err
 }
@@ -245,7 +245,7 @@ func (store *CredentialsStore) writeToTempFile(storageDir string) (tempFileName 
 	tempFileName = file.Name()
 
 	defer file.Close()
-	pwData, err := json.Marshal(store.thingCredentials)
+	pwData, err := json.Marshal(store.connectCredentials)
 	if err == nil {
 		var encData string
 		encData, err = utils.Encrypt(pwData, []byte(store.encKey))
@@ -267,9 +267,9 @@ func NewCredentialsStore(storageDir string) *CredentialsStore {
 		keyFile = filepath.Join(storageDir, CredKeyFilename)
 	}
 	store := &CredentialsStore{
-		keyFile:          keyFile,
-		storageFile:      storageFile,
-		thingCredentials: make(map[string]ThingCredentials),
+		keyFile:            keyFile,
+		storageFile:        storageFile,
+		connectCredentials: make(map[string]ConnectCredentials),
 	}
 	return store
 }

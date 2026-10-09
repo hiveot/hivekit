@@ -153,9 +153,8 @@ func (srv *SseScServerImpl) onHttpResponseMessage(w http.ResponseWriter, r *http
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
-	// pass the response to the sinks
 
-	// FIXME: the response should be passed to the connection, the server doesn't need an rnr
+	// pass the response to the sinks
 	// If a request was sent to the client (via SSE) with a callback then an RNR channel was
 	// opened waiting for the response.
 	c := srv.GetConnectionByConnectionID(rp.ClientID, rp.ConnectionID).(*SseScServerConnection)

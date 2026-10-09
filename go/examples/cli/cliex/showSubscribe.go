@@ -36,7 +36,5 @@ func (app *Cliex) ShowSubscribe(thingID string) {
 			notif.ToString(20))
 	})
 
-	// FIXME: Consumer to detect a disconnect and resubscribe
-
 	utils.WaitForSignal()
 }

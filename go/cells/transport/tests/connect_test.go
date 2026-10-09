@@ -52,7 +52,7 @@ func TestConnectAllProtocols(t *testing.T) {
 func TestStartStop(t *testing.T) {
 	fmt.Printf("---Test: %s %s---\n", t.Name(), testProtocol)
 
-	// testenv might still start the httpserver - fixme: use on-demand factory
+	// testenv might still start the httpserver
 	testEnv, cancelFn := testenv.StartTestEnv(testProtocol, true)
 
 	defer cancelFn()

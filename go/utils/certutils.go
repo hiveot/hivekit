@@ -416,8 +416,6 @@ func VerifyCert(cert *x509.Certificate, caCertPool *x509.CertPool) (cn string, e
 	//	x509Cert, err := x509.ParseCertificate(clientCert.Certificate[0])
 	//}
 	if err == nil {
-		// FIXME: TestCertAuth: certificate specifies incompatible key usage
-		// why? Is the certpool invalid? Yet the test succeeds
 		_, err = cert.Verify(opts)
 	}
 	return cert.Subject.CommonName, err

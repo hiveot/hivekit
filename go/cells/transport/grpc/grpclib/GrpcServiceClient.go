@@ -117,7 +117,7 @@ func (cl *GrpcServiceClient) Connect() (err error) {
 	// TODO: for use with http2 see also https://github.com/grpc/grpc/blob/master/doc/PROTOCOL-HTTP2.md#requests
 	// which seems to want base64 encoding. Not a concern right now.
 	codec := JsonCodec{}
-	encoding.RegisterCodec(codec) // FIXME: race condition?
+	encoding.RegisterCodec(codec)
 
 	codecOption := grpc.WithDefaultCallOptions(grpc.CallContentSubtype(codec.Name()))
 	dialOpts = append(dialOpts, codecOption)
@@ -223,7 +223,7 @@ func (cl *GrpcServiceClient) Ping(input string) (reply string, err error) {
 }
 
 // PerRPCCredentials:RequireTransportSecurity
-// FIXME: support for TLS certificate only when using tcp connections, not when using UDS
+// TODO: use the TLS certificate only when using tcp connections, not when using UDS
 func (cl *GrpcServiceClient) RequireTransportSecurity() bool { return false }
 
 // Send a message to the server

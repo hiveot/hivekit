@@ -38,9 +38,7 @@ const valueCacheSlotName = "vcache-slot"
 //          1d. directory client uses discovery to locate the directory server
 //          2. directory client looks up TD
 //          3. router creates connection using TD forms
-// e. consumer->gateway using serverTD;
-//			FIXME: this doesnt work yet
-//                       dirURL arg or discovery (OK)
+//
 // consumer->gateway, find device in gateway, including gateway
 
 // ConsumerRecipeChain defines the cells for IoT consumers in order of instantiation.

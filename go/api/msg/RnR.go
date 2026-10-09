@@ -2,6 +2,7 @@ package msg
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"sync"
@@ -149,13 +150,11 @@ func (rnr *RnRChan) Open(correlationID string) error {
 // WaitForResponse blocks and waits for an answer received on the reply channel.
 // This closes the channel on return.
 //
-// If a timeout occurs then this returns with 'hasResponse' false.
-//
-// If the correlationID does not exist, then this logs an error and returns with
-// 'hasResponse' false.
+// If a timeout occurs or the correlationID does not exist, then this logs and returns
+// an error.
 func (rnr *RnRChan) WaitForResponse(
-	correlationID string, timeout time.Duration) (hasResponse bool, resp *ResponseMessage) {
-
+	correlationID string, timeout time.Duration) (resp *ResponseMessage, err error) {
+	var ok bool
 	if timeout == 0 {
 		timeout = DefaultRnRTimeout
 	}
@@ -163,20 +162,25 @@ func (rnr *RnRChan) WaitForResponse(
 	replyChan, found := rnr.correlData[correlationID]
 	rnr.mux.RUnlock()
 	if !found {
-		slog.Error("WaitForResponse: channel does not exist", "correlationID", correlationID)
-		return false, nil
+		slog.Error("WaitForResponse: Channel does not exist", "correlationID", correlationID)
+		err = fmt.Errorf("WaitForResponse: correlationID '%s' does not exist", correlationID)
+		return nil, err
 	}
 	// good, a channel was previously opened
 	ctx, cancelFunc := context.WithTimeout(context.Background(), timeout)
+	defer cancelFunc()
 	select {
-	case resp, hasResponse = <-replyChan:
+	case resp, ok = <-replyChan:
+		if !ok {
+			err = errors.New("WaitForResponse: Request was cancelled")
+		}
 		break
 	case <-ctx.Done(): // timeout
-		hasResponse = false
+		slog.Error("WaitForResponse: Timeout.", "correlationID", correlationID, "duration", timeout)
+		err = fmt.Errorf("WaitForResponse: Timeout")
 	}
-	cancelFunc()
 	rnr.Close(correlationID)
-	return hasResponse, resp
+	return resp, err
 }
 
 // WaitWithCallback listens for a response with the given correlationID and calls the
@@ -195,7 +199,8 @@ func (rnr *RnRChan) WaitForResponse(
 //
 // This immediately returns while waiting in the background.
 // If a timeout occurs or the correlationID is not unique then an error is logged and returned
-func (rnr *RnRChan) WaitWithCallback(correlationID string, timeout time.Duration, handler func(msg *ResponseMessage) error) {
+func (rnr *RnRChan) WaitWithCallback(
+	correlationID string, timeout time.Duration, handler func(msg *ResponseMessage) error) {
 
 	if timeout == 0 {
 		timeout = DefaultRnRTimeout
@@ -210,14 +215,13 @@ func (rnr *RnRChan) WaitWithCallback(correlationID string, timeout time.Duration
 	}
 
 	go func() {
-		hasResponse, resp := rnr.WaitForResponse(correlationID, timeout)
-		if hasResponse {
-			_ = handler(resp)
-		} else {
+		resp, err := rnr.WaitForResponse(correlationID, timeout)
+		if err != nil {
 			slog.Error("RnrChan:WaitWithCallback. Timeout waiting for response",
 				"timeout", timeout,
 				"correlationID", correlationID)
 		}
+		_ = handler(resp)
 	}()
 }
 

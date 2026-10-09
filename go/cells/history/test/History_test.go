@@ -29,7 +29,11 @@ import (
 
 const thingIDPrefix = "things-"
 
+// const defaultProtocol = api.HiveotSseScProtocolType
+
 const defaultProtocol = api.WotWebsocketProtocolType
+
+// const defaultProtocol = api.HiveotGrpcTcpProtocolType
 
 // recommended store for history is Pebble
 const historyStoreBackend = bucketstore.BackendPebble
@@ -719,7 +723,7 @@ func TestPubEvents(t *testing.T) {
 	releaseFn()
 }
 
-// FIXME: this test case needs to be reworked to the new retention handling
+// TODO: this test case needs to be reworked to the new retention handling
 // the storage
 // func TestManageRetention(t *testing.T) {
 // 	t.Logf("---%s---\n", t.Name())

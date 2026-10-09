@@ -10,7 +10,7 @@ This service is in alpha. It is functional but breaking changes can be expected.
 
 ## Usage
 
-To create an instance of the service a http server can be provided that will serve the http endpoints. The http server is optional and used to make http endpoints available for logging in, logging out and token refresh. The AuthnHttpClient is a simple wrapper to simplify its usage.
+To create an instance of the service a http server can be provided that will serve the http endpoints. The http server is optional and used to make http endpoints available for login into, logout of and token refresh. The AuthnHttpClient is a simple wrapper to simplify its usage.
 
 In order to login and create auth tokens, an account must be created for the client first. The service api can be used to manage clients. The service TD also describes which actions are available for user management through RRN messages.
 

@@ -93,7 +93,7 @@ type RouterServiceImpl struct {
 func (svc *RouterServiceImpl) AddCredentials(
 	thingID string, clientID string, secret string, credType string) (err error) {
 
-	creds := ThingCredentials{
+	creds := ConnectCredentials{
 		ClientID: clientID,
 		Secret:   secret,
 		CredType: credType,
@@ -230,7 +230,7 @@ func (svc *RouterServiceImpl) GetClientConnection(
 	cl, found := svc.deviceConnections[connectURL]
 	defer svc.cmux.Unlock()
 
-	// 2. If a valid connection does not yet exist, establish one.
+	// 2. If a valid connection does not yet exist, establish one, if possible.
 	if !found {
 
 		c, err = clients.NewTransportClientFromForm(tdoc, cform, svc.rootCAs)
@@ -252,6 +252,12 @@ func (svc *RouterServiceImpl) GetClientConnection(
 		// offers, even though they all use the same connection.
 		// The credentials are therefore set per connectURL, not the thingID.
 		//
+		// Note-3: if the connect URL is that of the gateway that runs this router then this can
+		// cause a loop, resulting in a failed request since RnR for request already
+		// exists.
+		// TODO: identify this situation and return with an error
+
+		// determine who to identify as for this connection; fall back to default
 		clientID, secret, secScheme, found := svc.credStore.GetCredentials(connectURL)
 		if !found {
 			clientID = svc.clientID
@@ -357,10 +363,6 @@ func (svc *RouterServiceImpl) RouteRequest(req *msg.RequestMessage, replyTo msg.
 	// 2. the connection URL is needed for establishing a device connection
 	connectURL, connectForm, err := svc.GetConnectURL(tdoc, req.Operation, req.Name)
 	if connectURL != "" {
-		// FIXME: if the connect URL is that of the gateway that runs this router then this will
-		// cause a nested loop call, resulting in a failed request since RnR for request already
-		// exists.
-
 		c, err2 := svc.GetClientConnection(tdoc, connectURL, connectForm)
 		if c == nil {
 			slog.Warn("RouteRequest: Unable to establish a connection to client", "err", err2)

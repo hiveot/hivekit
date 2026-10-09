@@ -64,12 +64,8 @@ func GetRequestParams(r *http.Request) (reqParam api.RequestParams, err error) {
 	// If a 'cid' header exists, use it as the connection ID.
 	headerCID := r.Header.Get(api.ConnectionIDHeader)
 	if headerCID == "" {
-		// FIXME: this is only an issue with hiveot-sse. Maybe time to retire it?
-		// alt: use a session-id from the auth token - two browser connections would
-		// share this however.
-
-		// http-basic isn't be bothered. Each WoT sse connection is the subscription
-		//  (only a single subscription per sse connection which is nearly useless)
+		// TODO: this is only an issue with hiveot-sse. Maybe time to retire it?
+		// http has its use though, so maybe focus on that instead.
 		slog.Info("GetRequestParams: missing connection-id, only a single " +
 			"connection is supported")
 	}

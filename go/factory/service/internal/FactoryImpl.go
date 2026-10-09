@@ -140,7 +140,6 @@ func (f *FactoryImpl) GetConnectURLs() []string {
 }
 
 // Return a copy of the list with loaded transport servers.
-// FIXME: this doesnt work for nested recipes? -> factory holds all cells so why not?
 func (f *FactoryImpl) GetTransportServers() []api.ITransportServer {
 	f.mux.RLock()
 	tpList := make([]api.ITransportServer, len(f.transportCells))

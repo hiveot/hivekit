@@ -16,6 +16,7 @@ import (
 // ConnectWSS2 establishes a websocket session with the server using the given http/2 TLS client
 // NOTE: As of Jan 2026 this does not work because gorilla websockets doesnt support http/2.
 // consider using https://github.com/coder/websocket instead as it has experimental support.
+// maybe better to wait a few years until something stable emerges.
 func ConnectWSS2(
 	tlsClient tlsclient.ITLSClient,
 	wssPath string,
@@ -63,7 +64,7 @@ func ConnectWSS2(
 
 	wssConn, r, err := wssDialer.Dial(connectURL, nil)
 	if err != nil {
-		// FIXME: when unauthorized, don't retry. A new token is needed. (session ended).
+		// TBD: when unauthorized, don't retry. A new token is needed. (session ended).
 		if r != nil && r.StatusCode == http.StatusUnauthorized {
 			err = fmt.Errorf("%w: Connection as '%s' to '%s' failed: %s",
 				utils.UnauthorizedError, tlsClient.GetClientID(), connectURL, err.Error())

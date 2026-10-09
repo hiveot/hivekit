@@ -167,7 +167,7 @@ func (cl *GrpcClientImpl) Connect() (err error) {
 	// connect the streams want serve
 	_, err = cl.grpcSvcClient.ConnectStream(grpctransport.StreamNameNotification)
 	if err == nil {
-		// FIXME: make dual stream work
+		// TODO: make dual stream work
 		// _, err = cl.grpcClient.ConnectStream(grpcapi.StreamNameRequestResponse)
 	}
 
@@ -255,7 +255,7 @@ func (cl *GrpcClientImpl) SendRequest(
 	if replyTo == nil {
 		// responses are received asynchronously
 		err := cl.grpcSvcClient.Send(grpctransport.StreamNameNotification, raw)
-		// FIXME: make dual stream work
+		// TODO: make dual stream work
 		// err := cl.grpcClient.Send(grpcapi.StreamNameRequestResponse, raw)
 		return err
 	}
@@ -265,7 +265,7 @@ func (cl *GrpcClientImpl) SendRequest(
 	if err == nil {
 		err = cl.grpcSvcClient.Send(grpctransport.StreamNameNotification, raw)
 	}
-	// FIXME: make dual stream work
+	// TODO: make dual stream work
 	// err = cl.grpcClient.Send(grpcapi.StreamNameRequestResponse, raw)
 
 	if err != nil {
@@ -277,13 +277,15 @@ func (cl *GrpcClientImpl) SendRequest(
 			"err", err.Error())
 		return err
 	}
-	// FIXME: should this run async in the background?
-	hasResponse, resp := cl.rnrChan.WaitForResponse(req.CorrelationID, cl.GetTimeout())
-	if hasResponse {
-		err = replyTo(resp)
-	} else {
-		err = fmt.Errorf("No response received")
-	}
+	go func() {
+
+		resp, err2 := cl.rnrChan.WaitForResponse(req.CorrelationID, cl.GetTimeout())
+		if err2 != nil {
+			err2 = fmt.Errorf("SendRequest timeout:  %w", err2)
+			resp = req.CreateErrorResponse(err2)
+		}
+		_ = replyTo(resp)
+	}()
 	return err
 }
 
@@ -296,7 +298,7 @@ func (cl *GrpcClientImpl) SendResponse(resp *msg.ResponseMessage) error {
 
 	raw, err := cl.encoder.EncodeResponse(resp)
 	if err == nil {
-		// FIXME: make dual stream work
+		// TODO: make dual stream work
 		err = cl.grpcSvcClient.Send(grpctransport.StreamNameNotification, raw)
 		// err = cl.grpcClient.Send(grpcapi.StreamNameRequestResponse, raw)
 	}
