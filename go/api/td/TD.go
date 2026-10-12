@@ -243,15 +243,21 @@ func (tdoc *TD) AddSecurityScheme(name string, scheme SecurityScheme) {
 	// existing security scheme
 	secStr, valid := tdoc.Security.(string)
 	if valid {
-		secArr := []string{secStr, name}
-		tdoc.Security = secArr
+		// prevent duplicates
+		if secStr != name {
+			secArr := []string{secStr, name}
+			tdoc.Security = secArr
+		}
 		return
 	}
 	// existing array of security schemes
 	secArr, valid := tdoc.Security.([]string)
 	if valid {
-		secArr = append(secArr, name)
-		tdoc.Security = secArr
+		// prevent duplicates
+		if !slices.Contains(secArr, name) {
+			secArr = append(secArr, name)
+			tdoc.Security = secArr
+		}
 		return
 	}
 	slog.Error("AddSecurityScheme: security field has unknown content. Replacing it with: " + string(name))
@@ -538,9 +544,9 @@ func (tdoc *TD) GetRCID() string {
 	return tdoc.RCID
 }
 
-// GetTypes returns the Thing @type fields of this TD.
+// GetAtTypes returns the Thing @type fields of this TD.
 // This returns an array with at least one element.
-func (tdoc *TD) GetTypes() []string {
+func (tdoc *TD) GetAtTypes() []string {
 	typeList, valid := tdoc.AtType.([]string)
 	if valid {
 		return typeList
@@ -621,7 +627,7 @@ func (tdoc *TD) SetType(atType string) {
 		tdoc.AtType = atType
 		return
 	}
-	typeList := tdoc.GetTypes()
+	typeList := tdoc.GetAtTypes()
 	if slices.Contains(typeList, atType) {
 		// dont add a duplicate
 		return

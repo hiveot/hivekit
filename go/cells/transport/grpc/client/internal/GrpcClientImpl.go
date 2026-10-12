@@ -137,6 +137,8 @@ func (cl *GrpcClientImpl) Connect() (err error) {
 	if status == api.StatusConnected {
 		return fmt.Errorf("Already connected")
 	} else if status == api.StatusConnecting {
+		// is this an error, or should it just wait?
+		// option: block until timeout
 		return fmt.Errorf("Busy connecting")
 	}
 

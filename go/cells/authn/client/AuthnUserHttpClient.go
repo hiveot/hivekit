@@ -1,4 +1,4 @@
-package authnclient
+package authn_client
 
 import (
 	"crypto/x509"

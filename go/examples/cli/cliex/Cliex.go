@@ -1,10 +1,10 @@
 package cliex
 
 import (
-	"crypto/x509"
 	"log/slog"
 	"time"
 
+	"github.com/hiveot/hivekit/go/api"
 	"github.com/hiveot/hivekit/go/api/td"
 	"github.com/hiveot/hivekit/go/cells/consumer"
 	"github.com/hiveot/hivekit/go/cells/directory"
@@ -30,11 +30,11 @@ type Cliex struct {
 
 	dirClient directory.IDirectoryClient
 
-	// for contacting the directory using http
-	caCert *x509.Certificate
-
 	// app config
 	config CliexConfig
+
+	// the application environment
+	env *api.HiveEnvironment
 }
 
 // locate a TD through the directory or discovery.
@@ -65,23 +65,26 @@ func (cliex *Cliex) FindTD(thingID string) (tdoc *td.TD) {
 
 // Create a new instance of the CLI app
 //
+//	env the is CLI application environment
 //	config is the CLI configuration
 //	co is the consumer helper for publishing requests
 //	discoClient is the discovery client
 //	dirClient is the client for contacting a discovered directory
 //	caCert is the application environment CA
-func NewCliex(config CliexConfig,
+func NewCliex(
+	env *api.HiveEnvironment,
+	config CliexConfig,
 	co *consumer.Consumer,
 	discoClient discovery.IDiscoveryClient,
 	dirClient directory.IDirectoryClient,
-	caCert *x509.Certificate) *Cliex {
+) *Cliex {
 
 	m := &Cliex{
 		co:          co,
-		caCert:      caCert,
 		config:      config,
 		discoClient: discoClient,
 		dirClient:   dirClient,
+		env:         env,
 	}
 	return m
 }

@@ -44,6 +44,10 @@ const LetsEncryptProvider = "letsencrypt"
 const (
 	GetCACertAction = "getCACert"
 
+	// Create a client certificate
+	// input: CreateClientCertArgs
+	CreateClientCertAction = "createClientCert"
+
 	// the get ServerCert action
 	// input: server name
 	GetServerCertAction = "getServerCert"
@@ -52,6 +56,18 @@ const (
 	// input: PEM encoded client certificate
 	VerifyClientCertAction = "verifyClientCert"
 )
+
+// Create client certificate input
+type CreateClientCertInput struct {
+	// ID of the device or service whose cert to create
+	ClientID string `json:"clientID"`
+	// organization. Use role.
+	OU string `json:"out"`
+	// validity in days
+	Days int `json:"days"`
+	// Client public key in PEM format
+	PubKeyPEM string `json:"pubKey"`
+}
 
 // CertsConfig defines certificate service configuration.
 // This can also be provided through the factory function
@@ -115,9 +131,9 @@ type ICertProvider interface {
 type ICertsService interface {
 	api.IHiveCell
 
-	// Create a self-signed client certificate using the given client public key.
+	// Create a self-signed client certificate using the environment self-signed CA.
 	//
-	// Intended for devices and consumers to support authentication with a server
+	// Intended for devices and consumers to support authentication with the server
 	// using a client certificate. The country, province, locality fields are set
 	// to hiveot's default from the service configuration.
 	//

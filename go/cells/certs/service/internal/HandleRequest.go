@@ -1,14 +1,44 @@
 package internal
 
 import (
+	"crypto"
 	"crypto/x509"
 	"fmt"
+	"time"
 
 	"github.com/hiveot/hivekit/go/api/msg"
 	"github.com/hiveot/hivekit/go/api/td"
 	"github.com/hiveot/hivekit/go/cells/certs"
 	"github.com/hiveot/hivekit/go/utils"
 )
+
+// Handle the CreateClientCert method
+func (svc *CertsServiceImpl) handleCreateClientCert(req *msg.RequestMessage) (resp *msg.ResponseMessage, err error) {
+
+	var pubKey crypto.PublicKey
+	var x509Cert *x509.Certificate
+	var validity time.Duration
+	input := certs.CreateClientCertInput{}
+	req.DecodeInput(&input)
+
+	if input.PubKeyPEM != "" {
+		pubKey, err = utils.PublicKeyFromPem(input.PubKeyPEM)
+	}
+	validity = time.Hour * 24 * time.Duration(input.Days)
+	if input.Days == 0 {
+		validity = certs.DefaultClientValidityPeriod
+	}
+	if err == nil {
+		x509Cert, err = svc.CreateClientCert(input.ClientID, input.OU, validity, pubKey)
+	}
+	if err == nil {
+		certPEM := utils.X509CertToPEM(x509Cert)
+		resp = req.CreateResponse(certPEM, nil)
+	} else {
+		resp = req.CreateErrorResponse(err)
+	}
+	return resp, nil
+}
 
 // Invoke the GetCACert method
 func (svc *CertsServiceImpl) handleGetCACert(req *msg.RequestMessage) (resp *msg.ResponseMessage, err error) {
@@ -73,6 +103,8 @@ func (svc *CertsServiceImpl) HandleRequest(
 		switch req.Name {
 		case certs.GetCACertAction:
 			resp, err = svc.handleGetCACert(req)
+		case certs.CreateClientCertAction:
+			resp, err = svc.handleCreateClientCert(req)
 		case certs.GetServerCertAction:
 			resp, err = svc.handleGetServerCert(req)
 		case certs.VerifyClientCertAction:

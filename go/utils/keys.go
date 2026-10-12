@@ -57,7 +57,7 @@ func DetermineKeyType(encKey string) KeyType {
 		// Try base64 decoding. Eg PEM content
 		derBytes, err = base64.StdEncoding.DecodeString(encKey)
 		_ = err
-		// todo: support for hex format?
+		// tbd: support for hex format?
 	} else {
 		derBytes = blockPub.Bytes
 	}
@@ -322,13 +322,13 @@ func PublicKeyFromPem(publicPEM string) (pubKey crypto.PublicKey, err error) {
 func PublicKeyToPem(pubKey crypto.PublicKey) (pemKey string) {
 	var pemData []byte
 	if pubKey == nil {
-		panic("missing public key")
+		panic("PublicKeyToPem: missing public key")
 	}
 
 	// rsa, ecdsa, ecdha expect a ptr, ed25519 expects non-pointer key
 	x509EncodedPub, err := x509.MarshalPKIXPublicKey(pubKey)
 	if err != nil {
-		panic("public key can't be marshalled")
+		panic("PublicKeyToPem: public key can't be marshalled")
 	}
 	block := &pem.Block{
 		Type:  "PUBLIC KEY",
@@ -336,7 +336,7 @@ func PublicKeyToPem(pubKey crypto.PublicKey) (pemKey string) {
 	}
 	pemData = pem.EncodeToMemory(block)
 	if pemData == nil {
-		panic("public key can't be marshalled")
+		panic("PublicKeyToPem: public key block can't be marshalled")
 	}
 	return string(pemData)
 }

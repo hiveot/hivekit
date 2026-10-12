@@ -20,21 +20,15 @@ import (
 type AuthnUserServiceImpl struct {
 	*thing.ExposedThing
 
-	// passwdDir string
-
 	authnStore authn.IAuthnStore
 
 	// Creation and validation of session tokens
-	sessionManager *SessionManager
+	sessionManager authn.ISessionManager
 }
 
 // GetProfile return the client's profile
 func (svc *AuthnUserServiceImpl) GetProfile(clientID string) (profile authn.ClientProfile, err error) {
 	return svc.authnStore.GetProfile(clientID)
-}
-
-func (svc *AuthnUserServiceImpl) GetSessionManager() authn.ISessionManager {
-	return svc.sessionManager
 }
 
 // Handle requests to cells of this service
@@ -56,15 +50,13 @@ func (svc *AuthnUserServiceImpl) HandleRequest(req *msg.RequestMessage, replyTo 
 				err = errors.New("bad function argument: " + err.Error())
 			}
 		case authn.UserActionLogout:
-			sessMgr := svc.GetSessionManager()
-			sessMgr.Logout(req.SenderID)
+			svc.sessionManager.Logout(req.SenderID)
 
 		case authn.UserActionRefreshToken:
 			var oldToken string
 			err = utils.DecodeAsObject(req.Input, &oldToken)
 			if err == nil {
-				sessMgr := svc.GetSessionManager()
-				output, _, err = sessMgr.RefreshToken(req.SenderID, oldToken)
+				output, _, err = svc.sessionManager.RefreshToken(req.SenderID, oldToken)
 			} else {
 				err = errors.New("bad function argument: " + err.Error())
 			}
@@ -131,7 +123,7 @@ func (svc *AuthnUserServiceImpl) UpdateProfile(senderID string, newProfile authn
 	}
 	if senderID != newProfile.ClientID {
 		// only admin roles can update client profiles
-		if senderProf.Role != authn.ClientRoleAdmin && senderProf.Role != authn.ClientRoleService {
+		if senderProf.Role != api.ClientRoleAdmin && senderProf.Role != api.ClientRoleService {
 			return fmt.Errorf("Sender '%s' is not admin, not allowed to update profile", senderID)
 		}
 	} else {
@@ -148,19 +140,15 @@ func (svc *AuthnUserServiceImpl) UpdateProfile(senderID string, newProfile authn
 // This uses cellID authn.AuthnUserServiceID
 // Call Start() to publish its TD.
 //
-//	tokensDir is location to store auth tokens
+//	sessionManager that manages auth tokens
 //	authnStore account store
 //	createAdminToken flag, create a new token for the default admin account
 func NewAuthnUserServiceImpl(
-	tokensDir string, authnStore authn.IAuthnStore, createAdminToken bool) (
+	authnStore authn.IAuthnStore, sessionManager authn.ISessionManager, createAdminToken bool) (
 	*AuthnUserServiceImpl, error) {
 
+	var err error
 	slog.Info("NewAuthnUserServiceImpl: creating authn user service")
-
-	sessionManager, err := StartSessionManager(authnStore, tokensDir)
-	if err != nil {
-		return nil, err
-	}
 
 	// this service is the admin service that also exposes the user service service thing
 	svc := &AuthnUserServiceImpl{

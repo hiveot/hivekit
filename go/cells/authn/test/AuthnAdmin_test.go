@@ -4,6 +4,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/hiveot/hivekit/go/api"
 	"github.com/hiveot/hivekit/go/cells/authn"
 	certstest "github.com/hiveot/hivekit/go/cells/certs/test"
 	"github.com/hiveot/hivekit/go/utils"
@@ -38,7 +39,7 @@ const TestKeyType = utils.KeyTypeED25519
 // 	*consumer.Consumer, api.ITransportClient, string) {
 
 // 	// ensure the client exists
-// 	_ = m.AddClient(clientID, "client 1", authn.ClientRoleViewer)
+// 	_ = m.AddClient(clientID, "client 1", api.ClientRoleViewer)
 // 	sm := m.GetSessionManager()
 // 	token, validUntil, _ := sm.CreateToken(clientID, time.Minute)
 // 	_ = validUntil
@@ -70,26 +71,26 @@ func TestAddRemoveClientsSuccess(t *testing.T) {
 	defer stopFn()
 
 	// add the client that is going to be authenticated
-	err := adminSvc.AddClient("user1", "User 1", authn.ClientRoleViewer)
+	err := adminSvc.AddClient("user1", "User 1", api.ClientRoleViewer)
 	require.NoError(t, err)
 	err2 := adminSvc.SetPassword("user1", "pass1")
 	require.NoError(t, err2)
 
 	// duplicate should fail
-	err = adminSvc.AddClient("user1", "user 1 updated", authn.ClientRoleViewer)
+	err = adminSvc.AddClient("user1", "user 1 updated", api.ClientRoleViewer)
 	require.Error(t, err)
 
-	err = adminSvc.AddClient("user2", "user 2", authn.ClientRoleViewer)
+	err = adminSvc.AddClient("user2", "user 2", api.ClientRoleViewer)
 	assert.NoError(t, err)
-	err = adminSvc.AddClient("user3", "user 3", authn.ClientRoleViewer)
+	err = adminSvc.AddClient("user3", "user 3", api.ClientRoleViewer)
 	assert.NoError(t, err)
-	err = adminSvc.AddClient("user4", "user 4", authn.ClientRoleViewer)
-	assert.NoError(t, err)
-
-	err = adminSvc.AddClient(deviceID, "device 1", authn.ClientRoleDevice)
+	err = adminSvc.AddClient("user4", "user 4", api.ClientRoleViewer)
 	assert.NoError(t, err)
 
-	err = adminSvc.AddClient(serviceID, "service 1", authn.ClientRoleService)
+	err = adminSvc.AddClient(deviceID, "device 1", api.ClientRoleDevice)
+	assert.NoError(t, err)
+
+	err = adminSvc.AddClient(serviceID, "service 1", api.ClientRoleService)
 	assert.NoError(t, err)
 
 	// there should be 6 clients
@@ -123,11 +124,11 @@ func TestAddRemoveClientsFail(t *testing.T) {
 	defer stopFn()
 
 	// missing clientID should fail
-	err := adminSvc.AddClient("", "user 1", authn.ClientRoleService)
+	err := adminSvc.AddClient("", "user 1", api.ClientRoleService)
 	assert.Error(t, err)
 
 	// a bad key is not an error
-	err = adminSvc.AddClient("user2", "user 2", authn.ClientRoleViewer)
+	err = adminSvc.AddClient("user2", "user 2", api.ClientRoleViewer)
 	assert.NoError(t, err)
 }
 
@@ -140,14 +141,13 @@ func TestUpdateClientPassword(t *testing.T) {
 
 	_, authnSvc, stopFn := startTestAuthnServices(defaultHash)
 	adminSvc := authnSvc.GetAdminService()
-	userSvc := authnSvc.GetUserService()
 	defer stopFn()
-	err := adminSvc.AddClient(tu1ID, "user tu1", authn.ClientRoleViewer)
+	err := adminSvc.AddClient(tu1ID, "user tu1", api.ClientRoleViewer)
 	require.NoError(t, err)
 	err = adminSvc.SetPassword(tu1ID, tuPass1)
 	require.NoError(t, err)
 
-	sm := userSvc.GetSessionManager()
+	sm := authnSvc.GetSessionManager()
 	err = sm.ValidatePassword(tu1ID, tuPass1)
 	require.NoError(t, err)
 
@@ -168,15 +168,14 @@ func TestUpdatePubKey(t *testing.T) {
 
 	_, authnSvc, stopFn := startTestAuthnServices(defaultHash)
 	adminSvc := authnSvc.GetAdminService()
-	userSvc := authnSvc.GetUserService()
 	defer stopFn()
 
 	// add user to test with. don't set the public key yet
-	err := adminSvc.AddClient(tu1ID, "user tu1", authn.ClientRoleViewer)
+	err := adminSvc.AddClient(tu1ID, "user tu1", api.ClientRoleViewer)
 	adminSvc.SetPassword(tu1ID, tu1Pass)
 	require.NoError(t, err)
 	//
-	sm := userSvc.GetSessionManager()
+	sm := authnSvc.GetSessionManager()
 	token, validUntil, err := sm.CreateToken(tu1ID, time.Minute)
 	require.NoError(t, err)
 	require.NotEmpty(t, token)
@@ -205,15 +204,14 @@ func TestNewDeviceToken(t *testing.T) {
 	const adminID = "administrator-1"
 	_, authnSvc, stopFn := startTestAuthnServices(defaultHash)
 	adminSvc := authnSvc.GetAdminService()
-	userSvc := authnSvc.GetUserService()
 	defer stopFn()
 
 	// add device to test with and connect
-	err := adminSvc.AddClient(tu1ID, tu1Name, authn.ClientRoleDevice)
+	err := adminSvc.AddClient(tu1ID, tu1Name, api.ClientRoleDevice)
 	require.NoError(t, err)
 
 	// get a new token
-	sm := userSvc.GetSessionManager()
+	sm := authnSvc.GetSessionManager()
 	token, _, err := sm.CreateToken(tu1ID, time.Minute)
 	require.NoError(t, err)
 	require.NotEmpty(t, token)
@@ -236,7 +234,7 @@ func TestUpdateProfile(t *testing.T) {
 	defer stopFn()
 
 	// add user to test with and connect
-	err := adminSvc.AddClient(tu1ID, tu1Name, authn.ClientRoleViewer)
+	err := adminSvc.AddClient(tu1ID, tu1Name, api.ClientRoleViewer)
 	require.NoError(t, err)
 	//tu1Key, _ := testServer.MsgServer.CreateKP()
 
@@ -244,7 +242,7 @@ func TestUpdateProfile(t *testing.T) {
 	const newDisplayName = "new display name"
 	profile, err := adminSvc.GetProfile(tu1ID)
 	require.NoError(t, err)
-	assert.Equal(t, authn.ClientRoleViewer, profile.Role)
+	assert.Equal(t, api.ClientRoleViewer, profile.Role)
 	profile.DisplayName = newDisplayName
 	err = adminSvc.UpdateProfile(tu1ID, profile)
 	assert.NoError(t, err)
@@ -253,7 +251,7 @@ func TestUpdateProfile(t *testing.T) {
 	profile2, err := adminSvc.GetProfile(tu1ID)
 	require.NoError(t, err)
 	assert.Equal(t, newDisplayName, profile2.DisplayName)
-	assert.Equal(t, authn.ClientRoleViewer, profile2.Role)
+	assert.Equal(t, api.ClientRoleViewer, profile2.Role)
 }
 
 func TestUpdateProfileFail(t *testing.T) {
@@ -266,7 +264,7 @@ func TestUpdateProfileFail(t *testing.T) {
 	adminSvc := authnSvc.GetAdminService()
 	defer stopFn()
 	// add user to test with and connect
-	err := adminSvc.AddClient(tu1ID, tu1Name, authn.ClientRoleViewer)
+	err := adminSvc.AddClient(tu1ID, tu1Name, api.ClientRoleViewer)
 	require.NoError(t, err)
 
 	// this fails as badclient doesn't exist

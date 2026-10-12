@@ -29,13 +29,18 @@ var ExampleHome = path.Join(os.TempDir(), "hivekit-examples")
 //	cliex  subscribe  <thingID>      subscribe to updates of a thing
 
 const (
-	CmdDiscover    = "discover"
-	CmdListDir     = "ld"
-	CmdLogin       = "login"
-	CmdShowActions = "actions"
-	CmdShowTD      = "td"
-	CmdShowStatus  = "status"
-	CmdSubscribe   = "subscribe"
+	CmdAddDeviceAcct   = "add"
+	CmdAddConsumerAcct = "adc"
+	CmdDiscover        = "discover"
+	CmdEnv             = "env"
+	CmdListAccount     = "lac"
+	CmdListDir         = "ld"
+	CmdLogin           = "login"
+	CmdRemoveAcct      = "rma"
+	CmdShowActions     = "actions"
+	CmdShowTD          = "td"
+	CmdShowStatus      = "status"
+	CmdSubscribe       = "subscribe"
 )
 
 var appConfig cliex.CliexConfig
@@ -57,8 +62,13 @@ func main() {
 		fmt.Println("Usage: cliex [options] Command")
 		fmt.Println()
 		fmt.Println("Commands:")
+		fmt.Printf("  %-10s                Show app environment\n", CmdEnv)
 		fmt.Printf("  %-10s                Discover WoT devices and directories\n", CmdDiscover)
+		fmt.Printf("  %-10s clientID       Add/Update a RC device account with certificate\n", CmdAddDeviceAcct)
+		fmt.Printf("  %-10s userID [name]  Add/Update a user account with token file\n", CmdAddConsumerAcct)
+		fmt.Printf("  %-10s clientID       Remove client account\n", CmdRemoveAcct)
 		// fmt.Printf("  %-10s thingID        Set login ID for the device\n", CmdLogin)
+		fmt.Printf("  %-10s [clientID]     List account(s)\n", CmdListAccount)
 		fmt.Printf("  %-10s thingID        List the content of a directory with optional thingID\n", CmdListDir)
 		fmt.Printf("  %-10s thingID        Show the TD of a Thing\n", CmdShowTD)
 		fmt.Printf("  %-10s thingID        Show the current status of a Thing\n", CmdShowStatus)
@@ -71,7 +81,7 @@ func main() {
 
 	// Setup the environment after parsing the commandline
 	env := api.NewHiveEnvironment(ExampleHome, true)
-	env.AppID = "example-2"
+	env.AppID = "cli-example"
 	if appConfig.Verbose {
 		env.LogLevel = "info"
 	}
@@ -81,12 +91,14 @@ func main() {
 	}
 
 	env.RpcTimeout = time.Minute * 3 // for testing
-	env.Print(env.Verbose)
 
 	args := flag.Args()
 	if len(args) == 0 {
-		env.Print(0)
+		env.Print(1)
 		flag.Usage()
+		return
+	} else if args[0] == "env" {
+		env.Print(2)
 		return
 	}
 
@@ -121,16 +133,41 @@ func main() {
 	if defaultAuthToken != "" {
 		rtr.AddCredentials("", env.ClientID, defaultAuthToken, td.SecSchemeBearer)
 	}
-	caCert, err := env.GetCACert()
 	discoClient := r.GetDiscovery()
 	dirClient := r.GetDirectory()
-	app := cliex.NewCliex(appConfig, r.Consumer, discoClient, dirClient, caCert)
+	app := cliex.NewCliex(env, appConfig, r.Consumer, discoClient, dirClient)
 
 	f.Start()
 
 	switch cmd {
+	case CmdAddDeviceAcct:
+		clientID := ""
+		displayName := ""
+		if len(args) > 1 {
+			clientID = args[1]
+		}
+		if len(args) > 2 {
+			displayName = args[2]
+		}
+		app.AddDeviceAccount(clientID, displayName)
+	case CmdAddConsumerAcct:
+		clientID := ""
+		displayName := ""
+		if len(args) > 1 {
+			clientID = args[1]
+		}
+		if len(args) > 2 {
+			displayName = args[2]
+		}
+		app.AddConsumerAccount(clientID, displayName)
 	case CmdDiscover, "disco":
 		app.ShowDiscovery()
+	case CmdListAccount:
+		clientID := ""
+		if len(args) > 1 {
+			clientID = args[1]
+		}
+		app.ListAccount(clientID)
 	case CmdListDir:
 		// optional directory thingID
 		thingID := ""
@@ -138,6 +175,14 @@ func main() {
 			thingID = args[1]
 		}
 		app.ListDir(env, thingID)
+	case CmdRemoveAcct:
+		if len(args) <= 1 {
+			fmt.Println("RemoveAccount: Missing clientID")
+			return
+		}
+		clientID := args[1]
+		app.RemoveAccount(clientID)
+
 	case CmdShowActions:
 		thingID := getThingID()
 		actionName := ""

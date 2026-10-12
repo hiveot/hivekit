@@ -10,7 +10,6 @@ import (
 	"github.com/hiveot/hivekit/go/api"
 	"github.com/hiveot/hivekit/go/api/msg"
 	"github.com/hiveot/hivekit/go/api/td"
-	"github.com/hiveot/hivekit/go/cells/authn"
 	"github.com/hiveot/hivekit/go/cells/transport/clients"
 	"github.com/hiveot/hivekit/go/testenv"
 	"github.com/hiveot/hivekit/go/utils"
@@ -56,7 +55,7 @@ func TestStartStop(t *testing.T) {
 	testEnv, cancelFn := testenv.StartTestEnv(testProtocol, true)
 
 	defer cancelFn()
-	co1, cc1, _ := testEnv.NewTestConsumer(testClientID1, authn.ClientRoleViewer)
+	co1, cc1, _ := testEnv.NewTestConsumer(testClientID1, api.ClientRoleViewer)
 	err := cc1.Connect()
 	require.NoError(t, err)
 	defer cc1.Close()
@@ -76,7 +75,7 @@ func TestPing(t *testing.T) {
 	testEnv, cancelFn := testenv.StartTestEnv(testProtocol, true)
 	defer cancelFn()
 	// NewTestConsumer creates a client
-	co1, cc1, _ := testEnv.NewTestConsumer(testClientID1, authn.ClientRoleViewer)
+	co1, cc1, _ := testEnv.NewTestConsumer(testClientID1, api.ClientRoleViewer)
 	err := cc1.Connect()
 	require.NoError(t, err)
 	defer cc1.Close()
@@ -93,7 +92,7 @@ func TestPingClientCert(t *testing.T) {
 	defer cancelFn()
 
 	// ensure the test client account exists
-	err := testEnv.TestAuthn.AddClient(testClientID1, "test", authn.ClientRoleViewer)
+	err := testEnv.TestAuthn.AddClient(testClientID1, "test", api.ClientRoleViewer)
 
 	// NewConsumerClient creates a client
 	// create a connection to the test server
@@ -136,7 +135,7 @@ func TestUnauthorizedError(t *testing.T) {
 	rootCAs := testEnv.Env.GetRootCAs()
 
 	// ensure the test client account exists
-	err := testEnv.TestAuthn.AddClient(testClientID1, "test", authn.ClientRoleViewer)
+	err := testEnv.TestAuthn.AddClient(testClientID1, "test", api.ClientRoleViewer)
 	token, _, err := testEnv.CreateToken(testClientID1, time.Minute*10)
 
 	// first make sure connection does validate

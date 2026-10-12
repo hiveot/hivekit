@@ -63,10 +63,6 @@ func (svc *ReconnectServiceImpl) applySubscription() (err error) {
 	return err
 }
 
-// func (m *ReconnectServiceImpl) AuthenticateWithTD(tdoc *td.TD, getcred api.GetCredentials) error {
-// 	return m.conn.AuthenticateWithTD(tdoc, getcred)
-// }
-
 // Connect periodically tries a reconnect until successful or the context is cancelled
 // This uses an increasing backoff period up to 15 seconds, starting at 1msec.
 func (svc *ReconnectServiceImpl) Connect(ctx context.Context) error {
@@ -211,8 +207,12 @@ func (svc *ReconnectServiceImpl) SetRequestSink(requestSink api.IHiveCell) {
 
 }
 
-// Start the reconnection process
+// Start the reconnection process.
+// Provide a sink before calling Start.
 func (svc *ReconnectServiceImpl) Start() {
+	if svc.conn == nil {
+		return
+	}
 	status := svc.conn.GetConnectionStatus()
 	if status != api.StatusConnected && status != api.StatusConnecting {
 
@@ -232,7 +232,9 @@ func (svc *ReconnectServiceImpl) Stop() {
 		// cancelFn will be cleared when reconnect loop has exited
 		svc.cancelFn()
 	}
-	svc.conn.Stop()
+	if svc.conn != nil {
+		svc.conn.Stop()
+	}
 }
 
 // NewReconnectServiceImpl creates a reconnect service for use with a transport client.

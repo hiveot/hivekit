@@ -54,9 +54,14 @@ func (svc *CertsServiceImpl) CreateAdminCert() error {
 }
 
 // Create a self-signed client cert. This requires having the CA cert and public key.
+// validity of 0 uses the default
 func (svc *CertsServiceImpl) CreateClientCert(
 	clientID string, ou string, validity time.Duration, clientPubKey crypto.PublicKey) (
 	x509Cert *x509.Certificate, err error) {
+
+	if validity == 0 {
+		validity = certs.DefaultClientValidityPeriod
+	}
 
 	cfg := svc.config
 	// just a sinmple wrapper around the library

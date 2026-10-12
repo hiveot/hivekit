@@ -68,8 +68,6 @@ Since rc devices dont run servers, they are the simplest way to construct a devi
 
 This is the preferred way to create and connect devices in HiveOT. 
 
-### appenv: show the application environment 
-
 
 
 ## What is a recipe?

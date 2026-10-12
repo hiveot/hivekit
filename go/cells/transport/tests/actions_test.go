@@ -13,7 +13,6 @@ import (
 	"github.com/hiveot/hivekit/go/api"
 	"github.com/hiveot/hivekit/go/api/msg"
 	"github.com/hiveot/hivekit/go/api/td"
-	"github.com/hiveot/hivekit/go/cells/authn"
 	"github.com/hiveot/hivekit/go/cells/thing"
 	"github.com/hiveot/hivekit/go/testenv"
 	"github.com/hiveot/hivekit/go/utils"
@@ -66,7 +65,7 @@ func TestInvokeActionFromConsumerToServer(t *testing.T) {
 	testEnv.Server.SetRequestSink(ag)
 
 	// 2. create a consumer with a linked client and a TD for the server
-	co1, cc1, token := testEnv.NewTestConsumer(testClientID1, authn.ClientRoleViewer)
+	co1, cc1, token := testEnv.NewTestConsumer(testClientID1, api.ClientRoleViewer)
 	err := cc1.Connect()
 	assert.NoError(t, err)
 	defer cc1.Close()
@@ -275,7 +274,7 @@ func TestQueryActions(t *testing.T) {
 	testEnv.Server.SetRequestSink(ag)
 
 	// 2. connect as a consumer
-	co1, cc1, _ := testEnv.NewTestConsumer(testClientID1, authn.ClientRoleViewer)
+	co1, cc1, _ := testEnv.NewTestConsumer(testClientID1, api.ClientRoleViewer)
 	err := cc1.Connect()
 	assert.NoError(t, err)
 	defer cc1.Close()

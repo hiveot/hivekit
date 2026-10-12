@@ -90,11 +90,11 @@ func TestMissingAffordance(t *testing.T) {
 
 func TestAtType(t *testing.T) {
 	tdoc := td.NewTD(thing1ID, "test TD", deviceTypeThingSensor)
-	at1 := tdoc.GetTypes()
+	at1 := tdoc.GetAtTypes()
 	assert.Equal(t, deviceTypeThingSensor, at1[0])
 	tdoc.SetType(vocab.DeviceActuator)
 
-	at2 := tdoc.GetTypes()
+	at2 := tdoc.GetAtTypes()
 	assert.IsType(t, []string{}, at2)
 	assert.Len(t, at2, 2)
 }
@@ -178,6 +178,7 @@ func TestForms(t *testing.T) {
 	tdoc := td.NewTD(thing1ID, "test TD", deviceTypeThingSensor)
 	tdoc.Base = "https://localhost:1234/path"
 
+	// add actions
 	actAff := tdoc.AddAction(action1Name, "action", "Test Action", nil)
 	tdoc.AddProperty(prop1Name, "prop", "Test Prop", td.DataTypeInteger)
 	tdoc.AddEvent(event1Name, "event", "Test Event", nil)
@@ -213,4 +214,48 @@ func TestForms(t *testing.T) {
 	hrefURL, err := f1b.ResolveHRef(tdoc.Base, nil)
 	assert.NoError(t, err)
 	assert.Equal(t, href, hrefURL.String())
+}
+
+// test adding security scheme
+func TestSecScheme(t *testing.T) {
+
+	tdoc := td.NewTD(thing1ID, "test TD", deviceTypeThingSensor)
+	tdoc.Base = "https://localhost:1234/path"
+
+	// add security
+	secScheme1 := td.SecurityScheme{
+		Scheme: "bearer",
+		In:     "header",
+	}
+	tdoc.AddSecurityScheme("bearer", secScheme1)
+	assert.Len(t, tdoc.SecurityDefinitions, 1)
+	scheme1, hasMultiple, err := tdoc.GetSecurityScheme()
+	require.NoError(t, err)
+	require.NotEmpty(t, scheme1)
+	assert.False(t, hasMultiple)
+
+	// no duplicates
+	tdoc.AddSecurityScheme("bearer", secScheme1)
+	assert.Len(t, tdoc.SecurityDefinitions, 1)
+	scheme1, hasMultiple, err = tdoc.GetSecurityScheme()
+	require.NoError(t, err)
+	require.NotEmpty(t, scheme1)
+	assert.False(t, hasMultiple)
+
+	securityValue, ok := tdoc.Security.(string)
+	assert.True(t, ok, "expected a string for security")
+	assert.Equal(t, "bearer", securityValue)
+
+	// add a second scheme
+	secScheme2 := td.SecurityScheme{
+		Scheme: "basic",
+		In:     "header",
+	}
+	tdoc.AddSecurityScheme("basic_sc", secScheme2)
+	assert.Len(t, tdoc.SecurityDefinitions, 2)
+	scheme2, hasMultiple, err := tdoc.GetSecurityScheme()
+	require.NoError(t, err)
+	require.NotEmpty(t, scheme2)
+	assert.True(t, hasMultiple)
+
 }

@@ -1,11 +1,11 @@
 // Package authnclient with administration facing methods
-package authnclient
+package authn_client
 
 import (
 	"github.com/hiveot/hivekit/go/api"
 	"github.com/hiveot/hivekit/go/api/td"
 	"github.com/hiveot/hivekit/go/cells"
-	authnapi "github.com/hiveot/hivekit/go/cells/authn"
+	"github.com/hiveot/hivekit/go/cells/authn"
 )
 
 // AuthnAdminClient is a client for authentication management using RRN messages.
@@ -17,36 +17,51 @@ type AuthnAdminClient struct {
 	authnServiceID string
 }
 
-// AddClient adds a new consumer, device or service account.
+// AddClient add a new client account. This fails if the client already exists.
+//
+// Use session authenticator's SetPassword or CreateToken to obtain a session
+// token to connect with.
+//
+//	clientID is the account ID of the client
+//	displayName is the friendly name of the client
+//	role is the client role, eg ClientRoleViewer, ... ClientRoleDevice
 func (cl *AuthnAdminClient) AddClient(clientID string, displayName string, role string, pubKey string) (
 	token string, err error) {
 
-	var args = authnapi.AdminAddClientArgs{
+	var args = authn.AdminAddClientInput{
 		ClientID:    clientID,
 		DisplayName: displayName,
 		Role:        role,
 	}
 	err = cl.Rpc(td.OpInvokeAction, cl.authnServiceID,
-		authnapi.AdminActionAddClient, &args, &token)
+		authn.AdminAddClientAction, &args, &token)
 	return
 }
 
-// GetClientProfile client method - Get Client Profile.
-// Get the profile information describing a client
-func (cl *AuthnAdminClient) GetClientProfile(clientID string) (
-	profile authnapi.ClientProfile, err error) {
+// CreateToken creates a new client authentication token with the default expiry based on the role
+func (cl *AuthnAdminClient) CreateToken(clientID string) (newToken string, err error) {
 
 	err = cl.Rpc(td.OpInvokeAction, cl.authnServiceID,
-		authnapi.AdminActionGetProfile, &clientID, &profile)
+		authn.AdminCreateTokenAction, &clientID, &newToken)
+	return
+}
+
+// GetProfile client method - Get Client Profile.
+// Get the profile information describing a client
+func (cl *AuthnAdminClient) GetProfile(clientID string) (
+	profile authn.ClientProfile, err error) {
+
+	err = cl.Rpc(td.OpInvokeAction, cl.authnServiceID,
+		authn.AdminGetProfileAction, &clientID, &profile)
 	return
 }
 
 // GetProfiles client method - Get Profiles.
 // Get a list of all client profiles
-func (cl *AuthnAdminClient) GetProfiles() (clientProfiles []authnapi.ClientProfile, err error) {
+func (cl *AuthnAdminClient) GetProfiles() (clientProfiles []authn.ClientProfile, err error) {
 
 	err = cl.Rpc(td.OpInvokeAction, cl.authnServiceID,
-		authnapi.AdminActionGetProfiles, nil, &clientProfiles)
+		authn.AdminGetProfilesAction, nil, &clientProfiles)
 	return
 }
 
@@ -55,7 +70,7 @@ func (cl *AuthnAdminClient) GetProfiles() (clientProfiles []authnapi.ClientProfi
 func (cl *AuthnAdminClient) RemoveClient(clientID string) (err error) {
 
 	err = cl.Rpc(td.OpInvokeAction, cl.authnServiceID,
-		authnapi.AdminActionRemoveClient, &clientID, nil)
+		authn.AdminRemoveClientAction, &clientID, nil)
 	return
 }
 
@@ -63,20 +78,20 @@ func (cl *AuthnAdminClient) RemoveClient(clientID string) (err error) {
 // Update the password of a consumer
 func (cl *AuthnAdminClient) SetClientPassword(userName string, password string) (err error) {
 
-	var args = authnapi.AdminSetPasswordArgs{
+	var args = authn.AdminSetPasswordInput{
 		UserName: userName, Password: password}
 
 	err = cl.Rpc(td.OpInvokeAction, cl.authnServiceID,
-		authnapi.AdminActionSetPassword, &args, nil)
+		authn.AdminSetPasswordAction, &args, nil)
 	return
 }
 
 // UpdateClientProfile client method - Update Client Profile.
 // Update the details of a client
-func (cl *AuthnAdminClient) UpdateClientProfile(clientProfile authnapi.ClientProfile) (err error) {
+func (cl *AuthnAdminClient) UpdateClientProfile(clientProfile authn.ClientProfile) (err error) {
 
 	err = cl.Rpc(td.OpInvokeAction, cl.authnServiceID,
-		authnapi.AdminActionUpdateProfile, &clientProfile, nil)
+		authn.AdminUpdateProfileAction, &clientProfile, nil)
 	return
 }
 

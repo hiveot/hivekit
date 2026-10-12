@@ -102,7 +102,7 @@ func TestAuthentication(t *testing.T) {
 	// create a token using authn session manager. It should validate with http authenticator now.
 	authnAdminSvc := authnSvc.GetAdminService()
 	authnUserSvc := authnSvc.GetUserService()
-	sm := authnUserSvc.GetSessionManager()
+	sm := authnSvc.GetSessionManager()
 	_, err = authnUserSvc.GetProfile("client1")
 	if err != nil {
 		err = authnAdminSvc.AddClient("client1", "client 1", "some role")

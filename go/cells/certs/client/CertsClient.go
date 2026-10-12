@@ -1,7 +1,10 @@
-package certsclient
+package certs_client
 
 import (
+	"crypto"
 	"crypto/x509"
+	"fmt"
+	"time"
 
 	"github.com/hiveot/hivekit/go/api"
 	"github.com/hiveot/hivekit/go/api/td"
@@ -18,6 +21,34 @@ type CertsClient struct {
 
 	// Certificate service ThingID to connect to.
 	certServiceID string
+}
+
+// Request the creation of a client certificate
+func (cl *CertsClient) CreateClientCert(
+	clientID string, ou string, validity time.Duration,
+	pubKey crypto.PublicKey) (*x509.Certificate, error) {
+
+	pubKeyPEM := utils.PublicKeyToPem(pubKey)
+	if pubKeyPEM == "" || clientID == "" || ou == "" {
+		return nil, fmt.Errorf("CreateClientCert: Invalid arg")
+	}
+	days := int(validity / (time.Hour * 24))
+	if days <= 1 {
+		days = 30
+	}
+	input := certs.CreateClientCertInput{
+		ClientID:  clientID,
+		OU:        ou,
+		Days:      days,
+		PubKeyPEM: pubKeyPEM,
+	}
+	clientCertPEM := ""
+	err := cl.Rpc(td.OpInvokeAction, cl.certServiceID, certs.CreateClientCertAction, input, &clientCertPEM)
+	if err != nil {
+		return nil, err
+	}
+	cert, err := utils.X509CertFromPEM(clientCertPEM)
+	return cert, err
 }
 
 // GetCACert returns the CA x509 certificate.

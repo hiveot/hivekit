@@ -9,8 +9,8 @@ import (
 
 	"github.com/hiveot/hivekit/go/api"
 	"github.com/hiveot/hivekit/go/cells/certs"
-	certsclient "github.com/hiveot/hivekit/go/cells/certs/client"
-	certsservice "github.com/hiveot/hivekit/go/cells/certs/service"
+	certs_client "github.com/hiveot/hivekit/go/cells/certs/client"
+	certs_service "github.com/hiveot/hivekit/go/cells/certs/service"
 	"github.com/hiveot/hivekit/go/testenv"
 	"github.com/hiveot/hivekit/go/utils"
 	"github.com/stretchr/testify/assert"
@@ -28,7 +28,7 @@ func startService(t *testing.T) (certs.ICertsService, func(), error) {
 	// clear start
 	_ = os.RemoveAll(storageDir)
 	cfg := &certs.CertsConfig{CertsDir: storageDir}
-	svc, err := certsservice.NewCertsService(cfg)
+	svc, err := certs_service.NewCertsService(cfg)
 	require.NoError(t, err)
 	return svc, func() {
 		svc.Stop()
@@ -107,7 +107,7 @@ func TestCertClient(t *testing.T) {
 	// use a direct transport instead of running a client-server
 	certsThingID = m.GetID()
 	tp := testenv.NewTestTransport(clientID, m)
-	cl := certsclient.NewCertsClient(certsThingID, tp)
+	cl := certs_client.NewCertsClient(certsThingID, tp)
 
 	privKey, pubKey := utils.NewEd25519Key()
 	_ = privKey
@@ -138,7 +138,7 @@ func TestCreateCerts(t *testing.T) {
 	require.NotNil(t, serverChain)
 
 	// this needs completion
-	cl := certsclient.NewCertsClient(m.GetID(), nil)
+	cl := certs_client.NewCertsClient(m.GetID(), nil)
 
 	// var _ certs.ICertsService = cl // interface check
 	_ = cl

@@ -8,7 +8,6 @@ import (
 
 	"github.com/hiveot/hivekit/go/api"
 	"github.com/hiveot/hivekit/go/api/msg"
-	"github.com/hiveot/hivekit/go/cells/authn"
 	"github.com/hiveot/hivekit/go/cells/consumer"
 	"github.com/hiveot/hivekit/go/cells/thing"
 	consumer_recipe "github.com/hiveot/hivekit/go/factory/recipes/consumer"
@@ -139,7 +138,7 @@ func TestGatewayRecipe(t *testing.T) {
 
 	// 2. Create a manager using consumer recipe, and connect using token auth
 	caCert, _ := gwenv.GetCACert()
-	_, _, err = gw.AddAccount(managerClientID, "Manager 1", authn.ClientRoleManager, true, false)
+	_, _, err = gw.AddAccount(managerClientID, "Manager 1", api.ClientRoleManager, true, false)
 	require.NoError(t, err)
 	// env will load the client auth token
 	coenv := api.NewHiveEnvironment(testDir, false)
@@ -154,7 +153,7 @@ func TestGatewayRecipe(t *testing.T) {
 	defer cor.Stop()
 
 	// 3. Create a counter device using the RCDeviceRecipe and certificate with client cert
-	_, _, err = gw.AddAccount(rcdeviceClientID, "device 1", authn.ClientRoleDevice, false, true)
+	_, _, err = gw.AddAccount(rcdeviceClientID, "device 1", api.ClientRoleDevice, false, true)
 	require.NoError(t, err)
 	rcenv := api.NewHiveEnvironment(testDir, false)
 	// no discovery, point to the server

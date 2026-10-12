@@ -12,7 +12,6 @@ import (
 	"github.com/hiveot/hivekit/go/api"
 	"github.com/hiveot/hivekit/go/api/msg"
 	"github.com/hiveot/hivekit/go/api/td"
-	"github.com/hiveot/hivekit/go/cells/authn"
 	"github.com/hiveot/hivekit/go/cells/consumer"
 	"github.com/hiveot/hivekit/go/cells/thing"
 	"github.com/hiveot/hivekit/go/testenv"
@@ -128,7 +127,7 @@ func TestReconnect(t *testing.T) {
 	// it also sets the authentication clientID and auth token.
 	// count nr of connection status changes
 	co1, rc1, _ := testEnv.NewReconnectConsumer(
-		testClientID1, authn.ClientRoleViewer, clientNotificationHook)
+		testClientID1, api.ClientRoleViewer, clientNotificationHook)
 	defer rc1.Stop()
 	// 6. The consumer is now ready and the reconnect process can start.
 	rc1.Start()

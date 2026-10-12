@@ -49,26 +49,32 @@ type WssServerImpl struct {
 // AddTDSecForms updates the TD with base URI, security scheme and forms for use of
 // this protocol to the given TD.
 //
+// The 'base' field is only updated if no base is set. The first protocol added is
+// considered the preferred protocol.
+//
 // Since the contentType is the default application/json it is omitted
 //
 // 'includeAffordances' adds forms to all affordances to be compliant with the specifications.
-// Btw, this is a waste of space in the TD as it required but not needed with some protocols.
+// Btw, this is a waste of space in the TD as it required but not needed with protocols like websockets.
 func (srv *WssServerImpl) AddTDSecForms(tdoc *td.TD) {
+
 	// 1. Add the base connection endpoint
-	// TODO: if this Thing supports multiple protocols it might conflict with
-	// the base. In that case base cannot be used and all hrefs must be absolute?
+	// if this Thing supports multiple protocols the first one occupies 'base'.
+	// Additional protocols will require a full href in their forms.
 	href := srv.GetConnectURL()
-	tdoc.Base = href
+	if tdoc.Base == "" {
+		tdoc.Base = href
+	}
 	subprotocol := srv.subprotocol
 
 	// 2. Set the security scheme used by the authenticator.
-	// TODO: risk of duplicates?
 	authr := srv.httpServer.GetAuthenticator()
 	authr.AddSecurityScheme(tdoc)
 
 	// 3. add top level form for thing level  operations
-	// the href is the connection URL because it is the same as base for all forms in this protocol
-	form := td.NewForm("", srv.GetConnectURL())
+	// the href is the connection URL because it is the same as base for all forms in
+	// this protocol.
+	form := td.NewForm("", href)
 	form.SetSubprotocol(subprotocol)
 	form["op"] = []string{
 		td.HTOpPing,

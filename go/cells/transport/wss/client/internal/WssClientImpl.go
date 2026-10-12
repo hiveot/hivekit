@@ -192,6 +192,8 @@ func (cl *WssTransportClientImpl) Connect() error {
 	if status == api.StatusConnected {
 		return nil
 	} else if status == api.StatusConnecting {
+		// FIXME: this is not an error but a nested connecting request.
+		// this can happen if start is called after the reconnect cell does calls connect
 		return fmt.Errorf("Busy connecting")
 	}
 

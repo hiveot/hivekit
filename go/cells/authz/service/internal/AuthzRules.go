@@ -1,9 +1,9 @@
 package internal
 
 import (
+	"github.com/hiveot/hivekit/go/api"
 	"github.com/hiveot/hivekit/go/api/msg"
 	"github.com/hiveot/hivekit/go/api/td"
-	"github.com/hiveot/hivekit/go/cells/authn"
 )
 
 // ValidateAuthorization verifies that the sender is authorized for the request.
@@ -35,26 +35,26 @@ func (svc *AuthzServiceImpl) HasPermission(req *msg.RequestMessage) (hasPermissi
 		return true
 	// 2. operators, managers, administrators and services can also query and invoke actions
 	case td.OpInvokeAction, td.OpQueryAction, td.OpQueryAllActions:
-		if role == authn.ClientRoleOperator ||
-			role == authn.ClientRoleManager ||
-			role == authn.ClientRoleAdmin ||
-			role == authn.ClientRoleService {
+		if role == api.ClientRoleOperator ||
+			role == api.ClientRoleManager ||
+			role == api.ClientRoleAdmin ||
+			role == api.ClientRoleService {
 			return true
 		}
 		// devices can update their TD;
-		if role == authn.ClientRoleDevice {
+		if role == api.ClientRoleDevice {
 			return true
 		}
 	// 3. managers, administrators and services can also write configuration
 	case td.OpWriteProperty, td.OpWriteMultipleProperties:
-		if role == authn.ClientRoleManager ||
-			role == authn.ClientRoleAdmin ||
-			role == authn.ClientRoleService {
+		if role == api.ClientRoleManager ||
+			role == api.ClientRoleAdmin ||
+			role == api.ClientRoleService {
 			return true
 		}
 	// 4. administrators and services can do everything else
 	default:
-		if role == authn.ClientRoleAdmin || role == authn.ClientRoleService {
+		if role == api.ClientRoleAdmin || role == api.ClientRoleService {
 			return true
 		}
 	}

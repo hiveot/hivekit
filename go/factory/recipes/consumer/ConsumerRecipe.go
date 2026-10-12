@@ -1,6 +1,8 @@
 package consumer_recipe
 
 import (
+	"log/slog"
+
 	"github.com/hiveot/hivekit/go/api"
 	"github.com/hiveot/hivekit/go/api/td"
 	"github.com/hiveot/hivekit/go/cells/consumer"
@@ -95,6 +97,7 @@ func (r *ConsumerRecipe) GetDirectory() directory.IDirectoryClient {
 
 // Start the recipe and factory.
 func (r *ConsumerRecipe) Start() {
+	slog.Info("Starting ConsumerRecipe")
 	r.f.Start()
 }
 

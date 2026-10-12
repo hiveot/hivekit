@@ -14,7 +14,6 @@ import (
 	"github.com/hiveot/hivekit/go/api"
 	"github.com/hiveot/hivekit/go/api/msg"
 	"github.com/hiveot/hivekit/go/api/td"
-	"github.com/hiveot/hivekit/go/cells/authn"
 	"github.com/hiveot/hivekit/go/cells/consumer"
 	"github.com/hiveot/hivekit/go/cells/directory"
 	directory_service "github.com/hiveot/hivekit/go/cells/directory/service"
@@ -235,7 +234,7 @@ func TestAuthClientCert(t *testing.T) {
 	require.NoError(t, err)
 
 	// 4. use client cert as credentials to connect to the device
-	testEnv.TestAuthn.AddClient(testConsumerID, "", authn.ClientRoleOperator)
+	testEnv.TestAuthn.AddClient(testConsumerID, "", api.ClientRoleOperator)
 	clientCert := testEnv.CertBundle.ClientCert
 	routerSvc.SetClientCert(clientCert)
 	// alt:
@@ -287,7 +286,7 @@ func TestReadObserveDeviceProperties(t *testing.T) {
 	require.NoError(t, err)
 
 	// 4. to connect to the device, credentials are needed
-	testAuthn.AddClient(testConsumerID, "", authn.ClientRoleOperator)
+	testAuthn.AddClient(testConsumerID, "", api.ClientRoleOperator)
 	token, _, err := testAuthn.CreateToken(testConsumerID, rpcTimeout)
 	assert.NoError(t, err)
 	routerMod.AddCredentials(deviceID, clientID, token, td.SecSchemeBearer)
@@ -355,7 +354,7 @@ func TestSubscribeReconnectToDevice(t *testing.T) {
 	defer routerSvc.Stop()
 
 	// to connect to the device, consumer credentials are needed
-	testEnv.TestAuthn.AddClient(testConsumerID, "", authn.ClientRoleOperator)
+	testEnv.TestAuthn.AddClient(testConsumerID, "", api.ClientRoleOperator)
 	token, _, _ := testEnv.TestAuthn.CreateToken(testConsumerID, rpcTimeout)
 	routerSvc.AddCredentials(deviceID, clientID, token, td.SecSchemeBearer)
 

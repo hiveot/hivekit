@@ -2,6 +2,7 @@ package gateway_recipe
 
 import (
 	"crypto/tls"
+	"log/slog"
 	"time"
 
 	"github.com/hiveot/hivekit/go/api"
@@ -75,7 +76,7 @@ var GatewayRecipeCells = []api.CellDefinition{
 				Constructor: grpc_server.NewHiveotGrpcServerFactory,
 			},
 			// {
-			// 	// MQTT server todo
+			// 	// MQTT server is coming soon
 			// 	Type:        mqtt.MqttServerCellType,
 			// 	Constructor: mqttpkg.NewMqttServerFactory,
 			// },
@@ -191,10 +192,10 @@ func (r *GatewayRecipe) AddAccount(
 	adminSvc := authnSvc.GetAdminService()
 	_ = adminSvc.AddClient(clientID, name, role)
 	if withToken {
-		userSvc := authnSvc.GetUserService()
+		sm := authnSvc.GetSessionManager()
 		// use the default validation period
-		token, _, err = userSvc.GetSessionManager().CreateToken(clientID, 0)
-		err = userSvc.GetSessionManager().SaveToken(clientID, token)
+		token, _, err = sm.CreateToken(clientID, 0)
+		err = sm.SaveToken(clientID, token)
 	}
 	if withCert {
 		certSvc := r.GetCertsSvc()
@@ -217,6 +218,7 @@ func (r *GatewayRecipe) GetCertsSvc() certs.ICertsService {
 // Start the gateway recipe and factory.
 // This serves the gateway TD discovery
 func (r *GatewayRecipe) Start() {
+	slog.Info("Starting GatewayRecipe")
 	// call the cells
 	r.f.Start()
 

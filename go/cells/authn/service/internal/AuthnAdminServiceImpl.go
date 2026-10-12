@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"time"
 
 	"github.com/hiveot/hivekit/go/api"
 	"github.com/hiveot/hivekit/go/api/msg"
@@ -20,6 +21,8 @@ type AuthnAdminServiceImpl struct {
 	*thing.ExposedThing
 
 	authnStore authn.IAuthnStore
+
+	sessionManager authn.ISessionManager
 }
 
 // AddClient adds a client. This fails if the client already exists
@@ -35,6 +38,7 @@ func (svc *AuthnAdminServiceImpl) AddClient(clientID string, displayName string,
 		ClientID:    clientID,
 		DisplayName: displayName,
 		Role:        role,
+		TimeCreated: time.Now().Format(time.RFC3339),
 	}
 	err = svc.authnStore.Add(newProfile)
 	// last track props
@@ -65,33 +69,40 @@ func (svc *AuthnAdminServiceImpl) HandleRequest(req *msg.RequestMessage, replyTo
 	if req.Operation == td.OpInvokeAction {
 		switch req.Name {
 
-		case authn.AdminActionAddClient:
-			args := authn.AdminAddClientArgs{}
+		case authn.AdminAddClientAction:
+			args := authn.AdminAddClientInput{}
 			err = utils.DecodeAsObject(req.Input, &args)
 			if err == nil {
 				err = svc.AddClient(args.ClientID, args.DisplayName, args.Role)
 			}
-		case authn.AdminActionGetProfile:
+		case authn.AdminCreateTokenAction:
 			var clientID string
-			err = utils.DecodeAsObject(req.Input, &clientID)
+			err = req.DecodeInput(&clientID)
+			if err == nil {
+				output, _, err = svc.sessionManager.CreateToken(clientID, 0)
+			}
+		case authn.AdminGetProfileAction:
+			var clientID string
+			err = req.DecodeInput(&clientID)
 			if err == nil {
 				output, err = svc.GetProfile(clientID)
 			}
-		case authn.AdminActionGetProfiles:
+		case authn.AdminGetProfilesAction:
 			output, err = svc.GetProfiles()
-		case authn.AdminActionRemoveClient:
+
+		case authn.AdminRemoveClientAction:
 			var clientID string
 			err = utils.DecodeAsObject(req.Input, &clientID)
 			if err == nil {
 				err = svc.RemoveClient(clientID)
 			}
-		case authn.AdminActionSetPassword:
-			var args authn.AdminSetPasswordArgs // same as user
+		case authn.AdminSetPasswordAction:
+			var args authn.AdminSetPasswordInput // same as user
 			err = utils.DecodeAsObject(req.Input, &args)
 			if err == nil {
 				err = svc.SetPassword(args.UserName, args.Password)
 			}
-		case authn.AdminActionUpdateProfile:
+		case authn.AdminUpdateProfileAction:
 			var profile authn.ClientProfile
 			err = utils.DecodeAsObject(req.Input, &profile)
 			if err == nil {
@@ -151,7 +162,7 @@ func (svc *AuthnAdminServiceImpl) UpdateProfile(senderID string, newProfile auth
 	}
 	if senderID != newProfile.ClientID {
 		// only admin roles can update client profiles
-		if senderProf.Role != authn.ClientRoleAdmin && senderProf.Role != authn.ClientRoleService {
+		if senderProf.Role != api.ClientRoleAdmin && senderProf.Role != api.ClientRoleService {
 			return fmt.Errorf("Sender '%s' is not admin, not allowed to update profile", senderID)
 		}
 	} else {
@@ -170,15 +181,19 @@ func (svc *AuthnAdminServiceImpl) UpdateProfile(senderID string, newProfile auth
 //
 //	authUserSvc user services including storage and session management
 //	createAdminAcct set to create a default admin user and token
-func NewAuthnAdminServiceImpl(authnStore authn.IAuthnStore, createAdminAcct bool) (*AuthnAdminServiceImpl, error) {
+func NewAuthnAdminServiceImpl(
+	authnStore authn.IAuthnStore,
+	sessionManager authn.ISessionManager,
+	createAdminAcct bool) (*AuthnAdminServiceImpl, error) {
 	var err error
 
 	slog.Info("NewAuthnServiceImpl: creating authn service")
 
 	// this service is the admin service that also exposes the user service service thing
 	svc := &AuthnAdminServiceImpl{
-		ExposedThing: thing.NewExposedThing(authn.AuthnAdminServiceDefaultThingID, nil),
-		authnStore:   authnStore,
+		ExposedThing:   thing.NewExposedThing(authn.AuthnAdminServiceDefaultThingID, nil),
+		authnStore:     authnStore,
+		sessionManager: sessionManager,
 	}
 	// update the readable properties
 	svc.SetProperty(svc.GetID(), authn.AdminPropNrClients, authnStore.Count())
@@ -188,7 +203,7 @@ func NewAuthnAdminServiceImpl(authnStore authn.IAuthnStore, createAdminAcct bool
 		adminID := api.DefaultAdminUserID
 		_, err = svc.GetProfile(adminID)
 		if err != nil {
-			err = svc.AddClient(adminID, "Administrator", authn.ClientRoleAdmin)
+			err = svc.AddClient(adminID, "Administrator", api.ClientRoleAdmin)
 		}
 	}
 

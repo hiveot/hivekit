@@ -9,7 +9,6 @@ import (
 	"github.com/hiveot/hivekit/go/api"
 	"github.com/hiveot/hivekit/go/api/td"
 	"github.com/hiveot/hivekit/go/api/vocab"
-	"github.com/hiveot/hivekit/go/cells/authn"
 	directory_service "github.com/hiveot/hivekit/go/cells/directory/service"
 	rcrouter_service "github.com/hiveot/hivekit/go/cells/rcrouter/service"
 	"github.com/hiveot/hivekit/go/testenv"
@@ -130,7 +129,7 @@ func TestReadRCDeviceProperties(t *testing.T) {
 	require.NoError(t, err)
 
 	// 3. connect a consumer
-	co1, cc1, _ := testEnv.NewTestConsumer(consumerID, authn.ClientRoleViewer)
+	co1, cc1, _ := testEnv.NewTestConsumer(consumerID, api.ClientRoleViewer)
 	err = cc1.Connect()
 	require.NoError(t, err)
 	defer cc1.Close()

@@ -4,7 +4,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/hiveot/hivekit/go/cells/authn"
+	"github.com/hiveot/hivekit/go/api"
 	"github.com/hiveot/hivekit/go/utils"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -21,13 +21,13 @@ func TestLoginRefresh(t *testing.T) {
 	defer stopFn()
 
 	// add user to test with
-	err := adminSvc.AddClient(user1ID, testClientID1, authn.ClientRoleViewer)
+	err := adminSvc.AddClient(user1ID, testClientID1, api.ClientRoleViewer)
 	require.NoError(t, err)
 	err = userSvc.SetPassword(user1ID, tu1Pass)
 	require.NoError(t, err)
 
 	// first test the login/refresh natively
-	sm := userSvc.GetSessionManager()
+	sm := authnSvc.GetSessionManager()
 	token1, validUntil, err := sm.Login(user1ID, tu1Pass)
 	require.NoError(t, err)
 	require.Greater(t, validUntil, time.Now())
@@ -55,7 +55,6 @@ func TestUpdatePassword(t *testing.T) {
 
 	_, authnSvc, stopFn := startTestAuthnServices(defaultHash)
 	adminSvc := authnSvc.GetAdminService()
-	userSvc := authnSvc.GetUserService()
 	defer stopFn()
 
 	// tp := testenv.NewTestTransport(user1ID, svc)
@@ -64,12 +63,12 @@ func TestUpdatePassword(t *testing.T) {
 	// authCl := authnpkg.NewAuthnUserMsgClient()
 	// authCl.SetRequestSink(tp.HandleRequest)
 
-	err := adminSvc.AddClient(user1ID, tu1Name, authn.ClientRoleViewer)
+	err := adminSvc.AddClient(user1ID, tu1Name, api.ClientRoleViewer)
 	adminSvc.SetPassword(user1ID, "oldpass")
 	require.NoError(t, err)
 
 	// login should succeed
-	sm := userSvc.GetSessionManager()
+	sm := authnSvc.GetSessionManager()
 	_, _, err = sm.Login(user1ID, "oldpass")
 	require.NoError(t, err)
 
@@ -110,7 +109,7 @@ func TestUpdateName(t *testing.T) {
 	defer cancelFn()
 
 	// add user to test with
-	err := adminSvc.AddClient(user1ID, tu1Name, authn.ClientRoleViewer)
+	err := adminSvc.AddClient(user1ID, tu1Name, api.ClientRoleViewer)
 	userSvc.SetPassword(user1ID, "oldpass")
 	require.NoError(t, err)
 
@@ -137,7 +136,7 @@ func TestClientUpdatePubKey(t *testing.T) {
 	defer cancelFn()
 
 	// add user to test with. don't set the public key yet
-	err := adminSvc.AddClient(user1ID, user1ID, authn.ClientRoleViewer)
+	err := adminSvc.AddClient(user1ID, user1ID, api.ClientRoleViewer)
 	userSvc.SetPassword(user1ID, "user1")
 	profile, err := userSvc.GetProfile(user1ID)
 	require.NoError(t, err)

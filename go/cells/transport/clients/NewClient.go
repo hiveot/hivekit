@@ -203,7 +203,7 @@ func NewTransportClientFromURL(serverURL string, rootCAs *x509.CertPool) (
 	return cl, err
 }
 
-// Create a new client instance using the factory senvironment.
+// Create a new ready-to-use client instance using the factory senvironment.
 //
 // Intended for connecting to a 'known' endpoint such as a device or gateway server.
 //
@@ -247,9 +247,9 @@ func NewTransportClientFactory(
 	} else {
 		// give up, no instructions on where to connect to.
 		// assume this is intentional
-		slog.Info("NewTransportClientFactory: no server TD or URL set so this cell is not activated")
+		slog.Warn("NewTransportClientFactory: no server TD or URL set so this cell is not activated")
 	}
-	// set auth token and cert, when available
+	// set auth token and cert, when available, and activate the connection.
 	if tpcl != nil {
 		token, _ := env.GetAuthToken()
 		if token != "" {
@@ -259,6 +259,7 @@ func NewTransportClientFactory(
 		if clientCert != nil {
 			tpcl.SetClientCert(clientCert)
 		}
+		err = tpcl.Connect()
 	}
 	return tpcl, err
 }

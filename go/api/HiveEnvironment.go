@@ -68,8 +68,9 @@ const (
 type HiveEnvironment struct {
 	// AppID is the application type ID derived from the binary name.
 	// This is not the instance ID.
-	// This can be used to load matching configuration yaml files, logfiles,
-	// and other application related configuration.
+	// This can be used to load matching configuration yaml files, logfiles, and
+	// other application related configuration.
+	// This is also the default clientID.
 	AppID string `yaml:"appID"`
 
 	// Directories
@@ -118,10 +119,6 @@ type HiveEnvironment struct {
 	// This can be a file or http URL and provided by discovery or set manually.
 	// This can point to a directory or a device TD.
 	ServerTDURL string `yaml:"serverTDURL,omitempty"`
-
-	// Print verbose info. 1=env, 2=auth, 3=certs
-	// Can be used by app to control logging and other info
-	Verbose int `yaml:"verbose,omitempty"`
 
 	//--- loaded or generated settings. See the Get... methods.
 
@@ -344,7 +341,7 @@ func (env *HiveEnvironment) LoadConfig(name string, cfg interface{}) error {
 	return err
 }
 
-// Print the environment to the console.
+// Print the environment to the console
 //
 // Use verbose to display additional details.
 // 1: essentials: AppID, ClientID, home, auth token, has certs
@@ -357,9 +354,14 @@ func (env *HiveEnvironment) Print(verbose int) {
 		fmt.Println("* Home directory: ", env.HomeDir)
 
 		if verbose >= 2 {
+			fmt.Println("")
+			fmt.Println("* Bin directory:    ", env.BinDir)
 			fmt.Println("* Certs directory:  ", env.CertsDir)
 			fmt.Println("* Config directory: ", env.ConfigDir)
 			fmt.Println("* Logs directory:   ", env.LogsDir)
+			fmt.Println("* Stores directory: ", env.StoresDir)
+
+			fmt.Println("")
 			fmt.Println("* Directory TD URL: ", env.DirTDURL)
 			fmt.Println("* Gateway URL:      ", env.GatewayURL)
 			fmt.Println("* Rpc timeout:      ", env.RpcTimeout)
@@ -378,9 +380,13 @@ func (env *HiveEnvironment) Print(verbose int) {
 		} else {
 			fmt.Println("* CA cert was successfully loaded")
 			if verbose >= 2 {
-				fmt.Println("  - CN:", caCert.Subject.CommonName)
-				fmt.Println("  - OU:", caCert.Subject.OrganizationalUnit)
-				fmt.Println("  - valid until", caCert.NotAfter)
+				fmt.Println("  - CN:       ", caCert.Subject.CommonName)
+				fmt.Println("  - OU:       ", caCert.Subject.OrganizationalUnit)
+				fmt.Println("  - Country:  ", caCert.Subject.Country)
+				fmt.Println("  - Province: ", caCert.Subject.Province)
+				fmt.Println("  - Locality: ", caCert.Subject.Locality)
+				fmt.Println("  - Org:      ", caCert.Subject.Organization)
+				fmt.Println("  - Not after:", caCert.NotAfter)
 			}
 		}
 
@@ -390,14 +396,15 @@ func (env *HiveEnvironment) Print(verbose int) {
 		} else {
 			chain, _ := utils.TLSCertToX509(tlsCert)
 			clientCert := chain[0]
-			fmt.Println("* Client Cert successfully loaded. Valid until:", clientCert.NotAfter)
+			fmt.Println("* Client Cert successfully loaded")
 			certCN := clientCert.Subject.CommonName
 			if certCN != env.ClientID {
 				fmt.Printf("! Client cert CN '%s' doesn't match ClientID\n", certCN)
 			}
 			if verbose >= 2 {
-				fmt.Println("  - CN:", certCN)
-				fmt.Println("  - OU:", clientCert.Subject.OrganizationalUnit)
+				fmt.Println("  - CN:       ", certCN)
+				fmt.Println("  - OU:       ", clientCert.Subject.OrganizationalUnit)
+				fmt.Println("  - not after:", clientCert.NotAfter)
 			}
 		}
 	}
@@ -477,11 +484,11 @@ func (env *HiveEnvironment) SetServerTD(tdoc *td.TD) {
 //	withFlags parse the commandline flags for -home and -clientID
 func NewHiveEnvironment(homeDir string, withFlags bool) *HiveEnvironment {
 
+	showEnv := false
 	env := &HiveEnvironment{
 		LogLevel: "warn",
 		// PluginsDir:   pluginsDir,
 		RpcTimeout: msg.DefaultRnRTimeout,
-		Verbose:    1,
 	}
 
 	// The default appID is the binary name. This allows for multiple instances
@@ -516,7 +523,7 @@ func NewHiveEnvironment(homeDir string, withFlags bool) *HiveEnvironment {
 		flag.StringVar(&env.DirTDURL, "dirTD", env.DirTDURL, "url where to download the directory TD")
 		flag.StringVar(&env.ServerTDURL, "serverTD", env.ServerTDURL, "url where to download the device TD")
 		flag.StringVar(&env.GatewayURL, "gwURL", env.GatewayURL, "gateway direct connection url")
-		flag.IntVar(&env.Verbose, "env", env.Verbose, "print environment info")
+		flag.BoolVar(&showEnv, "env", showEnv, "print environment info and exit")
 		if flag.Usage == nil {
 			flag.Usage = func() {
 				fmt.Println("Usage: " + env.AppID + " [options] ")
@@ -586,9 +593,9 @@ func NewHiveEnvironment(homeDir string, withFlags bool) *HiveEnvironment {
 	env.HomeDir = homeDir
 
 	// utils.SetLogging(logLevel, "")
-	// if env.Verbose > 0 {
-	// 	env.Print(env.Verbose)
-	// }
+	if showEnv {
+		env.Print(2)
+	}
 
 	// slog.Info("NewHiveEnvironment",
 	// 	slog.String("appID", env.AppID),

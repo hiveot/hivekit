@@ -6,8 +6,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/hiveot/hivekit/go/cells/authn"
-	authnclient "github.com/hiveot/hivekit/go/cells/authn/client"
+	"github.com/hiveot/hivekit/go/api"
+	authn_client "github.com/hiveot/hivekit/go/cells/authn/client"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -17,16 +17,15 @@ func TestBadRefreshHttp(t *testing.T) {
 
 	httpServer, authnSvc, cancelFn := startTestAuthnServices(defaultHash)
 	adminSvc := authnSvc.GetAdminService()
-	userSvc := authnSvc.GetUserService()
 	defer cancelFn()
 
-	err := adminSvc.AddClient(testClientID1, "client 1", authn.ClientRoleViewer)
-	sm := userSvc.GetSessionManager()
+	err := adminSvc.AddClient(testClientID1, "client 1", api.ClientRoleViewer)
+	sm := authnSvc.GetSessionManager()
 	token1, _, err := sm.CreateToken(testClientID1, time.Minute)
 	assert.NoError(t, err)
 
 	serverURL := httpServer.GetConnectURL()
-	authCl := authnclient.NewUserAuthnHttpClient(serverURL, testCerts.RootCAs)
+	authCl := authn_client.NewUserAuthnHttpClient(serverURL, testCerts.RootCAs)
 	defer authCl.Close()
 	err = authCl.SetAuthToken(testClientID1, token1)
 	assert.NoError(t, err)
@@ -51,16 +50,15 @@ func TestLogoutHttp(t *testing.T) {
 
 	httpServer, authnSvc, cancelFn := startTestAuthnServices(defaultHash)
 	adminSvc := authnSvc.GetAdminService()
-	userSvc := authnSvc.GetUserService()
 	defer cancelFn()
 
-	err := adminSvc.AddClient(testClientID1, "client 1", authn.ClientRoleViewer)
-	sm := userSvc.GetSessionManager()
+	err := adminSvc.AddClient(testClientID1, "client 1", api.ClientRoleViewer)
+	sm := authnSvc.GetSessionManager()
 	token1, _, err := sm.CreateToken(testClientID1, time.Minute)
 	require.NoError(t, err)
 
 	serverURL := httpServer.GetConnectURL()
-	authnClient := authnclient.NewUserAuthnHttpClient(serverURL, testCerts.RootCAs)
+	authnClient := authn_client.NewUserAuthnHttpClient(serverURL, testCerts.RootCAs)
 	err = authnClient.SetAuthToken(testClientID1, token1)
 	defer authnClient.Close()
 
@@ -91,12 +89,12 @@ func TestAuthClientCertHttp(t *testing.T) {
 	defer cancelFn()
 
 	// add user to test with. don't set the public key yet
-	err := adminSvc.AddClient(testCerts.ClientID, "user 1", authn.ClientRoleViewer)
+	err := adminSvc.AddClient(testCerts.ClientID, "user 1", api.ClientRoleViewer)
 	require.NoError(t, err)
 	serverURL := httpServer.GetConnectURL()
 
 	// client should be able to read its profile using just client cert as auth
-	authCl := authnclient.NewUserAuthnHttpClient(serverURL, testCerts.RootCAs)
+	authCl := authn_client.NewUserAuthnHttpClient(serverURL, testCerts.RootCAs)
 	authCl.GetTlsClient().SetClientCert(testCerts.ClientCert)
 	defer authCl.Close()
 

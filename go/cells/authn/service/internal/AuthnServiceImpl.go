@@ -16,14 +16,19 @@ import (
 type AuthnServiceImpl struct {
 	*thing.ExposedThing
 
-	authnStore authn.IAuthnStore
-	adminSvc   *AuthnAdminServiceImpl
-	userSvc    *AuthnUserServiceImpl
+	authnStore     authn.IAuthnStore
+	adminSvc       *AuthnAdminServiceImpl
+	sessionManager *SessionManager
+	userSvc        *AuthnUserServiceImpl
 }
 
 // Return the admin management service
 func (svc *AuthnServiceImpl) GetAdminService() authn.IAuthnAdminService {
 	return svc.adminSvc
+}
+
+func (svc *AuthnServiceImpl) GetSessionManager() authn.ISessionManager {
+	return svc.sessionManager
 }
 
 // Return the user self management service
@@ -61,6 +66,7 @@ func (svc *AuthnServiceImpl) Start() {
 
 // Stop the admin and storage services
 func (svc *AuthnServiceImpl) Stop() {
+	svc.sessionManager.Stop()
 	svc.authnStore.Close()
 	svc.adminSvc.Stop()
 	svc.userSvc.Stop()
@@ -85,21 +91,27 @@ func NewAuthnServiceImpl(tokensDir string, storageDir string, createAdmin bool) 
 		return nil, err
 	}
 
-	adminSvc, err := NewAuthnAdminServiceImpl(authnStore, createAdmin)
+	sessionManager, err := StartSessionManager(authnStore, tokensDir)
 	if err != nil {
 		return nil, err
 	}
-	userSvc, err := NewAuthnUserServiceImpl(tokensDir, authnStore, createAdmin)
+
+	adminSvc, err := NewAuthnAdminServiceImpl(authnStore, sessionManager, createAdmin)
+	if err != nil {
+		return nil, err
+	}
+	userSvc, err := NewAuthnUserServiceImpl(authnStore, sessionManager, createAdmin)
 	if err != nil {
 		return nil, err
 	}
 	// the authn service wraps the nested services and acts as their proxy
 	// Note: Since this cell has no fixed thingID it cant be used in a star formation.
 	authnSvc := &AuthnServiceImpl{
-		ExposedThing: thing.NewExposedThing("", nil),
-		authnStore:   authnStore,
-		adminSvc:     adminSvc,
-		userSvc:      userSvc,
+		ExposedThing:   thing.NewExposedThing("", nil),
+		authnStore:     authnStore,
+		adminSvc:       adminSvc,
+		sessionManager: sessionManager,
+		userSvc:        userSvc,
 	}
 	adminSvc.SetNotificationSink(authnSvc)
 	userSvc.SetNotificationSink(authnSvc)

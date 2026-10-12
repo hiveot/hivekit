@@ -9,7 +9,6 @@ import (
 	"github.com/hiveot/hivekit/go/api"
 	"github.com/hiveot/hivekit/go/api/td"
 	"github.com/hiveot/hivekit/go/api/vocab"
-	"github.com/hiveot/hivekit/go/cells/authn"
 	"github.com/hiveot/hivekit/go/cells/directory"
 	directory_client "github.com/hiveot/hivekit/go/cells/directory/client"
 	dirhttp_service "github.com/hiveot/hivekit/go/cells/directory/dirhttpserver"
@@ -230,7 +229,7 @@ func TestCRUDUsingRestAPI(t *testing.T) {
 	require.NotEmpty(t, dirTDD)
 
 	// create the client account
-	cl, authToken := testEnv.NewTestClient(clientID, authn.ClientRoleManager)
+	cl, authToken := testEnv.NewTestClient(clientID, api.ClientRoleManager)
 	_ = cl
 
 	// authToken, _, err := testEnv.CreateToken(clientID, time.Minute)

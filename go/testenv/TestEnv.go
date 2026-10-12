@@ -14,7 +14,6 @@ import (
 	"github.com/hiveot/hivekit/go/api/msg"
 	"github.com/hiveot/hivekit/go/api/td"
 	"github.com/hiveot/hivekit/go/api/vocab"
-	"github.com/hiveot/hivekit/go/cells/authn"
 	certstest "github.com/hiveot/hivekit/go/cells/certs/test"
 	"github.com/hiveot/hivekit/go/cells/consumer"
 	"github.com/hiveot/hivekit/go/cells/reconnect"
@@ -213,7 +212,7 @@ func (testEnv *TestEnv) NewRCThing(clientID string, appReqHandler msg.RequestHan
 	// cl is the client connection for the Thing that receives requests from the
 	// server and sends notifications to the server.
 	cl, authToken := testEnv.NewTestClient(
-		clientID, authn.ClientRoleDevice)
+		clientID, api.ClientRoleDevice)
 
 	// simple exposed thing, no application request handler yet
 	expThing := thing.NewExposedThing(clientID+"-thing", appReqHandler)

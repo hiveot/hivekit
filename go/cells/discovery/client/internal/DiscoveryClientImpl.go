@@ -344,6 +344,17 @@ func NewDiscoveryClientImpl(
 		}
 	}
 
+	// if no server was found but discoOnStart is set, then go look for a hiveot gateway
+	if env.ServerTDURL == "" && discoOnStart {
+		// gwURL := cl.DiscoverFirstThing("", discovery.DISCO_TYPE_GATEWAY, time.Second)
+		serverTD = cl.DiscoverFirstTD("", discovery.DISCO_TYPE_GATEWAY, time.Second)
+		if serverTD != nil {
+			slog.Info("NewDiscoveryClientImpl. Gateway TD discovered successfully",
+				"thingID", serverTD.ID)
+			env.SetServerTD(serverTD)
+		}
+	}
+
 	var _ discovery.IDiscoveryClient = cl // interface check
 	return cl, err
 }

@@ -5,9 +5,9 @@ import (
 	"os"
 	"testing"
 
+	"github.com/hiveot/hivekit/go/api"
 	"github.com/hiveot/hivekit/go/api/msg"
 	"github.com/hiveot/hivekit/go/api/td"
-	"github.com/hiveot/hivekit/go/cells/authn"
 	authzservice "github.com/hiveot/hivekit/go/cells/authz/service"
 	"github.com/hiveot/hivekit/go/utils"
 	"github.com/stretchr/testify/assert"
@@ -35,7 +35,7 @@ func TestHasPermission(t *testing.T) {
 	const thingID = "thing1"
 	const key = "key1"
 	const correlationID = "req-1"
-	var testRole = authn.ClientRoleViewer
+	var testRole = api.ClientRoleViewer
 
 	// handler for providing the role of a client
 	getRole := func(clientID string) (role string, err error) {
@@ -65,16 +65,16 @@ func TestHasPermission(t *testing.T) {
 	assert.False(t, hasPerm)
 
 	// check operators do have permission to publish actions and write-property requests
-	testRole = authn.ClientRoleOperator
+	testRole = api.ClientRoleOperator
 	hasPerm = m.HasPermission(req)
 	assert.True(t, hasPerm)
-	testRole = authn.ClientRoleManager
+	testRole = api.ClientRoleManager
 	hasPerm = m.HasPermission(req)
 	assert.True(t, hasPerm)
-	testRole = authn.ClientRoleAdmin
+	testRole = api.ClientRoleAdmin
 	hasPerm = m.HasPermission(req)
 	assert.True(t, hasPerm)
-	testRole = authn.ClientRoleService
+	testRole = api.ClientRoleService
 	hasPerm = m.HasPermission(req)
 	assert.True(t, hasPerm)
 

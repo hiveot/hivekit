@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"os"
 	"path"
 	"time"
@@ -14,35 +15,47 @@ import (
 	"github.com/hiveot/hivekit/go/testenv"
 )
 
-const DeviceClientID = "admin"
+const DeviceClientID = "rccounter"
 
 var ExampleHome = path.Join(os.TempDir(), "hivekit-examples")
 
 // Demo reverse-connection IoT device running the test counting device.
+//
+// This discovers and connects to the gateway. A client certficiate for the device
+// must be created first using the cli (cli createCert counter1)
 //
 // This uses the "RCDeviceRecipe" factory recipe.
 //
 // See the factory/recipes/rcdevice/RCDeviceRecipe.go for the cells in the recipe.
 // On start the device publishes its TD to the discovery server.
 func main() {
+	var err error
 	env := api.NewHiveEnvironment(ExampleHome, true)
-	env.AppID = "example-1"
+	env.AppID = "rcdevice-example"
+
 	env.RpcTimeout = time.Minute // for testing
 	env.HttpsPort = 9222         // for testing
 	if env.ClientID == "" {
-		env.ClientID = api.DefaultAdminUserID
+		env.ClientID = DeviceClientID
 	}
 	utils.SetLogging(env.LogLevel, "")
 
-	// start the app service
+	// this requires a client certificate for authentication with the gateway
+	_, err = env.GetClientCert()
+	if err != nil {
+		err := fmt.Errorf("This example needs a client certificate for device '%s'. Use the cli to create it.", env.ClientID)
+		slog.Error(err.Error())
+		os.Exit(1)
+	}
+
+	// create the test counter cell
 	cfg := &testenv.CounterConfig{
 		AutoIncrement: false,
 		ResetValue:    60,
 	}
-	counterThing, err := testenv.NewTestCounterThing(env.AppID, cfg)
+	counterThing, err := testenv.NewTestCounterThing(env.ClientID, cfg)
 
-	// link to it from the RC device recipe
-	// the RC device recipe contains cells for connecting to a gateway.
+	// link it to the RC device recipe that handles connections.
 	r, f, err := rcdevice_recipe.NewRCDeviceRecipe(env, counterThing)
 	if err != nil {
 		fmt.Println("Startup failed: " + err.Error())

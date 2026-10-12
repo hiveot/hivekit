@@ -23,7 +23,7 @@ var ExampleHome = path.Join(os.TempDir(), "hivekit-examples")
 func main() {
 
 	env := api.NewHiveEnvironment(ExampleHome, true)
-	env.AppID = "example-4"
+	env.AppID = "gateway-example"
 	env.RpcTimeout = time.Minute // for testing
 	utils.SetLogging(env.LogLevel, "")
 

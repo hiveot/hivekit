@@ -14,7 +14,6 @@ import (
 	"github.com/hiveot/hivekit/go/api"
 	"github.com/hiveot/hivekit/go/api/msg"
 	"github.com/hiveot/hivekit/go/api/vocab"
-	"github.com/hiveot/hivekit/go/cells/authn"
 	"github.com/hiveot/hivekit/go/cells/bucketstore"
 	"github.com/hiveot/hivekit/go/cells/history"
 	history_client "github.com/hiveot/hivekit/go/cells/history/client"
@@ -188,7 +187,7 @@ func TestAddGetEvent(t *testing.T) {
 	// do not defer cancel as it will be closed and reopened in the test
 
 	// create an end user client for testing
-	co1, cc1, _ := testEnv.NewTestConsumer(testClientID, authn.ClientRoleOperator)
+	co1, cc1, _ := testEnv.NewTestConsumer(testClientID, api.ClientRoleOperator)
 	err := cc1.Connect()
 	require.NoError(t, err)
 	histCl := history_client.NewReadHistoryClient(co1)
@@ -280,7 +279,7 @@ func TestAddGetEvent(t *testing.T) {
 	// PHASE 2: after closing and reopening the svc the event should still be there
 	m, stopFn = startHistoryService(false)
 	defer stopFn()
-	co1, cc1, _ = testEnv.NewTestConsumer(testClientID, authn.ClientRoleOperator)
+	co1, cc1, _ = testEnv.NewTestConsumer(testClientID, api.ClientRoleOperator)
 	err = cc1.Connect()
 	require.NoError(t, err)
 	histCl = history_client.NewReadHistoryClient(co1)
@@ -397,7 +396,7 @@ func TestAddProperties(t *testing.T) {
 	assert.Error(t, err)
 
 	// create an end user client for testing
-	co1, cc1, _ := testEnv.NewTestConsumer(testClientID, authn.ClientRoleOperator)
+	co1, cc1, _ := testEnv.NewTestConsumer(testClientID, api.ClientRoleOperator)
 	err = cc1.Connect()
 	require.NoError(t, err)
 	histCl := history_client.NewReadHistoryClient(co1)
@@ -461,7 +460,7 @@ func TestPrevNext(t *testing.T) {
 	_ = addBulkHistory(store, thing0ID, count, 1, 3600*24*30)
 
 	// create an end user client for testing
-	co1, cc1, _ := testEnv.NewTestConsumer(testClientID, authn.ClientRoleOperator)
+	co1, cc1, _ := testEnv.NewTestConsumer(testClientID, api.ClientRoleOperator)
 	err := cc1.Connect()
 	require.NoError(t, err)
 	histCl := history_client.NewReadHistoryClient(co1)
@@ -527,7 +526,7 @@ func TestPrevNextFiltered(t *testing.T) {
 	propName := names[2] // names was used to generate the history
 
 	// A cursor with a filter on propName should only return results of propName
-	co1, cc1, _ := testEnv.NewTestConsumer(testClientID, authn.ClientRoleOperator)
+	co1, cc1, _ := testEnv.NewTestConsumer(testClientID, api.ClientRoleOperator)
 	err := cc1.Connect()
 	require.NoError(t, err)
 	histCl := history_client.NewReadHistoryClient(co1)
@@ -597,7 +596,7 @@ func TestNextPrevUntil(t *testing.T) {
 	// 1 sensor -> 1000/24 hours is approx 41/hour
 	_ = addBulkHistory(store, deviceID, count, 1, 3600*24)
 
-	co1, cc1, _ := testEnv.NewTestConsumer(testClientID, authn.ClientRoleOperator)
+	co1, cc1, _ := testEnv.NewTestConsumer(testClientID, api.ClientRoleOperator)
 	err := cc1.Connect()
 	require.NoError(t, err)
 	readHist := history_client.NewReadHistoryClient(co1)
@@ -637,7 +636,7 @@ func TestReadHistory(t *testing.T) {
 	store, closeFn := startHistoryService(true)
 	defer closeFn()
 	//
-	co1, cc1, _ := testEnv.NewTestConsumer(testClientID, authn.ClientRoleOperator)
+	co1, cc1, _ := testEnv.NewTestConsumer(testClientID, api.ClientRoleOperator)
 	err := cc1.Connect()
 	require.NoError(t, err)
 	readHist := history_client.NewReadHistoryClient(co1)
@@ -674,7 +673,7 @@ func TestPubEvents(t *testing.T) {
 
 	svc, stopFn := startHistoryService(true)
 	defer stopFn()
-	co1, cc1, _ := testEnv.NewTestConsumer(testClientID, authn.ClientRoleOperator)
+	co1, cc1, _ := testEnv.NewTestConsumer(testClientID, api.ClientRoleOperator)
 	err := cc1.Connect()
 	require.NoError(t, err)
 	readHist := history_client.NewReadHistoryClient(co1)
@@ -745,7 +744,7 @@ func TestPubEvents(t *testing.T) {
 // 	// dThing0ID := digitwin.MakeDigitwinID(senderID, td0.ID)
 
 // 	// connect as an admin user
-// 	co1, _, _ := testEnv.NewConsumerClient(client1ID, authn.ClientRoleAdmin, nil)
+// 	co1, _, _ := testEnv.NewConsumerClient(client1ID, api.ClientRoleAdmin, nil)
 // 	readHist := historypkg.NewReadHistoryClient(co1)
 // 	defer co1.Stop()
 // 	mngHist := historypkg.NewManageHistoryClient(co1)

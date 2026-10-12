@@ -11,40 +11,40 @@ const (
 	AdminEventRemoved = "removed"
 
 	// Action names
-	AdminActionAddClient   = "addClient"
-	AdminActionGetProfile  = "getProfile"
-	AdminActionGetProfiles = "getProfiles"
-	// AdminActionGetSessions  = "getSessions"
-	AdminActionRemoveClient  = "removeClient"
-	AdminActionSetPassword   = "setPassword"
-	AdminActionSetRole       = "setRole"
-	AdminActionUpdateProfile = "updateProfile"
+	AdminAddClientAction     = "addClient"
+	AdminCreateTokenAction   = "createToken"
+	AdminGetProfileAction    = "getProfile"
+	AdminGetProfilesAction   = "getProfiles"
+	AdminRemoveClientAction  = "removeClient"
+	AdminSetPasswordAction   = "setPassword"
+	AdminSetRoleAction       = "setRole"
+	AdminUpdateProfileAction = "updateProfile"
 )
 
 // args for setting a client's password
 // used in http and rrn messaging
-type AdminSetPasswordArgs struct {
+type AdminSetPasswordInput struct {
 	UserName string `json:"username"`
 	Password string `json:"password"`
 }
 
 // args for setting a client's role
 // used in rrn messaging
-type AdminSetRoleArgs struct {
+type AdminSetRoleInput struct {
 	ClientID string `json:"clientID"`
 	Role     string `json:"role"`
 }
 
 // args for updating a client's profile
 // used in http and rrn messaging
-type AdminUpdateProfileArgs struct {
+type AdminUpdateProfileInput struct {
 	ClientID string        `json:"clientID"`
 	Profile  ClientProfile `json:"profile"`
 }
 
-// AdminAddClientArgs defines the arguments of the addClient function
+// AdminAddClientInput defines the arguments of the addClient function
 // Add Client - Create an account for IoT devices, services or consumers
-type AdminAddClientArgs struct {
+type AdminAddClientInput struct {
 
 	// ClientID with Client ID
 	ClientID string `json:"clientID,omitempty"`
@@ -54,13 +54,4 @@ type AdminAddClientArgs struct {
 
 	// Role of the client
 	Role string `json:"role,omitempty"`
-}
-
-// AdminGetProfilesResp defines the response of the getProfiles function
-// Get Profiles - Get a list of all client profiles
-// AdminGetProfilesResp defines a Client Profiles data schema.
-type AdminGetProfilesResp []struct {
-
-	// AdminGetProfilesResp with Client Profile
-	AdminGetProfilesResp *ClientProfile `json:"AdminGetProfilesResp,omitempty"`
 }

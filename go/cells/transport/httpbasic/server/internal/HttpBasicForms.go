@@ -35,18 +35,17 @@ var affordanceOperations = []string{
 //
 // Since content-Type is the default 'application/json' it is omitted as per spec.
 func (srv *HttpBasicServerImpl) AddTDSecForms(tdoc *td.TD) {
-
 	base := srv.GetConnectURL()
 	vars := map[string]string{
 		td.UriVarThingID: tdoc.ID,
 	}
 	// 1. Add the base connection endpoint
-	// TODO: if this Thing supports multiple protocols it might conflict with
-	// the base. In that case base cannot be used and all hrefs must be absolute?
-	tdoc.Base = base
+	if tdoc.Base == "" {
+		tdoc.Base = base
+		base = "" // no need for a full base
+	}
 
 	// 2. Set the security scheme used by the authenticator.
-	// TODO: risk of duplicates?
 	authr := srv.httpServer.GetAuthenticator()
 	if authr == nil {
 		// cant use the http server without authenticator
@@ -58,7 +57,8 @@ func (srv *HttpBasicServerImpl) AddTDSecForms(tdoc *td.TD) {
 	// http-basic uses a different href for each operation :(
 	for _, op := range thingLevelOperations {
 		vars[td.UriVarOperation] = op
-		href := utils.Substitute(httpbasictransport.HttpBasicThingOperationPath, vars)
+		href := base + httpbasictransport.HttpBasicThingOperationPath
+		href = utils.Substitute(href, vars)
 		form := td.NewForm(op, href)
 		form.SetMethodName(http.MethodGet)
 		tdoc.Forms = append(tdoc.Forms, form)
@@ -66,7 +66,7 @@ func (srv *HttpBasicServerImpl) AddTDSecForms(tdoc *td.TD) {
 
 	// 4. add forms for each affordance
 	if srv.includeAffordances {
-		affHref := httpbasictransport.HttpBasicAffordanceOperationPath
+		affHref := base + httpbasictransport.HttpBasicAffordanceOperationPath
 		for name, aff := range tdoc.Actions {
 			vars[td.UriVarName] = name
 			aff.AddForm(td.OpInvokeAction, affHref, http.MethodPost, vars)

@@ -1,5 +1,5 @@
 // Package authnclient with consumer facing methods.
-package authnclient
+package authn_client
 
 import (
 	"github.com/hiveot/hivekit/go/api"

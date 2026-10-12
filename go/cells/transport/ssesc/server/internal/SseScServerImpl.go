@@ -49,11 +49,15 @@ type SseScServerImpl struct {
 //
 // Since the contentType is the default application/json it is omitted
 func (srv *SseScServerImpl) AddTDSecForms(tdoc *td.TD) {
+
 	// 1. Add the base connection endpoint
-	// TODO: if this Thing supports multiple protocols it might conflict with
-	// the base. In that case base cannot be used and all hrefs must be absolute?
-	href := srv.GetConnectURL()
-	tdoc.Base = href
+	// if this Thing supports multiple protocols the first one occupies 'base'.
+	// Additional protocols will require a full href in their forms.
+	base := srv.GetConnectURL()
+	if tdoc.Base == "" {
+		tdoc.Base = base
+		base = "" // no need for full base
+	}
 	vars := map[string]string{
 		td.UriVarThingID: tdoc.ID,
 	}
@@ -61,13 +65,12 @@ func (srv *SseScServerImpl) AddTDSecForms(tdoc *td.TD) {
 	subprotocol := api.HiveotSsescSubprotocol
 
 	// 2. Set the security scheme used by the authenticator.
-	// TODO: risk of duplicates?
 	authr := srv.httpServer.GetAuthenticator()
 	authr.AddSecurityScheme(tdoc)
 
 	// 3. add thing level form for thing level operations
 	// since the payload is a request message, one relative path for all request operations
-	href2 := ssesc.PostSseScRequestPath
+	href2 := base + ssesc.PostSseScRequestPath
 	form := td.NewForm("", href2)
 	form.SetSubprotocol(subprotocol)
 	form["op"] = []string{
@@ -90,13 +93,11 @@ func (srv *SseScServerImpl) AddTDSecForms(tdoc *td.TD) {
 			form["op"] = []string{td.OpInvokeAction, td.OpQueryAction}
 		}
 		for _, aff := range tdoc.Events {
-			// todo subscribe to events by connecting to endpoint
 			form := aff.AddForm("", href2, "", nil)
 			form.SetSubprotocol(subprotocol)
 			form["op"] = []string{td.HTOpReadEvent, td.OpSubscribeEvent, td.OpUnsubscribeEvent}
 		}
 		for _, aff := range tdoc.Properties {
-			// todo subscribe to props by connecting to endpoint
 			form := aff.AddForm("", href2, "", nil)
 			form.SetSubprotocol(subprotocol)
 			if !aff.WriteOnly {

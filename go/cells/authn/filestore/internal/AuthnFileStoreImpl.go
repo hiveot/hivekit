@@ -8,6 +8,7 @@ import (
 	"os"
 	"path"
 	"sync"
+	"time"
 
 	"github.com/alexedwards/argon2id"
 	"github.com/fsnotify/fsnotify"
@@ -279,6 +280,7 @@ func (store *AuthnFileStoreImpl) SetPassword(loginID string, password string) (e
 // UpdateProfile updates the client profile
 //
 // This does not update the role. Use SetRole for updating the role instead.
+// This sets 'TimeUpdated' to now.
 // SetRole is an admin function while clients can update their own profile.
 func (store *AuthnFileStoreImpl) UpdateProfile(profile authn.ClientProfile) error {
 	store.mutex.Lock()
@@ -297,7 +299,7 @@ func (store *AuthnFileStoreImpl) UpdateProfile(profile authn.ClientProfile) erro
 	if profile.PubKeyPem != "" {
 		entry.PubKeyPem = profile.PubKeyPem
 	}
-	entry.TimeUpdated = utils.FormatNowUTCMilli()
+	entry.TimeUpdated = time.Now().Format(time.RFC3339)
 	store.entries[profile.ClientID] = entry
 
 	err := store.save()

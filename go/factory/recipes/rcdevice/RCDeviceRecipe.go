@@ -1,6 +1,7 @@
 package rcdevice_recipe
 
 import (
+	"log/slog"
 	"os"
 
 	"github.com/hiveot/hivekit/go/api"
@@ -57,6 +58,7 @@ type RCDeviceRecipe struct {
 
 // Start the recipe and factory.
 func (r *RCDeviceRecipe) Start() {
+	slog.Info("Starting RCDeviceRecipe")
 	r.f.Start()
 }
 
@@ -99,8 +101,9 @@ func NewRCDeviceRecipe(env *api.HiveEnvironment, eThing api.IHiveCell) (
 	clientCell := f.GetCell(clients.TransportClientCellType)
 	eThing.SetRequestSink(clientCell)
 
+	// FIXME: why does the device recipe need a thingID? the eThing has one...
 	hostname, _ := os.Hostname()
-	thingID := hostname + ":device"
+	thingID := hostname + ":device-recipe"
 	r = &RCDeviceRecipe{
 		HiveCellBase: cells.NewHiveCellBase(thingID),
 		f:            f,

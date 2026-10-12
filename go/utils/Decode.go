@@ -44,7 +44,6 @@ func Decode(value any, arg any) (err error) {
 		*a, err = conv.Float64(value)
 	default:
 		// the ugly workaround is to marshal/unmarshal using json.
-		// TODO: more efficient method to convert the any type to the given type.
 		jsonData, _ := jsoniter.MarshalToString(value)
 		err = jsoniter.UnmarshalFromString(jsonData, arg)
 	}

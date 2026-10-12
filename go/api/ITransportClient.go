@@ -53,25 +53,6 @@ const (
 	StatusRefused ConnectionStatus = "refused"
 )
 
-// GetCredentials is the handler that provides the credentials for connecting to a thing server.
-//
-// thingID identifies the Thing to connect to. If no credentials are set for the device then
-// this attempts to obtain the default credentials, set with thingID "". If none are
-// found this returns an error.
-//
-// If the TD has no security info, this returns the scheme auto, which means
-// that the protocol uses its default authentication scheme.
-//
-// If a device serves multiple things then use the deviceID instead.
-// TODO: is it better to use origin to avoid mixup with devices and things?
-//
-// This returns:
-// - clientID is the account on the device to connect to.
-// - cred is the secret credentials to authenticate with
-// - credType is the type of credentials stored, eg bearer token, digist, etc
-// - found is true if credentials for thingID are found
-type GetCredentials func(thingID string) (clientID string, cred string, credType string, found bool)
-
 // ITransportClient defines the interface of a transport client connection.
 // This implements IHiveCell and IConnection interfaces.
 //

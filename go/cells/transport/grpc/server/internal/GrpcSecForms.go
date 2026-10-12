@@ -7,7 +7,7 @@ import (
 // AddTDForms sets the forms for use of http-basic to the given TD.
 //
 // This:
-//  1. Set TD base to the unix socket
+//  1. Set TD base to the unix socket, if none is set
 //  2. Set the supported security scheme
 //  3. Set Thing level forms for general operations such as readallproperties, queryallactions, ...
 //     This is a simple write request payload similar to wss
@@ -16,13 +16,12 @@ import (
 // Since content-Type is the default 'application/json' it is omitted as per spec.
 func (srv *GrpcServerImpl) AddTDSecForms(tdoc *td.TD) {
 	// 1. Add the base connection endpoint
-	// TODO: if this Thing supports multiple protocols it might conflict with
-	// the base. In that case base cannot be used and all hrefs must be absolute?
 	href := srv.GetConnectURL()
-	tdoc.Base = href
+	if tdoc.Base == "" {
+		tdoc.Base = href
+	}
 
 	// 2. Set the security scheme used by the authenticator.
-	// TODO: risk of duplicates?
 	srv.authenticator.AddSecurityScheme(tdoc)
 
 	// 3. add top level form for thing level  operations

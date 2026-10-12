@@ -10,9 +10,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/hiveot/hivekit/go/api"
 	"github.com/hiveot/hivekit/go/api/msg"
 	"github.com/hiveot/hivekit/go/api/td"
-	"github.com/hiveot/hivekit/go/cells/authn"
 	"github.com/hiveot/hivekit/go/cells/digitwin"
 	digitwin_service "github.com/hiveot/hivekit/go/cells/digitwin/service"
 	"github.com/hiveot/hivekit/go/cells/directory"
@@ -196,7 +196,7 @@ func TestReadDigitwinProperty(t *testing.T) {
 	dtw.SetRequestSink(et1)
 
 	// 1: create a consumer that subscribes to notifications
-	co, cc1, _ := testEnv.NewTestConsumer(userID, authn.ClientRoleViewer)
+	co, cc1, _ := testEnv.NewTestConsumer(userID, api.ClientRoleViewer)
 	err := cc1.Connect()
 	require.NoError(t, err)
 
@@ -257,7 +257,7 @@ func TestWriteDigitwinProperty(t *testing.T) {
 	defer stopFn()
 
 	// 1: create a consumer that writes a property
-	co, cc1, _ := testEnv.NewTestConsumer(userID, authn.ClientRoleViewer)
+	co, cc1, _ := testEnv.NewTestConsumer(userID, api.ClientRoleViewer)
 	err := cc1.Connect()
 	require.NoError(t, err)
 	err = co.ObserveProperty("", prop1Name)
@@ -345,7 +345,7 @@ func TestInvokeDigitwinAction(t *testing.T) {
 	defer stopFn()
 
 	// 1: create a consumer
-	co, cc1, _ := testEnv.NewTestConsumer(userID, authn.ClientRoleViewer)
+	co, cc1, _ := testEnv.NewTestConsumer(userID, api.ClientRoleViewer)
 	err := cc1.Connect()
 	require.NoError(t, err)
 	// the action will submit an event

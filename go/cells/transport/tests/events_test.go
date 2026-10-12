@@ -12,7 +12,6 @@ import (
 	"github.com/hiveot/hivekit/go/api"
 	"github.com/hiveot/hivekit/go/api/msg"
 	"github.com/hiveot/hivekit/go/api/td"
-	"github.com/hiveot/hivekit/go/cells/authn"
 	"github.com/hiveot/hivekit/go/cells/consumer"
 	"github.com/hiveot/hivekit/go/cells/thing"
 	"github.com/hiveot/hivekit/go/testenv"
@@ -54,12 +53,12 @@ func TestSubscribeAll(t *testing.T) {
 	defer cancelFn()
 
 	// 2. connect as consumers
-	co1, cc1, _ := testEnv.NewTestConsumer(testClientID1, authn.ClientRoleViewer)
+	co1, cc1, _ := testEnv.NewTestConsumer(testClientID1, api.ClientRoleViewer)
 	err := cc1.Connect()
 	require.NoError(t, err)
 	defer cc1.Close()
 
-	co2, cc2, _ := testEnv.NewTestConsumer(testClientID1, authn.ClientRoleViewer)
+	co2, cc2, _ := testEnv.NewTestConsumer(testClientID1, api.ClientRoleViewer)
 	err = cc2.Connect()
 	require.NoError(t, err)
 	defer cc2.Close()
@@ -145,7 +144,7 @@ func TestSubscribeReconnect(t *testing.T) {
 		}
 	}
 	co1, rc1, _ := testEnv.NewReconnectConsumer(
-		testClientID1, authn.ClientRoleViewer, coNotifHook)
+		testClientID1, api.ClientRoleViewer, coNotifHook)
 	defer rc1.Stop()
 
 	// the consumer side is now ready to run
@@ -251,7 +250,7 @@ func TestReadEvent(t *testing.T) {
 	defer cancelFn()
 
 	// 2. connect as a consumer
-	co1, cc1, _ := testEnv.NewTestConsumer(testClientID1, authn.ClientRoleViewer)
+	co1, cc1, _ := testEnv.NewTestConsumer(testClientID1, api.ClientRoleViewer)
 	err := cc1.Connect()
 	require.NoError(t, err)
 	defer cc1.Close()

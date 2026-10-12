@@ -61,9 +61,9 @@ func (sm *SessionManager) CreateToken(clientID string, validity time.Duration) (
 	if validity == 0 {
 		var validityDays int
 		switch prof.Role {
-		case authn.ClientRoleDevice:
+		case api.ClientRoleDevice:
 			validityDays = sm.DeviceTokenValidityDays
-		case authn.ClientRoleService:
+		case api.ClientRoleService:
 			validityDays = sm.ServiceTokenValidityDays
 		default: // viewer, manager, operator, admin all consumer tokens
 			validityDays = sm.ConsumerTokenValidityDays
@@ -162,9 +162,9 @@ func (sm *SessionManager) RefreshToken(senderID string, oldToken string) (
 		return newToken, validUntil, fmt.Errorf("Unknown or disabled client '%s'", senderID)
 	}
 	switch prof.Role {
-	case authn.ClientRoleDevice:
+	case api.ClientRoleDevice:
 		validityDays = sm.DeviceTokenValidityDays
-	case authn.ClientRoleService:
+	case api.ClientRoleService:
 		validityDays = sm.ServiceTokenValidityDays
 	default: // viewer, manager, operator, admin all consumer tokens
 		validityDays = sm.ConsumerTokenValidityDays
@@ -193,6 +193,11 @@ func (svc *SessionManager) SaveToken(clientID string, token string) error {
 	}
 
 	return err
+}
+
+// Stop the session management
+func (sm *SessionManager) Stop() {
+	// TODO: persist sessions?
 }
 
 // validate if the password is valid to login with

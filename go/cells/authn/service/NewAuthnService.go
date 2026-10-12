@@ -35,7 +35,6 @@ func NewAuthnServiceFactory(
 	if err != nil {
 		return nil, err
 	}
-	userSvc := svc.GetUserService()
-	f.SetAuthenticator(userSvc.GetSessionManager())
+	f.SetAuthenticator(svc.GetSessionManager())
 	return svc, err
 }

@@ -8,8 +8,8 @@ import (
 
 // NewReconnectService creates the reconnect service for use with a transport client.
 //
-// If tpClient is not known at time of creation, then use SetRequestSink to provide
-// the client to apply reconnect to.
+// If tpClient is not known at time of creation, then use SetRequestSink before calling
+// Start to provide the client to apply reconnect to.
 //
 // Call Start to activate the reconnect process. This can call Connect on the client.
 //

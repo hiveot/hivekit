@@ -61,7 +61,7 @@ func startTestAuthnServices(encryption string) (
 	}
 	// the session manager is a type of authenticator that also checks for
 	// sessions started with login.
-	authenticator := authnSvc.GetUserService().GetSessionManager()
+	authenticator := authnSvc.GetSessionManager()
 
 	// create the http api handler for authn user requests over http
 	testCerts = certstest.CreateTestCertBundle(TestKeyType)

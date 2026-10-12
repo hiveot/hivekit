@@ -33,7 +33,7 @@ var ExampleHome = path.Join(os.TempDir(), "hivekit-examples")
 // On start the device publishes its TD to the discovery server.
 func main() {
 	env := api.NewHiveEnvironment(ExampleHome, true)
-	env.AppID = "example-1"
+	env.AppID = "sadevice-example"
 	env.RpcTimeout = time.Minute // for testing
 	env.HttpsPort = 9222         // for testing
 	if env.ClientID == "" {

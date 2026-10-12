@@ -26,12 +26,12 @@ import (
 var testBucketID = "default"
 
 // use in-memory storage
-var storageLocation = path.Join(os.TempDir(), "hivekit", "bucketstore-test")
+var storageLocation = path.Join(os.TempDir(), "hivekit-test", "bucketstore")
 
 // pick the backend to run the tests on: kvbtre vs pebble
-// var testBackendType = bucketstore.BackendPebble
+var testBackendType = bucketstore.BackendPebble
 
-var testBackendType = bucketstore.BackendKVBTree
+// var testBackendType = bucketstore.BackendKVBTree
 
 const (
 	doc1ID                    = "doc1"

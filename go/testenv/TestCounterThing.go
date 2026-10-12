@@ -74,7 +74,7 @@ const autoIncrementDelay = 10 * time.Second
 const CounterThingCellType = "counter"
 
 // thingID requests are directed to
-const DefaultTestCounterThingID = "counter1"
+const DefaultTestCounterThingID = "counter"
 
 // Affordance IDs
 const (
@@ -171,6 +171,10 @@ func (svc *TestCounterThing) HandleNotification(notif *msg.NotificationMessage) 
 }
 
 func (svc *TestCounterThing) HandleRequest(req *msg.RequestMessage, replyTo msg.ResponseHandler) (err error) {
+
+	slog.Info("TestCounter:HandleRequest",
+		"op", req.Operation, "thingID", req.ThingID, "name", req.Name)
+
 	if req.ThingID != svc.GetID() {
 		return svc.ForwardRequest(req, replyTo)
 	}
@@ -240,7 +244,7 @@ func (svc *TestCounterThing) Start() {
 	tdoc := svc.GetTD()
 	err := svc.PublishTD(tdoc)
 	if err != nil {
-		slog.Warn("Start: Unable to write the TD", "err", err.Error())
+		slog.Error("Start: Unable to write the TD", "err", err.Error())
 		return
 	}
 

@@ -13,7 +13,6 @@ import (
 	"github.com/hiveot/hivekit/go/api"
 	"github.com/hiveot/hivekit/go/api/msg"
 	"github.com/hiveot/hivekit/go/api/td"
-	"github.com/hiveot/hivekit/go/cells/authn"
 	"github.com/hiveot/hivekit/go/cells/consumer"
 	"github.com/hiveot/hivekit/go/cells/thing"
 	"github.com/hiveot/hivekit/go/testenv"
@@ -59,12 +58,12 @@ func TestObservePropertyByConsumer(t *testing.T) {
 	defer cancelFn()
 
 	// 2. connect with two consumers
-	co1, cc1, _ := testEnv.NewTestConsumer(testClientID1, authn.ClientRoleViewer)
+	co1, cc1, _ := testEnv.NewTestConsumer(testClientID1, api.ClientRoleViewer)
 	err := cc1.Connect()
 	require.NoError(t, err)
 	defer cc1.Close()
 
-	co2, cc2, _ := testEnv.NewTestConsumer(testClientID1, authn.ClientRoleViewer)
+	co2, cc2, _ := testEnv.NewTestConsumer(testClientID1, api.ClientRoleViewer)
 	err = cc2.Connect()
 	require.NoError(t, err)
 	defer cc2.Close()
@@ -198,7 +197,7 @@ func TestReadProperty(t *testing.T) {
 	defer cancelFn()
 
 	// 2. connect as a consumer
-	co1, cc1, _ := testEnv.NewTestConsumer(testClientID1, authn.ClientRoleViewer)
+	co1, cc1, _ := testEnv.NewTestConsumer(testClientID1, api.ClientRoleViewer)
 	err := cc1.Connect()
 	require.NoError(t, err)
 	defer cc1.Close()
@@ -237,7 +236,7 @@ func TestReadAllProperties(t *testing.T) {
 	defer cancelFn()
 
 	// 2. connect as a consumer
-	co1, cc1, _ := testEnv.NewTestConsumer(testClientID1, authn.ClientRoleViewer)
+	co1, cc1, _ := testEnv.NewTestConsumer(testClientID1, api.ClientRoleViewer)
 	err := cc1.Connect()
 	require.NoError(t, err)
 	defer cc1.Close()
