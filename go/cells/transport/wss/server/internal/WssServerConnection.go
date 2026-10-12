@@ -83,7 +83,7 @@ func (sc *WssServerConnection) ReadLoop(ctx context.Context, wssConn *websocket.
 	for sc.IsConnected() { // sseMsg := range sseChan {
 		_, raw, err := wssConn.ReadMessage()
 		if err != nil {
-			slog.Info("WssServerConnection.ReadLoop: Remote client disconnected")
+			slog.Debug("WssServerConnection.ReadLoop: Remote client disconnected")
 			// ending the read loop and returning will close the connection
 			break
 		}

@@ -128,6 +128,11 @@ func (cl *SseScClientImpl) Connect() (err error) {
 	return err
 }
 
+// GetConnectionURL returns the URL used to connect to the server
+func (cl *SseScClientImpl) GetConnectionURL() string {
+	return fmt.Sprintf("https://%s%s", cl.tlsClient.GetHostPort(), cl.ssePath)
+}
+
 // Provide the native http client used by this client
 func (cl *SseScClientImpl) GetHttpClient() *http.Client {
 	return cl.tlsClient.GetHttpClient()

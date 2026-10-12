@@ -16,22 +16,21 @@ import (
 // intended for cells that can handle requests for multiple things.
 //
 // Flow:
-//  1. req -> bus -> [all members until one accepts]
-//  2. notif -> bus -> [all members] (no forwarding)
-//  3. [members] notif -> bus notification sink
-//  4. [members] req -> bus request sink
+//  1. req -> bus -> [all members until one accepts] | bus request sink
+//  2. notif -> bus -> [all members] + bus notification sink
+//  3. [members] emitted notif -> bus notification sink
+//  4. [members] emitted req -> bus request sink
 //
 // The primary use-case is to group multiple servers for a gateway.
 //   - Notifications received by servers from connected services and RC devices
-//     are passed to the bus notification sink (not the notification handler).
+//     are emitted to the bus notification sink.
 //   - Notifications passed to the bus HandleNotification function are passed to all
-//     bus members (servers). Bus members forward notifications to the remote side.
-//     They MUST NOT forward notifications to their own sink as it causes looping.
+//     bus members (servers send them to subscribed clients).
 //   - Requests received by servers from clients are passed to the request sink
 //     (not the request handler).
-//   - Requests passed to the request handler are passed to each server until
+//   - Requests passed to the bus request handler are passed to each server until
 //     one server accepts it. Servers send the request to the matching connected client.
-//     Servers MUST NOT forward requests to their request sink as this can cause looping.
+//   - members have all forwarding disabled to avoid looping.
 //
 // Transport Server Members must be fast in identifying if a request is accepted to avoid
 // increased latency due to passing a request to each member.
@@ -59,6 +58,9 @@ type BusFormation struct {
 
 // Pass notifications to bus members and up the notification chain.
 // bus members are set to not forward notifications.
+//
+// Note that forwarding of notifications by the bus itself can be disabled if
+// this would confuse the bus upstream.
 func (r *BusFormation) HandleNotification(notif *msg.NotificationMessage) {
 	for _, member := range r.members {
 		// members are configured to not forward notifications

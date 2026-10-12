@@ -44,11 +44,16 @@ type StarFormation struct {
 	members map[string]api.IHiveCell
 }
 
-// Receives notifications from downstream and send it to all cells
+// Receives notifications from downstream and send it to all cells,
+// and forward it upstream.
+// Members have forwarding disabled.
 func (r *StarFormation) HandleNotification(notif *msg.NotificationMessage) {
 	for _, member := range r.members {
+		// forwarding is disabled on members
 		member.HandleNotification(notif)
 	}
+	// forwarding can be disabled if so desired.
+	r.ForwardNotification(notif)
 }
 
 // Requests sent to the star are passed on to the cell with the matching thingID.

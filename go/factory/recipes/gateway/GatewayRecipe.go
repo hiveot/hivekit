@@ -56,6 +56,20 @@ var GatewayRecipeCells = []api.CellDefinition{
 	},
 	// --- nested formation with the servers operating in parallel
 	{
+		// FIXME: notifications from RC connections should go to the router, which also receives
+		// notifications from SA devices throught its client connections.
+		// currently notifications are send 'up' to the http server which discards them.
+		// option1: move http server out of the chain so notifications can flow to the top
+		//   and be linked to the router.
+		// option2: the recipe itself can locate the bus formation and force its notification sink
+		//   to the router as part of the recipe.
+		//
+		// generally, where should notifications received by a server go?
+		//  - services on the server should forward it up to the servers -> just like the gateway chain
+		//  - rc-services (logging, history) want to pass notificatinos to the services in the chain
+		//       same problem as in gateway, so same solution.
+		//
+
 		// requests are passed to all servers until one accepts
 		Type:        api.BusFormationType,
 		Constructor: factory_service.NewBusFormationFactory,
@@ -250,20 +264,20 @@ func (r *GatewayRecipe) Stop() {
 // 3. provides a directory service
 // 4. supports directory discovery
 // 5. runs protocol servers for http-basic, websockets, grpc and others
-// 6. Option to include a digital twin service
+// 6. pass received notifications to the router which passes it up the chain
 //
 // Cell chain:
 //
-//		 -> init certs
-//			  -> server group [http, wss, sse, mqtt]
-//			     -> logging
-//		           -> authz
-//			          -> authn
-//			             -> history
-//			                -> directory
-//			                   -> discovery server
-//		                         -> router | reconnect | clients
-//	                               -> rcrouter
+//			 -> init certs
+//				  -> server group [http, wss, sse, mqtt]
+//				     -> logging
+//			           -> authz
+//				          -> authn
+//				             -> history
+//				                -> directory
+//				                   -> discovery server
+//	                              -> rcrouter
+//			                           -> router | reconnect | clients
 //
 // This returns the recipe which can be used like any other cell, along with the
 // factory used to create the recipe or an error.
@@ -286,6 +300,17 @@ func NewGatewayRecipe(env *api.HiveEnvironment) (
 		formation:    formation,
 	}
 	r.SetTimeout(env.RpcTimeout)
+
+	srvBus := f.GetCell(api.BusFormationType)
+	// disable notification forwarding by the bus to prevent them being forwarded
+	// back to the router.
+	// Request forwarding is also disabled. There is no use-case for this.
+	srvBus.SetForwarding(false, false)
+	// link the server bus notification handler to the router so received notifications are
+	// passed back up the chain.
+	rtrCell := f.GetCell(router.RouterCellType)
+	srvBus.SetNotificationSink(rtrCell)
+
 	var _ api.IHiveCell = r // interface checks
 	return r, f, err
 }

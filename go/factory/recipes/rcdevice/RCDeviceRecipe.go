@@ -56,6 +56,15 @@ type RCDeviceRecipe struct {
 	formation api.IHiveCell
 }
 
+// Get the client connection
+func (r *RCDeviceRecipe) GetClient() api.ITransportClient {
+	cell := r.f.GetCell(clients.TransportClientCellType)
+	if cell == nil {
+		return nil
+	}
+	return cell.(api.ITransportClient)
+}
+
 // Start the recipe and factory.
 func (r *RCDeviceRecipe) Start() {
 	slog.Info("Starting RCDeviceRecipe")

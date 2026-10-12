@@ -65,9 +65,11 @@ func main() {
 	r.Start()
 	defer r.Stop()
 	counterThing.Start()
+	rcr := r.GetClient()
 
 	fmt.Printf("main: homeDir: %s\n", env.HomeDir)
-	fmt.Printf("main: Counter is running and listening on '%v'\n", f.GetConnectURLs())
+	fmt.Printf("main: Counter is running and connected as Thing '%s' to gateway '%s' at %v\n",
+		counterThing.GetID(), env.GetServerTD().GetID(), rcr.GetConnectionURL())
 	fmt.Printf("main: Use the cli from example 2 to read its status\n")
 	f.WaitForSignal(context.Background())
 }

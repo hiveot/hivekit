@@ -65,6 +65,7 @@ var ConsumerRecipeChain = []api.CellDefinition{
 		// If no gateway/server URL is provided this cell is ignored.
 		Type:        clients.TransportClientCellType,
 		Constructor: clients.NewTransportClientFactory,
+		// TODO: support reconnect
 	},
 	{
 		// the router manages client connections

@@ -100,6 +100,11 @@ func (cl *HttpBasicClientImpl) Connect() error {
 	return err
 }
 
+// GetConnectionURL returns the URL used to connect to the server
+func (cl *HttpBasicClientImpl) GetConnectionURL() string {
+	return fmt.Sprintf("https://%s", cl.tlsClient.GetHostPort())
+}
+
 // Return the TLS client used by this connection
 func (cl *HttpBasicClientImpl) GetTlsClient() tlsclient.ITLSClient {
 	cl.mux.RLock()

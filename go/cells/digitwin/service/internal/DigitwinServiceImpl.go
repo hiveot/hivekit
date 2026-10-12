@@ -169,7 +169,7 @@ func (svc *DigitwinServiceImpl) HandleNotification(notif *msg.NotificationMessag
 	// track online status of devices - this needs tracking of devices
 	// TODO: how to know if senderID is a device?
 	// A: get its role - see rcrouter
-	if notif.Name == api.ServerConnectedEvent {
+	if notif.Name == api.ClientConnectedEvent {
 
 		// if the sender is an device or service instead of a consumer then its things are now online.
 		cinfo := api.ConnectionInfo{}
@@ -180,7 +180,7 @@ func (svc *DigitwinServiceImpl) HandleNotification(notif *msg.NotificationMessag
 		// send notifications upstream to potential consumers
 		svc.ForwardNotification(notif)
 		return
-	} else if notif.Name == api.ServerDisconnectedEvent {
+	} else if notif.Name == api.ClientDisconnectedEvent {
 		// if this is an device or service then its things are no longer online
 		cinfo := api.ConnectionInfo{}
 		err := notif.Decode(&cinfo)

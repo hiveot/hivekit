@@ -194,6 +194,11 @@ func (cl *GrpcClientImpl) Connect() (err error) {
 	return nil
 }
 
+// GetConnectionURL returns the URL used to connect to the server
+func (cl *GrpcClientImpl) GetConnectionURL() string {
+	return cl.connectURL
+}
+
 // HandleNotification sends notifications to the server.
 // Incoming notifications are emitted to the sink.
 func (cl *GrpcClientImpl) HandleNotification(notif *msg.NotificationMessage) {

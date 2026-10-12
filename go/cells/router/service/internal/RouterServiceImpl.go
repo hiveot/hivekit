@@ -287,6 +287,21 @@ func (svc *RouterServiceImpl) GetClientConnection(
 	return cl, err
 }
 
+// HandleNotification receives an incoming notification from a producer.
+//
+// The default behavior is to forward the notification upstream to the notification sink,
+// if enabled.
+// overridden to simplify debugging
+func (svc *RouterServiceImpl) HandleNotification(notif *msg.NotificationMessage) {
+	slog.Info("HandleNotification",
+		slog.String("senderID", notif.SenderID),
+		slog.String("affordance", string(notif.AffordanceType)),
+		slog.String("thingID", notif.ThingID),
+		slog.String("name", notif.Name),
+	)
+	svc.ForwardNotification(notif)
+}
+
 // HandleRequest handles requests or routes the request to its destination
 func (svc *RouterServiceImpl) HandleRequest(req *msg.RequestMessage, replyTo msg.ResponseHandler) (err error) {
 	var resp *msg.ResponseMessage

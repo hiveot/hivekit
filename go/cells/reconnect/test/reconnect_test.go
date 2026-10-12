@@ -89,7 +89,7 @@ func TestReconnect(t *testing.T) {
 
 	// Detect when server emits a connected event
 	notifHandler := func(notif *msg.NotificationMessage) {
-		if notif.Name == api.ServerConnectedEvent {
+		if notif.Name == api.ClientConnectedEvent {
 			// expect a connect-disconnect event
 			serverConnectEvents.Add(1)
 			slog.Info("TestReconnect: Connected notification by Server",

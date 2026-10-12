@@ -82,6 +82,9 @@ type ITransportClient interface {
 	// Return the connecting status
 	GetConnectionStatus() ConnectionStatus
 
+	// Return the configured connection endpoint URL
+	GetConnectionURL() string
+
 	// Rpc creates and sends a request message to the server, and decodes the response.
 	// This returns an error if the request fails or if the response contains an error.
 	//

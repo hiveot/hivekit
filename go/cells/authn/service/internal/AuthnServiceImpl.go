@@ -105,9 +105,13 @@ func NewAuthnServiceImpl(tokensDir string, storageDir string, createAdmin bool) 
 		return nil, err
 	}
 	// the authn service wraps the nested services and acts as their proxy
-	// Note: Since this cell has no fixed thingID it cant be used in a star formation.
+	// Note: This cell doesnt publish a TD (its admin/user embedded cells do), it cant be
+	// used in a star formation. Star formation only supports addressing members directly,
+	// but not their embedded things.
+	// If this becomes an issue then maybe add 'hasThing(id)' to the cell base. Trying to
+	// keep the base small though.
 	authnSvc := &AuthnServiceImpl{
-		ExposedThing:   thing.NewExposedThing("", nil),
+		ExposedThing:   thing.NewExposedThing("authnService", nil),
 		authnStore:     authnStore,
 		adminSvc:       adminSvc,
 		sessionManager: sessionManager,

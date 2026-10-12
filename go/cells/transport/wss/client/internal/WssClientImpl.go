@@ -225,10 +225,15 @@ func (cl *WssTransportClientImpl) Connect() error {
 	return err
 }
 
+// GetConnectionURL returns the URL used to connect to the server
+func (cl *WssTransportClientImpl) GetConnectionURL() string {
+	return cl.wssURL
+}
+
 // HandleNotification receives an incoming notification from a producer
 // and sends it to the server.
-func (m *WssTransportClientImpl) HandleNotification(notif *msg.NotificationMessage) {
-	m.SendNotification(notif)
+func (cl *WssTransportClientImpl) HandleNotification(notif *msg.NotificationMessage) {
+	cl.SendNotification(notif)
 }
 
 // Clients receives a request

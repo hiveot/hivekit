@@ -26,7 +26,7 @@ func TestAllEventsProtocols(t *testing.T) {
 }
 func TestAllEvents(t *testing.T) {
 	t.Run("TestSubscribeAll", TestSubscribeAll)
-	t.Run("TestPublishEventsByThing", TestPublishEventsByRCThing)
+	t.Run("TestPublishEventsByRCThing", TestPublishEventsByRCThing)
 	t.Run("TestReadEvent", TestReadEvent)
 }
 
@@ -198,6 +198,11 @@ func TestPublishEventsByRCThing(t *testing.T) {
 	// 1. start the transport
 	// handler of notifications received on the server
 	co := consumer.NewConsumer(nil, func(msg *msg.NotificationMessage) {
+		slog.Info("TestPublishEventsByRCThing: received notification",
+			"type", msg.AffordanceType,
+			"thingID", msg.ThingID,
+			"name", msg.Name,
+			"senderID", msg.SenderID)
 		// the server handler receives all notifications
 		if msg.ThingID == thingID {
 			evVal.Store(msg.Data)
@@ -217,7 +222,7 @@ func TestPublishEventsByRCThing(t *testing.T) {
 	time.Sleep(time.Millisecond) // time to take effect
 
 	// event received by server
-	rxMsg2 := evVal.Load()
+	rxMsg2 := evVal.Load().(string)
 	require.NotNil(t, rxMsg2)
 	assert.Equal(t, testMsg, rxMsg2)
 }
