@@ -2,6 +2,7 @@ package internal
 
 import (
 	"crypto/ed25519"
+	"errors"
 	"fmt"
 	"log/slog"
 	"time"
@@ -103,19 +104,23 @@ func (svc *PasetoAuthenticatorImpl) CreateToken(clientID string, validity time.D
 //
 // nonce based verification to prevent replay attacks is intended for future version.
 //
-// token is the token string containing a session token
+// sessionToken is the token string with the session token
 // This returns the authenticated clientID stored in the token and its expiry time,
 // or an error if invalid.
 func (svc *PasetoAuthenticatorImpl) DecodeToken(
-	sessionKey string, signedNonce string, nonce string) (
+	sessionToken string, signedNonce string, nonce string) (
 	clientID string, issuedAt time.Time, validUntil time.Time, err error) {
 	var pToken *paseto.Token
 
+	if sessionToken == "" {
+		err = errors.New("Empty session token")
+		return clientID, issuedAt, validUntil, err
+	}
 	pasetoParser := paseto.NewParserForValidNow()
 	pubKey := svc.signingKey.Public().(ed25519.PublicKey)
 	v4PubKey, err := paseto.NewV4AsymmetricPublicKeyFromEd25519(pubKey)
 	if err == nil {
-		pToken, err = pasetoParser.ParseV4Public(v4PubKey, sessionKey, nil)
+		pToken, err = pasetoParser.ParseV4Public(v4PubKey, sessionToken, nil)
 	}
 	if err == nil {
 		clientID, err = pToken.GetString("clientID")

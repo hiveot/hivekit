@@ -20,7 +20,7 @@ import (
 const testDeviceID1 = "device1"
 const testClientID1 = "client1"
 
-var testProtocol = api.HiveotGrpcTcpProtocolType
+var testProtocol = api.HiveotSseScProtocolType
 
 var testProtocols = []string{
 	api.HiveotSseScProtocolType,
@@ -28,7 +28,7 @@ var testProtocols = []string{
 	api.HiveotGrpcUnixProtocolType,
 	api.HiveotWebsocketProtocolType,
 	api.WotWebsocketProtocolType,
-	api.HttpBasicProtocolType,
+	api.WotHttpBasicProtocolType,
 }
 
 // TestMain sets logging
@@ -149,7 +149,7 @@ func TestUnauthorizedError(t *testing.T) {
 	cl.Close()
 
 	// check bad token - httpbasic doesnt detect this until a request is sent
-	if testProtocol != api.HttpBasicProtocolType {
+	if testProtocol != api.WotHttpBasicProtocolType {
 		err = cl.SetAuthToken(testClientID1, "badtoken", td.SecSchemeBearer)
 		assert.NoError(t, err)
 		err = cl.Connect()

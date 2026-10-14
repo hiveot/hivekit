@@ -40,6 +40,8 @@ func NewRouterService(storageDir string,
 
 // Create a router service instance using the factory environment.
 //
+// If env contains a gateway URL without TD then getTD returns a gateway TD.
+// If env contains a predefined serverTD then use it for all connections.
 // If the factory environment contains a directory client or server, use its getTD
 // provider of TD's.
 //
@@ -50,37 +52,51 @@ func NewRouterService(storageDir string,
 func NewRouterServiceFactory(f api.ICellFactory, md *api.CellDefinition) (api.IHiveCell, error) {
 
 	var getTD func(string) *td.TD
+	var err error
+	var serverID string
 	env := f.GetEnvironment()
 	storageDir := env.GetStorageDir(router.RouterCellType)
 
-	// The router can be used with a directory server or client. Try both.
-	m, err := f.NewCell(directory.DirectoryServiceCellType, true)
-	if err == nil {
-		if dirMod, ok := m.(directory.IDirectoryService); ok {
-			getTD = dirMod.GetTD
+	// if a gateway URL is preconfigured then getTD returns this TD
+	// TODO: should this be a environment configuration?
+	if env.GatewayURL != "" {
+		serverID := "gateway"
+		gwTD := td.NewTD(serverID, "dummy gateway", "Gateway")
+		gwTD.Base = env.GatewayURL
+		//
+		getTD = func(_ string) *td.TD {
+			return gwTD
 		}
+		// FIXME: provide auth token/cert
 	} else {
-		// maybe directory client?
-		m, err = f.NewCell(directory.DirectoryClientCellType, true)
+		// if a server TD is preconfigured then getTD returns this TD
+		serverTD := env.GetServerTD()
+		if serverTD != nil {
+			serverID = serverTD.ID
+			getTD = func(_ string) *td.TD {
+				return env.GetServerTD()
+			}
+		}
+	}
+	if getTD == nil {
+		// The router can be used with a directory server or client. Try both.
+		m, err := f.NewCell(directory.DirectoryServiceCellType, true)
 		if err == nil {
-			if dirMod, ok := m.(directory.IDirectoryClient); ok {
+			if dirMod, ok := m.(directory.IDirectoryService); ok {
 				getTD = dirMod.GetTD
+			}
+		} else {
+			// maybe directory client?
+			m, err = f.NewCell(directory.DirectoryClientCellType, true)
+			if err == nil {
+				if dirMod, ok := m.(directory.IDirectoryClient); ok {
+					getTD = dirMod.GetTD
+				}
 			}
 		}
 	}
 	if err != nil {
 		return nil, fmt.Errorf("NewRouterServiceFactory. Missing directory client or service.")
-	}
-
-	// configure the direct gateway endpoint
-	if env.GatewayURL != "" {
-		// default route is the gateway instead of creating client connections
-
-		// if the router is used in a gateway then this forwards requests to another gateway
-		// TODO: check on start if this gateway is not the router's server itself
-		//  that would cause an endless loop.
-		// TODO: should a gateway client be used in a separate recipe
-		//  or should consumers be able to use both a router and gateway in parallel?
 	}
 
 	// TODO: use config to set auto-reconnect. For now don't because it might hide auth problems.
@@ -92,6 +108,10 @@ func NewRouterServiceFactory(f api.ICellFactory, md *api.CellDefinition) (api.IH
 		env.GetRootCAs(),
 		getTD,
 	)
-
+	// set configured credentials, if any
+	authToken, _ := env.GetAuthToken()
+	if authToken != "" {
+		svc.AddCredentials(serverID, env.ClientID, authToken, td.SecSchemeBearer)
+	}
 	return svc, err
 }

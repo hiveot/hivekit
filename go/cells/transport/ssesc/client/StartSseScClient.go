@@ -5,6 +5,7 @@ import (
 	"log/slog"
 
 	"github.com/hiveot/hivekit/go/api"
+	"github.com/hiveot/hivekit/go/api/td"
 	"github.com/hiveot/hivekit/go/cells/transport/ssesc/client/internal"
 )
 
@@ -12,12 +13,11 @@ import (
 //
 // Set the authentication credentials and call Connect() or Start().
 //
-//	sseURL is the full SSE connection URL including path
+//	tdoc containing the http URLs for operations. Base contains the sse connect URL.
 //	rootCAs are CA certificates to validate the server certificate. nil for system CAs.
-//	ch is the connect/disconnect callback. nil to ignore
-func NewSseScClient(sseURL string, rootCAs *x509.CertPool) api.ITransportClient {
+func NewSseScClient(tdoc *td.TD, rootCAs *x509.CertPool) api.ITransportClient {
 
-	return internal.NewSseScClientImpl(sseURL, rootCAs)
+	return internal.NewSseScClientImpl(tdoc, rootCAs)
 }
 
 // Create a ready-to-use HTTP/SSE-SC client using the application environment to set
@@ -28,7 +28,7 @@ func NewSseScClientFactory(f api.ICellFactory, md *api.CellDefinition) (api.IHiv
 	// do clients use onconnectionchanged? -> yes, show connection status
 	// how do they get informed? -> client submits an event
 	clientCert, _ := env.GetClientCert()
-	m := NewSseScClient(env.GetServerURL(), env.GetRootCAs())
+	m := NewSseScClient(env.GetServerTD(), env.GetRootCAs())
 	if clientCert != nil {
 		err := m.SetClientCert(clientCert)
 		if err != nil {

@@ -43,9 +43,9 @@ const (
 	HiveotWebsocketProtocolType = HiveotWebsocketScheme + ":" + HiveotWebsocketSubprotocol
 
 	// Http-basic follows the WoT specification
-	HttpBasicScheme       = "https"
-	HttpBasicSubprotocol  = ""
-	HttpBasicProtocolType = HttpBasicScheme + ":" + HttpBasicSubprotocol
+	WotHttpBasicScheme       = "https"
+	WotHttpBasicSubprotocol  = ""
+	WotHttpBasicProtocolType = WotHttpBasicScheme + ":" + WotHttpBasicSubprotocol
 
 	// WoT MQTT is not yet implemented
 	WotMqttsScheme      = "mqtts"

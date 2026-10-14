@@ -125,7 +125,8 @@ func (cl *WssTransportClientImpl) _onWssClientMessage(raw []byte) {
 		err = fmt.Errorf("Unknown message type '%s'", msgType)
 	}
 	if err != nil {
-		slog.Warn("_onWssClientMessage: Failed to decode message", "msgType", msgType, "err", err.Error())
+		slog.Warn("_onWssClientMessage: Failed to decode message",
+			"msgType", msgType, "err", err.Error())
 	}
 }
 
@@ -424,7 +425,7 @@ func NewHiveotWssClientImpl(
 func NewWotWssClientImpl(
 	wssURL string, rootCAs *x509.CertPool) *WssTransportClientImpl {
 
-	thingID := wss.HiveotWebsocketClientCellType + "-" + shortid.MustGenerate()
+	thingID := wss.WotWebsocketClientCellType + "-" + shortid.MustGenerate()
 
 	cl := &WssTransportClientImpl{
 		TransportClientBase: transport.NewTransportClientBase(thingID, rootCAs),

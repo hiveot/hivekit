@@ -367,7 +367,7 @@ func (testEnv *TestEnv) StartTestServer(protocol string) (srv api.ITransportServ
 		testEnv.StartHttpServer(false)
 		srv, err = wss_server.StartHiveotWssServer(testEnv.HttpServer, timeout)
 
-	case api.HttpBasicProtocolType:
+	case api.WotHttpBasicProtocolType:
 		testEnv.StartHttpServer(false)
 		srv, err = httpbasic_server.NewHttpBasicServer(testEnv.HttpServer)
 		// http only, no subprotocol bindings

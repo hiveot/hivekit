@@ -29,13 +29,18 @@ type connectURLForm struct {
 // Use-cases:
 //
 //	a. Consumer side;
-//		1. router connect to stand-alone device, using directory client:
+//		1. router connect to SA (stand-alone) device, using directory client:
 //		   	* getTD provides a valid TD. Without it the router fails.
 //			* getTD is typically a directory client, that needs a TDD
 //		    * discovery can provide a TDD to the directory.
 //		2. router connects to SA device using discovery client:
 //		   	* getTD provides a valid TD. Without it the router fails.
 //		    * getTD is a discovery client that searches for SA devices
+//		3. router connects to a preconfigured server.
+//			* getTD provides the preconfigured server TD.
+//		4. router connects to a preconfigured gateway URL.
+//			* getTD returns a dummy TD with the gateway URL as base.
+//
 //	b. Server side, inside a gateway
 //		3. router connects to stand-alone device using directory client
 //	    	* same as 1.
@@ -174,7 +179,13 @@ func (svc *RouterServiceImpl) GetConnectURL(
 	// Attempt to find a form matching the preferred protocol
 	connectForm, match = tdoc.GetForm(op, name, prefScheme, prefSubprotocol)
 	_ = match
-	if connectForm != nil {
+	if connectForm == nil {
+		// if no form can be found then use base if it exists
+		connectURL = tdoc.Base
+		if connectURL == "" {
+			err = fmt.Errorf("GetConnectURL: no form and no Base URL for Thing '%s'", tdoc.ID)
+		}
+	} else {
 
 		// get the full URL for the operation
 		hrefURL, err = connectForm.ResolveHRef(tdoc.Base, nil)
@@ -204,87 +215,6 @@ func (svc *RouterServiceImpl) GetConnectURL(
 	svc.cmux.Unlock()
 
 	return connectURL, connectForm, nil
-}
-
-// GetClientConnection returns a client for sending requests to the server with
-// the given connection URL. If a connection doesn't exists then create it.
-//
-// Previous connections are re-used. The connect URL identifies the connection.
-// For each requested thingID, the connectURL is calculated and cached.
-//
-// If the 'autoReconnect' option is configured then this wraps the connection in a
-// Reconnect client that automatically reconnects and resubscribes if the connection
-// fails.
-//
-//	tdoc is the TD of the device to connect to.
-//	op is the operation to perform
-//	name is the optional affordance name for the operation. "" for thing level operations.
-func (svc *RouterServiceImpl) GetClientConnection(
-	tdoc *td.TD, connectURL string, cform *td.Form) (cl api.IHiveCell, err error) {
-
-	var c api.ITransportClient
-	// var form *td.Form
-
-	// 1. load the client connection if it exists
-	svc.cmux.Lock()
-	cl, found := svc.deviceConnections[connectURL]
-	defer svc.cmux.Unlock()
-
-	// 2. If a valid connection does not yet exist, establish one, if possible.
-	if !found {
-
-		c, err = clients.NewTransportClientFromForm(tdoc, cform, svc.rootCAs)
-		if err != nil {
-			return nil, err
-		}
-		c.SetTimeout(svc.GetTimeout())
-
-		// if a client certificate is available set it for authentication
-		if svc.clientCert != nil {
-			err = c.SetClientCert(svc.clientCert)
-		}
-
-		// Note-1: that while the TD form contains authentication instructions, the
-		// available credentials determine the format used.
-		//
-		// Note-2: when connecting to a gateway with multiple devices, this requires
-		// that the same credentials are set for every single thingID the device
-		// offers, even though they all use the same connection.
-		// The credentials are therefore set per connectURL, not the thingID.
-		//
-		// Note-3: if the connect URL is that of the gateway that runs this router then this can
-		// cause a loop, resulting in a failed request since RnR for request already
-		// exists.
-		// TODO: identify this situation and return with an error
-
-		// determine who to identify as for this connection; fall back to default
-		clientID, secret, secScheme, found := svc.credStore.GetCredentials(connectURL)
-		if !found {
-			clientID = svc.clientID
-		}
-		err = c.SetAuthToken(clientID, secret, secScheme)
-		if err != nil {
-			// No auth. Discard this connection.
-			slog.Warn("GetClientConnection: failed", "ThingID", tdoc.ID, "err", err.Error())
-			return nil, err
-		}
-		if svc.autoReconnect {
-			// reconnect connects the client on start
-			cl, err = reconnect_service.NewReconnectService(c)
-			cl.SetTimeout(svc.GetTimeout())
-		} else {
-			// connect directly. Reconnect is not used.
-			// TODO: without reconnect, should the connection be discarded?
-			cl = c
-		}
-		svc.deviceConnections[connectURL] = cl
-
-		// forward notifications to this service and up to its consumer
-		cl.SetNotificationSink(svc)
-		cl.Start()
-	}
-
-	return cl, err
 }
 
 // HandleNotification receives an incoming notification from a producer.
@@ -347,7 +277,84 @@ func (svc *RouterServiceImpl) HasCredentials(thingID string) (credType string, f
 	return svc.credStore.HasCredentials(connectURL)
 }
 
+// NewClientConnection returns a new client for sending requests to the server with
+// the given connection URL. If a connection doesn't exists then create it.
+//
+// If the 'autoReconnect' option is configured then this wraps the connection in a
+// Reconnect client that automatically reconnects and resubscribes if the connection
+// fails.
+//
+// If no form is given then connect purely based on URL. This means use the
+// default subprotocol for the URL scheme.
+//
+//	tdoc is the TD of the device to connect to.
+//	connectURL is the URL for the client connection
+//	cform is the form with subprotocol.
+func (svc *RouterServiceImpl) NewClientConnection(
+	tdoc *td.TD, connectURL string, cform *td.Form) (cl api.IHiveCell, err error) {
+
+	var c api.ITransportClient
+
+	if cform != nil {
+		c, err = clients.NewTransportClientFromForm(tdoc, cform, svc.rootCAs)
+	} else {
+		c, err = clients.NewTransportClientFromURL(connectURL, "", svc.rootCAs)
+	}
+	if err != nil {
+		return nil, err
+	}
+	c.SetTimeout(svc.GetTimeout())
+
+	// if a client certificate is available set it for authentication
+	if svc.clientCert != nil {
+		err = c.SetClientCert(svc.clientCert)
+	}
+
+	// Note-1: that while the TD form contains authentication instructions, the
+	// available credentials determine the format used.
+	//
+	// Note-2: when connecting to a gateway with multiple devices, this requires
+	// that the same credentials are set for every single thingID the device
+	// offers, even though they all use the same connection.
+	// The credentials are therefore set per connectURL, not the thingID.
+	//
+	// Note-3: if the connect URL is that of the gateway that runs this router then this can
+	// cause a loop, resulting in a failed request since RnR for request already
+	// exists.
+	// TODO: identify this situation and return with an error
+
+	// determine who to identify as for this connection; fall back to default
+	clientID, secret, secScheme, found := svc.credStore.GetCredentials(connectURL)
+	if !found {
+		clientID = svc.clientID
+	}
+	err = c.SetAuthToken(clientID, secret, secScheme)
+	if err != nil {
+		// No auth. Discard this connection.
+		slog.Warn("GetClientConnection: failed", "ThingID", tdoc.ID, "err", err.Error())
+		return nil, err
+	}
+	if svc.autoReconnect {
+		// reconnect connects the client on start
+		cl, err = reconnect_service.NewReconnectService(c)
+		cl.SetTimeout(svc.GetTimeout())
+	} else {
+		// connect directly. Reconnect is not used.
+		// TODO: without reconnect, should the connection be discarded?
+		cl = c
+	}
+	// svc.deviceConnections[connectURL] = cl
+
+	// forward notifications to this service and up to its consumer
+	cl.SetNotificationSink(svc)
+	cl.Start()
+	// }
+
+	return cl, err
+}
+
 // Route the request to remote devices.
+//
 // If no connection can be established then pass the request to the sink.
 //
 // Lookup the TD of the ThingID and determine its destination:
@@ -368,34 +375,46 @@ func (svc *RouterServiceImpl) RouteRequest(req *msg.RequestMessage, replyTo msg.
 	}
 
 	// 2. this is a RC device. Can't connect to it. Should not have come here.
-	rcid := tdoc.GetRCID()
-	if rcid != "" {
-		err := fmt.Errorf("RouteRequest: invalid attempt to connect to a RC device '%s'. Should not have come here.", rcid)
-		slog.Error(err.Error())
-		return err
-	}
+	// that implies it needs to connect to a gateway.
+	// rcid := tdoc.GetRCID()
+	// if rcid != "" {
+	// 	err := fmt.Errorf("RouteRequest: invalid attempt to connect to a RC device '%s'. Should not have come here.", rcid)
+	// 	slog.Error(err.Error())
+	// 	return err
+	// }
 
 	// 2. the connection URL is needed for establishing a device connection
 	connectURL, connectForm, err := svc.GetConnectURL(tdoc, req.Operation, req.Name)
-	if connectURL != "" {
-		c, err2 := svc.GetClientConnection(tdoc, connectURL, connectForm)
-		if c == nil {
-			slog.Warn("RouteRequest: Unable to establish a connection to client", "err", err2)
-			err = err2
-		} else if err2 != nil {
-			slog.Warn("RouteRequest: Connection failed", "err", err2)
-			err = err2
-		} else {
-			err = c.HandleRequest(req, replyTo)
-		}
-		return err
+	if connectURL == "" {
+		// if the TD has no URL then pass the request to the sink.
+		err = svc.ForwardRequest(req, replyTo)
 	}
 
-	// 3. if the TD has no connection then pass the request to the sink.
-	// See also the rcservice for use in gateways that can pass the request to
-	// a reverse-connected client.
+	// 3. load the client connection for this URL
+	svc.cmux.Lock()
+	c, found := svc.deviceConnections[connectURL]
 
-	err = svc.ForwardRequest(req, replyTo)
+	// 4. If a connection does not yet exist, establish one, if possible.
+	if !found {
+		c, err = svc.NewClientConnection(tdoc, connectURL, connectForm)
+		if c == nil {
+			slog.Warn("RouteRequest: Unable to establish a connection to client", "err", err)
+		} else if err != nil {
+			slog.Warn("RouteRequest: Connection failed", "err", err)
+		} else {
+			slog.Warn("RouteRequest: Connection established",
+				slog.String("thingID", tdoc.ID),
+				slog.String("url", connectURL),
+			)
+			// save the connection for re-use.
+			svc.deviceConnections[connectURL] = c
+		}
+	}
+	svc.cmux.Unlock()
+
+	if c != nil {
+		err = c.HandleRequest(req, replyTo)
+	}
 
 	return err
 }

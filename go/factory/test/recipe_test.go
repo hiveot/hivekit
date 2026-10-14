@@ -30,7 +30,7 @@ var testProtocols = []string{
 	api.HiveotGrpcUnixProtocolType,
 	api.HiveotWebsocketProtocolType,
 	api.WotWebsocketProtocolType,
-	api.HttpBasicProtocolType,
+	api.WotHttpBasicProtocolType,
 }
 
 // Run tests that contain a protocol client in the recipe
@@ -171,6 +171,7 @@ func TestGatewayRecipe(t *testing.T) {
 	rcr, _, err := rcdevice_recipe.NewRCDeviceRecipe(rcenv, counterThing)
 	require.NoError(t, err)
 	rcr.Start()
+	// Start writes the counter TD into the gateway directory
 	counterThing.Start()
 	defer counterThing.Stop()
 	defer rcr.Stop()

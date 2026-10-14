@@ -26,7 +26,7 @@ var SupportedClientProtocols = []string{
 	api.HiveotSseScScheme,
 	api.HiveotWebsocketSubprotocol,
 	api.WotWebsocketSubprotocol,
-	api.HttpBasicScheme,
+	api.WotHttpBasicScheme,
 	// api.ProtocolSchemeWotMqtt,
 }
 
@@ -131,71 +131,78 @@ func NewTransportClientFromForm(
 	href := hrefURL.String()
 	subProtocol, _ := form.GetSubprotocol()
 
-	// Note: the definition of protocol-type is scheme:subprotocol
-	protocolType := hrefURL.Scheme + ":" + subProtocol
+	// Http basic needs a TD to invoke operations
+	if subProtocol == "" && hrefURL.Scheme == api.WotHttpBasicScheme {
+		cl, err = httpbasic_client.NewHttpBasicClient(tdoc, rootCAs)
+	} else if subProtocol == api.HiveotSsescSubprotocol && hrefURL.Scheme == api.HiveotSseScScheme {
+		cl = ssesc_client.NewSseScClient(tdoc, rootCAs)
+	} else {
+		// connection based protocols just need the href and subprotocol
+		cl, err = NewTransportClientFromURL(href, subProtocol, rootCAs)
+	}
+
+	return cl, err
+}
+
+// NewTransportClientFromURL returns a new connection based transport client
+// instance ready to connect to a transport server using the URL scheme.
+//
+// This does not support http-basic, as http-basic needs a form per operation.
+//
+//	serverURL full URL to connect to.
+//	subProtocol use for protocol selection from forms, or "" to use URL scheme.
+func NewTransportClientFromURL(serverURL string, subProtocol string, rootCAs *x509.CertPool) (
+	cl api.ITransportClient, err error) {
+
+	var protocolType string
+	// 1. determine the protocol to use
+	parts, err := url.Parse(serverURL)
+	if subProtocol != "" {
+		protocolType = parts.Scheme + ":" + subProtocol
+	} else {
+		// map the scheme to the protocol type
+		switch parts.Scheme {
+		case api.HiveotGrpcUnixScheme:
+			protocolType = api.HiveotGrpcUnixProtocolType
+		case api.HiveotGrpcTcpScheme:
+			protocolType = api.HiveotGrpcTcpProtocolType
+		case api.HiveotSseScScheme:
+			protocolType = api.HiveotSseScProtocolType
+		case api.WotHttpBasicScheme:
+			protocolType = api.WotHttpBasicProtocolType
+		case api.WotWebsocketScheme:
+			protocolType = api.WotWebsocketProtocolType
+		default:
+			err = fmt.Errorf("NewTransportClient. Unsupported protocol type '%s'", protocolType)
+		}
+	}
 
 	switch protocolType {
 	case api.HiveotGrpcTcpProtocolType:
 		// gRPC only needs a connect href. All operations use this connection.
-		cl = grpc_client.NewHiveotGrpcClient(href, rootCAs)
+		cl = grpc_client.NewHiveotGrpcClient(serverURL, rootCAs)
 
 	case api.HiveotGrpcUnixProtocolType:
 		// gRPC only needs a connect href. All operations use this connection.
-		cl = grpc_client.NewHiveotGrpcClient(href, rootCAs)
+		cl = grpc_client.NewHiveotGrpcClient(serverURL, rootCAs)
 
-	case api.HiveotSseScProtocolType:
-		// SSE-SC defines the SSE connect URL in 'base' and specifies 3 relative paths
-		// to send requests, response and notification messages to the server over http.
-		// The server sends these messages over the SSE channel.
-		cl = ssesc_client.NewSseScClient(tdoc.Base, rootCAs)
+	// case api.HiveotSseScProtocolType:
+	// 	// SSE-SC defines the SSE connect URL in 'base' and specifies 3 relative paths
+	// 	// to send requests, response and notification messages to the server over http.
+	// 	// The server sends these messages over the SSE channel.
+	// 	cl = ssesc_client.NewSseScClient(tdoc, rootCAs)
 
 	case api.HiveotWebsocketProtocolType:
 		// websockets only needs a connect href. All operations use this connection.
-		cl = wss_client.NewHiveotWssClient(href, rootCAs)
+		cl = wss_client.NewHiveotWssClient(serverURL, rootCAs)
 
 	case api.WotWebsocketProtocolType:
 		// websockets only needs a connect href. All operations use this connection.
-		cl = wss_client.NewWotWssClient(href, rootCAs)
-
-	case api.HttpBasicProtocolType:
-		// http-basic needs the TD to get a href per operation.
-		cl, err = httpbasic_client.NewHttpBasicClient(tdoc, rootCAs)
-
-	// case api.WotMqttProtocolType:
-	// mqtt needs the TD for href to connect and mkv:topic field for topics per operation
-	// cl = mqtt_client.NewMqttsClient(tdoc, caCert)
-
-	default:
-		err = fmt.Errorf("NewTransportClient. Unsupported protocol type '%s'", protocolType)
-	}
-	return cl, err
-}
-
-// NewTransportClientFromURL returns a new transport client instance ready to
-// connect to a transport server using the URL scheme.
-//
-// Note-1: if a scheme has multiple subprotocols then the most generic protocol
-// will be chosen. This is a last-resort way to create a client.
-func NewTransportClientFromURL(serverURL string, rootCAs *x509.CertPool) (
-	cl api.ITransportClient, err error) {
-
-	parts, err := url.Parse(serverURL)
-
-	switch parts.Scheme {
-	case api.HiveotGrpcUnixScheme:
-		cl = grpc_client.NewHiveotGrpcClient(serverURL, rootCAs)
-
-	case api.HiveotGrpcTcpScheme:
-		cl = grpc_client.NewHiveotGrpcClient(serverURL, rootCAs)
-
-	// case api.HttpBasicScheme:
-	// cl = tls_client.NewTLSClient(serverURL, rootCAs)
-
-	case api.HiveotSseScScheme:
-		cl = ssesc_client.NewSseScClient(serverURL, rootCAs)
-
-	case api.WotWebsocketScheme:
 		cl = wss_client.NewWotWssClient(serverURL, rootCAs)
+
+	// case api.WotHttpBasicProtocolType:
+	// http-basic needs the TD to get a href per operation.
+	// cl, err = httpbasic_client.NewHttpBasicClient(tdoc, rootCAs)
 
 	default:
 		err = fmt.Errorf("NewTransportClient. Unsupported protocol for URL '%s'", serverURL)
@@ -237,7 +244,7 @@ func NewTransportClientFactory(
 
 	// the gateway URL takes precedence
 	if env.GatewayURL != "" {
-		tpcl, err = NewTransportClientFromURL(gatewayURL, env.GetRootCAs())
+		tpcl, err = NewTransportClientFromURL(gatewayURL, "", env.GetRootCAs())
 	} else if serverTD != nil {
 		// prefer the wot websocket if available
 		form, _ := serverTD.GetForm("", "", api.WotWebsocketScheme, api.WotWebsocketSubprotocol)

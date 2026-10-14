@@ -338,13 +338,12 @@ func (tdoc *TD) GetEvent(eventName string) *EventAffordance {
 //  1. Narrow down the available forms by matching operation
 //     If a name is provided then collect the forms of the affordance.
 //     Add the thing level forms with the matching operation.
-//  2. If no forms are found but a base is set, then create a dummy form with href from base.
-//  3. If no preferred scheme/subprotocol is provided then return the first one.
-//  4. If a subprotocol is provided then for each form check the 'subprotocol' field.
+//  2. If no preferred scheme/subprotocol is provided then return the first one.
+//  3. If a subprotocol is provided then for each form check the 'subprotocol' field.
 //     If the subprotocol matches, return the form. The scheme is less specific so it can be ignored.
 //     If no form matches the preferred subprotocol then match the scheme.
-//  5. If a preferred scheme is provided try to find a match on scheme.
-//  6. If no scheme matches then return the first available form.
+//  4. If a preferred scheme is provided try to find a match on scheme.
+//  5. If no scheme matches then return the first available form.
 //
 // To determine the href of each form both the 'base' field and the form 'href' field must be
 // considered:
@@ -367,13 +366,7 @@ func (tdoc *TD) GetForm(op string, name string, prefScheme, prefSubprotocol stri
 	// 1. get the forms that match the operation
 	forms := tdoc.GetForms(op, name)
 	if len(forms) == 0 {
-		if tdoc.Base == "" {
-			// no match for the operation
-			return nil, false
-		}
-		// no forms but a base is provided. Return a dummy form.
-		dummy := NewForm("", tdoc.Base)
-		return &dummy, false
+		return nil, false
 	}
 
 	// 2. if no preferred protocol is provided then return the first form in the list

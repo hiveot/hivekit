@@ -36,7 +36,7 @@ func TestAllEvents(t *testing.T) {
 func TestSubscribeAll(t *testing.T) {
 
 	// this test doesnt apply to http-basic
-	if testProtocol == api.HttpBasicProtocolType {
+	if testProtocol == api.WotHttpBasicProtocolType {
 		return
 	}
 
@@ -116,7 +116,7 @@ func TestSubscribeAll(t *testing.T) {
 func TestSubscribeReconnect(t *testing.T) {
 
 	// this test doesnt apply to http-basic
-	if testProtocol == api.HttpBasicProtocolType {
+	if testProtocol == api.WotHttpBasicProtocolType {
 		return
 	}
 

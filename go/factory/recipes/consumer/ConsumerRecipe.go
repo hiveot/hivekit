@@ -12,7 +12,6 @@ import (
 	discovery_client "github.com/hiveot/hivekit/go/cells/discovery/client"
 	"github.com/hiveot/hivekit/go/cells/router"
 	router_service "github.com/hiveot/hivekit/go/cells/router/service"
-	"github.com/hiveot/hivekit/go/cells/transport/clients"
 	"github.com/hiveot/hivekit/go/cells/vcache"
 	vcache_service "github.com/hiveot/hivekit/go/cells/vcache/service"
 	"github.com/hiveot/hivekit/go/factory/recipes"
@@ -63,16 +62,17 @@ var ConsumerRecipeChain = []api.CellDefinition{
 	{
 		// If a gateway or server URL is provided then connect directly to it.
 		// If no gateway/server URL is provided this cell is ignored.
-		Type:        clients.TransportClientCellType,
-		Constructor: clients.NewTransportClientFactory,
+		// Type:        clients.TransportClientCellType,
+		// Constructor: clients.NewTransportClientFactory,
 		// TODO: support reconnect
+		// option1: can we use just the router? why not?
+		// option2: transport client gets a reconnect option that injects both
+		// note: having both a client and router is confusing. There is overlap here
 	},
 	{
 		// the router manages client connections
 		Type:        router.RouterCellType,
 		Constructor: router_service.NewRouterServiceFactory,
-		// TODO: add configuration for using auto-reconnect
-		// TODO: add configuration for providing credentials
 	},
 }
 

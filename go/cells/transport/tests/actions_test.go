@@ -122,7 +122,7 @@ func TestInvokeActionFromServerToDevice(t *testing.T) {
 	var corrID = "correlation-1"
 
 	// this test doesnt apply to http-basic
-	if testProtocol == api.HttpBasicProtocolType {
+	if testProtocol == api.WotHttpBasicProtocolType {
 		return
 	}
 

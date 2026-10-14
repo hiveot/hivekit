@@ -202,7 +202,7 @@ func TestForms(t *testing.T) {
 
 	f1b, match := tdoc.GetForm(
 		td.OpWriteProperty, prop1Name,
-		api.HttpBasicScheme, api.HttpBasicSubprotocol)
+		api.WotHttpBasicScheme, api.WotHttpBasicSubprotocol)
 	require.NotEmpty(t, f1b)
 	assert.True(t, match)
 

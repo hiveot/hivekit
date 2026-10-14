@@ -2,6 +2,7 @@ package internal
 
 import (
 	"errors"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"net/url"
@@ -263,6 +264,12 @@ func NewDiscoveryServerImpl(
 	endpoints map[string]string,
 	addForms func(*td.TD)) (*DiscoveryServerImpl, error) {
 	var err error
+
+	if httpServer == nil {
+		err := fmt.Errorf("NewDiscoveryServer: A HTTP server is required")
+		slog.Error(err.Error())
+		return nil, err
+	}
 
 	// thingID is defined in the TDD and should match HiveCell thingID
 	thingID := discovery.DiscoveryServerDefaultThingID

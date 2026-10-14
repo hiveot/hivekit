@@ -197,6 +197,10 @@ func (cl *TransportClientBase) SetConnectionStatus(
 	cl.mux.RLock()
 	oldStatus := cl.connectStatus
 	cl.mux.RUnlock()
+	slog.Info("SetConnectionStatus:",
+		slog.String("clientID", cl.transportClient.GetClientID()),
+		slog.String("status", string(newStatus)),
+		slog.String("oldStatus", string(oldStatus)))
 
 	if newStatus == oldStatus {
 		return
@@ -204,7 +208,7 @@ func (cl *TransportClientBase) SetConnectionStatus(
 		// already closed, don't re-send status lost
 		return
 	} else if newStatus == api.StatusLost {
-		slog.Info("SetConnectionStatus: client connection lost", "previous status", oldStatus)
+		// slog.Info("SetConnectionStatus: client connection lost", "previous status", oldStatus)
 		// fail all outstanding RnR requests
 		// cl.rnrChan.CloseAll() // should be done by caller
 	}

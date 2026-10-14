@@ -34,7 +34,10 @@ func ConnectWSS(
 	slog.Info("ConnectWSS - establishing Websocket connection to server",
 		slog.String("server", hostPort),
 		slog.String("path", wssPath),
-		slog.String("clientID", clientID))
+		slog.String("clientID", clientID),
+		slog.Bool("withBearer", bearerToken != ""),
+		slog.Bool("withClientCert", clientCert != nil),
+	)
 
 	// each connection a unique cid
 	connectURL := "wss://" + hostPort + wssPath

@@ -16,7 +16,7 @@ import (
 //
 // This uses the given TD to determine the URLs to perform an operation.
 //
-//	baseURL of the http server. Used as the base for all further requests.
+//	tdoc containing the http URLs for operations.
 //	caCert of the server to validate the server or nil to not check the server cert
 func NewHttpBasicClient(
 	tdoc *td.TD, rootCAs *x509.CertPool) (api.ITransportClient, error) {

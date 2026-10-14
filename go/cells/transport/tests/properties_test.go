@@ -39,7 +39,7 @@ func TestAllProps(t *testing.T) {
 func TestObservePropertyByConsumer(t *testing.T) {
 
 	// this test doesnt apply to http-basic
-	if testProtocol == api.HttpBasicProtocolType {
+	if testProtocol == api.WotHttpBasicProtocolType {
 		return
 	}
 	slog.Warn(fmt.Sprintf("---Test: %s %s---\n", t.Name(), testProtocol))

@@ -209,7 +209,7 @@ func (cl *HttpBasicClientImpl) SendRequest(
 
 	// If the TD has no matching form then fall back to default well-known http basic href.
 	if cl.tdoc != nil {
-		form, match = cl.tdoc.GetForm(req.Operation, req.Name, api.HttpBasicScheme, api.HttpBasicSubprotocol)
+		form, match = cl.tdoc.GetForm(req.Operation, req.Name, api.WotHttpBasicScheme, api.WotHttpBasicSubprotocol)
 	}
 	if form != nil && match {
 		hrefURL, _ := form.ResolveHRef(cl.tdoc.Base, uriVars)

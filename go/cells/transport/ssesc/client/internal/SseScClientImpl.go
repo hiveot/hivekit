@@ -54,6 +54,9 @@ type SseScClientImpl struct {
 	// handler for closing the sse connection
 	sseCancelFn context.CancelFunc
 
+	// TD with forms for operations
+	tdoc *td.TD
+
 	// http2 client for posting messages
 	tlsClient tlsclient.ITLSClient
 }
@@ -380,11 +383,11 @@ func (cl *SseScClientImpl) Stop() {
 //
 // Set authentication and call Connect or Start before use.
 //
-//	sseURL full connection URL of Hiveot SSE server and path
+//	tdoc is the TD to use for operations. Must have a base URL for SSE connect endpoint.
 //	rootCAs are CA certificates to validate the server certificate. nil for system CAs.
-//	ch is the connect/disconnect callback
-func NewSseScClientImpl(sseURL string, rootCAs *x509.CertPool) *SseScClientImpl {
+func NewSseScClientImpl(tdoc *td.TD, rootCAs *x509.CertPool) *SseScClientImpl {
 
+	sseURL := tdoc.Base
 	urlParts, err := url.Parse(sseURL)
 	if err != nil {
 		slog.Error("Invalid URL")
@@ -399,6 +402,7 @@ func NewSseScClientImpl(sseURL string, rootCAs *x509.CertPool) *SseScClientImpl 
 		encoder:             transport.NewRRNJsonEncoder(),
 		rnrChan:             msg.NewRnRChan(),
 		ssePath:             ssePath,
+		tdoc:                tdoc,
 		tlsClient:           tlsClient,
 	}
 	cl.SetTransportClient(cl)       // for use by Rpc
