@@ -59,7 +59,7 @@ type KVBTreeStore struct {
 	buckets map[string]*KVBTreeBucket
 	// storeDirectory       string       // storage directory or "" for in-memory only
 	storePath            string       // full path of storage file or "" for in-memory only
-	mutex                sync.RWMutex // simple locking is still fast enough
+	mux                  sync.RWMutex // simple locking is still fast enough
 	updateCount          int32        // nr of updates since last save
 	backgroundLoopEnded  chan bool
 	backgroundLoopEnding chan bool
@@ -246,8 +246,8 @@ func (store *KVBTreeStore) Close() error {
 // export returns a map of the given bucket
 // this copies the keys and values into a new map
 func (store *KVBTreeStore) Export() map[string]map[string][]byte {
-	store.mutex.RLock()
-	defer store.mutex.RUnlock()
+	store.mux.RLock()
+	defer store.mux.RUnlock()
 	var exportedCopy = make(map[string]map[string][]byte)
 
 	for bucketID, bucket := range store.buckets {
@@ -263,7 +263,7 @@ func (store *KVBTreeStore) GetBucket(bucketID string) (bucket bucketstore.IBucke
 	if store.buckets == nil {
 		panic("store is not open")
 	}
-	store.mutex.Lock()
+	store.mux.Lock()
 	kvBucket := store.buckets[bucketID]
 	if kvBucket == nil {
 		kvBucket = NewKVMemBucket(bucketID)
@@ -274,7 +274,7 @@ func (store *KVBTreeStore) GetBucket(bucketID string) (bucket bucketstore.IBucke
 	if kvBucket != nil {
 		kvBucket.incrRefCounter()
 	}
-	store.mutex.Unlock()
+	store.mux.Unlock()
 	return kvBucket
 }
 
@@ -295,6 +295,11 @@ func (store *KVBTreeStore) Info() bucketstore.BucketStoreInfo {
 
 	store.info.NrRecords = totalEntries
 	return store.info
+}
+
+func (store *KVBTreeStore) IsClosed() bool {
+	isClosed := store.buckets == nil
+	return isClosed
 }
 
 // callback handler for notification that a bucket has been modified
@@ -377,7 +382,7 @@ func OpenKVBtreeStore(storePath string) (*KVBTreeStore, error) {
 		storePath:            storePath,
 		backgroundLoopEnding: make(chan bool),
 		backgroundLoopEnded:  make(chan bool),
-		mutex:                sync.RWMutex{},
+		mux:                  sync.RWMutex{},
 		writeDelay:           writeDelay,
 		//jsonCache:            make(map[string]interface{}),
 		info: bucketstore.BucketStoreInfo{

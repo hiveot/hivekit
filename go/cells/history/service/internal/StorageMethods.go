@@ -141,7 +141,13 @@ func (svc *HistoryServiceImpl) AddValue(value *msg.NotificationMessage) error {
 		slog.Info("AddValue value error", "err", err.Error())
 		return err
 	}
+	if svc.bucketStore.IsClosed() {
+		err = fmt.Errorf("AddValue: Attempt to write a closed store")
+		slog.Warn(err.Error())
+		return err
+	}
 	storageKey, data := encodeValue(value)
+
 	bucket := svc.bucketStore.GetBucket(value.ThingID)
 	err = bucket.Set(storageKey, data)
 	_ = bucket.Close()

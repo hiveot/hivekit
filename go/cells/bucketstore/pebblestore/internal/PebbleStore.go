@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
+	"sync"
 
 	"github.com/cockroachdb/pebble"
 	bucketstore "github.com/hiveot/hivekit/go/cells/bucketstore"
@@ -52,6 +53,7 @@ type PebbleStore struct {
 	storeDirectory string
 	pebbleDB       *pebble.DB
 	info           bucketstore.BucketStoreInfo
+	mux            sync.RWMutex
 }
 
 func (store *PebbleStore) Close() error {
@@ -66,7 +68,11 @@ func (store *PebbleStore) Close() error {
 // GetBucket returns a bucket with the given ID.
 // If the bucket doesn't yet exist it will be created.
 func (store *PebbleStore) GetBucket(bucketID string) (bucket bucketstore.IBucket) {
+	if store.IsClosed() {
+		return nil
+	}
 	pb := NewPebbleBucket(bucketID, store.pebbleDB)
+
 	return pb
 }
 
@@ -78,7 +84,7 @@ func (store *PebbleStore) GetLocation() string {
 // Info returns bucket information.
 // This iterates over the store to count the records, so use with care.
 func (store *PebbleStore) Info() bucketstore.BucketStoreInfo {
-	// 	// 1. Retrieve the current internal layout/metadata of the DB
+	// 1. Retrieve the current internal layout/metadata of the DB
 	nrRecords := int64(0)
 	iter, err := store.pebbleDB.NewIter(nil)
 	if err == nil {
@@ -92,6 +98,11 @@ func (store *PebbleStore) Info() bucketstore.BucketStoreInfo {
 	store.info.DataSize = int64(metrics.DiskSpaceUsage())
 	store.info.NrRecords = int64(nrRecords)
 	return store.info
+}
+
+func (store *PebbleStore) IsClosed() bool {
+	isClosed := store.pebbleDB == nil
+	return isClosed
 }
 
 // OpenPebbleStore creates a storage database with bucket support.

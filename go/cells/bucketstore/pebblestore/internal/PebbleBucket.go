@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"sync/atomic"
 
 	"github.com/cockroachdb/pebble"
 	bucketstore "github.com/hiveot/hivekit/go/cells/bucketstore"
@@ -19,15 +20,15 @@ type PebbleBucket struct {
 	rangeStart string
 	rangeEnd   string
 	bucketID   string
-	closed     bool
+	closed     atomic.Bool
 }
 
 // Close the bucket
 func (bucket *PebbleBucket) Close() (err error) {
-	if bucket.closed {
+	if bucket.closed.Load() {
 		err = fmt.Errorf("bucket '%s' is already closed", bucket.bucketID)
 	}
-	bucket.closed = true
+	bucket.closed.Store(true)
 	return err
 }
 
@@ -87,8 +88,8 @@ func (bucket *PebbleBucket) Delete(key string) (err error) {
 // Get returns the document for the given key
 func (bucket *PebbleBucket) Get(key string) (doc []byte, err error) {
 	bucketKey := bucket.rangeStart + key
-	if bucket.closed || bucket.db == nil {
-		slog.Error("Bad state getting key. Bucket closed or DB nil.", "key", key, "isClosed", bucket.closed)
+	if bucket.closed.Load() || bucket.db == nil {
+		slog.Error("Bad state getting key. Bucket closed or DB nil.", "key", key, "isClosed", bucket.closed.Load())
 	}
 	byteValue, closer, err := bucket.db.Get([]byte(bucketKey))
 	if err == nil {
@@ -152,6 +153,8 @@ func (bucket *PebbleBucket) Set(key string, doc []byte) error {
 		err := fmt.Errorf("empty key '%s' for bucket '%s'",
 			key, bucket.bucketID)
 		return err
+	} else if bucket.closed.Load() {
+		return fmt.Errorf("Bucket is closed")
 	}
 	bucketKey := bucket.rangeStart + key
 	opts := &pebble.WriteOptions{}

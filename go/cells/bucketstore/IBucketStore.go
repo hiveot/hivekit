@@ -86,6 +86,9 @@ type IBucketStore interface {
 
 	// Info returns bucket store information
 	Info() BucketStoreInfo
+
+	// Check if the store is closed
+	IsClosed() bool
 }
 
 // IBucket defines the interface to a store key-value bucket
