@@ -37,26 +37,26 @@ Cells with a checkmark are functional. Breaking changes can still be expected fo
 
 ### Core service cells and client companion
 
-| status | cells       | description                                  | stage |
-| :----: | ----------- | -------------------------------------------- | ----- |
-|   ✔️    | authn       | Authentication service                       | alpha |
-|   ✔️    | authz       | Role based authorization                     | alpha |
-|   ✔️    | bucketstore | Key-value data storage                       | alpha |
-|   ✔️    | certs       | Certificate management                       | alpha |
-|   ✔️    | consumer    | Consumer and ConsumedThing                   | alpha |
-|   ✔️    | digitwin    | Digital twins of Things                      | alpha |
-|   ✔️    | directory   | Thing directory server & client              | alpha |
-|   ✔️    | thing       | Exposed Thing base                           | alpha |
-|   ✔️    | factory     | Cell factory                                 | alpha |
-|   ✔️    | history     | Message history recorder                     | alpha |
-|   ✔️    | logging     | Basic messaging logging                      | alpha |
-|   ✔️    | reconnect   | Restore dropped client connections           | alpha |
-|   ✔️    | router      | Message routing to remote devices            | alpha |
-|   ✔️    | rcrouter    | Message routing to reverse-connected devices | alpha |
-|   ✔️    | vcache      | Value cache                                  | alpha |
-|   ⬛    | jsscript    | Javascript based automation                  | todo  |
-|   ⬛    | launcher    | Launch cell recipes                          | todo  |
-|   ⬛    | rules       | Rule based automation                        | todo  |
+| status | cells       | description                                           | stage |
+| :----: | ----------- | ----------------------------------------------------- | ----- |
+|   ✔️    | authn       | Authentication service                                | alpha |
+|   ✔️    | authz       | Role based authorization                              | alpha |
+|   ✔️    | bucketstore | Key-value data storage                                | alpha |
+|   ✔️    | certs       | Certificate management                                | alpha |
+|   ✔️    | consumer    | Consumer and ConsumedThing                            | alpha |
+|   ✔️    | digitwin    | Digital twins of Things                               | alpha |
+|   ✔️    | directory   | Thing directory server & client                       | alpha |
+|   ✔️    | thing       | Exposed Thing base                                    | alpha |
+|   ✔️    | factory     | Cell factory                                          | alpha |
+|   ✔️    | history     | Message history recorder                              | alpha |
+|   ✔️    | logging     | Basic messaging logging                               | alpha |
+|   ✔️    | reconnect   | Restore dropped client connections with subscriptions | alpha |
+|   ✔️    | router      | Message routing to remote devices                     | alpha |
+|   ✔️    | rcrouter    | Message routing to reverse-connected devices          | alpha |
+|   ✔️    | vcache      | Value cache                                           | alpha |
+|   ⬛    | jsscript    | Javascript based automation                           | todo  |
+|   ⬛    | launcher    | Launch cell recipes                                   | todo  |
+|   ⬛    | rules       | Rule based automation                                 | todo  |
 
 ### [Message Transport Cells](docs/transport.md)
 

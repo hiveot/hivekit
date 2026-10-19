@@ -4,7 +4,7 @@ HiveKit cells are building blocks for building devices and applications. Cells f
 
 The standard cell has a simple interface: A handler for request messages with a replyTo callback, and a handler for notification messages. Cells are linked by setting a request sink to the next cell downstream. Similarly a notification sink is set to the upstream cell.
 
-[![cell](hivekit-cell.svg)](#hivekit-cells)
+[![cell](hivekit-cell.png)](#hivekit-cells)
 
 Each cell has a cell instance ID that can be used as a thing-ID. Where applicable, their capabilities can be described in a WoT TD (Thing Description) document that describes its properties, events and actions. 
 
@@ -38,11 +38,13 @@ Cells can be linked directly, between processes, or across computer systems syst
 
 Linking cells is often done in a formation, such as a chain, star, or bus. The chain formation can include another formation. See the [gateway recipe](../go/factory/recipes/gateway/GatewayRecipe.go) for an example of using a bus formation inside a chain formation.
 
+[![cell](chain-formation.png)](#hivekit-cells)
+
 Creating a cell formation can be done manually by programatically instantiating and linking cells, dynamically by using a factory formation, or using or creating a factory recipe. 
 
 ## Cell Factory 
 
-Cells in HiveKit are not applications themselves but intended to construct an application. The [cell factory](../go/factory/README.md) facilitates building applications by linking cells defined in a recipe. This linking aggregates functionality provided by each cell. 
+Cells in HiveKit are building blocks for constructing an application. The [cell factory](../go/factory/README.md) facilitates building applications by linking cells defined in a recipe. This linking aggregates functionality provided by each cell. 
 
 Application specific logic can easily be incorporated using the hooks provided by the exposed-thing cell, or by embedding an exposed thing in the application logic itself and adding this cell to a factory formation.
 
@@ -54,17 +56,14 @@ Invoking Start on the factory or recipe, if used, will invoke it on all cells. T
 
 A factory formation consists of a list of cell definitions that is passed to a formation along with a cell factory instance. The formation instantiates cells using the factory and links the cells according to its formation rules. The result is called a recipe.
 
-![cell](cell-factory-formation.svg)
-
-A recipe contains a formation with a predefined set of cells for a specific purpose. A recipe can add additional logic to the formation to aid building an application. There are recipes for building a gateway, IoT device, and a consumer. Users can create their own recipes and even change the formation used dynamically based on input parameters.
-
-
+A recipe contains a formation with a predefined set of cells for a specific purpose. A recipe can add additional logic to the formation to aid building an application. There are recipes for building a gateway, IoT device, and a consumer. Users can create and share their own recipes.
 
 
 ## Adding Cells
 
-One of the goals of HiveKit is to make it easy to add compatible cells.
+One of the goals of HiveKit is to make it easy to add custom cells.
 
-To develop a cell implement its IHiveCell interface. The provided CellBase implements the little boilerplate that is needed. The HandleRequest method is the most important method to implement. Exposing a TM is recommended for IoT devices.
+The only requirement for custom cells is to implement the IHiveCell interface. The provided CellBase implements the little boilerplate that is needed. The HandleRequest method is the most important method to implement. Exposing a TD is recommended for IoT devices.
 
-To use a cell connect it as the sink of the previous cell in the chain. In case of an IoT device the previous cell can be one of the messaging server cells. The server passes requests to the HandleRequest method which the cell must implement, and responses are returned to the sender. Notifications emitted by the cell are passed to the registered notification handler which is the server cell.
+To use a cell connect it as the sink of the previous cell in the chain. In case of an IoT device the previous cell can be one of the server transport cells. The server passes requests to the HandleRequest method which the cell must implement, and responses are returned to the sender. Notifications emitted by the cell are passed to the registered notification handler which is the server cell.
+

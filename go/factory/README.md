@@ -1,9 +1,10 @@
 # Cell Factory
 
-The cell factory manages cell instantiation to create an application using the provided environment along with a recipe. 
-A recipe is defined as a collection of cells with a formation on how they are linked. 
+The cell factory manages cell instantiation to create an application using the provided environment. 
 
-![recipe](../../docs/cell-factory-formation.svg)
+A recipe is defined as a collection of cells linked in a formation such as a chain, bus, or star. 
+
+![recipe](../../docs/cell-factory.png)
 
 ## Status
 
@@ -16,11 +17,11 @@ Roadmap:
 
 ## Summary
 
-The purpose of the factory is to simplify instantiation and lookup of cells for a client or server applications along with the needed environment. It operates using a collection of registered cells. Custom 3rd party cells can easily be registered with the factory. 
+The purpose of the factory is to simplify instantiation and lookup of cells for an IoT device or consumer application along with the needed application environment. It operates using a collection of registered cells. Custom 3rd party cells can easily be registered with the factory. 
 
 Cells are registered using a cell type-name and a constructor. The cell type represents the API of the cell, while the constructor instantiates the implementation using the application environment. Cells can be replaced with custom functionality as long as the replacement implements the API for that cell type.
 
-To develop an application using the factory, the application logic can be placed in a cell itself and linked to a recipe. The recipe handles the needed capabilities for discovery, communication, storage and much more.
+To develop an application using the factory, the application logic can be placed in a cell itself and linked to a recipe. The recipe defines the cells and formation with needed capabilities for discovery, communication, storage and more.
 
 Applications can instantiate a cell using 'GetCell(cellType)'. The cell uses the factory provided environment for directory locations, certificates and auth info as needed. 
 
@@ -30,9 +31,9 @@ The recipes folder contains a set of convenient cookie-cutter recipies for build
 
 Recipes are the quickest way to build a client or server application or plugin. They specify which cells are used and how they are linked.
 
-A recipe contains a list of cells in the order used by their formation. A formation defines how cells are linked. Provided formations are a chain, star or bus. 
+A recipe contains a list of cells in the order used by their formation. A formation defines how cells are linked. Provided formations are a chain, star or bus. Formations can be nested inside a recipe.
 
-Recipes and formations can be used in combination with manually loading cells using the factory GetCell(cellType) method and link them manually using SetRequestHandler and SetResponseHandler. 
+Recipes can be used in combination with manually loading cells using the factory GetCell(cellType) method and link them manually using SetRequestHandler and SetResponseHandler. Recipes are also cells.
 
 Finally, to Start all cells, invoke Start on the factory. This will start autonomous processes that depend on the linking to be completed. 
 
@@ -48,9 +49,9 @@ Alternatively, using the gateway recipe it can accept connections from javascrip
 
 ### Including 3rd party cells
 
-3rd party cells can be directly be included if they are written in golang. For 3rd party cells written in different languages it is better to define them as plugins. A javascript and python implementation of the factory is planned to simplify writing IoT applications and plugins in those languages.
+3rd party cells can be directly be included if they are written in golang. For 3rd party cells written in different languages it is better to define them as plugins or RC connected services. A javascript and python implementation of the factory is planned to simplify writing IoT applications and plugins in those languages.
 
-## Application Environment
+## Hive Environment
 
 Since many cells operate in an environment that uses files, credentials or network access, it helps to centralize the configuration of this environment and instantiate cell instances using this environment.
 

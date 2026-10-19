@@ -242,6 +242,9 @@ func (svc *TestCounterThing) Start() {
 
 	// Make the TD available. Set its thingID with the cell ID.
 	tdoc := svc.GetTD()
+	// FIXME: does it make more sense to send the TD as a notification. This avoids the need to set
+	// the server as the request sink of this device. Especially since sa devices don't write to
+	// directories.
 	err := svc.PublishTD(tdoc)
 	if err != nil {
 		slog.Error("Start: Unable to write the TD", "err", err.Error())

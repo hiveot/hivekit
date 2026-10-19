@@ -2,39 +2,37 @@
 
 The examples section offers concrete examples on building IoT applications using HiveKit recipes and 3rd party cells.
 
-## Constructing a stand-alone IoT Sensor or Actuator
+## Constructing a Stand-Alone IoT Sensor or Actuator
 
 See the [sadevice](../go/examples/sadevice) example.
 
-Most IoT devices have in common that they contain logic to read their current state and update writable state such as configuration or actuator value.
+Many IoT devices act like sensors and/or actuators. They provide a means to read the device state and control the actuator output. In addition they need to include a server, provisioning and discovery mechanism, a communication protocol, user management, authentication and authorization, configuration management, logging and a user interface. 
 
-Connected devices also have the ability to export their state or import new state,through a web interface or some kind of messaging protocol.
+HiveKit includes the 'sadevice' recipe with the cells for these capabilities, except the sensor and actuator specific logic of course. A developer only needs to create a cell that handles the sensor and actuator logic, replies to request messages and publish notifications when the hardware state changes.
 
-Most devices will have some form of authentication built-in to ensure only people with the sufficient permissions can read and modify the device.
+[![Stand-Alone device using sadevice recipe](./sadevice-recipe.png)](#sadevice-recipe)
 
-Sometimes there is a logging capability to assist users in troubleshooting.
+* The 'init certs' cell loads or creates the needed server certificates on startup
+* The discovery server publishes the Thing TD
+* The HTTP server facilitates the websocket server
+* The websocket server handles connections and messages from consumers using the WoT websocket protocol.
+* The Authn cell provides the authenticator to the http server
+* Device Logic is based on the Exposed Thing cell and contains the logic provided by the developer.
 
-These steps are common across devices and, except for the first step, can be standardized as reusable cells:
+Requests messages received by the websocket server are passed down the chain to the device logic. Notifications send by the device logic cell are passed up the chain to the websocket server clients. The authn service is included in the request chain which enable user management through requests to the authn ThingID.
 
-1. read/write hardware - this is device specific
-2. run a server to receive connections and messages
-3. authenticate the client initiating the connection
-4. decode protocol messages into the internal format for further processing
-5. handle requests to read the current state (read properties)
-6. handle requests to update configuration (write properties)
-7. handle requests to invoke actuators (invoke action)
-8. notify of changes (consumer subscription of events and properties)
-9. log requests to a configured destination
+The recipe can be expanded with cells for authorization, logging, rate control, additional protocols, and more. See the gateway recipe for a more comprehensive example.
 
-WoT capable cells can export a TD describing its capabilities, although this can also be defined out of band.
-
-Other potential capabilities of IoT devices are authorization, rate control, connection reversal, publishing a TD in a discovered directory, and more.
 
 ## Constructing a RC (reverse-connection) IoT Device
 
 See the [rcdevice](../go/examples/rcdevice) example.
 
-IoT devices can be simplified by using connection reversal. The device connects to a gateway or hub instead of the other way around. Once connected the gateway subscribes to updates and passes requests from consumers to the device. There is no need to run a server on the device, nor to manage clients, which greatly improves security and reduces required resources at the same time. The device management shifts to the hub which provides a consistent interface for all the devices it manages.
+RC devices are the simplest way of constructing IoT devices. The device connects to a gateway or hub instead of the other way around. Once connected the gateway subscribes to updates and passes requests from consumers to the device. 
+
+There is no need to run a server on the device, nor to manage clients, which greatly improves security and reduces required resources at the same time. The device management shifts to the gateway which provides a consistent interface for all the devices it manages. 
+
+This is the HiveOT recommended way of building an IoT solution.
 
 
 ## Constructing a Consumer
