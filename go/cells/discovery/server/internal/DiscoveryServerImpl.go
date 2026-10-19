@@ -104,7 +104,9 @@ func (srv *DiscoveryServerImpl) HandleRequest(req *msg.RequestMessage, replyTo m
 //
 // If multiple records should be served then provide a instanceName. It will be added to
 // the download path, eg: http://.well-known/wot/{instanceName} and to the
-// service record instance as "{hostname}:{instanceName}"
+// service record instance as "{hostname}:{instanceName}",
+// except for a directory which is always published under .well-known/wot, to meet
+// the discovery specification.
 //
 // Users must call Release on the zeroconf DNS server when done.
 //
@@ -124,7 +126,9 @@ func (srv *DiscoveryServerImpl) ServeTD(
 		return "", errors.New("Missing tdoc argument")
 	}
 
-	if instanceName == "" {
+	if discoType == discovery.DISCO_TYPE_DIRECTORY {
+		httpPath = discovery.WellKnownHttpPath
+	} else if instanceName == "" {
 		httpPath = discovery.WellKnownHttpPath
 		instanceName = hostName + ":" + tdoc.ID
 	} else {
@@ -174,7 +178,8 @@ func (srv *DiscoveryServerImpl) ServeDirectoryTD(
 	}
 	slog.Info("ServeDirectoryTD. Serving Directory TD",
 		"serviceName", serviceName, "thingID", tdoc.ID)
-	return srv.ServeTD(serviceName, discovery.DISCO_TYPE_DIRECTORY, tdoc)
+	tdURL, err = srv.ServeTD(serviceName, discovery.DISCO_TYPE_DIRECTORY, tdoc)
+	return tdURL, err
 
 }
 

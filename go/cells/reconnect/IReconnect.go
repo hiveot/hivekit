@@ -10,7 +10,7 @@ const ReconnectCellType = "reconnect"
 const ReconnectDefaultThingID = "reconnect"
 
 const DefaultMaxReconnectAttempts = 999999
-const DefaultBackoffLimit = time.Minute * 5
+const DefaultBackoffLimit = time.Minute * 3
 
 type IReconnect interface {
 	api.IHiveCell

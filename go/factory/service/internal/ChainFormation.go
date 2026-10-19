@@ -111,10 +111,12 @@ func (r *ChainFormation) SetSlot(slotID string, cellDef api.CellDefinition) erro
 //	chain is a collection of cells in order of instantiation.
 //	linkTo is optional cell that handles requests and passes notifications to the chain.
 //		This can be used instead of SetRequestSink.
+//	continueOnError if a cell instantiation fails then continue without it
 //
 // This returns the chain recipe.
 func NewChainFormation(
-	f api.ICellFactory, chain []api.CellDefinition, linkTo api.IHiveCell) (*ChainFormation, error) {
+	f api.ICellFactory, chain []api.CellDefinition, linkTo api.IHiveCell,
+	continueOnError bool) (*ChainFormation, error) {
 
 	formation := &ChainFormation{
 		HiveCellBase: cells.NewHiveCellBase("ChainFormation"),
@@ -137,8 +139,14 @@ func NewChainFormation(
 	for _, cellDef := range formation.chain {
 		member, err := formation.f.NewCell(cellDef.Type, true)
 		if err != nil {
-			slog.Warn("NewChainFormation: creating cell failed. Cell ignored",
-				"cellType", cellDef.Type, "err", err.Error())
+			if continueOnError {
+				slog.Warn("NewChainFormation: creating cell failed. Cell ignored",
+					"cellType", cellDef.Type, "err", err.Error())
+			} else {
+				slog.Error("NewChainFormation: creating cell failed. Chain formation failed",
+					"cellType", cellDef.Type, "err", err.Error())
+				return nil, err
+			}
 		} else if member == nil {
 			// don't track 'one-shot' cells that are used to initialize the factory.
 			// These return nil without error.

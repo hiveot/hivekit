@@ -33,5 +33,7 @@ func NewDirectoryServiceFactory(f api.ICellFactory, md *api.CellDefinition) (api
 
 	thingID := ""
 	svc, err := NewDirectoryService(thingID, storageDir, f.AddTDSecForms)
+	tdd := svc.GetTDD()
+	env.SetDirTD(tdd)
 	return svc, err
 }

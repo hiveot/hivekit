@@ -307,7 +307,7 @@ func NewDirectoryServiceImpl(
 	tdoc := string(directory.DirectoryTDJson)
 	dirTDD, _ := td.UnmarshalTD(tdoc)
 	dirTDD.ID = thingID
-	dirTDD.SetType(directory.DirectoryServiceCellType)
+	dirTDD.SetType(td.AtTypeDirectory)
 	if addForms != nil {
 		addForms(dirTDD)
 	}

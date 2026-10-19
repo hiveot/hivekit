@@ -183,8 +183,12 @@ func (f *FactoryImpl) loadCell(cellType string) (m api.IHiveCell, isNew bool, er
 	cellInstance, err := def.Constructor(f, &def)
 
 	if err != nil {
+		slog.Warn("loadCell failed loading cell instance",
+			"cellType", cellType, "err", err.Error())
 		return nil, false, err
 	}
+	// slog.Info("loadCell success", "cellType", cellType)
+
 	// if nil is returned then nothing to do
 	// this can be valid for initialization cells
 	if cellInstance == nil {

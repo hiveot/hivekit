@@ -60,17 +60,7 @@ var ConsumerRecipeChain = []api.CellDefinition{
 		Constructor: directoryclient.NewDirectoryClientFactory,
 	},
 	{
-		// If a gateway or server URL is provided then connect directly to it.
-		// If no gateway/server URL is provided this cell is ignored.
-		// Type:        clients.TransportClientCellType,
-		// Constructor: clients.NewTransportClientFactory,
-		// TODO: support reconnect
-		// option1: can we use just the router? why not?
-		// option2: transport client gets a reconnect option that injects both
-		// note: having both a client and router is confusing. There is overlap here
-	},
-	{
-		// the router manages client connections
+		// the router establishes gateway or stand-alone device connections
 		Type:        router.RouterCellType,
 		Constructor: router_service.NewRouterServiceFactory,
 	},
@@ -156,7 +146,7 @@ func NewConsumerRecipe(env *api.HiveEnvironment, withValueCache bool) (
 		recipes.SetSlot(chain, valueCacheSlotName, modDef)
 	}
 
-	formation, err := factory_service.NewChainFormation(f, chain, nil)
+	formation, err := factory_service.NewChainFormation(f, chain, nil, false)
 	co := consumer.NewConsumer(formation, nil)
 
 	r = &ConsumerRecipe{

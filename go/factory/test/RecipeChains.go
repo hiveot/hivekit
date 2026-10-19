@@ -32,6 +32,11 @@ var DeviceClientRecipe = []api.CellDefinition{
 		Type:        consumer.ConsumerCellType,
 		Constructor: consumer.NewConsumerFactory,
 	},
+	// {
+	// 	// this uses the manual serverURL override
+	// 	Type:        clients.TransportClientCellType,
+	// 	Constructor: clients.NewTransportClientFactory,
+	// },
 	{
 		Type:        wss.WotWebsocketClientCellType,
 		Constructor: wss_client.NewWotWssClientFactory,

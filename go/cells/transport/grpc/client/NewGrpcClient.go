@@ -2,6 +2,7 @@ package grpc_client
 
 import (
 	"crypto/x509"
+	"strings"
 
 	"github.com/hiveot/hivekit/go/api"
 	"github.com/hiveot/hivekit/go/api/td"
@@ -24,7 +25,12 @@ func NewHiveotGrpcClient(
 }
 
 // NewHiveotGrpcClientFactory returns a ready-to-use hiveot gRPC client using
-// the cell factory for the client ID and auth certificate or auth token.
+// the cell factory for the client ID, auth certificate or auth token, and
+// ServerURL for the endpoint to connect to.
+//
+// This requires the Server URL and authentication credentials. If serverURL is not set
+// then try to obtain the directory URL instead. If both fail then this returns nil and
+// the cell will be ignored in recipes.
 func NewHiveotGrpcClientFactory(
 	f api.ICellFactory, md *api.CellDefinition) (api.IHiveCell, error) {
 
@@ -32,7 +38,27 @@ func NewHiveotGrpcClientFactory(
 
 	env := f.GetEnvironment()
 	clientCert, _ := env.GetClientCert()
-	serverURL := env.GetServerURL()
+	serverURL := env.ServerURL
+	if serverURL == "" {
+		dirTD := env.GetDirTD()
+		if dirTD != nil {
+			form, match := dirTD.GetForm("", "", api.HiveotGrpcTcpProtocolType, api.HiveotGrpcTcpSubprotocol)
+			if match {
+				serverURL, _, err = dirTD.ResolveHRef(form, nil)
+			}
+		}
+	}
+
+	if serverURL == "" {
+		// return nil without error to ignore this cell in a recipe
+		return nil, nil
+	}
+
+	if !strings.HasPrefix(serverURL, api.HiveotGrpcUnixScheme) &&
+		!strings.HasPrefix(serverURL, api.HiveotGrpcTcpScheme) {
+		// there is a serverURL but it isnt for gRPC
+		return nil, nil
+	}
 
 	cl := NewHiveotGrpcClient(serverURL, env.GetRootCAs())
 

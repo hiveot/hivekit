@@ -102,17 +102,15 @@ func TestDiscoverGetDirectoryTD(t *testing.T) {
 
 	// discover and read the directory on start. This sets env.DirectoryURL
 	appEnv := api.NewHiveEnvironment("", false)
-	appEnv.ServerTDURL = tddURL
+	appEnv.DirTDURL = tddURL
 	cl, err := discovery_client.NewDiscoveryClient(appEnv, true)
 	require.NoError(t, err)
-	// the discovery server can publish multiple records
-	assert.NotEmpty(t, appEnv.ServerTDURL)
 
 	dirTD2 := cl.DiscoverFirstTD(
 		testDirServiceName, discovery.DISCO_TYPE_DIRECTORY, time.Second)
 	require.NoError(t, err)
 	require.NotNil(t, dirTD2, "Client failed to discover the directory on start")
-	assert.Equal(t, tddURL, appEnv.ServerTDURL)
+	// assert.Equal(t, tddURL, appEnv.ServerTDURL)
 	assert.Equal(t, dirSvc.GetID(), dirTD2.ID)
 }
 

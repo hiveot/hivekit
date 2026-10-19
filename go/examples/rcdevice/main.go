@@ -15,7 +15,7 @@ import (
 	"github.com/hiveot/hivekit/go/testenv"
 )
 
-const DeviceClientID = "rccounter"
+const DeviceClientID = "counter1"
 
 var ExampleHome = path.Join(os.TempDir(), "hivekit-examples")
 
@@ -68,8 +68,8 @@ func main() {
 	rcr := r.GetClient()
 
 	fmt.Printf("main: homeDir: %s\n", env.HomeDir)
-	fmt.Printf("main: Counter is running and connected as Thing '%s' to gateway '%s' at %v\n",
-		counterThing.GetID(), env.GetServerTD().GetID(), rcr.GetConnectionURL())
+	fmt.Printf("main: Counter is running and connected as Thing '%s' to server at %v\n",
+		counterThing.GetID(), rcr.GetConnectionURL())
 	fmt.Printf("main: Use the cli from example 2 to read its status\n")
 	f.WaitForSignal(context.Background())
 }

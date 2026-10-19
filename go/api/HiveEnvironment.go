@@ -105,20 +105,10 @@ type HiveEnvironment struct {
 	// it can be provided manually to select a specific local or remote directory.
 	DirTDURL string `yaml:"dirTDURL,omitempty"`
 
-	// Optional gateway URL for direct connection to a gateway or hub that
-	// forwards requests for all devices.
-	// The protocol is determined by the URL scheme.
-	//
-	// The URL scheme is used to identify the protocol.
-	// This can be used as a fallback if the serverTD is not available.
-	//
-	// Intended to point to a specific gateway.
-	GatewayURL string `yaml:"gatewayURL,omitempty"`
-
-	// The provided URL of the TD. Needed if the TD cannot be discovered locally.
-	// This can be a file or http URL and provided by discovery or set manually.
-	// This can point to a directory or a device TD.
-	ServerTDURL string `yaml:"serverTDURL,omitempty"`
+	// Manual override of the server to connect to. Intended for client factory that
+	// otherwise uses a directory. Intended mainly for testing and offering the
+	// consumer the ability to force a connection without TD/forms.
+	ServerURL string `yaml:"serverURL,omitempty"`
 
 	//--- loaded or generated settings. See the Get... methods.
 
@@ -145,13 +135,6 @@ type HiveEnvironment struct {
 	// Use RunInitFactoryCerts in the factory chain to ensure a self signed server
 	// cert is created if needed, or place a cert manually.
 	serverCert *tls.Certificate `yaml:"-"`
-
-	// Optional TD for direct connection to a device or gateway server.
-	// The TD is used to identify the protocol.
-	//
-	// Intended to point to a specific gateway or device.
-	// A discovery client can set this to a discovered device TD.
-	serverTD *td.TD `yaml:"-"`
 }
 
 // Create all missing directories
@@ -282,33 +265,6 @@ func (env *HiveEnvironment) GetServerCert() (cert *tls.Certificate, err error) {
 	return env.serverCert, err
 }
 
-// Return the discovered or configured server TD
-// This is only set if the server TD URL is available
-func (env *HiveEnvironment) GetServerTD() *td.TD {
-	return env.serverTD
-}
-
-// GetServerURL returns the server connection URL if available.
-// This uses the gateway URL if set. If no gateway URL is set then use the
-// serverTD if provided.
-// This is primarily intended for clients that are part of a recipe, where the
-// connection endpoint is known at startup, such as a gateway.
-func (env *HiveEnvironment) GetServerURL() string {
-	// gateway has the highest precedence
-	if env.GatewayURL != "" {
-		return env.GatewayURL
-	}
-	// second choice, the serverTD
-	if env.serverTD != nil {
-		form, _ := env.serverTD.GetForm("", "", WotWebsocketScheme, WotWebsocketSubprotocol)
-		serverURL, _ := form.ResolveHRef(env.serverTD.Base, nil)
-		if serverURL != nil {
-			return serverURL.String()
-		}
-	}
-	return ""
-}
-
 // Return the directory where a cell stores its data.
 // This does not create the directory.
 func (env *HiveEnvironment) GetStorageDir(cellType string) string {
@@ -363,7 +319,6 @@ func (env *HiveEnvironment) Print(verbose int) {
 
 			fmt.Println("")
 			fmt.Println("* Directory TD URL: ", env.DirTDURL)
-			fmt.Println("* Gateway URL:      ", env.GatewayURL)
 			fmt.Println("* Rpc timeout:      ", env.RpcTimeout)
 		}
 
@@ -436,11 +391,6 @@ func (env *HiveEnvironment) SetServerCert(cert *tls.Certificate) {
 	env.serverCert = cert
 }
 
-// Set the server TD to use with clients
-func (env *HiveEnvironment) SetServerTD(tdoc *td.TD) {
-	env.serverTD = tdoc
-}
-
 // NewHiveEnvironment returns an application environment including folders for use by hive cells.
 //
 // Optionally parse commandline flags:
@@ -484,7 +434,7 @@ func (env *HiveEnvironment) SetServerTD(tdoc *td.TD) {
 //	withFlags parse the commandline flags for -home and -clientID
 func NewHiveEnvironment(homeDir string, withFlags bool) *HiveEnvironment {
 
-	showEnv := false
+	showEnv := 0
 	env := &HiveEnvironment{
 		LogLevel: "warn",
 		// PluginsDir:   pluginsDir,
@@ -521,17 +471,16 @@ func NewHiveEnvironment(homeDir string, withFlags bool) *HiveEnvironment {
 		flag.StringVar(&env.ClientID, "clientID", env.ClientID, "clientID to authenticate with")
 		flag.StringVar(&env.LogLevel, "loglevel", env.LogLevel, "logging level: debug, warning, info, error")
 		flag.StringVar(&env.DirTDURL, "dirTD", env.DirTDURL, "url where to download the directory TD")
-		flag.StringVar(&env.ServerTDURL, "serverTD", env.ServerTDURL, "url where to download the device TD")
-		flag.StringVar(&env.GatewayURL, "gwURL", env.GatewayURL, "gateway direct connection url")
-		flag.BoolVar(&showEnv, "env", showEnv, "print environment info and exit")
-		if flag.Usage == nil {
-			flag.Usage = func() {
-				fmt.Println("Usage: " + env.AppID + " [options] ")
-				fmt.Println()
-				fmt.Println("Options:")
-				flag.PrintDefaults()
-			}
-		}
+		flag.IntVar(&showEnv, "env", showEnv, "print environment info: 1 basic, 2 verbose")
+		flag.StringVar(&env.ServerURL, "server", env.ServerURL, "Force client connection to this server URL.")
+		// if flag.Usage == nil {
+		// 	flag.Usage = func() {
+		// 		fmt.Println("Usage: app [options] ")
+		// 		fmt.Println()
+		// 		fmt.Println("Options:")
+		// 		flag.PrintDefaults()
+		// 	}
+		// }
 		// note that no args is not an error and should not show help
 		flag.Parse()
 	}
@@ -593,8 +542,8 @@ func NewHiveEnvironment(homeDir string, withFlags bool) *HiveEnvironment {
 	env.HomeDir = homeDir
 
 	// utils.SetLogging(logLevel, "")
-	if showEnv {
-		env.Print(2)
+	if showEnv != 0 {
+		env.Print(showEnv)
 	}
 
 	// slog.Info("NewHiveEnvironment",

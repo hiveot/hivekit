@@ -14,8 +14,8 @@ import (
 
 // When factory instantiated the router can enable auto-reconnect for new connections.
 // See also SetAutoReconnect()
-// TODO: use config to set auto-reconnect. For now don't because it might hide auth problems.
-const DefaultRouterAutoConnect = false
+// TODO: use config to set auto-reconnect.
+const DefaultRouterAutoConnect = true
 
 // NewRouterService creates a ready-to-use instance of the router service with the default router typeID.
 // Start must be called before usage.
@@ -57,39 +57,38 @@ func NewRouterServiceFactory(f api.ICellFactory, md *api.CellDefinition) (api.IH
 	env := f.GetEnvironment()
 	storageDir := env.GetStorageDir(router.RouterCellType)
 
-	// if a gateway URL is preconfigured then getTD returns this TD
-	// TODO: should this be a environment configuration?
-	if env.GatewayURL != "" {
+	// if a serverURL override is set then force the router to always connect to it.
+	if env.ServerURL != "" {
 		serverID := "gateway"
 		gwTD := td.NewTD(serverID, "dummy gateway", "Gateway")
-		gwTD.Base = env.GatewayURL
-		//
+		gwTD.Base = env.ServerURL
+		// 	//
 		getTD = func(_ string) *td.TD {
 			return gwTD
 		}
-		// FIXME: provide auth token/cert
-	} else {
+		// } else {
 		// if a server TD is preconfigured then getTD returns this TD
-		serverTD := env.GetServerTD()
-		if serverTD != nil {
-			serverID = serverTD.ID
-			getTD = func(_ string) *td.TD {
-				return env.GetServerTD()
-			}
-		}
+		// serverTD := env.GetServerTD()
+		// if serverTD != nil {
+		// serverID = serverTD.ID
+		// getTD = func(_ string) *td.TD {
+		// return env.GetServerTD()
+		// }
+		// }
 	}
 	if getTD == nil {
+		var cell api.IHiveCell
 		// The router can be used with a directory server or client. Try both.
-		m, err := f.NewCell(directory.DirectoryServiceCellType, true)
+		cell, err = f.NewCell(directory.DirectoryServiceCellType, true)
 		if err == nil {
-			if dirMod, ok := m.(directory.IDirectoryService); ok {
+			if dirMod, ok := cell.(directory.IDirectoryService); ok {
 				getTD = dirMod.GetTD
 			}
 		} else {
 			// maybe directory client?
-			m, err = f.NewCell(directory.DirectoryClientCellType, true)
+			cell, err = f.NewCell(directory.DirectoryClientCellType, true)
 			if err == nil {
-				if dirMod, ok := m.(directory.IDirectoryClient); ok {
+				if dirMod, ok := cell.(directory.IDirectoryClient); ok {
 					getTD = dirMod.GetTD
 				}
 			}
@@ -99,7 +98,6 @@ func NewRouterServiceFactory(f api.ICellFactory, md *api.CellDefinition) (api.IH
 		return nil, fmt.Errorf("NewRouterServiceFactory. Missing directory client or service.")
 	}
 
-	// TODO: use config to set auto-reconnect. For now don't because it might hide auth problems.
 	autoReconnect := DefaultRouterAutoConnect
 	clientCert, _ := env.GetClientCert()
 	svc, err := NewRouterService(

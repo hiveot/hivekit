@@ -292,10 +292,9 @@ func (cl *DiscoveryClientImpl) locateGateway(maxWaitTime time.Duration) (gwTD *t
 //
 // Call DiscoverThings or DiscoverDirectories to start the discovery process.
 //
-// If env has a directory TD URL then attempt to load this TD into the environment.
-//
-// If discoOnStart is enabled and no directory TD is known then attempt to discover
-// a directory and update the application environment with the first directory found.
+// On instantiation, this attempts to locate a directory TD.
+//   - if env has a directory TD URL then attempt to load this TD into the environment
+//   - if no directory TD was found then search for a directory.
 func NewDiscoveryClientImpl(
 	env *api.HiveEnvironment, discoOnStart bool) (*DiscoveryClientImpl, error) {
 	var err error
@@ -313,7 +312,7 @@ func NewDiscoveryClientImpl(
 
 	cl.rootCAs = env.GetRootCAs()
 
-	// 1. If a directory TD URL is provided, download the TD
+	// If a directory TD URL is provided, download its TD
 	dirTD := env.GetDirTD()
 	if dirTD == nil && env.DirTDURL != "" {
 		dirTD, _, err = LoadTD(env.DirTDURL, cl.rootCAs)
@@ -323,8 +322,13 @@ func NewDiscoveryClientImpl(
 			env.SetDirTD(dirTD)
 		}
 	}
-	// 2. If no directory is provided but discoOnStart is set, then go look for one.
+
+	// If no directory is provided but discoOnStart is set, then go look for one.
 	if dirTD == nil && discoOnStart {
+		// FIXME: if multiple directories are found, the first one is used, even if
+		// it belongs to a different server.
+		// Instead, if a server URL is set, it should prefer the directory running on that
+		// server.
 		dirTD = cl.DiscoverFirstTD("", discovery.DISCO_TYPE_DIRECTORY, time.Second)
 		if dirTD != nil {
 			slog.Info("NewDiscoveryClientImpl. Directory TD discovered successfully",
@@ -333,28 +337,6 @@ func NewDiscoveryClientImpl(
 		}
 	}
 
-	// 3. If a server TD URL is provided download it
-	serverTD := env.GetServerTD()
-	if serverTD == nil && env.ServerTDURL != "" {
-		serverTD, _, err := LoadTD(env.ServerTDURL, cl.rootCAs)
-		if err == nil {
-			env.SetServerTD(serverTD)
-			slog.Info("NewDiscoveryClientImpl. Server TD downloaded successfully",
-				"thingID", serverTD.ID)
-		}
-	}
-
-	// if no server was found but discoOnStart is set, then go look for a hiveot gateway
-	if env.ServerTDURL == "" && discoOnStart {
-		// gwURL := cl.DiscoverFirstThing("", discovery.DISCO_TYPE_GATEWAY, time.Second)
-		serverTD = cl.DiscoverFirstTD("", discovery.DISCO_TYPE_GATEWAY, time.Second)
-		if serverTD != nil {
-			slog.Info("NewDiscoveryClientImpl. Gateway TD discovered successfully",
-				"thingID", serverTD.ID)
-			env.SetServerTD(serverTD)
-		}
-	}
-
 	var _ discovery.IDiscoveryClient = cl // interface check
-	return cl, err
+	return cl, nil
 }

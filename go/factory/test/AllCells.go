@@ -35,11 +35,9 @@ import (
 	"github.com/hiveot/hivekit/go/cells/transport/httpbasic"
 	httpbasic_server "github.com/hiveot/hivekit/go/cells/transport/httpbasic/server"
 	"github.com/hiveot/hivekit/go/cells/transport/ssesc"
-	ssesc_client "github.com/hiveot/hivekit/go/cells/transport/ssesc/client"
 	ssesc_server "github.com/hiveot/hivekit/go/cells/transport/ssesc/server"
 	tls_server "github.com/hiveot/hivekit/go/cells/transport/tlsserver/server"
 	wss "github.com/hiveot/hivekit/go/cells/transport/wss"
-	wss_client "github.com/hiveot/hivekit/go/cells/transport/wss/client"
 	wss_server "github.com/hiveot/hivekit/go/cells/transport/wss/server"
 	"github.com/hiveot/hivekit/go/cells/vcache"
 	vcache_service "github.com/hiveot/hivekit/go/cells/vcache/service"
@@ -99,24 +97,24 @@ var HiveKitAllCells = []api.CellDefinition{
 		Type:        ssesc.SseScServerCellType,
 		Constructor: ssesc_server.StartSseScServerFactory,
 	},
-	{
-		Type:        ssesc.SseScClientCellType,
-		Constructor: ssesc_client.NewSseScClientFactory,
-	},
+	// {
+	// Type:        ssesc.SseScClientCellType,
+	// Constructor: ssesc_client.NewSseScClientFactory,
+	// },
 	// wss transport for hiveot RRN messaging
-	{
-		Type:        wss.HiveotWebsocketClientCellType,
-		Constructor: wss_client.NewHiveotWssClientFactory,
-	},
+	// {
+	// 	Type:        wss.HiveotWebsocketClientCellType,
+	// 	Constructor: wss_client.NewHiveotWssClientFactory,
+	// },
 	{
 		Type:        wss.HiveotWebsocketServerCellType,
 		Constructor: wss_server.StartHiveotWssServerFactory,
 	},
 	// wss transport for WoT websocket messaging
-	{
-		Type:        wss.WotWebsocketClientCellType,
-		Constructor: wss_client.NewWotWssClientFactory,
-	},
+	// {
+	// Type:        wss.WotWebsocketClientCellType,
+	// Constructor: wss_client.NewWotWssClientFactory,
+	// },
 	{
 		Type:        wss.WotWebsocketServerCellType,
 		Constructor: wss_server.NewWotWssServerFactory,

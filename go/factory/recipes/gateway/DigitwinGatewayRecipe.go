@@ -175,7 +175,7 @@ var DigitwinGatewayRecipeCells = []api.CellDefinition{
 func StartDigitwinGatewayRecipe(f api.ICellFactory) (api.IHiveCell, error) {
 
 	chain := DigitwinGatewayRecipeCells
-	r, err := factory_service.NewChainFormation(f, chain, nil)
+	r, err := factory_service.NewChainFormation(f, chain, nil, false)
 
 	return r, err
 }

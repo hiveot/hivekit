@@ -6,8 +6,8 @@ const (
 	PWHASH_BCRYPT   = "bcrypt" // fallback in case argon2id cannot be used
 )
 
-// DefaultPasswordFile is the default password filename for user account storage
-const DefaultPasswordFile = "hiveot.passwd"
+// DefaultAuthnStoreFile is the default filename for user account storage
+const DefaultAuthnStoreFile = "authn.store"
 
 // AuthnEntry containing client profile and password hash
 // For internal use.

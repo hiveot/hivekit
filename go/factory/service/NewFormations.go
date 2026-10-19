@@ -57,12 +57,14 @@ func NewBusFormationFactory(
 //	cells is a collection of cells in order of instantiation.
 //	linkTo is the optional request sink of this chain, and source of notifications.
 //		A call to Start and Stop will also be passed to the linkTo cell.
+//	continueOnError if a cell instantiation fails then continue without it
 //
 // This returns the chain formation as a recipe instance.
 func NewChainFormation(
-	f api.ICellFactory, cellDefs []api.CellDefinition, linkTo api.IHiveCell) (api.IHiveCell, error) {
+	f api.ICellFactory, cellDefs []api.CellDefinition, linkTo api.IHiveCell,
+	continueOnError bool) (api.IHiveCell, error) {
 
-	chain, err := internal.NewChainFormation(f, cellDefs, linkTo)
+	chain, err := internal.NewChainFormation(f, cellDefs, linkTo, continueOnError)
 	// warning, chain is a pointer, returning it as an interface when the pointer is nil
 	// no longer evaluates to nil after returning as IHiveCell. The reason is that the interface is
 	// still intact even though the intstance is nil.
@@ -79,7 +81,7 @@ func NewChainFormationFactory(
 	if !ok {
 		return nil, fmt.Errorf("NewChainFormationFactory: Config has no members")
 	}
-	bus, err := internal.NewChainFormation(f, members, nil)
+	bus, err := internal.NewChainFormation(f, members, nil, false)
 	if err != nil {
 		return nil, err
 	}

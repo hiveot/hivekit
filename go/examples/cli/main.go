@@ -30,9 +30,8 @@ var ExampleHome = path.Join(os.TempDir(), "hivekit-examples")
 
 const (
 	CmdAddDeviceAcct   = "add"
-	CmdAddConsumerAcct = "adc"
-	CmdDiscover        = "discover"
-	CmdEnv             = "env"
+	CmdAddConsumerAcct = "adu"
+	CmdDiscover        = "disco"
 	CmdListAccount     = "lac"
 	CmdListDir         = "ld"
 	CmdLogin           = "login"
@@ -62,15 +61,16 @@ func main() {
 		fmt.Println("Usage: cliex [options] Command")
 		fmt.Println()
 		fmt.Println("Commands:")
-		fmt.Printf("  %-10s                Show app environment\n", CmdEnv)
 		fmt.Printf("  %-10s                Discover WoT devices and directories\n", CmdDiscover)
+		fmt.Printf("  %-10s thingID        List the content of a directory with optional thingID\n", CmdListDir)
+		fmt.Printf("  %-10s thingID        Show the TD of a Thing\n", CmdShowTD)
+
 		fmt.Printf("  %-10s clientID       Add/Update a RC device account with certificate\n", CmdAddDeviceAcct)
 		fmt.Printf("  %-10s userID [name]  Add/Update a user account with token file\n", CmdAddConsumerAcct)
 		fmt.Printf("  %-10s clientID       Remove client account\n", CmdRemoveAcct)
 		// fmt.Printf("  %-10s thingID        Set login ID for the device\n", CmdLogin)
 		fmt.Printf("  %-10s [clientID]     List account(s)\n", CmdListAccount)
-		fmt.Printf("  %-10s thingID        List the content of a directory with optional thingID\n", CmdListDir)
-		fmt.Printf("  %-10s thingID        Show the TD of a Thing\n", CmdShowTD)
+
 		fmt.Printf("  %-10s thingID        Show the current status of a Thing\n", CmdShowStatus)
 		fmt.Printf("  %-10s thingID        Subscribe to Thing events and property updates\n", CmdSubscribe)
 		fmt.Printf("  %-10s thingID [actionName]  Show/Invoke actions\n", CmdShowActions)
@@ -81,24 +81,17 @@ func main() {
 
 	// Setup the environment after parsing the commandline
 	env := api.NewHiveEnvironment(ExampleHome, true)
+	env.ClientID = DefaultClientID
 	env.AppID = "cli-example"
+	env.RpcTimeout = time.Minute * 3 // for testing
 	if appConfig.Verbose {
 		env.LogLevel = "info"
 	}
 	utils.SetLogging(env.LogLevel, "")
-	if env.ClientID == "" {
-		env.ClientID = DefaultClientID
-	}
-
-	env.RpcTimeout = time.Minute * 3 // for testing
 
 	args := flag.Args()
 	if len(args) == 0 {
-		env.Print(1)
 		flag.Usage()
-		return
-	} else if args[0] == "env" {
-		env.Print(2)
 		return
 	}
 
@@ -160,7 +153,7 @@ func main() {
 			displayName = args[2]
 		}
 		app.AddConsumerAccount(clientID, displayName)
-	case CmdDiscover, "disco":
+	case CmdDiscover:
 		app.ShowDiscovery()
 	case CmdListAccount:
 		clientID := ""

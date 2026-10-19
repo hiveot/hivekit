@@ -78,15 +78,15 @@ func TestClientServerRecipes(t *testing.T) {
 
 	serverFactory := factory_service.NewCellFactory(env, HiveKitAllCells)
 	serverChain, err := factory_service.NewChainFormation(
-		serverFactory, DeviceServerRecipe, nil)
+		serverFactory, DeviceServerRecipe, nil, false)
 
 	require.NotNil(t, serverChain)
 	require.NoError(t, err)
 	defer serverFactory.Stop()
 	serverURLs := serverFactory.GetConnectURLs()
 	require.NotEmpty(t, serverURLs)
-	// use the gateway URL for a direct connection without forms
-	env.GatewayURL = serverURLs[0]
+	// use the ServerURL override for a direct connection without forms
+	env.ServerURL = serverURLs[0]
 
 	// the server exposed thing handles the server requests
 	mod, _ := serverFactory.NewCell(thing.ExposedThingCellType, true)
@@ -103,7 +103,7 @@ func TestClientServerRecipes(t *testing.T) {
 	// the client sends requests and receives responses
 	clientFactory := factory_service.NewCellFactory(env, HiveKitAllCells)
 	clientChain, err := factory_service.NewChainFormation(
-		clientFactory, DeviceClientRecipe, nil)
+		clientFactory, DeviceClientRecipe, nil, false)
 
 	require.NotNil(t, clientChain)
 	require.NoError(t, err)
@@ -146,7 +146,7 @@ func TestGatewayRecipe(t *testing.T) {
 	coenv.SetCACert(caCert)
 	coenv.ClientID = managerClientID
 	// force direct connection with the server
-	coenv.GatewayURL = gwFactory.GetConnectURLs()[0]
+	coenv.ServerURL = gwFactory.GetConnectURLs()[0]
 	cor, _, err := consumer_recipe.NewConsumerRecipe(coenv, false)
 	require.NoError(t, err)
 	cor.Start()
@@ -159,7 +159,7 @@ func TestGatewayRecipe(t *testing.T) {
 	// no discovery, point to the server
 	rcenv.RpcTimeout = time.Minute * 3
 	rcenv.SetCACert(caCert)
-	rcenv.GatewayURL = gwFactory.GetConnectURLs()[0]
+	rcenv.ServerURL = gwFactory.GetConnectURLs()[0]
 	rcenv.ClientID = rcdeviceClientID
 	// device configuration
 	cfg := &testenv.CounterConfig{

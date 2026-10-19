@@ -24,7 +24,7 @@ const AppSlotType = "appSlot"
 var RCDeviceChain = []api.CellDefinition{
 	{
 		// discover the server running the directory
-		// this sets the factory serverTD
+		// this sets the factory directory TD
 		Type:        discovery.DiscoveryClientCellType,
 		Constructor: discovery_client.NewDiscoveryClientFactory,
 	},
@@ -33,9 +33,16 @@ var RCDeviceChain = []api.CellDefinition{
 		Type:        reconnect.ReconnectCellType,
 		Constructor: reconnect_service.NewReconnectServiceFactory,
 	},
+	// FIXME: if the client connection fails, the following cell will be ignored
+	// and reconnect will link to the next cell, which is not a transport client.
+	// as a result an error is reported that isn't the real problem.
+
+	// {
+	// 	Type:        wss.WotWebsocketClientCellType,
+	// 	Constructor: wss_client.NewWotWssClientFactory,
+	// },
 	{
-		// connect a client to the gateway server.
-		// the server TD is set by discovery, or the gateway URL is set manually.
+		// connect a client to the gateway/directory server.
 		// This client will receive requests and pass it to the linked exposed thing
 		//
 		// For the exposed thing to publish its TD, it should send it to the
@@ -101,13 +108,13 @@ func NewRCDeviceRecipe(env *api.HiveEnvironment, eThing api.IHiveCell) (
 
 	f = factory_service.NewCellFactory(env, nil)
 	chain := RCDeviceChain
-	formation, err := factory_service.NewChainFormation(f, chain, eThing)
+	formation, err := factory_service.NewChainFormation(f, chain, eThing, false)
 	if err != nil {
 		return nil, nil, err
 	}
 	// requests published by the exposed thing are send back to the server
 	// used for publishing TDs
-	clientCell := f.GetCell(clients.TransportClientCellType)
+	clientCell, _ := f.GetCell(clients.TransportClientCellType).(api.ITransportClient)
 	eThing.SetRequestSink(clientCell)
 
 	// FIXME: why does the device recipe need a thingID? the eThing has one...

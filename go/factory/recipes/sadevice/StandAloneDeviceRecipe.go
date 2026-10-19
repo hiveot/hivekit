@@ -83,7 +83,7 @@ func NewStandAloneDeviceRecipe(f api.ICellFactory, eThing api.IHiveCell) (api.IH
 	chain := StandAloneDeviceChain
 
 	// this adds eThing at the end of the chain
-	r, err := factory_service.NewChainFormation(f, chain, eThing)
+	r, err := factory_service.NewChainFormation(f, chain, eThing, false)
 
 	// Send requests from the exposed-thing  back to the chain server, to support
 	// publishing a TD to the discovery server.

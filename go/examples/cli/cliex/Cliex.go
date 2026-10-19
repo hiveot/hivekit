@@ -48,15 +48,19 @@ func (cliex *Cliex) FindTD(thingID string) (tdoc *td.TD) {
 	var maxWaitTime = time.Second * 1
 	// var tddURL string
 
-	// 1. search using discovery
+	// 1. Ask the directory client.
+	tdoc, _ = cliex.dirClient.RetrieveThing(thingID)
+	if tdoc != nil {
+		return tdoc
+	}
+
+	// 2. search using discovery
 	tdoc = cliex.discoClient.DiscoverFirstTD(thingID, "", maxWaitTime)
 	if tdoc != nil {
 		cliex.dirClient.Cache().ImportTD(tdoc)
 		return tdoc
 	}
 
-	// 2. Ask the directory client.
-	tdoc, _ = cliex.dirClient.RetrieveThing(thingID)
 	if tdoc == nil {
 		slog.Warn("FindTD. No TD found", "thingID", thingID)
 	}
@@ -78,6 +82,9 @@ func NewCliex(
 	discoClient discovery.IDiscoveryClient,
 	dirClient directory.IDirectoryClient,
 ) *Cliex {
+	if co == nil || discoClient == nil || dirClient == nil {
+		panic("co, discoClient or dirClient is nil")
+	}
 
 	m := &Cliex{
 		co:          co,

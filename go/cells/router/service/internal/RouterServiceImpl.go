@@ -25,10 +25,10 @@ type connectURLForm struct {
 	TDUpdated  string
 }
 
-// RouterServiceImpl implements request routing to stand-alone devices.
+// RouterServiceImpl implements request routing to devices running servers.
 // Use-cases:
 //
-//	a. Consumer side;
+//	a. Consumer side
 //		1. router connect to SA (stand-alone) device, using directory client:
 //		   	* getTD provides a valid TD. Without it the router fails.
 //			* getTD is typically a directory client, that needs a TDD
@@ -42,11 +42,12 @@ type connectURLForm struct {
 //			* getTD returns a dummy TD with the gateway URL as base.
 //
 //	b. Server side, inside a gateway
-//		3. router connects to stand-alone device using directory client
+//		5. router connects to stand-alone device using directory client
 //	    	* same as 1.
 //
-//	c. Note that a RC device doesnt need a router, just discovery and a gateway
-//	   client. So, all this is just to support stand-alone devices.
+//	c. RC devices can use this router if the gateway protocol is not predetermined.
+//		If the gateway always supports websockets for example, then RC devices can
+//		just use the websockets client instead. This will be slightly faster.
 type RouterServiceImpl struct {
 	*cells.HiveCellBase
 
@@ -281,15 +282,22 @@ func (svc *RouterServiceImpl) HasCredentials(thingID string) (credType string, f
 // the given connection URL. If a connection doesn't exists then create it.
 //
 // If the 'autoReconnect' option is configured then this wraps the connection in a
-// Reconnect client that automatically reconnects and resubscribes if the connection
-// fails.
+// 'Reconnect cell' that automatically reconnects and resubscribes if the connection
+// is interrupted. This is only used after the initial connection succeeds.
 //
-// If no form is given then connect purely based on URL. This means use the
-// default subprotocol for the URL scheme.
+// If no form is given then connect purely based on URL.
 //
 //	tdoc is the TD of the device to connect to.
-//	connectURL is the URL for the client connection
-//	cform is the form with subprotocol.
+//	connectURL is the URL for the client connection.
+//	cform is the optional form to identify the subprotocol.
+//
+// This returns the cell that handles requests for the connection, eg the transport
+// client or the reconnect cell.
+//
+// This fails when:
+// a. No credentials are available for the connectURL
+// b. The initial connection fails
+// c. No matching protocol is found
 func (svc *RouterServiceImpl) NewClientConnection(
 	tdoc *td.TD, connectURL string, cform *td.Form) (cl api.IHiveCell, err error) {
 
@@ -313,15 +321,17 @@ func (svc *RouterServiceImpl) NewClientConnection(
 	// Note-1: that while the TD form contains authentication instructions, the
 	// available credentials determine the format used.
 	//
-	// Note-2: when connecting to a gateway with multiple devices, this requires
-	// that the same credentials are set for every single thingID the device
-	// offers, even though they all use the same connection.
+	// Note-2: when connecting to a gateway for access to various devices, all these
+	// devices have the same connection credentials, namely that of the gateway.
 	// The credentials are therefore set per connectURL, not the thingID.
 	//
-	// Note-3: if the connect URL is that of the gateway that runs this router then this can
-	// cause a loop, resulting in a failed request since RnR for request already
-	// exists.
-	// TODO: identify this situation and return with an error
+	// Note-3: When used on a gateway, this router is intended to connect-out to devices
+	// on the network. If a connection is requested to a Thing with the connection URL
+	// set to this gateway, then this can cause a loop. As long as this router isn't
+	// configured with credentials for this gateway, that connection should fail. The
+	// secondary fail safe against a loop is the RnR, which already has the correlation ID
+	// of the request and will reject requests if it is reused.
+	//
 
 	// determine who to identify as for this connection; fall back to default
 	clientID, secret, secScheme, found := svc.credStore.GetCredentials(connectURL)
@@ -334,21 +344,25 @@ func (svc *RouterServiceImpl) NewClientConnection(
 		slog.Warn("GetClientConnection: failed", "ThingID", tdoc.ID, "err", err.Error())
 		return nil, err
 	}
+	// Must have a valid initial connection to continue
+	err = c.Connect()
+	if err != nil {
+		return nil, err
+	}
+
 	if svc.autoReconnect {
 		// reconnect connects the client on start
 		cl, err = reconnect_service.NewReconnectService(c)
 		cl.SetTimeout(svc.GetTimeout())
 	} else {
 		// connect directly. Reconnect is not used.
-		// TODO: without reconnect, should the connection be discarded?
 		cl = c
 	}
-	// svc.deviceConnections[connectURL] = cl
 
-	// forward notifications to this service and up to its consumer
+	// This service handles the notifications from the client.
+	// There is no use-case (yet) to handle requests received from these connections.
 	cl.SetNotificationSink(svc)
 	cl.Start()
-	// }
 
 	return cl, err
 }
@@ -374,15 +388,6 @@ func (svc *RouterServiceImpl) RouteRequest(req *msg.RequestMessage, replyTo msg.
 		return err
 	}
 
-	// 2. this is a RC device. Can't connect to it. Should not have come here.
-	// that implies it needs to connect to a gateway.
-	// rcid := tdoc.GetRCID()
-	// if rcid != "" {
-	// 	err := fmt.Errorf("RouteRequest: invalid attempt to connect to a RC device '%s'. Should not have come here.", rcid)
-	// 	slog.Error(err.Error())
-	// 	return err
-	// }
-
 	// 2. the connection URL is needed for establishing a device connection
 	connectURL, connectForm, err := svc.GetConnectURL(tdoc, req.Operation, req.Name)
 	if connectURL == "" {
@@ -406,6 +411,7 @@ func (svc *RouterServiceImpl) RouteRequest(req *msg.RequestMessage, replyTo msg.
 				slog.String("thingID", tdoc.ID),
 				slog.String("url", connectURL),
 			)
+
 			// save the connection for re-use.
 			svc.deviceConnections[connectURL] = c
 		}
@@ -443,10 +449,6 @@ func (svc *RouterServiceImpl) Stop() {
 }
 
 // NewRouterServiceImpl creates a new router service
-//
-// Use getSrv if routing requests to server RC connected device should be supported.
-// AutoReconnect will attempt to automatically reconnect failed client connections. Note that this
-// might hide authentication problems.
 //
 //	storageDir for the credentials storage directory, "" for in-memory testing
 //	autoReconnect flag, to enable auto-reconnect on client connections

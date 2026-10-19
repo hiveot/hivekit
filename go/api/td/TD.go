@@ -16,6 +16,7 @@ const WoTTDContext = "https://www.w3.org/2022/wot/td/v1.1"
 const HiveOTContext = "https://www.hiveot.net/vocab/v0.1"
 
 const AtTypeDirectory = "ThingDirectory"
+const AtTypeGateway = "ThingGateway"
 
 // URI variables for use in TD
 const (
@@ -538,14 +539,29 @@ func (tdoc *TD) GetRCID() string {
 }
 
 // GetAtTypes returns the Thing @type fields of this TD.
-// This returns an array with at least one element.
 func (tdoc *TD) GetAtTypes() []string {
-	typeList, valid := tdoc.AtType.([]string)
+	value, valid := tdoc.AtType.(string)
 	if valid {
-		return typeList
+		return []string{value}
 	}
-	val, _ := tdoc.AtType.(string)
-	return []string{val}
+	// WoT defines @type as a string or an array. Unmarshalling can also
+	// lead to an array of interface. Decode it here.
+	stringList, valid := tdoc.AtType.([]string)
+	if valid {
+		return stringList
+	}
+	typeList, valid := tdoc.AtType.([]interface{})
+	if !valid {
+		return []string{}
+	}
+	stringList = make([]string, 0)
+	for _, el := range typeList {
+		value, valid := el.(string)
+		if valid {
+			stringList = append(stringList, value)
+		}
+	}
+	return stringList
 }
 
 // IsDirectory returns true if the TD represents a directory

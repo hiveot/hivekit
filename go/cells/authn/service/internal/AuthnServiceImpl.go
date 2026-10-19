@@ -83,7 +83,7 @@ func (svc *AuthnServiceImpl) Stop() {
 func NewAuthnServiceImpl(tokensDir string, storageDir string, createAdmin bool) (
 	*AuthnServiceImpl, error) {
 
-	passwdFile := filepath.Join(storageDir, authn.DefaultPasswordFile)
+	passwdFile := filepath.Join(storageDir, authn.DefaultAuthnStoreFile)
 	hashAlgo := authn.PWHASH_ARGON2id
 
 	authnStore, err := authn_filestore.OpenAuthnFileStore(passwdFile, hashAlgo)

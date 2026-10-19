@@ -210,63 +210,52 @@ func NewTransportClientFromURL(serverURL string, subProtocol string, rootCAs *x5
 	return cl, err
 }
 
-// Create a new ready-to-use client instance using the factory senvironment.
+// Create a new ready-to-use gateway client instance using the factory environment.
 //
-// Intended for connecting to a 'known' endpoint such as a device or gateway server.
+// Intended for RC and consumer recipes for using a gateway connection.
 //
-// The provided app environment should contain a server TD or gateway URL. These can be
-// provided manually or through client discovery. Include the DiscoveryClientFactory
-// in the chain for discovering a gateway on the local network.
+// This cell is only useful together with a directory TD in the environment because
+// it needs the connection protocol type and destination. The directory connection
+// is that of the gateway.
+// Note that this does not use the directory http discovery endpoint. Instead the
+// connection uses a bidirectional protocol like websocket or equivalent.
 //
-// If no Server TD is set in the app environment, try the server URL as fallback.
-// If no serverURL is available then give up and return nil without error, which will
-// leads to this cell being ignored by the factory.
+// This cell can be followed in the chain with a router cell to support connecting to
+// stand-alone devices.
 //
-// Intended for RC and consumer recipes for supporting a gateway connection, or a consumer
-// of a single device without using a directory. Follow it with a router cell to fall
-// back to a generic client.
-//
-// This cell is only useful together with a server TD or gateway URL in the environment
-// because it needs to know the protocol type and destination. If these are not set then
-// this cell is ignored.
-//
-// This cell can be followed in the chain with a router cell to support connecting to a
-// gateway and fallback to the router for stand-alone devices.
-//
-// If the HiveEnvironment contains client token or cert then apply it to the client.
+// The HiveEnvironment client token or cert is applied to the client.
 func NewTransportClientFactory(
 	f api.ICellFactory, md *api.CellDefinition) (cl api.IHiveCell, err error) {
 
 	var tpcl api.ITransportClient
 	env := f.GetEnvironment()
-	serverTD := env.GetServerTD()
-	gatewayURL := env.GatewayURL
 
-	// the gateway URL takes precedence
-	if env.GatewayURL != "" {
-		tpcl, err = NewTransportClientFromURL(gatewayURL, "", env.GetRootCAs())
-	} else if serverTD != nil {
-		// prefer the wot websocket if available
-		form, _ := serverTD.GetForm("", "", api.WotWebsocketScheme, api.WotWebsocketSubprotocol)
-
-		// there is no op or name to use so this requires the TD to have a 'base' URL
-		tpcl, err = NewTransportClientFromForm(serverTD, form, env.GetRootCAs())
+	// if a server URL override is used then ignore the directory TD
+	if env.ServerURL != "" {
+		tpcl, err = NewTransportClientFromURL(env.ServerURL, "", env.GetRootCAs())
 	} else {
-		// give up, no instructions on where to connect to.
-		// assume this is intentional
-		slog.Warn("NewTransportClientFactory: no server TD or URL set so this cell is not activated")
+
+		dirTD := env.GetDirTD()
+
+		if dirTD != nil {
+			// pick a form with websocket support, if available
+			form, _ := dirTD.GetForm("", "", api.WotWebsocketScheme, api.WotWebsocketSubprotocol)
+			tpcl, err = NewTransportClientFromForm(dirTD, form, env.GetRootCAs())
+		} else {
+			// Give up. Cannot establish a gateway connection without the directory TD.
+			slog.Warn("NewTransportClientFactory: no directory TD found so this cell is not activated")
+			return nil, nil
+		}
 	}
 	// set auth token and cert, when available, and activate the connection.
-	if tpcl != nil {
-		token, _ := env.GetAuthToken()
-		if token != "" {
-			err = tpcl.SetAuthToken(env.ClientID, token, td.SecSchemeBearer)
-		}
-		clientCert, _ := env.GetClientCert()
-		if clientCert != nil {
-			tpcl.SetClientCert(clientCert)
-		}
-		err = tpcl.Connect()
+	token, _ := env.GetAuthToken()
+	if token != "" {
+		err = tpcl.SetAuthToken(env.ClientID, token, td.SecSchemeBearer)
 	}
+	clientCert, _ := env.GetClientCert()
+	if clientCert != nil {
+		tpcl.SetClientCert(clientCert)
+	}
+	err = tpcl.Connect()
 	return tpcl, err
 }

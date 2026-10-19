@@ -6,7 +6,7 @@
       "hiveot": "https://www.hiveot.net/vocab/v0.1"
     }
   ],
-  "@type": "ThingDirectory",
+  "@type": ["ThingDirectory"],
   "id": "ThingDirectory",
   "title": "Directory Service",
   "description": "HiveOT directory service",

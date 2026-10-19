@@ -75,14 +75,23 @@ DiscoverThingTDs separates directories from device Things.
 
 Devices that reverse connect (RC) to a gateway need to discover this gateway in order to connect to it.
 
-Since reverse connections and gateway discovery are not defined in the WoT specification, the solution chosen is to use the server that serves the directory as the gateway connection. This implies that the gateway runs the directory, which is not unreasonable.
+Since reverse connections and gateway discovery are not defined in the WoT specification, the solution chosen can only try to build on the existing specification. 
 
-1. The RC device uses directory discovery to obtain the TDD. The TDD describes how to connect to the directory using one of the bi-directional protocols (websocket, sse, mqtt, etc). 
-   * alternatively the RC device is provided a URL of the directory.
+HiveOT defines that a gateway is discovered through its directory. The gateway server also serves the directory. The directory TD Base and Thing level operations contain the href for the gateway, while the TD @type field includes the term 'gateway'. 
+
+1. The RC device uses directory discovery to obtain the TDD. The TDD thing level forms describes how to connect to the directory using one of the bi-directional protocols (websocket, sse, mqtt, etc). 
 2. The RC device connects to the directory and writes its TD using the WoT directory specification to create a TD.
-3. The RC device keeps this connection to receive requests.
+3. The RC device keeps this connection to receive requests for the device.
 4. The gateway intercepts the directory request, updates the RC device TD forms with that of the gateway, and forward requests for the RC device ThingID to the RC device connection. 
    
-This use-case is supported by the directory server and router cells. 
+This use-case is supported by the HiveOT discovery, directory and router cells. 
 
-Alternatively, HiveEnvironment supports a commandline option to provide a server URL to connect to, bypassing discovery altogether.
+
+## Use of a Gateway by Consumers
+
+Consumers can use the same method as RC devices to discover and connect to a gateway.
+First obtain the directory TDD through mDNS or a provided TDD URL. Download the TDD and check its @type. If the type includes a gateway then use the base URL as the gateway connection or use one of the forms.
+
+The base, and the forms in gateway/directory TD all specify the gateway connection.
+
+The security info in the TD describes authentication requirements.

@@ -288,7 +288,7 @@ func NewGatewayRecipe(env *api.HiveEnvironment) (
 
 	f = factory_service.NewCellFactory(env, nil)
 
-	formation, err := factory_service.NewChainFormation(f, GatewayRecipeCells, nil)
+	formation, err := factory_service.NewChainFormation(f, GatewayRecipeCells, nil, false)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -300,6 +300,10 @@ func NewGatewayRecipe(env *api.HiveEnvironment) (
 		formation:    formation,
 	}
 	r.SetTimeout(env.RpcTimeout)
+
+	// mark the directory as the gateway
+	dirTD := r.f.GetEnvironment().GetDirTD()
+	dirTD.SetType(td.AtTypeGateway)
 
 	srvBus := f.GetCell(api.BusFormationType)
 	// disable notification forwarding by the bus to prevent them being forwarded

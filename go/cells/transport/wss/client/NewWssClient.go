@@ -2,6 +2,7 @@ package wss_client
 
 import (
 	"crypto/x509"
+	"fmt"
 	"log/slog"
 
 	"github.com/hiveot/hivekit/go/api"
@@ -30,38 +31,38 @@ func NewHiveotWssClient(wssURL string, rootCAs *x509.CertPool) api.ITransportCli
 //
 // This returns a transport client or an error if a valid authentication is missing
 // Even with an error result authentication and 'Connect' can be called again.
-func NewHiveotWssClientFactory(
-	f api.ICellFactory, md *api.CellDefinition) (api.IHiveCell, error) {
+// func NewHiveotWssClientFactory(
+// 	f api.ICellFactory, md *api.CellDefinition) (api.IHiveCell, error) {
 
-	var err error
+// 	var err error
 
-	env := f.GetEnvironment()
-	wssURL := env.GetServerURL()
-	cl := NewHiveotWssClient(wssURL, env.GetRootCAs())
+// 	env := f.GetEnvironment()
+// 	wssURL := env.GetServerURL()
+// 	cl := NewHiveotWssClient(wssURL, env.GetRootCAs())
 
-	// set client certificate if available
-	clientCert, _ := env.GetClientCert()
-	if clientCert != nil {
-		err = cl.SetClientCert(clientCert)
-	}
-	// set auth token if available
-	clientID := env.ClientID
-	authToken, _ := env.GetAuthToken()
+// 	// set client certificate if available
+// 	clientCert, _ := env.GetClientCert()
+// 	if clientCert != nil {
+// 		err = cl.SetClientCert(clientCert)
+// 	}
+// 	// set auth token if available
+// 	clientID := env.ClientID
+// 	authToken, _ := env.GetAuthToken()
 
-	if clientID != "" && authToken != "" {
-		err = cl.SetAuthToken(clientID, authToken, td.SecSchemeBearer)
-	}
-	// connect
-	if err == nil {
-		err = cl.Connect()
-	}
-	if err != nil {
-		slog.Error("StartHiveotWssClientFactory: " + err.Error())
-	} else {
-		slog.Info("StartHiveotWssClientFactory: connected", "clientID", clientID)
-	}
-	return cl, err
-}
+// 	if clientID != "" && authToken != "" {
+// 		err = cl.SetAuthToken(clientID, authToken, td.SecSchemeBearer)
+// 	}
+// 	// connect
+// 	if err == nil {
+// 		err = cl.Connect()
+// 	}
+// 	if err != nil {
+// 		slog.Error("StartHiveotWssClientFactory: " + err.Error())
+// 	} else {
+// 		slog.Info("StartHiveotWssClientFactory: connected", "clientID", clientID)
+// 	}
+// 	return cl, err
+// }
 
 // NewWotWssClient creates a new instance of the WoT compatible websocket client
 // but does not connect yet. Authenticate and call Connect before use.
@@ -85,8 +86,9 @@ func NewWotWssClient(
 
 // Create a websocket client for the given factory environment.
 //
-// This attempts to obtain server URL, authentication credentials if available and
-// attempts to connect.
+// This requires the Server URL and authentication credentials. If serverURL is not set
+// then try to obtain the directory URL instead. If both fail then this returns nil and
+// the cell will be ignored in recipes.
 //
 // Intended for devices that use reverse connections or consumer applications that
 // use the factory. If the environment is setup with credentials then these are
@@ -99,9 +101,21 @@ func NewWotWssClientFactory(
 
 	var err error
 
-	// create the client using the app env server URL
+	// Find a server URL for this protocol
 	env := f.GetEnvironment()
-	serverURL := env.GetServerURL()
+	serverURL := env.ServerURL
+	if serverURL == "" {
+		dirTD := env.GetDirTD()
+		if dirTD != nil {
+			form, match := dirTD.GetForm("", "", api.WotWebsocketScheme, api.WotWebsocketSubprotocol)
+			if match {
+				serverURL, _, err = dirTD.ResolveHRef(form, nil)
+			}
+		}
+	}
+	if serverURL == "" {
+		return nil, fmt.Errorf("NewWotWssClientFactory: no server URL to connect to")
+	}
 	cl := NewWotWssClient(serverURL, env.GetRootCAs())
 
 	// set client certificate if available
