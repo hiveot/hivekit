@@ -7,7 +7,6 @@ import (
 
 	"github.com/hiveot/hivekit/go/cells/authn"
 	"github.com/hiveot/hivekit/go/cells/transport/tlsclient"
-	tls_client "github.com/hiveot/hivekit/go/cells/transport/tlsclient/client"
 	jsoniter "github.com/json-iterator/go"
 )
 
@@ -116,7 +115,7 @@ func (cl *AuthnUserHttpClient) SetAuthToken(clientID string, token string) (err 
 //	serverURL is the host:port of the http server
 //	rootCAs are available CA certificates for validating the server cert
 func NewUserAuthnHttpClient(serverURL string, rootCAs *x509.CertPool) *AuthnUserHttpClient {
-	tlsClient := tls_client.NewTLSClient(serverURL, rootCAs)
+	tlsClient := tlsclient.NewTLSClient(serverURL, rootCAs)
 	return &AuthnUserHttpClient{
 		tlsClient: tlsClient,
 	}

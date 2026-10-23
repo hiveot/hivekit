@@ -75,18 +75,6 @@ Transport cells come with a server and a client cell.
 |   ✔️    | transport/ssesc     | HiveOT HTTP/SSE-SC message transport      | alpha |
 |   ✔️    | transport/wss       | WoT Websocket message transport           | alpha |
 
-### Integration Binding Cells (this will move to the HiveOT Hub)
-
-| status | cell     | description                     | stage |
-| :----: | -------- | ------------------------------- | ----- |
-|   ⬛    | ipnet    | IP Network monitor              | todo  |
-|   ⬛    | isy99x   | ISY 99 gateway binding          | todo  |
-|   ⬛    | owserver | 1-wire owserver gateway binding | todo  |
-|   ⬛    | zwavejs  | ZWave binding using zwave-js    | todo  |
-|   ⬛    | weather  | Weather service bindings        | todo  |
-|   ⬛    | ...      | and many more...                | todo  |
-
-
 ## About HiveOT
 
 Security is big concern with today's IoT devices. The Internet of Things contains billions of devices that when not properly secured can be hacked too easily. Unfortunately the reality is that the security of many of these devices leaves a lot to be desired. Many devices are vulnerable to attacks and are never upgraded with security patches. This problem is only going to get worse as more IoT devices are coming to market. A botnet of a billion IoT devices can bring parts of the Internet to its knees and cripple essential services. The cost to businesses and consumers reaches hundreds of millions of dollars yearly.

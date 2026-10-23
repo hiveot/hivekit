@@ -1,4 +1,4 @@
-package internal
+package tlsserver
 
 import (
 	"context"
@@ -6,7 +6,6 @@ import (
 	"net/http"
 
 	"github.com/hiveot/hivekit/go/api"
-	"github.com/hiveot/hivekit/go/cells/transport/tlsserver"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
@@ -28,7 +27,7 @@ import (
 // # This includes middleware for ping health check
 //
 // Note that without authentication, the context will not have clientID or sessionID set.
-func (m *TLSServerImpl) addMiddleware(cfg *tlsserver.TLSServerConfig) {
+func (m *TLSServerImpl) addMiddleware(cfg *TLSServerConfig) {
 	rootRouter := m.rootRouter
 
 	// handle CORS using the cors plugin

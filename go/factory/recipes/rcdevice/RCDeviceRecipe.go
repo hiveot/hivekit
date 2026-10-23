@@ -1,6 +1,8 @@
 package rcdevice_recipe
 
 import (
+	"context"
+	"fmt"
 	"log/slog"
 	"os"
 
@@ -61,6 +63,7 @@ type RCDeviceRecipe struct {
 	*cells.HiveCellBase
 	f         api.ICellFactory
 	formation api.IHiveCell
+	eThing    api.IHiveCell
 }
 
 // Get the client connection
@@ -72,14 +75,34 @@ func (r *RCDeviceRecipe) GetClient() api.ITransportClient {
 	return cell.(api.ITransportClient)
 }
 
+// Run the recipe until a signal is received
+func (r *RCDeviceRecipe) Run() {
+	r.Start()
+	defer r.Stop()
+
+	rcr := r.GetClient()
+
+	fmt.Printf("Device is running. and connected with clientID '%s' to server at %v\n",
+		rcr.GetClientID(), rcr.GetConnectURL())
+	fmt.Println("Waiting for signal to stop...")
+	r.f.WaitForSignal(context.Background())
+}
+
 // Start the recipe and factory.
 func (r *RCDeviceRecipe) Start() {
-	slog.Info("Starting RCDeviceRecipe")
+	slog.Info("Starting RCDeviceRecipe", "thingID", r.GetID())
 	r.f.Start()
+	if r.eThing != nil {
+		r.eThing.Start()
+	}
 }
 
 // Stop the recipe and factory.
 func (r *RCDeviceRecipe) Stop() {
+	slog.Info("Stopping RCDeviceRecipe", "thingID", r.GetID())
+	if r.eThing != nil {
+		r.eThing.Stop()
+	}
 	r.f.Stop()
 }
 
@@ -97,12 +120,12 @@ func (r *RCDeviceRecipe) Stop() {
 // * enable auto-reconnect
 // * establish client connection
 //
-//		f is the factory that creates the cells.
-//		eThing is an optional exposed thing which will be included at the end of the
-//		chain and will receive requests and emit notifications.
-//	 For it to publish its TD, its sink must be set to the start of the chain.
+//	f is the factory that creates the cells.
+//	eThing is an optional exposed thing which will be included at the end of the
+//	 chain and will receive requests and emit notifications.
+//	 It will be started when this recipe start is called.
 //
-// This returns the recipe, which can be used like any other cell
+// This returns the recipe, which can be used like any other cell.
 func NewRCDeviceRecipe(env *api.HiveEnvironment, eThing api.IHiveCell) (
 	r *RCDeviceRecipe, f api.ICellFactory, err error) {
 
@@ -112,10 +135,13 @@ func NewRCDeviceRecipe(env *api.HiveEnvironment, eThing api.IHiveCell) (
 	if err != nil {
 		return nil, nil, err
 	}
-	// requests published by the exposed thing are send back to the server
-	// used for publishing TDs
-	clientCell, _ := f.GetCell(clients.TransportClientCellType).(api.ITransportClient)
-	eThing.SetRequestSink(clientCell)
+	// Set the transport client of the recipe as the request sink of the eThing,
+	// so that it can publish its TD.
+	// FIXME: this wouldnt be neccesary if this can be a notification
+	if eThing != nil {
+		tpClient, _ := f.GetCell(clients.TransportClientCellType).(api.ITransportClient)
+		eThing.SetRequestSink(tpClient)
+	}
 
 	// FIXME: why does the device recipe need a thingID? the eThing has one...
 	hostname, _ := os.Hostname()
@@ -124,6 +150,7 @@ func NewRCDeviceRecipe(env *api.HiveEnvironment, eThing api.IHiveCell) (
 		HiveCellBase: cells.NewHiveCellBase(thingID),
 		f:            f,
 		formation:    formation,
+		eThing:       eThing,
 	}
 
 	return r, f, err

@@ -18,13 +18,15 @@ import (
 	history_service "github.com/hiveot/hivekit/go/cells/history/service"
 	"github.com/hiveot/hivekit/go/cells/logging"
 	logging_service "github.com/hiveot/hivekit/go/cells/logging/service"
+	"github.com/hiveot/hivekit/go/cells/rcrouter"
+	rcrouter_service "github.com/hiveot/hivekit/go/cells/rcrouter/service"
 	"github.com/hiveot/hivekit/go/cells/router"
 	router_service "github.com/hiveot/hivekit/go/cells/router/service"
 	grpc "github.com/hiveot/hivekit/go/cells/transport/grpc"
 	grpc_server "github.com/hiveot/hivekit/go/cells/transport/grpc/server"
 	"github.com/hiveot/hivekit/go/cells/transport/httpbasic"
 	httpbasic_server "github.com/hiveot/hivekit/go/cells/transport/httpbasic/server"
-	tls_server "github.com/hiveot/hivekit/go/cells/transport/tlsserver/server"
+	"github.com/hiveot/hivekit/go/cells/transport/tlsserver"
 	"github.com/hiveot/hivekit/go/cells/transport/wss"
 	wss_server "github.com/hiveot/hivekit/go/cells/transport/wss/server"
 	factory_service "github.com/hiveot/hivekit/go/factory/service"
@@ -49,10 +51,17 @@ var DigitwinGatewayRecipeCells = []api.CellDefinition{
 		// http server is needed by websocket transport server
 		// It uses the factory registered authenticator.
 		Type:        api.HttpServerCellType,
-		Constructor: tls_server.NewTLSServerFactory,
+		Constructor: tlsserver.NewTLSServerFactory,
 	},
-	// --- nested recipe with the servers operating in parallel
+	// --- nested formation with the servers operating in parallel
 	{
+		// Note: notifications received from the server(s) - primarily RC connections-
+		// should go to the router, which also receives notifications from SA devices
+		// throught its client connections.
+		//
+		// The recipe therefore sets the bus formation notification sink to the router,
+		// instead of passing it up the chain to the http server, which would discard them.
+
 		// requests are passed to all servers until one accepts
 		Type:        api.BusFormationType,
 		Constructor: factory_service.NewBusFormationFactory,
@@ -63,22 +72,22 @@ var DigitwinGatewayRecipeCells = []api.CellDefinition{
 				Constructor: wss_server.NewWotWssServerFactory,
 			},
 			// {
-			// 	// Hiveot SSE
+			// 	// Hiveot SSE is a theoretical option, but why bother
 			// 	Type:        ssesc.SseScServerCellType,
 			// 	Constructor: ssesc_server.StartSseScServerFactory,
 			// },
 			{
-				// Hiveot gRPC
+				// Hiveot gRPC for fast inter-process connections
 				Type:        grpc.HiveotGrpcServerCellType,
 				Constructor: grpc_server.NewHiveotGrpcServerFactory,
 			},
 			// {
-			// 	// MQTT server
+			// 	// MQTT server is coming soon
 			// 	Type:        mqtt.MqttServerCellType,
 			// 	Constructor: mqttpkg.NewMqttServerFactory,
 			// },
 			{
-				// http-basic transport server
+				// Last, the gateway supports http-basic
 				Type:        httpbasic.HttpBasicServerCellType,
 				Constructor: httpbasic_server.NewHttpBasicServerFactory,
 			},
@@ -126,18 +135,24 @@ var DigitwinGatewayRecipeCells = []api.CellDefinition{
 		Type:        discovery.DiscoveryServerCellType,
 		Constructor: discovery_server.NewDiscoveryServerFactory,
 	},
-
+	// The digital twin service handles requests for digital device twins
 	{
 		Type:        digitwin.DigitwinCellType,
 		Constructor: digitwin_service.NewDigitwinServiceFactory,
 	},
+
 	{
-		// Router service for routing requests to devices
-		// this requires a directory client or service.
+		// RC router service for routing requests to reverse connections.
+		// This routes the request to the client that send the TD update.
+		Type:        rcrouter.RCRouterCellType,
+		Constructor: rcrouter_service.NewRCRouterServiceFactory,
+	},
+	{
+		// Router service for routing requests to stand-alone devices.
+		// this uses the directory to lookup thing TDs.
 		Type:        router.RouterCellType,
 		Constructor: router_service.NewRouterServiceFactory,
 	},
-
 	// todo: optional logging of requests
 	// todo: optional authorization of requests
 }
@@ -160,12 +175,12 @@ var DigitwinGatewayRecipeCells = []api.CellDefinition{
 //
 // Cell chain:
 //
-//	 -> init certs
-//		  -> server group [http, wss, sse, mqtt]
-//		     -> logging
-//		        -> authn
-//		           -> authz
-//		              -> history
+//	-> init certs
+//		-> server group [http, wss, sse, mqtt]
+//			-> logging
+//		    	-> authz
+//		        	-> history
+//						-> authn
 //			              -> directory
 //			                 -> discovery server
 //			                    -> digitwin | vcache

@@ -8,7 +8,7 @@ import (
 	certs_service "github.com/hiveot/hivekit/go/cells/certs/service"
 	"github.com/hiveot/hivekit/go/cells/discovery"
 	discovery_server "github.com/hiveot/hivekit/go/cells/discovery/server"
-	tls_server "github.com/hiveot/hivekit/go/cells/transport/tlsserver/server"
+	"github.com/hiveot/hivekit/go/cells/transport/tlsserver"
 	"github.com/hiveot/hivekit/go/cells/transport/wss"
 	wss_server "github.com/hiveot/hivekit/go/cells/transport/wss/server"
 	factory_service "github.com/hiveot/hivekit/go/factory/service"
@@ -38,7 +38,7 @@ var StandAloneDeviceChain = []api.CellDefinition{
 		// http server is needed by websocket transport server
 		// It uses the factory registered authenticator.
 		Type:        api.HttpServerCellType,
-		Constructor: tls_server.NewTLSServerFactory,
+		Constructor: tlsserver.NewTLSServerFactory,
 	},
 	{
 		// Websocket transport server for incoming connections

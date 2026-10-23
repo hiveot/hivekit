@@ -4,7 +4,7 @@ import (
 	"github.com/hiveot/hivekit/go/api"
 	"github.com/hiveot/hivekit/go/cells/consumer"
 	"github.com/hiveot/hivekit/go/cells/thing"
-	tls_server "github.com/hiveot/hivekit/go/cells/transport/tlsserver/server"
+	"github.com/hiveot/hivekit/go/cells/transport/tlsserver"
 	wss "github.com/hiveot/hivekit/go/cells/transport/wss"
 	wss_client "github.com/hiveot/hivekit/go/cells/transport/wss/client"
 	wss_server "github.com/hiveot/hivekit/go/cells/transport/wss/server"
@@ -14,7 +14,7 @@ import (
 var DeviceServerRecipe = []api.CellDefinition{
 	{
 		Type:        api.HttpServerCellType,
-		Constructor: tls_server.NewTLSServerFactory,
+		Constructor: tlsserver.NewTLSServerFactory,
 	},
 	{
 		Type:        wss.WotWebsocketServerCellType,

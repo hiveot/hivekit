@@ -4,7 +4,7 @@ HiveKit cells are building blocks for building devices and applications. Cells f
 
 The standard cell has a simple interface: A handler for request messages with a replyTo callback, and a handler for notification messages. Cells are linked by setting a request sink to the next cell downstream. Similarly a notification sink is set to the upstream cell.
 
-[![cell](hivekit-cell.png)](#hivekit-cells)
+[![cell](hiveot-cell.png)](#hiveot-cells)
 
 Each cell has a cell instance ID that can be used as a thing-ID. Where applicable, their capabilities can be described in a WoT TD (Thing Description) document that describes its properties, events and actions. 
 

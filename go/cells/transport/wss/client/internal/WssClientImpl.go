@@ -226,8 +226,8 @@ func (cl *WssTransportClientImpl) Connect() error {
 	return err
 }
 
-// GetConnectionURL returns the URL used to connect to the server
-func (cl *WssTransportClientImpl) GetConnectionURL() string {
+// GetConnectURL returns the URL used to connect to the server
+func (cl *WssTransportClientImpl) GetConnectURL() string {
 	return cl.wssURL
 }
 

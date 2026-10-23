@@ -60,9 +60,9 @@ Supported transport protocols include: WoT websocket, HiveOT websocket, HiveOT S
 This works with the cli and tui consumers, and the rcdevice examples.
 
 
-### rcdevice: RC Device (reverse connection) [todo]
+### rcdevice: RC Device (reverse connection) 
 
-The rcdevice is the same device as the 'sadevice', but instead of running a server it connects to the gateway using reverse connection.
+The rcdevice is the same device as the 'sadevice' but instead of running a server it connects to the gateway using reverse connection.
 
 Since rc devices dont run servers, they are the simplest way to construct a device. They don't need servers, authentication and routing. Instead a reconnect cell automatically tries to reconnect the transport client.
 

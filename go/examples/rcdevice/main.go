@@ -1,7 +1,6 @@
 package main
 
 import (
-	"context"
 	"fmt"
 	"log/slog"
 	"os"
@@ -39,6 +38,7 @@ func main() {
 		env.ClientID = DeviceClientID
 	}
 	utils.SetLogging(env.LogLevel, "")
+	fmt.Printf(" homeDir: %s\n", env.HomeDir)
 
 	// this requires a client certificate for authentication with the gateway
 	_, err = env.GetClientCert()
@@ -56,20 +56,12 @@ func main() {
 	counterThing, err := testenv.NewTestCounterThing(env.ClientID, cfg)
 
 	// link it to the RC device recipe that handles connections.
-	r, f, err := rcdevice_recipe.NewRCDeviceRecipe(env, counterThing)
+	r, _, err := rcdevice_recipe.NewRCDeviceRecipe(env, counterThing)
 	if err != nil {
 		fmt.Println("Startup failed: " + err.Error())
 		os.Exit(1)
 	}
-	// signal the app is ready to go and all cells are linked
-	r.Start()
-	defer r.Stop()
-	counterThing.Start()
-	rcr := r.GetClient()
-
-	fmt.Printf("main: homeDir: %s\n", env.HomeDir)
-	fmt.Printf("main: Counter is running and connected as Thing '%s' to server at %v\n",
-		counterThing.GetID(), rcr.GetConnectionURL())
 	fmt.Printf("main: Use the cli from example 2 to read its status\n")
-	f.WaitForSignal(context.Background())
+	r.Run()
+
 }

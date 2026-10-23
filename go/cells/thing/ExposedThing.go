@@ -19,7 +19,7 @@ const ExposedThingCellType = "exposed-thing"
 
 // ExposedThing is a cell representing an Exposed Thing for IoT device operations using the
 // standard RRN (request-response-notification) messages. The RRN interface is
-// compatible with all HiveKit cells.
+// used by all HiveOT cells.
 //
 // This cell is intended to help building a 'ExposedThing' by:
 //   - track ExposedThing status with SetState and GetState

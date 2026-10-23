@@ -31,7 +31,7 @@ import (
 	grpc_server "github.com/hiveot/hivekit/go/cells/transport/grpc/server"
 	"github.com/hiveot/hivekit/go/cells/transport/httpbasic"
 	httpbasic_server "github.com/hiveot/hivekit/go/cells/transport/httpbasic/server"
-	tls_server "github.com/hiveot/hivekit/go/cells/transport/tlsserver/server"
+	"github.com/hiveot/hivekit/go/cells/transport/tlsserver"
 	"github.com/hiveot/hivekit/go/cells/transport/wss"
 	wss_server "github.com/hiveot/hivekit/go/cells/transport/wss/server"
 	factory_service "github.com/hiveot/hivekit/go/factory/service"
@@ -52,23 +52,16 @@ var GatewayRecipeCells = []api.CellDefinition{
 		// http server is needed by websocket transport server
 		// It uses the factory registered authenticator.
 		Type:        api.HttpServerCellType,
-		Constructor: tls_server.NewTLSServerFactory,
+		Constructor: tlsserver.NewTLSServerFactory,
 	},
 	// --- nested formation with the servers operating in parallel
 	{
-		// FIXME: notifications from RC connections should go to the router, which also receives
-		// notifications from SA devices throught its client connections.
-		// currently notifications are send 'up' to the http server which discards them.
-		// option1: move http server out of the chain so notifications can flow to the top
-		//   and be linked to the router.
-		// option2: the recipe itself can locate the bus formation and force its notification sink
-		//   to the router as part of the recipe.
+		// Note: notifications received from the server(s) - primarily RC connections-
+		// should go to the router, which also receives notifications from SA devices
+		// throught its client connections.
 		//
-		// generally, where should notifications received by a server go?
-		//  - services on the server should forward it up to the servers -> just like the gateway chain
-		//  - rc-services (logging, history) want to pass notificatinos to the services in the chain
-		//       same problem as in gateway, so same solution.
-		//
+		// The recipe therefore sets the bus formation notification sink to the router,
+		// instead of passing it up the chain to the http server, which would discard them.
 
 		// requests are passed to all servers until one accepts
 		Type:        api.BusFormationType,

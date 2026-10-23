@@ -13,7 +13,6 @@ import (
 	authn_service "github.com/hiveot/hivekit/go/cells/authn/service"
 	certstest "github.com/hiveot/hivekit/go/cells/certs/test"
 	"github.com/hiveot/hivekit/go/cells/transport/tlsserver"
-	tls_server "github.com/hiveot/hivekit/go/cells/transport/tlsserver/server"
 	"github.com/hiveot/hivekit/go/utils"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -69,7 +68,7 @@ func startTestAuthnServices(encryption string) (
 		"localhost", serverPort,
 		testCerts.ServerCert, testCerts.RootCAs, true)
 
-	httpServer, err := tls_server.NewTLSServer(cfg, authenticator)
+	httpServer, err := tlsserver.NewTLSServer(cfg, authenticator)
 
 	if err != nil {
 		panic("Unable to start http server: " + err.Error())

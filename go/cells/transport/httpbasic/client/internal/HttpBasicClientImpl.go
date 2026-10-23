@@ -15,7 +15,6 @@ import (
 	"github.com/hiveot/hivekit/go/cells/transport"
 	"github.com/hiveot/hivekit/go/cells/transport/httpbasic"
 	"github.com/hiveot/hivekit/go/cells/transport/tlsclient"
-	tls_client "github.com/hiveot/hivekit/go/cells/transport/tlsclient/client"
 	"github.com/hiveot/hivekit/go/utils"
 	jsoniter "github.com/json-iterator/go"
 	"github.com/teris-io/shortid"
@@ -100,8 +99,8 @@ func (cl *HttpBasicClientImpl) Connect() error {
 	return err
 }
 
-// GetConnectionURL returns the URL used to connect to the server
-func (cl *HttpBasicClientImpl) GetConnectionURL() string {
+// GetConnectURL returns the URL used to connect to the server
+func (cl *HttpBasicClientImpl) GetConnectURL() string {
 	return fmt.Sprintf("https://%s", cl.tlsClient.GetHostPort())
 }
 
@@ -369,7 +368,7 @@ func NewHttpBasicClientImpl(
 		slog.Error("NewHttpBasicClientImpl: Invalid Base in TD", "ThingID", tdoc.ID, "TD Base", tdoc.Base)
 		return nil, fmt.Errorf("NewHttpBasicClientImpl: invalid URL")
 	}
-	tlsClient := tls_client.NewTLSClient(serverURL, rootCAs)
+	tlsClient := tlsclient.NewTLSClient(serverURL, rootCAs)
 	if rootCAs == nil {
 		tlsClient.SetSkipCertCheck(true)
 	}

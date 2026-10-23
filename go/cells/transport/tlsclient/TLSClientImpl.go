@@ -1,5 +1,4 @@
-// Package internal with a TLS client helper supporting certificate, JWT or Basic authentication
-package internal
+package tlsclient
 
 import (
 	"bytes"
@@ -16,7 +15,6 @@ import (
 
 	"github.com/hiveot/hivekit/go/api"
 	"github.com/hiveot/hivekit/go/cells"
-	"github.com/hiveot/hivekit/go/cells/transport/tlsclient"
 	"github.com/teris-io/shortid"
 	"golang.org/x/net/http2"
 )
@@ -503,9 +501,6 @@ func NewTLSClientImpl(serverURL string, rootCAs *x509.CertPool) *TLSClientImpl {
 		tlsConfig:     tlsConfig,
 		customHeaders: make(map[string]string),
 	}
-
-	// interface check
-	var _ tlsclient.ITLSClient = cl
 
 	return cl
 }

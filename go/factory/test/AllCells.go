@@ -36,7 +36,7 @@ import (
 	httpbasic_server "github.com/hiveot/hivekit/go/cells/transport/httpbasic/server"
 	"github.com/hiveot/hivekit/go/cells/transport/ssesc"
 	ssesc_server "github.com/hiveot/hivekit/go/cells/transport/ssesc/server"
-	tls_server "github.com/hiveot/hivekit/go/cells/transport/tlsserver/server"
+	"github.com/hiveot/hivekit/go/cells/transport/tlsserver"
 	wss "github.com/hiveot/hivekit/go/cells/transport/wss"
 	wss_server "github.com/hiveot/hivekit/go/cells/transport/wss/server"
 	"github.com/hiveot/hivekit/go/cells/vcache"
@@ -81,7 +81,7 @@ var HiveKitAllCells = []api.CellDefinition{
 	// http server provider
 	{
 		Type:        api.HttpServerCellType,
-		Constructor: tls_server.NewTLSServerFactory,
+		Constructor: tlsserver.NewTLSServerFactory,
 	},
 	// http-basic transport
 	// {

@@ -24,7 +24,6 @@ import (
 	httpbasic_server "github.com/hiveot/hivekit/go/cells/transport/httpbasic/server"
 	ssesc_server "github.com/hiveot/hivekit/go/cells/transport/ssesc/server"
 	"github.com/hiveot/hivekit/go/cells/transport/tlsserver"
-	tls_server "github.com/hiveot/hivekit/go/cells/transport/tlsserver/server"
 	wss_server "github.com/hiveot/hivekit/go/cells/transport/wss/server"
 	"github.com/hiveot/hivekit/go/utils"
 )
@@ -192,6 +191,39 @@ func (testEnv *TestEnv) NewServerThing(thingID string) *thing.ExposedThing {
 	return eThing
 }
 
+// NewRCConnection is a simple helper to link an exposed Thing to a reverse
+// server connection.
+// This creates a test client with the given ID and sets the timeout for the
+// client and exposed thing to that of the test environment.
+//
+//	clientID is that of the client to connect as
+//	eThing is the exposed thing that receives server requests and sends notifications
+//
+// This panics if a client cannot be created
+func (testEnv *TestEnv) NewRCConnection(
+	clientID string, eThing api.IHiveCell) (
+	cc api.IConnection, authToken string) {
+
+	// cl is the client connection for the Thing that receives requests from the
+	// server and sends notifications to the server.
+	cl, authToken := testEnv.NewTestClient(clientID, api.ClientRoleDevice)
+
+	// simple exposed thing, no application request handler yet
+	eThing.SetTimeout(testEnv.Env.RpcTimeout)
+
+	// the client delivers requests to the thing and receives notifications from it
+	cl.SetRequestSink(eThing)
+	eThing.SetNotificationSink(cl)
+
+	// Finally, connect
+	err := cl.Connect()
+	if err != nil {
+		panic("NewRCThing: test client fails to connect")
+	}
+
+	return cl, authToken
+}
+
 // NewRCThing creates a new reverse-connection thing with the given ID.
 // This uses connection reversal where the thing connects as a client to the server.
 //
@@ -302,7 +334,7 @@ func (testEnv *TestEnv) NewTestClient(
 	return cl, token
 }
 
-// NewReconnectConsumer creates a new consumer with the reconnect capability
+// NewTestConnectedConsumer creates a new consumer with the reconnect capability
 // and a client with authentication credentials already set.
 //
 // Call rc.Run() to start the reconnect process and establish a connection.
@@ -313,7 +345,7 @@ func (testEnv *TestEnv) NewTestClient(
 //	clientID to use
 //	role of the client
 //	notifHook is the hook that receives notification passing through the consumer
-func (testEnv *TestEnv) NewReconnectConsumer(
+func (testEnv *TestEnv) NewTestConnectedConsumer(
 	clientID string, role string, notifHook msg.NotificationHandler) (
 	co *consumer.Consumer, rc reconnect.IReconnect, token string) {
 
@@ -422,7 +454,7 @@ func (testEnv *TestEnv) StartHttpServer(logging bool) (api.IHttpServer, string) 
 
 	// cfg.Address = fmt.Sprintf("%s:%d", certBundle.ServerAddr, testServerHttpPort)
 
-	testEnv.HttpServer, err = tls_server.NewTLSServer(cfg, testEnv.TestAuthn)
+	testEnv.HttpServer, err = tlsserver.NewTLSServer(cfg, testEnv.TestAuthn)
 	if err != nil {
 		panic("unable to start TLS server: " + err.Error())
 	}

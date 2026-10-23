@@ -1,4 +1,4 @@
-package internal
+package tlsserver
 
 import (
 	"context"
@@ -15,7 +15,6 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/hiveot/hivekit/go/api"
 	"github.com/hiveot/hivekit/go/cells"
-	"github.com/hiveot/hivekit/go/cells/transport/tlsserver"
 	"github.com/hiveot/hivekit/go/utils"
 	"github.com/lmittmann/tint"
 	"github.com/teris-io/shortid"
@@ -36,7 +35,7 @@ type TLSServerImpl struct {
 	// HTTP authentication handler.
 	authRequestHandler func(req *http.Request) (clientID string, err error)
 
-	config     *tlsserver.TLSServerConfig
+	config     *TLSServerConfig
 	connectURL string
 
 	// the actual golang HTTP/TLS server
@@ -206,7 +205,7 @@ func (m *TLSServerImpl) Stop() {
 // NoTLS is set.
 // authenticator for http requests. nil for refusing all protected routes
 func NewTLSServerImpl(
-	config *tlsserver.TLSServerConfig, authenticator api.IAuthenticator) (*TLSServerImpl, error) {
+	config *TLSServerConfig, authenticator api.IAuthenticator) (*TLSServerImpl, error) {
 
 	thingID := api.HttpServerCellType + "-" + shortid.MustGenerate()
 	srv := &TLSServerImpl{

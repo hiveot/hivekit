@@ -1,17 +1,15 @@
-package tls_server
+package tlsserver
 
 import (
 	"log/slog"
 
 	"github.com/hiveot/hivekit/go/api"
-	"github.com/hiveot/hivekit/go/cells/transport/tlsserver"
-	"github.com/hiveot/hivekit/go/cells/transport/tlsserver/internal"
 )
 
 // Create a ready-to-use TLS server instance with the given configuration.
 func NewTLSServer(
-	cfg *tlsserver.TLSServerConfig, authenticator api.IAuthenticator) (api.IHttpServer, error) {
-	return internal.NewTLSServerImpl(cfg, authenticator)
+	cfg *TLSServerConfig, authenticator api.IAuthenticator) (api.IHttpServer, error) {
+	return NewTLSServerImpl(cfg, authenticator)
 }
 
 // Create a ready-to-use TLS transport server instance for the provided
@@ -29,7 +27,7 @@ func NewTLSServerFactory(
 	addr := ""
 	rootCAs := env.GetRootCAs()
 	showLogging := env.LogLevel == "info" || env.LogLevel == "debug"
-	cfg := tlsserver.NewTLSServerConfig(
+	cfg := NewTLSServerConfig(
 		addr, env.HttpsPort, serverCert, rootCAs, showLogging)
-	return internal.NewTLSServerImpl(cfg, f.GetAuthenticator())
+	return NewTLSServerImpl(cfg, f.GetAuthenticator())
 }

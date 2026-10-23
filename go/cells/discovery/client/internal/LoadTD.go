@@ -9,7 +9,7 @@ import (
 	"strings"
 
 	"github.com/hiveot/hivekit/go/api/td"
-	tls_client "github.com/hiveot/hivekit/go/cells/transport/tlsclient/client"
+	"github.com/hiveot/hivekit/go/cells/transport/tlsclient"
 )
 
 // LoadTD a TD document from a URL.
@@ -34,7 +34,7 @@ func LoadTD(tdURL string, rootCAs *x509.CertPool) (tdoc *td.TD, tdJSON string, e
 	}
 	scheme := strings.ToLower(parts.Scheme)
 	if scheme == "https" {
-		httpCl := tls_client.NewTLSClient(tdURL, rootCAs)
+		httpCl := tlsclient.NewTLSClient(tdURL, rootCAs)
 		resp, statusCode, err := httpCl.Get(parts.RequestURI())
 		_ = statusCode
 		if err != nil {

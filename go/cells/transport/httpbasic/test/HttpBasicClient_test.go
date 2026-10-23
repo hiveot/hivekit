@@ -10,7 +10,6 @@ import (
 	httpbasic_client "github.com/hiveot/hivekit/go/cells/transport/httpbasic/client"
 	httpbasic_server "github.com/hiveot/hivekit/go/cells/transport/httpbasic/server"
 	"github.com/hiveot/hivekit/go/cells/transport/tlsserver"
-	tls_server "github.com/hiveot/hivekit/go/cells/transport/tlsserver/server"
 	"github.com/hiveot/hivekit/go/testenv"
 	"github.com/hiveot/hivekit/go/utils"
 	"github.com/stretchr/testify/assert"
@@ -29,7 +28,7 @@ func TestConnect(t *testing.T) {
 	testAuthenticator := testenv.NewTestAuthenticator()
 	cfg := tlsserver.NewTLSServerConfig(
 		"localhost", serverPort, testCerts.ServerCert, testCerts.RootCAs, true)
-	srv, err := tls_server.NewTLSServer(cfg, testAuthenticator)
+	srv, err := tlsserver.NewTLSServer(cfg, testAuthenticator)
 
 	require.NoError(t, err)
 	m, err := httpbasic_server.NewHttpBasicServer(srv)

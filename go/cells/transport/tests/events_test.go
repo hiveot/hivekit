@@ -143,7 +143,7 @@ func TestSubscribeReconnect(t *testing.T) {
 			connectedCh <- true
 		}
 	}
-	co1, rc1, _ := testEnv.NewReconnectConsumer(
+	co1, rc1, _ := testEnv.NewTestConnectedConsumer(
 		testClientID1, api.ClientRoleViewer, coNotifHook)
 	defer rc1.Stop()
 

@@ -15,7 +15,6 @@ import (
 	"github.com/hiveot/hivekit/go/cells/transport"
 	"github.com/hiveot/hivekit/go/cells/transport/ssesc"
 	"github.com/hiveot/hivekit/go/cells/transport/tlsclient"
-	tls_client "github.com/hiveot/hivekit/go/cells/transport/tlsclient/client"
 	jsoniter "github.com/json-iterator/go"
 	"github.com/teris-io/shortid"
 	gosse "github.com/tmaxmax/go-sse"
@@ -131,8 +130,8 @@ func (cl *SseScClientImpl) Connect() (err error) {
 	return err
 }
 
-// GetConnectionURL returns the URL used to connect to the server
-func (cl *SseScClientImpl) GetConnectionURL() string {
+// GetConnectURL returns the URL used to connect to the server
+func (cl *SseScClientImpl) GetConnectURL() string {
 	return fmt.Sprintf("https://%s%s", cl.tlsClient.GetHostPort(), cl.ssePath)
 }
 
@@ -394,7 +393,7 @@ func NewSseScClientImpl(tdoc *td.TD, rootCAs *x509.CertPool) *SseScClientImpl {
 		return nil
 	}
 	ssePath := urlParts.Path
-	tlsClient := tls_client.NewTLSClient(sseURL, rootCAs)
+	tlsClient := tlsclient.NewTLSClient(sseURL, rootCAs)
 
 	thingID := ssesc.SseScClientCellType + shortid.MustGenerate()
 	cl := &SseScClientImpl{

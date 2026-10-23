@@ -194,8 +194,8 @@ func (cl *GrpcClientImpl) Connect() (err error) {
 	return nil
 }
 
-// GetConnectionURL returns the URL used to connect to the server
-func (cl *GrpcClientImpl) GetConnectionURL() string {
+// GetConnectURL returns the URL used to connect to the server
+func (cl *GrpcClientImpl) GetConnectURL() string {
 	return cl.connectURL
 }
 
