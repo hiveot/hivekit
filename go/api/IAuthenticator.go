@@ -66,5 +66,6 @@ type IAuthenticator interface {
 	//
 	// This returns the validated clientID and the time the secret was issued and is valid for.
 	// This returns an error if the secret is invalid, has expired, or the client is blocked..
-	ValidateClient(claimedClientID string, secret string) (clientID string, issuedAt time.Time, validUntil time.Time, err error)
+	ValidateClient(claimedClientID string, secret string) (
+		clientID string, issuedAt time.Time, validUntil time.Time, err error)
 }

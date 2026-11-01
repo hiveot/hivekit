@@ -143,7 +143,7 @@ func NewConsumerRecipe(env *api.HiveEnvironment, withValueCache bool) (
 			Type:        vcache.ValueCacheCellType,
 			Constructor: vcache_service.NewValueCacheServiceFactory,
 		}
-		recipes.SetSlot(chain, valueCacheSlotName, modDef)
+		err = recipes.SetSlot(chain, valueCacheSlotName, modDef)
 	}
 
 	formation, err := factory_service.NewChainFormation(f, chain, nil, false)

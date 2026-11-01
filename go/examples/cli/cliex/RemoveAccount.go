@@ -12,7 +12,7 @@ func (app *Cliex) RemoveAccount(clientID string) error {
 
 	// 2. Connect to the authn service
 	// the consumer recipe should already have it based on commandline.
-	authnAdmin := authn_client.NewAuthnAdminClient(authn.AuthnAdminServiceDefaultThingID, app.co)
+	authnAdmin := authn_client.NewAuthnAdminClient(authn.DefaultAuthnAdminThingID, app.co)
 
 	_, err = authnAdmin.GetProfile(clientID)
 	if err != nil {

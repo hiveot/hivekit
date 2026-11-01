@@ -73,7 +73,7 @@ func (m *Consumer) HandleNotification(notif *msg.NotificationMessage) {
 // InvokeAction invokes an action on a thing and wait for the response
 // If the response type is known then provide it with output, otherwise use interface{}
 func (co *Consumer) InvokeAction(
-	thingID, name string, input any, output any) error {
+	thingID string, name string, input any, output any) error {
 
 	err := co.Rpc(td.OpInvokeAction, thingID, name, input, output)
 	return err
@@ -183,15 +183,6 @@ func (co *Consumer) ReadProperty(thingID, name string, output any) (err error) {
 	return err
 }
 
-// ReadPropertyAs sends a request to read the current value of a Thing property.
-//
-// This converts the property value to the given type or returns an error
-func (co *Consumer) ReadPropertyAs(thingID, name string, prop any) (err error) {
-
-	err = co.Rpc(td.OpReadProperty, thingID, name, nil, prop)
-	return err
-}
-
 // Set the hook to invoke with received notifications
 //
 // This lets applications receive notifications while leaving the notification chain intact.
@@ -235,12 +226,10 @@ func (co *Consumer) Unsubscribe(thingID string, name string) error {
 // WriteProperty is a helper to send a write property request
 // Since writing properties can take some time on slow devices, the wait is optional.
 func (co *Consumer) WriteProperty(thingID string, name string, input any, wait bool) (err error) {
-	correlationID := shortid.MustGenerate()
 	if wait {
-		err = co.Rpc(td.OpWriteProperty, thingID, name, input, correlationID)
+		err = co.Rpc(td.OpWriteProperty, thingID, name, input, nil)
 	} else {
 		req := msg.NewRequestMessage(td.OpWriteProperty, thingID, name, input)
-		req.CorrelationID = correlationID
 		err = co.EmitRequest(req, func(resp *msg.ResponseMessage) error {
 			// just ignore the result
 			return nil

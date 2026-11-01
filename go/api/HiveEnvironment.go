@@ -74,13 +74,14 @@ type HiveEnvironment struct {
 	AppID string `yaml:"appID"`
 
 	// Directories
-	BinDir    string `yaml:"binDir,omitempty"`    // Application binary folder, e.g. launcher, cli, ...
-	HomeDir   string `yaml:"homeDir,omitempty"`   // Home folder, default this is the parent of bin, config, certs and logs
-	ConfigDir string `yaml:"configDir,omitempty"` // config folder with application and configuration files
-	CertsDir  string `yaml:"certsDir,omitempty"`  // Certificates and keys location
-	LogsDir   string `yaml:"logsDir,omitempty"`   // Logging output
-	LogLevel  string `yaml:"logLevel,omitempty"`  // logging level: error, warning, info, debug
-	StoresDir string `yaml:"storesDir,omitempty"` // Root of the service stores
+	BinDir     string `yaml:"binDir,omitempty"`     // Application binary folder, e.g. launcher, cli, ...
+	HomeDir    string `yaml:"homeDir,omitempty"`    // Home folder, default this is the parent of bin, config, certs and logs
+	ConfigDir  string `yaml:"configDir,omitempty"`  // config folder with application and configuration files
+	CertsDir   string `yaml:"certsDir,omitempty"`   // Certificates and keys location
+	LogsDir    string `yaml:"logsDir,omitempty"`    // Logging output
+	LogLevel   string `yaml:"logLevel,omitempty"`   // logging level: error, warning, info, debug
+	PluginsDir string `yaml:"pluginsDir,omitempty"` // Plugins
+	StoresDir  string `yaml:"storesDir,omitempty"`  // Root of the service stores
 
 	// Override the https port used for the http server instantiation
 	HttpsPort int `yaml:"httpsPort"`
@@ -158,6 +159,9 @@ func (env *HiveEnvironment) CreateAllDirs() (err error) {
 	// if err2 := env.CreateDir(env.PluginsDir, 0750); err2 != nil {
 	// err = err2
 	// }
+	if err2 := env.CreateDir(env.PluginsDir, 0750); err2 != nil {
+		err = err2
+	}
 	if err2 := env.CreateDir(env.StoresDir, 0700); err2 != nil {
 		err = err2
 	}
@@ -315,6 +319,7 @@ func (env *HiveEnvironment) Print(verbose int) {
 			fmt.Println("* Certs directory:  ", env.CertsDir)
 			fmt.Println("* Config directory: ", env.ConfigDir)
 			fmt.Println("* Logs directory:   ", env.LogsDir)
+			fmt.Println("* Plugins directory:", env.PluginsDir)
 			fmt.Println("* Stores directory: ", env.StoresDir)
 
 			fmt.Println("")
@@ -504,9 +509,9 @@ func NewHiveEnvironment(homeDir string, withFlags bool) *HiveEnvironment {
 		if env.BinDir == "" {
 			env.BinDir = filepath.Join("/opt", "hiveot")
 		}
-		// if pluginsDir == "" {
-		// pluginsDir = filepath.Join(binDir, "plugins")
-		// }
+		if env.PluginsDir == "" {
+			env.PluginsDir = filepath.Join(env.BinDir, "plugins")
+		}
 		if env.ConfigDir == "" {
 			env.ConfigDir = filepath.Join("/etc", "hiveot", "conf.d")
 		}
@@ -523,9 +528,9 @@ func NewHiveEnvironment(homeDir string, withFlags bool) *HiveEnvironment {
 		if env.BinDir == "" {
 			env.BinDir = filepath.Join(homeDir, "bin")
 		}
-		// if pluginsDir == "" {
-		// pluginsDir = filepath.Join(homeDir, "plugins")
-		// }
+		if env.PluginsDir == "" {
+			env.PluginsDir = filepath.Join(homeDir, "plugins")
+		}
 		if env.CertsDir == "" {
 			env.CertsDir = filepath.Join(homeDir, "certs")
 		}

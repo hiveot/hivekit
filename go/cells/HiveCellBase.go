@@ -229,7 +229,7 @@ func (base *HiveCellBase) Rpc(
 
 	resp, err := base.EmitRequestWait(req)
 
-	if err == nil && resp != nil {
+	if err == nil && resp != nil && resp.Output != nil && output != nil {
 		err = resp.Decode(output)
 		if err != nil {
 			err = fmt.Errorf("Rpc: Received response for op/thing/name '%s/%s/%s' but can't decode it: %w",

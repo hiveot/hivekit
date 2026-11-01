@@ -35,8 +35,6 @@ import (
 //
 // This implements the IDirectory and IDirectoryCache interface.
 //
-// # Use with a Factory Recipe:
-//
 // When used in a factory recipe together with discovery the recommended sequence is:
 //
 //	consumer - chain[ discoveryClient - directoryClient - router | client ]
@@ -45,12 +43,6 @@ import (
 // a search for the directory server on Start and updates the app environment with
 // the directory server TDD.
 //
-// The directoryClient factory retrieves the server TDD from the app environment.
-// If no TDD is available on start, the directory checks file storage.
-//
-// Once the recipe has been started. the consumer can locate the directory client
-// in the factory and use it to determine available Things.
-//
 // The directory client is essential for bootstrapping the client as it provides the TD
 // of devices to interact with. This bootstrap process requires a TDD of the directory
 // server. This can be set manually or using discovery.
@@ -58,6 +50,8 @@ import (
 // The TDD can be set manually or obtained using discovery.
 //
 //	dirTDD is the directory TD from external source.
+//	sink handles requests for the directory server and returns notifications. nil to set manually.
+//
 //	See also the discovery client which supports this method.
 //
 // This returns a new instance of the directory client
@@ -68,6 +62,12 @@ func NewDirectoryClient(
 
 // NewDirectoryClientFactory creates the directory client using the TD from the
 // app environment.
+//
+// The directoryClient factory retrieves the server TDD from the app environment.
+// If no TDD is available on start, the directory checks file storage.
+//
+// Once the recipe has been started. the consumer can locate the directory client
+// in the factory and use it to determine available Things.
 //
 // If no directory TD is provided in the environment then the application can use
 // SetTDD on the directory client to provide one manually.

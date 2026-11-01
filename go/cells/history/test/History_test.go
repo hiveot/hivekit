@@ -187,9 +187,7 @@ func TestAddGetEvent(t *testing.T) {
 	// do not defer cancel as it will be closed and reopened in the test
 
 	// create an end user client for testing
-	co1, cc1, _ := testEnv.NewTestConsumer(testClientID, api.ClientRoleOperator)
-	err := cc1.Connect()
-	require.NoError(t, err)
+	co1, cc1, _ := testEnv.NewConnectedConsumer(testClientID, api.ClientRoleOperator)
 	histCl := history_client.NewReadHistoryClient(co1)
 
 	fivemago := time.Now().Add(-time.Minute * 5)
@@ -205,7 +203,7 @@ func TestAddGetEvent(t *testing.T) {
 		Data:           "12.5",
 		Timestamp:      utils.FormatUTCMilli(fivemago),
 	}
-	err = m.StoreNotification(ev1_1)
+	err := m.StoreNotification(ev1_1)
 	assert.NoError(t, err)
 	// add thing1 humidity from 55 minutes ago
 	ev1_2 := &msg.NotificationMessage{
@@ -273,15 +271,14 @@ func TestAddGetEvent(t *testing.T) {
 		assert.Equal(t, utils.FormatUTCMilli(fivemago), tv3.Timestamp)
 	}
 	c1Release()
-	// Stop the service before phase 2
+	// Stop the service before phase 2; this should disconnect cc1
 	stopFn()
 
 	// PHASE 2: after closing and reopening the svc the event should still be there
 	m, stopFn = startHistoryService(false)
 	defer stopFn()
-	co1, cc1, _ = testEnv.NewTestConsumer(testClientID, api.ClientRoleOperator)
-	err = cc1.Connect()
-	require.NoError(t, err)
+	co1, cc1, _ = testEnv.NewConnectedConsumer(testClientID, api.ClientRoleOperator)
+	defer cc1.Close()
 	histCl = history_client.NewReadHistoryClient(co1)
 
 	// Test 3: get first temperature of things 2 - expect 1 result
@@ -396,9 +393,8 @@ func TestAddProperties(t *testing.T) {
 	assert.Error(t, err)
 
 	// create an end user client for testing
-	co1, cc1, _ := testEnv.NewTestConsumer(testClientID, api.ClientRoleOperator)
-	err = cc1.Connect()
-	require.NoError(t, err)
+	co1, cc1, _ := testEnv.NewConnectedConsumer(testClientID, api.ClientRoleOperator)
+	defer cc1.Close()
 	histCl := history_client.NewReadHistoryClient(co1)
 
 	cursorKey, releaseFn, err := histCl.GetCursor(thing1ID, "")
@@ -460,9 +456,8 @@ func TestPrevNext(t *testing.T) {
 	_ = addBulkHistory(store, thing0ID, count, 1, 3600*24*30)
 
 	// create an end user client for testing
-	co1, cc1, _ := testEnv.NewTestConsumer(testClientID, api.ClientRoleOperator)
-	err := cc1.Connect()
-	require.NoError(t, err)
+	co1, cc1, _ := testEnv.NewConnectedConsumer(testClientID, api.ClientRoleOperator)
+	defer cc1.Close()
 	histCl := history_client.NewReadHistoryClient(co1)
 
 	cursorKey, releaseFn, err := histCl.GetCursor(thing0ID, "")
@@ -526,9 +521,8 @@ func TestPrevNextFiltered(t *testing.T) {
 	propName := names[2] // names was used to generate the history
 
 	// A cursor with a filter on propName should only return results of propName
-	co1, cc1, _ := testEnv.NewTestConsumer(testClientID, api.ClientRoleOperator)
-	err := cc1.Connect()
-	require.NoError(t, err)
+	co1, cc1, _ := testEnv.NewConnectedConsumer(testClientID, api.ClientRoleOperator)
+	defer cc1.Close()
 	histCl := history_client.NewReadHistoryClient(co1)
 
 	defer co1.Stop()
@@ -596,9 +590,8 @@ func TestNextPrevUntil(t *testing.T) {
 	// 1 sensor -> 1000/24 hours is approx 41/hour
 	_ = addBulkHistory(store, deviceID, count, 1, 3600*24)
 
-	co1, cc1, _ := testEnv.NewTestConsumer(testClientID, api.ClientRoleOperator)
-	err := cc1.Connect()
-	require.NoError(t, err)
+	co1, cc1, _ := testEnv.NewConnectedConsumer(testClientID, api.ClientRoleOperator)
+	defer cc1.Close()
 	readHist := history_client.NewReadHistoryClient(co1)
 	defer co1.Stop()
 	cursorKey, releaseFn, err := readHist.GetCursor(thing0ID, "")
@@ -636,9 +629,8 @@ func TestReadHistory(t *testing.T) {
 	store, closeFn := startHistoryService(true)
 	defer closeFn()
 	//
-	co1, cc1, _ := testEnv.NewTestConsumer(testClientID, api.ClientRoleOperator)
-	err := cc1.Connect()
-	require.NoError(t, err)
+	co1, cc1, _ := testEnv.NewConnectedConsumer(testClientID, api.ClientRoleOperator)
+	defer cc1.Close()
 	readHist := history_client.NewReadHistoryClient(co1)
 	defer co1.Stop()
 
@@ -673,9 +665,8 @@ func TestPubEvents(t *testing.T) {
 
 	svc, stopFn := startHistoryService(true)
 	defer stopFn()
-	co1, cc1, _ := testEnv.NewTestConsumer(testClientID, api.ClientRoleOperator)
-	err := cc1.Connect()
-	require.NoError(t, err)
+	co1, cc1, _ := testEnv.NewConnectedConsumer(testClientID, api.ClientRoleOperator)
+	defer cc1.Close()
 	readHist := history_client.NewReadHistoryClient(co1)
 	defer co1.Stop()
 

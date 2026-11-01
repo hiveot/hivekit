@@ -53,14 +53,10 @@ func TestSubscribeAll(t *testing.T) {
 	defer cancelFn()
 
 	// 2. connect as consumers
-	co1, cc1, _ := testEnv.NewTestConsumer(testClientID1, api.ClientRoleViewer)
-	err := cc1.Connect()
-	require.NoError(t, err)
+	co1, cc1, _ := testEnv.NewConnectedConsumer(testClientID1, api.ClientRoleViewer)
 	defer cc1.Close()
 
-	co2, cc2, _ := testEnv.NewTestConsumer(testClientID1, api.ClientRoleViewer)
-	err = cc2.Connect()
-	require.NoError(t, err)
+	co2, cc2, _ := testEnv.NewConnectedConsumer(testClientID1, api.ClientRoleViewer)
 	defer cc2.Close()
 
 	// set the handler for events and subscribe
@@ -80,7 +76,7 @@ func TestSubscribeAll(t *testing.T) {
 	})
 
 	// Subscribe to events. Each transport binding implements this as per its spec
-	err = co1.Subscribe("", "")
+	err := co1.Subscribe("", "")
 	assert.NoError(t, err)
 	err = co2.Subscribe(thingID, eventKey)
 	assert.NoError(t, err)
@@ -143,7 +139,7 @@ func TestSubscribeReconnect(t *testing.T) {
 			connectedCh <- true
 		}
 	}
-	co1, rc1, _ := testEnv.NewTestConnectedConsumer(
+	co1, rc1, _ := testEnv.NewReconnectedConsumer(
 		testClientID1, api.ClientRoleViewer, coNotifHook)
 	defer rc1.Stop()
 
@@ -255,9 +251,7 @@ func TestReadEvent(t *testing.T) {
 	defer cancelFn()
 
 	// 2. connect as a consumer
-	co1, cc1, _ := testEnv.NewTestConsumer(testClientID1, api.ClientRoleViewer)
-	err := cc1.Connect()
-	require.NoError(t, err)
+	co1, cc1, _ := testEnv.NewConnectedConsumer(testClientID1, api.ClientRoleViewer)
 	defer cc1.Close()
 
 	evNotif, err := co1.ReadEvent(thingID, eventKey)

@@ -138,9 +138,9 @@ func (svc *AuthnAdminServiceImpl) SetRole(clientID string, role string) error {
 // Start publishes the service admin service TDs to the directory or discovery.
 func (svc *AuthnAdminServiceImpl) Start() {
 	tdoc, _ := td.UnmarshalTD(string(authn.AuthnAdminTD))
-	tdoc.ID = authn.AuthnAdminServiceDefaultThingID
+	tdoc.ID = authn.DefaultAuthnAdminThingID
 	tdoc.SetType(authn.AuthnAdminServiceType)
-	_ = svc.PublishTD(tdoc)
+	_ = svc.WriteTD(tdoc)
 }
 
 // Stop closes the client store and releases resources
@@ -191,7 +191,7 @@ func NewAuthnAdminServiceImpl(
 
 	// this service is the admin service that also exposes the user service service thing
 	svc := &AuthnAdminServiceImpl{
-		ExposedThing:   thing.NewExposedThing(authn.AuthnAdminServiceDefaultThingID, nil),
+		ExposedThing:   thing.NewExposedThing(authn.DefaultAuthnAdminThingID, nil),
 		authnStore:     authnStore,
 		sessionManager: sessionManager,
 	}

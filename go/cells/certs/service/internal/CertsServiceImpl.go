@@ -238,7 +238,7 @@ func (svc *CertsServiceImpl) Start() {
 	if err == nil {
 		tdoc.ID = svc.GetID()
 		tdoc.SetType(certs.CertsServiceCellType)
-		svc.PublishTD(tdoc)
+		svc.WriteTD(tdoc)
 	}
 }
 

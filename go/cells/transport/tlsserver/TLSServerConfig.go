@@ -56,6 +56,7 @@ type TLSServerConfig struct {
 	GZipLevel int `yaml:"gzipLevel"`
 
 	// GZip compression content types
+	// This defaults to html, css, javascript, json, plain and svg+xml
 	GZipContentTypes []string `yaml:"gzipContentTypes,omitempty"`
 
 	// ServeFilesDir for use as file server or "" to not serve files (default)

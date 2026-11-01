@@ -241,6 +241,9 @@ func (cl *GrpcClientImpl) SendNotification(notif *msg.NotificationMessage) {
 	if err == nil {
 		err = cl.grpcSvcClient.Send(grpctransport.StreamNameNotification, raw)
 	}
+	if err != nil {
+		slog.Warn("SendNotification: failed to transmit", "err", err.Error())
+	}
 }
 
 // SendRequest send a request message the server

@@ -172,6 +172,32 @@ func (testEnv *TestEnv) GetTpServers() []api.ITransportServer {
 	return tpServers
 }
 
+// NewConnectedConsumer creates a new consumer linked to a connected transport client.
+// Users must call cl.Close() when done.
+//
+// This uses the clientID as password
+// This panics if a client cannot connect
+//
+//	clientID to use
+//	role of the client
+func (testEnv *TestEnv) NewConnectedConsumer(clientID string, role string) (
+	co *consumer.Consumer, cl api.ITransportClient, token string) {
+
+	cl, token = testEnv.NewTestClient(clientID, role)
+	co = consumer.NewConsumer(cl, nil)
+	co.SetTimeout(testEnv.Env.RpcTimeout)
+
+	co.SetRequestSink(cl)
+	cl.SetNotificationSink(co)
+
+	err := cl.Connect()
+	if err != nil {
+		panic("Connection failed unexpectedly: " + err.Error())
+	}
+
+	return co, cl, token
+}
+
 // NewServerThing creates an exposed thing that is a direct sink for the test server.
 // Additional cells can be chained by setting them as the sink of the previous cells.
 //
@@ -201,8 +227,7 @@ func (testEnv *TestEnv) NewServerThing(thingID string) *thing.ExposedThing {
 //
 // This panics if a client cannot be created
 func (testEnv *TestEnv) NewRCConnection(
-	clientID string, eThing api.IHiveCell) (
-	cc api.IConnection, authToken string) {
+	clientID string, eThing api.IHiveCell) (cc api.IConnection, authToken string) {
 
 	// cl is the client connection for the Thing that receives requests from the
 	// server and sends notifications to the server.
@@ -224,7 +249,7 @@ func (testEnv *TestEnv) NewRCConnection(
 	return cl, authToken
 }
 
-// NewRCThing creates a new reverse-connection thing with the given ID.
+// NewRCThing creates a new reverse-connection exposed thing with the given ID.
 // This uses connection reversal where the thing connects as a client to the server.
 //
 // The Thing is set as the client connection request sink. Requests received via the
@@ -243,8 +268,7 @@ func (testEnv *TestEnv) NewRCThing(clientID string, appReqHandler msg.RequestHan
 
 	// cl is the client connection for the Thing that receives requests from the
 	// server and sends notifications to the server.
-	cl, authToken := testEnv.NewTestClient(
-		clientID, api.ClientRoleDevice)
+	cl, authToken := testEnv.NewTestClient(clientID, api.ClientRoleDevice)
 
 	// simple exposed thing, no application request handler yet
 	expThing := thing.NewExposedThing(clientID+"-thing", appReqHandler)
@@ -273,27 +297,31 @@ func (testEnv *TestEnv) NewRCThing(clientID string, appReqHandler msg.RequestHan
 	return expThing, cl, authToken
 }
 
-// NewTestConsumer creates a new consumer linked to a transport client.
+// NewReconnectedConsumer creates a new consumer with the reconnect capability
+// and a client with authentication credentials already set.
 //
-// Call cl.Connect() to start connecting.
-//
-// The transport server must be started first so the client can connect.
+// Call rc.Run() to start the reconnect process and establish a connection.
 //
 // This uses the clientID as password
 // This panics if a client cannot be created
 //
 //	clientID to use
 //	role of the client
-func (testEnv *TestEnv) NewTestConsumer(clientID string, role string) (
-	co *consumer.Consumer, cl api.ITransportClient, token string) {
+//	notifHook is the hook that receives notification passing through the consumer
+func (testEnv *TestEnv) NewReconnectedConsumer(
+	clientID string, role string, notifHook msg.NotificationHandler) (
+	co *consumer.Consumer, rc reconnect.IReconnect, token string) {
 
-	// dont connect yet as the linking must be done before connecting,
-	// to allow reconnect and notification handlers to detect connect/reconnect.
-	cl, token = testEnv.NewTestClient(clientID, role)
-	co = consumer.NewConsumer(cl, nil)
+	cc, token := testEnv.NewTestClient(clientID, role)
+
+	// Include the reconnect service between consumer and client connection
+	// the service will invoke Connect() whenStart() is invoked.
+	rc, _ = reconnect_service.NewReconnectService(cc)
+
+	co = consumer.NewConsumer(rc, notifHook)
 	co.SetTimeout(testEnv.Env.RpcTimeout)
 
-	return co, cl, token
+	return co, rc, token
 }
 
 // NewClient creates a new client with the given client ID and created token,
@@ -332,33 +360,6 @@ func (testEnv *TestEnv) NewTestClient(
 	// 	panic("NewTestClient failed to connect:" + err.Error())
 	// }
 	return cl, token
-}
-
-// NewTestConnectedConsumer creates a new consumer with the reconnect capability
-// and a client with authentication credentials already set.
-//
-// Call rc.Run() to start the reconnect process and establish a connection.
-//
-// This uses the clientID as password
-// This panics if a client cannot be created
-//
-//	clientID to use
-//	role of the client
-//	notifHook is the hook that receives notification passing through the consumer
-func (testEnv *TestEnv) NewTestConnectedConsumer(
-	clientID string, role string, notifHook msg.NotificationHandler) (
-	co *consumer.Consumer, rc reconnect.IReconnect, token string) {
-
-	cc, token := testEnv.NewTestClient(clientID, role)
-
-	// Include the reconnect service between consumer and client connection
-	// the service will invoke Connect() whenStart() is invoked.
-	rc, _ = reconnect_service.NewReconnectService(cc)
-
-	co = consumer.NewConsumer(rc, notifHook)
-	co.SetTimeout(testEnv.Env.RpcTimeout)
-
-	return co, rc, token
 }
 
 // Start a new test transport server .
@@ -476,10 +477,11 @@ func (testEnv *TestEnv) Stop() {
 
 // NewTestEnv creates a new test environment with certificates and a dummy authenticator.
 //
+// This sets the home directory to {os.TempDir}/{TestHome}
+//
 // This does not start any servers.
 // Use StartHttpServer,StartTestServer to initialize startup the servers.
 // This creates a HTTP server, protocol server, certificates and a dummy authenticator
-// This sets the storage root directory to {os.TempDir}/hivekit
 //
 // if clean is set then delete the content of the home folder for a clean start.
 func NewTestEnv(clean bool) *TestEnv {

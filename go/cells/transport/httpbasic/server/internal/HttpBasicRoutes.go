@@ -77,7 +77,8 @@ func (srv *HttpBasicServerImpl) EnableStatic(base string, staticRoot string) err
 }
 
 // onHttpNotification converts the http request to a notification message and emits
-// it to the notification sink
+// it to the notification sink.
+// Intended for RC devices whed used with sse.
 func (srv *HttpBasicServerImpl) onHttpNotification(w http.ResponseWriter, r *http.Request) {
 
 	// 1. Decode the http request

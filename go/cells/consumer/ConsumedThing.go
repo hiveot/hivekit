@@ -4,6 +4,8 @@ import (
 	"fmt"
 
 	"github.com/hiveot/hivekit/go/api"
+	"github.com/hiveot/hivekit/go/api/msg"
+	"github.com/hiveot/hivekit/go/api/td"
 	"github.com/hiveot/hivekit/go/cells"
 )
 
@@ -15,6 +17,10 @@ import (
 // Usage
 type ConsumedThing struct {
 	cells.HiveCellBase
+
+	tdoc       *td.TD
+	properties map[string]any
+	events     map[string]msg.NotificationMessage
 }
 
 // Start and link a consumed thing

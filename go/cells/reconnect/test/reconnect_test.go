@@ -126,7 +126,7 @@ func TestReconnect(t *testing.T) {
 	// The testenv creates a consumer with a reconnect cell and client connection
 	// it also sets the authentication clientID and auth token.
 	// count nr of connection status changes
-	co1, rc1, _ := testEnv.NewTestConnectedConsumer(
+	co1, rc1, _ := testEnv.NewReconnectedConsumer(
 		testClientID1, api.ClientRoleViewer, clientNotificationHook)
 	defer rc1.Stop()
 	// 6. The consumer is now ready and the reconnect process can start.

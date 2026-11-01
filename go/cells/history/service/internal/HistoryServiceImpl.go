@@ -57,7 +57,7 @@ func (svc *HistoryServiceImpl) Start() {
 	histTD, _ := td.UnmarshalTD(string(history.HistoryServiceTD))
 	histTD.ID = svc.GetID()
 	histTD.SetType(history.HistoryServiceCellType)
-	svc.PublishTD(histTD)
+	svc.WriteTD(histTD)
 
 	// todo: regular updates
 	info := svc.bucketStore.Info()

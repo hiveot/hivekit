@@ -102,6 +102,9 @@ func (cl *AuthnAdminClient) UpdateClientProfile(clientProfile authn.ClientProfil
 //
 // This will also set this client as the notification sink for all authn generated notifications.
 func NewAuthnAdminClient(authnServiceID string, sink api.IHiveCell) *AuthnAdminClient {
+	if authnServiceID == "" {
+		authnServiceID = authn.DefaultAuthnAdminThingID
+	}
 	cl := &AuthnAdminClient{
 		HiveCellBase:   cells.NewHiveCellBase(""),
 		authnServiceID: authnServiceID,

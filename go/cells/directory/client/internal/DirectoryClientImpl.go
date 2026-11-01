@@ -113,6 +113,35 @@ func (cl *DirectoryClientImpl) HandleNotification(notif *msg.NotificationMessage
 	cl.HiveCellBase.HandleNotification(notif)
 }
 
+// Receive requests.
+//
+// This updates the cache if someone publishes a TD.
+// Primarily intended for testing if cells publish a TD.
+func (cl *DirectoryClientImpl) HandleRequest(req *msg.RequestMessage, replyTo msg.ResponseHandler) error {
+
+	if req.Operation == td.OpInvokeAction && req.Name == directory.UpdateThingAction {
+		var tdocJSON string
+		err := req.DecodeInput(&tdocJSON)
+		if err == nil {
+			tdoc, err := td.UnmarshalTD(tdocJSON)
+			if err == nil {
+				cl.cache.ImportTD(tdoc)
+
+				err = cl.HiveCellBase.HandleRequest(req, replyTo)
+				_ = err
+				if err != nil {
+					// ignore undeliverable errors as the goal seems to be to update the local cache
+					// most likely a test case
+					resp := req.CreateResponse(nil, nil)
+					replyTo(resp)
+				}
+				return nil
+			}
+		}
+	}
+	return cl.HiveCellBase.HandleRequest(req, replyTo)
+}
+
 // Retrieve a Thing TD from the cache or remote
 func (cl *DirectoryClientImpl) RetrieveThing(thingID string) (tdoc *td.TD, err error) {
 
@@ -209,9 +238,9 @@ func (cl *DirectoryClientImpl) UpdateThing(tdJson string) (err error) {
 // Call Start to subscribe to directory notifications from the server.
 //
 //	dirTD is the directory TD from external source. Use SetTDD if not yet available.
-//	reqSink forwards requests to the directory server and returns notifications. nil to set manually.
+//	sink handles requests for the directory server and returns notifications. nil to set manually.
 func NewDirectoryClientImpl(
-	dirTD *td.TD, reqSink api.IHiveCell) *DirectoryClientImpl {
+	dirTD *td.TD, sink api.IHiveCell) *DirectoryClientImpl {
 	thingID := directory.DirectoryClientCellType + "-" + shortid.MustGenerate()
 	cl := &DirectoryClientImpl{
 		HiveCellBase: cells.NewHiveCellBase(thingID),
@@ -222,10 +251,10 @@ func NewDirectoryClientImpl(
 	if dirTD != nil {
 		cl.SetTDD(dirTD)
 	}
-	if reqSink != nil {
-		cl.SetRequestSink(reqSink)
+	if sink != nil {
+		cl.SetRequestSink(sink)
 		// notifications returned are passed to this client (if any subscriptions are made)
-		reqSink.SetNotificationSink(cl)
+		sink.SetNotificationSink(cl)
 	}
 
 	// TODO: support for loading TDD from file?

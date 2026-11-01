@@ -102,6 +102,9 @@ type ITLSClient interface {
 	// This returns an error if no CA is set
 	SetClientCert(clientCert *tls.Certificate) (err error)
 
+	// Set a header to include in requests
+	SetHeader(name string, val string)
+
 	// Skip the client's CA certificate check
 	SetSkipCertCheck(skip bool)
 

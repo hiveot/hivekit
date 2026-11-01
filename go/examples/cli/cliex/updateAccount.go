@@ -25,7 +25,7 @@ func (app *Cliex) AddConsumerAccount(clientID string, displayName string) error 
 
 	// 1. Connect to the authn service
 	// the consumer recipe should already have it based on commandline.
-	authnAdmin := authn_client.NewAuthnAdminClient(authn.AuthnAdminServiceDefaultThingID, app.co)
+	authnAdmin := authn_client.NewAuthnAdminClient(authn.DefaultAuthnAdminThingID, app.co)
 	prof, err := authnAdmin.GetProfile(clientID)
 	_ = prof
 
@@ -92,7 +92,7 @@ func (app *Cliex) AddDeviceAccount(clientID string, displayName string) error {
 
 	// 2. Connect to the authn service
 	// the consumer recipe should already have it based on commandline.
-	authnAdmin := authn_client.NewAuthnAdminClient(authn.AuthnAdminServiceDefaultThingID, app.co)
+	authnAdmin := authn_client.NewAuthnAdminClient(authn.DefaultAuthnAdminThingID, app.co)
 	prof, err := authnAdmin.GetProfile(clientID)
 	_ = prof
 

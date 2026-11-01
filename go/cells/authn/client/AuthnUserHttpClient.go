@@ -4,6 +4,7 @@ import (
 	"crypto/x509"
 	"log/slog"
 	"net/http"
+	"time"
 
 	"github.com/hiveot/hivekit/go/cells/authn"
 	"github.com/hiveot/hivekit/go/cells/transport/tlsclient"
@@ -107,6 +108,11 @@ func (cl *AuthnUserHttpClient) SetAuthToken(clientID string, token string) (err 
 
 	cl.tlsClient.SetAuthToken(clientID, token)
 	return nil
+}
+
+func (cl *AuthnUserHttpClient) SetTimeout(timeout time.Duration) {
+
+	cl.tlsClient.SetTimeout(timeout)
 }
 
 // NewUserAuthnHttpClient creates an instance of the authentication client to login and obtain

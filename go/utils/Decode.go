@@ -1,6 +1,7 @@
 package utils
 
 import (
+	"fmt"
 	"log/slog"
 
 	"github.com/cstockton/go-conv"
@@ -13,9 +14,11 @@ import (
 // This returns an error if conversion fails.
 func Decode(value any, arg any) (err error) {
 
-	if value == nil || arg == nil {
+	if value == nil {
 		arg = nil
 		return nil
+	} else if arg == nil {
+		return fmt.Errorf("Decode: can't decode value to a nil pointer")
 	}
 	switch a := arg.(type) {
 	case *bool:

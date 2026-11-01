@@ -300,7 +300,7 @@ func NewDirectoryServiceImpl(
 	slog.Info("NewDirectoryServiceImpl running the directory service")
 
 	if thingID == "" {
-		thingID = directory.DirectoryServiceDefaultThingID
+		thingID = directory.DefaultDirectoryServiceThingID
 	}
 
 	// create the directory TD from the json file

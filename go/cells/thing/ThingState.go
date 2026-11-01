@@ -42,7 +42,7 @@ func (tstate *ThingState) GetAllProperties() map[string]any {
 	return newMap
 }
 
-// Return a copy of all events
+// Return a copy of all events or nil if no events exist
 func (tstate *ThingState) GetAllEvents() map[string]*msg.NotificationMessage {
 	tstate.mux.RLock()
 	defer tstate.mux.RUnlock()
@@ -55,7 +55,9 @@ func (tstate *ThingState) GetEvent(name string) *msg.NotificationMessage {
 	tstate.mux.RLock()
 	defer tstate.mux.RUnlock()
 	notif, ok := tstate.events[name]
-	_ = ok
+	if !ok {
+		return nil
+	}
 	return notif
 }
 
@@ -64,6 +66,9 @@ func (tstate *ThingState) GetProperty(name string) (value any, found bool) {
 	tstate.mux.RLock()
 	defer tstate.mux.RUnlock()
 	val, ok := tstate.properties[name]
+	if !ok {
+		return nil, false
+	}
 	return val, ok
 }
 
@@ -89,7 +94,7 @@ func (tstate *ThingState) SetProperty(propName string, propVal any) {
 }
 
 // Create a new instance of a thing state
-func NewThingState(thingID string) *ThingState {
+func NewThingState() *ThingState {
 	tstate := &ThingState{
 		properties:     make(map[string]any),
 		events:         make(map[string]*msg.NotificationMessage),

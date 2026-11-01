@@ -46,49 +46,40 @@ type ExposedThing struct {
 
 	mux sync.RWMutex
 
-	// Map of the nested Things managed by this cell
-	tstates map[string]*ThingState
+	// The TD describing the properties, events and actions used here
+	// tdoc     *td.TD
+	// tdocJSON string
+
+	// Thing State with last known properties, events and actions of this thing
+	tstate *ThingState
 }
 
-// Return the state of a thing that is managed by this cell.
-// This cell is a Thing and can also manage nested things, like a 1-ware hardware
-// gateway managing 1-wire devices.
+// Return the JSON with the TD of this exposed thing and (optionally) all the things
+// that are managed by it.
+// Intended for use by consumers/gateway that want to know what is available,
+// espially from devices that manage nested Things like zwave, 1-wire, etc.
 //
-// thingID is the ID of a nested Thing or "" for the cell's Thing itself.
-//
-// If no entry for thingID yet exists, one is created.
-func (svc *ExposedThing) GetState(thingID string) *ThingState {
-	if thingID == "" {
-		thingID = svc.GetID()
-	}
-	svc.mux.RLock()
-	state, ok := svc.tstates[thingID]
-	svc.mux.RUnlock()
-	if !ok {
-		svc.mux.Lock()
-		state = NewThingState(thingID)
-		svc.tstates[thingID] = state
-		defer svc.mux.Unlock()
-	}
-	return state
+// List of TD's in JSON
+// func (eThing *ExposedThing) GetAllThings() []string {
+// 	return []string{eThing.tdocJSON}
+// }
+
+func (eThing *ExposedThing) GetProperty(name string) (val any, found bool) {
+	return eThing.GetProperty(name)
 }
 
 // HandleReadRequests handles reading of actions, events, and properties for a nested thing.
+//
 // This returns nil if the request was handled or an error if this is not a valid read request
 // or the thingID is unknown.
-func (svc *ExposedThing) HandleReadRequests(req *msg.RequestMessage, replyTo msg.ResponseHandler) (err error) {
-	var found bool
+//
+// Additional thingIDs can be supported by publishing their properties/events.
+func (eThing *ExposedThing) HandleReadRequests(req *msg.RequestMessage, replyTo msg.ResponseHandler) (err error) {
 	var output any
 
-	svc.mux.RLock()
-	defer svc.mux.RUnlock()
-	state, ok := svc.tstates[req.ThingID]
-	if !ok {
-		// no properties or events have been recorded;
-		// ething owner should use PubProperty or other method to create a tstate object.
-		err = fmt.Errorf("No properties for thingID '%s'", req.ThingID)
-		return err
-	}
+	eThing.mux.RLock()
+	defer eThing.mux.RUnlock()
+	state := eThing.tstate
 
 	switch req.Operation {
 
@@ -99,13 +90,13 @@ func (svc *ExposedThing) HandleReadRequests(req *msg.RequestMessage, replyTo msg
 		output = state.GetAllProperties()
 
 	case td.HTOpReadEvent:
-		output, found = state.events[req.Name]
-		if !found {
+		output = state.GetEvent(req.Name)
+		if output == nil {
 			err = fmt.Errorf("Unknown event '%s'", req.Name)
 		}
 
 	case td.OpReadProperty:
-		val, found := state.properties[req.Name]
+		val, found := state.GetProperty(req.Name)
 		output = val
 		if !found {
 			err = fmt.Errorf("Unknown property '%s'", req.Name)
@@ -120,6 +111,7 @@ func (svc *ExposedThing) HandleReadRequests(req *msg.RequestMessage, replyTo msg
 			break
 		}
 		props := make(map[string]any)
+		eThing.mux.RLock()
 		for _, k := range keys {
 			v, ok := state.properties[k]
 			if ok {
@@ -128,15 +120,17 @@ func (svc *ExposedThing) HandleReadRequests(req *msg.RequestMessage, replyTo msg
 				// fail or ignore invalid key? -> graceful degradation
 			}
 		}
+		eThing.mux.RUnlock()
 		output = props
 	case td.OpQueryAction:
-		actionResp, ok := state.actionResponse[req.Name]
-		if ok {
+		actionResp := state.GetActionResponse(req.Name)
+		if actionResp == nil {
 			err = fmt.Errorf("Unknown action: %s", req.Name)
 		}
 		output = actionResp
 	case td.OpQueryAllActions:
 		output = maps.Clone(state.actionResponse)
+
 	default:
 		// not handled
 		err = fmt.Errorf("Unhandled operation '%s'", req.Operation)
@@ -150,7 +144,7 @@ func (svc *ExposedThing) HandleReadRequests(req *msg.RequestMessage, replyTo msg
 // HandleRequest handles exposed thing requests with thingID set to this cellID.
 //
 // If a request hook is set then pass the request to the hook. If the hook does not handle the
-// request then it MUST forward it using ForwardRequest.
+// request then the hook MUST forward the request using ForwardRequest.
 //
 // This handles all property and event read operations and serves values that
 // were published with PubProperty and PubEvent. Non-observable properties
@@ -161,22 +155,22 @@ func (svc *ExposedThing) HandleReadRequests(req *msg.RequestMessage, replyTo msg
 // Cells that override HandleRequest should first handle the request itself and
 // only hand it over to this base method when there is nothing for them to do. This method
 // simply forwards the request if no request handler hook is set.
-func (svc *ExposedThing) HandleRequest(req *msg.RequestMessage, replyTo msg.ResponseHandler) (err error) {
+func (eThing *ExposedThing) HandleRequest(req *msg.RequestMessage, replyTo msg.ResponseHandler) (err error) {
 
 	// application can set a hook for handling all requests
-	svc.mux.RLock()
-	handler := svc.appRequestHook
-	svc.mux.RUnlock()
+	eThing.mux.RLock()
+	handler := eThing.appRequestHook
+	eThing.mux.RUnlock()
 
 	// invoke registered hook
 	if handler != nil {
 		err = handler(req, replyTo)
 		return err
 	}
-	if req.ThingID == svc.GetID() {
-		err = svc.HandleReadRequests(req, replyTo)
-	} else {
-		err = svc.ForwardRequest(req, replyTo)
+	err = eThing.HandleReadRequests(req, replyTo)
+	if err != nil {
+		// anything other than read requests is not handled here
+		err = eThing.ForwardRequest(req, replyTo)
 	}
 	return err
 }
@@ -184,22 +178,22 @@ func (svc *ExposedThing) HandleRequest(req *msg.RequestMessage, replyTo msg.Resp
 // PubActionProgress helper for things to send a 'running' ActionStatus notification
 //
 // This sends an ResponseMessage message with status of running.
-func (svc *ExposedThing) PubActionProgress(req msg.RequestMessage, value any) {
+func (eThing *ExposedThing) PubActionProgress(req msg.RequestMessage, value any) {
 	status := &msg.ResponseMessage{
 		Name:      req.Name,
 		Output:    value,
-		SenderID:  svc.GetID(),
+		SenderID:  eThing.GetID(),
 		Status:    msg.StatusRunning,
 		ThingID:   req.ThingID,
 		Timestamp: utils.FormatNowUTCMilli(),
 	}
 
 	resp := msg.NewNotificationMessage(
-		svc.GetID(), msg.AffordanceTypeAction, req.ThingID, req.Name, status)
+		eThing.GetID(), msg.AffordanceTypeAction, req.ThingID, req.Name, status)
 
-	svc.GetState(req.ThingID).SetActionResponse(req.Name, status)
+	eThing.tstate.SetActionResponse(req.Name, status)
 
-	svc.EmitNotification(resp)
+	eThing.EmitNotification(resp)
 }
 
 // PubEvent helper for things to publish an event to the server.
@@ -207,24 +201,24 @@ func (svc *ExposedThing) PubActionProgress(req msg.RequestMessage, value any) {
 //	thingID is the thing for which the cell publishes the properties or "" for the cell Thing itself.
 //	name is the name of the event to publish.
 //	value is the value of the event to publish, if any
-func (svc *ExposedThing) PubEvent(thingID string, name string, value any) {
+func (eThing *ExposedThing) PubEvent(thingID string, name string, value any) {
 
 	if thingID == "" {
-		thingID = svc.GetID()
+		thingID = eThing.GetID()
 	}
 
 	// This is a response to subscription request.
 	// for now assume this is a hub connection and the hub wants all events
 	notif := msg.NewNotificationMessage(
-		svc.GetID(), msg.AffordanceTypeEvent, thingID, name, value)
+		eThing.GetID(), msg.AffordanceTypeEvent, thingID, name, value)
 	slog.Info("PubEvent",
 		"thingID", thingID,
 		"name", name,
 		"value", notif.ToString(50),
 	)
-	svc.GetState(thingID).SetEvent(name, notif)
+	eThing.tstate.SetEvent(name, notif)
 
-	svc.EmitNotification(notif)
+	eThing.EmitNotification(notif)
 }
 
 // PubProperty publishes a property change notification to observers,
@@ -236,16 +230,15 @@ func (svc *ExposedThing) PubEvent(thingID string, name string, value any) {
 //	propName is the name of the property to publish.
 //	propValue is the value of the property to publish.
 //	onlyChanges flag only publish changed values.
-func (svc *ExposedThing) PubProperty(thingID string, propName string, propVal any, onlyChanges bool) {
+func (eThing *ExposedThing) PubProperty(thingID string, propName string, propVal any, onlyChanges bool) {
 
 	if thingID == "" {
-		thingID = svc.GetID()
+		thingID = eThing.GetID()
 	}
-	tstate := svc.GetState(thingID)
 	hasChanged := true
 	if onlyChanges {
 		// since most values are native types a simple compare should suffice
-		old, found := tstate.GetProperty(propName)
+		old, found := eThing.tstate.GetProperty(propName)
 		if found && old == propVal {
 			// if old != nil && reflect.DeepEqual(old, propVal) {
 			hasChanged = false
@@ -255,15 +248,15 @@ func (svc *ExposedThing) PubProperty(thingID string, propName string, propVal an
 		// This is a response to an observation request.
 		// send the property update as a response to the observe request
 		notif := msg.NewNotificationMessage(
-			svc.GetID(), msg.AffordanceTypeProperty, thingID, propName, propVal)
+			eThing.GetID(), msg.AffordanceTypeProperty, thingID, propName, propVal)
 		slog.Info("PubProperty",
 			"thingID", thingID,
 			"name", notif.Name,
 			"value", notif.ToString(50),
 		)
-		tstate.SetProperty(propName, notif.Data)
+		eThing.tstate.SetProperty(propName, notif.Data)
 
-		svc.EmitNotification(notif)
+		eThing.EmitNotification(notif)
 	}
 }
 
@@ -273,31 +266,55 @@ func (svc *ExposedThing) PubProperty(thingID string, propName string, propVal an
 //	thingID is the thing for which the cell publishes the properties, or "" for the cell itself
 //	propMap is the map of properties to handle
 //	onlyChanges flag only publish changed values
-func (svc *ExposedThing) PubProperties(thingID string, propMap map[string]any, onlyChanges bool) {
+func (eThing *ExposedThing) PubProperties(thingID string, propMap map[string]any, onlyChanges bool) {
 	if thingID == "" {
-		thingID = svc.GetID()
+		thingID = eThing.GetID()
 	}
 	for propName, propVal := range propMap {
-		svc.PubProperty(thingID, propName, propVal, onlyChanges)
+		eThing.PubProperty(thingID, propName, propVal, onlyChanges)
 	}
 }
 
-// Publish the exposed thing's TD to the directory.
-// This sends the directory UpdateTD request message to the cell request sink.
-func (svc *ExposedThing) PublishTD(tdoc *td.TD) error {
-	reqSink := svc.GetRequestSink()
-	if reqSink == nil {
-		return fmt.Errorf("PublishTD: No request sink set.")
-	}
-	tdJSON := tdoc.ToJSON()
-	// NOTE: if the directory thingID is unknown, leave it empty. If the connection exists then
-	// the update request will be passed down the chain of cells to the directory, which recognizes
-	// the request.
-	// Only if the router needs to route it, must the thingID be known.
-	directoryThingID := ""
-	err := svc.Rpc(td.OpInvokeAction, directoryThingID, directory.UpdateThingAction, tdJSON, nil)
-	return err
-}
+// Publish an event notification with the exposed thing's TD.
+//
+// Intended for use with reverse connected devices that publish their own TD. The gateway receives
+// the notification and passes it to the directory.
+// TD update notifications are not WoT standard, but then again, neither are RC devices.
+//
+// The notification approach is preferred within the HiveOT ecosystem because:
+//
+//	a) This removes the need for a 3rd party to update TDs.
+//	b) There is no need to support sending of requests by devices. Normally they only receive requests.
+//
+// See also WriteTD to send a TD update to the directory via the request flow.
+//
+// Problem: this is non-standard.
+// Alt-1: add ReadAllThings api to RC devices instead. Directory sends request to read them from
+// things when they connect.
+//
+//		pro: this uses the spec
+//		pro: also usable by others
+//		con: still non-standard, but
+//
+//	so devices are mini directories.
+// func (eThing *ExposedThing) PublishTD(tdoc *td.TD) {
+
+// 	// notifSink := eThing.GetNotificationSink()
+// 	// if notifSink == nil {
+// 	// 	slog.Warn("PublishTD: No notification sink set.")
+// 	// }
+// 	slog.Info("PublishTD", "thingID", tdoc.ID)
+
+// 	tdJSON := tdoc.ToJSON()
+
+// 	// This is a response to subscription request.
+// 	// for now assume this is a hub connection and the hub wants all events
+// 	notif := msg.NewNotificationMessage(
+// 		eThing.GetID(), msg.AffordanceTypeEvent, tdoc.ID, directory.UpdateThingEvent, tdJSON)
+// 	// eThing.GetState(thingID).SetEvent(name, notif)
+// 	eThing.EmitNotification(notif)
+
+// }
 
 // Set the hook to invoke when requests are received by this cell.
 //
@@ -310,10 +327,10 @@ func (svc *ExposedThing) PublishTD(tdoc *td.TD) error {
 // The hook MUST either call replyTo with the result or return an error.
 // Failure to do so results in the request being lost and the caller waiting
 // for a response until timeout.
-func (svc *ExposedThing) SetAppRequestHook(hook msg.RequestHandler) {
-	svc.mux.Lock()
-	defer svc.mux.Unlock()
-	svc.appRequestHook = hook
+func (eThing *ExposedThing) SetAppRequestHook(hook msg.RequestHandler) {
+	eThing.mux.Lock()
+	defer eThing.mux.Unlock()
+	eThing.appRequestHook = hook
 }
 
 // SetProperty updates the store property value so it can be read ReadProperty(ies).
@@ -326,22 +343,45 @@ func (svc *ExposedThing) SetAppRequestHook(hook msg.RequestHandler) {
 //	propValue is the value of the property to set.
 //
 // This returns a flag whether the property value has changed
-func (svc *ExposedThing) SetProperty(thingID string, propName string, propVal any) (changed bool) {
+func (eThing *ExposedThing) SetProperty(thingID string, propName string, propVal any) (changed bool) {
 
 	if thingID == "" {
-		thingID = svc.GetID()
+		thingID = eThing.GetID()
 	}
-	tstate := svc.GetState(thingID)
 
 	// since most values are native types a simple compare should suffice
 	hasChanged := true
-	old, found := tstate.GetProperty(propName)
+	old, found := eThing.tstate.GetProperty(propName)
 	if found && old == propVal {
 		// if old != nil && reflect.DeepEqual(old, propVal) {
 		hasChanged = false
 	}
-	tstate.SetProperty(propName, propVal)
+	eThing.tstate.SetProperty(propName, propVal)
 	return hasChanged
+}
+
+// Write the exposed thing's TD to the directory
+//
+// As per WoT recommendation, this sends an UpdateThing action request to the directory.
+//
+// Note that this requires that the linked transport sends the request to the
+// directory server.
+func (eThing *ExposedThing) WriteTD(tdoc *td.TD) error {
+
+	slog.Info("WriteTD", "thingID", tdoc.ID)
+
+	tdJSON := tdoc.ToJSON()
+
+	// NOTE: if the directory thingID is unknown, leave it empty. If the connection exists then
+	// the update request will be passed down the chain of cells to the directory, which recognizes
+	// the request.
+	// Only if the router needs to route it, must the thingID be known.
+	directoryThingID := ""
+	err := eThing.Rpc(td.OpInvokeAction, directoryThingID, directory.UpdateThingAction, tdJSON, nil)
+	if err != nil {
+		slog.Warn("PublishTD: Failed to update the directory", "err", err.Error())
+	}
+	return err
 }
 
 // NewExposedThing creates a ready to use exposed thing (device or service) instance
@@ -360,7 +400,7 @@ func NewExposedThing(thingID string, appReqHandler msg.RequestHandler) *ExposedT
 	ething := &ExposedThing{
 		// Things dont send requests so no wait
 		HiveCellBase: cells.NewHiveCellBase(thingID),
-		tstates:      make(map[string]*ThingState),
+		tstate:       NewThingState(),
 	}
 
 	if appReqHandler != nil {

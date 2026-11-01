@@ -7,8 +7,9 @@ import (
 )
 
 // Create a ready-to-use TLS server instance with the given configuration.
-func NewTLSServer(
-	cfg *TLSServerConfig, authenticator api.IAuthenticator) (api.IHttpServer, error) {
+func NewTLSServer(cfg *TLSServerConfig, authenticator api.IAuthenticator) (
+	api.IHttpServer, error) {
+
 	return NewTLSServerImpl(cfg, authenticator)
 }
 

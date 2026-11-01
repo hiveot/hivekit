@@ -53,8 +53,8 @@ func startService() (testEnv *testenv.TestEnv, stopFn func()) {
 
 	// chain server->director->rcrouter
 	transportServer.SetRequestSink(testDirSvc)
-	testDirSvc.SetNotificationSink(transportServer)
 	testDirSvc.SetRequestSink(rcrouter)
+	testDirSvc.SetNotificationSink(transportServer)
 	rcrouter.SetNotificationSink(testDirSvc)
 
 	testDirSvc.Start()
@@ -125,13 +125,11 @@ func TestReadRCDeviceProperties(t *testing.T) {
 	// publish the device TD to update the directory on the server.
 	// This writes the TD over the RC-connection.
 
-	err := ething.PublishTD(tdoc)
+	err := ething.WriteTD(tdoc)
 	require.NoError(t, err)
 
 	// 3. connect a consumer
-	co1, cc1, _ := testEnv.NewTestConsumer(consumerID, api.ClientRoleViewer)
-	err = cc1.Connect()
-	require.NoError(t, err)
+	co1, cc1, _ := testEnv.NewConnectedConsumer(consumerID, api.ClientRoleViewer)
 	defer cc1.Close()
 
 	// 4. Read the properties from the RC device

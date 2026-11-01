@@ -14,7 +14,7 @@ func (app *Cliex) ListAccount(clientID string) error {
 
 	// 2. Connect to the authn service
 	// the consumer recipe should already have it based on commandline.
-	authnAdmin := authn_client.NewAuthnAdminClient(authn.AuthnAdminServiceDefaultThingID, app.co)
+	authnAdmin := authn_client.NewAuthnAdminClient(authn.DefaultAuthnAdminThingID, app.co)
 	if clientID != "" {
 		prof, err := authnAdmin.GetProfile(clientID)
 		if err != nil {

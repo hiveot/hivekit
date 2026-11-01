@@ -77,21 +77,21 @@ type ServerConnectionBase struct {
 	Mux sync.RWMutex
 }
 
-func (scb *ServerConnectionBase) Disconnect() {
-	scb.isConnected.Store(false)
+func (base *ServerConnectionBase) Disconnect() {
+	base.isConnected.Store(false)
 }
 
-func (scb *ServerConnectionBase) GetClientID() string {
-	return scb.ClientID
+func (base *ServerConnectionBase) GetClientID() string {
+	return base.ClientID
 }
 
-func (scb *ServerConnectionBase) GetConnectionID() string {
-	return scb.ConnectionID
+func (base *ServerConnectionBase) GetConnectionID() string {
+	return base.ConnectionID
 }
 
 // // GetConnectionStatus returns the current connection status
-func (sc *ServerConnectionBase) GetConnectionStatus() api.ConnectionStatus {
-	if sc.isConnected.Load() {
+func (base *ServerConnectionBase) GetConnectionStatus() api.ConnectionStatus {
+	if base.isConnected.Load() {
 		return api.StatusConnected
 	}
 	return api.StatusLost
@@ -99,24 +99,24 @@ func (sc *ServerConnectionBase) GetConnectionStatus() api.ConnectionStatus {
 
 // HasSubscription returns true if this connection has subscribed to the given
 // event notification or observing property changes.
-func (scb *ServerConnectionBase) HasSubscription(notif *msg.NotificationMessage) bool {
+func (base *ServerConnectionBase) HasSubscription(notif *msg.NotificationMessage) bool {
 	switch notif.AffordanceType {
 
 	case msg.AffordanceTypeEvent:
-		correlationID := scb.subscriptions.GetSubscription(notif.ThingID, notif.Name)
+		correlationID := base.subscriptions.GetSubscription(notif.ThingID, notif.Name)
 		if correlationID != "" {
 			slog.Info("HasSubscription (event subscription) -> true",
-				slog.String("clientID", scb.ClientID),
+				slog.String("clientID", base.ClientID),
 				slog.String("thingID", notif.ThingID),
 				slog.String("event name", notif.Name),
 			)
 			return true
 		}
 	case msg.AffordanceTypeProperty:
-		correlationID := scb.observations.GetSubscription(notif.ThingID, notif.Name)
+		correlationID := base.observations.GetSubscription(notif.ThingID, notif.Name)
 		if correlationID != "" {
 			slog.Info("HasSubscription (observed property(ies)) -> true",
-				slog.String("clientID", scb.ClientID),
+				slog.String("clientID", base.ClientID),
 				slog.String("thingID", notif.ThingID),
 				slog.String("name", notif.Name),
 			)
@@ -125,7 +125,7 @@ func (scb *ServerConnectionBase) HasSubscription(notif *msg.NotificationMessage)
 	case msg.AffordanceTypeAction:
 		// action progress update, for original sender only
 		slog.Info("HasSubscription (action status) -> true",
-			slog.String("clientID", scb.ClientID),
+			slog.String("clientID", base.ClientID),
 			slog.String("thingID", notif.ThingID),
 			slog.String("name", notif.Name),
 		)
@@ -136,23 +136,23 @@ func (scb *ServerConnectionBase) HasSubscription(notif *msg.NotificationMessage)
 	return false
 }
 
-func (scb *ServerConnectionBase) IsConnected() bool {
-	return scb.isConnected.Load()
+func (base *ServerConnectionBase) IsConnected() bool {
+	return base.isConnected.Load()
 }
 
-func (scb *ServerConnectionBase) ObserveProperty(thingID, name string, corrID string) {
-	scb.observations.Subscribe(thingID, name, corrID)
+func (base *ServerConnectionBase) ObserveProperty(thingID, name string, corrID string) {
+	base.observations.Subscribe(thingID, name, corrID)
 }
 
 // OnNotification receives a notification from remote client (producer).
 // pass it on to the registered (upstream) notification handler.
 //
 // remote producer [notification] -> client<=>server -> _onNotification
-func (sc *ServerConnectionBase) OnNotification(
+func (base *ServerConnectionBase) OnNotification(
 	notif *msg.NotificationMessage, forwardTo msg.NotificationHandler) {
 
 	// sender is identified by the server, not the client
-	notif.SenderID = sc.GetClientID()
+	notif.SenderID = base.GetClientID()
 
 	// we might add some counters or handle special notifications here in the future.
 	forwardTo(notif)
@@ -161,37 +161,37 @@ func (sc *ServerConnectionBase) OnNotification(
 // OnRemoteMessage handles an incoming message from remote client.
 // The message is converted into a request, response or notification
 // by the provided encoder and and passed on to the registered handler.
-func (sc *ServerConnectionBase) OnRemoteMessage(raw []byte) {
+func (base *ServerConnectionBase) OnRemoteMessage(raw []byte) {
 
 	var err error
 	if raw == nil {
 		slog.Error("OnServerMessage: raw data is nil")
 	}
-	senderID := sc.GetClientID()
-	msgType := sc.messageEncoder.DetermineMessageType(raw)
+	senderID := base.GetClientID()
+	msgType := base.messageEncoder.DetermineMessageType(raw)
 
 	switch msgType {
 	case msg.MessageTypeNotification:
 		var notif *msg.NotificationMessage
-		notif, err = sc.messageEncoder.DecodeNotification(senderID, raw)
+		notif, err = base.messageEncoder.DecodeNotification(senderID, raw)
 		if err == nil {
-			sc.OnNotification(notif, sc.notifForwarder)
+			base.OnNotification(notif, base.notifForwarder)
 			return
 		}
 	case msg.MessageTypeRequest:
 		var req *msg.RequestMessage
-		req, err := sc.messageEncoder.DecodeRequest(senderID, raw)
+		req, err := base.messageEncoder.DecodeRequest(senderID, raw)
 		if err == nil {
-			req.SenderID = sc.GetClientID()
-			sc.OnRequest(req, sc.reqForwarder)
+			req.SenderID = base.GetClientID()
+			base.OnRequest(req, base.reqForwarder)
 			return
 		}
 	case msg.MessageTypeResponse:
 		var resp *msg.ResponseMessage
-		resp, err := sc.messageEncoder.DecodeResponse(senderID, raw)
+		resp, err := base.messageEncoder.DecodeResponse(senderID, raw)
 		if err == nil {
-			resp.SenderID = sc.GetClientID()
-			sc.OnResponse(resp)
+			resp.SenderID = base.GetClientID()
+			base.OnResponse(resp)
 			return
 		}
 	default:
@@ -208,14 +208,14 @@ func (sc *ServerConnectionBase) OnRemoteMessage(raw []byte) {
 //
 // All other requests are passed to the sink using the 'emitRequest' handler.
 // The reply is send back as a response message the sender.
-func (scb *ServerConnectionBase) OnRequest(
+func (base *ServerConnectionBase) OnRequest(
 	req *msg.RequestMessage, emitRequest msg.RequestHandler) error {
 
 	var resp *msg.ResponseMessage
 	var err error
 
 	// sender is identified by the server, not the client
-	req.SenderID = scb.GetClientID()
+	req.SenderID = base.GetClientID()
 	if req.Operation == "" {
 		err = fmt.Errorf("OnRequest: no operation ")
 		slog.Error(err.Error())
@@ -223,7 +223,7 @@ func (scb *ServerConnectionBase) OnRequest(
 	}
 
 	slog.Info("OnRequest",
-		slog.String("senderID", scb.ClientID),
+		slog.String("senderID", base.ClientID),
 		slog.String("op", req.Operation),
 		slog.String("thingID", req.ThingID),
 		slog.String("name", req.Name),
@@ -234,26 +234,26 @@ func (scb *ServerConnectionBase) OnRequest(
 		resp = req.CreateResponse("pong", nil)
 
 	case td.OpSubscribeEvent, td.OpSubscribeAllEvents:
-		scb.SubscribeEvent(req.ThingID, req.Name, req.CorrelationID)
+		base.SubscribeEvent(req.ThingID, req.Name, req.CorrelationID)
 		resp = req.CreateResponse(nil, nil)
 
 	case td.OpUnsubscribeEvent, td.OpUnsubscribeAllEvents:
-		scb.UnsubscribeEvent(req.ThingID, req.Name)
+		base.UnsubscribeEvent(req.ThingID, req.Name)
 		resp = req.CreateResponse(nil, nil)
 
 	case td.OpObserveProperty, td.OpObserveAllProperties:
-		scb.ObserveProperty(req.ThingID, req.Name, req.CorrelationID)
+		base.ObserveProperty(req.ThingID, req.Name, req.CorrelationID)
 		resp = req.CreateResponse(nil, nil)
 
 	case td.OpUnobserveProperty, td.OpUnobserveAllProperties:
-		scb.UnobserveProperty(req.ThingID, req.Name)
+		base.UnobserveProperty(req.ThingID, req.Name)
 		resp = req.CreateResponse(nil, nil)
 	default:
 		// this is not a subscription to notifications so pass it to the server sink.
 		err = emitRequest(req, func(reply *msg.ResponseMessage) error {
 			// the callback is async so handle it separately
 			if reply != nil {
-				return scb.SendResponse(reply)
+				return base.SendResponse(reply)
 			} else {
 				// not having a reply handler is an error
 				err := fmt.Errorf("onRequest: Sink response callback without response")
@@ -267,7 +267,7 @@ func (scb *ServerConnectionBase) OnRequest(
 		}
 	}
 	if resp != nil {
-		err = scb.SendResponse(resp)
+		err = base.SendResponse(resp)
 	}
 	if err != nil {
 		slog.Warn("Error handling request message", "err", err.Error())
@@ -283,19 +283,19 @@ func (scb *ServerConnectionBase) OnRequest(
 // for a response.
 // See also RnRChan.HandleResponse that does the heavy lifting.
 // This returns an error if RnR is not expecting a response with the correlationID
-func (sc *ServerConnectionBase) OnResponse(resp *msg.ResponseMessage) (err error) {
+func (base *ServerConnectionBase) OnResponse(resp *msg.ResponseMessage) (err error) {
 	// sender is identified by the server, not the client
-	resp.SenderID = sc.GetClientID()
+	resp.SenderID = base.GetClientID()
 
 	slog.Info("OnResponse (from Thing)",
-		slog.String("senderID", sc.ClientID),
+		slog.String("senderID", base.ClientID),
 		slog.String("op", resp.Operation),
 		slog.String("thingID", resp.ThingID),
 		slog.String("name", resp.Name),
 		slog.String("correlationID", resp.CorrelationID))
 
 	// this responsehandler points to the rnrChannel that matches the correlationID to the replyTo handler
-	handled := sc.rnrChan.HandleResponse(resp, sc.respTimeout)
+	handled := base.rnrChan.HandleResponse(resp, base.respTimeout)
 	if !handled {
 		err = fmt.Errorf("OnResponse: Response from thingID/name '%s/%s' is lost. CorrelationID '%s' is not known",
 			resp.ThingID, resp.Name, resp.CorrelationID)
@@ -304,25 +304,25 @@ func (sc *ServerConnectionBase) OnResponse(resp *msg.ResponseMessage) (err error
 }
 
 // SendNotification encodes the notifications and passes it to sendRaw
-func (sc *ServerConnectionBase) SendNotification(notif *msg.NotificationMessage) {
+func (base *ServerConnectionBase) SendNotification(notif *msg.NotificationMessage) {
 
-	if sc.HasSubscription(notif) {
+	if base.HasSubscription(notif) {
 		slog.Info("SendNotification",
-			slog.String("cid", sc.GetConnectionID()),
+			slog.String("cid", base.GetConnectionID()),
 			slog.String("senderID", notif.SenderID),
-			slog.String("clientID", sc.GetClientID()),
+			slog.String("clientID", base.GetClientID()),
 			slog.String("thingID", notif.ThingID),
 			slog.String("affordance", string(notif.AffordanceType)),
 			slog.String("name", notif.Name),
 		)
-		raw, err := sc.messageEncoder.EncodeNotification(notif)
+		raw, err := base.messageEncoder.EncodeNotification(notif)
 		if err == nil {
-			err = sc.sendRaw(msg.MessageTypeNotification, raw)
+			err = base.sendRaw(msg.MessageTypeNotification, raw)
 		}
 		if err != nil {
 			// maybe the connection dropped. It should have been removed though so something went wrong.
 			slog.Warn("SendNotification: Unable to send the notification to the client",
-				"clientID", sc.ClientID,
+				"clientID", base.ClientID,
 				"err", err.Error())
 		}
 	}
@@ -340,16 +340,16 @@ func (sc *ServerConnectionBase) SendNotification(notif *msg.NotificationMessage)
 // When a response is received it is passed to the replyTo handler.
 //
 // If this returns an error then no request was sent.
-func (sc *ServerConnectionBase) SendRequest(
+func (base *ServerConnectionBase) SendRequest(
 	req *msg.RequestMessage, replyTo msg.ResponseHandler) error {
 
-	raw, err := sc.messageEncoder.EncodeRequest(req)
+	raw, err := base.messageEncoder.EncodeRequest(req)
 	if err != nil {
 		return err
 	}
 	// without a replyTo simply send the request
 	if replyTo == nil {
-		err = sc.sendRaw(msg.MessageTypeRequest, raw)
+		err = base.sendRaw(msg.MessageTypeRequest, raw)
 		return err
 	}
 
@@ -359,19 +359,19 @@ func (sc *ServerConnectionBase) SendRequest(
 		req.CorrelationID = shortid.MustGenerate()
 	}
 	// the websocket connection response handlers will convert the message and pass it to the RNR channels
-	sc.rnrChan.WaitWithCallback(req.CorrelationID, sc.respTimeout, replyTo)
+	base.rnrChan.WaitWithCallback(req.CorrelationID, base.respTimeout, replyTo)
 
 	// now the RRN channel is ready, send the request message
-	err = sc.sendRaw(msg.MessageTypeRequest, raw)
+	err = base.sendRaw(msg.MessageTypeRequest, raw)
 	return err
 }
 
 // SendResponse sends a response to the remote client.
 // If this returns an error then no response was sent.
-func (sc *ServerConnectionBase) SendResponse(resp *msg.ResponseMessage) (err error) {
+func (base *ServerConnectionBase) SendResponse(resp *msg.ResponseMessage) (err error) {
 
 	slog.Info("SendResponse (server->client)",
-		slog.String("clientID", sc.ClientID),
+		slog.String("clientID", base.ClientID),
 		slog.String("correlationID", resp.CorrelationID),
 		slog.String("operation", resp.Operation),
 		slog.String("name", resp.Name),
@@ -380,25 +380,25 @@ func (sc *ServerConnectionBase) SendResponse(resp *msg.ResponseMessage) (err err
 		slog.String("senderID", resp.SenderID),
 	)
 
-	raw, _ := sc.messageEncoder.EncodeResponse(resp)
-	err = sc.sendRaw(msg.MessageTypeResponse, raw)
+	raw, _ := base.messageEncoder.EncodeResponse(resp)
+	err = base.sendRaw(msg.MessageTypeResponse, raw)
 	return err
 }
 
 // SetTimeout set the timeout sending requests
-func (sc *ServerConnectionBase) SetTimeout(timeout time.Duration) {
-	sc.respTimeout = timeout
+func (base *ServerConnectionBase) SetTimeout(timeout time.Duration) {
+	base.respTimeout = timeout
 }
 
 // Subscribe to an event.
-func (scb *ServerConnectionBase) SubscribeEvent(thingID, name string, corrID string) {
-	scb.subscriptions.Subscribe(thingID, name, corrID)
+func (base *ServerConnectionBase) SubscribeEvent(thingID, name string, corrID string) {
+	base.subscriptions.Subscribe(thingID, name, corrID)
 }
-func (scb *ServerConnectionBase) UnsubscribeEvent(thingID, name string) {
-	scb.subscriptions.Unsubscribe(thingID, name)
+func (base *ServerConnectionBase) UnsubscribeEvent(thingID, name string) {
+	base.subscriptions.Unsubscribe(thingID, name)
 }
-func (scb *ServerConnectionBase) UnobserveProperty(thingID, name string) {
-	scb.observations.Unsubscribe(thingID, name)
+func (base *ServerConnectionBase) UnobserveProperty(thingID, name string) {
+	base.observations.Unsubscribe(thingID, name)
 }
 
 // NewServerConnectionBase creates a server connection base that implements most of the

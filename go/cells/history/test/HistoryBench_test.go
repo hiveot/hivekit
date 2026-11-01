@@ -106,10 +106,8 @@ func BenchmarkAddEvents(b *testing.B) {
 
 		// test reading records
 		// readHist connects using transport protocol
-		co1, cc1, _ := testEnv.NewTestConsumer(
-			testClientID, api.ClientRoleOperator)
-		err := cc1.Connect()
-		require.NoError(b, err)
+		co1, cc1, _ := testEnv.NewConnectedConsumer(testClientID, api.ClientRoleOperator)
+		defer cc1.Close()
 
 		readHist := history_client.NewReadHistoryClient(co1)
 		defer co1.Stop()

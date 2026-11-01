@@ -20,7 +20,7 @@ import (
 const testDeviceID1 = "device1"
 const testClientID1 = "client1"
 
-var testProtocol = api.HiveotSseScProtocolType
+var testProtocol = api.HiveotGrpcTcpProtocolType
 
 var testProtocols = []string{
 	api.HiveotSseScProtocolType,
@@ -55,9 +55,7 @@ func TestStartStop(t *testing.T) {
 	testEnv, cancelFn := testenv.StartTestEnv(testProtocol, true)
 
 	defer cancelFn()
-	co1, cc1, _ := testEnv.NewTestConsumer(testClientID1, api.ClientRoleViewer)
-	err := cc1.Connect()
-	require.NoError(t, err)
+	co1, cc1, _ := testEnv.NewConnectedConsumer(testClientID1, api.ClientRoleViewer)
 	defer cc1.Close()
 	assert.NotNil(t, co1)
 
@@ -75,12 +73,10 @@ func TestPing(t *testing.T) {
 	testEnv, cancelFn := testenv.StartTestEnv(testProtocol, true)
 	defer cancelFn()
 	// NewTestConsumer creates a client
-	co1, cc1, _ := testEnv.NewTestConsumer(testClientID1, api.ClientRoleViewer)
-	err := cc1.Connect()
-	require.NoError(t, err)
+	co1, cc1, _ := testEnv.NewConnectedConsumer(testClientID1, api.ClientRoleViewer)
 	defer cc1.Close()
 
-	err = co1.Ping()
+	err := co1.Ping()
 	require.NoError(t, err)
 }
 
