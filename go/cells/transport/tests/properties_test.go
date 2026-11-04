@@ -16,6 +16,7 @@ import (
 	"github.com/hiveot/hivekit/go/cells/consumer"
 	"github.com/hiveot/hivekit/go/cells/thing"
 	"github.com/hiveot/hivekit/go/testenv"
+	"github.com/hiveot/hivekit/go/utils"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -181,7 +182,8 @@ func TestReadProperty(t *testing.T) {
 	ag := thing.NewExposedThing("", func(req *msg.RequestMessage, replyTo msg.ResponseHandler) error {
 		var resp *msg.ResponseMessage
 		if req.Operation == td.OpReadProperty && req.ThingID == thingID && req.Name == propKey {
-			resp = req.CreateResponse(propValue, nil)
+			tv := msg.ThingValue{Data: propValue, Timestamp: utils.FormatNowUTCMilli()}
+			resp = req.CreateResponse(tv, nil)
 			resp.Timestamp = timestamp
 		} else {
 			resp = req.CreateResponse(nil, errors.New("unexpected request"))
@@ -196,10 +198,9 @@ func TestReadProperty(t *testing.T) {
 	co1, cc1, _ := testEnv.NewConnectedConsumer(testClientID1, api.ClientRoleViewer)
 	defer cc1.Close()
 
-	var rxVal string
-	err := co1.ReadProperty(thingID, propKey, &rxVal)
+	tv, err := co1.ReadProperty(thingID, propKey)
 	require.NoError(t, err)
-	assert.Equal(t, propValue, rxVal)
+	assert.Equal(t, propValue, tv.Data)
 }
 
 // Consumer reads events from device
@@ -216,9 +217,9 @@ func TestReadAllProperties(t *testing.T) {
 	ag := thing.NewExposedThing("", func(req *msg.RequestMessage, replyTo msg.ResponseHandler) error {
 		var resp *msg.ResponseMessage
 		if req.Operation == td.OpReadAllProperties {
-			output := make(map[string]any)
-			output[name1] = value1
-			output[name2] = value2
+			output := make(map[string]msg.ThingValue)
+			output[name1] = msg.ThingValue{Data: value1, Timestamp: utils.FormatNowUTCMilli()}
+			output[name2] = msg.ThingValue{Data: value2, Timestamp: utils.FormatNowUTCMilli()}
 			resp = req.CreateResponse(output, nil)
 		} else {
 			resp = req.CreateResponse(nil, errors.New("unexpected request"))
@@ -236,6 +237,6 @@ func TestReadAllProperties(t *testing.T) {
 	propMap, err := co1.ReadAllProperties(thingID)
 	require.NoError(t, err)
 	require.Equal(t, 2, len(propMap))
-	require.Equal(t, value1, propMap[name1])
-	require.Equal(t, value2, propMap[name2])
+	require.Equal(t, value1, propMap[name1].Data)
+	require.Equal(t, value2, propMap[name2].Data)
 }

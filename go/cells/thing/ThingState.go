@@ -3,39 +3,42 @@ package thing
 import (
 	"maps"
 	"sync"
+	"time"
 
 	"github.com/hiveot/hivekit/go/api/msg"
+	"github.com/hiveot/hivekit/go/utils"
 )
 
-// ThingState holds the state values of a Thing and its nested Things.
+// ExposedThingState holds the state values of an exposed Thing.
 // Intended to support querying property and event values.
-type ThingState struct {
+type ExposedThingState struct {
 
-	// Thing property values.
-	properties map[string]any
+	// Thing property values
+	properties map[string]msg.ThingValue
 
-	// Thing event values (not a WoT operation)
+	// Thing event values
 	// Updated when an event is published.
-	events map[string]*msg.NotificationMessage
+	events map[string]msg.ThingValue
 
-	// Last thing actions response
-	// Updated when an action is processed
-	actionResponse map[string]*msg.ResponseMessage
+	// Last action requested by client
+	actions map[string]msg.ActionStatus
 
 	mux sync.RWMutex
 }
 
-// Obtain the latest action response or nil if name is not a known action
-func (tstate *ThingState) GetActionResponse(name string) *msg.ResponseMessage {
+// Obtain the latest action status or nil if name is not a known action
+func (tstate *ExposedThingState) GetActionStatus(name string) *msg.ActionStatus {
 	tstate.mux.RLock()
 	defer tstate.mux.RUnlock()
-	resp, ok := tstate.actionResponse[name]
-	_ = ok
-	return resp
+	req, ok := tstate.actions[name]
+	if !ok {
+		return nil
+	}
+	return &req
 }
 
-// Return a copy of all properties
-func (tstate *ThingState) GetAllProperties() map[string]any {
+// Return a copy of all property values
+func (tstate *ExposedThingState) GetAllProperties() map[string]msg.ThingValue {
 	tstate.mux.RLock()
 	defer tstate.mux.RUnlock()
 	newMap := maps.Clone(tstate.properties)
@@ -43,7 +46,7 @@ func (tstate *ThingState) GetAllProperties() map[string]any {
 }
 
 // Return a copy of all events or nil if no events exist
-func (tstate *ThingState) GetAllEvents() map[string]*msg.NotificationMessage {
+func (tstate *ExposedThingState) GetAllEvents() map[string]msg.ThingValue {
 	tstate.mux.RLock()
 	defer tstate.mux.RUnlock()
 	newMap := maps.Clone(tstate.events)
@@ -51,54 +54,56 @@ func (tstate *ThingState) GetAllEvents() map[string]*msg.NotificationMessage {
 }
 
 // Obtain the latest event notification or nil if name is not a known event
-func (tstate *ThingState) GetEvent(name string) *msg.NotificationMessage {
+func (tstate *ExposedThingState) GetEvent(name string) *msg.ThingValue {
 	tstate.mux.RLock()
 	defer tstate.mux.RUnlock()
-	notif, ok := tstate.events[name]
+	evValue, ok := tstate.events[name]
 	if !ok {
 		return nil
 	}
-	return notif
+	return &evValue
 }
 
 // Obtain the latest property value
-func (tstate *ThingState) GetProperty(name string) (value any, found bool) {
+func (tstate *ExposedThingState) GetProperty(name string) *msg.ThingValue {
 	tstate.mux.RLock()
 	defer tstate.mux.RUnlock()
 	val, ok := tstate.properties[name]
 	if !ok {
-		return nil, false
+		return nil
 	}
-	return val, ok
+	return &val
 }
 
-// Set the latest action response by name
-func (tstate *ThingState) SetActionResponse(name string, resp *msg.ResponseMessage) {
+// Update the emitted event value
+func (tstate *ExposedThingState) SetEvent(name string, value any) {
 	tstate.mux.Lock()
 	defer tstate.mux.Unlock()
-	tstate.actionResponse[name] = resp
+	ts := utils.FormatUTCMilli(time.Now())
+	tstate.events[name] = msg.ThingValue{
+		Data:      value,
+		Timestamp: ts,
+	}
 }
 
-// Set the latest event of a name
-func (tstate *ThingState) SetEvent(name string, notif *msg.NotificationMessage) {
+// Set the latest property value when received as a notification
+func (tstate *ExposedThingState) SetProperty(propName string, propVal any) {
 	tstate.mux.Lock()
 	defer tstate.mux.Unlock()
-	tstate.events[name] = notif
-}
-
-// Set the latest property notification
-func (tstate *ThingState) SetProperty(propName string, propVal any) {
-	tstate.mux.Lock()
-	defer tstate.mux.Unlock()
-	tstate.properties[propName] = propVal
+	ts := utils.FormatUTCMilli(time.Now())
+	val := msg.ThingValue{
+		Data:      propVal,
+		Timestamp: ts,
+	}
+	tstate.properties[propName] = val
 }
 
 // Create a new instance of a thing state
-func NewThingState() *ThingState {
-	tstate := &ThingState{
-		properties:     make(map[string]any),
-		events:         make(map[string]*msg.NotificationMessage),
-		actionResponse: make(map[string]*msg.ResponseMessage),
+func NewThingState() *ExposedThingState {
+	tstate := &ExposedThingState{
+		properties: make(map[string]msg.ThingValue),
+		events:     make(map[string]msg.ThingValue),
+		actions:    make(map[string]msg.ActionStatus),
 	}
 	return tstate
 }

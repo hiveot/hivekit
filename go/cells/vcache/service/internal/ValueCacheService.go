@@ -36,13 +36,7 @@ func (m *ValueCacheService) GetCacheStatus() vcache.CacheInfo {
 func (m *ValueCacheService) HandleNotification(notif *msg.NotificationMessage) {
 
 	// cache the notification values
-
-	switch notif.AffordanceType {
-	case msg.AffordanceTypeEvent:
-		m.WriteEvent(notif)
-	case msg.AffordanceTypeProperty:
-		m.WriteProperty(notif)
-	}
+	m.WriteValue(notif)
 	// forward the notification up the chain
 	m.ForwardNotification(notif)
 }
@@ -59,8 +53,8 @@ func (m *ValueCacheService) HandleNotification(notif *msg.NotificationMessage) {
 // Property read operations return the value itself while reading events returns
 // the notification itself, as the timestamp is important.
 func (m *ValueCacheService) HandleRequest(req *msg.RequestMessage, replyTo msg.ResponseHandler) (err error) {
-	var isCached bool
-	var value any
+	var found bool
+	var output any
 
 	// handle read requests
 	switch req.Operation {
@@ -68,21 +62,13 @@ func (m *ValueCacheService) HandleRequest(req *msg.RequestMessage, replyTo msg.R
 	case td.HTOpReadEvent:
 		// this is not a wot defined operation
 		// return the notification itself because the time of the event is relevant
-		notif := m.ReadEvent(req.ThingID, req.Name)
-		if notif != nil {
-			isCached = true
-			value = notif //.Data
-		}
+		output, found = m.ReadEvent(req.ThingID, req.Name)
 	case td.OpReadProperty:
-		// WoT specifies that read property returns the latest value
-		//
-		notif := m.ReadProperty(req.ThingID, req.Name)
-		if notif != nil {
-			isCached = true
-			value = notif.Data
-		}
+		// The protocol binding converts the output from ThingValue to whatever is specified
+		output, found = m.ReadProperty(req.ThingID, req.Name)
+
 	case td.OpReadMultipleProperties:
-		// WoT specifies that ReadMultipleProperties returns a map of [name]value
+		// The protocol binding converts the output from ThingValue to whatever is specified
 		var names []string
 		err := utils.DecodeAsObject(req.Input, &names)
 		if err != nil {
@@ -90,60 +76,48 @@ func (m *ValueCacheService) HandleRequest(req *msg.RequestMessage, replyTo msg.R
 			slog.Warn("HandleRequest: ReadMultipleProperties, missing names. Forwarding the request",
 				"senderID", req.SenderID, "thingID", req.ThingID)
 		} else {
-			// this only succeeds if all requested properties are available
-			notifMap, hasAllNames := m.ReadMultipleProperties(req.ThingID, names)
-			if hasAllNames {
-				propMap := make(map[string]any)
-				isCached = true
-				for name, notif := range notifMap {
-					propMap[name] = notif.Data
-				}
-				value = propMap
-			}
+			output, found = m.ReadMultipleProperties(req.ThingID, names)
 		}
 
 	case td.OpReadAllProperties:
 		// querying all properties is not supported as there is no knowledge of all possible
 		// properties.
-		isCached = false
+		found = false
 	}
 
-	if !isCached {
+	if !found {
 		// forward the request to the actual device
 		return m.ForwardRequest(req, replyTo)
 	}
 
 	// a cached notification was found
-	resp := req.CreateResponse(value, nil)
+	resp := req.CreateResponse(output, nil)
 	return replyTo(resp)
 }
 
 // ReadAction returns the latest cached action status.
-func (m *ValueCacheService) ReadAction(thingID string, name string) (notif *msg.NotificationMessage) {
+func (m *ValueCacheService) ReadAction(thingID string, name string) (as msg.ActionStatus, found bool) {
 
-	notif = m.store.ReadAction(thingID, name)
-	return notif
+	return m.store.ReadAction(thingID, name)
 }
 
 // ReadEvent returns the latest cached event value.
-func (m *ValueCacheService) ReadEvent(thingID string, name string) (notif *msg.NotificationMessage) {
+func (m *ValueCacheService) ReadEvent(thingID string, name string) (tv msg.ThingValue, found bool) {
 
-	notif = m.store.ReadEvent(thingID, name)
-	return notif
+	return m.store.ReadEvent(thingID, name)
 }
 
 // ReadProperty returns the last known cached notification of a property.
-func (m *ValueCacheService) ReadProperty(thingID string, name string) (notif *msg.NotificationMessage) {
+func (m *ValueCacheService) ReadProperty(thingID string, name string) (tv msg.ThingValue, found bool) {
 
-	notif = m.store.ReadProperty(thingID, name)
-	return notif
+	return m.store.ReadProperty(thingID, name)
 }
 
 // ReadMultipleProperties returns the value of cached properties.
 // This returns a map of available values and a 'isCached' flag if all values are available.
 // If not all requested values are available then isCached is false.
 func (m *ValueCacheService) ReadMultipleProperties(
-	thingID string, names []string) (v map[string]*msg.NotificationMessage, isCached bool) {
+	thingID string, names []string) (v map[string]msg.ThingValue, isCached bool) {
 
 	propMap, isCached := m.store.ReadMultipleProperties(thingID, names)
 	return propMap, isCached
@@ -162,13 +136,8 @@ func (m *ValueCacheService) WriteAction(req *msg.RequestMessage) {
 	m.store.WriteValue(notif)
 }
 
-// WriteEvent updates the event in the vcache
-func (m *ValueCacheService) WriteEvent(notif *msg.NotificationMessage) {
-	m.store.WriteValue(notif)
-}
-
-// WriteProperty updates the property in the vcache
-func (m *ValueCacheService) WriteProperty(notif *msg.NotificationMessage) {
+// WriteValue updates the propery, event or action in the vcache
+func (m *ValueCacheService) WriteValue(notif *msg.NotificationMessage) {
 	m.store.WriteValue(notif)
 }
 

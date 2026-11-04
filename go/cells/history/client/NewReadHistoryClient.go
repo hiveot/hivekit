@@ -32,14 +32,14 @@ func (cl *ReadHistoryClient) call(name string, input any, output any) error {
 	return cl.Rpc(td.OpInvokeAction, cl.histThingID, name, input, output)
 }
 
-// GetCursor obtains a cursor key to iterate using the iteration functions.
+// CreateCursor obtains a cursor key to iterate using the iteration functions.
 // This returns a release function that MUST be called after use.
 //
 // Cursor keys expire after a short period of inactivity. Defaults to 1 minute.
 //
 //	thingID the event or action belongs to
 //	filterOnName optiona; filter on a specific event or action name
-func (cl *ReadHistoryClient) GetCursor(thingID string, filterOnName string) (
+func (cl *ReadHistoryClient) CreateCursor(thingID string, filterOnName string) (
 	cursorKey string, releaseFn func(), err error) {
 
 	args := history.CreateCursorArgs{

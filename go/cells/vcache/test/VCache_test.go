@@ -64,9 +64,9 @@ func TestPropertyNotifications(t *testing.T) {
 	assert.Equal(t, 2, status.NrThings)
 
 	// test 1: reading a single property
-	notif := svc.ReadProperty(thing1ID, prop1Name)
-	require.NotNil(t, notif)
-	assert.Equal(t, prop1Value, notif.Data)
+	tv, found := svc.ReadProperty(thing1ID, prop1Name)
+	require.True(t, found)
+	assert.Equal(t, prop1Value, tv.Data)
 
 	// test 2: Thing2 should have multiple values
 	prop12Names := []string{prop1Name, prop2Name}
@@ -76,17 +76,17 @@ func TestPropertyNotifications(t *testing.T) {
 	assert.Equal(t, prop2Value, valueMap[prop2Name].Data)
 
 	// test 3: a read property request should be answered from the cache
-	var respValue string
+	var respValue msg.ThingValue
 	req := msg.NewRequestMessage(td.OpReadProperty, thing1ID, prop1Name, nil)
 	err = svc.HandleRequest(req, func(resp *msg.ResponseMessage) error {
 		err = resp.Decode(&respValue)
 		return err
 	})
 	assert.NoError(t, err)
-	assert.Equal(t, prop1Value, respValue)
+	assert.Equal(t, prop1Value, respValue.Data)
 
 	// test 4: a read multiple properties request should also be answered from the cache
-	var multiResp map[string]any
+	var multiResp map[string]msg.ThingValue
 	req = msg.NewRequestMessage(td.OpReadMultipleProperties, thing2ID, "", prop12Names)
 	err = svc.HandleRequest(req, func(resp *msg.ResponseMessage) error {
 		err = resp.Decode(&multiResp)
@@ -94,7 +94,7 @@ func TestPropertyNotifications(t *testing.T) {
 	})
 	require.NoError(t, err)
 	require.Equal(t, 2, len(multiResp))
-	require.Equal(t, prop1Value, multiResp[prop1Name])
+	require.Equal(t, prop1Value, multiResp[prop1Name].Data)
 }
 
 // Capture event notifications and retrieving their value
@@ -127,9 +127,9 @@ func TestEventNotifications(t *testing.T) {
 	assert.Equal(t, 2, status.NrThings)
 
 	// test 1: reading a single event notification
-	notif := svc.ReadEvent(thing1ID, ev1Name)
-	require.NotNil(t, notif)
-	assert.Equal(t, ev1Value, notif.Data)
+	tv, found := svc.ReadEvent(thing1ID, ev1Name)
+	require.True(t, found)
+	assert.Equal(t, ev1Value, tv.Data)
 
 	// test 2: RRN read request should return the value
 	req := msg.NewRequestMessage(td.HTOpReadEvent, thing1ID, ev1Name, nil)

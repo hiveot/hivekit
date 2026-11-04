@@ -3,10 +3,10 @@ package consumer
 import (
 	"fmt"
 
-	"github.com/hiveot/hivekit/go/api"
 	"github.com/hiveot/hivekit/go/api/msg"
 	"github.com/hiveot/hivekit/go/api/td"
 	"github.com/hiveot/hivekit/go/cells"
+	"github.com/hiveot/hivekit/go/cells/thing"
 )
 
 // A consumedThing is a local representation of a remote Thing
@@ -18,19 +18,39 @@ import (
 type ConsumedThing struct {
 	cells.HiveCellBase
 
-	tdoc       *td.TD
-	properties map[string]any
-	events     map[string]msg.NotificationMessage
+	tdoc  *td.TD
+	state thing.ExposedThingState
+	// properties map[string]*msg.NotificationMessage
+	// events     map[string]*msg.NotificationMessage
+
+	// co IConsumer
 }
 
-// Start and link a consumed thing
-func StartConsumedThing(thingID string, sink api.IHiveCell) (*ConsumedThing, error) {
-	ct := &ConsumedThing{
-		HiveCellBase: *cells.NewHiveCellBase(thingID),
+// HandleNotification captures the values
+func (ct *ConsumedThing) HandleNotification(notif *msg.NotificationMessage) {
+	switch notif.AffordanceType {
+	case msg.AffordanceTypeAction:
+		// ct.actions[notif.Name] = notif
+	case msg.AffordanceTypeEvent:
+		ct.state.SetEvent(notif.Name, notif)
+	case msg.AffordanceTypeProperty:
+		ct.state.SetProperty(notif.Name, notif)
 	}
-	if sink != nil {
-		ct.SetRequestSink(sink)
-		sink.SetNotificationSink(ct)
+}
+
+// Return a new consumed thing.
+// This subscribes to notification for the Things.
+func NewConsumedThing(tdoc *td.TD, co IConsumer) (*ConsumedThing, error) {
+	ct := &ConsumedThing{
+		HiveCellBase: *cells.NewHiveCellBase(tdoc.ID),
+	}
+
+	co.Subscribe(tdoc.ID, "")
+	co.ObserveProperty(tdoc.ID, "")
+
+	if co != nil {
+		ct.SetRequestSink(co)
+		co.SetNotificationSink(ct, tdoc.ID)
 	}
 	// TODO: Start the consumed thing, subscribe, etc,etc
 

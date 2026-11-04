@@ -112,10 +112,10 @@ func TestClientServerRecipes(t *testing.T) {
 	m2, err := clientFactory.NewCell(consumer.ConsumerCellType, true)
 	assert.NoError(t, err)
 	co := m2.(*consumer.Consumer)
-	var propValue string
-	err = co.ReadProperty(thingID, "fortytwo", &propValue)
-	assert.NoError(t, err)
-	assert.NotEmpty(t, propValue)
+
+	tv, err := co.ReadProperty(thingID, "fortytwo")
+	require.NoError(t, err)
+	assert.NotEmpty(t, tv.Data)
 
 }
 

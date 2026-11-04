@@ -12,10 +12,6 @@ import (
 // msg is the notification
 type NotificationHandler func(msg *NotificationMessage)
 
-// ResponseMessage, ActionStatus and ThingValue define the standardized messaging
-// envelopes for handling responses.
-// Each transport protocol bindings map this format to this specific format.
-
 // MessageTypeNotification identify the message as a notification.
 const MessageTypeNotification = "notification"
 
@@ -64,7 +60,7 @@ type NotificationMessage struct {
 	// ThingID of the thing that generated this notification.
 	ThingID string `json:"thingID"`
 
-	// Timestamp the notification was created
+	// RFC3339 millisecond timestamp the notification was created
 	Timestamp string `json:"timestamp,omitempty"`
 }
 
@@ -73,8 +69,7 @@ func (notif *NotificationMessage) ToString(maxlen int) string {
 	return utils.DecodeAsString(notif.Data, maxlen)
 }
 
-// Decode the value in the response
-// If the response contains an error, then this error is returned.
+// Decode the value in the notification
 func (notif *NotificationMessage) Decode(output any) error {
 	if notif == nil {
 		return fmt.Errorf("no data")

@@ -404,7 +404,7 @@ func TestSubscribeReconnectToDevice(t *testing.T) {
 
 	values, err = co.ReadAllProperties(deviceID)
 	assert.NoError(t, err)
-	assert.Equal(t, prop1Value2, values[prop1Name])
+	assert.Equal(t, prop1Value2, values[prop1Name].Data)
 
 	// on reconnect, subscription should remain intact and event should be received
 	// todo: should use channel with timeout as the time to receive varies.

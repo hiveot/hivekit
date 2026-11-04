@@ -11,7 +11,6 @@ import (
 	"github.com/hiveot/hivekit/go/api/td"
 	"github.com/hiveot/hivekit/go/cells"
 	"github.com/hiveot/hivekit/go/cells/directory"
-	"github.com/hiveot/hivekit/go/utils"
 	"github.com/teris-io/shortid"
 )
 
@@ -50,8 +49,8 @@ type ExposedThing struct {
 	// tdoc     *td.TD
 	// tdocJSON string
 
-	// Thing State with last known properties, events and actions of this thing
-	tstate *ThingState
+	// Exposed Thing State with last known properties, events and actions of this thing
+	state ExposedThingState
 }
 
 // Return the JSON with the TD of this exposed thing and (optionally) all the things
@@ -79,27 +78,27 @@ func (eThing *ExposedThing) HandleReadRequests(req *msg.RequestMessage, replyTo 
 
 	eThing.mux.RLock()
 	defer eThing.mux.RUnlock()
-	state := eThing.tstate
 
 	switch req.Operation {
 
 	case td.HTOpReadAllEvents:
-		output = state.GetAllEvents()
+		output = eThing.state.GetAllEvents()
 
 	case td.OpReadAllProperties:
-		output = state.GetAllProperties()
+		output = eThing.state.GetAllProperties()
 
 	case td.HTOpReadEvent:
-		output = state.GetEvent(req.Name)
+		output = eThing.state.GetEvent(req.Name)
 		if output == nil {
 			err = fmt.Errorf("Unknown event '%s'", req.Name)
 		}
 
 	case td.OpReadProperty:
-		val, found := state.GetProperty(req.Name)
-		output = val
-		if !found {
+		val := eThing.state.GetProperty(req.Name)
+		if val == nil {
 			err = fmt.Errorf("Unknown property '%s'", req.Name)
+		} else {
+			output = val.Data
 		}
 
 	case td.OpReadMultipleProperties:
@@ -113,7 +112,7 @@ func (eThing *ExposedThing) HandleReadRequests(req *msg.RequestMessage, replyTo 
 		props := make(map[string]any)
 		eThing.mux.RLock()
 		for _, k := range keys {
-			v, ok := state.properties[k]
+			v, ok := eThing.state.properties[k]
 			if ok {
 				props[k] = v
 			} else {
@@ -123,13 +122,14 @@ func (eThing *ExposedThing) HandleReadRequests(req *msg.RequestMessage, replyTo 
 		eThing.mux.RUnlock()
 		output = props
 	case td.OpQueryAction:
-		actionResp := state.GetActionResponse(req.Name)
-		if actionResp == nil {
+
+		actionStatus := eThing.state.GetActionStatus(req.Name)
+		if actionStatus == nil {
 			err = fmt.Errorf("Unknown action: %s", req.Name)
 		}
-		output = actionResp
+		output = actionStatus
 	case td.OpQueryAllActions:
-		output = maps.Clone(state.actionResponse)
+		output = maps.Clone(eThing.state.actions)
 
 	default:
 		// not handled
@@ -177,26 +177,16 @@ func (eThing *ExposedThing) HandleRequest(req *msg.RequestMessage, replyTo msg.R
 
 // PubActionProgress helper for things to send a 'running' ActionStatus notification
 //
-// This sends an ResponseMessage message with status of running.
-func (eThing *ExposedThing) PubActionProgress(req msg.RequestMessage, value any) {
-	status := &msg.ResponseMessage{
-		Name:      req.Name,
-		Output:    value,
-		SenderID:  eThing.GetID(),
-		Status:    msg.StatusRunning,
-		ThingID:   req.ThingID,
-		Timestamp: utils.FormatNowUTCMilli(),
-	}
+// This sends an Notification message with the action status
+func (eThing *ExposedThing) PubActionStatus(thingID string, name string, status msg.ActionStatus, value any) {
 
-	resp := msg.NewNotificationMessage(
-		eThing.GetID(), msg.AffordanceTypeAction, req.ThingID, req.Name, status)
+	notif := msg.NewNotificationMessage(
+		eThing.GetID(), msg.AffordanceTypeAction, thingID, name, status)
 
-	eThing.tstate.SetActionResponse(req.Name, status)
-
-	eThing.EmitNotification(resp)
+	eThing.EmitNotification(notif)
 }
 
-// PubEvent helper for things to publish an event to the server.
+// PubEvent helper for things to publish an event value to the server.
 //
 //	thingID is the thing for which the cell publishes the properties or "" for the cell Thing itself.
 //	name is the name of the event to publish.
@@ -216,7 +206,7 @@ func (eThing *ExposedThing) PubEvent(thingID string, name string, value any) {
 		"name", name,
 		"value", notif.ToString(50),
 	)
-	eThing.tstate.SetEvent(name, notif)
+	eThing.state.SetEvent(name, notif)
 
 	eThing.EmitNotification(notif)
 }
@@ -238,8 +228,8 @@ func (eThing *ExposedThing) PubProperty(thingID string, propName string, propVal
 	hasChanged := true
 	if onlyChanges {
 		// since most values are native types a simple compare should suffice
-		old, found := eThing.tstate.GetProperty(propName)
-		if found && old == propVal {
+		old := eThing.state.GetProperty(propName)
+		if old != nil && old.Data == propVal {
 			// if old != nil && reflect.DeepEqual(old, propVal) {
 			hasChanged = false
 		}
@@ -254,7 +244,7 @@ func (eThing *ExposedThing) PubProperty(thingID string, propName string, propVal
 			"name", notif.Name,
 			"value", notif.ToString(50),
 		)
-		eThing.tstate.SetProperty(propName, notif.Data)
+		eThing.state.SetProperty(propName, notif.Data)
 
 		eThing.EmitNotification(notif)
 	}
@@ -274,47 +264,6 @@ func (eThing *ExposedThing) PubProperties(thingID string, propMap map[string]any
 		eThing.PubProperty(thingID, propName, propVal, onlyChanges)
 	}
 }
-
-// Publish an event notification with the exposed thing's TD.
-//
-// Intended for use with reverse connected devices that publish their own TD. The gateway receives
-// the notification and passes it to the directory.
-// TD update notifications are not WoT standard, but then again, neither are RC devices.
-//
-// The notification approach is preferred within the HiveOT ecosystem because:
-//
-//	a) This removes the need for a 3rd party to update TDs.
-//	b) There is no need to support sending of requests by devices. Normally they only receive requests.
-//
-// See also WriteTD to send a TD update to the directory via the request flow.
-//
-// Problem: this is non-standard.
-// Alt-1: add ReadAllThings api to RC devices instead. Directory sends request to read them from
-// things when they connect.
-//
-//		pro: this uses the spec
-//		pro: also usable by others
-//		con: still non-standard, but
-//
-//	so devices are mini directories.
-// func (eThing *ExposedThing) PublishTD(tdoc *td.TD) {
-
-// 	// notifSink := eThing.GetNotificationSink()
-// 	// if notifSink == nil {
-// 	// 	slog.Warn("PublishTD: No notification sink set.")
-// 	// }
-// 	slog.Info("PublishTD", "thingID", tdoc.ID)
-
-// 	tdJSON := tdoc.ToJSON()
-
-// 	// This is a response to subscription request.
-// 	// for now assume this is a hub connection and the hub wants all events
-// 	notif := msg.NewNotificationMessage(
-// 		eThing.GetID(), msg.AffordanceTypeEvent, tdoc.ID, directory.UpdateThingEvent, tdJSON)
-// 	// eThing.GetState(thingID).SetEvent(name, notif)
-// 	eThing.EmitNotification(notif)
-
-// }
 
 // Set the hook to invoke when requests are received by this cell.
 //
@@ -351,12 +300,12 @@ func (eThing *ExposedThing) SetProperty(thingID string, propName string, propVal
 
 	// since most values are native types a simple compare should suffice
 	hasChanged := true
-	old, found := eThing.tstate.GetProperty(propName)
-	if found && old == propVal {
+	old := eThing.state.GetProperty(propName)
+	if old != nil && old.Data == propVal {
 		// if old != nil && reflect.DeepEqual(old, propVal) {
 		hasChanged = false
 	}
-	eThing.tstate.SetProperty(propName, propVal)
+	eThing.state.SetProperty(propName, propVal)
 	return hasChanged
 }
 
@@ -400,7 +349,7 @@ func NewExposedThing(thingID string, appReqHandler msg.RequestHandler) *ExposedT
 	ething := &ExposedThing{
 		// Things dont send requests so no wait
 		HiveCellBase: cells.NewHiveCellBase(thingID),
-		tstate:       NewThingState(),
+		state:        *NewThingState(),
 	}
 
 	if appReqHandler != nil {

@@ -14,12 +14,12 @@ import (
 )
 
 // Cell environment
-type CellEnv struct {
-	// Application home directory
-	HomeDirectory string
-	// Application storage directory
-	StorageDirectory string
-}
+// type CellEnv struct {
+// 	// Application home directory
+// 	HomeDirectory string
+// 	// Application storage directory
+// 	StorageDirectory string
+// }
 
 // HiveCellBase implements the boilerplate of operating a cell.
 // This implements the IHiveCell interface.
@@ -48,7 +48,7 @@ type HiveCellBase struct {
 	mux sync.RWMutex
 
 	// requestSink is the cell to forward requests messages to
-	requestSink api.IHiveCell
+	requestSink atomic.Pointer[api.IHiveCell]
 
 	rpcTimeout time.Duration
 }
@@ -79,9 +79,7 @@ func (base *HiveCellBase) EmitRequest(req *msg.RequestMessage, replyTo msg.Respo
 	if req.CorrelationID == "" {
 		req.CorrelationID = shortid.MustGenerate()
 	}
-	base.mux.RLock()
-	sink := base.requestSink
-	base.mux.RUnlock()
+	sink := base.requestSink.Load()
 	if sink == nil {
 		return fmt.Errorf("EmitRequest: request '%s/%s' to thingID '%s' is undeliverable by cell '%s'",
 			req.Operation, req.Name, req.ThingID, base.cellID)
@@ -90,7 +88,7 @@ func (base *HiveCellBase) EmitRequest(req *msg.RequestMessage, replyTo msg.Respo
 		slog.Warn("EmitRequest: no replyTo handler provided",
 			"cellID", base.cellID, "req.Sender", req.SenderID, "req.ThingID", req.ThingID)
 	}
-	err = sink.HandleRequest(req, replyTo)
+	err = (*sink).HandleRequest(req, replyTo)
 	return err
 }
 
@@ -151,9 +149,7 @@ func (base *HiveCellBase) ForwardNotification(notif *msg.NotificationMessage) {
 // If no sink os configured this returns an not-deliverable error
 func (base *HiveCellBase) ForwardRequest(req *msg.RequestMessage, replyTo msg.ResponseHandler) (err error) {
 	if base.forwardRequests.Load() {
-		base.mux.RLock()
-		sink := base.requestSink
-		base.mux.RUnlock()
+		sink := base.requestSink.Load()
 		if sink == nil {
 			// end of the line
 			return fmt.Errorf("ForwardRequest: request '%s/%s' to thingID '%s' is undeliverable by cell '%s'",
@@ -163,7 +159,7 @@ func (base *HiveCellBase) ForwardRequest(req *msg.RequestMessage, replyTo msg.Re
 			slog.Warn("ForwardRequest: no replyTo handler provided",
 				"cellID", base.cellID, "req.Sender", req.SenderID, "req.ThingID", req.ThingID)
 		}
-		err = sink.HandleRequest(req, replyTo)
+		err = (*sink).HandleRequest(req, replyTo)
 	} else {
 		// forwarding is disabled
 		err = fmt.Errorf("ForwardRequest: forwarding is disabled. request '%s/%s' to thingID '%s' is undeliverable by cell '%s'",
@@ -183,9 +179,8 @@ func (base *HiveCellBase) GetNotificationSink() api.IHiveCell {
 
 // GetRequestSink returns the cell's request sink
 func (base *HiveCellBase) GetRequestSink() api.IHiveCell {
-	base.mux.RLock()
-	defer base.mux.RUnlock()
-	return base.requestSink
+	cellPtr := *base.requestSink.Load()
+	return cellPtr
 }
 
 // GetID returns the cell's thingID
@@ -278,15 +273,17 @@ func (base *HiveCellBase) SetNotificationSink(sink api.IHiveCell, thingIDs ...st
 // SetRequestSink sets the handler for requests send or forwarded by this cell.
 //
 //	requestSink is the sink that will handle requests and send notifications
-func (base *HiveCellBase) SetRequestSink(requestSink api.IHiveCell) {
+func (base *HiveCellBase) SetRequestSink(newSink api.IHiveCell) {
 	base.mux.Lock()
 	defer base.mux.Unlock()
+
 	// to be determined if there is a use-case for replacing the sink
-	if base.requestSink != nil {
+	sinkPtr := base.requestSink.Load()
+	if sinkPtr != nil {
 		slog.Warn("SetRequestSink: Overriding existing request sink",
 			"cellID", base.GetID())
 	}
-	base.requestSink = requestSink
+	base.requestSink.Store(&newSink)
 }
 
 // SetTimeout changes the timeout when waiting for result.

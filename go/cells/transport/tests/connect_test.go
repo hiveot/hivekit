@@ -20,7 +20,7 @@ import (
 const testDeviceID1 = "device1"
 const testClientID1 = "client1"
 
-var testProtocol = api.HiveotGrpcTcpProtocolType
+var testProtocol = api.HiveotWebsocketProtocolType
 
 var testProtocols = []string{
 	api.HiveotSseScProtocolType,

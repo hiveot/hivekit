@@ -3,7 +3,9 @@ package utils
 import (
 	"fmt"
 	"log/slog"
+	"time"
 
+	"github.com/araddon/dateparse"
 	"github.com/cstockton/go-conv"
 	jsoniter "github.com/json-iterator/go"
 )
@@ -53,6 +55,35 @@ func Decode(value any, arg any) (err error) {
 	return err
 }
 
+// DecodeAsBool converts the value to a boolean.
+// If value is already a boolean then it is returned as-is.
+func DecodeAsBool(value any) bool {
+	asBool, err := conv.Bool(value)
+	if err != nil {
+		slog.Warn("Can't convert value to a boolean", "value", value)
+	}
+	return asBool
+}
+
+// DecodeAsTime converts teh value to local time.
+// Value must be a string compatible with RFC3339
+func DecodeAsTime(value string) (time.Time, error) {
+	timestamp, err := dateparse.ParseAny(value)
+	return timestamp.Local(), err
+}
+
+// DecodeAsInt converts the value to an integer.
+// This accepts int, int64, *int, bool, uint, float32/64
+// If value is already an integer then it is returned as-is.
+// If value > int (eg int64) then the result is unpredicable
+func DecodeAsInt(value any) int {
+	asInt, err := conv.Int(value)
+	if err != nil {
+		slog.Warn("Can't convert value to a integer", "value", value)
+	}
+	return asInt
+}
+
 // DecodeAsString converts the value to a string
 // if value is already a string then it is returned as-is
 // if maxlen is provided then limit the resulting length and add ... if exceeded. Use 0 for all.
@@ -79,28 +110,6 @@ func DecodeAsString(value any, maxlen int) string {
 		return asString
 	}
 	return asString[:maxlen-3] + "..."
-}
-
-// DecodeAsBool converts the value to a boolean.
-// If value is already a boolean then it is returned as-is.
-func DecodeAsBool(value any) bool {
-	asBool, err := conv.Bool(value)
-	if err != nil {
-		slog.Warn("Can't convert value to a boolean", "value", value)
-	}
-	return asBool
-}
-
-// DecodeAsInt converts the value to an integer.
-// This accepts int, int64, *int, bool, uint, float32/64
-// If value is already an integer then it is returned as-is.
-// If value > int (eg int64) then the result is unpredicable
-func DecodeAsInt(value any) int {
-	asInt, err := conv.Int(value)
-	if err != nil {
-		slog.Warn("Can't convert value to a integer", "value", value)
-	}
-	return asInt
 }
 
 // DecodeAsUInt converts the value to an unsigned integer.

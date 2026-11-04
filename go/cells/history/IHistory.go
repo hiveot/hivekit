@@ -121,10 +121,10 @@ type IHistoryService interface {
 	//
 	//  thingID identifies the thing whose affordance data is stored
 	//  affName is the affordance to read, or "" to read all stored props, events and actions
-	//  timestamp is the start time to read from
+	//  startTime is the start time to read from
 	//  durationSec is the time period to read in seconds
 	//  limit is the maximum number of values to read
-	ReadHistory(thingID string, affName string, timestamp time.Time, durationSec int, limit int) (
+	ReadHistory(thingID string, affName string, startTime time.Time, durationSec int, limit int) (
 		valueList []*msg.NotificationMessage, itemsRemaining bool, err error)
 
 	// Release releases the cursor and frees its resources.

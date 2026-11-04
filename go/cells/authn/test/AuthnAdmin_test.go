@@ -15,56 +15,15 @@ import (
 var serverPort int = 9445
 var testCerts certstest.TestCertBundle
 var testClientID1 = "client1"
-var rpcTimeout = time.Minute * 3
 
 const TestKeyType = utils.KeyTypeED25519
-
-// TestMain creates a test environment
-// Used for all test cases in this package
-// func TestMain(m *testing.M) {
-// 	utils.SetLogging("info", "")
-// 	res := m.Run()
-// 	if res == 0 {
-// 		_ = os.RemoveAll(testDir)
-// 	}
-// 	os.Exit(res)
-// }
-
-// NewTestConsumer creates a new connected consumer client with the given ID.
-// The transport server must be started first.
-//
-// This uses the clientID as password
-// This panics if a client cannot be created
-// func NewTestConsumer(m *service.AuthnService, protocolType, serverURL, clientID string) (
-// 	*consumer.Consumer, api.ITransportClient, string) {
-
-// 	// ensure the client exists
-// 	_ = m.AddClient(clientID, "client 1", api.ClientRoleViewer)
-// 	sm := m.GetSessionManager()
-// 	token, validUntil, _ := sm.CreateToken(clientID, time.Minute)
-// 	_ = validUntil
-// 	co, cc, err := clients.NewConsumerConnection(
-// 		appID, protocolType, serverURL, nil, testCerts.CaCert, rpcTimeout)
-// 	if err != nil {
-// 		panic("Failed creating consumer connection: " + err.Error())
-// 	}
-// 	cc.SetAuthToken(clientID, token)
-
-// 	return co, cc, token
-// }
-
-// NOTE: this uses default settings from Authn_test.go
 
 // Test the admin messaging interface
 // Manage users
 func TestAddRemoveClientsSuccess(t *testing.T) {
 	t.Logf("---%s---\n", t.Name())
 	deviceID := "device1"
-	// devicePrivKey, devicePubKey := utils.NewKey(utils.KeyTypeECDSA)
-	// _ = devicePrivKey
 	serviceID := "service1"
-	// servicePrivKey, servicePubKey := utils.NewKey(utils.KeyTypeECDSA)
-	// _ = servicePrivKey
 
 	_, authnSvc, stopFn := startTestAuthnServices(defaultHash)
 	adminSvc := authnSvc.GetAdminService()

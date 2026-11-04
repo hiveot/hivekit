@@ -9,6 +9,7 @@ import (
 	"github.com/hiveot/hivekit/go/api/msg"
 	"github.com/hiveot/hivekit/go/api/td"
 	"github.com/hiveot/hivekit/go/testenv"
+	"github.com/hiveot/hivekit/go/utils"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -54,8 +55,11 @@ func TestReadTDFromDevice(t *testing.T) {
 	deviceReqHandler := func(req *msg.RequestMessage, replyTo msg.ResponseHandler) error {
 		t.Log("Received request: " + req.Operation)
 		if req.Operation == td.OpReadProperty && req.Name == "td" {
-			tdJSON := td1.ToJSON()
-			resp := req.CreateResponse(tdJSON, nil)
+			propInfo := msg.ThingValue{
+				Data:      td1.ToJSON(),
+				Timestamp: utils.FormatNowUTCMilli(),
+			}
+			resp := req.CreateResponse(propInfo, nil)
 			return replyTo(resp)
 		} else {
 			resp := req.CreateResponse(nil,
@@ -69,11 +73,10 @@ func TestReadTDFromDevice(t *testing.T) {
 	co, cc1, _ := testEnv.NewConnectedConsumer(consumerID, "somerole")
 	defer cc1.Close()
 
-	var rxTDJson string
-	err := co.ReadProperty(thingID, "td", &rxTDJson)
+	tv, err := co.ReadProperty(thingID, "td")
 	require.NoError(t, err)
 
-	rxTDoc, err := td.UnmarshalTD(rxTDJson)
+	rxTDoc, err := td.UnmarshalTD(tv.Data.(string))
 	require.NoError(t, err)
 
 	assert.Equal(t, td1.ID, rxTDoc.ID)

@@ -103,7 +103,7 @@ type CursorNResp struct {
 type CursorSeekArgs struct {
 	// Cursor identifier obtained with CreateCursor
 	CursorKey string `json:"cursorKey"`
-	// timestamp in rfc8601 format
+	// timestamp in RFC3339 format
 	Timestamp string `json:"timeStamp"`
 }
 

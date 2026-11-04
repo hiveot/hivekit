@@ -60,7 +60,7 @@ type TD struct {
 	// Base: The base URI that is used for all relative URI references throughout a TD document.
 	Base string `json:"base,omitempty"`
 
-	// ISO8601 timestamp this document was first created. See also 'Modified'.
+	// RFC3339 timestamp this document was first created. See also 'Modified'.
 	Created string `json:"created,omitempty"`
 
 	// Describe the device in the default human-readable language.
@@ -84,7 +84,7 @@ type TD struct {
 
 	// links: todo
 
-	// ISO8601 timestamp this document was last modified. See also 'Created'.
+	// RFC3339 timestamp this document was last modified. See also 'Created'.
 	Modified string `json:"modified,omitempty"`
 
 	// Indicates the WoT Profile mechanisms followed by this Thing Description and

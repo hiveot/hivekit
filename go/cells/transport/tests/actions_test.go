@@ -220,12 +220,11 @@ func TestQueryActions(t *testing.T) {
 		switch req.Operation {
 		case td.OpQueryAction:
 			// reply a response carrying the queried action status
-			actStat := &msg.ResponseMessage{
-				ThingID:   req.ThingID,
-				Name:      req.Name,
-				Output:    testMsg1,
-				Status:    msg.StatusCompleted,
-				Timestamp: utils.FormatNowUTCMilli(),
+			actStat := &msg.ActionStatus{
+				Output:        testMsg1,
+				Status:        msg.StatusCompleted,
+				TimeRequested: utils.FormatNowUTCMilli(),
+				TimeEnded:     utils.FormatNowUTCMilli(),
 			}
 
 			resp = req.CreateResponse(actStat, nil)
@@ -233,32 +232,29 @@ func TestQueryActions(t *testing.T) {
 			//replyTo.SendResponse(msg.ThingID, msg.Name, output, msg.CorrelationID)
 		case td.OpQueryAllActions:
 			// include an error status to ensure encode/decode of an error status works
-			actStat := map[string]msg.ResponseMessage{
+			actStat := map[string]msg.ActionStatus{
 				actionKey: {
-					ThingID:   req.ThingID,
-					Name:      actionKey,
-					Output:    testMsg1,
-					Status:    msg.StatusCompleted,
-					Timestamp: utils.FormatNowUTCMilli(),
+					Output:        testMsg1,
+					Status:        msg.StatusCompleted,
+					TimeRequested: utils.FormatNowUTCMilli(),
+					TimeEnded:     utils.FormatNowUTCMilli(),
 				},
 				"action-2": {
-					ThingID: req.ThingID,
-					Name:    "action-2",
 					Error: &msg.ErrorValue{
 						Status: http.StatusBadRequest,
 						Type:   "http://testerror/",
 						Title:  "Testing error",
 						Detail: "test error detail",
 					},
-					Status:    msg.StatusFailed,
-					Timestamp: utils.FormatNowUTCMilli(),
+					Status:        msg.StatusFailed,
+					TimeRequested: utils.FormatNowUTCMilli(),
+					TimeEnded:     utils.FormatNowUTCMilli(),
 				},
 				"action-3": {
-					ThingID:   req.ThingID,
-					Name:      "action-3",
-					Output:    "other output",
-					Status:    msg.StatusCompleted,
-					Timestamp: utils.FormatNowUTCMilli(),
+					Output:        "other output",
+					Status:        msg.StatusCompleted,
+					TimeRequested: utils.FormatNowUTCMilli(),
+					TimeEnded:     utils.FormatNowUTCMilli(),
 				}}
 			// the action status map is the payload for the action response.
 			// the action response itself is also an action status object.
@@ -275,15 +271,15 @@ func TestQueryActions(t *testing.T) {
 	co1, cc1, _ := testEnv.NewConnectedConsumer(testClientID1, api.ClientRoleViewer)
 	defer cc1.Close()
 
-	// 3. Query action status
-	status, err := co1.QueryAction(thingID, actionKey)
+	// 3. Query action as
+	as, err := co1.QueryAction(thingID, actionKey)
 	// err := co1.Rpc(td.OpQueryAction, thingID, actionKey, nil, &status)
 	require.NoError(t, err)
-	require.Equal(t, thingID, status.ThingID)
-	require.Equal(t, actionKey, status.Name)
+	require.Equal(t, msg.StatusCompleted, as.Status)
+	require.NotEmpty(t, as.TimeEnded)
 
 	// 4. Query all actions
-	var statusMap map[string]msg.ResponseMessage
+	var statusMap map[string]msg.ActionStatus
 	statusMap, err = co1.QueryAllActions(thingID)
 	// err = co1.Rpc(td.OpQueryAllActions, thingID, actionKey, nil, &statusMap)
 	require.NoError(t, err)

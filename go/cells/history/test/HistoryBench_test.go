@@ -117,7 +117,7 @@ func BenchmarkAddEvents(b *testing.B) {
 			func(b *testing.B) {
 				for n := 0; n < b.N; n++ {
 
-					cursorKey, releaseFn, _ := readHist.GetCursor(thing0ID, "")
+					cursorKey, releaseFn, _ := readHist.CreateCursor(thing0ID, "")
 					v, valid, _ := readHist.First(cursorKey)
 					for i := 0; i < tbl.nrSets-1; i++ {
 						v, valid, _ = readHist.Next(cursorKey)
@@ -137,7 +137,7 @@ func BenchmarkAddEvents(b *testing.B) {
 			func(b *testing.B) {
 				for n := 0; n < b.N; n++ {
 
-					cursorKey, releaseFn, err := readHist.GetCursor(thing0ID, "")
+					cursorKey, releaseFn, err := readHist.CreateCursor(thing0ID, "")
 					require.NoError(b, err)
 					tv, _, _ := readHist.First(cursorKey)
 					assert.NotEmpty(b, tv)

@@ -371,6 +371,13 @@ func (env *HiveEnvironment) Print(verbose int) {
 	fmt.Println("")
 }
 
+// SetAuthToken Sets the client authentication token.
+//
+// Use to manually set a token for this connection
+func (env *HiveEnvironment) SetAuthToken(newToken string) {
+	env.authToken = newToken
+}
+
 // Set the CA certificate and add it to the cert pool
 // The updates the environment root CA pool.
 func (env *HiveEnvironment) SetCACert(caCert *x509.Certificate) {

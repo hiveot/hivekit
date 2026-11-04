@@ -187,9 +187,6 @@ func (testEnv *TestEnv) NewConnectedConsumer(clientID string, role string) (
 	co = consumer.NewConsumer(cl, nil)
 	co.SetTimeout(testEnv.Env.RpcTimeout)
 
-	co.SetRequestSink(cl)
-	cl.SetNotificationSink(co)
-
 	err := cl.Connect()
 	if err != nil {
 		panic("Connection failed unexpectedly: " + err.Error())

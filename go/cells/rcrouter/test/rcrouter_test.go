@@ -136,7 +136,7 @@ func TestReadRCDeviceProperties(t *testing.T) {
 	values, err := co1.ReadAllProperties(eThingID)
 	assert.NoError(t, err)
 	require.Equal(t, 1, len(values))
-	require.Equal(t, prop1Value, values[prop1Name])
+	require.Equal(t, prop1Value, values[prop1Name].Data)
 
 	// todo: handle writeproperty in exposed thing
 	// co1.WriteProperty(eThingID, testenv.CounterPropName, 33, true)

@@ -77,7 +77,7 @@ type RequestMessage struct {
 	// This field is required.
 	ThingID string `json:"thingID"`
 
-	// Timestamp the request was created in UTC.
+	// RFC3339Milli Timestamp the request was created in UTC.
 	// This MUST be set by the transport server when received, if not provided.
 	Timestamp string `json:"created"`
 }

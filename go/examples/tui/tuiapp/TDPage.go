@@ -35,7 +35,7 @@ func (page *TDPage) onFocus() {
 // TODO: Change to grid and use a tree menu for properties, events, and actions
 // TODO: table should have scroll indicators
 func (page *TDPage) Refresh(thingID string,
-	tdoc *td.TD, props map[string]any, events map[string]*msg.NotificationMessage) {
+	tdoc *td.TD, propsMap map[string]msg.ThingValue, events map[string]msg.ThingValue) {
 
 	if tdoc == nil {
 		page.AddItem(tview.NewTextView().SetText("Thing not found: "+thingID), 0, 1, false)
@@ -71,10 +71,10 @@ func (page *TDPage) Refresh(thingID string,
 		aff := tdoc.Properties[name]
 		nrProps++
 		var propValue = "n/a"
-		if props != nil {
-			prop := props[name]
-			if prop != nil {
-				propValue = utils.DecodeAsString(props[name], 50)
+		if propsMap != nil {
+			prop, found := propsMap[name]
+			if found {
+				propValue = prop.ToString(50)
 			}
 		}
 		writable := !aff.ReadOnly
@@ -100,9 +100,9 @@ func (page *TDPage) Refresh(thingID string,
 		var evValue string = "n/a"
 		var evTimestamp string = "n/a"
 		if events != nil {
-			notif := events[name]
-			if notif != nil {
-				_ = notif.Decode(&evValue)
+			notif, found := events[name]
+			if found {
+				evValue = notif.ToString(100)
 				evTimestamp = utils.FormatDateTime(notif.Timestamp, "S")
 			}
 		}

@@ -7,7 +7,7 @@ import (
 	"github.com/hiveot/hivekit/go/api/td"
 	"github.com/hiveot/hivekit/go/cells/consumer"
 	"github.com/hiveot/hivekit/go/cells/directory"
-	directoryclient "github.com/hiveot/hivekit/go/cells/directory/client"
+	directory_client "github.com/hiveot/hivekit/go/cells/directory/client"
 	"github.com/hiveot/hivekit/go/cells/discovery"
 	discovery_client "github.com/hiveot/hivekit/go/cells/discovery/client"
 	"github.com/hiveot/hivekit/go/cells/router"
@@ -57,7 +57,7 @@ var ConsumerRecipeChain = []api.CellDefinition{
 	{
 		// use a directory client to read thing TDs
 		Type:        directory.DirectoryClientCellType,
-		Constructor: directoryclient.NewDirectoryClientFactory,
+		Constructor: directory_client.NewDirectoryClientFactory,
 	},
 	{
 		// the router establishes gateway or stand-alone device connections

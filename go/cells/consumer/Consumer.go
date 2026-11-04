@@ -1,7 +1,7 @@
 package consumer
 
 import (
-	"sync"
+	"sync/atomic"
 
 	"github.com/hiveot/hivekit/go/api"
 	"github.com/hiveot/hivekit/go/api/msg"
@@ -33,9 +33,7 @@ type Consumer struct {
 
 	// notificationHandler is the application handler of notifications
 	// notifications will also be forwarded upstream to the upstream handler.
-	appNotificationHook msg.NotificationHandler
-
-	mux sync.RWMutex
+	appNotificationHook atomic.Pointer[msg.NotificationHandler]
 }
 
 // HandleNotification receives an notifications from a downstream cell.
@@ -46,12 +44,10 @@ type Consumer struct {
 // See also SetNotificationHook to allow applications to register a handler that receives
 // notifications passing through the chain.
 func (m *Consumer) HandleNotification(notif *msg.NotificationMessage) {
-	m.mux.RLock()
-	handler := m.appNotificationHook
-	m.mux.RUnlock()
+	handler := m.appNotificationHook.Load()
 
-	if handler != nil {
-		handler(notif)
+	if *handler != nil {
+		(*handler)(notif)
 	}
 	// the reason for the extra indirection is to ensure we're receiving the notification
 	// independently from when someone sets a custome notification handler.
@@ -113,14 +109,10 @@ func (co *Consumer) Ping() (err error) {
 // protocol specific messages.
 // The hiveot protocol passes this as-is as the output.
 func (co *Consumer) QueryAction(thingID, name string) (
-	value msg.ResponseMessage, err error) {
+	value *msg.ActionStatus, err error) {
 
 	err = co.Rpc(td.OpQueryAction, thingID, name, nil, &value)
-	// if state is empty then this action has not run before
-	if err == nil && value.Status == "" {
-		value.ThingID = thingID
-		value.Name = name
-	}
+	// if value is empty then this action has not run before
 	return value, err
 }
 
@@ -138,7 +130,7 @@ func (co *Consumer) QueryAction(thingID, name string) (
 // ActionStatus message. All hiveot protocols include full information.
 // WoT bindings might not include update timestamp and such.
 func (co *Consumer) QueryAllActions(thingID string) (
-	values map[string]msg.ResponseMessage, err error) {
+	values map[string]msg.ActionStatus, err error) {
 
 	err = co.Rpc(td.OpQueryAllActions, thingID, "", nil, &values)
 	return values, err
@@ -148,7 +140,7 @@ func (co *Consumer) QueryAllActions(thingID string) (
 //
 // This returns a map of eventName and the last sent notification message.
 func (co *Consumer) ReadAllEvents(thingID string) (
-	values map[string]*msg.NotificationMessage, err error) {
+	values map[string]msg.ThingValue, err error) {
 
 	err = co.Rpc(td.HTOpReadAllEvents, thingID, "", nil, &values)
 	return values, err
@@ -156,9 +148,9 @@ func (co *Consumer) ReadAllEvents(thingID string) (
 
 // ReadAllProperties sends a request to read all Thing property values.
 //
-// This returns a map of property name-value pairs as described in the TD.
+// This returns a map of property name-ThingValue pairs.
 func (co *Consumer) ReadAllProperties(thingID string) (
-	values map[string]any, err error) {
+	values map[string]msg.ThingValue, err error) {
 
 	err = co.Rpc(td.OpReadAllProperties, thingID, "", nil, &values)
 	return values, err
@@ -168,28 +160,31 @@ func (co *Consumer) ReadAllProperties(thingID string) (
 //
 // This returns the NotificationMessage that was last sent, containing the timestamp
 // and value as described in the event affordance.
-func (co *Consumer) ReadEvent(thingID, name string) (value *msg.NotificationMessage, err error) {
+func (co *Consumer) ReadEvent(thingID, name string) (value msg.ThingValue, err error) {
 
 	err = co.Rpc(td.HTOpReadEvent, thingID, name, nil, &value)
 	return value, err
 }
 
-// ReadProperty sends a request to read the current value of a Thing property.
+// ReadProperty sends a request to read the current value of a
+// Thing property.
 //
-// This decodes the value into the provided type
-func (co *Consumer) ReadProperty(thingID, name string, output any) (err error) {
+// HiveOT protocols support the ThingValue type which carries a timestamp, other transport
+// protocols like WoT WSS might not support it.
+//
+// This returns the ThingValue which includes the timestamp the property was last updated.
+// value is nil if the property is unknown.
+func (co *Consumer) ReadProperty(thingID, name string) (value msg.ThingValue, err error) {
 
-	err = co.Rpc(td.OpReadProperty, thingID, name, nil, output)
-	return err
+	err = co.Rpc(td.OpReadProperty, thingID, name, nil, &value)
+	return value, err
 }
 
 // Set the hook to invoke with received notifications
 //
 // This lets applications receive notifications while leaving the notification chain intact.
 func (m *Consumer) SetNotificationHook(hook msg.NotificationHandler) {
-	m.mux.Lock()
-	defer m.mux.Unlock()
-	m.appNotificationHook = hook
+	m.appNotificationHook.Store(&hook)
 }
 
 // Subscribe to one or all events of a thing.
@@ -251,9 +246,9 @@ func (co *Consumer) WriteProperty(thingID string, name string, input any, wait b
 func NewConsumer(sink api.IHiveCell, notificationHook msg.NotificationHandler) *Consumer {
 	thingID := ConsumerCellType + "-" + shortid.MustGenerate()
 	consumer := &Consumer{
-		HiveCellBase:        cells.NewHiveCellBase(thingID),
-		appNotificationHook: notificationHook,
+		HiveCellBase: cells.NewHiveCellBase(thingID),
 	}
+	consumer.appNotificationHook.Store(&notificationHook)
 	if sink != nil {
 		consumer.SetRequestSink(sink)
 		sink.SetNotificationSink(consumer)

@@ -272,14 +272,15 @@ func (svc *WotWssMsgEncoder) DecodeResponse(senderID string, raw []byte) (*msg.R
 		// reconstruct the action response
 		// Note that hiveOT uses correlationID instead of actionID
 		// hiveot also doesn't return timerequested
-		output := msg.ResponseMessage{
-			Operation:     td.OpInvokeAction,
-			ThingID:       wssResp.ThingID,
-			Name:          wssResp.Name,
+		output := msg.ActionStatus{
+			// Operation:     td.OpInvokeAction,
+			// ThingID:       wssResp.ThingID,
+			// Name:          wssResp.Name,
 			Output:        wssStatus.Output,
 			Status:        wssStatus.State,
 			CorrelationID: wssResp.CorrelationID,
-			Timestamp:     wssStatus.TimeEnded,
+			TimeRequested: wssStatus.TimeRequested,
+			TimeEnded:     wssStatus.TimeEnded,
 			Error:         wssResp.Error,
 		}
 		resp.Output = output
@@ -287,33 +288,51 @@ func (svc *WotWssMsgEncoder) DecodeResponse(senderID string, raw []byte) (*msg.R
 	case td.OpQueryAllActions:
 		// WSS ResponseMessage contains ActionStatus map
 		var wssStatusMap map[string]WotWssActionStatus
-		output := make(map[string]msg.ResponseMessage)
+		output := make(map[string]msg.ActionStatus)
 		err = utils.Decode(wssResp.Statuses, &wssStatusMap)
 		if err != nil {
 			return nil, err
 		}
 		// reconstruct the latest responses for the actions
 		for name, wssStatus := range wssStatusMap {
-			output[name] = msg.ResponseMessage{
-				Operation:     td.OpInvokeAction,
-				ThingID:       wssResp.ThingID,
-				Name:          name,
+			output[name] = msg.ActionStatus{
+				// Operation:     td.OpInvokeAction,
+				// ThingID:       wssResp.ThingID,
+				// Name:          name,
 				Output:        wssStatus.Output,
 				Status:        wssStatus.State,
 				CorrelationID: wssResp.CorrelationID,
-				Timestamp:     wssStatus.TimeEnded,
+				TimeRequested: wssStatus.TimeRequested,
+				TimeEnded:     wssStatus.TimeEnded,
 				Error:         wssResp.Error,
 			}
 		}
 		resp.Output = output
 
 	case td.OpReadAllProperties, td.OpReadMultipleProperties:
-		// the 'Values' property from the msg.ResponseMessage embedded struct
-		// contains the object with all property-value names
-		resp.Output = wssResp.Values
+		// the WoT 'Values' property is a plain map with raw values.
+		// HiveOT uses ThingValue format that supports timestamps.
+		var wssPropMap map[string]any
+		err = utils.Decode(wssResp.Values, &wssPropMap)
+		if err != nil {
+			return nil, err
+		}
+		output := make(map[string]msg.ThingValue)
+
+		for name, val := range wssPropMap {
+			output[name] = msg.ThingValue{
+				Data:      val,
+				Timestamp: "", // n/a
+			}
+		}
+		resp.Output = output
+
 	case td.OpReadProperty:
 		// the 'Value' property contains the actual value
-		resp.Output = wssResp.Value
+		resp.Output = msg.ThingValue{
+			Data:      wssResp.Value,
+			Timestamp: "", // n/a
+		}
 	}
 	return resp, err
 }
@@ -420,18 +439,19 @@ func (svc *WotWssMsgEncoder) EncodeResponse(resp *msg.ResponseMessage) ([]byte, 
 		}
 	case td.OpQueryAction:
 		// the output is the last response: convert it to an ActionStatus object
-		qResp := msg.ResponseMessage{}
+		qResp := msg.ActionStatus{}
 		utils.Decode(resp.Output, &qResp)
 		wssResp.Status = &WotWssActionStatus{
-			ActionID:  qResp.CorrelationID,
-			Error:     qResp.Error, // error fields are identical
-			Output:    qResp.Output,
-			State:     qResp.Status,
-			TimeEnded: qResp.Timestamp,
+			ActionID:      qResp.CorrelationID,
+			Error:         qResp.Error, // error fields are identical
+			Output:        qResp.Output,
+			State:         qResp.Status,
+			TimeEnded:     qResp.TimeEnded,
+			TimeRequested: qResp.TimeRequested,
 		}
 	case td.OpQueryAllActions:
 		// convert action responses in output to a  WotWssActionStatuses map
-		var hiveotActionStatusMap map[string]msg.ResponseMessage
+		var hiveotActionStatusMap map[string]msg.ActionStatus
 		err = utils.Decode(resp.Output, &hiveotActionStatusMap)
 		if err != nil {
 			err = fmt.Errorf("Can't convert ResponseMessage map response to websocket actionstatus type. "+
@@ -442,21 +462,48 @@ func (svc *WotWssMsgEncoder) EncodeResponse(resp *msg.ResponseMessage) ([]byte, 
 			wssResp.Error = msg.ErrorValueFromError(err)
 		}
 		wssStatusMap := make(map[string]WotWssActionStatus)
-		for _, respMsg := range hiveotActionStatusMap {
-			wssStatusMap[respMsg.Name] = WotWssActionStatus{
-				ActionID:  respMsg.CorrelationID,
-				Error:     respMsg.Error, // error fields are identical
-				State:     respMsg.Status,
-				TimeEnded: respMsg.Timestamp,
-				Output:    respMsg.Output,
+		for name, respMsg := range hiveotActionStatusMap {
+			wssStatusMap[name] = WotWssActionStatus{
+				ActionID:      respMsg.CorrelationID,
+				Error:         respMsg.Error, // error fields are identical
+				State:         respMsg.Status,
+				TimeEnded:     respMsg.TimeEnded,
+				TimeRequested: respMsg.TimeRequested,
+				Output:        respMsg.Output,
 			}
 		}
 		wssResp.Statuses = wssStatusMap
 	case td.OpReadAllProperties, td.OpReadMultipleProperties:
-		// ReadAllProperties has the same response object with property key-values
-		wssResp.Values = resp.Output
+		// WoT doesnt support timestamp. Convert ThingValue map to plain value map
+		var hiveotThingValueMap map[string]msg.ThingValue
+		err = utils.Decode(resp.Output, &hiveotThingValueMap)
+		if err != nil {
+			err = fmt.Errorf("Can't convert ReadProperties response. "+
+				"Response does not contain ThingValue map. "+
+				"thingID='%s'; name='%s'; operation='%s'; Received '%s'; Error='%s'",
+				resp.ThingID, resp.Name, resp.Operation,
+				utils.DecodeAsString(resp.Output, 200), err.Error())
+			wssResp.Error = msg.ErrorValueFromError(err)
+		}
+		wssPropMap := make(map[string]any)
+		for name, tv := range hiveotThingValueMap {
+			wssPropMap[name] = tv.Data
+			// timestamp is lost
+		}
+		wssResp.Values = wssPropMap
+
 	case td.OpReadProperty:
-		wssResp.Value = resp.Output
+		// WoT doesnt support property timestamp
+		tv, hasTV := resp.Output.(msg.ThingValue)
+		if hasTV {
+			wssResp.Value = tv.Data
+		} else {
+			// not sure what this is
+			slog.Warn("EncodeResponse. Expected ThingValue to encode. Got something else",
+				"op", resp.Operation,
+				"name", resp.Name)
+			wssResp.Value = resp.Output
+		}
 	}
 
 	return jsoniter.Marshal(wssResp)

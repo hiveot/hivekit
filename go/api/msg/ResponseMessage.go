@@ -124,7 +124,7 @@ type ResponseMessage struct {
 	// ThingID of the Exposed Thing this is a response from.
 	ThingID string `json:"thingID,omitempty"`
 
-	// Timestamp the response was created
+	// RFC3339 Timestamp the response was created
 	Timestamp string `json:"timestamp,omitempty"`
 }
 

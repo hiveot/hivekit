@@ -20,7 +20,6 @@ import (
 	directory_service "github.com/hiveot/hivekit/go/cells/directory/service"
 	rcrouter_service "github.com/hiveot/hivekit/go/cells/rcrouter/service"
 	router_service "github.com/hiveot/hivekit/go/cells/router/service"
-	"github.com/hiveot/hivekit/go/cells/thing"
 	"github.com/hiveot/hivekit/go/testenv"
 	"github.com/hiveot/hivekit/go/utils"
 	"github.com/stretchr/testify/assert"
@@ -182,18 +181,19 @@ func TestReadDigitwinProperty(t *testing.T) {
 
 	// the digital twin will receive the readproperty request.
 	// the digitwin service should forward the read property et1 to the actual device, as the property is unknown.
-	et1 := thing.NewExposedThing("digitwin-test-ething", func(req *msg.RequestMessage, replyTo msg.ResponseHandler) error {
-		if req.Operation == td.OpReadProperty {
-			if req.ThingID == deviceTD1.ID && req.Name == prop1Name {
-				resp := req.CreateResponse(prop1Value, nil)
-				err := replyTo(resp)
-				return err
-			}
-		}
-		return fmt.Errorf("unknown request ")
-	})
-	et1.SetTimeout(testEnv.Env.RpcTimeout)
-	dtw.SetRequestSink(et1)
+	// et1 := thing.NewExposedThing("digitwin-test-ething", func(req *msg.RequestMessage, replyTo msg.ResponseHandler) error {
+	// 	if req.Operation == td.OpReadProperty {
+	// 		if req.ThingID == deviceTD1.ID && req.Name == prop1Name {
+	// 			resp := req.CreateResponse(prop1Value, nil)
+	// 			err := replyTo(resp)
+	// 			return err
+	// 		}
+	// 	}
+	// 	return fmt.Errorf("unknown request ")
+	// })
+	// et1.SetTimeout(testEnv.Env.RpcTimeout)
+	// // this replaces the RCrouter cell from startService.
+	// dtw.SetRequestSink(et1)
 
 	// 1: create a consumer that subscribes to notifications
 	co, cc1, _ := testEnv.NewConnectedConsumer(userID, api.ClientRoleViewer)
@@ -235,10 +235,9 @@ func TestReadDigitwinProperty(t *testing.T) {
 	assert.Equal(t, prop1Value, rxPropValue.Load())
 
 	// 4. the consumer reads the property value
-	var respValue string
-	err = co.ReadProperty(dtwThingID, prop1Name, &respValue)
+	tv, err := co.ReadProperty(dtwThingID, prop1Name)
 	require.NoError(t, err)
-	assert.Equal(t, prop1Value, respValue)
+	assert.Equal(t, prop1Value, tv.Data)
 }
 
 // Write a property via the digital twin
@@ -319,10 +318,9 @@ func TestWriteDigitwinProperty(t *testing.T) {
 	time.Sleep(time.Millisecond * 10)
 
 	// 6. Consumer reads the property
-	var rxPropValue string
-	err = co.ReadProperty(dtwThing1ID, prop1Name, &rxPropValue)
+	tv, err := co.ReadProperty(dtwThing1ID, prop1Name)
 	require.NoError(t, err)
-	assert.Equal(t, prop1Value, rxPropValue)
+	assert.Equal(t, prop1Value, tv.Data)
 }
 
 // Invoke an action via the digital twin

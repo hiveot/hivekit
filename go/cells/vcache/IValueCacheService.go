@@ -34,27 +34,21 @@ type IValueCacheService interface {
 
 	// Retrieve cached Thing action status or nil if none found
 	// Action status are stored in a notification
-	ReadAction(thingID string, name string) (actionNotif *msg.NotificationMessage)
+	ReadAction(thingID string, name string) (actionStatus msg.ActionStatus, found bool)
 
 	// Retrieve cached Thing event notification value or nil if none found
-	ReadEvent(thingID string, name string) (eventNotif *msg.NotificationMessage)
+	ReadEvent(thingID string, name string) (tv msg.ThingValue, found bool)
 
 	// Retrieve cached Thing property notification value
 	// This returns the cached property notification or nil if not cached.
-	ReadProperty(thingID string, name string) (propNotif *msg.NotificationMessage)
+	ReadProperty(thingID string, name string) (tv msg.ThingValue, found bool)
 
 	// ReadMultipleProperties returns the value of cached properties.
-	// This returns a map of available values and a 'isCached' flag if all values are available.
-	// If not all requested values are available then isCached is false.
+	// This returns a map of available values and a 'foundAll' flag if all values are available.
+	// If some but not all requested values are available then foundAll is false.
 	ReadMultipleProperties(
-		thingID string, names []string) (v map[string]*msg.NotificationMessage, isCached bool)
+		thingID string, names []string) (v map[string]msg.ThingValue, foundAll bool)
 
-	// WriteAction updates the latest action in the vcache
-	WriteAction(req *msg.RequestMessage)
-
-	// WriteEvent updates the latest event in the vcache
-	WriteEvent(notif *msg.NotificationMessage)
-
-	// WriteProperty updates the latest property in the vcache
-	WriteProperty(notif *msg.NotificationMessage)
+	// WriteValue updates the latest property, event or action status in the vcache
+	WriteValue(notif *msg.NotificationMessage)
 }

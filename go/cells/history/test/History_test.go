@@ -242,7 +242,7 @@ func TestAddGetEvent(t *testing.T) {
 	assert.NoError(t, err)
 
 	// Test 1: get events of thing1 older than 300 minutes ago - expect 1 humidity from 55 minutes ago
-	cursorKey, c1Release, err := histCl.GetCursor(thing1ID, "")
+	cursorKey, c1Release, err := histCl.CreateCursor(thing1ID, "")
 	require.NoError(t, err)
 
 	// seek must return the things humidity added 55 minutes ago, not 5 minutes ago
@@ -283,7 +283,7 @@ func TestAddGetEvent(t *testing.T) {
 
 	// Test 3: get first temperature of things 2 - expect 1 result
 	time.Sleep(time.Second)
-	cursorKey, releaseFn, err := histCl.GetCursor(thing2ID, "")
+	cursorKey, releaseFn, err := histCl.CreateCursor(thing2ID, "")
 	require.NoError(t, err)
 	defer releaseFn()
 	tv4, valid, err := histCl.First(cursorKey)
@@ -397,7 +397,7 @@ func TestAddProperties(t *testing.T) {
 	defer cc1.Close()
 	histCl := history_client.NewReadHistoryClient(co1)
 
-	cursorKey, releaseFn, err := histCl.GetCursor(thing1ID, "")
+	cursorKey, releaseFn, err := histCl.CreateCursor(thing1ID, "")
 	defer releaseFn()
 	require.NoError(t, err)
 	tv, valid, err := histCl.First(cursorKey)
@@ -460,7 +460,7 @@ func TestPrevNext(t *testing.T) {
 	defer cc1.Close()
 	histCl := history_client.NewReadHistoryClient(co1)
 
-	cursorKey, releaseFn, err := histCl.GetCursor(thing0ID, "")
+	cursorKey, releaseFn, err := histCl.CreateCursor(thing0ID, "")
 	require.NoError(t, err)
 	defer releaseFn()
 	assert.NotEmpty(t, cursorKey)
@@ -526,7 +526,7 @@ func TestPrevNextFiltered(t *testing.T) {
 	histCl := history_client.NewReadHistoryClient(co1)
 
 	defer co1.Stop()
-	cursorKey, releaseFn, err := histCl.GetCursor(thing0ID, propName)
+	cursorKey, releaseFn, err := histCl.CreateCursor(thing0ID, propName)
 	require.NoError(t, err)
 	defer releaseFn()
 
@@ -594,7 +594,7 @@ func TestNextPrevUntil(t *testing.T) {
 	defer cc1.Close()
 	readHist := history_client.NewReadHistoryClient(co1)
 	defer co1.Stop()
-	cursorKey, releaseFn, err := readHist.GetCursor(thing0ID, "")
+	cursorKey, releaseFn, err := readHist.CreateCursor(thing0ID, "")
 	defer releaseFn()
 
 	// start 20 hours ago
@@ -698,7 +698,7 @@ func TestPubEvents(t *testing.T) {
 	time.Sleep(time.Millisecond * 100)
 	// read back
 	// consumers read events see the digital twin representation
-	cursorKey, releaseFn, err := readHist.GetCursor(thing1ID, "")
+	cursorKey, releaseFn, err := readHist.CreateCursor(thing1ID, "")
 	require.NoError(t, err)
 	ev, valid, err := readHist.First(cursorKey)
 	require.NoError(t, err)
