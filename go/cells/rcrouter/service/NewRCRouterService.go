@@ -4,7 +4,7 @@ import (
 	"fmt"
 
 	"github.com/hiveot/hivekit/go/api"
-	"github.com/hiveot/hivekit/go/api/td"
+	"github.com/hiveot/hivekit/go/api/wot"
 	"github.com/hiveot/hivekit/go/cells/directory"
 	"github.com/hiveot/hivekit/go/cells/rcrouter"
 	"github.com/hiveot/hivekit/go/cells/rcrouter/service/internal"
@@ -20,7 +20,7 @@ import (
 //	 reverse connections. nil to not support RCs.
 //	getRole handler to return the role of the given clientID. Only device roles support RCs.
 func NewRCRouterService(
-	getTD func(thingID string) *td.TD,
+	getTD func(thingID string) *wot.TD,
 	getSrv func() []api.ITransportServer,
 	getRole func(clientID string) string,
 ) (rcrouter.IRCRouterService, error) {
@@ -31,7 +31,7 @@ func NewRCRouterService(
 // Create a reverse-connection router service instance using the factory environment.
 func NewRCRouterServiceFactory(f api.ICellFactory, md *api.CellDefinition) (api.IHiveCell, error) {
 
-	var getTD func(string) *td.TD
+	var getTD func(string) *wot.TD
 
 	// The RCrouter needs the directory.
 	m, err := f.NewCell(directory.DirectoryServiceCellType, true)

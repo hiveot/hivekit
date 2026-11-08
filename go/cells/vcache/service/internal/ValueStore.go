@@ -111,13 +111,13 @@ func (store *ValueStore) WriteValue(notif *msg.NotificationMessage) {
 		thingValues.Actions[notif.Name] = actionStatus
 	case msg.AffordanceTypeEvent:
 		tv := msg.ThingValue{
-			Data:      notif.Data,
+			Raw:       notif.Data,
 			Timestamp: notif.Timestamp,
 		}
 		thingValues.Events[notif.Name] = tv
 	case msg.AffordanceTypeProperty:
 		tv := msg.ThingValue{
-			Data:      notif.Data,
+			Raw:       notif.Data,
 			Timestamp: notif.Timestamp,
 		}
 		thingValues.Properties[notif.Name] = tv

@@ -5,7 +5,7 @@ import (
 	"time"
 
 	"github.com/hiveot/hivekit/go/api"
-	"github.com/hiveot/hivekit/go/api/td"
+	"github.com/hiveot/hivekit/go/api/wot"
 )
 
 const (
@@ -58,7 +58,7 @@ type IDiscoveryClient interface {
 	//	searchID optional filter on a specific instance name or directory thingID
 	//	thingType optional filter DISCO_TYPE_THING|DIRECTORY|GATEWAY
 	DiscoverFirstTD(
-		searchID string, thingType string, maxWaitTime time.Duration) *td.TD
+		searchID string, thingType string, maxWaitTime time.Duration) *wot.TD
 
 	// Return the discovery record of the first thing that matches the searchID and type.
 	DiscoverFirstThing(
@@ -77,9 +77,9 @@ type IDiscoveryClient interface {
 	//
 	// This returns the matching directory, gateway and thing TDs
 	DiscoverTDs(instanceName string, thingType string, first bool, searchTime time.Duration,
-		cb func(*td.TD) bool) (
-		dirs []*DiscoveryResult, dirTDs []*td.TD,
-		things []*DiscoveryResult, thingTDs []*td.TD)
+		cb func(*wot.TD) bool) (
+		dirs []*DiscoveryResult, dirTDs []*wot.TD,
+		things []*DiscoveryResult, thingTDs []*wot.TD)
 
 	// DiscoverThings returns a list of all discovery records of all WoT compatible devices,
 	// including Things, Directories and Gateways.
@@ -103,5 +103,5 @@ type IDiscoveryClient interface {
 	// tdURL points to the download URL of the TD document
 	//
 	// This returns the TD, its JSON or an error if none is found
-	LoadTD(tdURL string) (tdoc *td.TD, tdJSON string, err error)
+	LoadTD(tdURL string) (tdoc *wot.TD, tdJSON string, err error)
 }

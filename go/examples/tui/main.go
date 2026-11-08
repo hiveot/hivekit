@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/hiveot/hivekit/go/api"
-	"github.com/hiveot/hivekit/go/api/td"
+	"github.com/hiveot/hivekit/go/api/wot"
 	"github.com/hiveot/hivekit/go/cells/router"
 	"github.com/hiveot/hivekit/go/examples/tui/tuiapp"
 	consumer_recipe "github.com/hiveot/hivekit/go/factory/recipes/consumer"
@@ -45,13 +45,13 @@ func main() {
 	rtr := api.GetFactoryCell[router.IRouterService](f, router.RouterCellType)
 	if authToken != "" {
 		slog.Info("Found auth token", "clientID", env.ClientID)
-		rtr.AddCredentials("", env.ClientID, authToken, td.SecSchemeBearer)
+		rtr.AddCredentials("", env.ClientID, authToken, wot.SecSchemeBearer)
 	} else {
 		slog.Info("No auth token.\n", "loginID", env.ClientID)
 	}
-	app := tuiapp.NewTuiApp(f)
-	app.SetRequestSink(r)
-	r.SetNotificationSink(app)
+	app, co := tuiapp.NewTuiApp(f)
+	co.SetRequestSink(r)
+	r.SetNotificationSink(co)
 
 	// signal the app is ready to go and all cells are linked
 	f.Start()

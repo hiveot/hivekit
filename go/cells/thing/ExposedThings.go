@@ -60,7 +60,7 @@ func (eThing *ExposedThings) HandleRequest(req *msg.RequestMessage, replyTo msg.
 		// act as a mini directory
 		// experimental, Exposed things expose their own and nested TDs
 		// used by the gateway to update the directory with RC devices.
-		// if req.Operation == td.OpInvokeAction && req.Name == directory.RetrieveAllThingsAction {
+		// if req.Operation == wot.OpInvokeAction && req.Name == directory.RetrieveAllThingsAction {
 		// 	output := eThing.RetrieveAllThings()
 		// 	resp := req.CreateResponse(output, err)
 		// 	return replyTo(resp)

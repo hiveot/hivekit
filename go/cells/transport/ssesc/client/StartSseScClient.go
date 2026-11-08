@@ -4,7 +4,7 @@ import (
 	"crypto/x509"
 
 	"github.com/hiveot/hivekit/go/api"
-	"github.com/hiveot/hivekit/go/api/td"
+	"github.com/hiveot/hivekit/go/api/wot"
 	"github.com/hiveot/hivekit/go/cells/transport/ssesc/client/internal"
 )
 
@@ -14,7 +14,7 @@ import (
 //
 //	tdoc containing the http URLs for operations. Base contains the sse connect URL.
 //	rootCAs are CA certificates to validate the server certificate. nil for system CAs.
-func NewSseScClient(tdoc *td.TD, rootCAs *x509.CertPool) api.ITransportClient {
+func NewSseScClient(tdoc *wot.TD, rootCAs *x509.CertPool) api.ITransportClient {
 
 	return internal.NewSseScClientImpl(tdoc, rootCAs)
 }

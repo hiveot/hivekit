@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/hiveot/hivekit/go/api"
-	"github.com/hiveot/hivekit/go/api/td"
+	"github.com/hiveot/hivekit/go/api/wot"
 	"github.com/hiveot/hivekit/go/cells/directory"
 	clientimpl "github.com/hiveot/hivekit/go/cells/directory/client/internal"
 	httpbasic_client "github.com/hiveot/hivekit/go/cells/transport/httpbasic/client"
@@ -26,7 +26,7 @@ type DirectoryHttpClient struct {
 	cache *clientimpl.DirectoryCacheImpl
 
 	// The TD of the directory itself containing the base URL
-	dirTD *td.TD
+	dirTD *wot.TD
 }
 
 // Return the local cache of Things
@@ -35,24 +35,24 @@ func (cl *DirectoryHttpClient) Cache() directory.IDirectoryCache {
 }
 
 // Create a Thing in the directory
-func (cl *DirectoryHttpClient) CreateThing(tdoc *td.TD) (err error) {
+func (cl *DirectoryHttpClient) CreateThing(tdoc *wot.TD) (err error) {
 
 	// do not marshal the TD twice, so send it as an object.
 	// the thingID is the ID to be created.
-	err = cl.Rpc(td.OpInvokeAction, tdoc.ID, directory.CreateThingAction, tdoc, nil)
+	err = cl.Rpc(wot.OpInvokeAction, tdoc.ID, directory.CreateThingAction, tdoc, nil)
 	return err
 }
 
 // Create a Thing in the directory
 func (cl *DirectoryHttpClient) DeleteThing(thingID string) (err error) {
 	err = cl.Rpc(
-		td.OpInvokeAction, thingID, directory.DeleteThingAction, nil, nil)
+		wot.OpInvokeAction, thingID, directory.DeleteThingAction, nil, nil)
 	cl.cache.RemoveTD(thingID)
 	return err
 }
 
 // Get the TD for the given thing ID
-func (cl *DirectoryHttpClient) GetTD(thingID string) *td.TD {
+func (cl *DirectoryHttpClient) GetTD(thingID string) *wot.TD {
 	tdoc, err := cl.RetrieveThing(thingID)
 	_ = err
 	return tdoc
@@ -61,9 +61,9 @@ func (cl *DirectoryHttpClient) GetTD(thingID string) *td.TD {
 // RetrieveAllThings retrieves a list of things to update the local directory
 // This follows: https://w3c.github.io/wot-discovery/#exploration-directory-api-things-listing
 // which requires the http get at /things?limit=...
-func (cl *DirectoryHttpClient) RetrieveAllThings(offset int, limit int) ([]*td.TD, bool) {
+func (cl *DirectoryHttpClient) RetrieveAllThings(offset int, limit int) ([]*wot.TD, bool) {
 
-	var tdList []*td.TD
+	var tdList []*wot.TD
 
 	// NOTE: this is a dependency on the URI variables in the path
 	args := map[string]string{}
@@ -72,9 +72,9 @@ func (cl *DirectoryHttpClient) RetrieveAllThings(offset int, limit int) ([]*td.T
 	var output []string
 
 	err := cl.Rpc(
-		td.OpInvokeAction, "", directory.RetrieveAllThingsAction, args, &output)
+		wot.OpInvokeAction, "", directory.RetrieveAllThingsAction, args, &output)
 	if err == nil {
-		tdList = make([]*td.TD, 0, len(output))
+		tdList = make([]*wot.TD, 0, len(output))
 		for _, tdJson := range output {
 			tdoc, err := cl.cache.ImportTDJson(tdJson)
 			if err == nil {
@@ -92,7 +92,7 @@ func (cl *DirectoryHttpClient) RetrieveAllThings(offset int, limit int) ([]*td.T
 // If the TD exists in the local chace it is returned instead.
 // This follows: https://w3c.github.io/wot-discovery/#exploration-directory-api
 // which requires the http get at /things/{id}
-func (cl *DirectoryHttpClient) RetrieveThing(thingID string) (tdoc *td.TD, err error) {
+func (cl *DirectoryHttpClient) RetrieveThing(thingID string) (tdoc *wot.TD, err error) {
 
 	// first try the cache
 	tdoc = cl.cache.GetThing(thingID)
@@ -100,7 +100,7 @@ func (cl *DirectoryHttpClient) RetrieveThing(thingID string) (tdoc *td.TD, err e
 		return tdoc, nil
 	}
 	err = cl.Rpc(
-		td.OpInvokeAction, thingID, directory.RetrieveThingAction, nil, &tdoc)
+		wot.OpInvokeAction, thingID, directory.RetrieveThingAction, nil, &tdoc)
 	if err != nil {
 		return nil, err
 	}
@@ -110,16 +110,16 @@ func (cl *DirectoryHttpClient) RetrieveThing(thingID string) (tdoc *td.TD, err e
 }
 
 // set the TDD of the directory server
-func (cl *DirectoryHttpClient) SetTDD(tdd *td.TD) {
+func (cl *DirectoryHttpClient) SetTDD(tdd *wot.TD) {
 	cl.dirTD = tdd
 }
 
 // Create a Thing in the directory
-func (cl *DirectoryHttpClient) UpdateThing(tdoc *td.TD) (err error) {
+func (cl *DirectoryHttpClient) UpdateThing(tdoc *wot.TD) (err error) {
 
 	// do not marshal the TD twice, so send it as an object.
 	// the thingID is the ID to be created.
-	err = cl.Rpc(td.OpInvokeAction, tdoc.ID, directory.UpdateThingAction, tdoc, nil)
+	err = cl.Rpc(wot.OpInvokeAction, tdoc.ID, directory.UpdateThingAction, tdoc, nil)
 	return err
 }
 
@@ -131,7 +131,7 @@ func (cl *DirectoryHttpClient) UpdateThing(tdoc *td.TD) (err error) {
 //	dirTD is the discovered TD of the directory
 //	rootCAs are the available CAs to validate the directory server certificate
 //	timeout is the timeout for sending messages
-func NewDirectoryHttpClient(dirTD *td.TD, rootCAs *x509.CertPool, timeout time.Duration) (*DirectoryHttpClient, error) {
+func NewDirectoryHttpClient(dirTD *wot.TD, rootCAs *x509.CertPool, timeout time.Duration) (*DirectoryHttpClient, error) {
 
 	if dirTD == nil {
 		err := fmt.Errorf("NewDirectoryHttpClient: no TD provided")

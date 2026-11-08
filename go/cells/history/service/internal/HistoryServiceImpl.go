@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/hiveot/hivekit/go/api/msg"
-	"github.com/hiveot/hivekit/go/api/td"
+	"github.com/hiveot/hivekit/go/api/wot"
 	"github.com/hiveot/hivekit/go/cells/bucketstore"
 	"github.com/hiveot/hivekit/go/cells/bucketstore/kvbtreestore"
 	"github.com/hiveot/hivekit/go/cells/bucketstore/pebblestore"
@@ -54,7 +54,7 @@ func (svc *HistoryServiceImpl) HandleNotification(notif *msg.NotificationMessage
 
 // Write TD when ready
 func (svc *HistoryServiceImpl) Start() {
-	histTD, _ := td.UnmarshalTD(string(history.HistoryServiceTD))
+	histTD, _ := wot.UnmarshalTD(string(history.HistoryServiceTD))
 	histTD.ID = svc.GetID()
 	histTD.SetType(history.HistoryServiceCellType)
 	svc.WriteTD(histTD)
@@ -80,7 +80,7 @@ func (svc *HistoryServiceImpl) StoreNotification(notif *msg.NotificationMessage)
 // Store requests for later retrieval
 func (svc *HistoryServiceImpl) StoreRequest(req *msg.RequestMessage) error {
 
-	if req.Operation != td.OpInvokeAction {
+	if req.Operation != wot.OpInvokeAction {
 		return fmt.Errorf("AddAction: Operation is not invokeaction")
 	}
 	// convert the notification to a ThingValue for storage

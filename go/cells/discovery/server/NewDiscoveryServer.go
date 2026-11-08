@@ -5,7 +5,7 @@ import (
 
 	"github.com/grandcat/zeroconf"
 	"github.com/hiveot/hivekit/go/api"
-	"github.com/hiveot/hivekit/go/api/td"
+	"github.com/hiveot/hivekit/go/api/wot"
 	"github.com/hiveot/hivekit/go/cells/directory"
 	"github.com/hiveot/hivekit/go/cells/discovery"
 	"github.com/hiveot/hivekit/go/cells/discovery/server/internal"
@@ -24,9 +24,9 @@ import (
 //		 where key is the schema "http", "wss", "sse-sc" and value the URL.
 //	addForms is a hook to add missing forms to published TDs
 func NewDiscoveryServer(
-	httpServer api.IHttpServer, tdd *td.TD,
+	httpServer api.IHttpServer, tdd *wot.TD,
 	endpoints map[string]string,
-	addForms func(*td.TD)) (discovery.IDiscoveryServer, error) {
+	addForms func(*wot.TD)) (discovery.IDiscoveryServer, error) {
 
 	return internal.NewDiscoveryServerImpl(httpServer, tdd, endpoints, addForms)
 }
@@ -56,7 +56,7 @@ func NewDiscoveryServerFactory(
 		endpoints[scheme] = connectURL
 	}
 	// Optionally serve the directory TD if found. See also ServeDirectoryTD()
-	var tdd *td.TD
+	var tdd *wot.TD
 	dirSvc, found := f.GetCell(directory.DirectoryServiceCellType).(directory.IDirectoryService)
 	if found {
 		tdd = dirSvc.GetTDD()

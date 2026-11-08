@@ -3,7 +3,7 @@ package testenv
 import (
 	"github.com/hiveot/hivekit/go/api"
 	"github.com/hiveot/hivekit/go/api/msg"
-	"github.com/hiveot/hivekit/go/api/td"
+	"github.com/hiveot/hivekit/go/api/wot"
 	"github.com/hiveot/hivekit/go/cells/transport"
 )
 
@@ -22,11 +22,11 @@ type TestTransport struct {
 }
 
 // AddTDSecForms does nothing for a direct connection
-func (srv *TestTransport) AddTDSecForms(tdi *td.TD) {
+func (srv *TestTransport) AddTDSecForms(tdi *wot.TD) {
 }
 
 // GetTD returns the server TD, containing connection and authentication information
-func (srv *TestTransport) GetTD() *td.TD {
+func (srv *TestTransport) GetTD() *wot.TD {
 	return nil
 }
 

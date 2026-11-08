@@ -2,7 +2,7 @@ package directory_service
 
 import (
 	"github.com/hiveot/hivekit/go/api"
-	"github.com/hiveot/hivekit/go/api/td"
+	"github.com/hiveot/hivekit/go/api/wot"
 	"github.com/hiveot/hivekit/go/cells/directory"
 	"github.com/hiveot/hivekit/go/cells/directory/service/internal"
 )
@@ -18,7 +18,7 @@ import (
 //	location is the location where the service stores its data. Use "" for testing with an in-memory store.
 //	addForms hook to provide available transport servers. nil to ignore.
 func NewDirectoryService(
-	thingID string, storageDir string, addForms func(*td.TD)) (directory.IDirectoryService, error) {
+	thingID string, storageDir string, addForms func(*wot.TD)) (directory.IDirectoryService, error) {
 
 	svc, err := internal.NewDirectoryServiceImpl(thingID, storageDir, addForms)
 

@@ -10,7 +10,7 @@ import (
 	"time"
 
 	"github.com/hiveot/hivekit/go/api"
-	"github.com/hiveot/hivekit/go/api/td"
+	"github.com/hiveot/hivekit/go/api/wot"
 	"github.com/hiveot/hivekit/go/cells/router"
 	"github.com/hiveot/hivekit/go/examples/cli/cliex"
 	consumerrecipe "github.com/hiveot/hivekit/go/factory/recipes/consumer"
@@ -124,7 +124,7 @@ func main() {
 	defaultAuthToken, _ := env.GetAuthToken()
 	rtr := api.GetFactoryCell[router.IRouterService](f, router.RouterCellType)
 	if defaultAuthToken != "" {
-		rtr.AddCredentials("", env.ClientID, defaultAuthToken, td.SecSchemeBearer)
+		rtr.AddCredentials("", env.ClientID, defaultAuthToken, wot.SecSchemeBearer)
 	}
 	discoClient := r.GetDiscovery()
 	dirClient := r.GetDirectory()

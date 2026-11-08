@@ -7,8 +7,8 @@ import (
 	"testing"
 
 	"github.com/hiveot/hivekit/go/api"
-	"github.com/hiveot/hivekit/go/api/td"
 	"github.com/hiveot/hivekit/go/api/vocab"
+	"github.com/hiveot/hivekit/go/api/wot"
 	"github.com/hiveot/hivekit/go/cells/directory"
 	directory_client "github.com/hiveot/hivekit/go/cells/directory/client"
 	dirhttp_service "github.com/hiveot/hivekit/go/cells/directory/dirhttpserver"
@@ -124,14 +124,14 @@ func TestCreateTD(t *testing.T) {
 	assert.GreaterOrEqual(t, len(tdList), 1)
 
 	// add another TD
-	tdi1 := td.NewTD(thingID, "test thing", "test device")
+	tdi1 := wot.NewTD(thingID, "test thing", "test device")
 	td1Json := tdi1.ToJSON()
 	svc.CreateThing(defaultDeviceID, td1Json)
 
 	// retrieve a thing by ID
 	td2Json, err := svc.RetrieveThing(thingID)
 	require.NoError(t, err)
-	tdi2, err := td.UnmarshalTD(td2Json)
+	tdi2, err := wot.UnmarshalTD(td2Json)
 	assert.NoError(t, err)
 	assert.Equal(t, thingID, tdi2.ID)
 	assert.Equal(t, tdi1.Description, tdi2.Description)
@@ -149,7 +149,7 @@ func TestUpdateTDNotOwner(t *testing.T) {
 	defer svc.Stop()
 
 	// add a device TD
-	tdi1 := td.NewTD(thingID, "test thing", "test device")
+	tdi1 := wot.NewTD(thingID, "test thing", "test device")
 	tdi1.SetRCID(defaultDeviceID)
 	td1Json := tdi1.ToJSON()
 	err = svc.UpdateThing(defaultDeviceID, td1Json)
@@ -158,7 +158,7 @@ func TestUpdateTDNotOwner(t *testing.T) {
 	// retrieve a thing by ID
 	td2Json, err := svc.RetrieveThing(thingID)
 	require.NoError(t, err)
-	tdi2, err := td.UnmarshalTD(td2Json)
+	tdi2, err := wot.UnmarshalTD(td2Json)
 	assert.NoError(t, err)
 	assert.Equal(t, defaultDeviceID, tdi2.GetRCID())
 
@@ -185,7 +185,7 @@ func TestCRUDUsingMsgAPI(t *testing.T) {
 	thing1ID := clientID + ":thing1"
 
 	// test create a TD
-	tdi1 := td.NewTD(thing1ID, "thing 1", "device")
+	tdi1 := wot.NewTD(thing1ID, "thing 1", "device")
 	tdi1Json := tdi1.ToJSON()
 
 	// use a direct transport to the directory as the sink for the client
@@ -243,13 +243,13 @@ func TestCRUDUsingRestAPI(t *testing.T) {
 	require.NoError(t, err)
 
 	// connect should read the directory TD
-	err = dirClient.SetAuthToken(clientID, authToken, td.SecSchemeBearer)
+	err = dirClient.SetAuthToken(clientID, authToken, wot.SecSchemeBearer)
 	require.NoError(t, err)
 	err = dirClient.Connect()
 	require.NoError(t, err)
 
 	// test create a TD
-	tdi1 := td.NewTD(thing1ID, "thing 1", vocab.Device)
+	tdi1 := wot.NewTD(thing1ID, "thing 1", vocab.Device)
 
 	err = dirClient.CreateThing(tdi1)
 	require.NoError(t, err)

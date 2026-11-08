@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 
 	"github.com/hiveot/hivekit/go/api"
-	"github.com/hiveot/hivekit/go/api/td"
+	"github.com/hiveot/hivekit/go/api/wot"
 	"github.com/hiveot/hivekit/go/cells/digitwin"
 	"github.com/hiveot/hivekit/go/cells/digitwin/service/internal"
 	"github.com/hiveot/hivekit/go/cells/directory"
@@ -21,7 +21,7 @@ import (
 //	dirService is the directory service to hook into to intercept writes, or "" for in-memory testing
 //	addForms is the handler to invoke to add forms to a TD
 func NewDigitwinService(storageDir string, dirSvc directory.IDirectoryService,
-	addForms func(tdi *td.TD)) (digitwin.IDigitwinService, error) {
+	addForms func(tdi *wot.TD)) (digitwin.IDigitwinService, error) {
 
 	svc, err := internal.NewDigitwinServiceImpl(storageDir, dirSvc, addForms)
 	return svc, err

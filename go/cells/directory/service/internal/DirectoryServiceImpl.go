@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 	"sync"
 
-	"github.com/hiveot/hivekit/go/api/td"
+	"github.com/hiveot/hivekit/go/api/wot"
 	"github.com/hiveot/hivekit/go/cells/bucketstore"
 	"github.com/hiveot/hivekit/go/cells/bucketstore/kvbtreestore"
 	"github.com/hiveot/hivekit/go/cells/directory"
@@ -39,14 +39,14 @@ type DirectoryServiceImpl struct {
 	storageLoc string
 
 	// the directory TDD
-	dirTDD *td.TD
+	dirTDD *wot.TD
 
 	// cache of used TDs and the mutex to access it
-	tdCache    map[string]*td.TD
+	tdCache    map[string]*wot.TD
 	tdCacheMux sync.RWMutex
 
 	// optional hook to add forms for when TDs dont have any.
-	addFormsHook func(*td.TD)
+	addFormsHook func(*wot.TD)
 
 	// optional hook to invoke before deleting a TD into the store
 	deleteTDHook directory.DeleteTDHook
@@ -85,7 +85,7 @@ func (svc *DirectoryServiceImpl) DeleteThing(senderID string, thingID string) (e
 
 // Return an instance of the thing TD if available.
 // These instances are cached so successive requests are efficient.
-func (svc *DirectoryServiceImpl) GetTD(thingID string) *td.TD {
+func (svc *DirectoryServiceImpl) GetTD(thingID string) *wot.TD {
 	svc.tdCacheMux.RLock()
 	tdoc, found := svc.tdCache[thingID]
 	if found {
@@ -96,7 +96,7 @@ func (svc *DirectoryServiceImpl) GetTD(thingID string) *td.TD {
 	if err != nil {
 		return nil
 	}
-	tdoc, err = td.UnmarshalTD(tdJSON)
+	tdoc, err = wot.UnmarshalTD(tdJSON)
 	if err == nil {
 		svc.tdCacheMux.Lock()
 		svc.tdCache[thingID] = tdoc
@@ -107,7 +107,7 @@ func (svc *DirectoryServiceImpl) GetTD(thingID string) *td.TD {
 
 // Return the directory TDD and its json itself
 // This has forms included for the servers provided during creation.
-func (svc *DirectoryServiceImpl) GetTDD() *td.TD {
+func (svc *DirectoryServiceImpl) GetTDD() *wot.TD {
 	return svc.dirTDD
 }
 
@@ -199,7 +199,7 @@ func (svc *DirectoryServiceImpl) Stop() {
 func (svc *DirectoryServiceImpl) UpdateThing(senderID string, tdJSON string) error {
 
 	// validate the TD
-	tdoc, err := td.UnmarshalTD(tdJSON)
+	tdoc, err := wot.UnmarshalTD(tdJSON)
 	if err != nil {
 		slog.Error("UpdateThing. Error unmarshalling TD",
 			slog.String("senderID", senderID), "err", err.Error())
@@ -250,12 +250,12 @@ func (svc *DirectoryServiceImpl) UpdateThing(senderID string, tdJSON string) err
 			return fmt.Errorf("UpdateThing: Internal error, the writeTDHook returns a nil TD")
 		}
 		// replace the TD with the one provided by the hook
-		tdJSON = td.MarshalTD(tdi2)
+		tdJSON = wot.MarshalTD(tdi2)
 	} else {
 		// the td was updated with the senderID
 		// do not update the 'Modified' time as this update is not made
 		// by the device.
-		tdJSON = td.MarshalTD(tdoc)
+		tdJSON = wot.MarshalTD(tdoc)
 	}
 
 	err = svc.tdBucket.Set(tdoc.ID, []byte(tdJSON))
@@ -294,7 +294,7 @@ func (svc *DirectoryServiceImpl) UpdateThing(senderID string, tdJSON string) err
 //	storageDir is the directory where the service stores its data. Use "" for testing with an in-memory store.
 //	addForms optional hook to add forms to TDs that dont have any.
 func NewDirectoryServiceImpl(
-	thingID string, storageDir string, addForms func(*td.TD),
+	thingID string, storageDir string, addForms func(*wot.TD),
 ) (*DirectoryServiceImpl, error) {
 
 	slog.Info("NewDirectoryServiceImpl running the directory service")
@@ -305,9 +305,9 @@ func NewDirectoryServiceImpl(
 
 	// create the directory TD from the json file
 	tdoc := string(directory.DirectoryTDJson)
-	dirTDD, _ := td.UnmarshalTD(tdoc)
+	dirTDD, _ := wot.UnmarshalTD(tdoc)
 	dirTDD.ID = thingID
-	dirTDD.SetType(td.AtTypeDirectory)
+	dirTDD.SetType(wot.AtTypeDirectory)
 	if addForms != nil {
 		addForms(dirTDD)
 	}
@@ -330,7 +330,7 @@ func NewDirectoryServiceImpl(
 		addFormsHook: addForms,
 		storageLoc:   storageDir,
 		tdBucket:     tdBucket,
-		tdCache:      make(map[string]*td.TD),
+		tdCache:      make(map[string]*wot.TD),
 	}
 
 	var _ directory.IDirectoryService = svc // interface check

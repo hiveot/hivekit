@@ -9,7 +9,7 @@ import (
 	"github.com/gdamore/tcell/v2"
 	"github.com/hiveot/hivekit/go/api"
 	"github.com/hiveot/hivekit/go/api/msg"
-	"github.com/hiveot/hivekit/go/api/td"
+	"github.com/hiveot/hivekit/go/api/wot"
 	"github.com/hiveot/hivekit/go/cells/consumer"
 	"github.com/hiveot/hivekit/go/cells/directory"
 	directory_client "github.com/hiveot/hivekit/go/cells/directory/client"
@@ -46,7 +46,7 @@ const (
 type DirectoryInfo struct {
 	thingID string
 	title   string
-	tdd     *td.TD
+	tdd     *wot.TD
 	// the client/cache with directory content, if any
 	dirClient directory.IDirectoryClient
 }
@@ -58,7 +58,7 @@ type DirectoryInfo struct {
 // - footer shows last action
 type TuiApp struct {
 	tview.Application
-	*consumer.Consumer // for linking
+	// *consumer.Consumer // for linking
 
 	co *consumer.Consumer
 
@@ -67,14 +67,14 @@ type TuiApp struct {
 	// discovered directories by directory ThingID
 	discoDirs []DirectoryInfo
 	// cache for discovered things
-	discoThings map[string]*td.TD
+	discoThings map[string]*wot.TD
 	// cache with TDs of all things, including discovered things and directories
 	allThings directory.IDirectoryClient
 	// cache for read values
 	vcache vcache.IValueCacheService
 
 	// discovered directories
-	// dirTDs []*td.TD
+	// dirTDs []*wot.TD
 	// dirRecs   []*discovery.DiscoveryResult
 	// thingRecs []*discovery.DiscoveryResult
 
@@ -153,7 +153,7 @@ func (tuiApp *TuiApp) handleEvent(args ...string) {
 
 // invoke the requested action
 func (tuiApp *TuiApp) invokeActionHandler(thingID, name string, input any) {
-	err := tuiApp.InvokeAction(thingID, name, input, nil)
+	err := tuiApp.co.InvokeAction(thingID, name, input, nil)
 	if err != nil {
 		tuiApp.ShowError(err)
 	} else {
@@ -227,7 +227,7 @@ func (tuiApp *TuiApp) SelectTD(thingID string) {
 }
 
 func (tuiApp *TuiApp) ShowDirectories() {
-	dirTDs := make([]*td.TD, 0, len(tuiApp.discoDirs))
+	dirTDs := make([]*wot.TD, 0, len(tuiApp.discoDirs))
 
 	tuiApp.mux.RLock()
 	for _, dirInfo := range tuiApp.discoDirs {
@@ -282,8 +282,8 @@ func (tuiApp *TuiApp) ShowTD(thingID string) {
 		events, _ := tuiApp.co.ReadAllEvents(thingID)
 		tuiApp.tdPage.Refresh(thingID, tdoc, props, events)
 		// subscribe to TD properties and events
-		tuiApp.Subscribe(thingID, "")
-		tuiApp.ObserveProperty(thingID, "")
+		tuiApp.co.Subscribe(thingID, "")
+		tuiApp.co.ObserveProperty(thingID, "")
 	}
 }
 
@@ -303,7 +303,7 @@ func (tuiApp *TuiApp) StartDiscovery() {
 	tuiApp.discoPage.SetTitle(" Running discovery... ")
 
 	go func() {
-		dirTDs := make([]*td.TD, 0)
+		dirTDs := make([]*wot.TD, 0)
 
 		// TODO use a callback to update UI as results come in
 		dirRecs, dirTDs, deviceRecs, deviceTDs :=
@@ -322,7 +322,7 @@ func (tuiApp *TuiApp) StartDiscovery() {
 				thingID:   dirTD.ID,
 				title:     dirTD.Title,
 				tdd:       dirTD,
-				dirClient: directory_client.NewDirectoryClient(dirTD, tuiApp),
+				dirClient: directory_client.NewDirectoryClient(dirTD, tuiApp.co),
 			}
 			tuiApp.allThings.Cache().ImportTD(dirTD)
 			tuiApp.discoDirs = append(tuiApp.discoDirs, dirInfo)
@@ -393,9 +393,9 @@ func (tuiApp *TuiApp) Start() {
 	tuiApp.Application.Run()
 }
 
-// Return a new instance of the tui app.
+// Return a new instance of the tui app along with the consumer to link to.
 // Call Start to run.
-func NewTuiApp(f api.ICellFactory) *TuiApp {
+func NewTuiApp(f api.ICellFactory) (*TuiApp, *consumer.Consumer) {
 
 	// adjust color scheme
 	tview.Styles.TitleColor = tcell.ColorGreen
@@ -440,13 +440,12 @@ func NewTuiApp(f api.ICellFactory) *TuiApp {
 
 	tuiApp := &TuiApp{
 		Application: *tview.NewApplication(),
-		Consumer:    co,
 		co:          co,
 		discoClient: discoClient,
 		// cache of discovered directories
 		discoDirs: make([]DirectoryInfo, 0),
 		// cache of locally discovered things
-		discoThings: make(map[string]*td.TD),
+		discoThings: make(map[string]*wot.TD),
 		// cache of all discovered and directory things
 		allThings: dirCl,
 
@@ -471,5 +470,5 @@ func NewTuiApp(f api.ICellFactory) *TuiApp {
 
 	tuiApp.SetRoot(grid, true).EnableMouse(true)
 
-	return tuiApp
+	return tuiApp, co
 }

@@ -81,7 +81,7 @@ func (tstate *ExposedThingState) SetEvent(name string, value any) {
 	defer tstate.mux.Unlock()
 	ts := utils.FormatUTCMilli(time.Now())
 	tstate.events[name] = msg.ThingValue{
-		Data:      value,
+		Raw:       value,
 		Timestamp: ts,
 	}
 }
@@ -92,7 +92,7 @@ func (tstate *ExposedThingState) SetProperty(propName string, propVal any) {
 	defer tstate.mux.Unlock()
 	ts := utils.FormatUTCMilli(time.Now())
 	val := msg.ThingValue{
-		Data:      propVal,
+		Raw:       propVal,
 		Timestamp: ts,
 	}
 	tstate.properties[propName] = val

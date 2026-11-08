@@ -11,7 +11,7 @@ import (
 
 	"github.com/hiveot/hivekit/go/api"
 	"github.com/hiveot/hivekit/go/api/msg"
-	"github.com/hiveot/hivekit/go/api/td"
+	"github.com/hiveot/hivekit/go/api/wot"
 	"github.com/hiveot/hivekit/go/cells"
 	reconnect_service "github.com/hiveot/hivekit/go/cells/reconnect/service"
 	"github.com/hiveot/hivekit/go/cells/router"
@@ -21,7 +21,7 @@ import (
 // for caching connection URLs with related form used.
 type connectURLForm struct {
 	ConnectURL string
-	Form       *td.Form
+	Form       *wot.Form
 	TDUpdated  string
 }
 
@@ -80,7 +80,7 @@ type RouterServiceImpl struct {
 
 	// handler that provides a TD for the given thingID.
 	// Required for setting credentials and connecting to clients.
-	getTD func(thingID string) *td.TD
+	getTD func(thingID string) *wot.TD
 
 	// the preferred protocol to use when creating a new client connection
 	preferredProtocol string
@@ -156,7 +156,7 @@ func (svc *RouterServiceImpl) DeleteCredentials(thingID string) error {
 //
 // This returns the connect URL, the form used or an error
 func (svc *RouterServiceImpl) GetConnectURL(
-	tdoc *td.TD, op string, name string) (connectURL string, connectForm *td.Form, err error) {
+	tdoc *wot.TD, op string, name string) (connectURL string, connectForm *wot.Form, err error) {
 	var hrefURL *url.URL
 	var match bool
 
@@ -299,7 +299,7 @@ func (svc *RouterServiceImpl) HasCredentials(thingID string) (credType string, f
 // b. The initial connection fails
 // c. No matching protocol is found
 func (svc *RouterServiceImpl) NewClientConnection(
-	tdoc *td.TD, connectURL string, cform *td.Form) (cl api.IHiveCell, err error) {
+	tdoc *wot.TD, connectURL string, cform *wot.Form) (cl api.IHiveCell, err error) {
 
 	var c api.ITransportClient
 
@@ -462,7 +462,7 @@ func NewRouterServiceImpl(
 	clientID string,
 	clientCert *tls.Certificate,
 	rootCAs *x509.CertPool,
-	getTD func(thingID string) *td.TD,
+	getTD func(thingID string) *wot.TD,
 ) (*RouterServiceImpl, error) {
 
 	if getTD == nil {

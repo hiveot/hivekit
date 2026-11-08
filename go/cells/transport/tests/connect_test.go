@@ -9,7 +9,7 @@ import (
 
 	"github.com/hiveot/hivekit/go/api"
 	"github.com/hiveot/hivekit/go/api/msg"
-	"github.com/hiveot/hivekit/go/api/td"
+	"github.com/hiveot/hivekit/go/api/wot"
 	"github.com/hiveot/hivekit/go/cells/transport/clients"
 	"github.com/hiveot/hivekit/go/testenv"
 	"github.com/hiveot/hivekit/go/utils"
@@ -95,7 +95,7 @@ func TestPingClientCert(t *testing.T) {
 	serverTD := testEnv.Server.GetTD()
 	// cl, err := clients.NewTransportClient(
 	// 	testEnv.ServerProtocol, testEnv.ServerURL, testEnv.CertBundle.CaCert)
-	cl, err := clients.NewTransportClient(serverTD, td.HTOpPing, "", testEnv.CertBundle.RootCAs)
+	cl, err := clients.NewTransportClient(serverTD, wot.HTOpPing, "", testEnv.CertBundle.RootCAs)
 	require.NoError(t, err)
 	cl.SetTimeout(testEnv.Env.RpcTimeout)
 
@@ -108,7 +108,7 @@ func TestPingClientCert(t *testing.T) {
 	defer cl.Close()
 
 	// all hiveot transport handle a ping message
-	req := msg.NewRequestMessage(td.HTOpPing, "", "", nil)
+	req := msg.NewRequestMessage(wot.HTOpPing, "", "", nil)
 	err = cl.HandleRequest(req, func(resp *msg.ResponseMessage) error {
 		slog.Info("Received response")
 		return nil
@@ -138,7 +138,7 @@ func TestUnauthorizedError(t *testing.T) {
 	cl, err := clients.NewTransportClientFromForm(tdoc, connectForm, rootCAs)
 	require.NoError(t, err)
 	cl.SetTimeout(testEnv.Env.RpcTimeout)
-	err = cl.SetAuthToken(testClientID1, token, td.SecSchemeBearer)
+	err = cl.SetAuthToken(testClientID1, token, wot.SecSchemeBearer)
 	assert.NoError(t, err)
 	err = cl.Connect()
 	assert.NoError(t, err)
@@ -146,7 +146,7 @@ func TestUnauthorizedError(t *testing.T) {
 
 	// check bad token - httpbasic doesnt detect this until a request is sent
 	if testProtocol != api.WotHttpBasicProtocolType {
-		err = cl.SetAuthToken(testClientID1, "badtoken", td.SecSchemeBearer)
+		err = cl.SetAuthToken(testClientID1, "badtoken", wot.SecSchemeBearer)
 		assert.NoError(t, err)
 		err = cl.Connect()
 		assert.Equal(t, utils.UnauthorizedError, err)

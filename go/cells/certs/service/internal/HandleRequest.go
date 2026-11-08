@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/hiveot/hivekit/go/api/msg"
-	"github.com/hiveot/hivekit/go/api/td"
+	"github.com/hiveot/hivekit/go/api/wot"
 	"github.com/hiveot/hivekit/go/cells/certs"
 	"github.com/hiveot/hivekit/go/utils"
 )
@@ -98,7 +98,7 @@ func (svc *CertsServiceImpl) HandleRequest(
 	if req.SenderID == "" {
 		// todo: is this really needed?
 		err = fmt.Errorf("missing senderID in request")
-	} else if req.Operation == td.OpInvokeAction {
+	} else if req.Operation == wot.OpInvokeAction {
 		// certificate specific operations
 		switch req.Name {
 		case certs.GetCACertAction:

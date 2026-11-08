@@ -6,7 +6,7 @@ import (
 	"strconv"
 
 	"github.com/hiveot/hivekit/go/api/msg"
-	"github.com/hiveot/hivekit/go/api/td"
+	"github.com/hiveot/hivekit/go/api/wot"
 	"github.com/hiveot/hivekit/go/utils"
 	"github.com/rivo/tview"
 )
@@ -35,7 +35,7 @@ func (page *TDPage) onFocus() {
 // TODO: Change to grid and use a tree menu for properties, events, and actions
 // TODO: table should have scroll indicators
 func (page *TDPage) Refresh(thingID string,
-	tdoc *td.TD, propsMap map[string]msg.ThingValue, events map[string]msg.ThingValue) {
+	tdoc *wot.TD, propsMap map[string]msg.ThingValue, events map[string]msg.ThingValue) {
 
 	if tdoc == nil {
 		page.AddItem(tview.NewTextView().SetText("Thing not found: "+thingID), 0, 1, false)

@@ -12,7 +12,7 @@ import (
 	"time"
 
 	"github.com/hiveot/hivekit/go/api"
-	"github.com/hiveot/hivekit/go/api/td"
+	"github.com/hiveot/hivekit/go/api/wot"
 	"github.com/hiveot/hivekit/go/cells/certs"
 	"github.com/hiveot/hivekit/go/cells/thing"
 	"github.com/hiveot/hivekit/go/utils"
@@ -234,7 +234,7 @@ func (svc *CertsServiceImpl) RefreshCA(minRemaining time.Duration) error {
 // Start publishes the td when app is ready
 func (svc *CertsServiceImpl) Start() {
 	tdJson := string(certs.CertsServiceTD)
-	tdoc, err := td.UnmarshalTD(tdJson)
+	tdoc, err := wot.UnmarshalTD(tdJson)
 	if err == nil {
 		tdoc.ID = svc.GetID()
 		tdoc.SetType(certs.CertsServiceCellType)

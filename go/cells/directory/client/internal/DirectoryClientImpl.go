@@ -6,7 +6,7 @@ import (
 
 	"github.com/hiveot/hivekit/go/api"
 	"github.com/hiveot/hivekit/go/api/msg"
-	"github.com/hiveot/hivekit/go/api/td"
+	"github.com/hiveot/hivekit/go/api/wot"
 	"github.com/hiveot/hivekit/go/cells"
 	"github.com/hiveot/hivekit/go/cells/directory"
 	"github.com/teris-io/shortid"
@@ -36,7 +36,7 @@ type DirectoryClientImpl struct {
 
 	// the directory TD used to connect to the directory server.
 	// not needed if a gateway connection exists and dirThingID is known.
-	dirTD *td.TD
+	dirTD *wot.TD
 }
 
 // Send a request to the directory server.
@@ -82,7 +82,7 @@ func (cl *DirectoryClientImpl) CreateThing(tdJson string) (err error) {
 	// This client doesnt make assumptions on how it is connected.
 	// If a sink downstream is connected to a gateway then this will work, otherwise it a TDD is required.
 	err = cl._sendServerRequest(
-		td.OpInvokeAction, directory.CreateThingAction, tdJson, nil)
+		wot.OpInvokeAction, directory.CreateThingAction, tdJson, nil)
 	return err
 }
 
@@ -94,12 +94,12 @@ func (cl *DirectoryClientImpl) DeleteThing(thingID string) (err error) {
 	// This client doesnt make assumptions on how it is connected.
 	// If the cell downstream is connected to a gateway then this will work, otherwise it a TDD is required.
 	err = cl._sendServerRequest(
-		td.OpInvokeAction, directory.DeleteThingAction, thingID, nil)
+		wot.OpInvokeAction, directory.DeleteThingAction, thingID, nil)
 	return err
 }
 
 // Get the TD for the given thing ID
-func (cl *DirectoryClientImpl) GetTD(thingID string) *td.TD {
+func (cl *DirectoryClientImpl) GetTD(thingID string) *wot.TD {
 	tdoc, err := cl.RetrieveThing(thingID)
 	_ = err
 	return tdoc
@@ -119,11 +119,11 @@ func (cl *DirectoryClientImpl) HandleNotification(notif *msg.NotificationMessage
 // Primarily intended for testing if cells publish a TD.
 func (cl *DirectoryClientImpl) HandleRequest(req *msg.RequestMessage, replyTo msg.ResponseHandler) error {
 
-	if req.Operation == td.OpInvokeAction && req.Name == directory.UpdateThingAction {
+	if req.Operation == wot.OpInvokeAction && req.Name == directory.UpdateThingAction {
 		var tdocJSON string
 		err := req.DecodeInput(&tdocJSON)
 		if err == nil {
-			tdoc, err := td.UnmarshalTD(tdocJSON)
+			tdoc, err := wot.UnmarshalTD(tdocJSON)
 			if err == nil {
 				cl.cache.ImportTD(tdoc)
 
@@ -143,7 +143,7 @@ func (cl *DirectoryClientImpl) HandleRequest(req *msg.RequestMessage, replyTo ms
 }
 
 // Retrieve a Thing TD from the cache or remote
-func (cl *DirectoryClientImpl) RetrieveThing(thingID string) (tdoc *td.TD, err error) {
+func (cl *DirectoryClientImpl) RetrieveThing(thingID string) (tdoc *wot.TD, err error) {
 
 	if thingID == "" {
 		return nil, fmt.Errorf("RetrieveThing: no thingID provided")
@@ -158,12 +158,12 @@ func (cl *DirectoryClientImpl) RetrieveThing(thingID string) (tdoc *td.TD, err e
 	var tdJson string
 	if cl.dirTD != nil {
 		err = cl._sendServerRequest(
-			td.OpInvokeAction, directory.RetrieveThingAction, thingID, &tdJson)
+			wot.OpInvokeAction, directory.RetrieveThingAction, thingID, &tdJson)
 	} else {
 		// If a gateway connection exists then this should reach the server
 		// without it, this fails.
 		err = cl._sendServerRequest(
-			td.OpInvokeAction, directory.RetrieveThingAction, thingID, &tdJson)
+			wot.OpInvokeAction, directory.RetrieveThingAction, thingID, &tdJson)
 	}
 	if err != nil {
 		return nil, err
@@ -177,7 +177,7 @@ func (cl *DirectoryClientImpl) RetrieveThing(thingID string) (tdoc *td.TD, err e
 // This loads all things from the remote directory. If the directory is
 // not reachable, fall back to the local cache.
 // This fails if the Directory ThingID is not set.
-func (cl *DirectoryClientImpl) RetrieveAllThings(offset int, limit int) (tdList []*td.TD, cacheOnly bool) {
+func (cl *DirectoryClientImpl) RetrieveAllThings(offset int, limit int) (tdList []*wot.TD, cacheOnly bool) {
 
 	// This client doesnt make assumptions on how it is connected.
 	// If the cell downstream is connected to a gateway then this will work, otherwise it a TDD is required.
@@ -188,10 +188,10 @@ func (cl *DirectoryClientImpl) RetrieveAllThings(offset int, limit int) (tdList 
 	}
 	var tdJsonList []string
 	err := cl._sendServerRequest(
-		td.OpInvokeAction, directory.RetrieveAllThingsAction, args, &tdJsonList) //&tdJsonList)
+		wot.OpInvokeAction, directory.RetrieveAllThingsAction, args, &tdJsonList) //&tdJsonList)
 	if err == nil {
 		// import them into the cache
-		tdList = make([]*td.TD, 0, len(tdJsonList))
+		tdList = make([]*wot.TD, 0, len(tdJsonList))
 		for _, tdJson := range tdJsonList {
 			tdoc, err := cl.cache.ImportTDJson(tdJson)
 			if err == nil {
@@ -205,7 +205,7 @@ func (cl *DirectoryClientImpl) RetrieveAllThings(offset int, limit int) (tdList 
 }
 
 // Set the directory TD to use and include it in the local cache
-func (cl *DirectoryClientImpl) SetTDD(tdd *td.TD) {
+func (cl *DirectoryClientImpl) SetTDD(tdd *wot.TD) {
 	cl.dirTD = tdd
 	cl.dirThingID = tdd.ID
 	cl.cache.ImportTD(tdd)
@@ -215,7 +215,7 @@ func (cl *DirectoryClientImpl) SetTDD(tdd *td.TD) {
 // This requires the directory server thingID
 func (cl *DirectoryClientImpl) Start() {
 	if cl.dirThingID != "" {
-		err := cl._sendServerRequest(td.OpSubscribeAllEvents, "", nil, nil)
+		err := cl._sendServerRequest(wot.OpSubscribeAllEvents, "", nil, nil)
 		_ = err
 	}
 }
@@ -226,7 +226,7 @@ func (cl *DirectoryClientImpl) UpdateThing(tdJson string) (err error) {
 	if err != nil {
 		return err
 	}
-	err = cl._sendServerRequest(td.OpInvokeAction, directory.UpdateThingAction, tdJson, nil)
+	err = cl._sendServerRequest(wot.OpInvokeAction, directory.UpdateThingAction, tdJson, nil)
 	return err
 }
 
@@ -240,7 +240,7 @@ func (cl *DirectoryClientImpl) UpdateThing(tdJson string) (err error) {
 //	dirTD is the directory TD from external source. Use SetTDD if not yet available.
 //	sink handles requests for the directory server and returns notifications. nil to set manually.
 func NewDirectoryClientImpl(
-	dirTD *td.TD, sink api.IHiveCell) *DirectoryClientImpl {
+	dirTD *wot.TD, sink api.IHiveCell) *DirectoryClientImpl {
 	thingID := directory.DirectoryClientCellType + "-" + shortid.MustGenerate()
 	cl := &DirectoryClientImpl{
 		HiveCellBase: cells.NewHiveCellBase(thingID),

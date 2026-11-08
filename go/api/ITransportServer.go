@@ -4,7 +4,7 @@ import (
 	"time"
 
 	"github.com/hiveot/hivekit/go/api/msg"
-	"github.com/hiveot/hivekit/go/api/td"
+	"github.com/hiveot/hivekit/go/api/wot"
 )
 
 // Transport server definitions for use by transport protocols.
@@ -86,7 +86,7 @@ type ITransportServer interface {
 	// AddTDSecForms updates the given Thing Description with security and forms for this
 	// transport cell.
 	// The security scheme in the TD is set by the authenticator used by the server.
-	AddTDSecForms(tdoc *td.TD)
+	AddTDSecForms(tdoc *wot.TD)
 
 	// CloseAll closes all client connections. Mainly intended for testing.
 	CloseAll()
@@ -102,7 +102,7 @@ type ITransportServer interface {
 	// This TD describes the server itself and provides a base URL for its connection
 	// Primarily intended for testing. In most cases a server is run together with a
 	// device cell whose TD is updated with forms from the server.
-	GetTD() *td.TD
+	GetTD() *wot.TD
 
 	// HandleNotification invokes SendNotification.
 	//

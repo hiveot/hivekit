@@ -1,18 +1,19 @@
 package consumer
 
 import (
+	"sync"
 	"sync/atomic"
 
 	"github.com/hiveot/hivekit/go/api"
 	"github.com/hiveot/hivekit/go/api/msg"
-	"github.com/hiveot/hivekit/go/api/td"
+	"github.com/hiveot/hivekit/go/api/wot"
 	"github.com/hiveot/hivekit/go/cells"
 	"github.com/teris-io/shortid"
 )
 
 const ConsumerCellType = "consumer"
 
-// Consumer is a cell representing a WoT consumer.
+// Consumer represents a WoT consumer.
 //
 // This provides functions to read, write and observe properties, read and subscribe to
 // events, and invoke and query actions.
@@ -27,6 +28,9 @@ const ConsumerCellType = "consumer"
 //
 //	Linking can be done manually using SetRequestSink and SetNotificationSink, or
 //	by including it as the first cell in a recipe of the factory.
+//
+// See also GetConsumedThing which is intended for interacting with a Thing including observing
+// properties and receiving events.
 type Consumer struct {
 	// This consumer is a sink for the connection
 	*cells.HiveCellBase
@@ -34,6 +38,38 @@ type Consumer struct {
 	// notificationHandler is the application handler of notifications
 	// notifications will also be forwarded upstream to the upstream handler.
 	appNotificationHook atomic.Pointer[msg.NotificationHandler]
+
+	// collection of consumed things
+	// created on the first 'consume request'
+	consumedThings map[string]*ConsumedThing
+
+	// mutex to access consumed things
+	mux sync.RWMutex
+}
+
+// Return a consumed thing for a Thing with the given Thing ID.
+//
+// This is similar to the consume() method in the WoT scripting api.
+//
+// The consumed handles the subscriptions and forwards requests related to actions,
+// properties and events.
+//
+// The consumed thing subscribes to events and observes properties. Call Stop() on the
+// consumed things to cancel all subscriptions.
+//
+// note that the consumed things remain in effect for the duration of this consumer.
+func (co *Consumer) Consume(tdoc *wot.TD) (ct *ConsumedThing, err error) {
+	co.mux.Lock()
+	defer co.mux.Unlock()
+	if co.consumedThings == nil {
+		co.consumedThings = make(map[string]*ConsumedThing)
+	}
+	ct, found := co.consumedThings[tdoc.ID]
+	if !found {
+		ct, err = NewConsumedThing(tdoc, co)
+		co.consumedThings[tdoc.ID] = ct
+	}
+	return ct, err
 }
 
 // HandleNotification receives an notifications from a downstream cell.
@@ -43,8 +79,8 @@ type Consumer struct {
 //
 // See also SetNotificationHook to allow applications to register a handler that receives
 // notifications passing through the chain.
-func (m *Consumer) HandleNotification(notif *msg.NotificationMessage) {
-	handler := m.appNotificationHook.Load()
+func (co *Consumer) HandleNotification(notif *msg.NotificationMessage) {
+	handler := co.appNotificationHook.Load()
 
 	if *handler != nil {
 		(*handler)(notif)
@@ -52,7 +88,7 @@ func (m *Consumer) HandleNotification(notif *msg.NotificationMessage) {
 	// the reason for the extra indirection is to ensure we're receiving the notification
 	// independently from when someone sets a custome notification handler.
 	// ForwardNotification will invoke the hook.
-	m.ForwardNotification(notif)
+	co.ForwardNotification(notif)
 }
 
 // // Return the directory client if present in the chain.
@@ -71,7 +107,7 @@ func (m *Consumer) HandleNotification(notif *msg.NotificationMessage) {
 func (co *Consumer) InvokeAction(
 	thingID string, name string, input any, output any) error {
 
-	err := co.Rpc(td.OpInvokeAction, thingID, name, input, output)
+	err := co.Rpc(wot.OpInvokeAction, thingID, name, input, output)
 	return err
 }
 
@@ -80,9 +116,9 @@ func (co *Consumer) InvokeAction(
 //	thingID is empty for all things
 //	name is empty for all properties of the selected things
 func (co *Consumer) ObserveProperty(thingID string, name string) error {
-	op := td.OpObserveProperty
+	op := wot.OpObserveProperty
 	if name == "" {
-		op = td.OpObserveAllProperties
+		op = wot.OpObserveAllProperties
 	}
 
 	err := co.Rpc(op, thingID, name, nil, "")
@@ -92,7 +128,7 @@ func (co *Consumer) ObserveProperty(thingID string, name string) error {
 // Ping the server and wait for a response.
 // Intended to ensure the server is reachable.
 func (co *Consumer) Ping() (err error) {
-	err = co.Rpc(td.HTOpPing, "", "", nil, nil)
+	err = co.Rpc(wot.HTOpPing, "", "", nil, nil)
 	if err != nil {
 		return err
 	}
@@ -109,9 +145,9 @@ func (co *Consumer) Ping() (err error) {
 // protocol specific messages.
 // The hiveot protocol passes this as-is as the output.
 func (co *Consumer) QueryAction(thingID, name string) (
-	value *msg.ActionStatus, err error) {
+	value msg.ActionStatus, err error) {
 
-	err = co.Rpc(td.OpQueryAction, thingID, name, nil, &value)
+	err = co.Rpc(wot.OpQueryAction, thingID, name, nil, &value)
 	// if value is empty then this action has not run before
 	return value, err
 }
@@ -132,7 +168,7 @@ func (co *Consumer) QueryAction(thingID, name string) (
 func (co *Consumer) QueryAllActions(thingID string) (
 	values map[string]msg.ActionStatus, err error) {
 
-	err = co.Rpc(td.OpQueryAllActions, thingID, "", nil, &values)
+	err = co.Rpc(wot.OpQueryAllActions, thingID, "", nil, &values)
 	return values, err
 }
 
@@ -142,7 +178,7 @@ func (co *Consumer) QueryAllActions(thingID string) (
 func (co *Consumer) ReadAllEvents(thingID string) (
 	values map[string]msg.ThingValue, err error) {
 
-	err = co.Rpc(td.HTOpReadAllEvents, thingID, "", nil, &values)
+	err = co.Rpc(wot.HTOpReadAllEvents, thingID, "", nil, &values)
 	return values, err
 }
 
@@ -152,7 +188,7 @@ func (co *Consumer) ReadAllEvents(thingID string) (
 func (co *Consumer) ReadAllProperties(thingID string) (
 	values map[string]msg.ThingValue, err error) {
 
-	err = co.Rpc(td.OpReadAllProperties, thingID, "", nil, &values)
+	err = co.Rpc(wot.OpReadAllProperties, thingID, "", nil, &values)
 	return values, err
 }
 
@@ -162,7 +198,7 @@ func (co *Consumer) ReadAllProperties(thingID string) (
 // and value as described in the event affordance.
 func (co *Consumer) ReadEvent(thingID, name string) (value msg.ThingValue, err error) {
 
-	err = co.Rpc(td.HTOpReadEvent, thingID, name, nil, &value)
+	err = co.Rpc(wot.HTOpReadEvent, thingID, name, nil, &value)
 	return value, err
 }
 
@@ -176,23 +212,37 @@ func (co *Consumer) ReadEvent(thingID, name string) (value msg.ThingValue, err e
 // value is nil if the property is unknown.
 func (co *Consumer) ReadProperty(thingID, name string) (value msg.ThingValue, err error) {
 
-	err = co.Rpc(td.OpReadProperty, thingID, name, nil, &value)
+	err = co.Rpc(wot.OpReadProperty, thingID, name, nil, &value)
 	return value, err
 }
 
 // Set the hook to invoke with received notifications
 //
 // This lets applications receive notifications while leaving the notification chain intact.
-func (m *Consumer) SetNotificationHook(hook msg.NotificationHandler) {
-	m.appNotificationHook.Store(&hook)
+func (co *Consumer) SetNotificationHook(hook msg.NotificationHandler) {
+	co.appNotificationHook.Store(&hook)
+}
+
+// Stop the consumed
+// This removes all consumed things
+func (co *Consumer) Stop() {
+	co.mux.Lock()
+	defer co.mux.Unlock()
+	if co.consumedThings == nil {
+		return
+	}
+	for _, ct := range co.consumedThings {
+		ct.Stop()
+	}
+	co.consumedThings = nil
 }
 
 // Subscribe to one or all events of a thing.
 // name is the event to subscribe to or "" for all events
 func (co *Consumer) Subscribe(thingID string, name string) error {
-	op := td.OpSubscribeEvent
+	op := wot.OpSubscribeEvent
 	if name == "" {
-		op = td.OpSubscribeAllEvents
+		op = wot.OpSubscribeAllEvents
 	}
 	err := co.Rpc(op, thingID, name, nil, "")
 	return err
@@ -200,9 +250,9 @@ func (co *Consumer) Subscribe(thingID string, name string) error {
 
 // UnobserveProperty a previous observed property or all properties
 func (co *Consumer) UnobserveProperty(thingID string, name string) error {
-	op := td.OpUnobserveProperty
+	op := wot.OpUnobserveProperty
 	if name == "" {
-		op = td.OpUnobserveAllProperties
+		op = wot.OpUnobserveAllProperties
 	}
 	err := co.Rpc(op, thingID, name, nil, "")
 	return err
@@ -210,9 +260,9 @@ func (co *Consumer) UnobserveProperty(thingID string, name string) error {
 
 // Unsubscribe is a helper for sending an unsubscribe request
 func (co *Consumer) Unsubscribe(thingID string, name string) error {
-	op := td.OpUnsubscribeEvent
+	op := wot.OpUnsubscribeEvent
 	if name == "" {
-		op = td.OpUnsubscribeAllEvents
+		op = wot.OpUnsubscribeAllEvents
 	}
 	err := co.Rpc(op, thingID, name, nil, "")
 	return err
@@ -222,9 +272,9 @@ func (co *Consumer) Unsubscribe(thingID string, name string) error {
 // Since writing properties can take some time on slow devices, the wait is optional.
 func (co *Consumer) WriteProperty(thingID string, name string, input any, wait bool) (err error) {
 	if wait {
-		err = co.Rpc(td.OpWriteProperty, thingID, name, input, nil)
+		err = co.Rpc(wot.OpWriteProperty, thingID, name, input, nil)
 	} else {
-		req := msg.NewRequestMessage(td.OpWriteProperty, thingID, name, input)
+		req := msg.NewRequestMessage(wot.OpWriteProperty, thingID, name, input)
 		err = co.EmitRequest(req, func(resp *msg.ResponseMessage) error {
 			// just ignore the result
 			return nil

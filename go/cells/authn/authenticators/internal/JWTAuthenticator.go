@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
-	"github.com/hiveot/hivekit/go/api/td"
+	"github.com/hiveot/hivekit/go/api/wot"
 	"github.com/hiveot/hivekit/go/cells/authn"
 )
 
@@ -57,12 +57,12 @@ type JWTAuthenticatorImpl struct {
 // AddSecurityScheme adds the security scheme that this authenticator supports.
 // http supports bearer tokens for request authentication, basic and digest authentication
 // for logging in.
-func (srv *JWTAuthenticatorImpl) AddSecurityScheme(tdoc *td.TD) {
+func (srv *JWTAuthenticatorImpl) AddSecurityScheme(tdoc *wot.TD) {
 
 	// bearer security scheme for authenticating http and subprotocol connections
 	format, alg := srv.GetAlg()
 
-	tdoc.AddSecurityScheme("bearer_jwt", td.SecurityScheme{
+	tdoc.AddSecurityScheme("bearer_jwt", wot.SecurityScheme{
 		//AtType:        nil,
 		Description: "Bearer token authentication",
 		//Descriptions:  nil,

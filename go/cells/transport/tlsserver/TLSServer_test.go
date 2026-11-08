@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/hiveot/hivekit/go/api/td"
+	"github.com/hiveot/hivekit/go/api/wot"
 	certstest "github.com/hiveot/hivekit/go/cells/certs/test"
 	"github.com/hiveot/hivekit/go/cells/transport/tlsclient"
 	"github.com/hiveot/hivekit/go/cells/transport/tlsserver"
@@ -30,8 +30,8 @@ type TestAuthenticator struct {
 	ValidUntil time.Time
 }
 
-func (ta *TestAuthenticator) AddSecurityScheme(tdoc *td.TD) {}
-func (ta *TestAuthenticator) GetRole(string) string         { return "" }
+func (ta *TestAuthenticator) AddSecurityScheme(tdoc *wot.TD) {}
+func (ta *TestAuthenticator) GetRole(string) string          { return "" }
 
 func (ta *TestAuthenticator) ValidateClient(claimedClientID string, bearerToken string) (
 	clientID string, issuedAt time.Time, validUntil time.Time, err error) {

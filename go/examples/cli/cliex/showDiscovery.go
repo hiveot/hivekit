@@ -7,13 +7,13 @@ import (
 	"time"
 
 	"github.com/araddon/dateparse"
-	"github.com/hiveot/hivekit/go/api/td"
+	"github.com/hiveot/hivekit/go/api/wot"
 	"github.com/hiveot/hivekit/go/cells/discovery"
 	"github.com/hiveot/hivekit/go/utils"
 )
 
 // Show a list of Thing TDs
-func ListThings(tdList []*td.TD) {
+func ListThings(tdList []*wot.TD) {
 	fmt.Printf("Thing ID                          Title                         #Props #Events #Actions  Modified (local)  base\n")
 	fmt.Printf("--------------------------------  ----------------------------  ------ ------- --------  ----------------  -----\n")
 	for _, tdoc := range tdList {
@@ -44,13 +44,13 @@ func (app *Cliex) ShowDiscovery() {
 	app.discoClient.DiscoverThings("", "", false, waitDuration, func(r *discovery.DiscoveryResult) bool {
 		// load the TD to present nr of affordances
 		tdURL := r.AsURL()
-		var tdoc *td.TD
+		var tdoc *wot.TD
 		var thingID string = "n/a"
 		if tdURL != "" {
 			resp, err := http.Get(tdURL)
 			if err == nil {
 				raw, _ := io.ReadAll(resp.Body)
-				tdoc, err = td.UnmarshalTD(string(raw))
+				tdoc, err = wot.UnmarshalTD(string(raw))
 			}
 			if err != nil {
 				fmt.Printf(" Error reading TD: %s\n", err.Error())

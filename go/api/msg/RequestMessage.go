@@ -127,7 +127,7 @@ func (req *RequestMessage) ToString(maxlen int) string {
 // note that senderID is filled by the server with the connected clientID. When no transport is
 // used, this must be set to the authenticated client's ID, otherwise services can reject the request.
 //
-//	operation is the request operation td.OpInvokeAction, td.OpReadProperty,...
+//	operation is the request operation wot.OpInvokeAction, td.OpReadProperty,...
 //	thingID is the thing the value applies to (destination of action or source of event)
 //	name is the name of the property, event or action affordance as described in the thing TD
 //	input is the request input as defined in the corresponding affordance dataschema.

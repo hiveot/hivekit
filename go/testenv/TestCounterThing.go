@@ -9,7 +9,7 @@ import (
 
 	"github.com/hiveot/hivekit/go/api"
 	"github.com/hiveot/hivekit/go/api/msg"
-	"github.com/hiveot/hivekit/go/api/td"
+	"github.com/hiveot/hivekit/go/api/wot"
 	"github.com/hiveot/hivekit/go/cells/thing"
 	"github.com/teris-io/shortid"
 )
@@ -152,9 +152,9 @@ func (svc *TestCounterThing) DoIncrement() error {
 // Return the TD of this device.
 // Forms should be added by the appropriate transport method used.
 // This is also written to the directory on start.
-func (svc *TestCounterThing) GetTD() *td.TD {
+func (svc *TestCounterThing) GetTD() *wot.TD {
 	// Make the TD available. Set its thingID with the cell ID.
-	tdoc, _ := td.UnmarshalTD(counterThingTD)
+	tdoc, _ := wot.UnmarshalTD(counterThingTD)
 	tdoc.ID = svc.GetID()
 	tdoc.SetType(CounterThingCellType)
 	return tdoc
@@ -187,7 +187,7 @@ func (svc *TestCounterThing) HandleRequest(req *msg.RequestMessage, replyTo msg.
 	// request was unhandled
 
 	switch req.Operation {
-	case td.OpInvokeAction:
+	case wot.OpInvokeAction:
 		var output any
 
 		switch req.Name {
@@ -198,7 +198,7 @@ func (svc *TestCounterThing) HandleRequest(req *msg.RequestMessage, replyTo msg.
 		}
 		resp := req.CreateResponse(output, err)
 		err = replyTo(resp)
-	case td.OpWriteProperty:
+	case wot.OpWriteProperty:
 		return svc.HandleWriteProperty(req, replyTo)
 	default:
 		err = fmt.Errorf("Unhandled operation '%s'", req.Operation)

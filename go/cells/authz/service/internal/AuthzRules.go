@@ -3,7 +3,7 @@ package internal
 import (
 	"github.com/hiveot/hivekit/go/api"
 	"github.com/hiveot/hivekit/go/api/msg"
-	"github.com/hiveot/hivekit/go/api/td"
+	"github.com/hiveot/hivekit/go/api/wot"
 )
 
 // ValidateAuthorization verifies that the sender is authorized for the request.
@@ -30,11 +30,11 @@ func (svc *AuthzServiceImpl) HasPermission(req *msg.RequestMessage) (hasPermissi
 	switch req.Operation {
 
 	// 1. everyone can read properties and subscribe to events
-	case td.OpReadProperty, td.OpReadMultipleProperties, td.OpReadAllProperties,
-		td.OpSubscribeEvent, td.OpSubscribeAllEvents:
+	case wot.OpReadProperty, wot.OpReadMultipleProperties, wot.OpReadAllProperties,
+		wot.OpSubscribeEvent, wot.OpSubscribeAllEvents:
 		return true
 	// 2. operators, managers, administrators and services can also query and invoke actions
-	case td.OpInvokeAction, td.OpQueryAction, td.OpQueryAllActions:
+	case wot.OpInvokeAction, wot.OpQueryAction, wot.OpQueryAllActions:
 		if role == api.ClientRoleOperator ||
 			role == api.ClientRoleManager ||
 			role == api.ClientRoleAdmin ||
@@ -46,7 +46,7 @@ func (svc *AuthzServiceImpl) HasPermission(req *msg.RequestMessage) (hasPermissi
 			return true
 		}
 	// 3. managers, administrators and services can also write configuration
-	case td.OpWriteProperty, td.OpWriteMultipleProperties:
+	case wot.OpWriteProperty, wot.OpWriteMultipleProperties:
 		if role == api.ClientRoleManager ||
 			role == api.ClientRoleAdmin ||
 			role == api.ClientRoleService {

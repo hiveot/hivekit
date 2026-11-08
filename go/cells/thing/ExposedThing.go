@@ -8,7 +8,7 @@ import (
 
 	"github.com/hiveot/hivekit/go/api"
 	"github.com/hiveot/hivekit/go/api/msg"
-	"github.com/hiveot/hivekit/go/api/td"
+	"github.com/hiveot/hivekit/go/api/wot"
 	"github.com/hiveot/hivekit/go/cells"
 	"github.com/hiveot/hivekit/go/cells/directory"
 	"github.com/teris-io/shortid"
@@ -46,7 +46,7 @@ type ExposedThing struct {
 	mux sync.RWMutex
 
 	// The TD describing the properties, events and actions used here
-	// tdoc     *td.TD
+	// tdoc     *wot.TD
 	// tdocJSON string
 
 	// Exposed Thing State with last known properties, events and actions of this thing
@@ -81,27 +81,27 @@ func (eThing *ExposedThing) HandleReadRequests(req *msg.RequestMessage, replyTo 
 
 	switch req.Operation {
 
-	case td.HTOpReadAllEvents:
+	case wot.HTOpReadAllEvents:
 		output = eThing.state.GetAllEvents()
 
-	case td.OpReadAllProperties:
+	case wot.OpReadAllProperties:
 		output = eThing.state.GetAllProperties()
 
-	case td.HTOpReadEvent:
+	case wot.HTOpReadEvent:
 		output = eThing.state.GetEvent(req.Name)
 		if output == nil {
 			err = fmt.Errorf("Unknown event '%s'", req.Name)
 		}
 
-	case td.OpReadProperty:
+	case wot.OpReadProperty:
 		val := eThing.state.GetProperty(req.Name)
 		if val == nil {
 			err = fmt.Errorf("Unknown property '%s'", req.Name)
 		} else {
-			output = val.Data
+			output = val.Raw
 		}
 
-	case td.OpReadMultipleProperties:
+	case wot.OpReadMultipleProperties:
 
 		var keys []string
 		err = req.DecodeInput(&keys)
@@ -121,14 +121,14 @@ func (eThing *ExposedThing) HandleReadRequests(req *msg.RequestMessage, replyTo 
 		}
 		eThing.mux.RUnlock()
 		output = props
-	case td.OpQueryAction:
+	case wot.OpQueryAction:
 
 		actionStatus := eThing.state.GetActionStatus(req.Name)
 		if actionStatus == nil {
 			err = fmt.Errorf("Unknown action: %s", req.Name)
 		}
 		output = actionStatus
-	case td.OpQueryAllActions:
+	case wot.OpQueryAllActions:
 		output = maps.Clone(eThing.state.actions)
 
 	default:
@@ -229,7 +229,7 @@ func (eThing *ExposedThing) PubProperty(thingID string, propName string, propVal
 	if onlyChanges {
 		// since most values are native types a simple compare should suffice
 		old := eThing.state.GetProperty(propName)
-		if old != nil && old.Data == propVal {
+		if old != nil && old.Raw == propVal {
 			// if old != nil && reflect.DeepEqual(old, propVal) {
 			hasChanged = false
 		}
@@ -301,7 +301,7 @@ func (eThing *ExposedThing) SetProperty(thingID string, propName string, propVal
 	// since most values are native types a simple compare should suffice
 	hasChanged := true
 	old := eThing.state.GetProperty(propName)
-	if old != nil && old.Data == propVal {
+	if old != nil && old.Raw == propVal {
 		// if old != nil && reflect.DeepEqual(old, propVal) {
 		hasChanged = false
 	}
@@ -315,7 +315,7 @@ func (eThing *ExposedThing) SetProperty(thingID string, propName string, propVal
 //
 // Note that this requires that the linked transport sends the request to the
 // directory server.
-func (eThing *ExposedThing) WriteTD(tdoc *td.TD) error {
+func (eThing *ExposedThing) WriteTD(tdoc *wot.TD) error {
 
 	slog.Info("WriteTD", "thingID", tdoc.ID)
 
@@ -326,7 +326,7 @@ func (eThing *ExposedThing) WriteTD(tdoc *td.TD) error {
 	// the request.
 	// Only if the router needs to route it, must the thingID be known.
 	directoryThingID := ""
-	err := eThing.Rpc(td.OpInvokeAction, directoryThingID, directory.UpdateThingAction, tdJSON, nil)
+	err := eThing.Rpc(wot.OpInvokeAction, directoryThingID, directory.UpdateThingAction, tdJSON, nil)
 	if err != nil {
 		slog.Warn("PublishTD: Failed to update the directory", "err", err.Error())
 	}

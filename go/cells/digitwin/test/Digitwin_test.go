@@ -12,7 +12,7 @@ import (
 
 	"github.com/hiveot/hivekit/go/api"
 	"github.com/hiveot/hivekit/go/api/msg"
-	"github.com/hiveot/hivekit/go/api/td"
+	"github.com/hiveot/hivekit/go/api/wot"
 	"github.com/hiveot/hivekit/go/cells/digitwin"
 	digitwin_service "github.com/hiveot/hivekit/go/cells/digitwin/service"
 	"github.com/hiveot/hivekit/go/cells/directory"
@@ -136,14 +136,14 @@ func TestCreateDigitwinTD(t *testing.T) {
 
 	// pretent to be a device that writes a TD to the directory
 	td1 := testEnv.CreateTestTD(0, false)
-	td1Json := td.MarshalTD(td1)
+	td1Json := wot.MarshalTD(td1)
 	err := dir.UpdateThing(deviceID, td1Json)
 
 	// 1. Retrieve the TD from the directory.
 	dtwList, err := dir.RetrieveAllThings(0, 0)
 	require.NoError(t, err)
 	require.Equal(t, 1, len(dtwList))
-	dtw1, err := td.UnmarshalTD(dtwList[0])
+	dtw1, err := wot.UnmarshalTD(dtwList[0])
 	require.NoError(t, err)
 
 	// 2. The digitwin ID should have the dtw prefix
@@ -216,7 +216,7 @@ func TestReadDigitwinProperty(t *testing.T) {
 	})
 
 	// 2. pretent to be a device that writes a TD to the directory
-	td1Json := td.MarshalTD(deviceTD1)
+	td1Json := wot.MarshalTD(deviceTD1)
 	err = dir.UpdateThing(deviceID, td1Json)
 	assert.NoError(t, err)
 
@@ -237,7 +237,7 @@ func TestReadDigitwinProperty(t *testing.T) {
 	// 4. the consumer reads the property value
 	tv, err := co.ReadProperty(dtwThingID, prop1Name)
 	require.NoError(t, err)
-	assert.Equal(t, prop1Value, tv.Data)
+	assert.Equal(t, prop1Value, tv.Raw)
 }
 
 // Write a property via the digital twin
@@ -263,7 +263,7 @@ func TestWriteDigitwinProperty(t *testing.T) {
 	eThing, cc2, _ := testEnv.NewRCThing(deviceID, nil)
 	defer cc2.Close()
 	eThing.SetAppRequestHook(func(req *msg.RequestMessage, replyTo msg.ResponseHandler) error {
-		if req.Operation == td.OpWriteProperty {
+		if req.Operation == wot.OpWriteProperty {
 			txPropValue = req.ToString(0)
 			resp := req.CreateResponse(nil, nil)
 
@@ -285,7 +285,7 @@ func TestWriteDigitwinProperty(t *testing.T) {
 
 	td1 := testEnv.CreateTestTD(0, false)
 	// td1.SetRCID(deviceID)
-	td1Json := td.MarshalTD(td1)
+	td1Json := wot.MarshalTD(td1)
 
 	// An ExposedThing can publish its TD without knowing the thingID of the directory.
 	// The directory service reacts on any 'invokeaction updateTD' requests.
@@ -299,7 +299,7 @@ func TestWriteDigitwinProperty(t *testing.T) {
 	require.NoError(t, err)
 	require.NotEmpty(t, td2Json)
 	// check whether the deviceID is set as the rcid
-	tdi2, err := td.UnmarshalTD(td2Json)
+	tdi2, err := wot.UnmarshalTD(td2Json)
 	require.NoError(t, err)
 	assert.Equal(t, deviceID, tdi2.GetRCID())
 
@@ -320,7 +320,7 @@ func TestWriteDigitwinProperty(t *testing.T) {
 	// 6. Consumer reads the property
 	tv, err := co.ReadProperty(dtwThing1ID, prop1Name)
 	require.NoError(t, err)
-	assert.Equal(t, prop1Value, tv.Data)
+	assert.Equal(t, prop1Value, tv.Raw)
 }
 
 // Invoke an action via the digital twin
@@ -351,7 +351,7 @@ func TestInvokeDigitwinAction(t *testing.T) {
 	defer cc2.Close()
 	ething.SetAppRequestHook(func(req *msg.RequestMessage, replyTo msg.ResponseHandler) error {
 		// echo the input
-		if req.Operation == td.OpInvokeAction {
+		if req.Operation == wot.OpInvokeAction {
 			actionInput := req.ToString(0)
 			resp := req.CreateResponse(actionInput, nil)
 			// submit an event after the action
@@ -370,7 +370,7 @@ func TestInvokeDigitwinAction(t *testing.T) {
 	// 3. write a TD with this action
 	td1 := testEnv.CreateTestTD(0, false)
 	td1.ID = thingID
-	td1Json := td.MarshalTD(td1)
+	td1Json := wot.MarshalTD(td1)
 	err = directory_client.UpdateTD("", td1Json, ething.EmitRequest, testEnv.Env.RpcTimeout)
 	assert.NoError(t, err)
 
@@ -387,5 +387,5 @@ func TestInvokeDigitwinAction(t *testing.T) {
 	// 6. Consumer reads the event
 	rxEvent, err := co.ReadEvent(dtwThing1ID, actionName)
 	require.NoError(t, err)
-	assert.Equal(t, actionInput, rxEvent.Data)
+	assert.Equal(t, actionInput, rxEvent.Raw)
 }

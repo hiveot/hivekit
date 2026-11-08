@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/hiveot/hivekit/go/api"
-	"github.com/hiveot/hivekit/go/api/td"
+	"github.com/hiveot/hivekit/go/api/wot"
 	"github.com/hiveot/hivekit/go/cells/authn"
 	authn_authenticators "github.com/hiveot/hivekit/go/cells/authn/authenticators"
 	"github.com/hiveot/hivekit/go/utils"
@@ -39,7 +39,7 @@ type SessionManager struct {
 }
 
 // AddSecurityScheme adds the authenticator's security scheme to the given TD.
-func (sm *SessionManager) AddSecurityScheme(tdoc *td.TD) {
+func (sm *SessionManager) AddSecurityScheme(tdoc *wot.TD) {
 	sm.authenticator.AddSecurityScheme(tdoc)
 }
 

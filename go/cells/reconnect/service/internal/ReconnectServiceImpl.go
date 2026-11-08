@@ -9,7 +9,7 @@ import (
 
 	"github.com/hiveot/hivekit/go/api"
 	"github.com/hiveot/hivekit/go/api/msg"
-	"github.com/hiveot/hivekit/go/api/td"
+	"github.com/hiveot/hivekit/go/api/wot"
 	"github.com/hiveot/hivekit/go/cells"
 	"github.com/hiveot/hivekit/go/cells/reconnect"
 )
@@ -163,7 +163,7 @@ func (svc *ReconnectServiceImpl) HandleNotification(notif *msg.NotificationMessa
 	// 		// Send a connect request. This uses the notification senderID as the thingID of
 	// 		// the client that needs to reconnect.
 	// 		req := msg.NewRequestMessage(
-	// 			td.OpInvokeAction, notif.SenderID, api.ClientConnectAction, nil)
+	// 			wot.OpInvokeAction, notif.SenderID, api.ClientConnectAction, nil)
 	// 		go svc.ForwardRequest(req, nil)
 	// 	}
 	// }
@@ -174,14 +174,14 @@ func (svc *ReconnectServiceImpl) HandleNotification(notif *msg.NotificationMessa
 func (svc *ReconnectServiceImpl) HandleRequest(req *msg.RequestMessage, replyTo msg.ResponseHandler) (err error) {
 
 	switch req.Operation {
-	case td.OpSubscribeAllEvents, td.OpSubscribeEvent,
-		td.OpObserveAllProperties, td.OpObserveMultipleProperties, td.OpObserveProperty:
+	case wot.OpSubscribeAllEvents, wot.OpSubscribeEvent,
+		wot.OpObserveAllProperties, wot.OpObserveMultipleProperties, wot.OpObserveProperty:
 
 		key := fmt.Sprintf("%s-%s-%s", req.Operation, req.ThingID, req.Name)
 		svc.subscriptions[key] = req
 
-	case td.OpUnobserveAllProperties, td.OpUnobserveMultipleProperties, td.OpUnobserveProperty,
-		td.OpUnsubscribeAllEvents, td.OpUnsubscribeEvent:
+	case wot.OpUnobserveAllProperties, wot.OpUnobserveMultipleProperties, wot.OpUnobserveProperty,
+		wot.OpUnsubscribeAllEvents, wot.OpUnsubscribeEvent:
 		// remove the previously recorded subscription request
 		key := fmt.Sprintf("%s-%s-%s", req.Operation, req.ThingID, req.Name)
 		delete(svc.subscriptions, key)

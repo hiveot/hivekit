@@ -115,7 +115,7 @@ func TestClientServerRecipes(t *testing.T) {
 
 	tv, err := co.ReadProperty(thingID, "fortytwo")
 	require.NoError(t, err)
-	assert.NotEmpty(t, tv.Data)
+	assert.NotEmpty(t, tv.Raw)
 
 }
 

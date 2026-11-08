@@ -6,7 +6,7 @@ import (
 	"log/slog"
 
 	"github.com/hiveot/hivekit/go/api"
-	"github.com/hiveot/hivekit/go/api/td"
+	"github.com/hiveot/hivekit/go/api/wot"
 	"github.com/hiveot/hivekit/go/cells/transport/wss/client/internal"
 )
 
@@ -128,7 +128,7 @@ func NewWotWssClientFactory(
 	authToken, _ := env.GetAuthToken()
 
 	if clientID != "" && authToken != "" {
-		err = cl.SetAuthToken(clientID, authToken, td.SecSchemeBearer)
+		err = cl.SetAuthToken(clientID, authToken, wot.SecSchemeBearer)
 	}
 	// connect
 	if err == nil {

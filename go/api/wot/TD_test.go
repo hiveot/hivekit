@@ -1,4 +1,4 @@
-package td_test
+package wot_test
 
 import (
 	"strings"
@@ -6,8 +6,8 @@ import (
 	"time"
 
 	"github.com/hiveot/hivekit/go/api"
-	"github.com/hiveot/hivekit/go/api/td"
 	"github.com/hiveot/hivekit/go/api/vocab"
+	"github.com/hiveot/hivekit/go/api/wot"
 	"github.com/stretchr/testify/require"
 
 	"github.com/stretchr/testify/assert"
@@ -20,23 +20,23 @@ const unitNamePercent = "%"
 const thing1ID = "thing1"
 
 func TestCreateTD(t *testing.T) {
-	tdoc := td.NewTD(thing1ID, "test TD", deviceTypeThingSensor)
+	tdoc := wot.NewTD(thing1ID, "test TD", deviceTypeThingSensor)
 	assert.NotNil(t, tdoc)
 
 	// Set version
 	//versions := map[string]string{"Software": "v10.1", "Hardware": "v2.0"}
-	propAffordance := &td.PropertyAffordance{
-		DataSchema: td.DataSchema{
-			Type:  td.DataTypeArray,
+	propAffordance := &wot.PropertyAffordance{
+		DataSchema: wot.DataSchema{
+			Type:  wot.DataTypeArray,
 			Title: "version",
 		},
 	}
 	tdoc.UpdateProperty(propNameDeviceSoftwareVersion, propAffordance)
 
 	// Define TD property
-	propAffordance = &td.PropertyAffordance{
-		DataSchema: td.DataSchema{
-			Type: td.DataTypeString,
+	propAffordance = &wot.PropertyAffordance{
+		DataSchema: wot.DataSchema{
+			Type: wot.DataTypeString,
 			Enum: make([]interface{}, 0), //{"value1", "value2"},
 			Unit: "C",
 		},
@@ -58,15 +58,15 @@ func TestCreateTD(t *testing.T) {
 
 	tdoc.UpdateTitleDescription("title", "description")
 
-	tdoc.UpdateAction("action1", &td.ActionAffordance{})
+	tdoc.UpdateAction("action1", &wot.ActionAffordance{})
 	action := tdoc.GetAction("action1")
 	assert.NotNil(t, action)
 
-	tdoc.UpdateEvent("event1", &td.EventAffordance{})
+	tdoc.UpdateEvent("event1", &wot.EventAffordance{})
 	ev := tdoc.GetEvent("event1")
 	assert.NotNil(t, ev)
 
-	tdoc.SetForms([]td.Form{})
+	tdoc.SetForms([]wot.Form{})
 
 	asMap := tdoc.AsMap()
 	assert.NotNil(t, asMap)
@@ -75,7 +75,7 @@ func TestCreateTD(t *testing.T) {
 func TestMissingAffordance(t *testing.T) {
 
 	// test return nil if no affordance is found
-	tdoc := td.NewTD(thing1ID, "test TD", deviceTypeThingSensor)
+	tdoc := wot.NewTD(thing1ID, "test TD", deviceTypeThingSensor)
 	assert.NotNil(t, tdoc)
 
 	prop := tdoc.GetProperty("prop1")
@@ -89,7 +89,7 @@ func TestMissingAffordance(t *testing.T) {
 }
 
 func TestAtType(t *testing.T) {
-	tdoc := td.NewTD(thing1ID, "test TD", deviceTypeThingSensor)
+	tdoc := wot.NewTD(thing1ID, "test TD", deviceTypeThingSensor)
 	at1 := tdoc.GetAtTypes()
 	assert.Equal(t, deviceTypeThingSensor, at1[0])
 	tdoc.SetType(vocab.DeviceActuator)
@@ -101,10 +101,10 @@ func TestAtType(t *testing.T) {
 
 func TestAddProp(t *testing.T) {
 	prop2AtType := "test:specialtype"
-	tdoc := td.NewTD(thing1ID, "test TD", deviceTypeThingSensor)
-	tdoc.AddProperty("prop1", "prop 1", "test property", td.DataTypeBool)
+	tdoc := wot.NewTD(thing1ID, "test TD", deviceTypeThingSensor)
+	tdoc.AddProperty("prop1", "prop 1", "test property", wot.DataTypeBool)
 
-	aff := tdoc.AddProperty("prop2", "test property2", "", td.DataTypeString)
+	aff := tdoc.AddProperty("prop2", "test property2", "", wot.DataTypeString)
 	aff.SetAtType(prop2AtType)
 	aff.Unit = unitNamePercent
 
@@ -128,10 +128,10 @@ func TestAddProp(t *testing.T) {
 // test that IDs with spaces are escaped
 func TestAddPropBadIDs(t *testing.T) {
 	propID := "prop 1"
-	tdoc := td.NewTD(thing1ID, "test TD", deviceTypeThingSensor)
-	tdoc.AddProperty(propID, "test property", "", td.DataTypeBool)
+	tdoc := wot.NewTD(thing1ID, "test TD", deviceTypeThingSensor)
+	tdoc.AddProperty(propID, "test property", "", wot.DataTypeBool)
 
-	tdoc.AddProperty("prop2", "test property2", "", td.DataTypeString)
+	tdoc.AddProperty("prop2", "test property2", "", wot.DataTypeString)
 
 	prop := tdoc.GetProperty(propID)
 	assert.Nil(t, prop)
@@ -144,7 +144,7 @@ func TestAddPropBadIDs(t *testing.T) {
 }
 
 func TestAddEvent(t *testing.T) {
-	tdoc := td.NewTD(thing1ID, "test TD", deviceTypeThingSensor)
+	tdoc := wot.NewTD(thing1ID, "test TD", deviceTypeThingSensor)
 	tdoc.AddEvent("event1", "Test Event", "", nil)
 
 	tdoc.AddEvent("event2", "Test Event", "", nil)
@@ -157,7 +157,7 @@ func TestAddEvent(t *testing.T) {
 }
 
 func TestAddAction(t *testing.T) {
-	tdoc := td.NewTD(thing1ID, "test TD", deviceTypeThingSensor)
+	tdoc := wot.NewTD(thing1ID, "test TD", deviceTypeThingSensor)
 	tdoc.AddAction("action1", "test", "Test Action", nil)
 
 	// has a space
@@ -175,33 +175,33 @@ func TestForms(t *testing.T) {
 	const action1Name = "action1"
 	const prop1Name = "prop1"
 	const event1Name = "event1"
-	tdoc := td.NewTD(thing1ID, "test TD", deviceTypeThingSensor)
+	tdoc := wot.NewTD(thing1ID, "test TD", deviceTypeThingSensor)
 	tdoc.Base = "https://localhost:1234/path"
 
 	// add actions
 	actAff := tdoc.AddAction(action1Name, "action", "Test Action", nil)
-	tdoc.AddProperty(prop1Name, "prop", "Test Prop", td.DataTypeInteger)
+	tdoc.AddProperty(prop1Name, "prop", "Test Prop", wot.DataTypeInteger)
 	tdoc.AddEvent(event1Name, "event", "Test Event", nil)
 
-	actForm := td.NewForm(td.OpInvokeAction, "https://localhost/action")
-	actAff.Forms = []td.Form{actForm}
+	actForm := wot.NewForm(wot.OpInvokeAction, "https://localhost/action")
+	actAff.Forms = []wot.Form{actForm}
 
-	forms := make([]td.Form, 0)
-	//forms = append(forms, td.NewForm(td.OpInvokeAction, "https://localhost/action"))
-	forms = append(forms, td.NewForm(td.OpWriteProperty, "https://localhost/prop"))
-	forms = append(forms, td.NewForm(td.OpSubscribeEvent, "https://localhost/ev"))
+	forms := make([]wot.Form, 0)
+	//forms = append(forms, wot.NewForm(wot.OpInvokeAction, "https://localhost/action"))
+	forms = append(forms, wot.NewForm(wot.OpWriteProperty, "https://localhost/prop"))
+	forms = append(forms, wot.NewForm(wot.OpSubscribeEvent, "https://localhost/ev"))
 	tdoc.AddForms(forms)
 
 	//
-	f1 := tdoc.GetForms(td.OpWriteProperty, prop1Name)
+	f1 := tdoc.GetForms(wot.OpWriteProperty, prop1Name)
 	require.NotNil(t, f1)
-	f2 := tdoc.GetForms(td.OpInvokeAction, action1Name)
+	f2 := tdoc.GetForms(wot.OpInvokeAction, action1Name)
 	require.NotNil(t, f2)
-	f3 := tdoc.GetForms(td.OpSubscribeEvent, event1Name)
+	f3 := tdoc.GetForms(wot.OpSubscribeEvent, event1Name)
 	require.NotNil(t, f3)
 
 	f1b, match := tdoc.GetForm(
-		td.OpWriteProperty, prop1Name,
+		wot.OpWriteProperty, prop1Name,
 		api.WotHttpBasicScheme, api.WotHttpBasicSubprotocol)
 	require.NotEmpty(t, f1b)
 	assert.True(t, match)
@@ -219,11 +219,11 @@ func TestForms(t *testing.T) {
 // test adding security scheme
 func TestSecScheme(t *testing.T) {
 
-	tdoc := td.NewTD(thing1ID, "test TD", deviceTypeThingSensor)
+	tdoc := wot.NewTD(thing1ID, "test TD", deviceTypeThingSensor)
 	tdoc.Base = "https://localhost:1234/path"
 
 	// add security
-	secScheme1 := td.SecurityScheme{
+	secScheme1 := wot.SecurityScheme{
 		Scheme: "bearer",
 		In:     "header",
 	}
@@ -247,7 +247,7 @@ func TestSecScheme(t *testing.T) {
 	assert.Equal(t, "bearer", securityValue)
 
 	// add a second scheme
-	secScheme2 := td.SecurityScheme{
+	secScheme2 := wot.SecurityScheme{
 		Scheme: "basic",
 		In:     "header",
 	}

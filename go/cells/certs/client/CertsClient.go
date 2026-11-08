@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/hiveot/hivekit/go/api"
-	"github.com/hiveot/hivekit/go/api/td"
+	"github.com/hiveot/hivekit/go/api/wot"
 	"github.com/hiveot/hivekit/go/cells"
 	"github.com/hiveot/hivekit/go/cells/certs"
 	"github.com/hiveot/hivekit/go/utils"
@@ -43,7 +43,7 @@ func (cl *CertsClient) CreateClientCert(
 		PubKeyPEM: pubKeyPEM,
 	}
 	clientCertPEM := ""
-	err := cl.Rpc(td.OpInvokeAction, cl.certServiceID, certs.CreateClientCertAction, input, &clientCertPEM)
+	err := cl.Rpc(wot.OpInvokeAction, cl.certServiceID, certs.CreateClientCertAction, input, &clientCertPEM)
 	if err != nil {
 		return nil, err
 	}
@@ -55,7 +55,7 @@ func (cl *CertsClient) CreateClientCert(
 func (cl *CertsClient) GetCACert() (caCert *x509.Certificate, err error) {
 	var certPem string
 
-	err = cl.Rpc(td.OpInvokeAction, cl.certServiceID, certs.GetCACertAction, nil, &certPem)
+	err = cl.Rpc(wot.OpInvokeAction, cl.certServiceID, certs.GetCACertAction, nil, &certPem)
 	if err == nil {
 		caCert, err = utils.X509CertFromPEM(certPem)
 	}
@@ -66,7 +66,7 @@ func (cl *CertsClient) GetCACert() (caCert *x509.Certificate, err error) {
 func (cl *CertsClient) VerifyClientCert(clientID string, clientCert *x509.Certificate) error {
 
 	certPem := utils.X509CertToPEM(clientCert)
-	err := cl.Rpc(td.OpInvokeAction, cl.certServiceID, certs.VerifyClientCertAction, &certPem, nil)
+	err := cl.Rpc(wot.OpInvokeAction, cl.certServiceID, certs.VerifyClientCertAction, &certPem, nil)
 	return err
 }
 

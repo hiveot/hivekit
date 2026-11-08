@@ -3,6 +3,7 @@ package msg
 import (
 	"time"
 
+	"github.com/hiveot/hivekit/go/api/wot"
 	"github.com/hiveot/hivekit/go/utils"
 	"github.com/teris-io/shortid"
 )
@@ -64,7 +65,7 @@ type ResponseMessage struct {
 
 	// Error contains the short error description when status is failed.
 	// Matches RFC9457 https://www.rfc-editor.org/rfc/rfc9457
-	Error *ErrorValue `json:"error,omitempty"`
+	Error *wot.ErrorValue `json:"error,omitempty"`
 
 	// The input to the request. This is included for historical purposes.
 	// This only populated when the response is sent by supporting devices. The
@@ -176,7 +177,7 @@ func NewResponseMessage(
 	}
 	resp := &ResponseMessage{
 		CorrelationID: correlationID,
-		Error:         ErrorValueFromError(err),
+		Error:         wot.ErrorValueFromError(err),
 		MessageID:     shortid.MustGenerate(),
 		MessageType:   MessageTypeResponse,
 		Name:          name,

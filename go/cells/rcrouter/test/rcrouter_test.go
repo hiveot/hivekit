@@ -7,8 +7,8 @@ import (
 	"testing"
 
 	"github.com/hiveot/hivekit/go/api"
-	"github.com/hiveot/hivekit/go/api/td"
 	"github.com/hiveot/hivekit/go/api/vocab"
+	"github.com/hiveot/hivekit/go/api/wot"
 	directory_service "github.com/hiveot/hivekit/go/cells/directory/service"
 	rcrouter_service "github.com/hiveot/hivekit/go/cells/rcrouter/service"
 	"github.com/hiveot/hivekit/go/testenv"
@@ -117,8 +117,8 @@ func TestReadRCDeviceProperties(t *testing.T) {
 	ething, deviceConn1, _ := testEnv.NewRCThing(deviceID, nil)
 	eThingID = ething.GetID()
 	defer deviceConn1.Close()
-	tdoc := td.NewTD(eThingID, "test device", vocab.DeviceSensor)
-	tdoc.AddProperty("", prop1Name, td.DataTypeString, prop1Value)
+	tdoc := wot.NewTD(eThingID, "test device", vocab.DeviceSensor)
+	tdoc.AddProperty("", prop1Name, wot.DataTypeString, prop1Value)
 	// when the device publishes an observable property it becomes available for querying
 	ething.PubProperty(eThingID, prop1Name, prop1Value, false)
 
@@ -136,7 +136,7 @@ func TestReadRCDeviceProperties(t *testing.T) {
 	values, err := co1.ReadAllProperties(eThingID)
 	assert.NoError(t, err)
 	require.Equal(t, 1, len(values))
-	require.Equal(t, prop1Value, values[prop1Name].Data)
+	require.Equal(t, prop1Value, values[prop1Name].Raw)
 
 	// todo: handle writeproperty in exposed thing
 	// co1.WriteProperty(eThingID, testenv.CounterPropName, 33, true)

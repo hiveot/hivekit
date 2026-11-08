@@ -96,7 +96,7 @@ func (cl *TransportClientBase) GetConnectionStatus() api.ConnectionStatus {
 // to the server and decode the response.
 // This returns an error if the request fails or if the response contains an error
 //
-//	operation is the WoT operation to send, eg td.OpInvokeAction
+//	operation is the WoT operation to send, eg wot.OpInvokeAction
 //	thingID is the Thing to address
 //	name is the operation name as defined in the TD
 //	input are optional input parameters or nil if none

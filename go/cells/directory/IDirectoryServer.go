@@ -4,7 +4,7 @@ import (
 	_ "embed"
 
 	"github.com/hiveot/hivekit/go/api"
-	"github.com/hiveot/hivekit/go/api/td"
+	"github.com/hiveot/hivekit/go/api/wot"
 )
 
 // Embed the directory TM
@@ -56,7 +56,7 @@ const (
 // This returns an error if writing the TD is not allowed.
 //
 // clientID is the account ID of the client writing the TD, eg the device.
-type WriteTDHook func(clientID string, tdoc *td.TD) (*td.TD, error)
+type WriteTDHook func(clientID string, tdoc *wot.TD) (*wot.TD, error)
 
 // The handler of deleting TD requests
 // This returns an error if deleting the TD is not allowed.
@@ -115,10 +115,10 @@ type IDirectoryService interface {
 
 	// Return an instance of a TD from the store.
 	// These TD's are cached so successive requests do not parse the json each time.
-	GetTD(thingID string) *td.TD
+	GetTD(thingID string) *wot.TD
 
 	// Return the Directory TD
-	GetTDD() *td.TD
+	GetTDD() *wot.TD
 
 	// RetrieveThing returns a JSON encoded TD document
 	RetrieveThing(thingID string) (tdJSON string, err error)

@@ -4,7 +4,7 @@ import (
 	_ "embed"
 
 	"github.com/hiveot/hivekit/go/api"
-	"github.com/hiveot/hivekit/go/api/td"
+	"github.com/hiveot/hivekit/go/api/wot"
 )
 
 const DirectoryClientCellType = "DirectoryClient"
@@ -19,20 +19,20 @@ type IDirectoryCache interface {
 	//
 	// Offset is the offset in the list for iteration.
 	// Limit is the maximum number of things to return. 0 for default.
-	GetAllThings(offset int, limit int) []*td.TD
+	GetAllThings(offset int, limit int) []*wot.TD
 
 	// Get a Thing TD from the local cache.
 	//
 	// This returns nil if the TD is not in the local cache.
-	GetThing(thingID string) *td.TD
+	GetThing(thingID string) *wot.TD
 
 	// Import the TD into the directory client cache.
 	// Intended for discovered things or out of band cache loading.
-	ImportTD(tdoc *td.TD)
+	ImportTD(tdoc *wot.TD)
 
 	// Import the raw TD into the directory client cache.
 	// Intended for discovered things or out of band cache loading.
-	ImportTDJson(tdJSON string) (*td.TD, error)
+	ImportTDJson(tdJSON string) (*wot.TD, error)
 }
 
 // IDirectoryClient defines the interface to the directory consumer.
@@ -69,14 +69,14 @@ type IDirectoryClient interface {
 	// by its API.
 	//
 	// This returns nil if not found.
-	GetTD(thingID string) *td.TD
+	GetTD(thingID string) *wot.TD
 
 	// Return an instance of a TD from the local cache. (TBD whether this is needed)
 	// These TD's are cached so successive requests do not parse the json each time.
-	// GetTD(thingID string) *td.TD
+	// GetTD(thingID string) *wot.TD
 
 	// Return the Directory TD the client is using.
-	// GetTDD() *td.TD
+	// GetTDD() *wot.TD
 
 	// RetrieveAllThings loads a batch of TD JSON documents from the directory and
 	// updates the local cache.
@@ -85,7 +85,7 @@ type IDirectoryClient interface {
 	// cache.
 	//
 	// This returns a list of TD JSON documents and a flag if this is cache only.
-	RetrieveAllThings(offset int, limit int) (tdList []*td.TD, cacheOnly bool)
+	RetrieveAllThings(offset int, limit int) (tdList []*wot.TD, cacheOnly bool)
 
 	// RetrieveThing loads a TD document from the directory server and updates the
 	// local cache.
@@ -96,9 +96,9 @@ type IDirectoryClient interface {
 	// true then this returns an error.
 	//
 	// This updates the TD in the local cache and returns the server provided JSON document.
-	RetrieveThing(thingID string) (tdoc *td.TD, err error)
+	RetrieveThing(thingID string) (tdoc *wot.TD, err error)
 
 	// Manually set the TDD of the directory server.
 	// Needed to send requests to the directory server.
-	SetTDD(tdoc *td.TD)
+	SetTDD(tdoc *wot.TD)
 }

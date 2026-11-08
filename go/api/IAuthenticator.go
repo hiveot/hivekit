@@ -3,7 +3,7 @@ package api
 import (
 	"time"
 
-	"github.com/hiveot/hivekit/go/api/td"
+	"github.com/hiveot/hivekit/go/api/wot"
 )
 
 // Predefined roles of a client
@@ -57,7 +57,7 @@ type IAuthenticator interface {
 
 	// AddSecurityScheme adds the wot securityscheme that describes this authenticator to the given TD
 	// If the scheme is already included in the TD then it is replaced.
-	AddSecurityScheme(tdoc *td.TD)
+	AddSecurityScheme(tdoc *wot.TD)
 
 	// Return the role of the client
 	GetRole(clientID string) string

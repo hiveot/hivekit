@@ -4,7 +4,7 @@ import (
 	"time"
 
 	"github.com/hiveot/hivekit/go/api/msg"
-	"github.com/hiveot/hivekit/go/api/td"
+	"github.com/hiveot/hivekit/go/api/wot"
 	"github.com/hiveot/hivekit/go/cells/directory"
 )
 
@@ -19,7 +19,7 @@ import (
 //	reqHandler is the request handler of the connection to send the request through.
 func UpdateTD(directoryThingID string, tdJson string, reqHandler msg.RequestHandler, timeout time.Duration) error {
 	req := msg.NewRequestMessage(
-		td.OpInvokeAction, directoryThingID, directory.UpdateThingAction, tdJson)
+		wot.OpInvokeAction, directoryThingID, directory.UpdateThingAction, tdJson)
 
 	_, err := msg.EmitRequestWait(req, reqHandler, timeout)
 

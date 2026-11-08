@@ -5,7 +5,7 @@ import (
 	"strings"
 
 	"github.com/hiveot/hivekit/go/api/msg"
-	"github.com/hiveot/hivekit/go/api/td"
+	"github.com/hiveot/hivekit/go/api/wot"
 	"github.com/hiveot/hivekit/go/cells/digitwin"
 )
 
@@ -34,11 +34,11 @@ func (svc *DigitwinServiceImpl) HandleRequest(req *msg.RequestMessage, replyTo m
 		// Note unobservable properties will never be in the cache. If the value isn't cached
 		// the request is forwarded to the device. Eg set vcache sink to the server or client
 		// connection that can forward it.
-		case td.OpReadAllProperties,
-			td.OpReadMultipleProperties,
-			td.OpReadProperty, // this returns the property value
-			td.HTOpReadEvent,  // this returns the event notification (not just the value)
-			td.HTOpReadAllEvents:
+		case wot.OpReadAllProperties,
+			wot.OpReadMultipleProperties,
+			wot.OpReadProperty, // this returns the property value
+			wot.HTOpReadEvent,  // this returns the event notification (not just the value)
+			wot.HTOpReadAllEvents:
 			err = svc.vcache.HandleRequest(req, replyTo)
 			if err != nil {
 				// vcache didn't handle the request, so forward it
@@ -48,9 +48,9 @@ func (svc *DigitwinServiceImpl) HandleRequest(req *msg.RequestMessage, replyTo m
 
 		// actions and write requests are forwarded to the actual device after
 		// mapping the thingID back to that of the device
-		case td.OpWriteProperty,
-			td.OpWriteMultipleProperties,
-			td.OpInvokeAction:
+		case wot.OpWriteProperty,
+			wot.OpWriteMultipleProperties,
+			wot.OpInvokeAction:
 
 			return svc.EmitDigitwinRequestToDevice(req, replyTo)
 
@@ -86,10 +86,10 @@ func (svc *DigitwinServiceImpl) HandleDigitwinRequest(req *msg.RequestMessage, r
 	// case td.OpReadMultipleProperties:
 	// case td.HTOpReadEvent:
 	// case td.HTOpReadAllEvents:
-	case td.OpWriteProperty:
+	case wot.OpWriteProperty:
 		// nothing to do here at the moment
 		err = fmt.Errorf("Property '%s' of Thing '%s' is invalid or not writable", req.Name, req.ThingID)
-	case td.OpInvokeAction:
+	case wot.OpInvokeAction:
 		// directory specific operations
 		switch req.Name {
 		// case digitwin.GetStatusMethod:

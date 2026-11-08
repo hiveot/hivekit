@@ -9,8 +9,8 @@ import (
 
 	"github.com/hiveot/hivekit/go/api"
 	"github.com/hiveot/hivekit/go/api/msg"
-	"github.com/hiveot/hivekit/go/api/td"
 	"github.com/hiveot/hivekit/go/api/vocab"
+	"github.com/hiveot/hivekit/go/api/wot"
 	"github.com/hiveot/hivekit/go/cells/transport"
 	"github.com/hiveot/hivekit/go/cells/transport/ssesc"
 	"github.com/teris-io/shortid"
@@ -41,14 +41,14 @@ type SseScServerImpl struct {
 	ssePath string
 
 	// serverTD is the TD describing how to connect to this server
-	serverTD *td.TD
+	serverTD *wot.TD
 }
 
 // AddTDSecForms updates the TD with base URI, security scheme and forms for use of
 // this protocol to the given TD.
 //
 // Since the contentType is the default application/json it is omitted
-func (srv *SseScServerImpl) AddTDSecForms(tdoc *td.TD) {
+func (srv *SseScServerImpl) AddTDSecForms(tdoc *wot.TD) {
 
 	// 1. Add the base connection endpoint
 	// if this Thing supports multiple protocols the first one occupies 'base'.
@@ -59,7 +59,7 @@ func (srv *SseScServerImpl) AddTDSecForms(tdoc *td.TD) {
 		base = "" // no need for full base
 	}
 	vars := map[string]string{
-		td.UriVarThingID: tdoc.ID,
+		wot.UriVarThingID: tdoc.ID,
 	}
 	// protocolType := api.ProtocolTypeHiveotSsesc
 	subprotocol := api.HiveotSsescSubprotocol
@@ -71,15 +71,15 @@ func (srv *SseScServerImpl) AddTDSecForms(tdoc *td.TD) {
 	// 3. add thing level form for thing level operations
 	// since the payload is a request message, one relative path for all request operations
 	href2 := base + ssesc.PostSseScRequestPath
-	form := td.NewForm("", href2)
+	form := wot.NewForm("", href2)
 	form.SetSubprotocol(subprotocol)
 	form["op"] = []string{
-		td.HTOpPing,
-		td.OpQueryAllActions,
-		td.OpObserveAllProperties, td.OpUnobserveAllProperties,
-		td.OpReadAllProperties,
-		td.HTOpReadAllEvents, // hiveot supports reading latest events
-		td.OpSubscribeAllEvents, td.OpUnsubscribeAllEvents,
+		wot.HTOpPing,
+		wot.OpQueryAllActions,
+		wot.OpObserveAllProperties, wot.OpUnobserveAllProperties,
+		wot.OpReadAllProperties,
+		wot.HTOpReadAllEvents, // hiveot supports reading latest events
+		wot.OpSubscribeAllEvents, wot.OpUnsubscribeAllEvents,
 	}
 	tdoc.Forms = append(tdoc.Forms, form)
 
@@ -90,29 +90,29 @@ func (srv *SseScServerImpl) AddTDSecForms(tdoc *td.TD) {
 		for _, aff := range tdoc.Actions {
 			form := aff.AddForm("", href2, http.MethodPost, vars)
 			form.SetSubprotocol(subprotocol)
-			form["op"] = []string{td.OpInvokeAction, td.OpQueryAction}
+			form["op"] = []string{wot.OpInvokeAction, wot.OpQueryAction}
 		}
 		for _, aff := range tdoc.Events {
 			form := aff.AddForm("", href2, "", nil)
 			form.SetSubprotocol(subprotocol)
-			form["op"] = []string{td.HTOpReadEvent, td.OpSubscribeEvent, td.OpUnsubscribeEvent}
+			form["op"] = []string{wot.HTOpReadEvent, wot.OpSubscribeEvent, wot.OpUnsubscribeEvent}
 		}
 		for _, aff := range tdoc.Properties {
 			form := aff.AddForm("", href2, "", nil)
 			form.SetSubprotocol(subprotocol)
 			if !aff.WriteOnly {
-				form["op"] = []string{td.OpReadProperty, td.OpObserveProperty, td.OpUnobserveProperty}
+				form["op"] = []string{wot.OpReadProperty, wot.OpObserveProperty, wot.OpUnobserveProperty}
 			}
 			if !aff.ReadOnly {
-				form["op"] = []string{td.OpWriteProperty}
+				form["op"] = []string{wot.OpWriteProperty}
 			}
-			form["op"] = []string{td.HTOpReadEvent, td.OpSubscribeEvent, td.OpUnsubscribeEvent}
+			form["op"] = []string{wot.HTOpReadEvent, wot.OpSubscribeEvent, wot.OpUnsubscribeEvent}
 		}
 	}
 }
 
 // GetTD returns the server TD, containing connection and authentication information
-func (srv *SseScServerImpl) GetTD() *td.TD {
+func (srv *SseScServerImpl) GetTD() *wot.TD {
 	return srv.serverTD
 }
 
@@ -148,7 +148,7 @@ func StartSseScServerImpl(
 
 	thingID := ssesc.SseScServerCellType + "-" + shortid.MustGenerate()
 	authenticator := httpServer.GetAuthenticator()
-	serverTD := td.NewTD(thingID, "SSE-SC server", vocab.DeviceTypeService)
+	serverTD := wot.NewTD(thingID, "SSE-SC server", vocab.DeviceTypeService)
 
 	srv := &SseScServerImpl{
 		TransportServerBase: transport.NewTransportServerBase(thingID, connectURL, authenticator),

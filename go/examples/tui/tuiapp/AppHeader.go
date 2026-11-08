@@ -3,7 +3,7 @@ package tuiapp
 import (
 	"fmt"
 
-	"github.com/hiveot/hivekit/go/api/td"
+	"github.com/hiveot/hivekit/go/api/wot"
 	"github.com/hiveot/hivekit/go/cells/discovery"
 	"github.com/rivo/tview"
 )
@@ -15,7 +15,7 @@ type AppHeader struct {
 }
 
 // Reload the text being shown using updated values
-func (header *AppHeader) Refresh(discoRecs []*discovery.DiscoveryResult, tdList []*td.TD) {
+func (header *AppHeader) Refresh(discoRecs []*discovery.DiscoveryResult, tdList []*wot.TD) {
 
 	newText := fmt.Sprintf("Discovery records: %d,  Loaded %d TDs",
 		len(discoRecs), len(tdList))

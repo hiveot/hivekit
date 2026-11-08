@@ -12,7 +12,7 @@ import (
 
 	"github.com/hiveot/hivekit/go/api"
 	"github.com/hiveot/hivekit/go/api/msg"
-	"github.com/hiveot/hivekit/go/api/td"
+	"github.com/hiveot/hivekit/go/api/wot"
 	"github.com/hiveot/hivekit/go/cells/consumer"
 	"github.com/hiveot/hivekit/go/cells/thing"
 	"github.com/hiveot/hivekit/go/testenv"
@@ -181,8 +181,8 @@ func TestReadProperty(t *testing.T) {
 	// in this case the consumer connects to the device (unlike when using a hub)
 	ag := thing.NewExposedThing("", func(req *msg.RequestMessage, replyTo msg.ResponseHandler) error {
 		var resp *msg.ResponseMessage
-		if req.Operation == td.OpReadProperty && req.ThingID == thingID && req.Name == propKey {
-			tv := msg.ThingValue{Data: propValue, Timestamp: utils.FormatNowUTCMilli()}
+		if req.Operation == wot.OpReadProperty && req.ThingID == thingID && req.Name == propKey {
+			tv := msg.ThingValue{Raw: propValue, Timestamp: utils.FormatNowUTCMilli()}
 			resp = req.CreateResponse(tv, nil)
 			resp.Timestamp = timestamp
 		} else {
@@ -200,7 +200,7 @@ func TestReadProperty(t *testing.T) {
 
 	tv, err := co1.ReadProperty(thingID, propKey)
 	require.NoError(t, err)
-	assert.Equal(t, propValue, tv.Data)
+	assert.Equal(t, propValue, tv.Raw)
 }
 
 // Consumer reads events from device
@@ -216,10 +216,10 @@ func TestReadAllProperties(t *testing.T) {
 	// in this case the consumer connects to the device (unlike when using a hub)
 	ag := thing.NewExposedThing("", func(req *msg.RequestMessage, replyTo msg.ResponseHandler) error {
 		var resp *msg.ResponseMessage
-		if req.Operation == td.OpReadAllProperties {
+		if req.Operation == wot.OpReadAllProperties {
 			output := make(map[string]msg.ThingValue)
-			output[name1] = msg.ThingValue{Data: value1, Timestamp: utils.FormatNowUTCMilli()}
-			output[name2] = msg.ThingValue{Data: value2, Timestamp: utils.FormatNowUTCMilli()}
+			output[name1] = msg.ThingValue{Raw: value1, Timestamp: utils.FormatNowUTCMilli()}
+			output[name2] = msg.ThingValue{Raw: value2, Timestamp: utils.FormatNowUTCMilli()}
 			resp = req.CreateResponse(output, nil)
 		} else {
 			resp = req.CreateResponse(nil, errors.New("unexpected request"))
@@ -237,6 +237,6 @@ func TestReadAllProperties(t *testing.T) {
 	propMap, err := co1.ReadAllProperties(thingID)
 	require.NoError(t, err)
 	require.Equal(t, 2, len(propMap))
-	require.Equal(t, value1, propMap[name1].Data)
-	require.Equal(t, value2, propMap[name2].Data)
+	require.Equal(t, value1, propMap[name1].Raw)
+	require.Equal(t, value2, propMap[name2].Raw)
 }

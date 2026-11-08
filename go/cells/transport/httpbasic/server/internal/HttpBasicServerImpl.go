@@ -6,8 +6,8 @@ import (
 
 	"github.com/hiveot/hivekit/go/api"
 	"github.com/hiveot/hivekit/go/api/msg"
-	"github.com/hiveot/hivekit/go/api/td"
 	"github.com/hiveot/hivekit/go/api/vocab"
+	"github.com/hiveot/hivekit/go/api/wot"
 	"github.com/hiveot/hivekit/go/cells/transport"
 	"github.com/hiveot/hivekit/go/cells/transport/httpbasic"
 	"github.com/teris-io/shortid"
@@ -36,7 +36,7 @@ type HttpBasicServerImpl struct {
 	httpServer api.IHttpServer
 
 	// the TD describing this server
-	serverTD *td.TD
+	serverTD *wot.TD
 }
 
 func (srv *HttpBasicServerImpl) GetHttpServer() api.IHttpServer {
@@ -44,7 +44,7 @@ func (srv *HttpBasicServerImpl) GetHttpServer() api.IHttpServer {
 }
 
 // GetTD returns the server TD, containing connection and authentication information
-func (srv *HttpBasicServerImpl) GetTD() *td.TD {
+func (srv *HttpBasicServerImpl) GetTD() *wot.TD {
 	return srv.serverTD
 }
 
@@ -102,7 +102,7 @@ func NewHttpBasicServerImpl(httpServer api.IHttpServer) (*HttpBasicServerImpl, e
 		includeAffordances: true,
 	}
 	// create a TD describing this server along with its connection URL
-	srv.serverTD = td.NewTD(thingID, "HTTP-Basic server", vocab.DeviceTypeService)
+	srv.serverTD = wot.NewTD(thingID, "HTTP-Basic server", vocab.DeviceTypeService)
 	srv.AddTDSecForms(srv.serverTD)
 
 	err := srv.createRoutes()

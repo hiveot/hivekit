@@ -6,7 +6,7 @@ import (
 	"slices"
 
 	"github.com/hiveot/hivekit/go/api/msg"
-	"github.com/hiveot/hivekit/go/api/td"
+	"github.com/hiveot/hivekit/go/api/wot"
 	"github.com/hiveot/hivekit/go/cells/transport/httpbasic"
 	"github.com/hiveot/hivekit/go/utils"
 	jsoniter "github.com/json-iterator/go"
@@ -143,7 +143,7 @@ func (srv *HttpBasicServerImpl) onHttpAffordanceOperation(w http.ResponseWriter,
 	}
 
 	// handle ping operation
-	if req.Operation == td.HTOpPing {
+	if req.Operation == wot.HTOpPing {
 		utils.WriteReply(w, true, req.Input, err)
 		return
 	}

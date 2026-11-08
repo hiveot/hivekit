@@ -11,7 +11,7 @@ import (
 
 	"github.com/hiveot/hivekit/go/api"
 	"github.com/hiveot/hivekit/go/api/msg"
-	"github.com/hiveot/hivekit/go/api/td"
+	"github.com/hiveot/hivekit/go/api/wot"
 	"github.com/hiveot/hivekit/go/cells/transport"
 	"github.com/hiveot/hivekit/go/cells/transport/httpbasic"
 	"github.com/hiveot/hivekit/go/cells/transport/tlsclient"
@@ -35,7 +35,7 @@ type HttpBasicClientImpl struct {
 	*transport.TransportClientBase
 
 	// The TD used to get the http URL for operations
-	tdoc *td.TD
+	tdoc *wot.TD
 
 	// protected operations
 	mux sync.RWMutex
@@ -168,7 +168,7 @@ func (cl *HttpBasicClientImpl) SendRequest(
 	var inputJSON string
 	var method string
 	var hrefPath string
-	var form *td.Form
+	var form *wot.Form
 	var match bool
 	var thingID = req.ThingID
 	var name = req.Name
@@ -194,9 +194,9 @@ func (cl *HttpBasicClientImpl) SendRequest(
 	// substitute URI variables in the path, if any.
 	// intended for use with http-basic forms.
 	uriVars := map[string]string{
-		td.UriVarThingID:   thingID,
-		td.UriVarName:      name,
-		td.UriVarOperation: req.Operation}
+		wot.UriVarThingID:   thingID,
+		wot.UriVarName:      name,
+		wot.UriVarOperation: req.Operation}
 
 	// If the request holds a K-V map of values, make them available as variables
 	var inputVars map[string]string
@@ -248,7 +248,7 @@ func (cl *HttpBasicClientImpl) SendRequest(
 			err = jsoniter.UnmarshalFromString(string(outputRaw), &resp.Output)
 		}
 		if err != nil {
-			resp.Error = msg.ErrorValueFromError(err)
+			resp.Error = wot.ErrorValueFromError(err)
 			resp.Error.Status = 500 // decode error
 		}
 
@@ -288,15 +288,15 @@ func (cl *HttpBasicClientImpl) SendRequest(
 		if len(outputRaw) > 0 {
 			err = jsoniter.Unmarshal(outputRaw, &httpProblemDetail)
 			statusCode := utils.DecodeAsInt(httpProblemDetail["status"])
-			resp.Error = &msg.ErrorValue{
+			resp.Error = &wot.ErrorValue{
 				Status: statusCode,
 				Title:  httpProblemDetail["title"],
 				Detail: httpProblemDetail["detail"],
 			}
 		} else if err != nil {
-			resp.Error = msg.ErrorValueFromError(err)
+			resp.Error = wot.ErrorValueFromError(err)
 		} else {
-			resp.Error = &msg.ErrorValue{
+			resp.Error = &wot.ErrorValue{
 				Status: code,
 				Title:  "request failed",
 			}
@@ -361,7 +361,7 @@ func (cl *HttpBasicClientImpl) Stop() {
 //	tdoc is the TD to use for operations. Must have a base URL.
 //	rootCAs to validate the server or nil to skip cert check
 func NewHttpBasicClientImpl(
-	tdoc *td.TD, rootCAs *x509.CertPool) (*HttpBasicClientImpl, error) {
+	tdoc *wot.TD, rootCAs *x509.CertPool) (*HttpBasicClientImpl, error) {
 
 	serverURL := tdoc.Base
 	if serverURL == "" {
@@ -386,7 +386,7 @@ func NewHttpBasicClientImpl(
 //	rootCAs used to verify client certificate authentication. nil when not using client cert.
 //	tlsClient TLS client to submit requests
 func NewHttpBasicTLSClientImpl(
-	tdoc *td.TD, rootCAs *x509.CertPool, tlsClient tlsclient.ITLSClient) *HttpBasicClientImpl {
+	tdoc *wot.TD, rootCAs *x509.CertPool, tlsClient tlsclient.ITLSClient) *HttpBasicClientImpl {
 
 	thingID := httpbasic.HttpBasicClientCellType + shortid.MustGenerate()
 	cl := &HttpBasicClientImpl{

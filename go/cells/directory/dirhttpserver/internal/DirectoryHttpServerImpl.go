@@ -9,7 +9,7 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/hiveot/hivekit/go/api"
 	"github.com/hiveot/hivekit/go/api/msg"
-	"github.com/hiveot/hivekit/go/api/td"
+	"github.com/hiveot/hivekit/go/api/wot"
 	"github.com/hiveot/hivekit/go/cells"
 	"github.com/hiveot/hivekit/go/cells/directory"
 	"github.com/hiveot/hivekit/go/utils"
@@ -27,7 +27,7 @@ type DirectoryHttpServerImpl struct {
 	httpServer       api.IHttpServer
 	directoryThingID string
 	// the TD describing this server
-	serverTD *td.TD
+	serverTD *wot.TD
 }
 
 // AddTDSecForms updates the given Thing Description with security and forms for
@@ -37,7 +37,7 @@ type DirectoryHttpServerImpl struct {
 //
 //	tdoc the TD to update
 //	includeAffordances is ignored
-func (srv *DirectoryHttpServerImpl) AddTDSecForms(tdoc *td.TD) {
+func (srv *DirectoryHttpServerImpl) AddTDSecForms(tdoc *wot.TD) {
 	base := srv.GetConnectURL()
 
 	// 1. Add the base connection endpoint
@@ -56,7 +56,7 @@ func (srv *DirectoryHttpServerImpl) AddTDSecForms(tdoc *td.TD) {
 	// 3. no thing level forms as these operations are defined
 
 	// 4. Set the forms for the actions with uri variables for the thingiD argument
-	uriVars := map[string]td.DataSchema{
+	uriVars := map[string]wot.DataSchema{
 		"id": {
 			AtType: "ThingID",
 			Title:  "Thing Description ID",
@@ -67,7 +67,7 @@ func (srv *DirectoryHttpServerImpl) AddTDSecForms(tdoc *td.TD) {
 	// action: createThing
 	aff := tdoc.GetAction(directory.CreateThingAction)
 	href := fmt.Sprintf("%s/things/{id}", base)
-	f := aff.AddForm(td.OpInvokeAction, href, http.MethodPost, nil)
+	f := aff.AddForm(wot.OpInvokeAction, href, http.MethodPost, nil)
 	f["response"] = map[string]any{
 		"description":         "Success created new resource",
 		"htv:statusCodeValue": 201, // 201 ideally returns new content
@@ -78,7 +78,7 @@ func (srv *DirectoryHttpServerImpl) AddTDSecForms(tdoc *td.TD) {
 	aff = tdoc.GetAction(directory.DeleteThingAction)
 	aff.UriVariables = uriVars
 	href = fmt.Sprintf("%s/things/{id}", base)
-	f = aff.AddForm(td.OpInvokeAction, href, http.MethodDelete, nil)
+	f = aff.AddForm(wot.OpInvokeAction, href, http.MethodDelete, nil)
 	f["response"] = map[string]any{
 		"description":         "Success with no content",
 		"htv:statusCodeValue": 204,
@@ -88,7 +88,7 @@ func (srv *DirectoryHttpServerImpl) AddTDSecForms(tdoc *td.TD) {
 	// action: retrieveAllThings
 	aff = tdoc.GetAction(directory.RetrieveAllThingsAction)
 	href = fmt.Sprintf("%s/things?limit={limit}&offset={offset}", base)
-	f = aff.AddForm(td.OpInvokeAction, href, http.MethodGet, nil)
+	f = aff.AddForm(wot.OpInvokeAction, href, http.MethodGet, nil)
 	f["response"] = map[string]any{
 		"description":         "Success with response",
 		"htv:statusCodeValue": 200,
@@ -99,7 +99,7 @@ func (srv *DirectoryHttpServerImpl) AddTDSecForms(tdoc *td.TD) {
 	aff = tdoc.GetAction(directory.RetrieveThingAction)
 	aff.UriVariables = uriVars
 	href = fmt.Sprintf("%s/things/{id}", base)
-	f = aff.AddForm(td.OpInvokeAction, href, http.MethodGet, nil)
+	f = aff.AddForm(wot.OpInvokeAction, href, http.MethodGet, nil)
 	f["response"] = map[string]any{
 		"description":         "Success with response",
 		"htv:statusCodeValue": 200,
@@ -110,7 +110,7 @@ func (srv *DirectoryHttpServerImpl) AddTDSecForms(tdoc *td.TD) {
 	aff = tdoc.GetAction(directory.UpdateThingAction)
 	aff.UriVariables = uriVars
 	href = fmt.Sprintf("%s/things/{id}", base)
-	f = aff.AddForm(td.OpInvokeAction, href, http.MethodPut, nil)
+	f = aff.AddForm(wot.OpInvokeAction, href, http.MethodPut, nil)
 	f["response"] = map[string]any{
 		"description":         "Success new or updated resource; no content",
 		"htv:statusCodeValue": 201,
@@ -142,7 +142,7 @@ func (srv *DirectoryHttpServerImpl) GetConnectionByClientID(clientID string) (c 
 }
 
 // GetTD returns the server TD, containing connection and authentication information
-func (srv *DirectoryHttpServerImpl) GetTD() *td.TD {
+func (srv *DirectoryHttpServerImpl) GetTD() *wot.TD {
 	return srv.serverTD
 }
 
@@ -157,7 +157,7 @@ func (srv *DirectoryHttpServerImpl) handleCreateThing(w http.ResponseWriter, r *
 	if err == nil {
 		tdJson := string(rp.Payload) // ensure correct serialization of payload
 		req := msg.NewRequestMessage(
-			td.OpInvokeAction, srv.directoryThingID, directory.CreateThingAction, tdJson)
+			wot.OpInvokeAction, srv.directoryThingID, directory.CreateThingAction, tdJson)
 		req.SenderID = rp.ClientID
 		_, err = srv.EmitRequestWait(req)
 	}
@@ -167,10 +167,10 @@ func (srv *DirectoryHttpServerImpl) handleCreateThing(w http.ResponseWriter, r *
 func (srv *DirectoryHttpServerImpl) handleDeleteThing(w http.ResponseWriter, r *http.Request) {
 	// A thingID is provided otherwise this handler would not have been called
 	rp, err := srv.httpServer.GetRequestParams(r)
-	thingID := chi.URLParam(r, td.UriVarThingID)
+	thingID := chi.URLParam(r, wot.UriVarThingID)
 
 	req := msg.NewRequestMessage(
-		td.OpInvokeAction, srv.directoryThingID, directory.DeleteThingAction, thingID)
+		wot.OpInvokeAction, srv.directoryThingID, directory.DeleteThingAction, thingID)
 	req.SenderID = rp.ClientID
 	_, err = srv.EmitRequestWait(req)
 
@@ -180,11 +180,11 @@ func (srv *DirectoryHttpServerImpl) handleDeleteThing(w http.ResponseWriter, r *
 func (srv *DirectoryHttpServerImpl) handleRetrieveThing(w http.ResponseWriter, r *http.Request) {
 	var resp *msg.ResponseMessage
 	// A thingID is provided otherwise this handler would not have been called
-	thingID := chi.URLParam(r, td.UriVarThingID)
+	thingID := chi.URLParam(r, wot.UriVarThingID)
 	rp, err := srv.httpServer.GetRequestParams(r)
 	if err == nil {
 		req := msg.NewRequestMessage(
-			td.OpInvokeAction, srv.directoryThingID, directory.RetrieveThingAction, thingID)
+			wot.OpInvokeAction, srv.directoryThingID, directory.RetrieveThingAction, thingID)
 		req.SenderID = rp.ClientID
 		resp, err = srv.EmitRequestWait(req)
 	}
@@ -211,7 +211,7 @@ func (srv *DirectoryHttpServerImpl) handleRetrieveAllThings(w http.ResponseWrite
 			Limit:  int(limit),
 		}
 		req := msg.NewRequestMessage(
-			td.OpInvokeAction, srv.directoryThingID, directory.RetrieveAllThingsAction, args)
+			wot.OpInvokeAction, srv.directoryThingID, directory.RetrieveAllThingsAction, args)
 		req.SenderID = rp.ClientID
 		resp, err = srv.EmitRequestWait(req)
 	}
@@ -229,7 +229,7 @@ func (srv *DirectoryHttpServerImpl) handleUpdateThing(w http.ResponseWriter, r *
 	if err == nil {
 		tdJson := string(rp.Payload) // ensure correct serialization of payload
 		req := msg.NewRequestMessage(
-			td.OpInvokeAction, srv.directoryThingID, directory.UpdateThingAction, tdJson)
+			wot.OpInvokeAction, srv.directoryThingID, directory.UpdateThingAction, tdJson)
 		req.SenderID = rp.ClientID
 		resp, err = srv.EmitRequestWait(req)
 		_ = resp
@@ -280,7 +280,7 @@ func NewDirectoryHttpServerImpl(
 	// protRoute.Get(directory.WellKnownWoTPath, srv.handleRetrieveTDD)
 
 	protRoute.Get("/things", srv.handleRetrieveAllThings)
-	thingPath := fmt.Sprintf("/things/{%s}", td.UriVarThingID)
+	thingPath := fmt.Sprintf("/things/{%s}", wot.UriVarThingID)
 	protRoute.Post(thingPath, srv.handleCreateThing)
 	protRoute.Get(thingPath, srv.handleRetrieveThing)
 	protRoute.Put(thingPath, srv.handleUpdateThing)

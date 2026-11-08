@@ -11,7 +11,7 @@ import (
 
 	"github.com/hiveot/hivekit/go/api"
 	"github.com/hiveot/hivekit/go/api/msg"
-	"github.com/hiveot/hivekit/go/api/td"
+	"github.com/hiveot/hivekit/go/api/wot"
 	"github.com/hiveot/hivekit/go/cells/consumer"
 	"github.com/hiveot/hivekit/go/cells/thing"
 	"github.com/hiveot/hivekit/go/testenv"
@@ -55,7 +55,7 @@ func TestReconnect(t *testing.T) {
 		slog.Info("Received request", "op", req.Operation, "name", req.Name)
 		var err error
 		// prove that the return channel is connected
-		if req.Operation == td.OpInvokeAction {
+		if req.Operation == wot.OpInvokeAction {
 			go func() {
 				// send an asynchronous result after a short time
 				time.Sleep(time.Millisecond * 10)

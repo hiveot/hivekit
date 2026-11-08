@@ -6,7 +6,7 @@ import (
 	"fmt"
 
 	"github.com/hiveot/hivekit/go/api"
-	"github.com/hiveot/hivekit/go/api/td"
+	"github.com/hiveot/hivekit/go/api/wot"
 	"github.com/hiveot/hivekit/go/cells/directory"
 	"github.com/hiveot/hivekit/go/cells/router"
 	"github.com/hiveot/hivekit/go/cells/router/service/internal"
@@ -31,7 +31,7 @@ func NewRouterService(storageDir string,
 	clientID string,
 	clientCert *tls.Certificate,
 	rootCAs *x509.CertPool,
-	getTD func(thingID string) *td.TD,
+	getTD func(thingID string) *wot.TD,
 ) (router.IRouterService, error) {
 
 	return internal.NewRouterServiceImpl(storageDir, autoReconnect,
@@ -51,7 +51,7 @@ func NewRouterService(storageDir string,
 // This needs a directory client or service with a getTD method to lookup a Thing TD.
 func NewRouterServiceFactory(f api.ICellFactory, md *api.CellDefinition) (api.IHiveCell, error) {
 
-	var getTD func(string) *td.TD
+	var getTD func(string) *wot.TD
 	var err error
 	var serverID string
 	env := f.GetEnvironment()
@@ -60,10 +60,10 @@ func NewRouterServiceFactory(f api.ICellFactory, md *api.CellDefinition) (api.IH
 	// if a serverURL override is set then force the router to always connect to it.
 	if env.ServerURL != "" {
 		serverID := "gateway"
-		gwTD := td.NewTD(serverID, "dummy gateway", "Gateway")
+		gwTD := wot.NewTD(serverID, "dummy gateway", "Gateway")
 		gwTD.Base = env.ServerURL
 		// 	//
-		getTD = func(_ string) *td.TD {
+		getTD = func(_ string) *wot.TD {
 			return gwTD
 		}
 		// } else {
@@ -71,7 +71,7 @@ func NewRouterServiceFactory(f api.ICellFactory, md *api.CellDefinition) (api.IH
 		// serverTD := env.GetServerTD()
 		// if serverTD != nil {
 		// serverID = serverTD.ID
-		// getTD = func(_ string) *td.TD {
+		// getTD = func(_ string) *wot.TD {
 		// return env.GetServerTD()
 		// }
 		// }
@@ -109,7 +109,7 @@ func NewRouterServiceFactory(f api.ICellFactory, md *api.CellDefinition) (api.IH
 	// set configured credentials, if any
 	authToken, _ := env.GetAuthToken()
 	if authToken != "" {
-		svc.AddCredentials(serverID, env.ClientID, authToken, td.SecSchemeBearer)
+		svc.AddCredentials(serverID, env.ClientID, authToken, wot.SecSchemeBearer)
 	}
 	return svc, err
 }

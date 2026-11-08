@@ -8,7 +8,7 @@ import (
 
 	"github.com/hiveot/hivekit/go/api"
 	"github.com/hiveot/hivekit/go/api/msg"
-	"github.com/hiveot/hivekit/go/api/td"
+	"github.com/hiveot/hivekit/go/api/wot"
 	"github.com/hiveot/hivekit/go/cells"
 	"github.com/hiveot/hivekit/go/cells/authn"
 	"github.com/hiveot/hivekit/go/utils"
@@ -56,7 +56,7 @@ func (m *AuthnUserHttpServiceImpl) onHttpGetProfile(w http.ResponseWriter, r *ht
 
 	if err == nil {
 		req := msg.NewRequestMessage(
-			td.OpInvokeAction, m.userServiceID, authn.UserActionGetProfile, nil)
+			wot.OpInvokeAction, m.userServiceID, authn.UserActionGetProfile, nil)
 		req.SenderID = rp.ClientID
 		resp, err = m.EmitRequestWait(req)
 	}
@@ -83,7 +83,7 @@ func (m *AuthnUserHttpServiceImpl) onHttpLogin(w http.ResponseWriter, r *http.Re
 		// the login is handled in-house and has an immediate return
 
 		req := msg.NewRequestMessage(
-			td.OpInvokeAction, m.userServiceID, authn.UserActionLogin, &args)
+			wot.OpInvokeAction, m.userServiceID, authn.UserActionLogin, &args)
 		req.SenderID = args.UserName
 		resp, err = m.EmitRequestWait(req)
 
@@ -107,7 +107,7 @@ func (m *AuthnUserHttpServiceImpl) onHttpLogout(w http.ResponseWriter, r *http.R
 	if err == nil {
 		slog.Info("onHttpLogout", slog.String("clientID", rp.ClientID))
 		req := msg.NewRequestMessage(
-			td.OpInvokeAction, m.userServiceID, authn.UserActionLogout, nil)
+			wot.OpInvokeAction, m.userServiceID, authn.UserActionLogout, nil)
 		req.SenderID = rp.ClientID
 		resp, err = m.EmitRequestWait(req)
 		_ = resp
@@ -130,7 +130,7 @@ func (m *AuthnUserHttpServiceImpl) onHttpTokenRefresh(w http.ResponseWriter, r *
 		slog.Info("onHttpTokenRefresh", "clientID", rp.ClientID)
 
 		req := msg.NewRequestMessage(
-			td.OpInvokeAction, m.userServiceID, authn.UserActionRefreshToken, oldToken)
+			wot.OpInvokeAction, m.userServiceID, authn.UserActionRefreshToken, oldToken)
 		req.SenderID = rp.ClientID
 		resp, err = m.EmitRequestWait(req)
 	}

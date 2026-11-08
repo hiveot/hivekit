@@ -8,7 +8,7 @@ import (
 
 	"github.com/hiveot/hivekit/go/api"
 	"github.com/hiveot/hivekit/go/api/msg"
-	"github.com/hiveot/hivekit/go/api/td"
+	"github.com/hiveot/hivekit/go/api/wot"
 	"github.com/hiveot/hivekit/go/cells/authn"
 	"github.com/hiveot/hivekit/go/cells/thing"
 	"github.com/hiveot/hivekit/go/utils"
@@ -40,7 +40,7 @@ func (svc *AuthnUserServiceImpl) HandleRequest(req *msg.RequestMessage, replyTo 
 		return svc.ForwardRequest(req, replyTo)
 	}
 
-	if req.Operation == td.OpInvokeAction {
+	if req.Operation == wot.OpInvokeAction {
 		switch req.Name {
 
 		case authn.UserActionGetProfile:
@@ -98,7 +98,7 @@ func (svc *AuthnUserServiceImpl) SetPassword(clientID string, password string) e
 
 // Start publishes the service TD to the directory or discovery.
 func (svc *AuthnUserServiceImpl) Start() {
-	tdoc, _ := td.UnmarshalTD(string(authn.AuthnUserTD))
+	tdoc, _ := wot.UnmarshalTD(string(authn.AuthnUserTD))
 	tdoc.ID = authn.DefaultAuthnUserThingID
 	tdoc.SetType(authn.AuthnUserServiceType)
 	_ = svc.WriteTD(tdoc)

@@ -5,7 +5,7 @@ import (
 	"slices"
 	"sync"
 
-	"github.com/hiveot/hivekit/go/api/td"
+	"github.com/hiveot/hivekit/go/api/wot"
 )
 
 // default limit for getting all things
@@ -17,14 +17,14 @@ type DirectoryCacheImpl struct {
 	// list of thingIDs in order they have been added
 	thingIDs []string
 	// link to TD
-	cache map[string]*td.TD
+	cache map[string]*wot.TD
 
 	// concurrent safe
 	mux sync.RWMutex
 }
 
 // Return a TD from the local cache
-func (dc *DirectoryCacheImpl) GetThing(thingID string) *td.TD {
+func (dc *DirectoryCacheImpl) GetThing(thingID string) *wot.TD {
 	dc.mux.RLock()
 	defer dc.mux.RUnlock()
 	tdoc, _ := dc.cache[thingID]
@@ -32,7 +32,7 @@ func (dc *DirectoryCacheImpl) GetThing(thingID string) *td.TD {
 }
 
 // Return a list of TDs from the local cache
-func (dc *DirectoryCacheImpl) GetAllThings(offset int, limit int) []*td.TD {
+func (dc *DirectoryCacheImpl) GetAllThings(offset int, limit int) []*wot.TD {
 	dc.mux.RLock()
 	defer dc.mux.RUnlock()
 	var thingID string
@@ -44,7 +44,7 @@ func (dc *DirectoryCacheImpl) GetAllThings(offset int, limit int) []*td.TD {
 	remaining := max(len(dc.thingIDs)-offset, 0)
 	size := min(remaining, limit)
 
-	tdList := make([]*td.TD, size)
+	tdList := make([]*wot.TD, size)
 	for i := range size {
 		thingID = dc.thingIDs[offset+i]
 		tdList[i] = dc.cache[thingID]
@@ -53,7 +53,7 @@ func (dc *DirectoryCacheImpl) GetAllThings(offset int, limit int) []*td.TD {
 }
 
 // Import the TD into the cache
-func (dc *DirectoryCacheImpl) ImportTD(tdoc *td.TD) {
+func (dc *DirectoryCacheImpl) ImportTD(tdoc *wot.TD) {
 	dc.mux.Lock()
 	defer dc.mux.Unlock()
 
@@ -67,8 +67,8 @@ func (dc *DirectoryCacheImpl) ImportTD(tdoc *td.TD) {
 }
 
 // Import the TD into the cache
-func (dc *DirectoryCacheImpl) ImportTDJson(tdJson string) (*td.TD, error) {
-	tdoc, err := td.UnmarshalTD(tdJson)
+func (dc *DirectoryCacheImpl) ImportTDJson(tdJson string) (*wot.TD, error) {
+	tdoc, err := wot.UnmarshalTD(tdJson)
 	if err != nil {
 		err = fmt.Errorf("ImportTDJson: invalid TD JSON: %s", err.Error())
 		return tdoc, err
@@ -100,7 +100,7 @@ func (dc *DirectoryCacheImpl) RemoveTD(thingID string) {
 func NewDirectoryCacheImpl() *DirectoryCacheImpl {
 	c := &DirectoryCacheImpl{
 		thingIDs: make([]string, 0),
-		cache:    make(map[string]*td.TD),
+		cache:    make(map[string]*wot.TD),
 	}
 	return c
 }

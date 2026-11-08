@@ -1,4 +1,4 @@
-package td
+package wot
 
 // https://www.w3.org/TR/wot-thing-description11/#securityscheme
 const (

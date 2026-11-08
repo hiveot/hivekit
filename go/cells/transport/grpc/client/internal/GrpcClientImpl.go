@@ -9,7 +9,7 @@ import (
 
 	"github.com/hiveot/hivekit/go/api"
 	"github.com/hiveot/hivekit/go/api/msg"
-	"github.com/hiveot/hivekit/go/api/td"
+	"github.com/hiveot/hivekit/go/api/wot"
 	"github.com/hiveot/hivekit/go/cells/transport"
 	grpctransport "github.com/hiveot/hivekit/go/cells/transport/grpc"
 	"github.com/hiveot/hivekit/go/cells/transport/grpc/grpclib"
@@ -210,7 +210,7 @@ func (cl *GrpcClientImpl) HandleNotification(notif *msg.NotificationMessage) {
 // - other requests (like subscribe) are send to the server
 func (cl *GrpcClientImpl) HandleRequest(request *msg.RequestMessage, replyTo msg.ResponseHandler) error {
 	if request.ThingID == cl.GetConnectionID() {
-		if request.Operation == td.OpInvokeAction && request.Name == api.ClientConnectAction {
+		if request.Operation == wot.OpInvokeAction && request.Name == api.ClientConnectAction {
 			err := cl.Connect()
 			resp := request.CreateResponse(cl.GetConnectionStatus(), err)
 			return replyTo(resp)

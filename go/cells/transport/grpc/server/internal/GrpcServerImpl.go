@@ -12,8 +12,8 @@ import (
 	"time"
 
 	"github.com/hiveot/hivekit/go/api"
-	"github.com/hiveot/hivekit/go/api/td"
 	"github.com/hiveot/hivekit/go/api/vocab"
+	"github.com/hiveot/hivekit/go/api/wot"
 	"github.com/hiveot/hivekit/go/cells/transport"
 	grpctransport "github.com/hiveot/hivekit/go/cells/transport/grpc"
 	"github.com/hiveot/hivekit/go/cells/transport/grpc/grpclib"
@@ -47,14 +47,14 @@ type GrpcServerImpl struct {
 	serviceName string
 
 	// the TD describing this server
-	serverTD *td.TD
+	serverTD *wot.TD
 
 	// the gRPC subprotocol, eg unix or tcp
 	subprotocol string
 }
 
 // GetTD returns the server TD, containing connection and authentication information
-func (srv *GrpcServerImpl) GetTD() *td.TD {
+func (srv *GrpcServerImpl) GetTD() *wot.TD {
 	return srv.serverTD
 }
 
@@ -123,7 +123,7 @@ func (srv *GrpcServerImpl) startServing() (err error) {
 
 	// create a TD describing this server along with its connection URL
 	thingID := srv.GetID()
-	srv.serverTD = td.NewTD(thingID, "gRPC server", vocab.DeviceTypeService)
+	srv.serverTD = wot.NewTD(thingID, "gRPC server", vocab.DeviceTypeService)
 	srv.AddTDSecForms(srv.serverTD)
 	return err
 }

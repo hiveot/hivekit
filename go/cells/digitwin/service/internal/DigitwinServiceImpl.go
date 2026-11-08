@@ -7,7 +7,7 @@ import (
 
 	"github.com/hiveot/hivekit/go/api"
 	"github.com/hiveot/hivekit/go/api/msg"
-	"github.com/hiveot/hivekit/go/api/td"
+	"github.com/hiveot/hivekit/go/api/wot"
 	"github.com/hiveot/hivekit/go/cells"
 	"github.com/hiveot/hivekit/go/cells/bucketstore"
 	"github.com/hiveot/hivekit/go/cells/bucketstore/kvbtreestore"
@@ -91,7 +91,7 @@ type DigitwinServiceImpl struct {
 	deviceStatus sync.Map
 
 	// hook to server to add secforms to a TD for interacting with affordances
-	addForms func(*td.TD)
+	addForms func(*wot.TD)
 
 	// internal storage with the original hidden device TDs
 	deviceTDBucket bucketstore.IBucket
@@ -147,12 +147,12 @@ func (svc *DigitwinServiceImpl) EmitDigitwinRequestToDevice(dtwReq *msg.RequestM
 
 // Return the unmarshalled device TD
 // TODO: cache the unmarshalled TDs for faster handling
-func (svc *DigitwinServiceImpl) GetDeviceTD(thingID string) *td.TD {
+func (svc *DigitwinServiceImpl) GetDeviceTD(thingID string) *wot.TD {
 	tdJson, err := svc.deviceTDBucket.Get(thingID)
 	if err != nil {
 		return nil
 	}
-	tdi, err := td.UnmarshalTD(string(tdJson))
+	tdi, err := wot.UnmarshalTD(string(tdJson))
 	return tdi
 }
 
@@ -239,7 +239,7 @@ func (svc *DigitwinServiceImpl) Stop() {
 //	addForms is a handler from a transport server for injecting forms in digital twin TDs
 //	that describe how to interact via the server protocols.
 func NewDigitwinServiceImpl(
-	storageDir string, thingDir directory.IDirectoryService, addforms func(*td.TD)) (
+	storageDir string, thingDir directory.IDirectoryService, addforms func(*wot.TD)) (
 	*DigitwinServiceImpl, error) {
 
 	thingID := digitwin.DigitwinServiceDefaultThingID

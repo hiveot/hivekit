@@ -9,7 +9,7 @@ import (
 
 	"github.com/grandcat/zeroconf"
 	"github.com/hiveot/hivekit/go/api"
-	"github.com/hiveot/hivekit/go/api/td"
+	"github.com/hiveot/hivekit/go/api/wot"
 	"github.com/hiveot/hivekit/go/cells"
 	"github.com/hiveot/hivekit/go/cells/discovery"
 	"github.com/teris-io/shortid"
@@ -62,7 +62,7 @@ func (cl *DiscoveryClientImpl) _dnssd_discover(
 // Return the first discovered TD that matches the searchID and type.
 func (cl *DiscoveryClientImpl) DiscoverFirstTD(
 	searchID string, thingType string, maxWaitTime time.Duration) (
-	td *td.TD) {
+	td *wot.TD) {
 	_, dirList, _, thingList := cl.DiscoverTDs(searchID, thingType, true, maxWaitTime, nil)
 
 	combined := append(dirList, thingList...)
@@ -129,15 +129,15 @@ func (cl *DiscoveryClientImpl) DiscoverThings(
 // This returns the matching directory, gateway and thing TDs
 func (cl *DiscoveryClientImpl) DiscoverTDs(
 	searchID string, thingType string, first bool, maxWaitTime time.Duration,
-	cb func(*td.TD) bool) (
-	dirRecs []*discovery.DiscoveryResult, dirTDs []*td.TD,
-	deviceRecs []*discovery.DiscoveryResult, deviceTDs []*td.TD) {
+	cb func(*wot.TD) bool) (
+	dirRecs []*discovery.DiscoveryResult, dirTDs []*wot.TD,
+	deviceRecs []*discovery.DiscoveryResult, deviceTDs []*wot.TD) {
 
 	dirRecs = make([]*discovery.DiscoveryResult, 0)
 	deviceRecs = make([]*discovery.DiscoveryResult, 0)
 
-	dirTDs = make([]*td.TD, 0)
-	deviceTDs = make([]*td.TD, 0)
+	dirTDs = make([]*wot.TD, 0)
+	deviceTDs = make([]*wot.TD, 0)
 	cl.DiscoverThings("", thingType, false, maxWaitTime,
 		func(rec *discovery.DiscoveryResult) bool {
 			stop := false
@@ -187,7 +187,7 @@ func (cl *DiscoveryClientImpl) DiscoverTDs(
 // rec points to the discovery record.
 //
 // This returns the TD, its JSON or an error if none is found
-func (cl *DiscoveryClientImpl) LoadTD(tdURL string) (tdoc *td.TD, tdJSON string, err error) {
+func (cl *DiscoveryClientImpl) LoadTD(tdURL string) (tdoc *wot.TD, tdJSON string, err error) {
 	return LoadTD(tdURL, cl.rootCAs)
 }
 
@@ -259,7 +259,7 @@ func (cl *DiscoveryClientImpl) ParseZeroconfServiceEntry(
 // If no URL is offered then search for a directory and return its TD.
 //
 // If no TDD can be found then return nil
-func (cl *DiscoveryClientImpl) locateDirectory(tdURL string, maxWaitTime time.Duration) *td.TD {
+func (cl *DiscoveryClientImpl) locateDirectory(tdURL string, maxWaitTime time.Duration) *wot.TD {
 
 	// if a URL is offered then work with it.
 	if tdURL != "" {
@@ -280,7 +280,7 @@ func (cl *DiscoveryClientImpl) locateDirectory(tdURL string, maxWaitTime time.Du
 // Locate the gateway TD to use.
 // This uses thing discovery to search for a record of type "gateway".
 // WoT doesn't specify the use of gateways so this is HiveOT only.
-func (cl *DiscoveryClientImpl) locateGateway(maxWaitTime time.Duration) (gwTD *td.TD) {
+func (cl *DiscoveryClientImpl) locateGateway(maxWaitTime time.Duration) (gwTD *wot.TD) {
 
 	// if a TD URL is offered then work with it.
 	// no URL offered or it doesn't work so go find one that can be read.

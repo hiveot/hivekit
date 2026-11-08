@@ -4,7 +4,7 @@ import (
 	"fmt"
 
 	"github.com/gdamore/tcell/v2"
-	"github.com/hiveot/hivekit/go/api/td"
+	"github.com/hiveot/hivekit/go/api/wot"
 	"github.com/rivo/tview"
 )
 
@@ -13,7 +13,7 @@ type TDInfoPanel struct {
 	*TuiTable
 }
 
-func (infoPanel *TDInfoPanel) ShowForms(forms []td.Form) {
+func (infoPanel *TDInfoPanel) ShowForms(forms []wot.Form) {
 	infoPanel.Clear()
 	infoPanel.SetTitle(" Thing Level Forms ")
 
@@ -25,7 +25,7 @@ func (infoPanel *TDInfoPanel) ShowForms(forms []td.Form) {
 }
 
 // Show a basic description of the selected action affordance
-func (infoPanel *TDInfoPanel) ShowActionAff(actionName string, aff *td.ActionAffordance) {
+func (infoPanel *TDInfoPanel) ShowActionAff(actionName string, aff *wot.ActionAffordance) {
 	infoPanel.Clear()
 	infoPanel.SetTitle(" Action Affordance ")
 	row := 0
@@ -60,7 +60,7 @@ func (infoPanel *TDInfoPanel) ShowActionAff(actionName string, aff *td.ActionAff
 }
 
 // Show a basic description of the selected event affordance
-func (infoPanel *TDInfoPanel) ShowEventAff(eventName string, aff *td.EventAffordance) {
+func (infoPanel *TDInfoPanel) ShowEventAff(eventName string, aff *wot.EventAffordance) {
 	infoPanel.Clear()
 	infoPanel.SetTitle(" Event Affordance ")
 	row := 0
@@ -91,7 +91,7 @@ func (infoPanel *TDInfoPanel) ShowEventAff(eventName string, aff *td.EventAfford
 }
 
 // Show a basic description of the selected property affordance
-func (infoPanel *TDInfoPanel) ShowPropAff(propName string, aff *td.PropertyAffordance) {
+func (infoPanel *TDInfoPanel) ShowPropAff(propName string, aff *wot.PropertyAffordance) {
 	infoPanel.Clear()
 	infoPanel.SetTitle(" Property Affordance ")
 	row := 0
@@ -124,7 +124,7 @@ func (infoPanel *TDInfoPanel) ShowPropAff(propName string, aff *td.PropertyAffor
 
 // Add a form section to the table at the row
 // This returns the last row+1.
-func (infoPanel *TDInfoPanel) ShowForm(row int, form td.Form, i int) int {
+func (infoPanel *TDInfoPanel) ShowForm(row int, form wot.Form, i int) int {
 	href, _ := form.GetHRef()
 	label := fmt.Sprintf("Form[%d]", i)
 	infoPanel.SetTitleCell(row, 0, label, "")

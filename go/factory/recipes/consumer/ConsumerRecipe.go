@@ -4,7 +4,7 @@ import (
 	"log/slog"
 
 	"github.com/hiveot/hivekit/go/api"
-	"github.com/hiveot/hivekit/go/api/td"
+	"github.com/hiveot/hivekit/go/api/wot"
 	"github.com/hiveot/hivekit/go/cells/consumer"
 	"github.com/hiveot/hivekit/go/cells/directory"
 	directory_client "github.com/hiveot/hivekit/go/cells/directory/client"
@@ -109,7 +109,7 @@ func (r *ConsumerRecipe) SetCredentials(
 
 	rtr := api.GetFactoryCell[router.IRouterService](r.f, router.RouterCellType)
 	if token != "" {
-		rtr.AddCredentials(deviceID, clientID, token, td.SecSchemeBearer)
+		rtr.AddCredentials(deviceID, clientID, token, wot.SecSchemeBearer)
 	}
 }
 

@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	"github.com/hiveot/hivekit/go/api/msg"
-	"github.com/hiveot/hivekit/go/api/td"
+	"github.com/hiveot/hivekit/go/api/wot"
 	vcache_service "github.com/hiveot/hivekit/go/cells/vcache/service"
 	"github.com/hiveot/hivekit/go/utils"
 	"github.com/stretchr/testify/assert"
@@ -66,35 +66,35 @@ func TestPropertyNotifications(t *testing.T) {
 	// test 1: reading a single property
 	tv, found := svc.ReadProperty(thing1ID, prop1Name)
 	require.True(t, found)
-	assert.Equal(t, prop1Value, tv.Data)
+	assert.Equal(t, prop1Value, tv.Raw)
 
 	// test 2: Thing2 should have multiple values
 	prop12Names := []string{prop1Name, prop2Name}
 	valueMap, foundAll := svc.ReadMultipleProperties(thing2ID, prop12Names)
 	require.True(t, foundAll)
 	require.Equal(t, 2, len(valueMap))
-	assert.Equal(t, prop2Value, valueMap[prop2Name].Data)
+	assert.Equal(t, prop2Value, valueMap[prop2Name].Raw)
 
 	// test 3: a read property request should be answered from the cache
 	var respValue msg.ThingValue
-	req := msg.NewRequestMessage(td.OpReadProperty, thing1ID, prop1Name, nil)
+	req := msg.NewRequestMessage(wot.OpReadProperty, thing1ID, prop1Name, nil)
 	err = svc.HandleRequest(req, func(resp *msg.ResponseMessage) error {
 		err = resp.Decode(&respValue)
 		return err
 	})
 	assert.NoError(t, err)
-	assert.Equal(t, prop1Value, respValue.Data)
+	assert.Equal(t, prop1Value, respValue.Raw)
 
 	// test 4: a read multiple properties request should also be answered from the cache
 	var multiResp map[string]msg.ThingValue
-	req = msg.NewRequestMessage(td.OpReadMultipleProperties, thing2ID, "", prop12Names)
+	req = msg.NewRequestMessage(wot.OpReadMultipleProperties, thing2ID, "", prop12Names)
 	err = svc.HandleRequest(req, func(resp *msg.ResponseMessage) error {
 		err = resp.Decode(&multiResp)
 		return err
 	})
 	require.NoError(t, err)
 	require.Equal(t, 2, len(multiResp))
-	require.Equal(t, prop1Value, multiResp[prop1Name].Data)
+	require.Equal(t, prop1Value, multiResp[prop1Name].Raw)
 }
 
 // Capture event notifications and retrieving their value
@@ -129,10 +129,10 @@ func TestEventNotifications(t *testing.T) {
 	// test 1: reading a single event notification
 	tv, found := svc.ReadEvent(thing1ID, ev1Name)
 	require.True(t, found)
-	assert.Equal(t, ev1Value, tv.Data)
+	assert.Equal(t, ev1Value, tv.Raw)
 
 	// test 2: RRN read request should return the value
-	req := msg.NewRequestMessage(td.HTOpReadEvent, thing1ID, ev1Name, nil)
+	req := msg.NewRequestMessage(wot.HTOpReadEvent, thing1ID, ev1Name, nil)
 	err = svc.HandleRequest(req, func(resp *msg.ResponseMessage) error {
 		var ev msg.NotificationMessage
 		err = resp.Decode(&ev)

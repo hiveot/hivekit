@@ -13,7 +13,7 @@ import (
 	"github.com/grandcat/zeroconf"
 	"github.com/hiveot/hivekit/go/api"
 	"github.com/hiveot/hivekit/go/api/msg"
-	"github.com/hiveot/hivekit/go/api/td"
+	"github.com/hiveot/hivekit/go/api/wot"
 	"github.com/hiveot/hivekit/go/cells"
 	"github.com/hiveot/hivekit/go/cells/directory"
 	"github.com/hiveot/hivekit/go/cells/discovery"
@@ -32,10 +32,10 @@ type DiscoveryServerImpl struct {
 	*cells.HiveCellBase
 
 	// hook to add forms to the given TD
-	addFormsHook func(tdoc *td.TD)
+	addFormsHook func(tdoc *wot.TD)
 
 	// The optional directory TD to serve on start
-	tdd *td.TD
+	tdd *wot.TD
 
 	// optional additional endpoints to publish in the discovery record in addition to
 	// the well-known exploration URL.
@@ -55,16 +55,16 @@ type DiscoveryServerImpl struct {
 func (srv *DiscoveryServerImpl) HandleRequest(req *msg.RequestMessage, replyTo msg.ResponseHandler) (err error) {
 
 	// no need to check the discovery thingID, the action name in this chain is sufficient.
-	if req.Operation == td.OpInvokeAction {
+	if req.Operation == wot.OpInvokeAction {
 		switch req.Name {
 		case discovery.ServeDirectoryTDAction:
-			tdoc, _ := td.UnmarshalTD(req.ToString(0))
+			tdoc, _ := wot.UnmarshalTD(req.ToString(0))
 			tddURL, err := srv.ServeDirectoryTD(tdoc.ID, tdoc)
 			resp := req.CreateResponse(tddURL, err)
 			return replyTo(resp)
 
 		case discovery.ServeThingTDAction:
-			tdoc, _ := td.UnmarshalTD(req.ToString(0))
+			tdoc, _ := wot.UnmarshalTD(req.ToString(0))
 			tdURL, err := srv.ServeThingTD(tdoc.ID, tdoc)
 			resp := req.CreateResponse(tdURL, err)
 			return replyTo(resp)
@@ -76,7 +76,7 @@ func (srv *DiscoveryServerImpl) HandleRequest(req *msg.RequestMessage, replyTo m
 			// discovery record. If the chain also contains a directory then the directory
 			// MUST be placed before the discovery service to avoid it intercepting of the
 			// request.
-			tdoc, _ := td.UnmarshalTD(req.ToString(0))
+			tdoc, _ := wot.UnmarshalTD(req.ToString(0))
 			// add forms if missing
 			if tdoc.Base == "" && len(tdoc.Forms) == 0 {
 				if srv.addFormsHook != nil {
@@ -117,7 +117,7 @@ func (srv *DiscoveryServerImpl) HandleRequest(req *msg.RequestMessage, replyTo m
 //
 // This returns the TD download URL or an error
 func (srv *DiscoveryServerImpl) ServeTD(
-	instanceName string, discoType string, tdoc *td.TD) (tdURL string, err error) {
+	instanceName string, discoType string, tdoc *wot.TD) (tdURL string, err error) {
 
 	var httpPath string
 	hostName, _ := os.Hostname()
@@ -172,7 +172,7 @@ func (srv *DiscoveryServerImpl) ServeTD(
 //
 // This returns the TD download URL or an error
 func (srv *DiscoveryServerImpl) ServeDirectoryTD(
-	serviceName string, tdoc *td.TD) (tdURL string, err error) {
+	serviceName string, tdoc *wot.TD) (tdURL string, err error) {
 	if tdoc == nil {
 		return "", errors.New("Missing TD")
 	}
@@ -197,7 +197,7 @@ func (srv *DiscoveryServerImpl) ServeDirectoryTD(
 //
 // This returns the TD download URL or an error
 func (srv *DiscoveryServerImpl) ServeGatewayTD(
-	serviceName string, tdoc *td.TD) (tdURL string, err error) {
+	serviceName string, tdoc *wot.TD) (tdURL string, err error) {
 
 	// serviceName = tdoc.ID
 
@@ -224,7 +224,7 @@ func (srv *DiscoveryServerImpl) ServeGatewayTD(
 //
 // This returns the TD download URL or an error
 func (srv *DiscoveryServerImpl) ServeThingTD(
-	instanceName string, tdoc *td.TD) (tdURL string, err error) {
+	instanceName string, tdoc *wot.TD) (tdURL string, err error) {
 
 	if tdoc == nil {
 		return "", errors.New("Missing TD")
@@ -265,9 +265,9 @@ func (srv *DiscoveryServerImpl) Stop() {
 //	transports for TD security scheme, base URL and forms. Optional.
 //	addForms is an optional hook to add missing forms to published TDs
 func NewDiscoveryServerImpl(
-	httpServer api.IHttpServer, tdd *td.TD,
+	httpServer api.IHttpServer, tdd *wot.TD,
 	endpoints map[string]string,
-	addForms func(*td.TD)) (*DiscoveryServerImpl, error) {
+	addForms func(*wot.TD)) (*DiscoveryServerImpl, error) {
 	var err error
 
 	if httpServer == nil {

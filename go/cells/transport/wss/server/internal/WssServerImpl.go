@@ -10,8 +10,8 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/hiveot/hivekit/go/api"
 	"github.com/hiveot/hivekit/go/api/msg"
-	"github.com/hiveot/hivekit/go/api/td"
 	"github.com/hiveot/hivekit/go/api/vocab"
+	"github.com/hiveot/hivekit/go/api/wot"
 	"github.com/hiveot/hivekit/go/cells/transport"
 	"github.com/hiveot/hivekit/go/cells/transport/wss"
 	"github.com/hiveot/hivekit/go/cells/transport/wss/msgconverter"
@@ -37,7 +37,7 @@ type WssServerImpl struct {
 	respTimeout time.Duration
 
 	// serverTD is the TD describing how to connect to this server
-	serverTD *td.TD
+	serverTD *wot.TD
 
 	// WoT or Hiveot subprotocol
 	subprotocol string
@@ -56,7 +56,7 @@ type WssServerImpl struct {
 //
 // 'includeAffordances' adds forms to all affordances to be compliant with the specifications.
 // Btw, this is a waste of space in the TD as it required but not needed with protocols like websockets.
-func (srv *WssServerImpl) AddTDSecForms(tdoc *td.TD) {
+func (srv *WssServerImpl) AddTDSecForms(tdoc *wot.TD) {
 
 	// 1. Add the base connection endpoint
 	// if this Thing supports multiple protocols the first one occupies 'base'.
@@ -74,22 +74,22 @@ func (srv *WssServerImpl) AddTDSecForms(tdoc *td.TD) {
 	// 3. add top level form for thing level  operations
 	// the href is the connection URL because it is the same as base for all forms in
 	// this protocol.
-	form := td.NewForm("", href)
+	form := wot.NewForm("", href)
 	form.SetSubprotocol(subprotocol)
 	form["op"] = []string{
-		td.HTOpPing,
-		td.OpInvokeAction, td.OpCancelAction,
-		td.OpQueryAction, td.OpQueryAllActions,
+		wot.HTOpPing,
+		wot.OpInvokeAction, wot.OpCancelAction,
+		wot.OpQueryAction, wot.OpQueryAllActions,
 
-		td.OpReadProperty, td.OpReadAllProperties, td.OpReadMultipleProperties,
-		td.OpWriteProperty, td.OpWriteMultipleProperties,
-		td.OpObserveProperty, td.OpObserveAllProperties, td.OpObserveMultipleProperties,
-		td.OpUnobserveProperty, td.OpUnobserveAllProperties, td.OpUnobserveMultipleProperties,
+		wot.OpReadProperty, wot.OpReadAllProperties, wot.OpReadMultipleProperties,
+		wot.OpWriteProperty, wot.OpWriteMultipleProperties,
+		wot.OpObserveProperty, wot.OpObserveAllProperties, wot.OpObserveMultipleProperties,
+		wot.OpUnobserveProperty, wot.OpUnobserveAllProperties, wot.OpUnobserveMultipleProperties,
 
 		// hiveot supports reading latest events
-		td.HTOpReadEvent, td.HTOpReadAllEvents,
-		td.OpSubscribeEvent, td.OpSubscribeAllEvents,
-		td.OpUnsubscribeEvent, td.OpUnsubscribeAllEvents,
+		wot.HTOpReadEvent, wot.HTOpReadAllEvents,
+		wot.OpSubscribeEvent, wot.OpSubscribeAllEvents,
+		wot.OpUnsubscribeEvent, wot.OpUnsubscribeAllEvents,
 	}
 	//form["contentType"] = "application/json"
 	tdoc.Forms = append(tdoc.Forms, form)
@@ -101,29 +101,29 @@ func (srv *WssServerImpl) AddTDSecForms(tdoc *td.TD) {
 		for _, aff := range tdoc.Actions {
 			form := aff.AddForm("", href, "", nil)
 			form.SetSubprotocol(subprotocol)
-			form["op"] = []string{td.OpInvokeAction, td.OpQueryAction}
+			form["op"] = []string{wot.OpInvokeAction, wot.OpQueryAction}
 		}
 		for _, aff := range tdoc.Events {
 			form := aff.AddForm("", href, "", nil)
 			form.SetSubprotocol(subprotocol)
-			form["op"] = []string{td.HTOpReadEvent, td.OpSubscribeEvent, td.OpUnsubscribeEvent}
+			form["op"] = []string{wot.HTOpReadEvent, wot.OpSubscribeEvent, wot.OpUnsubscribeEvent}
 		}
 		for _, aff := range tdoc.Properties {
 			form := aff.AddForm("", href, "", nil)
 			form.SetSubprotocol(subprotocol)
 			if !aff.WriteOnly {
-				form["op"] = []string{td.OpReadProperty, td.OpObserveProperty, td.OpUnobserveProperty}
+				form["op"] = []string{wot.OpReadProperty, wot.OpObserveProperty, wot.OpUnobserveProperty}
 			}
 			if !aff.ReadOnly {
-				form["op"] = []string{td.OpWriteProperty}
+				form["op"] = []string{wot.OpWriteProperty}
 			}
-			form["op"] = []string{td.HTOpReadEvent, td.OpSubscribeEvent, td.OpUnsubscribeEvent}
+			form["op"] = []string{wot.HTOpReadEvent, wot.OpSubscribeEvent, wot.OpUnsubscribeEvent}
 		}
 	}
 }
 
 // GetTD returns the server TD, containing connection and authentication information
-func (srv *WssServerImpl) GetTD() *td.TD {
+func (srv *WssServerImpl) GetTD() *wot.TD {
 	return srv.serverTD
 }
 
@@ -230,7 +230,7 @@ func NewHiveotWssServerImpl(
 
 	slog.Info("Start: Starting HiveOT websocket transport server, Listening on: " + connectURL)
 
-	serverTD := td.NewTD(thingID, "HiveOT Websocket server", vocab.DeviceTypeService)
+	serverTD := wot.NewTD(thingID, "HiveOT Websocket server", vocab.DeviceTypeService)
 	authenticator := httpServer.GetAuthenticator()
 	srv := &WssServerImpl{
 		TransportServerBase: transport.NewTransportServerBase(thingID, connectURL, authenticator),
@@ -288,7 +288,7 @@ func NewWotWssServerImpl(
 	connectURL := fmt.Sprintf("%s://%s%s", api.WotWebsocketScheme, urlParts.Host, wss.WotWebsocketPath)
 	slog.Info("StartWotWssServerImpl: Starting WoT websocket transport server, Listening on: " + connectURL)
 
-	serverTD := td.NewTD(thingID, "WoT Websocket server", vocab.DeviceTypeService)
+	serverTD := wot.NewTD(thingID, "WoT Websocket server", vocab.DeviceTypeService)
 	authenticator := httpServer.GetAuthenticator()
 	srv := &WssServerImpl{
 		TransportServerBase: transport.NewTransportServerBase(thingID, connectURL, authenticator),

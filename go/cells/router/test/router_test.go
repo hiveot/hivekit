@@ -13,7 +13,7 @@ import (
 
 	"github.com/hiveot/hivekit/go/api"
 	"github.com/hiveot/hivekit/go/api/msg"
-	"github.com/hiveot/hivekit/go/api/td"
+	"github.com/hiveot/hivekit/go/api/wot"
 	"github.com/hiveot/hivekit/go/cells/consumer"
 	"github.com/hiveot/hivekit/go/cells/directory"
 	directory_service "github.com/hiveot/hivekit/go/cells/directory/service"
@@ -55,7 +55,7 @@ var testProtocols = []string{
 //
 // The deviceID is the thingID of the device
 func startTestServerDevice(deviceID string) (testDevice *testenv.TestCounterThing,
-	tdoc *td.TD, testEnv *testenv.TestEnv, stopFn func()) {
+	tdoc *wot.TD, testEnv *testenv.TestEnv, stopFn func()) {
 	var err error
 
 	testEnv = testenv.NewTestEnv(true)
@@ -164,7 +164,7 @@ func TestCredentialsStore(t *testing.T) {
 	const thingID1 = "thing-1"
 	const clientID = "client1"
 	const clientCred = "secret"
-	const thingScheme = td.SecSchemeBearer
+	const thingScheme = wot.SecSchemeBearer
 
 	os.RemoveAll(storageDir)
 	testEnv := testenv.NewTestEnv(true)
@@ -229,7 +229,7 @@ func TestAuthClientCert(t *testing.T) {
 	defer routerSvc.Stop()
 
 	// 3. the directory (client or server) used by the router needs the device TD
-	deviceTDJson := td.MarshalTD(device1TD)
+	deviceTDJson := wot.MarshalTD(device1TD)
 	err := dirSvc.CreateThing(deviceID, deviceTDJson)
 	require.NoError(t, err)
 
@@ -281,7 +281,7 @@ func TestReadObserveDeviceProperties(t *testing.T) {
 	})
 
 	// 3. the directory (client or server) used by the router needs the device TD
-	deviceTDJson := td.MarshalTD(device1TD)
+	deviceTDJson := wot.MarshalTD(device1TD)
 	err := dirSvc.CreateThing(deviceID, deviceTDJson)
 	require.NoError(t, err)
 
@@ -289,7 +289,7 @@ func TestReadObserveDeviceProperties(t *testing.T) {
 	testAuthn.AddClient(testConsumerID, "", api.ClientRoleOperator)
 	token, _, err := testAuthn.CreateToken(testConsumerID, rpcTimeout)
 	assert.NoError(t, err)
-	routerMod.AddCredentials(deviceID, clientID, token, td.SecSchemeBearer)
+	routerMod.AddCredentials(deviceID, clientID, token, wot.SecSchemeBearer)
 
 	// 5. Send a request, which causes the router to connect to the device
 	values, err := co.ReadAllProperties(deviceID)
@@ -337,7 +337,7 @@ func TestSubscribeReconnectToDevice(t *testing.T) {
 	testDirSvc, err := directory_service.NewDirectoryService("", "", nil)
 	require.NoError(t, err)
 	defer testDirSvc.Stop()
-	deviceTDJson := td.MarshalTD(tdoc)
+	deviceTDJson := wot.MarshalTD(tdoc)
 	err = testDirSvc.CreateThing(deviceID, deviceTDJson)
 	require.NoError(t, err)
 
@@ -356,7 +356,7 @@ func TestSubscribeReconnectToDevice(t *testing.T) {
 	// to connect to the device, consumer credentials are needed
 	testEnv.TestAuthn.AddClient(testConsumerID, "", api.ClientRoleOperator)
 	token, _, _ := testEnv.TestAuthn.CreateToken(testConsumerID, rpcTimeout)
-	routerSvc.AddCredentials(deviceID, clientID, token, td.SecSchemeBearer)
+	routerSvc.AddCredentials(deviceID, clientID, token, wot.SecSchemeBearer)
 
 	ctx, cancelFn := context.WithTimeout(context.Background(), rpcTimeout)
 
@@ -404,7 +404,7 @@ func TestSubscribeReconnectToDevice(t *testing.T) {
 
 	values, err = co.ReadAllProperties(deviceID)
 	assert.NoError(t, err)
-	assert.Equal(t, prop1Value2, values[prop1Name].Data)
+	assert.Equal(t, prop1Value2, values[prop1Name].Raw)
 
 	// on reconnect, subscription should remain intact and event should be received
 	// todo: should use channel with timeout as the time to receive varies.

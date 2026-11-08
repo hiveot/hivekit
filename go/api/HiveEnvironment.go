@@ -14,7 +14,7 @@ import (
 	"time"
 
 	"github.com/hiveot/hivekit/go/api/msg"
-	"github.com/hiveot/hivekit/go/api/td"
+	"github.com/hiveot/hivekit/go/api/wot"
 	"github.com/hiveot/hivekit/go/utils"
 	"gopkg.in/yaml.v3"
 )
@@ -98,7 +98,7 @@ type HiveEnvironment struct {
 	// Optional directory TD for connecting a directory client to a directory server.
 	//
 	// A discovery client sets this when DirTDURL is determined.
-	dirTD *td.TD `yaml:"-"`
+	dirTD *wot.TD `yaml:"-"`
 
 	// Optional directory TD URL for downloading a specific directory TD.
 	//
@@ -236,7 +236,7 @@ func (env *HiveEnvironment) GetClientCert() (cert *tls.Certificate, err error) {
 
 // Return the discovered directory TDD
 // This is only available if the TDD URL is discovered.
-func (env *HiveEnvironment) GetDirTD() *td.TD {
+func (env *HiveEnvironment) GetDirTD() *wot.TD {
 	return env.dirTD
 }
 
@@ -393,7 +393,7 @@ func (env *HiveEnvironment) SetClientCert(cert *tls.Certificate) {
 }
 
 // Set the directory TD to use with clients
-func (env *HiveEnvironment) SetDirTD(tdoc *td.TD) {
+func (env *HiveEnvironment) SetDirTD(tdoc *wot.TD) {
 	env.dirTD = tdoc
 }
 

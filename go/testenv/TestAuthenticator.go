@@ -7,7 +7,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/hiveot/hivekit/go/api/td"
+	"github.com/hiveot/hivekit/go/api/wot"
 	"github.com/teris-io/shortid"
 )
 
@@ -36,12 +36,12 @@ func (d *TestAuthenticator) AddClient(clientID string, displayName string, role 
 }
 
 // AddSecurityScheme adds the security scheme that this authenticator supports.
-func (d *TestAuthenticator) AddSecurityScheme(tdoc *td.TD) {
+func (d *TestAuthenticator) AddSecurityScheme(tdoc *wot.TD) {
 
 	// bearer security scheme for authenticating http and subprotocol connections
 	format, alg := d.GetAlg()
 
-	tdoc.AddSecurityScheme("bearer", td.SecurityScheme{
+	tdoc.AddSecurityScheme("bearer", wot.SecurityScheme{
 		//AtType:        nil,
 		Description: "dummy token authentication",
 		//Descriptions:  nil,

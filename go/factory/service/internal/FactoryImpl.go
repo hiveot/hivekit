@@ -11,7 +11,7 @@ import (
 
 	"github.com/hiveot/hivekit/go/api"
 	"github.com/hiveot/hivekit/go/api/msg"
-	"github.com/hiveot/hivekit/go/api/td"
+	"github.com/hiveot/hivekit/go/api/wot"
 	"github.com/hiveot/hivekit/go/cells"
 )
 
@@ -44,7 +44,7 @@ type FactoryImpl struct {
 
 // Add forms to the TD for all running transport servers
 // This invokes all singletonCells that implement the ITransportServer interface
-func (f *FactoryImpl) AddTDSecForms(tdoc *td.TD) {
+func (f *FactoryImpl) AddTDSecForms(tdoc *wot.TD) {
 	f.mux.RLock()
 	tpList := make([]api.ITransportServer, len(f.transportCells))
 	copy(tpList, f.transportCells)

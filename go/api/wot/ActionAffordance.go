@@ -1,4 +1,4 @@
-package td
+package wot
 
 import (
 	"github.com/hiveot/hivekit/go/utils"

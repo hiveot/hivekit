@@ -3,7 +3,7 @@ package api
 import (
 	"context"
 
-	"github.com/hiveot/hivekit/go/api/td"
+	"github.com/hiveot/hivekit/go/api/wot"
 )
 
 // formation types that can be used in cell definitions
@@ -55,7 +55,7 @@ type ICellFactory interface {
 	// Intended for devices to add forms before exporting a TD.
 	// This passes the request to all server instances that have been created using
 	// this factory.
-	AddTDSecForms(tdoc *td.TD)
+	AddTDSecForms(tdoc *wot.TD)
 
 	// Provide the means to authenticate incoming connections.
 	// Intended for transport server cells.

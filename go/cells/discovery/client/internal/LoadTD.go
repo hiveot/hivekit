@@ -8,7 +8,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/hiveot/hivekit/go/api/td"
+	"github.com/hiveot/hivekit/go/api/wot"
 	"github.com/hiveot/hivekit/go/cells/transport/tlsclient"
 )
 
@@ -25,7 +25,7 @@ import (
 // rec points to the discovery record.
 //
 // This returns the TD, its JSON or an error if none is found
-func LoadTD(tdURL string, rootCAs *x509.CertPool) (tdoc *td.TD, tdJSON string, err error) {
+func LoadTD(tdURL string, rootCAs *x509.CertPool) (tdoc *wot.TD, tdJSON string, err error) {
 
 	slog.Info("DownloadTD", "url", tdURL)
 	parts, err := url.Parse(tdURL)
@@ -50,7 +50,7 @@ func LoadTD(tdURL string, rootCAs *x509.CertPool) (tdoc *td.TD, tdJSON string, e
 	} else {
 		return nil, "", fmt.Errorf("Unknown scheme '%s', only http is supported", parts.Scheme)
 	}
-	tdDoc, err := td.UnmarshalTD(tdJSON)
+	tdDoc, err := wot.UnmarshalTD(tdJSON)
 	if err != nil {
 		err = fmt.Errorf("LoadTD: TD loaded from '%s' but it doesn't appear to be valid json: %w",
 			parts.Host+"/"+parts.RequestURI(), err)

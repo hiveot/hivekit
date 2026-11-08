@@ -62,7 +62,7 @@ func (app *Cliex) ShowStatus(thingID string, subscribe bool) {
 	sortedKeys = utils.OrderedMapKeys(tdoc.Events)
 	for _, k := range sortedKeys {
 		v, _ := notifs[k]
-		if v.Data == nil {
+		if v.Raw == nil {
 			fmt.Printf(" %s: No value\n", k)
 		} else {
 			fmt.Printf(" %s: Submitted at %v: %s\n", k, v.Timestamp, v.ToString(100))

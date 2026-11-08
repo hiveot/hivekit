@@ -9,7 +9,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/hiveot/hivekit/go/api"
-	"github.com/hiveot/hivekit/go/api/td"
+	"github.com/hiveot/hivekit/go/api/wot"
 )
 
 // GetClientIdFromContext returns the authenticated clientID for the given request
@@ -73,9 +73,9 @@ func GetRequestParams(r *http.Request) (reqParam api.RequestParams, err error) {
 	reqParam.ConnectionID = headerCID
 
 	// URLParam names must match the  path variables set in the router.
-	reqParam.ThingID = chi.URLParam(r, td.UriVarThingID)
-	reqParam.Name = chi.URLParam(r, td.UriVarName)
-	reqParam.Op = chi.URLParam(r, td.UriVarOperation)
+	reqParam.ThingID = chi.URLParam(r, wot.UriVarThingID)
+	reqParam.Name = chi.URLParam(r, wot.UriVarName)
+	reqParam.Op = chi.URLParam(r, wot.UriVarOperation)
 	if r.Body != nil {
 		reqParam.Payload, _ = io.ReadAll(r.Body)
 	}

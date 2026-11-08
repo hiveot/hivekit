@@ -6,8 +6,8 @@ import (
 	"time"
 
 	"github.com/hiveot/hivekit/go/api"
-	"github.com/hiveot/hivekit/go/api/td"
 	"github.com/hiveot/hivekit/go/api/vocab"
+	"github.com/hiveot/hivekit/go/api/wot"
 	"github.com/hiveot/hivekit/go/cells"
 	"github.com/hiveot/hivekit/go/cells/authn"
 	authn_service "github.com/hiveot/hivekit/go/cells/authn/service"
@@ -230,7 +230,7 @@ func (r *GatewayRecipe) Start() {
 	r.f.Start()
 
 	// TODO: add gateway as device with props and events
-	tdoc := td.NewTD(r.GetID(), "HiveOT Gateway", vocab.DeviceNetGateway)
+	tdoc := wot.NewTD(r.GetID(), "HiveOT Gateway", vocab.DeviceNetGateway)
 	r.f.AddTDSecForms(tdoc)
 
 	discoSrv := api.GetFactoryCell[discovery.IDiscoveryServer](
@@ -296,7 +296,7 @@ func NewGatewayRecipe(env *api.HiveEnvironment) (
 
 	// mark the directory as the gateway
 	dirTD := r.f.GetEnvironment().GetDirTD()
-	dirTD.SetType(td.AtTypeGateway)
+	dirTD.SetType(wot.AtTypeGateway)
 
 	srvBus := f.GetCell(api.BusFormationType)
 	// disable notification forwarding by the bus to prevent them being forwarded

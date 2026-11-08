@@ -3,8 +3,8 @@ package internal
 import (
 	"fmt"
 
-	"github.com/hiveot/hivekit/go/api/td"
 	"github.com/hiveot/hivekit/go/api/vocab"
+	"github.com/hiveot/hivekit/go/api/wot"
 	"github.com/hiveot/hivekit/go/cells/digitwin"
 	jsoniter "github.com/json-iterator/go"
 )
@@ -30,7 +30,7 @@ func (svc *DigitwinServiceImpl) HandleDeleteTD(clientID string, thingID string) 
 // 6. Inserts forms that point to the digital twin
 //
 // This returns the updated TD, or the old one if no digital twin is used for this Thing.
-func (svc *DigitwinServiceImpl) HandleWriteDirectory(senderID string, tdi *td.TD) (*td.TD, error) {
+func (svc *DigitwinServiceImpl) HandleWriteDirectory(senderID string, tdi *wot.TD) (*wot.TD, error) {
 
 	// 1. service types do not get a digital twin
 	// this seems a bit simplistic but it avoids hiveot cells from getting a twin
@@ -50,21 +50,21 @@ func (svc *DigitwinServiceImpl) HandleWriteDirectory(senderID string, tdi *td.TD
 
 	// 4. add a 'online' property indicating if it is reachable
 	dtwTD.AddProperty(digitwin.OnlinePropName,
-		"Online", "Indicate if the Thing is reachable", td.DataTypeBool)
+		"Online", "Indicate if the Thing is reachable", wot.DataTypeBool)
 
 	// 5. reset all existing forms and auth info
-	dtwTD.Forms = make([]td.Form, 0)
+	dtwTD.Forms = make([]wot.Form, 0)
 	dtwTD.Security = nil
-	dtwTD.SecurityDefinitions = make(map[string]td.SecurityScheme)
+	dtwTD.SecurityDefinitions = make(map[string]wot.SecurityScheme)
 
 	for _, aff := range dtwTD.Properties {
-		aff.Forms = make([]td.Form, 0)
+		aff.Forms = make([]wot.Form, 0)
 	}
 	for _, aff := range dtwTD.Events {
-		aff.Forms = make([]td.Form, 0)
+		aff.Forms = make([]wot.Form, 0)
 	}
 	for _, aff := range dtwTD.Actions {
-		aff.Forms = make([]td.Form, 0)
+		aff.Forms = make([]wot.Form, 0)
 	}
 
 	// 6. populate the TD with forms and security definitions of the available transports

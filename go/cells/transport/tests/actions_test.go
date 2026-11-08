@@ -12,7 +12,7 @@ import (
 
 	"github.com/hiveot/hivekit/go/api"
 	"github.com/hiveot/hivekit/go/api/msg"
-	"github.com/hiveot/hivekit/go/api/td"
+	"github.com/hiveot/hivekit/go/api/wot"
 	"github.com/hiveot/hivekit/go/cells/thing"
 	"github.com/hiveot/hivekit/go/testenv"
 	"github.com/hiveot/hivekit/go/utils"
@@ -52,7 +52,7 @@ func TestInvokeActionFromConsumerToServer(t *testing.T) {
 	// the device will receive the action request and return an immediate result
 	ag := thing.NewExposedThing("", func(req *msg.RequestMessage, replyTo msg.ResponseHandler) error {
 		var resp *msg.ResponseMessage
-		if req.Operation == td.OpInvokeAction {
+		if req.Operation == wot.OpInvokeAction {
 			inputVal.Store(req.Input)
 			// CreateActionResponse returns ActionStatus
 			resp = req.CreateResponse(req.Input, nil)
@@ -85,7 +85,7 @@ func TestInvokeActionFromConsumerToServer(t *testing.T) {
 	// 3. invoke the action without waiting for a result
 	// the response handler above will receive the result
 	// testOutput can be updated as an immediate result or via the callback message handler
-	req := msg.NewRequestMessage(td.OpInvokeAction, thingID, actionName, testMsg1)
+	req := msg.NewRequestMessage(wot.OpInvokeAction, thingID, actionName, testMsg1)
 	err := co1.EmitRequest(req, responseHandler)
 
 	require.NoError(t, err)
@@ -136,7 +136,7 @@ func TestInvokeActionFromServerToDevice(t *testing.T) {
 		// The server receives a response message from the device
 		// (which normally is forwarded to the remote consumer; but not in this test)
 		assert.NotEmpty(t, resp.CorrelationID)
-		assert.Equal(t, td.OpInvokeAction, resp.Operation)
+		assert.Equal(t, wot.OpInvokeAction, resp.Operation)
 
 		slog.Info("Server: received response from device",
 			"op", resp.Operation,
@@ -183,7 +183,7 @@ func TestInvokeActionFromServerToDevice(t *testing.T) {
 	// sent by the device.
 	time.Sleep(time.Millisecond)
 
-	req := msg.NewRequestMessage(td.OpInvokeAction, thingID, actionKey, testMsg1)
+	req := msg.NewRequestMessage(wot.OpInvokeAction, thingID, actionKey, testMsg1)
 	req.CorrelationID = corrID
 	req.SenderID = testClientID1
 	// err := ag1Server.SendRequest(req)
@@ -218,29 +218,29 @@ func TestQueryActions(t *testing.T) {
 		assert.NotNil(t, replyTo)
 		assert.NotNil(t, req.CorrelationID)
 		switch req.Operation {
-		case td.OpQueryAction:
+		case wot.OpQueryAction:
 			// reply a response carrying the queried action status
 			actStat := &msg.ActionStatus{
 				Output:        testMsg1,
 				Status:        msg.StatusCompleted,
 				TimeRequested: utils.FormatNowUTCMilli(),
-				TimeEnded:     utils.FormatNowUTCMilli(),
+				TimeUpdated:   utils.FormatNowUTCMilli(),
 			}
 
 			resp = req.CreateResponse(actStat, nil)
 
 			//replyTo.SendResponse(msg.ThingID, msg.Name, output, msg.CorrelationID)
-		case td.OpQueryAllActions:
+		case wot.OpQueryAllActions:
 			// include an error status to ensure encode/decode of an error status works
 			actStat := map[string]msg.ActionStatus{
 				actionKey: {
 					Output:        testMsg1,
 					Status:        msg.StatusCompleted,
 					TimeRequested: utils.FormatNowUTCMilli(),
-					TimeEnded:     utils.FormatNowUTCMilli(),
+					TimeUpdated:   utils.FormatNowUTCMilli(),
 				},
 				"action-2": {
-					Error: &msg.ErrorValue{
+					Error: &wot.ErrorValue{
 						Status: http.StatusBadRequest,
 						Type:   "http://testerror/",
 						Title:  "Testing error",
@@ -248,13 +248,13 @@ func TestQueryActions(t *testing.T) {
 					},
 					Status:        msg.StatusFailed,
 					TimeRequested: utils.FormatNowUTCMilli(),
-					TimeEnded:     utils.FormatNowUTCMilli(),
+					TimeUpdated:   utils.FormatNowUTCMilli(),
 				},
 				"action-3": {
 					Output:        "other output",
 					Status:        msg.StatusCompleted,
 					TimeRequested: utils.FormatNowUTCMilli(),
-					TimeEnded:     utils.FormatNowUTCMilli(),
+					TimeUpdated:   utils.FormatNowUTCMilli(),
 				}}
 			// the action status map is the payload for the action response.
 			// the action response itself is also an action status object.
@@ -276,7 +276,7 @@ func TestQueryActions(t *testing.T) {
 	// err := co1.Rpc(td.OpQueryAction, thingID, actionKey, nil, &status)
 	require.NoError(t, err)
 	require.Equal(t, msg.StatusCompleted, as.Status)
-	require.NotEmpty(t, as.TimeEnded)
+	require.NotEmpty(t, as.TimeUpdated)
 
 	// 4. Query all actions
 	var statusMap map[string]msg.ActionStatus

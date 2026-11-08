@@ -5,8 +5,8 @@ import (
 	"time"
 
 	"github.com/hiveot/hivekit/go/api"
-	"github.com/hiveot/hivekit/go/api/td"
 	"github.com/hiveot/hivekit/go/api/vocab"
+	"github.com/hiveot/hivekit/go/api/wot"
 	directory_service "github.com/hiveot/hivekit/go/cells/directory/service"
 	"github.com/hiveot/hivekit/go/cells/discovery"
 	discovery_client "github.com/hiveot/hivekit/go/cells/discovery/client"
@@ -24,7 +24,7 @@ const testDirServiceName = "hiveot-test"
 // Test the directory discovery
 func TestDiscoverDirectory(t *testing.T) {
 
-	dirTDD := td.NewTD("tddID", "testTDD", vocab.DeviceTypeService)
+	dirTDD := wot.NewTD("tddID", "testTDD", vocab.DeviceTypeService)
 
 	testServiceAddress := utils.GetOutboundIP("").String()
 	endpoints := map[string]string{"wss": "wss://localhost/wssendpoint"}

@@ -1,6 +1,8 @@
 // Package td with Schema type definitions as described here:
 // https://www.w3.org/TR/wot-thing-description/#sec-data-schema-vocabulary-definition
-package td
+package wot
+
+import "github.com/hiveot/hivekit/go/api/vocab"
 
 // NoSchema is a read-only schema to use when schema is unknown.
 var noSchema = &DataSchema{ReadOnly: true}
@@ -131,6 +133,23 @@ func (ds *DataSchema) GetAtTypeString() string {
 		}
 	}
 	return ""
+}
+
+// UnitSymbol returns the symbol of the unit of this schema using the vocabulary unit map.
+//
+// This returns:
+// * an empty string of the schema has no unit
+// * an international symbol for the unit if one is known
+// * the unit name if no symbol is defined in the vocab
+func (ds *DataSchema) UnitSymbol() string {
+	if ds.Unit == "" {
+		return ""
+	}
+	unit, found := vocab.UnitClassesMap[ds.Unit]
+	if !found {
+		return ds.Unit
+	}
+	return unit.Symbol
 }
 
 // SetEnumAsStrings sets the enum values as type string.

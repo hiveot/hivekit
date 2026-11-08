@@ -6,7 +6,7 @@ import (
 
 	"github.com/hiveot/hivekit/go/api"
 	"github.com/hiveot/hivekit/go/api/msg"
-	"github.com/hiveot/hivekit/go/api/td"
+	"github.com/hiveot/hivekit/go/api/wot"
 	"github.com/hiveot/hivekit/go/cells"
 	"github.com/hiveot/hivekit/go/cells/rcrouter"
 )
@@ -22,7 +22,7 @@ type RCRouterServiceImpl struct {
 
 	// handler that provides a TD for the given thingID.
 	// Required for determining the connection clientID that serves a Thing.
-	getTD func(thingID string) *td.TD
+	getTD func(thingID string) *wot.TD
 
 	// handler to get available transport servers for forwarding to RC clients.
 	getSrv func() []api.ITransportServer
@@ -98,7 +98,7 @@ func (svc *RCRouterServiceImpl) RouteRequest(req *msg.RequestMessage, replyTo ms
 //	getTD  handler to lookup a TD for a thingID from a directory. Required.
 //	getSrv handler returning a list of transport servers that can contain RC devices.
 func NewRCRouterServiceImpl(
-	getTD func(thingID string) *td.TD,
+	getTD func(thingID string) *wot.TD,
 	getSrv func() []api.ITransportServer,
 	getRole func(clientID string) string,
 ) (*RCRouterServiceImpl, error) {

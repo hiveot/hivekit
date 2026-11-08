@@ -3,7 +3,7 @@ package authn_client
 
 import (
 	"github.com/hiveot/hivekit/go/api"
-	"github.com/hiveot/hivekit/go/api/td"
+	"github.com/hiveot/hivekit/go/api/wot"
 	"github.com/hiveot/hivekit/go/cells"
 	"github.com/hiveot/hivekit/go/cells/authn"
 )
@@ -33,7 +33,7 @@ func (cl *AuthnAdminClient) AddClient(clientID string, displayName string, role 
 		DisplayName: displayName,
 		Role:        role,
 	}
-	err = cl.Rpc(td.OpInvokeAction, cl.authnServiceID,
+	err = cl.Rpc(wot.OpInvokeAction, cl.authnServiceID,
 		authn.AdminAddClientAction, &args, &token)
 	return
 }
@@ -41,7 +41,7 @@ func (cl *AuthnAdminClient) AddClient(clientID string, displayName string, role 
 // CreateToken creates a new client authentication token with the default expiry based on the role
 func (cl *AuthnAdminClient) CreateToken(clientID string) (newToken string, err error) {
 
-	err = cl.Rpc(td.OpInvokeAction, cl.authnServiceID,
+	err = cl.Rpc(wot.OpInvokeAction, cl.authnServiceID,
 		authn.AdminCreateTokenAction, &clientID, &newToken)
 	return
 }
@@ -51,7 +51,7 @@ func (cl *AuthnAdminClient) CreateToken(clientID string) (newToken string, err e
 func (cl *AuthnAdminClient) GetProfile(clientID string) (
 	profile authn.ClientProfile, err error) {
 
-	err = cl.Rpc(td.OpInvokeAction, cl.authnServiceID,
+	err = cl.Rpc(wot.OpInvokeAction, cl.authnServiceID,
 		authn.AdminGetProfileAction, &clientID, &profile)
 	return
 }
@@ -60,7 +60,7 @@ func (cl *AuthnAdminClient) GetProfile(clientID string) (
 // Get a list of all client profiles
 func (cl *AuthnAdminClient) GetProfiles() (clientProfiles []authn.ClientProfile, err error) {
 
-	err = cl.Rpc(td.OpInvokeAction, cl.authnServiceID,
+	err = cl.Rpc(wot.OpInvokeAction, cl.authnServiceID,
 		authn.AdminGetProfilesAction, nil, &clientProfiles)
 	return
 }
@@ -69,7 +69,7 @@ func (cl *AuthnAdminClient) GetProfiles() (clientProfiles []authn.ClientProfile,
 // Remove a client account
 func (cl *AuthnAdminClient) RemoveClient(clientID string) (err error) {
 
-	err = cl.Rpc(td.OpInvokeAction, cl.authnServiceID,
+	err = cl.Rpc(wot.OpInvokeAction, cl.authnServiceID,
 		authn.AdminRemoveClientAction, &clientID, nil)
 	return
 }
@@ -81,7 +81,7 @@ func (cl *AuthnAdminClient) SetClientPassword(userName string, password string) 
 	var args = authn.AdminSetPasswordInput{
 		UserName: userName, Password: password}
 
-	err = cl.Rpc(td.OpInvokeAction, cl.authnServiceID,
+	err = cl.Rpc(wot.OpInvokeAction, cl.authnServiceID,
 		authn.AdminSetPasswordAction, &args, nil)
 	return
 }
@@ -90,7 +90,7 @@ func (cl *AuthnAdminClient) SetClientPassword(userName string, password string) 
 // Update the details of a client
 func (cl *AuthnAdminClient) UpdateClientProfile(clientProfile authn.ClientProfile) (err error) {
 
-	err = cl.Rpc(td.OpInvokeAction, cl.authnServiceID,
+	err = cl.Rpc(wot.OpInvokeAction, cl.authnServiceID,
 		authn.AdminUpdateProfileAction, &clientProfile, nil)
 	return
 }

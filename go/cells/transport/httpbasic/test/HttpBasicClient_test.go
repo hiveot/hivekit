@@ -5,7 +5,7 @@ import (
 	"time"
 
 	"github.com/hiveot/hivekit/go/api"
-	"github.com/hiveot/hivekit/go/api/td"
+	"github.com/hiveot/hivekit/go/api/wot"
 	certstest "github.com/hiveot/hivekit/go/cells/certs/test"
 	httpbasic_client "github.com/hiveot/hivekit/go/cells/transport/httpbasic/client"
 	httpbasic_server "github.com/hiveot/hivekit/go/cells/transport/httpbasic/server"
@@ -41,7 +41,7 @@ func TestConnect(t *testing.T) {
 	cl, err := httpbasic_client.NewHttpBasicClient(tdoc, testCerts.RootCAs)
 	require.NoError(t, err)
 	cl.SetTimeout(rpcTimeout)
-	err = cl.SetAuthToken(clientID, token, td.SecSchemeBearer)
+	err = cl.SetAuthToken(clientID, token, wot.SecSchemeBearer)
 	require.NoError(t, err)
 	err = cl.Connect()
 	require.NoError(t, err)

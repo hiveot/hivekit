@@ -1,5 +1,5 @@
 // Package msg with the response error value
-package msg
+package wot
 
 import (
 	"errors"

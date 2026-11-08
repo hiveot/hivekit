@@ -2,7 +2,7 @@ package discovery
 
 import (
 	"github.com/hiveot/hivekit/go/api"
-	"github.com/hiveot/hivekit/go/api/td"
+	"github.com/hiveot/hivekit/go/api/wot"
 )
 
 // The discovery cell types
@@ -82,11 +82,11 @@ type IDiscoveryServer interface {
 	//	tdoc is the directory TD to make available in JSON format
 	//
 	// This returns the URL the td can be obtained at, or an error.
-	ServeDirectoryTD(instanceName string, tdoc *td.TD) (tdURL string, err error)
+	ServeDirectoryTD(instanceName string, tdoc *wot.TD) (tdURL string, err error)
 
 	// ServeGatewayTD serves the given TD as a gateway
 	// This returns the URL the td can be obtained at, or an error.
-	ServeGatewayTD(instanceName string, tdoc *td.TD) (tdURL string, err error)
+	ServeGatewayTD(instanceName string, tdoc *wot.TD) (tdURL string, err error)
 
 	// ServeThingTD serves the given thing TD on http at the well-known endpoint, and publishes
 	// this using DNS-SD discovery.
@@ -105,5 +105,5 @@ type IDiscoveryServer interface {
 	//	tdoc is the Thing TD to make available in JSON format
 	//
 	// This returns the URL the td can be obtained at, or an error.
-	ServeThingTD(instanceName string, tdoc *td.TD) (tdURL string, err error)
+	ServeThingTD(instanceName string, tdoc *wot.TD) (tdURL string, err error)
 }

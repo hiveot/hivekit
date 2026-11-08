@@ -1,7 +1,7 @@
 package internal
 
 import (
-	"github.com/hiveot/hivekit/go/api/td"
+	"github.com/hiveot/hivekit/go/api/wot"
 )
 
 // AddTDForms sets the forms for use of http-basic to the given TD.
@@ -14,7 +14,7 @@ import (
 //  4. Set affordance level forms for property, event and actions if includeAffordance is true
 //
 // Since content-Type is the default 'application/json' it is omitted as per spec.
-func (srv *GrpcServerImpl) AddTDSecForms(tdoc *td.TD) {
+func (srv *GrpcServerImpl) AddTDSecForms(tdoc *wot.TD) {
 	// 1. Add the base connection endpoint
 	href := srv.GetConnectURL()
 	if tdoc.Base == "" {
@@ -26,14 +26,14 @@ func (srv *GrpcServerImpl) AddTDSecForms(tdoc *td.TD) {
 
 	// 3. add top level form for thing level  operations
 	// the href is the connection URL because it is the same as base for all forms in this protocol
-	form := td.NewForm("", href)
+	form := wot.NewForm("", href)
 	form["op"] = []string{
-		td.HTOpPing,
-		td.OpQueryAllActions,
-		td.OpObserveAllProperties, td.OpUnobserveAllProperties,
-		td.OpReadAllProperties,
-		td.HTOpReadAllEvents, // hiveot supports reading latest events
-		td.OpSubscribeAllEvents, td.OpUnsubscribeAllEvents,
+		wot.HTOpPing,
+		wot.OpQueryAllActions,
+		wot.OpObserveAllProperties, wot.OpUnobserveAllProperties,
+		wot.OpReadAllProperties,
+		wot.HTOpReadAllEvents, // hiveot supports reading latest events
+		wot.OpSubscribeAllEvents, wot.OpUnsubscribeAllEvents,
 	}
 	form.SetSubprotocol(srv.subprotocol)
 
@@ -46,21 +46,21 @@ func (srv *GrpcServerImpl) AddTDSecForms(tdoc *td.TD) {
 
 		for _, aff := range tdoc.Actions {
 			form := aff.AddForm("", href, "", nil)
-			form["op"] = []string{td.OpInvokeAction, td.OpQueryAction}
+			form["op"] = []string{wot.OpInvokeAction, wot.OpQueryAction}
 		}
 		for _, aff := range tdoc.Events {
 			form := aff.AddForm("", href, "", nil)
-			form["op"] = []string{td.HTOpReadEvent, td.OpSubscribeEvent, td.OpUnsubscribeEvent}
+			form["op"] = []string{wot.HTOpReadEvent, wot.OpSubscribeEvent, wot.OpUnsubscribeEvent}
 		}
 		for _, aff := range tdoc.Properties {
 			form := aff.AddForm("", href, "", nil)
 			if !aff.WriteOnly {
-				form["op"] = []string{td.OpReadProperty, td.OpObserveProperty, td.OpUnobserveProperty}
+				form["op"] = []string{wot.OpReadProperty, wot.OpObserveProperty, wot.OpUnobserveProperty}
 			}
 			if !aff.ReadOnly {
-				form["op"] = []string{td.OpWriteProperty}
+				form["op"] = []string{wot.OpWriteProperty}
 			}
-			form["op"] = []string{td.HTOpReadEvent, td.OpSubscribeEvent, td.OpUnsubscribeEvent}
+			form["op"] = []string{wot.HTOpReadEvent, wot.OpSubscribeEvent, wot.OpUnsubscribeEvent}
 		}
 	}
 }

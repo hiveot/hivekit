@@ -11,7 +11,7 @@ import (
 
 	"github.com/hiveot/hivekit/go/api"
 	"github.com/hiveot/hivekit/go/api/msg"
-	"github.com/hiveot/hivekit/go/api/td"
+	"github.com/hiveot/hivekit/go/api/wot"
 	"github.com/hiveot/hivekit/go/cells/transport"
 	"github.com/hiveot/hivekit/go/cells/transport/ssesc"
 	"github.com/hiveot/hivekit/go/cells/transport/tlsclient"
@@ -54,7 +54,7 @@ type SseScClientImpl struct {
 	sseCancelFn context.CancelFunc
 
 	// TD with forms for operations
-	tdoc *td.TD
+	tdoc *wot.TD
 
 	// http2 client for posting messages
 	tlsClient tlsclient.ITLSClient
@@ -152,7 +152,7 @@ func (m *SseScClientImpl) HandleNotification(notif *msg.NotificationMessage) {
 // - other requests (like subscribe) are send to the server
 func (cl *SseScClientImpl) HandleRequest(request *msg.RequestMessage, replyTo msg.ResponseHandler) error {
 	if request.ThingID == cl.GetID() {
-		if request.Operation == td.OpInvokeAction && request.Name == api.ClientConnectAction {
+		if request.Operation == wot.OpInvokeAction && request.Name == api.ClientConnectAction {
 			err := cl.Connect()
 			status := cl.GetConnectionStatus()
 			resp := request.CreateResponse(status, err)
@@ -331,13 +331,13 @@ func (cl *SseScClientImpl) SendRequest(
 		httpProblemDetail := map[string]string{}
 		if len(outputRaw) > 0 {
 			err = jsoniter.Unmarshal(outputRaw, &httpProblemDetail)
-			resp.Error = &msg.ErrorValue{
+			resp.Error = &wot.ErrorValue{
 				Status: code,
 				Title:  httpProblemDetail["title"],
 				Detail: httpProblemDetail["detail"],
 			}
 		} else {
-			resp.Error = &msg.ErrorValue{
+			resp.Error = &wot.ErrorValue{
 				Status: code,
 				Title:  "request failed",
 			}
@@ -384,7 +384,7 @@ func (cl *SseScClientImpl) Stop() {
 //
 //	tdoc is the TD to use for operations. Must have a base URL for SSE connect endpoint.
 //	rootCAs are CA certificates to validate the server certificate. nil for system CAs.
-func NewSseScClientImpl(tdoc *td.TD, rootCAs *x509.CertPool) *SseScClientImpl {
+func NewSseScClientImpl(tdoc *wot.TD, rootCAs *x509.CertPool) *SseScClientImpl {
 
 	sseURL := tdoc.Base
 	urlParts, err := url.Parse(sseURL)

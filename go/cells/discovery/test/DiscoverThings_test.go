@@ -7,7 +7,7 @@ import (
 
 	"github.com/hiveot/hivekit/go/api"
 	"github.com/hiveot/hivekit/go/api/msg"
-	"github.com/hiveot/hivekit/go/api/td"
+	"github.com/hiveot/hivekit/go/api/wot"
 	"github.com/hiveot/hivekit/go/cells/discovery"
 	discovery_client "github.com/hiveot/hivekit/go/cells/discovery/client"
 	discovery_server "github.com/hiveot/hivekit/go/cells/discovery/server"
@@ -28,7 +28,7 @@ const testServicePort = 9999
 // discover things
 func TestDiscoverThings(t *testing.T) {
 
-	testTD := td.NewTD("testID", "title", "testdevice")
+	testTD := wot.NewTD("testID", "title", "testdevice")
 
 	testEnv := testenv.NewTestEnv(true)
 	testEnv.StartHttpServer(true)
@@ -68,10 +68,10 @@ func TestDiscoverGetThingTD(t *testing.T) {
 	// Serve a TD published in the request chain.
 	// This should be handled by the discovery server.
 	// err = m.ServeThingTD(thingTD)
-	tdJson1 := td.MarshalTD(thingTD)
+	tdJson1 := wot.MarshalTD(thingTD)
 	svcThingID := discoSrv.GetID()
 	req := msg.NewRequestMessage(
-		td.OpInvokeAction, svcThingID, discovery.ServeThingTDAction, tdJson1)
+		wot.OpInvokeAction, svcThingID, discovery.ServeThingTDAction, tdJson1)
 	err = discoSrv.HandleRequest(req, req.NoReply)
 	require.NoError(t, err)
 

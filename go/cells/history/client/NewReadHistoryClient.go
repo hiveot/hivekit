@@ -6,7 +6,7 @@ import (
 
 	"github.com/hiveot/hivekit/go/api"
 	"github.com/hiveot/hivekit/go/api/msg"
-	"github.com/hiveot/hivekit/go/api/td"
+	"github.com/hiveot/hivekit/go/api/wot"
 	"github.com/hiveot/hivekit/go/cells"
 	"github.com/hiveot/hivekit/go/cells/history"
 	"github.com/hiveot/hivekit/go/utils"
@@ -29,7 +29,7 @@ type ReadHistoryClient struct {
 
 // invoke action on the history service
 func (cl *ReadHistoryClient) call(name string, input any, output any) error {
-	return cl.Rpc(td.OpInvokeAction, cl.histThingID, name, input, output)
+	return cl.Rpc(wot.OpInvokeAction, cl.histThingID, name, input, output)
 }
 
 // CreateCursor obtains a cursor key to iterate using the iteration functions.
@@ -126,7 +126,7 @@ func (cl *ReadHistoryClient) ReleaseCursor(cursorKey string) {
 // ReadHistory returns a list of historical messages in time order.
 //
 //	thingID the event or action belongs to
-//	FilterOnName option filter on a specific event or action name
+//	filterOnName option filter on a specific event or action name
 //	timestamp to start/end
 //	duration number of seconds to return. Use negative number to go back in time.
 //	limit max nr of items to return. Use 0 for max limit

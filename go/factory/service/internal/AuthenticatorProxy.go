@@ -5,7 +5,7 @@ import (
 	"time"
 
 	"github.com/hiveot/hivekit/go/api"
-	"github.com/hiveot/hivekit/go/api/td"
+	"github.com/hiveot/hivekit/go/api/wot"
 )
 
 type AuthenticatorProxy struct {
@@ -15,13 +15,13 @@ type AuthenticatorProxy struct {
 
 // Set the TD security scheme for the authentication
 // If no authenticator is set then
-func (ap *AuthenticatorProxy) AddSecurityScheme(tdoc *td.TD) {
+func (ap *AuthenticatorProxy) AddSecurityScheme(tdoc *wot.TD) {
 	// proxy doesnt do anything unless implementation is set
 	if ap.impl != nil {
 		ap.impl.AddSecurityScheme(tdoc)
 	} else if ap.noAuth {
-		tdoc.AddSecurityScheme(td.SecSchemeNoSec, td.SecurityScheme{
-			Name: td.SecSchemeNoSec,
+		tdoc.AddSecurityScheme(wot.SecSchemeNoSec, wot.SecurityScheme{
+			Name: wot.SecSchemeNoSec,
 		})
 	}
 }

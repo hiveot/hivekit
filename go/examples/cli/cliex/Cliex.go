@@ -5,7 +5,7 @@ import (
 	"time"
 
 	"github.com/hiveot/hivekit/go/api"
-	"github.com/hiveot/hivekit/go/api/td"
+	"github.com/hiveot/hivekit/go/api/wot"
 	"github.com/hiveot/hivekit/go/cells/consumer"
 	"github.com/hiveot/hivekit/go/cells/directory"
 	"github.com/hiveot/hivekit/go/cells/discovery"
@@ -43,7 +43,7 @@ type Cliex struct {
 //  2. search using the discovery client
 //  3. if no remote directory is set then discover a directory,
 //     and check the directory client again.
-func (cliex *Cliex) FindTD(thingID string) (tdoc *td.TD) {
+func (cliex *Cliex) FindTD(thingID string) (tdoc *wot.TD) {
 	// var err error
 	var maxWaitTime = time.Second * 1
 	// var tddURL string

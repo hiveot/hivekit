@@ -1,5 +1,5 @@
 // Package td with API interface definitions for forms
-package td
+package wot
 
 import (
 	"fmt"

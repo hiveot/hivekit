@@ -5,7 +5,7 @@ import (
 	"strconv"
 
 	"github.com/araddon/dateparse"
-	"github.com/hiveot/hivekit/go/api/td"
+	"github.com/hiveot/hivekit/go/api/wot"
 )
 
 // Show the loaded things in the main view
@@ -26,7 +26,7 @@ func (page *ThingsPage) GetThingID(row int) string {
 
 // Show the loaded things in the main view
 // this rotates through different tables
-func (page *ThingsPage) Refresh(tdList []*td.TD) {
+func (page *ThingsPage) Refresh(tdList []*wot.TD) {
 
 	page.SetTitle(fmt.Sprintf(" %d Discovered Things ", len(tdList)))
 	page.SetBorders(false)

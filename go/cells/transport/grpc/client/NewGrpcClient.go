@@ -5,7 +5,7 @@ import (
 	"strings"
 
 	"github.com/hiveot/hivekit/go/api"
-	"github.com/hiveot/hivekit/go/api/td"
+	"github.com/hiveot/hivekit/go/api/wot"
 	"github.com/hiveot/hivekit/go/cells/transport/grpc/client/internal"
 )
 
@@ -69,7 +69,7 @@ func NewHiveotGrpcClientFactory(
 		authToken, err := env.GetAuthToken()
 
 		if err == nil && clientID != "" && authToken != "" {
-			err = cl.SetAuthToken(clientID, authToken, td.SecSchemeBearer)
+			err = cl.SetAuthToken(clientID, authToken, wot.SecSchemeBearer)
 		}
 	}
 	return cl, err

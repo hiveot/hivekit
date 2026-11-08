@@ -2,7 +2,7 @@ package tuiapp
 
 import (
 	"github.com/gdamore/tcell/v2"
-	"github.com/hiveot/hivekit/go/api/td"
+	"github.com/hiveot/hivekit/go/api/wot"
 	"github.com/rivo/tview"
 )
 
@@ -15,7 +15,7 @@ type AppFooter struct {
 }
 
 // Reload the text being shown using updated values
-func (footer *AppFooter) Refresh(allThings []*td.TD) {
+func (footer *AppFooter) Refresh(allThings []*wot.TD) {
 	hasThings := len(allThings) > 0
 
 	// disable the list things button if there are no things loaded

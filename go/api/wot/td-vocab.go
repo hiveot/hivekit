@@ -1,5 +1,5 @@
-// Package td with WoT TD vocabulary
-package td
+// Package wot with WoT TD vocabulary
+package wot
 
 // HiveOT operations that are not defined with the TD and used in HiveOT.
 const (

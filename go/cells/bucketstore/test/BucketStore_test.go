@@ -10,7 +10,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/hiveot/hivekit/go/api/td"
+	"github.com/hiveot/hivekit/go/api/wot"
 	"github.com/hiveot/hivekit/go/cells/bucketstore"
 	bucketstore_client "github.com/hiveot/hivekit/go/cells/bucketstore/client"
 	"github.com/hiveot/hivekit/go/cells/bucketstore/kvbtreestore"
@@ -87,44 +87,44 @@ func openNewStore(storeDir string) (store bucketstore.IBucketStore, err error) {
 }
 
 // Create a TD document
-func createTD(id string) *td.TD {
-	tdi := &td.TD{
+func createTD(id string) *wot.TD {
+	tdi := &wot.TD{
 		ID:         id,
 		Title:      fmt.Sprintf("test TD %s", id),
 		AtType:     deviceTypeSensor,
-		Properties: make(map[string]*td.PropertyAffordance),
-		Events:     make(map[string]*td.EventAffordance),
+		Properties: make(map[string]*wot.PropertyAffordance),
+		Events:     make(map[string]*wot.EventAffordance),
 	}
-	tdi.Properties[propDeviceTitle] = &td.PropertyAffordance{
-		DataSchema: td.DataSchema{
+	tdi.Properties[propDeviceTitle] = &wot.PropertyAffordance{
+		DataSchema: wot.DataSchema{
 			Title:       "Sensor title",
 			Description: "This is a smart sensor",
-			Type:        td.DataTypeString,
+			Type:        wot.DataTypeString,
 			Default:     "Default value",
 		},
 	}
-	tdi.Properties[propDeviceSoftwareVersion] = &td.PropertyAffordance{
-		DataSchema: td.DataSchema{
+	tdi.Properties[propDeviceSoftwareVersion] = &wot.PropertyAffordance{
+		DataSchema: wot.DataSchema{
 			Title:       "Version",
 			Description: "Embedded firmware",
-			Type:        td.DataTypeString,
+			Type:        wot.DataTypeString,
 			Default:     "Default value",
 			Const:       "v1.0",
 		},
 	}
-	tdi.Events[propEnvTemperature] = &td.EventAffordance{
+	tdi.Events[propEnvTemperature] = &wot.EventAffordance{
 		Title:       "Event 1",
 		Description: "ID of this event",
-		Data: &td.DataSchema{
-			Type:        td.DataTypeString,
+		Data: &wot.DataSchema{
+			Type:        wot.DataTypeString,
 			Const:       "123",
 			Title:       "Event name data",
 			Description: "String with friendly name of the event"},
 	}
-	tdi.Events[propDeviceBattery] = &td.EventAffordance{
+	tdi.Events[propDeviceBattery] = &wot.EventAffordance{
 		Title: "Event 2",
-		Data: &td.DataSchema{
-			Type:        td.DataTypeInteger,
+		Data: &wot.DataSchema{
+			Type:        wot.DataTypeInteger,
 			Title:       "Battery level",
 			Unit:        unitPercent,
 			Description: "Battery level update in % of device"},
@@ -632,13 +632,13 @@ func TestPrevNextN(t *testing.T) {
 //	td1.Properties[vocab.PropNameTitle] = &things.PropertyAffordance{
 //		DataSchema: things.DataSchema{
 //			Title: "Sensor title",
-//			Type:  td.DataTypeString,
+//			Type:  wot.DataTypeString,
 //		},
 //	}
 //	td1.Properties[vocab.PropNameValue] = &things.PropertyAffordance{
 //		DataSchema: things.DataSchema{
 //			Title: "Sensor value",
-//			Type:  td.DataTypeNumber,
+//			Type:  wot.DataTypeNumber,
 //		},
 //	}
 //
@@ -651,7 +651,7 @@ func TestPrevNextN(t *testing.T) {
 //	td2.Properties[vocab.PropNameTitle] = &things.PropertyAffordance{
 //		DataSchema: things.DataSchema{
 //			Title: "The switch",
-//			Type:  td.DataTypeBool,
+//			Type:  wot.DataTypeBool,
 //		},
 //	}
 //

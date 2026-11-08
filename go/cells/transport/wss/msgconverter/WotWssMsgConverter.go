@@ -6,26 +6,26 @@ import (
 	"slices"
 
 	"github.com/hiveot/hivekit/go/api/msg"
-	"github.com/hiveot/hivekit/go/api/td"
+	"github.com/hiveot/hivekit/go/api/wot"
 	"github.com/hiveot/hivekit/go/utils"
 	jsoniter "github.com/json-iterator/go"
 )
 
 // operations related to event affordances
 var EventAffOps = []string{
-	td.OpSubscribeEvent, td.OpSubscribeAllEvents,
+	wot.OpSubscribeEvent, wot.OpSubscribeAllEvents,
 }
 
 // operations related to action affordances
 var ActionAffOps = []string{
-	td.OpCancelAction, td.OpInvokeAction, td.OpQueryAction, td.OpQueryAllActions,
+	wot.OpCancelAction, wot.OpInvokeAction, wot.OpQueryAction, wot.OpQueryAllActions,
 }
 
 // operations related to action affordances
 var PropAffOps = []string{
-	td.OpObserveAllProperties, td.OpObserveMultipleProperties, td.OpObserveProperty,
-	td.OpReadProperty, td.OpReadAllProperties, td.OpReadMultipleProperties,
-	td.OpWriteProperty,
+	wot.OpObserveAllProperties, wot.OpObserveMultipleProperties, wot.OpObserveProperty,
+	wot.OpReadProperty, wot.OpReadAllProperties, wot.OpReadMultipleProperties,
+	wot.OpWriteProperty,
 }
 
 // Messaging converter between WoT websocket and the HiveOT standard RRN message envelopes.
@@ -94,7 +94,7 @@ type WotWssRequestMessage struct {
 
 type WotWssActionStatus struct {
 	ActionID      string          `json:"actionID"`
-	Error         *msg.ErrorValue `json:"error,omitempty"`
+	Error         *wot.ErrorValue `json:"error,omitempty"`
 	Output        any             `json:"output,omitempty"` // when completed
 	State         string          `json:"state"`            // completed, failed, ...
 	TimeRequested string          `json:"timeRequested"`
@@ -110,7 +110,7 @@ type WotWssResponseMessage struct {
 
 	// Error contains the short error description when status is failed.
 	// Matches RFC9457 https://www.rfc-editor.org/rfc/rfc9457
-	Error *msg.ErrorValue `json:"error"`
+	Error *wot.ErrorValue `json:"error"`
 
 	// Op: invokeaction (synchronous action)
 	// for hiveot clients: readallproperties, readmultipleproperties ThingValue map
@@ -214,7 +214,7 @@ func (svc *WotWssMsgEncoder) DecodeRequest(senderID string, raw []byte) (*msg.Re
 	}
 	switch wssReq.Operation {
 
-	case td.OpQueryAction, td.OpCancelAction:
+	case wot.OpQueryAction, wot.OpCancelAction:
 		// correlationID identifies the action to query/cancel
 		// input is actionID
 		// reqMsg.Input = wssreq.ActionID
@@ -251,9 +251,9 @@ func (svc *WotWssMsgEncoder) DecodeResponse(senderID string, raw []byte) (*msg.R
 
 	switch wssResp.Operation {
 
-	case td.OpCancelAction:
+	case wot.OpCancelAction:
 		// hiveot response API doesnt contain the actionID. This is okay as the sender knows it.
-	case td.OpInvokeAction:
+	case wot.OpInvokeAction:
 		// if wss contains a status object, use it
 		if wssResp.Status != nil {
 			resp.Status = wssResp.Status.State
@@ -261,7 +261,7 @@ func (svc *WotWssMsgEncoder) DecodeResponse(senderID string, raw []byte) (*msg.R
 			resp.Timestamp = wssResp.Status.TimeEnded
 		}
 
-	case td.OpQueryAction:
+	case wot.OpQueryAction:
 		// ResponseMessage contains a WSS ActionStatus object.
 		// which is converted to a HiveOT ResponseMessage as the value.
 		var wssStatus WotWssActionStatus
@@ -273,19 +273,19 @@ func (svc *WotWssMsgEncoder) DecodeResponse(senderID string, raw []byte) (*msg.R
 		// Note that hiveOT uses correlationID instead of actionID
 		// hiveot also doesn't return timerequested
 		output := msg.ActionStatus{
-			// Operation:     td.OpInvokeAction,
+			// Operation:     wot.OpInvokeAction,
 			// ThingID:       wssResp.ThingID,
 			// Name:          wssResp.Name,
 			Output:        wssStatus.Output,
 			Status:        wssStatus.State,
 			CorrelationID: wssResp.CorrelationID,
 			TimeRequested: wssStatus.TimeRequested,
-			TimeEnded:     wssStatus.TimeEnded,
+			TimeUpdated:   wssStatus.TimeEnded,
 			Error:         wssResp.Error,
 		}
 		resp.Output = output
 
-	case td.OpQueryAllActions:
+	case wot.OpQueryAllActions:
 		// WSS ResponseMessage contains ActionStatus map
 		var wssStatusMap map[string]WotWssActionStatus
 		output := make(map[string]msg.ActionStatus)
@@ -296,20 +296,20 @@ func (svc *WotWssMsgEncoder) DecodeResponse(senderID string, raw []byte) (*msg.R
 		// reconstruct the latest responses for the actions
 		for name, wssStatus := range wssStatusMap {
 			output[name] = msg.ActionStatus{
-				// Operation:     td.OpInvokeAction,
+				// Operation:     wot.OpInvokeAction,
 				// ThingID:       wssResp.ThingID,
 				// Name:          name,
 				Output:        wssStatus.Output,
 				Status:        wssStatus.State,
 				CorrelationID: wssResp.CorrelationID,
 				TimeRequested: wssStatus.TimeRequested,
-				TimeEnded:     wssStatus.TimeEnded,
+				TimeUpdated:   wssStatus.TimeEnded,
 				Error:         wssResp.Error,
 			}
 		}
 		resp.Output = output
 
-	case td.OpReadAllProperties, td.OpReadMultipleProperties:
+	case wot.OpReadAllProperties, wot.OpReadMultipleProperties:
 		// the WoT 'Values' property is a plain map with raw values.
 		// HiveOT uses ThingValue format that supports timestamps.
 		var wssPropMap map[string]any
@@ -321,16 +321,16 @@ func (svc *WotWssMsgEncoder) DecodeResponse(senderID string, raw []byte) (*msg.R
 
 		for name, val := range wssPropMap {
 			output[name] = msg.ThingValue{
-				Data:      val,
+				Raw:       val,
 				Timestamp: "", // n/a
 			}
 		}
 		resp.Output = output
 
-	case td.OpReadProperty:
+	case wot.OpReadProperty:
 		// the 'Value' property contains the actual value
 		resp.Output = msg.ThingValue{
-			Data:      wssResp.Value,
+			Raw:       wssResp.Value,
 			Timestamp: "", // n/a
 		}
 	}
@@ -350,9 +350,9 @@ func (svc *WotWssMsgEncoder) DetermineMessageType(raw []byte) string {
 // EncodeNotification converts a hiveot RequestMessage to a websocket equivalent message
 func (svc *WotWssMsgEncoder) EncodeNotification(notif *msg.NotificationMessage) ([]byte, error) {
 
-	op := td.OpSubscribeEvent
+	op := wot.OpSubscribeEvent
 	if notif.AffordanceType == msg.AffordanceTypeProperty {
-		op = td.OpObserveProperty
+		op = wot.OpObserveProperty
 	}
 	wssNotif := WotWssNotificationMessage{
 		WotWssCommon: WotWssCommon{
@@ -388,7 +388,7 @@ func (svc *WotWssMsgEncoder) EncodeRequest(req *msg.RequestMessage) ([]byte, err
 		Value:  req.Input, // in case of writeproperty
 		Values: req.Input, // in case of writeallproperties, writemultipleproperties
 	}
-	if req.Operation == td.OpReadMultipleProperties {
+	if req.Operation == wot.OpReadMultipleProperties {
 		names, ok := req.Input.([]string)
 		if !ok {
 			slog.Error("EncodeRequest: Input expected an array of names for op", "op", req.Operation)
@@ -425,10 +425,10 @@ func (svc *WotWssMsgEncoder) EncodeResponse(resp *msg.ResponseMessage) ([]byte, 
 	}
 	// last, set status(es) and values, depending on the operation
 	switch resp.Operation {
-	case td.OpCancelAction:
+	case wot.OpCancelAction:
 		// actionID of cancelled action ?
 		// wssResp.ActionID = resp.CorrelationID
-	case td.OpInvokeAction:
+	case wot.OpInvokeAction:
 		wssResp.Status = &WotWssActionStatus{
 			// websocket asynchronous response returns ActionID
 			ActionID:  resp.CorrelationID,
@@ -437,7 +437,7 @@ func (svc *WotWssMsgEncoder) EncodeResponse(resp *msg.ResponseMessage) ([]byte, 
 			Output:    resp.Output,
 			TimeEnded: resp.Timestamp,
 		}
-	case td.OpQueryAction:
+	case wot.OpQueryAction:
 		// the output is the last response: convert it to an ActionStatus object
 		qResp := msg.ActionStatus{}
 		utils.Decode(resp.Output, &qResp)
@@ -446,10 +446,10 @@ func (svc *WotWssMsgEncoder) EncodeResponse(resp *msg.ResponseMessage) ([]byte, 
 			Error:         qResp.Error, // error fields are identical
 			Output:        qResp.Output,
 			State:         qResp.Status,
-			TimeEnded:     qResp.TimeEnded,
+			TimeEnded:     qResp.TimeUpdated,
 			TimeRequested: qResp.TimeRequested,
 		}
-	case td.OpQueryAllActions:
+	case wot.OpQueryAllActions:
 		// convert action responses in output to a  WotWssActionStatuses map
 		var hiveotActionStatusMap map[string]msg.ActionStatus
 		err = utils.Decode(resp.Output, &hiveotActionStatusMap)
@@ -459,7 +459,7 @@ func (svc *WotWssMsgEncoder) EncodeResponse(resp *msg.ResponseMessage) ([]byte, 
 				"thingID='%s'; name='%s'; operation='%s'; Received '%s'; Error='%s'",
 				resp.ThingID, resp.Name, resp.Operation,
 				utils.DecodeAsString(resp.Output, 200), err.Error())
-			wssResp.Error = msg.ErrorValueFromError(err)
+			wssResp.Error = wot.ErrorValueFromError(err)
 		}
 		wssStatusMap := make(map[string]WotWssActionStatus)
 		for name, respMsg := range hiveotActionStatusMap {
@@ -467,13 +467,13 @@ func (svc *WotWssMsgEncoder) EncodeResponse(resp *msg.ResponseMessage) ([]byte, 
 				ActionID:      respMsg.CorrelationID,
 				Error:         respMsg.Error, // error fields are identical
 				State:         respMsg.Status,
-				TimeEnded:     respMsg.TimeEnded,
+				TimeEnded:     respMsg.TimeUpdated,
 				TimeRequested: respMsg.TimeRequested,
 				Output:        respMsg.Output,
 			}
 		}
 		wssResp.Statuses = wssStatusMap
-	case td.OpReadAllProperties, td.OpReadMultipleProperties:
+	case wot.OpReadAllProperties, wot.OpReadMultipleProperties:
 		// WoT doesnt support timestamp. Convert ThingValue map to plain value map
 		var hiveotThingValueMap map[string]msg.ThingValue
 		err = utils.Decode(resp.Output, &hiveotThingValueMap)
@@ -483,20 +483,20 @@ func (svc *WotWssMsgEncoder) EncodeResponse(resp *msg.ResponseMessage) ([]byte, 
 				"thingID='%s'; name='%s'; operation='%s'; Received '%s'; Error='%s'",
 				resp.ThingID, resp.Name, resp.Operation,
 				utils.DecodeAsString(resp.Output, 200), err.Error())
-			wssResp.Error = msg.ErrorValueFromError(err)
+			wssResp.Error = wot.ErrorValueFromError(err)
 		}
 		wssPropMap := make(map[string]any)
 		for name, tv := range hiveotThingValueMap {
-			wssPropMap[name] = tv.Data
+			wssPropMap[name] = tv.Raw
 			// timestamp is lost
 		}
 		wssResp.Values = wssPropMap
 
-	case td.OpReadProperty:
+	case wot.OpReadProperty:
 		// WoT doesnt support property timestamp
 		tv, hasTV := resp.Output.(msg.ThingValue)
 		if hasTV {
-			wssResp.Value = tv.Data
+			wssResp.Value = tv.Raw
 		} else {
 			// not sure what this is
 			slog.Warn("EncodeResponse. Expected ThingValue to encode. Got something else",

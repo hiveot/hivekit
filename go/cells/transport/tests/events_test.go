@@ -11,7 +11,7 @@ import (
 
 	"github.com/hiveot/hivekit/go/api"
 	"github.com/hiveot/hivekit/go/api/msg"
-	"github.com/hiveot/hivekit/go/api/td"
+	"github.com/hiveot/hivekit/go/api/wot"
 	"github.com/hiveot/hivekit/go/cells/consumer"
 	"github.com/hiveot/hivekit/go/cells/thing"
 	"github.com/hiveot/hivekit/go/testenv"
@@ -234,7 +234,7 @@ func TestReadEvent(t *testing.T) {
 	// 1. start the device transport with the request handler
 	// in this case the consumer connects to the device (unlike when using a hub)
 	ag := thing.NewExposedThing("", func(req *msg.RequestMessage, replyTo msg.ResponseHandler) error {
-		if req.Operation == td.HTOpReadEvent && req.ThingID == thingID && req.Name == eventKey {
+		if req.Operation == wot.HTOpReadEvent && req.ThingID == thingID && req.Name == eventKey {
 			evNotif := msg.NewNotificationMessage("device1", msg.AffordanceTypeEvent, thingID, req.Name, eventValue)
 			evNotif.Timestamp = timestamp
 
@@ -257,7 +257,7 @@ func TestReadEvent(t *testing.T) {
 	evNotif, err := co1.ReadEvent(thingID, eventKey)
 	require.NoError(t, err)
 	require.NotEmpty(t, evNotif)
-	assert.Equal(t, eventValue, evNotif.Data)
+	assert.Equal(t, eventValue, evNotif.Raw)
 
 }
 

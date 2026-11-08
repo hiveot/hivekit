@@ -4,7 +4,7 @@ import (
 	"log/slog"
 
 	"github.com/hiveot/hivekit/go/api/msg"
-	"github.com/hiveot/hivekit/go/api/td"
+	"github.com/hiveot/hivekit/go/api/wot"
 	"github.com/hiveot/hivekit/go/cells"
 	"github.com/hiveot/hivekit/go/cells/vcache"
 	vcacheapi "github.com/hiveot/hivekit/go/cells/vcache"
@@ -59,15 +59,15 @@ func (m *ValueCacheService) HandleRequest(req *msg.RequestMessage, replyTo msg.R
 	// handle read requests
 	switch req.Operation {
 	// wot doesnt define operations for reading events
-	case td.HTOpReadEvent:
+	case wot.HTOpReadEvent:
 		// this is not a wot defined operation
 		// return the notification itself because the time of the event is relevant
 		output, found = m.ReadEvent(req.ThingID, req.Name)
-	case td.OpReadProperty:
+	case wot.OpReadProperty:
 		// The protocol binding converts the output from ThingValue to whatever is specified
 		output, found = m.ReadProperty(req.ThingID, req.Name)
 
-	case td.OpReadMultipleProperties:
+	case wot.OpReadMultipleProperties:
 		// The protocol binding converts the output from ThingValue to whatever is specified
 		var names []string
 		err := utils.DecodeAsObject(req.Input, &names)
@@ -79,7 +79,7 @@ func (m *ValueCacheService) HandleRequest(req *msg.RequestMessage, replyTo msg.R
 			output, found = m.ReadMultipleProperties(req.ThingID, names)
 		}
 
-	case td.OpReadAllProperties:
+	case wot.OpReadAllProperties:
 		// querying all properties is not supported as there is no knowledge of all possible
 		// properties.
 		found = false

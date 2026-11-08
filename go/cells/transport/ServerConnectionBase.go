@@ -9,7 +9,7 @@ import (
 
 	"github.com/hiveot/hivekit/go/api"
 	"github.com/hiveot/hivekit/go/api/msg"
-	"github.com/hiveot/hivekit/go/api/td"
+	"github.com/hiveot/hivekit/go/api/wot"
 	"github.com/teris-io/shortid"
 )
 
@@ -230,22 +230,22 @@ func (base *ServerConnectionBase) OnRequest(
 		slog.String("correlationID", req.CorrelationID))
 
 	switch req.Operation {
-	case td.HTOpPing:
+	case wot.HTOpPing:
 		resp = req.CreateResponse("pong", nil)
 
-	case td.OpSubscribeEvent, td.OpSubscribeAllEvents:
+	case wot.OpSubscribeEvent, wot.OpSubscribeAllEvents:
 		base.SubscribeEvent(req.ThingID, req.Name, req.CorrelationID)
 		resp = req.CreateResponse(nil, nil)
 
-	case td.OpUnsubscribeEvent, td.OpUnsubscribeAllEvents:
+	case wot.OpUnsubscribeEvent, wot.OpUnsubscribeAllEvents:
 		base.UnsubscribeEvent(req.ThingID, req.Name)
 		resp = req.CreateResponse(nil, nil)
 
-	case td.OpObserveProperty, td.OpObserveAllProperties:
+	case wot.OpObserveProperty, wot.OpObserveAllProperties:
 		base.ObserveProperty(req.ThingID, req.Name, req.CorrelationID)
 		resp = req.CreateResponse(nil, nil)
 
-	case td.OpUnobserveProperty, td.OpUnobserveAllProperties:
+	case wot.OpUnobserveProperty, wot.OpUnobserveAllProperties:
 		base.UnobserveProperty(req.ThingID, req.Name)
 		resp = req.CreateResponse(nil, nil)
 	default:

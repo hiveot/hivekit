@@ -1,10 +1,10 @@
-package td_test
+package wot_test
 
 import (
 	"testing"
 
 	"github.com/cstockton/go-conv"
-	"github.com/hiveot/hivekit/go/api/td"
+	"github.com/hiveot/hivekit/go/api/wot"
 	jsoniter "github.com/json-iterator/go"
 
 	"github.com/stretchr/testify/assert"
@@ -13,31 +13,31 @@ import (
 // testing of marshalling and unmarshalling schemas
 
 func TestStringSchema(t *testing.T) {
-	ss := td.DataSchema{
-		Type:            td.DataTypeString,
+	ss := wot.DataSchema{
+		Type:            wot.DataTypeString,
 		StringMinLength: 10,
 	}
 	enc1, err := jsoniter.Marshal(ss)
 	assert.NoError(t, err)
 	//
-	ds := td.DataSchema{}
+	ds := wot.DataSchema{}
 	err = jsoniter.Unmarshal(enc1, &ds)
 	assert.NoError(t, err)
 }
 
 func TestObjectSchema(t *testing.T) {
 	atType := "hiveot:complexType"
-	os := td.DataSchema{
-		Type:       td.DataTypeObject,
-		Properties: make(map[string]*td.DataSchema),
+	os := wot.DataSchema{
+		Type:       wot.DataTypeObject,
+		Properties: make(map[string]*wot.DataSchema),
 		AtType:     atType,
 	}
-	os.Properties["stringProp"] = &td.DataSchema{
-		Type:            td.DataTypeString,
+	os.Properties["stringProp"] = &wot.DataSchema{
+		Type:            wot.DataTypeString,
 		StringMinLength: 10,
 	}
-	os.Properties["intProp"] = &td.DataSchema{
-		Type:    td.DataTypeInteger,
+	os.Properties["intProp"] = &wot.DataSchema{
+		Type:    wot.DataTypeInteger,
 		Minimum: 10,
 		Maximum: 20,
 	}
@@ -47,7 +47,7 @@ func TestObjectSchema(t *testing.T) {
 	err = jsoniter.Unmarshal(enc1, &ds)
 	assert.NoError(t, err)
 
-	var as td.DataSchema
+	var as wot.DataSchema
 	err = jsoniter.Unmarshal(enc1, &as)
 	assert.NoError(t, err)
 

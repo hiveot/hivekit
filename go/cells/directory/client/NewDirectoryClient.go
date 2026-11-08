@@ -2,7 +2,7 @@ package directory_client
 
 import (
 	"github.com/hiveot/hivekit/go/api"
-	"github.com/hiveot/hivekit/go/api/td"
+	"github.com/hiveot/hivekit/go/api/wot"
 	"github.com/hiveot/hivekit/go/cells/directory"
 	"github.com/hiveot/hivekit/go/cells/directory/client/internal"
 )
@@ -56,7 +56,7 @@ import (
 //
 // This returns a new instance of the directory client
 func NewDirectoryClient(
-	dirTDD *td.TD, sink api.IHiveCell) directory.IDirectoryClient {
+	dirTDD *wot.TD, sink api.IHiveCell) directory.IDirectoryClient {
 	return internal.NewDirectoryClientImpl(dirTDD, sink)
 }
 
@@ -80,7 +80,7 @@ func NewDirectoryClientFactory(
 }
 
 // // Create the new directory client for the http protocol as per spec
-// func NewDirectoryHttpClient(dirTD *td.TD, caCert *x509.Certificate) directory.IDirectoryClient {
+// func NewDirectoryHttpClient(dirTD *wot.TD, caCert *x509.Certificate) directory.IDirectoryClient {
 // 	dirClient := directoryclient.NewDirectoryHttpClient(dirTD, caCert)
 // 	return dirClient
 // }

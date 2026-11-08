@@ -8,7 +8,7 @@ import (
 
 	"github.com/hiveot/hivekit/go/api"
 	"github.com/hiveot/hivekit/go/api/msg"
-	"github.com/hiveot/hivekit/go/api/td"
+	"github.com/hiveot/hivekit/go/api/wot"
 	"github.com/hiveot/hivekit/go/cells/authn"
 	"github.com/hiveot/hivekit/go/cells/thing"
 	"github.com/hiveot/hivekit/go/utils"
@@ -66,7 +66,7 @@ func (svc *AuthnAdminServiceImpl) HandleRequest(req *msg.RequestMessage, replyTo
 		return svc.ForwardRequest(req, replyTo)
 	}
 
-	if req.Operation == td.OpInvokeAction {
+	if req.Operation == wot.OpInvokeAction {
 		switch req.Name {
 
 		case authn.AdminAddClientAction:
@@ -137,7 +137,7 @@ func (svc *AuthnAdminServiceImpl) SetRole(clientID string, role string) error {
 
 // Start publishes the service admin service TDs to the directory or discovery.
 func (svc *AuthnAdminServiceImpl) Start() {
-	tdoc, _ := td.UnmarshalTD(string(authn.AuthnAdminTD))
+	tdoc, _ := wot.UnmarshalTD(string(authn.AuthnAdminTD))
 	tdoc.ID = authn.DefaultAuthnAdminThingID
 	tdoc.SetType(authn.AuthnAdminServiceType)
 	_ = svc.WriteTD(tdoc)

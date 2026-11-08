@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/hiveot/hivekit/go/api/msg"
-	"github.com/hiveot/hivekit/go/api/td"
+	"github.com/hiveot/hivekit/go/api/wot"
 	bucketstore "github.com/hiveot/hivekit/go/cells/bucketstore"
 	"github.com/hiveot/hivekit/go/utils"
 )
@@ -39,7 +39,7 @@ func (svc *BucketServiceImpl) handleBucketStoreRequest(
 	if req.SenderID == "" {
 		return fmt.Errorf("missing senderID in request")
 	}
-	if req.Operation == td.OpInvokeAction {
+	if req.Operation == wot.OpInvokeAction {
 		switch req.Name {
 		case bucketstore.ActionDelete:
 			resp = svc.Delete(req)

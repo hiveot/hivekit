@@ -4,7 +4,7 @@ import (
 	"crypto/x509"
 
 	"github.com/hiveot/hivekit/go/api"
-	"github.com/hiveot/hivekit/go/api/td"
+	"github.com/hiveot/hivekit/go/api/wot"
 	"github.com/hiveot/hivekit/go/cells/transport/httpbasic/client/internal"
 )
 
@@ -19,7 +19,7 @@ import (
 //	tdoc containing the http URLs for operations.
 //	caCert of the server to validate the server or nil to not check the server cert
 func NewHttpBasicClient(
-	tdoc *td.TD, rootCAs *x509.CertPool) (api.ITransportClient, error) {
+	tdoc *wot.TD, rootCAs *x509.CertPool) (api.ITransportClient, error) {
 
 	return internal.NewHttpBasicClientImpl(tdoc, rootCAs)
 }

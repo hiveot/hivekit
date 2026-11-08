@@ -5,7 +5,7 @@ import (
 	"fmt"
 
 	"github.com/hiveot/hivekit/go/api/msg"
-	"github.com/hiveot/hivekit/go/api/td"
+	"github.com/hiveot/hivekit/go/api/wot"
 	"github.com/hiveot/hivekit/go/cells/directory"
 	"github.com/hiveot/hivekit/go/utils"
 )
@@ -35,7 +35,7 @@ func (svc *DirectoryServiceImpl) HandleRequest(req *msg.RequestMessage, replyTo 
 
 	// this is a request addressed to this service
 	switch req.Operation {
-	case td.OpInvokeAction:
+	case wot.OpInvokeAction:
 		// directory specific operations
 		switch req.Name {
 		case directory.CreateThingAction:
@@ -53,7 +53,7 @@ func (svc *DirectoryServiceImpl) HandleRequest(req *msg.RequestMessage, replyTo 
 		default:
 			err = fmt.Errorf("Unknown request name '%s' for thingID '%s'", req.Name, req.ThingID)
 		}
-	case td.OpWriteProperty:
+	case wot.OpWriteProperty:
 		// nothing to do here at the moment
 		err = fmt.Errorf("Property '%s' of Thing '%s' is invalid or not writable", req.Name, req.ThingID)
 	default:

@@ -7,7 +7,7 @@ import (
 
 	"github.com/hiveot/hivekit/go/api"
 	"github.com/hiveot/hivekit/go/api/msg"
-	"github.com/hiveot/hivekit/go/api/td"
+	"github.com/hiveot/hivekit/go/api/wot"
 	authzservice "github.com/hiveot/hivekit/go/cells/authz/service"
 	"github.com/hiveot/hivekit/go/utils"
 	"github.com/stretchr/testify/assert"
@@ -48,7 +48,7 @@ func TestHasPermission(t *testing.T) {
 	defer m.Stop()
 
 	// check missing clientID
-	req := msg.NewRequestMessage(td.OpReadProperty, thingID, key, nil)
+	req := msg.NewRequestMessage(wot.OpReadProperty, thingID, key, nil)
 	req.CorrelationID = correlationID
 	hasPerm := m.HasPermission(req)
 	assert.False(t, hasPerm)
@@ -59,7 +59,7 @@ func TestHasPermission(t *testing.T) {
 	assert.True(t, hasPerm)
 
 	// check viewers do not have permission to publish actions and write-property requests
-	req.Operation = td.OpInvokeAction
+	req.Operation = wot.OpInvokeAction
 	req.SenderID = clientID1
 	hasPerm = m.HasPermission(req)
 	assert.False(t, hasPerm)

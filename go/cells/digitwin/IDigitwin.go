@@ -2,7 +2,7 @@ package digitwin
 
 import (
 	"github.com/hiveot/hivekit/go/api"
-	"github.com/hiveot/hivekit/go/api/td"
+	"github.com/hiveot/hivekit/go/api/wot"
 )
 
 // The default instance ID of the digital twin service
@@ -26,5 +26,5 @@ type IDigitwinService interface {
 	// GetDeviceDirectory() directory.IDirectoryServer
 
 	// Return the original device TD by its thingID
-	GetDeviceTD(thingID string) *td.TD
+	GetDeviceTD(thingID string) *wot.TD
 }

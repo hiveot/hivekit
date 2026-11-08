@@ -12,8 +12,8 @@ import (
 
 	"github.com/hiveot/hivekit/go/api"
 	"github.com/hiveot/hivekit/go/api/msg"
-	"github.com/hiveot/hivekit/go/api/td"
 	"github.com/hiveot/hivekit/go/api/vocab"
+	"github.com/hiveot/hivekit/go/api/wot"
 	certstest "github.com/hiveot/hivekit/go/cells/certs/test"
 	"github.com/hiveot/hivekit/go/cells/consumer"
 	"github.com/hiveot/hivekit/go/cells/reconnect"
@@ -101,7 +101,7 @@ type TestEnv struct {
 }
 
 // Update the TD base with top level forms and security info
-func (testEnv *TestEnv) AddForms(tdoc *td.TD) {
+func (testEnv *TestEnv) AddForms(tdoc *wot.TD) {
 	tpServers := testEnv.GetTpServers()
 	for _, srv := range tpServers {
 		srv.AddTDSecForms(tdoc)
@@ -118,7 +118,7 @@ func (testEnv *TestEnv) AddForms(tdoc *td.TD) {
 //
 // The first 10 are predefined and always the same. A higher number generates at random.
 // i is the index.
-func (testEnv *TestEnv) CreateTestTD(i int, withForms bool) (tdi *td.TD) {
+func (testEnv *TestEnv) CreateTestTD(i int, withForms bool) (tdi *wot.TD) {
 	ttd := testTDs[0]
 	if i < len(testTDs) {
 		ttd = testTDs[i]
@@ -126,7 +126,7 @@ func (testEnv *TestEnv) CreateTestTD(i int, withForms bool) (tdi *td.TD) {
 		ttd.ID = fmt.Sprintf("thing-%d", rand.Intn(99823))
 	}
 
-	tdi = td.NewTD(ttd.ID, ttd.Title, ttd.DeviceType)
+	tdi = wot.NewTD(ttd.ID, ttd.Title, ttd.DeviceType)
 	// add forms
 	if withForms && testEnv.Server != nil {
 		testEnv.Server.AddTDSecForms(tdi)
@@ -135,21 +135,21 @@ func (testEnv *TestEnv) CreateTestTD(i int, withForms bool) (tdi *td.TD) {
 	// add random properties
 	for n := 0; n < ttd.NrProps; n++ {
 		propName := fmt.Sprintf("prop-%d", n)
-		tdi.AddProperty(propName, "title-"+PropTypes[n], "", td.DataTypeString).
+		tdi.AddProperty(propName, "title-"+PropTypes[n], "", wot.DataTypeString).
 			SetAtType(PropTypes[n])
 	}
 	// add random events
 	for n := 0; n < ttd.NrEvents; n++ {
 		evName := fmt.Sprintf("event-%d", n)
 		tdi.AddEvent(evName, "title-"+EventTypes[n], "",
-			&td.DataSchema{Type: td.DataTypeString}).
+			&wot.DataSchema{Type: wot.DataTypeString}).
 			SetAtType(EventTypes[n])
 	}
 	// add random actions
 	for n := 0; n < ttd.NrActions; n++ {
 		actionName := fmt.Sprintf("action-%d", n)
 		tdi.AddAction(actionName, "title-"+ActionTypes[n], "",
-			&td.DataSchema{Type: td.DataTypeString},
+			&wot.DataSchema{Type: wot.DataTypeString},
 		).SetAtType(ActionTypes[n])
 	}
 
@@ -348,7 +348,7 @@ func (testEnv *TestEnv) NewTestClient(
 
 	if err == nil {
 		cl.SetTimeout(testEnv.Env.RpcTimeout)
-		err = cl.SetAuthToken(clientID, token, td.SecSchemeBearer)
+		err = cl.SetAuthToken(clientID, token, wot.SecSchemeBearer)
 	}
 	// if err == nil {
 	// 	err = cl.Connect()

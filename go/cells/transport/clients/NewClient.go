@@ -10,7 +10,7 @@ import (
 	"strings"
 
 	"github.com/hiveot/hivekit/go/api"
-	"github.com/hiveot/hivekit/go/api/td"
+	"github.com/hiveot/hivekit/go/api/wot"
 	grpc_client "github.com/hiveot/hivekit/go/cells/transport/grpc/client"
 	httpbasic_client "github.com/hiveot/hivekit/go/cells/transport/httpbasic/client"
 	ssesc_client "github.com/hiveot/hivekit/go/cells/transport/ssesc/client"
@@ -31,7 +31,7 @@ var SupportedClientProtocols = []string{
 }
 
 // Derive the protocol type the form href and subprotocol.
-func GetFormProtocolType(tdoc *td.TD, form *td.Form) (protocolType string, href string, err error) {
+func GetFormProtocolType(tdoc *wot.TD, form *wot.Form) (protocolType string, href string, err error) {
 
 	hrefURL, err := form.ResolveHRef(tdoc.Base, nil)
 	if err != nil {
@@ -69,10 +69,10 @@ func GetFormProtocolType(tdoc *td.TD, form *td.Form) (protocolType string, href 
 //
 // This returns the protocol type name, the href and the form that defined it.
 // The form can contain additional information depending on the protocol.
-func GetProtocolType(tdoc *td.TD, op string, name string, preferred string) (
-	protocolType string, href string, form *td.Form) {
+func GetProtocolType(tdoc *wot.TD, op string, name string, preferred string) (
+	protocolType string, href string, form *wot.Form) {
 
-	var forms []td.Form
+	var forms []wot.Form
 	// var subprotocol = ""
 
 	if preferred == "" {
@@ -113,7 +113,7 @@ func GetProtocolType(tdoc *td.TD, op string, name string, preferred string) (
 // NewTransportClient returns a new transport client instance ready to connect to a
 // transport server using the given TD, operation and optional affordance name.
 func NewTransportClient(
-	tdoc *td.TD, op string, name string, rootCAs *x509.CertPool) (
+	tdoc *wot.TD, op string, name string, rootCAs *x509.CertPool) (
 	cl api.ITransportClient, err error) {
 
 	form, _ := tdoc.GetForm(op, name, "", "")
@@ -124,7 +124,7 @@ func NewTransportClient(
 // NewTransportClientFromForm returns a new transport client instance ready to connect to a
 // transport server using the given form.
 func NewTransportClientFromForm(
-	tdoc *td.TD, form *td.Form, rootCAs *x509.CertPool) (
+	tdoc *wot.TD, form *wot.Form, rootCAs *x509.CertPool) (
 	cl api.ITransportClient, err error) {
 
 	hrefURL, err := form.ResolveHRef(tdoc.Base, nil)
@@ -250,7 +250,7 @@ func NewTransportClientFactory(
 	// set auth token and cert, when available, and activate the connection.
 	token, _ := env.GetAuthToken()
 	if token != "" {
-		err = tpcl.SetAuthToken(env.ClientID, token, td.SecSchemeBearer)
+		err = tpcl.SetAuthToken(env.ClientID, token, wot.SecSchemeBearer)
 	}
 	clientCert, _ := env.GetClientCert()
 	if clientCert != nil {

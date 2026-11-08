@@ -7,7 +7,7 @@ import (
 	"testing"
 
 	"github.com/hiveot/hivekit/go/api/msg"
-	"github.com/hiveot/hivekit/go/api/td"
+	"github.com/hiveot/hivekit/go/api/wot"
 	"github.com/hiveot/hivekit/go/testenv"
 	"github.com/hiveot/hivekit/go/utils"
 	"github.com/stretchr/testify/assert"
@@ -48,15 +48,15 @@ func TestReadTDFromDevice(t *testing.T) {
 	defer ag1.Stop()
 
 	// 3. device creates TD
-	td1 := td.NewTD(thingID, "My gadget", DeviceTypeSensor)
-	td1.AddProperty("td", "Device TD", "", td.DataTypeString)
+	td1 := wot.NewTD(thingID, "My gadget", DeviceTypeSensor)
+	td1.AddProperty("td", "Device TD", "", wot.DataTypeString)
 
 	// device request handler to read the device TD from the td property.
 	deviceReqHandler := func(req *msg.RequestMessage, replyTo msg.ResponseHandler) error {
 		t.Log("Received request: " + req.Operation)
-		if req.Operation == td.OpReadProperty && req.Name == "td" {
+		if req.Operation == wot.OpReadProperty && req.Name == "td" {
 			propInfo := msg.ThingValue{
-				Data:      td1.ToJSON(),
+				Raw:       td1.ToJSON(),
 				Timestamp: utils.FormatNowUTCMilli(),
 			}
 			resp := req.CreateResponse(propInfo, nil)
@@ -76,7 +76,7 @@ func TestReadTDFromDevice(t *testing.T) {
 	tv, err := co.ReadProperty(thingID, "td")
 	require.NoError(t, err)
 
-	rxTDoc, err := td.UnmarshalTD(tv.Data.(string))
+	rxTDoc, err := wot.UnmarshalTD(tv.Raw.(string))
 	require.NoError(t, err)
 
 	assert.Equal(t, td1.ID, rxTDoc.ID)

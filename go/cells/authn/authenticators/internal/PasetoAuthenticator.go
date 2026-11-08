@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"aidanwoods.dev/go-paseto"
-	"github.com/hiveot/hivekit/go/api/td"
+	"github.com/hiveot/hivekit/go/api/wot"
 	"github.com/hiveot/hivekit/go/cells/authn"
 )
 
@@ -33,12 +33,12 @@ type PasetoAuthenticatorImpl struct {
 // AddSecurityScheme adds this authenticator's security scheme to the given TD.
 // This authenticator uses paseto tokens as bearer tokens that can be obtained from
 // the login authentication service.
-func (srv *PasetoAuthenticatorImpl) AddSecurityScheme(tdoc *td.TD) {
+func (srv *PasetoAuthenticatorImpl) AddSecurityScheme(tdoc *wot.TD) {
 
 	// bearer security scheme for authenticating http and subprotocol connections
 	format, alg := srv.GetAlg()
 
-	tdoc.AddSecurityScheme("bearer_paseto", td.SecurityScheme{
+	tdoc.AddSecurityScheme("bearer_paseto", wot.SecurityScheme{
 		//AtType:        nil,
 		Description: "Bearer token authentication",
 		//Descriptions:  nil,

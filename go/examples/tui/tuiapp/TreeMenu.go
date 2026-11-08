@@ -1,7 +1,7 @@
 package tuiapp
 
 import (
-	"github.com/hiveot/hivekit/go/api/td"
+	"github.com/hiveot/hivekit/go/api/wot"
 	"github.com/rivo/tview"
 )
 
@@ -34,7 +34,7 @@ func (m *TreeMenu) HandleSelection(node *tview.TreeNode) {
 }
 
 // Refresh the menu with the latest discovered things and directories
-func (m *TreeMenu) Refresh(dirList []DirectoryInfo, discoveredThings map[string]*td.TD) {
+func (m *TreeMenu) Refresh(dirList []DirectoryInfo, discoveredThings map[string]*wot.TD) {
 	m.thingNodes.ClearChildren()
 	for _, tdoc := range discoveredThings {
 		label := tdoc.Title
