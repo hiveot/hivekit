@@ -12,6 +12,7 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+	"time"
 
 	"github.com/hiveot/hivekit/go/api"
 	"github.com/hiveot/hivekit/go/cells"
@@ -52,6 +53,9 @@ type TLSClientImpl struct {
 	httpClient *http.Client
 	// http2 transport
 	http2Transport *http2.Transport
+
+	// messaging timeout
+	timeout time.Duration
 }
 
 // Close the connection with the server
@@ -135,7 +139,7 @@ func (cl *TLSClientImpl) CreateRequest(
 //	path to invoke
 func (cl *TLSClientImpl) Delete(path string) (httpStatus int, err error) {
 	// careful, a double // in the path causes a 301 and changes POST to GET
-	ctx, cancelFn := context.WithTimeout(context.Background(), cl.GetTimeout())
+	ctx, cancelFn := context.WithTimeout(context.Background(), cl.timeout)
 	_, httpStatus, _, err = cl.Send(ctx, "DELETE", path, nil, nil, "")
 	cancelFn()
 	return httpStatus, err
@@ -147,7 +151,7 @@ func (cl *TLSClientImpl) Delete(path string) (httpStatus int, err error) {
 //
 //	path to invoke
 func (cl *TLSClientImpl) Get(path string) (resp []byte, httpStatus int, err error) {
-	ctx, cancelFn := context.WithTimeout(context.Background(), cl.GetTimeout())
+	ctx, cancelFn := context.WithTimeout(context.Background(), cl.timeout)
 	resp, httpStatus, _, err = cl.Send(ctx, "GET", path, nil, nil, "")
 	cancelFn()
 	return resp, httpStatus, err
@@ -183,7 +187,7 @@ func (cl *TLSClientImpl) GetTlsTransport() *http2.Transport {
 // HttpConnect - send a http connect request (for proxies)
 func (cl *TLSClientImpl) HttpConnect() (statusCode int, err error) {
 
-	ctx, cancelFn := context.WithTimeout(context.Background(), cl.GetTimeout())
+	ctx, cancelFn := context.WithTimeout(context.Background(), cl.timeout)
 	_, statusCode, _, err = cl.Send(ctx, http.MethodConnect, "", nil, nil, "")
 	cancelFn()
 	return statusCode, err
@@ -192,7 +196,7 @@ func (cl *TLSClientImpl) HttpConnect() (statusCode int, err error) {
 // HttpConnect
 func (cl *TLSClientImpl) Head(path string) (statusCode int, err error) {
 
-	ctx, cancelFn := context.WithTimeout(context.Background(), cl.GetTimeout())
+	ctx, cancelFn := context.WithTimeout(context.Background(), cl.timeout)
 	_, statusCode, _, err = cl.Send(ctx, http.MethodHead, path, nil, nil, "")
 	cancelFn()
 	return statusCode, err
@@ -208,7 +212,7 @@ func (cl *TLSClientImpl) Head(path string) (statusCode int, err error) {
 // Ping sends a ping request to the server on the well-known /ping endpoint
 func (cl *TLSClientImpl) Ping() (statusCode int, err error) {
 
-	ctx, cancelFn := context.WithTimeout(context.Background(), cl.GetTimeout())
+	ctx, cancelFn := context.WithTimeout(context.Background(), cl.timeout)
 	_, statusCode, _, err = cl.Send(ctx, http.MethodGet, api.DefaultPingPath, nil, nil, "")
 	cancelFn()
 	return statusCode, err
@@ -224,7 +228,7 @@ func (cl *TLSClientImpl) Patch(
 	path string, body []byte) (resp []byte, statusCode int, err error) {
 
 	// careful, a double // in the path causes a 301 and changes POST to GET
-	ctx, cancelFn := context.WithTimeout(context.Background(), cl.GetTimeout())
+	ctx, cancelFn := context.WithTimeout(context.Background(), cl.timeout)
 	resp, statusCode, _, err = cl.Send(ctx, http.MethodPatch, path, nil, body, "")
 	cancelFn()
 	return resp, statusCode, err
@@ -241,7 +245,7 @@ func (cl *TLSClientImpl) Patch(
 func (cl *TLSClientImpl) Post(path string, body []byte) (
 	resp []byte, statusCode int, err error) {
 
-	ctx, cancelFn := context.WithTimeout(context.Background(), cl.GetTimeout())
+	ctx, cancelFn := context.WithTimeout(context.Background(), cl.timeout)
 	resp, statusCode, _, err = cl.Send(ctx, http.MethodPost, path, nil, body, "")
 	cancelFn()
 	return resp, statusCode, err
@@ -256,7 +260,7 @@ func (cl *TLSClientImpl) PostForm(path string, formData map[string]string) (
 		form.Add(k, v)
 	}
 	body := form.Encode()
-	ctx, cancelFn := context.WithTimeout(context.Background(), cl.GetTimeout())
+	ctx, cancelFn := context.WithTimeout(context.Background(), cl.timeout)
 	resp, statusCode, _, err = cl.Send(ctx, http.MethodPost, path, nil,
 		[]byte(body), "application/x-www-form-urlencoded")
 	cancelFn()
@@ -274,7 +278,7 @@ func (cl *TLSClientImpl) Put(path string, body []byte) (
 	resp []byte, statusCode int, err error) {
 
 	// careful, a double // in the path causes a 301 and changes POST to GET
-	ctx, cancelFn := context.WithTimeout(context.Background(), cl.GetTimeout())
+	ctx, cancelFn := context.WithTimeout(context.Background(), cl.timeout)
 	resp, statusCode, _, err = cl.Send(ctx, http.MethodPut, path, nil, body, "")
 	cancelFn()
 	return resp, statusCode, err
@@ -427,7 +431,7 @@ func (cl *TLSClientImpl) SetAuthToken(clientID string, token string) error {
 // Trace performs a message loopback of the target resource
 func (cl *TLSClientImpl) Trace(path string) (statusCode int, err error) {
 
-	ctx, cancelFn := context.WithTimeout(context.Background(), cl.GetTimeout())
+	ctx, cancelFn := context.WithTimeout(context.Background(), cl.timeout)
 	_, statusCode, _, err = cl.Send(ctx, http.MethodTrace, path, nil, nil, "")
 	cancelFn()
 	return statusCode, err
@@ -442,7 +446,7 @@ func (cl *TLSClientImpl) Trace(path string) (statusCode int, err error) {
 //	rootCAs with optional CA certifications. Default is the system pool
 //
 // returns TLS client for submitting requests
-func NewTLSClientImpl(serverURL string, rootCAs *x509.CertPool) *TLSClientImpl {
+func NewTLSClientImpl(serverURL string, rootCAs *x509.CertPool, timeout time.Duration) *TLSClientImpl {
 
 	var clientID string
 	var serverName string // without port
@@ -500,6 +504,7 @@ func NewTLSClientImpl(serverURL string, rootCAs *x509.CertPool) *TLSClientImpl {
 		// caCert:         caCert,
 		tlsConfig:     tlsConfig,
 		customHeaders: make(map[string]string),
+		timeout:       timeout,
 	}
 
 	return cl

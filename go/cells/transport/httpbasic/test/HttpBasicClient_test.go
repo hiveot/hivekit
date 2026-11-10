@@ -18,7 +18,6 @@ import (
 
 var serverPort int = 9445
 var testCerts = certstest.CreateTestCertBundle(utils.KeyTypeED25519)
-var rpcTimeout = time.Minute * 3 // for debugging
 
 func TestConnect(t *testing.T) {
 	clientID := "testclient"
@@ -40,7 +39,6 @@ func TestConnect(t *testing.T) {
 	// get the client
 	cl, err := httpbasic_client.NewHttpBasicClient(tdoc, testCerts.RootCAs)
 	require.NoError(t, err)
-	cl.SetTimeout(rpcTimeout)
 	err = cl.SetAuthToken(clientID, token, wot.SecSchemeBearer)
 	require.NoError(t, err)
 	err = cl.Connect()

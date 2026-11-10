@@ -3,7 +3,6 @@ package grpc_server
 import (
 	"crypto/tls"
 	"crypto/x509"
-	"time"
 
 	"github.com/hiveot/hivekit/go/api"
 	"github.com/hiveot/hivekit/go/cells/transport/grpc"
@@ -19,15 +18,14 @@ import (
 //	tlsCert is the TLS certificate to use for secure connections, or nil for insecure
 //	caCert for validating client certificate auth, nil to not support client certs
 //	authn is the authenticator to validate incoming connections
-//	respTimeout is the time the server waits for a response when receiving requests. defaults to 3sec
 //
 // Use SetRequestSink to set the handler for requests send by consumers
 // Use SetNotificationSink to set the handler for notifications send by exposed things.
 func NewHiveotGrpcServer(
 	connectURL string, tlsCert *tls.Certificate, caCert *x509.Certificate,
-	authn api.IAuthenticator, respTimeout time.Duration) (grpc.IGrpcTransportServer, error) {
+	authn api.IAuthenticator) (grpc.IGrpcTransportServer, error) {
 
-	return internal.StartGrpcServerImpl(connectURL, tlsCert, caCert, authn, respTimeout)
+	return internal.StartGrpcServerImpl(connectURL, tlsCert, caCert, authn)
 }
 
 // Returns a ready-to-use hiveot gRPC server using the factory environment
@@ -46,5 +44,5 @@ func NewHiveotGrpcServerFactory(f api.ICellFactory, md *api.CellDefinition) (api
 		}
 	}
 
-	return NewHiveotGrpcServer(grpcURL, serverCert, caCert, f.GetAuthenticator(), env.RpcTimeout)
+	return NewHiveotGrpcServer(grpcURL, serverCert, caCert, f.GetAuthenticator())
 }

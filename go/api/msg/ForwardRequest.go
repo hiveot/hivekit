@@ -1,8 +1,6 @@
 package msg
 
 import (
-	"time"
-
 	"github.com/hiveot/hivekit/go/utils"
 	"github.com/teris-io/shortid"
 )
@@ -14,12 +12,12 @@ import (
 //
 // If the response contains an error, it is return as the error.
 func EmitRequestWait(
-	req *RequestMessage, reqHandler RequestHandler, timeout time.Duration) (resp *ResponseMessage, err error) {
+	req *RequestMessage, reqHandler RequestHandler) (resp *ResponseMessage, err error) {
 
 	if req.CorrelationID == "" {
 		req.CorrelationID = shortid.MustGenerate()
 	}
-	ar := utils.NewAsyncReceiver[*ResponseMessage]()
+	ar := utils.NewAsyncReceiver[*ResponseMessage](CellTimeout)
 
 	err = reqHandler(req, func(r *ResponseMessage) error {
 		ar.SetResponse(r)
@@ -28,7 +26,7 @@ func EmitRequestWait(
 	if err != nil {
 		return nil, err
 	}
-	resp, err = ar.WaitForResponse(timeout)
+	resp, err = ar.WaitForResponse()
 	if err == nil {
 		err = resp.AsError()
 	}

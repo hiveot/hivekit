@@ -87,7 +87,8 @@ type IDiscoveryClient interface {
 	// This uses the service type WOT_DEVICE_SERVICE_TYPE (_wot._tcp)
 	//
 	//	instanceName is an optional filter name of a specific thing instance, or "" for default.
-	//	thingType, DISCO_TYPE_THING|DIRECTORY|GATEWAY
+	//	thingType filter with DISCO_TYPE_THING|DIRECTORY|GATEWAY
+	//	first returns with the first result
 	//	searchTime defaults to 3 seconds
 	//	cb is the optional callback to call for each discovered thing. It should
 	//  return true to stop or false to continue searching up until the searchTime.

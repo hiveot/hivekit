@@ -311,7 +311,6 @@ func (svc *RouterServiceImpl) NewClientConnection(
 	if err != nil {
 		return nil, err
 	}
-	c.SetTimeout(svc.GetTimeout())
 
 	// if a client certificate is available set it for authentication
 	if svc.clientCert != nil {
@@ -353,7 +352,6 @@ func (svc *RouterServiceImpl) NewClientConnection(
 	if svc.autoReconnect {
 		// reconnect connects the client on start
 		cl, err = reconnect_service.NewReconnectService(c)
-		cl.SetTimeout(svc.GetTimeout())
 	} else {
 		// connect directly. Reconnect is not used.
 		cl = c

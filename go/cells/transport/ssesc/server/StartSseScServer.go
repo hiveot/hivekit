@@ -2,7 +2,6 @@ package ssesc_server
 
 import (
 	"fmt"
-	"time"
 
 	"github.com/hiveot/hivekit/go/api"
 	"github.com/hiveot/hivekit/go/cells/transport/ssesc"
@@ -14,14 +13,13 @@ import (
 // This uses the HiveOT RRN messages as the payload without conversions.
 //
 // httpServer is the http server the websocket is using
-// respTimeout is the time the server waits for a response when receiving requests. defaults to 3sec
 //
 // Use SetRequestSink to set the handler for requests send by consumers
 // Use SetNotificationSink to set the handler for notifications send by devices.
 func StartSseScServer(
-	httpServer api.IHttpServer, respTimeout time.Duration) (ssesc.ISseScTransportServer, error) {
+	httpServer api.IHttpServer) (ssesc.ISseScTransportServer, error) {
 
-	return internal.StartSseScServerImpl(httpServer, respTimeout)
+	return internal.StartSseScServerImpl(httpServer)
 }
 
 // Create a new instance of the Hiveot SSE-SC server using the factory environment
@@ -31,6 +29,5 @@ func StartSseScServerFactory(f api.ICellFactory, md *api.CellDefinition) (api.IH
 	if httpServer == nil {
 		return nil, fmt.Errorf("NewSseScServerFactory: missing http server")
 	}
-	timeout := f.GetEnvironment().RpcTimeout
-	return StartSseScServer(httpServer, timeout)
+	return StartSseScServer(httpServer)
 }

@@ -74,7 +74,6 @@ func startHistoryService(clean bool) (
 	if err != nil {
 		panic("Failed starting the history service: " + err.Error())
 	}
-	histService.SetTimeout(testEnv.Env.RpcTimeout)
 	testEnv.Server.SetRequestSink(histService)
 	histService.SetNotificationSink(testEnv.Server)
 

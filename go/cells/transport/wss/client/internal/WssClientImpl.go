@@ -111,7 +111,7 @@ func (cl *WssTransportClientImpl) _onWssClientMessage(raw []byte) {
 		if err == nil {
 			// client receives a response message
 			// pass it on to the waiting consumer
-			handled := cl.rnrChan.HandleResponse(resp, cl.GetTimeout())
+			handled := cl.rnrChan.HandleResponse(resp)
 			if !handled {
 				slog.Error("_onWssClientMessage: received response but no matching request",
 					"correlationID", resp.CorrelationID,
@@ -337,7 +337,7 @@ func (cl *WssTransportClientImpl) SendRequest(
 		return err
 	}
 	go func() {
-		resp, err2 := cl.rnrChan.WaitForResponse(req.CorrelationID, cl.GetTimeout())
+		resp, err2 := cl.rnrChan.WaitForResponse(req.CorrelationID)
 		if err2 != nil {
 			err2 = fmt.Errorf("SendRequest timeout: %w", err2)
 			resp = req.CreateErrorResponse(err2)
@@ -407,10 +407,10 @@ func NewHiveotWssClientImpl(
 		rootCAs:             rootCAs,
 		// hiveot uses its own standardized RRN messages
 		encoder: transport.NewRRNJsonEncoder(),
-		rnrChan: msg.NewRnRChan(),
+		rnrChan: msg.NewRnRChan(msg.CellTimeout),
 		wssURL:  wssURL,
 	}
-	cl.SetTransportClient(cl)       // for use by Rpc
+	cl.SetTransportImpl(cl)         // for use by Rpc
 	var _ api.ITransportClient = cl // interface check
 	return cl
 }
@@ -431,10 +431,10 @@ func NewWotWssClientImpl(
 		TransportClientBase: transport.NewTransportClientBase(thingID, rootCAs),
 		rootCAs:             rootCAs,
 		encoder:             msgconverter.NewWotWssMsgEncoder(),
-		rnrChan:             msg.NewRnRChan(),
+		rnrChan:             msg.NewRnRChan(msg.CellTimeout),
 		wssURL:              wssURL,
 	}
-	cl.SetTransportClient(cl)
+	cl.SetTransportImpl(cl)
 	var _ api.ITransportClient = cl // interface check
 	return cl
 }

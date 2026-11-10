@@ -12,11 +12,9 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-const DefaultResponseTimeout = time.Second * 10
-
 func TestRnROpenClose(t *testing.T) {
 	corrID := "123"
-	rnrChan := msg.NewRnRChan()
+	rnrChan := msg.NewRnRChan(msg.CellTimeout)
 	rnrChan.Open(corrID)
 	rnrChan.Close(corrID)
 }
@@ -24,13 +22,13 @@ func TestRnROpenClose(t *testing.T) {
 func TestRnRWaitAfterOpen(t *testing.T) {
 	corrID := "123"
 	resp := msg.NewResponseMessage("op1", "thing1", "name", nil, nil, "", corrID)
-	rnrChan := msg.NewRnRChan()
+	rnrChan := msg.NewRnRChan(msg.CellTimeout)
 	rnrChan.Open(corrID)
 
-	handled := rnrChan.HandleResponse(resp, DefaultResponseTimeout)
+	handled := rnrChan.HandleResponse(resp)
 	require.True(t, handled)
 
-	rx, err := rnrChan.WaitForResponse(corrID, DefaultResponseTimeout)
+	rx, err := rnrChan.WaitForResponse(corrID)
 	require.NoError(t, err)
 	require.NotEmpty(t, rx)
 	require.Equal(t, corrID, rx.CorrelationID)
@@ -42,13 +40,13 @@ func TestRnRWaitAfterOpen(t *testing.T) {
 func TestRnRWaitNoOpenFails(t *testing.T) {
 	corrID := "123"
 	resp := msg.NewResponseMessage("op1", "thing1", "name", nil, nil, "", corrID)
-	rnrChan := msg.NewRnRChan()
+	rnrChan := msg.NewRnRChan(msg.CellTimeout)
 	// rnrChan.Open(corrID)
 
-	handled := rnrChan.HandleResponse(resp, DefaultResponseTimeout)
+	handled := rnrChan.HandleResponse(resp)
 	require.False(t, handled)
 	// should fail immediately as corrID doesn't exist
-	rx, err := rnrChan.WaitForResponse(corrID, DefaultResponseTimeout)
+	rx, err := rnrChan.WaitForResponse(corrID)
 	require.Error(t, err)
 	require.Empty(t, rx)
 
@@ -60,13 +58,13 @@ func TestRnROpenWaitCallback(t *testing.T) {
 
 	corrID := "123"
 	resp := msg.NewResponseMessage("op1", "thing1", "name", nil, nil, "", corrID)
-	rnrChan := msg.NewRnRChan()
+	rnrChan := msg.NewRnRChan(msg.CellTimeout)
 	rnrChan.Open(corrID)
 
-	handled := rnrChan.HandleResponse(resp, DefaultResponseTimeout)
+	handled := rnrChan.HandleResponse(resp)
 	require.True(t, handled)
 
-	rnrChan.WaitWithCallback(corrID, DefaultResponseTimeout, func(resp *msg.ResponseMessage) error {
+	rnrChan.WaitWithCallback(corrID, func(resp *msg.ResponseMessage) error {
 		rxData.Store(true)
 		return nil
 	})
@@ -80,9 +78,9 @@ func TestRnROpenWaitCallback(t *testing.T) {
 func TestRnRResponseNotHandled(t *testing.T) {
 	corrID := "123"
 	resp := msg.NewResponseMessage("op1", "thing1", "name", nil, nil, "", corrID)
-	rnrChan := msg.NewRnRChan()
+	rnrChan := msg.NewRnRChan(msg.CellTimeout)
 
-	handled := rnrChan.HandleResponse(resp, DefaultResponseTimeout)
+	handled := rnrChan.HandleResponse(resp)
 	require.False(t, handled)
 }
 
@@ -93,19 +91,19 @@ func TestRnRResponseTwice(t *testing.T) {
 	shortTimeout := time.Second
 
 	resp := msg.NewResponseMessage("op1", "thing1", "name", nil, nil, "", corrID)
-	rnrChan := msg.NewRnRChan()
+	rnrChan := msg.NewRnRChan(shortTimeout)
 
 	rnrChan.Open(corrID)
 
-	handled := rnrChan.HandleResponse(resp, shortTimeout)
+	handled := rnrChan.HandleResponse(resp)
 	assert.True(t, handled)
 
 	// the second one fails with an error in the log
-	handled = rnrChan.HandleResponse(resp, shortTimeout)
+	handled = rnrChan.HandleResponse(resp)
 	require.False(t, handled)
 
 	// this will close the channel
-	rnrChan.WaitWithCallback(corrID, shortTimeout, func(resp *msg.ResponseMessage) error {
+	rnrChan.WaitWithCallback(corrID, func(resp *msg.ResponseMessage) error {
 		rxData.Store(true)
 		return nil
 	})
@@ -118,18 +116,18 @@ func TestRnRResponseTwice(t *testing.T) {
 func TestRnRTimeout(t *testing.T) {
 	var rxData atomic.Bool
 	corrID := "123"
-	rnrChan := msg.NewRnRChan()
+	// use a short timeout for this test
+	shortTimeout := time.Second
+
+	rnrChan := msg.NewRnRChan(shortTimeout)
 	rnrChan.Open(corrID)
 
-	// use a short timeout for this test
-	timeout := time.Second
-
-	rx, err := rnrChan.WaitForResponse(corrID, timeout)
+	rx, err := rnrChan.WaitForResponse(corrID)
 	require.Error(t, err)
 	assert.Empty(t, rx)
 
 	// try again with callback
-	rnrChan.WaitWithCallback(corrID, timeout, func(resp *msg.ResponseMessage) error {
+	rnrChan.WaitWithCallback(corrID, func(resp *msg.ResponseMessage) error {
 		rxData.Store(true)
 		return nil
 	})
@@ -140,7 +138,7 @@ func TestRnRTimeout(t *testing.T) {
 
 func TestRnRDoubleClose(t *testing.T) {
 	corrID := "123"
-	rnrChan := msg.NewRnRChan()
+	rnrChan := msg.NewRnRChan(msg.CellTimeout)
 	rnrChan.Open(corrID)
 
 	rnrChan.Close(corrID)
@@ -149,7 +147,7 @@ func TestRnRDoubleClose(t *testing.T) {
 
 func TestRnRCloseAll(t *testing.T) {
 	corrID := "123"
-	rnrChan := msg.NewRnRChan()
+	rnrChan := msg.NewRnRChan(msg.CellTimeout)
 	rnrChan.Open(corrID)
 	assert.Equal(t, 1, rnrChan.Len())
 
@@ -159,7 +157,7 @@ func TestRnRCloseAll(t *testing.T) {
 
 func TestRnRDoubleOpen(t *testing.T) {
 	corrID := "123"
-	rnrChan := msg.NewRnRChan()
+	rnrChan := msg.NewRnRChan(msg.CellTimeout)
 	err := rnrChan.Open(corrID)
 	require.NoError(t, err)
 	err = rnrChan.Open(corrID)
@@ -172,13 +170,13 @@ func TestRnRNoOpenWaitCallback(t *testing.T) {
 
 	corrID := "123"
 	resp := msg.NewResponseMessage("op1", "thing1", "name", nil, nil, "", corrID)
-	rnrChan := msg.NewRnRChan()
+	rnrChan := msg.NewRnRChan(msg.CellTimeout)
 
-	rnrChan.WaitWithCallback(corrID, DefaultResponseTimeout, func(resp *msg.ResponseMessage) error {
+	rnrChan.WaitWithCallback(corrID, func(resp *msg.ResponseMessage) error {
 		rxData.Store(true)
 		return nil
 	})
-	handled := rnrChan.HandleResponse(resp, DefaultResponseTimeout)
+	handled := rnrChan.HandleResponse(resp)
 	// response is handled in a separate goroutine
 	time.Sleep(time.Millisecond)
 	require.True(t, handled)
@@ -196,13 +194,13 @@ func Benchmark_RnRBulkWaitCallback(b *testing.B) {
 			corrID := fmt.Sprintf("corr-%d", n)
 
 			resp := msg.NewResponseMessage("op1", "thing1", "name", nil, nil, "", corrID)
-			rnrChan := msg.NewRnRChan()
+			rnrChan := msg.NewRnRChan(msg.CellTimeout)
 			rnrChan.Open(corrID)
 			go func() {
-				handled := rnrChan.HandleResponse(resp, DefaultResponseTimeout)
+				handled := rnrChan.HandleResponse(resp)
 				require.True(b, handled)
 			}()
-			rnrChan.WaitWithCallback(corrID, DefaultResponseTimeout, func(resp *msg.ResponseMessage) error {
+			rnrChan.WaitWithCallback(corrID, func(resp *msg.ResponseMessage) error {
 				rxCount.Add(1)
 				return nil
 			})

@@ -5,21 +5,12 @@ import (
 	"log/slog"
 	"sync"
 	"sync/atomic"
-	"time"
 
 	"github.com/hiveot/hivekit/go/api"
 	"github.com/hiveot/hivekit/go/api/msg"
 	"github.com/hiveot/hivekit/go/utils"
 	"github.com/teris-io/shortid"
 )
-
-// Cell environment
-// type CellEnv struct {
-// 	// Application home directory
-// 	HomeDirectory string
-// 	// Application storage directory
-// 	StorageDirectory string
-// }
 
 // HiveCellBase implements the boilerplate of operating a cell.
 // This implements the IHiveCell interface.
@@ -49,8 +40,6 @@ type HiveCellBase struct {
 
 	// requestSink is the cell to forward requests messages to
 	requestSink atomic.Pointer[api.IHiveCell]
-
-	rpcTimeout time.Duration
 }
 
 // EmitNotification passes emitted notifications to a registered sink.
@@ -98,7 +87,7 @@ func (base *HiveCellBase) EmitRequest(req *msg.RequestMessage, replyTo msg.Respo
 func (base *HiveCellBase) EmitRequestWait(req *msg.RequestMessage) (
 	resp *msg.ResponseMessage, err error) {
 
-	arx := utils.NewAsyncReceiver[*msg.ResponseMessage]()
+	arx := utils.NewAsyncReceiver[*msg.ResponseMessage](msg.CellTimeout)
 	err = base.EmitRequest(req, func(r *msg.ResponseMessage) error {
 		arx.SetResponse(r)
 		return nil
@@ -106,11 +95,7 @@ func (base *HiveCellBase) EmitRequestWait(req *msg.RequestMessage) (
 	if err != nil {
 		return nil, err
 	}
-	timeout := base.rpcTimeout
-	if timeout == 0 {
-		timeout = msg.DefaultRnRTimeout
-	}
-	resp, err = arx.WaitForResponse(timeout)
+	resp, err = arx.WaitForResponse()
 	if err == nil {
 		err = resp.AsError()
 	} else {
@@ -186,11 +171,6 @@ func (base *HiveCellBase) GetRequestSink() api.IHiveCell {
 // GetID returns the cell's thingID
 func (base *HiveCellBase) GetID() string {
 	return base.cellID
-}
-
-// GetTimeout returns the cell's rpc timeout
-func (base *HiveCellBase) GetTimeout() time.Duration {
-	return base.rpcTimeout
 }
 
 // HandleNotification receives an incoming notification from a producer.
@@ -286,13 +266,6 @@ func (base *HiveCellBase) SetRequestSink(newSink api.IHiveCell) {
 	base.requestSink.Store(&newSink)
 }
 
-// SetTimeout changes the timeout when waiting for result.
-func (base *HiveCellBase) SetTimeout(rpcTimeout time.Duration) {
-	base.mux.Lock()
-	defer base.mux.Unlock()
-	base.rpcTimeout = rpcTimeout
-}
-
 // Start autonomous operation, such as writing a TD, publishing events and properties.
 //
 // If Start is not yet called, cells can already react to requests and emit requests
@@ -308,8 +281,9 @@ func (base *HiveCellBase) Stop() {}
 
 // Create a new cell base
 //
+// This uses the global msg.CellTimeout for rpc timeouts.
+//
 //	cellID is the instance ID of the cell. "" to auto generate a dynamic ID.
-//	timeout for forwarding request and waiting for the result
 func NewHiveCellBase(cellID string) *HiveCellBase {
 	if cellID == "" {
 		cellID = "cell-" + shortid.MustGenerate()
@@ -317,7 +291,6 @@ func NewHiveCellBase(cellID string) *HiveCellBase {
 	base := &HiveCellBase{
 		mux:               sync.RWMutex{},
 		cellID:            cellID,
-		rpcTimeout:        msg.DefaultRnRTimeout,
 		notificationSinks: make(map[string]api.IHiveCell),
 	}
 	base.forwardNotifications.Store(true)

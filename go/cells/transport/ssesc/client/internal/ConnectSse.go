@@ -8,9 +8,9 @@ import (
 	"net/http"
 	"strings"
 	"sync/atomic"
-	"time"
 
 	"github.com/hiveot/hivekit/go/api"
+	"github.com/hiveot/hivekit/go/api/msg"
 	"github.com/hiveot/hivekit/go/cells/transport/ssesc"
 	"github.com/hiveot/hivekit/go/cells/transport/tlsclient"
 	"github.com/hiveot/hivekit/go/utils"
@@ -31,7 +31,6 @@ func ConnectSSE(
 	ssePath string,
 	onConnect func(status api.ConnectionStatus, err error),
 	onMessage func(event gosse.Event),
-	timeout time.Duration,
 ) (cancelFn func(), err error) {
 
 	method := http.MethodGet
@@ -70,7 +69,7 @@ func ConnectSSE(
 	remover := conn.SubscribeToAll(onMessage)
 
 	// Wait for max 3 seconds to detect a connection
-	waitConnectCtx, waitConnectCancelFn := context.WithTimeout(context.Background(), timeout)
+	waitConnectCtx, waitConnectCancelFn := context.WithTimeout(context.Background(), msg.CellTimeout)
 	conn.SubscribeEvent(ssesc.SSEPingEvent, func(event gosse.Event) {
 		// WORKAROUND since go-sse has no callback for a successful (re)connect, simulate one here.
 		// As soon as a connection is established the server could send a 'ping' event.

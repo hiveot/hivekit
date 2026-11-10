@@ -196,7 +196,6 @@ func (srv *SseScServerImpl) onSseConnection(w http.ResponseWriter, r *http.Reque
 	c := NewSseScServerConnection(
 		rp.ClientID, rp.ConnectionID, r.RemoteAddr, r,
 		srv.EmitRequest, srv.EmitNotification)
-	c.SetTimeout(srv.respTimeout)
 	err = srv.AddConnection(c)
 
 	c.Serve(w, r)

@@ -124,7 +124,6 @@ func NewChainFormation(
 		chain:        chain,
 		linkTo:       linkTo,
 	}
-	formation.SetTimeout(f.GetEnvironment().RpcTimeout)
 
 	// register all cells with the factory
 	for _, cellDef := range formation.chain {

@@ -4,7 +4,6 @@ import (
 	"context"
 	"crypto/tls"
 	"net/http"
-	"time"
 
 	"github.com/hiveot/hivekit/go/api"
 	"golang.org/x/net/http2"
@@ -107,9 +106,6 @@ type ITLSClient interface {
 
 	// Skip the client's CA certificate check
 	SetSkipCertCheck(skip bool)
-
-	// Change the default timeout for http request to the given timeout
-	SetTimeout(timeout time.Duration)
 
 	// Trace performs a message loopback testPost is the http convenience function to create or update a resource
 	Trace(path string) (status int, err error)

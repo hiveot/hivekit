@@ -4,7 +4,6 @@ import (
 	"crypto/x509"
 	"fmt"
 	"strconv"
-	"time"
 
 	"github.com/hiveot/hivekit/go/api"
 	"github.com/hiveot/hivekit/go/api/wot"
@@ -130,8 +129,7 @@ func (cl *DirectoryHttpClient) UpdateThing(tdoc *wot.TD) (err error) {
 //
 //	dirTD is the discovered TD of the directory
 //	rootCAs are the available CAs to validate the directory server certificate
-//	timeout is the timeout for sending messages
-func NewDirectoryHttpClient(dirTD *wot.TD, rootCAs *x509.CertPool, timeout time.Duration) (*DirectoryHttpClient, error) {
+func NewDirectoryHttpClient(dirTD *wot.TD, rootCAs *x509.CertPool) (*DirectoryHttpClient, error) {
 
 	if dirTD == nil {
 		err := fmt.Errorf("NewDirectoryHttpClient: no TD provided")
@@ -141,7 +139,6 @@ func NewDirectoryHttpClient(dirTD *wot.TD, rootCAs *x509.CertPool, timeout time.
 	if err != nil {
 		return nil, err
 	}
-	httpClient.SetTimeout(timeout)
 
 	cl := &DirectoryHttpClient{
 		ITransportClient: httpClient,

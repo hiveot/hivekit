@@ -4,10 +4,8 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
-	"os"
 
 	"github.com/hiveot/hivekit/go/api"
-	"github.com/hiveot/hivekit/go/cells"
 	"github.com/hiveot/hivekit/go/cells/discovery"
 	discovery_client "github.com/hiveot/hivekit/go/cells/discovery/client"
 	"github.com/hiveot/hivekit/go/cells/reconnect"
@@ -60,7 +58,8 @@ var RCDeviceChain = []api.CellDefinition{
 }
 
 type RCDeviceRecipe struct {
-	*cells.HiveCellBase
+	// *cells.HiveCellBase
+	api.IHiveCell
 	f         api.ICellFactory
 	formation api.IHiveCell
 	eThing    api.IHiveCell
@@ -131,6 +130,8 @@ func NewRCDeviceRecipe(env *api.HiveEnvironment, eThing api.IHiveCell) (
 
 	f = factory_service.NewCellFactory(env, nil)
 	chain := RCDeviceChain
+	// FIXME: recipe doesnt pass requests to chain so it can't be used
+	// as the sink itself.
 	formation, err := factory_service.NewChainFormation(f, chain, eThing, false)
 	if err != nil {
 		return nil, nil, err
@@ -144,13 +145,14 @@ func NewRCDeviceRecipe(env *api.HiveEnvironment, eThing api.IHiveCell) (
 	}
 
 	// FIXME: why does the device recipe need a thingID? the eThing has one...
-	hostname, _ := os.Hostname()
-	thingID := hostname + ":device-recipe"
+	// hostname, _ := os.Hostname()
+	// thingID := hostname + ":device-recipe"
 	r = &RCDeviceRecipe{
-		HiveCellBase: cells.NewHiveCellBase(thingID),
-		f:            f,
-		formation:    formation,
-		eThing:       eThing,
+		// HiveCellBase: formation, //cells.NewHiveCellBase(thingID),
+		IHiveCell: formation,
+		f:         f,
+		formation: formation,
+		eThing:    eThing,
 	}
 
 	return r, f, err

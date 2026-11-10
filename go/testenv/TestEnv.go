@@ -185,7 +185,6 @@ func (testEnv *TestEnv) NewConnectedConsumer(clientID string, role string) (
 
 	cl, token = testEnv.NewTestClient(clientID, role)
 	co = consumer.NewConsumer(cl, nil)
-	co.SetTimeout(testEnv.Env.RpcTimeout)
 
 	err := cl.Connect()
 	if err != nil {
@@ -206,7 +205,6 @@ func (testEnv *TestEnv) NewServerThing(thingID string) *thing.ExposedThing {
 
 	// Simple server side Thing. No account needed
 	eThing := thing.NewExposedThing(thingID, nil)
-	eThing.SetTimeout(testEnv.Env.RpcTimeout)
 
 	// the device is the request sink for the transport server
 	testEnv.Server.SetRequestSink(eThing)
@@ -216,8 +214,7 @@ func (testEnv *TestEnv) NewServerThing(thingID string) *thing.ExposedThing {
 
 // NewRCConnection is a simple helper to link an exposed Thing to a reverse
 // server connection.
-// This creates a test client with the given ID and sets the timeout for the
-// client and exposed thing to that of the test environment.
+// This creates a test client with the given ID.
 //
 //	clientID is that of the client to connect as
 //	eThing is the exposed thing that receives server requests and sends notifications
@@ -229,9 +226,6 @@ func (testEnv *TestEnv) NewRCConnection(
 	// cl is the client connection for the Thing that receives requests from the
 	// server and sends notifications to the server.
 	cl, authToken := testEnv.NewTestClient(clientID, api.ClientRoleDevice)
-
-	// simple exposed thing, no application request handler yet
-	eThing.SetTimeout(testEnv.Env.RpcTimeout)
 
 	// the client delivers requests to the thing and receives notifications from it
 	cl.SetRequestSink(eThing)
@@ -269,7 +263,6 @@ func (testEnv *TestEnv) NewRCThing(clientID string, appReqHandler msg.RequestHan
 
 	// simple exposed thing, no application request handler yet
 	expThing := thing.NewExposedThing(clientID+"-thing", appReqHandler)
-	expThing.SetTimeout(testEnv.Env.RpcTimeout)
 
 	// the client delivers requests to the thing and receives notifications from it
 	cl.SetRequestSink(expThing)
@@ -316,13 +309,13 @@ func (testEnv *TestEnv) NewReconnectedConsumer(
 	rc, _ = reconnect_service.NewReconnectService(cc)
 
 	co = consumer.NewConsumer(rc, notifHook)
-	co.SetTimeout(testEnv.Env.RpcTimeout)
 
 	return co, rc, token
 }
 
 // NewClient creates a new client with the given client ID and created token,
 // using server TD forms.
+// The test env must have a server started.
 //
 // Call Connect() for it to connect.
 //
@@ -337,6 +330,8 @@ func (testEnv *TestEnv) NewTestClient(
 	token, _, err = testEnv.CreateToken(clientID, time.Minute*10)
 	if err != nil {
 		panic("NewTestClient: createToken failed: " + err.Error())
+	} else if testEnv.Server == nil {
+		panic("NewTestClient: Needs a server but none is started in test env")
 	}
 	// create a connection to the test server
 	serverTD := testEnv.Server.GetTD()
@@ -347,7 +342,6 @@ func (testEnv *TestEnv) NewTestClient(
 	// cl.SetForwarding(false, false)
 
 	if err == nil {
-		cl.SetTimeout(testEnv.Env.RpcTimeout)
 		err = cl.SetAuthToken(clientID, token, wot.SecSchemeBearer)
 	}
 	// if err == nil {
@@ -375,27 +369,26 @@ func (testEnv *TestEnv) StartTestServer(protocol string) (srv api.ITransportServ
 	if protocol == "" {
 		protocol = DefaultProtocol
 	}
-	timeout := testEnv.Env.RpcTimeout
 	switch protocol {
 	case api.HiveotGrpcTcpProtocolType:
 		serverCert := testEnv.CertBundle.ServerCert
 		caCert := testEnv.CertBundle.CaCert
 		srv, err = grpc_server.NewHiveotGrpcServer(
-			TestGrpcTcpURL, serverCert, caCert, testEnv.TestAuthn, timeout)
+			TestGrpcTcpURL, serverCert, caCert, testEnv.TestAuthn)
 
 	case api.HiveotGrpcUnixProtocolType:
 		serverCert := testEnv.CertBundle.ServerCert
 		caCert := testEnv.CertBundle.CaCert
 		srv, err = grpc_server.NewHiveotGrpcServer(
-			TestGrpcUnixURL, serverCert, caCert, testEnv.TestAuthn, timeout)
+			TestGrpcUnixURL, serverCert, caCert, testEnv.TestAuthn)
 
 	case api.HiveotSseScProtocolType:
 		testEnv.StartHttpServer(false)
-		srv, err = ssesc_server.StartSseScServer(testEnv.HttpServer, timeout)
+		srv, err = ssesc_server.StartSseScServer(testEnv.HttpServer)
 
 	case api.HiveotWebsocketProtocolType:
 		testEnv.StartHttpServer(false)
-		srv, err = wss_server.StartHiveotWssServer(testEnv.HttpServer, timeout)
+		srv, err = wss_server.StartHiveotWssServer(testEnv.HttpServer)
 
 	case api.WotHttpBasicProtocolType:
 		testEnv.StartHttpServer(false)
@@ -404,7 +397,7 @@ func (testEnv *TestEnv) StartTestServer(protocol string) (srv api.ITransportServ
 
 	case api.WotWebsocketProtocolType:
 		testEnv.StartHttpServer(false)
-		srv, err = wss_server.StartWotWssServer(testEnv.HttpServer, timeout)
+		srv, err = wss_server.StartWotWssServer(testEnv.HttpServer)
 
 	default:
 		err = errors.New("StartTestServer: unknown protocol name: " + protocol)
@@ -474,9 +467,11 @@ func (testEnv *TestEnv) Stop() {
 
 // NewTestEnv creates a new test environment with certificates and a dummy authenticator.
 //
-// This sets the home directory to {os.TempDir}/{TestHome}
+// This:
+//   - sets the home directory to {os.TempDir}/{TestHome}
+//   - sets the global cell timeout to 180 seconds
+//   - does not start any servers.
 //
-// This does not start any servers.
 // Use StartHttpServer,StartTestServer to initialize startup the servers.
 // This creates a HTTP server, protocol server, certificates and a dummy authenticator
 //
@@ -487,7 +482,11 @@ func NewTestEnv(clean bool) *TestEnv {
 		os.MkdirAll(TestHome, 0750)
 	}
 	appEnv := api.NewHiveEnvironment(TestHome, false)
-	appEnv.RpcTimeout = TestTimeout
+
+	// this is the global messaging timeout. Normally set to 3 seconds but when testing
+	// using breakpoints this must be higher.
+	msg.CellTimeout = TestTimeout
+
 	utils.SetLogging("info", "")
 	appEnv.HttpsPort = TestServerHttpPort
 	// ensure the directories exist

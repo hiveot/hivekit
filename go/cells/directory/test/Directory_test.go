@@ -60,7 +60,7 @@ func StartDirectoryService(withHttp bool) (
 		dirThingID := svc.GetID()
 		// add directory endpoints to the http server
 		dirHttpServer, err = dirhttp_service.NewDirectoryHttpServer(
-			dirThingID, testEnv.HttpServer, testEnv.Env.RpcTimeout)
+			dirThingID, testEnv.HttpServer)
 		_ = err
 		dirHttpServer.AddTDSecForms(tdd)
 	}
@@ -176,8 +176,7 @@ func TestCRUDUsingMsgAPI(t *testing.T) {
 	t.Logf("---%s---\n", t.Name())
 	const clientID = "user1"
 
-	testEnv, dirSvc, cancelFn := StartDirectoryService(false)
-	rpcTimeout := testEnv.Env.RpcTimeout
+	_, dirSvc, cancelFn := StartDirectoryService(false)
 
 	defer cancelFn()
 
@@ -192,14 +191,13 @@ func TestCRUDUsingMsgAPI(t *testing.T) {
 	tp := testenv.NewTestTransport(clientID, dirSvc)
 
 	// err := dirClient.CreateThing(tdi1Json)
-	err := directory_client.UpdateTD(
-		directoryID, tdi1Json, tp.HandleRequest, rpcTimeout)
+	err := directory_client.UpdateTD(directoryID, tdi1Json, tp.HandleRequest)
 	require.NoError(t, err)
 
 	// read the new TD
 	dirTDD := dirSvc.GetTDD()
 	dirClient := directory_client.NewDirectoryClient(dirTDD, tp)
-	dirClient.SetTimeout(rpcTimeout)
+
 	tdi2, err := dirClient.RetrieveThing(thing1ID)
 	require.NoError(t, err)
 	assert.Equal(t, thing1ID, tdi2.ID)
@@ -238,8 +236,7 @@ func TestCRUDUsingRestAPI(t *testing.T) {
 	// test the http client
 	// cl, err := httpbasic_client.NewHttpBasicClient(dirTDD, testEnv.CertBundle.RootCAs)
 	// require.NoError(t, err)
-	dirClient, err := directory_client.NewDirectoryHttpClient(
-		dirTDD, testEnv.CertBundle.RootCAs, testEnv.Env.RpcTimeout)
+	dirClient, err := directory_client.NewDirectoryHttpClient(dirTDD, testEnv.CertBundle.RootCAs)
 	require.NoError(t, err)
 
 	// connect should read the directory TD

@@ -17,7 +17,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// const rpcTimeout = time.Minute * 3 // allow for debugging breakpoints
 const testConsumerID = "router1"
 
 var testProtocol = api.HiveotGrpcTcpProtocolType
@@ -41,7 +40,6 @@ func startService() (testEnv *testenv.TestEnv, stopFn func()) {
 	transportServer := testEnv.StartTestServer(testProtocol)
 
 	testDirSvc, _ := directory_service.NewDirectoryService("", "", testEnv.AddForms)
-	testDirSvc.SetTimeout(testEnv.Env.RpcTimeout)
 
 	rcrouter, _ := rcrouter_service.NewRCRouterService(testDirSvc.GetTD,
 		func() []api.ITransportServer {
@@ -49,7 +47,6 @@ func startService() (testEnv *testenv.TestEnv, stopFn func()) {
 		},
 		testEnv.TestAuthn.GetRole,
 	)
-	rcrouter.SetTimeout(testEnv.Env.RpcTimeout)
 
 	// chain server->director->rcrouter
 	transportServer.SetRequestSink(testDirSvc)

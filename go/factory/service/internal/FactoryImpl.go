@@ -196,9 +196,6 @@ func (f *FactoryImpl) loadCell(cellType string) (m api.IHiveCell, isNew bool, er
 	}
 
 	// store the singleton on successful start
-	// give it the application environment timeout
-	cellInstance.SetTimeout(f.GetTimeout())
-
 	f.mux.Lock()
 	f.singletonCells[cellType] = cellInstance
 	tp, ok := cellInstance.(api.ITransportServer)
@@ -216,6 +213,7 @@ func (f *FactoryImpl) loadCell(cellType string) (m api.IHiveCell, isNew bool, er
 
 // NewCell loads an instance of a cell by its type.
 // If the cell is already loaded then it is returned as-is.
+// The new cell will have the same timeout settings as the factory.
 //
 // This can return nil without error if the cell is a 'one-shot' cell whose
 // factory function returns nil. Intended for initializing the factory environment.
@@ -265,15 +263,6 @@ func (f *FactoryImpl) SetAuthenticator(impl api.IAuthenticator) {
 	f.authProxy.SetAuthenticator(impl)
 }
 
-// Invoke Start on all loaded cells.
-// Intended to be used after all cells have been created and linked.
-func (f *FactoryImpl) Start() {
-	slog.Info("Start, starting all cells")
-	for _, cell := range f.loadedCells {
-		cell.Start()
-	}
-}
-
 // Stop all cells in reverse order
 func (f *FactoryImpl) Stop() {
 	n := len(f.loadedCells)
@@ -319,8 +308,6 @@ func NewCellFactoryImpl(
 		cellDefinitions: cellDefMap,
 		singletonCells:  make(map[string]api.IHiveCell),
 	}
-	// this timeout is applied on all created cells
-	f.SetTimeout(env.RpcTimeout)
 	var _ api.ICellFactory = f // API check
 	return f
 }

@@ -99,12 +99,11 @@ func NewStarFormation(
 	f api.ICellFactory, cellDefs []api.CellDefinition) (*StarFormation, error) {
 
 	star := &StarFormation{
-		HiveCellBase: cells.NewHiveCellBase(""),
+		HiveCellBase: cells.NewHiveCellBase(api.StarFormationType),
 		f:            f,
 		cellDefs:     cellDefs,
 		members:      make(map[string]api.IHiveCell),
 	}
-	star.SetTimeout(f.GetEnvironment().RpcTimeout)
 
 	// add the cell definitions to the factory
 	if star.cellDefs != nil {

@@ -23,6 +23,9 @@ import (
 // Used by authn and certs services to create an admin account on startup.
 const DefaultAdminUserID = "admin"
 
+// The default timeout for rpc calls
+const DefaultRPCTimeout = time.Second * 3
+
 // certificate file names
 const (
 	// CA key for creating self signed certificates
@@ -37,6 +40,9 @@ const (
 	// DefaultPrivKeyFileSuffix defines the filename suffix under which public/private keys are
 	// stored in the certs directory.
 	DefaultPrivKeyFileSuffix = "Key.pem"
+
+	DefaultServerCertFile = "Server" + DefaultCertFileSuffix
+	DefaultServerKeyFile  = "Server" + DefaultPrivKeyFileSuffix
 
 	// default server name to use if none is provided
 	DefaultServerName = "server"
@@ -263,8 +269,8 @@ func (env *HiveEnvironment) GetServerCert() (cert *tls.Certificate, err error) {
 	if env.serverCert != nil {
 		return env.serverCert, nil
 	}
-	certPath := filepath.Join(env.CertsDir, "Server"+DefaultCertFileSuffix)
-	keyPath := filepath.Join(env.CertsDir, "Server"+DefaultPrivKeyFileSuffix)
+	certPath := filepath.Join(env.CertsDir, DefaultServerCertFile)
+	keyPath := filepath.Join(env.CertsDir, DefaultServerKeyFile)
 	env.serverCert, err = utils.LoadTLSCert(certPath, keyPath)
 	return env.serverCert, err
 }
@@ -450,7 +456,7 @@ func NewHiveEnvironment(homeDir string, withFlags bool) *HiveEnvironment {
 	env := &HiveEnvironment{
 		LogLevel: "warn",
 		// PluginsDir:   pluginsDir,
-		RpcTimeout: msg.DefaultRnRTimeout,
+		RpcTimeout: DefaultRPCTimeout,
 	}
 
 	// The default appID is the binary name. This allows for multiple instances
@@ -558,17 +564,8 @@ func NewHiveEnvironment(homeDir string, withFlags bool) *HiveEnvironment {
 		env.Print(showEnv)
 	}
 
-	// slog.Info("NewHiveEnvironment",
-	// 	slog.String("appID", env.AppID),
-	// 	slog.String("clientID", env.ClientID),
-	// 	slog.String("certsDir", env.CertsDir),
-	// 	slog.String("configDir", env.ConfigDir),
-	// 	slog.String("dirTDURL", env.DirTDURL),
-	// 	slog.String("gatewayURL", env.GatewayURL),
-	// 	slog.String("home", env.HomeDir),
-	// 	slog.Int("rpcTimeout (msec)", int(env.RpcTimeout/time.Millisecond)),
-	// 	slog.String("serverTDURL", env.ServerTDURL),
-	// )
+	// HiveEnvironment controls the use of cell timeout
+	msg.CellTimeout = env.RpcTimeout
 
 	return env
 }

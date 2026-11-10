@@ -127,9 +127,10 @@ func TestGatewayRecipe(t *testing.T) {
 	const managerClientID = "manager1"
 	const rcdeviceClientID = "rc1"
 
+	msg.CellTimeout = time.Minute * 3
+
 	// 1. Create the gateway recipe for admin and rc device connections
 	gwenv := api.NewHiveEnvironment(testDir, false)
-	gwenv.RpcTimeout = time.Minute * 3
 	gwenv.HttpsPort = testPort
 	gw, gwFactory, err := gatewayrecipe.NewGatewayRecipe(gwenv)
 	require.NoError(t, err)
@@ -142,7 +143,6 @@ func TestGatewayRecipe(t *testing.T) {
 	require.NoError(t, err)
 	// env will load the client auth token
 	coenv := api.NewHiveEnvironment(testDir, false)
-	coenv.RpcTimeout = time.Minute * 3
 	coenv.SetCACert(caCert)
 	coenv.ClientID = managerClientID
 	// force direct connection with the server
@@ -157,7 +157,6 @@ func TestGatewayRecipe(t *testing.T) {
 	require.NoError(t, err)
 	rcenv := api.NewHiveEnvironment(testDir, false)
 	// no discovery, point to the server
-	rcenv.RpcTimeout = time.Minute * 3
 	rcenv.SetCACert(caCert)
 	rcenv.ServerURL = gwFactory.GetConnectURLs()[0]
 	rcenv.ClientID = rcdeviceClientID
@@ -167,7 +166,6 @@ func TestGatewayRecipe(t *testing.T) {
 		ResetValue:    60,
 	}
 	counterThing, err := testenv.NewTestCounterThing("", cfg)
-	counterThing.SetTimeout(rcenv.RpcTimeout)
 	rcr, _, err := rcdevice_recipe.NewRCDeviceRecipe(rcenv, counterThing)
 	require.NoError(t, err)
 	rcr.Start()

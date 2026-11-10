@@ -2,7 +2,6 @@ package internal
 
 import (
 	"log/slog"
-	"time"
 
 	"github.com/hiveot/hivekit/go/api"
 	"github.com/hiveot/hivekit/go/api/msg"
@@ -61,7 +60,6 @@ func StartGrpcServerConnection(
 	grpcStream grpc.ServerStream,
 	reqHandler msg.RequestHandler,
 	notifHandler msg.NotificationHandler,
-	// respTimeout time.Duration,
 ) *GrpcServerConnection {
 
 	slog.Info("StartGrpcTransportConnection", slog.String("clientID", clientID))
@@ -82,7 +80,7 @@ func StartGrpcServerConnection(
 	)
 	// use the same buffered stream as the client uses for sending and receiving messages
 	// this can instantly receive a message so GrpcConnection must be ready.
-	c.bstrm = grpclib.OpenBufferedStream(grpcStream, nil, c.OnRemoteMessage, time.Minute)
+	c.bstrm = grpclib.OpenBufferedStream(grpcStream, nil, c.OnRemoteMessage)
 
 	var _ api.IConnection = c // interface check
 

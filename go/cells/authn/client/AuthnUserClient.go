@@ -61,7 +61,7 @@ func (m *AuthnUserClient) UpdateProfile(password string) (err error) {
 //	sink is the chain containing the user's transport client
 func NewAuthnUserClient(authnServiceID string, sink api.IHiveCell) *AuthnUserClient {
 	cl := &AuthnUserClient{
-		HiveCellBase:   cells.NewHiveCellBase(""),
+		HiveCellBase:   cells.NewHiveCellBase(authn.AuthnUserServiceType + "-client"),
 		authnServiceID: authnServiceID,
 	}
 	if sink != nil {

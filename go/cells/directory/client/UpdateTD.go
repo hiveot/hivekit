@@ -1,8 +1,6 @@
 package directory_client
 
 import (
-	"time"
-
 	"github.com/hiveot/hivekit/go/api/msg"
 	"github.com/hiveot/hivekit/go/api/wot"
 	"github.com/hiveot/hivekit/go/cells/directory"
@@ -17,11 +15,11 @@ import (
 //	directoryThingID is the thing ID of the directory service instance. Defaults to DefaultDirectoryThingID.
 //	tdJson is the TD in JSON to update in the directory.
 //	reqHandler is the request handler of the connection to send the request through.
-func UpdateTD(directoryThingID string, tdJson string, reqHandler msg.RequestHandler, timeout time.Duration) error {
+func UpdateTD(directoryThingID string, tdJson string, reqHandler msg.RequestHandler) error {
 	req := msg.NewRequestMessage(
 		wot.OpInvokeAction, directoryThingID, directory.UpdateThingAction, tdJson)
 
-	_, err := msg.EmitRequestWait(req, reqHandler, timeout)
+	_, err := msg.EmitRequestWait(req, reqHandler)
 
 	return err
 }

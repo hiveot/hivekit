@@ -8,6 +8,8 @@ import (
 // NewCellFactory returns a new cell factory.
 // Cells can be nil if they are registered separately or if StartRecipe is used.
 //
+// All cells created will have their timeout set to that of env.RpcTimeout
+//
 //	env is the application enviroment created with api.NewHiveEnvironment
 //	cellDefs are the cell definitions available to GetCell(type)
 func NewCellFactory(

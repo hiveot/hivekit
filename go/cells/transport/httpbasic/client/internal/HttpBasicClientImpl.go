@@ -229,7 +229,7 @@ func (cl *HttpBasicClientImpl) SendRequest(
 	contentType := "application/JSON"
 
 	// send the request
-	ctx, cancelFn := context.WithTimeout(context.Background(), cl.GetTimeout())
+	ctx, cancelFn := context.WithTimeout(context.Background(), msg.CellTimeout)
 	outputRaw, code, _, err := cl.tlsClient.Send(ctx,
 		method, hrefPath, nil, []byte(inputJSON), contentType)
 	cancelFn()
@@ -394,7 +394,7 @@ func NewHttpBasicTLSClientImpl(
 		tdoc:                tdoc,
 		tlsClient:           tlsClient,
 	}
-	cl.SetTransportClient(cl)  // for use by Rpc
+	cl.SetTransportImpl(cl)    // for use by Rpc
 	var _ api.IConnection = cl // interface check
 	var _ api.IHiveCell = cl   // interface check
 	return cl

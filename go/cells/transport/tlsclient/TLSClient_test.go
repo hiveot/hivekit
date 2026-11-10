@@ -10,6 +10,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/hiveot/hivekit/go/api/msg"
 	certstest "github.com/hiveot/hivekit/go/cells/certs/test"
 	"github.com/hiveot/hivekit/go/cells/transport/tlsclient"
 	"github.com/hiveot/hivekit/go/utils"
@@ -134,7 +135,7 @@ func TestAuthClientCert(t *testing.T) {
 		path1Hit++
 	})
 	//
-	cl := tlsclient.NewTLSClientImpl(testAddress, authBundle.RootCAs)
+	cl := tlsclient.NewTLSClientImpl(testAddress, authBundle.RootCAs, msg.CellTimeout)
 	cl.SetClientCert(authBundle.ClientCert)
 	assert.NoError(t, err)
 

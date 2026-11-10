@@ -41,8 +41,6 @@ type GrpcServerImpl struct {
 
 	grpcService *grpclib.GrpcServiceServer
 
-	respTimeout time.Duration
-
 	// the service name the streams are published under
 	serviceName string
 
@@ -68,7 +66,6 @@ func (srv *GrpcServerImpl) ServeStreamConnection(
 	// Create a hiveot transport connection for this stream.
 	c := StartGrpcServerConnection(
 		clientID, cid, grpcStream, srv.EmitRequest, srv.EmitNotification)
-	c.SetTimeout(srv.respTimeout)
 
 	srv.AddConnection(c)
 	// must block until connection closes
@@ -147,10 +144,9 @@ func (srv *GrpcServerImpl) Stop() {
 //	tlsCert is the server TLS certificate to use for secure connections, or nil for insecure
 //	caCert *x509.Certificate is the CA certificate to validate client auth. nil to ignore
 //	authn is the authenticator for verifying the client token
-//	respTimeout is the time the server waits for a response when sending requests. defaults to 3sec
 func StartGrpcServerImpl(
 	address string, tlsCert *tls.Certificate, caCert *x509.Certificate,
-	authn api.IAuthenticator, respTimeout time.Duration) (*GrpcServerImpl, error) {
+	authn api.IAuthenticator) (*GrpcServerImpl, error) {
 
 	slog.Info("startServing: Starting grpc transport server",
 		slog.String("address", address))
@@ -205,7 +201,6 @@ func StartGrpcServerImpl(
 		authenticator:       authn,
 		caCert:              caCert,
 		tlsCert:             tlsCert,
-		respTimeout:         respTimeout,
 		serviceName:         grpctransport.GrpcTransportServiceName,
 		subprotocol:         subProtocol,
 	}

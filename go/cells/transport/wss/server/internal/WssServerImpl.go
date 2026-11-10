@@ -5,11 +5,9 @@ import (
 	"log/slog"
 	"net/http"
 	"net/url"
-	"time"
 
 	"github.com/gorilla/websocket"
 	"github.com/hiveot/hivekit/go/api"
-	"github.com/hiveot/hivekit/go/api/msg"
 	"github.com/hiveot/hivekit/go/api/vocab"
 	"github.com/hiveot/hivekit/go/api/wot"
 	"github.com/hiveot/hivekit/go/cells/transport"
@@ -32,9 +30,6 @@ type WssServerImpl struct {
 
 	// Websocket protocol message converter
 	encoder transport.IMessageEncoder // WoT or Hiveot message format
-
-	// the time to wait for responses to request
-	respTimeout time.Duration
 
 	// serverTD is the TD describing how to connect to this server
 	serverTD *wot.TD
@@ -170,7 +165,7 @@ func (srv *WssServerImpl) ServeWssConnection(w http.ResponseWriter, r *http.Requ
 	// the new server connection sends messages to the cell sink
 	c := NewWSSServerConnection(clientID, r, wssConn, srv.encoder,
 		srv.EmitRequest, srv.EmitNotification)
-	c.SetTimeout(srv.respTimeout)
+
 	// add connection sends a notification
 	err = srv.AddConnection(c)
 
@@ -206,8 +201,7 @@ func (srv *WssServerImpl) Stop() {
 //
 // Use SetRequestSink to set the handler for requests send by consumers
 // Use SetNotificationSink to set the handler for notifications send by devices.
-func NewHiveotWssServerImpl(
-	httpServer api.IHttpServer, respTimeout time.Duration) (*WssServerImpl, error) {
+func NewHiveotWssServerImpl(httpServer api.IHttpServer) (*WssServerImpl, error) {
 
 	if httpServer == nil {
 		err := fmt.Errorf("NewWotWssServerImpl: Http server is nil")
@@ -220,9 +214,6 @@ func NewHiveotWssServerImpl(
 		return nil, err
 	}
 
-	if respTimeout == 0 {
-		respTimeout = msg.DefaultRnRTimeout
-	}
 	thingID := wss.HiveotWebsocketServerCellType + "-" + shortid.MustGenerate()
 
 	connectURL := fmt.Sprintf("%s://%s%s",
@@ -241,7 +232,6 @@ func NewHiveotWssServerImpl(
 
 		httpServer: httpServer,
 		// connectHandler: nil,
-		respTimeout: respTimeout,
 		serverTD:    serverTD,
 		subprotocol: api.HiveotWebsocketSubprotocol,
 		wssPath:     wss.HiveotWebsocketPath,
@@ -265,12 +255,10 @@ func NewHiveotWssServerImpl(
 // This immediately starts listening for connections.
 //
 // httpServer is the http server the websocket is using
-// respTimeout is the time the server waits for a response when receiving requests. defaults to 3sec
 //
 // Use SetRequestSink to set the handler for requests send by consumers
 // Use SetNotificationSink to set the handler for notifications send by devices.
-func NewWotWssServerImpl(
-	httpServer api.IHttpServer, respTimeout time.Duration) (*WssServerImpl, error) {
+func NewWotWssServerImpl(httpServer api.IHttpServer) (*WssServerImpl, error) {
 
 	if httpServer == nil {
 		return nil, fmt.Errorf("StartWotWssServerImpl: Http server is nil")
@@ -279,9 +267,6 @@ func NewWotWssServerImpl(
 	urlParts, err := url.Parse(httpURL)
 	if err != nil {
 		return nil, fmt.Errorf("StartWotWssServerImpl: Http server has invalid URL")
-	}
-	if respTimeout == 0 {
-		respTimeout = msg.DefaultRnRTimeout
 	}
 	thingID := wss.WotWebsocketServerCellType + "-" + shortid.MustGenerate()
 
@@ -297,7 +282,6 @@ func NewWotWssServerImpl(
 
 		httpServer:  httpServer,
 		encoder:     msgconverter.NewWotWssMsgEncoder(),
-		respTimeout: respTimeout,
 		serverTD:    serverTD,
 		wssPath:     wss.WotWebsocketPath,
 		subprotocol: api.WotWebsocketSubprotocol,

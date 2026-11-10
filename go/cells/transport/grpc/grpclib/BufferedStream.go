@@ -8,6 +8,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/hiveot/hivekit/go/api/msg"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
@@ -56,9 +57,6 @@ type BufferedStream struct {
 
 	// mutex to protect the flow control delay and send channel length checks
 	mux sync.Mutex
-
-	// how long to wait for a response after sending a request
-	sendTimeout time.Duration
 
 	// the send channel with buffer to force sequential sending
 	sendChan chan []byte
@@ -144,7 +142,7 @@ func (sc *BufferedStream) IsConnected() bool {
 func (bs *BufferedStream) Send(rawMsg []byte) (err error) {
 
 	// if the send channel is full, allow a wait before disconnecting the client.
-	ctx, cancelFn := context.WithTimeout(context.Background(), bs.sendTimeout)
+	ctx, cancelFn := context.WithTimeout(context.Background(), msg.CellTimeout)
 	defer cancelFn()
 
 	bs.txMsgCnt.Add(1)
@@ -223,7 +221,7 @@ func (bs *BufferedStream) WaitUntilDisconnect() {
 // This supports sending messages concurrently.
 //
 // If the send buffer is full, the client is considered too slow and the stream is closed
-// after waiting the sendTimeout duration for the buffer to be available.
+// after waiting for the buffer to be available.
 //
 // Call WaitUntilDisconnect() after creating this instance to wait until the stream
 // is closed by the client or the server. Needed by the server serve handler.
@@ -231,14 +229,10 @@ func (bs *BufferedStream) WaitUntilDisconnect() {
 //	msgStream is the raw grpc message stream
 //	cancelFn is the function to cancel the message stream context. nil if not applicable
 //	recvHandler is called when a new message is received from the stream. nil to set later.
-//	sendTimeout is the default timeout for sending messages on this stream
-//	 when the send buffer is full.
 func OpenBufferedStream(
-	msgStream IMsgStream, cancelFn func(), recvHandler func(rawMsg []byte), sendTimeout time.Duration,
-) *BufferedStream {
+	msgStream IMsgStream, cancelFn func(), recvHandler func(rawMsg []byte)) *BufferedStream {
 	strm := &BufferedStream{
 		msgStreamCancel: cancelFn,
-		sendTimeout:     sendTimeout,
 		msgStream:       msgStream,
 
 		MaxRetryCount: 10,

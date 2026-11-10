@@ -9,8 +9,10 @@ import (
 	"time"
 )
 
-// The default request-response timeout to use if none is provided
-const DefaultRnRTimeout = time.Second * 3
+// CellTimeout is a global variable for use by all cells to use as the
+// timeout for waiting for responses. It is updated by HiveEnvironment when
+// it is initialized.
+var CellTimeout = time.Second * 3
 
 // RnRChan is a helper for Request 'n Response message handling using channels.
 // Intended to link responses in asynchronous request-response communication.
@@ -33,6 +35,9 @@ type RnRChan struct {
 
 	// map of correlationID to delivery status update channel
 	correlData map[string]chan *ResponseMessage
+
+	// messaging timeout
+	timeout time.Duration
 }
 
 // Close removes the request channel
@@ -70,12 +75,9 @@ func (rnr *RnRChan) CloseAll() {
 // this call fails with a timeout.
 //
 //	resp is the response message to send
-//	timeout is the maximum time to wait for the RNR send channel to accept the message. 0 for default
-func (rnr *RnRChan) HandleResponse(resp *ResponseMessage, timeout time.Duration) bool {
+//	timeout is the maximum time to wait for the RNR send channel to accept the message.
+func (rnr *RnRChan) HandleResponse(resp *ResponseMessage) bool {
 
-	if timeout == 0 {
-		timeout = DefaultRnRTimeout
-	}
 	// Note: avoid a race between closing the channel and writing multiple responses.
 	// This would happen if a 'pending' response arrives after a 'completed' response,
 	// and 'wait-for-response' closes the channel while the second result is written.
@@ -87,7 +89,7 @@ func (rnr *RnRChan) HandleResponse(resp *ResponseMessage, timeout time.Duration)
 		slog.Debug("HandleResponse: writing response to RnR go channel. ",
 			slog.String("correlationID", resp.CorrelationID),
 		)
-		ctx, cancelFn := context.WithTimeout(context.Background(), timeout)
+		ctx, cancelFn := context.WithTimeout(context.Background(), rnr.timeout)
 		select {
 		case rChan <- resp:
 		case <-ctx.Done():
@@ -152,12 +154,8 @@ func (rnr *RnRChan) Open(correlationID string) error {
 //
 // If a timeout occurs or the correlationID does not exist, then this logs and returns
 // an error.
-func (rnr *RnRChan) WaitForResponse(
-	correlationID string, timeout time.Duration) (resp *ResponseMessage, err error) {
+func (rnr *RnRChan) WaitForResponse(correlationID string) (resp *ResponseMessage, err error) {
 	var ok bool
-	if timeout == 0 {
-		timeout = DefaultRnRTimeout
-	}
 	rnr.mux.RLock()
 	replyChan, found := rnr.correlData[correlationID]
 	rnr.mux.RUnlock()
@@ -167,7 +165,7 @@ func (rnr *RnRChan) WaitForResponse(
 		return nil, err
 	}
 	// good, a channel was previously opened
-	ctx, cancelFunc := context.WithTimeout(context.Background(), timeout)
+	ctx, cancelFunc := context.WithTimeout(context.Background(), rnr.timeout)
 	defer cancelFunc()
 	select {
 	case resp, ok = <-replyChan:
@@ -176,7 +174,7 @@ func (rnr *RnRChan) WaitForResponse(
 		}
 		break
 	case <-ctx.Done(): // timeout
-		slog.Error("WaitForResponse: Timeout.", "correlationID", correlationID, "duration", timeout)
+		slog.Error("WaitForResponse: Timeout.", "correlationID", correlationID, "duration", rnr.timeout)
 		err = fmt.Errorf("WaitForResponse: Timeout")
 	}
 	rnr.Close(correlationID)
@@ -199,12 +197,8 @@ func (rnr *RnRChan) WaitForResponse(
 //
 // This immediately returns while waiting in the background.
 // If a timeout occurs or the correlationID is not unique then an error is logged and returned
-func (rnr *RnRChan) WaitWithCallback(
-	correlationID string, timeout time.Duration, handler func(msg *ResponseMessage) error) {
+func (rnr *RnRChan) WaitWithCallback(correlationID string, handler func(msg *ResponseMessage) error) {
 
-	if timeout == 0 {
-		timeout = DefaultRnRTimeout
-	}
 	// If a correlationID already exists then use its channel
 	rnr.mux.RLock()
 	_, found := rnr.correlData[correlationID]
@@ -215,10 +209,10 @@ func (rnr *RnRChan) WaitWithCallback(
 	}
 
 	go func() {
-		resp, err := rnr.WaitForResponse(correlationID, timeout)
+		resp, err := rnr.WaitForResponse(correlationID)
 		if err != nil {
 			slog.Error("RnrChan:WaitWithCallback. Timeout waiting for response",
-				"timeout", timeout,
+				"timeout", rnr.timeout,
 				"correlationID", correlationID)
 		}
 		_ = handler(resp)
@@ -228,9 +222,10 @@ func (rnr *RnRChan) WaitWithCallback(
 // Create a new instance of a Request & Response channel handler.
 // This supports multiple concurrent requests. Responses are matched using the correlationID.
 // Use WaitWithCallback or WaitForResponse to obtain the response.
-func NewRnRChan() *RnRChan {
+func NewRnRChan(timeout time.Duration) *RnRChan {
 	r := &RnRChan{
 		correlData: make(map[string]chan *ResponseMessage),
+		timeout:    timeout,
 	}
 	return r
 }

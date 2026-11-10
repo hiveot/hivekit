@@ -106,7 +106,7 @@ func NewAuthnAdminClient(authnServiceID string, sink api.IHiveCell) *AuthnAdminC
 		authnServiceID = authn.DefaultAuthnAdminThingID
 	}
 	cl := &AuthnAdminClient{
-		HiveCellBase:   cells.NewHiveCellBase(""),
+		HiveCellBase:   cells.NewHiveCellBase(authn.AuthnAdminServiceType + "-client"),
 		authnServiceID: authnServiceID,
 	}
 	if sink != nil {

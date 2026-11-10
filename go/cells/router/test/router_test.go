@@ -31,7 +31,6 @@ var storageDir = path.Join(os.TempDir(), "hivekit", "router-test")
 // var certsBundle = certstest.CreateTestCertBundle(utils.KeyTypeED25519)
 // var testAuthn = testenv.NewTestAuthenticator()
 
-const rpcTimeout = time.Minute * 3 // allow for debugging breakpoints
 const testConsumerID = "router1"
 
 var testProtocol = api.HiveotGrpcTcpProtocolType
@@ -108,12 +107,10 @@ func SetupConsumerWithRouter(
 	if err != nil {
 		panic("SetupConsumerWithRouter: Router.Start: " + err.Error())
 	}
-	routerSvc.SetTimeout(rpcTimeout)
 
 	// A consumer links to the router and subscribes to the device.
 	// For the purpose of this test the router runs client side.
 	co = consumer.NewConsumer(routerSvc, nil)
-	co.SetTimeout(rpcTimeout)
 
 	dirSvc.Start()
 	routerSvc.Start()
@@ -155,7 +152,6 @@ func TestStartStop(t *testing.T) {
 	svc, err := router_service.NewRouterService(
 		"", false, clientID, nil, nil, testDirSvc.GetTD)
 	require.NoError(t, err)
-	svc.SetTimeout(rpcTimeout)
 	defer svc.Stop()
 }
 
@@ -186,7 +182,6 @@ func TestCredentialsStore(t *testing.T) {
 	routerSvc, err := router_service.NewRouterService(
 		storageDir, false, clientID, nil, nil, testDirSvc.GetTD)
 	require.NoError(t, err)
-	routerSvc.SetTimeout(rpcTimeout)
 
 	credType, hasCred := routerSvc.HasCredentials(thingID1)
 	assert.False(t, hasCred)
@@ -204,7 +199,6 @@ func TestCredentialsStore(t *testing.T) {
 	routerSvc2, err := router_service.NewRouterService(
 		storageDir, false, clientID, nil, nil, testDirSvc.GetTD)
 	require.NoError(t, err)
-	routerSvc2.SetTimeout(rpcTimeout)
 
 	credType, hasCred = routerSvc2.HasCredentials(thingID1)
 	assert.True(t, hasCred)
@@ -287,7 +281,7 @@ func TestReadObserveDeviceProperties(t *testing.T) {
 
 	// 4. to connect to the device, credentials are needed
 	testAuthn.AddClient(testConsumerID, "", api.ClientRoleOperator)
-	token, _, err := testAuthn.CreateToken(testConsumerID, rpcTimeout)
+	token, _, err := testAuthn.CreateToken(testConsumerID, time.Hour)
 	assert.NoError(t, err)
 	routerMod.AddCredentials(deviceID, clientID, token, wot.SecSchemeBearer)
 
@@ -350,15 +344,14 @@ func TestSubscribeReconnectToDevice(t *testing.T) {
 		testDirSvc.GetTD)
 
 	require.NoError(t, err)
-	routerSvc.SetTimeout(rpcTimeout)
 	defer routerSvc.Stop()
 
 	// to connect to the device, consumer credentials are needed
 	testEnv.TestAuthn.AddClient(testConsumerID, "", api.ClientRoleOperator)
-	token, _, _ := testEnv.TestAuthn.CreateToken(testConsumerID, rpcTimeout)
+	token, _, _ := testEnv.TestAuthn.CreateToken(testConsumerID, time.Hour)
 	routerSvc.AddCredentials(deviceID, clientID, token, wot.SecSchemeBearer)
 
-	ctx, cancelFn := context.WithTimeout(context.Background(), rpcTimeout)
+	ctx, cancelFn := context.WithTimeout(context.Background(), msg.CellTimeout)
 
 	// a consumer links to the router which connects to devices using device TDs
 	co := consumer.NewConsumer(routerSvc, func(notif *msg.NotificationMessage) {
@@ -371,7 +364,6 @@ func TestSubscribeReconnectToDevice(t *testing.T) {
 			// rxChan <- notif
 		}
 	})
-	co.SetTimeout(rpcTimeout)
 
 	// this should cause the router to connect to the device using the device TD
 	err = co.Subscribe(deviceID, "")

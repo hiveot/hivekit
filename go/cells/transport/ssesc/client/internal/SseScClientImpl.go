@@ -120,8 +120,7 @@ func (cl *SseScClientImpl) Connect() (err error) {
 		cl.tlsClient,
 		cl.ssePath,
 		cl._setConnectionStatus,
-		cl.handleSseEvent,
-		cl.GetTimeout())
+		cl.handleSseEvent)
 
 	cl.mux.Lock()
 	cl.sseCancelFn = sseCancel
@@ -215,7 +214,7 @@ func (cl *SseScClientImpl) handleSseEvent(event gosse.Event) {
 
 		// consumer receives a response
 		// this will be 'handled' if it was waiting on its rnr channel
-		handled := cl.rnrChan.HandleResponse(resp, cl.GetTimeout())
+		handled := cl.rnrChan.HandleResponse(resp)
 
 		if !handled {
 			slog.Warn("handleSseEvent: No response handler for request, response is lost",
@@ -318,7 +317,7 @@ func (cl *SseScClientImpl) SendRequest(
 		// While code 200 could in theory include the response message in the http
 		// response, hiveot chooses to always pass the response via SSE.
 		// the reply from the RNR channel is sent directly to the given replyTo handler.
-		cl.rnrChan.WaitWithCallback(req.CorrelationID, cl.GetTimeout(), replyTo)
+		cl.rnrChan.WaitWithCallback(req.CorrelationID, replyTo)
 	} else {
 		// something went wrong and no response is expected, close the channel
 		cl.rnrChan.Close(req.CorrelationID)
@@ -399,12 +398,12 @@ func NewSseScClientImpl(tdoc *wot.TD, rootCAs *x509.CertPool) *SseScClientImpl {
 	cl := &SseScClientImpl{
 		TransportClientBase: transport.NewTransportClientBase(thingID, rootCAs),
 		encoder:             transport.NewRRNJsonEncoder(),
-		rnrChan:             msg.NewRnRChan(),
+		rnrChan:             msg.NewRnRChan(msg.CellTimeout),
 		ssePath:             ssePath,
 		tdoc:                tdoc,
 		tlsClient:           tlsClient,
 	}
-	cl.SetTransportClient(cl)       // for use by Rpc
+	cl.SetTransportImpl(cl)         // for use by Rpc
 	var _ api.IHiveCell = cl        // interface check
 	var _ api.ITransportClient = cl // interface check
 	return cl

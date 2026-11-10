@@ -5,7 +5,6 @@ import (
 	"log/slog"
 	"sync"
 	"sync/atomic"
-	"time"
 
 	"github.com/hiveot/hivekit/go/api"
 	"github.com/hiveot/hivekit/go/api/msg"
@@ -66,9 +65,6 @@ type ServerConnectionBase struct {
 
 	// Remote address of the connection
 	remoteAddr string
-
-	// how long to wait for a response after sending a request
-	respTimeout time.Duration
 
 	// event subscription made by the client
 	subscriptions Subscriptions
@@ -295,7 +291,7 @@ func (base *ServerConnectionBase) OnResponse(resp *msg.ResponseMessage) (err err
 		slog.String("correlationID", resp.CorrelationID))
 
 	// this responsehandler points to the rnrChannel that matches the correlationID to the replyTo handler
-	handled := base.rnrChan.HandleResponse(resp, base.respTimeout)
+	handled := base.rnrChan.HandleResponse(resp)
 	if !handled {
 		err = fmt.Errorf("OnResponse: Response from thingID/name '%s/%s' is lost. CorrelationID '%s' is not known",
 			resp.ThingID, resp.Name, resp.CorrelationID)
@@ -359,7 +355,7 @@ func (base *ServerConnectionBase) SendRequest(
 		req.CorrelationID = shortid.MustGenerate()
 	}
 	// the websocket connection response handlers will convert the message and pass it to the RNR channels
-	base.rnrChan.WaitWithCallback(req.CorrelationID, base.respTimeout, replyTo)
+	base.rnrChan.WaitWithCallback(req.CorrelationID, replyTo)
 
 	// now the RRN channel is ready, send the request message
 	err = base.sendRaw(msg.MessageTypeRequest, raw)
@@ -383,11 +379,6 @@ func (base *ServerConnectionBase) SendResponse(resp *msg.ResponseMessage) (err e
 	raw, _ := base.messageEncoder.EncodeResponse(resp)
 	err = base.sendRaw(msg.MessageTypeResponse, raw)
 	return err
-}
-
-// SetTimeout set the timeout sending requests
-func (base *ServerConnectionBase) SetTimeout(timeout time.Duration) {
-	base.respTimeout = timeout
 }
 
 // Subscribe to an event.
@@ -434,7 +425,7 @@ func NewServerConnectionBase(
 		reqForwarder:   reqForwarder,
 		notifForwarder: notifForwarder,
 		sendRaw:        sendRaw,
-		rnrChan:        msg.NewRnRChan(),
+		rnrChan:        msg.NewRnRChan(msg.CellTimeout),
 	}
 	scb.isConnected.Store(true)
 	return scb

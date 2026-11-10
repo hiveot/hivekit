@@ -107,7 +107,7 @@ func (cl *TransportClientBase) Rpc(
 	var resp *msg.ResponseMessage
 	req := msg.NewRequestMessage(operation, thingID, name, input)
 
-	arx := utils.NewAsyncReceiver[*msg.ResponseMessage]()
+	arx := utils.NewAsyncReceiver[*msg.ResponseMessage](msg.CellTimeout)
 
 	// The actual transport that sends the request to the remote side, instead
 	// of passing it to the request sink.
@@ -118,11 +118,7 @@ func (cl *TransportClientBase) Rpc(
 	if err != nil {
 		return err
 	}
-	timeout := cl.GetTimeout()
-	if timeout == 0 {
-		timeout = msg.DefaultRnRTimeout
-	}
-	resp, err = arx.WaitForResponse(timeout)
+	resp, err = arx.WaitForResponse()
 
 	if err == nil && resp != nil {
 		err = resp.Decode(output)
@@ -240,9 +236,9 @@ func (cl *TransportClientBase) SetConnectHandler(
 	cl.connectHandler = h
 }
 
-// SetTransportClient sets the transport implementation that does the actual
+// SetTransportImpl sets the transport implementation that does the actual
 // sending. Needed as the base is instantiated first as part of the transport client.
-func (cl *TransportClientBase) SetTransportClient(c api.ITransportClient) {
+func (cl *TransportClientBase) SetTransportImpl(c api.ITransportClient) {
 	cl.mux.Lock()
 	defer cl.mux.Unlock()
 	cl.transportClient = c

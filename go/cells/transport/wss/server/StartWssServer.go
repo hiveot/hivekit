@@ -2,7 +2,6 @@ package wss_server
 
 import (
 	"fmt"
-	"time"
 
 	"github.com/hiveot/hivekit/go/api"
 	"github.com/hiveot/hivekit/go/cells/transport/wss"
@@ -14,14 +13,12 @@ import (
 // This uses the HiveOT RRN messages as the payload without conversions.
 //
 // httpServer is the http server the websocket is using
-// respTimeout is the time the server waits for a response when sending requests. defaults to 3sec
 //
 // Use SetRequestSink to set the handler for requests send by consumers.
 // Use SetNotificationSink to set the handler for notifications send by devices and services.
-func StartHiveotWssServer(
-	httpServer api.IHttpServer, respTimeout time.Duration) (wss.IWssTransportServer, error) {
+func StartHiveotWssServer(httpServer api.IHttpServer) (wss.IWssTransportServer, error) {
 
-	return internal.NewHiveotWssServerImpl(httpServer, respTimeout)
+	return internal.NewHiveotWssServerImpl(httpServer)
 }
 
 // Load the HiveOT websocket server using the factory environment
@@ -33,8 +30,7 @@ func StartHiveotWssServerFactory(
 	if httpServer == nil {
 		return nil, fmt.Errorf("NewHiveotWssServerFactory: missing http server")
 	}
-	timeout := f.GetEnvironment().RpcTimeout
-	return StartHiveotWssServer(httpServer, timeout)
+	return StartHiveotWssServer(httpServer)
 }
 
 // StartWotWssServer starts a websocket transport server using WoT Websocket messaging format.
@@ -43,14 +39,12 @@ func StartHiveotWssServerFactory(
 // the standard RRN messages and the WoT websocket message format.
 //
 // httpServer is the http server the websocket is using (required)
-// respTimeout is the time the server waits for a response when receiving requests. defaults to 3sec
 //
 // Use SetRequestSink to set the handler for requests send by consumers
 // Use SetNotificationSink to set the handler for notifications send by device.
-func StartWotWssServer(
-	httpServer api.IHttpServer, respTimeout time.Duration) (wss.IWssTransportServer, error) {
+func StartWotWssServer(httpServer api.IHttpServer) (wss.IWssTransportServer, error) {
 
-	return internal.NewWotWssServerImpl(httpServer, respTimeout)
+	return internal.NewWotWssServerImpl(httpServer)
 }
 
 // Load the Wot websocket server using the factory environment
@@ -61,6 +55,5 @@ func NewWotWssServerFactory(f api.ICellFactory, md *api.CellDefinition) (api.IHi
 	if httpServer == nil {
 		return nil, fmt.Errorf("NewWotWssServerFactory: missing http server")
 	}
-	timeout := f.GetEnvironment().RpcTimeout
-	return StartWotWssServer(httpServer, timeout)
+	return StartWotWssServer(httpServer)
 }

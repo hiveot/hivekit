@@ -5,10 +5,8 @@ import (
 	"log/slog"
 	"net/http"
 	"net/url"
-	"time"
 
 	"github.com/hiveot/hivekit/go/api"
-	"github.com/hiveot/hivekit/go/api/msg"
 	"github.com/hiveot/hivekit/go/api/vocab"
 	"github.com/hiveot/hivekit/go/api/wot"
 	"github.com/hiveot/hivekit/go/cells/transport"
@@ -33,9 +31,6 @@ type SseScServerImpl struct {
 
 	// actual server exposing routes
 	httpServer api.IHttpServer
-
-	// waiting for response timeout (see rnr)
-	respTimeout time.Duration
 
 	// The SSE connection path
 	ssePath string
@@ -129,8 +124,7 @@ func (srv *SseScServerImpl) Stop() {
 //
 // Use SetRequestSink to set the handler for requests send by consumers
 // Use SetNotificationSink to set the handler for notifications send by Things.
-func StartSseScServerImpl(
-	httpServer api.IHttpServer, respTimeout time.Duration) (*SseScServerImpl, error) {
+func StartSseScServerImpl(httpServer api.IHttpServer) (*SseScServerImpl, error) {
 
 	ssePath := ssesc.SseScPath
 	slog.Info("Start: Starting ssesc transport server", "ssePath", ssePath)
@@ -142,9 +136,6 @@ func StartSseScServerImpl(
 
 	// use the RRN message format. Simple passthrough.
 	encoder := transport.NewRRNJsonEncoder()
-	if respTimeout == 0 {
-		respTimeout = msg.DefaultRnRTimeout
-	}
 
 	thingID := ssesc.SseScServerCellType + "-" + shortid.MustGenerate()
 	authenticator := httpServer.GetAuthenticator()
@@ -155,7 +146,6 @@ func StartSseScServerImpl(
 		httpServer:          httpServer,
 		ssePath:             ssePath,
 		encoder:             encoder,
-		respTimeout:         respTimeout,
 		serverTD:            serverTD,
 	}
 	// Add the routes used in SSE connection and subscription requests

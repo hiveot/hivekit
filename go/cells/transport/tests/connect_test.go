@@ -97,7 +97,6 @@ func TestPingClientCert(t *testing.T) {
 	// 	testEnv.ServerProtocol, testEnv.ServerURL, testEnv.CertBundle.CaCert)
 	cl, err := clients.NewTransportClient(serverTD, wot.HTOpPing, "", testEnv.CertBundle.RootCAs)
 	require.NoError(t, err)
-	cl.SetTimeout(testEnv.Env.RpcTimeout)
 
 	err = cl.SetClientCert(testEnv.CertBundle.ClientCert)
 	require.NoError(t, err)
@@ -137,7 +136,7 @@ func TestUnauthorizedError(t *testing.T) {
 	// first make sure connection does validate
 	cl, err := clients.NewTransportClientFromForm(tdoc, connectForm, rootCAs)
 	require.NoError(t, err)
-	cl.SetTimeout(testEnv.Env.RpcTimeout)
+
 	err = cl.SetAuthToken(testClientID1, token, wot.SecSchemeBearer)
 	assert.NoError(t, err)
 	err = cl.Connect()

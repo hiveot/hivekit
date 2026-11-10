@@ -68,7 +68,7 @@ func startService() (
 	if err != nil {
 		panic("unable to start the digitwin service")
 	}
-	dtwSvc.SetTimeout(testEnv.Env.RpcTimeout)
+
 	// The router uses the digitwin Thing Directory.
 	// getDeviceTD := dtw.GetDeviceDirectory().GetTD
 	clientID := testEnv.Env.ClientID
@@ -80,13 +80,10 @@ func startService() (
 	if err != nil {
 		panic("unable to start the router service")
 	}
-	rtr.SetTimeout(testEnv.Env.RpcTimeout)
 
 	// attach the rc-router
 	rcr, err := rcrouter_service.NewRCRouterService(
 		dtwSvc.GetDeviceTD, testEnv.GetTpServers, testEnv.TestAuthn.GetRole)
-
-	rcr.SetTimeout(testEnv.Env.RpcTimeout)
 
 	// create a request chain:
 	//  server->directory->digitwin->rcrouter->router->server
@@ -191,7 +188,6 @@ func TestReadDigitwinProperty(t *testing.T) {
 	// 	}
 	// 	return fmt.Errorf("unknown request ")
 	// })
-	// et1.SetTimeout(testEnv.Env.RpcTimeout)
 	// // this replaces the RCrouter cell from startService.
 	// dtw.SetRequestSink(et1)
 
@@ -289,8 +285,7 @@ func TestWriteDigitwinProperty(t *testing.T) {
 
 	// An ExposedThing can publish its TD without knowing the thingID of the directory.
 	// The directory service reacts on any 'invokeaction updateTD' requests.
-	err = directory_client.UpdateTD(
-		"", td1Json, eThing.EmitRequest, testEnv.Env.RpcTimeout)
+	err = directory_client.UpdateTD("", td1Json, eThing.EmitRequest)
 	assert.NoError(t, err)
 
 	// check whether the td is now in the directory
@@ -371,7 +366,7 @@ func TestInvokeDigitwinAction(t *testing.T) {
 	td1 := testEnv.CreateTestTD(0, false)
 	td1.ID = thingID
 	td1Json := wot.MarshalTD(td1)
-	err = directory_client.UpdateTD("", td1Json, ething.EmitRequest, testEnv.Env.RpcTimeout)
+	err = directory_client.UpdateTD("", td1Json, ething.EmitRequest)
 	assert.NoError(t, err)
 
 	// 4. Consumer invokes the first action

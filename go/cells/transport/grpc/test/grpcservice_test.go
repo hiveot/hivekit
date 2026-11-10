@@ -92,7 +92,7 @@ func TestConnectPing(t *testing.T) {
 	handleClientMessage := func(raw []byte) {}
 	cl = grpclib.NewGrpcServiceClient(
 		clientURL, clientID, token, nil, certBundle.RootCAs,
-		time.Minute, grpcServiceName, handleClientMessage)
+		grpcServiceName, handleClientMessage)
 	require.NoError(t, err)
 
 	err = cl.Connect()
@@ -133,7 +133,7 @@ func TestConnectPingClientCert(t *testing.T) {
 	handleClientMessage := func(raw []byte) {}
 	cl = grpclib.NewGrpcServiceClient(
 		clientURL, clientID, authToken, certBundle.ClientCert, certBundle.RootCAs,
-		time.Minute, grpcServiceName, handleClientMessage)
+		grpcServiceName, handleClientMessage)
 
 	err = cl.Connect()
 	require.NoError(t, err)
@@ -187,8 +187,7 @@ func TestStreamMessages(t *testing.T) {
 		// todo test authentication?
 
 		// start the send and receive loop
-		bstrm := grpclib.OpenBufferedStream(
-			grpcStream, nil, handleStream2Message, time.Minute)
+		bstrm := grpclib.OpenBufferedStream(grpcStream, nil, handleStream2Message)
 
 		// send is dispatched after the stream is
 		err := bstrm.Send([]byte(serverSendMsg))
@@ -222,7 +221,7 @@ func TestStreamMessages(t *testing.T) {
 	}
 	cl := grpclib.NewGrpcServiceClient(
 		clientURL, clientID, authToken, nil, certBundle.RootCAs,
-		time.Minute, serviceName, onClientMessage)
+		serviceName, onClientMessage)
 
 	assert.NoError(t, err) // (dont use require as svc.Stop is not a defer)
 	err = cl.Connect()

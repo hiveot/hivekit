@@ -1,8 +1,6 @@
 package api
 
 import (
-	"time"
-
 	"github.com/hiveot/hivekit/go/api/msg"
 )
 
@@ -103,9 +101,6 @@ type IHiveCell interface {
 
 	// SetRequestSink sets the handler of requests emitted by this cell.
 	SetRequestSink(sink IHiveCell)
-
-	// Change the default timeout for sending messages
-	SetTimeout(time.Duration)
 
 	// Start the cell autonomous processes.
 	//

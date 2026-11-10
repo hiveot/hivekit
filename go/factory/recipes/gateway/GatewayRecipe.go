@@ -292,7 +292,6 @@ func NewGatewayRecipe(env *api.HiveEnvironment) (
 		f:            f,
 		formation:    formation,
 	}
-	r.SetTimeout(env.RpcTimeout)
 
 	// mark the directory as the gateway
 	dirTD := r.f.GetEnvironment().GetDirTD()

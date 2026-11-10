@@ -125,7 +125,6 @@ func NewBusFormation(
 		cellDefs:     cellDefs,
 		members:      make([]api.IHiveCell, 0, len(cellDefs)),
 	}
-	bus.SetTimeout(f.GetEnvironment().RpcTimeout)
 
 	// add the cell definitions to the factory
 	if bus.cellDefs != nil {

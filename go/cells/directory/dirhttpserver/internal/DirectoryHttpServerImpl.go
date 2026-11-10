@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
-	"time"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/hiveot/hivekit/go/api"
@@ -259,10 +258,8 @@ func (srv *DirectoryHttpServerImpl) SendResponse(
 //
 //	dirThingID ThingID of the directory service
 //	httpServer to serve the directory http requests
-//	respTimeout is the maximum time the server waits for a response when forwarding directory requests
-//	 to the directory server.
 func NewDirectoryHttpServerImpl(
-	dirThingID string, httpServer api.IHttpServer, respTimeout time.Duration) (*DirectoryHttpServerImpl, error) {
+	dirThingID string, httpServer api.IHttpServer) (*DirectoryHttpServerImpl, error) {
 
 	if httpServer == nil {
 		err := fmt.Errorf("NewDirectoryHttpServer: httpserver is nil")

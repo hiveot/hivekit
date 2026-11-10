@@ -7,9 +7,9 @@ import (
 	"fmt"
 	"log/slog"
 	"sync"
-	"time"
 
 	"github.com/hiveot/hivekit/go/api"
+	"github.com/hiveot/hivekit/go/api/msg"
 	"github.com/teris-io/shortid"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
@@ -56,8 +56,6 @@ type GrpcServiceClient struct {
 	// callback for incoming messages
 	// the grpc codec determines the type of any
 	recvHandler func(rawMsg []byte)
-
-	respTimeout time.Duration
 
 	// The GRPC server service description
 	serviceDesc grpc.ServiceDesc
@@ -165,7 +163,7 @@ func (cl *GrpcServiceClient) ConnectStream(name string) (*BufferedStream, error)
 	}
 
 	// use buffered stream for sending and receiving
-	bufferedStream := OpenBufferedStream(stream, cancelFn, cl.recvHandler, cl.respTimeout)
+	bufferedStream := OpenBufferedStream(stream, cancelFn, cl.recvHandler)
 
 	cl.mux.Lock()
 	defer cl.mux.Unlock()
@@ -206,7 +204,7 @@ func (cl *GrpcServiceClient) IsConnected(name string) bool {
 // A simple ping test to validate a connection
 // this echos the input or returns 'pong' if none is provided
 func (cl *GrpcServiceClient) Ping(input string) (reply string, err error) {
-	ctx, cancelFn := context.WithTimeout(context.Background(), cl.respTimeout)
+	ctx, cancelFn := context.WithTimeout(context.Background(), msg.CellTimeout)
 	defer cancelFn()
 	opts := []grpc.CallOption{}
 	serviceMethodName := "/" + cl.serviceDesc.ServiceName + "/ping"
@@ -266,14 +264,12 @@ func (cl *GrpcServiceClient) WaitUntilDisconnect(name string) error {
 // cid is the unique connection instance ID, identifying it with the server application
 // clientCert is optional for use with tcp sockets
 // rootCAs is optional for use with tcp sockets
-// respTimeout is used when creating the buffered stream
 // serviceName is provided by the application and must match the server.
 // msgHandler is the callback with received messages
 func NewGrpcServiceClient(
 	connectURI string,
 	clientID string, authToken string,
 	clientCert *tls.Certificate, rootCAs *x509.CertPool,
-	respTimeout time.Duration,
 	serviceName string,
 	msgHandler func(rawMsg []byte),
 ) *GrpcServiceClient {
@@ -327,7 +323,6 @@ func NewGrpcServiceClient(
 		connectionID: shortid.MustGenerate(),
 		connectURL:   connectURI,
 		recvHandler:  msgHandler,
-		respTimeout:  respTimeout,
 		serviceDesc:  serviceDesc,
 		streams:      make(map[string]*BufferedStream),
 	}

@@ -150,15 +150,15 @@ func (srv *HttpBasicServerImpl) onHttpAffordanceOperation(w http.ResponseWriter,
 
 	// This passes the request to the request sink. The replyTo is expected to be called
 	// before the timeout, otherwise this returns an error.
-	ctx, cancelFn := context.WithTimeout(context.Background(), srv.GetTimeout())
-	rx := utils.NewAsyncReceiver[*msg.ResponseMessage]()
+	ctx, cancelFn := context.WithTimeout(context.Background(), msg.CellTimeout)
+	rx := utils.NewAsyncReceiver[*msg.ResponseMessage](msg.CellTimeout)
 	err = srv.EmitRequest(req, func(resp *msg.ResponseMessage) error {
 		rx.SetResponse(resp)
 		cancelFn()
 		return nil
 	})
 	<-ctx.Done()
-	resp, err := rx.WaitForResponse(0)
+	resp, err := rx.WaitForResponse()
 	if resp != nil {
 		output = resp.Output
 	} else {

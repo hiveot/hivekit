@@ -86,7 +86,7 @@ func (cl *GrpcClientImpl) _onGrpcClientMessage(raw []byte) {
 			// client consumer receives a response
 			go func() {
 				// pass it on to the waiting consumer
-				handled := cl.rnrChan.HandleResponse(resp, cl.GetTimeout())
+				handled := cl.rnrChan.HandleResponse(resp)
 				if !handled {
 					slog.Error("_onGrpcClientMessage: received response but no matching request",
 						"correlationID", resp.CorrelationID,
@@ -148,7 +148,7 @@ func (cl *GrpcClientImpl) Connect() (err error) {
 	_ = scheme
 	clientID := cl.GetClientID()
 	cl.grpcSvcClient = grpclib.NewGrpcServiceClient(
-		cl.connectURL, clientID, authToken, clientCert, cl.rootCAs, cl.GetTimeout(),
+		cl.connectURL, clientID, authToken, clientCert, cl.rootCAs,
 		grpctransport.GrpcTransportServiceName, cl._onGrpcClientMessage)
 
 	// new connect attempt
@@ -289,7 +289,7 @@ func (cl *GrpcClientImpl) SendRequest(
 	}
 	go func() {
 
-		resp, err2 := cl.rnrChan.WaitForResponse(req.CorrelationID, cl.GetTimeout())
+		resp, err2 := cl.rnrChan.WaitForResponse(req.CorrelationID)
 		if err2 != nil {
 			err2 = fmt.Errorf("SendRequest timeout:  %w", err2)
 			resp = req.CreateErrorResponse(err2)
@@ -356,9 +356,9 @@ func NewGrpcClientImpl(connectURL string, rootCAs *x509.CertPool) *GrpcClientImp
 		rootCAs:             rootCAs,
 		connectURL:          connectURL,
 		encoder:             transport.NewRRNJsonEncoder(),
-		rnrChan:             msg.NewRnRChan(),
+		rnrChan:             msg.NewRnRChan(msg.CellTimeout),
 	}
-	cl.SetTransportClient(cl) // for use by Rpc
+	cl.SetTransportImpl(cl) // for use by Rpc
 
 	var _ api.ITransportClient = cl // check interface implementation
 	return cl
