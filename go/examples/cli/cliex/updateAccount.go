@@ -84,8 +84,8 @@ func (app *Cliex) AddDeviceAccount(clientID string, displayName string) error {
 
 	// get or create the device private/public key for the account and cert
 	certPath := filepath.Join(app.env.CertsDir, clientID+api.DefaultCertFileSuffix)
-	keyPath := filepath.Join(app.env.CertsDir, clientID+api.DefaultPrivKeyFileSuffix)
-	privKey, pubKey, err := utils.LoadCreateKeyPair(keyPath, utils.KeyTypeED25519)
+	keyPath := filepath.Join(app.env.CertsDir, clientID+api.DefaultKeyFileSuffix)
+	privKey, err := utils.LoadCreateKeyPair(keyPath, utils.KeyTypeED25519)
 	if err != nil {
 		return err
 	}
@@ -98,7 +98,7 @@ func (app *Cliex) AddDeviceAccount(clientID string, displayName string) error {
 
 	if err != nil {
 		// 3. Client has no account. Create one.
-		pubKeyPEM := utils.PublicKeyToPem(pubKey)
+		pubKeyPEM := utils.PublicKeyToPem(privKey.Public())
 		token, err := authnAdmin.AddClient(
 			clientID, clientID, api.ClientRoleDevice, pubKeyPEM)
 		if err == nil && certsDir != "" {
@@ -127,7 +127,8 @@ func (app *Cliex) AddDeviceAccount(clientID string, displayName string) error {
 	// 3. Create and save the TLS cert
 	if certsDir != "" {
 		certsCl := certs_client.NewCertsClient(certs.CertsServiceDefaultThingID, app.co)
-		x509Cert, err := certsCl.CreateClientCert(clientID, api.ClientRoleDevice, 0, pubKey)
+		x509Cert, err := certsCl.CreateClientCert(
+			clientID, api.ClientRoleDevice, 0, privKey.Public())
 
 		if err == nil {
 			tlsCert := utils.X509CertToTLS(x509Cert, privKey)

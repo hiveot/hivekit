@@ -34,7 +34,7 @@ type Cliex struct {
 	config CliexConfig
 
 	// the application environment
-	env *api.HiveEnvironment
+	env *api.AppEnvironment
 }
 
 // locate a TD through the directory or discovery.
@@ -76,7 +76,7 @@ func (cliex *Cliex) FindTD(thingID string) (tdoc *wot.TD) {
 //	dirClient is the client for contacting a discovered directory
 //	caCert is the application environment CA
 func NewCliex(
-	env *api.HiveEnvironment,
+	env *api.AppEnvironment,
 	config CliexConfig,
 	co *consumer.Consumer,
 	discoClient discovery.IDiscoveryClient,

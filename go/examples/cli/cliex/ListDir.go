@@ -12,7 +12,7 @@ import (
 // Show the content of a remote directory.
 // if a thingID is not provided, discover it first
 // This first discovers the directory then attempts to read it.
-func (app *Cliex) ListDir(env *api.HiveEnvironment, thingID string) {
+func (app *Cliex) ListDir(env *api.AppEnvironment, thingID string) {
 	var waitTime = time.Second
 	var err error
 

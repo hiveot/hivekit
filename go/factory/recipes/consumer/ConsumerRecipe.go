@@ -121,7 +121,7 @@ func (r *ConsumerRecipe) SetCredentials(
 // A value cache can be included to capture property updates and event notifications.
 //
 // This:
-// * support HiveEnvironment commandline options
+// * support AppEnvironment commandline options
 // * load CA and client certificate, and auth token if found
 // * directory client for access to discovered devices
 // * discovery client for locating devices and directories
@@ -130,7 +130,7 @@ func (r *ConsumerRecipe) SetCredentials(
 //	withValueCache set to include a value cache in the cell chain
 //
 // This returns the consumer recipe, which can be used as a consumer for applications.
-func NewConsumerRecipe(env *api.HiveEnvironment, withValueCache bool) (
+func NewConsumerRecipe(env *api.AppEnvironment, withValueCache bool) (
 	r *ConsumerRecipe, f api.ICellFactory, err error) {
 
 	f = factory_service.NewCellFactory(env, nil)

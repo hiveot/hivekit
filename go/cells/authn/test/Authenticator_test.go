@@ -24,7 +24,7 @@ func NewAuthenticator() (authn.IAuthnAuthenticator, authn.IAuthnStore) {
 	// signingKey, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	// svc := authenticator.NewJWTAuthenticator(authnStore, signingKey, "")
 
-	signingPrivKey, _ := utils.NewEd25519Key()
+	signingPrivKey := utils.NewEd25519Key()
 	svc := authn_authenticators.NewPasetoAuthenticator(
 		authnStore, signingPrivKey, "/fake/server/endpoint")
 	return svc, authnStore

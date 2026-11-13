@@ -29,7 +29,7 @@ var ExampleHome = path.Join(os.TempDir(), "hivekit-examples")
 // On start the device publishes its TD to the discovery server.
 func main() {
 	var err error
-	env := api.NewHiveEnvironment(ExampleHome, true)
+	env := api.NewAppEnvironment(ExampleHome, true)
 	env.AppID = "rcdevice-example"
 
 	env.RpcTimeout = time.Minute // for testing
@@ -41,7 +41,7 @@ func main() {
 	fmt.Printf(" homeDir: %s\n", env.HomeDir)
 
 	// this requires a client certificate for authentication with the gateway
-	_, err = env.GetClientCert()
+	_, err = env.GetClientCert("")
 	if err != nil {
 		err := fmt.Errorf("This example needs a client certificate for device '%s'. Use the cli to create it.", env.ClientID)
 		slog.Error(err.Error())

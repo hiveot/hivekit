@@ -22,7 +22,7 @@ import (
 // This provides automatic discovery of a directory for a consumer that uses this client,
 // while still be able to provide a commandline override of the directory URL.
 func NewDiscoveryClient(
-	env *api.HiveEnvironment, discoOnStart bool) (discovery.IDiscoveryClient, error) {
+	env *api.AppEnvironment, discoOnStart bool) (discovery.IDiscoveryClient, error) {
 
 	return internal.NewDiscoveryClientImpl(env, discoOnStart)
 }

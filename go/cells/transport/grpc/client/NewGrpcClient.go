@@ -37,7 +37,7 @@ func NewHiveotGrpcClientFactory(
 	var err error
 
 	env := f.GetEnvironment()
-	clientCert, _ := env.GetClientCert()
+	clientCert, _ := env.GetClientCert("")
 	serverURL := env.ServerURL
 	if serverURL == "" {
 		dirTD := env.GetDirTD()

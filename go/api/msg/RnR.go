@@ -10,7 +10,7 @@ import (
 )
 
 // CellTimeout is a global variable for use by all cells to use as the
-// timeout for waiting for responses. It is updated by HiveEnvironment when
+// timeout for waiting for responses. It is updated by AppEnvironment when
 // it is initialized.
 var CellTimeout = time.Second * 3
 

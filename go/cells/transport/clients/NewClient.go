@@ -223,7 +223,7 @@ func NewTransportClientFromURL(serverURL string, subProtocol string, rootCAs *x5
 // This cell can be followed in the chain with a router cell to support connecting to
 // stand-alone devices.
 //
-// The HiveEnvironment client token or cert is applied to the client.
+// The AppEnvironment client token or cert is applied to the client.
 func NewTransportClientFactory(
 	f api.ICellFactory, md *api.CellDefinition) (cl api.IHiveCell, err error) {
 
@@ -252,7 +252,7 @@ func NewTransportClientFactory(
 	if token != "" {
 		err = tpcl.SetAuthToken(env.ClientID, token, wot.SecSchemeBearer)
 	}
-	clientCert, _ := env.GetClientCert()
+	clientCert, _ := env.GetClientCert("")
 	if clientCert != nil {
 		tpcl.SetClientCert(clientCert)
 	}

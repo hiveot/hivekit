@@ -25,8 +25,7 @@ import (
 // Source: https://shaneutt.com/blog/golang-ca-and-signed-cert-go/
 func CreateCACert(
 	cn, country, province, locality, orgName string, validity time.Duration,
-	caPrivKey crypto.PrivateKey, caPubKey crypto.PublicKey) (
-	caCert *x509.Certificate, err error) {
+	caSigner crypto.Signer) (caCert *x509.Certificate, err error) {
 
 	// set up our CA certificate
 	// see also: https://superuser.com/questions/738612/openssl-ca-keyusage-extension
@@ -62,8 +61,9 @@ func CreateCACert(
 	}
 
 	// create the self-signed CA certificate
+	caPubKey := caSigner.Public()
 	caCertDer, err := x509.CreateCertificate(
-		rand.Reader, rootTemplate, rootTemplate, caPubKey, caPrivKey)
+		rand.Reader, rootTemplate, rootTemplate, caPubKey, caSigner)
 	if err != nil {
 		// normally this never happens
 		slog.Error("unable to create CA cert", "err", err)
@@ -79,12 +79,13 @@ func CreateCACert(
 //	ou the organization the client belongs to
 //	country, province, locality, orgName are optional to include
 //	validity of the client cert. Required.
-//	pubKey is the client's public key for this certificate
+//	clientPubKey is the client's public key for this certificate
 //	caCert, caKey are the signing CA's certificate and private key
 func CreateClientCert(clientID string, ou string,
 	country, province, locality, orgName string,
 	validity time.Duration,
-	pubKey crypto.PublicKey, caCert *x509.Certificate, caKey crypto.PrivateKey) (
+	clientPubKey crypto.PublicKey,
+	caCert *x509.Certificate, caKey crypto.PrivateKey) (
 	x509Cert *x509.Certificate, err error) {
 
 	extkeyUsage := x509.ExtKeyUsageClientAuth
@@ -112,7 +113,7 @@ func CreateClientCert(clientID string, ou string,
 	}
 
 	certDerBytes, err := x509.CreateCertificate(
-		rand.Reader, template, caCert, pubKey, caKey)
+		rand.Reader, template, caCert, clientPubKey, caKey)
 	if err != nil {
 		return nil, err
 	}
@@ -208,10 +209,22 @@ func CreateServerCert(
 }
 
 // Create a new certificate from the given template.
-// This uses the template PublicKey in the new certificate
+//
+// This:
+// * copies all fields from the template
+// * includes the template PublicKey
+// * uses the validity period from the template, unless one is provided
+//
+//	template is the x509 certificate to copy
+//	validity is optional new validity period. 0 to use the same duration as the template.
+//	caCert is the CA signing the new certificate
+//	caPrivKey is the CA private key signing the ceritificate
 func CreateCertFromTemplate(template *x509.Certificate, validity time.Duration,
 	caCert *x509.Certificate, caPrivKey crypto.PrivateKey) (*x509.Certificate, error) {
 
+	if validity == 0 {
+		validity = template.NotAfter.Sub(template.NotBefore)
+	}
 	certDerBytes, err := x509.CreateCertificate(
 		rand.Reader, template, caCert, template.PublicKey, caPrivKey)
 	if err != nil {
@@ -334,6 +347,11 @@ func SaveTLSCert(tlsCert *tls.Certificate, certPemPath, keyPemPath string) error
 // to save the provided certificate to file.
 // If the file exists it is removed first.
 func SaveX509Cert(cert *x509.Certificate, pemPath string) error {
+	if cert == nil {
+		err := fmt.Errorf("SaveX509Cert. cert is nil")
+		slog.Error(err.Error())
+		return err
+	}
 	certPEM := X509CertToPEM(cert)
 
 	// remove existing cert since perm 0444 doesn't allow overwriting it

@@ -101,7 +101,7 @@ func TestDiscoverGetDirectoryTD(t *testing.T) {
 	// assert.Equal(t, dirSvc.GetID(), dirTD.ID)
 
 	// discover and read the directory on start. This sets env.DirectoryURL
-	appEnv := api.NewHiveEnvironment("", false)
+	appEnv := api.NewAppEnvironment("", false)
 	appEnv.DirTDURL = tddURL
 	cl, err := discovery_client.NewDiscoveryClient(appEnv, true)
 	require.NoError(t, err)

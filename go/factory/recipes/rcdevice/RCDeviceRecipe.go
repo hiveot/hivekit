@@ -112,7 +112,7 @@ func (r *RCDeviceRecipe) Stop() {
 // To add the device the the gateway directory, it should publish its TD on Start.
 // Invoke Start on the recipe to run the device.
 //
-// * support HiveEnvironment commandline options
+// * support AppEnvironment commandline options
 // * load CA and client certificate, and auth token if found
 // * auto-discovery gateway/hub server URL if not provided
 // * use gateway TD if available, fallback to serverURL scheme for protocol
@@ -125,7 +125,7 @@ func (r *RCDeviceRecipe) Stop() {
 //	 It will be started when this recipe start is called.
 //
 // This returns the recipe, which can be used like any other cell.
-func NewRCDeviceRecipe(env *api.HiveEnvironment, eThing api.IHiveCell) (
+func NewRCDeviceRecipe(env *api.AppEnvironment, eThing api.IHiveCell) (
 	r *RCDeviceRecipe, f api.ICellFactory, err error) {
 
 	f = factory_service.NewCellFactory(env, nil)

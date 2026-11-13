@@ -124,7 +124,7 @@ func (sm *SessionManager) Login(
 // Load a previously saved token from the tokensDir directory under the name
 // {clientID}.token.
 //
-// The intended configuration is to match this with HiveEnvironment.
+// The intended configuration is to match this with AppEnvironment.
 //
 // Intended for storing tokens for core services and admin user.
 func (svc *SessionManager) LoadToken(clientID string) (string, error) {
@@ -250,8 +250,8 @@ func StartSessionManager(
 	serviceID := "authn"
 
 	// store the signing key in: {tokensDir}/authnKey.pem
-	keyFilename := filepath.Join(sm.tokensDir, serviceID+api.DefaultPrivKeyFileSuffix)
-	signingPrivKey, _, err := utils.LoadCreateKeyPair(keyFilename, utils.KeyTypeED25519)
+	keyFilename := filepath.Join(sm.tokensDir, serviceID+api.DefaultKeyFileSuffix)
+	signingPrivKey, err := utils.LoadCreateKeyPair(keyFilename, utils.KeyTypeED25519)
 	if err != nil {
 		return nil, err
 	}

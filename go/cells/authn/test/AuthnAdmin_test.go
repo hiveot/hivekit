@@ -141,11 +141,11 @@ func TestUpdatePubKey(t *testing.T) {
 	require.NotEmpty(t, validUntil)
 
 	// update the public key
-	privKey, pubKey := utils.NewKey(utils.KeyTypeECDSA)
+	privKey := utils.NewKey(utils.KeyTypeECDSA)
 	require.NotEmpty(t, privKey)
 	profile, err := adminSvc.GetProfile(tu1ID)
 	require.NoError(t, err)
-	profile.PubKeyPem = utils.PublicKeyToPem(pubKey)
+	profile.PubKeyPem = utils.PublicKeyToPem(privKey.Public())
 	err = adminSvc.UpdateProfile(tu1ID, profile)
 	assert.NoError(t, err)
 

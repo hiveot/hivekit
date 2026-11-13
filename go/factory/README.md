@@ -57,7 +57,7 @@ Since many cells operate in an environment that uses files, credentials or netwo
 
 The first step is therefore to setup the environment:
 
-> env := api.NewHiveEnvironment(homedir, withFlags)
+> env := api.NewAppEnvironment(homedir, withFlags)
 
 Where 'withFlags' allows control of the home and other directories uses commandline flags.
 
@@ -99,7 +99,7 @@ A Windows directory structure can be accomodated by setting the paths manually. 
 
 When building an application it can be neccesary to specify different directories from the commandline.
 
-NewHiveEnvironment uses the golang 'flag' library to allow overriding the directories with a corresponding flag:
+NewAppEnvironment uses the golang 'flag' library to allow overriding the directories with a corresponding flag:
 
 ```
 -home         select a different application home directory
@@ -145,7 +145,7 @@ The easiest method to build an application is to use one of the predefined recip
 ```go (tenative)
 func main(){
     // collect the cells to include. Predefined recipes already contain the cells for common use-cases.
-	env := api.NewHiveEnvironment("~/bin/hiveot", true)
+	env := api.NewAppEnvironment("~/bin/hiveot", true)
 	f := factory_service.NewCellFactory(env, nil)
     recipe := NewStandAloneDeviceRecipe(f)
     // register the recipe cells with the factory and start them.

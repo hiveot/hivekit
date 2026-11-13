@@ -10,10 +10,10 @@ import (
 //
 // All cells created will have their timeout set to that of env.RpcTimeout
 //
-//	env is the application enviroment created with api.NewHiveEnvironment
+//	env is the application enviroment created with api.NewAppEnvironment
 //	cellDefs are the cell definitions available to GetCell(type)
 func NewCellFactory(
-	env *api.HiveEnvironment,
+	env *api.AppEnvironment,
 	cellDefs []api.CellDefinition) api.ICellFactory {
 
 	f := internal.NewCellFactoryImpl(env, cellDefs)

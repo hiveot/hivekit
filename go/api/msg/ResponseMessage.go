@@ -109,7 +109,7 @@ type ResponseMessage struct {
 	// the sender that sends the response.
 	//
 	// This feature of hiveot enables tracking of which service instance responded to a
-	// request. See also ConsumerID
+	// request.
 	//
 	// The protocol server MUST set this to the authenticated sender.
 	SenderID string `json:"senderID"`

@@ -43,10 +43,12 @@ import (
 // a router for communication with connected devices, and more.
 var GatewayRecipeCells = []api.CellDefinition{
 	{
-		// If no CA certificate is found in the HiveEnvironment then generate a CA.
-		// If no server certificate is found in the HiveEnvironment then generate a self-signed certificate.
-		Type:        certs.InitFactoryCertsCellType,
-		Constructor: certs_service.RunInitFactoryCerts,
+		// If no CA certificate is found in the AppEnvironment then generate a CA.
+		// If no server certificate is found in the AppEnvironment then generate a self-signed certificate.
+		Type:        certs.CertsServiceCellType,
+		Constructor: certs_service.NewCertsServiceFactory,
+		// just initialization, linking of this instance happens elsewhere
+		NoLink: true,
 	},
 	{
 		// http server is needed by websocket transport server
@@ -207,7 +209,7 @@ func (r *GatewayRecipe) AddAccount(
 	if withCert {
 		certSvc := r.GetCertsSvc()
 		validity := time.Hour * 24 * 365
-		tlsCert, err = certSvc.CreateClientTLSCert(clientID, role, validity)
+		clientCert, err = certSvc.CreateClientTLSCert(clientID, role, validity)
 		if err != nil {
 			return "", nil, err
 		}
@@ -226,7 +228,7 @@ func (r *GatewayRecipe) GetCertsSvc() certs.ICertsService {
 // This serves the gateway TD discovery
 func (r *GatewayRecipe) Start() {
 	slog.Info("Starting GatewayRecipe")
-	// call the cells
+	// start the cells
 	r.f.Start()
 
 	// TODO: add gateway as device with props and events
@@ -246,7 +248,7 @@ func (r *GatewayRecipe) Stop() {
 
 // NewGatewayRecipe creates an IoT gateway.
 //
-// Invoke Start to Start the cells in the recipe.
+// Invoke Start() to Start the cells in the recipe.
 //
 // Intended as the central connection point for consumers, services, RC devices,
 // and external devices whose TD exists in the directory.
@@ -276,7 +278,7 @@ func (r *GatewayRecipe) Stop() {
 // factory used to create the recipe or an error.
 // The factory can be used to lookup cells.
 // Call Start on the recipe to run the gateway.
-func NewGatewayRecipe(env *api.HiveEnvironment) (
+func NewGatewayRecipe(env *api.AppEnvironment) (
 	r *GatewayRecipe, f api.ICellFactory, err error) {
 
 	f = factory_service.NewCellFactory(env, nil)

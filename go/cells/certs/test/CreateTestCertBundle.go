@@ -23,19 +23,16 @@ type TestCertBundle struct {
 	// CA
 	RootCAs   *x509.CertPool
 	CaCert    *x509.Certificate
-	CaPrivKey crypto.PrivateKey
-	CaPubKey  crypto.PublicKey
+	CaPrivKey crypto.Signer
 
 	// server certificate
 	ServerAddr    string
-	ServerPrivKey crypto.PrivateKey
-	ServerPubKey  crypto.PublicKey
+	ServerPrivKey crypto.Signer
 	ServerCert    *tls.Certificate
 
 	// client cert auth
 	ClientID      string
-	ClientPrivKey crypto.PrivateKey
-	ClientPubKey  crypto.PublicKey
+	ClientPrivKey crypto.Signer
 	ClientCert    *tls.Certificate
 }
 
@@ -51,26 +48,27 @@ func CreateTestCertBundle(keyType utils.KeyType) TestCertBundle {
 		ServerAddr: ServerAddress,
 	}
 	// Setup CA and server TLS certificates
-	caPrivKey, caPubKey := utils.NewKey(keyType)
+	caPrivKey := utils.NewKey(keyType)
 	caCert, err := utils.CreateCACert(
 		"testbundleca", "country", "province", "locality", "orgName",
-		time.Hour, caPrivKey, caPubKey)
+		time.Hour, caPrivKey)
 	certBundle.CaCert = caCert
 	certBundle.CaPrivKey = caPrivKey
-	certBundle.CaPubKey = caPubKey
 
 	if err != nil {
 		panic("CreateCertBundler failed: " + err.Error())
 	}
 	certBundle.RootCAs, _ = x509.SystemCertPool()
 	certBundle.RootCAs.AddCert(certBundle.CaCert)
-	certBundle.ServerPrivKey, certBundle.ServerPubKey = utils.NewKey(keyType)
-	certBundle.ClientPrivKey, certBundle.ClientPubKey = utils.NewKey(keyType)
+	certBundle.ServerPrivKey = utils.NewKey(keyType)
+
+	certBundle.ClientPrivKey = utils.NewKey(keyType)
 
 	names := []string{ServerAddress}
+	serverPubKey := certBundle.ServerPrivKey.Public()
 	serverCert, err := utils.CreateServerCert(
 		TestServerID, "ou", "country", "province", "locality", "org", names, time.Hour,
-		certBundle.ServerPubKey,
+		serverPubKey,
 		certBundle.CaCert, certBundle.CaPrivKey)
 	if err != nil {
 		panic("unable to create server cert: " + err.Error())
@@ -81,9 +79,10 @@ func CreateTestCertBundle(keyType utils.KeyType) TestCertBundle {
 		PrivateKey:  certBundle.ServerPrivKey,
 	}
 	certBundle.ClientID = TestClientID
+	clientPubKey := certBundle.ClientPrivKey.Public()
 	clientCert, err := utils.CreateClientCert(certBundle.ClientID, "service",
 		"country", "province", "locality", "org", time.Hour,
-		certBundle.ClientPubKey,
+		clientPubKey,
 		certBundle.CaCert,
 		certBundle.CaPrivKey)
 	if err != nil {

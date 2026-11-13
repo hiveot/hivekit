@@ -15,7 +15,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"reflect"
 )
 
 type KeyType string
@@ -128,24 +127,24 @@ func PemToDer(pemString string) ([]byte, error) {
 //	keysFile is the location of the key file to load or create. Required.
 //	keyType is the type of key when creating a new key
 func LoadCreateKeyPair(keyFile string, keyType KeyType) (
-	privKey crypto.PrivateKey, pubKey crypto.PublicKey, err error) {
+	privKey crypto.Signer, err error) {
 
 	if keyFile == "" {
-		return nil, nil, fmt.Errorf("keys directory must be provided")
+		return nil, fmt.Errorf("keys directory must be provided")
 	}
 
 	// load key from file
-	privKey, pubKey, err = LoadPrivateKey(keyFile)
+	privKey, err = LoadPrivateKey(keyFile)
 
 	if err != nil {
 		// no keyfile, create the key
-		privKey, pubKey = NewKey(keyType)
+		privKey = NewKey(keyType)
 
 		// save the key for future use
 		err = SavePrivateKey(privKey, keyFile)
 	}
 
-	return privKey, pubKey, err
+	return privKey, err
 }
 
 // LoadPrivateKey loads a public/private key pair from file.
@@ -153,18 +152,17 @@ func LoadCreateKeyPair(keyFile string, keyType KeyType) (
 //
 //	keyPath is the path to the file containing the key
 func LoadPrivateKey(keyPath string) (
-	privKey crypto.Signer, pubKey crypto.PublicKey, err error) {
+	privKey crypto.Signer, err error) {
 
 	privPEM, err := os.ReadFile(keyPath)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
-	privKey, pubKey, err = PrivateKeyFromPem(string(privPEM))
-	_ = pubKey
+	privKey, err = PrivateKeyFromPem(string(privPEM))
 	if err != nil {
-		return nil, pubKey, err
+		return nil, err
 	}
-	return privKey, pubKey, err
+	return privKey, err
 }
 
 // LoadPublicKey loads a public key from file.
@@ -186,18 +184,18 @@ func LoadPublicKey(keyPath string) (
 	return pubKey, err
 }
 
-func NewEcdsaKey() (*ecdsa.PrivateKey, *ecdsa.PublicKey) {
+func NewEcdsaKey() *ecdsa.PrivateKey {
 	curve := elliptic.P256()
 	// for rsa, ecdsa, ecdha this is a ptr, ed25519 a non-pointer key
 	privKey, err := ecdsa.GenerateKey(curve, rand.Reader)
 	if err != nil {
 		panic("unable to create ECDSA key")
 	}
-	return privKey, &privKey.PublicKey
+	return privKey
 }
 
 // NewEd25519Key creates a new ED25519 key
-func NewEd25519Key() (ed25519.PrivateKey, ed25519.PublicKey) {
+func NewEd25519Key() ed25519.PrivateKey {
 	var err error
 	// for rsa, ecdsa, ecdha this is a ptr, ed25519 a non-pointer key
 	pubKey, privKey, err := ed25519.GenerateKey(rand.Reader)
@@ -205,23 +203,22 @@ func NewEd25519Key() (ed25519.PrivateKey, ed25519.PublicKey) {
 	if err != nil {
 		panic(err.Error())
 	}
-	return privKey, privKey.Public().(ed25519.PublicKey)
+	return privKey
 }
 
 // NewRsaKey creates a newRSA Key
-func NewRsaKey() (*rsa.PrivateKey, *rsa.PublicKey) {
+func NewRsaKey() *rsa.PrivateKey {
 	var err error
 	privKey, err := rsa.GenerateKey(rand.Reader, 2048)
 	if err != nil {
 		panic(err.Error())
 	}
-	pubKey := privKey.Public().(*rsa.PublicKey)
-	return privKey, pubKey
+	return privKey
 }
 
 // NewKey creates a new key of the given type
 // This returns a private key that supports signing and a public key.
-func NewKey(keyType KeyType) (crypto.Signer, crypto.PublicKey) {
+func NewKey(keyType KeyType) crypto.Signer {
 	switch keyType {
 	case KeyTypeECDSA:
 		return NewEcdsaKey()
@@ -230,14 +227,13 @@ func NewKey(keyType KeyType) (crypto.Signer, crypto.PublicKey) {
 	case KeyTypeRSA:
 		return NewRsaKey()
 	default:
-		return nil, nil
+		return nil
 	}
 }
 
 // PrivateKeyFromPem reads the key-pair from the PEM private key.
 // This returns an error if the PEM is not a valid key.
-func PrivateKeyFromPem(privatePEM string) (
-	privKey crypto.Signer, pubKey crypto.PublicKey, err error) {
+func PrivateKeyFromPem(privatePEM string) (privKey crypto.Signer, err error) {
 
 	var rawPrivateKey crypto.PrivateKey
 	derBytes, err := PemToDer(privatePEM)
@@ -247,23 +243,19 @@ func PrivateKeyFromPem(privatePEM string) (
 	}
 	if err != nil {
 		// unknown key type
-		return nil, nil, err
+		return nil, err
 	}
 
 	// for rsa, ecdsa, ecdha this is a ptr, ed25519 a non-pointer key
 	ecdsaPrivKey, valid := rawPrivateKey.(*ecdsa.PrivateKey)
 	if valid {
-		// ECDSA key type
-		ecdsaPubKey := &ecdsaPrivKey.PublicKey
-		return ecdsaPrivKey, ecdsaPubKey, nil
+		return ecdsaPrivKey, nil
 	}
 
 	// try ed25519
 	ed25519PrivKey, valid := rawPrivateKey.(ed25519.PrivateKey)
 	if valid {
-		// ED25519 key type
-		ed25519Pub := ed25519PrivKey.Public()
-		return ed25519PrivKey, ed25519Pub, nil
+		return ed25519PrivKey, nil
 	}
 
 	// if len(derBytes) == ed25519.SeedSize {
@@ -275,14 +267,11 @@ func PrivateKeyFromPem(privatePEM string) (
 	// try RSA
 	rsaPrivKey, valid := rawPrivateKey.(*rsa.PrivateKey)
 	if valid {
-		// RSA key type
-		pubKey := &rsaPrivKey.PublicKey
-		return rsaPrivKey, pubKey, nil
+		return rsaPrivKey, nil
 	}
 
-	keyTypeName := reflect.TypeOf(pubKey)
-	err = fmt.Errorf("not an ECDSA, ED25519 or RSA private key. It looks to be a '%s'", keyTypeName)
-	return nil, nil, err
+	err = fmt.Errorf("not an ECDSA, ED25519 or RSA private key.")
+	return nil, err
 }
 
 // PrivateKeyToPEM returns the PEM encoded private key

@@ -31,7 +31,7 @@ type ISessionManager interface {
 	CreateToken(clientID string, validity time.Duration) (token string, validUntil time.Time, err error)
 
 	// Load a previously saved token.
-	// By default this is compatible with the hive environment GetAuthToken.
+	// By default this is compatible with the app environment GetAuthToken.
 	LoadToken(clientID string) (string, error)
 
 	// DecodeToken decodes the given token using the configured authenticator.

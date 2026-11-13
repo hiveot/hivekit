@@ -401,9 +401,11 @@ func (svc *RouterServiceImpl) RouteRequest(req *msg.RequestMessage, replyTo msg.
 	if !found {
 		c, err = svc.NewClientConnection(tdoc, connectURL, connectForm)
 		if c == nil {
-			slog.Warn("RouteRequest: Unable to establish a connection to client", "err", err)
+			slog.Warn("RouteRequest: Unable to establish a connection to server",
+				"connectURL", connectURL, "err", err)
 		} else if err != nil {
-			slog.Warn("RouteRequest: Connection failed", "err", err)
+			slog.Warn("RouteRequest: Connection failed",
+				"connectURL", connectURL, "err", err)
 		} else {
 			slog.Warn("RouteRequest: Connection established",
 				slog.String("thingID", tdoc.ID),

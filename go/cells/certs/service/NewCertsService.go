@@ -8,8 +8,8 @@ import (
 
 // Start a new instance of the default certs service.
 // This uses the self-signed cert service implementation
-func NewCertsService(config *certs.CertsConfig) (certs.ICertsService, error) {
-	svc, err := internal.NewCertsServiceImpl(config)
+func NewCertsService(env *api.AppEnvironment, config *certs.CertsConfig) (certs.ICertsService, error) {
+	svc, err := internal.NewCertsServiceImpl(env, config)
 	return svc, err
 }
 
@@ -20,19 +20,16 @@ func NewCertsService(config *certs.CertsConfig) (certs.ICertsService, error) {
 func NewCertsServiceFactory(
 	f api.ICellFactory, md *api.CellDefinition) (svc api.IHiveCell, err error) {
 
-	envDir := f.GetEnvironment()
+	env := f.GetEnvironment()
 
 	config, ok := md.Config.(*certs.CertsConfig)
 	if !ok {
 		config, _ = md.Config.(*certs.CertsConfig)
 		if config == nil {
-			config = &certs.CertsConfig{
-				// Provider: certs.SelfSignedProvider,
-				CertsDir: envDir.CertsDir,
-			}
+			config = &certs.CertsConfig{}
 		}
 	}
-	svc, err = NewCertsService(config)
+	svc, err = NewCertsService(env, config)
 	// if config.Provider == certs.LetsEncryptProvider {
 	// 	m = NewLetsEncryptCertService(config)
 	// } else {

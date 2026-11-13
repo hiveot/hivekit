@@ -21,14 +21,9 @@ const (
 // This can also be used to add custom cells.
 type CellDefinition struct {
 
-	// Set Multiton to true to allow multiple instances of the cell.
-	// Multiton instances of the cell require different instance IDs.
-	// Multiton bool
-
 	// Type of the cell, used for registration and lookup.
-	// Note that the cell type is identical for all instances of a cell and is used in the @type
-	// field of the cell TM, if used. The cellID is the instance ID of the cell and
-	// must be unique. Singleton cells use the same ID for cell type and cellID.
+	// Cells that publish a TD should include it in the TD's @type field so
+	// consumers can search for a type of service in the directory.
 	Type string
 
 	// The constructor function to create an instance of the cell.
@@ -43,6 +38,11 @@ type CellDefinition struct {
 
 	// Optional configuration passed to the creation of the cell
 	Config any
+
+	//	nolink is an optional flag to not link this instance in a recipe. This is
+	//	 intended for services that appear twice in a recipe, first to initialize
+	//   the environment and second to link it to other cells.
+	NoLink bool
 }
 
 // ICellFactory is the interface for the cell factory, used to create and manage
@@ -73,7 +73,7 @@ type ICellFactory interface {
 	// confuring cells.
 	// Note that the environment can be updated by the cells to allow factory cells
 	// to update the TDD, location of gateway and other discoverable information.
-	GetEnvironment() *HiveEnvironment
+	GetEnvironment() *AppEnvironment
 
 	// GetCell returns the loaded cell of the given cell type.
 	//

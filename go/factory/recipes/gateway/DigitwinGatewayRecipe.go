@@ -42,10 +42,12 @@ import (
 // and a router for communication with connected devices.
 var DigitwinGatewayRecipeCells = []api.CellDefinition{
 	{
-		// If no CA certificate is found in the HiveEnvironment then generate a CA.
-		// If no server certificate is found in the HiveEnvironment then generate a self-signed certificate.
-		Type:        certs.InitFactoryCertsCellType,
-		Constructor: certs_service.RunInitFactoryCerts,
+		// If no CA certificate is found in the AppEnvironment then generate a CA.
+		// If no server certificate is found in the AppEnvironment then generate a self-signed certificate.
+		Type:        certs.CertsServiceCellType,
+		Constructor: certs_service.NewCertsServiceFactory,
+		// just initialization, linking of this instance happens elsewhere
+		NoLink: true,
 	},
 	{
 		// http server is needed by websocket transport server

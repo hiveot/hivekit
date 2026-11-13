@@ -119,7 +119,7 @@ func NewWotWssClientFactory(
 	cl := NewWotWssClient(serverURL, env.GetRootCAs())
 
 	// set client certificate if available
-	clientCert, _ := env.GetClientCert()
+	clientCert, _ := env.GetClientCert("")
 	if clientCert != nil {
 		err = cl.SetClientCert(clientCert)
 	}

@@ -46,7 +46,7 @@ func TestAllProtocols(t *testing.T) {
 func TestStandaloneDeviceRecipe(t *testing.T) {
 	fmt.Printf("---Test: %s %s---\n", t.Name(), testProtocol)
 
-	env := api.NewHiveEnvironment(testDir, false)
+	env := api.NewAppEnvironment(testDir, false)
 	env.HttpsPort = testPort
 	utils.SetLogging("info", "")
 
@@ -70,8 +70,8 @@ func TestClientServerRecipes(t *testing.T) {
 	fmt.Printf("---Test: %s %s---\n", t.Name(), testProtocol)
 	var thingID string = "thing1"
 
-	env := api.NewHiveEnvironment(testDir, false)
-	env.SetCACert(testCerts.CaCert)
+	env := api.NewAppEnvironment(testDir, false)
+	env.SetCACert(testCerts.CaCert, testCerts.CaPrivKey)
 	env.SetClientCert(testCerts.ClientCert)
 	env.SetServerCert(testCerts.ServerCert)
 	env.HttpsPort = testPort
@@ -130,7 +130,7 @@ func TestGatewayRecipe(t *testing.T) {
 	msg.CellTimeout = time.Minute * 3
 
 	// 1. Create the gateway recipe for admin and rc device connections
-	gwenv := api.NewHiveEnvironment(testDir, false)
+	gwenv := api.NewAppEnvironment(testDir, false)
 	gwenv.HttpsPort = testPort
 	gw, gwFactory, err := gatewayrecipe.NewGatewayRecipe(gwenv)
 	require.NoError(t, err)
@@ -138,12 +138,12 @@ func TestGatewayRecipe(t *testing.T) {
 	defer gw.Stop()
 
 	// 2. Create a manager using consumer recipe, and connect using token auth
-	caCert, _ := gwenv.GetCACert()
+	caCert, caKey, _ := gwenv.GetCACert()
 	_, _, err = gw.AddAccount(managerClientID, "Manager 1", api.ClientRoleManager, true, false)
 	require.NoError(t, err)
 	// env will load the client auth token
-	coenv := api.NewHiveEnvironment(testDir, false)
-	coenv.SetCACert(caCert)
+	coenv := api.NewAppEnvironment(testDir, false)
+	coenv.SetCACert(caCert, caKey)
 	coenv.ClientID = managerClientID
 	// force direct connection with the server
 	coenv.ServerURL = gwFactory.GetConnectURLs()[0]
@@ -155,9 +155,9 @@ func TestGatewayRecipe(t *testing.T) {
 	// 3. Create a counter device using the RCDeviceRecipe and certificate with client cert
 	_, _, err = gw.AddAccount(rcdeviceClientID, "device 1", api.ClientRoleDevice, false, true)
 	require.NoError(t, err)
-	rcenv := api.NewHiveEnvironment(testDir, false)
+	rcenv := api.NewAppEnvironment(testDir, false)
 	// no discovery, point to the server
-	rcenv.SetCACert(caCert)
+	rcenv.SetCACert(caCert, caKey)
 	rcenv.ServerURL = gwFactory.GetConnectURLs()[0]
 	rcenv.ClientID = rcdeviceClientID
 	// device configuration

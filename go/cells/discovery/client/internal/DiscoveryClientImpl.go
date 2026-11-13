@@ -26,7 +26,7 @@ type DiscoveryClientImpl struct {
 	rootCAs *x509.CertPool
 
 	// optional update the discovery results in the app environment
-	env *api.HiveEnvironment
+	env *api.AppEnvironment
 
 	// auto run discovery on startup
 	discoverOnStart bool
@@ -296,7 +296,7 @@ func (cl *DiscoveryClientImpl) locateGateway(maxWaitTime time.Duration) (gwTD *w
 //   - if env has a directory TD URL then attempt to load this TD into the environment
 //   - if no directory TD was found then search for a directory.
 func NewDiscoveryClientImpl(
-	env *api.HiveEnvironment, discoOnStart bool) (*DiscoveryClientImpl, error) {
+	env *api.AppEnvironment, discoOnStart bool) (*DiscoveryClientImpl, error) {
 	var err error
 
 	thingID := discovery.DiscoveryClientCellType + "-" + shortid.MustGenerate()

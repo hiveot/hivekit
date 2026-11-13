@@ -142,7 +142,7 @@ func NewBusFormation(
 				"cellType", cellDef.Type, "err", err.Error())
 			// m.Stop()
 			// return err
-		} else if member == nil {
+		} else if member == nil || cellDef.NoLink {
 			// don't track 'one-shot' cells that are used to initialize the factory.
 			// These return nil without error.
 		} else {

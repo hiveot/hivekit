@@ -36,7 +36,7 @@ func TestMain(m *testing.M) {
 func TestAppEnv(t *testing.T) {
 	fmt.Printf("---Test: %s %s---\n", t.Name(), testProtocol)
 
-	env := api.NewHiveEnvironment(testDir, false)
+	env := api.NewAppEnvironment(testDir, false)
 	env.HttpsPort = testPort
 	if env.HomeDir != testDir {
 		t.Errorf("Expected homeDir to be %s, got %s", testDir, env.HomeDir)
@@ -59,7 +59,7 @@ func TestStartStop(t *testing.T) {
 	fmt.Printf("---Test: %s %s---\n", t.Name(), testProtocol)
 
 	// just test that the environment can be created and loaded
-	env := api.NewHiveEnvironment(testDir, false)
+	env := api.NewAppEnvironment(testDir, false)
 	// err := env.LoadConfig(&env)
 	// if err != nil {
 	// t.Errorf("Failed loading config: %s", err.Error())
@@ -75,8 +75,8 @@ func TestAuthentication(t *testing.T) {
 	fmt.Printf("---Test: %s %s---\n", t.Name(), testProtocol)
 
 	// just test that the environment can be created and loaded
-	env := api.NewHiveEnvironment(testDir, false)
-	env.SetCACert(testCerts.CaCert)
+	env := api.NewAppEnvironment(testDir, false)
+	env.SetCACert(testCerts.CaCert, testCerts.CaPrivKey)
 	env.SetServerCert(testCerts.ServerCert)
 	env.HttpsPort = testPort
 
@@ -125,8 +125,8 @@ func TestDigitwin(t *testing.T) {
 	fmt.Printf("---Test: %s %s---\n", t.Name(), testProtocol)
 
 	// just test that the environment can be created and loaded
-	env := api.NewHiveEnvironment(testDir, false)
-	env.SetCACert(testCerts.CaCert)
+	env := api.NewAppEnvironment(testDir, false)
+	env.SetCACert(testCerts.CaCert, testCerts.CaPrivKey)
 	env.SetServerCert(testCerts.ServerCert)
 	env.HttpsPort = testPort
 

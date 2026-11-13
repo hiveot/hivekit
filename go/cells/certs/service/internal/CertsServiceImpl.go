@@ -2,7 +2,6 @@ package internal
 
 import (
 	"crypto"
-	"crypto/rand"
 	"crypto/tls"
 	"crypto/x509"
 	"fmt"
@@ -22,116 +21,150 @@ import (
 type CertsServiceImpl struct {
 	*thing.ExposedThing
 
+	// app environment with certs
+	env *api.AppEnvironment
+
+	// cert creation config
 	config *certs.CertsConfig
 
 	// The pool of CA certificates, including the system certs
-	caCertPool *x509.CertPool
+	// caCertPool *x509.CertPool
 
-	// optional provider like letsencrypt engine
+	// load/save location of certificates
+	// certsDir string
+
+	// optional server certificate provider
 	provider certs.ICertProvider
-}
-
-// Create and save the admin client certificate if it doesn't exist
-func (svc *CertsServiceImpl) CreateAdminCert() error {
-	cfg := svc.config
-	// create an admin client cert if validation period is set and no exist cert exists
-	adminID := api.DefaultAdminUserID
-	certPath := filepath.Join(cfg.CertsDir, adminID+api.DefaultCertFileSuffix)
-	keyPath := filepath.Join(cfg.CertsDir, adminID+api.DefaultPrivKeyFileSuffix)
-	adminCert, err := utils.LoadTLSCert(certPath, keyPath)
-	_ = adminCert
-	if err != nil {
-		// admin client cert doesn't exist, create one
-		privKey, pubKey := utils.NewEd25519Key()
-		certValidity := time.Duration(cfg.AdminCertValidityDays) * 24 * time.Hour
-		adminX509, err2 := svc.CreateClientCert(
-			adminID, api.ClientOUAdmin, certValidity, pubKey)
-		err = err2
-		adminCert := utils.X509CertToTLS(adminX509, privKey)
-		utils.SaveTLSCert(adminCert, certPath, keyPath)
-	}
-	return err
 }
 
 // Create a self-signed client cert. This requires having the CA cert and public key.
 // validity of 0 uses the default
 func (svc *CertsServiceImpl) CreateClientCert(
-	clientID string, ou string, validity time.Duration, clientPubKey crypto.PublicKey) (
+	clientID string, role string, validity time.Duration, clientPubKey crypto.PublicKey) (
 	x509Cert *x509.Certificate, err error) {
 
+	if clientID == "" {
+		return nil, fmt.Errorf("CreateClientCert: Missing clientID")
+	}
+	if role == "" {
+		return nil, fmt.Errorf("CreateClientTLSCert: Missing role")
+	}
 	if validity == 0 {
 		validity = certs.DefaultClientValidityPeriod
 	}
 
 	cfg := svc.config
+	caCert, caKey, err := svc.env.GetCACert()
 	// just a sinmple wrapper around the library
 	clientCert, err := utils.CreateClientCert(
-		clientID, ou,
+		clientID, role,
 		cfg.Country, cfg.Province, cfg.Locality, cfg.Org,
-		validity, clientPubKey, cfg.CaCert, cfg.CaKey)
+		validity, clientPubKey, caCert, caKey)
 
 	return clientCert, err
 }
 
 // Create and save a self-signed client cert. This requires having the CA cert and key.
 func (svc *CertsServiceImpl) CreateClientTLSCert(
-	clientID string, ou string, validity time.Duration) (
+	clientID string, role string, validity time.Duration) (
 	tlsCert *tls.Certificate, err error) {
 
+	if clientID == "" {
+		return nil, fmt.Errorf("CreateClientTLSCert: Missing clientID")
+	}
+	if role == "" {
+		return nil, fmt.Errorf("CreateClientTLSCert: Missing role")
+	}
+	if validity == 0 {
+		validity = certs.DefaultClientValidityPeriod
+	}
+	certsDir := svc.env.CertsDir
+	caCert, caKey, err := svc.env.GetCACert()
 	cfg := svc.config
-	privKey, pubKey := utils.NewEd25519Key()
-	// just a sinmple wrapper around the library
+	privKey := utils.NewEd25519Key()
+	// just a simple wrapper around the library
 	x509Cert, err := utils.CreateClientCert(
-		clientID, ou,
+		clientID, role,
 		cfg.Country, cfg.Province, cfg.Locality, cfg.Org,
-		validity, pubKey, cfg.CaCert, cfg.CaKey)
+		validity, privKey.Public(), caCert, caKey)
 
 	if err != nil {
 		return nil, err
 	}
 	tlsCert = utils.X509CertToTLS(x509Cert, privKey)
 
-	certPath := path.Join(cfg.CertsDir, clientID+api.DefaultCertFileSuffix)
-	keyPath := path.Join(cfg.CertsDir, clientID+api.DefaultPrivKeyFileSuffix)
+	certPath := path.Join(certsDir, clientID+api.DefaultCertFileSuffix)
+	keyPath := path.Join(certsDir, clientID+api.DefaultKeyFileSuffix)
 	utils.SaveTLSCert(tlsCert, certPath, keyPath)
 
 	return tlsCert, err
 }
 
-// Create and save a new server cert.
+// Return a new server cert for use by hiveot gateway or device servers.
 // If a provider is configured then ask the provider for a certificate, otherwise
 // create a self-signed certificate.
+//
+//	serverName is used as the 'cn' in the certificate
+//	address is the server address/hostname
+//	validity of the certificate. 0 for default.
+//	pubKey to include in the certificate, provided by the server
 func (svc *CertsServiceImpl) CreateServerCert(
-	serverName string, hostname string, validity time.Duration,
-	serverPubKey crypto.PublicKey) (serverCert []*x509.Certificate, err error) {
+	serverName string, address string, validity time.Duration, pubKey crypto.PublicKey) (
+	serverCert []*x509.Certificate, err error) {
 
+	if serverName == "" {
+		return nil, fmt.Errorf("CreateServerCert: Missing server name")
+	}
+	if pubKey == nil {
+		return nil, fmt.Errorf("CreateServerCert: Missing public key")
+	}
+	if validity == 0 {
+		validity = certs.DefaultServerValidityPeriod
+	}
+	names := []string{}
+
+	caCert, caKey, err := svc.env.GetCACert()
 	cfg := svc.config
-	if svc.provider != nil {
-		// use the provider
-		names := []string{hostname}
-		serverCert, err = svc.provider.CreateServerCert(serverName, names, validity, serverPubKey)
+	if address != "" {
+		names = append(names, address)
+	}
 
-	} else if cfg.CaCert != nil && cfg.CaKey != nil {
+	if svc.provider != nil {
+		// use the provider; must provide a public key?
+		serverCert, err = svc.provider.CreateServerCert(
+			serverName, names, validity, pubKey)
+
+	} else if caCert != nil && caKey != nil {
 		// create a self signed cert
-		names := []string{hostname}
 		x509Cert, err2 := utils.CreateServerCert(
 			serverName, certs.DefaultServerOU,
 			cfg.Country, cfg.Province, cfg.Locality, cfg.Org,
-			names, validity, serverPubKey, cfg.CaCert, cfg.CaKey)
+			names, validity, pubKey, caCert, caKey)
 		serverCert = []*x509.Certificate{x509Cert}
 		err = err2
 	}
-	if err == nil {
-		certPath := path.Join(cfg.CertsDir, serverName+api.DefaultCertFileSuffix)
-		err = utils.SaveX509CertChain(serverCert, certPath)
-	}
+	// if err == nil {
+	// 	certPath := path.Join(svc.env.CertsDir, serverName+api.DefaultCertFileSuffix)
+	// 	err = utils.SaveX509CertChain(serverCert, certPath)
+	// }
 
 	return serverCert, err
 }
 
-// GetCACert returns the x509 CA certificate.
+// GetCACert returns the self-signed x509 CA certificate from the environment
 func (svc *CertsServiceImpl) GetCACert() *x509.Certificate {
-	return svc.config.CaCert
+	caCert, caKey, err := svc.env.GetCACert()
+	_ = caKey
+	_ = err
+	return caCert
+}
+
+// Load the previously saved TLS certificate for the given clientID.
+// Intended for local management of clients.
+func (svc *CertsServiceImpl) GetClientTLSCert(clientID string) (*tls.Certificate, error) {
+
+	tlsCert, err := svc.env.GetClientCert(clientID)
+	return tlsCert, err
 }
 
 // GetServerCert returns a previously created server certificate.
@@ -140,95 +173,189 @@ func (svc *CertsServiceImpl) GetCACert() *x509.Certificate {
 func (svc *CertsServiceImpl) GetServerCert(serverName string) (
 	serverCert []*x509.Certificate, err error) {
 
-	// saved certs can be provider out-of-band so always check for it.
-	if svc.config.CertsDir != "" {
-		serverCertPath := path.Join(svc.config.CertsDir, serverName+api.DefaultCertFileSuffix)
-		serverCert, err = utils.LoadX509Cert(serverCertPath)
+	// certs can be provided out-of-band so always check for it.
+	tlsCert, err := svc.env.GetServerCert(serverName)
+	if err == nil && tlsCert != nil {
+		serverCert, _ = utils.TLSCertToX509(tlsCert)
 	}
+
+	// if no cert is stored try the provider
 	if serverCert == nil && svc.provider != nil {
 		serverCert, err = svc.provider.GetServerCert(serverName)
 	}
 	return serverCert, err
 }
 
-// Load the previously saved TLS certificate for the given clientID.
-// Intended for local management of clients.
-func (svc *CertsServiceImpl) GetClientTLSCert(clientID string) (*tls.Certificate, error) {
-	certPath := path.Join(svc.config.CertsDir, clientID+api.DefaultCertFileSuffix)
-	keyPath := path.Join(svc.config.CertsDir, clientID+api.DefaultPrivKeyFileSuffix)
+// Refresh and save the admin client certificate.
+// This saves the cert to file and updates the app environment.
+//
+//	validity is the period for new certificate.. 0 for default.
+//	minValidity is the minimum time the old certificate has to be valid. 0 for 20% of validity.
+func (svc *CertsServiceImpl) RefreshAdminCert(
+	validity time.Duration, minValidity time.Duration) error {
 
-	tlsCert, err := utils.LoadTLSCert(certPath, keyPath)
-	return tlsCert, err
-}
-
-// Refresh the server certificate if needed.
-// The certificate is updated when its remaining validity is below minRemaining.
-func (svc *CertsServiceImpl) Refresh(
-	serverName string, minRemaining time.Duration) (chain []*x509.Certificate, err error) {
-
-	minValidUntil := time.Now().Add(minRemaining)
-	// this can be the cached self-signed or provider cert
-	chain, err = svc.GetServerCert(serverName)
-	if err != nil {
-		// no certificate found
-		return nil, err
+	if validity == 0 {
+		validity = certs.DefaultAdminValidityPeriod
 	}
-	oldCert := chain[0]
-
-	if minRemaining < 0 || oldCert.NotAfter.Before(minValidUntil) {
-		var newCert *x509.Certificate
-
-		// refresh is needed
-		validityPeriod := oldCert.NotAfter.Sub(oldCert.NotBefore)
-		if svc.provider != nil {
-			chain, err = svc.provider.Refresh(serverName)
-		} else {
-			// self signed
-			newCert, err = utils.CreateCertFromTemplate(
-				oldCert, validityPeriod, svc.config.CaCert, svc.config.CaKey)
-			chain[0] = newCert
-		}
-	} else {
-		// no refresh needed
-	}
-	return chain, err
-}
-
-// Refresh the self signed CA.
-// If no CA private key is found then this is an out-of-band provided CA and wont be refreshed.
-// An error is returned if refresh was attempted and failed.
-func (svc *CertsServiceImpl) RefreshCA(minRemaining time.Duration) error {
-
-	minValidUntil := time.Now().Add(minRemaining)
-	cfg := svc.config
-	if cfg.CaKey == nil {
-		return nil
+	if minValidity == 0 {
+		minValidity = validity / 5
 	}
 
-	if minRemaining < 0 || cfg.CaCert.NotAfter.Before(minValidUntil) {
+	certsDir := svc.env.CertsDir
 
-		validityPeriod := cfg.CaCert.NotAfter.Sub(cfg.CaCert.NotBefore)
+	// create a new admin client cert if validation period is set and no exist cert exists
+	adminID := api.DefaultAdminUserID
+	adminCert, err := svc.env.GetClientCert(adminID)
 
-		template := *cfg.CaCert
-		template.NotBefore = time.Now().Add(-time.Second)
-		template.NotAfter = time.Now().Add(validityPeriod)
+	if err != nil || adminCert == nil {
+		// admin client cert doesn't exist, create one
+		certPath := filepath.Join(certsDir, adminID+api.DefaultCertFileSuffix)
+		keyPath := filepath.Join(certsDir, adminID+api.DefaultKeyFileSuffix)
 
-		certDerBytes, err := x509.CreateCertificate(
-			rand.Reader, &template, &template, cfg.CaKey.Public(), cfg.CaKey)
-		if err != nil {
-			return err
-		}
-		newCA, err := x509.ParseCertificate(certDerBytes)
-		if err != nil {
-			return err
-		}
-		cfg.CaCert = newCA
+		privKey := utils.NewEd25519Key()
+		adminX509, err2 := svc.CreateClientCert(
+			adminID, api.ClientRoleAdmin, validity, privKey.Public())
+		err = err2
 		if err == nil {
-			caCertPath := path.Join(cfg.CertsDir, api.DefaultCaCertFile)
-			err = utils.SaveX509Cert(newCA, caCertPath)
+			err = utils.SaveX509Cert(adminX509, certPath)
 		}
+		if err == nil {
+			err = utils.SavePrivateKey(privKey, keyPath)
+		}
+	}
+	return err
+}
+
+// Refresh the self signed CA before it expires.
+//
+// This saves the cert to file and updates the app environment.
+//
+// If no CA exists then create a new one using the configured private key.
+// If no private key is configured then create and save one.
+//
+// An error is returned if refresh was attempted and failed.
+//
+//	validity is the validity period of new certificates or 0 for default
+//	minValidity is the minimum remaining validity before renewing. 0 for 20%.
+func (svc *CertsServiceImpl) RefreshCA(
+	validity time.Duration, minValidity time.Duration) (err error) {
+
+	if validity == 0 {
+		validity = certs.DefaultCAValidityPeriod
+	}
+	if minValidity == 0 {
+		minValidity = validity / 5
+	}
+
+	env := svc.env
+
+	// todo: should lifespan be a config? for now use 20% as the threshold
+	minValidUntil := time.Now().Add(minValidity)
+	// caKeyPath := path.Join(certsDir, api.DefaultCaKeyFile)
+	// caCertPath := path.Join(certsDir, api.DefaultCaCertFile)
+
+	// caCert, err := utils.LoadCACert(caCertPath)
+	// caKey, err := utils.LoadPrivateKey(caKeyPath)
+	caCert, caKey, err := env.GetCACert()
+
+	// if a private key doesn't exist, create and save a new one
+	if caKey == nil {
+		caKey = utils.NewEd25519Key()
+		// if a CA cert was known it is no longer valid
+		caCert = nil
+
+		// slog.Warn("RefreshCA: New CA key", "caKeyPath", caKeyPath)
+		// err = utils.SavePrivateKey(caKey, caKeyPath)
+	}
+
+	// if the CA doesn't exist, create a new one, otherwise use it as a template.
+	if caCert == nil {
+		caCert, caKey, err = CreateSelfSignedCACert(caKey, validity)
+
+		// slog.Warn("RefreshCA: New CA at", "caCertPath", caCertPath)
+		// err = utils.SaveX509Cert(caCert, caCertPath)
+		env.SetCACert(caCert, caKey)
+
+	} else if caCert.NotAfter.Before(minValidUntil) {
+		template := *caCert
+		newCA, err := utils.CreateCertFromTemplate(&template, validity, caCert, caKey)
+
+		if err != nil {
+			return err
+		}
+		caCert = newCA
+		// if err == nil {
+		// err = utils.SaveX509Cert(newCA, caCertPath)
+		// }
+		env.SetCACert(newCA, caKey)
 	}
 	return nil
+}
+
+// Refresh and save the server certificate if needed.
+//
+// This uses the server cert from the app environment and updates it
+// if its validity period is below minRemaining.
+// When a new certificate is created it is saved to the environment certs directory.
+//
+//	serverName is the certificate. Use "" for the default.
+//	validity is the validity period of new certificates. 0 for default.
+//	minRemaining is the minimum time the certificate should still be valid before renewing. 0 for 20%.
+func (svc *CertsServiceImpl) RefreshServerCert(
+	serverName string, validity time.Duration, minRemaining time.Duration) (err error) {
+
+	var serverKey crypto.Signer
+	if validity == 0 {
+		validity = certs.DefaultServerValidityPeriod
+	}
+	if minRemaining == 0 {
+		minRemaining = validity / 5
+	}
+	if serverName == "" {
+		serverName = api.DefaultServerName
+	}
+
+	minValidUntil := time.Now().Add(minRemaining)
+
+	// this can be the cached self-signed or provider cert with key
+
+	// validate the cert if available
+	tlsCert, err := svc.env.GetServerCert(serverName)
+	if err == nil {
+		serverKey, _ = tlsCert.PrivateKey.(crypto.Signer)
+		oldCert, err := x509.ParseCertificate(tlsCert.Certificate[0])
+		if err == nil {
+			// if the cert is valid beyond minValidUntil then we're good
+			if !oldCert.NotAfter.Before(minValidUntil) {
+				return nil
+			}
+		}
+	}
+
+	// renew and save the certificate
+	var serverChain []*x509.Certificate
+
+	if serverKey == nil {
+		serverKey = utils.NewEd25519Key()
+	}
+
+	if svc.provider != nil {
+		serverChain, err = svc.provider.Refresh(serverName)
+	} else {
+		// self signed
+		ip := utils.GetOutboundIP("")
+		serverChain, err = svc.CreateServerCert(
+			serverName, ip.String(), validity, serverKey.Public())
+
+		// newCert, err = utils.CreateCertFromTemplate(
+		// 	oldCert, validityPeriod, env.CaCert, svc.config.CaKey)
+	}
+	if err != nil {
+		return err
+	}
+	serverCert := utils.X509ChainToTLS(serverChain, serverKey)
+	svc.env.SetServerCert(serverCert)
+	return err
 }
 
 // Start publishes the td when app is ready
@@ -267,7 +394,7 @@ func (svc *CertsServiceImpl) VerifyClientCert(clientID string, clientCert *x509.
 	}
 
 	opts := x509.VerifyOptions{
-		Roots:     svc.caCertPool,
+		Roots:     svc.env.GetRootCAs().Clone(),
 		KeyUsages: []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth},
 	}
 	_, err = clientCert.Verify(opts)
@@ -275,9 +402,15 @@ func (svc *CertsServiceImpl) VerifyClientCert(clientID string, clientCert *x509.
 	return err
 }
 
-// Create a ready-to-use self-signed certificate provider
+// Create a ready-to-use self-signed certificate provider.
+//
+// This:
+//   - creates a self-signed CA certificate if one doesn't exist
+//   - creates a server certificate if one doesn't exist
+//   - creates a client certificate if one doesn't exist
+//
 // Call Start to publish its TD.
-func NewCertsServiceImpl(config *certs.CertsConfig) (*CertsServiceImpl, error) {
+func NewCertsServiceImpl(env *api.AppEnvironment, config *certs.CertsConfig) (*CertsServiceImpl, error) {
 	var err error
 
 	thingID := certs.CertsServiceDefaultThingID
@@ -288,30 +421,27 @@ func NewCertsServiceImpl(config *certs.CertsConfig) (*CertsServiceImpl, error) {
 	svc := &CertsServiceImpl{
 		ExposedThing: thing.NewExposedThing(thingID, nil),
 		config:       config,
+		env:          env,
 	}
-	slog.Info("Start: Starting certs service")
+	slog.Info("NewCertsServiceImpl: Starting certs service")
 
-	if config.CertsDir == "" {
-		return nil, fmt.Errorf("Start: Missing certificate directory")
+	// initialize all ceritificates with defaults
+	err = svc.RefreshCA(config.CACertValidity, 0)
+	if err == nil {
+		err = svc.RefreshServerCert("", config.ServerCertValidity, 0)
 	}
-	if config.CaCert == nil {
-		config.CaCert, config.CaKey = LoadCACert(config.CertsDir)
-	}
-
-	// a self-signed CA is need for generating client certificates and
-	if config.CaKey == nil || config.CaCert == nil {
-		config.CaCert, config.CaKey, err = CreateSelfSignedCACert(
-			config.CertsDir, config.CaKey, certs.DefaultCAValidityPeriod)
+	if err == nil {
+		err = svc.RefreshAdminCert(config.AdminCertValidity, 0)
 	}
 
-	// include the CA in the certificate pool for verifying certificates
-	svc.caCertPool, _ = x509.SystemCertPool()
-	svc.caCertPool.AddCert(svc.config.CaCert)
+	// // include the CA in the certificate pool for verifying certificates
+	// svc.caCertPool, _ = x509.SystemCertPool()
+	// svc.caCertPool.AddCert(svc.config.CaCert)
 
-	// create an admin client cert if validation period is set and no exist cert exists
-	if config.AdminCertValidityDays > 0 {
-		err = svc.CreateAdminCert()
-	}
+	// // create an admin client cert if validation period is set and no exist cert exists
+	// if config.AdminCertValidityDays > 0 {
+	// 	err = svc.CreateAdminCert()
+	// }
 	var _ certs.ICertsService = svc // api validation
 	return svc, err
 }

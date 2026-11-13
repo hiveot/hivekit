@@ -19,7 +19,7 @@ import (
 type FactoryImpl struct {
 	*cells.HiveCellBase
 
-	env *api.HiveEnvironment
+	env *api.AppEnvironment
 
 	// the http server with and cells that serve http endpoints
 	httpServer api.IHttpServer
@@ -61,7 +61,7 @@ func (f *FactoryImpl) GetAuthenticator() api.IAuthenticator {
 }
 
 // Return the application environment used by the factory.
-func (f *FactoryImpl) GetEnvironment() *api.HiveEnvironment {
+func (f *FactoryImpl) GetEnvironment() *api.AppEnvironment {
 	return f.env
 }
 
@@ -263,6 +263,15 @@ func (f *FactoryImpl) SetAuthenticator(impl api.IAuthenticator) {
 	f.authProxy.SetAuthenticator(impl)
 }
 
+// Invoke Start on all loaded cells.
+// Intended to be used after all cells have been created and linked.
+func (f *FactoryImpl) Start() {
+	slog.Info("Start, starting all cells")
+	for _, cell := range f.loadedCells {
+		cell.Start()
+	}
+}
+
 // Stop all cells in reverse order
 func (f *FactoryImpl) Stop() {
 	n := len(f.loadedCells)
@@ -291,10 +300,10 @@ func (f *FactoryImpl) WaitForSignal(ctx context.Context) {
 
 // Return a ready-to-use instance of the cell factory.
 //
-//	env is the application enviroment created with api.NewHiveEnvironment
+//	env is the application enviroment created with api.NewAppEnvironment
 //	cellDefs are the cell definitions available to GetCell(type)
 func NewCellFactoryImpl(
-	env *api.HiveEnvironment, cellDefs []api.CellDefinition) api.ICellFactory {
+	env *api.AppEnvironment, cellDefs []api.CellDefinition) api.ICellFactory {
 
 	cellDefMap := make(map[string]api.CellDefinition)
 	for _, def := range cellDefs {

@@ -22,7 +22,7 @@ var ExampleHome = path.Join(os.TempDir(), "hivekit-examples")
 // See the factory/recipes/gateway/GatewayRecipe.go for the cells in the recipe.
 func main() {
 
-	env := api.NewHiveEnvironment(ExampleHome, true)
+	env := api.NewAppEnvironment(ExampleHome, true)
 	env.AppID = "gateway-example"
 	env.RpcTimeout = time.Minute // for testing
 	utils.SetLogging(env.LogLevel, "")

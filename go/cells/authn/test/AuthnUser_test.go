@@ -145,8 +145,8 @@ func TestClientUpdatePubKey(t *testing.T) {
 	assert.NotEmpty(t, profile.TimeUpdated)
 
 	// update the public key
-	privKey, pubKey := utils.NewKey(utils.KeyTypeECDSA)
-	pubKeyPem := utils.PublicKeyToPem(pubKey)
+	privKey := utils.NewKey(utils.KeyTypeECDSA)
+	pubKeyPem := utils.PublicKeyToPem(privKey.Public())
 	_ = privKey
 	profile2, err := userSvc.GetProfile(user1ID)
 	assert.Equal(t, user1ID, profile2.ClientID)

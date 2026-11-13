@@ -76,7 +76,7 @@ func TestDiscoverGetThingTD(t *testing.T) {
 	require.NoError(t, err)
 
 	// discover the server
-	appEnv := api.NewHiveEnvironment("", false)
+	appEnv := api.NewAppEnvironment("", false)
 	cl, err := discovery_client.NewDiscoveryClient(appEnv, false)
 	// recs, err := cl.DiscoverThings(testServiceName, time.Second, nil)
 	// recs, err := cl.DiscoverThings(testServiceName, "", false, time.Second, nil)

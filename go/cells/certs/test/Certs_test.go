@@ -3,7 +3,6 @@ package certstest_test
 import (
 	"crypto/x509"
 	"os"
-	"path/filepath"
 	"testing"
 	"time"
 
@@ -17,22 +16,25 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-var storageDir = filepath.Join(testenv.TestHome, "certs")
+// var storageDir = filepath.Join(testenv.TestHome, "certs")
 
 // private key type used in test
 const TestKeyType = utils.KeyTypeECDSA
 
 // start the certs service
-func startService(t *testing.T) (certs.ICertsService, func(), error) {
+func startService(t *testing.T, certValidity time.Duration) (certs.ICertsService, error) {
 
-	// clear start
-	_ = os.RemoveAll(storageDir)
-	cfg := &certs.CertsConfig{CertsDir: storageDir}
-	svc, err := certs_service.NewCertsService(cfg)
+	// clean start
+	os.RemoveAll(testenv.TestHome)
+	env := api.NewAppEnvironment(testenv.TestHome, false)
+	cfg := &certs.CertsConfig{
+		AdminCertValidity:  certValidity,
+		CACertValidity:     certValidity,
+		ServerCertValidity: certValidity,
+	}
+	svc, err := certs_service.NewCertsService(env, cfg)
 	require.NoError(t, err)
-	return svc, func() {
-		svc.Stop()
-	}, err
+	return svc, err
 }
 
 // TestMain create a test folder for certificates and private key
@@ -43,7 +45,7 @@ func TestMain(m *testing.M) {
 	result := m.Run()
 	if result != 0 {
 		println("Test failed with code:", result)
-		println("Find test files in:", storageDir)
+		// println("Find test files in:", storageDir)
 	} else {
 		// comment out the next line to be able to inspect results
 		// _ = os.RemoveAll(storageDir)
@@ -56,89 +58,108 @@ func TestMain(m *testing.M) {
 func TestStartStop(t *testing.T) {
 	t.Logf("---%s---\n", t.Name())
 
-	m, stopFn, err := startService(t)
-	_ = m
+	svc, err := startService(t, time.Minute)
 	require.NoError(t, err)
-	defer stopFn()
+	defer svc.Stop()
 }
 
-func TestService(t *testing.T) {
+// verify proper self-signed CA creation
+func TestCA(t *testing.T) {
+	t.Logf("---%s---\n", t.Name())
+
+	svc, err := startService(t, time.Minute)
+	require.NoError(t, err)
+	defer svc.Stop()
+
+	caCert := svc.GetCACert()
+	require.NotNil(t, caCert)
+
+	// CA must be valid for less than a minute
+	maxValid := time.Now().Add(time.Minute)
+	assert.Less(t, caCert.NotAfter, maxValid)
+
+}
+
+func TestCertClient(t *testing.T) {
+	const clientID = "clientID"
+	var certsThingID string
+	privKey := utils.NewEd25519Key()
+
+	svc, err := startService(t, time.Minute)
+	require.NoError(t, err)
+	defer svc.Stop()
+
+	// first test with a directly created cert
+	clientCert1, err := svc.CreateClientCert(
+		clientID, api.ClientRoleViewer, time.Hour, privKey.Public())
+	require.NoError(t, err)
+	err = svc.VerifyClientCert(clientID, clientCert1)
+	assert.NoError(t, err)
+
+	// use a direct transport instead of running a client-server
+	certsThingID = svc.GetID()
+	tp := testenv.NewTestTransport(clientID, svc)
+	cl := certs_client.NewCertsClient(certsThingID, tp)
+	clientCert2, err := cl.CreateClientCert(clientID, api.ClientRoleViewer, time.Hour, privKey.Public())
+	require.NoError(t, err)
+	err = svc.VerifyClientCert(clientID, clientCert2)
+	assert.NoError(t, err)
+}
+
+func TestServerCert(t *testing.T) {
 	const appName = "server"
 
-	m, cancelFn, err := startService(t)
-	_ = m
+	// starting the server initializes the CA and server cert
+	svc, err := startService(t, time.Minute)
 	require.NoError(t, err)
-	defer cancelFn()
+	defer svc.Stop()
 
-	caCert := m.GetCACert()
-	require.NotEmpty(t, caCert)
-
-	// create the server cert
-	privKey, pubKey := utils.NewEd25519Key()
-	_ = privKey
-	newServerCert, err := m.CreateServerCert(appName, "", time.Hour, pubKey)
+	serverCert, err := svc.GetServerCert("")
 	require.NoError(t, err)
-	require.NotEmpty(t, newServerCert)
+	require.NotEmpty(t, serverCert)
 
-	certChain, err := m.GetServerCert(appName)
+	// force a renewal of the server cert
+	err = svc.RefreshServerCert(appName, time.Hour, time.Hour)
 	require.NoError(t, err)
-	require.NotEmpty(t, certChain)
 
-	//
+	// the validity of the new cert must be just under an hour
+	serverCert2, err := svc.GetServerCert("")
+	require.NoError(t, err)
+	validFor := serverCert2[0].NotAfter.Sub(time.Now())
+	assert.Less(t, validFor, time.Hour)
+	assert.Greater(t, validFor, time.Minute*50)
+
+	err = svc.RefreshServerCert(appName, time.Hour, time.Hour)
+	require.NoError(t, err)
+
+	// verify the cert
+	caCert := svc.GetCACert()
 	caPool := x509.NewCertPool()
 	caPool.AddCert(caCert)
 	opts := x509.VerifyOptions{
 		Roots:     caPool,
 		KeyUsages: []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth},
 	}
-	_, err = certChain[0].Verify(opts)
+	_, err = serverCert2[0].Verify(opts)
 	require.NoError(t, err)
-}
-
-func TestCertClient(t *testing.T) {
-	const clientID = "clientID"
-	var certsThingID string
-
-	m, cancelFn, err := startService(t)
-	_ = m
-	require.NoError(t, err)
-	defer cancelFn()
-
-	// use a direct transport instead of running a client-server
-	certsThingID = m.GetID()
-	tp := testenv.NewTestTransport(clientID, m)
-	cl := certs_client.NewCertsClient(certsThingID, tp)
-
-	privKey, pubKey := utils.NewEd25519Key()
-	_ = privKey
-	clientCert, err := m.CreateClientCert(clientID, api.ClientOUConsumer, time.Hour, pubKey)
-	require.NoError(t, err)
-
-	err = m.VerifyClientCert(clientID, clientCert)
-	assert.NoError(t, err)
-
-	err = cl.VerifyClientCert(clientID, clientCert)
-	assert.NoError(t, err)
-
 }
 
 func TestCreateCerts(t *testing.T) {
-	m, cancelFn, err := startService(t)
-	_ = m
+	svc, err := startService(t, time.Minute)
 	require.NoError(t, err)
-	defer cancelFn()
+	defer svc.Stop()
 
-	caCert := m.GetCACert()
+	caCert := svc.GetCACert()
 	require.NotNil(t, caCert)
 
-	privKey, pubKey := utils.NewEd25519Key()
-	_ = privKey
-	serverChain, err := m.CreateServerCert("test", "hostname", time.Hour, pubKey)
+	privKey := utils.NewEd25519Key()
+	serverChain, err := svc.CreateServerCert(
+		"test", "hostname", time.Hour, privKey.Public())
 	require.NoError(t, err)
 	require.NotNil(t, serverChain)
 
 	// this needs completion
-	cl := certs_client.NewCertsClient(m.GetID(), nil)
+	cl := certs_client.NewCertsClient(svc.GetID(), nil)
 
 	// var _ certs.ICertsService = cl // interface check
 	_ = cl

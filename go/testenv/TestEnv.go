@@ -86,7 +86,7 @@ var ActionTypes = []string{vocab.ActionDimmer, vocab.ActionSwitch,
 // Test environment for testing cells
 type TestEnv struct {
 	// App test environment with directories
-	Env *api.HiveEnvironment
+	Env *api.AppEnvironment
 	// certificate bundle to use for this test environment
 	CertBundle certstest.TestCertBundle
 	// base http server
@@ -481,11 +481,12 @@ func NewTestEnv(clean bool) *TestEnv {
 		os.RemoveAll(TestHome)
 		os.MkdirAll(TestHome, 0750)
 	}
-	appEnv := api.NewHiveEnvironment(TestHome, false)
+	appEnv := api.NewAppEnvironment(TestHome, false)
 
 	// this is the global messaging timeout. Normally set to 3 seconds but when testing
 	// using breakpoints this must be higher.
 	msg.CellTimeout = TestTimeout
+	appEnv.RpcTimeout = TestTimeout
 
 	utils.SetLogging("info", "")
 	appEnv.HttpsPort = TestServerHttpPort
@@ -497,7 +498,7 @@ func NewTestEnv(clean bool) *TestEnv {
 	// os.MkdirAll(appEnv.PluginsDir, 0750)
 	os.MkdirAll(appEnv.StoresDir, 0750)
 	certBundle := certstest.CreateTestCertBundle(utils.KeyTypeED25519)
-	appEnv.SetCACert(certBundle.CaCert)
+	appEnv.SetCACert(certBundle.CaCert, certBundle.CaPrivKey)
 	testEnv := &TestEnv{
 		Env:        appEnv,
 		CertBundle: certBundle,

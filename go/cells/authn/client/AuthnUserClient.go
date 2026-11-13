@@ -57,9 +57,13 @@ func (m *AuthnUserClient) UpdateProfile(password string) (err error) {
 
 // Create a new ready to use instance of the authn user client
 //
-//	authnServiceID is the thingID of the authn user service
+//	authnServiceID is the thingID of the authn user service. "" for default.
 //	sink is the chain containing the user's transport client
 func NewAuthnUserClient(authnServiceID string, sink api.IHiveCell) *AuthnUserClient {
+
+	if authnServiceID == "" {
+		authnServiceID = authn.DefaultAuthnUserThingID
+	}
 	cl := &AuthnUserClient{
 		HiveCellBase:   cells.NewHiveCellBase(authn.AuthnUserServiceType + "-client"),
 		authnServiceID: authnServiceID,

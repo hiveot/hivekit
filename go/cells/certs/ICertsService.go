@@ -75,17 +75,15 @@ type CertsConfig struct {
 	// ThingID in case of multiple instances; this defaults to the cell type.
 	ThingID string `yaml:"thingID"`
 
-	// On start create a client certificate for the admin account in CertsDir
-	// 0 to not create an admin client cert.
-	AdminCertValidityDays int `yaml:"adminCertValidityDays,omitempty"`
+	// Optional override of certificate validity
+	AdminCertValidity  time.Duration
+	CACertValidity     time.Duration
+	ServerCertValidity time.Duration
 
 	// The self-signed CA certificate to use.
-	CaCert *x509.Certificate
+	// CaCert *x509.Certificate
 	// The private/public key-pair of the self-signed CA
-	CaKey crypto.Signer
-
-	// The certificate storage directory. Required.
-	CertsDir string `yaml:"certsDir"`
+	// CaKey crypto.Signer
 
 	// Override the default settings for Country, Locality, Org and Province
 	Country  string
@@ -120,9 +118,9 @@ type ICertProvider interface {
 	// If no cert is found and a provider is used then request the cert from the provider.
 	GetServerCert(serverName string) ([]*x509.Certificate, error)
 
-	// Refresh the server certificate.
+	// Refresh a server certificate.
 	//
-	// This returns the new certificate.
+	// This returns the new certificate chain.
 	Refresh(serverName string) ([]*x509.Certificate, error)
 }
 
@@ -143,10 +141,10 @@ type ICertsService interface {
 	// Use utils.X509CertToTLS to convert it to a TLS certificate.
 	//
 	//	clientID identifies the authentication accountID of the client
-	//  ou is intended to identify the client as a device, consumer or service
-	//	validity is the time the certificate is valid for
+	//  role of the client stored in the ou; eg ClientRoleDevice|Consumer|...
+	//	validity is the time the certificate is valid for. 0 for default.
 	//	pubKey is the client's public key to include in the certificate.
-	CreateClientCert(clientID string, ou string, validity time.Duration,
+	CreateClientCert(clientID string, role string, validity time.Duration,
 		pubKey crypto.PublicKey) (*x509.Certificate, error)
 
 	// Create and save a new TLS certificate and key
@@ -156,8 +154,12 @@ type ICertsService interface {
 	// created an account for the client.
 	//
 	// See also LoadClientTLSCert for loading the stored certificate.
-	// By default this matches then naming and location in the hive environment.
-	CreateClientTLSCert(clientID string, ou string, validity time.Duration,
+	// By default this matches then naming and location in the app environment.
+	//
+	//	clientID identifies the authentication accountID of the client
+	//  role of the client stored in the ou; eg ClientRoleDevice|Consumer|...
+	//	validity is the time the certificate is valid for. 0 for default.
+	CreateClientTLSCert(clientID string, role string, validity time.Duration,
 	) (*tls.Certificate, error)
 
 	// Create and save a new server certificate chain.
@@ -173,7 +175,7 @@ type ICertsService interface {
 	//  serverName is the name of the server and under which to store the key and certificate.
 	//  hostName is the name or IP to include in the certificate SAN. "" to ignore.
 	//	validity is the validity period of the certificate or 0 for the recommended default.
-	//  serverPubKey is the server public key to include in the certificate.
+	//  pubKey is the server public key to include in the certificate.
 	//
 	// This returns the server x509 certificate chain.
 	// Use utils.X509CertToTLS to convert it to a TLS certificate.
@@ -189,17 +191,23 @@ type ICertsService interface {
 	// This first locates a previously saved certificate with the name in the
 	// certs directory.
 	// If no certificate was found then check with the configured providers.
+	//
+	//	serverName is the name under which the cert is stored. "" for default.
 	GetServerCert(serverName string) ([]*x509.Certificate, error)
 
 	// Load the previously saved client TLS certificate for the given clientID.
 	// Intended for local management of clients.
+	//
+	// clientID is client's ID or "" for the app environment clientID
 	GetClientTLSCert(clientID string) (*tls.Certificate, error)
 
 	// Refresh the server certificate if needed.
+	//
+	// This saves the cert to file and updates the app environment.
 	// The certificate is updated when its remaining validity is below minRemaining
 	// If minRemaining is negative then force a refresh.
-	// This returns the new certificate if refreshed or the old certificate if plenty of life is left.
-	Refresh(serverName string, minRemaining time.Duration) ([]*x509.Certificate, error)
+	//	serverName is the name under which the cert is stored. "" for default.
+	RefreshServerCert(serverName string, validity time.Duration, minRemaining time.Duration) error
 
 	// Verify if the given client certificate is valid and signed by the CA.
 	//

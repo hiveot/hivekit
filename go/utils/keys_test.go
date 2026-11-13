@@ -57,23 +57,23 @@ func TestMultipleKeys(t *testing.T) {
 func TestSaveLoadPrivKey(t *testing.T) {
 	t.Logf("---%s---\n", t.Name())
 
-	k1priv, k1pub := utils.NewKey(keyType)
+	k1priv := utils.NewKey(keyType)
 	err := utils.SavePrivateKey(k1priv, testPrivKeyPemFile)
 	assert.NoError(t, err)
 
-	k2priv, k2pub, err := utils.LoadPrivateKey(testPrivKeyPemFile)
+	k2priv, err := utils.LoadPrivateKey(testPrivKeyPemFile)
 	assert.NoError(t, err)
 	require.NotNil(t, k2priv)
 
-	pem1 := utils.PublicKeyToPem(k1pub)
-	pem2 := utils.PublicKeyToPem(k2pub)
+	pem1 := utils.PublicKeyToPem(k1priv.Public())
+	pem2 := utils.PublicKeyToPem(k2priv.Public())
 	assert.NotEmpty(t, pem1)
 	assert.Equal(t, pem1, pem2)
 
 	msg := []byte("hello world")
 	signature, err := utils.Sign(msg, k1priv)
 	require.NoError(t, err)
-	valid := utils.Verify(msg, signature, k2pub)
+	valid := utils.Verify(msg, signature, k2priv.Public())
 	assert.True(t, valid)
 
 	assert.NoError(t, err)
@@ -82,9 +82,9 @@ func TestSaveLoadPrivKey(t *testing.T) {
 func TestSaveLoadPubkey(t *testing.T) {
 	t.Logf("---%s---\n", t.Name())
 
-	k1, k1Pub := utils.NewKey(keyType)
+	k1 := utils.NewKey(keyType)
 	require.NotEmpty(t, k1)
-	err := utils.SavePublicKey(k1Pub, testPubKeyPemFile)
+	err := utils.SavePublicKey(k1.Public(), testPubKeyPemFile)
 	assert.NoError(t, err)
 
 	k2Pub, err := utils.LoadPublicKey(testPubKeyPemFile)
@@ -97,13 +97,13 @@ func TestSaveLoadPubkey(t *testing.T) {
 func TestSaveLoadPrivKeyNotFound(t *testing.T) {
 	t.Logf("---%s---\n", t.Name())
 
-	k1, _ := utils.NewKey(keyType)
+	k1 := utils.NewKey(keyType)
 	// no access
 	err := utils.SavePrivateKey(k1, "/root")
 	assert.Error(t, err)
 
 	//
-	k1, _, err = utils.LoadPrivateKey("/filedoesnotexist.pem")
+	k1, err = utils.LoadPrivateKey("/filedoesnotexist.pem")
 	assert.Error(t, err)
 }
 
@@ -162,14 +162,14 @@ func TestPublicKeyPEM(t *testing.T) {
 func TestPrivateKeyPEM(t *testing.T) {
 	t.Logf("---%s---\n", t.Name())
 
-	k1, _ := utils.NewKey(keyType)
+	k1 := utils.NewKey(keyType)
 	k1Pem := utils.PrivateKeyToPEM(k1)
 	assert.NotEmpty(t, k1Pem)
 
 	kt1 := utils.DetermineKeyType(k1Pem)
 	assert.Equal(t, keyType, kt1)
 
-	k2, _, err := utils.PrivateKeyFromPem(k1Pem)
+	k2, err := utils.PrivateKeyFromPem(k1Pem)
 	require.NoError(t, err)
 
 	k2Pem := utils.PrivateKeyToPEM(k2)
@@ -182,7 +182,7 @@ func TestPrivateKeyPEM(t *testing.T) {
 func TestInvalidEnc(t *testing.T) {
 	t.Logf("---%s---\n", t.Name())
 
-	_, _, err := utils.PrivateKeyFromPem("PRIVATE KEY")
+	_, err := utils.PrivateKeyFromPem("PRIVATE KEY")
 	assert.Error(t, err)
 
 	// note: nkeys have not ability to verify the public key

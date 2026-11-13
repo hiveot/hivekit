@@ -1,6 +1,7 @@
 package api
 
 import (
+	"crypto"
 	"crypto/tls"
 	"crypto/x509"
 	"flag"
@@ -37,41 +38,20 @@ const (
 	// certificate name suffix {name}Cert.pem
 	DefaultCertFileSuffix = "Cert.pem"
 
-	// DefaultPrivKeyFileSuffix defines the filename suffix under which public/private keys are
+	// DefaultKeyFileSuffix defines the filename suffix under which public/private keys are
 	// stored in the certs directory.
-	DefaultPrivKeyFileSuffix = "Key.pem"
-
-	DefaultServerCertFile = "Server" + DefaultCertFileSuffix
-	DefaultServerKeyFile  = "Server" + DefaultPrivKeyFileSuffix
+	DefaultKeyFileSuffix = "Key.pem"
 
 	// default server name to use if none is provided
 	DefaultServerName = "server"
 
 	DefaultTokenFileSuffix = ".token"
-
-	//---  Certificate Organization Unit for client certificate based authorization.
-	// Intended to identify the purpose of issued certificates.
-
-	// ClientOUAdmin lets a client approve things provisioning (postOOB), add and remove users
-	ClientOUAdmin = "admin"
-
-	// OUNone is the default OU with no API access permissions
-	ClientOUNone = "n/a"
-
-	// OUConsumer for consumers
-	ClientOUConsumer = "consumer"
-
-	// OUIoTDevice for IoT devices
-	ClientOUIoTDevice = "device"
-
-	// OUService for Hiveot services.
-	ClientOUService = "service"
 )
 
-// HiveEnvironment holds the running environment naming conventions.
+// AppEnvironment holds the running environment naming conventions.
 // Intended for devices, services, or client applications.
 // This contains folder locations, CA certificate and application clientID
-type HiveEnvironment struct {
+type AppEnvironment struct {
 	// AppID is the application type ID derived from the binary name.
 	// This is not the instance ID.
 	// This can be used to load matching configuration yaml files, logfiles, and
@@ -124,12 +104,14 @@ type HiveEnvironment struct {
 	// See also GetAuthToken which will attempt to load it on first use.
 	authToken string `yaml:"-"`
 
-	// The self-signed CA used to signed the server certificate.
+	// The cached self-signed CA and key used to sign the client certificate.
 	// Intended for clients to validate the connection with the server.
 	// If loaded this will be included in the RootCAs.
-	caCert *x509.Certificate `yaml:"-"` // default cert if loaded
+	caCert *x509.Certificate `yaml:"-"`
+	caKey  crypto.Signer     `yaml:"-"`
 
-	// The self-signed client certificate loaded from {clientID}Cert|{clientID}Key.pem
+	// The cached self-signed client certificate
+	// If available it is loaded from {clientID}Cert|{clientID}Key.pem
 	// Intended for clients that authenticate using a certificate.
 	clientCert *tls.Certificate `yaml:"-"`
 
@@ -146,7 +128,7 @@ type HiveEnvironment struct {
 
 // Create all missing directories
 // this returns an error if one of them doesnt exist and cant be created
-func (env *HiveEnvironment) CreateAllDirs() (err error) {
+func (env *AppEnvironment) CreateAllDirs() (err error) {
 	if err2 := env.CreateDir(env.HomeDir, 0750); err2 != nil {
 		err = err2
 	}
@@ -175,7 +157,7 @@ func (env *HiveEnvironment) CreateAllDirs() (err error) {
 }
 
 // Create a missing directory
-func (env *HiveEnvironment) CreateDir(path string, mode os.FileMode) error {
+func (env *AppEnvironment) CreateDir(path string, mode os.FileMode) error {
 	info, err := os.Stat(path)
 	if err != nil {
 		err = os.MkdirAll(path, mode)
@@ -196,7 +178,7 @@ func (env *HiveEnvironment) CreateDir(path string, mode os.FileMode) error {
 //
 // If no auth token is set then this is loaded from {clientID}.token.
 // This returns an error if the token isn't set and the file cant be loaded.
-func (env *HiveEnvironment) GetAuthToken() (string, error) {
+func (env *AppEnvironment) GetAuthToken() (string, error) {
 	if env.authToken != "" {
 		return env.authToken, nil
 	}
@@ -211,73 +193,95 @@ func (env *HiveEnvironment) GetAuthToken() (string, error) {
 
 // GetCACert returns a self signed CA certificate.
 //
-// If no CA cert is set then this is loaded from {certsDir}/caCert.pem
+// If a CA is cached then it is returned along with the cached CA key if set,
+// otherwise attempt to load it from {certsDir}/caCert.pem
 //
 // This returns nil if the CA is not set and cannot be loaded.
-func (env *HiveEnvironment) GetCACert() (caCert *x509.Certificate, err error) {
+func (env *AppEnvironment) GetCACert() (
+	caCert *x509.Certificate, caKey crypto.Signer, err error) {
+
 	if env.caCert != nil {
-		return env.caCert, nil
+		return env.caCert, env.caKey, nil
 	}
 	certPath := filepath.Join(env.CertsDir, DefaultCaCertFile)
+	keyPath := filepath.Join(env.CertsDir, DefaultCaKeyFile)
 	env.caCert, err = utils.LoadCACert(certPath)
-	return env.caCert, err
+	env.caKey, _ = utils.LoadPrivateKey(keyPath)
+	return env.caCert, env.caKey, err
 }
 
 // GetClientCert return the client authentication certificate.
 //
-// A clientID must be set before using this method.
-//
 // This loads the file {certsDir}/{ClientID}Cert.pem and {ClientID}Key.pem.
 //
+//	clientID is the client whose cert to load. Use "" for env.ClientID.
+//
 // This returns the TLS certificate or an error if none is found.
-func (env *HiveEnvironment) GetClientCert() (cert *tls.Certificate, err error) {
-	if env.clientCert != nil {
+func (env *AppEnvironment) GetClientCert(clientID string) (cert *tls.Certificate, err error) {
+	if clientID == "" {
+		clientID = env.ClientID
+	}
+	if env.clientCert != nil && clientID == env.ClientID {
 		return env.clientCert, nil
 	}
-	certPath := filepath.Join(env.CertsDir, env.ClientID+DefaultCertFileSuffix)
-	keyPath := filepath.Join(env.CertsDir, env.ClientID+DefaultPrivKeyFileSuffix)
-	env.clientCert, err = utils.LoadTLSCert(certPath, keyPath)
-	return env.clientCert, err
+	certPath := filepath.Join(env.CertsDir, clientID+DefaultCertFileSuffix)
+	keyPath := filepath.Join(env.CertsDir, clientID+DefaultKeyFileSuffix)
+	clientCert, err := utils.LoadTLSCert(certPath, keyPath)
+	return clientCert, err
 }
 
 // Return the discovered directory TDD
 // This is only available if the TDD URL is discovered.
-func (env *HiveEnvironment) GetDirTD() *wot.TD {
+func (env *AppEnvironment) GetDirTD() *wot.TD {
 	return env.dirTD
 }
 
 // Return the root CAs collection from the system cert pool
 // This includes the self signed CA cert if available.
-func (env *HiveEnvironment) GetRootCAs() (rootCAs *x509.CertPool) {
+func (env *AppEnvironment) GetRootCAs() (rootCAs *x509.CertPool) {
 	if env.rootCAs != nil {
 		return env.rootCAs
 	}
 	env.rootCAs, _ = x509.SystemCertPool()
-	caCert, _ := env.GetCACert()
+	caCert, _, _ := env.GetCACert()
 	if caCert != nil {
 		env.rootCAs.AddCert(caCert)
 	}
 	return env.rootCAs
 }
 
-// GetServerCert return the application server certificate.
+// GetServerCert return the application server TLS certificate.
 //
-// This loads the cert from "ServerCert.pem" and "ServerKey.pem".
+// serverName is the optional name of the server. When using "" the default
+// server name "server" is used and the value is cached.
+//
+// On first use this attempts to load the certificate using the names
+// {serverName}Cert.pem and "ServerKey.pem".
 //
 // This returns the cert or an error if none is found.
-func (env *HiveEnvironment) GetServerCert() (cert *tls.Certificate, err error) {
-	if env.serverCert != nil {
-		return env.serverCert, nil
+func (env *AppEnvironment) GetServerCert(serverName string) (cert *tls.Certificate, err error) {
+	if serverName == "" {
+		serverName = DefaultServerName
+		if env.serverCert != nil {
+			return env.serverCert, nil
+		}
+		certPath := filepath.Join(env.CertsDir, DefaultServerName+DefaultCertFileSuffix)
+		keyPath := filepath.Join(env.CertsDir, DefaultServerName+DefaultKeyFileSuffix)
+		cert, err = utils.LoadTLSCert(certPath, keyPath)
+		// store it for next time
+		env.serverCert = cert
+
+	} else {
+		certPath := filepath.Join(env.CertsDir, serverName+DefaultCertFileSuffix)
+		keyPath := filepath.Join(env.CertsDir, serverName+DefaultKeyFileSuffix)
+		cert, err = utils.LoadTLSCert(certPath, keyPath)
 	}
-	certPath := filepath.Join(env.CertsDir, DefaultServerCertFile)
-	keyPath := filepath.Join(env.CertsDir, DefaultServerKeyFile)
-	env.serverCert, err = utils.LoadTLSCert(certPath, keyPath)
-	return env.serverCert, err
+	return cert, err
 }
 
 // Return the directory where a cell stores its data.
 // This does not create the directory.
-func (env *HiveEnvironment) GetStorageDir(cellType string) string {
+func (env *AppEnvironment) GetStorageDir(cellType string) string {
 	storeDir := filepath.Join(env.StoresDir, cellType)
 	return storeDir
 }
@@ -286,7 +290,7 @@ func (env *HiveEnvironment) GetStorageDir(cellType string) string {
 //
 // This returns an error if loading or parsing the config file fails.
 // Returns nil if the config file doesn't exist or is loaded successfully.
-func (env *HiveEnvironment) LoadConfig(name string, cfg interface{}) error {
+func (env *AppEnvironment) LoadConfig(name string, cfg interface{}) error {
 	configFile := name
 	if !path.IsAbs(configFile) {
 		configFile = path.Join(env.CertsDir, configFile)
@@ -312,9 +316,9 @@ func (env *HiveEnvironment) LoadConfig(name string, cfg interface{}) error {
 // Use verbose to display additional details.
 // 1: essentials: AppID, ClientID, home, auth token, has certs
 // 2: Directories, timeout, URLs, Cert details
-func (env *HiveEnvironment) Print(verbose int) {
+func (env *AppEnvironment) Print(verbose int) {
 	if verbose >= 1 {
-		fmt.Println("Hive Environment:")
+		fmt.Println("App Environment:")
 		fmt.Println("* AppID:          ", env.AppID)
 		fmt.Println("* ClientID:       ", env.ClientID)
 		fmt.Println("* Home directory: ", env.HomeDir)
@@ -340,7 +344,7 @@ func (env *HiveEnvironment) Print(verbose int) {
 			fmt.Println("* Found auth token for login as", env.ClientID)
 		}
 
-		caCert, err := env.GetCACert()
+		caCert, _, err := env.GetCACert()
 		if err != nil {
 			fmt.Println("! CA cert cannot be loaded", err.Error())
 		} else {
@@ -355,10 +359,27 @@ func (env *HiveEnvironment) Print(verbose int) {
 				fmt.Println("  - Not after:", caCert.NotAfter)
 			}
 		}
-
-		tlsCert, err := env.GetClientCert()
+		serverTLS, err := env.GetServerCert("")
 		if err != nil {
-			fmt.Println("! Client cert cannot be loaded: ", err.Error())
+			fmt.Println("* No server cert set")
+		} else {
+			fmt.Println("* Server cert available")
+			serverCert, err := x509.ParseCertificate(serverTLS.Certificate[0])
+			// serverCert := serverTLS.Certificate[0]
+			if err != nil && verbose >= 2 {
+				fmt.Println("  - CN:       ", serverCert.Subject.CommonName)
+				fmt.Println("  - OU:       ", serverCert.Subject.OrganizationalUnit)
+				// fmt.Println("  - Country:  ", serverCert.Subject.Country)
+				// fmt.Println("  - Province: ", serverCert.Subject.Province)
+				// fmt.Println("  - Locality: ", serverCert.Subject.Locality)
+				fmt.Println("  - Org:      ", serverCert.Subject.Organization)
+				fmt.Println("  - Not after:", serverCert.NotAfter)
+			}
+		}
+
+		tlsCert, err := env.GetClientCert(env.ClientID)
+		if err != nil {
+			fmt.Printf("! Client cert for '%s' cannot be loaded: %s", env.ClientID, err.Error())
 		} else {
 			chain, _ := utils.TLSCertToX509(tlsCert)
 			clientCert := chain[0]
@@ -380,36 +401,106 @@ func (env *HiveEnvironment) Print(verbose int) {
 // SetAuthToken Sets the client authentication token.
 //
 // Use to manually set a token for this connection
-func (env *HiveEnvironment) SetAuthToken(newToken string) {
+func (env *AppEnvironment) SetAuthToken(newToken string) {
 	env.authToken = newToken
 }
 
-// Set the CA certificate and add it to the cert pool
-// The updates the environment root CA pool.
-func (env *HiveEnvironment) SetCACert(caCert *x509.Certificate) {
+// Set and save an updated CA certificate and add it to the cert pool.
+// This updates the environment root CA pool.
+//
+//	caCert is the CA certificate to use instead of loading from file.
+//	caKey is needed if a self-signed client or server certificate is generated
+//		or validated using this CA.
+func (env *AppEnvironment) SetCACert(caCert *x509.Certificate, caKey crypto.Signer) error {
+	env.caKey = caKey
 	env.caCert = caCert
 	env.rootCAs, _ = x509.SystemCertPool()
 	env.rootCAs.AddCert(caCert)
+
+	certsDir := env.CertsDir
+	caKeyPath := path.Join(certsDir, DefaultCaKeyFile)
+	caCertPath := path.Join(certsDir, DefaultCaCertFile)
+	err := utils.SaveX509Cert(caCert, caCertPath)
+	if err == nil {
+		err = utils.SavePrivateKey(caKey, caKeyPath)
+	}
+	return err
 }
 
-// Set or replace the client certificate used by the environment.
-// This will prevent GetClientCert from trying to load the default client certificate.
-func (env *HiveEnvironment) SetClientCert(cert *tls.Certificate) {
+// Set or replace the client certificate used by the environment
+//
+// This must pass validation against the rootCA pool, which includes the loaded CA.
+// Also, the cert common name must match the clientID. If the clientID is empty then
+// it will be updated with the cert common name.
+// On success, GetClientCert will return this certificate instead of loading it from file.
+func (env *AppEnvironment) SetClientCert(cert *tls.Certificate) error {
+
+	x509Cert, err := x509.ParseCertificate(cert.Certificate[0])
+	if err != nil {
+		err = fmt.Errorf("SetClientCert: invalid certificate. Ignored: %w", err)
+		slog.Error(err.Error())
+		return err
+	}
+	opts := x509.VerifyOptions{
+		Roots:     env.rootCAs,
+		KeyUsages: []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth},
+	}
+	_, err = x509Cert.Verify(opts)
+	if err != nil {
+		err = fmt.Errorf("SetClientCert: Certificate failed verification. Ignored: %w", err)
+		slog.Error(err.Error())
+		return err
+	}
+	// adopt the client cert CN as the clientID
+	if env.ClientID == "" {
+		env.ClientID = x509Cert.Subject.CommonName
+	} else if x509Cert.Subject.CommonName != env.ClientID {
+		err = fmt.Errorf("SetClientCert: Certificate doesn't match clientID. Ignored.")
+		slog.Error(err.Error(),
+			"clientID", env.ClientID,
+			"cert common name", x509Cert.Subject.CommonName)
+		return err
+	}
 	env.clientCert = cert
+	return nil
 }
 
 // Set the directory TD to use with clients
-func (env *HiveEnvironment) SetDirTD(tdoc *wot.TD) {
+func (env *AppEnvironment) SetDirTD(tdoc *wot.TD) {
 	env.dirTD = tdoc
 }
 
-// Set or replace the server certificate used by the environment.
-// This will prevent GetServerCert from trying to load the default server certificate.
-func (env *HiveEnvironment) SetServerCert(cert *tls.Certificate) {
+// Set and save the cached server certificate used by the environment.
+//
+// This certificate must successfully verify against the CA cert pool.
+func (env *AppEnvironment) SetServerCert(cert *tls.Certificate) {
+
+	certsDir := env.CertsDir
+	serverName := DefaultServerName
+	keyPath := path.Join(certsDir, serverName+DefaultKeyFileSuffix)
+	certPath := path.Join(certsDir, serverName+DefaultCertFileSuffix)
+
+	x509Cert, err := x509.ParseCertificate(cert.Certificate[0])
+	if err != nil {
+		slog.Error("SetServerCert: invalid certificate. Ignored.", "err", err.Error())
+		return
+	}
+	opts := x509.VerifyOptions{
+		Roots:     env.rootCAs,
+		KeyUsages: []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth},
+	}
+	_, err = x509Cert.Verify(opts)
+	if err != nil {
+		slog.Error("SetServerCert: Certificate failed verification. Ignored.",
+			"err", err.Error())
+		// should this panic?
+		return
+	}
 	env.serverCert = cert
+	utils.SaveTLSCert(cert, certPath, keyPath)
 }
 
-// NewHiveEnvironment returns an application environment including folders for use by hive cells.
+// NewAppEnvironment returns an application environment including folders for use by hive cells.
 //
 // Optionally parse commandline flags:
 //
@@ -450,10 +541,10 @@ func (env *HiveEnvironment) SetServerCert(cert *tls.Certificate) {
 //
 //	homeDir to override the auto-detected or commandline paths. Use "" for defaults.
 //	withFlags parse the commandline flags for -home and -clientID
-func NewHiveEnvironment(homeDir string, withFlags bool) *HiveEnvironment {
+func NewAppEnvironment(homeDir string, withFlags bool) *AppEnvironment {
 
 	showEnv := 0
-	env := &HiveEnvironment{
+	env := &AppEnvironment{
 		LogLevel: "warn",
 		// PluginsDir:   pluginsDir,
 		RpcTimeout: DefaultRPCTimeout,
@@ -491,6 +582,7 @@ func NewHiveEnvironment(homeDir string, withFlags bool) *HiveEnvironment {
 		flag.StringVar(&env.DirTDURL, "dirTD", env.DirTDURL, "url where to download the directory TD")
 		flag.IntVar(&showEnv, "env", showEnv, "print environment info: 1 basic, 2 verbose")
 		flag.StringVar(&env.ServerURL, "server", env.ServerURL, "Force client connection to this server URL.")
+		flag.DurationVar(&env.RpcTimeout, "timeout", env.RpcTimeout, "Communication timeout.")
 		// if flag.Usage == nil {
 		// 	flag.Usage = func() {
 		// 		fmt.Println("Usage: app [options] ")
@@ -564,7 +656,7 @@ func NewHiveEnvironment(homeDir string, withFlags bool) *HiveEnvironment {
 		env.Print(showEnv)
 	}
 
-	// HiveEnvironment controls the use of cell timeout
+	// AppEnvironment controls the use of cell timeout
 	msg.CellTimeout = env.RpcTimeout
 
 	return env

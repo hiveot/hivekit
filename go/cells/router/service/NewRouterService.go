@@ -99,7 +99,7 @@ func NewRouterServiceFactory(f api.ICellFactory, md *api.CellDefinition) (api.IH
 	}
 
 	autoReconnect := DefaultRouterAutoConnect
-	clientCert, _ := env.GetClientCert()
+	clientCert, _ := env.GetClientCert(env.ClientID)
 	svc, err := NewRouterService(
 		storageDir, autoReconnect,
 		env.ClientID, clientCert,

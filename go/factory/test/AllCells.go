@@ -148,11 +148,6 @@ var HiveKitAllCells = []api.CellDefinition{
 		Type:        certs.CertsServiceCellType,
 		Constructor: certs_service.NewCertsServiceFactory,
 	},
-	// InitFactoryCerts ensure the factory has certificates needed to run.
-	{
-		Type:        certs.InitFactoryCertsCellType,
-		Constructor: certs_service.RunInitFactoryCerts,
-	},
 	// consumer helper
 	{
 		Type:        consumer.ConsumerCellType,

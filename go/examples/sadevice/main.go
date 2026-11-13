@@ -32,7 +32,7 @@ var ExampleHome = path.Join(os.TempDir(), "hivekit-examples")
 // See the factory/recipes/standalone/StandAloneDeviceRecipe.go for the cells in the recipe.
 // On start the device publishes its TD to the discovery server.
 func main() {
-	env := api.NewHiveEnvironment(ExampleHome, true)
+	env := api.NewAppEnvironment(ExampleHome, true)
 	env.AppID = "sadevice-example"
 	env.RpcTimeout = time.Minute // for testing
 	env.HttpsPort = 9222         // for testing

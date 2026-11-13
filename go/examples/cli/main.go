@@ -80,7 +80,7 @@ func main() {
 	}
 
 	// Setup the environment after parsing the commandline
-	env := api.NewHiveEnvironment(ExampleHome, true)
+	env := api.NewAppEnvironment(ExampleHome, true)
 	env.ClientID = DefaultClientID
 	env.AppID = "cli-example"
 	env.RpcTimeout = time.Minute * 3 // for testing

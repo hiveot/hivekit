@@ -20,9 +20,10 @@ var storageDir = filepath.Join(os.TempDir(), "certs")
 func TestCreateCA(t *testing.T) {
 
 	// ceate CA cert
-	caPrivKey, caPubKey := utils.NewKey(TestKeyType)
-	require.NotEmpty(t, caPubKey)
-	caCert, err := utils.CreateCACert("testCA", "country", "province", "locality", "orgName", time.Hour, caPrivKey, caPubKey)
+	caPrivKey := utils.NewKey(TestKeyType)
+	require.NotEmpty(t, caPrivKey.Public())
+	caCert, err := utils.CreateCACert(
+		"testCA", "country", "province", "locality", "orgName", time.Hour, caPrivKey)
 	require.NoError(t, err)
 	require.NotEmpty(t, caCert)
 
@@ -35,20 +36,21 @@ func TestCreateVerifyCerts(t *testing.T) {
 	const clientID = "testClient"
 	names := []string{"127.0.0.1", "localhost"}
 
-	caPrivKey, caPubKey := utils.NewKey(TestKeyType)
-	caCert, err := utils.CreateCACert("testCA", "country", "province", "locality", "orgName", time.Hour, caPrivKey, caPubKey)
+	caPrivKey := utils.NewKey(TestKeyType)
+	caCert, err := utils.CreateCACert(
+		"testCA", "country", "province", "locality", "orgName", time.Hour, caPrivKey)
 	require.NoError(t, err)
 	require.NotEmpty(t, caCert)
 	caPool := x509.NewCertPool()
 	caPool.AddCert(caCert)
 
 	// verify a server cert
-	serverPrivateKey, serverPublicKey := utils.NewKey(TestKeyType)
+	serverPrivateKey := utils.NewKey(TestKeyType)
 	_ = serverPrivateKey
 	serverCert, err := utils.CreateServerCert(
 		serverID, "myou", "country", "province", "locality", "org",
 		names, time.Hour,
-		serverPublicKey, caCert, caPrivKey)
+		serverPrivateKey.Public(), caCert, caPrivKey)
 
 	cn, err := utils.VerifyCert(serverCert, caPool)
 
@@ -56,12 +58,12 @@ func TestCreateVerifyCerts(t *testing.T) {
 	assert.Equal(t, serverID, cn)
 
 	// verify a client cert
-	clientPrivateKey, clientPublicKey := utils.NewKey(TestKeyType)
+	clientPrivateKey := utils.NewKey(TestKeyType)
 	_ = clientPrivateKey
 	clientCert, err := utils.CreateClientCert(
 		clientID, "myou", "country", "province", "locality", "org",
 		time.Hour,
-		clientPublicKey, caCert, caPrivKey)
+		clientPrivateKey.Public(), caCert, caPrivKey)
 	assert.NoError(t, err)
 	assert.NotEmpty(t, clientCert)
 
@@ -72,30 +74,30 @@ func TestCreateVerifyCerts(t *testing.T) {
 }
 
 func TestPublicKeyFromCert(t *testing.T) {
-	caPrivKey, caPubKey := utils.NewKey(keyType)
+	caPrivKey := utils.NewKey(keyType)
 	caCert, _ := utils.CreateCACert(
 		"testbundleca", "country", "province", "locality", "orgName",
-		time.Hour, caPrivKey, caPubKey)
+		time.Hour, caPrivKey)
 
 	certKeyType, certPubKey := utils.GetPublicKeyFromCert(caCert)
-	assert.Equal(t, caPubKey, certPubKey)
+	assert.Equal(t, caPrivKey.Public(), certPubKey)
 	assert.Equal(t, keyType, certKeyType)
 }
 
 // create a CA and server cert, save it and reload it
 func TestSaveLoadTLSCert(t *testing.T) {
 	caPool := x509.NewCertPool()
-	caPrivKey, caPubKey := utils.NewKey(keyType)
+	caPrivKey := utils.NewKey(keyType)
 	caCert, err := utils.CreateCACert(
 		"testbundleca", "country", "province", "locality", "orgName",
-		time.Hour, caPrivKey, caPubKey)
+		time.Hour, caPrivKey)
 	caPool.AddCert(caCert)
 
-	serverPrivKey, serverPubKey := utils.NewKey(keyType)
+	serverPrivKey := utils.NewKey(keyType)
 	_ = serverPrivKey
 	serverCert, err := utils.CreateServerCert(
 		"serverID", "ou", "country", "province", "locality", "org", nil, time.Hour,
-		serverPubKey, caCert, caPrivKey)
+		serverPrivKey.Public(), caCert, caPrivKey)
 	serverChain := []*x509.Certificate{serverCert, caCert}
 
 	// save the test server cert
@@ -135,11 +137,11 @@ func TestServerCertBadParms(t *testing.T) {
 	const serverID = "testService"
 	names := []string{"127.0.0.1", "localhost"}
 
-	caPrivKey, caPubKey := utils.NewKey(TestKeyType)
+	caPrivKey := utils.NewKey(TestKeyType)
 	caCert, err := utils.CreateCACert("testCA", "country", "province", "locality", "orgName",
-		time.Hour, caPrivKey, caPubKey)
+		time.Hour, caPrivKey)
 
-	serverKey, _ := utils.NewEcdsaKey()
+	serverKey := utils.NewEcdsaKey()
 
 	// Missing CA certificate
 	_, err = utils.CreateServerCert(
