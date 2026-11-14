@@ -251,11 +251,7 @@ func (svc *CertsServiceImpl) RefreshCA(
 
 	// todo: should lifespan be a config? for now use 20% as the threshold
 	minValidUntil := time.Now().Add(minValidity)
-	// caKeyPath := path.Join(certsDir, api.DefaultCaKeyFile)
-	// caCertPath := path.Join(certsDir, api.DefaultCaCertFile)
 
-	// caCert, err := utils.LoadCACert(caCertPath)
-	// caKey, err := utils.LoadPrivateKey(caKeyPath)
 	caCert, caKey, err := env.GetCACert()
 
 	// if a private key doesn't exist, create and save a new one
@@ -263,30 +259,23 @@ func (svc *CertsServiceImpl) RefreshCA(
 		caKey = utils.NewEd25519Key()
 		// if a CA cert was known it is no longer valid
 		caCert = nil
-
-		// slog.Warn("RefreshCA: New CA key", "caKeyPath", caKeyPath)
-		// err = utils.SavePrivateKey(caKey, caKeyPath)
 	}
 
 	// if the CA doesn't exist, create a new one, otherwise use it as a template.
 	if caCert == nil {
 		caCert, caKey, err = CreateSelfSignedCACert(caKey, validity)
-
-		// slog.Warn("RefreshCA: New CA at", "caCertPath", caCertPath)
-		// err = utils.SaveX509Cert(caCert, caCertPath)
+		// AppEnvironment will save the new CA
 		env.SetCACert(caCert, caKey)
 
 	} else if caCert.NotAfter.Before(minValidUntil) {
 		template := *caCert
 		newCA, err := utils.CreateCertFromTemplate(&template, validity, caCert, caKey)
+		slog.Warn("Refreshing CA certificate")
 
 		if err != nil {
 			return err
 		}
 		caCert = newCA
-		// if err == nil {
-		// err = utils.SaveX509Cert(newCA, caCertPath)
-		// }
 		env.SetCACert(newCA, caKey)
 	}
 	return nil
@@ -347,14 +336,18 @@ func (svc *CertsServiceImpl) RefreshServerCert(
 		serverChain, err = svc.CreateServerCert(
 			serverName, ip.String(), validity, serverKey.Public())
 
+		slog.Warn("Refreshing server certificate")
 		// newCert, err = utils.CreateCertFromTemplate(
 		// 	oldCert, validityPeriod, env.CaCert, svc.config.CaKey)
+
+		// doublecheck
+		// _, err = utils.VerifyCert(serverChain[0], svc.env.GetRootCAs())
 	}
 	if err != nil {
 		return err
 	}
 	serverCert := utils.X509ChainToTLS(serverChain, serverKey)
-	svc.env.SetServerCert(serverCert)
+	err = svc.env.SetServerCert(serverCert)
 	return err
 }
 
@@ -372,7 +365,6 @@ func (svc *CertsServiceImpl) Start() {
 // Stop any running actions
 func (svc *CertsServiceImpl) Stop() {
 	slog.Info("Stop: Stopping certs service")
-	// m.service.Stop()
 }
 
 // Verify certificate against the system CA pool.
@@ -398,6 +390,7 @@ func (svc *CertsServiceImpl) VerifyClientCert(clientID string, clientCert *x509.
 		KeyUsages: []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth},
 	}
 	_, err = clientCert.Verify(opts)
+	slog.Warn("Refreshing client certificate")
 
 	return err
 }
@@ -425,7 +418,7 @@ func NewCertsServiceImpl(env *api.AppEnvironment, config *certs.CertsConfig) (*C
 	}
 	slog.Info("NewCertsServiceImpl: Starting certs service")
 
-	// initialize all ceritificates with defaults
+	// initialize all certificates with defaults
 	err = svc.RefreshCA(config.CACertValidity, 0)
 	if err == nil {
 		err = svc.RefreshServerCert("", config.ServerCertValidity, 0)

@@ -407,7 +407,7 @@ func (svc *RouterServiceImpl) RouteRequest(req *msg.RequestMessage, replyTo msg.
 			slog.Warn("RouteRequest: Connection failed",
 				"connectURL", connectURL, "err", err)
 		} else {
-			slog.Warn("RouteRequest: Connection established",
+			slog.Info("RouteRequest: Connection established",
 				slog.String("thingID", tdoc.ID),
 				slog.String("url", connectURL),
 			)

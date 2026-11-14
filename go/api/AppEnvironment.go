@@ -350,52 +350,56 @@ func (env *AppEnvironment) Print(verbose int) {
 		} else {
 			fmt.Println("* CA cert was successfully loaded")
 			if verbose >= 2 {
-				fmt.Println("  - CN:       ", caCert.Subject.CommonName)
-				fmt.Println("  - OU:       ", caCert.Subject.OrganizationalUnit)
-				fmt.Println("  - Country:  ", caCert.Subject.Country)
-				fmt.Println("  - Province: ", caCert.Subject.Province)
-				fmt.Println("  - Locality: ", caCert.Subject.Locality)
-				fmt.Println("  - Org:      ", caCert.Subject.Organization)
-				fmt.Println("  - Not after:", caCert.NotAfter)
+				env.ShowCertDetails(caCert)
 			}
 		}
 		serverTLS, err := env.GetServerCert("")
 		if err != nil {
 			fmt.Println("* No server cert set")
 		} else {
-			fmt.Println("* Server cert available")
+			fmt.Println("* Server cert successfully loaded")
 			serverCert, err := x509.ParseCertificate(serverTLS.Certificate[0])
-			// serverCert := serverTLS.Certificate[0]
-			if err != nil && verbose >= 2 {
-				fmt.Println("  - CN:       ", serverCert.Subject.CommonName)
-				fmt.Println("  - OU:       ", serverCert.Subject.OrganizationalUnit)
-				// fmt.Println("  - Country:  ", serverCert.Subject.Country)
-				// fmt.Println("  - Province: ", serverCert.Subject.Province)
-				// fmt.Println("  - Locality: ", serverCert.Subject.Locality)
-				fmt.Println("  - Org:      ", serverCert.Subject.Organization)
-				fmt.Println("  - Not after:", serverCert.NotAfter)
+			if err == nil && verbose >= 2 {
+				env.ShowCertDetails(serverCert)
 			}
 		}
 
 		tlsCert, err := env.GetClientCert(env.ClientID)
 		if err != nil {
-			fmt.Printf("! Client cert for '%s' cannot be loaded: %s", env.ClientID, err.Error())
+			fmt.Printf("* No client cert for '%s'\n", env.ClientID)
 		} else {
 			chain, _ := utils.TLSCertToX509(tlsCert)
 			clientCert := chain[0]
-			fmt.Println("* Client Cert successfully loaded")
+			fmt.Printf("* Client Cert for '%s' successfully loaded\n", env.ClientID)
 			certCN := clientCert.Subject.CommonName
 			if certCN != env.ClientID {
 				fmt.Printf("! Client cert CN '%s' doesn't match ClientID\n", certCN)
 			}
 			if verbose >= 2 {
-				fmt.Println("  - CN:       ", certCN)
-				fmt.Println("  - OU:       ", clientCert.Subject.OrganizationalUnit)
-				fmt.Println("  - not after:", clientCert.NotAfter)
+				env.ShowCertDetails(clientCert)
 			}
 		}
 	}
 	fmt.Println("")
+}
+
+// ShowCertDetails shows details for the given certs and identifies expired certs
+func (env *AppEnvironment) ShowCertDetails(cert *x509.Certificate) {
+	validUntilStr := cert.NotAfter.Local().Format(time.RFC1123Z)
+	if time.Now().After(cert.NotAfter) {
+		validUntilStr = fmt.Sprintf("%s%s (Expired!)%s", utils.CORed, validUntilStr, utils.COReset)
+	} else {
+		validUntilStr = utils.COGreen + validUntilStr + utils.COReset
+	}
+
+	fmt.Println("  IsCA        : ", cert.IsCA)
+	fmt.Println("  Version     : ", cert.Version)
+	fmt.Println("  Created     : ", cert.NotBefore.Local().Format(time.RFC1123Z))
+	fmt.Println("  Valid until : ", validUntilStr)
+	fmt.Println("  Subject     : ", cert.Subject.String())
+	fmt.Println("  Issuer      : ", cert.Issuer.String())
+	fmt.Println("  DNS names   : ", cert.DNSNames)
+	fmt.Println("  IP addresses: ", cert.IPAddresses)
 }
 
 // SetAuthToken Sets the client authentication token.
@@ -473,7 +477,7 @@ func (env *AppEnvironment) SetDirTD(tdoc *wot.TD) {
 // Set and save the cached server certificate used by the environment.
 //
 // This certificate must successfully verify against the CA cert pool.
-func (env *AppEnvironment) SetServerCert(cert *tls.Certificate) {
+func (env *AppEnvironment) SetServerCert(cert *tls.Certificate) error {
 
 	certsDir := env.CertsDir
 	serverName := DefaultServerName
@@ -482,25 +486,27 @@ func (env *AppEnvironment) SetServerCert(cert *tls.Certificate) {
 
 	x509Cert, err := x509.ParseCertificate(cert.Certificate[0])
 	if err != nil {
-		slog.Error("SetServerCert: invalid certificate. Ignored.", "err", err.Error())
-		return
+		err = fmt.Errorf("SetServerCert: invalid certificate: %s", err.Error())
+		slog.Error(err.Error())
+		return err
 	}
 	opts := x509.VerifyOptions{
-		Roots:     env.rootCAs,
+		Roots:     env.GetRootCAs(),
 		KeyUsages: []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth},
 	}
 	_, err = x509Cert.Verify(opts)
 	if err != nil {
-		slog.Error("SetServerCert: Certificate failed verification. Ignored.",
-			"err", err.Error())
-		// should this panic?
-		return
+		err = fmt.Errorf("SetServerCert: Certificate failed verification: %s", err.Error())
+		slog.Error(err.Error())
+		return err
 	}
 	env.serverCert = cert
-	utils.SaveTLSCert(cert, certPath, keyPath)
+	err = utils.SaveTLSCert(cert, certPath, keyPath)
+	return err
 }
 
 // NewAppEnvironment returns an application environment including folders for use by hive cells.
+// This creates the neccesary folder structure.
 //
 // Optionally parse commandline flags:
 //

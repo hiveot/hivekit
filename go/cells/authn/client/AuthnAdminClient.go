@@ -33,6 +33,9 @@ func (cl *AuthnAdminClient) AddClient(clientID string, displayName string, role 
 		DisplayName: displayName,
 		Role:        role,
 	}
+	if displayName == "" {
+		displayName = clientID
+	}
 	err = cl.Rpc(wot.OpInvokeAction, cl.authnServiceID,
 		authn.AdminAddClientAction, &args, &token)
 	return
@@ -83,6 +86,20 @@ func (cl *AuthnAdminClient) SetClientPassword(userName string, password string) 
 
 	err = cl.Rpc(wot.OpInvokeAction, cl.authnServiceID,
 		authn.AdminSetPasswordAction, &args, nil)
+	return
+}
+
+// SetRole - Set client role.
+//
+//	clientID of the client whose role to update
+//	role to set, api.ClientRoleXyz
+func (cl *AuthnAdminClient) SetRole(clientID string, role string) (err error) {
+
+	var args = authn.AdminSetRoleInput{
+		ClientID: clientID, Role: role}
+
+	err = cl.Rpc(wot.OpInvokeAction, cl.authnServiceID,
+		authn.AdminSetRoleAction, &args, nil)
 	return
 }
 

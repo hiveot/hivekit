@@ -102,6 +102,12 @@ func (svc *AuthnAdminServiceImpl) HandleRequest(req *msg.RequestMessage, replyTo
 			if err == nil {
 				err = svc.SetPassword(args.UserName, args.Password)
 			}
+		case authn.AdminSetRoleAction:
+			var args authn.AdminSetRoleInput
+			err = utils.DecodeAsObject(req.Input, &args)
+			if err == nil {
+				err = svc.SetRole(args.ClientID, args.Role)
+			}
 		case authn.AdminUpdateProfileAction:
 			var profile authn.ClientProfile
 			err = utils.DecodeAsObject(req.Input, &profile)
