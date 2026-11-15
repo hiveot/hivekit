@@ -39,6 +39,7 @@ type CertsServiceImpl struct {
 
 // Create a self-signed client cert. This requires having the CA cert and public key.
 // validity of 0 uses the default
+// The caller must use the provided certificate to create a TLS certificate.
 func (svc *CertsServiceImpl) CreateClientCert(
 	clientID string, role string, validity time.Duration, clientPubKey crypto.PublicKey) (
 	x509Cert *x509.Certificate, err error) {
@@ -406,7 +407,7 @@ func (svc *CertsServiceImpl) VerifyClientCert(clientID string, clientCert *x509.
 func NewCertsServiceImpl(env *api.AppEnvironment, config *certs.CertsConfig) (*CertsServiceImpl, error) {
 	var err error
 
-	thingID := certs.CertsServiceDefaultThingID
+	thingID := certs.CertsServiceCellType
 	if config.ThingID != "" {
 		thingID = config.ThingID
 	}

@@ -20,7 +20,7 @@ func NewLoggingServiceFactory(f api.ICellFactory, md *api.CellDefinition) (api.I
 
 	// use the application binary as the logfile name
 	env := f.GetEnvironment()
-	var logfilename = path.Join(env.LogsDir, f.GetEnvironment().AppID)
+	var logfilename = path.Join(env.LogsDir, f.GetEnvironment().AppID+".log")
 	config := logging.NewLoggingConfig(logfilename, "")
 	svc, err := NewLoggingService(config)
 	return svc, err

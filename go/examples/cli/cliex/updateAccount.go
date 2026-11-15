@@ -25,7 +25,7 @@ func (app *Cliex) AddConsumerAccount(clientID string, displayName string) error 
 
 	// 1. Connect to the authn service
 	// the consumer recipe should already have it based on commandline.
-	authnAdmin := authn_client.NewAuthnAdminClient(authn.DefaultAuthnAdminThingID, app.co)
+	authnAdmin := authn_client.NewAuthnAdminClient(authn.AuthnAdminServiceCellType, app.co)
 	prof, err := authnAdmin.GetProfile(clientID)
 	_ = prof
 
@@ -92,7 +92,7 @@ func (app *Cliex) AddDeviceAccount(clientID string, displayName string) error {
 
 	// 2. Connect to the authn service
 	// the consumer recipe should already have it based on commandline.
-	authnAdmin := authn_client.NewAuthnAdminClient(authn.DefaultAuthnAdminThingID, app.co)
+	authnAdmin := authn_client.NewAuthnAdminClient(authn.AuthnAdminServiceCellType, app.co)
 	prof, err := authnAdmin.GetProfile(clientID)
 	_ = prof
 
@@ -126,7 +126,7 @@ func (app *Cliex) AddDeviceAccount(clientID string, displayName string) error {
 
 	// 3. Create and save the TLS cert
 	if certsDir != "" {
-		certsCl := certs_client.NewCertsClient(certs.CertsServiceDefaultThingID, app.co)
+		certsCl := certs_client.NewCertsClient(certs.CertsServiceCellType, app.co)
 		x509Cert, err := certsCl.CreateClientCert(
 			clientID, api.ClientRoleDevice, 0, privKey.Public())
 

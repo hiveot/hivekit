@@ -239,12 +239,15 @@ func (svc *RouterServiceImpl) HandleRequest(req *msg.RequestMessage, replyTo msg
 	if req.ThingID == "" {
 		// unable to route, pass it on
 		return svc.ForwardRequest(req, replyTo)
-	} else if req.ThingID != svc.GetID() {
+	} else if req.ThingID != svc.GetID() && req.ThingID != router.RouterCellType {
 		return svc.RouteRequest(req, replyTo)
 	}
+
+	slog.Info("HandleRequest", slog.String("name", req.Name), slog.String("sender", req.SenderID))
+
 	// handle requests for router itself
 	switch req.Operation {
-	// nothing supported yet, add some properties on nr clients
+	// TODO, Add some properties on nr clients
 	// case td.OpReadProperty:
 	// 	resp, err = m.ReadProperty(req)
 	// case td.OpReadMultipleProperties:

@@ -88,10 +88,10 @@ func (svc *DirectoryServiceImpl) DeleteThing(senderID string, thingID string) (e
 func (svc *DirectoryServiceImpl) GetTD(thingID string) *wot.TD {
 	svc.tdCacheMux.RLock()
 	tdoc, found := svc.tdCache[thingID]
+	svc.tdCacheMux.RUnlock()
 	if found {
 		return tdoc
 	}
-	svc.tdCacheMux.RUnlock()
 	tdJSON, err := svc.RetrieveThing(thingID)
 	if err != nil {
 		return nil
@@ -211,8 +211,7 @@ func (svc *DirectoryServiceImpl) UpdateThing(senderID string, tdJSON string) err
 			slog.String("senderID", senderID), "title", tdoc.Title, "err", err.Error())
 		return err
 	}
-	slog.Info("UpdateThing",
-		slog.String("senderID", senderID), slog.String("thingID", tdoc.ID))
+	slog.Info("UpdateThing", slog.String("senderID", senderID), slog.String("thingID", tdoc.ID))
 
 	// if the document has no forms this is either a local service or an RC device.
 	if tdoc.Base == "" && len(tdoc.Forms) == 0 {
@@ -300,7 +299,7 @@ func NewDirectoryServiceImpl(
 	slog.Info("NewDirectoryServiceImpl running the directory service")
 
 	if thingID == "" {
-		thingID = directory.DefaultDirectoryServiceThingID
+		thingID = directory.DirectoryServiceCellType
 	}
 
 	// create the directory TD from the json file

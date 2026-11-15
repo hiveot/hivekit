@@ -3,6 +3,7 @@ package internal
 import (
 	_ "embed"
 	"fmt"
+	"log/slog"
 
 	"github.com/hiveot/hivekit/go/api/msg"
 	"github.com/hiveot/hivekit/go/api/wot"
@@ -12,6 +13,11 @@ import (
 
 // HandleRequest for directory service.
 //
+// Always support the default directory thingID defined in directory.DefaultDirectoryServiceThingID.
+// If a different thingID is configured this should still work. Especially
+// if used in a gateway and a gateway connection exists the TDD shouldn't be
+// neccesary.
+//
 // This invokes the replyTo response handler with a response.
 //
 // If the request is not for this service then it is forwarded to the next sink.
@@ -20,18 +26,12 @@ func (svc *DirectoryServiceImpl) HandleRequest(req *msg.RequestMessage, replyTo 
 	var resp *msg.ResponseMessage
 
 	myThingID := svc.GetID()
-
-	// Devices don't need to know which directory they are linked to to publish their TD.
-	if req.Name == directory.CreateThingAction || req.Name == directory.UpdateThingAction {
-		resp = svc.handleUpdateThing(req)
-		err = replyTo(resp)
-		return err
-	}
-
 	// other requests not directed at the directory are forwarded
-	if req.ThingID != myThingID {
+	if req.ThingID != myThingID && req.ThingID != directory.DirectoryServiceCellType {
 		return svc.ForwardRequest(req, replyTo)
 	}
+
+	slog.Info("HandleRequest", slog.String("name", req.Name), slog.String("sender", req.SenderID))
 
 	// this is a request addressed to this service
 	switch req.Operation {
@@ -60,7 +60,14 @@ func (svc *DirectoryServiceImpl) HandleRequest(req *msg.RequestMessage, replyTo 
 		err = svc.ExposedThing.HandleRequest(req, replyTo)
 	}
 	if resp != nil {
+		slog.Info("HandleRequest - sending response", slog.String("name", req.Name), slog.String("sender", req.SenderID))
 		err = replyTo(resp)
+	} else if err == nil {
+		slog.Error("HandleRequest - No response AND no error. This is unexpected!")
+	} else {
+		slog.Info("HandleRequest - returning error",
+			slog.String("name", req.Name), slog.String("sender", req.SenderID),
+			slog.String("err", err.Error()))
 	}
 	return err
 }

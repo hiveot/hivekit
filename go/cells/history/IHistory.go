@@ -12,10 +12,6 @@ import (
 // This must match the TD @type
 const HistoryServiceCellType = "hiveot:history"
 
-// The default ThingID of this history service instance for messaging.
-// This must match the TD thingID.
-const DefaultHistoryThingID = "hiveot:history"
-
 // DefaultLimit nr items of none provided
 const DefaultLimit = 1000
 

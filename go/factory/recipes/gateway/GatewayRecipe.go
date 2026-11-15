@@ -51,10 +51,11 @@ var GatewayRecipeCells = []api.CellDefinition{
 		NoLink: true,
 	},
 	{
-		// http server is needed by websocket transport server
+		// http server is needed by websocket transport server but doesn't need to be linked.
 		// It uses the factory registered authenticator.
 		Type:        api.HttpServerCellType,
 		Constructor: tlsserver.NewTLSServerFactory,
+		NoLink:      true,
 	},
 	// --- nested formation with the servers operating in parallel
 	{
@@ -153,9 +154,6 @@ var GatewayRecipeCells = []api.CellDefinition{
 		Type:        router.RouterCellType,
 		Constructor: router_service.NewRouterServiceFactory,
 	},
-
-	// todo: optional logging of requests
-	// todo: optional authorization of requests
 }
 
 // This gateway recipe creates a server that forwards requests to
@@ -304,8 +302,8 @@ func NewGatewayRecipe(env *api.AppEnvironment) (
 	// back to the router.
 	// Request forwarding is also disabled. There is no use-case for this.
 	srvBus.SetForwarding(false, false)
-	// link the server bus notification handler to the router so received notifications are
-	// passed back up the chain.
+	// link the server bus notifications to the router at the tail so received notifications are
+	// passed back up the chain and send to subscribers.
 	rtrCell := f.GetCell(router.RouterCellType)
 	srvBus.SetNotificationSink(rtrCell)
 

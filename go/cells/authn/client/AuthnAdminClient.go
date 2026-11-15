@@ -38,7 +38,7 @@ func (cl *AuthnAdminClient) AddClient(clientID string, displayName string, role 
 	}
 	err = cl.Rpc(wot.OpInvokeAction, cl.authnServiceID,
 		authn.AdminAddClientAction, &args, &token)
-	return
+	return token, err
 }
 
 // CreateToken creates a new client authentication token with the default expiry based on the role
@@ -56,7 +56,7 @@ func (cl *AuthnAdminClient) GetProfile(clientID string) (
 
 	err = cl.Rpc(wot.OpInvokeAction, cl.authnServiceID,
 		authn.AdminGetProfileAction, &clientID, &profile)
-	return
+	return profile, err
 }
 
 // GetProfiles client method - Get Profiles.
@@ -65,7 +65,7 @@ func (cl *AuthnAdminClient) GetProfiles() (clientProfiles []authn.ClientProfile,
 
 	err = cl.Rpc(wot.OpInvokeAction, cl.authnServiceID,
 		authn.AdminGetProfilesAction, nil, &clientProfiles)
-	return
+	return clientProfiles, err
 }
 
 // RemoveClient client method - Remove Client.
@@ -74,7 +74,7 @@ func (cl *AuthnAdminClient) RemoveClient(clientID string) (err error) {
 
 	err = cl.Rpc(wot.OpInvokeAction, cl.authnServiceID,
 		authn.AdminRemoveClientAction, &clientID, nil)
-	return
+	return err
 }
 
 // SetClientPassword client method - Set Client Password.
@@ -86,7 +86,7 @@ func (cl *AuthnAdminClient) SetClientPassword(userName string, password string) 
 
 	err = cl.Rpc(wot.OpInvokeAction, cl.authnServiceID,
 		authn.AdminSetPasswordAction, &args, nil)
-	return
+	return err
 }
 
 // SetRole - Set client role.
@@ -100,7 +100,7 @@ func (cl *AuthnAdminClient) SetRole(clientID string, role string) (err error) {
 
 	err = cl.Rpc(wot.OpInvokeAction, cl.authnServiceID,
 		authn.AdminSetRoleAction, &args, nil)
-	return
+	return err
 }
 
 // UpdateClientProfile client method - Update Client Profile.
@@ -109,7 +109,7 @@ func (cl *AuthnAdminClient) UpdateClientProfile(clientProfile authn.ClientProfil
 
 	err = cl.Rpc(wot.OpInvokeAction, cl.authnServiceID,
 		authn.AdminUpdateProfileAction, &clientProfile, nil)
-	return
+	return err
 }
 
 // Create and link a new instance of the authentication administration messaging client
@@ -120,10 +120,10 @@ func (cl *AuthnAdminClient) UpdateClientProfile(clientProfile authn.ClientProfil
 // This will also set this client as the notification sink for all authn generated notifications.
 func NewAuthnAdminClient(authnServiceID string, sink api.IHiveCell) *AuthnAdminClient {
 	if authnServiceID == "" {
-		authnServiceID = authn.DefaultAuthnAdminThingID
+		authnServiceID = authn.AuthnAdminServiceCellType
 	}
 	cl := &AuthnAdminClient{
-		HiveCellBase:   cells.NewHiveCellBase(authn.AuthnAdminServiceType + "-client"),
+		HiveCellBase:   cells.NewHiveCellBase(authn.AuthnAdminServiceCellType + "-client"),
 		authnServiceID: authnServiceID,
 	}
 	if sink != nil {

@@ -289,7 +289,7 @@ func (cl *WssTransportClientImpl) SendNotification(notif *msg.NotificationMessag
 // This transforms the request to the protocol message and sends it to the server.
 func (cl *WssTransportClientImpl) SendRequest(
 	req *msg.RequestMessage, replyTo msg.ResponseHandler) error {
-	slog.Info("SendRequest",
+	slog.Info("SendRequest ->",
 		slog.String("clientID", cl.GetClientID()),
 		slog.String("correlationID", req.CorrelationID),
 		slog.String("operation", req.Operation),
@@ -329,7 +329,7 @@ func (cl *WssTransportClientImpl) SendRequest(
 	err = cl._send(wssMsg)
 	if err != nil {
 		cl.rnrChan.Close(req.CorrelationID)
-		slog.Warn("SendRequest ->: error in sending request",
+		slog.Warn("SendRequest: error in sending request",
 			"thingID", req.ThingID,
 			"name", req.Name,
 			"correlationID", req.CorrelationID,
@@ -339,8 +339,11 @@ func (cl *WssTransportClientImpl) SendRequest(
 	go func() {
 		resp, err2 := cl.rnrChan.WaitForResponse(req.CorrelationID)
 		if err2 != nil {
-			err2 = fmt.Errorf("SendRequest timeout: %w", err2)
+			err2 = fmt.Errorf("SendRequest <- timeout: %w", err2)
 			resp = req.CreateErrorResponse(err2)
+		} else {
+			slog.Info("SendRequest <- received response",
+				"correlationID", req.CorrelationID)
 		}
 		_ = replyTo(resp)
 	}()

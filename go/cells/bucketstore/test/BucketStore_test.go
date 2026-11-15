@@ -694,7 +694,7 @@ func TestPrevNextN(t *testing.T) {
 func TestGetSetMsgAPI(t *testing.T) {
 	t.Logf("---%s---\n", t.Name())
 	clientID := "client1"
-	storeThingID := bucketstore.DefaultBucketStoreThingID
+	storeThingID := bucketstore.BucketStoreCellType
 	key1 := "key1"
 	key2 := "key2"
 	key3 := "key3"
@@ -706,7 +706,7 @@ func TestGetSetMsgAPI(t *testing.T) {
 	require.NoError(t, err)
 	defer stopFn()
 	tp := testenv.NewTestTransport(clientID, m)
-	cl := bucketstore_client.NewBucketStoreMsgClient(tp, storeThingID)
+	cl := bucketstore_client.NewBucketStoreMsgClient(storeThingID, tp)
 	err = cl.Set(key1, val1)
 	require.NoError(t, err)
 

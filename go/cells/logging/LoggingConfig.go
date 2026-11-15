@@ -48,7 +48,7 @@ func NewLoggingConfig(logDestination string, backend string) LoggingConfig {
 		Backend:        backend,
 		LogDestination: logDestination,
 		TimeFormat:     "Jan _2 15:04:05.0000",
-		Log2Stdout:     true,
+		Log2Stdout:     false, //true,
 	}
 	return cfg
 }

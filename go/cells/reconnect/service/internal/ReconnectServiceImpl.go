@@ -254,7 +254,7 @@ func (svc *ReconnectServiceImpl) Stop() {
 //	  optional, if not provided SetRequestSink should be used to set the handler.
 func NewReconnectServiceImpl(tpClient api.ITransportClient) (svc *ReconnectServiceImpl, err error) {
 
-	thingID := reconnect.ReconnectDefaultThingID
+	thingID := reconnect.ReconnectCellType
 	svc = &ReconnectServiceImpl{
 		HiveCellBase: cells.NewHiveCellBase(thingID),
 

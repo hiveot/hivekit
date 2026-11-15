@@ -62,9 +62,10 @@ func (svc *AuthnAdminServiceImpl) HandleRequest(req *msg.RequestMessage, replyTo
 	var output any
 	var err error
 
-	if req.ThingID != svc.GetID() {
+	if req.ThingID != svc.GetID() && req.ThingID != authn.AuthnAdminServiceCellType {
 		return svc.ForwardRequest(req, replyTo)
 	}
+	slog.Info("HandleRequest", slog.String("name", req.Name), slog.String("sender", req.SenderID))
 
 	if req.Operation == wot.OpInvokeAction {
 		switch req.Name {
@@ -144,8 +145,8 @@ func (svc *AuthnAdminServiceImpl) SetRole(clientID string, role string) error {
 // Start publishes the service admin service TDs to the directory or discovery.
 func (svc *AuthnAdminServiceImpl) Start() {
 	tdoc, _ := wot.UnmarshalTD(string(authn.AuthnAdminTD))
-	tdoc.ID = authn.DefaultAuthnAdminThingID
-	tdoc.SetType(authn.AuthnAdminServiceType)
+	tdoc.ID = svc.GetID()
+	tdoc.SetType(authn.AuthnAdminServiceCellType)
 	_ = svc.WriteTD(tdoc)
 }
 
@@ -197,7 +198,7 @@ func NewAuthnAdminServiceImpl(
 
 	// this service is the admin service that also exposes the user service service thing
 	svc := &AuthnAdminServiceImpl{
-		ExposedThing:   thing.NewExposedThing(authn.DefaultAuthnAdminThingID, nil),
+		ExposedThing:   thing.NewExposedThing(authn.AuthnAdminServiceCellType, nil),
 		authnStore:     authnStore,
 		sessionManager: sessionManager,
 	}

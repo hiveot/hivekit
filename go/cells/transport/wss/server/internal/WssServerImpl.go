@@ -146,8 +146,7 @@ func (srv *WssServerImpl) ServeWssConnection(w http.ResponseWriter, r *http.Requ
 	)
 
 	if err != nil {
-		slog.Error("Serve. No clientID",
-			"remoteAddr", r.RemoteAddr)
+		slog.Error("Serve. No clientID", "remoteAddr", r.RemoteAddr)
 		errMsg := "no auth session available. Login first."
 		http.Error(w, errMsg, http.StatusUnauthorized)
 		return
@@ -163,13 +162,14 @@ func (srv *WssServerImpl) ServeWssConnection(w http.ResponseWriter, r *http.Requ
 	}
 
 	// the new server connection sends messages to the cell sink
-	c := NewWSSServerConnection(clientID, r, wssConn, srv.encoder,
-		srv.EmitRequest, srv.EmitNotification)
+	c := NewWSSServerConnection(
+		clientID, r, wssConn, srv.encoder, srv.EmitRequest, srv.EmitNotification)
 
 	// add connection sends a notification
 	err = srv.AddConnection(c)
 
 	if err != nil {
+		slog.Error("ServeWssConnection: AddConnection failed", "err", err.Error())
 		http.Error(w, err.Error(), http.StatusUnauthorized)
 		return
 	}

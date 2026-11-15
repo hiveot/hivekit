@@ -37,9 +37,9 @@ func (svc *AuthnServiceImpl) GetUserService() authn.IAuthnUserService {
 }
 
 func (svc *AuthnServiceImpl) HandleRequest(req *msg.RequestMessage, replyTo msg.ResponseHandler) error {
-	if req.ThingID == svc.userSvc.GetID() {
+	if req.ThingID == svc.userSvc.GetID() || req.ThingID == authn.AuthnUserServiceCellType {
 		return svc.userSvc.HandleRequest(req, replyTo)
-	} else if req.ThingID == svc.adminSvc.GetID() {
+	} else if req.ThingID == svc.adminSvc.GetID() || req.ThingID == authn.AuthnAdminServiceCellType {
 		return svc.adminSvc.HandleRequest(req, replyTo)
 	} else {
 		return svc.ForwardRequest(req, replyTo)

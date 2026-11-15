@@ -81,9 +81,10 @@ func (srv *GrpcServiceServer) _unaryInterceptor(
 	handler grpc.UnaryHandler) (interface{}, error) {
 
 	if srv.grpcAuthn != nil {
-		_, _, err := srv.grpcAuthn.Authenticate(ctx)
+		_, clientiD, err := srv.grpcAuthn.Authenticate(ctx)
 		if err != nil {
-			// return nil, status.Errorf(codes.Unauthenticated, "Unauthenticated: %s", err.Error())
+			slog.Warn("_unaryInterceptor: Unauthorized",
+				"err", err.Error(), "clientID", clientiD)
 			return nil, utils.UnauthorizedError
 		}
 	}

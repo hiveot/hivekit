@@ -5,6 +5,7 @@ import (
 	"log/slog"
 	"sync"
 	"sync/atomic"
+	"time"
 
 	"github.com/hiveot/hivekit/go/api"
 	"github.com/hiveot/hivekit/go/api/msg"
@@ -68,16 +69,17 @@ func (base *HiveCellBase) EmitRequest(req *msg.RequestMessage, replyTo msg.Respo
 	if req.CorrelationID == "" {
 		req.CorrelationID = shortid.MustGenerate()
 	}
-	sink := base.requestSink.Load()
-	if sink == nil {
-		return fmt.Errorf("EmitRequest: request '%s/%s' to thingID '%s' is undeliverable by cell '%s'",
-			req.Operation, req.Name, req.ThingID, base.cellID)
+	sinkPtr := base.requestSink.Load()
+	if sinkPtr == nil || *sinkPtr == nil {
+		err = fmt.Errorf("EmitRequest: no request sink set. CellID: %s", base.cellID)
+		slog.Error(err.Error())
+		return err
 	}
 	if replyTo == nil {
 		slog.Warn("EmitRequest: no replyTo handler provided",
 			"cellID", base.cellID, "req.Sender", req.SenderID, "req.ThingID", req.ThingID)
 	}
-	err = (*sink).HandleRequest(req, replyTo)
+	err = (*sinkPtr).HandleRequest(req, replyTo)
 	return err
 }
 
@@ -87,7 +89,8 @@ func (base *HiveCellBase) EmitRequest(req *msg.RequestMessage, replyTo msg.Respo
 func (base *HiveCellBase) EmitRequestWait(req *msg.RequestMessage) (
 	resp *msg.ResponseMessage, err error) {
 
-	arx := utils.NewAsyncReceiver[*msg.ResponseMessage](msg.CellTimeout)
+	// slightly longer timeout than the underlying transport
+	arx := utils.NewAsyncReceiver[*msg.ResponseMessage](msg.CellTimeout + time.Millisecond)
 	err = base.EmitRequest(req, func(r *msg.ResponseMessage) error {
 		arx.SetResponse(r)
 		return nil
@@ -134,8 +137,8 @@ func (base *HiveCellBase) ForwardNotification(notif *msg.NotificationMessage) {
 // If no sink os configured this returns an not-deliverable error
 func (base *HiveCellBase) ForwardRequest(req *msg.RequestMessage, replyTo msg.ResponseHandler) (err error) {
 	if base.forwardRequests.Load() {
-		sink := base.requestSink.Load()
-		if sink == nil {
+		sinkPtr := base.requestSink.Load()
+		if sinkPtr == nil || *sinkPtr == nil {
 			// end of the line
 			return fmt.Errorf("ForwardRequest: request '%s/%s' to thingID '%s' is undeliverable by cell '%s'",
 				req.Operation, req.Name, req.ThingID, base.cellID)
@@ -144,7 +147,7 @@ func (base *HiveCellBase) ForwardRequest(req *msg.RequestMessage, replyTo msg.Re
 			slog.Warn("ForwardRequest: no replyTo handler provided",
 				"cellID", base.cellID, "req.Sender", req.SenderID, "req.ThingID", req.ThingID)
 		}
-		err = (*sink).HandleRequest(req, replyTo)
+		err = (*sinkPtr).HandleRequest(req, replyTo)
 	} else {
 		// forwarding is disabled
 		err = fmt.Errorf("ForwardRequest: forwarding is disabled. request '%s/%s' to thingID '%s' is undeliverable by cell '%s'",
@@ -164,8 +167,11 @@ func (base *HiveCellBase) GetNotificationSink() api.IHiveCell {
 
 // GetRequestSink returns the cell's request sink
 func (base *HiveCellBase) GetRequestSink() api.IHiveCell {
-	cellPtr := *base.requestSink.Load()
-	return cellPtr
+	cellPtr := base.requestSink.Load()
+	if cellPtr == nil {
+		return nil
+	}
+	return *cellPtr
 }
 
 // GetID returns the cell's thingID
@@ -211,6 +217,9 @@ func (base *HiveCellBase) Rpc(
 				operation, thingID, name, err)
 		}
 	}
+	if err != nil {
+		slog.Error("Rpc", "ID", base.cellID, "err", err.Error())
+	}
 	return err
 }
 
@@ -241,10 +250,14 @@ func (base *HiveCellBase) SetNotificationSink(sink api.IHiveCell, thingIDs ...st
 	}
 
 	for _, thingID := range thingIDs {
-		if base.notificationSinks[thingID] != nil {
+		oldSink := base.notificationSinks[thingID]
+		if oldSink != nil {
 			slog.Warn("SetNotificationSink: A notification sink already exists. It will be overwritten.",
 				"cellID", base.cellID,
-				"thingID", thingID)
+				"thingID", thingID,
+				"old sink", oldSink.GetID(),
+				"new sink", sink.GetID(),
+			)
 		}
 		base.notificationSinks[thingID] = sink
 	}
@@ -259,7 +272,7 @@ func (base *HiveCellBase) SetRequestSink(newSink api.IHiveCell) {
 
 	// to be determined if there is a use-case for replacing the sink
 	sinkPtr := base.requestSink.Load()
-	if sinkPtr != nil {
+	if sinkPtr != nil && *sinkPtr != nil {
 		slog.Warn("SetRequestSink: Overriding existing request sink",
 			"cellID", base.GetID())
 	}

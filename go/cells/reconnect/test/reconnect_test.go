@@ -20,7 +20,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-var testProtocol = api.HiveotSseScProtocolType
+var testProtocol = api.HiveotWebsocketProtocolType
 
 var testProtocols = []string{
 	api.HiveotSseScProtocolType,

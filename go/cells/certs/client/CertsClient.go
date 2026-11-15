@@ -23,13 +23,14 @@ type CertsClient struct {
 	certServiceID string
 }
 
-// Request the creation of a client certificate
+// Request the creation of a client certificate.
+// The caller must create and save it as a TLS cert.
 func (cl *CertsClient) CreateClientCert(
-	clientID string, ou string, validity time.Duration,
+	clientID string, role string, validity time.Duration,
 	pubKey crypto.PublicKey) (*x509.Certificate, error) {
 
 	pubKeyPEM := utils.PublicKeyToPem(pubKey)
-	if pubKeyPEM == "" || clientID == "" || ou == "" {
+	if pubKeyPEM == "" || clientID == "" || role == "" {
 		return nil, fmt.Errorf("CreateClientCert: Invalid arg")
 	}
 	days := int(validity / (time.Hour * 24))
@@ -38,7 +39,7 @@ func (cl *CertsClient) CreateClientCert(
 	}
 	input := certs.CreateClientCertInput{
 		ClientID:  clientID,
-		OU:        ou,
+		OU:        role,
 		Days:      days,
 		PubKeyPEM: pubKeyPEM,
 	}
@@ -73,9 +74,12 @@ func (cl *CertsClient) VerifyClientCert(clientID string, clientCert *x509.Certif
 // NewCertsClient creates a ready-to-use CertsClient instance.
 // Use the sink to attach a transport client
 //
-//	thingID is the certificate service instance thingID.
+//	thingID is the certificate service instance thingID. "" for default.
 //	sink is the optional cell that passes request to the transport client.
 func NewCertsClient(thingID string, sink api.IHiveCell) *CertsClient {
+	if thingID == "" {
+		thingID = certs.CertsServiceCellType
+	}
 	cl := &CertsClient{
 		certServiceID: thingID,
 	}

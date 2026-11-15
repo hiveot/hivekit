@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"slices"
+	"time"
 
 	"github.com/hiveot/hivekit/go/api/msg"
 	"github.com/hiveot/hivekit/go/api/wot"
@@ -150,7 +151,7 @@ func (srv *HttpBasicServerImpl) onHttpAffordanceOperation(w http.ResponseWriter,
 
 	// This passes the request to the request sink. The replyTo is expected to be called
 	// before the timeout, otherwise this returns an error.
-	ctx, cancelFn := context.WithTimeout(context.Background(), msg.CellTimeout)
+	ctx, cancelFn := context.WithTimeout(context.Background(), msg.CellTimeout+time.Millisecond*2)
 	rx := utils.NewAsyncReceiver[*msg.ResponseMessage](msg.CellTimeout)
 	err = srv.EmitRequest(req, func(resp *msg.ResponseMessage) error {
 		rx.SetResponse(resp)

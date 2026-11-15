@@ -62,10 +62,10 @@ func (m *AuthnUserClient) UpdateProfile(password string) (err error) {
 func NewAuthnUserClient(authnServiceID string, sink api.IHiveCell) *AuthnUserClient {
 
 	if authnServiceID == "" {
-		authnServiceID = authn.DefaultAuthnUserThingID
+		authnServiceID = authn.AuthnUserServiceCellType
 	}
 	cl := &AuthnUserClient{
-		HiveCellBase:   cells.NewHiveCellBase(authn.AuthnUserServiceType + "-client"),
+		HiveCellBase:   cells.NewHiveCellBase(authn.AuthnUserServiceCellType + "-client"),
 		authnServiceID: authnServiceID,
 	}
 	if sink != nil {

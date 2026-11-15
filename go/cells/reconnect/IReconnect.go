@@ -7,7 +7,6 @@ import (
 )
 
 const ReconnectCellType = "reconnect"
-const ReconnectDefaultThingID = "reconnect"
 
 const DefaultMaxReconnectAttempts = 999999
 const DefaultBackoffLimit = time.Minute * 3

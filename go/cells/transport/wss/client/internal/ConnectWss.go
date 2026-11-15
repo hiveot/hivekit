@@ -97,14 +97,16 @@ func ConnectWSS(
 	wssConn, r, err := wssdialer.Dial(connectURL, wssHeader)
 	if err != nil {
 		if r != nil && r.StatusCode == http.StatusUnauthorized {
-			err = utils.UnauthorizedError
 			hasBearer := bearerToken != ""
 			hasCert := clientCert != nil
 
-			slog.Warn("ConnectWSS Authentication failed",
+			slog.Warn("ConnectWSS connection refused",
 				"url", connectURL, "clientID", clientID,
 				"useAuthToken", hasBearer,
-				"useClientCert", hasCert)
+				"useClientCert", hasCert,
+				"status", r.Status,
+				"err", err.Error())
+			err = utils.UnauthorizedError
 			onConnect(api.StatusRefused, err)
 		} else {
 			onConnect(api.StatusLost, err)
@@ -119,6 +121,7 @@ func ConnectWSS(
 		// is this needed after close above?
 		wssCancelFn()
 	}
+
 	// notify the world we're connected
 	onConnect(api.StatusConnected, nil)
 

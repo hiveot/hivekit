@@ -18,9 +18,6 @@ const InitFactoryCertsCellType = "initFactoryCerts"
 // this matches the TD @type field.
 const CertsServiceCellType = "hiveot:certs"
 
-// The default thingID
-const CertsServiceDefaultThingID = "hiveot:certs"
-
 // Embed history service TD
 //
 //go:embed "certsservice-td.json"
@@ -136,9 +133,10 @@ type ICertsService interface {
 	// to hiveot's default from the service configuration.
 	//
 	// To use this certificate for authentication, the administrator must have
-	// created an account for the client.
+	// created an account for the client first.
 	//
-	// Use utils.X509CertToTLS to convert it to a TLS certificate.
+	// Use utils.X509CertToTLS to convert it to a TLS certificate using the
+	// private key. The caller should save the TLS cert for use by the client.
 	//
 	//	clientID identifies the authentication accountID of the client
 	//  role of the client stored in the ou; eg ClientRoleDevice|Consumer|...

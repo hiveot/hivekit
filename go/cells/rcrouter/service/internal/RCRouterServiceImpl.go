@@ -51,7 +51,7 @@ func (svc *RCRouterServiceImpl) GetRCConnection(clientID string) (c api.IConnect
 // HandleRequest handles requests or routes the request to its destination
 func (svc *RCRouterServiceImpl) HandleRequest(req *msg.RequestMessage, replyTo msg.ResponseHandler) error {
 
-	if req.ThingID != svc.GetID() {
+	if req.ThingID != svc.GetID() && req.ThingID != rcrouter.RCRouterCellType {
 		return svc.RouteRequest(req, replyTo)
 	}
 	// This service doesn't define any requests.
@@ -79,6 +79,10 @@ func (svc *RCRouterServiceImpl) RouteRequest(req *msg.RequestMessage, replyTo ms
 			if c == nil {
 				err = fmt.Errorf("RouteRequest: device '%s' isnt connected", rcClientID)
 			} else {
+				slog.Info("RouteRequest: Forwarding to RC device",
+					slog.String("thingID", req.ThingID),
+					slog.String("name", req.Name),
+					slog.String("sender", req.SenderID))
 				err = c.SendRequest(req, replyTo)
 			}
 			return err
@@ -108,7 +112,7 @@ func NewRCRouterServiceImpl(
 	}
 
 	slog.Info("NewRCRouterServiceImpl: Starting RC-Router service")
-	thingID := rcrouter.RCRouterDefaultThingID
+	thingID := rcrouter.RCRouterCellType
 	svc := &RCRouterServiceImpl{
 		HiveCellBase: cells.NewHiveCellBase(thingID),
 		getTD:        getTD,

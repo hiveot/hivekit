@@ -36,9 +36,10 @@ func (svc *AuthnUserServiceImpl) HandleRequest(req *msg.RequestMessage, replyTo 
 	var output any
 	var err error
 
-	if req.ThingID != svc.GetID() {
+	if req.ThingID != svc.GetID() && req.ThingID != authn.AuthnUserServiceCellType {
 		return svc.ForwardRequest(req, replyTo)
 	}
+	slog.Info("HandleRequest", slog.String("name", req.Name), slog.String("sender", req.SenderID))
 
 	if req.Operation == wot.OpInvokeAction {
 		switch req.Name {
@@ -99,8 +100,8 @@ func (svc *AuthnUserServiceImpl) SetPassword(clientID string, password string) e
 // Start publishes the service TD to the directory or discovery.
 func (svc *AuthnUserServiceImpl) Start() {
 	tdoc, _ := wot.UnmarshalTD(string(authn.AuthnUserTD))
-	tdoc.ID = authn.DefaultAuthnUserThingID
-	tdoc.SetType(authn.AuthnUserServiceType)
+	tdoc.ID = svc.GetID()
+	tdoc.SetType(authn.AuthnUserServiceCellType)
 	_ = svc.WriteTD(tdoc)
 }
 
@@ -152,7 +153,7 @@ func NewAuthnUserServiceImpl(
 
 	// this service is the admin service that also exposes the user service service thing
 	svc := &AuthnUserServiceImpl{
-		ExposedThing:   thing.NewExposedThing(authn.DefaultAuthnUserThingID, nil),
+		ExposedThing:   thing.NewExposedThing(authn.AuthnUserServiceCellType, nil),
 		authnStore:     authnStore,
 		sessionManager: sessionManager,
 	}

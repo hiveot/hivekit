@@ -138,7 +138,7 @@ func TestDigitwin(t *testing.T) {
 
 	// load the digitwin service
 	// this should start the directory and http server
-	m, err := f.NewCell(digitwin.DigitwinCellType, true)
+	m, err := f.NewCell(digitwin.DigitwinServiceCellType, true)
 	require.NoError(t, err)
 	require.NotNil(t, m)
 }

@@ -42,7 +42,7 @@ func (arx *AsyncReceiver[T]) WaitForResponse() (T, error) {
 	var ok bool
 
 	// create a context with timeout
-	ctx, cancelFunc := context.WithTimeout(context.Background(), arx.timeout)
+	ctx, cancelFunc := context.WithTimeout(context.Background(), arx.timeout+time.Millisecond)
 	defer cancelFunc()
 
 	select {

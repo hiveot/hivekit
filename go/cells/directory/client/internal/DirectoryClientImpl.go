@@ -241,12 +241,13 @@ func (cl *DirectoryClientImpl) UpdateThing(tdJson string) (err error) {
 //	sink handles requests for the directory server and returns notifications. nil to set manually.
 func NewDirectoryClientImpl(
 	dirTD *wot.TD, sink api.IHiveCell) *DirectoryClientImpl {
+
 	thingID := directory.DirectoryClientCellType + "-" + shortid.MustGenerate()
 	cl := &DirectoryClientImpl{
 		HiveCellBase: cells.NewHiveCellBase(thingID),
 		cache:        NewDirectoryCacheImpl(),
-		dirTD:        dirTD,
-		dirThingID:   "",
+		// use the default thingID or set dirTD if provided.
+		dirThingID: directory.DirectoryServiceCellType,
 	}
 	if dirTD != nil {
 		cl.SetTDD(dirTD)

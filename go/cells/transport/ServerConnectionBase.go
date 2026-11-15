@@ -191,10 +191,10 @@ func (base *ServerConnectionBase) OnRemoteMessage(raw []byte) {
 			return
 		}
 	default:
-		err = fmt.Errorf("Unknown message type '%s'", msgType)
+		err = fmt.Errorf("OnRemoteMessage: Unknown message type '%s'", msgType)
 	}
 	if err != nil {
-		slog.Warn("_onGrpcServerMessage: Failed to decode message", "msgType", msgType, "err", err.Error())
+		slog.Warn("OnRemoteMessage: Failed to decode message", "msgType", msgType, "err", err.Error())
 	}
 }
 

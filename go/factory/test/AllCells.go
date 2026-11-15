@@ -156,7 +156,7 @@ var HiveKitAllCells = []api.CellDefinition{
 
 	// digitwin service
 	{
-		Type:        digitwin.DigitwinCellType,
+		Type:        digitwin.DigitwinServiceCellType,
 		Constructor: digitwin_service.NewDigitwinServiceFactory,
 	},
 	// directory service

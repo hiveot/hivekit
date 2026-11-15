@@ -33,7 +33,7 @@ func NewDigitwinServiceFactory(f api.ICellFactory, md *api.CellDefinition) (api.
 	env := f.GetEnvironment()
 
 	// data is stored in a subdir
-	storageDir := filepath.Join(env.StoresDir, digitwin.DigitwinCellType)
+	storageDir := filepath.Join(env.StoresDir, digitwin.DigitwinServiceCellType)
 
 	// the directory used to intercept directory writes to create digital twins of
 	svc, err := f.NewCell(directory.DirectoryServiceCellType, true)

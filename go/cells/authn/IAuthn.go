@@ -30,11 +30,9 @@ var AuthnUserTD []byte
 // and one for user storage.
 // The cell type is also the instance ID as these are singletons
 const (
-	AuthnServiceCellType     = "authn"
-	DefaultAuthnAdminThingID = "authn:admin"
-	DefaultAuthnUserThingID  = "authn:user"
-	AuthnAdminServiceType    = "authn:admin"
-	AuthnUserServiceType     = "authn:user"
+	AuthnServiceCellType      = "authn"
+	AuthnAdminServiceCellType = "authn:admin"
+	AuthnUserServiceCellType  = "authn:user"
 )
 
 // ClientProfile defines a Client Profile data schema.

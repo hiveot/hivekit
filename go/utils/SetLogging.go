@@ -59,17 +59,9 @@ func SetLogging(levelName string, logFilename string) *slog.Logger {
 			// 	logWriter = io.MultiWriter(os.Stdout, logFile)
 		}
 	}
-	handler := tint.NewHandler(logWriter, opts)
-	//opts := &slog.HandlerOptions{
-	//	AddSource: true,
-	//	Level:     logLevel,
-	//}
-	//handler := slog.NewTextHandler(os.Stdout, opts)
-
+	handler := tint.NewTextHandler(logWriter, opts)
 	logger := slog.New(handler)
 	slog.SetDefault(logger)
-	//logLogger := slog.NewLogLogger(handler, logLevel)
-	//_ = http.Server{ErrorLog: logLogger}
 	return logger
 }
 

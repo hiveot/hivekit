@@ -25,7 +25,7 @@ import (
 func (svc *HistoryServiceImpl) HandleRequest(req *msg.RequestMessage, replyTo msg.ResponseHandler) (err error) {
 	var resp *msg.ResponseMessage
 
-	if req.ThingID != svc.GetID() {
+	if req.ThingID != svc.GetID() && req.ThingID != history.HistoryServiceCellType {
 		// if the request is not for this service, store it and forward.
 		go func() {
 			if svc.config.RequestFilter.AcceptRequest(req) {
@@ -33,44 +33,45 @@ func (svc *HistoryServiceImpl) HandleRequest(req *msg.RequestMessage, replyTo ms
 			}
 		}()
 		return svc.ForwardRequest(req, replyTo)
-	} else {
-		// handle requests for the history service itself
-
-		if req.SenderID == "" {
-			return fmt.Errorf("missing senderID")
-		}
-
-		switch req.Name {
-		case history.CreateCursorMethod:
-			resp, err = svc.handleCreateCursor(req)
-		case history.CursorFirstMethod:
-			resp, err = svc.handleFirst(req)
-		case history.CursorLastMethod:
-			resp, err = svc.handleLast(req)
-		case history.CursorNextMethod:
-			resp, err = svc.handleNext(req)
-		case history.CursorNextNMethod:
-			resp, err = svc.handleNextN(req)
-		case history.CursorPrevMethod:
-			resp, err = svc.handlePrev(req)
-		case history.CursorPrevNMethod:
-			resp, err = svc.handlePrevN(req)
-		case history.CursorReleaseMethod:
-			resp, err = svc.handleReleaseCursor(req)
-		case history.CursorSeekMethod:
-			resp, err = svc.handleSeek(req)
-		case history.ReadHistoryMethod:
-			resp, err = svc.handleReadHistory(req)
-		default:
-		}
-		if err != nil {
-			return err
-		} else if resp != nil {
-			return replyTo(resp)
-		} else {
-			return svc.ExposedThing.HandleRequest(req, replyTo)
-		}
 	}
+
+	// handle requests for the history service itself
+	if req.SenderID == "" {
+		return fmt.Errorf("missing senderID")
+	}
+	slog.Info("HandleRequest", slog.String("name", req.Name), slog.String("sender", req.SenderID))
+
+	switch req.Name {
+	case history.CreateCursorMethod:
+		resp, err = svc.handleCreateCursor(req)
+	case history.CursorFirstMethod:
+		resp, err = svc.handleFirst(req)
+	case history.CursorLastMethod:
+		resp, err = svc.handleLast(req)
+	case history.CursorNextMethod:
+		resp, err = svc.handleNext(req)
+	case history.CursorNextNMethod:
+		resp, err = svc.handleNextN(req)
+	case history.CursorPrevMethod:
+		resp, err = svc.handlePrev(req)
+	case history.CursorPrevNMethod:
+		resp, err = svc.handlePrevN(req)
+	case history.CursorReleaseMethod:
+		resp, err = svc.handleReleaseCursor(req)
+	case history.CursorSeekMethod:
+		resp, err = svc.handleSeek(req)
+	case history.ReadHistoryMethod:
+		resp, err = svc.handleReadHistory(req)
+	default:
+	}
+	if err != nil {
+		return err
+	} else if resp != nil {
+		return replyTo(resp)
+	} else {
+		return svc.ExposedThing.HandleRequest(req, replyTo)
+	}
+
 }
 
 // handleCreateCursor returns an iterator for ThingMessage objects.

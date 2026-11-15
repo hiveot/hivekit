@@ -2,6 +2,7 @@ package internal
 
 import (
 	"fmt"
+	"log/slog"
 	"strings"
 
 	"github.com/hiveot/hivekit/go/api/msg"
@@ -61,7 +62,7 @@ func (svc *DigitwinServiceImpl) HandleRequest(req *msg.RequestMessage, replyTo m
 	}
 
 	// Last, only handle requests for this service
-	if req.ThingID != svc.GetID() {
+	if req.ThingID != svc.GetID() && req.ThingID != digitwin.DigitwinServiceCellType {
 		// TBD: forward other requests to sink or is digitwin the end of the line?
 		err := fmt.Errorf("unable to handle request '%s(%s)' for thingID '%s'",
 			req.Operation, req.Name, req.ThingID)
@@ -78,6 +79,7 @@ func (svc *DigitwinServiceImpl) HandleDigitwinRequest(req *msg.RequestMessage, r
 	var resp *msg.ResponseMessage
 
 	// Handle requests for this service
+	slog.Info("HandleRequest", slog.String("name", req.Name), slog.String("sender", req.SenderID))
 
 	// todo: add methods for digital twin status queries
 	switch req.Operation {

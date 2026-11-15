@@ -152,8 +152,10 @@ func (svc *DigitwinServiceImpl) GetDeviceTD(thingID string) *wot.TD {
 	if err != nil {
 		return nil
 	}
-	tdi, err := wot.UnmarshalTD(string(tdJson))
-	return tdi
+	tdoc, err := wot.UnmarshalTD(string(tdJson))
+	tdoc.ID = svc.GetID()
+	tdoc.SetType(digitwin.DigitwinServiceCellType)
+	return tdoc
 }
 
 // HandleNotification stores the latest notification things for retrieval as a digital twin value
@@ -242,7 +244,7 @@ func NewDigitwinServiceImpl(
 	storageDir string, thingDir directory.IDirectoryService, addforms func(*wot.TD)) (
 	*DigitwinServiceImpl, error) {
 
-	thingID := digitwin.DigitwinServiceDefaultThingID
+	thingID := digitwin.DigitwinServiceCellType
 
 	// the vcache holds the cached notifications
 	// if it doesn't contain a value it should forward the request to the device

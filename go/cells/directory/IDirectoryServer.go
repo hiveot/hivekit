@@ -26,8 +26,6 @@ const (
 	// Note that the TD also includes the "ThingDirectory" in @type as per specification.
 	DirectoryServiceCellType = "hiveot:directory"
 
-	DefaultDirectoryServiceThingID = "hiveot:directory"
-
 	// DirectoryHttpCellType identifies the http API for the directory service
 	// Place this service before any middleware so that requests are logged and authorized.
 	DirectoryHttpCellType = "directory-http"

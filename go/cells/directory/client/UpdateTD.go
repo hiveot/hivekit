@@ -16,6 +16,9 @@ import (
 //	tdJson is the TD in JSON to update in the directory.
 //	reqHandler is the request handler of the connection to send the request through.
 func UpdateTD(directoryThingID string, tdJson string, reqHandler msg.RequestHandler) error {
+	if directoryThingID == "" {
+		directoryThingID = directory.DirectoryServiceCellType
+	}
 	req := msg.NewRequestMessage(
 		wot.OpInvokeAction, directoryThingID, directory.UpdateThingAction, tdJson)
 

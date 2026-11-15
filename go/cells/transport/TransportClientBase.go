@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log/slog"
 	"sync"
+	"time"
 
 	"github.com/hiveot/hivekit/go/api"
 	"github.com/hiveot/hivekit/go/api/msg"
@@ -107,7 +108,7 @@ func (cl *TransportClientBase) Rpc(
 	var resp *msg.ResponseMessage
 	req := msg.NewRequestMessage(operation, thingID, name, input)
 
-	arx := utils.NewAsyncReceiver[*msg.ResponseMessage](msg.CellTimeout)
+	arx := utils.NewAsyncReceiver[*msg.ResponseMessage](msg.CellTimeout + time.Millisecond)
 
 	// The actual transport that sends the request to the remote side, instead
 	// of passing it to the request sink.

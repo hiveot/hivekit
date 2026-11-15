@@ -33,7 +33,7 @@ var storageDir = path.Join(os.TempDir(), "hivekit", "router-test")
 
 const testConsumerID = "router1"
 
-var testProtocol = api.HiveotWebsocketProtocolType
+var testProtocol = api.HiveotGrpcTcpProtocolType
 
 var testProtocols = []string{
 	api.HiveotSseScProtocolType,

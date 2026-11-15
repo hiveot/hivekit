@@ -51,7 +51,7 @@ func (srv *GrpcAuthenticator) Authenticate(
 	contextClientID := strings.Join(md[api.ClientIDContextID], "")
 	mdAuthn := md["authorization"]
 	if len(mdAuthn) == 0 {
-		return md, "", ErrInvalidToken
+		return md, contextClientID, ErrInvalidToken
 	}
 	// remote the bearer prefix from the token
 	token := mdAuthn[0]
@@ -60,7 +60,7 @@ func (srv *GrpcAuthenticator) Authenticate(
 	clientID, _, _, err = srv.authenticator.ValidateClient(contextClientID, bearerToken)
 	if err != nil {
 		slog.Warn("GrpcAuthenticator: auth failed: ", "err", err.Error())
-		return md, "", err
+		return md, contextClientID, err
 	}
 	return md, clientID, nil
 }

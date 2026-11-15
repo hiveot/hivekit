@@ -4,6 +4,7 @@ import (
 	"crypto"
 	"crypto/x509"
 	"fmt"
+	"log/slog"
 	"time"
 
 	"github.com/hiveot/hivekit/go/api/msg"
@@ -90,9 +91,10 @@ func (svc *CertsServiceImpl) handleVerifyClientCert(req *msg.RequestMessage) (re
 func (svc *CertsServiceImpl) HandleRequest(
 	req *msg.RequestMessage, replyTo msg.ResponseHandler) (err error) {
 
-	if req.ThingID != svc.GetID() {
+	if req.ThingID != svc.GetID() && req.ThingID != certs.CertsServiceCellType {
 		return svc.ForwardRequest(req, replyTo)
 	}
+	slog.Info("HandleRequest", slog.String("name", req.Name), slog.String("sender", req.SenderID))
 
 	var resp *msg.ResponseMessage
 	if req.SenderID == "" {

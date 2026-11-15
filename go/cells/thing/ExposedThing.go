@@ -321,11 +321,11 @@ func (eThing *ExposedThing) WriteTD(tdoc *wot.TD) error {
 
 	tdJSON := tdoc.ToJSON()
 
-	// NOTE: if the directory thingID is unknown, leave it empty. If the connection exists then
-	// the update request will be passed down the chain of cells to the directory, which recognizes
-	// the request.
-	// Only if the router needs to route it, must the thingID be known.
-	directoryThingID := ""
+	// NOTE: if the directory thingID is unknown, use the default directory ThingID.
+	// If the connection exists then the update request will be passed down the chain
+	// of cells to the directory, which recognizes the default in the request.
+	// Only if the router needs to route it, must the directory TD be known.
+	directoryThingID := directory.DirectoryServiceCellType
 	err := eThing.Rpc(wot.OpInvokeAction, directoryThingID, directory.UpdateThingAction, tdJSON, nil)
 	if err != nil {
 		slog.Warn("PublishTD: Failed to update the directory", "err", err.Error())

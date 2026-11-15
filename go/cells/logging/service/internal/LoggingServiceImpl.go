@@ -1,6 +1,7 @@
 package internal
 
 import (
+	"fmt"
 	"io"
 	"log/slog"
 	"os"
@@ -47,18 +48,24 @@ func (svc *LoggingServiceImpl) HandleRequest(req *msg.RequestMessage, replyTo ms
 			svc.LogRequest(req)
 		}
 	}()
-	return svc.ForwardRequest(req, replyTo)
+	if req.ThingID != svc.GetID() && req.ThingID != logging.LoggingServiceCellType {
+		return svc.ForwardRequest(req, replyTo)
+	}
+	slog.Info("HandleRequest", slog.String("name", req.Name), slog.String("sender", req.SenderID))
+	return fmt.Errorf("HandleRequest: unsupported request '%s'", req.Name)
 }
 
 // write notifications to the logging backend
 func (svc *LoggingServiceImpl) LogNotification(notif *msg.NotificationMessage) {
 	value := utils.DecodeAsString(notif.Data, 32)
-	svc.notificationLogger.Info("Notification",
+	svc.notificationLogger.Info("Notification (logservice)",
+		slog.String("correlationID", notif.CorrelationID),
 		slog.String("type", string(notif.AffordanceType)),
 		slog.String("thingID", notif.ThingID),
 		slog.String("name", notif.Name),
+		// slog.String("timestamp", notif.Timestamp),
+		slog.String("sender", string(notif.SenderID)),
 		slog.String("value", value),
-		slog.String("timestamp", notif.Timestamp),
 	)
 
 }
@@ -66,13 +73,14 @@ func (svc *LoggingServiceImpl) LogNotification(notif *msg.NotificationMessage) {
 // write request to the logging backend
 func (svc *LoggingServiceImpl) LogRequest(req *msg.RequestMessage) {
 	value := utils.DecodeAsString(req.Input, 32)
-	svc.requestLogger.Info("Request",
+	svc.requestLogger.Info("Request (logservice)",
+		slog.String("correlationID", req.CorrelationID),
 		slog.String("op", string(req.Operation)),
 		slog.String("thingID", req.ThingID),
 		slog.String("name", req.Name),
-		slog.String("value", value),
-		slog.String("created", req.Timestamp),
+		// slog.String("timestamp", req.Timestamp),
 		slog.String("sender", string(req.SenderID)),
+		slog.String("value", value),
 	)
 
 }

@@ -104,8 +104,10 @@ func NewHistoryServiceImpl(config history.HistoryConfig) (*HistoryServiceImpl, e
 
 	var bucketStore bucketstore.IBucketStore
 	var err error
-	thingID := history.DefaultHistoryThingID
-
+	thingID := config.ThingID
+	if thingID == "" {
+		thingID = history.HistoryServiceCellType
+	}
 	switch config.Backend {
 	case bucketstore.BackendPebble:
 		bucketStore, err = pebblestore.OpenPebbleStore(config.StoreDirectory)

@@ -337,13 +337,6 @@ func (env *AppEnvironment) Print(verbose int) {
 			fmt.Println("* Rpc timeout:      ", env.RpcTimeout)
 		}
 
-		_, err := env.GetAuthToken()
-		if err != nil {
-			fmt.Println("! No auth token found for client: ", env.ClientID)
-		} else {
-			fmt.Println("* Found auth token for login as", env.ClientID)
-		}
-
 		caCert, _, err := env.GetCACert()
 		if err != nil {
 			fmt.Println("! CA cert cannot be loaded", err.Error())
@@ -357,26 +350,45 @@ func (env *AppEnvironment) Print(verbose int) {
 		if err != nil {
 			fmt.Println("* No server cert set")
 		} else {
-			fmt.Println("* Server cert successfully loaded")
 			serverCert, err := x509.ParseCertificate(serverTLS.Certificate[0])
+
+			if serverCert.NotAfter.Before(time.Now()) {
+				fmt.Printf("! Server Cert '%s' has expired\n", DefaultServerName)
+			} else {
+				fmt.Printf("* Server cert successfully loaded. Valid until %s\n",
+					serverCert.NotAfter)
+			}
 			if err == nil && verbose >= 2 {
 				env.ShowCertDetails(serverCert)
 			}
 		}
 
-		tlsCert, err := env.GetClientCert(env.ClientID)
-		if err != nil {
-			fmt.Printf("* No client cert for '%s'\n", env.ClientID)
-		} else {
-			chain, _ := utils.TLSCertToX509(tlsCert)
-			clientCert := chain[0]
-			fmt.Printf("* Client Cert for '%s' successfully loaded\n", env.ClientID)
-			certCN := clientCert.Subject.CommonName
-			if certCN != env.ClientID {
-				fmt.Printf("! Client cert CN '%s' doesn't match ClientID\n", certCN)
-			}
-			if verbose >= 2 {
-				env.ShowCertDetails(clientCert)
+		if env.ClientID != "" {
+
+			tlsCert, err := env.GetClientCert(env.ClientID)
+			if err != nil {
+				fmt.Printf("* No client cert for '%s'\n", env.ClientID)
+				_, err = env.GetAuthToken()
+				if err != nil {
+					fmt.Println("! No auth token found for client: ", env.ClientID)
+				} else {
+					fmt.Println("* Found auth token for login as", env.ClientID)
+				}
+			} else {
+				chain, _ := utils.TLSCertToX509(tlsCert)
+				clientCert := chain[0]
+				certCN := clientCert.Subject.CommonName
+				if clientCert.NotAfter.Before(time.Now()) {
+					fmt.Printf("! Client Cert for '%s' has expired\n", env.ClientID)
+				} else if certCN != env.ClientID {
+					fmt.Printf("! Client cert CN '%s' doesn't match ClientID\n", certCN)
+				} else {
+					fmt.Printf("* Client Cert for '%s' successfully loaded. ValidUntil %s\n",
+						env.ClientID, clientCert.NotAfter)
+				}
+				if verbose >= 2 {
+					env.ShowCertDetails(clientCert)
+				}
 			}
 		}
 	}

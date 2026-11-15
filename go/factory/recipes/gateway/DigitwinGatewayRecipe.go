@@ -54,6 +54,8 @@ var DigitwinGatewayRecipeCells = []api.CellDefinition{
 		// It uses the factory registered authenticator.
 		Type:        api.HttpServerCellType,
 		Constructor: tlsserver.NewTLSServerFactory,
+		// just initialization, not part of the chain.
+		NoLink: true,
 	},
 	// --- nested formation with the servers operating in parallel
 	{
@@ -139,7 +141,7 @@ var DigitwinGatewayRecipeCells = []api.CellDefinition{
 	},
 	// The digital twin service handles requests for digital device twins
 	{
-		Type:        digitwin.DigitwinCellType,
+		Type:        digitwin.DigitwinServiceCellType,
 		Constructor: digitwin_service.NewDigitwinServiceFactory,
 	},
 

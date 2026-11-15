@@ -43,6 +43,7 @@ func (svc *BucketServiceImpl) GetService() bucketstore.IBucketStore {
 // HandleRequest passes the request messages to the service.
 func (svc *BucketServiceImpl) HandleRequest(req *msg.RequestMessage, replyTo msg.ResponseHandler) (err error) {
 	if req.ThingID == svc.GetID() {
+		slog.Info("HandleRequest", slog.String("name", req.Name), slog.String("sender", req.SenderID))
 		err = svc.handleBucketStoreRequest(req, replyTo)
 	} else {
 		err = svc.HiveCellBase.HandleRequest(req, replyTo)
@@ -93,7 +94,7 @@ func NewBucketServiceImpl(location string, storeType string) (svc *BucketService
 	}
 
 	// this service is a singleton that exposes multiple service things
-	thingID := bucketstore.DefaultBucketStoreThingID
+	thingID := bucketstore.BucketStoreCellType
 	svc = &BucketServiceImpl{
 		HiveCellBase: cells.NewHiveCellBase(thingID),
 		location:     location,

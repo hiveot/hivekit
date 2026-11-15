@@ -52,20 +52,26 @@ type DiscoveryServerImpl struct {
 
 // Handle request to serve a directory or Thing TD.
 // Intended for use in a cell chain where a device or directory publishes its TD for discovery.
-func (srv *DiscoveryServerImpl) HandleRequest(req *msg.RequestMessage, replyTo msg.ResponseHandler) (err error) {
+func (svc *DiscoveryServerImpl) HandleRequest(req *msg.RequestMessage, replyTo msg.ResponseHandler) (err error) {
+
+	if req.ThingID != svc.GetID() && req.ThingID != discovery.DiscoveryServerCellType {
+		return svc.ForwardRequest(req, replyTo)
+	}
+
+	slog.Info("HandleRequest", slog.String("name", req.Name), slog.String("sender", req.SenderID))
 
 	// no need to check the discovery thingID, the action name in this chain is sufficient.
 	if req.Operation == wot.OpInvokeAction {
 		switch req.Name {
 		case discovery.ServeDirectoryTDAction:
 			tdoc, _ := wot.UnmarshalTD(req.ToString(0))
-			tddURL, err := srv.ServeDirectoryTD(tdoc.ID, tdoc)
+			tddURL, err := svc.ServeDirectoryTD(tdoc.ID, tdoc)
 			resp := req.CreateResponse(tddURL, err)
 			return replyTo(resp)
 
 		case discovery.ServeThingTDAction:
 			tdoc, _ := wot.UnmarshalTD(req.ToString(0))
-			tdURL, err := srv.ServeThingTD(tdoc.ID, tdoc)
+			tdURL, err := svc.ServeThingTD(tdoc.ID, tdoc)
 			resp := req.CreateResponse(tdURL, err)
 			return replyTo(resp)
 
@@ -79,19 +85,22 @@ func (srv *DiscoveryServerImpl) HandleRequest(req *msg.RequestMessage, replyTo m
 			tdoc, _ := wot.UnmarshalTD(req.ToString(0))
 			// add forms if missing
 			if tdoc.Base == "" && len(tdoc.Forms) == 0 {
-				if srv.addFormsHook != nil {
-					srv.addFormsHook(tdoc)
+				if svc.addFormsHook != nil {
+					svc.addFormsHook(tdoc)
 				}
 			}
 			// this is a Thing, so an instance name is needed to differentiate
 			// between things.
 			instanceName := tdoc.ID
-			tdURL, err := srv.ServeThingTD(instanceName, tdoc)
+			tdURL, err := svc.ServeThingTD(instanceName, tdoc)
 			resp := req.CreateResponse(tdURL, err)
 			return replyTo(resp)
+		default:
+			return fmt.Errorf("HandleRequest: Unknown action '%s'", req.Name)
 		}
+	} else {
+		return fmt.Errorf("HandleRequest: Unknown operation '%s'", req.Operation)
 	}
-	return srv.ForwardRequest(req, replyTo)
 }
 
 // ServeTD serves the TD using DNS-SD.
@@ -116,7 +125,7 @@ func (srv *DiscoveryServerImpl) HandleRequest(req *msg.RequestMessage, replyTo m
 //	isGateway flag, this device is a gateway
 //
 // This returns the TD download URL or an error
-func (srv *DiscoveryServerImpl) ServeTD(
+func (svc *DiscoveryServerImpl) ServeTD(
 	instanceName string, discoType string, tdoc *wot.TD) (tdURL string, err error) {
 
 	var httpPath string
@@ -137,7 +146,7 @@ func (srv *DiscoveryServerImpl) ServeTD(
 	tdJSON := tdoc.ToJSON()
 
 	// serve the TD on the well-known http endpoint
-	publicRoute := srv.httpServer.GetPublicRoute()
+	publicRoute := svc.httpServer.GetPublicRoute()
 	publicRoute.Get(httpPath, func(w http.ResponseWriter, r *http.Request) {
 		_ = tdoc
 		_ = tdJSON
@@ -145,7 +154,7 @@ func (srv *DiscoveryServerImpl) ServeTD(
 	})
 
 	// publish a discovery record
-	tdURL, _ = url.JoinPath(srv.httpServer.GetConnectURL(), httpPath)
+	tdURL, _ = url.JoinPath(svc.httpServer.GetConnectURL(), httpPath)
 	dnsSrv, err := ServeWotDiscovery(instanceName, tdURL, discoType, nil)
 	if err != nil {
 		slog.Error("ServeTD: Failed starting introduction server for DNS-SD",
@@ -153,7 +162,7 @@ func (srv *DiscoveryServerImpl) ServeTD(
 			"err", err.Error())
 		return tdURL, err
 	}
-	srv.dnssdServers[instanceName] = dnsSrv
+	svc.dnssdServers[instanceName] = dnsSrv
 	return tdURL, nil
 }
 
@@ -171,14 +180,14 @@ func (srv *DiscoveryServerImpl) ServeTD(
 // This aims to be compliant with https://w3c.github.io/wot-discovery/#exploration-server
 //
 // This returns the TD download URL or an error
-func (srv *DiscoveryServerImpl) ServeDirectoryTD(
+func (svc *DiscoveryServerImpl) ServeDirectoryTD(
 	serviceName string, tdoc *wot.TD) (tdURL string, err error) {
 	if tdoc == nil {
 		return "", errors.New("Missing TD")
 	}
 	slog.Info("ServeDirectoryTD. Serving Directory TD",
 		"serviceName", serviceName, "thingID", tdoc.ID)
-	tdURL, err = srv.ServeTD(serviceName, discovery.DISCO_TYPE_DIRECTORY, tdoc)
+	tdURL, err = svc.ServeTD(serviceName, discovery.DISCO_TYPE_DIRECTORY, tdoc)
 	return tdURL, err
 
 }
@@ -196,7 +205,7 @@ func (srv *DiscoveryServerImpl) ServeDirectoryTD(
 //	tdoc is the Thing's TD
 //
 // This returns the TD download URL or an error
-func (srv *DiscoveryServerImpl) ServeGatewayTD(
+func (svc *DiscoveryServerImpl) ServeGatewayTD(
 	serviceName string, tdoc *wot.TD) (tdURL string, err error) {
 
 	// serviceName = tdoc.ID
@@ -207,7 +216,7 @@ func (srv *DiscoveryServerImpl) ServeGatewayTD(
 	slog.Info("ServeGatewayTD. Serving Gateway TD",
 		"serviceName", serviceName, "thingID", tdoc.ID)
 
-	return srv.ServeTD(serviceName, discovery.DISCO_TYPE_GATEWAY, tdoc)
+	return svc.ServeTD(serviceName, discovery.DISCO_TYPE_GATEWAY, tdoc)
 }
 
 // ServeThingTD registers the given thing TD with the HTTP server and publishes
@@ -223,7 +232,7 @@ func (srv *DiscoveryServerImpl) ServeGatewayTD(
 //	tdoc is the Thing's TD to serve
 //
 // This returns the TD download URL or an error
-func (srv *DiscoveryServerImpl) ServeThingTD(
+func (svc *DiscoveryServerImpl) ServeThingTD(
 	instanceName string, tdoc *wot.TD) (tdURL string, err error) {
 
 	if tdoc == nil {
@@ -231,19 +240,19 @@ func (srv *DiscoveryServerImpl) ServeThingTD(
 	}
 	slog.Info("ServeThingTD. Serving Thing TD",
 		"serviceName", instanceName, "thingID", tdoc.ID)
-	return srv.ServeTD(instanceName, discovery.DISCO_TYPE_THING, tdoc)
+	return svc.ServeTD(instanceName, discovery.DISCO_TYPE_THING, tdoc)
 }
 
 // Stop any running services and release resources
-func (srv *DiscoveryServerImpl) Stop() {
-	srv.mux.Lock()
-	defer srv.mux.Unlock()
-	slog.Info("Stop: Stopping discovery transport servers", "count", len(srv.dnssdServers))
-	if srv.dnssdServers != nil {
-		for _, dnsSrv := range srv.dnssdServers {
+func (svc *DiscoveryServerImpl) Stop() {
+	svc.mux.Lock()
+	defer svc.mux.Unlock()
+	slog.Info("Stop: Stopping discovery transport servers", "count", len(svc.dnssdServers))
+	if svc.dnssdServers != nil {
+		for _, dnsSrv := range svc.dnssdServers {
 			dnsSrv.Shutdown()
 		}
-		srv.dnssdServers = nil
+		svc.dnssdServers = nil
 		// the DNS server takes a wee bit of time to really stop
 		// Wait this wee bit to prevent a race running tests
 		time.Sleep(time.Millisecond)
@@ -277,7 +286,7 @@ func NewDiscoveryServerImpl(
 	}
 
 	// thingID is defined in the TDD and should match HiveCell thingID
-	thingID := discovery.DiscoveryServerDefaultThingID
+	thingID := discovery.DiscoveryServerCellType
 
 	srv := &DiscoveryServerImpl{
 		HiveCellBase: cells.NewHiveCellBase(thingID),

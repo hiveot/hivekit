@@ -31,9 +31,6 @@ type WssServerConnection struct {
 	// notifHandler handles the requests received from the remote producer
 	notifHandler msg.NotificationHandler
 
-	// reqHandler handles the requests received from the remote consumer
-	reqHandler msg.RequestHandler
-
 	// underlying websocket connection
 	wssConn *websocket.Conn
 }
@@ -120,10 +117,10 @@ func NewWSSServerConnection(
 	}
 
 	c := &WssServerConnection{
-		wssConn:      wssConn,
-		encoder:      encoder,
-		httpReq:      r,
-		reqHandler:   reqHandler,
+		wssConn: wssConn,
+		encoder: encoder,
+		httpReq: r,
+		// reqHandler:   reqHandler,
 		notifHandler: notifHandler,
 	}
 	remoteAddr := r.URL.String()
