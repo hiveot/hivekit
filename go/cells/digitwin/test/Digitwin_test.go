@@ -222,7 +222,7 @@ func TestReadDigitwinProperty(t *testing.T) {
 	ething, cc2, _ := testEnv.NewRCThing(deviceID, nil)
 	defer cc2.Close()
 
-	ething.PubProperty(deviceTD1.ID, prop1Name, prop1Value, false)
+	ething.PubThingProperty(deviceTD1.ID, prop1Name, prop1Value)
 	// let the communication proceed
 	time.Sleep(time.Millisecond * 10)
 
@@ -265,7 +265,7 @@ func TestWriteDigitwinProperty(t *testing.T) {
 
 			// write property sends a notification that is passed to the server
 			// and updates the digital twin.
-			go eThing.PubProperty(req.ThingID, req.Name, txPropValue, false)
+			go eThing.PubThingProperty(req.ThingID, req.Name, txPropValue)
 
 			return replyTo(resp)
 		} else if req.ThingID == dirThingID {
@@ -350,7 +350,7 @@ func TestInvokeDigitwinAction(t *testing.T) {
 			actionInput := req.ToString(0)
 			resp := req.CreateResponse(actionInput, nil)
 			// submit an event after the action
-			go ething.PubEvent(req.ThingID, req.Name, req.Input)
+			go ething.PubThingEvent(req.ThingID, req.Name, req.Input)
 			return replyTo(resp)
 		} else if req.ThingID == dirThingID {
 			// this is a request for the directory. Send it.

@@ -214,7 +214,7 @@ func TestPublishEventsByRCThing(t *testing.T) {
 
 	// 3. device publishes an event
 	//  the device is the sink of the client. Client connection will send notifications to server.
-	device1.PubEvent(thingID, eventKey, testMsg)
+	device1.PubThingEvent(thingID, eventKey, testMsg)
 	time.Sleep(time.Millisecond) // time to take effect
 
 	// event received by server

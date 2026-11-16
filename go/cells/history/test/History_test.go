@@ -689,7 +689,7 @@ func TestPubEvents(t *testing.T) {
 		val := strconv.Itoa(i + 1)
 		// events are published by the device using its thingID
 		name := names[i]
-		device1.PubEvent(thing1ID, name, val)
+		device1.PubThingEvent(thing1ID, name, val)
 		// make sure timestamp differs
 		time.Sleep(time.Millisecond * 3)
 	}

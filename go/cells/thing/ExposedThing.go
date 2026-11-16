@@ -1,6 +1,7 @@
 package thing
 
 import (
+	"errors"
 	"fmt"
 	"log/slog"
 	"maps"
@@ -186,45 +187,45 @@ func (eThing *ExposedThing) PubActionStatus(thingID string, name string, status 
 	eThing.EmitNotification(notif)
 }
 
-// PubEvent helper for things to publish an event value to the server.
+// PubEvent publishes an event notification to subscribers and store the value in the
+// exposed thing state store. It can be read using ReadEvent()
 //
-//	thingID is the thing for which the cell publishes the properties or "" for the cell Thing itself.
+//	thingID is the thing for which the cell publishes
 //	name is the name of the event to publish.
-//	value is the value of the event to publish, if any
-func (eThing *ExposedThing) PubEvent(thingID string, name string, value any) {
+//	value is the value of the event to publish, if any.
+//	onlyChanges flag only publish changed values.
+func (eThing *ExposedThing) PubEvent(evName string, evValue any, onlyChanges bool) {
 
-	if thingID == "" {
-		thingID = eThing.GetID()
+	thingID := eThing.GetID()
+
+	hasChanged := true
+	if onlyChanges {
+		// since most values are native types a simple compare should suffice
+		old := eThing.state.GetEvent(evName)
+		if old != nil && old.Raw == evValue {
+			// if old != nil && reflect.DeepEqual(old, propVal) {
+			hasChanged = false
+		}
 	}
+	if hasChanged {
 
-	// This is a response to subscription request.
-	// for now assume this is a hub connection and the hub wants all events
-	notif := msg.NewNotificationMessage(
-		eThing.GetID(), msg.AffordanceTypeEvent, thingID, name, value)
-	slog.Info("PubEvent",
-		"thingID", thingID,
-		"name", name,
-		"value", notif.ToString(50),
-	)
-	eThing.state.SetEvent(name, notif)
+		eThing.state.SetEvent(evName, evValue)
 
-	eThing.EmitNotification(notif)
+		eThing.PubThingEvent(thingID, evName, evValue)
+	}
 }
 
-// PubProperty publishes a property change notification to observers,
-// and store the notification in the state store.
+// PubProperty publishes a property change notification to observers and store the value
+// in the exposed thing state store. It can be read using ReadProperty()
 //
 // Do not publish non-observable properties like date/time and counters, unless intentional.
 //
-//	thingID is the thing for which the cell publishes the properties or "" for the cell itself
 //	propName is the name of the property to publish.
 //	propValue is the value of the property to publish.
 //	onlyChanges flag only publish changed values.
-func (eThing *ExposedThing) PubProperty(thingID string, propName string, propVal any, onlyChanges bool) {
+func (eThing *ExposedThing) PubProperty(propName string, propVal any, onlyChanges bool) {
 
-	if thingID == "" {
-		thingID = eThing.GetID()
-	}
+	thingID := eThing.GetID()
 	hasChanged := true
 	if onlyChanges {
 		// since most values are native types a simple compare should suffice
@@ -235,6 +236,9 @@ func (eThing *ExposedThing) PubProperty(thingID string, propName string, propVal
 		}
 	}
 	if hasChanged {
+
+		eThing.state.SetProperty(propName, propVal)
+
 		// This is a response to an observation request.
 		// send the property update as a response to the observe request
 		notif := msg.NewNotificationMessage(
@@ -244,25 +248,82 @@ func (eThing *ExposedThing) PubProperty(thingID string, propName string, propVal
 			"name", notif.Name,
 			"value", notif.ToString(50),
 		)
-		eThing.state.SetProperty(propName, notif.Data)
 
 		eThing.EmitNotification(notif)
 	}
 }
 
-// PubProperties publishes multiple property changes to observers
-// This updates the Thing state map with the property values
+// PubProperties publishes multiple property changes to observers and store in the
+// exposed thing state store.
 //
 //	thingID is the thing for which the cell publishes the properties, or "" for the cell itself
 //	propMap is the map of properties to handle
 //	onlyChanges flag only publish changed values
-func (eThing *ExposedThing) PubProperties(thingID string, propMap map[string]any, onlyChanges bool) {
-	if thingID == "" {
-		thingID = eThing.GetID()
-	}
+func (eThing *ExposedThing) PubProperties(propMap map[string]any, onlyChanges bool) {
 	for propName, propVal := range propMap {
-		eThing.PubProperty(thingID, propName, propVal, onlyChanges)
+		eThing.PubProperty(propName, propVal, onlyChanges)
 	}
+}
+
+// PubThingEvent helper for things to publish an event value to the server.
+//
+// Intended for devices that manage multiple things. This does not store the last event
+// value or track value changes.
+//
+//	thingID is the thing for which the cell publishes
+//	name is the name of the event to publish.
+//	value is the value of the event to publish, if any.
+func (eThing *ExposedThing) PubThingEvent(thingID string, evName string, evValue any) {
+
+	notif := msg.NewNotificationMessage(
+		eThing.GetID(), msg.AffordanceTypeEvent, thingID, evName, evValue)
+	slog.Info("PubThingEvent",
+		"thingID", thingID,
+		"name", evName,
+		"value", notif.ToString(50),
+	)
+
+	eThing.EmitNotification(notif)
+}
+
+// PubThingProperties publishes multiple property changes to observers for the given ThingID.
+//
+// Intended for devices that manage multiple things. This does not store the last property
+// value or track value changes.
+//
+// To only publish changed properties use PubProperties() instead.
+//
+//	thingID is the thing for which the cell publishes the properties, or "" for the cell itself
+//	propMap is the map of properties to handle
+func (eThing *ExposedThing) PubThingProperties(thingID string, propMap map[string]any) {
+	for propName, propVal := range propMap {
+		eThing.PubThingProperty(thingID, propName, propVal)
+	}
+}
+
+// PubThingProperty publishes a property change notification to observers.
+//
+// This does not track the property values. It is intended for devices that
+// manage multiple things.
+//
+// Do not publish non-observable properties like date/time and counters, unless intentional.
+//
+//	thingID for whom to publish the property
+//	propName is the name of the property to publish.
+//	propValue is the value of the property to publish.
+func (eThing *ExposedThing) PubThingProperty(thingID string, propName string, propVal any) {
+
+	// This is a response to an observation request.
+	// send the property update as a response to the observe request
+	notif := msg.NewNotificationMessage(
+		eThing.GetID(), msg.AffordanceTypeProperty, thingID, propName, propVal)
+	slog.Info("PubProperty",
+		"thingID", thingID,
+		"name", notif.Name,
+		"value", notif.ToString(50),
+	)
+
+	eThing.EmitNotification(notif)
 }
 
 // Set the hook to invoke when requests are received by this cell.
@@ -287,16 +348,11 @@ func (eThing *ExposedThing) SetAppRequestHook(hook msg.RequestHandler) {
 // Intended for non-observable properties such as date/time and counters.
 // Use PubProperty for observable properties instead.
 //
-//	thingID is the thing whose propery value to update or "" for the cell itself.
 //	propName is the name of the property to set.
 //	propValue is the value of the property to set.
 //
 // This returns a flag whether the property value has changed
-func (eThing *ExposedThing) SetProperty(thingID string, propName string, propVal any) (changed bool) {
-
-	if thingID == "" {
-		thingID = eThing.GetID()
-	}
+func (eThing *ExposedThing) SetProperty(propName string, propVal any) (changed bool) {
 
 	// since most values are native types a simple compare should suffice
 	hasChanged := true
@@ -309,14 +365,16 @@ func (eThing *ExposedThing) SetProperty(thingID string, propName string, propVal
 	return hasChanged
 }
 
-// Write the exposed thing's TD to the directory
+// Write the exposed thing's TD to the directory, if a request sink is set.
 //
 // As per WoT recommendation, this sends an UpdateThing action request to the directory.
 //
-// Note that this requires that the linked transport sends the request to the
-// directory server.
+// This returns an error if the eThing has no request sink set.
 func (eThing *ExposedThing) WriteTD(tdoc *wot.TD) error {
 
+	if eThing.GetRequestSink() == nil {
+		return errors.New("WriteTD: Ignored. No request sink set")
+	}
 	slog.Info("WriteTD", "thingID", tdoc.ID)
 
 	tdJSON := tdoc.ToJSON()

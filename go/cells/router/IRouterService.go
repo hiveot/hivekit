@@ -13,20 +13,25 @@ const RouterDefaultThingID = "router"
 type IRouterService interface {
 	api.IHiveCell
 
-	// AddCredentials adds the secret to access one or more Things.
+	// AddCredentials adds the secret to access a Thing.
+	//
+	// The credentials will be applied for all other Things that are accessed
+	// through the device that hosts the Thing. This is the case for gateways.
 	//
 	// This stores the credentials using the connect URL, eg all Things that use
 	// the same connection endpoint.
 	//
-	// If no thingID is provided then use these credentials as the default. Intended
-	// for testing only as this exposes the token to all servers it tries connecting to.
+	// If no thingID is provided then use these credentials as the fallback for all
+	// Things. Intended for testing only as this exposes the token to all servers it
+	// tries connecting to.
 	//
-	// If it already exists then it is replaced.
+	// If credentials for the given Thing's device already exists then it is replaced.
 	// Used in combination with the Thing TD that describes how the secret is used to
 	// authenticate with the device.
 	//
-	// thingID is the thingID of the device connecting to.
-	// clientID is the ID the router service uses to identify itself as when connecting to the device.
+	// thingID is the thingID hosted by a device.
+	// clientID is the ID the router service uses to identify itself as when connecting to
+	//  the device that hosts the Thing.
 	// secret is the auth token or cert tls PEM used to authenticate as the clientID.
 	// secScheme indicates the type of credentials stored: SecSchemeBearer, ...
 	//  See also SecSchemeXyz and https://www.w3.org/TR/wot-thing-description11/#securityscheme

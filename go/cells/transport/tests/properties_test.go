@@ -160,7 +160,7 @@ func TestPublishPropertyByThing(t *testing.T) {
 	defer agConn1.Close()
 
 	// 3. device publishes a property update to subscribers
-	device1.PubProperty(thingID, propKey1, propValue1, false)
+	device1.PubThingProperty(thingID, propKey1, propValue1)
 	time.Sleep(time.Millisecond) // time to take effect
 
 	// property received by server

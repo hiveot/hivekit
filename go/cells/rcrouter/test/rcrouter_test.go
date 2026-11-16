@@ -115,9 +115,9 @@ func TestReadRCDeviceProperties(t *testing.T) {
 	eThingID = ething.GetID()
 	defer deviceConn1.Close()
 	tdoc := wot.NewTD(eThingID, "test device", vocab.DeviceSensor)
-	tdoc.AddProperty("", prop1Name, wot.DataTypeString, prop1Value)
+	tdoc.AddProperty(prop1Name, "", wot.DataTypeString, prop1Value)
 	// when the device publishes an observable property it becomes available for querying
-	ething.PubProperty(eThingID, prop1Name, prop1Value, false)
+	ething.PubProperty(prop1Name, prop1Value, false)
 
 	// publish the device TD to update the directory on the server.
 	// This writes the TD over the RC-connection.

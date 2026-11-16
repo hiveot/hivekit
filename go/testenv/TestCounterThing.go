@@ -131,8 +131,8 @@ func (svc *TestCounterThing) DoDecrement() error {
 	oldValue := svc.counter.Load()
 	newValue := oldValue - 1
 	svc.counter.Store(newValue)
-	svc.PubProperty("", CounterPropName, newValue, true)
-	svc.PubEvent("", CounterUpdatedEvent, newValue)
+	svc.PubProperty(CounterPropName, newValue, true)
+	svc.PubEvent(CounterUpdatedEvent, newValue, false)
 	return nil
 }
 
@@ -144,8 +144,8 @@ func (svc *TestCounterThing) DoIncrement() error {
 		newValue = 0
 	}
 	svc.counter.Store(newValue)
-	svc.PubProperty("", CounterPropName, newValue, true)
-	svc.PubEvent("", CounterUpdatedEvent, newValue)
+	svc.PubProperty(CounterPropName, newValue, true)
+	svc.PubEvent(CounterUpdatedEvent, newValue, false)
 	return nil
 }
 
@@ -216,14 +216,14 @@ func (svc *TestCounterThing) HandleWriteProperty(req *msg.RequestMessage, replyT
 		if err == nil {
 			svc.counter.Store(int32(newValue))
 			// PubProperty makes the last value available via HandleReadRequests
-			svc.PubProperty(req.ThingID, req.Name, newValue, true)
+			svc.PubProperty(req.Name, newValue, true)
 		}
 	case AutoIncrementPropName:
 		var newValue bool
 		err = req.DecodeInput(&newValue)
 		svc.config.AutoIncrement = newValue
 		// PubProperty makes the last value available via HandleReadRequests
-		svc.PubProperty(req.ThingID, req.Name, newValue, true)
+		svc.PubProperty(req.Name, newValue, true)
 	}
 
 	resp := req.CreateResponse(nil, err)
@@ -232,7 +232,7 @@ func (svc *TestCounterThing) HandleWriteProperty(req *msg.RequestMessage, replyT
 	}
 	if err == nil {
 		// PubEvent makes the last event available via HandleReadRequests
-		svc.PubEvent(req.ThingID, CounterUpdatedEvent, svc.counter.Load())
+		svc.PubEvent(CounterUpdatedEvent, svc.counter.Load(), true)
 	}
 	return err
 }
@@ -243,10 +243,12 @@ func (svc *TestCounterThing) Start() {
 	// Make the TD available. Set its thingID with the cell ID.
 	tdoc := svc.GetTD()
 
-	err := svc.WriteTD(tdoc)
-	if err != nil {
-		slog.Error("Start: Unable to write the TD", "err", err.Error())
-		return
+	// If the device has a sink for requests then write the TD
+	if svc.GetRequestSink() != nil {
+		err := svc.WriteTD(tdoc)
+		if err != nil {
+			return
+		}
 	}
 
 	// publish the latest property values
@@ -254,9 +256,8 @@ func (svc *TestCounterThing) Start() {
 		AutoIncrementPropName: svc.config.AutoIncrement,
 		CounterPropName:       svc.counter.Load(),
 	}
-	thingID := svc.GetID()
-	svc.PubProperties(thingID, props, true)
-	svc.PubEvent(thingID, CounterUpdatedEvent, svc.counter.Load())
+	svc.PubProperties(props, true)
+	svc.PubEvent(CounterUpdatedEvent, svc.counter.Load(), true)
 
 	if svc.config.AutoIncrement {
 		go svc.Background()
@@ -274,10 +275,10 @@ func (svc *TestCounterThing) Stop() {
 // Update the counter and send a notification
 func (svc *TestCounterThing) Update(newValue int) {
 	svc.counter.Store(int32(newValue))
-	thingID := svc.GetID()
+
 	// Send both a property update and event notification
-	svc.PubProperty(thingID, CounterPropName, svc.counter.Load(), true)
-	svc.PubEvent(thingID, CounterUpdatedEvent, svc.counter.Load())
+	svc.PubProperty(CounterPropName, svc.counter.Load(), true)
+	svc.PubEvent(CounterUpdatedEvent, svc.counter.Load(), true)
 }
 
 // Create a new counter exposed-thing that starts counting at 42.

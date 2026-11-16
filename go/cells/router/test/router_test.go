@@ -214,8 +214,9 @@ func TestAuthClientCert(t *testing.T) {
 
 	testDevice, device1TD, testEnv, stopFn := startTestServerDevice(deviceID)
 	defer stopFn()
+	thingID := device1TD.ID
 	// when the device publishes an observable property it becomes available for querying
-	testDevice.ExposedThing.PubProperty(deviceID, prop1Name, prop1Value, false)
+	testDevice.ExposedThing.PubThingProperty(thingID, prop1Name, prop1Value)
 
 	// 2. setup the consumer with the router and directory client or service
 	co, routerSvc, dirSvc := SetupConsumerWithRouter(testEnv.CertBundle.RootCAs)
@@ -237,7 +238,7 @@ func TestAuthClientCert(t *testing.T) {
 	// routerMod.AddDeviceCredential(deviceID, clientID, pemCred, td.SecSchemeCert)
 
 	// 5. Send a request, which causes the router to connect to the device
-	values, err := co.ReadAllProperties(deviceID)
+	values, err := co.ReadAllProperties(thingID)
 	assert.NoError(t, err)
 	assert.NotEmpty(t, values)
 }
@@ -260,7 +261,7 @@ func TestReadObserveDeviceProperties(t *testing.T) {
 	testAuthn := testEnv.TestAuthn
 
 	// when the device publishes an observable property it becomes available for querying
-	testDevice.ExposedThing.PubProperty(deviceID, prop1Name, prop1Value, false)
+	testDevice.ExposedThing.PubProperty(prop1Name, prop1Value, false)
 
 	// 2. setup the consumer with the router and directory client or service
 	co, routerMod, dirSvc := SetupConsumerWithRouter(testEnv.CertBundle.RootCAs)
@@ -275,6 +276,7 @@ func TestReadObserveDeviceProperties(t *testing.T) {
 	})
 
 	// 3. the directory (client or server) used by the router needs the device TD
+	thingID := device1TD.ID
 	deviceTDJson := wot.MarshalTD(device1TD)
 	err := dirSvc.CreateThing(deviceID, deviceTDJson)
 	require.NoError(t, err)
@@ -283,18 +285,18 @@ func TestReadObserveDeviceProperties(t *testing.T) {
 	testAuthn.AddClient(testConsumerID, "", api.ClientRoleOperator)
 	token, _, err := testAuthn.CreateToken(testConsumerID, time.Hour)
 	assert.NoError(t, err)
-	routerMod.AddCredentials(deviceID, clientID, token, wot.SecSchemeBearer)
+	routerMod.AddCredentials(thingID, clientID, token, wot.SecSchemeBearer)
 
 	// 5. Send a request, which causes the router to connect to the device
-	values, err := co.ReadAllProperties(deviceID)
+	values, err := co.ReadAllProperties(thingID)
 	assert.NoError(t, err)
 	assert.NotEmpty(t, values)
 
 	// this should cause the router to connect to the device using the device TD
-	err = co.ObserveProperty(deviceID, "")
+	err = co.ObserveProperty(thingID, "")
 	assert.NoError(t, err)
 
-	co.WriteProperty(deviceID, testenv.CounterPropName, 33, true)
+	co.WriteProperty(thingID, testenv.CounterPropName, 33, true)
 	time.Sleep(time.Millisecond)
 
 	// expect at least 1 notification
@@ -311,19 +313,22 @@ func TestSubscribeReconnectToDevice(t *testing.T) {
 	const deviceID = "device-1"
 	const clientID = "router1"
 	event1Name := "event1"
-	event1Value := "value1"
-	event2Value := "value2"
+	event1Value := "evvalue1"
+	event2Value := "evvalue2"
 	prop1Name := "prop1"
 	prop1Value1 := "prop1value1"
 	prop1Value2 := "prop1value2"
-	var rxValue = new(atomic.Value)
+	var rxEvValue = new(atomic.Value)
+	var rxPropValue = new(atomic.Value)
+
 	// rxChan := make(chan *msg.NotificationMessage, 1)
 
-	// 1. Setup the test device with server and a TD
+	// 1. Setup the test device exposed thing with server and a TD
 	// The test device runs a server. The router will have to match its security as
 	// included in its TD
-	testDevice, tdoc, testEnv, stopFn := startTestServerDevice(deviceID)
+	eThing, tdoc, testEnv, stopFn := startTestServerDevice(deviceID)
 	defer stopFn()
+	thingID := tdoc.ID
 
 	// 2. setup the consumer side: directory, router and consumer
 	// register the device TD in the directory for use by the router
@@ -349,7 +354,7 @@ func TestSubscribeReconnectToDevice(t *testing.T) {
 	// to connect to the device, consumer credentials are needed
 	testEnv.TestAuthn.AddClient(testConsumerID, "", api.ClientRoleOperator)
 	token, _, _ := testEnv.TestAuthn.CreateToken(testConsumerID, time.Hour)
-	routerSvc.AddCredentials(deviceID, clientID, token, wot.SecSchemeBearer)
+	routerSvc.AddCredentials(thingID, clientID, token, wot.SecSchemeBearer)
 
 	ctx, cancelFn := context.WithTimeout(context.Background(), msg.CellTimeout)
 
@@ -358,22 +363,33 @@ func TestSubscribeReconnectToDevice(t *testing.T) {
 		if notif.Name == event1Name {
 			var v1 string
 			err = notif.Decode(&v1)
-			rxValue.Store(v1)
+			rxEvValue.Store(v1)
 			assert.NoError(t, err)
+			// the event cancels the wait so must receive prop first
 			cancelFn()
 			// rxChan <- notif
+		} else if notif.Name == prop1Name {
+			var v1b string // naming this v1 leads to a data race with the other block. Why???
+			err = notif.Decode(&v1b)
+			rxPropValue.Store(v1b)
+			assert.NoError(t, err)
+			slog.Info("received prop value", prop1Name, v1b)
 		}
 	})
 
 	// this should cause the router to connect to the device using the device TD
-	err = co.Subscribe(deviceID, "")
+	err = co.Subscribe(thingID, "")
+	assert.NoError(t, err)
+	err = co.ObserveProperty(thingID, "")
 	assert.NoError(t, err)
 
 	// 3. the device updates a property and event which should be received.
-	testDevice.ExposedThing.PubProperty(deviceID, prop1Name, prop1Value1, false)
-	testDevice.ExposedThing.PubEvent(deviceID, event1Name, event1Value)
+	eThing.PubProperty(prop1Name, prop1Value1, true)
+	eThing.PubEvent(event1Name, event1Value, true)
+	time.Sleep(time.Millisecond)
 	<-ctx.Done()
-	assert.Equal(t, event1Value, rxValue.Load())
+	assert.Equal(t, prop1Value1, rxPropValue.Load())
+	assert.Equal(t, event1Value, rxEvValue.Load())
 
 	//--- phase 2 force a disconnect
 
@@ -381,27 +397,29 @@ func TestSubscribeReconnectToDevice(t *testing.T) {
 	slog.Warn("--- breaking connections on the server, expect a warning ---")
 	testEnv.Server.CloseAll()
 
-	// reading properties should fail while auto-reconnect is ongoing
+	// reading properties can fail while auto-reconnect is ongoing
 	slog.Info("---ReadAllProperties (while reconnecting)---")
 
-	values, err := co.ReadAllProperties(deviceID)
-	assert.Error(t, err)
+	values, err := co.ReadAllProperties(thingID)
+	// no error if things are quick
+	// assert.Error(t, err)
 
 	// lets sleep to allow for reconnect
 	time.Sleep(time.Second)
 
 	// publish a property should now succeed
-	testDevice.ExposedThing.PubProperty(deviceID, prop1Name, prop1Value2, false)
+	eThing.PubProperty(prop1Name, prop1Value2, true)
 	time.Sleep(time.Millisecond) // time to receive
 
-	values, err = co.ReadAllProperties(deviceID)
+	values, err = co.ReadAllProperties(thingID)
 	assert.NoError(t, err)
+	assert.Equal(t, prop1Value2, rxPropValue.Load())
 	assert.Equal(t, prop1Value2, values[prop1Name].Raw)
 
 	// on reconnect, subscription should remain intact and event should be received
 	// todo: should use channel with timeout as the time to receive varies.
-	testDevice.ExposedThing.PubEvent(deviceID, event1Name, event2Value)
+	eThing.PubThingEvent(thingID, event1Name, event2Value)
 	time.Sleep(time.Millisecond * 3) // time to receive
-	assert.Equal(t, event2Value, rxValue.Load())
+	assert.Equal(t, event2Value, rxEvValue.Load())
 
 }

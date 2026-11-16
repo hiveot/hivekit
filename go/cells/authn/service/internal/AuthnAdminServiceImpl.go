@@ -42,7 +42,7 @@ func (svc *AuthnAdminServiceImpl) AddClient(clientID string, displayName string,
 	}
 	err = svc.authnStore.Add(newProfile)
 	// last track props
-	svc.PubProperty(svc.GetID(), authn.AdminPropNrClients, svc.authnStore.Count(), false)
+	svc.PubProperty(authn.AdminPropNrClients, svc.authnStore.Count(), false)
 
 	return err
 }
@@ -203,7 +203,7 @@ func NewAuthnAdminServiceImpl(
 		sessionManager: sessionManager,
 	}
 	// update the readable properties
-	svc.SetProperty(svc.GetID(), authn.AdminPropNrClients, authnStore.Count())
+	svc.SetProperty(authn.AdminPropNrClients, authnStore.Count())
 
 	// ensure the administrator account exists
 	if createAdminAcct {

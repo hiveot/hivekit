@@ -99,6 +99,7 @@ func (svc *AuthnUserServiceImpl) SetPassword(clientID string, password string) e
 
 // Start publishes the service TD to the directory or discovery.
 func (svc *AuthnUserServiceImpl) Start() {
+
 	tdoc, _ := wot.UnmarshalTD(string(authn.AuthnUserTD))
 	tdoc.ID = svc.GetID()
 	tdoc.SetType(authn.AuthnUserServiceCellType)

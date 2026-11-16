@@ -78,7 +78,7 @@ func (svc *DirectoryServiceImpl) DeleteThing(senderID string, thingID string) (e
 		delete(svc.tdCache, thingID)
 		svc.tdCacheMux.Unlock()
 
-		svc.PubEvent(svc.GetID(), directory.ThingDeletedEvent, thingID)
+		svc.PubEvent(directory.ThingDeletedEvent, thingID, true)
 	}
 	return err
 }
@@ -169,7 +169,7 @@ func (svc *DirectoryServiceImpl) Start() {
 	slog.Info("Starting DirectoryService", "ThingID", svc.GetID())
 	// initialize the nr records prop
 	bucketInfo := svc.tdBucket.Info()
-	svc.PubProperty(svc.GetID(), directory.PropNrThings, bucketInfo.NrRecords, true)
+	svc.PubProperty(directory.PropNrThings, bucketInfo.NrRecords, true)
 
 }
 
@@ -262,11 +262,11 @@ func (svc *DirectoryServiceImpl) UpdateThing(senderID string, tdJSON string) err
 	svc.tdCacheMux.Lock()
 	svc.tdCache[tdoc.ID] = tdoc
 	svc.tdCacheMux.Unlock()
-	svc.PubEvent(svc.GetID(), directory.ThingUpdatedEvent, tdJSON)
+	svc.PubEvent(directory.ThingUpdatedEvent, tdJSON, false)
 
 	// update the nr records prop
 	bucketInfo := svc.tdBucket.Info()
-	svc.PubProperty(svc.GetID(), directory.PropNrThings, bucketInfo.NrRecords, true)
+	svc.PubProperty(directory.PropNrThings, bucketInfo.NrRecords, true)
 
 	return err
 

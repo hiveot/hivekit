@@ -104,9 +104,13 @@ type IDirectoryService interface {
 	//
 	// Only devices can create the TD of things that use reverse connections.
 	//
-	// Administrators can upload TDs using their own account but only if these
-	// devices do not use reverse connections.
-	CreateThing(senderID string, tdJson string) error
+	// Administrators can upload TDs using their own account but only for
+	// stand-alone devices. Reverse connected devices upload their own TD.
+	//
+	//	senderID is the client ID of the device or user that uploads the TD
+	//	tdJSON is the TD document to upload
+	//
+	CreateThing(senderID string, tdJSON string) error
 
 	// DeleteThing removes a Thing TD document from the directory
 	DeleteThing(senderID string, thingID string) error
@@ -135,5 +139,8 @@ type IDirectoryService interface {
 
 	// UpdateThing replaces the TD in the store.
 	// If the thing doesn't exist in the store it is added.
-	UpdateThing(senderID string, tdJson string) error
+	//
+	//	senderID is the clientID of the device or user uploading the TD
+	//	tdJSON is the TD document
+	UpdateThing(senderID string, tdJSON string) error
 }
