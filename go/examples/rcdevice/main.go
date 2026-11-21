@@ -5,7 +5,6 @@ import (
 	"log/slog"
 	"os"
 	"path"
-	"time"
 
 	"github.com/hiveot/hivekit/go/api"
 	"github.com/hiveot/hivekit/go/utils"
@@ -32,8 +31,7 @@ func main() {
 	env := api.NewAppEnvironment(ExampleHome, true)
 	env.AppID = "rcdevice-example"
 
-	env.RpcTimeout = time.Minute // for testing
-	env.HttpsPort = 9222         // for testing
+	env.HttpsPort = 9222 // for testing
 	if env.ClientID == "" {
 		env.ClientID = DeviceClientID
 	}

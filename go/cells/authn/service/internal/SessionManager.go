@@ -45,7 +45,7 @@ func (sm *SessionManager) AddSecurityScheme(tdoc *wot.TD) {
 
 // CreateToken creates a new session token for the client using the configured authenticator.
 //
-// This creates a session that is valid until logout.
+// This creates a session that is valid until logout or until service restart.
 //
 //	clientID is the account ID of a known client
 //	validity is the token validity period. 0 for default.
@@ -209,9 +209,9 @@ func (sm *SessionManager) ValidatePassword(clientID, password string) (err error
 
 // ValidateClient verifies the token and client are valid.
 func (sm *SessionManager) ValidateClient(claimedClientID string, token string) (
-	clientID string, issuedAt time.Time, validUntil time.Time, err error) {
+	clientID string, notBefore time.Time, validUntil time.Time, err error) {
 
-	clientID, issuedAt, validUntil, err = sm.authenticator.ValidateClient(claimedClientID, token)
+	clientID, notBefore, validUntil, err = sm.authenticator.ValidateClient(claimedClientID, token)
 	if err != nil {
 		return
 	}
@@ -221,16 +221,19 @@ func (sm *SessionManager) ValidateClient(claimedClientID string, token string) (
 	sessionStart, found := sm.sessionStart[clientID]
 	if !found {
 		slog.Warn("ValidateToken. No valid session found for client", "clientID", clientID)
-		return clientID, issuedAt, validUntil, fmt.Errorf("Session is no longer valid")
+		return clientID, notBefore, validUntil, fmt.Errorf("Session is no longer valid")
 	}
 	// the session must have started before the token was issued
 	// this allows a session restart to invalidate all old tokens
-	if issuedAt.Before(sessionStart) {
-		slog.Warn("ValidateToken. The token session is no longer valid", "clientID", clientID)
-		return clientID, issuedAt, validUntil, fmt.Errorf("Session is no longer valid")
+	if notBefore.Before(sessionStart) {
+		slog.Warn("ValidateToken. The token is old. It was issued before the session started.",
+			slog.String("clientID", clientID),
+			slog.Time("sessionStart", sessionStart),
+			slog.Time("issuedAt", notBefore))
+		return clientID, notBefore, validUntil, fmt.Errorf("Session is no longer valid")
 	}
 
-	return clientID, issuedAt, validUntil, err
+	return clientID, notBefore, validUntil, err
 }
 
 // Create a new session manager for client sessions

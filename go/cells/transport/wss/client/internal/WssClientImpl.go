@@ -208,8 +208,9 @@ func (cl *WssTransportClientImpl) Connect() error {
 	bearerToken, secScheme := cl.GetAuthToken()
 	_ = secScheme
 	if clientID == "" && clientCert == nil {
-		slog.Error("Connect: Missing clientID and no client cert")
-		return errors.New("Connect, missing clientID")
+		err := errors.New("Connect: Missing auth client/token and no client cert")
+		slog.Error(err.Error())
+		return err
 	}
 	hostPort := urlParts.Host
 	wssCancelFn, wssConn, err := ConnectWSS(

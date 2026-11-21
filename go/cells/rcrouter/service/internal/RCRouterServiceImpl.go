@@ -22,7 +22,7 @@ type RCRouterServiceImpl struct {
 
 	// handler that provides a TD for the given thingID.
 	// Required for determining the connection clientID that serves a Thing.
-	getTD func(thingID string) *wot.TD
+	getTD func(thingID string) (*wot.TD, error)
 
 	// handler to get available transport servers for forwarding to RC clients.
 	getSrv func() []api.ITransportServer
@@ -66,11 +66,11 @@ func (svc *RCRouterServiceImpl) HandleRequest(req *msg.RequestMessage, replyTo m
 // Lookup the TD of the ThingID and determine its destination:
 func (svc *RCRouterServiceImpl) RouteRequest(req *msg.RequestMessage, replyTo msg.ResponseHandler) (err error) {
 
-	tdoc := svc.getTD(req.ThingID)
+	tdoc, err := svc.getTD(req.ThingID)
 
 	//  look for a reverse connection using the TD RCID.
 	//
-	if tdoc != nil {
+	if err == nil {
 		rcClientID := tdoc.GetRCID()
 
 		if rcClientID != "" {
@@ -102,7 +102,7 @@ func (svc *RCRouterServiceImpl) RouteRequest(req *msg.RequestMessage, replyTo ms
 //	getTD  handler to lookup a TD for a thingID from a directory. Required.
 //	getSrv handler returning a list of transport servers that can contain RC devices.
 func NewRCRouterServiceImpl(
-	getTD func(thingID string) *wot.TD,
+	getTD func(thingID string) (*wot.TD, error),
 	getSrv func() []api.ITransportServer,
 	getRole func(clientID string) string,
 ) (*RCRouterServiceImpl, error) {

@@ -184,7 +184,7 @@ func (testEnv *TestEnv) NewConnectedConsumer(clientID string, role string) (
 	co *consumer.Consumer, cl api.ITransportClient, token string) {
 
 	cl, token = testEnv.NewTestClient(clientID, role)
-	co = consumer.NewConsumer(cl, nil)
+	co = consumer.NewConsumer(clientID, nil, cl)
 
 	err := cl.Connect()
 	if err != nil {
@@ -308,7 +308,7 @@ func (testEnv *TestEnv) NewReconnectedConsumer(
 	// the service will invoke Connect() whenStart() is invoked.
 	rc, _ = reconnect_service.NewReconnectService(cc)
 
-	co = consumer.NewConsumer(rc, notifHook)
+	co = consumer.NewConsumer("reconnected-test", notifHook, rc)
 
 	return co, rc, token
 }
@@ -486,7 +486,7 @@ func NewTestEnv(clean bool) *TestEnv {
 	// this is the global messaging timeout. Normally set to 3 seconds but when testing
 	// using breakpoints this must be higher.
 	msg.CellTimeout = TestTimeout
-	appEnv.RpcTimeout = TestTimeout
+	appEnv.SetRpcTimeout(TestTimeout)
 
 	utils.SetLogging("info", "")
 	appEnv.HttpsPort = TestServerHttpPort

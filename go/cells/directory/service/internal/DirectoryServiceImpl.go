@@ -85,16 +85,16 @@ func (svc *DirectoryServiceImpl) DeleteThing(senderID string, thingID string) (e
 
 // Return an instance of the thing TD if available.
 // These instances are cached so successive requests are efficient.
-func (svc *DirectoryServiceImpl) GetTD(thingID string) *wot.TD {
+func (svc *DirectoryServiceImpl) GetTD(thingID string) (*wot.TD, error) {
 	svc.tdCacheMux.RLock()
 	tdoc, found := svc.tdCache[thingID]
 	svc.tdCacheMux.RUnlock()
 	if found {
-		return tdoc
+		return tdoc, nil
 	}
 	tdJSON, err := svc.RetrieveThing(thingID)
 	if err != nil {
-		return nil
+		return nil, err
 	}
 	tdoc, err = wot.UnmarshalTD(tdJSON)
 	if err == nil {
@@ -102,7 +102,7 @@ func (svc *DirectoryServiceImpl) GetTD(thingID string) *wot.TD {
 		svc.tdCache[thingID] = tdoc
 		svc.tdCacheMux.Unlock()
 	}
-	return tdoc
+	return tdoc, err
 }
 
 // Return the directory TDD and its json itself
@@ -152,6 +152,9 @@ func (svc *DirectoryServiceImpl) RetrieveAllThings(offset int, limit int) (tdLis
 // RetrieveThing returns a JSON encoded TD document
 func (svc *DirectoryServiceImpl) RetrieveThing(thingID string) (tdJSON string, err error) {
 	tdBytes, err := svc.tdBucket.Get(thingID)
+	if err != nil {
+		err = directory.TDNotFoundError
+	}
 	tdJSON = string(tdBytes)
 	return tdJSON, err
 }

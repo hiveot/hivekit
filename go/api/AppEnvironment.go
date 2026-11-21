@@ -53,10 +53,8 @@ const (
 // This contains folder locations, CA certificate and application clientID
 type AppEnvironment struct {
 	// AppID is the application type ID derived from the binary name.
-	// This is not the instance ID.
-	// This can be used to load matching configuration yaml files, logfiles, and
-	// other application related configuration.
-	// This is also the default clientID.
+	// Can be used as the default clientID if none is provided.
+	//
 	AppID string `yaml:"appID"`
 
 	// Directories
@@ -72,13 +70,11 @@ type AppEnvironment struct {
 	// Override the https port used for the http server instantiation
 	HttpsPort int `yaml:"httpsPort"`
 
-	// RpcTimeout is the communication timeout for use by transport client and server cells
-	RpcTimeout time.Duration
-
 	//--- Client specific settings ---
 
 	// The clientID used in authentication.
 	// Intended for authenticating with servers along with auth token or client cert.
+	// For RC devices it can also be used as the thingID of the device itself.
 	ClientID string `yaml:"clientID,omitempty"`
 
 	// Optional directory TD for connecting a directory client to a directory server.
@@ -250,6 +246,11 @@ func (env *AppEnvironment) GetRootCAs() (rootCAs *x509.CertPool) {
 	return env.rootCAs
 }
 
+// Provide the configured global RPC timeout for cell communication
+func (env *AppEnvironment) GetRpcTimeout() time.Duration {
+	return msg.CellTimeout
+}
+
 // GetServerCert return the application server TLS certificate.
 //
 // serverName is the optional name of the server. When using "" the default
@@ -334,7 +335,7 @@ func (env *AppEnvironment) Print(verbose int) {
 
 			fmt.Println("")
 			fmt.Println("* Directory TD URL: ", env.DirTDURL)
-			fmt.Println("* Rpc timeout:      ", env.RpcTimeout)
+			fmt.Println("* Rpc timeout:      ", msg.CellTimeout)
 		}
 
 		caCert, _, err := env.GetCACert()
@@ -486,6 +487,11 @@ func (env *AppEnvironment) SetDirTD(tdoc *wot.TD) {
 	env.dirTD = tdoc
 }
 
+// Set the global RPC timeout for cell communication
+func (env *AppEnvironment) SetRpcTimeout(timeout time.Duration) {
+	msg.CellTimeout = timeout
+}
+
 // Set and save the cached server certificate used by the environment.
 //
 // This certificate must successfully verify against the CA cert pool.
@@ -565,7 +571,6 @@ func NewAppEnvironment(homeDir string, withFlags bool) *AppEnvironment {
 	env := &AppEnvironment{
 		LogLevel: "warn",
 		// PluginsDir:   pluginsDir,
-		RpcTimeout: DefaultRPCTimeout,
 	}
 
 	// The default appID is the binary name. This allows for multiple instances
@@ -600,7 +605,7 @@ func NewAppEnvironment(homeDir string, withFlags bool) *AppEnvironment {
 		flag.StringVar(&env.DirTDURL, "dirTD", env.DirTDURL, "url where to download the directory TD")
 		flag.IntVar(&showEnv, "env", showEnv, "print environment info: 1 basic, 2 verbose")
 		flag.StringVar(&env.ServerURL, "server", env.ServerURL, "Force client connection to this server URL.")
-		flag.DurationVar(&env.RpcTimeout, "timeout", env.RpcTimeout, "Communication timeout.")
+		flag.DurationVar(&msg.CellTimeout, "timeout", msg.CellTimeout, "Communication timeout.")
 		// if flag.Usage == nil {
 		// 	flag.Usage = func() {
 		// 		fmt.Println("Usage: app [options] ")
@@ -673,9 +678,6 @@ func NewAppEnvironment(homeDir string, withFlags bool) *AppEnvironment {
 	if showEnv != 0 {
 		env.Print(showEnv)
 	}
-
-	// AppEnvironment controls the use of cell timeout
-	msg.CellTimeout = env.RpcTimeout
 
 	return env
 }

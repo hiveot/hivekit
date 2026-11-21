@@ -100,7 +100,7 @@ func NewAuthnServiceImpl(tokensDir string, storageDir string, createAdmin bool) 
 	if err != nil {
 		return nil, err
 	}
-	userSvc, err := NewAuthnUserServiceImpl(authnStore, sessionManager, createAdmin)
+	userSvc, err := NewAuthnUserServiceImpl(authnStore, sessionManager)
 	if err != nil {
 		return nil, err
 	}
@@ -111,7 +111,7 @@ func NewAuthnServiceImpl(tokensDir string, storageDir string, createAdmin bool) 
 	// If this becomes an issue then maybe add 'hasThing(id)' to the cell base. Trying to
 	// keep the base small though.
 	authnSvc := &AuthnServiceImpl{
-		ExposedThing:   thing.NewExposedThing("authnService", nil),
+		ExposedThing:   thing.NewExposedThing(authn.AuthnAdminServiceCellType, nil),
 		authnStore:     authnStore,
 		adminSvc:       adminSvc,
 		sessionManager: sessionManager,

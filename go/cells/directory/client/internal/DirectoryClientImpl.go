@@ -59,10 +59,9 @@ func (cl *DirectoryClientImpl) _sendServerRequest(
 		err = cl.Rpc(op, cl.dirThingID, action, input, output)
 	}
 	if err != nil {
-		err = fmt.Errorf("_sendServerRequest to '%s': op '%s/%s' failed: %w",
-			cl.dirThingID, op, action, err)
+		slog.Info(fmt.Sprintf("_sendServerRequest to '%s': op '%s/%s' failed: %s",
+			cl.dirThingID, op, action, err.Error()))
 		// this is not an error as the thingID might simply not exist
-		slog.Info(err.Error())
 	}
 	return err
 }
@@ -99,10 +98,9 @@ func (cl *DirectoryClientImpl) DeleteThing(thingID string) (err error) {
 }
 
 // Get the TD for the given thing ID
-func (cl *DirectoryClientImpl) GetTD(thingID string) *wot.TD {
+func (cl *DirectoryClientImpl) GetTD(thingID string) (*wot.TD, error) {
 	tdoc, err := cl.RetrieveThing(thingID)
-	_ = err
-	return tdoc
+	return tdoc, err
 }
 
 // Receive notifications from the directory service to update the directory

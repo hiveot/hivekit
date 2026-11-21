@@ -143,12 +143,12 @@ func TestPublishPropertyByThing(t *testing.T) {
 	var propValue1 = "value1"
 
 	// handler of property updates on the server
-	co := consumer.NewConsumer(nil, func(msg *msg.NotificationMessage) {
+	co := consumer.NewConsumer("properties-test", func(msg *msg.NotificationMessage) {
 		// the server receives all notifications, we only want matching thingID
 		if msg.ThingID == thingID {
 			evVal.Store(msg.Data.(string))
 		}
-	})
+	}, nil)
 
 	// 1. start the transport
 	testEnv, cancelFn := testenv.StartTestEnv(testProtocol, true)

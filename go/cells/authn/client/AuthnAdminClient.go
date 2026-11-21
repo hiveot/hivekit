@@ -14,7 +14,7 @@ import (
 type AuthnAdminClient struct {
 	*cells.HiveCellBase
 	// The instance ID of the authn admin service that handles the request.
-	authnServiceID string
+	authnAdminServiceID string
 }
 
 // AddClient add a new client account. This fails if the client already exists.
@@ -25,7 +25,7 @@ type AuthnAdminClient struct {
 //	clientID is the account ID of the client
 //	displayName is the friendly name of the client
 //	role is the client role, eg ClientRoleViewer, ... ClientRoleDevice
-func (cl *AuthnAdminClient) AddClient(clientID string, displayName string, role string, pubKey string) (
+func (cl *AuthnAdminClient) AddClient(clientID string, displayName string, role string) (
 	token string, err error) {
 
 	var args = authn.AdminAddClientInput{
@@ -36,7 +36,7 @@ func (cl *AuthnAdminClient) AddClient(clientID string, displayName string, role 
 	if displayName == "" {
 		displayName = clientID
 	}
-	err = cl.Rpc(wot.OpInvokeAction, cl.authnServiceID,
+	err = cl.Rpc(wot.OpInvokeAction, cl.authnAdminServiceID,
 		authn.AdminAddClientAction, &args, &token)
 	return token, err
 }
@@ -44,7 +44,7 @@ func (cl *AuthnAdminClient) AddClient(clientID string, displayName string, role 
 // CreateToken creates a new client authentication token with the default expiry based on the role
 func (cl *AuthnAdminClient) CreateToken(clientID string) (newToken string, err error) {
 
-	err = cl.Rpc(wot.OpInvokeAction, cl.authnServiceID,
+	err = cl.Rpc(wot.OpInvokeAction, cl.authnAdminServiceID,
 		authn.AdminCreateTokenAction, &clientID, &newToken)
 	return
 }
@@ -54,7 +54,7 @@ func (cl *AuthnAdminClient) CreateToken(clientID string) (newToken string, err e
 func (cl *AuthnAdminClient) GetProfile(clientID string) (
 	profile authn.ClientProfile, err error) {
 
-	err = cl.Rpc(wot.OpInvokeAction, cl.authnServiceID,
+	err = cl.Rpc(wot.OpInvokeAction, cl.authnAdminServiceID,
 		authn.AdminGetProfileAction, &clientID, &profile)
 	return profile, err
 }
@@ -63,7 +63,7 @@ func (cl *AuthnAdminClient) GetProfile(clientID string) (
 // Get a list of all client profiles
 func (cl *AuthnAdminClient) GetProfiles() (clientProfiles []authn.ClientProfile, err error) {
 
-	err = cl.Rpc(wot.OpInvokeAction, cl.authnServiceID,
+	err = cl.Rpc(wot.OpInvokeAction, cl.authnAdminServiceID,
 		authn.AdminGetProfilesAction, nil, &clientProfiles)
 	return clientProfiles, err
 }
@@ -72,7 +72,7 @@ func (cl *AuthnAdminClient) GetProfiles() (clientProfiles []authn.ClientProfile,
 // Remove a client account
 func (cl *AuthnAdminClient) RemoveClient(clientID string) (err error) {
 
-	err = cl.Rpc(wot.OpInvokeAction, cl.authnServiceID,
+	err = cl.Rpc(wot.OpInvokeAction, cl.authnAdminServiceID,
 		authn.AdminRemoveClientAction, &clientID, nil)
 	return err
 }
@@ -84,7 +84,7 @@ func (cl *AuthnAdminClient) SetClientPassword(userName string, password string) 
 	var args = authn.AdminSetPasswordInput{
 		UserName: userName, Password: password}
 
-	err = cl.Rpc(wot.OpInvokeAction, cl.authnServiceID,
+	err = cl.Rpc(wot.OpInvokeAction, cl.authnAdminServiceID,
 		authn.AdminSetPasswordAction, &args, nil)
 	return err
 }
@@ -98,7 +98,7 @@ func (cl *AuthnAdminClient) SetRole(clientID string, role string) (err error) {
 	var args = authn.AdminSetRoleInput{
 		ClientID: clientID, Role: role}
 
-	err = cl.Rpc(wot.OpInvokeAction, cl.authnServiceID,
+	err = cl.Rpc(wot.OpInvokeAction, cl.authnAdminServiceID,
 		authn.AdminSetRoleAction, &args, nil)
 	return err
 }
@@ -107,28 +107,31 @@ func (cl *AuthnAdminClient) SetRole(clientID string, role string) (err error) {
 // Update the details of a client
 func (cl *AuthnAdminClient) UpdateClientProfile(clientProfile authn.ClientProfile) (err error) {
 
-	err = cl.Rpc(wot.OpInvokeAction, cl.authnServiceID,
+	err = cl.Rpc(wot.OpInvokeAction, cl.authnAdminServiceID,
 		authn.AdminUpdateProfileAction, &clientProfile, nil)
 	return err
 }
 
 // Create and link a new instance of the authentication administration messaging client
 //
+// If a 'linkTo' sink is provided it will be used to send requests to and receive notifications from.
+// This sets the notification sink for authn-admin notifications to this client.
+//
 //	authnServiceID is the authn admin service instance ID
-//	sink is the optional request handler this will forward requests to the authn service.
+//	linkTo is the chain that forwards requests and returns notifications.
 //
 // This will also set this client as the notification sink for all authn generated notifications.
-func NewAuthnAdminClient(authnServiceID string, sink api.IHiveCell) *AuthnAdminClient {
+func NewAuthnAdminClient(authnServiceID string, linkTo api.IHiveCell) *AuthnAdminClient {
 	if authnServiceID == "" {
 		authnServiceID = authn.AuthnAdminServiceCellType
 	}
 	cl := &AuthnAdminClient{
-		HiveCellBase:   cells.NewHiveCellBase(authn.AuthnAdminServiceCellType + "-client"),
-		authnServiceID: authnServiceID,
+		HiveCellBase:        cells.NewHiveCellBase(authn.AuthnAdminServiceCellType + "-client"),
+		authnAdminServiceID: authnServiceID,
 	}
-	if sink != nil {
-		cl.SetRequestSink(sink)
-		sink.SetNotificationSink(cl, cl.authnServiceID)
+	if linkTo != nil {
+		cl.SetRequestSink(linkTo)
+		linkTo.SetNotificationSink(cl)
 	}
 	return cl
 }

@@ -167,19 +167,20 @@ func (cl *ReadHistoryClient) Seek(cursorKey string, timestamp time.Time) (
 
 // NewReadHistoryClient returns an instance of the read history client.
 //
-// The client must be linked to a client connection.
+// 'linkTo' can be used to pass requests to the service and receive notifications
 // (multiple clients can be chained this way)
 //
 //	invokeAction is the TD invokeAction for the invoke-action operation of the history service
-func NewReadHistoryClient(sink api.IHiveCell) *ReadHistoryClient {
+//	linkTo is the optional chain to attach to
+func NewReadHistoryClient(linkTo api.IHiveCell) *ReadHistoryClient {
 	// how to determine the thingID of the history service?
 	// For now we use the well-known IDs. In future this needs discovery
 	histCl := &ReadHistoryClient{
 		histThingID: history.HistoryServiceCellType,
 	}
-	if sink != nil {
-		histCl.SetRequestSink(sink)
-		sink.SetNotificationSink(histCl)
+	if linkTo != nil {
+		histCl.SetRequestSink(linkTo)
+		linkTo.SetNotificationSink(histCl)
 	}
 	return histCl
 }

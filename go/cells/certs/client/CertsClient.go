@@ -75,17 +75,17 @@ func (cl *CertsClient) VerifyClientCert(clientID string, clientCert *x509.Certif
 // Use the sink to attach a transport client
 //
 //	thingID is the certificate service instance thingID. "" for default.
-//	sink is the optional cell that passes request to the transport client.
-func NewCertsClient(thingID string, sink api.IHiveCell) *CertsClient {
+//	linkTo is the chain that forwards requests and returns notifications.
+func NewCertsClient(thingID string, linkTo api.IHiveCell) *CertsClient {
 	if thingID == "" {
 		thingID = certs.CertsServiceCellType
 	}
 	cl := &CertsClient{
 		certServiceID: thingID,
 	}
-	if sink != nil {
-		cl.SetRequestSink(sink)
-		sink.SetNotificationSink(cl)
+	if linkTo != nil {
+		cl.SetRequestSink(linkTo)
+		linkTo.SetNotificationSink(cl)
 	}
 
 	// not all service methods are available through this client

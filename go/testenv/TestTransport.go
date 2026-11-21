@@ -75,7 +75,8 @@ func (srv *TestTransport) SetAuthenticationHandler(h api.ValidateTokenHandler) {
 	_ = h
 }
 
-// NewTestTransport returns a transport cell that passes messages from a consumer to a producer
+// NewTestTransport returns a transport cell that passes messages from a consumer to a
+// producer, adding a senderID.
 // This sets the producer as the request sink and this cell as the notification sink.
 func NewTestTransport(
 	thingID string, producer api.IHiveCell) api.IHiveCell {

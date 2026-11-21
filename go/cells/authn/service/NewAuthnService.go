@@ -11,7 +11,7 @@ import (
 //
 //	storageDir where to store authn data
 //	tokenDir where to store authentication tokens; eg certs dir
-//	createAdminAccount flag to create a default admin account
+//	createAdminAccount flag to create a default admin account with token
 func NewAuthnService(
 	tokensDir string, storageDir string, createAdminAcct bool) (authn.IAuthnService, error) {
 

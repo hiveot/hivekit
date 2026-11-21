@@ -83,7 +83,7 @@ func main() {
 	env := api.NewAppEnvironment(ExampleHome, true)
 	env.ClientID = DefaultClientID
 	env.AppID = "cli-example"
-	env.RpcTimeout = time.Minute * 3 // for testing
+	env.SetRpcTimeout(time.Minute * 3) // for testing
 	if appConfig.Verbose {
 		env.LogLevel = "info"
 	}

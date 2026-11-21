@@ -32,6 +32,10 @@ func (svc *AuthnAdminServiceImpl) AddClient(clientID string, displayName string,
 	_, err := svc.authnStore.GetProfile(clientID)
 	if err == nil {
 		return fmt.Errorf("Account for client '%s' already exists", clientID)
+	} else {
+		slog.Info("Creating client account",
+			slog.String("clientID", clientID),
+			slog.String("role", role))
 	}
 
 	newProfile := authn.ClientProfile{
@@ -183,7 +187,7 @@ func (svc *AuthnAdminServiceImpl) UpdateProfile(senderID string, newProfile auth
 
 // Create a ready-to-use authentication service.
 //
-// This uses thingID authn.AuthnAdminServiceID
+// This creates an admin user account if one doesnt exist
 // Call Start() to publish its TD.
 //
 //	authUserSvc user services including storage and session management
@@ -194,7 +198,7 @@ func NewAuthnAdminServiceImpl(
 	createAdminAcct bool) (*AuthnAdminServiceImpl, error) {
 	var err error
 
-	slog.Info("NewAuthnServiceImpl: creating authn service")
+	slog.Info("NewAuthnServiceImpl: creating authn admin service")
 
 	// this service is the admin service that also exposes the user service service thing
 	svc := &AuthnAdminServiceImpl{
@@ -212,6 +216,19 @@ func NewAuthnAdminServiceImpl(
 		if err != nil {
 			err = svc.AddClient(adminID, "Administrator", api.ClientRoleAdmin)
 		}
+		// create/refresh the administrator session token
+		validity := authn.AdminTokenValidityDays * 24 * time.Hour
+		adminToken, _, _ := svc.sessionManager.CreateToken(adminID, validity)
+
+		// --- testing, remove later
+		clientID, notBefore, validUntil, _ := svc.sessionManager.ValidateClient(adminID, adminToken)
+		slog.Info("NewAuthnAdminServiceImpl: Issued a new admin token:",
+			slog.String("ID", clientID),
+			slog.Time("notBefore", notBefore),
+			slog.Time("validUntil", validUntil))
+
+		// --- testing
+		err = svc.sessionManager.SaveToken(adminID, adminToken)
 	}
 
 	var _ api.IHiveCell = svc            // interface check

@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"os"
 	"path"
-	"time"
 
 	"github.com/hiveot/hivekit/go/api"
 	gatewayrecipe "github.com/hiveot/hivekit/go/factory/recipes/gateway"
@@ -24,7 +23,6 @@ func main() {
 
 	env := api.NewAppEnvironment(ExampleHome, true)
 	env.AppID = "gateway-example"
-	env.RpcTimeout = time.Minute // for testing
 	utils.SetLogging(env.LogLevel, "")
 
 	r, f, err := gatewayrecipe.NewGatewayRecipe(env)

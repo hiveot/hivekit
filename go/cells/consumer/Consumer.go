@@ -8,7 +8,6 @@ import (
 	"github.com/hiveot/hivekit/go/api/msg"
 	"github.com/hiveot/hivekit/go/api/wot"
 	"github.com/hiveot/hivekit/go/cells"
-	"github.com/teris-io/shortid"
 )
 
 const ConsumerCellType = "consumer"
@@ -288,20 +287,21 @@ func (co *Consumer) WriteProperty(thingID string, name string, input any, wait b
 // This provides the API for common WoT operations such as invoking actions and
 // supports RPC calls by waiting for a response.
 //
-// Provide a sink for forwarding requests and receiving notifications. Use nil to do this manually.
+// Provide a 'linkTo' for forwarding requests and receiving notifications. Use nil to do this manually.
 // A notification hook can be provided or set with SetNotificationHook
 //
-//	sink, if provided, is the request sink and notification source
+//	appID is the application name this is a consumer for
+//	linkTo is the chain that forwards requests and returns notifications.
 //	notificationHook is the optional application callback for incoming notifications
-func NewConsumer(sink api.IHiveCell, notificationHook msg.NotificationHandler) *Consumer {
-	thingID := ConsumerCellType + "-" + shortid.MustGenerate()
+func NewConsumer(appID string, notificationHook msg.NotificationHandler, linkTo api.IHiveCell) *Consumer {
+	thingID := appID + "-" + "consumer"
 	consumer := &Consumer{
 		HiveCellBase: cells.NewHiveCellBase(thingID),
 	}
 	consumer.appNotificationHook.Store(&notificationHook)
-	if sink != nil {
-		consumer.SetRequestSink(sink)
-		sink.SetNotificationSink(consumer)
+	if linkTo != nil {
+		consumer.SetRequestSink(linkTo)
+		linkTo.SetNotificationSink(consumer)
 	}
 
 	return consumer
@@ -309,6 +309,6 @@ func NewConsumer(sink api.IHiveCell, notificationHook msg.NotificationHandler) *
 
 // NewConsumerFactory is the method for creating a consumer using the factory environment
 func NewConsumerFactory(f api.ICellFactory, md *api.CellDefinition) (api.IHiveCell, error) {
-	c := NewConsumer(nil, nil)
+	c := NewConsumer(f.GetEnvironment().AppID, nil, nil)
 	return c, nil
 }

@@ -110,7 +110,7 @@ func SetupConsumerWithRouter(
 
 	// A consumer links to the router and subscribes to the device.
 	// For the purpose of this test the router runs client side.
-	co = consumer.NewConsumer(routerSvc, nil)
+	co = consumer.NewConsumer("router-test", nil, routerSvc)
 
 	dirSvc.Start()
 	routerSvc.Start()
@@ -359,7 +359,7 @@ func TestSubscribeReconnectToDevice(t *testing.T) {
 	ctx, cancelFn := context.WithTimeout(context.Background(), msg.CellTimeout)
 
 	// a consumer links to the router which connects to devices using device TDs
-	co := consumer.NewConsumer(routerSvc, func(notif *msg.NotificationMessage) {
+	co := consumer.NewConsumer("router-test", func(notif *msg.NotificationMessage) {
 		if notif.Name == event1Name {
 			var v1 string
 			err = notif.Decode(&v1)
@@ -367,7 +367,6 @@ func TestSubscribeReconnectToDevice(t *testing.T) {
 			assert.NoError(t, err)
 			// the event cancels the wait so must receive prop first
 			cancelFn()
-			// rxChan <- notif
 		} else if notif.Name == prop1Name {
 			var v1b string // naming this v1 leads to a data race with the other block. Why???
 			err = notif.Decode(&v1b)
@@ -375,7 +374,7 @@ func TestSubscribeReconnectToDevice(t *testing.T) {
 			assert.NoError(t, err)
 			slog.Info("received prop value", prop1Name, v1b)
 		}
-	})
+	}, routerSvc)
 
 	// this should cause the router to connect to the device using the device TD
 	err = co.Subscribe(thingID, "")

@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
-	"time"
 
 	"github.com/hiveot/hivekit/go/api"
 	"github.com/hiveot/hivekit/go/api/msg"
@@ -144,9 +143,8 @@ func (svc *AuthnUserServiceImpl) UpdateProfile(senderID string, newProfile authn
 //
 //	sessionManager that manages auth tokens
 //	authnStore account store
-//	createAdminToken flag, create a new token for the default admin account
 func NewAuthnUserServiceImpl(
-	authnStore authn.IAuthnStore, sessionManager authn.ISessionManager, createAdminToken bool) (
+	authnStore authn.IAuthnStore, sessionManager authn.ISessionManager) (
 	*AuthnUserServiceImpl, error) {
 
 	var err error
@@ -157,13 +155,6 @@ func NewAuthnUserServiceImpl(
 		ExposedThing:   thing.NewExposedThing(authn.AuthnUserServiceCellType, nil),
 		authnStore:     authnStore,
 		sessionManager: sessionManager,
-	}
-	// ensure the administrator account has a token
-	if createAdminToken {
-		adminID := api.DefaultAdminUserID
-		validity := authn.AdminTokenValidityDays * 24 * time.Hour
-		adminToken, _, _ := svc.sessionManager.CreateToken(adminID, validity)
-		err = svc.sessionManager.SaveToken(adminID, adminToken)
 	}
 
 	var _ api.IHiveCell = svc           // interface check

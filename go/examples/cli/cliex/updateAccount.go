@@ -32,7 +32,7 @@ func (app *Cliex) AddConsumerAccount(clientID string, displayName string) error 
 	if err != nil {
 		// 2. Client has no account. Create one.
 		role := api.ClientRoleViewer
-		token, err := authnAdmin.AddClient(clientID, clientID, role, "")
+		token, err := authnAdmin.AddClient(clientID, clientID, role)
 		if err == nil && certsDir != "" {
 			tokenFile := filepath.Join(certsDir, clientID+api.DefaultTokenFileSuffix)
 			// the old token can't be overwritten so remove it first
@@ -98,9 +98,8 @@ func (app *Cliex) AddDeviceAccount(clientID string, displayName string) error {
 
 	if err != nil {
 		// 3. Client has no account. Create one.
-		pubKeyPEM := utils.PublicKeyToPem(privKey.Public())
 		token, err := authnAdmin.AddClient(
-			clientID, clientID, api.ClientRoleDevice, pubKeyPEM)
+			clientID, clientID, api.ClientRoleDevice)
 		if err == nil && certsDir != "" {
 			tokenFile := filepath.Join(certsDir, clientID+api.DefaultTokenFileSuffix)
 			// the old token can't be overwritten

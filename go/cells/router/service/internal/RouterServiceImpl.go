@@ -80,7 +80,7 @@ type RouterServiceImpl struct {
 
 	// handler that provides a TD for the given thingID.
 	// Required for setting credentials and connecting to clients.
-	getTD func(thingID string) *wot.TD
+	getTD func(thingID string) (*wot.TD, error)
 
 	// the preferred protocol to use when creating a new client connection
 	preferredProtocol string
@@ -112,9 +112,10 @@ func (svc *RouterServiceImpl) AddCredentials(
 	}
 
 	// determine the connectURL for this thing
-	tdoc := svc.getTD(thingID)
-	if tdoc == nil {
-		slog.Error("AddDeviceCredential: Cant add credentials. TD for thingID not found", "thingID", thingID)
+	tdoc, err := svc.getTD(thingID)
+	if err != nil {
+		slog.Error("AddDeviceCredential: Cant add credentials. TD for thingID not found",
+			"thingID", thingID, "err", err.Error())
 	} else {
 		connectURL, _, err := svc.GetConnectURL(tdoc, "", "")
 		if err == nil {
@@ -125,9 +126,17 @@ func (svc *RouterServiceImpl) AddCredentials(
 }
 
 // Remove the secret to access a Thing
-func (svc *RouterServiceImpl) DeleteCredentials(thingID string) error {
+func (svc *RouterServiceImpl) RemoveCredentials(thingID string) error {
+
+	// Remove default credentials if no thingID is provided.
+	if thingID == "" {
+		err := svc.credStore.RemoveCredentials("")
+		_ = err
+		return nil
+	}
+
 	// determine the connectURL for this thing
-	tdoc := svc.getTD(thingID)
+	tdoc, err := svc.getTD(thingID)
 	if tdoc == nil {
 		err := fmt.Errorf("DeleteCredentials: Cant delete credentials. TD for thingID '%s' not found", thingID)
 		return err
@@ -137,7 +146,7 @@ func (svc *RouterServiceImpl) DeleteCredentials(thingID string) error {
 		err = fmt.Errorf("DeleteCredentials: TD '%s' has no connection information", thingID)
 		return err
 	}
-	err = svc.credStore.DeleteCredentials(connectURL)
+	err = svc.credStore.RemoveCredentials(connectURL)
 	return err
 }
 
@@ -268,8 +277,8 @@ func (svc *RouterServiceImpl) HandleRequest(req *msg.RequestMessage, replyTo msg
 // HasDeviceCredentials returns a flag if credentials are set for a Thing
 func (svc *RouterServiceImpl) HasCredentials(thingID string) (credType string, found bool) {
 	// determine the connectURL for this thing
-	tdoc := svc.getTD(thingID)
-	if tdoc == nil {
+	tdoc, err := svc.getTD(thingID)
+	if err != nil {
 		slog.Warn("DeleteCredentials: Cant delete credentials. TD for thingID not found", "thingID", thingID)
 		return "", false
 	}
@@ -336,6 +345,9 @@ func (svc *RouterServiceImpl) NewClientConnection(
 	//
 
 	// determine who to identify as for this connection; fall back to default
+
+	// FIXME: when router is used by cli, this contains the old token and no new token is used
+	// why isnt it updated?
 	clientID, secret, secScheme, found := svc.credStore.GetCredentials(connectURL)
 	if !found {
 		clientID = svc.clientID
@@ -375,16 +387,21 @@ func (svc *RouterServiceImpl) NewClientConnection(
 // Lookup the TD of the ThingID and determine its destination:
 func (svc *RouterServiceImpl) RouteRequest(req *msg.RequestMessage, replyTo msg.ResponseHandler) (err error) {
 
+	slog.Info("Route requests", "thingID", req.ThingID, "op", req.Operation, "name", req.Name)
+
 	// 1. the requested thingID must be known
-	tdoc := svc.getTD(req.ThingID)
+	tdoc, err := svc.getTD(req.ThingID)
 	if tdoc == nil {
 		// without a TD there is nothing the router can do here.
-		err = svc.ForwardRequest(req, replyTo)
-		if err != nil {
-			err = fmt.Errorf(
-				"RouteRequest: TD not found for thing '%s' and forwarding request failed: %w",
-				req.ThingID, err)
-			slog.Warn(err.Error())
+		// FIXME: if no further sink exists the getTD error should be returned
+		if svc.GetRequestSink() != nil {
+			err = svc.ForwardRequest(req, replyTo)
+			if err != nil {
+				err = fmt.Errorf(
+					"RouteRequest: TD not found for thing '%s' and forwarding request failed: %w",
+					req.ThingID, err)
+				slog.Warn(err.Error())
+			}
 		}
 		return err
 	}
@@ -465,7 +482,7 @@ func NewRouterServiceImpl(
 	clientID string,
 	clientCert *tls.Certificate,
 	rootCAs *x509.CertPool,
-	getTD func(thingID string) *wot.TD,
+	getTD func(thingID string) (*wot.TD, error),
 ) (*RouterServiceImpl, error) {
 
 	if getTD == nil {

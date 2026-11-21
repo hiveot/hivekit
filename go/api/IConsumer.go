@@ -1,13 +1,12 @@
-package consumer
+package api
 
 import (
-	"github.com/hiveot/hivekit/go/api"
 	"github.com/hiveot/hivekit/go/api/msg"
 )
 
-// Interface of the consumer
+// Interface of a consumer
 type IConsumer interface {
-	api.IHiveCell
+	IHiveCell
 
 	// InvokeAction invokes an action on a thing and wait for the response
 	// If the response type is known then provide it with output, otherwise use interface{}

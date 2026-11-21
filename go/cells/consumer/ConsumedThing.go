@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"sync"
 
+	"github.com/hiveot/hivekit/go/api"
 	"github.com/hiveot/hivekit/go/api/msg"
 	"github.com/hiveot/hivekit/go/api/wot"
 	"github.com/hiveot/hivekit/go/cells"
@@ -35,7 +36,7 @@ type ConsumedThing struct {
 	actionStatuses map[string]*msg.ActionStatus
 
 	// Consumers for sending requests. Optional
-	co IConsumer
+	co api.IConsumer
 
 	// protect operations on values
 	mux sync.RWMutex
@@ -190,7 +191,7 @@ func (ct *ConsumedThing) Stop() {
 //
 // The co is used for sending requests and receiving events. nil to ignore.
 // This subscribes to notification for the Thing.
-func NewConsumedThing(tdoc *wot.TD, co IConsumer) (*ConsumedThing, error) {
+func NewConsumedThing(tdoc *wot.TD, co api.IConsumer) (*ConsumedThing, error) {
 	ct := &ConsumedThing{
 		HiveCellBase: *cells.NewHiveCellBase(tdoc.ID),
 		co:           co,

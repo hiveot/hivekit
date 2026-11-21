@@ -105,8 +105,8 @@ func TestReconnect(t *testing.T) {
 		}
 	}
 	// Dont connect until notifications are linked
-	coServer := consumer.NewConsumer(nil, notifHandler)
-	testEnv.Server.SetNotificationSink(coServer)
+	co := consumer.NewConsumer("reconnect-test", notifHandler, testEnv.Server)
+	defer co.Stop()
 
 	// 4. The server side is now ready to receive connections.
 	eThing.Start()

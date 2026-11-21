@@ -82,7 +82,7 @@ func (store *CredentialsStore) Close() {
 }
 
 // Remove the secret to access a Thing
-func (store *CredentialsStore) DeleteCredentials(connectURL string) error {
+func (store *CredentialsStore) RemoveCredentials(connectURL string) error {
 	store.mux.Lock()
 	defer store.mux.Unlock()
 	delete(store.connectCredentials, connectURL)

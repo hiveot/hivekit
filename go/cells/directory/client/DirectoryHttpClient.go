@@ -51,10 +51,8 @@ func (cl *DirectoryHttpClient) DeleteThing(thingID string) (err error) {
 }
 
 // Get the TD for the given thing ID
-func (cl *DirectoryHttpClient) GetTD(thingID string) *wot.TD {
-	tdoc, err := cl.RetrieveThing(thingID)
-	_ = err
-	return tdoc
+func (cl *DirectoryHttpClient) GetTD(thingID string) (*wot.TD, error) {
+	return cl.RetrieveThing(thingID)
 }
 
 // RetrieveAllThings retrieves a list of things to update the local directory

@@ -147,15 +147,15 @@ func (svc *DigitwinServiceImpl) EmitDigitwinRequestToDevice(dtwReq *msg.RequestM
 
 // Return the unmarshalled device TD
 // TODO: cache the unmarshalled TDs for faster handling
-func (svc *DigitwinServiceImpl) GetDeviceTD(thingID string) *wot.TD {
+func (svc *DigitwinServiceImpl) GetDeviceTD(thingID string) (*wot.TD, error) {
 	tdJson, err := svc.deviceTDBucket.Get(thingID)
 	if err != nil {
-		return nil
+		return nil, err
 	}
 	tdoc, err := wot.UnmarshalTD(string(tdJson))
 	tdoc.ID = svc.GetID()
 	tdoc.SetType(digitwin.DigitwinServiceCellType)
-	return tdoc
+	return tdoc, nil
 }
 
 // HandleNotification stores the latest notification things for retrieval as a digital twin value

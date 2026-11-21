@@ -45,7 +45,7 @@ type BucketStoreInfo struct {
 	// Engine describes the storage engine of the store, eg kvbtree, pebble
 	Engine string
 
-	// The store or bucket identifier, eg thingID, appID
+	// The store or bucket identifier, eg thingID, clientID
 	Id string
 
 	// NrRecords holds the number of records in the store or bucket.

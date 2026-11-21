@@ -43,7 +43,7 @@ type IRouterService interface {
 
 	// Remove the secret to access a Thing.
 	// The TD of the thing has to be available.
-	DeleteCredentials(thingID string) error
+	RemoveCredentials(thingID string) error
 
 	// Return a flag indicating whether the credentials are set for a Thing
 	// The TD of the thing has to be available.

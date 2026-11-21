@@ -193,7 +193,7 @@ func TestPublishEventsByRCThing(t *testing.T) {
 
 	// 1. start the transport
 	// handler of notifications received on the server
-	co := consumer.NewConsumer(nil, func(msg *msg.NotificationMessage) {
+	co := consumer.NewConsumer("events-test", func(msg *msg.NotificationMessage) {
 		slog.Info("TestPublishEventsByRCThing: received notification",
 			"type", msg.AffordanceType,
 			"thingID", msg.ThingID,
@@ -203,7 +203,7 @@ func TestPublishEventsByRCThing(t *testing.T) {
 		if msg.ThingID == thingID {
 			evVal.Store(msg.Data)
 		}
-	})
+	}, nil)
 	testEnv, cancelFn := testenv.StartTestEnv(testProtocol, true)
 	testEnv.Server.SetNotificationSink(co)
 	defer cancelFn()

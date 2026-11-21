@@ -31,21 +31,34 @@ func TestLoginRefresh(t *testing.T) {
 	token1, validUntil, err := sm.Login(user1ID, tu1Pass)
 	require.NoError(t, err)
 	require.Greater(t, validUntil, time.Now())
+	err = sm.SaveToken(user1ID, token1)
+	assert.NoError(t, err)
 
 	cid2, _, validUntil2, err := sm.ValidateClient(user1ID, token1)
 	require.NoError(t, err)
 	assert.Equal(t, user1ID, cid2)
 	require.Equal(t, validUntil2, validUntil)
-
+	// token validity is by the second
+	time.Sleep(time.Second)
 	token3, validUntil3, err := sm.RefreshToken(user1ID, token1)
 	require.NoError(t, err)
 	require.NotEmpty(t, token3)
+	assert.Greater(t, validUntil3, validUntil)
 
 	// ValidateToken the new token
 	cid4, _, validUntil4, err := sm.ValidateClient(user1ID, token3)
 	assert.Equal(t, user1ID, cid4)
 	assert.Equal(t, validUntil3, validUntil4)
 	require.NoError(t, err)
+	err = sm.SaveToken(user1ID, token3)
+	assert.NoError(t, err)
+
+	// last, read the token and verify its valididity is token 3, not 1
+	token4, err := sm.LoadToken(user1ID)
+	assert.NoError(t, err)
+	cid4, _, validUntil4, err = sm.ValidateClient(user1ID, token4)
+	assert.NoError(t, err)
+	assert.Equal(t, validUntil3, validUntil4)
 }
 
 func TestUpdatePassword(t *testing.T) {

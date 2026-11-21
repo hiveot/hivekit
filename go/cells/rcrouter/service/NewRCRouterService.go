@@ -20,7 +20,7 @@ import (
 //	 reverse connections. nil to not support RCs.
 //	getRole handler to return the role of the given clientID. Only device roles support RCs.
 func NewRCRouterService(
-	getTD func(thingID string) *wot.TD,
+	getTD func(thingID string) (*wot.TD, error),
 	getSrv func() []api.ITransportServer,
 	getRole func(clientID string) string,
 ) (rcrouter.IRCRouterService, error) {
@@ -31,7 +31,7 @@ func NewRCRouterService(
 // Create a reverse-connection router service instance using the factory environment.
 func NewRCRouterServiceFactory(f api.ICellFactory, md *api.CellDefinition) (api.IHiveCell, error) {
 
-	var getTD func(string) *wot.TD
+	var getTD func(string) (*wot.TD, error)
 
 	// The RCrouter needs the directory.
 	m, err := f.NewCell(directory.DirectoryServiceCellType, true)

@@ -4,7 +4,6 @@ import (
 	"log/slog"
 	"os"
 	"path"
-	"time"
 
 	"github.com/hiveot/hivekit/go/api"
 	"github.com/hiveot/hivekit/go/api/wot"
@@ -23,7 +22,6 @@ func main() {
 
 	env := api.NewAppEnvironment(ExampleHome, true)
 	env.AppID = "tui-example"
-	env.RpcTimeout = time.Second * 60 // avoid comm timeout during debugging
 	if env.ClientID == "" {
 		env.ClientID = "admin"
 	}

@@ -25,7 +25,7 @@ import (
 // oriented protocols such as websocket, sse-sc, mqtt, and others. The schema
 // identifies the protocol.
 //
-//	instanceName is the name of the server instance serving, like the cellID or appID.
+//	instanceName is the name of the server instance serving.
 //	  This can be used to search for a particular directory instance when multiple are available.
 //	  When omitted, the device hostname is used.
 //	tdURL is the URL the thing or directory TD is served at.

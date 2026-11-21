@@ -147,7 +147,7 @@ func NewConsumerRecipe(env *api.AppEnvironment, withValueCache bool) (
 	}
 
 	formation, err := factory_service.NewChainFormation(f, chain, nil, false)
-	co := consumer.NewConsumer(formation, nil)
+	co := consumer.NewConsumer(env.AppID, nil, formation)
 
 	r = &ConsumerRecipe{
 		Consumer:  co,

@@ -31,7 +31,7 @@ func NewRouterService(storageDir string,
 	clientID string,
 	clientCert *tls.Certificate,
 	rootCAs *x509.CertPool,
-	getTD func(thingID string) *wot.TD,
+	getTD func(thingID string) (*wot.TD, error),
 ) (router.IRouterService, error) {
 
 	return internal.NewRouterServiceImpl(storageDir, autoReconnect,
@@ -51,9 +51,8 @@ func NewRouterService(storageDir string,
 // This needs a directory client or service with a getTD method to lookup a Thing TD.
 func NewRouterServiceFactory(f api.ICellFactory, md *api.CellDefinition) (api.IHiveCell, error) {
 
-	var getTD func(string) *wot.TD
+	var getTD func(string) (*wot.TD, error)
 	var err error
-	var serverID string
 	env := f.GetEnvironment()
 	storageDir := env.GetStorageDir(router.RouterCellType)
 
@@ -63,8 +62,8 @@ func NewRouterServiceFactory(f api.ICellFactory, md *api.CellDefinition) (api.IH
 		gwTD := wot.NewTD(serverID, "dummy gateway", "Gateway")
 		gwTD.Base = env.ServerURL
 		// 	//
-		getTD = func(_ string) *wot.TD {
-			return gwTD
+		getTD = func(string) (*wot.TD, error) {
+			return gwTD, nil
 		}
 		// } else {
 		// if a server TD is preconfigured then getTD returns this TD
@@ -106,10 +105,13 @@ func NewRouterServiceFactory(f api.ICellFactory, md *api.CellDefinition) (api.IH
 		env.GetRootCAs(),
 		getTD,
 	)
-	// set configured credentials, if any
+	// set the default credentials if provided
 	authToken, _ := env.GetAuthToken()
 	if authToken != "" {
-		svc.AddCredentials(serverID, env.ClientID, authToken, wot.SecSchemeBearer)
+		svc.AddCredentials("", env.ClientID, authToken, wot.SecSchemeBearer)
+	} else {
+		// remove default credentials
+		svc.RemoveCredentials("")
 	}
 	return svc, err
 }

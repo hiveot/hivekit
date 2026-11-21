@@ -2,6 +2,7 @@ package directory
 
 import (
 	_ "embed"
+	"errors"
 
 	"github.com/hiveot/hivekit/go/api"
 	"github.com/hiveot/hivekit/go/api/wot"
@@ -11,6 +12,7 @@ import (
 //
 //go:embed "directory-td.json"
 var DirectoryTDJson []byte
+var TDNotFoundError = errors.New("TD Not Found")
 
 // property, event and action names
 const (
@@ -117,7 +119,7 @@ type IDirectoryService interface {
 
 	// Return an instance of a TD from the store.
 	// These TD's are cached so successive requests do not parse the json each time.
-	GetTD(thingID string) *wot.TD
+	GetTD(thingID string) (*wot.TD, error)
 
 	// Return the Directory TD
 	GetTDD() *wot.TD

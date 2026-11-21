@@ -23,5 +23,5 @@ type IDigitwinService interface {
 	// GetDeviceDirectory() directory.IDirectoryServer
 
 	// Return the original device TD by its thingID
-	GetDeviceTD(thingID string) *wot.TD
+	GetDeviceTD(thingID string) (*wot.TD, error)
 }

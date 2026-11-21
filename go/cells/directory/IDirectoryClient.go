@@ -69,7 +69,7 @@ type IDirectoryClient interface {
 	// by its API.
 	//
 	// This returns nil if not found.
-	GetTD(thingID string) *wot.TD
+	GetTD(thingID string) (*wot.TD, error)
 
 	// Return an instance of a TD from the local cache. (TBD whether this is needed)
 	// These TD's are cached so successive requests do not parse the json each time.

@@ -97,10 +97,12 @@ func (svc *CertsServiceImpl) HandleRequest(
 	slog.Info("HandleRequest", slog.String("name", req.Name), slog.String("sender", req.SenderID))
 
 	var resp *msg.ResponseMessage
-	if req.SenderID == "" {
-		// todo: is this really needed?
-		err = fmt.Errorf("missing senderID in request")
-	} else if req.Operation == wot.OpInvokeAction {
+	// if req.SenderID == "" {
+	// 	// todo: is this really needed? - if the caller is in t he same bundled chain there is no senderID... eg launcher
+	// 	// verifyClientCert matches against the senderID
+	// 	err = fmt.Errorf("missing senderID in request")
+	// } else
+	if req.Operation == wot.OpInvokeAction {
 		// certificate specific operations
 		switch req.Name {
 		case certs.GetCACertAction:
