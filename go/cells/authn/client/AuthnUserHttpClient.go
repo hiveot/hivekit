@@ -4,7 +4,10 @@ import (
 	"crypto/x509"
 	"log/slog"
 	"net/http"
+	"os"
+	"path/filepath"
 
+	"github.com/hiveot/hivekit/go/api"
 	"github.com/hiveot/hivekit/go/cells/authn"
 	"github.com/hiveot/hivekit/go/cells/transport/tlsclient"
 	jsoniter "github.com/json-iterator/go"
@@ -100,6 +103,27 @@ func (cl *AuthnUserHttpClient) RefreshToken(oldToken string) (newToken string, e
 		err = cl.tlsClient.SetAuthToken(clientID, oldToken)
 	}
 	return newToken, err
+}
+
+// Save the token to the tokensDir directory under the name {clientID}.token
+//
+// Intended for storing tokens for core services and admin user.
+func (cl *AuthnUserHttpClient) SaveToken(tokensDir string, clientID string, token string) error {
+	tokenFile := filepath.Join(tokensDir, clientID+api.DefaultTokenFileSuffix)
+
+	err := os.MkdirAll(tokensDir, 0700)
+	if err != nil {
+		slog.Error("SaveToken can't ensure directory exist.",
+			"tokensDir", tokensDir, "err", err.Error())
+	}
+	// the old token can't be overwritten
+	_ = os.Remove(tokenFile)
+	err = os.WriteFile(tokenFile, []byte(token), 0400)
+	if err != nil {
+		slog.Error("SaveToken failed", "err", err.Error())
+	}
+
+	return err
 }
 
 // set the clientID and authn token this client uses

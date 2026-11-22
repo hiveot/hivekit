@@ -12,6 +12,39 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func TestLogin(t *testing.T) {
+	fmt.Printf("---%s---\n", t.Name())
+	const testPasswd = "passwd"
+
+	httpServer, authnSvc, cancelFn := startTestAuthnServices(defaultHash)
+	adminSvc := authnSvc.GetAdminService()
+	defer cancelFn()
+
+	err := adminSvc.AddClient(testClientID1, "client 1", api.ClientRoleViewer)
+	err = adminSvc.SetPassword(testClientID1, testPasswd)
+	assert.NoError(t, err)
+
+	serverURL := httpServer.GetConnectURL()
+	authCl := authn_client.NewUserAuthnHttpClient(serverURL, testCerts.RootCAs)
+	defer authCl.Close()
+	token1, err := authCl.LoginWithPassword(testClientID1, testPasswd)
+	assert.NoError(t, err)
+
+	// http clients can't detect a bad token until making requests to a protected route
+	// assert.Error(t, err)
+
+	// refresh validates the token provided in the connection
+	token2, err := authCl.RefreshToken(token1)
+	assert.NotEmpty(t, token2)
+	assert.NoError(t, err)
+
+	slog.Error("--- Expecting SetBearerToken('bad-token') to fail ---")
+	token3, err := authCl.RefreshToken("badToken")
+	assert.Error(t, err)
+	assert.Empty(t, token3)
+
+}
+
 func TestBadRefreshHttp(t *testing.T) {
 	fmt.Printf("---%s---\n", t.Name())
 

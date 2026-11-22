@@ -74,6 +74,12 @@ type ConsumerRecipe struct {
 	formation api.IHiveCell
 }
 
+// Return the application environment in use by the recipe
+func (r *ConsumerRecipe) GetEnv() *api.AppEnvironment {
+	env := r.f.GetEnvironment()
+	return env
+}
+
 // Return the discovery client from this recipe
 func (r *ConsumerRecipe) GetDiscovery() discovery.IDiscoveryClient {
 	discoClient := api.GetFactoryCell[discovery.IDiscoveryClient](r.f, discovery.DiscoveryClientCellType)
@@ -156,6 +162,6 @@ func NewConsumerRecipe(env *api.AppEnvironment, withValueCache bool) (
 	}
 
 	var _ api.IHiveCell = r
-	var _ *consumer.Consumer = r.Consumer // interface checks
+	var _ api.IConsumer = r // interface checks
 	return r, f, err
 }

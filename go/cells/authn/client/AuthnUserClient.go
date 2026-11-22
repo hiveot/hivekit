@@ -23,7 +23,7 @@ func (m *AuthnUserClient) GetProfile() (resp authn.ClientProfile, err error) {
 	return
 }
 
-// // Login with password
+// // Login with password -  login using the http client instead
 // func (cl *AuthnUserMsgClient) Login(clientID string, password string) (token string, err error) {
 // 	var args = authn.UserLoginArgs{UserName: clientID, Password: password}
 // 	err = cl.cc.Rpc("invokeaction", authn.AuthnUserServiceID, UserLoginAction, &args, &token)

@@ -8,11 +8,13 @@ import (
 	"time"
 
 	"github.com/hiveot/hivekit/go/api"
+	"github.com/hiveot/hivekit/go/api/msg"
 	"github.com/hiveot/hivekit/go/cells/authn"
 	authn_httpuserservice "github.com/hiveot/hivekit/go/cells/authn/httpuserservice"
 	authn_service "github.com/hiveot/hivekit/go/cells/authn/service"
 	certstest "github.com/hiveot/hivekit/go/cells/certs/test"
 	"github.com/hiveot/hivekit/go/cells/transport/tlsserver"
+	"github.com/hiveot/hivekit/go/testenv"
 	"github.com/hiveot/hivekit/go/utils"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -36,6 +38,7 @@ func TestMain(m *testing.M) {
 	// Connect without pw file
 	unpwFilePath = path.Join(passwdDir, unpwFileName)
 	_ = os.Remove(unpwFilePath)
+	msg.CellTimeout = testenv.TestTimeout
 
 	res := m.Run()
 	if res == 0 {
@@ -53,7 +56,6 @@ func startTestAuthnServices(encryption string) (
 	_ = os.MkdirAll(passwdDir, 0700)
 
 	//--- create the authentication service ---
-
 	authnSvc, err := authn_service.NewAuthnService(certsDir, passwdDir, true)
 	if err != nil {
 		panic("startTestAuthnServices failed: " + err.Error())

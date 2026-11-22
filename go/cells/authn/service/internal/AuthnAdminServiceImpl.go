@@ -219,15 +219,6 @@ func NewAuthnAdminServiceImpl(
 		// create/refresh the administrator session token
 		validity := authn.AdminTokenValidityDays * 24 * time.Hour
 		adminToken, _, _ := svc.sessionManager.CreateToken(adminID, validity)
-
-		// --- testing, remove later
-		clientID, notBefore, validUntil, _ := svc.sessionManager.ValidateClient(adminID, adminToken)
-		slog.Info("NewAuthnAdminServiceImpl: Issued a new admin token:",
-			slog.String("ID", clientID),
-			slog.Time("notBefore", notBefore),
-			slog.Time("validUntil", validUntil))
-
-		// --- testing
 		err = svc.sessionManager.SaveToken(adminID, adminToken)
 	}
 

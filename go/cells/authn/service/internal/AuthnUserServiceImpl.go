@@ -49,6 +49,13 @@ func (svc *AuthnUserServiceImpl) HandleRequest(req *msg.RequestMessage, replyTo 
 			} else {
 				err = errors.New("bad function argument: " + err.Error())
 			}
+		case authn.UserActionLogin:
+			var args authn.UserLoginArgs
+			err = req.DecodeInput(&args)
+			if err == nil {
+				output, _, err = svc.sessionManager.Login(args.UserName, args.Password)
+			}
+
 		case authn.UserActionLogout:
 			svc.sessionManager.Logout(req.SenderID)
 

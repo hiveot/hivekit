@@ -176,7 +176,9 @@ func TestGatewayRecipe(t *testing.T) {
 
 	// 4. TODO: Add a stand-alone device and have Consumer connect to it via the gateway.
 
-	// 5. consumer reads test device properties.
+	// 5. TODO: Login using http client to obtain a token
+
+	// 6. consumer reads test device properties.
 	// The (consumer) router calls GetTD from the consumer recipe directory client;
 	//
 	props, err := cor.ReadAllProperties(counterThing.GetID())

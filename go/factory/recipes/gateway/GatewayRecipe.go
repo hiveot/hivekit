@@ -10,6 +10,7 @@ import (
 	"github.com/hiveot/hivekit/go/api/wot"
 	"github.com/hiveot/hivekit/go/cells"
 	"github.com/hiveot/hivekit/go/cells/authn"
+	authn_httpuserservice "github.com/hiveot/hivekit/go/cells/authn/httpuserservice"
 	authn_service "github.com/hiveot/hivekit/go/cells/authn/service"
 	"github.com/hiveot/hivekit/go/cells/authz"
 	authz_service "github.com/hiveot/hivekit/go/cells/authz/service"
@@ -90,6 +91,11 @@ var GatewayRecipeCells = []api.CellDefinition{
 			// 	Type:        mqtt.MqttServerCellType,
 			// 	Constructor: mqttpkg.NewMqttServerFactory,
 			// },
+			{
+				// support login over http
+				Type:        authn.AuthnUserHttpServiceCellType,
+				Constructor: authn_httpuserservice.NewAuthnUserHttpServiceFactory,
+			},
 			{
 				// Last, the gateway supports http-basic
 				Type:        httpbasic.HttpBasicServerCellType,
