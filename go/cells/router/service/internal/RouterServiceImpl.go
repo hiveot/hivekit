@@ -245,10 +245,11 @@ func (svc *RouterServiceImpl) HandleNotification(notif *msg.NotificationMessage)
 // HandleRequest handles requests or routes the request to its destination
 func (svc *RouterServiceImpl) HandleRequest(req *msg.RequestMessage, replyTo msg.ResponseHandler) (err error) {
 	var resp *msg.ResponseMessage
-	if req.ThingID == "" {
-		// unable to route, pass it on
-		return svc.ForwardRequest(req, replyTo)
-	} else if req.ThingID != svc.GetID() && req.ThingID != router.RouterCellType {
+	// if req.ThingID == "" {
+	// 	// unable to route, pass it on
+	// 	return svc.ForwardRequest(req, replyTo)
+	// }
+	if req.ThingID != svc.GetID() && req.ThingID != router.RouterCellType {
 		return svc.RouteRequest(req, replyTo)
 	}
 

@@ -11,9 +11,12 @@ import (
 )
 
 // NewRCRouterService creates a ready-to-use instance of the reverse connection
-// router service. RC devices have a RCID field which is the connection clientID of the
-// device to route the request to.
-// Start must be called before usage.
+// router service. This locates the client connection that serves the requested
+// TD and passes the request to it. If the RC client is not connection then
+// routing fails (obvious I hope).
+//
+// RC devices have a RCID field in their TD, which is the connection clientID
+// of the device to route the request to. Start must be called before usage.
 //
 //	getTD  handler to lookup a TD for a thingID from a directory. Required.
 //	getSrv handler to return the running list of transport servers that can contain
