@@ -169,7 +169,8 @@ func TestName(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, user1, entry.ClientID)
 	assert.Equal(t, name1, entry.DisplayName)
-	assert.NotEmpty(t, entry.TimeUpdated)
+	assert.NotEmpty(t, entry.TimeCreated)
+	assert.Empty(t, entry.TimeUpdated)
 }
 
 func TestSetPasswordTwoStores(t *testing.T) {
@@ -344,13 +345,13 @@ func TestUpdate(t *testing.T) {
 		ClientID:    user1,
 		Role:        role1,
 		DisplayName: name2,
-		PubKeyPem:   key1,
+		PubKeyPEM:   key1,
 	})
 	assert.NoError(t, err)
 	prof, err := pwStore1.GetProfile(user1)
 	assert.NoError(t, err)
 	assert.Equal(t, name2, prof.DisplayName)
-	assert.Equal(t, key1, prof.PubKeyPem)
+	assert.Equal(t, key1, prof.PubKeyPEM)
 
 	// update of non-existing user should fail
 	err = pwStore1.UpdateProfile(authn.ClientProfile{

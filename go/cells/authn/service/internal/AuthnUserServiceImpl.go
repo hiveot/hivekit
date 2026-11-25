@@ -22,7 +22,7 @@ type AuthnUserServiceImpl struct {
 	authnStore authn.IAuthnStore
 
 	// Creation and validation of session tokens
-	sessionManager authn.ISessionManager
+	sessionManager *SessionManager
 }
 
 // GetProfile return the client's profile
@@ -43,23 +43,23 @@ func (svc *AuthnUserServiceImpl) HandleRequest(req *msg.RequestMessage, replyTo 
 	if req.Operation == wot.OpInvokeAction {
 		switch req.Name {
 
-		case authn.UserActionGetProfile:
+		case authn.GetProfileUserAction:
 			if err == nil {
 				output, err = svc.GetProfile(req.SenderID)
 			} else {
 				err = errors.New("bad function argument: " + err.Error())
 			}
-		case authn.UserActionLogin:
+		case authn.LoginUserAction:
 			var args authn.UserLoginArgs
 			err = req.DecodeInput(&args)
 			if err == nil {
-				output, _, err = svc.sessionManager.Login(args.UserName, args.Password)
+				output, err = svc.Login(args.UserName, args.Password)
 			}
 
-		case authn.UserActionLogout:
+		case authn.LogoutUserAction:
 			svc.sessionManager.Logout(req.SenderID)
 
-		case authn.UserActionRefreshToken:
+		case authn.RefreshTokenUserAction:
 			var oldToken string
 			err = utils.DecodeAsObject(req.Input, &oldToken)
 			if err == nil {
@@ -68,7 +68,7 @@ func (svc *AuthnUserServiceImpl) HandleRequest(req *msg.RequestMessage, replyTo 
 				err = errors.New("bad function argument: " + err.Error())
 			}
 
-		case authn.UserActionSetPassword:
+		case authn.SetPasswordUserAction:
 			var newPassword string
 			err = utils.DecodeAsObject(req.Input, &newPassword)
 			if err == nil {
@@ -77,7 +77,7 @@ func (svc *AuthnUserServiceImpl) HandleRequest(req *msg.RequestMessage, replyTo 
 				err = errors.New("bad function argument: " + err.Error())
 			}
 
-		case authn.UserActionUpdateProfile:
+		case authn.UpdateProfileUserAction:
 			var profile authn.ClientProfile
 
 			err = utils.DecodeAsObject(req.Input, &profile)
@@ -96,6 +96,16 @@ func (svc *AuthnUserServiceImpl) HandleRequest(req *msg.RequestMessage, replyTo 
 		err = svc.ExposedThing.HandleRequest(req, replyTo)
 	}
 	return err
+}
+
+// FIXME: change to use passkey, eg LoginWithPasskey(signedChallenge)
+// eg, server sends a challenge; client signs it; server verifies using pubkey
+func (svc *AuthnUserServiceImpl) Login(clientID string, password string) (token string, err error) {
+	token, _, err = svc.sessionManager.Login(clientID, password)
+	if err == nil {
+		svc.authnStore.SetLogin(clientID, utils.FormatNowUTCMilli())
+	}
+	return token, err
 }
 
 // Change the password of a user
@@ -151,7 +161,7 @@ func (svc *AuthnUserServiceImpl) UpdateProfile(senderID string, newProfile authn
 //	sessionManager that manages auth tokens
 //	authnStore account store
 func NewAuthnUserServiceImpl(
-	authnStore authn.IAuthnStore, sessionManager authn.ISessionManager) (
+	authnStore authn.IAuthnStore, sessionManager *SessionManager) (
 	*AuthnUserServiceImpl, error) {
 
 	var err error

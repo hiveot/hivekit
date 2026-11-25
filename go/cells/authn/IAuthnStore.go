@@ -17,10 +17,6 @@ type AuthnEntry struct {
 
 	// PasswordHash password encrypted with argon2id or bcrypt
 	PasswordHash string `yaml:"passwordHash" json:"passwordHash"`
-
-	// Client 'base role'. Authz can add thing specific roles in the future.
-	// This is set when creating a user and updated with SetRole. Authz reads it.
-	// Role string `yaml:"role" json:"role"`
 }
 
 // IAuthnStore defined the interface for storing authentication data
@@ -64,9 +60,9 @@ type IAuthnStore interface {
 	// If the client doesn't exist, no error is returned
 	Remove(clientID string) (err error)
 
-	// SetRole sets the default role of a client
-	// This returns an error if newRole isn't a known role
-	SetRole(clientID string, newRole string) error
+	// SetLogin updates the login time to the given timestamp
+	// This returns an error if clientID is not known
+	SetLogin(clientID string, timestamp string) error
 
 	// SetPassword stores the hash of the password for the given user.
 	// If the clientID doesn't exist, this returns an error.
@@ -76,6 +72,10 @@ type IAuthnStore interface {
 	//  password is the password whose hash to store
 	// Returns error if the store isn't writable
 	SetPassword(clientID string, password string) error
+
+	// SetRole sets the default role of a client
+	// This returns an error if newRole isn't a known role
+	SetRole(clientID string, newRole string) error
 
 	// UpdateProfile updates client profile.
 	// This fails if the client doesn't exist.

@@ -164,7 +164,7 @@ func TestClientUpdatePubKey(t *testing.T) {
 	profile2, err := userSvc.GetProfile(user1ID)
 	assert.Equal(t, user1ID, profile2.ClientID)
 	require.NoError(t, err)
-	profile2.PubKeyPem = pubKeyPem
+	profile2.PubKeyPEM = pubKeyPem
 	err = userSvc.UpdateProfile(user1ID, profile2)
 	assert.NoError(t, err)
 
@@ -172,5 +172,5 @@ func TestClientUpdatePubKey(t *testing.T) {
 	profile3, err := userSvc.GetProfile(user1ID)
 	require.NoError(t, err)
 	assert.Equal(t, user1ID, profile3.ClientID)
-	assert.Equal(t, pubKeyPem, profile3.PubKeyPem)
+	assert.Equal(t, pubKeyPem, profile3.PubKeyPEM)
 }

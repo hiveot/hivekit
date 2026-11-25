@@ -22,7 +22,7 @@ type AuthnAdminServiceImpl struct {
 
 	authnStore authn.IAuthnStore
 
-	sessionManager authn.ISessionManager
+	sessionManager *SessionManager
 }
 
 // AddClient adds a client. This fails if the client already exists
@@ -194,7 +194,7 @@ func (svc *AuthnAdminServiceImpl) UpdateProfile(senderID string, newProfile auth
 //	createAdminAcct set to create a default admin user and token
 func NewAuthnAdminServiceImpl(
 	authnStore authn.IAuthnStore,
-	sessionManager authn.ISessionManager,
+	sessionManager *SessionManager,
 	createAdminAcct bool) (*AuthnAdminServiceImpl, error) {
 	var err error
 

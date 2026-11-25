@@ -60,7 +60,7 @@ func (svc *HistoryServiceImpl) HandleRequest(req *msg.RequestMessage, replyTo ms
 		resp, err = svc.handleReleaseCursor(req)
 	case history.CursorSeekMethod:
 		resp, err = svc.handleSeek(req)
-	case history.ReadHistoryMethod:
+	case history.ReadHistoryAction:
 		resp, err = svc.handleReadHistory(req)
 	default:
 	}

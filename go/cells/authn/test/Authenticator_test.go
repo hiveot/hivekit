@@ -36,7 +36,6 @@ func TestCreateSessionToken(t *testing.T) {
 	const clientID = "user1"
 	const pass1 = "pass1"
 	const role = "role1"
-	//const clientType = authn.ClientTypeConsumer
 
 	svc, clientStore := NewAuthenticator()
 	_ = clientStore.Add(authn.ClientProfile{
@@ -75,7 +74,6 @@ func TestBadTokens(t *testing.T) {
 
 	const clientID = "user1"
 	const role = "role1"
-	//const clientType = authn.ClientTypeConsumer
 
 	svc, clientStore := NewAuthenticator()
 	_ = clientStore.Add(authn.ClientProfile{

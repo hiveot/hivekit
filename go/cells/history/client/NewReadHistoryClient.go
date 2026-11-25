@@ -146,7 +146,7 @@ func (cl *ReadHistoryClient) ReadHistory(thingID string, filterOnName string,
 		Limit:          limit,
 	}
 	resp := history.ReadHistoryResp{}
-	err = cl.call(history.ReadHistoryMethod, &args, &resp)
+	err = cl.call(history.ReadHistoryAction, &args, &resp)
 	return resp.Values, resp.ItemsRemaining, err
 }
 

@@ -8,12 +8,12 @@ const (
 	// Event names
 
 	// Action names
-	UserActionGetProfile    = "getProfile"
-	UserActionLogin         = "login"
-	UserActionLogout        = "Logout"
-	UserActionRefreshToken  = "refreshToken"
-	UserActionSetPassword   = "setPassword"
-	UserActionUpdateProfile = "updateProfile"
+	GetProfileUserAction    = "getProfile"
+	LoginUserAction         = "login"
+	LogoutUserAction        = "Logout"
+	RefreshTokenUserAction  = "refreshToken"
+	SetPasswordUserAction   = "setPassword"
+	UpdateProfileUserAction = "updateProfile"
 )
 
 // well-known HTTP API endpoints - these must match the TD

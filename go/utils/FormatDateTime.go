@@ -103,7 +103,7 @@ func FormatDateTime(dateStr string, format ...string) string {
 		case "V":
 			formattedTime = createdLocal.Format(VerboseTimeFormat)
 		default:
-			formattedTime = createdLocal.Format(format[0])
+			formattedTime = createdLocal.Format(YearTimeFormat)
 		}
 	} else {
 		formattedTime = createdLocal.Format(YearTimeFormat)

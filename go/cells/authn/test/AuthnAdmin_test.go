@@ -145,14 +145,14 @@ func TestUpdatePubKey(t *testing.T) {
 	require.NotEmpty(t, privKey)
 	profile, err := adminSvc.GetProfile(tu1ID)
 	require.NoError(t, err)
-	profile.PubKeyPem = utils.PublicKeyToPem(privKey.Public())
+	profile.PubKeyPEM = utils.PublicKeyToPem(privKey.Public())
 	err = adminSvc.UpdateProfile(tu1ID, profile)
 	assert.NoError(t, err)
 
 	// check result
 	profile2, err := adminSvc.GetProfile(tu1ID)
 	require.NoError(t, err)
-	assert.Equal(t, profile.PubKeyPem, profile2.PubKeyPem)
+	assert.Equal(t, profile.PubKeyPEM, profile2.PubKeyPEM)
 }
 
 func TestNewDeviceToken(t *testing.T) {

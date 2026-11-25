@@ -4,6 +4,7 @@ import (
 	"github.com/hiveot/hivekit/go/api"
 	"github.com/hiveot/hivekit/go/api/msg"
 	"github.com/hiveot/hivekit/go/api/wot"
+	"github.com/hiveot/hivekit/go/cells/authn"
 )
 
 // ValidateAuthorization verifies that the sender is authorized for the request.
@@ -44,6 +45,12 @@ func (svc *AuthzServiceImpl) HasPermission(req *msg.RequestMessage) (hasPermissi
 		// devices can update their TD;
 		if role == api.ClientRoleDevice {
 			return true
+		}
+		// viewers can login
+		if role == api.ClientRoleViewer {
+			if req.Name == authn.LoginUserAction {
+				return true
+			}
 		}
 	// 3. managers, administrators and services can also write configuration
 	case wot.OpWriteProperty, wot.OpWriteMultipleProperties:

@@ -8,7 +8,6 @@ import (
 	"os"
 	"path"
 	"sync"
-	"time"
 
 	"github.com/alexedwards/argon2id"
 	"github.com/fsnotify/fsnotify"
@@ -51,7 +50,9 @@ func (store *AuthnFileStoreImpl) Add(profile authn.ClientProfile) error {
 	slog.Info("Add: New client " + profile.ClientID)
 	entry = authn.AuthnEntry{ClientProfile: profile}
 
-	entry.TimeUpdated = utils.FormatNowUTCMilli()
+	//
+	entry.TimeCreated = utils.FormatNowUTCMilli()
+	// entry.TimeUpdated = utils.FormatNowUTCMilli()
 
 	store.entries[profile.ClientID] = entry
 
@@ -216,6 +217,20 @@ func (store *AuthnFileStoreImpl) save() error {
 	return err
 }
 
+// SetLogin changes the last login time
+func (store *AuthnFileStoreImpl) SetLogin(clientID string, timestamp string) error {
+	store.mutex.Lock()
+	defer store.mutex.Unlock()
+	entry, found := store.entries[clientID]
+	if !found {
+		return fmt.Errorf("SetRole: Client '%s' not found", clientID)
+	}
+
+	entry.LastLogin = timestamp
+	store.entries[clientID] = entry
+	return nil
+}
+
 // SetPasswordHash adds/updates the password hash for the given login ID
 // Intended for clients to update their own password
 func (store *AuthnFileStoreImpl) SetPasswordHash(loginID string, hash string) (err error) {
@@ -244,6 +259,7 @@ func (store *AuthnFileStoreImpl) SetRole(clientID string, role string) error {
 	}
 
 	entry.Role = role
+	entry.TimeUpdated = utils.FormatNowUTCMilli()
 	store.entries[clientID] = entry
 	err := store.save()
 	return err
@@ -296,10 +312,10 @@ func (store *AuthnFileStoreImpl) UpdateProfile(profile authn.ClientProfile) erro
 	if profile.DisplayName != "" {
 		entry.DisplayName = profile.DisplayName
 	}
-	if profile.PubKeyPem != "" {
-		entry.PubKeyPem = profile.PubKeyPem
+	if profile.PubKeyPEM != "" {
+		entry.PubKeyPEM = profile.PubKeyPEM
 	}
-	entry.TimeUpdated = time.Now().Format(time.RFC3339)
+	entry.TimeUpdated = utils.FormatNowUTCMilli()
 	store.entries[profile.ClientID] = entry
 
 	err := store.save()

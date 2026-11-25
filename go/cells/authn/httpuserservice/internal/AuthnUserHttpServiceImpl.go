@@ -56,7 +56,7 @@ func (m *AuthnUserHttpServiceImpl) onHttpGetProfile(w http.ResponseWriter, r *ht
 
 	if err == nil {
 		req := msg.NewRequestMessage(
-			wot.OpInvokeAction, m.userServiceID, authn.UserActionGetProfile, nil)
+			wot.OpInvokeAction, m.userServiceID, authn.GetProfileUserAction, nil)
 		req.SenderID = rp.ClientID
 		resp, err = m.EmitRequestWait(req)
 	}
@@ -83,7 +83,7 @@ func (m *AuthnUserHttpServiceImpl) onHttpLogin(w http.ResponseWriter, r *http.Re
 		// the login is handled in-house and has an immediate return
 
 		req := msg.NewRequestMessage(
-			wot.OpInvokeAction, m.userServiceID, authn.UserActionLogin, &args)
+			wot.OpInvokeAction, m.userServiceID, authn.LoginUserAction, &args)
 		req.SenderID = args.UserName
 		resp, err = m.EmitRequestWait(req)
 
@@ -107,7 +107,7 @@ func (m *AuthnUserHttpServiceImpl) onHttpLogout(w http.ResponseWriter, r *http.R
 	if err == nil {
 		slog.Info("onHttpLogout", slog.String("clientID", rp.ClientID))
 		req := msg.NewRequestMessage(
-			wot.OpInvokeAction, m.userServiceID, authn.UserActionLogout, nil)
+			wot.OpInvokeAction, m.userServiceID, authn.LogoutUserAction, nil)
 		req.SenderID = rp.ClientID
 		resp, err = m.EmitRequestWait(req)
 		_ = resp
@@ -130,7 +130,7 @@ func (m *AuthnUserHttpServiceImpl) onHttpTokenRefresh(w http.ResponseWriter, r *
 		slog.Info("onHttpTokenRefresh", "clientID", rp.ClientID)
 
 		req := msg.NewRequestMessage(
-			wot.OpInvokeAction, m.userServiceID, authn.UserActionRefreshToken, oldToken)
+			wot.OpInvokeAction, m.userServiceID, authn.RefreshTokenUserAction, oldToken)
 		req.SenderID = rp.ClientID
 		resp, err = m.EmitRequestWait(req)
 	}

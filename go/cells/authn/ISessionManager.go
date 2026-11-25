@@ -30,6 +30,9 @@ type ISessionManager interface {
 	// This returns an error if clientID is missing or validity is 0
 	CreateToken(clientID string, validity time.Duration) (token string, validUntil time.Time, err error)
 
+	// Get the time a user session was started
+	GetSessionStart(clientID string) (start time.Time, valid bool)
+
 	// Load a previously saved token.
 	// By default this is compatible with the app environment GetAuthToken.
 	LoadToken(clientID string) (string, error)

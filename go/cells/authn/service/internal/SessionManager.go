@@ -35,7 +35,7 @@ type SessionManager struct {
 	tokensDir string
 
 	// track session start, used in validation
-	sessionStart map[string]time.Time
+	sessionStarts map[string]time.Time
 }
 
 // AddSecurityScheme adds the authenticator's security scheme to the given TD.
@@ -72,7 +72,7 @@ func (sm *SessionManager) CreateToken(clientID string, validity time.Duration) (
 	}
 	//
 	createdTime := time.Now()
-	sm.sessionStart[clientID] = createdTime.Add(-time.Second)
+	sm.sessionStarts[clientID] = createdTime.Add(-time.Second)
 	// use the configured authenticator for token creation
 	token, validUntil, err = sm.authenticator.CreateToken(clientID, validity)
 	return
@@ -89,6 +89,12 @@ func (sm *SessionManager) DecodeToken(token string, signedNonce string, nonce st
 // GetRole returns the client's authenticated role
 func (svc *SessionManager) GetRole(clientID string) string {
 	return svc.authenticator.GetRole(clientID)
+}
+
+// GetSessionStart returns the time the last token was issued or refreshed
+func (svc *SessionManager) GetSessionStart(clientID string) (time.Time,bool) {
+	start,found := svc.sessionStarts[clientID]
+	return start,found
 }
 
 // Login with password and generate a session token
@@ -108,10 +114,10 @@ func (sm *SessionManager) Login(
 	}
 
 	// If a session start time does not exist yet, then record this as the session start.
-	sessionStart, found := sm.sessionStart[clientID]
+	sessionStart, found := sm.sessionStarts[clientID]
 	if !found {
 		sessionStart = time.Now().Add(-time.Second) // prevent comparison with token iat failing
-		sm.sessionStart[clientID] = sessionStart
+		sm.sessionStarts[clientID] = sessionStart
 	}
 
 	// create the session to allow token refresh
@@ -137,9 +143,9 @@ func (svc *SessionManager) LoadToken(clientID string) (string, error) {
 
 // Logout removes the client session
 func (sm *SessionManager) Logout(clientID string) {
-	_, found := sm.sessionStart[clientID]
+	_, found := sm.sessionStarts[clientID]
 	if found {
-		delete(sm.sessionStart, clientID)
+		delete(sm.sessionStarts, clientID)
 	}
 }
 
@@ -218,7 +224,7 @@ func (sm *SessionManager) ValidateClient(claimedClientID string, token string) (
 
 	// check the token is of an active client
 	// this is set during CreateToken and Login
-	sessionStart, found := sm.sessionStart[clientID]
+	sessionStart, found := sm.sessionStarts[clientID]
 	if !found {
 		slog.Warn("ValidateToken. No valid session found for client", "clientID", clientID)
 		return clientID, notBefore, validUntil, fmt.Errorf("Session is no longer valid")
@@ -247,7 +253,7 @@ func StartSessionManager(
 		DeviceTokenValidityDays:   authn.DefaultDeviceTokenValidityDays,
 		ServiceTokenValidityDays:  authn.DefaultServiceTokenValidityDays,
 		ConsumerTokenValidityDays: authn.DefaultConsumerTokenValidityDays,
-		sessionStart:              make(map[string]time.Time),
+		sessionStarts:              make(map[string]time.Time),
 	}
 
 	serviceID := "authn"

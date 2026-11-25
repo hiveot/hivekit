@@ -19,7 +19,7 @@ type AuthnUserClient struct {
 // UserGetProfile client method - Get Client Profile.
 func (m *AuthnUserClient) GetProfile() (resp authn.ClientProfile, err error) {
 	err = m.Rpc(wot.OpInvokeAction,
-		m.authnServiceID, authn.UserActionGetProfile, nil, &resp)
+		m.authnServiceID, authn.GetProfileUserAction, nil, &resp)
 	return
 }
 
@@ -35,7 +35,7 @@ func (m *AuthnUserClient) GetProfile() (resp authn.ClientProfile, err error) {
 func (m *AuthnUserClient) Logout() (err error) {
 
 	err = m.Rpc(wot.OpInvokeAction,
-		m.authnServiceID, authn.UserActionLogout, nil, nil)
+		m.authnServiceID, authn.LogoutUserAction, nil, nil)
 	return
 }
 
@@ -43,7 +43,7 @@ func (m *AuthnUserClient) Logout() (err error) {
 func (m *AuthnUserClient) RefreshToken(oldToken string) (newToken string, err error) {
 
 	err = m.Rpc(wot.OpInvokeAction,
-		m.authnServiceID, authn.UserActionRefreshToken, &oldToken, &newToken)
+		m.authnServiceID, authn.RefreshTokenUserAction, &oldToken, &newToken)
 	return
 }
 
@@ -51,7 +51,7 @@ func (m *AuthnUserClient) RefreshToken(oldToken string) (newToken string, err er
 // Request changing the password of the current client
 func (m *AuthnUserClient) UpdateProfile(password string) (err error) {
 	err = m.Rpc(wot.OpInvokeAction,
-		m.authnServiceID, authn.UserActionSetPassword, &password, nil)
+		m.authnServiceID, authn.SetPasswordUserAction, &password, nil)
 	return
 }
 

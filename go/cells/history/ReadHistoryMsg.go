@@ -61,8 +61,8 @@ const (
 	// Output: CursorValueResp
 	CursorSeekMethod = "cursorSeek"
 
-	// ReadHistoryMethod reads the history up to a limit.
-	ReadHistoryMethod = "readHistory"
+	// ReadHistoryAction reads the history up to a limit.
+	ReadHistoryAction = "readHistory"
 )
 
 // CreateCursorArgs contain the thingID and affordance filter name for the cursor

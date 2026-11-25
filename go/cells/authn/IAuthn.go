@@ -50,12 +50,15 @@ type ClientProfile struct {
 	// DisplayName of the client
 	DisplayName string `json:"displayName,omitempty"`
 
-	// PubKey with public key in PEM format intended for encryption
-	PubKeyPem string `json:"pubKey,omitempty"`
+	// PubKey with public key in PEM format intended for verifying passkeys
+	PubKeyPEM string `json:"pubKey,omitempty"`
 
 	// Role of the client when the account is enabled
 	// note that roles can only be updated using UpdateProfile by administrators.
 	Role string `json:"role,omitempty"`
+
+	// LastLogin ISO time of the last session login, if applicable.
+	LastLogin string `json:"lastLogin,omitempty"`
 
 	// TimeCreated ISO time the client account was created
 	TimeCreated string `json:"created,omitempty"`

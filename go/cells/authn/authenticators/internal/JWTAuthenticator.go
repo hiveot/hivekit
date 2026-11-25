@@ -111,7 +111,7 @@ func (svc *JWTAuthenticatorImpl) CreateToken(
 	signingKeyPub, _ := x509.MarshalPKIXPublicKey(&svc.signingKey.PublicKey)
 	signingKeyPubStr := base64.StdEncoding.EncodeToString(signingKeyPub)
 
-	// Create the JWT claims, which includes the username, clientType and expiry time
+	// Create the JWT claims, which includes the username, role and expiry time
 	claims := jwt.MapClaims{
 		"alg": jwt.SigningMethodES256,
 		"typ": "JWT",
