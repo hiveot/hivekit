@@ -33,14 +33,6 @@ var RCDeviceChain = []api.CellDefinition{
 		Type:        reconnect.ReconnectCellType,
 		Constructor: reconnect_service.NewReconnectServiceFactory,
 	},
-	// FIXME: if the client connection fails, the following cell will be ignored
-	// and reconnect will link to the next cell, which is not a transport client.
-	// as a result an error is reported that isn't the real problem.
-
-	// {
-	// 	Type:        wss.WotWebsocketClientCellType,
-	// 	Constructor: wss_client.NewWotWssClientFactory,
-	// },
 	{
 		// connect a client to the gateway/directory server.
 		// This client will receive requests and pass it to the linked exposed thing
@@ -50,11 +42,6 @@ var RCDeviceChain = []api.CellDefinition{
 		Type:        clients.TransportClientCellType,
 		Constructor: clients.NewTransportClientFactory,
 	},
-	// todo: add optional logging of requests
-	// todo: optional authorization of requests
-
-	// append the exposed thing here
-
 }
 
 type RCDeviceRecipe struct {

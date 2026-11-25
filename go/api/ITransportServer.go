@@ -37,6 +37,10 @@ const (
 	HiveotGrpcTcpSubprotocol  = "hiveot-grpc"
 	HiveotGrpcTcpProtocolType = HiveotGrpcTcpScheme + ":" + HiveotGrpcTcpSubprotocol
 
+	HiveotGrpcDnsScheme       = "dns"
+	HiveotGrpcDnsSubprotocol  = "hiveot-grpc"
+	HiveotGrpcDnsProtocolType = HiveotGrpcDnsScheme + ":" + HiveotGrpcTcpSubprotocol
+
 	// HiveOT websocket uses RRN messages as the envelope.
 	HiveotWebsocketScheme       = "wss"
 	HiveotWebsocketSubprotocol  = "hiveot:websocket"

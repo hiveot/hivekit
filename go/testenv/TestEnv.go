@@ -30,14 +30,17 @@ import (
 
 const (
 	TestServerHttpPort = 9445
-	TestGrpcTcpPort    = 50052 // where 50051 is the common port
+	TestGrpcDnsPort    = 50052 // where 50051 is the common port
 	TestTimeout        = time.Minute * 3
 )
 
 var TestHome = filepath.Join(os.TempDir(), "hivekit-test")
 var TestUDSPath = "/tmp/hivekit/testenv.socket"
-var TestGrpcUnixURL = api.HiveotGrpcUnixScheme + "://" + TestUDSPath
-var TestGrpcTcpURL = fmt.Sprintf("%s://localhost:%d", api.HiveotGrpcTcpScheme, TestGrpcTcpPort)
+
+var TestGrpcUnixURL = "unix://" + TestUDSPath
+
+var TestGrpcTcpURL = fmt.Sprintf("tcp://localhost:%d", TestGrpcDnsPort)
+var TestGrpcDnsURL = fmt.Sprintf("dns:///localhost:%d", TestGrpcDnsPort)
 
 // alt UDS using TCP socket
 // var TestUDSPath = ":8899"
@@ -45,11 +48,13 @@ var TestGrpcTcpURL = fmt.Sprintf("%s://localhost:%d", api.HiveotGrpcTcpScheme, T
 
 // var DefaultProtocol = api.HiveotWebsocketProtocolType
 
-// var DefaultProtocol = api.HiveotGrpcTcpProtocolType
+// var DefaultProtocol = api.HiveotGrpcUnixProtocolType
+
+var DefaultProtocol = api.HiveotGrpcTcpProtocolType
 
 // var DefaultProtocol = api.HiveotSseScProtocolType
 
-var DefaultProtocol = api.WotWebsocketProtocolType
+// var DefaultProtocol = api.WotWebsocketProtocolType
 
 // var DefaultProtocol = api.HttpBasicProtocolType
 
@@ -347,9 +352,10 @@ func (testEnv *TestEnv) NewTestClient(
 	// if err == nil {
 	// 	err = cl.Connect()
 	// }
-	// if err != nil {
-	// 	panic("NewTestClient failed to connect:" + err.Error())
-	// }
+	if err != nil {
+		runtime.Breakpoint()
+		panic("NewTestClient failed to connect:" + err.Error())
+	}
 	return cl, token
 }
 
@@ -370,11 +376,11 @@ func (testEnv *TestEnv) StartTestServer(protocol string) (srv api.ITransportServ
 		protocol = DefaultProtocol
 	}
 	switch protocol {
-	case api.HiveotGrpcTcpProtocolType:
+	case api.HiveotGrpcTcpProtocolType, api.HiveotGrpcDnsProtocolType:
 		serverCert := testEnv.CertBundle.ServerCert
 		caCert := testEnv.CertBundle.CaCert
 		srv, err = grpc_server.NewHiveotGrpcServer(
-			TestGrpcTcpURL, serverCert, caCert, testEnv.TestAuthn)
+			TestGrpcDnsURL, serverCert, caCert, testEnv.TestAuthn)
 
 	case api.HiveotGrpcUnixProtocolType:
 		serverCert := testEnv.CertBundle.ServerCert

@@ -346,9 +346,6 @@ func (svc *RouterServiceImpl) NewClientConnection(
 	//
 
 	// determine who to identify as for this connection; fall back to default
-
-	// FIXME: when router is used by cli, this contains the old token and no new token is used
-	// why isnt it updated?
 	clientID, secret, secScheme, found := svc.credStore.GetCredentials(connectURL)
 	if !found {
 		clientID = svc.clientID

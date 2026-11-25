@@ -30,13 +30,12 @@ func NewHiveotGrpcServer(
 
 // Returns a ready-to-use hiveot gRPC server using the factory environment
 func NewHiveotGrpcServerFactory(f api.ICellFactory, md *api.CellDefinition) (api.IHiveCell, error) {
-	// TODO: determine a good default
 	env := f.GetEnvironment()
 	serverCert, err := env.GetServerCert("")
 	caCert, _, err := env.GetCACert()
 	_ = err
 
-	grpcURL := grpc.DefaultGrpcUnixURL
+	grpcURL := grpc.DefaultGrpcDnsURL
 	if md.Config != nil {
 		grpcConfig, ok := md.Config.(grpc.GrpcConfig)
 		if ok {

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
@@ -78,28 +79,8 @@ func (srv *GrpcServerImpl) ServeStreamConnection(
 // The server will listen on the configured URL and handle incoming connections.
 // This adapts the URL scheme "unix", "uds", or "tcp" to the appropriate network type for net.Listen
 // and update the connectURL to match the scheme used for listening.
-func (srv *GrpcServerImpl) startServing() (err error) {
 
-	address := srv.GetConnectURL()
-	network := "tcp"
-	// start listening on unix sockets. Make sure the directory exists and the socket file doesn't.
-	if strings.HasPrefix(address, "unix") {
-		// m.connectURL is the same for the client
-		network = "unix"
-		address = strings.TrimPrefix(address, "unix://")
-		socketDir := filepath.Dir(address)
-		_ = os.Remove(address)
-		err = os.MkdirAll(socketDir, 0700)
-		if err != nil {
-			return err
-		}
-
-	} else {
-		// address is a tcp network tcp://ip:port
-		// gRPC clients do not support tcp scheme. remove it and use the server IP
-		address = strings.TrimPrefix(address, "tcp://")
-		network = "tcp"
-	}
+func (srv *GrpcServerImpl) startServing(network string, address string) (err error) {
 
 	lis, err := net.Listen(network, address)
 	if err != nil {
@@ -152,47 +133,51 @@ func StartGrpcServerImpl(
 		slog.String("address", address))
 
 	// cleanup the connect URL into one of these:
-	// UDS: unix://path/to/sock
-	// TCP: tcp://address:port
+	// UDS: unix:///path/to/sock
+	// TCP: tcp://address:port or dns:///address:port
 
 	// connectURL is the client endpoint to connect to
-	connectURL := address
+	// connectURL := address
 	subProtocol := api.HiveotGrpcTcpSubprotocol
 
-	if address == "" {
-		connectURL = grpctransport.DefaultGrpcUnixURL
-		subProtocol = api.HiveotGrpcUnixSubprotocol
-	} else if strings.HasPrefix(address, "unix") {
-		subProtocol = api.HiveotGrpcUnixSubprotocol
-		// no change
-	} else {
-		// the dns scheme allows including of a DNS server. This is not supported.
-		if strings.HasPrefix(address, "dns") {
-			subProtocol = api.HiveotGrpcTcpSubprotocol
-			// dns scheme use triple slashes
-			address = strings.TrimPrefix(address, "dns:///")
+	parts, err := url.Parse(address)
+	if err != nil {
+		return nil, err
+	}
+	network := "tcp"       // tcp or unix
+	connAddr := parts.Host // host:port or /path
+	subProtocol = api.HiveotGrpcTcpSubprotocol
+	connectURL := address
 
-		} else if strings.HasPrefix(address, "tcp") {
-			// gRPC *clients* do not support tcp scheme. remove it and use the server IP
-			address = strings.TrimPrefix(address, "tcp://")
-			subProtocol = api.HiveotGrpcTcpSubprotocol
-		} else {
-			// some unknown or missing scheme.
-			// remove the prefix if any and just use the address with tcp
-			parts := strings.Split(address, "://")
-			address = parts[len(parts)-1]
+	switch parts.Scheme {
+	case "unix":
+		subProtocol = api.HiveotGrpcUnixSubprotocol
+		network = "unix"
+		// start listening on unix sockets. Make sure the directory exists and the socket file doesn't.
+		connAddr = parts.Path
+		socketDir := filepath.Dir(connAddr)
+		_ = os.Remove(connAddr)
+		err = os.MkdirAll(socketDir, 0700)
+		if err != nil {
+			return nil, err
 		}
-		// if address is just a port then include the outbound IP for connecting to
-		if strings.HasPrefix(address, ":") {
-			// :port -> tcp://outboundIP:port
-			connectURL = fmt.Sprintf("tcp://%s%s", utils.GetOutboundIP("").String(), address)
-			subProtocol = api.HiveotGrpcTcpSubprotocol
+		// no change
+	case "dns":
+		subProtocol = api.HiveotGrpcTcpSubprotocol
+		// DNS prefix uses extra 'domain' slash, remove it
+		// url.Parse thinks the remainder is a path, so manually remove the slash
+		connAddr = strings.TrimPrefix(parts.Path, "/")
+		network = "tcp"
+		connectURL = address
+	default:
+		subProtocol = api.HiveotGrpcTcpSubprotocol
+		network = "tcp"
+		if parts.Host == "" {
+			connectURL = fmt.Sprintf("dns:///%s%s", utils.GetOutboundIP("").String(), address)
+			connAddr = ":"
 		} else {
-			// full address to connect;
-			// tcp:   tcp://host:port
-			// unix:  unix://path/to/sock
-			connectURL = fmt.Sprintf("tcp://%s", address)
-			subProtocol = api.HiveotGrpcTcpSubprotocol
+			connAddr = parts.Host
+			connectURL = address
 		}
 	}
 	thingID := grpctransport.HiveotGrpcServerCellType + "-" + shortid.MustGenerate()
@@ -205,6 +190,6 @@ func StartGrpcServerImpl(
 		subprotocol:         subProtocol,
 	}
 
-	err := srv.startServing()
+	err = srv.startServing(network, connAddr)
 	return srv, err
 }

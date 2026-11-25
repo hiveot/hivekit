@@ -12,6 +12,7 @@ import (
 	"github.com/hiveot/hivekit/go/cells"
 	"github.com/hiveot/hivekit/go/cells/logging"
 	"github.com/hiveot/hivekit/go/utils"
+	"github.com/lmittmann/tint"
 )
 
 // LoggingServiceImpl is a service for writing request, response and notification messages to a log output.
@@ -58,7 +59,7 @@ func (svc *LoggingServiceImpl) HandleRequest(req *msg.RequestMessage, replyTo ms
 // write notifications to the logging backend
 func (svc *LoggingServiceImpl) LogNotification(notif *msg.NotificationMessage) {
 	value := utils.DecodeAsString(notif.Data, 32)
-	svc.notificationLogger.Info("Notification (logservice)",
+	svc.notificationLogger.Info("Notification",
 		slog.String("correlationID", notif.CorrelationID),
 		slog.String("type", string(notif.AffordanceType)),
 		slog.String("thingID", notif.ThingID),
@@ -73,7 +74,7 @@ func (svc *LoggingServiceImpl) LogNotification(notif *msg.NotificationMessage) {
 // write request to the logging backend
 func (svc *LoggingServiceImpl) LogRequest(req *msg.RequestMessage) {
 	value := utils.DecodeAsString(req.Input, 32)
-	svc.requestLogger.Info("Request (logservice)",
+	svc.requestLogger.Info("Request",
 		slog.String("correlationID", req.CorrelationID),
 		slog.String("op", string(req.Operation)),
 		slog.String("thingID", req.ThingID),
@@ -99,6 +100,7 @@ func (svc *LoggingServiceImpl) NewLogger(cfg *logging.LoggingConfig) (
 		logDir := filepath.Dir(cfg.LogDestination)
 		_ = os.MkdirAll(logDir, 0750)
 
+		slog.Warn("Logging to logfile:" + cfg.LogDestination)
 		logFile, err = os.OpenFile(cfg.LogDestination, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0644)
 		if err != nil {
 			// fallback to stdout
@@ -126,10 +128,14 @@ func (svc *LoggingServiceImpl) NewLogger(cfg *logging.LoggingConfig) (
 		handler := slog.NewJSONHandler(logWriter, &slog.HandlerOptions{})
 		logger = slog.New(handler)
 	} else {
-		handler := slog.NewTextHandler(logWriter, &slog.HandlerOptions{})
+		opts := &tint.Options{
+			AddSource:  false, // no need for notifications and requests
+			TimeFormat: "Jan _2 15:04:05.0000",
+		}
+		handler := tint.NewTextHandler(logWriter, opts)
 		logger = slog.New(handler)
 	}
-
+	logger.Info("Logging service started")
 	return logger, releaseFn
 }
 

@@ -15,7 +15,8 @@ const (
 
 	// The default gRPC server listening URL
 	DefaultGrpcUnixURL = "unix:///tmp/hiveot/grpc-server.sock"
-	DefaultGrpcTcpURL  = "tcp://localhost:50051/hiveot/grpc"
+	DefaultGrpcTcpURL  = "tcp://:50051"
+	DefaultGrpcDnsURL  = "dns:///:50051"
 
 	// The grpc service that identifies the streams
 	GrpcTransportServiceName = "grpcTransport"

@@ -72,12 +72,12 @@ var GatewayRecipeCells = []api.CellDefinition{
 		Constructor: factory_service.NewBusFormationFactory,
 		Config: []api.CellDefinition{
 			{
-				// Websocket transport server is the preferred transport
+				// Websocket transport server is the wot compatible transport
 				Type:        wss.WotWebsocketServerCellType,
 				Constructor: wss_server.NewWotWssServerFactory,
 			},
 			// {
-			// 	// Hiveot SSE is a theoretical option, but why bother
+			// 	// Hiveot SSE is a theoretical option, but why bother?
 			// 	Type:        ssesc.SseScServerCellType,
 			// 	Constructor: ssesc_server.StartSseScServerFactory,
 			// },
@@ -236,7 +236,7 @@ func (r *GatewayRecipe) Start() {
 	r.f.Start()
 
 	// TODO: add gateway as device with props and events
-	tdoc := wot.NewTD(r.GetID(), "HiveOT Gateway", vocab.DeviceNetGateway)
+	tdoc := wot.NewTD(r.GetID(), "HiveOT Gateway", vocab.DeviceGateway)
 	r.f.AddTDSecForms(tdoc)
 
 	discoSrv := api.GetFactoryCell[discovery.IDiscoveryServer](

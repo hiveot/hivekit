@@ -31,17 +31,17 @@ func (sc *GrpcServerConnection) Close() {
 	sc.bstrm.Close()
 }
 
-// IsConnected returns the current connection status
-func (sc *GrpcServerConnection) IsConnected() bool {
-	return sc.bstrm.IsConnected()
-}
-
 // // GetConnectionStatus returns the current connection status
 func (sc *GrpcServerConnection) GetConnectionStatus() api.ConnectionStatus {
 	if sc.bstrm.IsConnected() {
 		return api.StatusConnected
 	}
 	return api.StatusLost
+}
+
+// IsConnected returns the current connection status
+func (sc *GrpcServerConnection) IsConnected() bool {
+	return sc.bstrm.IsConnected()
 }
 
 // Run starts processing a message stream from the client.

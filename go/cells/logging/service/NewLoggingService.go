@@ -9,6 +9,7 @@ import (
 )
 
 // NewLoggingService creates a ready-to-use instance of the logging service.
+// This logs requests and notifications to a log destination.
 //
 // config is the default service configuration.
 func NewLoggingService(config logging.LoggingConfig) (logging.ILoggingService, error) {

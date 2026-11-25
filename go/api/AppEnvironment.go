@@ -292,9 +292,9 @@ func (env *AppEnvironment) GetStorageDir(cellType string) string {
 // This returns an error if loading or parsing the config file fails.
 // Returns nil if the config file doesn't exist or is loaded successfully.
 func (env *AppEnvironment) LoadConfig(name string, cfg interface{}) error {
-	configFile := name
+	configFile := name + ".yaml"
 	if !path.IsAbs(configFile) {
-		configFile = path.Join(env.CertsDir, configFile)
+		configFile = path.Join(env.ConfigDir, configFile)
 	}
 	if _, err := os.Stat(configFile); err != nil {
 		slog.Info("Configuration file not found. Ignored.", "configFile", configFile)

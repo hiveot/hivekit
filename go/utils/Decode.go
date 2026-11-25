@@ -3,6 +3,7 @@ package utils
 import (
 	"fmt"
 	"log/slog"
+	"math"
 	"time"
 
 	"github.com/araddon/dateparse"
@@ -85,27 +86,37 @@ func DecodeAsInt(value any) int {
 }
 
 // DecodeAsString converts the value to a string
-// if value is already a string then it is returned as-is
+// if value is already a string then it is returned as-is, otherwise convert it.
 // if maxlen is provided then limit the resulting length and add ... if exceeded. Use 0 for all.
 func DecodeAsString(value any, maxlen int) string {
-	asString, err := conv.String(value)
-	if err != nil {
-		return ""
-	}
+	// asString, err := conv.String(value)
+	// if err != nil {
+	// return ""
+	// }
 	if value == nil {
 		return ""
 	}
-	// asString := ""
-	// switch v2 := value.(type) {
-	// case []byte:
-	// 	asString = string(v2)
-	// case string:
-	// 	asString = v2
-	// case *string:
-	// 	asString = *v2
-	// default:
-	// 	asString = fmt.Sprintf("%v", value)
-	// }
+	asString := ""
+	switch v2 := value.(type) {
+	case []byte:
+		asString = string(v2)
+	case string:
+		asString = v2
+	case *string:
+		asString = *v2
+	case float64:
+		// Decoding integers in JSON provides floats.
+		floatVal := float64(v2)
+		intVal := math.Trunc(floatVal)
+		if floatVal == intVal {
+			asString, _ = conv.String(int(intVal))
+		} else {
+			asString, _ = conv.String(floatVal)
+		}
+
+	default:
+		asString, _ = conv.String(value)
+	}
 	if maxlen <= 0 || len(asString) <= maxlen {
 		return asString
 	}

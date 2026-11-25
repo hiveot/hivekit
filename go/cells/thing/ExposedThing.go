@@ -5,8 +5,10 @@ import (
 	"fmt"
 	"log/slog"
 	"maps"
+	"math"
 	"sync"
 
+	"github.com/cstockton/go-conv"
 	"github.com/hiveot/hivekit/go/api"
 	"github.com/hiveot/hivekit/go/api/msg"
 	"github.com/hiveot/hivekit/go/api/wot"
@@ -54,6 +56,34 @@ type ExposedThing struct {
 	state ExposedThingState
 }
 
+// exceeds determines if the difference between old and new values exceed a value
+// intended for integers and floats only.
+func (eThing *ExposedThing) exceeds(value any, oldValue any, minDiff float64) bool {
+	if value == nil || oldValue == nil {
+		return true
+	}
+	switch typedVal := value.(type) {
+	case float32, float64:
+		newFloat, err := conv.Float64(typedVal)
+		oldFloat, err2 := conv.Float64(oldValue)
+		diffFloat := math.Abs(newFloat - oldFloat)
+		hasDiff := err != nil || err2 != nil || diffFloat > minDiff
+		return hasDiff
+	case int, int32, int64, uint, uint32, uint64:
+		oldInt, err := conv.Int64(oldValue)
+		newInt, err2 := conv.Int64(typedVal)
+		diffInt := newInt - oldInt
+		if diffInt < 0 {
+			diffInt = -diffInt
+		}
+		minDiffInt, _ := conv.Int64(minDiff)
+		hasDiff := err != nil || err2 != nil || diffInt > minDiffInt
+		return hasDiff
+	default:
+		return true
+	}
+}
+
 // Return the JSON with the TD of this exposed thing and (optionally) all the things
 // that are managed by it.
 // Intended for use by consumers/gateway that want to know what is available,
@@ -64,8 +94,14 @@ type ExposedThing struct {
 // 	return []string{eThing.tdocJSON}
 // }
 
-func (eThing *ExposedThing) GetProperty(name string) (val any, found bool) {
-	return eThing.GetProperty(name)
+// Get the latest published event value
+func (eThing *ExposedThing) GetEvent(name string) (tv *msg.ThingValue) {
+	return eThing.state.GetEvent(name)
+}
+
+// Get the latest published property value
+func (eThing *ExposedThing) GetProperty(name string) (tv *msg.ThingValue) {
+	return eThing.state.GetProperty(name)
 }
 
 // HandleReadRequests handles reading of actions, events, and properties for a nested thing.
@@ -190,22 +226,32 @@ func (eThing *ExposedThing) PubActionStatus(thingID string, name string, status 
 // PubEvent publishes an event notification to subscribers and store the value in the
 // exposed thing state store. It can be read using ReadEvent()
 //
+// This supports filtering on small changes to prevent unnecesary publications. If exceeding is a
+// number > 0 then float and integer values must exceed the given value for changes to count. This
+// check only takes place if 'onlyChanges' is true.
+//
 //	thingID is the thing for which the cell publishes
 //	name is the name of the event to publish.
 //	value is the value of the event to publish, if any.
 //	onlyChanges flag only publish changed values.
-func (eThing *ExposedThing) PubEvent(evName string, evValue any, onlyChanges bool) {
+//	exceeding optional minimum amount of change before storing and publishing the value
+func (eThing *ExposedThing) PubEvent(evName string, evValue any, onlyChanges bool, exceeding ...float64) {
 
+	var old *msg.ThingValue
 	thingID := eThing.GetID()
 
 	hasChanged := true
 	if onlyChanges {
 		// since most values are native types a simple compare should suffice
-		old := eThing.state.GetEvent(evName)
+		old = eThing.state.GetEvent(evName)
 		if old != nil && old.Raw == evValue {
 			// if old != nil && reflect.DeepEqual(old, propVal) {
 			hasChanged = false
 		}
+	}
+	if onlyChanges && hasChanged && old != nil && exceeding != nil {
+		// additional filter for the amount of change
+		hasChanged = eThing.exceeds(evValue, old.Raw, exceeding[0])
 	}
 	if hasChanged {
 
@@ -218,22 +264,33 @@ func (eThing *ExposedThing) PubEvent(evName string, evValue any, onlyChanges boo
 // PubProperty publishes a property change notification to observers and store the value
 // in the exposed thing state store. It can be read using ReadProperty()
 //
-// Do not publish non-observable properties like date/time and counters, unless intentional.
+// This supports filtering on small changes to prevent unnecesary publications. If exceeding is a
+// number > 0 then float and integer values must exceed the given value for changes to count. This
+// check only takes place if 'onlyChanges' is true.
+//
+// Note: do not publish non-observable properties like date/time and counters, unless intentional.
 //
 //	propName is the name of the property to publish.
 //	propValue is the value of the property to publish.
 //	onlyChanges flag only publish changed values.
-func (eThing *ExposedThing) PubProperty(propName string, propVal any, onlyChanges bool) {
+//	exceeding optional  minimum amount of change before storing and publishing the value
+func (eThing *ExposedThing) PubProperty(propName string, propVal any, onlyChanges bool, exceeding ...float64) {
+
+	var old *msg.ThingValue
 
 	thingID := eThing.GetID()
 	hasChanged := true
 	if onlyChanges {
 		// since most values are native types a simple compare should suffice
-		old := eThing.state.GetProperty(propName)
+		old = eThing.state.GetProperty(propName)
 		if old != nil && old.Raw == propVal {
 			// if old != nil && reflect.DeepEqual(old, propVal) {
 			hasChanged = false
 		}
+	}
+	if onlyChanges && hasChanged && old != nil && exceeding != nil {
+		// additional filter for the amount of change
+		hasChanged = eThing.exceeds(propVal, old.Raw, exceeding[0])
 	}
 	if hasChanged {
 
@@ -261,7 +318,8 @@ func (eThing *ExposedThing) PubProperty(propName string, propVal any, onlyChange
 //	onlyChanges flag only publish changed values
 func (eThing *ExposedThing) PubProperties(propMap map[string]any, onlyChanges bool) {
 	for propName, propVal := range propMap {
-		eThing.PubProperty(propName, propVal, onlyChanges)
+		// cant filter using 'exceeding' for bulk
+		eThing.PubProperty(propName, propVal, onlyChanges, 0)
 	}
 }
 

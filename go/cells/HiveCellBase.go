@@ -217,8 +217,10 @@ func (base *HiveCellBase) Rpc(
 				operation, thingID, name, err)
 		}
 	}
-	if err != nil {
-		slog.Error("Rpc", "ID", base.cellID, "err", err.Error())
+	// Log error info if the delivery failed, not if the delivery succee but the request
+	// itself failed. The caller decides whether this is a severe error.
+	if err != nil && resp.AsError() == nil {
+		slog.Error("Rpc delivery failed", "ID", base.cellID, "err", err.Error())
 	}
 	return err
 }

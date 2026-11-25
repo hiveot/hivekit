@@ -29,6 +29,7 @@ var PropAffOps = []string{
 }
 
 // Messaging converter between WoT websocket and the HiveOT standard RRN message envelopes.
+// This includes 'senderID' to support the hiveot extra info but is compatible with WoT.
 type WotWssCommon struct {
 	CorrelationID string `json:"correlationID,omitempty"`
 
@@ -45,6 +46,10 @@ type WotWssCommon struct {
 
 	// the operation this is a request for or response to.
 	Operation string `json:"operation"`
+
+	// SenderID is an optional non-WoT field intended for tracking the request sender
+	// for logging or other use-cases.
+	SenderID string `json:"senderID,omitempty"`
 
 	// ThingID of the thing this is a response from.
 	ThingID string `json:"thingID,omitempty"`
@@ -79,10 +84,6 @@ type WotWssRequestMessage struct {
 
 	// op; readmultipleproperties (array of property names)y
 	Names []string `json:"names,omitempty"`
-
-	// SenderID is an optional non-WoT field intended for tracking the request sender
-	// for logging or other use-cases.
-	SenderID string `json:"senderID"`
 
 	// op: writeproperty
 	Value any `json:"value,omitempty"`
@@ -161,6 +162,10 @@ func (svc *WotWssMsgEncoder) DecodeNotification(senderID string, raw []byte) (*m
 	if data == nil && wssNotif.Value != nil {
 		data = wssNotif.Value
 	}
+	// keep the senderID if none is provided
+	if senderID == "" {
+		senderID = wssNotif.SenderID
+	}
 
 	notif := &msg.NotificationMessage{
 		AffordanceType: affType,
@@ -232,6 +237,10 @@ func (svc *WotWssMsgEncoder) DecodeResponse(senderID string, raw []byte) (*msg.R
 	err := jsoniter.Unmarshal(raw, &wssResp)
 	if err != nil {
 		return nil, fmt.Errorf("DecodeResponse:Not a WoT WSS response message: %w", err)
+	}
+	// keep the senderID if none is provided
+	if senderID == "" {
+		senderID = wssResp.SenderID
 	}
 
 	resp := &msg.ResponseMessage{
@@ -360,6 +369,7 @@ func (svc *WotWssMsgEncoder) EncodeNotification(notif *msg.NotificationMessage) 
 			MessageType:   msg.MessageTypeNotification,
 			Name:          notif.Name,
 			Operation:     op,
+			SenderID:      notif.SenderID,
 			ThingID:       notif.ThingID,
 			Timestamp:     notif.Timestamp,
 		},
@@ -378,12 +388,12 @@ func (svc *WotWssMsgEncoder) EncodeRequest(req *msg.RequestMessage) ([]byte, err
 			MessageType:   msg.MessageTypeRequest,
 			Name:          req.Name,
 			Operation:     req.Operation,
+			SenderID:      req.SenderID,
 			ThingID:       req.ThingID,
 			Timestamp:     req.Timestamp,
 		},
 		// ActionID: req.CorrelationID, // correlationID is used as actionID // TBD: bother with this?
-		Input:    req.Input, // in case of invokeaction
-		SenderID: req.SenderID,
+		Input: req.Input, // in case of invokeaction
 		// Names:     req.Input,  // in case of readmultiple/allproperties
 		Value:  req.Input, // in case of writeproperty
 		Values: req.Input, // in case of writeallproperties, writemultipleproperties
@@ -411,6 +421,7 @@ func (svc *WotWssMsgEncoder) EncodeResponse(resp *msg.ResponseMessage) ([]byte, 
 			MessageType:   msg.MessageTypeResponse,
 			Name:          resp.Name,
 			Operation:     resp.Operation,
+			SenderID:      resp.SenderID,
 			ThingID:       resp.ThingID,
 			Timestamp:     resp.Timestamp,
 		},

@@ -164,6 +164,8 @@ func NewTransportClientFromURL(serverURL string, subProtocol string, rootCAs *x5
 		switch parts.Scheme {
 		case api.HiveotGrpcUnixScheme:
 			protocolType = api.HiveotGrpcUnixProtocolType
+		case api.HiveotGrpcDnsScheme:
+			protocolType = api.HiveotGrpcDnsProtocolType
 		case api.HiveotGrpcTcpScheme:
 			protocolType = api.HiveotGrpcTcpProtocolType
 		case api.HiveotSseScScheme:
@@ -178,7 +180,7 @@ func NewTransportClientFromURL(serverURL string, subProtocol string, rootCAs *x5
 	}
 
 	switch protocolType {
-	case api.HiveotGrpcTcpProtocolType:
+	case api.HiveotGrpcTcpProtocolType, api.HiveotGrpcDnsProtocolType:
 		// gRPC only needs a connect href. All operations use this connection.
 		cl = grpc_client.NewHiveotGrpcClient(serverURL, rootCAs)
 

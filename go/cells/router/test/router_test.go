@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"os"
 	"path"
+	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -359,20 +360,23 @@ func TestSubscribeReconnectToDevice(t *testing.T) {
 	ctx, cancelFn := context.WithTimeout(context.Background(), msg.CellTimeout)
 
 	// a consumer links to the router which connects to devices using device TDs
+	var sillymux sync.Mutex // Sometimes go test reports a data race on the 'v1' local vars. Why???
 	co := consumer.NewConsumer("router-test", func(notif *msg.NotificationMessage) {
+		sillymux.Lock()
+		defer sillymux.Unlock()
 		if notif.Name == event1Name {
-			var v1 string
-			err = notif.Decode(&v1)
-			rxEvValue.Store(v1)
+			var evValue string
+			err = notif.Decode(&evValue)
+			rxEvValue.Store(evValue)
 			assert.NoError(t, err)
 			// the event cancels the wait so must receive prop first
 			cancelFn()
 		} else if notif.Name == prop1Name {
-			var v1b string // naming this v1 leads to a data race with the other block. Why???
-			err = notif.Decode(&v1b)
-			rxPropValue.Store(v1b)
+			var propValue string
+			err = notif.Decode(&propValue)
+			rxPropValue.Store(propValue)
 			assert.NoError(t, err)
-			slog.Info("received prop value", prop1Name, v1b)
+			slog.Info("received prop value", prop1Name, propValue)
 		}
 	}, routerSvc)
 
@@ -385,7 +389,7 @@ func TestSubscribeReconnectToDevice(t *testing.T) {
 	// 3. the device updates a property and event which should be received.
 	eThing.PubProperty(prop1Name, prop1Value1, true)
 	eThing.PubEvent(event1Name, event1Value, true)
-	time.Sleep(time.Millisecond)
+	time.Sleep(time.Millisecond * 10)
 	<-ctx.Done()
 	assert.Equal(t, prop1Value1, rxPropValue.Load())
 	assert.Equal(t, event1Value, rxEvValue.Load())
@@ -408,7 +412,7 @@ func TestSubscribeReconnectToDevice(t *testing.T) {
 
 	// publish a property should now succeed
 	eThing.PubProperty(prop1Name, prop1Value2, true)
-	time.Sleep(time.Millisecond) // time to receive
+	time.Sleep(time.Millisecond * 10) // time to receive
 
 	values, err = co.ReadAllProperties(thingID)
 	assert.NoError(t, err)
@@ -418,7 +422,7 @@ func TestSubscribeReconnectToDevice(t *testing.T) {
 	// on reconnect, subscription should remain intact and event should be received
 	// todo: should use channel with timeout as the time to receive varies.
 	eThing.PubThingEvent(thingID, event1Name, event2Value)
-	time.Sleep(time.Millisecond * 3) // time to receive
+	time.Sleep(time.Millisecond * 10) // time to receive
 	assert.Equal(t, event2Value, rxEvValue.Load())
 
 }
